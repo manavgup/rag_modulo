@@ -28,7 +28,7 @@ UPSERT_BATCH_SIZE = 100
 OUTPUT_DIM = 1536
 
 EMBEDDING_FIELD: str = "embedding"
-TOKENIZER_MODEL = os.environ.get("TOKENIZER_MODEL") or "sentence-transformers/all-minilm-l6-v2"
+EMBEDDING_MODEL = os.environ.get("TOKENIZER_MODEL") or "sentence-transformers/all-minilm-l6-v2"
 
 MILVUS_INDEX_PARAMS = os.environ.get("MILVUS_INDEX_PARAMS")
 MILVUS_SEARCH_PARAMS = os.environ.get("MILVUS_SEARCH_PARAMS")
@@ -345,7 +345,7 @@ if __name__ == "__main__":
     store = MilvusStore()
     print(store)
     store.delete_collection(MILVUS_COLLECTION_NAME)
-    store.create_collection(MILVUS_COLLECTION_NAME)
+    store.create_collection(MILVUS_COLLECTION_NAME, EMBEDDING_MODEL, store.client)
     print("Collection created", store.collection_name)
     document_chunks = [
         DocumentChunk(chunk_id="1", text="Hello world", vectors=[0.1, 0.2, 0.3],
