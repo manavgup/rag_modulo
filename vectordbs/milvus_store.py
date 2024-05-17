@@ -1,60 +1,62 @@
-from typing import List, Dict, Any, Optional
+from typing import List, Optional, Union, Dict, Any
 from pymilvus import (
-    MilvusClient, 
-    DataType, 
-    FieldSchema, 
-    CollectionSchema, 
-    utility, 
-    Collection, 
-    MilvusException
+    connections,
+    utility,
+    FieldSchema, CollectionSchema, DataType,
+    Collection, IndexType, MilvusClient, MilvusException
 )
-from vector_store import VectorStore
-from data_types import DocumentChunk
-import os
+from data_types import (
+    Document, DocumentChunk, DocumentMetadataFilter, QueryWithEmbedding,
+    QueryResult, VectorStore, DocumentChunkWithScore, Source, DocumentChunkMetadata
+)
 from genai import Client
-from uuid import uuid4
+import logging
 import json
+import re
+import os
 
-MILVUS_COLLECTION: Optional[str] = os.environ.get("MILVUS_COLLECTION") or "c" + uuid4().hex
+MILVUS_COLLECTION: Optional[str] = os.environ.get("MILVUS_COLLECTION","DocumentChunk")
 MILVUS_HOST = os.environ.get("MILVUS_HOST") or "localhost"
-MILVUS_PORT = os.environ.get("MILVUS_PORT") or 19530
+MILVUS_PORT = os.environ.get("MILVUS_PORT") or "19530"
 MILVUS_USER = os.environ.get("MILVUS_USER")
 MILVUS_PASSWORD = os.environ.get("MILVUS_PASSWORD")
 MILVUS_USE_SECURITY = False if MILVUS_PASSWORD is None else True
+
+MILVUS_COLLECTION_NAME = "DocumentChunk"
+EMBEDDING_DIM = 4
+UPSERT_BATCH_SIZE = 100
+
+EMBEDDING_FIELD: str = "embedding"
+EMBEDDING_MODEL = os.environ.get("TOKENIZER_MODEL") or "sentence-transformers/all-minilm-l6-v2"
 
 MILVUS_INDEX_PARAMS = os.environ.get("MILVUS_INDEX_PARAMS")
 MILVUS_SEARCH_PARAMS = os.environ.get("MILVUS_SEARCH_PARAMS")
 MILVUS_CONSISTENCY_LEVEL = os.environ.get("MILVUS_CONSISTENCY_LEVEL")
 
-UPSERT_BATCH_SIZE = 100
-OUTPUT_DIM = 1536
-
-EMBEDDING_FIELD: str = "embedding"
-
 SCHEMA = [
-    ("id", FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=True)),
-    (EMBEDDING_FIELD, FieldSchema(name=EMBEDDING_FIELD, dtype=DataType.FLOAT_VECTOR, dim=OUTPUT_DIM)),
-    ("text", FieldSchema(name="text", dtype=DataType.VARCHAR, max_length=65535)),
-    ("document_id", FieldSchema(name="document_id", dtype=DataType.VARCHAR, max_length=65535)),
-    ("source_id", FieldSchema(name="source_id", dtype=DataType.VARCHAR, max_length=65535)),
-    ("source", FieldSchema(name="source", dtype=DataType.VARCHAR, max_length=65535)),
-    ("url", FieldSchema(name="url", dtype=DataType.VARCHAR, max_length=65535), ""),
-    ("created_at", FieldSchema(name="created_at", dtype=DataType.INT64), -1),
-    ("author", FieldSchema(name="author", dtype=DataType.VARCHAR, max_length=65535))
+    FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=True),
+    FieldSchema(name="document_id", dtype=DataType.VARCHAR, max_length=65535),
+    FieldSchema(name=EMBEDDING_FIELD, dtype=DataType.FLOAT_VECTOR, dim=EMBEDDING_DIM),
+    FieldSchema(name="text", dtype=DataType.VARCHAR, max_length=65535),
+    FieldSchema(name="chunk_id", dtype=DataType.VARCHAR, max_length=65535),
+    FieldSchema(name="source_id", dtype=DataType.VARCHAR, max_length=65535),
+    FieldSchema(name="source", dtype=DataType.VARCHAR, max_length=65535),
+    FieldSchema(name="url", dtype=DataType.VARCHAR, max_length=65535),
+    FieldSchema(name="created_at", dtype=DataType.VARCHAR, max_length=65535),
+    FieldSchema(name="author", dtype=DataType.VARCHAR, max_length=65535)
 ]
 
 class MilvusStore(VectorStore):
-    def __init__(self) -> None:
+    def __init__(self, host: str = MILVUS_HOST, port: str = MILVUS_PORT) -> None:
+        self.collection_name = MILVUS_COLLECTION_NAME
+        self.host = host
+        self.port = port
         self.client: MilvusClient = None
-        self.index_params: Optional[Dict[str, Any]] = None
-        self.search_params: Optional[Dict[str, Any]] = None
-        try:
-            self.client = MilvusClient(
-                uri=f"http://{MILVUS_HOST}:{MILVUS_PORT}",
-                user=MILVUS_USER, 
-                password=MILVUS_PASSWORD)
-        except Exception as e:
-            print(f"Failed to connect to Milvus: {e}")
+        self._connect()
+        self.collection: Collection = None
+
+    def _connect(self) -> None:
+        connections.connect(default={"host": self.host, "port": self.port})
 
     def create_collection(self, name: str, 
                           embedding_model_id: str, client: Client, 
@@ -68,27 +70,29 @@ class MilvusStore(VectorStore):
             index_file_size (int): The index file size (default: 1024).
             metric_type (str): The metric type (default: "L2").
         """
-        self.collection: Collection = None
         try:
             if utility.has_collection(collection_name=name):
                 utility.drop_collection(collection_name=name)
             
-            # If the collection does not exist, create a new collection
+            # If the collection does not exist, create a new collection else load it
             if not utility.has_collection(name):
                 schema = CollectionSchema(fields=SCHEMA)
                 # use the schema to create a new collection
                 self.collection = Collection(name=name, schema=schema)
-                self._print_info("Create Milvus collection '{}' with schema {}"
+                logging.info("Create Milvus collection '{}' with schema {}"
+                                    .format(name, schema))
+                print("Create Milvus collection '{}' with schema {}"
                                     .format(name, schema))
                 self._create_index()
+                self.collection.load()  # Load the collection
             else:
                 self.collection = Collection(name=name)
-                self._print_info("Collection '{}' already exists".format(name))
+                logging.info("Collection '{}' already exists".format(name))
                 self.collection.load()
         except Exception as e:
-            self._print_err("Failed to create collection {},  error: {}".format(name, e))
+            logging.error("Failed to create collection {},  error: {}".format(name, e))
         return self.collection
-
+    
     def _create_index(self) -> None:
         """
         Create an index for the Milvus collection.
@@ -100,7 +104,7 @@ class MilvusStore(VectorStore):
             if len(self.collection.indexes) == 0:
                 if self.index_params is not None:
                     # Convert the string format to JSON format parameters passed by MILVUS_INDEX_PARAMS
-                    self._print_info("Create index for collection '{}' with params {}"
+                    logging.debug("Create index for collection '{}' with params {}"
                                     .format(self.collection.name, self.index_params))
                     # Create an index on the 'embedding' field with the index params found in init
                     self.collection.create_index(field_name=EMBEDDING_FIELD, index_params=self.index_params)
@@ -112,22 +116,22 @@ class MilvusStore(VectorStore):
                             "index_type": "HNSW",
                             "params": {"M": 8, "efConstruction": 64},
                         }
-                        self._print_info("Attempting creation of Milvus '{}' index".format(i_p["index_type"]))
+                        logging.info("Attempting creation of Milvus '{}' index".format(i_p["index_type"]))
                         self.collection.create_index(field_name=EMBEDDING_FIELD, index_params=i_p)
                         self.index_params = i_p
-                        self._print_info("Creation of Milvus '{}' index successful".format(i_p["index_type"]))
+                        logging.info("Creation of Milvus '{}' index successful".format(i_p["index_type"]))
                     except MilvusException:
-                        self._print_info("Attempting creation of Milvus default index")
+                        logging.info("Attempting creation of Milvus default index")
                         i_p = {"metric_type": "IP", "index_type": "AUTOINDEX", "params": {}}
                         self.collection.create_index(field_name=EMBEDDING_FIELD, index_params=i_p)
                         self.index_params=i_p
-                        self._print_info("Created Milvus default index")
+                        logging.debug("Created Milvus default index")
             else:
-                self._print_info("Index already exists for collection '{}'".format(self.collection.name))
+                logging.debug("Index already exists for collection '{}'".format(self.collection.name))
                 for index in self.collection.indexes:
                     idx = index.to_dict()
                     if idx["field"] == EMBEDDING_FIELD:
-                        self._print_info("Index already exists: {}".format(idx))
+                        logging.debug("Index already exists: {}".format(idx))
                         self.index_params=idx["index_param"]
                         break
                 
@@ -158,9 +162,43 @@ class MilvusStore(VectorStore):
                         self.search_params=default_search_params[self.index_params["index_type"]]
                     else:
                         self.search_params=default_search_params["AUTOINDEX"]
-                    self._print_info("Milvus search parameters: {}".format(self.search_params))
+                    logging.info("Milvus search parameters: {}".format(self.search_params))
         except Exception as e:
-            self._print_err("Failed to create index for collection '{}', error: {}".format(self.collection.name, e))
+            logging.debug("Failed to create index for collection '{}', error: {}".format(self.collection.name, e))
+
+    def add_documents(self, collection_name: str, documents: List[Document]) -> List[str]:
+        """
+        Add a list of documents to the collection.
+
+        Args:
+            collection_name (str): The name of the collection to add documents to.
+            documents (List[dict]): The list of documents to add.
+                Each document should be a dictionary with 'text' and 'embedding' keys.
+        """
+        try:
+            data = []
+            for document in documents:
+                for chunk in document.chunks:
+                    chunk.document_id = document.document_id  # Ensure each chunk references its parent document
+                    
+                    data.append({
+                        "document_id": chunk.document_id,
+                        "embedding": chunk.vectors,
+                        "text": chunk.text,
+                        "chunk_id": chunk.chunk_id,
+                        "source_id": chunk.metadata.source_id if chunk.metadata else "",
+                        "source": chunk.metadata.source.value if chunk.metadata else "",
+                        "url": chunk.metadata.url if chunk.metadata else "",
+                        "created_at": chunk.metadata.created_at if chunk.metadata else "",
+                        "author": chunk.metadata.author if chunk.metadata else ""
+                    })
+            
+            logging.debug(f"Inserting data: {data}")
+            self.collection.insert(data)
+            logging.info(f"Successfully added documents to collection {collection_name}")
+        except Exception as e:
+            logging.error(f"Failed to add documents to collection {collection_name}: {e}", exc_info=True)
+        return [doc.document_id for doc in documents]
     
     def _upsert(self, chunks: Dict[str, List[DocumentChunk]]) -> List[str]:
         """Upsert chunks into the datastore.
@@ -192,36 +230,27 @@ class MilvusStore(VectorStore):
                         insert[i].append(d)
                     document_ids.append(document_id)
         except Exception as e:
-            self._print_err(f"Failed to upsert data: {e}")
+            logging.debug(f"Failed to upsert data: {e}")
         return document_ids
-         
-    def delete_collection(self, name: str) -> None:
-        """
-        Delete an existing Milvus collection.
-
-        Args:
-            name (str): The name of the collection to delete.
-        """
-        if not self.client.has_collection(collection_name=name):
-            raise ValueError(f"Collection {name} does not exist.")
-        
-        self.client.drop_collection(name)
-
-    def add_documents(self, collection_name: str, documents: List[dict]):
-        """
-        Add a list of documents to the collection.
-
-        Args:
-            collection_name (str): The name of the collection to add documents to.
-            documents (List[dict]): The list of documents to add.
-                Each document should be a dictionary with 'text' and 'embedding' keys.
-        """
-        try:
-            self.collection.insert(documents)
-        except Exception as e:
-            self._print_err(f"Failed to add documents to collection {collection_name}: {e}")
-
-    def retrieve_documents(self, collection_name: str, search_query: List[float], top_k: int = 10):
+    
+    def _insert_chunk(self, chunk: DocumentChunk) -> None:
+        data = [
+            None,  # 'id' will be auto-generated
+            chunk.document_id,
+            chunk.vectors,
+            chunk.text,
+            chunk.chunk_id,
+            chunk.metadata.source_id if chunk.metadata else "",
+            chunk.metadata.source.value if chunk.metadata else "",
+            chunk.metadata.url if chunk.metadata else "",
+            chunk.metadata.created_at if chunk.metadata else "",
+            chunk.metadata.author if chunk.metadata else ""
+        ]
+        print("\ndata=", data)
+        self.collection.insert([data])
+    
+    def retrieve_documents(self, query: Union[str, QueryWithEmbedding], 
+                          collection_name: Optional[str] = None, limit: int = 10) -> QueryResult:
         """
         Retrieve documents from the collection.
 
@@ -233,19 +262,17 @@ class MilvusStore(VectorStore):
         Returns:
             List[dict]: The list of retrieved documents.
         """
-        collection = Collection(name=collection_name, client=self.client)
-        search_results = collection.search(search_query, anns_field="embedding", params={"topk": top_k})
+        search_params = {"metric_type": "IP", "params": {"nprobe": 10}}
+        search_results = self.collection.search(
+                            data=[query.vectors], 
+                            anns_field="embedding", 
+                            param=search_params,
+                            output_fields=["chunk_id", "text", "document_id", "embedding", "source", "source_id", "url", "created_at", "author"], 
+                            limit=limit)
 
-        retrieved_documents = []
-        for hit in search_results:
-            retrieved_documents.append({
-                'id': hit.id,
-                'score': hit.score,
-                'embedding': hit.entity.get('embedding')
-            })
-
-        return retrieved_documents
-
+        #search_results = collection.search(search_query, anns_field="embedding", params={"topk": top_k})
+        return self._process_search_results(search_results)
+    
     def delete_data(self, collection_name: str, document_ids: List[int]):
         """
         Delete documents from the collection by their IDs.
@@ -256,19 +283,124 @@ class MilvusStore(VectorStore):
         """
         collection = Collection(name=collection_name, client=self.client)
         collection.delete([document_ids])
-    
+        
     def _get_schema(self):
         return SCHEMA
-    
-    def _get_values(self, chunk: DocumentChunk) -> List[any] | None:  # type: ignore
-        """Convert the chunk into a list of values to insert whose indexes align with fields.
+        
+
+    def query(self, query: QueryWithEmbedding, collection_name: Optional[str] = None, number_of_results: int = 10, filter: Optional[DocumentMetadataFilter] = None) -> QueryResult:
+        search_params = {"metric_type": MetricType.L2, "params": {"nprobe": 10}}
+        result = self.collection.search(data=[query.vectors], anns_field="embeddings", param=search_params, limit=number_of_results)
+        return self._process_search_results(result)
+
+    def delete_collection(self, name: str) -> None:
+        """
+        Delete an existing Milvus collection.
 
         Args:
-            chunk (DocumentChunk): The chunk to convert.
-
-        Returns:
-            List (any): The values to insert.
+            name (str): The name of the collection to delete.
         """
-        #convert DocumentChunk to dict
-        chunk_dict = chunk.dict()
+        if not utility.has_collection(collection_name=name):
+            logging.debug(f"Collection {name} does not exist.")
         
+        utility.drop_collection(name)
+    
+    def delete_documents(self, document_ids: List[str], collection_name: Optional[str] = None) -> None:
+        expr = f"chunk_id in {tuple(document_ids)}"
+        self.collection.delete(expr)
+    
+    def get_document(self, document_id: str, collection_name: Optional[str] = None) -> Optional[Document]:
+        expr = f"document_id == '{document_id}'"
+        results = self.collection.query(expr=expr, output_fields=["*"])
+        if results:
+            chunks = [self._convert_to_chunk(result) for result in results]
+            return Document(document_id=document_id, name=document_id, chunks=chunks)
+            #return self._convert_to_document(results[0])
+        return None
+    
+    def _convert_to_chunk(self, data: Dict[str, Any]) -> DocumentChunk:
+        return DocumentChunk(
+            chunk_id=str(data["chunk_id"]),
+            text=data["text"],
+            vectors=data["embedding"],
+            metadata=DocumentChunkMetadata(
+                source=Source(data["source"]),
+                source_id=data.get("source_id"),
+                url=data.get("url"),
+                created_at=data.get("created_at"),
+                author=data.get("author")
+            ),
+            document_id=data["document_id"]
+        )
+        
+    def _convert_to_document(self, data: Dict[str, Any]) -> Document:
+        chunk = DocumentChunk(
+            chunk_id=str(data["chunk_id"]),
+            text=data["text"],
+            vectors=data["embeddings"],
+            metadata=DocumentChunkMetadata(
+                source=Source(data["source"]),
+                source_id=data.get("source_id"),
+                url=data.get("url"),
+                created_at=data.get("created_at"),
+                author=data.get("author")
+            )
+        )
+        return Document(document_id=data["chunk_id"], name=data["chunk_id"], chunks=[chunk])
+    
+    def _embed_text(self, text: str) -> List[float]:
+        # Dummy embedding function, replace with actual model
+        return [0.0] * EMBEDDING_DIM
+
+    def _process_search_results(self, results: Any) -> QueryResult:
+        chunks_with_scores = []
+        similarities = []
+        ids = []
+        for result in results:
+            for hit in result:
+                chunks_with_scores.append(
+                    DocumentChunkWithScore(
+                        chunk_id=hit.entity.get("chunk_id"),
+                        text=hit.entity.get("text"),
+                        vectors=hit.entity.get("embedding"),
+                        metadata=DocumentChunkMetadata(
+                            source=Source(hit.entity.get("source")),
+                            source_id=hit.entity.get("source_id"),
+                            url=hit.entity.get("url"),
+                            created_at=hit.entity.get("created_at"),
+                            author=hit.entity.get("author")
+                        ),
+                        score=hit.distance
+                    )
+                )
+                ids.append(hit.entity.get("chunk_id"))
+            similarities.append(result.distances)
+
+        return QueryResult(data=chunks_with_scores, similarities=similarities, ids=ids)
+
+    async def __aenter__(self) -> "MilvusStore":
+        return self
+
+    async def __aexit__(self, exc_type: Optional[type], exc_val: Optional[BaseException], exc_tb: Optional[Any]) -> None:
+        if self.client:
+            self.client.close()
+
+if __name__ == "__main__":
+    store = MilvusStore()
+    print(store)
+    store.delete_collection(MILVUS_COLLECTION_NAME)
+    store.create_collection(MILVUS_COLLECTION_NAME, EMBEDDING_MODEL, store.client)
+    print("Collection created", store.collection_name)
+    document_chunks = [
+        DocumentChunk(chunk_id="1", text="Hello world", vectors=[0.1, 0.2, 0.3, 0.4],
+                      metadata=DocumentChunkMetadata(source=Source.WEBSITE)),
+        DocumentChunk(chunk_id="2", text="This is different", vectors=[0.4, 0.4, 0.6, 0.7],
+                      metadata=DocumentChunkMetadata(source=Source.WEBSITE)),
+        DocumentChunk(chunk_id="3", text="A THIRD STATEMENT", vectors=[0.6, 0.7, 0.6, 0.7],
+                      metadata=DocumentChunkMetadata(source=Source.WEBSITE))
+    ]
+    store.add_documents(MILVUS_COLLECTION_NAME, [Document(document_id="doc1", name="Doc 1", chunks=document_chunks)])
+    results = store.retrieve_documents(collection_name=MILVUS_COLLECTION_NAME, 
+                                       query=QueryWithEmbedding(text="world", vectors=[0.1, 0.2, 0.3, 0.4]), limit=2)
+    print("Retrieved Documents:", results)
+    store.delete_collection(MILVUS_COLLECTION_NAME)
