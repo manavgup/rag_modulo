@@ -271,18 +271,7 @@ class MilvusStore(VectorStore):
                             limit=limit)
 
         #search_results = collection.search(search_query, anns_field="embedding", params={"topk": top_k})
-
-        retrieved_documents = []
-        for hits in search_results:
-            for hit in hits:
-                retrieved_documents.append(
-                    QueryResult(
-                    'id': hits.id,
-                    'score': hit.score,
-                    'embedding': hit.entity.get('embedding')
-                    )   
-                )
-        return retrieved_documents
+        return self._process_search_results(search_results)
     
     def delete_data(self, collection_name: str, document_ids: List[int]):
         """
