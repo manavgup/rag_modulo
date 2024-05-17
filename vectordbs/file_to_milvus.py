@@ -169,7 +169,7 @@ class FileToMilvus:
         else:
             return [text[i:i + CHUNK_SIZE] for i in range(0, len(text), CHUNK_SIZE - CHUNK_OVERLAP)]
     
-    def insert_data(self):
+    def insert_data(self, file_path: str, client: Client):
         try: 
             with open(self.file_path, 'rb') as file:
                 pdf_reader = PyPDF2.PdfReader(file)
@@ -384,7 +384,7 @@ if __name__ == "__main__":
         milvus_loader.create_collection()  # Adjust the dimension as per your requirements
 
         # Insert data into the collection
-        milvus_loader.insert_data()
+        milvus_loader.insert_data(self.file_path, client=client)
     else:
         milvus_loader.collection = Collection(collection_name)
         milvus_loader.collection.load()

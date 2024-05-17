@@ -15,9 +15,11 @@ Embeddings = List[Embedding]
 
 @dataclass
 class Document:
-    document_id: str
     name: str
+    document_id: str
     chunks: List[DocumentChunk]
+    path: Optional[str] = ""
+
 
 @dataclass
 class DocumentChunk:
@@ -25,14 +27,18 @@ class DocumentChunk:
     text: str
     vectors: Optional[List[float]] = None
     metadata: Optional[DocumentChunkMetadata] = None
+    document_id: Optional[str] = ""
+    
+    def dict(self) -> dict[str, Any]:
+        return {"text": self.text}
 
 @dataclass
 class DocumentChunkMetadata:
     source: Source
-    source_id: Optional[str] = None
-    url: Optional[str] = None
-    created_at: Optional[str] = None
-    author: Optional[str] = None
+    source_id: Optional[str] = ""
+    url: Optional[str] = ""
+    created_at: Optional[str] = ""
+    author: Optional[str] = ""
     
 @dataclass
 class DocumentQuery:
@@ -108,7 +114,7 @@ class VectorStore(ABC):
 
     @abstractmethod
     def retrieve_documents(self, query: Union[str, QueryWithEmbedding], 
-                          collection_name: Optional[str] = None, top_k: int = 4) -> QueryResult:
+                          collection_name: Optional[str] = None, limit: int = 10) -> QueryResult:
         """Retrieves documents based on a query or query embedding.
         
         Args:
