@@ -3,7 +3,7 @@ from pymilvus import (
     connections,
     utility,
     FieldSchema, CollectionSchema, DataType,
-    Collection, IndexType, MilvusClient, MilvusException
+    Collection, MilvusClient, MilvusException
 )
 from data_types import (
     Document, DocumentChunk, DocumentMetadataFilter, QueryWithEmbedding,
@@ -12,8 +12,8 @@ from data_types import (
 from genai import Client
 import logging
 import json
-import re
 import os
+import time
 
 MILVUS_COLLECTION: Optional[str] = os.environ.get("MILVUS_COLLECTION","DocumentChunk")
 MILVUS_HOST = os.environ.get("MILVUS_HOST") or "localhost"
@@ -195,6 +195,7 @@ class MilvusStore(VectorStore):
             
             logging.debug(f"Inserting data: {data}")
             self.collection.insert(data)
+            self.collection.load()
             logging.info(f"Successfully added documents to collection {collection_name}")
         except Exception as e:
             logging.error(f"Failed to add documents to collection {collection_name}: {e}", exc_info=True)
@@ -289,7 +290,7 @@ class MilvusStore(VectorStore):
         
 
     def query(self, query: QueryWithEmbedding, collection_name: Optional[str] = None, number_of_results: int = 10, filter: Optional[DocumentMetadataFilter] = None) -> QueryResult:
-        search_params = {"metric_type": MetricType.L2, "params": {"nprobe": 10}}
+        search_params = {"metric_type": "IP", "params": {"nprobe": 10}}
         result = self.collection.search(data=[query.vectors], anns_field="embeddings", param=search_params, limit=number_of_results)
         return self._process_search_results(result)
 
@@ -400,6 +401,7 @@ if __name__ == "__main__":
                       metadata=DocumentChunkMetadata(source=Source.WEBSITE))
     ]
     store.add_documents(MILVUS_COLLECTION_NAME, [Document(document_id="doc1", name="Doc 1", chunks=document_chunks)])
+    time.sleep(5)
     results = store.retrieve_documents(collection_name=MILVUS_COLLECTION_NAME, 
                                        query=QueryWithEmbedding(text="world", vectors=[0.1, 0.2, 0.3, 0.4]), limit=2)
     print("Retrieved Documents:", results)

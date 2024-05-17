@@ -196,6 +196,7 @@ class MilvusStore(VectorStore):
             logging.debug(f"Inserting data: {data}")
             self.collection.insert(data)
             logging.info(f"Successfully added documents to collection {collection_name}")
+            self.collection.load()
         except Exception as e:
             logging.error(f"Failed to add documents to collection {collection_name}: {e}", exc_info=True)
         return [doc.document_id for doc in documents]
