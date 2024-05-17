@@ -267,7 +267,7 @@ class MilvusStore(VectorStore):
                             data=[query.vectors], 
                             anns_field="embedding", 
                             param=search_params,
-                            output_fields=["id", "text"], 
+                            output_fields=["chunk_id", "text", "document_id", "embedding", "source", "source_id", "url", "created_at", "author"], 
                             limit=limit)
 
         #search_results = collection.search(search_query, anns_field="embedding", params={"topk": top_k})
@@ -360,9 +360,9 @@ class MilvusStore(VectorStore):
             for hit in result:
                 chunks_with_scores.append(
                     DocumentChunkWithScore(
-                        chunk_id=str(hit.id),
+                        chunk_id=hit.entity.get("chunk_id"),
                         text=hit.entity.get("text"),
-                        vectors=hit.entity.get("embeddings"),
+                        vectors=hit.entity.get("embedding"),
                         metadata=DocumentChunkMetadata(
                             source=Source(hit.entity.get("source")),
                             source_id=hit.entity.get("source_id"),
@@ -373,8 +373,9 @@ class MilvusStore(VectorStore):
                         score=hit.distance
                     )
                 )
-                similarities.append(hit.distance)
-                ids.append(hit.id)
+                ids.append(hit.entity.get("chunk_id"))
+            similarities.append(result.distances)
+
         return QueryResult(data=chunks_with_scores, similarities=similarities, ids=ids)
 
     async def __aenter__(self) -> "MilvusStore":
