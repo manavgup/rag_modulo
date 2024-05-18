@@ -87,11 +87,14 @@ class WeaviateDataStore(VectorStore):
         else:
             return None
         
-    async def add_documents(self, collection_name: str, documents: List[DocumentChunk]) -> List[str]:
+    async def add_documents(self, collection_name: str, documents: List[Document]) -> List[str]:
         chunks = {}
-        for doc_chunk in documents:
-            document_id = doc_chunk.chunk_id
-            chunks[document_id] = [doc_chunk]
+        for document in documents:
+            for doc_chunk in document.chunks:
+                doc_chunk.document_id = document.document_id # Ensure each chunk references its parent document
+                if document.document_id not in chunks:
+                    chunks[document.document_id] = []
+                chunks[document.document_id].append(doc_chunk)
 
         doc_ids = await self._upsert(collection_name, chunks)
         return doc_ids

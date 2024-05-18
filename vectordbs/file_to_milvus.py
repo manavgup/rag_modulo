@@ -384,7 +384,7 @@ if __name__ == "__main__":
         milvus_loader.create_collection()  # Adjust the dimension as per your requirements
 
         # Insert data into the collection
-        milvus_loader.insert_data(self.file_path, client=client)
+        milvus_loader.insert_data(file_path, client=client)
     else:
         milvus_loader.collection = Collection(collection_name)
         milvus_loader.collection.load()
