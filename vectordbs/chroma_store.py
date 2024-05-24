@@ -5,7 +5,7 @@ from typing import Optional
 
 from genai.schema import TextEmbeddingParameters
 from genai import Client
-from vector_store import VectorStore
+from vectordbs.vector_store import VectorStore  # Ensure this import is correct
 
 class ChromaEmbeddingFunction(EmbeddingFunction):
     def __init__(self, *, model_id: str, client: Client, parameters: Optional[TextEmbeddingParameters] = None):

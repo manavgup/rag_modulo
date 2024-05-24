@@ -6,9 +6,9 @@ def get_datastore(datastore: str) -> VectorStore:
 
     match datastore:
         case "pinecone":
-            from vectordbs.pinecone_store import PineconeDataStore
+            from vectordbs.pinecone_store import PineconeStore
 
-            return PineconeDataStore()
+            return PineconeStore()
         case "weaviate":
             from vectordbs.weaviate_store import WeaviateDataStore
 
@@ -18,8 +18,8 @@ def get_datastore(datastore: str) -> VectorStore:
 
             return MilvusDataStore()
         case "elasticsearch":
-            from vectordbs.elasticsearch_store import ElasticSearchDataStore
+            from vectordbs.elasticsearch_store import ElasticSearchStore
 
-            return ElasticSearchDataStore()
+            return ElasticSearchStore()
         case _:
             raise ValueError(f"Unsupported vector database: {datastore}")

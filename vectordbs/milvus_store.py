@@ -5,10 +5,11 @@ from pymilvus import (
     FieldSchema, CollectionSchema, DataType,
     Collection, MilvusClient, MilvusException
 )
-from data_types import (
+from vectordbs.data_types import (
     Document, DocumentChunk, DocumentMetadataFilter, QueryWithEmbedding,
-    QueryResult, VectorStore, DocumentChunkWithScore, Source, DocumentChunkMetadata
+    QueryResult, DocumentChunkWithScore, Source, DocumentChunkMetadata
 )
+from vectordbs.vector_store import VectorStore  # Ensure this import is correct
 from genai import Client
 import logging
 import json
