@@ -2,4 +2,5 @@
 venv/
 .vscode/
 vectordbs/__pycache__/
+vectordbs/tests/__pycache__/
 .DS_Store
