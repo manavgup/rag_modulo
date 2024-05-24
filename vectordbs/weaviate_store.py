@@ -3,15 +3,16 @@ import asyncio
 import logging
 import os
 import uuid
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Union
 from weaviate import WeaviateClient
 import weaviate.classes as wvc
 from weaviate.data import DataObject
 from weaviate.classes.query import Filter
 from weaviate.classes.config import DataType, Property
 import weaviate
+import json
 
-from data_types import (
+from vectordbs.data_types import (
     Document,
     DocumentChunk,
     DocumentChunkMetadata,
@@ -20,11 +21,11 @@ from data_types import (
     QueryResult,
     QueryWithEmbedding,
     DocumentChunkWithScore,
-    Source,
-    VectorStore,
-)
+    Source
+    )
+from vectordbs.vector_store import VectorStore  # Ensure this import is correct
+from vectordbs.utils.watsonx import get_embeddings
 from weaviate.util import generate_uuid5
-from typing import Union, Any
 
 WEAVIATE_HOST = os.environ.get("WEAVIATE_HOST", "localhost")
 WEAVIATE_PORT = os.environ.get("WEAVIATE_PORT", "8080")
@@ -88,8 +89,10 @@ class WeaviateDataStore(VectorStore):
             return None
         
     async def add_documents(self, collection_name: str, documents: List[Document]) -> List[str]:
-        chunks = {}
+        chunks: Dict[str, List[DocumentChunk]] = {}
         for document in documents:
+            if document.document_id is None:
+                raise ValueError("Document ID is cannot be none")
             for doc_chunk in document.chunks:
                 doc_chunk.document_id = document.document_id # Ensure each chunk references its parent document
                 if document.document_id not in chunks:
@@ -98,21 +101,7 @@ class WeaviateDataStore(VectorStore):
 
         doc_ids = await self._upsert(collection_name, chunks)
         return doc_ids
-    
-    async def add(self, collection_name: str, data: List[DocumentChunk]) -> List[str]:
-        # Convert the list of DocumentChunk objects to a dictionary
-        chunks = {}
-
-        # Loop over each document chunk in the data
-        for doc_chunk in data:
-            # Use the document ID as the key and the document chunk as the value
-            document_id = doc_chunk.metadata.document_id
-            chunks[document_id] = [doc_chunk]
-
-        # Call the _upsert method and await its result
-        doc_ids = await self._upsert(collection_name, chunks)
-        return doc_ids
-        
+          
     async def _upsert(self, collection_name: str, chunks: Dict[str, List[DocumentChunk]]) -> List[str]:
         """
         Takes in a list of list of document chunks and inserts them into the database.
@@ -136,10 +125,10 @@ class WeaviateDataStore(VectorStore):
                             "document_id": doc_id,
                             "text": doc_chunk.text,
                             "source": doc_chunk.metadata.source.value if doc_chunk.metadata and doc_chunk.metadata.source else "",
-                            "source_id": doc_chunk.metadata.source_id,
-                            "url": doc_chunk.metadata.url,
-                            "created_at": doc_chunk.metadata.created_at,
-                            "author": doc_chunk.metadata.author,
+                            "source_id": doc_chunk.metadata.source_id if doc_chunk.metadata and doc_chunk.metadata.source_id else "",
+                            "url": doc_chunk.metadata.url if doc_chunk.metadata and doc_chunk.metadata.url else "",
+                            "created_at": doc_chunk.metadata.created_at if doc_chunk.metadata and doc_chunk.metadata.created_at else None,
+                            "author": doc_chunk.metadata.author if doc_chunk.metadata and doc_chunk.metadata.author else None,
                         },
                         uuid=doc_uuid,
                         vector=doc_chunk.vectors,
@@ -200,11 +189,12 @@ class WeaviateDataStore(VectorStore):
             logging.error("Check if the client and collection are initialized")
             return []
         
-        logging.debug(f"Query: {query.text}")
+        logging.debug(f"****Query: {query.text}")
+
         result = (
             self.client.collections.get(collection_name).query.near_vector(
                 near_vector=query.vectors,
-                limit=5
+                limit=number_of_results
             )
         )
 
@@ -261,7 +251,7 @@ class WeaviateDataStore(VectorStore):
         
         if delete_all:
             logging.debug(f"Deleting all vectors in index {collection_name}")
-            collection.data.delete_all()
+            self.client.collections.delete(collection_name)
             return True
 
         if ids:
@@ -273,60 +263,11 @@ class WeaviateDataStore(VectorStore):
             )
             return True
 
-        if filter:
-            where_clause = self.build_filters(filter)
-
-            logging.debug(
-                f"Deleting vectors from index {collection_name} with filter {where_clause}"
-            )
-            result = self.client.batch.delete_objects(
-                class_name=collection_name, where=where_clause
-            )
-
-            if not bool(result["results"]["successful"]):
-                logging.debug(
-                    f"Failed to delete the following objects: {result['results']['objects']}"
-                )
-
         return True
 
     @staticmethod
-    def build_filters(filter):
-        if filter.source:
-            filter.source = filter.source.value
-
-        operands = []
-        filter_conditions = {
-            "source": {
-                "operator": "Equal",
-                "value": "query.filter.source.value",
-                "value_key": "valueString",
-            },
-            "start_date": {"operator": "GreaterThanEqual", "value_key": "valueDate"},
-            "end_date": {"operator": "LessThanEqual", "value_key": "valueDate"},
-            "default": {"operator": "Equal", "value_key": "valueString"},
-        }
-
-        for attr, value in filter.__dict__.items():
-            if value is not None:
-                filter_condition = filter_conditions.get(
-                    attr, filter_conditions["default"]
-                )
-                value_key = filter_condition["value_key"]
-
-                operand = {
-                    "path": [
-                        attr
-                        if not (attr == "start_date" or attr == "end_date")
-                        else "created_at"
-                    ],
-                    "operator": filter_condition["operator"],
-                    value_key: value,
-                }
-
-                operands.append(operand)
-
-        return {"operator": "And", "operands": operands}
+    def build_filters(filter: DocumentMetadataFilter) -> Dict[str, Any]:
+        pass
 
     @staticmethod
     def _is_valid_weaviate_id(candidate_id: str) -> bool:
@@ -374,9 +315,32 @@ class WeaviateDataStore(VectorStore):
         pass
     def get_document(self, document_id: str, collection_name: Optional[str] = None) -> Optional[Document]:
         pass
-    def retrieve_documents(self, query: str | QueryWithEmbedding, collection_name: str | None = None, top_k: int = 4) -> QueryResult:
-        pass
     
+    def retrieve_documents(self, 
+                           query: Union[str, QueryWithEmbedding], 
+                           collection_name: Optional[str] = None, 
+                           limit: int = 10) -> List[QueryResult]:
+        if collection_name is None:
+            collection_name = WEAVIATE_INDEX
+
+        if isinstance(query, str):
+            # Assuming you have some method to generate embeddings from text
+            embeddings = get_embeddings(query)
+            query_with_embedding = QueryWithEmbedding(text=query, vectors=embeddings)
+            logging.debug(f"Query with embedding: {query_with_embedding}")
+        elif isinstance(query, QueryWithEmbedding):
+            query_with_embedding = query
+        else:
+            raise ValueError("Query must be either a string or an instance of QueryWithEmbedding")
+
+        query_results = self.query(collection_name, query_with_embedding, number_of_results=limit)
+        
+        # Assuming the query method returns a list of QueryResult objects
+        if not query_results:
+            return [QueryResult(data=[], similarities=[], ids=[])]
+        
+        return query_results
+
     def print_collection(self, collection_name: str):
         collection = self.get_collection(collection_name)
         if collection is not None:

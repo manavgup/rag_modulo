@@ -1,9 +1,9 @@
 from typing import List, Optional
 from elasticsearch import Elasticsearch
 import numpy as np
-from data_types import VectorStore
+from vectordbs.vector_store import VectorStore  # Ensure this import is correct
 
-class ElasticSearchDataStore(VectorStore):
+class ElasticSearchStore(VectorStore):
     def __init__(self, hosts: List[str], index_name: str):
         self.es = Elasticsearch(hosts=hosts)
         self.index_name = index_name

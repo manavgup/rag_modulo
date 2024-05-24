@@ -1,9 +1,9 @@
 from typing import List, Optional
 import pinecone
 import numpy as np
-from data_types import VectorStore
+from vectordbs.vector_store import VectorStore  # Ensure this import is correct
 
-class PineconeDataStore(VectorStore):
+class PineconeStore(VectorStore):
     def __init__(self, api_key: str, environment: str, index_name: str):
         pinecone.init(api_key=api_key, environment=environment)
         self.index_name = index_name
