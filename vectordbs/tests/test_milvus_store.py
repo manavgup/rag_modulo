@@ -88,7 +88,7 @@ def test_save_embeddings_to_file(tmp_path):
 async def test_delete_documents_by_id(milvus_store):
     documents = create_test_documents()
     milvus_store.add_documents('test_collection', documents)
-    milvus_store.delete_documents(['doc1'], 'test_collection')
+    milvus_store.delete_documents(['doc1', 'doc2'], 'test_collection')
     query_result = milvus_store.query('test_collection', QueryWithEmbedding(text="Hello world", vectors=get_embeddings("Hello world")))
     assert all(chunk.chunk_id != "1" for result in query_result for chunk in result.data)
 
