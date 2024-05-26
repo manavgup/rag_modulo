@@ -267,7 +267,7 @@ class WeaviateDataStore(VectorStore):
 
     @staticmethod
     def build_filters(filter: DocumentMetadataFilter) -> Dict[str, Any]:
-        pass
+        return {}
 
     @staticmethod
     def _is_valid_weaviate_id(candidate_id: str) -> bool:
