@@ -6,25 +6,26 @@ from pymilvus import (
     Collection, MilvusClient, MilvusException
 )
 from vectordbs.data_types import (
-    Document, DocumentChunk, DocumentMetadataFilter, QueryWithEmbedding,
+    Document, DocumentChunk, DocumentMetadataFilter, QueryWithEmbedding, Embeddings,
     QueryResult, DocumentChunkWithScore, Source, DocumentChunkMetadata
 )
-from vectordbs.vector_store import VectorStore  # Ensure this import is correct
+from vectordbs.vector_store import VectorStore  
 from genai import Client
 import logging
 import json
 import os
 import time
+from vectordbs.utils.watsonx import get_embeddings
 
 MILVUS_COLLECTION: Optional[str] = os.environ.get("MILVUS_COLLECTION","DocumentChunk")
-MILVUS_HOST = os.environ.get("MILVUS_HOST") or "localhost"
+MILVUS_HOST = os.environ.get("MILVUS_HOST") or "127.0.0.1"
 MILVUS_PORT = os.environ.get("MILVUS_PORT") or "19530"
 MILVUS_USER = os.environ.get("MILVUS_USER")
 MILVUS_PASSWORD = os.environ.get("MILVUS_PASSWORD")
 MILVUS_USE_SECURITY = False if MILVUS_PASSWORD is None else True
 
 MILVUS_COLLECTION_NAME = "DocumentChunk"
-EMBEDDING_DIM = 4
+EMBEDDING_DIM = 384
 UPSERT_BATCH_SIZE = 100
 
 EMBEDDING_FIELD: str = "embedding"
@@ -57,7 +58,7 @@ class MilvusStore(VectorStore):
         self.collection: Collection = None
 
     def _connect(self) -> None:
-        connections.connect(default={"host": self.host, "port": self.port})
+        connections.connect("default", host = self.host, port = self.port)
 
     def create_collection(self, name: str, 
                           embedding_model_id: str, client: Client, 
@@ -166,6 +167,13 @@ class MilvusStore(VectorStore):
                     logging.info("Milvus search parameters: {}".format(self.search_params))
         except Exception as e:
             logging.debug("Failed to create index for collection '{}', error: {}".format(self.collection.name, e))
+    
+    #method to return the names of all fields in the collection
+    def _get_field_names(self, collection_name: str) -> List[str]:
+        result = self.client.describe_collection(collection_name)
+        return [field.name for field in result.fields]
+
+    
 
     def add_documents(self, collection_name: str, documents: List[Document]) -> List[str]:
         """
@@ -226,7 +234,17 @@ class MilvusStore(VectorStore):
                 document_ids.append(document_id)
                 for chunk in chunk_list:
                     # Create a new list of data to insert
-                    data = [chunk.get(field, None) for field, _, _ in self._get_schema()]
+                    data = [
+                        chunk.document_id,
+                        chunk.vectors,
+                        chunk.text,
+                        chunk.chunk_id,
+                        chunk.metadata.source_id if chunk.metadata else "",
+                        chunk.metadata.source.value if chunk.metadata else "",
+                        chunk.metadata.url if chunk.metadata else "",
+                        chunk.metadata.created_at if chunk.metadata else "",
+                        chunk.metadata.author if chunk.metadata else ""
+                    ]
                     # Add the data to the insert list
                     for i, d in enumerate(data):
                         insert[i].append(d)
@@ -252,22 +270,29 @@ class MilvusStore(VectorStore):
         self.collection.insert([data])
     
     def retrieve_documents(self, query: Union[str, QueryWithEmbedding], 
-                          collection_name: Optional[str] = None, limit: int = 10) -> QueryResult:
+                          collection_name: Optional[str] = None, limit: int = 10) -> List[QueryResult]:
         """
         Retrieve documents from the collection.
 
         Args:
             collection_name (str): The name of the collection to retrieve documents from.
-            search_query (List[float]): The search query (vector) to filter documents.
-            top_k (int): The maximum number of results to return (default: 10).
+            query: str or QuerywithEmbedding.
+            limit: The maximum number of results to return (default: 10).
 
         Returns:
-            List[dict]: The list of retrieved documents.
+            List[QueryResult]: list of QueryResult.
         """
+        if isinstance(query, str):
+            # Convert the string query to embeddings
+            query_embeddings = get_embeddings(query)
+            if len(query_embeddings) == 0:
+                raise ValueError("Failed to generate embeddings for the query string.")
+            query = QueryWithEmbedding(text=query, vectors=query_embeddings)
+            
         search_params = {"metric_type": "IP", "params": {"nprobe": 10}}
         search_results = self.collection.search(
                             data=[query.vectors], 
-                            anns_field="embedding", 
+                            anns_field=EMBEDDING_FIELD, 
                             param=search_params,
                             output_fields=["chunk_id", "text", "document_id", "embedding", "source", "source_id", "url", "created_at", "author"], 
                             limit=limit)
@@ -290,9 +315,16 @@ class MilvusStore(VectorStore):
         return SCHEMA
         
 
-    def query(self, query: QueryWithEmbedding, collection_name: Optional[str] = None, number_of_results: int = 10, filter: Optional[DocumentMetadataFilter] = None) -> QueryResult:
+    def query(self, 
+              collection_name: str,
+              query: QueryWithEmbedding, 
+              number_of_results: int = 10, 
+              filter: Optional[DocumentMetadataFilter] = None) -> List[QueryResult]:
         search_params = {"metric_type": "IP", "params": {"nprobe": 10}}
-        result = self.collection.search(data=[query.vectors], anns_field="embeddings", param=search_params, limit=number_of_results)
+        result = self.collection.search(data=[query.vectors], 
+                                        anns_field=EMBEDDING_FIELD, 
+                                        param=search_params, 
+                                        limit=number_of_results)
         return self._process_search_results(result)
 
     def delete_collection(self, name: str) -> None:
@@ -307,9 +339,12 @@ class MilvusStore(VectorStore):
         
         utility.drop_collection(name)
     
-    def delete_documents(self, document_ids: List[str], collection_name: Optional[str] = None) -> None:
-        expr = f"chunk_id in {tuple(document_ids)}"
-        self.collection.delete(expr)
+    def delete_documents(self, document_ids: List[str], collection_name: Optional[str] = None) -> int:
+        result = 0
+        if self.client is not None and self.collection is not None:
+            result = self.client.delete(collection_name=self.collection_name, ids=document_ids)
+            return result
+        return result
     
     def get_document(self, document_id: str, collection_name: Optional[str] = None) -> Optional[Document]:
         expr = f"document_id == '{document_id}'"
@@ -354,7 +389,7 @@ class MilvusStore(VectorStore):
         # Dummy embedding function, replace with actual model
         return [0.0] * EMBEDDING_DIM
 
-    def _process_search_results(self, results: Any) -> QueryResult:
+    def _process_search_results(self, results: Any) -> List[QueryResult]:
         chunks_with_scores = []
         similarities = []
         ids = []
@@ -366,11 +401,11 @@ class MilvusStore(VectorStore):
                         text=hit.entity.get("text"),
                         vectors=hit.entity.get("embedding"),
                         metadata=DocumentChunkMetadata(
-                            source=Source(hit.entity.get("source")),
-                            source_id=hit.entity.get("source_id"),
-                            url=hit.entity.get("url"),
-                            created_at=hit.entity.get("created_at"),
-                            author=hit.entity.get("author")
+                            source=Source(hit.entity.get("source")) if hit.entity.get("source") else Source.OTHER,
+                            source_id=hit.entity.get("source_id") if hit.entity.get("source_id") else "",
+                            url=hit.entity.get("url") if hit.entity.get("url") else "",
+                            created_at=hit.entity.get("created_at") if hit.entity.get("created_at") else "",
+                            author=hit.entity.get("author") if hit.entity.get("author") else ""
                         ),
                         score=hit.distance
                     )
@@ -378,7 +413,29 @@ class MilvusStore(VectorStore):
                 ids.append(hit.entity.get("chunk_id"))
             similarities.append(result.distances)
 
-        return QueryResult(data=chunks_with_scores, similarities=similarities, ids=ids)
+        return [QueryResult(data=chunks_with_scores, similarities=similarities, ids=ids)]
+    
+    def save_embeddings_to_file(self, embeddings: Embeddings, file_path: str, file_format: str = "json"):
+        """Saves embeddings to a file in the specified format.
+
+        Args:
+            embeddings: The list of embeddings to save.
+            file_path: The path to the output file.
+            file_format: The file format ("json" or "txt"). Defaults to "json".
+
+        Raises:
+            ValueError: If an unsupported file format is provided.
+        """
+
+        if file_format == "json":
+            with open(file_path, "w") as f:
+                json.dump(embeddings, f)  # Convert embeddings to JSON and write
+        elif file_format == "txt":
+            with open(file_path, "w") as f:
+                for embedding in embeddings:
+                    f.write(" ".join(map(str, embedding)) + "\n")  # Space-separated values
+        else:
+            raise ValueError(f"Unsupported file format: {file_format}")
 
     async def __aenter__(self) -> "MilvusStore":
         return self
