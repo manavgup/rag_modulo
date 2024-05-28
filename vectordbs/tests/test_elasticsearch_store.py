@@ -98,24 +98,41 @@ async def test_retrieve_documents_with_query_embedding(elasticsearch_store):
         assert query_result.data is not None
         assert len(query_result.data) > 0
 
-def test_get_document(elasticsearch_store):
+@pytest.mark.asyncio  # For async test
+async def test_delete_documents(elasticsearch_store):
     documents = create_test_documents()
-    elasticsearch_store.add_documents(ELASTICSEARCH_INDEX, documents)
-    document = elasticsearch_store.get_document("doc1", ELASTICSEARCH_INDEX)
-    assert document is not None
-    assert document.document_id == "doc1"
+    added_ids = elasticsearch_store.add_documents(ELASTICSEARCH_INDEX, documents)
 
-@pytest.mark.asyncio
-async def test_delete_documents_by_id(elasticsearch_store):
-    documents = create_test_documents()
-    elasticsearch_store.add_documents(ELASTICSEARCH_INDEX, documents)
-    result = elasticsearch_store.delete_documents(['1'], ELASTICSEARCH_INDEX)
-    assert result == 1
-    query_result = elasticsearch_store.query(
-        ELASTICSEARCH_INDEX, 
-        QueryWithEmbedding(text="Hello world", vectors=get_embeddings("Hello world"))
-    )
-    assert len(query_result[0].data) == 0
+    # Delete empty list
+    deleted_count = elasticsearch_store.delete_documents([], ELASTICSEARCH_INDEX)
+    assert deleted_count == 0
+
+    # Delete one document and verify
+    chunk_id_to_delete = added_ids[0]
+    deleted_count = elasticsearch_store.delete_documents([chunk_id_to_delete], ELASTICSEARCH_INDEX)
+    assert deleted_count == 1
+
+    # Ensure the deleted document is no longer retrievable
+    with pytest.raises(NotFoundError):
+        elasticsearch_store.client.get(index=ELASTICSEARCH_INDEX, id=chunk_id_to_delete)
+
+    # Remove the deleted document from the list of added IDs for the next test
+    added_ids.remove(chunk_id_to_delete)
+
+    # Delete non-existent document
+    deleted_count = elasticsearch_store.delete_documents(["non_existent_id"], ELASTICSEARCH_INDEX)
+    assert deleted_count == 0
+ 
+    # Delete all remaining documents
+    deleted_count = elasticsearch_store.delete_documents(added_ids, ELASTICSEARCH_INDEX)
+    assert deleted_count == len(added_ids)  # Check if all remaining were deleted
+
+    delete_from_wrong_index = elasticsearch_store.delete_documents(added_ids, "wrong_index") 
+    assert delete_from_wrong_index == 0
+
+    # Ensure that the index is now empty.
+    response = elasticsearch_store.client.count(index=ELASTICSEARCH_INDEX)
+    assert response['count'] == 0
 
 @pytest.mark.asyncio
 async def test_delete_all_documents(elasticsearch_store):

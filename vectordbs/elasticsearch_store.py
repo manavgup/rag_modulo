@@ -9,16 +9,16 @@ import logging
 import os
 from vectordbs.utils.watsonx import get_embeddings
 import uuid
-
+from dotenv import load_dotenv
 ELASTICSEARCH_HOST = os.environ.get("ELASTICSEARCH_HOST", "localhost")
 ELASTICSEARCH_PORT = os.environ.get("ELASTICSEARCH_PORT", "9200")
 ELASTICSEARCH_INDEX = os.environ.get("ELASTICSEARCH_INDEX", "document_chunks")
 EMBEDDING_MODEL="sentence-transformers/all-minilm-l6-v2"
 
-ELASTIC_PASSWORD = "PKK+lq3MUjqrr1ZYscfw"
-ELASTIC_CACERT_PATH = "/Users/mg/mg-work/manav/work/ai-experiments/rag_modulo/http_ca.crt"
-ELASTIC_CLOUD_ID = "c8ec8bb47d0546b29198093091119041:dXMtY2VudHJhbDEuZ2NwLmNsb3VkLmVzLmlvJGM0YTkyMzQxZGVjNDRlNGJiODUyNDRiNDA4NjVhYjBhJDEyZGFjMmM5ZTQ1ODQ4ODQ4YjM2ZDJlNjkzYjBlNGYy"
-ELASTIC_API_KEY = "ckpIaHZJOEIzYTN3TVByUm9oYUU6Mi1OX2JBenpTcm1TMXRXZnlyU3gzZw=="
+ELASTIC_PASSWORD = os.environ.get("ELASTIC_PASSWORD", "changeme")
+ELASTIC_CACERT_PATH = os.environ.get("ELASTIC_CACERT_PATH", "/path/to/http_ca.crt")
+ELASTIC_CLOUD_ID = os.environ.get("ELASTIC_CLOUD_ID", "")
+ELASTIC_API_KEY = os.environ.get("ELASTIC_API_KEY", "")
 
 EMBEDDING_DIM = 384
 UPSERT_BATCH_SIZE = 100
@@ -39,7 +39,6 @@ class ElasticSearchStore(VectorStore):
                 ca_certs=ELASTIC_CACERT_PATH,
                 basic_auth=("elastic", ELASTIC_PASSWORD)
             )
-        print ("**** ElasticSearchStore: ", self.client.info())
         #self._create_index(self.index_name, EMBEDDING_MODEL)
 
     def create_collection(self, name: str, embedding_model_id: str, client: Optional[Elasticsearch] = None) -> None:
@@ -92,8 +91,6 @@ class ElasticSearchStore(VectorStore):
             }
             try:
                 response = self.client.indices.create(index=name, body=mappings)
-                print("****-> INDEX: ", self.client.indices.get(index=name))
-                print ("FIELD MAPPING", self.client.indices.get_field_mapping(index=name, fields="embedding"))
                 if response.get("acknowledged"):
                     logging.info(f"Created Elasticsearch index '{name}' with mappings {mappings}.")
                 else:
@@ -162,30 +159,33 @@ class ElasticSearchStore(VectorStore):
 
     def delete_documents(self, document_ids: List[str], collection_name: Optional[str] = None) -> int:
         """Delete documents from the Elasticsearch index by their chunk IDs."""
+        collection_name = collection_name or self.index_name    # Use the default index name if not provided
+        if not document_ids:
+            logging.info(f"No document IDs provided for deletion in index '{collection_name}'")
+            return 0
+        
         try:
-            actions = [{"delete": {"_index": collection_name, "_id": doc_id}} for doc_id in document_ids]
+            actions = [
+                {"delete": {"_index": collection_name, "_id": doc_id}} for doc_id in document_ids
+            ]
             response = self.client.bulk(body=actions, refresh=True)
-            return sum(1 for item in response['items'] if item.get('delete', {}).get('result') == 'deleted')
+            print ("****response: ", response)
+
+            #Handle partial failures
+            deleted_count = 0
+            for item in response['items']:
+                delete_result = item.get('delete', {})
+                if delete_result.get("result") == "deleted":
+                    deleted_count += 1
+                elif delete_result.get("status") == 404:
+                    logging.warning(f"Document with ID '{delete_result.get('_id')}' not found in index '{collection_name}'")
+                else:
+                    logging.error(f"Failed to delete document '{delete_result.get('_id')}': {delete_result.get('error', {})}")
+ 
+            return deleted_count
         except Exception as e:
             logging.error(f"Failed to delete documents from index '{collection_name}': {e}", exc_info=True)
             raise
-
-    def get_document(self, document_id: str, collection_name: Optional[str] = None) -> Optional[Document]:
-        """Retrieve a single document from the Elasticsearch index by its document ID."""
-        try:
-            response = self.client.search(
-                index=self.index_name,
-                body={"query": {"term": {"document_id": document_id}}}
-            )
-            if response['hits']['total']['value'] > 0:
-                chunks = [self._convert_to_chunk(hit['_source']) for hit in response['hits']['hits']]
-                return Document(document_id=document_id, name=document_id, chunks=chunks)
-        except NotFoundError:
-            logging.warning(f"Document '{document_id}' not found in index '{self.index_name}'")
-        except Exception as e:
-            logging.error(f"Failed to get document '{document_id}' from index '{self.index_name}': {e}", exc_info=True)
-            raise
-        return None
 
     def _convert_to_chunk(self, data: Dict[str, Any]) -> DocumentChunk:
         """Convert Elasticsearch document data to a DocumentChunk."""
@@ -231,9 +231,6 @@ class ElasticSearchStore(VectorStore):
           number_of_results: int = 10, 
           filter: Optional[DocumentMetadataFilter] = None) -> List[QueryResult]:
         """Queries the Elasticsearch index with filtering and query mode options."""
-        print("****-> Query TEXT: %s", query.text, "query vectors length: ", len(query.vectors))
-        print ("****** COLLECTION NAME: ", collection_name)
-        print ("in Query. FIELD MAPPING: ", self.client.indices.get_field_mapping(index=collection_name, fields="embedding"))
         if isinstance(query, str):
             query_embeddings = get_embeddings(query)
             if not query_embeddings:
@@ -278,21 +275,4 @@ class ElasticSearchStore(VectorStore):
     async def __aexit__(self, exc_type: Optional[type], exc_val: Optional[BaseException], exc_tb: Optional[Any]) -> None:
         self.client.close()
 
-if __name__ == "__main__":
-    store = ElasticSearchStore()
-    print(store)
-    store.delete_collection(ELASTICSEARCH_INDEX)
-    print("Collection created", store.index_name)
-    document_chunks = [
-        DocumentChunk(chunk_id="1", text="Hello world", vectors=[0.1, 0.2, 0.3, 0.4],
-                      metadata=DocumentChunkMetadata(source=Source.WEBSITE)),
-        DocumentChunk(chunk_id="2", text="This is different", vectors=[0.4, 0.4, 0.6, 0.7],
-                      metadata=DocumentChunkMetadata(source=Source.WEBSITE)),
-        DocumentChunk(chunk_id="3", text="A THIRD STATEMENT", vectors=[0.6, 0.7, 0.6, 0.7],
-                      metadata=DocumentChunkMetadata(source=Source.WEBSITE))
-    ]
-    store.add_documents(ELASTICSEARCH_INDEX, [Document(document_id="doc1", name="Doc 1", chunks=document_chunks)])
-    results = store.retrieve_documents(collection_name=ELASTICSEARCH_INDEX, 
-                                       query=QueryWithEmbedding(text="world", vectors=[0.1, 0.2, 0.3, 0.4]), limit=2)
-    print("Retrieved Documents:", results)
-    store.delete_collection(ELASTICSEARCH_INDEX)
+
