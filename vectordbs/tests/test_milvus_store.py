@@ -1,7 +1,7 @@
 import pytest
 from datetime import datetime
 from vectordbs.milvus_store import MilvusStore
-from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, Source, QueryWithEmbedding, Embeddings
+from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, Source, QueryWithEmbedding
 import json
 from vectordbs.utils.watsonx import get_embeddings
 from pymilvus import MilvusException

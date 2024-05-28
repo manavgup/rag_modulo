@@ -5,6 +5,8 @@ from genai import Client, Credentials
 from genai.text.generation import CreateExecutionOptions
 from genai.schema import TextEmbeddingParameters
 from typing import List, Union
+import json
+from vectordbs.data_types import Embeddings
 
 EMBEDDING_MODEL="sentence-transformers/all-minilm-l6-v2"
 
@@ -43,3 +45,31 @@ def get_embeddings(texts: Union[str | List[str]]) -> List[float]:
         logging.error(e)
         
     return embeddings
+
+def save_embeddings_to_file(embeddings: Embeddings, file_path: str, file_format: str = "json"):
+        """
+        Save embeddings to a file.
+        
+        Args:
+            embeddings (Embeddings): The list of embeddings to save.
+            file_path (str): The path to the output file.
+            file_format (str): The file format ("json" or "txt").
+        
+        Raises:
+            ValueError: If an unsupported file format is provided.
+        """
+        if file_format not in {"json", "txt"}:
+            raise ValueError(f"Unsupported file format: {file_format}")
+
+        try:
+            if file_format == "json":
+                with open(file_path, "w") as f:
+                    json.dump(embeddings, f)
+            elif file_format == "txt":
+                with open(file_path, "w") as f:
+                    for embedding in embeddings:
+                        f.write(" ".join(map(str, embedding)) + "\n")
+            logging.info(f"Saved embeddings to file '{file_path}' in format '{file_format}'")
+        except Exception as e:
+            logging.error(f"Failed to save embeddings to file '{file_path}': {e}")
+            raise
