@@ -53,9 +53,5 @@ class VectorStore(ABC):
                          collection_name: Optional[str] = None):
         """Deletes documents by their IDs from the vector store."""
     
-    @abstractmethod
-    def get_document(self, 
-                     document_id: str, 
-                     collection_name: Optional[str] = None) -> Optional[Document]:
-        """Retrieves a document by its ID from the vector store."""
+ 
  
