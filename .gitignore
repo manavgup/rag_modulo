@@ -6,4 +6,4 @@ vectordbs/tests/__pycache__/*
 vectordbs/utils/__pycache__/*
 .DS_Store
 http_ca.crt
-vectordbs/elastic.py
+vectordbs/elastic.py    

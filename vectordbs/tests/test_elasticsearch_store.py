@@ -3,7 +3,7 @@ from datetime import datetime
 from elasticsearch.exceptions import NotFoundError
 from vectordbs.elasticsearch_store import ElasticSearchStore
 from vectordbs.data_types import (
-    Document, DocumentChunk, DocumentChunkMetadata, Source, QueryWithEmbedding
+    Document, DocumentChunk, DocumentChunkMetadata, Source, QueryWithEmbedding, DocumentMetadataFilter
 )
 from vectordbs.utils.watsonx import get_embeddings
 
@@ -146,3 +146,92 @@ async def test_delete_all_documents(elasticsearch_store):
             QueryWithEmbedding(text="Hello world", vectors=get_embeddings("Hello world"))
         )
     assert "index_not_found_exception" in str(excinfo.value)
+
+# Add the following test cases to test_elasticsearch_store.py
+
+def test_convert_to_chunk():
+    store = ElasticSearchStore()
+    sample_data = {
+        "chunk_id": "1",
+        "text": "Sample text",
+        "embedding": [0.1] * 384,
+        "source": "website",
+        "source_id": "source_1",
+        "url": "http://example.com",
+        "created_at": "2023-01-01T00:00:00Z",
+        "author": "Author Name",
+        "document_id": "doc1"
+    }
+    chunk = store._convert_to_chunk(sample_data)
+    assert chunk.chunk_id == "1"
+    assert chunk.text == "Sample text"
+    assert chunk.vectors == [0.1] * 384
+    assert chunk.metadata.source == Source.WEBSITE
+    assert chunk.metadata.source_id == "source_1"
+    assert chunk.metadata.url == "http://example.com"
+    assert chunk.metadata.created_at == "2023-01-01T00:00:00Z"
+    assert chunk.metadata.author == "Author Name"
+    assert chunk.document_id == "doc1"
+
+def test_process_search_results():
+    store = ElasticSearchStore()
+    sample_response = {
+        "hits": {
+            "hits": [
+                {
+                    "_score": 1.0,
+                    "_source": {
+                        "chunk_id": "1",
+                        "text": "Sample text",
+                        "embedding": [0.1] * 384,
+                        "source": "website",
+                        "source_id": "source_1",
+                        "url": "http://example.com",
+                        "created_at": "2023-01-01T00:00:00Z",
+                        "author": "Author Name",
+                        "document_id": "doc1"
+                    }
+                }
+            ]
+        }
+    }
+    results = store._process_search_results(sample_response)
+    assert len(results) == 1
+    assert results[0].data[0].chunk_id == "1"
+    assert results[0].data[0].text == "Sample text"
+
+def test_build_filters():
+    store = ElasticSearchStore()
+    filter_eq = DocumentMetadataFilter(field_name="author", value="John Doe", operator="eq")
+    filter_gte = DocumentMetadataFilter(field_name="created_at", value="2023-01-01T00:00:00Z", operator="gte")
+    filter_lte = DocumentMetadataFilter(field_name="created_at", value="2023-12-31T23:59:59Z", operator="lte")
+
+    filters_eq = store._build_filters(filter_eq)
+    filters_gte = store._build_filters(filter_gte)
+    filters_lte = store._build_filters(filter_lte)
+
+    assert filters_eq == {"bool": {"filter": [{"term": {"author": "John Doe"}}]}}
+    assert filters_gte == {"bool": {"filter": [{"range": {"created_at": {"gte": "2023-01-01T00:00:00Z"}}}]}}
+    assert filters_lte == {"bool": {"filter": [{"range": {"created_at": {"lte": "2023-12-31T23:59:59Z"}}}]}}
+
+def test_add_documents_error_handling():
+    store = ElasticSearchStore()
+    documents = create_test_documents()
+
+    # Try adding documents to a non-existent index
+    with pytest.raises(Exception):
+        store.add_documents("non_existent_index", documents)
+
+def test_query_error_handling():
+    store = ElasticSearchStore()
+    embeddings = get_embeddings("Hello world")
+
+    # Try querying a non-existent index
+    with pytest.raises(Exception):
+        store.query("non_existent_index", QueryWithEmbedding(text="Hello world", vectors=embeddings))
+
+@pytest.mark.asyncio
+async def test_aenter_aexit():
+    async with ElasticSearchStore() as store:
+        assert isinstance(store, ElasticSearchStore)
+

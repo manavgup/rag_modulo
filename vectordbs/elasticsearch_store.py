@@ -1,5 +1,5 @@
 from typing import List, Optional, Union, Dict, Any
-from elasticsearch import Elasticsearch, NotFoundError
+from elasticsearch import Elasticsearch, NotFoundError, exceptions
 from vectordbs.data_types import (
     Document, DocumentChunk, DocumentMetadataFilter, QueryWithEmbedding, 
     QueryResult, Source, DocumentChunkMetadata
@@ -107,7 +107,7 @@ class ElasticSearchStore(VectorStore):
         
         if not self.client.indices.exists(index=collection_name):
             logging.error(f"Elasticsearch index '{collection_name}' does not exist")
-            return []
+            raise exceptions.NotFoundError(f"Elasticsearch index '{collection_name}' does not exist")
         
         document_ids = []
         try:
@@ -143,7 +143,7 @@ class ElasticSearchStore(VectorStore):
             if not query_embeddings:
                 raise ValueError("Failed to generate embeddings for the query string.")
             query = QueryWithEmbedding(text=query, vectors=query_embeddings)
-        
+        collection_name = collection_name or self.index_name    # Use the default index name if not provided
         return self.query(collection_name, query, number_of_results=limit)
 
     def delete_collection(self, name: str) -> None:
