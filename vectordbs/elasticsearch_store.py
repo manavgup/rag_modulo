@@ -275,4 +275,3 @@ class ElasticSearchStore(VectorStore):
     async def __aexit__(self, exc_type: Optional[type], exc_val: Optional[BaseException], exc_tb: Optional[Any]) -> None:
         self.client.close()
 
-
