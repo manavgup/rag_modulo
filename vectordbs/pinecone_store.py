@@ -19,8 +19,7 @@ PINECONE_REGION = os.getenv("PINECONE_REGION", "us-east-1")
 logging.basicConfig(level=logging.INFO)
 
 class PineconeStore(VectorStore):
-    def __init__(self, index_name: str) -> None:
-        self.index_name = index_name
+    def __init__(self) -> None:
         try:
             self.client = Pinecone(api_key=PINECONE_API_KEY)
         except Exception as e:
