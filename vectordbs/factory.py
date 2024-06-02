@@ -1,25 +1,20 @@
-import os
-from types import VectorStore
+from vectordbs.vector_store import VectorStore
 
 def get_datastore(datastore: str) -> VectorStore:
-    assert datastore is not None
+    if not datastore:
+        raise ValueError("Datastore must not be None or empty")
 
-    match datastore:
-        case "pinecone":
-            from vectordbs.pinecone_store import PineconeStore
-
-            return PineconeStore()
-        case "weaviate":
-            from vectordbs.weaviate_store import WeaviateDataStore
-
-            return WeaviateDataStore()
-        case "milvus":
-            from vectordbs.milvus_store import MilvusDataStore
-
-            return MilvusDataStore()
-        case "elasticsearch":
-            from vectordbs.elasticsearch_store import ElasticSearchStore
-
-            return ElasticSearchStore()
-        case _:
-            raise ValueError(f"Unsupported vector database: {datastore}")
+    if datastore == "pinecone":
+        from vectordbs.pinecone_store import PineconeStore
+        return PineconeStore()
+    elif datastore == "weaviate":
+        from vectordbs.weaviate_store import WeaviateDataStore
+        return WeaviateDataStore()
+    elif datastore == "milvus":
+        from vectordbs.milvus_store import MilvusDataStore
+        return MilvusDataStore()
+    elif datastore == "elasticsearch":
+        from vectordbs.elasticsearch_store import ElasticSearchStore
+        return ElasticSearchStore()
+    else:
+        raise ValueError(f"Unsupported vector database: {datastore}")

@@ -35,7 +35,7 @@ def create_test_documents():
 
 @pytest.fixture
 def pinecone_store():
-    store = PineconeStore(PINECONE_INDEX)
+    store = PineconeStore()
     store.create_collection(PINECONE_INDEX, "sentence-transformers/all-minilm-l6-v2")
     try:
         yield store
@@ -119,7 +119,7 @@ def test_delete_all_documents(pinecone_store):
         pinecone_store.retrieve_documents(QueryWithEmbedding(text="Hello world", vectors=get_embeddings("Hello world")), PINECONE_INDEX, limit=10)
 
 def test_convert_to_chunk():
-    store = PineconeStore(PINECONE_INDEX)
+    store = PineconeStore()
     sample_data = {
         "id": "1",
         "values": [0.1] * 384,
@@ -145,7 +145,7 @@ def test_convert_to_chunk():
     assert chunk.document_id == "doc1"
 
 def test_process_search_results():
-    store = PineconeStore(PINECONE_INDEX)
+    store = PineconeStore()
     sample_response = {
         "matches": [
             {
@@ -170,13 +170,13 @@ def test_process_search_results():
     assert results[0].data[0].text == "Sample text"
 
 def test_build_filters():
-    store = PineconeStore(PINECONE_INDEX)
+    store = PineconeStore()
     filter_eq = DocumentMetadataFilter(field_name="author", value="John Doe", operator="eq")
     with pytest.raises(NotImplementedError):
         store._build_filters(filter_eq)
 
 @pytest.mark.asyncio
 async def test_aenter_aexit():
-    async with PineconeStore(PINECONE_INDEX) as store:
+    async with PineconeStore() as store:
         assert isinstance(store, PineconeStore)
     # Ensure the store is closed after exiting the context manager
