@@ -1,14 +1,15 @@
-from __future__ import annotations 
+from __future__ import annotations
 from dataclasses import dataclass
-from typing import Any, List, Optional, Union, Sequence, runtime_checkable
+from typing import Any, List, Optional, Union, Sequence
 from enum import Enum
 
-#Document = str
-#Documents = List[Document]
-#Vector = Union[Sequence[float], Sequence[int]]
+# Document = str
+# Documents = List[Document]
+# Vector = Union[Sequence[float], Sequence[int]]
 # Embeddings
 Embedding = Union[Sequence[float], Sequence[int]]
 Embeddings = List[Embedding]
+
 
 @dataclass
 class Document:
@@ -25,9 +26,10 @@ class DocumentChunk:
     vectors: Optional[List[float]] = None
     metadata: Optional[DocumentChunkMetadata] = None
     document_id: Optional[str] = ""
-    
+
     def dict(self) -> dict[str, Any]:
         return {"text": self.text}
+
 
 @dataclass
 class DocumentChunkMetadata:
@@ -36,20 +38,22 @@ class DocumentChunkMetadata:
     url: Optional[str] = ""
     created_at: Optional[str] = ""
     author: Optional[str] = ""
-    
+
+
 @dataclass
 class DocumentQuery:
     text: str
     metadata: Optional[DocumentMetadataFilter] = None
-    
-@dataclass   
+
+
+@dataclass
 class Source(str, Enum):
     WEBSITE = "website"
     PDF = "pdf"
     WORD_DOCUMENT = "word_document"
     POWERPOINT = "pptx"
     OTHER = "other"
-    
+
 
 @dataclass
 class DocumentMetadataFilter:
@@ -57,15 +61,18 @@ class DocumentMetadataFilter:
     operator: str = ""
     value: Any = ""
 
+
 @dataclass
 class DocumentChunkWithScore(DocumentChunk):
-    score: Optional[float] = None  
+    score: Optional[float] = None
+
 
 @dataclass
 class QueryResult:
     data: Optional[List[DocumentChunkWithScore]] = None
     similarities: Optional[List[float]] = None
     ids: Optional[List[str]] = None
+
 
 @dataclass
 class VectorStoreQuery:
@@ -76,11 +83,13 @@ class VectorStoreQuery:
     similarity_top_k: int = 1
     ids: Optional[List[str]] = None
     query_str: Optional[str] = None
-       
+
+
 @dataclass
 class QueryWithEmbedding:
     text: str
     vectors: List[float]
+
 
 @dataclass
 class VectorStoreData:
@@ -88,15 +97,16 @@ class VectorStoreData:
     data: dict
     embedding: List[float]
 
+
 @dataclass
 class VectorStoreQueryMode(str, Enum):
     """Vector store query mode."""
+
     DEFAULT = "default"
     SPARSE = "sparse"
     HYBRID = "hybrid"
-    
+
     @classmethod
     def get_current_mode(cls):
         """Gets the current query mode."""
         return cls.DEFAULT  # Default to dense vector search
-    
