@@ -1,18 +1,15 @@
-from typing import List, Optional, Union, Dict, Any
-from vectordbs.data_types import (
-    Document,
-    DocumentChunk,
-    DocumentMetadataFilter,
-    QueryWithEmbedding,
-    QueryResult,
-    Source,
-    DocumentChunkMetadata,
-)
-from vectordbs.vector_store import VectorStore
 import logging
-from chromadb import chromadb, ClientAPI, Collection
-from vectordbs.utils.watsonx import get_embeddings, ChromaEmbeddingFunction
 import os
+from typing import Any, Dict, List, Optional, Union
+
+from chromadb import ClientAPI, Collection, chromadb
+
+from vectordbs.data_types import (Document, DocumentChunk,
+                                  DocumentChunkMetadata,
+                                  DocumentMetadataFilter, QueryResult,
+                                  QueryWithEmbedding, Source)
+from vectordbs.utils.watsonx import ChromaEmbeddingFunction, get_embeddings
+from vectordbs.vector_store import VectorStore
 
 CHROMADB_HOST = os.getenv("CHROMADB_HOST", "localhost")
 CHROMADB_PORT = int(os.getenv("CHROMADB_PORT", "8000"))

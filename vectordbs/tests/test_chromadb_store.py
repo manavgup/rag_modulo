@@ -1,19 +1,16 @@
-import pytest
-from datetime import datetime
-from vectordbs.data_types import (
-    Document,
-    DocumentChunk,
-    DocumentChunkMetadata,
-    Source,
-    QueryWithEmbedding,
-    DocumentMetadataFilter,
-)
-from vectordbs.chroma_store import (
-    ChromaDBStore,
-)  # Adjust the import as per your project structure
-from vectordbs.utils.watsonx import get_embeddings
 import logging
 import os
+from datetime import datetime
+
+import pytest
+
+from vectordbs.chroma_store import \
+    ChromaDBStore  # Adjust the import as per your project structure
+from vectordbs.data_types import (Document, DocumentChunk,
+                                  DocumentChunkMetadata,
+                                  DocumentMetadataFilter, QueryWithEmbedding,
+                                  Source)
+from vectordbs.utils.watsonx import get_embeddings
 
 CHROMADB_HOST = os.getenv("CHROMADB_HOST", "localhost")
 CHROMADB_PORT = int(os.getenv("CHROMADB_PORT", "8000"))

@@ -1,5 +1,6 @@
+from typing import List, Union
+
 from dotenv import load_dotenv
-from typing import Union, List
 from genai.client import Client
 from genai.credentials import Credentials
 from genai.schema import TextEmbeddingParameters

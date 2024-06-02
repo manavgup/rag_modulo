@@ -1,31 +1,26 @@
 # TODO
 import asyncio
+import json
 import logging
 import os
 import uuid
-from typing import Dict, List, Optional, Any, Union
-from weaviate import WeaviateClient
-import weaviate.classes as wvc
-from weaviate.data import DataObject
-from weaviate.classes.query import Filter
-from weaviate.classes.config import DataType, Property
-import weaviate
-import json
+from typing import Any, Dict, List, Optional, Union
 
-from vectordbs.data_types import (
-    Document,
-    DocumentChunk,
-    DocumentChunkMetadata,
-    DocumentMetadataFilter,
-    Embeddings,
-    QueryResult,
-    QueryWithEmbedding,
-    DocumentChunkWithScore,
-    Source,
-)
-from vectordbs.vector_store import VectorStore  # Ensure this import is correct
-from vectordbs.utils.watsonx import get_embeddings
+import weaviate
+import weaviate.classes as wvc
+from weaviate import WeaviateClient
+from weaviate.classes.config import DataType, Property
+from weaviate.classes.query import Filter
+from weaviate.data import DataObject
 from weaviate.util import generate_uuid5
+
+from vectordbs.data_types import (Document, DocumentChunk,
+                                  DocumentChunkMetadata,
+                                  DocumentChunkWithScore,
+                                  DocumentMetadataFilter, Embeddings,
+                                  QueryResult, QueryWithEmbedding, Source)
+from vectordbs.utils.watsonx import get_embeddings
+from vectordbs.vector_store import VectorStore  # Ensure this import is correct
 
 WEAVIATE_HOST = os.environ.get("WEAVIATE_HOST", "localhost")
 WEAVIATE_PORT = os.environ.get("WEAVIATE_PORT", "8080")

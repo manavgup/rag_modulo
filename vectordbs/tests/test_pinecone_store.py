@@ -1,14 +1,12 @@
-import pytest
 from datetime import datetime
+
+import pytest
+
+from vectordbs.data_types import (Document, DocumentChunk,
+                                  DocumentChunkMetadata,
+                                  DocumentMetadataFilter, QueryWithEmbedding,
+                                  Source)
 from vectordbs.pinecone_store import PineconeStore
-from vectordbs.data_types import (
-    Document,
-    DocumentChunk,
-    DocumentChunkMetadata,
-    Source,
-    QueryWithEmbedding,
-    DocumentMetadataFilter,
-)
 from vectordbs.utils.watsonx import get_embeddings
 
 PINECONE_INDEX = "test-index"

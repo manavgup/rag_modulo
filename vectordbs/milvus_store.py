@@ -1,33 +1,22 @@
-from typing import List, Optional, Union, Dict, Any
-from pymilvus import (
-    connections,
-    utility,
-    FieldSchema,
-    CollectionSchema,
-    DataType,
-    Collection,
-    MilvusClient,
-    MilvusException,
-)
-from vectordbs.data_types import (
-    Document,
-    DocumentChunk,
-    DocumentMetadataFilter,
-    QueryWithEmbedding,
-    Embeddings,
-    QueryResult,
-    DocumentChunkWithScore,
-    Source,
-    DocumentChunkMetadata,
-)
-from vectordbs.vector_store import VectorStore
-from genai import Client
-import logging
 import json
+import logging
 import os
-from vectordbs.utils.watsonx import get_embeddings
+from typing import Any, Dict, List, Optional, Union
 
-MILVUS_COLLECTION: Optional[str] = os.environ.get("MILVUS_COLLECTION", "DocumentChunk")
+from genai import Client
+from pymilvus import (Collection, CollectionSchema, DataType, FieldSchema,
+                      MilvusClient, MilvusException, connections, utility)
+
+from vectordbs.data_types import (Document, DocumentChunk,
+                                  DocumentChunkMetadata,
+                                  DocumentChunkWithScore,
+                                  DocumentMetadataFilter, Embeddings,
+                                  QueryResult, QueryWithEmbedding, Source)
+from vectordbs.utils.watsonx import get_embeddings
+from vectordbs.vector_store import VectorStore
+
+MILVUS_COLLECTION: Optional[str] = os.environ.get(
+    "MILVUS_COLLECTION", "DocumentChunk")
 MILVUS_HOST = os.environ.get("MILVUS_HOST", "127.0.0.1")
 MILVUS_PORT = os.environ.get("MILVUS_PORT", "19530")
 MILVUS_USER = os.environ.get("MILVUS_USER")
@@ -62,7 +51,8 @@ SCHEMA = [
 
 
 class MilvusStore(VectorStore):
-    def __init__(self, host: str = MILVUS_HOST, port: str = MILVUS_PORT) -> None:
+    def __init__(self, host: str = MILVUS_HOST,
+                 port: str = MILVUS_PORT) -> None:
         """
         Initialize MilvusStore with connection parameters.
 
@@ -121,7 +111,8 @@ class MilvusStore(VectorStore):
             if not utility.has_collection(name):
                 schema = CollectionSchema(fields=SCHEMA)
                 self.collection = Collection(name=name, schema=schema)
-                logging.info(f"Created Milvus collection '{name}' with schema {schema}")
+                logging.info(f"Created Milvus collection '{
+                             name}' with schema {schema}")
                 self._create_index()
                 self.collection.load()
             else:
@@ -143,20 +134,19 @@ class MilvusStore(VectorStore):
 
         try:
             self.index_params = (
-                json.loads(MILVUS_INDEX_PARAMS) if MILVUS_INDEX_PARAMS else None
-            )
+                json.loads(MILVUS_INDEX_PARAMS) if MILVUS_INDEX_PARAMS else None)
             self.search_params = (
-                json.loads(MILVUS_SEARCH_PARAMS) if MILVUS_SEARCH_PARAMS else None
-            )
+                json.loads(MILVUS_SEARCH_PARAMS) if MILVUS_SEARCH_PARAMS else None)
 
             if len(self.collection.indexes) == 0:
                 if self.index_params:
                     self.collection.create_index(
-                        field_name=EMBEDDING_FIELD, index_params=self.index_params
-                    )
+                        field_name=EMBEDDING_FIELD,
+                        index_params=self.index_params)
                     logging.info(
-                        f"Created index for collection '{self.collection.name}' with params {self.index_params}"
-                    )
+                        f"Created index for collection '{
+                            self.collection.name}' with params {
+                            self.index_params}")
                 else:
                     i_p = {
                         "metric_type": "IP",
@@ -167,16 +157,16 @@ class MilvusStore(VectorStore):
                         field_name=EMBEDDING_FIELD, index_params=i_p
                     )
                     logging.info(
-                        f"Created default index for collection '{self.collection.name}'"
-                    )
+                        f"Created default index for collection '{
+                            self.collection.name}'")
             else:
                 logging.info(
-                    f"Index already exists for collection '{self.collection.name}'"
-                )
+                    f"Index already exists for collection '{
+                        self.collection.name}'")
         except MilvusException as e:
             logging.error(
-                f"Failed to create index for collection '{self.collection.name}': {e}"
-            )
+                f"Failed to create index for collection '{
+                    self.collection.name}': {e}")
             raise
 
     def add_documents(
@@ -207,18 +197,14 @@ class MilvusStore(VectorStore):
                             "text": chunk.text,
                             "chunk_id": chunk.chunk_id,
                             "source_id": (
-                                chunk.metadata.source_id if chunk.metadata else ""
-                            ),
+                                chunk.metadata.source_id if chunk.metadata else ""),
                             "source": (
-                                chunk.metadata.source.value if chunk.metadata else ""
-                            ),
+                                chunk.metadata.source.value if chunk.metadata else ""),
                             "url": chunk.metadata.url if chunk.metadata else "",
                             "created_at": (
-                                chunk.metadata.created_at if chunk.metadata else ""
-                            ),
+                                chunk.metadata.created_at if chunk.metadata else ""),
                             "author": chunk.metadata.author if chunk.metadata else "",
-                        }
-                    )
+                        })
             logging.debug(f"Inserting data: {data}")
             self.collection.insert(data)
             self.collection.load()
@@ -226,10 +212,8 @@ class MilvusStore(VectorStore):
                 f"Successfully added documents to collection {collection_name}"
             )
         except MilvusException as e:
-            logging.error(
-                f"Failed to add documents to collection {collection_name}: {e}",
-                exc_info=True,
-            )
+            logging.error(f"Failed to add documents to collection {
+                collection_name}: {e}", exc_info=True, )
             raise
         return [doc.document_id for doc in documents]
 
@@ -256,7 +240,8 @@ class MilvusStore(VectorStore):
         if isinstance(query, str):
             query_embeddings = get_embeddings(query)
             if not query_embeddings:
-                raise ValueError("Failed to generate embeddings for the query string.")
+                raise ValueError(
+                    "Failed to generate embeddings for the query string.")
             query = QueryWithEmbedding(text=query, vectors=query_embeddings)
 
         try:
@@ -280,9 +265,8 @@ class MilvusStore(VectorStore):
             )
             return self._process_search_results(search_results)
         except MilvusException as e:
-            logging.error(
-                f"Failed to retrieve documents from collection '{collection_name}': {e}"
-            )
+            logging.error(f"Failed to retrieve documents from collection '{
+                collection_name}': {e}")
             raise
 
     def delete_documents(
@@ -303,14 +287,12 @@ class MilvusStore(VectorStore):
         try:
             expr = f"document_id in {document_ids}"
             self.collection.delete(expr=expr)
-            logging.info(
-                f"Deleted documents with IDs {document_ids} from collection '{collection_name}'"
-            )
+            logging.info(f"Deleted documents with IDs {
+                document_ids} from collection '{collection_name}'")
             return len(document_ids)
         except MilvusException as e:
-            logging.error(
-                f"Failed to delete documents from collection '{collection_name}': {e}"
-            )
+            logging.error(f"Failed to delete documents from collection '{
+                collection_name}': {e}")
             raise
 
     def delete_collection(self, name: str) -> None:
@@ -356,9 +338,8 @@ class MilvusStore(VectorStore):
                 )
             return None
         except MilvusException as e:
-            logging.error(
-                f"Failed to get document '{document_id}' from collection '{collection_name}': {e}"
-            )
+            logging.error(f"Failed to get document '{
+                document_id}' from collection '{collection_name}': {e}")
             raise
 
     def query(
@@ -393,7 +374,8 @@ class MilvusStore(VectorStore):
             )
             return self._process_search_results(result)
         except MilvusException as e:
-            logging.error(f"Failed to query collection '{collection_name}': {e}")
+            logging.error(f"Failed to query collection '{
+                          collection_name}': {e}")
             raise
 
     def _convert_to_chunk(self, data: Dict[str, Any]) -> DocumentChunk:
@@ -472,8 +454,10 @@ class MilvusStore(VectorStore):
                 ids.append(hit.entity.get("chunk_id"))
             similarities.append(result.distances)
         return [
-            QueryResult(data=chunks_with_scores, similarities=similarities, ids=ids)
-        ]
+            QueryResult(
+                data=chunks_with_scores,
+                similarities=similarities,
+                ids=ids)]
 
     def save_embeddings_to_file(
         self, embeddings: Embeddings, file_path: str, file_format: str = "json"
@@ -500,11 +484,11 @@ class MilvusStore(VectorStore):
                 with open(file_path, "w") as f:
                     for embedding in embeddings:
                         f.write(" ".join(map(str, embedding)) + "\n")
-            logging.info(
-                f"Saved embeddings to file '{file_path}' in format '{file_format}'"
-            )
+            logging.info(f"Saved embeddings to file '{
+                file_path}' in format '{file_format}'")
         except Exception as e:
-            logging.error(f"Failed to save embeddings to file '{file_path}': {e}")
+            logging.error(
+                f"Failed to save embeddings to file '{file_path}': {e}")
             raise
 
     async def __aenter__(self) -> "MilvusStore":
