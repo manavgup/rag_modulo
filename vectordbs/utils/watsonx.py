@@ -1,12 +1,12 @@
 import logging
-from dataclasses import abc
 from dotenv import load_dotenv
 from genai import Client, Credentials
 from genai.text.generation import CreateExecutionOptions
 from genai.schema import TextEmbeddingParameters
-from typing import List, Union
+from typing import List, Union, Optional
 import json
 from vectordbs.data_types import Embeddings
+from chromadb.api.types import EmbeddingFunction, Documents
 
 EMBEDDING_MODEL="sentence-transformers/all-minilm-l6-v2"
 
@@ -73,3 +73,19 @@ def save_embeddings_to_file(embeddings: Embeddings, file_path: str, file_format:
         except Exception as e:
             logging.error(f"Failed to save embeddings to file '{file_path}': {e}")
             raise
+
+class ChromaEmbeddingFunction(EmbeddingFunction):
+    def __init__(self, *, model_id: str, 
+                 parameters: Optional[TextEmbeddingParameters] = None):
+        self._model_id = model_id
+        self._parameters = parameters
+        self._client = init_credentials()
+        
+    def __call__(self, inputs: Documents) -> Embeddings:
+        embeddings: Embeddings = []
+        for response in self._client.text.embedding.create(
+            model_id=self._model_id, inputs=inputs, parameters=self._parameters
+        ):
+            embeddings.extend(response.results)
+
+        return embeddings
