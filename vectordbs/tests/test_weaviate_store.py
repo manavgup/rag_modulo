@@ -1,17 +1,14 @@
-import pytest
-from datetime import datetime
-from vectordbs.weaviate_store import WeaviateDataStore
-from vectordbs.data_types import (
-    Document,
-    DocumentChunk,
-    DocumentChunkMetadata,
-    Source,
-    QueryWithEmbedding,
-    DocumentMetadataFilter,
-    Embeddings,
-)
 import json
+from datetime import datetime
+
+import pytest
+
+from vectordbs.data_types import (Document, DocumentChunk,
+                                  DocumentChunkMetadata,
+                                  DocumentMetadataFilter, Embeddings,
+                                  QueryWithEmbedding, Source)
 from vectordbs.utils.watsonx import get_embeddings
+from vectordbs.weaviate_store import WeaviateDataStore
 
 
 @pytest.fixture

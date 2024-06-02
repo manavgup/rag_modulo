@@ -9,41 +9,34 @@ This is an Streamlit chatbot app with watsonx models
 
 # External libraries:
 import os
+import random
 import tempfile
-import requests
 
+import pinecone
+import requests
 # Third-party Libraries
 import streamlit as st
-from dotenv import load_dotenv
 from config import CHROMA_DB_PATH
-
+from dotenv import load_dotenv
 # Local/Custom Libraries
 from genai.client import Client
 from genai.credentials import Credentials
-
-from ibm_watson_machine_learning.foundation_models import Model
-from ibm_watson_machine_learning.metanames import (
-    GenTextModerationsMetaNames as GenParams,
-)
-from ibm_watson_machine_learning.foundation_models.utils.enums import (
-    ModelTypes,
-    DecodingMethods,
-)
-
 from genai.extensions.langchain import LangChainInterface
 from genai.schema import TextGenerationParameters, TextGenerationReturnOptions
-from langchain.vectorstores import Milvus, ElasticVectorSearch, Chroma, Pinecone
-from langchain.embeddings import HuggingFaceEmbeddings
-from langchain.chains import RetrievalQA, LLMChain
-from langchain.prompts import PromptTemplate
-from langchain.document_loaders import Docx2txtLoader
-from langchain.document_loaders import TextLoader
-from langchain.document_loaders import UnstructuredMarkdownLoader
+from ibm_watson_machine_learning.foundation_models import Model
+from ibm_watson_machine_learning.foundation_models.utils.enums import (
+    DecodingMethods, ModelTypes)
+from ibm_watson_machine_learning.metanames import \
+    GenTextModerationsMetaNames as GenParams
+from langchain.chains import LLMChain, RetrievalQA
+from langchain.document_loaders import (Docx2txtLoader, PyPDFLoader,
+                                        TextLoader, UnstructuredMarkdownLoader)
 from langchain.document_loaders.csv_loader import CSVLoader
+from langchain.embeddings import HuggingFaceEmbeddings
+from langchain.prompts import PromptTemplate
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.document_loaders import PyPDFLoader
-import pinecone
-import random
+from langchain.vectorstores import (Chroma, ElasticVectorSearch, Milvus,
+                                    Pinecone)
 
 ###Global variables:###
 

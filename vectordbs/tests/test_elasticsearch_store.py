@@ -1,17 +1,14 @@
-import pytest
 from datetime import datetime
-from elasticsearch.exceptions import NotFoundError
-from vectordbs.elasticsearch_store import ElasticSearchStore
-from vectordbs.data_types import (
-    Document,
-    DocumentChunk,
-    DocumentChunkMetadata,
-    Source,
-    QueryWithEmbedding,
-    DocumentMetadataFilter,
-)
-from vectordbs.utils.watsonx import get_embeddings
 
+import pytest
+from elasticsearch.exceptions import NotFoundError
+
+from vectordbs.data_types import (Document, DocumentChunk,
+                                  DocumentChunkMetadata,
+                                  DocumentMetadataFilter, QueryWithEmbedding,
+                                  Source)
+from vectordbs.elasticsearch_store import ElasticSearchStore
+from vectordbs.utils.watsonx import get_embeddings
 
 ELASTICSEARCH_INDEX = "test_index"
 

@@ -1,19 +1,16 @@
-from typing import List, Optional, Union, Dict, Any
-from vectordbs.data_types import (
-    Document,
-    DocumentChunk,
-    DocumentMetadataFilter,
-    QueryWithEmbedding,
-    QueryResult,
-    Source,
-    DocumentChunkMetadata,
-)
-from vectordbs.vector_store import VectorStore
 import logging
-from pinecone import Pinecone, ServerlessSpec, QueryResponse
-from dotenv import load_dotenv
-from vectordbs.utils.watsonx import get_embeddings
 import os
+from typing import Any, Dict, List, Optional, Union
+
+from dotenv import load_dotenv
+from pinecone import Pinecone, QueryResponse, ServerlessSpec
+
+from vectordbs.data_types import (Document, DocumentChunk,
+                                  DocumentChunkMetadata,
+                                  DocumentMetadataFilter, QueryResult,
+                                  QueryWithEmbedding, Source)
+from vectordbs.utils.watsonx import get_embeddings
+from vectordbs.vector_store import VectorStore
 
 load_dotenv()
 

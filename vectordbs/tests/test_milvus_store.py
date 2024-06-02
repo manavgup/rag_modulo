@@ -1,16 +1,14 @@
-import pytest
-from datetime import datetime
-from vectordbs.milvus_store import MilvusStore
-from vectordbs.data_types import (
-    Document,
-    DocumentChunk,
-    DocumentChunkMetadata,
-    Source,
-    QueryWithEmbedding,
-)
 import json
-from vectordbs.utils.watsonx import get_embeddings
+from datetime import datetime
+
+import pytest
 from pymilvus import MilvusException
+
+from vectordbs.data_types import (Document, DocumentChunk,
+                                  DocumentChunkMetadata, QueryWithEmbedding,
+                                  Source)
+from vectordbs.milvus_store import MilvusStore
+from vectordbs.utils.watsonx import get_embeddings
 
 
 @pytest.fixture

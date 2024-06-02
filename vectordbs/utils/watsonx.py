@@ -1,12 +1,14 @@
+import json
 import logging
+from typing import List, Optional, Union
+
+from chromadb.api.types import Documents, EmbeddingFunction
 from dotenv import load_dotenv
 from genai import Client, Credentials
-from genai.text.generation import CreateExecutionOptions
 from genai.schema import TextEmbeddingParameters
-from typing import List, Union, Optional
-import json
+from genai.text.generation import CreateExecutionOptions
+
 from vectordbs.data_types import Embeddings
-from chromadb.api.types import EmbeddingFunction, Documents
 
 EMBEDDING_MODEL = "sentence-transformers/all-minilm-l6-v2"
 
