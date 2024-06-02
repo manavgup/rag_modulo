@@ -18,6 +18,7 @@ def heading(text: str) -> str:
 
 client = Client(credentials=Credentials.from_env())
 
+
 def get_embeddings(texts: Union[str | List[str]]) -> List[float]:
     embeddings: List[float] = []
     try:
@@ -31,8 +32,9 @@ def get_embeddings(texts: Union[str | List[str]]) -> List[float]:
                 embeddings.extend(result)
                 print("Embedding: ", result)
     except Exception as e:
-        print("Error: ", e) 
+        print("Error: ", e)
     return embeddings
+
 
 inputs = ["Hello", "world"]
 model_id = "sentence-transformers/all-minilm-l6-v2"
