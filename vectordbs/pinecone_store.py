@@ -36,7 +36,6 @@ class PineconeStore(VectorStore):
     ) -> None:
         try:
             if collection_name in self.client.list_indexes().names():
-                print("*** Index already exists", collection_name)
                 self.index = self.client.Index(collection_name)
             elif collection_name not in self.client.list_indexes().names():
                 self.client.create_index(
