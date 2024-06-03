@@ -18,10 +18,12 @@ load_dotenv()
 ELASTICSEARCH_HOST = os.environ.get("ELASTICSEARCH_HOST", "localhost")
 ELASTICSEARCH_PORT = os.environ.get("ELASTICSEARCH_PORT", "9200")
 ELASTICSEARCH_INDEX = os.environ.get("ELASTICSEARCH_INDEX", "document_chunks")
-EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "sentence-transformers/all-minilm-l6-v2")
+EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL",
+                                 "sentence-transformers/all-minilm-l6-v2")
 
 ELASTIC_PASSWORD = os.environ.get("ELASTIC_PASSWORD", "changeme")
-ELASTIC_CACERT_PATH = os.environ.get("ELASTIC_CACERT_PATH", "/path/to/http_ca.crt")
+ELASTIC_CACERT_PATH = os.environ.get("ELASTIC_CACERT_PATH", 
+                                     "/path/to/http_ca.crt")
 ELASTIC_CLOUD_ID = os.environ.get("ELASTIC_CLOUD_ID", "")
 ELASTIC_API_KEY = os.environ.get("ELASTIC_API_KEY", "")
 
@@ -40,6 +42,7 @@ class ElasticSearchStore(VectorStore):
             self.client = Elasticsearch(
                 ELASTIC_CLOUD_ID, api_key=ELASTIC_API_KEY
             )
+            print("****client: ", self.client)
         else:
             self.client = Elasticsearch(
                 "https://{host}:{port}".format(host=host, port=port),
@@ -49,7 +52,8 @@ class ElasticSearchStore(VectorStore):
         # self._create_index(self.index_name, EMBEDDING_MODEL)
 
     def create_collection(
-        self, name: str, embedding_model_id: str, client: Optional[Elasticsearch] = None
+        self, name: str, embedding_model_id: str,
+        client: Optional[Elasticsearch] = None
     ) -> None:
         """
         Create a new Elasticsearch index.
@@ -57,7 +61,8 @@ class ElasticSearchStore(VectorStore):
         Args:
             name (str): The name of the index to create.
             embedding_model_id (str): The ID of the embedding model.
-            client (Optional[Elasticsearch]): The Elasticsearch client instance.
+            client (Optional[Elasticsearch]): The Elasticsearch client
+            instance.
         """
         if self.client.indices.exists(index=name):
             logging.info(f"Elasticsearch index '{name}' already exists.")
@@ -85,28 +90,29 @@ class ElasticSearchStore(VectorStore):
                 }
             }
             try:
-                response = self.client.indices.create(index=name, body=mappings)
+                response = self.client.indices.create(index=name,
+                                                      body=mappings)
                 if response.get("acknowledged"):
                     logging.info(
-                        f"Created Elasticsearch index '{name}' with mappings {mappings}."
+                        f"Created index '{name}' with {mappings}."
                     )
                 else:
                     logging.error(
-                        f"Failed to create Elasticsearch index '{name}': {response}"
+                        f"Failed to create index '{name}': {response}"
                     )
             except Exception as e:
-                logging.error(f"Failed to create Elasticsearch index '{name}': {e}")
+                logging.error(f"Failed to create index '{name}':{e}")
 
     def add_documents(
         self, collection_name: str, documents: List[Document]
     ) -> List[str]:
         """Add a list of documents to the Elasticsearch index."""
         if not documents:
-            logging.warning(f"No documents to add to the index '{collection_name}'")
+            logging.warning(f"No documents to add to '{collection_name}'")
             return []
 
         if not self.client.indices.exists(index=collection_name):
-            logging.error(f"Elasticsearch index '{collection_name}' does not exist")
+            logging.error(f"Index '{collection_name}' does not exist")
             raise exceptions.NotFoundError(
                 f"Elasticsearch index '{collection_name}' does not exist"
             )
