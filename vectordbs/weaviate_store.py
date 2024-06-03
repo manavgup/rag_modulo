@@ -14,11 +14,17 @@ from weaviate.classes.query import Filter
 from weaviate.data import DataObject
 from weaviate.util import generate_uuid5
 
-from vectordbs.data_types import (Document, DocumentChunk,
-                                  DocumentChunkMetadata,
-                                  DocumentChunkWithScore,
-                                  DocumentMetadataFilter, Embeddings,
-                                  QueryResult, QueryWithEmbedding, Source)
+from vectordbs.data_types import (
+    Document,
+    DocumentChunk,
+    DocumentChunkMetadata,
+    DocumentChunkWithScore,
+    DocumentMetadataFilter,
+    Embeddings,
+    QueryResult,
+    QueryWithEmbedding,
+    Source,
+)
 from vectordbs.utils.watsonx import get_embeddings
 from vectordbs.vector_store import VectorStore  # Ensure this import is correct
 
@@ -32,8 +38,10 @@ WEAVIATE_INDEX = os.environ.get("WEAVIATE_INDEX", "DocumentChunk")
 
 WEAVIATE_BATCH_SIZE = int(os.environ.get("WEAVIATE_BATCH_SIZE", 20))
 WEAVIATE_BATCH_DYNAMIC = os.environ.get("WEAVIATE_BATCH_DYNAMIC", False)
-WEAVIATE_BATCH_TIMEOUT_RETRIES = int(os.environ.get("WEAVIATE_TIMEOUT_RETRIES", 3))
-WEAVIATE_BATCH_NUM_WORKERS = int(os.environ.get("WEAVIATE_BATCH_NUM_WORKERS", 1))
+WEAVIATE_BATCH_TIMEOUT_RETRIES = int(
+    os.environ.get("WEAVIATE_TIMEOUT_RETRIES", 3))
+WEAVIATE_BATCH_NUM_WORKERS = int(
+    os.environ.get("WEAVIATE_BATCH_NUM_WORKERS", 1))
 
 
 class WeaviateDataStore(VectorStore):
@@ -44,9 +52,8 @@ class WeaviateDataStore(VectorStore):
         self.collection: Optional[DataObject] = None
         auth_credentials = self._build_auth_credentials()
 
-        logging.debug(
-            f"Connecting to weaviate instance at {WEAVIATE_HOST} & {WEAVIATE_PORT} with credential type {type(auth_credentials).__name__}"
-        )
+        logging.debug(f"Connecting to weaviate instance at {WEAVIATE_HOST} & {
+            WEAVIATE_PORT} with credential type {type(auth_credentials).__name__}")
         self.client = weaviate.connect_to_custom(
             http_host=WEAVIATE_HOST,
             http_port=WEAVIATE_PORT,
@@ -57,7 +64,8 @@ class WeaviateDataStore(VectorStore):
             auth_credentials=auth_credentials,
         )
 
-    def handle_errors(self, results: Optional[List[Dict[str, Any]]]) -> List[str]:
+    def handle_errors(
+            self, results: Optional[List[Dict[str, Any]]]) -> List[str]:
         if not self or not results:
             return []
 
@@ -117,7 +125,9 @@ class WeaviateDataStore(VectorStore):
 
         with collection.batch.dynamic():
             for doc_id, doc_chunks in chunks.items():
-                logging.debug(f"Upserting {doc_id} with {len(doc_chunks)} chunks")
+                logging.debug(
+                    f"Upserting {doc_id} with {
+                        len(doc_chunks)} chunks")
                 for doc_chunk in doc_chunks:
                     # generate a unique id for weaviate to store each chunk
                     doc_uuid = generate_uuid5(doc_chunk, collection_name)
@@ -161,7 +171,8 @@ class WeaviateDataStore(VectorStore):
                     )
 
                 doc_ids.append(doc_id)
-            self.get_collection(collection_name).data.insert_many(question_objs)
+            self.get_collection(
+                collection_name).data.insert_many(question_objs)
         return doc_ids
 
     def get_collection(self, name: str) -> DataObject:
@@ -225,8 +236,7 @@ class WeaviateDataStore(VectorStore):
         logging.debug(f"****Query: {query.text}")
 
         result = self.client.collections.get(collection_name).query.near_vector(
-            near_vector=query.vectors, limit=number_of_results
-        )
+            near_vector=query.vectors, limit=number_of_results)
 
         query_results: List[QueryResult] = []
         response_objects = result.objects
@@ -237,14 +247,13 @@ class WeaviateDataStore(VectorStore):
                 chunk_id=properties["chunk_id"],
                 text=properties["text"],
                 metadata=DocumentChunkMetadata(
-                    source=Source(properties["source"]),
+                    source=Source(
+                        properties["source"]),
                     source_id=(
-                        properties["source_id"] if "source_id" in properties else ""
-                    ),
+                        properties["source_id"] if "source_id" in properties else ""),
                     url=properties["url"] if "url" in properties else "",
                     created_at=(
-                        properties["created_at"] if "created_at" in properties else ""
-                    ),
+                        properties["created_at"] if "created_at" in properties else ""),
                     author=properties["author"] if "author" in properties else "",
                 ),
             )
@@ -294,7 +303,8 @@ class WeaviateDataStore(VectorStore):
             logging.debug(
                 f"Deleting vectors from index {collection_name} with ids {ids}"
             )
-            collection.data.delete_many(where=Filter.by_id().contains_any(uuids))
+            collection.data.delete_many(
+                where=Filter.by_id().contains_any(uuids))
             return True
 
         return True
@@ -339,7 +349,8 @@ class WeaviateDataStore(VectorStore):
 
         if file_format == "json":
             with open(file_path, "w") as f:
-                json.dump(embeddings, f)  # Convert embeddings to JSON and write
+                # Convert embeddings to JSON and write
+                json.dump(embeddings, f)
         elif file_format == "txt":
             with open(file_path, "w") as f:
                 for embedding in embeddings:
@@ -371,7 +382,8 @@ class WeaviateDataStore(VectorStore):
         if isinstance(query, str):
             # Assuming you have some method to generate embeddings from text
             embeddings = get_embeddings(query)
-            query_with_embedding = QueryWithEmbedding(text=query, vectors=embeddings)
+            query_with_embedding = QueryWithEmbedding(
+                text=query, vectors=embeddings)
             logging.debug(f"Query with embedding: {query_with_embedding}")
         elif isinstance(query, QueryWithEmbedding):
             query_with_embedding = query
@@ -449,8 +461,13 @@ async def main():
     )
     store.print_collection(WEAVIATE_INDEX)
     store.query(
-        WEAVIATE_INDEX, QueryWithEmbedding(text="world", vectors=[0.1, 0.2, 0.3])
-    )
+        WEAVIATE_INDEX,
+        QueryWithEmbedding(
+            text="world",
+            vectors=[
+                0.1,
+                0.2,
+                0.3]))
     store.delete_collection(WEAVIATE_INDEX)
 
 
