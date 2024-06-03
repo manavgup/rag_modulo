@@ -37,13 +37,9 @@ class ElasticSearchStore(VectorStore):
         self.host = host
         self.port = port
         if ELASTIC_CLOUD_ID:
-            print("***Cloud ID: ", ELASTIC_CLOUD_ID)
-            print("***API Key", ELASTIC_API_KEY)
             self.client = Elasticsearch(
                 ELASTIC_CLOUD_ID, api_key=ELASTIC_API_KEY
             )
-            # API key should have cluster monitor rights
-            print("***Client Info:", self.client.info())
         else:
             self.client = Elasticsearch(
                 "https://{host}:{port}".format(host=host, port=port),
