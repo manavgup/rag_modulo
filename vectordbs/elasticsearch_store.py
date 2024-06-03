@@ -13,10 +13,12 @@ from vectordbs.data_types import (Document, DocumentChunk,
 from vectordbs.utils.watsonx import get_embeddings
 from vectordbs.vector_store import VectorStore
 
+load_dotenv()
+
 ELASTICSEARCH_HOST = os.environ.get("ELASTICSEARCH_HOST", "localhost")
 ELASTICSEARCH_PORT = os.environ.get("ELASTICSEARCH_PORT", "9200")
 ELASTICSEARCH_INDEX = os.environ.get("ELASTICSEARCH_INDEX", "document_chunks")
-EMBEDDING_MODEL = "sentence-transformers/all-minilm-l6-v2"
+EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "sentence-transformers/all-minilm-l6-v2")
 
 ELASTIC_PASSWORD = os.environ.get("ELASTIC_PASSWORD", "changeme")
 ELASTIC_CACERT_PATH = os.environ.get("ELASTIC_CACERT_PATH", "/path/to/http_ca.crt")
@@ -35,9 +37,13 @@ class ElasticSearchStore(VectorStore):
         self.host = host
         self.port = port
         if ELASTIC_CLOUD_ID:
+            print("***Cloud ID: ", ELASTIC_CLOUD_ID)
+            print("***API Key", ELASTIC_API_KEY)
             self.client = Elasticsearch(
-                cloud_id=ELASTIC_CLOUD_ID, api_key=ELASTIC_API_KEY
+                ELASTIC_CLOUD_ID, api_key=ELASTIC_API_KEY
             )
+            # API key should have cluster monitor rights
+            print("***Client Info:", self.client.info())
         else:
             self.client = Elasticsearch(
                 "https://{host}:{port}".format(host=host, port=port),
@@ -59,6 +65,8 @@ class ElasticSearchStore(VectorStore):
         """
         if self.client.indices.exists(index=name):
             logging.info(f"Elasticsearch index '{name}' already exists.")
+            self.client.indices.delete(index=name) # Delete the existing index - one time!
+            raise ValueError(f"Elasticsearch index '{name}' already exists.")
         else:
             mappings = {
                 "mappings": {

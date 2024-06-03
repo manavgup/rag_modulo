@@ -77,6 +77,8 @@ def elasticsearch_store():
 
 
 def test_create_collection(elasticsearch_store):
+    store = elasticsearch_store
+    assert store is not None
     elasticsearch_store.create_collection(
         "new_test_index", "sentence-transformers/all-minilm-l6-v2"
     )
