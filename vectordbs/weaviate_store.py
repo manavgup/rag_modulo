@@ -1,10 +1,9 @@
-# TODO
-import asyncio
 import json
 import logging
 import os
 import uuid
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
+import asyncio
 
 import weaviate
 import weaviate.classes as wvc
@@ -27,6 +26,7 @@ from vectordbs.data_types import (
 )
 from vectordbs.utils.watsonx import get_embeddings
 from vectordbs.vector_store import VectorStore  # Ensure this import is correct
+from vectordbs.error_types import CollectionError
 
 WEAVIATE_HOST = os.environ.get("WEAVIATE_HOST", "localhost")
 WEAVIATE_PORT = os.environ.get("WEAVIATE_PORT", "8080")
@@ -34,7 +34,6 @@ WEAVIATE_GRPC_PORT = os.environ.get("WEAVIATE_GRPC_PORT", "50051")
 WEAVIATE_USERNAME = os.environ.get("WEAVIATE_USERNAME", None)
 WEAVIATE_PASSWORD = os.environ.get("WEAVIATE_PASSWORD", None)
 WEAVIATE_SCOPES = os.environ.get("WEAVIATE_SCOPES", None)
-WEAVIATE_INDEX = os.environ.get("WEAVIATE_INDEX", "DocumentChunk")
 
 WEAVIATE_BATCH_SIZE = int(os.environ.get("WEAVIATE_BATCH_SIZE", 20))
 WEAVIATE_BATCH_DYNAMIC = os.environ.get("WEAVIATE_BATCH_DYNAMIC", False)
@@ -92,7 +91,7 @@ class WeaviateDataStore(VectorStore):
         else:
             return None
 
-    async def add_documents(
+    async def add_documents_async(
         self, collection_name: str, documents: List[Document]
     ) -> List[str]:
         chunks: Dict[str, List[DocumentChunk]] = {}
@@ -100,9 +99,7 @@ class WeaviateDataStore(VectorStore):
             if document.document_id is None:
                 raise ValueError("Document ID is cannot be none")
             for doc_chunk in document.chunks:
-                doc_chunk.document_id = (
-                    document.document_id
-                )  # Ensure each chunk references its parent document
+                doc_chunk.document_id = (document.document_id)  # Ensure each chunk references its parent document
                 if document.document_id not in chunks:
                     chunks[document.document_id] = []
                 chunks[document.document_id].append(doc_chunk)
@@ -119,15 +116,13 @@ class WeaviateDataStore(VectorStore):
         """
         doc_ids = []
         question_objs = list()
-        collection: DataObject = self.get_collection(collection_name)
+        collection: DataObject = await self.get_collection(collection_name)
         if collection is None:
             raise ValueError(f"Collection {collection_name} does not exist")
 
         with collection.batch.dynamic():
             for doc_id, doc_chunks in chunks.items():
-                logging.debug(
-                    f"Upserting {doc_id} with {
-                        len(doc_chunks)} chunks")
+                logging.debug(f"Upserting {doc_id} with {len(doc_chunks)} chunks")
                 for doc_chunk in doc_chunks:
                     # generate a unique id for weaviate to store each chunk
                     doc_uuid = generate_uuid5(doc_chunk, collection_name)
@@ -171,33 +166,31 @@ class WeaviateDataStore(VectorStore):
                     )
 
                 doc_ids.append(doc_id)
-            self.get_collection(
-                collection_name).data.insert_many(question_objs)
+            collection.data.insert_many(question_objs)
         return doc_ids
 
-    def get_collection(self, name: str) -> DataObject:
-        if self.client and self.client.collections.exists(name):
-            return self.client.collections.get(name)
+    async def get_collection(self, name: str) -> DataObject:
+        if self.client and await asyncio.to_thread(self.client.collections.exists, name):
+            return await asyncio.to_thread(self.client.collections.get, name)
         raise ValueError(f"Collection {name} does not exist")
 
-    def create_collection(self, name: str) -> None:
-        if self.client and self.client.collections.exists(name):
-            logging.debug(f"Index {name} already exists")
-            return
+    async def create_collection_async(self, collection_name: str,
+                                      metadata: Optional[dict] = None) -> None:
+        if self.client and await asyncio.to_thread(self.client.collections.exists,
+                                                   collection_name):
+            logging.debug(f"Index {collection_name} already exists")
         else:
+            print("trying to create")
             try:
                 if self.client:
-                    self.collection = self.client.collections.create(
-                        name=name,
+                    print("Client is initialized")
+                    self.collection = await asyncio.to_thread(self.client.collections.create,
+                        name=collection_name,
                         vectorizer_config=wvc.config.Configure.Vectorizer.none(),
                         properties=[
                             Property(name="document_id", data_type=DataType.TEXT),
                             Property(name="chunk_id", data_type=DataType.TEXT),
-                            Property(
-                                name="text",
-                                data_type=DataType.TEXT,
-                                vectorize_property_name=True,
-                            ),
+                            Property(name="text", data_type=DataType.TEXT, vectorize_property_name=True),
                             Property(name="source", data_type=DataType.TEXT),
                             Property(name="source_id", data_type=DataType.TEXT),
                             Property(name="url", data_type=DataType.TEXT),
@@ -208,21 +201,20 @@ class WeaviateDataStore(VectorStore):
                             distance_metric=wvc.config.VectorDistances.COSINE
                         ),
                     )
+                    print(f"Collection Created: {self.collection}")
                 else:
-                    logging.error(
-                        "Failed to create index because the client is not initialized"
-                    )
+                    logging.error("Failed to create index because the client is not initialized")
             except Exception as e:
-                logging.error(f"Failed to create index {name}: {e}")
-                raise e
+                logging.error(f"Failed to create index {collection_name}: {e}")
+                raise CollectionError(f"Failed to create collection '{collection_name}': {e}")
 
-    def delete_collection(self, collection_name: str) -> None:
+    async def delete_collection_async(self, collection_name: str) -> None:
         if self.client and self.client.collections:
             self.client.collections.delete(collection_name)
         else:
-            logging.debug(f"Collection {collection_name} does not exist")
+            logging.error(f"Collection {collection_name} does not exist")
 
-    def query(
+    async def query_async(
         self,
         collection_name: str,
         query: QueryWithEmbedding,
@@ -247,13 +239,10 @@ class WeaviateDataStore(VectorStore):
                 chunk_id=properties["chunk_id"],
                 text=properties["text"],
                 metadata=DocumentChunkMetadata(
-                    source=Source(
-                        properties["source"]),
-                    source_id=(
-                        properties["source_id"] if "source_id" in properties else ""),
+                    source=Source(properties["source"]),
+                    source_id=(properties["source_id"] if "source_id" in properties else ""),
                     url=properties["url"] if "url" in properties else "",
-                    created_at=(
-                        properties["created_at"] if "created_at" in properties else ""),
+                    created_at=(properties["created_at"] if "created_at" in properties else ""),
                     author=properties["author"] if "author" in properties else "",
                 ),
             )
@@ -287,7 +276,7 @@ class WeaviateDataStore(VectorStore):
             return False
 
         try:
-            collection = self.get_collection(collection_name)
+            collection = await self.get_collection(collection_name)
         except ValueError as e:
             logging.error(f"Failed to get collection {collection_name}: {e}")
             return False
@@ -298,13 +287,10 @@ class WeaviateDataStore(VectorStore):
             return True
 
         if ids:
-            response = collection.query.fetch_objects(limit=delete_id_count)
+            response = await collection.query.fetch_objects(limit=delete_id_count)
             uuids = [object.uuid for object in response.objects]
-            logging.debug(
-                f"Deleting vectors from index {collection_name} with ids {ids}"
-            )
-            collection.data.delete_many(
-                where=Filter.by_id().contains_any(uuids))
+            logging.debug(f"Deleting vectors from index {collection_name} with ids {ids}")
+            collection.data.delete_many(where=Filter.by_id().contains_any(uuids))
             return True
 
         return True
@@ -360,41 +346,29 @@ class WeaviateDataStore(VectorStore):
         else:
             raise ValueError(f"Unsupported file format: {file_format}")
 
-    def delete_documents(
-        self, document_ids: List[str], collection_name: Optional[str] = None
-    ):
+    def delete_documents_async(self, document_ids: List[str], collection_name: Optional[str] = None ):
         pass
 
-    def get_document(
-        self, document_id: str, collection_name: Optional[str] = None
-    ) -> Optional[Document]:
+    def get_document(self, document_id: str, collection_name: Optional[str] = None) -> Optional[Document]:
         pass
 
-    def retrieve_documents(
+    async def retrieve_documents_async(
         self,
-        query: Union[str, QueryWithEmbedding],
+        query: str,
         collection_name: Optional[str] = None,
         limit: int = 10,
     ) -> List[QueryResult]:
-        if collection_name is None:
-            collection_name = WEAVIATE_INDEX
+        if not await asyncio.to_thread(self.client.collections.exists,
+                                                   collection_name):
+            raise CollectionError(f"Collection '{collection_name}' does not exist")
 
-        if isinstance(query, str):
-            # Assuming you have some method to generate embeddings from text
-            embeddings = get_embeddings(query)
-            query_with_embedding = QueryWithEmbedding(
-                text=query, vectors=embeddings)
-            logging.debug(f"Query with embedding: {query_with_embedding}")
-        elif isinstance(query, QueryWithEmbedding):
-            query_with_embedding = query
-        else:
-            raise ValueError(
-                "Query must be either a string or an instance of QueryWithEmbedding"
-            )
+        # Assuming you have some method to generate embeddings from text
+        embeddings = get_embeddings(query)
+        query_with_embedding = QueryWithEmbedding(
+            text=query, vectors=embeddings)
+        logging.debug(f"Query with embedding: {query_with_embedding}")
 
-        query_results = self.query(
-            collection_name, query_with_embedding, number_of_results=limit
-        )
+        query_results = await self.query_async(collection_name, query_with_embedding, number_of_results=limit)
 
         # Assuming the query method returns a list of QueryResult objects
         if not query_results:
@@ -402,8 +376,8 @@ class WeaviateDataStore(VectorStore):
 
         return query_results
 
-    def print_collection(self, collection_name: str):
-        collection = self.get_collection(collection_name)
+    async def print_collection(self, collection_name: str):
+        collection = await self.get_collection(collection_name)
         if collection is not None:
             for item in collection.iterator():
                 print(item)
@@ -422,54 +396,3 @@ class WeaviateDataStore(VectorStore):
         # Ensure that the client is closed properly
         if self.client:
             self.client.close()
-
-
-async def main():
-    store = WeaviateDataStore()
-    print(store)
-    store.delete_collection(WEAVIATE_INDEX)
-    store.create_collection(WEAVIATE_INDEX)
-    print("Collection created", store.get_collection(WEAVIATE_INDEX))
-    await store.add_documents(
-        WEAVIATE_INDEX,
-        [
-            DocumentChunk(
-                chunk_id="1",
-                text="Hello world",
-                vectors=[0.1, 0.2, 0.3],
-                metadata=DocumentChunkMetadata(
-                    source=Source.WEBSITE,
-                ),
-            ),
-            DocumentChunk(
-                chunk_id="2",
-                text="This is different",
-                vectors=[4, 4, 6],
-                metadata=DocumentChunkMetadata(
-                    source=Source.WEBSITE,
-                ),
-            ),
-            DocumentChunk(
-                chunk_id="3",
-                text="A THIRD STATEMENT",
-                vectors=[6, 7, 6],
-                metadata=DocumentChunkMetadata(
-                    source=Source.WEBSITE,
-                ),
-            ),
-        ],
-    )
-    store.print_collection(WEAVIATE_INDEX)
-    store.query(
-        WEAVIATE_INDEX,
-        QueryWithEmbedding(
-            text="world",
-            vectors=[
-                0.1,
-                0.2,
-                0.3]))
-    store.delete_collection(WEAVIATE_INDEX)
-
-
-if __name__ == "__main__":
-    asyncio.run(main())

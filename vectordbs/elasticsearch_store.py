@@ -1,10 +1,9 @@
 import logging
 import os
-import uuid
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional 
 
 from dotenv import load_dotenv
-from elasticsearch import Elasticsearch, NotFoundError, exceptions
+from elasticsearch import AsyncElasticsearch, NotFoundError
 
 from vectordbs.data_types import (Document, DocumentChunk,
                                   DocumentChunkMetadata,
@@ -12,6 +11,7 @@ from vectordbs.data_types import (Document, DocumentChunk,
                                   QueryWithEmbedding, Source)
 from vectordbs.utils.watsonx import get_embeddings
 from vectordbs.vector_store import VectorStore
+from vectordbs.error_types import CollectionError, DocumentError
 
 load_dotenv()
 
@@ -36,25 +36,16 @@ class ElasticSearchStore(VectorStore):
         self, host: str = ELASTICSEARCH_HOST, port: str = ELASTICSEARCH_PORT
     ) -> None:
         self.index_name = ELASTICSEARCH_INDEX
-        self.host = host
-        self.port = port
         if ELASTIC_CLOUD_ID:
-            self.client = Elasticsearch(
-                ELASTIC_CLOUD_ID, api_key=ELASTIC_API_KEY
-            )
-            print("****client: ", self.client)
+            self.client = AsyncElasticsearch(ELASTIC_CLOUD_ID, api_key=ELASTIC_API_KEY)
         else:
-            self.client = Elasticsearch(
-                "https://{host}:{port}".format(host=host, port=port),
+            self.client = AsyncElasticsearch(
+                hosts=[{"host": host, "port": port}],
                 ca_certs=ELASTIC_CACERT_PATH,
-                basic_auth=("elastic", ELASTIC_PASSWORD),
+                basic_auth=("elastic", ELASTIC_PASSWORD)
             )
-        # self._create_index(self.index_name, EMBEDDING_MODEL)
 
-    def create_collection(
-        self, name: str, embedding_model_id: str,
-        client: Optional[Elasticsearch] = None
-    ) -> None:
+    async def create_collection_async(self, collection_name: str, metadata: Optional[dict] = None) -> None:
         """
         Create a new Elasticsearch index.
 
@@ -64,10 +55,9 @@ class ElasticSearchStore(VectorStore):
             client (Optional[Elasticsearch]): The Elasticsearch client
             instance.
         """
-        if self.client.indices.exists(index=name):
-            logging.info(f"Elasticsearch index '{name}' already exists.")
-            self.client.indices.delete(index=name) # Delete the existing index - one time!
-            raise ValueError(f"Elasticsearch index '{name}' already exists.")
+        if await self.client.indices.exists(index=collection_name):
+            logging.info(f"Elasticsearch index '{collection_name}' already exists.")
+            raise CollectionError(f"Elasticsearch index '{collection_name}' already exists.")
         else:
             mappings = {
                 "mappings": {
@@ -90,20 +80,16 @@ class ElasticSearchStore(VectorStore):
                 }
             }
             try:
-                response = self.client.indices.create(index=name,
-                                                      body=mappings)
+                response = await self.client.indices.create(index=collection_name, body=mappings)
                 if response.get("acknowledged"):
-                    logging.info(
-                        f"Created index '{name}' with {mappings}."
-                    )
+                    logging.info(f"Created index '{collection_name}' with {mappings}.")
                 else:
-                    logging.error(
-                        f"Failed to create index '{name}': {response}"
-                    )
+                    logging.error(f"Failed to create index '{collection_name}': {response}")
             except Exception as e:
-                logging.error(f"Failed to create index '{name}':{e}")
+                logging.error(f"Failed to create index '{collection_name}':{e}")
+                raise CollectionError(f"Failed to create index '{collection_name}': {e}")
 
-    def add_documents(
+    async def add_documents_async(
         self, collection_name: str, documents: List[Document]
     ) -> List[str]:
         """Add a list of documents to the Elasticsearch index."""
@@ -111,11 +97,9 @@ class ElasticSearchStore(VectorStore):
             logging.warning(f"No documents to add to '{collection_name}'")
             return []
 
-        if not self.client.indices.exists(index=collection_name):
+        if not await self.client.indices.exists(index=collection_name):
             logging.error(f"Index '{collection_name}' does not exist")
-            raise exceptions.NotFoundError(
-                f"Elasticsearch index '{collection_name}' does not exist"
-            )
+            raise DocumentError(f"Elasticsearch index '{collection_name}' does not exist")
 
         document_ids = []
         try:
@@ -123,7 +107,7 @@ class ElasticSearchStore(VectorStore):
             for document in documents:
                 for chunk in document.chunks:
                     chunk_data = {
-                        "document_id": chunk.document_id,
+                        "document_id": document.document_id,
                         "chunk_id": chunk.chunk_id,
                         "text": chunk.text,
                         "embedding": chunk.vectors,
@@ -140,7 +124,7 @@ class ElasticSearchStore(VectorStore):
                     document_ids.append(
                         chunk.chunk_id
                     )  # Store the UUIDs of the documents
-            self.client.bulk(index=collection_name, body=actions, refresh=True)
+            await self.client.bulk(index=collection_name, body=actions, refresh=True)
             print("collection: ", collection_name)
             logging.info(f"Successfully added documents to index '{collection_name}'")
         except Exception as e:
@@ -148,50 +132,37 @@ class ElasticSearchStore(VectorStore):
                 f"Failed to add documents to index '{collection_name}': {e}",
                 exc_info=True,
             )
-            raise
+            raise DocumentError(f"Failed to add documents to index '{collection_name}': {e}")
         return document_ids
 
-    def retrieve_documents(
-        self,
-        query: Union[str, QueryWithEmbedding],
-        collection_name: Optional[str] = None,
-        limit: int = 10,
-    ) -> List[QueryResult]:
+    async def retrieve_documents_async(self, query: str, collection_name: Optional[str] = None,
+                                 limit: int = 10) -> List[QueryResult]:
         """Retrieve documents from the Elasticsearch index."""
-        if isinstance(query, str):
-            query_embeddings = get_embeddings(query)
-            if not query_embeddings:
-                raise ValueError("Failed to generate embeddings for the query string.")
-            query = QueryWithEmbedding(text=query, vectors=query_embeddings)
-        collection_name = (
-            collection_name or self.index_name
-        )  # Use the default index name if not provided
-        return self.query(collection_name, query, number_of_results=limit)
+        embeddings = get_embeddings(query)
+        if not embeddings:
+            raise DocumentError("Failed to generate embeddings for the query string.")
+        query_embedding = QueryWithEmbedding(query, embeddings)
+        collection_name = (collection_name or self.index_name)  # Use the default index name if not provided
+        return await self.query_async(collection_name, query_embedding, number_of_results=limit)
 
-    def delete_collection(self, name: str) -> None:
+    async def delete_collection_async(self, name: str) -> None:
         """Delete an Elasticsearch index."""
         try:
-            self.client.indices.delete(index=name)
+            await self.client.indices.delete(index=name)
             logging.info(f"Deleted Elasticsearch index '{name}'")
         except NotFoundError:
             logging.warning(f"Elasticsearch index '{name}' does not exist")
         except Exception as e:
-            logging.error(
-                f"Failed to delete Elasticsearch index '{name}': {e}", exc_info=True
-            )
-            raise
+            logging.error(f"Failed to delete Elasticsearch index '{name}': {e}", exc_info=True)
+            raise CollectionError(f"Failed to delete Elasticsearch index '{name}': {e}")
 
-    def delete_documents(
+    async def delete_documents_async(
         self, document_ids: List[str], collection_name: Optional[str] = None
     ) -> int:
         """Delete documents from the Elasticsearch index by their chunk IDs."""
-        collection_name = (
-            collection_name or self.index_name
-        )  # Use the default index name if not provided
+        collection_name = (collection_name or self.index_name)  # Use the default index name if not provided
         if not document_ids:
-            logging.info(
-                f"No document IDs provided for deletion in index '{collection_name}'"
-            )
+            logging.info(f"No document IDs provided for deletion in index '{collection_name}'")
             return 0
 
         try:
@@ -200,7 +171,6 @@ class ElasticSearchStore(VectorStore):
                 for doc_id in document_ids
             ]
             response = self.client.bulk(body=actions, refresh=True)
-            print("****response: ", response)
 
             # Handle partial failures
             deleted_count = 0
@@ -223,7 +193,7 @@ class ElasticSearchStore(VectorStore):
                 f"Failed to delete documents from index '{collection_name}': {e}",
                 exc_info=True,
             )
-            raise
+            raise DocumentError(f"Failed to delete documents from index '{collection_name}': {e}")
 
     def _convert_to_chunk(self, data: Dict[str, Any]) -> DocumentChunk:
         """Convert Elasticsearch document data to a DocumentChunk."""
@@ -269,7 +239,7 @@ class ElasticSearchStore(VectorStore):
             )
         return results
 
-    def query(
+    async def query_async(
         self,
         collection_name: str,
         query: QueryWithEmbedding,
@@ -277,13 +247,8 @@ class ElasticSearchStore(VectorStore):
         filter: Optional[DocumentMetadataFilter] = None,
     ) -> List[QueryResult]:
         """Queries the Elasticsearch index with filtering and query mode options."""
-        if isinstance(query, str):
-            query_embeddings = get_embeddings(query)
-            if not query_embeddings:
-                raise ValueError("Failed to generate embeddings for the query string.")
-            query = QueryWithEmbedding(text=query, vectors=query_embeddings)
         try:
-            response = self.client.search(
+            response = await self.client.search(
                 index=collection_name,
                 knn={
                     "field": "embedding",
@@ -303,11 +268,8 @@ class ElasticSearchStore(VectorStore):
             )
             return self._process_search_results(response)
         except Exception as e:
-            logging.error(
-                f"Failed to query documents from index '{collection_name}': {e}",
-                exc_info=True,
-            )
-            raise
+            logging.error(f"Failed to query documents from index '{collection_name}': {e}", exc_info=True)
+            raise DocumentError(f"Failed to query documents from index '{collection_name}': {e}")
 
     def _build_filters(
         self, filter: Optional[DocumentMetadataFilter]
@@ -336,4 +298,4 @@ class ElasticSearchStore(VectorStore):
         exc_val: Optional[BaseException],
         exc_tb: Optional[Any],
     ) -> None:
-        self.client.close()
+        await self.client.close()

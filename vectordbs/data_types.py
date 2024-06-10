@@ -1,13 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, auto
 from typing import Any, List, Optional, Sequence, Union
 
-# Document = str
-# Documents = List[Document]
-# Vector = Union[Sequence[float], Sequence[int]]
-# Embeddings
+
 Embedding = Union[Sequence[float], Sequence[int]]
 Embeddings = List[Embedding]
 
@@ -26,7 +23,7 @@ class DocumentChunk:
     text: str
     vectors: Optional[List[float]] = None
     metadata: Optional[DocumentChunkMetadata] = None
-    document_id: Optional[str] = ""
+    document_id: Optional[str] = None
 
     def dict(self) -> dict[str, Any]:
         return {"text": self.text}
@@ -47,12 +44,11 @@ class DocumentQuery:
     metadata: Optional[DocumentMetadataFilter] = None
 
 
-@dataclass
 class Source(str, Enum):
     WEBSITE = "website"
     PDF = "pdf"
-    WORD_DOCUMENT = "word_document"
-    POWERPOINT = "pptx"
+    WORD_DOCUMENT = "word"
+    POWERPOINT = "ppt"
     OTHER = "other"
 
 
@@ -60,7 +56,7 @@ class Source(str, Enum):
 class DocumentMetadataFilter:
     field_name: str
     operator: str = ""
-    value: Any = ""
+    value: Any = None
 
 
 @dataclass
@@ -77,9 +73,6 @@ class QueryResult:
 
 @dataclass
 class VectorStoreQuery:
-    """Vector store query."""
-
-    # dense embedding
     query_embedding: Optional[List[float]] = None
     similarity_top_k: int = 1
     ids: Optional[List[str]] = None
@@ -100,14 +93,11 @@ class VectorStoreData:
 
 
 @dataclass
-class VectorStoreQueryMode(str, Enum):
-    """Vector store query mode."""
-
-    DEFAULT = "default"
-    SPARSE = "sparse"
-    HYBRID = "hybrid"
+class VectorStoreQueryMode(Enum):
+    DEFAULT = auto()
+    SPARSE = auto()
+    HYBRID = auto()
 
     @classmethod
-    def get_current_mode(cls):
-        """Gets the current query mode."""
-        return cls.DEFAULT  # Default to dense vector search
+    def get_current_mode(cls) -> VectorStoreQueryMode:
+        return cls.DEFAULT
