@@ -14,9 +14,9 @@ def get_datastore(datastore: str) -> VectorStore:
 
         return WeaviateDataStore()
     elif datastore == "milvus":
-        from vectordbs.milvus_store import MilvusDataStore
+        from vectordbs.milvus_store import MilvusStore
 
-        return MilvusDataStore()
+        return MilvusStore()
     elif datastore == "elasticsearch":
         from vectordbs.elasticsearch_store import ElasticSearchStore
 
