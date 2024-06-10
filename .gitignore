@@ -10,3 +10,4 @@ vectordbs/elastic.py
 chroma.log
 my_chroma_data/
 .coverage
+standalone_embed.sh

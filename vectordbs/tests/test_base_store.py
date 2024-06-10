@@ -8,7 +8,8 @@ from vectordbs.data_types import (
     Source,
 )
 from vectordbs.utils.watsonx import get_embeddings
-
+from vectordbs.error_types import CollectionError
+import asyncio
 
 class BaseStoreTest:
     """
@@ -16,11 +17,18 @@ class BaseStoreTest:
     """
 
     @pytest.fixture
-    def store(self):
-        raise NotImplementedError(
-            "Subclasses must implement the \
-            'store' fixture"
-        )
+    async def store(self):
+        """
+        Fixture to provide an instance of the vector store for testing.
+        Subclasses must either implement this fixture or define a `store_class` attribute.
+        """
+        if hasattr(self, "store_class"):
+            async with self.store_class() as store:
+                yield store
+        else:
+            raise NotImplementedError(
+                "Subclasses must either implement the 'store' fixture or define a 'store_class' attribute."
+            )
 
     def create_test_documents(self):
         text1 = "Hello world"
@@ -74,44 +82,48 @@ class BaseStoreTest:
             ),
         ]
 
-    def test_add_documents(self, store):
+    @pytest.mark.asyncio
+    async def test_add_documents(self, store):
         documents = self.create_test_documents()
-        result = store.add_documents(store.collection_name, documents)
-        assert len(result) == 3
+        async with store as s:
+            result = await s.add_documents_async(s.collection_name, documents)
+            assert len(result) == 3
 
-    def test_query_documents(self, store):
-        documents = self.create_test_documents()
-        store.add_documents(store.collection_name, documents)
-        embeddings = get_embeddings("Hello world")
-        query_result = store.query(
-            store.collection_name,
-            QueryWithEmbedding(text="Hello world", vectors=embeddings),
-        )
-        assert query_result is not None
-        assert len(query_result) > 0
-
-    def test_retrieve_documents_with_string_query(self, store):
-        documents = self.create_test_documents()
-        store.add_documents(store.collection_name, documents)
-        query_results = store.retrieve_documents("Hello world", 
-                                                 store.collection_name)
-        assert query_results is not None
-        assert len(query_results) > 0
-        for query_result in query_results:
-            assert query_result.data is not None
-            assert len(query_result.data) > 0
-
-    def test_delete_all_documents(self, store):
-        documents = self.create_test_documents()
-        store.add_documents(store.collection_name, documents)
-        store.delete_collection(store.collection_name)
-        with pytest.raises(Exception):
-            store.retrieve_documents(
-                QueryWithEmbedding(
-                    text="Hello world", vectors=get_embeddings("Hello world")
-                ),
-                store.collection_name,
+    @pytest.mark.asyncio
+    async def test_query_documents(self, store):
+        async with store as s:
+            documents = self.create_test_documents()
+            await s.add_documents_async(s.collection_name, documents)
+            await asyncio.sleep(5)  # Delay to allow Pinecone to index documents
+            embeddings = get_embeddings("Hello world")
+            query_result = await s.query_async(
+                s.collection_name,
+                QueryWithEmbedding(text="Hello world", vectors=embeddings),
             )
+            assert query_result is not None
+            assert len(query_result) > 0
+
+    @pytest.mark.asyncio
+    async def test_retrieve_documents_with_string_query(self, store):
+        async with store as s:
+            documents = self.create_test_documents()
+            await s.add_documents_async(s.collection_name, documents)
+            await asyncio.sleep(5)  # Delay to allow Pinecone to index documents
+            query_results = await s.retrieve_documents_async("Hello world", s.collection_name)
+            assert query_results is not None
+            assert len(query_results) > 0
+            for query_result in query_results:
+                assert query_result.data is not None
+                assert len(query_result.data) > 0
+
+    @pytest.mark.asyncio
+    async def test_delete_all_documents(self, store):
+        async with store as s:
+            documents = self.create_test_documents()
+            await s.add_documents_async(s.collection_name, documents)
+            await s.delete_collection_async(s.collection_name)
+            with pytest.raises(CollectionError):
+                await s.retrieve_documents_async("Hello world", collection_name=s.collection_name)
 
     @pytest.mark.asyncio
     async def test_aenter_aexit(self):
