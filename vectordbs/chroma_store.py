@@ -1,10 +1,8 @@
 import asyncio
 import logging
-import os
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 from chromadb import ClientAPI, Collection, chromadb
-from dotenv import load_dotenv
 
 from vectordbs.data_types import (
     Document, DocumentChunk, DocumentChunkMetadata,
@@ -13,15 +11,14 @@ from vectordbs.data_types import (
 from vectordbs.utils.watsonx import ChromaEmbeddingFunction, get_embeddings
 from vectordbs.vector_store import VectorStore
 from vectordbs.error_types import CollectionError, DocumentError
+from config import settings
 
-load_dotenv()  # Load environment variables from .env file
+CHROMADB_HOST = settings.chromadb_host
+CHROMADB_PORT = settings.chromadb_port
+EMBEDDING_MODEL = settings.embedding_model
+EMBEDDING_DIM = settings.embedding_dim
 
-CHROMADB_HOST = os.getenv("CHROMADB_HOST", "localhost")
-CHROMADB_PORT = int(os.getenv("CHROMADB_PORT", "8000"))
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-minilm-l6-v2")
-EMBEDDING_DIM = int(os.getenv("EMBEDDING_DIM", "384"))
-
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=settings.log_level)
 
 
 class ChromaDBStore(VectorStore):
@@ -115,10 +112,12 @@ class ChromaDBStore(VectorStore):
         """Queries the vector store with filtering and query mode options asynchronously."""
         self._initialize_client()
         self._initialize_collection(collection_name)
+        if not self.collection:
+            raise CollectionError(f"Collection '{collection_name}' is not initialized.")
 
         try:
             response = await asyncio.to_thread(
-                self.collection.query, 
+                self.collection.query,
                 query_embeddings=query.vectors,
                 n_results=number_of_results)
             logging.info(f"Query response: {response}")

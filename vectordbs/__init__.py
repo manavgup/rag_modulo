@@ -1,6 +1,4 @@
 # vectordbs/__init__.py
-from .chroma_store import ChromaDBStore
-from .elasticsearch_store import ElasticSearchStore
 from .milvus_store import MilvusStore
 from .pinecone_store import PineconeStore
 from .vector_store import VectorStore

@@ -2,7 +2,6 @@ import logging
 import os
 from typing import Any, Dict, List, Optional
 import asyncio
-from dotenv import load_dotenv
 from pinecone import Pinecone, ServerlessSpec
 
 from vectordbs.data_types import (Document, DocumentChunk,
@@ -12,13 +11,12 @@ from vectordbs.data_types import (Document, DocumentChunk,
 from vectordbs.utils.watsonx import get_embeddings
 from vectordbs.vector_store import VectorStore
 from vectordbs.error_types import VectorStoreError, CollectionError
+from config import settings
 
-load_dotenv()
-
-PINECONE_API_KEY = os.getenv("PINECONE_API_KEY", "your-pinecone-api-key")
-PINECONE_CLOUD = os.getenv("PINECONE_CLOUD", "aws")
-PINECONE_REGION = os.getenv("PINECONE_REGION", "us-east-1")
-EMBEDDING_DIM = int(os.getenv("EMBEDDING_DIM", 384))
+PINECONE_API_KEY = settings.pinecone_api_key
+PINECONE_CLOUD = settings.pinecone_cloud
+PINECONE_REGION = settings.pinecone_region
+EMBEDDING_DIM = settings.embedding_dim
 
 logging.basicConfig(level=logging.INFO)
 

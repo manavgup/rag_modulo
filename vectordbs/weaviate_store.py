@@ -27,21 +27,7 @@ from vectordbs.data_types import (
 from vectordbs.utils.watsonx import get_embeddings
 from vectordbs.vector_store import VectorStore  # Ensure this import is correct
 from vectordbs.error_types import CollectionError
-
-WEAVIATE_HOST = os.environ.get("WEAVIATE_HOST", "localhost")
-WEAVIATE_PORT = os.environ.get("WEAVIATE_PORT", "8080")
-WEAVIATE_GRPC_PORT = os.environ.get("WEAVIATE_GRPC_PORT", "50051")
-WEAVIATE_USERNAME = os.environ.get("WEAVIATE_USERNAME", None)
-WEAVIATE_PASSWORD = os.environ.get("WEAVIATE_PASSWORD", None)
-WEAVIATE_SCOPES = os.environ.get("WEAVIATE_SCOPES", None)
-
-WEAVIATE_BATCH_SIZE = int(os.environ.get("WEAVIATE_BATCH_SIZE", 20))
-WEAVIATE_BATCH_DYNAMIC = os.environ.get("WEAVIATE_BATCH_DYNAMIC", False)
-WEAVIATE_BATCH_TIMEOUT_RETRIES = int(
-    os.environ.get("WEAVIATE_TIMEOUT_RETRIES", 3))
-WEAVIATE_BATCH_NUM_WORKERS = int(
-    os.environ.get("WEAVIATE_BATCH_NUM_WORKERS", 1))
-
+from config import settings
 
 class WeaviateDataStore(VectorStore):
 
@@ -51,14 +37,14 @@ class WeaviateDataStore(VectorStore):
         self.collection: Optional[DataObject] = None
         auth_credentials = self._build_auth_credentials()
 
-        logging.debug(f"Connecting to weaviate instance at {WEAVIATE_HOST} & {
-            WEAVIATE_PORT} with credential type {type(auth_credentials).__name__}")
+        logging.debug(f"Connecting to weaviate instance at {settings.weaviate_host} & \
+            {settings.weaviate_port} with credential type {type(auth_credentials).__name__}")
         self.client = weaviate.connect_to_custom(
-            http_host=WEAVIATE_HOST,
-            http_port=WEAVIATE_PORT,
+            http_host=settings.weaviate_host,
+            http_port=settings.weaviate_port,
             http_secure=False,
-            grpc_host=WEAVIATE_HOST,
-            grpc_port=WEAVIATE_GRPC_PORT,
+            grpc_host=settings.weaviate_host,
+            grpc_port=settings.weaviate_grpc_port,
             grpc_secure=False,
             auth_credentials=auth_credentials,
         )
@@ -84,9 +70,9 @@ class WeaviateDataStore(VectorStore):
 
     @staticmethod
     def _build_auth_credentials() -> Optional[weaviate.auth.AuthCredentials]:
-        if WEAVIATE_USERNAME and WEAVIATE_PASSWORD:
+        if settings.weaviate_username and settings.weaviate_password:
             return weaviate.auth.AuthClientPassword(
-                WEAVIATE_USERNAME, WEAVIATE_PASSWORD, WEAVIATE_SCOPES
+                settings.weaviate_username, settings.weaviate_password, settings.weaviate_scopes
             )
         else:
             return None
@@ -346,7 +332,7 @@ class WeaviateDataStore(VectorStore):
         else:
             raise ValueError(f"Unsupported file format: {file_format}")
 
-    def delete_documents_async(self, document_ids: List[str], collection_name: Optional[str] = None ):
+    def delete_documents_async(self, document_ids: List[str], collection_name: Optional[str] = None):
         pass
 
     def get_document(self, document_id: str, collection_name: Optional[str] = None) -> Optional[Document]:

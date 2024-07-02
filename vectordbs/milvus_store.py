@@ -15,28 +15,19 @@ from vectordbs.data_types import (Document, DocumentChunk,
 from vectordbs.utils.watsonx import get_embeddings
 from vectordbs.vector_store import VectorStore
 from vectordbs.error_types import VectorStoreError, CollectionError, DocumentError
+from config import settings
 
-
-MILVUS_COLLECTION: Optional[str] = os.environ.get(
-    "MILVUS_COLLECTION", "DocumentChunk")
-MILVUS_HOST = os.environ.get("MILVUS_HOST", "127.0.0.1")
-MILVUS_PORT = os.environ.get("MILVUS_PORT", "19530")
-MILVUS_USER = os.environ.get("MILVUS_USER")
-MILVUS_PASSWORD = os.environ.get("MILVUS_PASSWORD")
+MILVUS_COLLECTION = settings.collection_name
+MILVUS_HOST = settings.milvus_host
+MILVUS_PORT = settings.milvus_port
+MILVUS_USER = settings.milvus_user
+MILVUS_PASSWORD = settings.milvus_password
 MILVUS_USE_SECURITY = False if MILVUS_PASSWORD is None else True
-
-MILVUS_COLLECTION_NAME = "DocumentChunk"
-EMBEDDING_DIM = 384
-UPSERT_BATCH_SIZE = 100
-
-EMBEDDING_FIELD: str = "embedding"
-EMBEDDING_MODEL = os.environ.get(
-    "TOKENIZER_MODEL", "sentence-transformers/all-minilm-l6-v2"
-)
-
-MILVUS_INDEX_PARAMS = os.environ.get("MILVUS_INDEX_PARAMS")
-MILVUS_SEARCH_PARAMS = os.environ.get("MILVUS_SEARCH_PARAMS")
-MILVUS_CONSISTENCY_LEVEL = os.environ.get("MILVUS_CONSISTENCY_LEVEL")
+EMBEDDING_DIM = settings.embedding_dim
+EMBEDDING_FIELD = settings.embedding_field
+EMBEDDING_MODEL = settings.embedding_model
+MILVUS_INDEX_PARAMS = settings.milvus_index_params
+MILVUS_SEARCH_PARAMS = settings.milvus_search_params
 
 SCHEMA = [
     FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=True),

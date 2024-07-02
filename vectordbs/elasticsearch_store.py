@@ -1,8 +1,6 @@
 import logging
-import os
-from typing import Any, Dict, List, Optional 
+from typing import Any, Dict, List, Optional
 
-from dotenv import load_dotenv
 from elasticsearch import AsyncElasticsearch, NotFoundError
 
 from vectordbs.data_types import (Document, DocumentChunk,
@@ -12,23 +10,18 @@ from vectordbs.data_types import (Document, DocumentChunk,
 from vectordbs.utils.watsonx import get_embeddings
 from vectordbs.vector_store import VectorStore
 from vectordbs.error_types import CollectionError, DocumentError
+from config import settings
 
-load_dotenv()
+logging.basicConfig(level=settings.log_level)
 
-ELASTICSEARCH_HOST = os.environ.get("ELASTICSEARCH_HOST", "localhost")
-ELASTICSEARCH_PORT = os.environ.get("ELASTICSEARCH_PORT", "9200")
-ELASTICSEARCH_INDEX = os.environ.get("ELASTICSEARCH_INDEX", "document_chunks")
-EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL",
-                                 "sentence-transformers/all-minilm-l6-v2")
-
-ELASTIC_PASSWORD = os.environ.get("ELASTIC_PASSWORD", "changeme")
-ELASTIC_CACERT_PATH = os.environ.get("ELASTIC_CACERT_PATH", 
-                                     "/path/to/http_ca.crt")
-ELASTIC_CLOUD_ID = os.environ.get("ELASTIC_CLOUD_ID", "")
-ELASTIC_API_KEY = os.environ.get("ELASTIC_API_KEY", "")
-
-EMBEDDING_DIM = 384
-UPSERT_BATCH_SIZE = 100
+ELASTICSEARCH_HOST = settings.elastic_host
+ELASTICSEARCH_PORT = settings.elastic_port
+ELASTICSEARCH_INDEX = settings.collection_name
+EMBEDDING_MODEL = settings.embedding_model
+ELASTIC_PASSWORD = settings.elastic_password
+ELASTIC_CACERT_PATH = settings.elastic_cacert_path
+ELASTIC_CLOUD_ID = settings.elastic_cloud_id
+ELASTIC_API_KEY = settings.elastic_api_key
 
 
 class ElasticSearchStore(VectorStore):
@@ -40,9 +33,10 @@ class ElasticSearchStore(VectorStore):
             self.client = AsyncElasticsearch(ELASTIC_CLOUD_ID, api_key=ELASTIC_API_KEY)
         else:
             self.client = AsyncElasticsearch(
-                hosts=[{"host": host, "port": port}],
+                hosts=[{"host": host, "port": int(port), "scheme": "https"}],
                 ca_certs=ELASTIC_CACERT_PATH,
-                basic_auth=("elastic", ELASTIC_PASSWORD)
+                basic_auth=("elastic", ELASTIC_PASSWORD),
+                verify_certs=False  # Disable SSL verification
             )
 
     async def create_collection_async(self, collection_name: str, metadata: Optional[dict] = None) -> None:
@@ -136,7 +130,7 @@ class ElasticSearchStore(VectorStore):
         return document_ids
 
     async def retrieve_documents_async(self, query: str, collection_name: Optional[str] = None,
-                                 limit: int = 10) -> List[QueryResult]:
+                                       limit: int = 10) -> List[QueryResult]:
         """Retrieve documents from the Elasticsearch index."""
         embeddings = get_embeddings(query)
         if not embeddings:
@@ -152,6 +146,7 @@ class ElasticSearchStore(VectorStore):
             logging.info(f"Deleted Elasticsearch index '{name}'")
         except NotFoundError:
             logging.warning(f"Elasticsearch index '{name}' does not exist")
+            raise CollectionError(f"Elasticsearch index '{name}' does not exist")
         except Exception as e:
             logging.error(f"Failed to delete Elasticsearch index '{name}': {e}", exc_info=True)
             raise CollectionError(f"Failed to delete Elasticsearch index '{name}': {e}")
