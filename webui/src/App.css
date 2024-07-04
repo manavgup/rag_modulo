@@ -1,0 +1,45 @@
+.App {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.content-wrapper {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.main-content {
+  flex: 1;
+  padding: 2rem;
+  overflow-y: auto;
+  background-color: #f4f4f4;
+}
+
+/* Carbon Components default styling overrides */
+.bx--side-nav__items {
+  padding-top: 3rem;
+}
+
+.bx--header {
+  background-color: #161616;
+  color: white;
+}
+
+.bx--side-nav {
+  background-color: #f4f4f4;
+}
+
+.bx--side-nav__link {
+  color: #0f62fe;
+}
+
+.bx--side-nav__menu {
+  background-color: #f4f4f4;
+  color: #0f62fe;
+}
+
+.bx--side-nav__menu-item {
+  color: #0f62fe;
+}

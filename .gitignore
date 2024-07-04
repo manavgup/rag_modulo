@@ -33,3 +33,4 @@ dmypy.json
 data/
 __pycache__/
 volumes/
+tests/__pycache__/

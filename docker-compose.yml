@@ -1,29 +1,43 @@
-version: '3'
+version: '3.8'
+
 services:
-  milvus-standalone:
-    mem_limit: 4g
-    mem_reservation: 3g
-    image: milvusdb/milvus:v2.4.1
-    container_name: milvus-standalone
-    security_opt:
-      - seccomp:unconfined
-    environment:
-      - MILVUS_LOG_LEVEL=debug
-      - ETCD_USE_EMBED=true
-      - ETCD_DATA_DIR=/var/lib/milvus/etcd
-      - ETCD_CONFIG_PATH=/milvus/configs/embedEtcd.yaml
-      - COMMON_STORAGETYPE=local
-    volumes:
-      - /Users/mg/mg-work/manav/work/ai-experiments/rag_modulo/volumes/milvus:/var/lib/milvus
-      - ./embedEtcd.yaml:/milvus/configs/embedEtcd.yaml
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
     ports:
-      - "19530:19530"
-      - "9091:9091"
-      - "2379:2379"
-    command: ["milvus", "run", "standalone"]
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
-      start_period: 90s
+      - "8000:8000"
+    environment:
+      - VECTOR_DB=milvus  # or milvus, pinecone, weaviate
+    volumes:
+      - .:/app
+    networks:
+      - app-network
+
+  frontend:
+    build:
+      context: ./webui
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://backend:8000
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    volumes:
+      - .:/app
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

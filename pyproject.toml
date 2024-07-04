@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "rag-modulo"
+version = "0.1.0"
+description = "A modular, agentic RAG which allows selection of embeddings, vector dbs, chunking strategy, etc."
+authors = ["Manav Gupta <manavgup@ca.ibm.com>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+pydantic = "^2.7.0"
+pydantic-settings = "^2.3.4"
+config = "0.5.1"
+genai = "2.1.0"
+ibm-watson-machine-learning = "1.0.356"
+pinecone = "4.0.0"
+python-dotenv = "1.0.1"
+requests = "2.31.0"
+streamlit = "1.31.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

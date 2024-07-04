@@ -1,8 +1,0 @@
-config==0.5.1
-genai==2.1.0
-ibm_watson_machine_learning==1.0.356
-langchain==0.1.17
-pinecone==4.0.0
-python-dotenv==1.0.1
-Requests==2.31.0
-streamlit==1.31.1
