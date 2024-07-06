@@ -4,13 +4,14 @@ from typing import List, Optional, Union
 
 from chromadb.api.types import Documents, EmbeddingFunction
 from dotenv import load_dotenv
-from genai import Client, Credentials
-from genai.schema import TextEmbeddingParameters
+from genai.client import Client
+from genai.credentials import Credentials
+from genai.schema import TextEmbeddingParameters, TextGenerationParameters
 from genai.text.generation import CreateExecutionOptions
 
 from vectordbs.data_types import Embeddings
-
-EMBEDDING_MODEL = "sentence-transformers/all-minilm-l6-v2"
+from config import settings
+EMBEDDING_MODEL = settings.embedding_model
 
 
 def init_credentials() -> Client:
@@ -44,7 +45,7 @@ def get_embeddings(texts: Union[str | List[str]]) -> List[float]:
             execution_options=CreateExecutionOptions(ordered=False),
         ):
             for result in response.results:
-                embeddings.extend(result)  # flatten each result
+                embeddings.extend(result.embedding)  # assuming result is already a list of floats
     except Exception as e:
         logging.error(e)
 
@@ -100,3 +101,17 @@ class ChromaEmbeddingFunction(EmbeddingFunction):
             embeddings.extend(response.results)
 
         return embeddings
+
+
+def generate_text(prompt: str, max_tokens: int = 150, temperature: float = 0.7) -> str:
+    client = init_credentials()
+    try:
+        response = client.text.generation.create(
+            model_id="meta/llama3-8b-v1",
+            input=prompt,
+            parameters=TextGenerationParameters(max_new_tokens=max_tokens, temperature=temperature),
+        )
+        return response.results[0].generated_text.strip()
+    except Exception as e:
+        logging.error(f"Error generating text: {e}")
+        return ""

@@ -1,6 +1,6 @@
 import json
 import logging
-import os
+import time
 from typing import Any, Dict, List, Optional
 
 import asyncio
@@ -61,18 +61,23 @@ class MilvusStore(VectorStore):
         """
         Connect to the Milvus server.
         """
-        try:
-            connections.connect(
-                "default",
-                host=host,
-                port=port,
-                user=MILVUS_USER,
-                password=MILVUS_PASSWORD,
-            )
-            logging.info(f"Connected to Milvus at {host}:{port}")
-        except MilvusException as e:
-            logging.error(f"Failed to connect to Milvus: {e}")
-            raise VectorStoreError(f"Failed to connect to Milvus: {e}")
+        attempts = 3
+        for attempt in range(attempts):
+            try:
+                connections.connect(
+                    "default",
+                    host=host,
+                    port=port,
+                    user=MILVUS_USER,
+                    password=MILVUS_PASSWORD,
+                )
+                logging.info(f"Connected to Milvus at {host}:{port}")
+            except MilvusException as e:
+                logging.error(f"Failed to connect to Milvus: {e}")
+                if attempt < attempts - 1:
+                    logging.info(f"Retrying connection to Milvus... (Attempt {attempt + 2}/{attempts})")
+                    time.sleep(10)  # Add a delay between retries
+                raise VectorStoreError(f"Failed to connect to Milvus: {e}")
 
     async def create_collection_async(self, collection_name: str,
                                       metadata: Optional[dict] = None) -> Collection:
@@ -92,6 +97,7 @@ class MilvusStore(VectorStore):
                 schema = CollectionSchema(fields=SCHEMA)
                 self.collection = Collection(name=collection_name, schema=schema)
                 logging.info(f"Created Milvus collection '{collection_name}' with schema {schema}")
+                print(f"Created Milvus collection '{collection_name}' with schema {schema}")
                 self._create_index()
                 self.collection_name = collection_name
                 await asyncio.to_thread(self.collection.load)

@@ -1,12 +1,16 @@
 # tests/test_ingestion.py
-import pytest
-import pytest_asyncio
 import time
 from datetime import datetime
+
+import pytest
+import pytest_asyncio
+
 from config import settings
+from rag_solution.data_ingestion.ingestion import (ingest_documents,
+                                                   process_and_store_document)
+from vectordbs.data_types import (Document, DocumentChunk,
+                                  DocumentChunkMetadata, Source)
 from vectordbs.factory import get_datastore
-from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, Source
-from rag_solution.data_ingestion.ingestion import process_and_store_document, ingest_documents
 from vectordbs.utils.watsonx import get_embeddings
 
 # Create a unique collection name for testing
@@ -30,6 +34,7 @@ sample_document = Document(
     ],
 )
 
+
 @pytest_asyncio.fixture(scope="module")
 async def vector_store_with_collection():
     vector_store = get_datastore(settings.vector_db)
@@ -38,15 +43,25 @@ async def vector_store_with_collection():
     # Cleanup after tests
     await vector_store.delete_collection_async(collection_name)
 
+
 @pytest.mark.asyncio
 async def test_process_and_store_document(vector_store_with_collection):
-    await process_and_store_document(sample_document, vector_store_with_collection, collection_name)
-    stored_docs = await vector_store_with_collection.retrieve_documents_async("sample", collection_name)
+    await process_and_store_document(
+        sample_document, vector_store_with_collection, collection_name
+    )
+    stored_docs = await vector_store_with_collection.retrieve_documents_async(
+        "sample", collection_name
+    )
     assert len(stored_docs) == 1
+
 
 @pytest.mark.asyncio
 async def test_ingest_documents(vector_store_with_collection):
-    await ingest_documents(settings.data_dir, vector_store_with_collection, collection_name)
+    await ingest_documents(
+        settings.data_dir, vector_store_with_collection, collection_name
+    )
     # Assuming some documents are present in the data_dir
-    stored_docs = await vector_store_with_collection.retrieve_documents_async("ROI", collection_name, limit=2)
+    stored_docs = await vector_store_with_collection.retrieve_documents_async(
+        "ROI", collection_name, limit=2
+    )
     assert len(stored_docs) > 0

@@ -1,6 +1,6 @@
-
 import logging
 import os
+
 from chromadb import ClientAPI, chromadb
 from dotenv import load_dotenv
 
@@ -16,11 +16,10 @@ print("CHROMADB_PORT: ", CHROMADB_PORT)
 
 logging.basicConfig(level=logging.INFO)
 
-client: ClientAPI = chromadb.HttpClient(
-    host=CHROMADB_HOST, port=CHROMADB_PORT
-)
+client: ClientAPI = chromadb.HttpClient(host=CHROMADB_HOST, port=CHROMADB_PORT)
 
 print("client: ", client)
+
 
 # Example method to verify the connection
 def verify_connection():
@@ -29,5 +28,6 @@ def verify_connection():
         print("Tenant Info: ", tenant_info)
     except Exception as e:
         logging.error(f"Failed to connect to ChromaDB: {e}")
+
 
 verify_connection()

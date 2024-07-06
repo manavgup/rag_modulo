@@ -1,11 +1,15 @@
-import pytest
 from contextlib import asynccontextmanager
+
+import pytest
+
 from vectordbs.pinecone_store import PineconeStore
+
 from .test_base_store import BaseStoreTest
+from config import settings
 
-PINECONE_INDEX = "test-pinecone-index"
+PINECONE_INDEX = settings.collection_name
 
-
+@pytest.mark.pinecone
 class TestPineconeStore(BaseStoreTest):
     store_class = PineconeStore
 
@@ -14,8 +18,9 @@ class TestPineconeStore(BaseStoreTest):
     async def store(self):
         store = PineconeStore()
         store.collection_name = PINECONE_INDEX
-        await store.create_collection_async(PINECONE_INDEX,
-                                            "sentence-transformers/all-minilm-l6-v2")
+        await store.create_collection_async(
+            PINECONE_INDEX, "sentence-transformers/all-minilm-l6-v2"
+        )
         yield store
         await store.delete_collection_async(PINECONE_INDEX)
 

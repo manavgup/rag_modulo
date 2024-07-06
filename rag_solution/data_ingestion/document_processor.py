@@ -1,26 +1,29 @@
 # document_processor.py
-from typing import AsyncIterable, Dict
-from vectordbs.data_types import Document
-from .txt_processor import TxtProcessor
-from .pdf_processor import PdfProcessor
-from .word_processor import WordProcessor
-from .excel_processor import ExcelProcessor
-from .base_processor import BaseProcessor
-import os
 import logging
-from exceptions import DocumentProcessingError
+import os
+from typing import AsyncIterable, Dict
+
 from error_handling import async_error_handler
+from exceptions import DocumentProcessingError
+from vectordbs.data_types import Document
+
+from .base_processor import BaseProcessor
+from .excel_processor import ExcelProcessor
+from .pdf_processor import PdfProcessor
+from .txt_processor import TxtProcessor
+from .word_processor import WordProcessor
 
 logger = logging.getLogger(__name__)
 
-class DocumentProcessor():
+
+class DocumentProcessor:
     def __init__(self) -> None:
         super().__init__()
         self.processors: Dict[str, BaseProcessor] = {
-            '.txt': TxtProcessor(),
-            '.pdf': PdfProcessor(),
-            '.docx': WordProcessor(),
-            '.xlsx': ExcelProcessor()
+            ".txt": TxtProcessor(),
+            ".pdf": PdfProcessor(),
+            ".docx": WordProcessor(),
+            ".xlsx": ExcelProcessor(),
         }
 
     @async_error_handler
@@ -35,4 +38,6 @@ class DocumentProcessor():
                 logger.warning(f"Unsupported file type: {file_extension}")
         except Exception as e:
             logger.error(f"Error processing document {file_path}: {e}", exc_info=True)
-            raise DocumentProcessingError(f"Error processing document {file_path}") from e
+            raise DocumentProcessingError(
+                f"Error processing document {file_path}"
+            ) from e

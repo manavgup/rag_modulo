@@ -1,11 +1,15 @@
-import pytest
-from vectordbs.weaviate_store import WeaviateDataStore
-from .test_base_store import BaseStoreTest
 from contextlib import asynccontextmanager
 
-WEAVIATE_INDEX = "test_weaviate_index"
+import pytest
 
+from vectordbs.weaviate_store import WeaviateDataStore
 
+from .test_base_store import BaseStoreTest
+
+from config import settings
+WEAVIATE_INDEX = settings.collection_name
+
+@pytest.mark.weaviate
 class TestWeaviateStore(BaseStoreTest):
     store_class = WeaviateDataStore
 
@@ -19,4 +23,5 @@ class TestWeaviateStore(BaseStoreTest):
             yield store
         finally:
             await store.delete_collection_async(WEAVIATE_INDEX)
+
     # Add any Weaviate-specific test cases here

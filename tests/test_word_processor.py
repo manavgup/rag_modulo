@@ -1,8 +1,11 @@
-import pytest
 import os
+
+import pytest
+
+from exceptions import DocumentProcessingError
 from rag_solution.data_ingestion.word_processor import WordProcessor
 from vectordbs.data_types import Document
-from exceptions import DocumentProcessingError
+
 
 @pytest.mark.asyncio
 async def test_process_word(test_word_path):
@@ -15,6 +18,7 @@ async def test_process_word(test_word_path):
     assert all(isinstance(doc, Document) for doc in docs)
     assert docs[0].name == os.path.basename(str(test_word_path))
     assert len(docs[0].chunks) > 0
+
 
 @pytest.mark.asyncio
 async def test_process_word_error(test_non_existent_pdf_path):

@@ -1,13 +1,16 @@
 import os
-import pytest
 from contextlib import asynccontextmanager
+
+import pytest
+
 from vectordbs.chroma_store import ChromaDBStore
+
 from .test_base_store import BaseStoreTest
+from config import settings
+EMBEDDING_MODEL = settings.embedding_model
+CHROMA_INDEX = settings.collection_name
 
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-minilm-l6-v2")
-CHROMA_INDEX = "test_chromadb_collection"
-
-
+@pytest.mark.chromadb
 class TestChromaDBStore(BaseStoreTest):
     store_class = ChromaDBStore
 
@@ -15,7 +18,9 @@ class TestChromaDBStore(BaseStoreTest):
     @asynccontextmanager
     async def store(self):
         store = ChromaDBStore()
-        await store.create_collection_async(CHROMA_INDEX, {"embedding_model": EMBEDDING_MODEL})
+        await store.create_collection_async(
+            CHROMA_INDEX, {"embedding_model": EMBEDDING_MODEL}
+        )
         store.collection_name = CHROMA_INDEX
         yield store
         try:

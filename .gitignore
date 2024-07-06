@@ -12,6 +12,9 @@ my_chroma_data/
 .coverage
 standalone_embed.sh
 
+# Exclude all __pycache__ directories
+**/__pycache__/
+
 # Unit test / coverage reports
 htmlcov/
 .tox/
@@ -31,6 +34,5 @@ dmypy.json
 
 # New entries
 data/
-__pycache__/
 volumes/
 tests/__pycache__/

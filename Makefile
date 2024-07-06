@@ -1,4 +1,6 @@
 -include .env
+export $(shell sed 's/=.*//' .env)
+export PYTHONPATH=$(pwd):$(pwd)/vectordbs:$(pwd)/rag_solution
 
 # Directories
 SOURCE_DIR := rag_solution
@@ -24,7 +26,7 @@ init-env:
 	@echo "PYTHON_VERSION=${PYTHON_VERSION}" >> .env
 
 init: init-env
-	$(POETRY) install
+	$(POETRY) install --no-root
 
 check-toml:
 	$(POETRY) check
@@ -40,11 +42,34 @@ lint:
 audit:
 	$(POETRY) run bandit -r $(SOURCE_DIR) -x $(TEST_DIR)
 
-test:
-	$(POETRY) run pytest $(TEST_DIR)
+test: run-services
+	$(POETRY) run pytest $(TEST_DIR) || { echo "Tests failed"; exit 1; }
+	@trap '$(DOCKER_COMPOSE) down' EXIT; \
+	echo "Waiting for Docker containers to stop..."
+	@while docker ps | grep -q "milvus-standalone"; do sleep 1; done
 
 run-services:
-	$(DOCKER_COMPOSE) up -d elasticsearch milvus
+	@echo "Starting services for VECTOR_DB=${VECTOR_DB}"
+	if [ "$(VECTOR_DB)" = "elasticsearch" ]; then \
+	    $(DOCKER_COMPOSE) up -d --scale elasticsearch=1 elasticsearch; \
+	elif [ "$(VECTOR_DB)" = "milvus" ]; then \
+	    $(DOCKER_COMPOSE) up -d --scale milvus=1 milvus; \
+	elif [ "$(VECTOR_DB)" = "chroma" ]; then \
+	    $(DOCKER_COMPOSE) up -d --scale chroma=1 chroma; \
+	elif [ "$(VECTOR_DB)" = "weaviate" ]; then \
+	    $(DOCKER_COMPOSE) up -d --scale weaviate=1 weaviate; \
+	elif [ "$(VECTOR_DB)" = "pinecone" ]; then \
+	    echo "Pinecone does not require a local Docker container."; \
+	else \
+	    echo "Unknown VECTOR_DB value: $(VECTOR_DB)"; \
+	    exit 1; \
+	fi
+	@echo "Waiting for services to be ready..."
+	@sleep 120
+	@echo "Docker containers status:"
+	@docker ps
+	@echo "${VECTOR_DB} logs saved to ${VECTOR_DB}.log:"
+	@$(DOCKER_COMPOSE) logs ${VECTOR_DB} > ${VECTOR_DB}.log
 
 build-app:
 	$(DOCKER_COMPOSE) build backend frontend

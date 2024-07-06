@@ -8,7 +8,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - VECTOR_DB=milvus  # or milvus, pinecone, weaviate
+      - VECTOR_DB=${VECTOR_DB}
     volumes:
       - .:/app
     networks:
@@ -27,16 +27,68 @@ services:
     networks:
       - app-network
 
-  test:
-    build:
-      context: .
-      dockerfile: Dockerfile.test
-    volumes:
-      - .:/app
-    depends_on:
-      - backend
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+    environment:
+      - discovery.type=single-node
+    ports:
+      - "9200:9200"
     networks:
       - app-network
+    deploy:
+      replicas: 0  # Start with 0 replicas
+
+  milvus:
+    image: milvusdb/milvus:v2.4.1
+    container_name: milvus-standalone
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      - ETCD_USE_EMBED=true
+      - ETCD_DATA_DIR=/var/lib/milvus/etcd
+      - ETCD_CONFIG_PATH=/milvus/configs/embedEtcd.yaml
+      - COMMON_STORAGETYPE=local
+    volumes:
+      - ./volumes/milvus:/var/lib/milvus
+      - ./embedEtcd.yaml:/milvus/configs/embedEtcd.yaml
+    ports:
+      - "19530:19530"
+      - "9091:9091"
+      - "2379:2379"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 30s
+      start_period: 120s
+      timeout: 20s
+      retries: 3
+    command: ["milvus", "run", "standalone"]
+    deploy:
+      replicas: 0  # Start with 0 replicas
+
+  chroma:
+    image: chromadb/chromadb:latest
+    environment:
+      - CHROMADB_HOST=localhost
+      - CHROMADB_PORT=8000
+    ports:
+      - "8000:8000"
+    networks:
+      - app-network
+    deploy:
+      replicas: 0  # Start with 0 replicas
+
+  weaviate:
+    image: semitechnologies/weaviate:latest
+    environment:
+      - QUERY_DEFAULTS_LIMIT=100
+      - AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED=true
+    ports:
+      - "8080:8080"
+      - "50051:50051"
+    networks:
+      - app-network
+    deploy:
+      replicas: 0  # Start with 0 replicas
 
 networks:
   app-network:

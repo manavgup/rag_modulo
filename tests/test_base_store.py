@@ -1,15 +1,14 @@
-import pytest
-from datetime import datetime
-from vectordbs.data_types import (
-    Document,
-    DocumentChunk,
-    DocumentChunkMetadata,
-    QueryWithEmbedding,
-    Source,
-)
-from vectordbs.utils.watsonx import get_embeddings
-from vectordbs.error_types import CollectionError
 import asyncio
+from datetime import datetime
+
+import pytest
+
+from vectordbs.data_types import (Document, DocumentChunk,
+                                  DocumentChunkMetadata, QueryWithEmbedding,
+                                  Source)
+from vectordbs.error_types import CollectionError
+from vectordbs.utils.watsonx import get_embeddings
+
 
 class BaseStoreTest:
     """
@@ -109,7 +108,9 @@ class BaseStoreTest:
             documents = self.create_test_documents()
             await s.add_documents_async(s.collection_name, documents)
             await asyncio.sleep(5)  # Delay to allow Pinecone to index documents
-            query_results = await s.retrieve_documents_async("Hello world", s.collection_name)
+            query_results = await s.retrieve_documents_async(
+                "Hello world", s.collection_name
+            )
             assert query_results is not None
             assert len(query_results) > 0
             for query_result in query_results:
@@ -123,7 +124,9 @@ class BaseStoreTest:
             await s.add_documents_async(s.collection_name, documents)
             await s.delete_collection_async(s.collection_name)
             with pytest.raises(CollectionError):
-                await s.retrieve_documents_async("Hello world", collection_name=s.collection_name)
+                await s.retrieve_documents_async(
+                    "Hello world", collection_name=s.collection_name
+                )
 
     @pytest.mark.asyncio
     async def test_aenter_aexit(self):

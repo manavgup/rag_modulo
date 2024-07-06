@@ -26,7 +26,7 @@ ELASTIC_API_KEY = settings.elastic_api_key
 
 class ElasticSearchStore(VectorStore):
     def __init__(
-        self, host: str = ELASTICSEARCH_HOST, port: str = ELASTICSEARCH_PORT
+        self, host: str = ELASTICSEARCH_HOST, port: str = int(ELASTICSEARCH_PORT)
     ) -> None:
         self.index_name = ELASTICSEARCH_INDEX
         if ELASTIC_CLOUD_ID:

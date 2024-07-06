@@ -1,15 +1,23 @@
 #!/bin/bash
 
-# Start dependent services
-docker run -d --name es01 --net elastic -p 9200:9200 -m 1GB docker.elastic.co/elasticsearch/elasticsearch:8.13.4
-docker run -d --name milvus-standalone \
-  -p 19530:19530 -p 9091:9091 -p 2379:2379 \
-  -v $(pwd)/volumes/milvus:/var/lib/milvus \
-  -v $(pwd)/embedEtcd.yaml:/milvus/configs/embedEtcd.yaml \
-  -e ETCD_USE_EMBED=true \
-  -e ETCD_CONFIG_PATH=/milvus/configs/embedEtcd.yaml \
-  -e COMMON_STORAGETYPE=local \
-  milvusdb/milvus:v2.4.1 milvus run standalone
+# Load environment variables
+source .env
+
+# Start dependent services based on VECTOR_DB
+if [ "$VECTOR_DB" == "elastic" ]; then
+    docker-compose up -d elasticsearch
+elif [ "$VECTOR_DB" == "milvus" ]; then
+    docker-compose up -d milvus
+elif [ "$VECTOR_DB" == "chroma" ]; then
+    docker-compose up -d chroma
+elif [ "$VECTOR_DB" == "weaviate" ]; then
+    docker-compose up -d weaviate
+elif [ "$VECTOR_DB" == "pinecone" ]; then
+    echo "Pinecone does not require a local Docker container."
+else
+    echo "Unknown VECTOR_DB value: $VECTOR_DB"
+    exit 1
+fi
 
 # Wait for services to be ready
 sleep 30
@@ -17,9 +25,7 @@ sleep 30
 # Build and run the main application and tests
 docker-compose build
 docker-compose up -d backend frontend
-docker-compose run test
+docker-compose exec backend poetry run pytest --cov=rag_solution tests/
 
 # Cleanup
 docker-compose down
-docker stop es01 milvus-standalone
-docker rm es01 milvus-standalone

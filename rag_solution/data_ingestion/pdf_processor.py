@@ -1,16 +1,20 @@
-from typing import AsyncIterable, List, Set
-from vectordbs.data_types import Document
-import pymupdf  # PyMuPDF
-import os
 import hashlib
-import uuid
 import logging
-from .chunking import semantic_chunking, semantic_chunking_for_tables
-from .base_processor import BaseProcessor
+import os
+import uuid
+from typing import AsyncIterable, List, Set
+
+import pymupdf  # PyMuPDF
+
 from exceptions import DocumentProcessingError
-from rag_solution.doc_utils import get_document, clean_text
+from rag_solution.doc_utils import clean_text, get_document
+from vectordbs.data_types import Document
+
+from .base_processor import BaseProcessor
+from .chunking import semantic_chunking, semantic_chunking_for_tables
 
 logger = logging.getLogger(__name__)
+
 
 class PdfProcessor(BaseProcessor):
     def __init__(self) -> None:
@@ -18,7 +22,7 @@ class PdfProcessor(BaseProcessor):
         self.saved_image_hashes: Set[str] = set()
 
     async def process(self, file_path: str) -> AsyncIterable[Document]:
-        output_folder = os.path.join(os.path.dirname(file_path), 'extracted_images')
+        output_folder = os.path.join(os.path.dirname(file_path), "extracted_images")
         if not os.path.exists(output_folder):
             os.makedirs(output_folder)
 
@@ -26,27 +30,40 @@ class PdfProcessor(BaseProcessor):
             with pymupdf.open(file_path) as doc:
                 for page in doc:
                     text = self.extract_text_from_page(page)
-                    for chunk in semantic_chunking(text,
-                                                   self.min_chunk_size,
-                                                   self.max_chunk_size,
-                                                   self.semantic_threshold):
-                        yield get_document(name=file_path,
-                                           document_id=str(uuid.uuid4()),
-                                           text=chunk)
+                    for chunk in semantic_chunking(
+                        text,
+                        self.min_chunk_size,
+                        self.max_chunk_size,
+                        self.semantic_threshold,
+                    ):
+                        yield get_document(
+                            name=file_path, document_id=str(uuid.uuid4()), text=chunk
+                        )
 
                     tables = self.extract_tables_from_page(page)
-                    for table_chunk in semantic_chunking_for_tables(tables,
-                                                                    self.min_chunk_size,
-                                                                    self.max_chunk_size,
-                                                                    self.semantic_threshold):
-                        yield get_document(name=file_path,
-                                           document_id=str(uuid.uuid4()),
-                                           text=table_chunk)
+                    for table_chunk in semantic_chunking_for_tables(
+                        tables,
+                        self.min_chunk_size,
+                        self.max_chunk_size,
+                        self.semantic_threshold,
+                    ):
+                        yield get_document(
+                            name=file_path,
+                            document_id=str(uuid.uuid4()),
+                            text=table_chunk,
+                        )
 
-                    self.extract_images_from_page(page, output_folder, self.saved_image_hashes, raise_on_error=True)
+                    self.extract_images_from_page(
+                        page,
+                        output_folder,
+                        self.saved_image_hashes,
+                        raise_on_error=True,
+                    )
         except Exception as e:
             logger.error(f"Error reading PDF file {file_path}: {e}", exc_info=True)
-            raise DocumentProcessingError(f"Error processing PDF file {file_path}") from e
+            raise DocumentProcessingError(
+                f"Error processing PDF file {file_path}"
+            ) from e
 
     def extract_text_from_page(self, page: pymupdf.Page) -> str:
         return page.get_text("text")
@@ -67,16 +84,24 @@ class PdfProcessor(BaseProcessor):
 
         for table in tables:
             extracted_table = table.extract()
-            cleaned_table = [[clean_text(cell) if cell is not None else '' for cell in row] for row in extracted_table]
-            if any(cell for row in cleaned_table for cell in row):  # Check if table has any non-empty cells
+            cleaned_table = [
+                [clean_text(cell) if cell is not None else "" for cell in row]
+                for row in extracted_table
+            ]
+            if any(
+                cell for row in cleaned_table for cell in row
+            ):  # Check if table has any non-empty cells
                 extracted_tables.append(cleaned_table)
 
         return extracted_tables
 
-    def extract_images_from_page(self, page: pymupdf.Page,
-                                 output_folder: str,
-                                 saved_image_hashes: Set[str],
-                                 raise_on_error: bool = False) -> List[str]:
+    def extract_images_from_page(
+        self,
+        page: pymupdf.Page,
+        output_folder: str,
+        saved_image_hashes: Set[str],
+        raise_on_error: bool = False,
+    ) -> List[str]:
         """
         Extract images from a PDF page and save them to the output folder.
 
@@ -99,7 +124,9 @@ class PdfProcessor(BaseProcessor):
                 if base_image:
                     image_bytes = base_image["image"]
                     image_hash = hashlib.md5(image_bytes).hexdigest()
-                    logger.info(f"Processing image on page {page.number + 1}, index {img_index}, hash: {image_hash}")
+                    logger.info(
+                        f"Processing image on page {page.number + 1}, index {img_index}, hash: {image_hash}"
+                    )
 
                     if image_hash not in saved_image_hashes:
                         image_extension = base_image["ext"]
@@ -110,12 +137,20 @@ class PdfProcessor(BaseProcessor):
                         saved_image_hashes.add(image_hash)
                         logger.info(f"Saved new image: {image_filename}")
                     else:
-                        logger.info(f"Skipped duplicate image on page {page.number + 1}, image index {img_index}")
+                        logger.info(
+                            f"Skipped duplicate image on page {page.number + 1}, image index {img_index}"
+                        )
                 else:
-                    logger.warning(f"Failed to extract image {xref} from page {page.number + 1}")
+                    logger.warning(
+                        f"Failed to extract image {xref} from page {page.number + 1}"
+                    )
             except Exception as e:
-                logger.error(f"Error extracting image {xref} from page {page.number + 1}: {e}")
+                logger.error(
+                    f"Error extracting image {xref} from page {page.number + 1}: {e}"
+                )
                 if raise_on_error:
-                    raise DocumentProcessingError(f"Error extracting image {xref} from page {page.number + 1}") from e
+                    raise DocumentProcessingError(
+                        f"Error extracting image {xref} from page {page.number + 1}"
+                    ) from e
 
         return images

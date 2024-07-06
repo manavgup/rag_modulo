@@ -1,25 +1,29 @@
-import os
-import logging
-import pymupdf
-import docx
-import hashlib
-import pandas as pd
-import uuid
 import asyncio
-from typing import List, Iterator, Set, Optional
+import hashlib
+import logging
+import os
 import sys
+import uuid
+from typing import Iterator, List, Optional, Set
+
+import docx
+import pandas as pd
+import pymupdf
 from dotenv import load_dotenv
+from typing import Dict, Any
+from openpyxl import load_workbook
+from openpyxl.utils.exceptions import InvalidFileException
 
 # Ensure the base directory is in the Python path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
-
-from vectordbs.factory import get_datastore
-from vectordbs.vector_store import VectorStore
-from vectordbs.data_types import Document, DocumentChunk
-from vectordbs.utils.watsonx import get_embeddings
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 # Import chunking methods
-from chunking import simple_chunking, semantic_chunking
+from chunking import semantic_chunking, simple_chunking
+
+from vectordbs.data_types import Document, DocumentChunk
+from vectordbs.factory import get_datastore
+from vectordbs.utils.watsonx import get_embeddings
+from vectordbs.vector_store import VectorStore
 
 load_dotenv()
 
@@ -28,16 +32,19 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Define constants
-DATA_DIR: str = os.environ.get("DATA_DIR", '/Users/mg/mg-work/manav/work/ai-experiments/rag_modulo/data')
-VECTOR_DB: str = os.environ.get("VECTOR_DB", 'milvus')
+DATA_DIR: str = os.environ.get(
+    "DATA_DIR", "/Users/mg/mg-work/manav/work/ai-experiments/rag_modulo/data"
+)
+VECTOR_DB: str = os.environ.get("VECTOR_DB", "milvus")
 MAX_WORKERS: int = 4  # Number of threads for concurrent processing
-COLLECTION_NAME: str = os.environ.get("COLLECTION_NAME", 'default_collection')
+COLLECTION_NAME: str = os.environ.get("COLLECTION_NAME", "default_collection")
 
 # Chunking strategy and parameters from .env
 CHUNKING_STRATEGY: str = os.getenv("CHUNKING_STRATEGY", "fixed")
 CHUNK_SIZE: int = int(os.getenv("CHUNK_SIZE", "1000"))
 CHUNK_OVERLAP: int = int(os.getenv("CHUNK_OVERLAP", "100"))
 SEMANTIC_THRESHOLD: float = float(os.getenv("SEMANTIC_THRESHOLD", "0.8"))
+
 
 def get_chunking_method():
     """
@@ -47,6 +54,7 @@ def get_chunking_method():
         return lambda text: semantic_chunking(text, CHUNK_SIZE, SEMANTIC_THRESHOLD)
     else:
         return lambda text: simple_chunking(text, CHUNK_SIZE, CHUNK_OVERLAP)
+
 
 def extract_text_from_page(page: pymupdf.Page) -> str:
     """
@@ -59,6 +67,7 @@ def extract_text_from_page(page: pymupdf.Page) -> str:
         str: Extracted text from the page.
     """
     return page.get_text()
+
 
 def extract_tables_from_page(page: pymupdf.Page) -> List[List[List[str]]]:
     """
@@ -76,11 +85,17 @@ def extract_tables_from_page(page: pymupdf.Page) -> List[List[List[str]]]:
 
     for table in tables:
         extracted_table = table.extract()
-        cleaned_table = [[clean_text(cell) if cell is not None else '' for cell in row] for row in extracted_table]
-        if any(cell for row in cleaned_table for cell in row):  # Check if table has any non-empty cells
+        cleaned_table = [
+            [clean_text(cell) if cell is not None else "" for cell in row]
+            for row in extracted_table
+        ]
+        if any(
+            cell for row in cleaned_table for cell in row
+        ):  # Check if table has any non-empty cells
             extracted_tables.append(cleaned_table)
 
     return extracted_tables
+
 
 def clean_text(text: Optional[str]) -> str:
     """
@@ -93,13 +108,16 @@ def clean_text(text: Optional[str]) -> str:
         str: The cleaned and normalized text.
     """
     if text is None:
-        return ''
+        return ""
     # Remove special characters and extra whitespace
-    cleaned_text = ''.join(char for char in text if char.isalnum() or char.isspace())
-    cleaned_text = ' '.join(cleaned_text.split())
+    cleaned_text = "".join(char for char in text if char.isalnum() or char.isspace())
+    cleaned_text = " ".join(cleaned_text.split())
     return cleaned_text
 
-def extract_images_from_page(page: pymupdf.Page, output_folder: str, saved_image_hashes: Set[str]) -> List[str]:
+
+def extract_images_from_page(
+    page: pymupdf.Page, output_folder: str, saved_image_hashes: Set[str]
+) -> List[str]:
     """
     Extract images from a PDF page and save them to the output folder.
 
@@ -121,7 +139,9 @@ def extract_images_from_page(page: pymupdf.Page, output_folder: str, saved_image
             if base_image:
                 image_bytes = base_image["image"]
                 image_hash = hashlib.md5(image_bytes).hexdigest()
-                logger.info(f"Processing image on page {page.number + 1}, index {img_index}, hash: {image_hash}")
+                logger.info(
+                    f"Processing image on page {page.number + 1}, index {img_index}, hash: {image_hash}"
+                )
 
                 if image_hash not in saved_image_hashes:
                     image_extension = base_image["ext"]
@@ -132,13 +152,20 @@ def extract_images_from_page(page: pymupdf.Page, output_folder: str, saved_image
                     saved_image_hashes.add(image_hash)
                     logger.info(f"Saved new image: {image_filename}")
                 else:
-                    logger.info(f"Skipped duplicate image on page {page.number + 1}, image index {img_index}")
+                    logger.info(
+                        f"Skipped duplicate image on page {page.number + 1}, image index {img_index}"
+                    )
             else:
-                logger.warning(f"Failed to extract image {xref} from page {page.number + 1}")
+                logger.warning(
+                    f"Failed to extract image {xref} from page {page.number + 1}"
+                )
         except Exception as e:
-            logger.error(f"Error extracting image {xref} from page {page.number + 1}: {e}")
+            logger.error(
+                f"Error extracting image {xref} from page {page.number + 1}: {e}"
+            )
 
     return images
+
 
 def read_txt(file_path: str) -> Iterator[Document]:
     """
@@ -153,7 +180,7 @@ def read_txt(file_path: str) -> Iterator[Document]:
     chunking_method = get_chunking_method()
 
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             text = f.read()
             chunks = chunking_method(text)
 
@@ -161,11 +188,12 @@ def read_txt(file_path: str) -> Iterator[Document]:
                 document = Document(
                     name=os.path.basename(file_path),
                     document_id=str(uuid.uuid4()),
-                    chunks=[DocumentChunk(chunk_id=str(uuid.uuid4()), text=chunk)]
+                    chunks=[DocumentChunk(chunk_id=str(uuid.uuid4()), text=chunk)],
                 )
                 yield document
     except Exception as e:
         logger.error(f"Error reading TXT file {file_path}: {e}")
+
 
 def extract_metadata(file_path: str) -> Dict[str, Any]:
     """
@@ -191,7 +219,10 @@ def extract_metadata(file_path: str) -> Dict[str, Any]:
         logger.error(f"Error extracting metadata for file {file_path}: {str(e)}")
         return {}
 
-def read_pdf(file_path: str, output_folder: str, saved_image_hashes: Set[str]) -> Iterator[Document]:
+
+def read_pdf(
+    file_path: str, output_folder: str, saved_image_hashes: Set[str]
+) -> Iterator[Document]:
     """
     Read a PDF file and yield Document objects for text, tables, and images.
 
@@ -211,8 +242,9 @@ def read_pdf(file_path: str, output_folder: str, saved_image_hashes: Set[str]) -
                 text = extract_text_from_page(page)
                 chunks = chunking_method(text)
                 for chunk in chunks:
-                    document = get_document(os.path.basename(file_path),
-                                            str(uuid.uuid4()), chunk)
+                    document = get_document(
+                        os.path.basename(file_path), str(uuid.uuid4()), chunk
+                    )
                     yield document
 
                 tables = extract_tables_from_page(page)
@@ -221,14 +253,18 @@ def read_pdf(file_path: str, output_folder: str, saved_image_hashes: Set[str]) -
                     if table_text:
                         table_chunks = chunking_method(table_text)
                         for table_text in table_chunks:
-                            document = get_document(os.path.basename(file_path),
-                                                    str(uuid.uuid4()), table_text)
+                            document = get_document(
+                                os.path.basename(file_path),
+                                str(uuid.uuid4()),
+                                table_text,
+                            )
                             yield document
 
                 extract_images_from_page(page, output_folder, saved_image_hashes)
     except Exception as e:
         logger.error(f"Error reading PDF file {file_path}: {e}")
         raise
+
 
 def get_document(name: str, document_id: str, text: str) -> Document:
     """
@@ -245,11 +281,16 @@ def get_document(name: str, document_id: str, text: str) -> Document:
     return Document(
         name=name,
         document_id=document_id,
-        chunks=[DocumentChunk(chunk_id=str(uuid.uuid4()), text=text,
-                              vectors=get_embeddings(text),
-                              document_id=document_id
-                              )]
+        chunks=[
+            DocumentChunk(
+                chunk_id=str(uuid.uuid4()),
+                text=text,
+                vectors=get_embeddings(text),
+                document_id=document_id,
+            )
+        ],
     )
+
 
 def read_word(file_path: str) -> str:
     """
@@ -317,7 +358,9 @@ def read_excel(file_path: str) -> str:
 
         return "\n".join(full_text)
     except Exception as pandas_error:
-        logger.warning(f"Pandas failed to read Excel file {file_path}: {str(pandas_error)}. Trying with openpyxl.")
+        logger.warning(
+            f"Pandas failed to read Excel file {file_path}: {str(pandas_error)}. Trying with openpyxl."
+        )
 
         try:
             # Fallback to openpyxl for more complex Excel files
@@ -329,7 +372,9 @@ def read_excel(file_path: str) -> str:
                 full_text.append(f"Sheet: {sheet_name}")
 
                 for row in sheet.iter_rows(values_only=True):
-                    row_text = " | ".join(str(cell) if cell is not None else "" for cell in row)
+                    row_text = " | ".join(
+                        str(cell) if cell is not None else "" for cell in row
+                    )
                     full_text.append(row_text)
 
                 full_text.append("\n")
@@ -343,7 +388,10 @@ def read_excel(file_path: str) -> str:
             logger.error(f"Error reading Excel file {file_path}: {str(e)}")
             return ""
 
-async def process_and_store_document(document: Document, vector_store: VectorStore, collection_name: str) -> None:
+
+async def process_and_store_document(
+    document: Document, vector_store: VectorStore, collection_name: str
+) -> None:
     """
     Process and store a document in the vector store.
 
@@ -354,10 +402,13 @@ async def process_and_store_document(document: Document, vector_store: VectorSto
     """
     try:
         await vector_store.add_documents_async(collection_name, [document])
-        logger.info(f"Document {document.document_id} successfully stored in collection {collection_name}.")
+        logger.info(
+            f"Document {document.document_id} successfully stored in collection {collection_name}."
+        )
     except Exception as e:
         logger.error(f"Error processing document {document.document_id}: {e}")
         raise
+
 
 async def ingest_documents(data_dir: str, vector_store: VectorStore) -> None:
     """
@@ -367,7 +418,7 @@ async def ingest_documents(data_dir: str, vector_store: VectorStore) -> None:
         data_dir (str): The directory containing the documents to ingest.
         vector_store (VectorStore): The vector store to use for storage.
     """
-    output_folder = os.path.join(data_dir, 'extracted_images')
+    output_folder = os.path.join(data_dir, "extracted_images")
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
 
@@ -377,24 +428,41 @@ async def ingest_documents(data_dir: str, vector_store: VectorStore) -> None:
     for root, _, files in os.walk(data_dir):
         for file in files:
             file_path = os.path.join(root, file)
-            if file.endswith('.txt'):
+            if file.endswith(".txt"):
                 for document in read_txt(file_path):
-                    tasks.append(process_and_store_document(document, vector_store, COLLECTION_NAME))
-            elif file.endswith('.pdf'):
+                    tasks.append(
+                        process_and_store_document(
+                            document, vector_store, COLLECTION_NAME
+                        )
+                    )
+            elif file.endswith(".pdf"):
                 for document in read_pdf(file_path, output_folder, saved_image_hashes):
-                    tasks.append(process_and_store_document(document, vector_store, COLLECTION_NAME))
-            elif file.endswith('.docx'):
+                    tasks.append(
+                        process_and_store_document(
+                            document, vector_store, COLLECTION_NAME
+                        )
+                    )
+            elif file.endswith(".docx"):
                 text = read_word(file_path)
-                document = get_document(os.path.basename(file_path), str(uuid.uuid4()), text)
-                tasks.append(process_and_store_document(document, vector_store, COLLECTION_NAME))
-            elif file.endswith('.xlsx'):
+                document = get_document(
+                    os.path.basename(file_path), str(uuid.uuid4()), text
+                )
+                tasks.append(
+                    process_and_store_document(document, vector_store, COLLECTION_NAME)
+                )
+            elif file.endswith(".xlsx"):
                 text = read_excel(file_path)
-                document = get_document(os.path.basename(file_path), str(uuid.uuid4()), text)
-                tasks.append(process_and_store_document(document, vector_store, COLLECTION_NAME))
+                document = get_document(
+                    os.path.basename(file_path), str(uuid.uuid4()), text
+                )
+                tasks.append(
+                    process_and_store_document(document, vector_store, COLLECTION_NAME)
+                )
             else:
                 logger.warning(f"Unsupported file type: {file}")
 
     await asyncio.gather(*tasks)
+
 
 async def main() -> None:
     """
@@ -409,6 +477,7 @@ async def main() -> None:
     except Exception as e:
         logger.error(f"Error in main function: {e}")
         raise
+
 
 if __name__ == "__main__":
     asyncio.run(main())

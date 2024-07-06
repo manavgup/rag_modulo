@@ -1,9 +1,12 @@
 # base_processor.py
 from abc import ABC, abstractmethod
 from typing import AsyncIterable
-from vectordbs.data_types import Document
-from .chunking import get_chunking_method
+
 from config import settings
+from vectordbs.data_types import Document
+
+from .chunking import get_chunking_method
+
 
 class BaseProcessor(ABC):
     def __init__(self) -> None:

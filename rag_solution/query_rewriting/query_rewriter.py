@@ -1,16 +1,19 @@
+import logging
+import os
+import sys
+
 from genai.client import Client
 from genai.credentials import Credentials
-from genai.schema import TextTokenizationParameters, TextTokenizationReturnOptions
+from genai.schema import (TextTokenizationParameters,
+                          TextTokenizationReturnOptions)
 from genai.text.tokenization import CreateExecutionOptions
-import logging
-import sys
-import os
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 from config import settings
 
 logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)
+
 
 class QueryRewriter:
     def __init__(self):
@@ -23,22 +26,27 @@ class QueryRewriter:
     def rewrite_query(self, query: str) -> str:
         try:
             # Perform the tokenization and retrieve the tokens
-            response = next(self.client.text.tokenization.create(
-                model_id=self.model_id,
-                input=[query],
-                execution_options=CreateExecutionOptions(),
-                parameters=TextTokenizationParameters(
-                    return_options=TextTokenizationReturnOptions(
-                        tokens=True  # We want to return the tokens
-                    )
+            response = next(
+                self.client.text.tokenization.create(
+                    model_id=self.model_id,
+                    input=[query],
+                    execution_options=CreateExecutionOptions(),
+                    parameters=TextTokenizationParameters(
+                        return_options=TextTokenizationReturnOptions(
+                            tokens=True  # We want to return the tokens
+                        )
+                    ),
                 )
-            ))
+            )
             tokens = response.results[0].tokens
-            rewritten_query = " ".join(tokens).replace(" </s>", "").strip()  # Remove end-of-sentence token
+            rewritten_query = (
+                " ".join(tokens).replace(" </s>", "").strip()
+            )  # Remove end-of-sentence token
             return rewritten_query
         except Exception as e:
             logger.error(f"Error rewriting query: {e}")
             return query  # Fallback to original query in case of an error
+
 
 # Example usage
 if __name__ == "__main__":
