@@ -9,25 +9,25 @@ package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.12"
-pydantic = "^2.7.0"
-pydantic-settings = "^2.3.4"
-config = "0.5.1"
-genai = "2.1.0"
-ibm-watson-machine-learning = "1.0.356"
-pinecone = "4.0.0"
-python-dotenv = "1.0.1"
-requests = "2.31.0"
-streamlit = "1.31.1"
-mypy = "^1.0.0"
-mypy-extensions = "^1.0.0"
+fastapi = "^0.100.1"
+uvicorn = ">=0.18.3"
+pydantic = "^2.8.2"
+requests = "^2.31.0"
+python-dotenv = "^1.0.1"
 pyyaml = "^6.0.1"
 marshmallow = "^3.21.3"
-ibm-generative-ai = "^3.0.0"
-
-
-[tool.poetry.group.dev.dependencies]
-ruff = "^0.5.0"
+chromadb = "^0.5.0"
+ibm_watson_machine_learning = "^1.0.359"
+pinecone = "^4.0.0"
+pymilvus = "*"
+pymupdf = "^1.24.7"
+scikit-learn = "^1.5.1"
+streamlit = "^1.36.0"
+weaviate-client = "^4.6.0"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.5.0"

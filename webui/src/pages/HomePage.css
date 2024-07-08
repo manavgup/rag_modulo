@@ -100,3 +100,19 @@
   .example-questions .bx--tile:hover {
     background-color: #d0d0d0;
   }
+
+  .collections-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 2rem;
+  }
+  
+  .collection-tile {
+    background-color: #f4f4f4;
+    padding: 1rem;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    width: calc(33.333% - 1rem);
+    box-sizing: border-box;
+  }

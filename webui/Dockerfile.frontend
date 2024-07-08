@@ -1,23 +1,29 @@
-# Use an official node runtime as a parent image
-FROM node:18
+# Use a smaller base image for Node.js
+FROM node:18-alpine as builder
 
-# Set the working directory in the container
+# Set the working directory
 WORKDIR /app
 
 # Copy package.json and package-lock.json
 COPY package*.json ./
 
-# Install app dependencies
+# Install dependencies
 RUN npm install
 
-# Copy the current directory contents into the container at /app
+# Copy the rest of the application code
 COPY . .
 
-# Build the app
+# Build the application
 RUN npm run build
+
+# Use a smaller image for the runtime
+FROM nginx:alpine
+
+# Copy the build artifacts to the nginx html directory
+COPY --from=builder /app/build /usr/share/nginx/html
 
 # Expose port 3000
 EXPOSE 3000
 
-# Start the app
-CMD ["npm", "start"]
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]

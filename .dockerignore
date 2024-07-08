@@ -29,12 +29,13 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Ignore node_modules
+# Ignore node_modules and webui directory
 node_modules/
+webui/
 
-# New entries to ignore data and volumes
-data/
-volumes/
-my_chroma_data/
-*.log
-*.sh
+# Ignore mypy cache
+.mypy_cache/
+
+# Ignore other cache directories
+.pytest_cache/
+.ruff_cache/

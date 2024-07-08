@@ -1,21 +1,29 @@
-# Use an official Python runtime as a parent image
-FROM python:3.11
+# Use an official Python image as the base
+FROM python:3.12-slim
 
-# Set the working directory in the container
+# Set the working directory within the container
 WORKDIR /app
 
-# Copy the current directory contents into the container at /app
-COPY . /app
+# Install required packages for C++11 compilation
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    g++  # C++ compiler
 
-# Install Poetry
-RUN pip install poetry
+# Install Python development headers (for building native extensions)
+RUN apt-get install -y python3-dev
 
-# Install dependencies
-RUN poetry config virtualenvs.create false \
-    && poetry install --no-interaction --no-ansi
+# Install requirements.txt
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Make port 8000 available to the world outside this container
+# Copy the rest of the application code
+COPY . .
+
+# Remove unnecessary directories from the final image (adjust as needed)
+RUN rm -rf data volumes my_chroma_data tests .mypy_cache .pytest_cache
+
+# Set the command to run the application (replace `main.py` with your entrypoint)
+CMD ["python", "main.py"]
+
+# Expose the application port (replace 8000 if your app uses a different port)
 EXPOSE 8000
-
-# Run the command to start the FastAPI server
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

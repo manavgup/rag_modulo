@@ -11,6 +11,7 @@ import UISideNav from '../components/SideNav.js';
 import QueryInput from '../components/QueryInput';
 import ResultsDisplay from '../components/ResultsDisplay';
 import Settings from '../components/Settings';
+import CollectionForm from '../components/CollectionForm';
 import './HomePage.css';
 
 const HomePage = () => {
@@ -54,6 +55,7 @@ const HomePage = () => {
 
   const handleNavigation = (e, page) => {
     e.preventDefault();
+    console.log(`Navigating to: ${page}`);
     setCurrentPage(page);
     if (page === 'settings') {
       setIsSettingsModalOpen(true);
@@ -65,6 +67,11 @@ const HomePage = () => {
     "What happens in a performance review?",
     "What does a Product Manager do?"
   ];
+
+  const handleFormSubmit = (data) => {
+    console.log('Form data submitted:', data);
+    // Add your form submission logic here
+  };
 
   return (
     <div className="homepage">
@@ -105,6 +112,10 @@ const HomePage = () => {
 
             {hasSearched && <ResultsDisplay results={results} />}
           </>
+        )}
+
+        {currentPage === 'create' && (
+          <CollectionForm onSubmit={handleFormSubmit} />
         )}
 
         {currentPage === 'report1' && <div>Report 1 Content</div>}

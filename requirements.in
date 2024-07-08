@@ -1,0 +1,13 @@
+pinecone==4.0.0
+pymilvus==2.4.4
+pymupdf==1.24.7
+scikit_learn==1.5.1
+setuptools==70.2.0
+streamlit==1.36.0
+chromadb==0.5.0
+elasticsearch==8.13.1
+fastapi==0.100.1
+ibm-generative-ai==3.0.0
+pydantic==2.8.2
+pydantic-settings==2.3.4
+weaviate-client==4.6.0

@@ -13,7 +13,6 @@ PYTHON_VERSION ?= 3.11
 PROJECT_VERSION ?= v$(shell poetry version -s)
 
 # Tools
-POETRY := poetry
 DOCKER_COMPOSE := docker-compose
 
 .DEFAULT_GOAL := all
@@ -26,24 +25,23 @@ init-env:
 	@echo "PYTHON_VERSION=${PYTHON_VERSION}" >> .env
 
 init: init-env
-	$(POETRY) install --no-root
+	pip install -r requirements.txt
 
 check-toml:
-	$(POETRY) check
+	# No equivalent for pip, so this can be left empty or removed
 
 format:
-	$(POETRY) run black $(PROJECT_DIRS)
-	$(POETRY) run isort $(PROJECT_DIRS)
+	ruff check $(SOURCE_DIR) && black $(PROJECT_DIRS) && isort $(PROJECT_DIRS)
 
 lint:
-	$(POETRY) run ruff check $(SOURCE_DIR)
-	$(POETRY) run mypy --install-types --show-error-codes --non-interactive $(SOURCE_DIR)
+	ruff check $(SOURCE_DIR)
+	mypy --install-types --show-error-codes --non-interactive $(SOURCE_DIR)
 
 audit:
-	$(POETRY) run bandit -r $(SOURCE_DIR) -x $(TEST_DIR)
+	bandit -r $(SOURCE_DIR) -x $(TEST_DIR)
 
 test: run-services
-	$(POETRY) run pytest $(TEST_DIR) || { echo "Tests failed"; exit 1; }
+	pytest $(TEST_DIR) || { echo "Tests failed"; exit 1; }
 	@trap '$(DOCKER_COMPOSE) down' EXIT; \
 	echo "Waiting for Docker containers to stop..."
 	@while docker ps | grep -q "milvus-standalone"; do sleep 1; done
@@ -79,7 +77,7 @@ run-app: build-app
 
 clean:
 	$(DOCKER_COMPOSE) down -v
-	rm -rf .pytest_cache .mypy_cache
+	rm -rf .pytest_cache .mypy_cache data volumes my_chroma_data tests
 
 all: format lint audit test
 
