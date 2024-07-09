@@ -19,7 +19,7 @@ services:
       context: ./webui
       dockerfile: Dockerfile.frontend
     ports:
-      - "3000:3000"
+      - "3000:80"
     environment:
       - REACT_APP_API_URL=http://backend:8000
     depends_on:
@@ -62,6 +62,8 @@ services:
       timeout: 20s
       retries: 3
     command: ["milvus", "run", "standalone"]
+    networks:
+      - app-network
     deploy:
       replicas: 0  # Start with 0 replicas
 
