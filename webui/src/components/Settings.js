@@ -1,4 +1,3 @@
-// components/Settings.js
 import React from 'react';
 import {
   Modal,
@@ -22,13 +21,13 @@ const Settings = ({ isOpen, onClose, settings, onSettingsChange }) => {
             id="topK"
             label="Top K"
             value={settings.topK}
-            onChange={(e) => onSettingsChange('topK', parseInt(e.target.value))}
+            onChange={(e) => onSettingsChange('topK', parseInt(e.imaginaryTarget.value))}
           />
           <NumberInput
             id="numTokens"
             label="Number of Tokens"
             value={settings.numTokens}
-            onChange={(e) => onSettingsChange('numTokens', parseInt(e.target.value))}
+            onChange={(e) => onSettingsChange('numTokens', parseInt(e.imaginaryTarget.value))}
           />
           <NumberInput
             id="temperature"
@@ -37,7 +36,7 @@ const Settings = ({ isOpen, onClose, settings, onSettingsChange }) => {
             step={0.1}
             min={0}
             max={1}
-            onChange={(e) => onSettingsChange('temperature', parseFloat(e.target.value))}
+            onChange={(e) => onSettingsChange('temperature', parseFloat(e.imaginaryTarget.value))}
           />
         </FormGroup>
       </Form>

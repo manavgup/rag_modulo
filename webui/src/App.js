@@ -1,10 +1,12 @@
+// App.js
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { Theme, Content } from '@carbon/react';
-import UIHeader from './components/Header.js';
+import UIHeader from './components/Header';
 import UISideNav from './components/SideNav';
 import HomePage from './pages/HomePage';
 import './App.css';
+import './css/common.css'; // Import the common CSS file
 
 function App() {
   return (

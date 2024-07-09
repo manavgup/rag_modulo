@@ -1,6 +1,7 @@
 // components/QueryInput.js
 import React from 'react';
-import { TextInput, Button } from '@carbon/react';
+import { TextInput, IconButton } from '@carbon/react';
+import { Send } from '@carbon/icons-react';
 
 const QueryInput = ({ query, setQuery, onSearch }) => {
   return (
@@ -10,8 +11,17 @@ const QueryInput = ({ query, setQuery, onSearch }) => {
         labelText="Enter your query"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
+        className='query-text-input'
       />
-      <Button onClick={onSearch}>Search</Button>
+      <IconButton
+        onClick={onSearch}
+        renderIcon={Send}
+        iconDescription="Send"
+        className="send-icon-button"
+        hasIconOnly
+        kind='primary'
+        size='field'
+      />
     </div>
   );
 };

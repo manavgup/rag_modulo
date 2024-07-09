@@ -1,66 +1,46 @@
 import React, { useState } from 'react';
-import axios from 'axios';
-import {
-  Form,
-  TextInput,
-  RadioButtonGroup,
-  RadioButton,
-  FileUploader,
-  Button
-} from '@carbon/react';
+import { TextInput, Button, Checkbox, FileUploaderDropContainer, FormItem, FormGroup, Form } from '@carbon/react';
 
-const CollectionForm = () => {
+const CollectionForm = ({ onSubmit }) => {
   const [collectionName, setCollectionName] = useState('');
-  const [privacy, setPrivacy] = useState(false);
-  const [files, setFiles] = useState([]);
+  const [isPrivate, setIsPrivate] = useState(false);
 
-  const handleFileChange = (event) => {
-    setFiles(event.target.files);
-  };
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    const formData = new FormData();
-    formData.append('name', collectionName);
-    formData.append('privacy', privacy);
-    Array.from(files).forEach(file => {
-      formData.append('files', file);
-    });
-
-    try {
-      const response = await axios.post('http://localhost:8000/collections/', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
-      console.log(response.data);
-    } catch (error) {
-      console.error('There was an error creating the collection!', error);
-    }
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSubmit({ collectionName, isPrivate });
   };
 
   return (
-    <Form onSubmit={handleSubmit}>
-      <TextInput
-        id="collection-name"
-        labelText="Collection Name"
-        value={collectionName}
-        onChange={(e) => setCollectionName(e.target.value)}
-      />
-      <RadioButtonGroup
-        legendText="Collection Privacy"
-        name="privacy"
-        onChange={(value) => setPrivacy(value === 'private')}
-      >
-        <RadioButton id="public" labelText="Public" value="public" />
-        <RadioButton id="private" labelText="Private" value="private" />
-      </RadioButtonGroup>
-      <FileUploader
-        labelTitle="Add files"
-        multiple
-        onChange={handleFileChange}
-      />
-      <Button type="submit">Create Collection</Button>
+    <Form className="collection-form" onSubmit={handleSubmit}>
+        <TextInput id="collection-name" labelText="Collection Name" value={collectionName} onChange={(e) => setCollectionName(e.target.value)}/>
+        <Checkbox className='cds--label-description' defaultChecked labelText={`Private Collection? `} id="checkbox-label-1" />
+        <FormItem>
+        <p className="cds--file--label"> Upload files </p>
+        <p className="cds--label-description"> Max file size is 5MB.</p>
+        <FileUploaderDropContainer
+            accept={[
+            'image/jpeg',
+            'image/png',
+            'text/plain',
+            'application/pdf',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.ms-powerpoint',
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'application/vnd.ms-excel',
+            ]}
+            innerRef={{current: '[Circular]'}}
+            labelText="Drag and drop files here or click to upload"
+            multiple
+            name="files"
+            onAddFiles={function noRefCheck(){}}
+            onChange={function noRefCheck(){}}
+        />
+        <div className="cds--file-container cds--file-container--drop" />
+        </FormItem>
+      <Button type="submit" kind="primary">
+        Create Collection
+      </Button>
     </Form>
   );
 };

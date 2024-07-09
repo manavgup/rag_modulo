@@ -1,0 +1,49 @@
+/* common.css */
+.main-content {
+    padding: 20px;
+}
+
+.query-input {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.query-input .bx--text-input {
+    flex: 1;
+}
+
+.collection-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.collection-form .bx--text-input {
+    width: 100%;
+}
+
+.collection-form .bx--checkbox-wrapper {
+    display: flex;
+    align-items: center;
+}
+
+.collection-form .bx--file-uploader {
+    width: 100%;
+}
+
+.collection-form .bx--btn {
+    align-self: flex-start;
+}
+
+.collection-upload {
+    margin-top: 20px;
+}
+
+.upload-container {
+    margin-top: 10px;
+}
+
+.create-collection-btn {
+    margin-top: 20px;
+}
