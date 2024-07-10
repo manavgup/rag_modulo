@@ -5,7 +5,7 @@ from typing import AsyncIterable
 
 import pandas as pd
 
-from exceptions import DocumentProcessingError
+from custom_exceptions import DocumentProcessingError
 from rag_solution.doc_utils import get_document
 from vectordbs.data_types import Document
 

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import List, Optional
@@ -6,6 +6,7 @@ from vectordbs.factory import get_datastore
 from vectordbs.vector_store import VectorStore
 from vectordbs.data_types import Document, DocumentMetadataFilter, QueryWithEmbedding
 from config import settings
+from rag_solution.data_ingestion.document_processor import DocumentProcessor
 
 app = FastAPI(title="Vector Store API", description="API for interacting with the Vector Store")
 
@@ -53,6 +54,28 @@ async def create_collection(collection: CollectionCreate, vector_store: VectorSt
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/api/create_collection_with_documents", summary="Create a new collection with documents")
+async def create_collection_with_documents(
+        collection_name: str,
+        is_private: bool,
+        files: List[UploadFile] = File(...),
+        vector_store: VectorStore = Depends(get_vector_store)):
+    try:
+        await vector_store.create_collection_async(collection_name, {"is_private": is_private})
+
+        processor = DocumentProcessor()
+        documents = []
+
+        for file in files:
+            async for document in processor.process_document(file):
+                documents.append(document)
+
+        await vector_store.add_documents_async(collection_name, documents)
+
+        return {"message": f"Collection '{collection_name}' created successfully with documents"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/api/add_documents", summary="Add documents to a collection")
 async def add_documents(doc_add: DocumentAdd, vector_store: VectorStore = Depends(get_vector_store)):
     try:
@@ -64,7 +87,9 @@ async def add_documents(doc_add: DocumentAdd, vector_store: VectorStore = Depend
 @app.post("/api/retrieve_documents", summary="Retrieve documents from a collection")
 async def retrieve_documents(doc_retrieve: DocumentRetrieve, vector_store: VectorStore = Depends(get_vector_store)):
     try:
-        results = await vector_store.retrieve_documents_async(doc_retrieve.query, doc_retrieve.collection_name, doc_retrieve.limit)
+        results = await vector_store.retrieve_documents_async(doc_retrieve.query,
+                                                              doc_retrieve.collection_name,
+                                                              doc_retrieve.limit)
         return {"results": results}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -72,7 +97,10 @@ async def retrieve_documents(doc_retrieve: DocumentRetrieve, vector_store: Vecto
 @app.post("/api/query", summary="Query a collection")
 async def query(doc_query: DocumentQuery, vector_store: VectorStore = Depends(get_vector_store)):
     try:
-        results = await vector_store.query_async(doc_query.collection_name, doc_query.query, doc_query.number_of_results, doc_query.filter)
+        results = await vector_store.query_async(doc_query.collection_name,
+                                                 doc_query.query,
+                                                 doc_query.number_of_results,
+                                                 doc_query.filter)
         return {"results": results}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

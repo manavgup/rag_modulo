@@ -43,7 +43,7 @@ RAG Modulo is a Retrieval-Augmented Generation (RAG) solution that integrates va
     ```
 3. Set up your environment variables by copying the `.env.example` file:
     ```sh
-    cp .env.example .env
+    cp env.example .env
     ```
     Then, edit the `.env` file with your specific configuration.
 
@@ -87,7 +87,7 @@ Configuration is managed through environment variables. Key variables include:
 - EMBEDDING_MODEL: Specify the embedding model to use
 - DATA_DIR: Directory containing the data to be ingested
 
-Refer to the .env.example file for a complete list of configuration options.
+Refer to the env.example file for a complete list of configuration options.
 
 ## Testing
 Run the test suite using:

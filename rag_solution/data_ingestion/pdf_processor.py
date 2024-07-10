@@ -6,7 +6,7 @@ from typing import AsyncIterable, List, Set
 
 import pymupdf  # PyMuPDF
 
-from exceptions import DocumentProcessingError
+from custom_exceptions import DocumentProcessingError
 from rag_solution.doc_utils import clean_text, get_document
 from vectordbs.data_types import Document
 

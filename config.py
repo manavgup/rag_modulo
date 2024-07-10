@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     embedding_field: Optional[str] = None
     upsert_batch_size: Optional[int] = None
 
+    # Frontend settings
+    react_app_api_url: str
+
     # Logging Level
     log_level: Optional[str] = None
 

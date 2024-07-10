@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional, Union
-import asyncio
+from typing import List, Optional
 
 from vectordbs.data_types import Document, DocumentMetadataFilter, QueryResult, QueryWithEmbedding
 
@@ -69,4 +68,3 @@ class VectorStore(ABC):
     ):
         """Deletes documents by their IDs from the vector store asynchronously."""
         pass
-

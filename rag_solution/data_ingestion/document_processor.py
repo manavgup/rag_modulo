@@ -4,7 +4,7 @@ import os
 from typing import AsyncIterable, Dict
 
 from error_handling import async_error_handler
-from exceptions import DocumentProcessingError
+from custom_exceptions import DocumentProcessingError
 from vectordbs.data_types import Document
 
 from .base_processor import BaseProcessor
