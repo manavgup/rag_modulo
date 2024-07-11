@@ -1,25 +1,75 @@
-import React, { useState } from 'react';
-import { TextInput, Button, Checkbox, FileUploaderDropContainer, FormItem, Form } from '@carbon/react';
+import React, { useState, useEffect } from 'react';
+import { TextInput, Button, Checkbox, FileUploaderDropContainer, FormItem, Form, Tag, ProgressBar, ToastNotification } from '@carbon/react';
+import { TrashCan } from '@carbon/icons-react';
 import { createCollectionWithDocuments } from '../api/api';
 
 const CollectionForm = ({ onSubmit }) => {
   const [collectionName, setCollectionName] = useState('');
   const [isPrivate, setIsPrivate] = useState(false);
   const [files, setFiles] = useState([]);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [showError, setShowError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  useEffect(() => {
+    if (typeof File === 'undefined') {
+      console.error('File API is not supported in this browser.');
+    }
+  }, []);
 
   const handleFileDrop = (event) => {
-    const newFiles = Array.from(event.addedFiles);
-    setFiles((prevFiles) => [...prevFiles, ...newFiles]);
+    console.log("handleFileDrop: ", event);
+    const newFiles = Array.from(event.target.files || []);
+    console.log("handleFileDrop newFiles: ", newFiles);
+    const filteredFiles = newFiles.filter((file) => {
+      const fileType = file.type.toLowerCase();
+      return (
+        fileType === 'application/pdf' ||
+        fileType === 'application/vnd.ms-powerpoint' ||
+        fileType === 'text/plain' ||
+        fileType === 'application/msword' ||
+        fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+        fileType === 'application/vnd.ms-excel' ||
+        fileType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      );
+    });
+
+    console.log("filteredFiles Length: ", filteredFiles.length, ": newFiles Length: ", newFiles.length);
+
+    if (filteredFiles.length !== newFiles.length) {
+      setErrorMessage('Only PDF, PPT, Text, Word, and Excel files are allowed.');
+      setShowError(true);
+    } else {
+      setShowError(false);
+    }
+
+    setFiles((prevFiles) => [...prevFiles, ...filteredFiles]);
+  };
+
+  const handleFileRemove = (index) => {
+    setFiles((prevFiles) => prevFiles.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    const formData = new FormData();
+    formData.append('collection_name', collectionName);
+    formData.append('is_private', isPrivate);
+
+    files.forEach((file) => {
+      formData.append('files', file);
+    });
+
     try {
-      const result = await createCollectionWithDocuments(collectionName, isPrivate, files);
-      onSubmit(result);
+      const response = await createCollectionWithDocuments(formData, (progressEvent) => {
+        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        setUploadProgress(percentCompleted);
+      });
+      onSubmit(response);
     } catch (error) {
-      console.error(error);
-      alert('Failed to create collection');
+      setShowError(true);
+      setErrorMessage(error.response?.data?.message || 'An error occurred.');
     }
   };
 
@@ -43,8 +93,6 @@ const CollectionForm = ({ onSubmit }) => {
         <p className="cds--label-description"> Max file size is 5MB.</p>
         <FileUploaderDropContainer
           accept={[
-            'image/jpeg',
-            'image/png',
             'text/plain',
             'application/pdf',
             'application/msword',
@@ -55,9 +103,47 @@ const CollectionForm = ({ onSubmit }) => {
           ]}
           labelText="Drag and drop files here or click to upload"
           multiple
-          onAddFiles={(event) => handleFileDrop(event)}
+          onAddFiles={handleFileDrop}
         />
+        {files.length > 0 && (
+          <div className="selected-files">
+            <p>Selected Files:</p>
+            {files.map((file, index) => (
+              <div key={index} style={{ display: 'flex', alignItems: 'center' }}>
+                <Tag type="gray">{file.name}</Tag>
+                <Button
+                  kind="primary"
+                  size="sm"
+                  hasIconOnly
+                  renderIcon={ TrashCan }
+                  iconDescription="Remove file"
+                  tooltipPosition="right"
+                  onClick={() => handleFileRemove(index)}
+                  style={{ marginLeft: '0.5rem' }}
+                />
+              </div>
+            ))}
+          </div>
+        )}
       </FormItem>
+
+      {uploadProgress > 0 && (
+        <ProgressBar
+          label="Uploading..."
+          value={uploadProgress}
+        />
+      )}
+
+      <ToastNotification
+        kind="error"
+        title="Error"
+        subtitle={errorMessage}
+        caption=""
+        timeout={5000}
+        onClose={() => setShowError(false)}
+        style={{ display: showError ? 'block' : 'none' }}
+      />
+
       <Button type="submit" kind="primary">
         Create Collection
       </Button>
