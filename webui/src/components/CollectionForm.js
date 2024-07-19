@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { TextInput, Button, Checkbox, FileUploaderDropContainer, FormItem, Form, Tag, ProgressBar, ToastNotification } from '@carbon/react';
-import { TrashCan } from '@carbon/icons-react';
+import { TrashCan  } from '@carbon/icons-react';
 import { createCollectionWithDocuments } from '../api/api';
 
 const CollectionForm = ({ onSubmit }) => {
@@ -53,6 +53,8 @@ const CollectionForm = ({ onSubmit }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    console.log('Files:', files);
+
     const formData = new FormData();
     formData.append('collection_name', collectionName);
     formData.append('is_private', isPrivate);
@@ -62,12 +64,14 @@ const CollectionForm = ({ onSubmit }) => {
     });
 
     try {
-      const response = await createCollectionWithDocuments(formData, (progressEvent) => {
-        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+      const response = await createCollectionWithDocuments(formData, (event) => {
+        const percentCompleted = Math.round((event.loaded * 100) / event.total);
         setUploadProgress(percentCompleted);
       });
+      console.log('API Response:', response);
       onSubmit(response);
     } catch (error) {
+      console.log('API Error:', error);
       setShowError(true);
       setErrorMessage(error.response?.data?.message || 'An error occurred.');
     }

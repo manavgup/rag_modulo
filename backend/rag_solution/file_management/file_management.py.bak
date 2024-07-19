@@ -1,0 +1,64 @@
+# rag_solution/file_management/file_management.py
+from pathlib import Path
+from uuid import UUID
+from backend.core.config import settings
+from fastapi.datastructures import UploadFile
+from typing import List
+
+async def save_file(upload_file: UploadFile, user_id: UUID, collection_id: UUID) -> Path:
+    """
+    Save an uploaded file to the file system.
+
+    Args:
+        upload_file (UploadFile): The uploaded file to be saved.
+        user_id (UUID): The ID of the user who uploaded the file.
+        collection_id (UUID): The ID of the collection the file belongs to.
+
+    Returns:
+        Path: The path of the saved file.
+    """
+    if not settings.file_storage_path:
+        raise ValueError("file_storage_path is not set in the configuration")
+
+    if not upload_file.filename:
+        raise ValueError("upload_file.filename is None")
+
+    base_dir = Path(settings.file_storage_path) / str(user_id) / str(collection_id)
+    base_dir.mkdir(parents=True, exist_ok=True)
+    file_path = base_dir / upload_file.filename
+
+    # Open the output file for writing
+    with open(file_path, "wb") as output_file:
+        # Read and write the file in chunks
+        while chunk := await upload_file.read(1024 * 1024):  # Read 1 MB at a time
+            output_file.write(chunk)
+
+    return file_path
+
+def get_file_path(user_id: UUID, collection_id: UUID, filename: str) -> Path:
+    """
+    Get the file path for a given user, collection, and filename.
+
+    Args:
+        user_id (UUID): The ID of the user.
+        collection_id (UUID): The ID of the collection.
+        filename (str): The name of the file.
+
+    Returns:
+        Path: The file path.
+    """
+    return Path(settings.file_storage_path) / str(user_id) / str(collection_id) / filename
+
+def get_files(user_id: UUID, collection_id: UUID) -> List[str]:
+    """
+    Get a list of files for a given user and collection.
+
+    Args:
+        user_id (UUID): The ID of the user.
+        collection_id (UUID): The ID of the collection.
+
+    Returns:
+        List[str]: A list of file names.
+    """
+    base_dir = Path(settings.file_storage_path) / str(user_id) / str(collection_id)
+    return [file.name for file in base_dir.iterdir() if file.is_file()]

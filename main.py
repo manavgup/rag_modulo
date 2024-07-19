@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException, Depends, UploadFile, File
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import List, Optional
@@ -7,6 +8,13 @@ from vectordbs.vector_store import VectorStore
 from vectordbs.data_types import Document, DocumentMetadataFilter, QueryWithEmbedding
 from config import settings
 from rag_solution.data_ingestion.document_processor import DocumentProcessor
+from sqlalchemy.orm import Session
+from uuid import uuid4
+import logging
+from rag_solution.file_management.file_management import save_file, get_files, get_file_path
+from rag_solution.data_ingestion.ingestion import ingest_documents
+
+logging.basicConfig(level=settings.log_level)
 
 app = FastAPI(title="Vector Store API", description="API for interacting with the Vector Store")
 
@@ -26,6 +34,11 @@ async def get_vector_store():
 class CollectionCreate(BaseModel):
     collection_name: str = Field(..., description="The name of the collection to create")
     metadata: Optional[dict] = Field(None, description="Optional metadata for the collection")
+
+class CollectionCreateWithDocuments(BaseModel):
+    collection_name: str = Field(..., description="The name of the collection to create")
+    is_private: bool
+    files: List[UploadFile]
 
 class DocumentAdd(BaseModel):
     collection_name: str = Field(..., description="The name of the collection to add documents to")
@@ -56,23 +69,29 @@ async def create_collection(collection: CollectionCreate, vector_store: VectorSt
 
 @app.post("/api/create_collection_with_documents", summary="Create a new collection with documents")
 async def create_collection_with_documents(
-        collection_name: str,
-        is_private: bool,
-        files: List[UploadFile] = File(...),
+        request: CollectionCreateWithDocuments,
         vector_store: VectorStore = Depends(get_vector_store)):
+    user_id = 1  # Hardcoded for now
     try:
-        await vector_store.create_collection_async(collection_name, {"is_private": is_private})
+        await vector_store.create_collection_async(request.collection_name)
 
-        processor = DocumentProcessor()
-        documents = []
+        for file in request.files:
+            logging.info("Trying to process file: ", file.filename)
+            file_path = save_file(file, user_id, request.collection_name)
+            # Offload the document ingestion to a background task
+            ingest_documents(file_path, vector_store, request.collection_name)
 
-        for file in files:
-            async for document in processor.process_document(file):
-                documents.append(document)
+        return JSONResponse(
+            status_code=202,
+            content={
+                "message": "Collection created successfully, and documents are being processed.",
+                "collection_id": collection_id
+            }
+        )
 
-        await vector_store.add_documents_async(collection_name, documents)
+        # await vector_store.add_documents_async(request.collection_name, documents)
 
-        return {"message": f"Collection '{collection_name}' created successfully with documents"}
+        # return {"message": f"Collection '{request.collection_name}' created successfully with documents"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
