@@ -8,6 +8,8 @@ from ..schemas.user_schema import UserInDB, UserInput, UserOutput
 
 class UserRepository:
     def __init__(self, session: Session):
+        if not isinstance(session, Session):
+            raise ValueError("Invalid session object")
         self.session = session
 
     def create(self, user: UserInput) -> UserInDB:
@@ -33,7 +35,7 @@ class UserRepository:
         try:
             db_user = self.session.query(User).filter(User.id == user_id).first()
             if db_user:
-                for key, value in user_data.items():
+                for key, value in user_data.model_dump().items():
                     setattr(db_user, key, value)
                 self.session.commit()
                 self.session.refresh(db_user)
@@ -61,4 +63,11 @@ class UserRepository:
 
     def get_user_output(self, user_id: UUID) -> Optional[UserOutput]:
         user = self.get(user_id)
-        return UserOutput.model_validate(user) if user else None
+        if user:
+            return UserOutput(
+                id=user.id,
+                ibm_id=user.ibm_id,
+                email=user.email,
+                name=user.name
+            )
+        return None

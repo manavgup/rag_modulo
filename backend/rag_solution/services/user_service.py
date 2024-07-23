@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from fastapi import Depends
 from ..repository.user_repository import UserRepository
 from backend.rag_solution.schemas.team_schema import TeamInDB
-from backend.rag_solution.schemas.user_schema import UserInput, UserInDB, UserOutput, UserUpdateSchema
+from backend.rag_solution.schemas.user_schema import UserInput, UserInDB, UserOutput
 from backend.rag_solution.file_management.database import get_db
 
 class UserService:
@@ -48,7 +48,7 @@ class UserService:
         user = self.user_repository.get_user_by_ibm_id(ibm_id)
         return UserOutput.model_validate(user) if user else None
 
-    def update_user(self, user_id: UUID, user_update: UserUpdateSchema) -> Optional[UserOutput]:
+    def update_user(self, user_id: UUID, user_update: UserInput) -> UserOutput:
         """
         Update an existing user.
 
@@ -59,8 +59,16 @@ class UserService:
         Returns:
             Optional[UserOutput]: The updated user if found, None otherwise.
         """
-        updated_user = self.user_repository.update(user_id, user_update.model_dump(exclude_unset=True))
-        return UserOutput.model_validate(updated_user) if updated_user else None
+        updated_user = self.user_repository.update(user_id, user_update)
+        if updated_user:
+            return UserOutput(
+                id=updated_user.id,
+                ibm_id=updated_user.ibm_id,
+                email=updated_user.email,
+                name=updated_user.name
+            )
+        return None
+
 
     def delete_user(self, user_id: UUID) -> bool:
         """

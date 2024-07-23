@@ -4,7 +4,6 @@ from sqlalchemy.dialects.postgresql import UUID
 from datetime import datetime
 import uuid
 
-from backend.rag_solution.models.collection import Collection
 from ..file_management.database import Base
 
 class File(Base):
@@ -17,7 +16,7 @@ class File(Base):
     file_type: Mapped[str] = mapped_column(String)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
-    collection: Mapped["Collection"] = relationship(back_populates="files")
+    collection: Mapped["Collection"] = relationship("Collection", back_populates="files")
 
     def __repr__(self):
         return f"File(id='{self.id}',\

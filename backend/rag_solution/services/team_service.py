@@ -3,7 +3,7 @@ from typing import Optional, List
 from sqlalchemy.orm import Session
 from fastapi import Depends
 from backend.rag_solution.repository.team_repository import TeamRepository
-from backend.rag_solution.schemas.team_schema import TeamInput, TeamInDB, TeamOutput, UserTeamInDB, TeamUpdateSchema
+from backend.rag_solution.schemas.team_schema import TeamInput, TeamInDB, TeamOutput, UserTeamInDB
 from backend.rag_solution.file_management.database import get_db
 
 class TeamService:
@@ -47,7 +47,7 @@ class TeamService:
         """
         return self.team_repository.list(skip, limit)
 
-    def update_team(self, team_id: UUID, team_update: TeamUpdateSchema) -> Optional[TeamInDB]:
+    def update_team(self, team_id: UUID, team_update: TeamInput) -> TeamInDB:
         """
         Update an existing team.
 
@@ -58,7 +58,8 @@ class TeamService:
         Returns:
             Optional[TeamInDB]: The updated team if found, None otherwise.
         """
-        return self.team_repository.update(team_id, team_update.model_dump(exclude_unset=True))
+        updated_team = self.team_repository.update(team_id, team_update)
+        return updated_team
 
     def delete_team(self, team_id: UUID) -> bool:
         """

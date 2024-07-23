@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from pydantic.types import EmailStr
+from pydantic import EmailStr
 from uuid import UUID
 from datetime import datetime
 
@@ -21,5 +21,7 @@ class UserInput(BaseModel):
     name: str
 
 class UserOutput(BaseModel):
-    email: EmailStr | None = None
-    name: str | None = None
+    id: UUID
+    ibm_id: str
+    email: EmailStr
+    name: str
