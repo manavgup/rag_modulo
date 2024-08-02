@@ -1,152 +1,97 @@
+# team_service.py
+
 from uuid import UUID
-from typing import Optional, List
+from typing import List, Optional
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
-from fastapi import Depends
-from backend.rag_solution.repository.team_repository import TeamRepository
-from backend.rag_solution.schemas.team_schema import TeamInput, TeamInDB, TeamOutput, UserTeamInDB
-from backend.rag_solution.file_management.database import get_db
+from rag_solution.repository.team_repository import TeamRepository
+from rag_solution.schemas.team_schema import TeamInput, TeamOutput
+from rag_solution.schemas.user_schema import UserOutput
+from rag_solution.services.user_team_service import UserTeamService
+import logging
+
+logger = logging.getLogger(__name__)
 
 class TeamService:
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, user_team_service: UserTeamService):
         self.team_repository = TeamRepository(db)
+        self.user_team_service = user_team_service
 
-    def create_team(self, team: TeamInput) -> TeamInDB:
-        """
-        Create a new team.
+    def create_team(self, team_input: TeamInput) -> TeamOutput:
+        try:
+            logger.info(f"Creating team with input: {team_input}")
+            team = self.team_repository.create(team_input)
+            logger.info(f"Team created successfully: {team.id}")
+            return team
+        except ValueError as e:
+            logger.error(f"Value error creating team: {str(e)}")
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:
+            logger.error(f"Unexpected error creating team: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal server error")
 
-        Args:
-            team (TeamInput): The team data to create.
+    def get_team_by_id(self, team_id: UUID) -> Optional[TeamOutput]:
+        try:
+            logger.info(f"Fetching team with id: {team_id}")
+            team = self.team_repository.get(team_id)
+            if team is None:
+                logger.warning(f"Team not found: {team_id}")
+                raise HTTPException(status_code=404, detail="Team not found")
+            return team
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error getting team {team_id}: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal server error")
 
-        Returns:
-            TeamInDB: The created team.
-        """
-        return self.team_repository.create(team)
-
-    def get_team(self, team_id: UUID) -> Optional[TeamOutput]:
-        """
-        Get a team by its ID.
-
-        Args:
-            team_id (UUID): The ID of the team to retrieve.
-
-        Returns:
-            Optional[TeamOutput]: The team if found, None otherwise.
-        """
-        return self.team_repository.get_team_output(team_id)
-
-    def get_all_teams(self, skip: int = 0, limit: int = 100) -> List[TeamInDB]:
-        """
-        Get all teams with pagination.
-
-        Args:
-            skip (int): Number of teams to skip.
-            limit (int): Maximum number of teams to return.
-
-        Returns:
-            List[TeamInDB]: List of teams.
-        """
-        return self.team_repository.list(skip, limit)
-
-    def update_team(self, team_id: UUID, team_update: TeamInput) -> TeamInDB:
-        """
-        Update an existing team.
-
-        Args:
-            team_id (UUID): The ID of the team to update.
-            team_update (TeamUpdateSchema): The update data for the team.
-
-        Returns:
-            Optional[TeamInDB]: The updated team if found, None otherwise.
-        """
-        updated_team = self.team_repository.update(team_id, team_update)
-        return updated_team
+    def update_team(self, team_id: UUID, team_update: TeamInput) -> Optional[TeamOutput]:
+        try:
+            logger.info(f"Updating team {team_id} with input: {team_update}")
+            team = self.team_repository.update(team_id, team_update)
+            if team is None:
+                logger.warning(f"Team not found for update: {team_id}")
+                raise HTTPException(status_code=404, detail="Team not found")
+            logger.info(f"Team {team_id} updated successfully")
+            return team
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error updating team {team_id}: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal server error")
 
     def delete_team(self, team_id: UUID) -> bool:
-        """
-        Delete a team.
+        try:
+            logger.info(f"Deleting team: {team_id}")
+            result = self.team_repository.delete(team_id)
+            if not result:
+                logger.warning(f"Team not found for deletion: {team_id}")
+                raise HTTPException(status_code=404, detail="Team not found")
+            logger.info(f"Team {team_id} deleted successfully")
+            return result
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error deleting team {team_id}: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal server error")
 
-        Args:
-            team_id (UUID): The ID of the team to delete.
+    def get_team_users(self, team_id: UUID) -> List[UserOutput]:
+        logger.info(f"Fetching users for team: {team_id}")
+        return self.user_team_service.get_team_users(team_id)
 
-        Returns:
-            bool: True if the team was deleted, False otherwise.
-        """
-        return self.team_repository.delete(team_id)
-
-    def add_user_to_team(self, user_id: UUID, team_id: UUID) -> Optional[UserTeamInDB]:
-        """
-        Add a user to a team.
-
-        Args:
-            user_id (UUID): The ID of the user to add.
-            team_id (UUID): The ID of the team to add the user to.
-
-        Returns:
-            Optional[UserTeamInDB]: The created UserTeam association if successful, None otherwise.
-        """
-        return self.team_repository.add_user_to_team(user_id, team_id)
+    def add_user_to_team(self, user_id: UUID, team_id: UUID) -> bool:
+        logger.info(f"Adding user {user_id} to team {team_id}")
+        return self.user_team_service.add_user_to_team(user_id, team_id)
 
     def remove_user_from_team(self, user_id: UUID, team_id: UUID) -> bool:
-        """
-        Remove a user from a team.
+        logger.info(f"Removing user {user_id} from team {team_id}")
+        return self.user_team_service.remove_user_from_team(user_id, team_id)
 
-        Args:
-            user_id (UUID): The ID of the user to remove.
-            team_id (UUID): The ID of the team to remove the user from.
-
-        Returns:
-            bool: True if the user was removed from the team, False otherwise.
-        """
-        return self.team_repository.remove_user_from_team(user_id, team_id)
-
-    def get_team_users(self, team_id: UUID) -> List[UserTeamInDB]:
-        """
-        Get all users in a team.
-
-        Args:
-            team_id (UUID): The ID of the team.
-
-        Returns:
-            List[UserTeamInDB]: List of UserTeam associations for the given team.
-        """
-        return self.team_repository.get_team_users(team_id)
-
-    def get_user_teams(self, user_id: UUID) -> List[TeamInDB]:
-        """
-        Get all teams a user belongs to.
-
-        Args:
-            user_id (UUID): The ID of the user.
-
-        Returns:
-            List[TeamInDB]: List of teams the user belongs to.
-        """
-        return self.team_repository.get_user_teams(user_id)
-
-    def team_exists(self, team_id: UUID) -> bool:
-        """
-        Check if a team exists.
-
-        Args:
-            team_id (UUID): The ID of the team to check.
-
-        Returns:
-            bool: True if the team exists, False otherwise.
-        """
-        return self.team_repository.team_exists(team_id)
-
-    def user_in_team(self, user_id: UUID, team_id: UUID) -> bool:
-        """
-        Check if a user is in a team.
-
-        Args:
-            user_id (UUID): The ID of the user.
-            team_id (UUID): The ID of the team.
-
-        Returns:
-            bool: True if the user is in the team, False otherwise.
-        """
-        return self.team_repository.user_in_team(user_id, team_id)
-
-def get_team_service(db: Session = Depends(get_db)) -> TeamService:
-    return TeamService(db)
+    def list_teams(self, skip: int = 0, limit: int = 100) -> List[TeamOutput]:
+        logger.info(f"Listing teams with skip={skip} and limit={limit}")
+        try:
+            teams = self.team_repository.list(skip, limit)
+            logger.info(f"Retrieved {len(teams)} teams")
+            return teams
+        except Exception as e:
+            logger.error(f"Unexpected error listing teams: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal server error")

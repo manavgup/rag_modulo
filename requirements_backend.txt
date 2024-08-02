@@ -1,0 +1,16 @@
+docx==0.2.4
+elasticsearch==8.14.0
+genai==2.1.0
+openpyxl==3.1.5
+pandas==2.2.2
+pinecone==4.0.0
+psycopg2==2.9.9
+pydantic_settings==2.3.4
+pymilvus==2.4.4
+pymupdf==1.24.8
+pytest==8.3.1
+pytest_asyncio==0.23.8
+python-dotenv==1.0.1
+scikit_learn==1.5.1
+setuptools==71.1.0
+SQLAlchemy==2.0.31

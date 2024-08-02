@@ -1,21 +1,41 @@
 import logging
 import os
 import uuid
-from typing import AsyncIterable
+from typing import Iterable
 
 import pandas as pd
 
-from backend.core.custom_exceptions import DocumentProcessingError
+from core.custom_exceptions import DocumentProcessingError
 from rag_solution.doc_utils import get_document
 from vectordbs.data_types import Document
 
 from .base_processor import BaseProcessor
 
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 
 class ExcelProcessor(BaseProcessor):
-    async def process(self, file_path: str) -> AsyncIterable[Document]:
+    """
+    Processor for reading and chunking Excel files.
+
+    Methods:
+        process(file_path: str) -> Iterable[Document]: Process the Excel file and yield Document instances.
+    """
+
+    def process(self, file_path: str) -> Iterable[Document]:
+        """
+        Process the Excel file and yield Document instances.
+
+        Args:
+            file_path (str): The path to the Excel file to be processed.
+
+        Yields:
+            Document: An instance of Document containing the processed data.
+
+        Raises:
+            DocumentProcessingError: If there is an error processing the Excel file.
+        """
         try:
             sheets_data = pd.read_excel(file_path, sheet_name=None)
             full_text = []

@@ -1,40 +1,41 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, UploadFile, BackgroundTasks
+from sqlalchemy.orm import Session
 from typing import List
-from uuid import UUID
+import uuid
 
-from backend.rag_solution.services.collection_service import CollectionService, get_collection_service
-from backend.rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput
+from rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput
+from rag_solution.services.collection_service import CollectionService
+from rag_solution.services.file_management_service import FileManagementService
+from rag_solution.file_management.database import get_db
 
-router = APIRouter(prefix="/collections", tags=["collections"])
+router = APIRouter(
+    prefix="/api/collections",
+    tags=["collections"]
+)
 
-@router.post("/", response_model=CollectionOutput)
-async def create_collection(collection: CollectionInput,
-                            collection_service: CollectionService = Depends(get_collection_service)):
-    return await collection_service.create_collection(collection)
+@router.post("/create", summary="Create a new collection", response_model=CollectionOutput)
+def create_collection(collection_input: CollectionInput, db: Session = Depends(get_db)):
+    _service = CollectionService(db, FileManagementService(db))
+    return _service.create_collection(db, collection_input)
 
-@router.get("/{collection_id}", response_model=CollectionOutput)
-async def get_collection(collection_id: UUID,
-                         collection_service: CollectionService = Depends(get_collection_service)):
-    collection = collection_service.get_collection(collection_id)
-    if collection is None:
-        raise HTTPException(status_code=404, detail="Collection not found")
-    return collection
+@router.post("/create__with_documents", summary="Create a new collection with documents", response_model=CollectionOutput)
+def create_collection_with_documents(
+    collection_name: str,
+    is_private: bool,
+    user_id: uuid.UUID,
+    files: List[UploadFile],
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    _service = CollectionService(db, FileManagementService(db))
+    return _service.create_collection_with_documents(db, collection_name, is_private, user_id, files, background_tasks)
 
-@router.put("/{collection_id}", response_model=CollectionOutput)
-async def update_collection(collection_id: UUID,
-                            collection_update: CollectionInput,
-                            collection_service: CollectionService = Depends(get_collection_service)):
-    updated_collection = collection_service.update_collection(collection_id, collection_update)
-    if updated_collection is None:
-        raise HTTPException(status_code=404, detail="Collection not found")
-    return updated_collection
+@router.get("/{collection_name}", summary="Retrieve a collection by name", response_model=CollectionOutput)
+def get_collection(collection_name: str, db: Session = Depends(get_db)):
+    _service = CollectionService(db, FileManagementService(db))
+    return _service.get_collection(collection_name)
 
-@router.delete("/{collection_id}")
-async def delete_collection(collection_id: UUID, collection_service: CollectionService = Depends(get_collection_service)):
-    if not await collection_service.delete_collection(collection_id):
-        raise HTTPException(status_code=404, detail="Collection not found")
-    return {"message": "Collection deleted successfully"}
-
-@router.get("/user/{user_id}", response_model=List[CollectionOutput])
-async def get_user_collections(user_id: UUID, collection_service: CollectionService = Depends(get_collection_service)):
-    return collection_service.get_user_collections(user_id)
+@router.delete("/{collection_name}", summary="Delete a collection", response_model=bool)
+def delete_collection(collection_name: str, db: Session = Depends(get_db)):
+    _service = CollectionService(db, FileManagementService(db))
+    return _service.delete_collection(collection_name)

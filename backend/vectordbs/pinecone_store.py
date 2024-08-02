@@ -1,16 +1,16 @@
 import logging
 from typing import Any, Dict, List, Optional
-import asyncio
+
 from pinecone import Pinecone, ServerlessSpec
 
-from backend.vectordbs.data_types import (Document, DocumentChunk,
-                                          DocumentChunkMetadata,
-                                          DocumentMetadataFilter, QueryResult,
-                                          QueryWithEmbedding, Source)
-from backend.vectordbs.utils.watsonx import get_embeddings
-from backend.vectordbs.vector_store import VectorStore
-from backend.vectordbs.error_types import VectorStoreError, CollectionError
-from backend.core.config import settings
+from vectordbs.data_types import (
+    Document, DocumentChunk, DocumentChunkMetadata,
+    DocumentMetadataFilter, QueryResult, QueryWithEmbedding, Source
+)
+from vectordbs.utils.watsonx import get_embeddings
+from vectordbs.vector_store import VectorStore
+from vectordbs.error_types import VectorStoreError, CollectionError
+from core.config import settings
 
 PINECONE_API_KEY = settings.pinecone_api_key
 PINECONE_CLOUD = settings.pinecone_cloud
@@ -24,36 +24,52 @@ class PineconeStore(VectorStore):
     def __init__(self) -> None:
         try:
             self.client = Pinecone(api_key=PINECONE_API_KEY, pool_threads=30)
+            logging.info("Pinecone client initialized successfully")
         except Exception as e:
             logging.error(f"Failed to initialize Pinecone client: {e}")
             self.client = None
-        self.index = None
+        self.index: Optional[Any] = None
 
-    async def create_collection_async(
-        self,
-        collection_name: str,
-        metadata: Optional[dict] = None,
-    ) -> None:
+    def create_collection(self, collection_name: str, metadata: Optional[dict] = None) -> None:
+        """
+        Create a new Pinecone collection.
+
+        Args:
+            collection_name (str): The name of the collection to create.
+            metadata: Optional metadata for the collection.
+        """
         try:
-            if collection_name in self.client.list_indexes().names():
+            if collection_name in self.client.list_indexes():
                 self.index = self.client.Index(collection_name)
-            elif collection_name not in self.client.list_indexes().names():
+                logging.info(f"Pinecone index '{collection_name}' already exists")
+            else:
                 self.client.create_index(
                     name=collection_name,
                     dimension=EMBEDDING_DIM,
                     metric="cosine",
                     spec=ServerlessSpec(cloud=PINECONE_CLOUD, region=PINECONE_REGION),
                 )
-                self.index = self.client.Index(collection_name)  # store the index object for later use
+                self.index = self.client.Index(collection_name)
+                logging.info(f"Pinecone index '{collection_name}' created successfully")
         except Exception as e:
             logging.error(f"Failed to create Pinecone index: {e}")
             self.index = None
 
-    async def add_documents_async(self, collection_name: str, documents: List[Document]) -> List[str]:
+    def add_documents(self, collection_name: str, documents: List[Document]) -> List[str]:
+        """
+        Add documents to the specified Pinecone collection.
+
+        Args:
+            collection_name (str): The name of the collection to add documents to.
+            documents (List[Document]): The list of documents to add.
+
+        Returns:
+            List[str]: The list of document IDs that were added.
+        """
         if self.client is None:
             logging.error("Pinecone client is not initialized")
             return []
-        if collection_name not in self.client.list_indexes().names():
+        if collection_name not in self.client.list_indexes():
             logging.error(f"Pinecone index '{collection_name}' does not exist")
             return []
 
@@ -70,66 +86,91 @@ class PineconeStore(VectorStore):
                         "source": chunk.metadata.source.value if chunk.metadata else "",
                         "source_id": chunk.metadata.source_id if chunk.metadata else "",
                         "url": chunk.metadata.url if chunk.metadata else "",
-                        "created_at": (
-                            chunk.metadata.created_at if chunk.metadata else ""
-                        ),
+                        "created_at": chunk.metadata.created_at if chunk.metadata else "",
                         "author": chunk.metadata.author if chunk.metadata else "",
                     },
                 }
                 vectors.append(vector)
                 document_ids.append(chunk.chunk_id)
-        await asyncio.to_thread(self.client.Index(collection_name).upsert, vectors=vectors, async_req=True)
+        self.client.Index(collection_name).upsert(vectors=vectors, async_req=False)
         logging.info(f"Successfully added documents to index '{collection_name}'")
         return document_ids
 
-    async def retrieve_documents_async(
-        self,
-        query: str,
-        collection_name: Optional[str] = None,
-        limit: int = 10,
-    ) -> List[QueryResult]:
-        if collection_name not in self.client.list_indexes().names():
-            raise CollectionError(f"Collection {collection_name} does not exist.")
+    def retrieve_documents(self, query: str, collection_name: str, limit: int = 10) -> List[QueryResult]:
+        """
+        Retrieve documents from the specified Pinecone collection.
+
+        Args:
+            query (str): The query string.
+            collection_name (str): The name of the collection to retrieve documents from.
+            limit (int): The number of results to return.
+
+        Returns:
+            List[QueryResult]: The list of query results.
+        """
+        if collection_name not in self.client.list_indexes():
+            raise CollectionError(f"Collection '{collection_name}' does not exist")
 
         embeddings = get_embeddings(query)
-        logging.debug(f"Query embeddings: {embeddings}")
         if not embeddings:
             raise VectorStoreError("Failed to generate embeddings for the query string.")
         query_embeddings = QueryWithEmbedding(text=query, vectors=embeddings)
 
-        results = await self.query_async(collection_name, query_embeddings, number_of_results=limit)
-        logging.debug(f"Query Results: {results}")
+        results = self.query(collection_name, query_embeddings, number_of_results=limit)
         return results
 
-    async def query_async(
-        self,
-        collection_name: str,
-        query: QueryWithEmbedding,
-        number_of_results: int = 10,
-        filter: Optional[DocumentMetadataFilter] = None,
-    ) -> List[QueryResult]:
-        response = await asyncio.to_thread(self.client.Index(collection_name).query,
-                                           vector=query.vectors,
-                                           top_k=number_of_results,
-                                           include_metadata=True,
-                                           include_values=True,
-                                           )
-        return self._process_search_results(response)
+    def query(self, collection_name: str, query: QueryWithEmbedding, number_of_results: int = 10,
+              filter: Optional[DocumentMetadataFilter] = None) -> List[QueryResult]:
+        """
+        Query the specified Pinecone collection using an embedding.
 
-    async def delete_collection_async(self, collection_name: str) -> None:
+        Args:
+            collection_name (str): The name of the collection to query.
+            query (QueryWithEmbedding): The query embedding.
+            number_of_results (int): The number of results to return.
+            filter (Optional[DocumentMetadataFilter]): Optional filter for the query.
+
+        Returns:
+            List[QueryResult]: The list of query results.
+        """
         try:
-            await asyncio.to_thread(self.client.delete_index, collection_name)
-            self.index = None
+            response = self.client.Index(collection_name).query(
+                vector=query.vectors,
+                top_k=number_of_results,
+                include_metadata=True,
+                include_values=True,
+            )
+            return self._process_search_results(response)
         except Exception as e:
-            logging.error(f"Failed to delete Pinecone index: {e}")
+            logging.error(f"Failed to query Pinecone index '{collection_name}': {e}")
+            raise CollectionError(f"Failed to query Pinecone index '{collection_name}': {e}")
 
-    async def delete_documents_async(
-        self, document_ids: List[str], collection_name: Optional[str] = None
-    ) -> int:
-        if self.index is None:
-            self.index = self.client.Index(collection_name)
+    def delete_collection(self, collection_name: str) -> None:
+        """
+        Delete the specified Pinecone collection.
 
-        if collection_name not in self.client.list_indexes().names():
+        Args:
+            collection_name (str): The name of the collection to delete.
+        """
+        try:
+            self.client.delete_index(collection_name)
+            self.index = None
+            logging.info(f"Pinecone index '{collection_name}' deleted successfully")
+        except Exception as e:
+            logging.error(f"Failed to delete Pinecone index '{collection_name}': {e}")
+
+    def delete_documents(self, document_ids: List[str], collection_name: str) -> int:
+        """
+        Delete documents from the specified Pinecone collection.
+
+        Args:
+            document_ids (List[str]): The list of document IDs to delete.
+            collection_name (str): The name of the collection to delete documents from.
+
+        Returns:
+            int: The number of documents deleted.
+        """
+        if collection_name not in self.client.list_indexes():
             logging.error(f"Pinecone index '{collection_name}' does not exist")
             return 0
 
@@ -138,25 +179,29 @@ class PineconeStore(VectorStore):
             return 0
 
         try:
-            await asyncio.to_thread(self.client.Index(collection_name).delete, ids=document_ids)
-            deleted_count = len(document_ids)  # Assuming deletion attempt on all ids passed
+            self.client.Index(collection_name).delete(ids=document_ids)
             logging.info(f"Deleted documents from index '{collection_name}'")
-            return deleted_count
+            return len(document_ids)
         except Exception as e:
-            logging.error(f"Failed to delete documents from Pinecone index: {e}")
-            raise CollectionError(f"Failed to delete documents from Pinecone index: {e}")
+            logging.error(f"Failed to delete documents from Pinecone index '{collection_name}': {e}")
+            raise CollectionError(f"Failed to delete documents from Pinecone index '{collection_name}': {e}")
 
     def _convert_to_chunk(self, data: Dict) -> DocumentChunk:
+        """
+        Convert data to a DocumentChunk.
+
+        Args:
+            data (Dict): The data to convert.
+
+        Returns:
+            DocumentChunk: The converted DocumentChunk.
+        """
         return DocumentChunk(
             chunk_id=data["id"],
             text=data["metadata"]["text"],
             vectors=data["values"],
             metadata=DocumentChunkMetadata(
-                source=(
-                    Source(data["metadata"]["source"])
-                    if data["metadata"]["source"]
-                    else Source.OTHER
-                ),
+                source=Source(data["metadata"]["source"]) if data["metadata"]["source"] else Source.OTHER,
                 source_id=data["metadata"]["source_id"],
                 url=data["metadata"]["url"],
                 created_at=data["metadata"]["created_at"],
@@ -166,8 +211,16 @@ class PineconeStore(VectorStore):
         )
 
     def _process_search_results(self, response: Dict) -> List[QueryResult]:
+        """
+        Process search results from Pinecone.
+
+        Args:
+            response (Dict): The search results to process.
+
+        Returns:
+            List[QueryResult]: The list of query results.
+        """
         results = []
-        # Adjust the structure to navigate through 'results' to 'matches'
         for match in response["matches"]:
             chunk = self._convert_to_chunk(match)
             results.append(
@@ -177,20 +230,14 @@ class PineconeStore(VectorStore):
             )
         return results
 
-    def _build_filters(
-        self, filter: Optional[DocumentMetadataFilter]
-    ) -> Dict[str, Any]:
-        # Pinecone does not natively support filters in the same way as Elasticsearch,
-        # but you can implement custom filtering here if needed
+    def _build_filters(self, filter: Optional[DocumentMetadataFilter]) -> Dict[str, Any]:
+        """
+        Build filters for Pinecone queries.
+
+        Args:
+            filter (Optional[DocumentMetadataFilter]): The metadata filter to build.
+
+        Returns:
+            Dict[str, Any]: The built filter dictionary.
+        """
         raise NotImplementedError("Filter building is not supported in PineconeStore.")
-
-    async def __aenter__(self) -> "PineconeStore":
-        return self
-
-    async def __aexit__(
-        self,
-        exc_type: Optional[type],
-        exc_val: Optional[BaseException],
-        exc_tb: Optional[Any],
-    ) -> None:
-        pass

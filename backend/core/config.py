@@ -2,6 +2,7 @@
 from pydantic_settings import BaseSettings
 from pydantic import Field
 from typing import Optional
+import tempfile
 
 class Settings(BaseSettings):
     # BAM credentials
@@ -38,7 +39,7 @@ class Settings(BaseSettings):
     log_level: Optional[str] = None
 
     # File storage path
-    file_storage_path: str = Field("/data", description="Path to store uploaded files")
+    file_storage_path: str = tempfile.gettempdir()
 
     # ChromaDB credentials
     chromadb_host: Optional[str] = None
@@ -76,7 +77,7 @@ class Settings(BaseSettings):
 
     # Tokenization settings
     tokenizer: Optional[str] = None
-    model: Optional[str] = None
+    tokenizer_model: Optional[str] = None
 
     # Project settings
     project_name: Optional[str] = None
@@ -95,5 +96,4 @@ class Settings(BaseSettings):
 
 settings = Settings(
     react_app_api_url="http://localhost:3000",
-    file_storage_path="/data"
 )

@@ -1,71 +1,124 @@
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import SQLAlchemyError
 from uuid import UUID
 from typing import List, Optional
+from rag_solution.models.file import File
+from rag_solution.schemas.file_schema import FileInput, FileOutput
+import logging
 
-from ..models.file import File
-from ..schemas.file_schema import FileInDB, FileInput, FileOutput
+logger = logging.getLogger(__name__)
 
 class FileRepository:
-    def __init__(self, session: Session):
-        self.session = session
+    def __init__(self, db: Session):
+        self.db = db
 
-    def create(self, file: FileInput) -> FileInDB:
+    def create(self, file: FileInput, user_id: UUID) -> FileOutput:
         try:
-            db_file = File(**file.model_dump())
-            self.session.add(db_file)
-            self.session.commit()
-            self.session.refresh(db_file)
-            return FileInDB.model_validate(db_file)
-        except SQLAlchemyError as e:
-            self.session.rollback()
-            raise e
+            db_file = File(
+                user_id=user_id,
+                collection_id=file.collection_id,
+                filename=file.filename,
+                file_type=file.file_type,
+                file_path=file.file_path,
+            )
+            self.db.add(db_file)
+            self.db.commit()
+            self.db.refresh(db_file)
+            return self._file_to_output(db_file)
+        except Exception as e:
+            logger.error(f"Error creating file record: {str(e)}")
+            self.db.rollback()
+            raise
 
-    def get(self, file_id: UUID) -> Optional[FileInDB]:
-        file = self.session.query(File).filter(File.id == file_id).first()
-        return FileInDB.model_validate(file) if file else None
-
-    def update(self, file_id: UUID, file_data: dict) -> Optional[FileInDB]:
+    def get(self, file_id: UUID) -> Optional[FileOutput]:
         try:
-            db_file = self.session.query(File).filter(File.id == file_id).first()
-            if db_file:
-                for key, value in file_data.items():
-                    setattr(db_file, key, value)
-                self.session.commit()
-                self.session.refresh(db_file)
-                return FileInDB.model_validate(db_file)
+            file = self.db.query(File).filter(File.id == file_id).first()
+            return self._file_to_output(file) if file else None
+        except Exception as e:
+            logger.error(f"Error getting file record {file_id}: {str(e)}")
+            raise
+
+    def get_file(self, collection_id: UUID, filename: str) -> Optional[FileOutput]:
+        try:
+            file = self.db.query(File).filter(File.collection_id == collection_id, File.filename == filename).first()
+            return self._file_to_output(file) if file else None
+        except Exception as e:
+            logger.error(f"Error getting file {filename} from collection {collection_id}: {str(e)}")
+            raise
+
+    def get_files(self, collection_id: UUID) -> List[FileOutput]:
+        try:
+            files = self.db.query(File).filter(File.collection_id == collection_id).all()
+            return [self._file_to_output(file) for file in files]
+        except Exception as e:
+            logger.error(f"Error getting files for collection {collection_id}: {str(e)}")
+            raise
+
+    def update(self, file_id: UUID, file_update: FileInput) -> Optional[FileInput]:
+        try:
+            file = self.db.query(File).filter(File.id == file_id).first()
+            if file:
+                for key, value in file_update.model_dump().items():
+                    setattr(file, key, value)
+                self.db.commit()
+                self.db.refresh(file)
+                return file_update
             return None
-        except SQLAlchemyError as e:
-            self.session.rollback()
-            raise e
+        except Exception as e:
+            logger.error(f"Error updating file record {file_id}: {str(e)}")
+            self.db.rollback()
+            raise
 
     def delete(self, file_id: UUID) -> bool:
         try:
-            db_file = self.session.query(File).filter(File.id == file_id).first()
-            if db_file:
-                self.session.delete(db_file)
-                self.session.commit()
+            file = self.db.query(File).filter(File.id == file_id).first()
+            if file:
+                self.db.delete(file)
+                self.db.commit()
                 return True
             return False
-        except SQLAlchemyError as e:
-            self.session.rollback()
-            raise e
+        except Exception as e:
+            logger.error(f"Error deleting file record {file_id}: {str(e)}")
+            self.db.rollback()
+            raise
 
-    def list(self, skip: int = 0, limit: int = 100) -> List[FileInDB]:
-        files = self.session.query(File).offset(skip).limit(limit).all()
-        return [FileInDB.model_validate(file) for file in files]
+    def get_collection_files(self, collection_id: UUID) -> List[FileOutput]:
+        try:
+            files = self.db.query(File).filter(File.collection_id == collection_id).all()
+            return [self._file_to_output(file) for file in files]
+        except Exception as e:
+            logger.error(f"Error getting files for collection {collection_id}: {str(e)}")
+            raise
 
-    def get_collection_files(self, collection_id: UUID) -> List[FileInDB]:
-        files = self.session.query(File).filter(File.collection_id == collection_id).all()
-        return [FileInDB.model_validate(file) for file in files]
+    def get_user_files(self, user_id: UUID) -> List[FileOutput]:
+        try:
+            files = self.db.query(File).join(File.collection).filter(File.collection.has(user_id=user_id)).all()
+            return [self._file_to_output(file) for file in files]
+        except Exception as e:
+            logger.error(f"Error getting files for user {user_id}: {str(e)}")
+            raise
 
-    def get_file_output(self, file_id: UUID) -> Optional[FileOutput]:
-        file = self.get(file_id)
-        if not file:
-            return None
+    def get_file_by_name(self, collection_id: UUID, filename: str) -> Optional[FileOutput]:
+        try:
+            file = self.db.query(File).filter(File.collection_id == collection_id, File.filename == filename).first()
+            return self._file_to_output(file) if file else None
+        except Exception as e:
+            logger.error(f"Error getting file record for {filename} in collection {collection_id}: {str(e)}")
+            raise
 
+    def file_exists(self, collection_id: UUID, filename: str) -> bool:
+        try:
+            return self.db.query(File).filter(File.collection_id == collection_id, File.filename == filename).first() is not None
+        except Exception as e:
+            logger.error(f"Error checking existence of file {filename} in collection {collection_id}: {str(e)}")
+            raise
+
+    @staticmethod
+    def _file_to_output(file: File) -> FileOutput:
         return FileOutput(
+            id=file.id,
             filename=file.filename,
-            filepath=file.filepath,
-            file_type=file.file_type
+            collection_id=file.collection_id,
+            file_type=file.file_type,
+            created_at=file.created_at,
+            updated_at=file.updated_at
         )

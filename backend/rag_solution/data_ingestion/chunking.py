@@ -4,16 +4,14 @@ from typing import List
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 
-from backend.core.config import settings
-from backend.vectordbs.utils.watsonx import get_embeddings
+from core.config import settings
+from vectordbs.utils.watsonx import get_embeddings
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
-def simple_chunking(
-    text: str, min_chunk_size: int, max_chunk_size: int, overlap: int
-) -> List[str]:
+def simple_chunking(text: str, min_chunk_size: int, max_chunk_size: int, overlap: int) -> List[str]:
     """
     Chunk the text into chunks of a specified size with a specified overlap.
 
@@ -100,12 +98,8 @@ def semantic_chunking(
     return chunks
 
 
-def semantic_chunking_for_tables(
-    tables: List[List[List[str]]],
-    min_chunk_size: int = 1,
-    max_chunk_size: int = 100,
-    threshold: float = 0.8,
-) -> List[str]:
+def semantic_chunking_for_tables(tables: List[List[List[str]]], min_chunk_size: int = 1, max_chunk_size: int = 100,
+                                 threshold: float = 0.8) -> List[str]:
     """
     Chunk the extracted table content into semantically coherent chunks using embedding similarity.
 

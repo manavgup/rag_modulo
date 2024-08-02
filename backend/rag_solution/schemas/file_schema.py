@@ -1,7 +1,7 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from uuid import UUID
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
 class FileInDB(BaseModel):
     id: UUID
@@ -12,9 +12,7 @@ class FileInDB(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    model_config = {
-        "from_attributes": True
-    }
+    model_config = ConfigDict(from_attributes=True)
 
 class FileInput(BaseModel):
     collection_id: UUID
@@ -26,3 +24,8 @@ class FileOutput(BaseModel):
     filename: Optional[str] = None
     filepath: Optional[str] = None
     file_type: Optional[str] = None
+
+class DocumentDelete(BaseModel):
+    user_id: UUID
+    collection_id: UUID
+    filenames: List[str]

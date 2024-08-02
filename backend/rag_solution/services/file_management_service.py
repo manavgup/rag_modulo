@@ -1,113 +1,176 @@
-# rag_solution/services/file_management_service.py
+# file_management_service.py
+
+from uuid import UUID
+from typing import List, Optional
+from sqlalchemy.orm import Session
+from fastapi import HTTPException, UploadFile
+from rag_solution.repository.file_repository import FileRepository
+from rag_solution.schemas.file_schema import FileInput, FileOutput
 import logging
 from pathlib import Path
-from uuid import UUID
 from backend.core.config import settings
-from backend.rag_solution.repository.file_repository import FileRepository
-from backend.rag_solution.schemas.file_schema import FileInput
-from fastapi.datastructures import UploadFile
-from typing import List
+from mimetypes import guess_type
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class FileManagementService:
-    def __init__(self, db_session):
-        self.file_repository = FileRepository(db_session)
+    def __init__(self, db: Session):
+        self.file_repository = FileRepository(db)
 
-    async def save_file(self, upload_file: UploadFile, user_id: UUID, collection_id: UUID) -> Path:
-        """
-        Save an uploaded file to the file system.
-
-        Args:
-            upload_file (UploadFile): The uploaded file to be saved.
-            user_id (UUID): The ID of the user who uploaded the file.
-            collection_id (UUID): The ID of the collection the file belongs to.
-
-        Returns:
-            Path: The path of the saved file.
-
-        Raises:
-            ValueError: If file_storage_path is not set or upload_file.filename is None.
-            IOError: If there's an error writing the file.
-        """
-        if not settings.file_storage_path:
-            logger.error("file_storage_path is not set in the configuration")
-            raise ValueError("file_storage_path is not set in the configuration")
-
-        if not upload_file.filename:
-            logger.error("upload_file.filename is None")
-            raise ValueError("upload_file.filename is None")
-
+    def create_file(self, file_input: FileInput, user_id: UUID) -> FileOutput:
         try:
-            base_dir = Path(settings.file_storage_path) / str(user_id) / str(collection_id)
-            base_dir.mkdir(parents=True, exist_ok=True)
-            file_path = base_dir / upload_file.filename
+            logger.info(f"Creating file record: {file_input.filename}")
+            file = self.file_repository.create(file_input, user_id)
+            logger.info(f"File record created successfully: {file.id}")
+            return file
+        except ValueError as e:
+            logger.error(f"Value error creating file: {str(e)}")
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:
+            logger.error(f"Unexpected error creating file: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal server error")
 
-            with open(file_path, "wb") as output_file:
-                while chunk := await upload_file.read(1024 * 1024):  # Read 1 MB at a time
-                    output_file.write(chunk)
-
-            logger.info(f"File saved successfully: {file_path}")
-            return file_path
-        except IOError as e:
-            logger.error(f"Error saving file: {str(e)}")
+    def get_file_by_id(self, file_id: UUID) -> FileOutput:
+        try:
+            logger.info(f"Fetching file with id: {file_id}")
+            file = self.file_repository.get(file_id)
+            if file is None:
+                logger.warning(f"File not found: {file_id}")
+                raise HTTPException(status_code=404, detail="File not found")
+            return file
+        except HTTPException:
             raise
+        except Exception as e:
+            logger.error(f"Unexpected error getting file {file_id}: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal server error")
 
-    async def create_file_record(self, collection_id: UUID, filename: str, filepath: str, file_type: str):
-        """
-        Create a file record in the database.
-        """
-        file_input = FileInput(
-            collection_id=collection_id,
-            filename=filename,
-            filepath=filepath,
-            file_type=file_type
-        )
-        return await self.file_repository.create(file_input)
+    def get_file_by_name(self, collection_id: UUID, filename: str) -> FileOutput:
+        try:
+            logger.info(f"Fetching file {filename} from collection {collection_id}")
+            file = self.file_repository.get_file_by_name(collection_id, filename)
+            if file is None:
+                logger.warning(f"File not found: {filename} in collection {collection_id}")
+                raise HTTPException(status_code=404, detail="File not found")
+            return file
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error getting file by name {filename} in collection {collection_id}: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+    def update_file(self, file_id: UUID, file_update: FileInput) -> FileOutput:
+        try:
+            logger.info(f"Updating file {file_id}")
+            updated_file = self.file_repository.update(file_id, file_update)
+            if updated_file is None:
+                logger.warning(f"File not found for update: {file_id}")
+                raise HTTPException(status_code=404, detail="File not found")
+            logger.info(f"File {file_id} updated successfully")
+            return updated_file
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error updating file {file_id}: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+    def delete_file(self, file_id: UUID) -> bool:
+        try:
+            logger.info(f"Deleting file: {file_id}")
+            file = self.file_repository.get(file_id)
+            if not file:
+                logger.warning(f"File not found for deletion: {file_id}")
+                raise HTTPException(status_code=404, detail="File not found")
+            
+            self.file_repository.delete(file_id)
+            file_path = Path(file.filepath)
+            if file_path.exists():
+                file_path.unlink()
+            
+            logger.info(f"File {file_id} deleted successfully")
+            return True
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error deleting file {file_id}: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+    def delete_files(self, user_id: UUID, collection_id: UUID, filenames: List[str]) -> bool:
+        try:
+            logger.info(f"Deleting files {filenames} from collection {collection_id}")
+            for filename in filenames:
+                file = self.file_repository.get_file_by_name(collection_id, filename)
+                if file:
+                    self.delete_file(file.id)
+            return True
+        except Exception as e:
+            logger.error(f"Unexpected error deleting files: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+    def get_files_by_collection(self, collection_id: UUID) -> List[FileOutput]:
+        try:
+            logger.info(f"Fetching files for collection: {collection_id}")
+            files = self.file_repository.get_files(collection_id)
+            logger.info(f"Retrieved {len(files)} files for collection {collection_id}")
+            return files
+        except Exception as e:
+            logger.error(f"Unexpected error getting files for collection {collection_id}: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+    def get_files(self, user_id: UUID, collection_id: UUID) -> List[str]:
+        try:
+            files = self.get_files_by_collection(collection_id)
+            return [file.filename for file in files]
+        except Exception as e:
+            logger.error(f"Unexpected error getting files for collection {collection_id}: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+    def upload_and_create_file_record(self, file: UploadFile, user_id: UUID, collection_id: UUID) -> FileOutput:
+        try:
+            logger.info(f"Uploading file {file.filename} for user {user_id} in collection {collection_id}")
+            if file.filename is None:
+                raise HTTPException(status_code=400, detail="File name cannot be empty")
+
+            file_content = file.file.read()
+            file_path = self.upload_file(user_id, collection_id, file_content, file.filename)
+            file_type = self.determine_file_type(file.filename)
+            file_input = FileInput(
+                collection_id=collection_id,
+                filename=file.filename,
+                filepath=str(file_path),
+                file_type=file_type
+            )
+            return self.create_file(file_input)
+        except Exception as e:
+            logger.error(f"Unexpected error uploading and creating file record: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+    def upload_file(self, user_id: UUID, collection_id: UUID, file_content: bytes, filename: str) -> Path:
+        try:
+            user_folder = Path(f"{settings.file_storage_path}/{user_id}")
+            collection_folder = user_folder / str(collection_id)
+            collection_folder.mkdir(parents=True, exist_ok=True)
+
+            file_path = collection_folder / filename
+            with file_path.open("wb") as f:
+                f.write(file_content)
+            logger.info(f"File {filename} uploaded successfully to {file_path}")
+            return file_path
+        except Exception as e:
+            logger.error(f"Unexpected error uploading file: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+    @staticmethod
+    def determine_file_type(filename: str) -> str:
+        file_type, _ = guess_type(filename)
+        return file_type or "application/octet-stream"
 
     def get_file_path(self, user_id: UUID, collection_id: UUID, filename: str) -> Path:
-        """
-        Get the file path for a given user, collection, and filename.
-
-        Args:
-            user_id (UUID): The ID of the user.
-            collection_id (UUID): The ID of the collection.
-            filename (str): The name of the file.
-
-        Returns:
-            Path: The file path.
-        """
-        return Path(settings.file_storage_path) / str(user_id) / str(collection_id) / filename
-
-    async def get_files(self, user_id: UUID, collection_id: UUID) -> List[str]:
-        """
-        Get a list of files for a given user and collection.
-
-        Args:
-            user_id (UUID): The ID of the user.
-            collection_id (UUID): The ID of the collection.
-
-        Returns:
-            List[str]: A list of file names.
-
-        Raises:
-            FileNotFoundError: If the directory for the user and collection doesn't exist.
-        """
         try:
-            base_dir = Path(settings.file_storage_path) / str(user_id) / str(collection_id)
-            filesystem_files = [file.name for file in base_dir.iterdir() if file.is_file()]
-
-            # Get file records from the database
-            db_files = await self.file_repository.get_collection_files(collection_id)
-
-            # Combine and deduplicate
-            all_files = list(set(filesystem_files + [file.filename for file in db_files]))
-
-            return all_files
-        except FileNotFoundError:
-            logger.warning(f"Directory not found for user {user_id} and collection {collection_id}")
-            return []
-
-def get_file_management_service() -> FileManagementService:
-    return FileManagementService()
+            logger.info(f"Getting file path for {filename} in collection {collection_id}")
+            file = self.get_file_by_name(collection_id, filename)
+            return Path(file.filepath)
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error getting file path: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal server error")

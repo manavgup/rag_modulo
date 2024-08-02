@@ -1,98 +1,75 @@
-from uuid import UUID
-from typing import Optional, List
+# user_service.py
+
 from sqlalchemy.orm import Session
-from fastapi import Depends
-from ..repository.user_repository import UserRepository
-from backend.rag_solution.schemas.team_schema import TeamInDB
-from backend.rag_solution.schemas.user_schema import UserInput, UserInDB, UserOutput
-from backend.rag_solution.file_management.database import get_db
+from uuid import UUID
+from typing import List
+from rag_solution.repository.user_repository import UserRepository
+from rag_solution.schemas.user_schema import UserInput, UserOutput
+from rag_solution.schemas.team_schema import TeamOutput
+from rag_solution.services.user_team_service import UserTeamService
+from fastapi import HTTPException
+import logging
+
+logger = logging.getLogger(__name__)
 
 class UserService:
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, user_team_service: UserTeamService):
         self.user_repository = UserRepository(db)
+        self.user_team_service = user_team_service
 
-    def create_user(self, user: UserInput) -> UserInDB:
-        """
-        Create a new user.
+    def create_user(self, user_input: UserInput) -> UserOutput:
+        try:
+            logger.info(f"Creating user with input: {user_input}")
+            user = self.user_repository.create(user_input)
+            logger.info(f"User created successfully: {user.id}")
+            return user
+        except ValueError as e:
+            logger.error(f"Failed to create user: {str(e)}")
+            raise HTTPException(status_code=400, detail=str(e))
 
-        Args:
-            user (UserInput): The user data to create.
+    def get_user_by_id(self, user_id: UUID) -> UserOutput:
+        logger.info(f"Fetching user with id: {user_id}")
+        user = self.user_repository.get_by_id(user_id)
+        if user is None:
+            logger.warning(f"User not found: {user_id}")
+            raise HTTPException(status_code=404, detail="User not found")
+        return user
 
-        Returns:
-            UserInDB: The created user.
-        """
-        return self.user_repository.create(user)
-
-    def get_user(self, user_id: UUID) -> Optional[UserOutput]:
-        """
-        Get a user by their ID.
-
-        Args:
-            user_id (UUID): The ID of the user to retrieve.
-
-        Returns:
-            Optional[UserOutput]: The user if found, None otherwise.
-        """
-        return self.user_repository.get_user_output(user_id)
-
-    def get_user_by_ibm_id(self, ibm_id: str) -> Optional[UserOutput]:
-        """
-        Get a user by their IBM ID.
-
-        Args:
-            ibm_id (str): The IBM ID of the user to retrieve.
-
-        Returns:
-            Optional[UserOutput]: The user if found, None otherwise.
-        """
+    def get_user_by_ibm_id(self, ibm_id: str) -> UserOutput:
+        logger.info(f"Fetching user with IBM ID: {ibm_id}")
         user = self.user_repository.get_user_by_ibm_id(ibm_id)
-        return UserOutput.model_validate(user) if user else None
+        if user is None:
+            logger.warning(f"User not found with IBM ID: {ibm_id}")
+            raise HTTPException(status_code=404, detail="User not found")
+        return user
 
     def update_user(self, user_id: UUID, user_update: UserInput) -> UserOutput:
-        """
-        Update an existing user.
-
-        Args:
-            user_id (UUID): The ID of the user to update.
-            user_update (UserUpdateSchema): The update data for the user.
-
-        Returns:
-            Optional[UserOutput]: The updated user if found, None otherwise.
-        """
-        updated_user = self.user_repository.update(user_id, user_update)
-        if updated_user:
-            return UserOutput(
-                id=updated_user.id,
-                ibm_id=updated_user.ibm_id,
-                email=updated_user.email,
-                name=updated_user.name
-            )
-        return None
-
+        logger.info(f"Updating user {user_id} with input: {user_update}")
+        user = self.user_repository.update(user_id, user_update)
+        if user is None:
+            logger.warning(f"User not found for update: {user_id}")
+            raise HTTPException(status_code=404, detail="User not found")
+        logger.info(f"User {user_id} updated successfully")
+        return user
 
     def delete_user(self, user_id: UUID) -> bool:
-        """
-        Delete a user.
+        logger.info(f"Deleting user: {user_id}")
+        if not self.user_repository.delete(user_id):
+            logger.warning(f"User not found for deletion: {user_id}")
+            raise HTTPException(status_code=404, detail="User not found")
+        logger.info(f"User {user_id} deleted successfully")
+        return True
 
-        Args:
-            user_id (UUID): The ID of the user to delete.
+    def get_user_teams(self, user_id: UUID) -> List[TeamOutput]:
+        logger.info(f"Fetching teams for user: {user_id}")
+        return self.user_team_service.get_user_teams(user_id)
 
-        Returns:
-            bool: True if the user was deleted, False otherwise.
-        """
-        return self.user_repository.delete(user_id)
-
-    def get_user_teams(self, user_id: UUID) -> List[TeamInDB]:
-        """
-        Get all teams a user belongs to.
-
-        Args:
-            user_id (UUID): The ID of the user.
-
-        Returns:
-            List[TeamInDB]: List of teams the user belongs to.
-        """
-        return self.user_repository.get_user_teams(user_id)
-
-def get_user_service(db: Session = Depends(get_db)) -> UserService:
-    return UserService(db)
+    def list_users(self, skip: int = 0, limit: int = 100) -> List[UserOutput]:
+        logger.info(f"Listing users with skip={skip} and limit={limit}")
+        try:
+            users = self.user_repository.list_users(skip, limit)
+            logger.info(f"Retrieved {len(users)} users")
+            return users
+        except Exception as e:
+            logger.error(f"Unexpected error listing users: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal server error")

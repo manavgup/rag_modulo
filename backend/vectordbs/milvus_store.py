@@ -7,15 +7,15 @@ import asyncio
 from pymilvus import (Collection, CollectionSchema, DataType, FieldSchema,
                       MilvusException, connections, utility)
 
-from backend.vectordbs.data_types import (Document, DocumentChunk,
-                                          DocumentChunkMetadata,
-                                          DocumentChunkWithScore,
-                                          DocumentMetadataFilter, Embeddings,
-                                          QueryResult, QueryWithEmbedding, Source)
-from backend.vectordbs.utils.watsonx import get_embeddings
-from backend.vectordbs.vector_store import VectorStore
-from backend.vectordbs.error_types import VectorStoreError, CollectionError, DocumentError
-from backend.core.config import settings
+from vectordbs.data_types import (Document, DocumentChunk,
+                                  DocumentChunkMetadata,
+                                  DocumentChunkWithScore,
+                                  DocumentMetadataFilter, Embeddings,
+                                  QueryResult, QueryWithEmbedding, Source)
+from vectordbs.utils.watsonx import get_embeddings
+from vectordbs.vector_store import VectorStore
+from vectordbs.error_types import VectorStoreError, CollectionError, DocumentError
+from core.config import settings
 
 MILVUS_COLLECTION = settings.collection_name
 MILVUS_HOST = settings.milvus_host
@@ -53,9 +53,7 @@ class MilvusStore(VectorStore):
             host (str): The host address for Milvus.
             port (str): The port for Milvus.
         """
-        self.collection_name = None
         self._connect(host, port)
-        self.collection: Optional[Collection] = None
 
     def _connect(self, host: str, port: str) -> None:
         """
@@ -67,9 +65,7 @@ class MilvusStore(VectorStore):
                 connections.connect(
                     "default",
                     host=host,
-                    port=port,
-                    user=MILVUS_USER,
-                    password=MILVUS_PASSWORD,
+                    port=port
                 )
                 logging.info(f"Connected to Milvus at {host}:{port}")
             except MilvusException as e:
@@ -79,8 +75,22 @@ class MilvusStore(VectorStore):
                     time.sleep(10)  # Add a delay between retries
                 raise VectorStoreError(f"Failed to connect to Milvus: {e}")
 
-    async def create_collection_async(self, collection_name: str,
-                                      metadata: Optional[dict] = None) -> Collection:
+    def _get_collection(self, collection_name: str) -> Collection:
+        """
+        Retrieve the collection from Milvus.
+
+        Args:
+            collection_name (str): The name of the collection to retrieve.
+
+        Returns:
+            Collection: The retrieved Milvus collection.
+        """
+        if utility.has_collection(collection_name):
+            return Collection(name=collection_name)
+        else:
+            raise CollectionError(f"Collection '{collection_name}' does not exist")
+
+    def create_collection(self, collection_name: str, metadata: Optional[dict] = None) -> Collection:
         """
         Create a new Milvus collection.
 
@@ -91,57 +101,49 @@ class MilvusStore(VectorStore):
             Collection: The created or loaded Milvus collection.
         """
         try:
-            if await asyncio.to_thread(utility.has_collection, collection_name):
+            if utility.has_collection(collection_name):
                 raise CollectionError(f"Collection {collection_name} already exists.")
             else:
                 schema = CollectionSchema(fields=SCHEMA)
-                self.collection = Collection(name=collection_name, schema=schema)
+                collection = Collection(name=collection_name, schema=schema)
                 logging.info(f"Created Milvus collection '{collection_name}' with schema {schema}")
-                print(f"Created Milvus collection '{collection_name}' with schema {schema}")
-                self._create_index()
-                self.collection_name = collection_name
-                await asyncio.to_thread(self.collection.load)
+                self._create_index(collection)
+                collection.load()
         except MilvusException as e:
             logging.error(f"Failed to create collection '{collection_name}': {e}")
             raise CollectionError(f"Failed to create collection '{collection_name}': {e}")
-        return self.collection
+        return collection
 
-    def _create_index(self) -> None:
+    def _create_index(self, collection: Collection) -> None:
         """
         Create an index for the Milvus collection.
         """
-        if self.collection is None:
-            logging.error("Collection is not initialized")
-            return
-
         try:
             self.index_params = (json.loads(MILVUS_INDEX_PARAMS) if MILVUS_INDEX_PARAMS else None)
             self.search_params = (json.loads(MILVUS_SEARCH_PARAMS) if MILVUS_SEARCH_PARAMS else None)
 
-            if len(self.collection.indexes) == 0:
+            if len(collection.indexes) == 0:
                 if self.index_params:
-                    self.collection.create_index(
+                    collection.create_index(
                         field_name=EMBEDDING_FIELD,
                         index_params=self.index_params)
                     logging.info(
-                        f"Created index for collection '{self.collection.name}' with params {self.index_params}")
+                        f"Created index for collection '{collection.name}' with params {self.index_params}")
                 else:
                     i_p = {
                         "metric_type": "IP",
                         "index_type": "HNSW",
                         "params": {"M": 8, "efConstruction": 64},
                     }
-                    self.collection.create_index(field_name=EMBEDDING_FIELD, index_params=i_p)
-                    logging.info(f"Created default index for collection '{self.collection.name}'")
+                    collection.create_index(field_name=EMBEDDING_FIELD, index_params=i_p)
+                    logging.info(f"Created default index for collection '{collection.name}'")
             else:
-                logging.info(f"Index already exists for collection '{self.collection.name}'")
+                logging.info(f"Index already exists for collection '{collection.name}'")
         except MilvusException as e:
-            logging.error(f"Failed to create index for collection '{self.collection.name}': {e}")
-            raise CollectionError(f"Failed to create index for collection '{self.collection.name}': {e}")
+            logging.error(f"Failed to create index for collection '{collection.name}': {e}")
+            raise CollectionError(f"Failed to create index for collection '{collection.name}': {e}")
 
-    async def add_documents_async(
-        self, collection_name: str, documents: List[Document]
-    ) -> List[str]:
+    def add_documents(self, collection_name: str, documents: List[Document]) -> List[str]:
         """
         Add a list of documents to the collection.
 
@@ -152,9 +154,7 @@ class MilvusStore(VectorStore):
         Returns:
             List[str]: The list of document IDs that were added.
         """
-        if self.collection is None:
-            raise ValueError("Collection is not initialized")
-
+        collection = self._get_collection(collection_name)
         try:
             data = []
             for document in documents:
@@ -174,18 +174,18 @@ class MilvusStore(VectorStore):
                         }
                     )
             logging.debug(f"Inserting data: {data}")
-            await asyncio.to_thread(self.collection.insert, data)
-            await asyncio.to_thread(self.collection.load)
+            collection.insert(data)
+            collection.load()
             logging.info(f"Successfully added documents to collection {collection_name}")
+            return [doc.document_id for doc in documents]
         except MilvusException as e:
             logging.error(f"Failed to add documents to collection {collection_name}: {e}", exc_info=True)
             raise DocumentError(f"Failed to add documents to collection {collection_name}: {e}")
-        return [doc.document_id for doc in documents]
 
-    async def retrieve_documents_async(
+    def retrieve_documents(
         self,
         query: str,
-        collection_name: Optional[str] = None,
+        collection_name: str,
         limit: int = 10,
     ) -> List[QueryResult]:
         """
@@ -199,14 +199,7 @@ class MilvusStore(VectorStore):
         Returns:
             List[QueryResult]: The list of query results.
         """
-        if self.collection is None:
-            raise CollectionError("Collection is not initialized")
-
-        if not collection_name:
-            collection_name = self.collection_name
-
-        if not await asyncio.to_thread(utility.has_collection, self.collection_name):
-            raise CollectionError(f"Collection '{self.collection_name}' does not exist")
+        collection = self._get_collection(collection_name)
 
         embeddings = get_embeddings(query)
         if not embeddings:
@@ -215,30 +208,29 @@ class MilvusStore(VectorStore):
 
         try:
             search_params = {"metric_type": "IP", "params": {"nprobe": 10}}
-            search_results = await asyncio.to_thread(self.collection.search,
-                                                     data=[query_embeddings.vectors],
-                                                     anns_field=EMBEDDING_FIELD,
-                                                     param=search_params,
-                                                     output_fields=[
-                                                         "chunk_id",
-                                                         "text",
-                                                         "document_id",
-                                                         "embedding",
-                                                         "source",
-                                                         "source_id",
-                                                         "url",
-                                                         "created_at",
-                                                         "author",
-                                                         ],
-                                                     limit=limit,
+            search_results = collection.search(
+                data=[query_embeddings.vectors],
+                anns_field=EMBEDDING_FIELD,
+                param=search_params,
+                output_fields=[
+                    "chunk_id",
+                    "text",
+                    "document_id",
+                    "embedding",
+                    "source",
+                    "source_id",
+                    "url",
+                    "created_at",
+                    "author",
+                ],
+                limit=limit,
             )
             return self._process_search_results(search_results)
         except MilvusException as e:
             logging.error(f"Failed to retrieve documents from collection '{collection_name}': {e}")
             raise CollectionError(f"Failed to retrieve documents from collection '{collection_name}': {e}")
 
-    async def delete_documents_async(self, document_ids: List[str],
-                                     collection_name: Optional[str] = None) -> int:
+    def delete_documents(self, document_ids: List[str], collection_name: str) -> int:
         """
         Delete documents from the collection by their IDs.
 
@@ -249,38 +241,34 @@ class MilvusStore(VectorStore):
         Returns:
             int: The number of documents deleted.
         """
-        if self.collection is None:
-            raise CollectionError("Collection is not initialized")
+        collection = self._get_collection(collection_name)
         try:
             expr = f"document_id in {tuple(document_ids)}"
-            await asyncio.to_thread(self.collection.delete, expr)
+            collection.delete(expr)
             logging.info(f"Deleted documents with IDs {document_ids} from collection '{collection_name}'")
             return len(document_ids)
         except MilvusException as e:
             logging.error(f"Failed to delete documents from collection '{collection_name}': {e}")
             raise CollectionError(f"Failed to delete documents from collection '{collection_name}': {e}")
 
-    async def delete_collection_async(self, name: str) -> None:
+    def delete_collection(self, name: str) -> None:
         """
         Delete an existing Milvus collection.
 
         Args:
             name (str): The name of the collection to delete.
         """
-        if not name and self.collection_name is not None:
-            name = self.collection_name
-
-        try:
-            if await asyncio.to_thread(utility.has_collection, name):
-                await asyncio.to_thread(utility.drop_collection, name)
+        if utility.has_collection(name):
+            try:
+                utility.drop_collection(name)
                 logging.info(f"Deleted collection '{name}'")
-            else:
-                logging.debug(f"Collection '{name}' does not exist.")
-        except MilvusException as e:
-            logging.error(f"Failed to delete collection '{name}': {e}")
-            raise CollectionError(f"Failed to delete collection '{name}': {e}")
+            except MilvusException as e:
+                logging.error(f"Failed to delete collection '{name}': {e}")
+                raise CollectionError(f"Failed to delete collection '{name}': {e}")
+        else:
+            logging.debug(f"Collection '{name}' does not exist.")
 
-    def get_document(self, document_id: str, collection_name: Optional[str] = None) -> Optional[Document]:
+    def get_document(self, document_id: str, collection_name: str) -> Optional[Document]:
         """
         Get a document by its ID from the collection.
 
@@ -291,12 +279,10 @@ class MilvusStore(VectorStore):
         Returns:
             Optional[Document]: The retrieved document or None if not found.
         """
-        if self.collection is None:
-            raise CollectionError("Collection is not initialized")
-
+        collection = self._get_collection(collection_name)
         try:
             expr = f"document_id == '{document_id}'"
-            results = self.collection.query(expr=expr, output_fields=["*"])
+            results = collection.query(expr=expr, output_fields=["*"])
             if results:
                 chunks = [self._convert_to_chunk(result) for result in results]
                 return Document(document_id=document_id, name=document_id, chunks=chunks)
@@ -305,7 +291,7 @@ class MilvusStore(VectorStore):
             logging.error(f"Failed to get document '{document_id}' from collection '{collection_name}': {e}")
             raise CollectionError(f"Failed to get document '{document_id}' from collection '{collection_name}': {e}")
 
-    async def query_async(
+    def query(
         self,
         collection_name: str,
         query: QueryWithEmbedding,
@@ -324,12 +310,11 @@ class MilvusStore(VectorStore):
         Returns:
             List[QueryResult]: The list of query results.
         """
-        if self.collection is None:
-            raise CollectionError("Collection is not initialized")
+        collection = self._get_collection(collection_name)
 
         try:
             search_params = {"metric_type": "IP", "params": {"nprobe": 10}}
-            result = self.collection.search(
+            result = collection.search(
                 data=[query.vectors],
                 anns_field=EMBEDDING_FIELD,
                 param=search_params,
@@ -400,48 +385,3 @@ class MilvusStore(VectorStore):
                 ids.append(hit.entity.get("chunk_id"))
             similarities.append(result.distances)
         return [QueryResult(data=chunks_with_scores, similarities=similarities, ids=ids)]
-
-    def save_embeddings_to_file(self, embeddings: Embeddings, file_path: str, file_format: str = "json") -> None:
-        """
-        Save embeddings to a file.
-
-        Args:
-            embeddings (Embeddings): The list of embeddings to save.
-            file_path (str): The path to the output file.
-            file_format (str): The file format ("json" or "txt").
-
-        Raises:
-            ValueError: If an unsupported file format is provided.
-        """
-        if file_format not in {"json", "txt"}:
-            raise ValueError(f"Unsupported file format: {file_format}")
-
-        try:
-            if file_format == "json":
-                with open(file_path, "w") as f:
-                    json.dump(embeddings, f)
-            elif file_format == "txt":
-                with open(file_path, "w") as f:
-                    for embedding in embeddings:
-                        f.write(" ".join(map(str, embedding)) + "\n")
-            logging.info(f"Saved embeddings to file '{file_path}' in format '{file_format}'")
-        except Exception as e:
-            logging.error(f"Failed to save embeddings to file '{file_path}': {e}")
-            raise VectorStoreError(f"Failed to save embeddings to file '{file_path}': {e}")
-
-    async def __aenter__(self) -> "MilvusStore":
-        """
-        Enter the runtime context related to this object.
-        """
-        return self
-
-    async def __aexit__(
-        self,
-        exc_type: Optional[type],
-        exc_val: Optional[BaseException],
-        exc_tb: Optional[Any],
-    ) -> None:
-        """
-        Exit the runtime context related to this object.
-        """
-        pass

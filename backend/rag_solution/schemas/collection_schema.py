@@ -1,27 +1,33 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from uuid import UUID
+from typing import List
 from datetime import datetime
-from typing import Optional
-from .file_schema import FileOutput
+
+class FileInfo(BaseModel):
+    id: UUID
+    filename: str
+
+class CollectionInput(BaseModel):
+    name: str
+    is_private: bool
+    users: List[UUID] = []
+
+class CollectionOutput(BaseModel):
+    id: UUID
+    name: str
+    is_private: bool
+    created_at: datetime
+    updated_at: datetime
+    user_ids: List[UUID]
+    files: List[FileInfo]
+
+    model_config = ConfigDict(from_attributes=True)
 
 class CollectionInDB(BaseModel):
     id: UUID
     name: str
     is_private: bool
-    user_id: UUID
     created_at: datetime
     updated_at: datetime
 
-    model_config = {
-        "from_attributes": True
-    }
-
-class CollectionInput(BaseModel):
-    name: str
-    is_private: bool
-    user_id: UUID
-
-class CollectionOutput(BaseModel):
-    name: Optional[str] = None
-    is_private: Optional[bool] = None
-    files: Optional[list[FileOutput]] = None
+    model_config = ConfigDict(from_attributes=True)

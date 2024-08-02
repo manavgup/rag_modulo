@@ -1,49 +1,47 @@
-from fastapi import APIRouter, Depends, HTTPException
-from typing import List
+from fastapi import APIRouter, HTTPException, status, Depends
+from sqlalchemy.orm import Session
 from uuid import UUID
+from typing import List
 
-from backend.rag_solution.services.team_service import TeamService, get_team_service
-from backend.rag_solution.schemas.team_schema import TeamInput, TeamOutput, TeamUpdateSchema, UserTeamInDB
+from ..schemas.team_schema import TeamInput, TeamOutput
+from ..services.team_service import TeamService
+from ..file_management.database import get_db
 
-router = APIRouter(prefix="/teams", tags=["teams"])
+router = APIRouter()
+
+def get_team_service(db: Session = Depends(get_db)) -> TeamService:
+    return TeamService(db)
 
 @router.post("/", response_model=TeamOutput)
-async def create_team(team: TeamInput, team_service: TeamService = Depends(get_team_service)):
-    return team_service.create_team(team)
+def create_team(team: TeamInput, db: Session = Depends(get_db)) -> TeamOutput:
+    team_service = get_team_service(db)
+    try:
+        return team_service.create_team(team)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 @router.get("/{team_id}", response_model=TeamOutput)
-async def get_team(team_id: UUID, team_service: TeamService = Depends(get_team_service)):
-    team = team_service.get_team(team_id)
+def get_team(team_id: UUID, db: Session = Depends(get_db)) -> TeamOutput:
+    team_service = get_team_service(db)
+    team = team_service.get_team_by_id(team_id)
     if team is None:
-        raise HTTPException(status_code=404, detail="Team not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Team not found")
     return team
 
 @router.put("/{team_id}", response_model=TeamOutput)
-async def update_team(team_id: UUID, team_update: TeamUpdateSchema, team_service: TeamService = Depends(get_team_service)):
-    updated_team = team_service.update_team(team_id, team_update)
-    if updated_team is None:
-        raise HTTPException(status_code=404, detail="Team not found")
-    return updated_team
+def update_team(team_id: UUID, team_update: TeamInput, db: Session = Depends(get_db)) -> TeamOutput:
+    team_service = get_team_service(db)
+    team = team_service.update_team(team_id, team_update)
+    if team is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Team not found")
+    return team
 
-@router.delete("/{team_id}")
-async def delete_team(team_id: UUID, team_service: TeamService = Depends(get_team_service)):
-    if not team_service.delete_team(team_id):
-        raise HTTPException(status_code=404, detail="Team not found")
-    return {"message": "Team deleted successfully"}
+@router.delete("/{team_id}", response_model=bool)
+def delete_team(team_id: UUID, db: Session = Depends(get_db)) -> bool:
+    team_service = get_team_service(db)
+    return team_service.delete_team(team_id)
 
-@router.post("/{team_id}/users/{user_id}", response_model=UserTeamInDB)
-async def add_user_to_team(team_id: UUID, user_id: UUID, team_service: TeamService = Depends(get_team_service)):
-    user_team = team_service.add_user_to_team(user_id, team_id)
-    if user_team is None:
-        raise HTTPException(status_code=400, detail="Failed to add user to team")
-    return user_team
-
-@router.delete("/{team_id}/users/{user_id}")
-async def remove_user_from_team(team_id: UUID, user_id: UUID, team_service: TeamService = Depends(get_team_service)):
-    if not team_service.remove_user_from_team(user_id, team_id):
-        raise HTTPException(status_code=404, detail="User not found in team")
-    return {"message": "User removed from team successfully"}
-
-@router.get("/{team_id}/users", response_model=List[UserTeamInDB])
-async def get_team_users(team_id: UUID, team_service: TeamService = Depends(get_team_service)):
-    return team_service.get_team_users(team_id)
+@router.get("/", response_model=List[TeamOutput])
+def list_teams(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)) -> List[TeamOutput]:
+    team_service = get_team_service(db)
+    return team_service.list_teams(skip, limit)

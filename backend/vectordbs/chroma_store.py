@@ -1,15 +1,14 @@
-import asyncio
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional, Mapping, Union
 
-from chromadb import ClientAPI, Collection, chromadb
+from chromadb import ClientAPI, chromadb
 
-from backend.vectordbs.data_types import (Document, DocumentChunk, DocumentChunkMetadata,
-                                          DocumentMetadataFilter, QueryResult, QueryWithEmbedding, Source)
-from backend.vectordbs.utils.watsonx import ChromaEmbeddingFunction, get_embeddings
-from backend.vectordbs.vector_store import VectorStore
-from backend.vectordbs.error_types import CollectionError, DocumentError
-from backend.core.config import settings
+from vectordbs.data_types import (Document, DocumentChunk, DocumentChunkMetadata,
+                                  DocumentMetadataFilter, QueryResult, QueryWithEmbedding, Source)
+from vectordbs.utils.watsonx import get_embeddings
+from vectordbs.vector_store import VectorStore
+from vectordbs.error_types import CollectionError, DocumentError
+from core.config import settings
 
 CHROMADB_HOST = settings.chromadb_host
 CHROMADB_PORT = settings.chromadb_port
@@ -18,49 +17,34 @@ EMBEDDING_DIM = settings.embedding_dim
 
 logging.basicConfig(level=settings.log_level)
 
+MetadataType = Mapping[str, Union[str, int, float, bool]]
 
 class ChromaDBStore(VectorStore):
-    def __init__(self) -> None:
-        self._client: Optional[ClientAPI] = None
-        self.collection_name: Optional[str] = None
-        self.collection: Optional[Collection] = None
-        self._initialize_client()
+    def __init__(self, client: Optional[ClientAPI] = None) -> None:
+        self._client: ClientAPI = client or self._initialize_client()
 
-    def _initialize_client(self) -> None:
-        if self._client is None:
-            try:
-                self._client = chromadb.HttpClient(host=CHROMADB_HOST, port=CHROMADB_PORT)
-                logging.info("Connected to ChromaDB")
-            except Exception as e:
-                logging.error(f"Failed to connect to ChromaDB: {e}")
-                raise CollectionError(f"Failed to connect to ChromaDB: {e}")
-
-    def _initialize_collection(self, collection_name: str) -> None:
-        if self.collection_name != collection_name:
-            raise CollectionError(f"Collection '{collection_name}' is not initialized")
-
-    async def create_collection_async(self, collection_name: str, metadata: Optional[dict] = None) -> None:
-        """Creates a collection in the vector store asynchronously."""
-        self._initialize_client()
+    def _initialize_client(self) -> ClientAPI:
+        """Initialize the ChromaDB client."""
         try:
-            if self._client is None:
-                raise CollectionError("ChromaDB client is not initialized")
-            self.collection = await asyncio.to_thread(
-                self._client.get_or_create_collection,
-                name=collection_name,
-                embedding_function=ChromaEmbeddingFunction(
-                    model_id=metadata.get("embedding_model", EMBEDDING_MODEL)
-                    if metadata else EMBEDDING_MODEL,
-                ),
-            )
-            self.collection_name = collection_name
-            logging.info(f"Collection created: {self.collection}")
+            client = chromadb.HttpClient(host=CHROMADB_HOST, port=CHROMADB_PORT)
+            logging.info("Connected to ChromaDB")
+            return client
         except Exception as e:
-            logging.error(f"Failed to create or retrieve ChromaDB collection: {e}")
-            raise CollectionError(f"Failed to create or retrieve ChromaDB collection: {e}")
+            logging.error(f"Failed to connect to ChromaDB: {e}")
+            raise CollectionError(f"Failed to connect to ChromaDB: {e}")
 
-    async def add_documents_async(self, collection_name: str, documents: List[Document]) -> List[str]:
-        """Adds documents to the vector store asynchronously."""
+    def create_collection(self, collection_name: str, metadata: Optional[dict] = None) -> None:
+        """Create a collection in ChromaDB."""
+        try:
+            self._client.create_collection(name=collection_name, metadata=metadata)
+            logging.info(f"Collection '{collection_name}' created successfully")
+        except Exception as e:
+            logging.error(f"Failed to create collection '{collection_name}': {e}")
+            raise CollectionError(f"Failed to create collection '{collection_name}': {e}")
+
+    def add_documents(self, collection_name: str, documents: List[Document]) -> List[str]:
+        """Adds documents to the vector store."""
+        collection = self._client.get_collection(collection_name)
         self._initialize_client()
         self._initialize_collection(collection_name)
 
@@ -70,19 +54,19 @@ class ChromaDBStore(VectorStore):
             for chunk in document.chunks:
                 docs.append(chunk.text)
                 embeddings.append(chunk.vectors)
-                metadatas.append({
-                    "document_id": document.document_id,  # each chunk belongs to its parent
-                    "source": chunk.metadata.source.value if chunk.metadata else "",
-                    "source_id": chunk.metadata.source_id if chunk.metadata else "",
-                    "url": chunk.metadata.url if chunk.metadata else "",
-                    "created_at": chunk.metadata.created_at if chunk.metadata else "",
-                    "author": chunk.metadata.author if chunk.metadata else "",
-                })
+                metadata: MetadataType = {
+                    "source": str(chunk.metadata.source),
+                    "source_id": chunk.metadata.source_id or "",
+                    "url": chunk.metadata.url or "",
+                    "created_at": chunk.metadata.created_at or "",
+                    "author": chunk.metadata.author or "",
+                    "document_id": chunk.document_id or "",
+                }
+                metadatas.append(metadata)
                 ids.append(chunk.chunk_id)
 
         try:
-            await asyncio.to_thread(
-                self.collection.upsert,
+            collection.upsert(
                 ids=ids,
                 embeddings=embeddings,
                 metadatas=metadatas,
@@ -94,29 +78,25 @@ class ChromaDBStore(VectorStore):
 
         return ids
 
-    async def retrieve_documents_async(
-        self, query: str, collection_name: Optional[str] = None, limit: int = 10
+    def retrieve_documents(
+        self, query: str, collection_name: str, limit: int = 10
     ) -> List[QueryResult]:
-        """Retrieves documents asynchronously based on a query string."""
+        """Retrieves documents based on a query string."""
         query_embeddings = get_embeddings(query)
         if not query_embeddings:
             raise DocumentError("Failed to generate embeddings for the query string.")
         query_with_embedding = QueryWithEmbedding(text=query, vectors=query_embeddings)
-        return await self.query_async(collection_name, query_with_embedding, number_of_results=limit)
+        return self.query(collection_name, query_with_embedding, number_of_results=limit)
 
-    async def query_async(
+    def query(
         self, collection_name: str, query: QueryWithEmbedding,
         number_of_results: int = 10, filter: Optional[DocumentMetadataFilter] = None
     ) -> List[QueryResult]:
-        """Queries the vector store with filtering and query mode options asynchronously."""
-        self._initialize_client()
-        self._initialize_collection(collection_name)
-        if not self.collection:
-            raise CollectionError(f"Collection '{collection_name}' is not initialized.")
+        """Queries the vector store with filtering and query mode options."""
+        collection = self._get_collection(collection_name)
 
         try:
-            response = await asyncio.to_thread(
-                self.collection.query,
+            response = collection.query(
                 query_embeddings=query.vectors,
                 n_results=number_of_results)
             logging.info(f"Query response: {response}")
@@ -125,32 +105,22 @@ class ChromaDBStore(VectorStore):
             logging.error(f"Failed to query ChromaDB collection '{collection_name}': {e}")
             raise DocumentError(f"Failed to query ChromaDB collection '{collection_name}': {e}")
 
-    async def delete_collection_async(self, collection_name: str) -> None:
-        """Deletes a collection from the vector store asynchronously."""
-        self._initialize_client()
-        self._initialize_collection(collection_name)
+    def delete_collection(self, collection_name: str) -> None:
+        """Deletes a collection from the vector store."""
 
         try:
-            await asyncio.to_thread(self._client.delete_collection, collection_name)
-            self.collection = None
-            self.collection_name = None
+            self._client.delete_collection(collection_name)
             logging.info(f"Deleted collection '{collection_name}'")
         except Exception as e:
             logging.error(f"Failed to delete ChromaDB collection: {e}")
             raise CollectionError(f"Failed to delete ChromaDB collection: {e}")
 
-    async def delete_documents_async(self, document_ids: List[str], collection_name: Optional[str] = None) -> int:
-        """Deletes documents by their IDs from the vector store asynchronously."""
-        self._initialize_client()
-        self._initialize_collection(collection_name)
-
-        if not document_ids:
-            logging.info("No document IDs provided for deletion")
-            return 0
+    def delete_documents(self, document_ids: List[str], collection_name: Optional[str] = None) -> int:
+        """Deletes documents by their IDs from the vector store."""
+        collection = self._get_collection(collection_name)
 
         try:
-            await asyncio.to_thread(self.collection.delete, ids=document_ids)
-            deleted_count = len(document_ids)
+            deleted_count = collection.delete(ids=document_ids)
             logging.info(f"Deleted {deleted_count} documents from collection '{collection_name}'")
             return deleted_count
         except Exception as e:
@@ -188,12 +158,3 @@ class ChromaDBStore(VectorStore):
             )
             results.append(QueryResult(data=[chunk], similarities=[distances[i]], ids=[ids[i]]))
         return results
-
-    async def __aenter__(self) -> "ChromaDBStore":
-        self._initialize_client()
-        return self
-
-    async def __aexit__(self, exc_type: Optional[type], exc_val: Optional[BaseException], exc_tb: Optional[Any]) -> None:
-        self._client = None
-        self.collection = None
-        self.collection_name = None
