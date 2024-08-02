@@ -7,7 +7,7 @@ class FileInDB(BaseModel):
     id: UUID
     collection_id: UUID
     filename: str
-    filepath: str
+    file_path: str
     file_type: str
     created_at: datetime
     updated_at: datetime
@@ -17,12 +17,13 @@ class FileInDB(BaseModel):
 class FileInput(BaseModel):
     collection_id: UUID
     filename: str
-    filepath: str
+    file_path: str
     file_type: str
 
 class FileOutput(BaseModel):
+    id: UUID
     filename: Optional[str] = None
-    filepath: Optional[str] = None
+    file_path: Optional[str] = None
     file_type: Optional[str] = None
 
 class DocumentDelete(BaseModel):

@@ -22,6 +22,7 @@ class UserRepository:
             )
             self.db.add(db_user)
             self.db.commit()
+            self.db.flush()
             self.db.refresh(db_user)
             return self._user_to_output(db_user)
         except IntegrityError as e:

@@ -117,8 +117,6 @@ class FileRepository:
         return FileOutput(
             id=file.id,
             filename=file.filename,
-            collection_id=file.collection_id,
             file_type=file.file_type,
-            created_at=file.created_at,
-            updated_at=file.updated_at
+            file_path=file.file_path
         )

@@ -15,6 +15,7 @@ class CollectionInput(BaseModel):
 class CollectionOutput(BaseModel):
     id: UUID
     name: str
+    vector_db_name: str
     is_private: bool
     created_at: datetime
     updated_at: datetime

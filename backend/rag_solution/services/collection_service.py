@@ -4,6 +4,7 @@ from fastapi import UploadFile, BackgroundTasks, HTTPException
 from sqlalchemy.orm import Session
 from rag_solution.services.file_management_service import FileManagementService
 from rag_solution.services.user_collection_service import UserCollectionService
+from rag_solution.services.user_service import UserService
 from rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput
 from rag_solution.repository.collection_repository import CollectionRepository
 from vectordbs.error_types import CollectionError
@@ -45,24 +46,26 @@ class CollectionService:
 
     def create_collection(self, collection: CollectionInput) -> CollectionOutput:
         """ Create a new collection in the database and vectordb """
-        collection_name = self._generate_valid_collection_name()
+        vector_db_name = self._generate_valid_collection_name()
         try:
-             # Check if all users exist
-            for user_id in collection.users:
-                user = self.user_collection_service.get_collection_users(user_id)
-                if not user:
-                    raise HTTPException(status_code=400, detail=f"User with id {user_id} does not exist")
+            logger.info(f"Creating collection: {collection.name} (Vector DB: {vector_db_name})")
             # 1. Create in relational database. This will also create a user-collection record.
-            new_collection = self.collection_repository.create(collection)
+            new_collection = self.collection_repository.create(collection, vector_db_name)
 
             # 2. Create in vector database
-            self.vector_store.create_collection(collection_name, {"is_private": collection.is_private})
+            self.vector_store.create_collection(vector_db_name, {"is_private": collection.is_private})
+            logger.info(f"Collections created in both databases: {new_collection.id}")
+
+            # 3. Add the creator to the collection
+            for user_id in collection.users:
+                self.user_collection_service.add_user_to_collection(user_id, new_collection.id)
+                new_collection.user_ids.append(user_id)
 
             return new_collection
         except Exception as e:
             # Delete from vector database if it was created
             try:
-                self.vector_store.delete_collection(collection_name)
+                self.vector_store.delete_collection(vector_db_name)
             except CollectionError as delete_exception:
                 logger.error(f"Failed to delete collection from vector store: {str(delete_exception)}")
             logger.error(f"Error creating collection: {str(e)}")
@@ -100,14 +103,38 @@ class CollectionService:
                 logger.warning(f"Collection not found for update: {collection_id}")
                 raise HTTPException(status_code=404, detail="Collection not found")
 
-            updated_collection = self.collection_repository.update(collection_id, collection_update)
+            # Fetch User instances corresponding to the UUIDs in collection_update.users
+            logger.info(f"fetching users for collection: {collection_id}")
+            user_collection_outputs = self.user_collection_service.get_collection_users(collection_id)
+            logger.info(f"User instances fetched successfully: {len(user_collection_outputs)}")
 
-            # Update in vector database
-            if existing_collection.is_private != collection_update.is_private:
-                self.vector_store.delete_collection(existing_collection.name)
-                self.vector_store.create_collection(existing_collection.name, {"is_private": collection_update.is_private})
+            # Update the existing collection with the new data
+            logger.info(f"Updating collection with {collection_update.name} and {len(user_collection_outputs)} users")
+            update_data = {
+                "name": collection_update.name,
+                "is_private": collection_update.is_private,
+            }
 
-            return updated_collection
+            # update the database
+            self.collection_repository.update(collection_id, update_data)
+
+            # Update user associations
+            existing_user_ids = {uco.user_id for uco in user_collection_outputs}
+            updated_user_ids = set(collection_update.users)
+            logger.info(f"existing_users: {existing_user_ids}, updated_uers: {updated_user_ids}")
+
+            users_to_add = updated_user_ids - existing_user_ids
+            users_to_remove = existing_user_ids - updated_user_ids
+
+            logger.info(f"Adding {len(users_to_add)} users.")
+
+            for user_id in users_to_add:
+                self.user_collection_service.add_user_to_collection(user_id, collection_id)
+            logger.info(f"Removing {len(users_to_remove)} users.")
+            for user_id in users_to_remove:
+                self.user_collection_service.remove_user_from_collection(user_id, collection_id)
+
+            return self.collection_repository.get(collection_id)
         except Exception as e:
             logger.error(f"Error updating collection: {str(e)}")
             raise HTTPException(status_code=400, detail=f"Failed to update collection: {str(e)}")
@@ -132,13 +159,16 @@ class CollectionService:
                 logger.warning(f"Collection not found for deletion: {collection_id}")
                 return False
 
+            # Remove all users from the collection
+            self.user_collection_service.remove_all_users_from_collection(collection_id)
+
             # Delete from PostgreSQL
             deleted = self.collection_repository.delete(collection_id)
             if not deleted:
                 raise Exception("Failed to delete collection from PostgreSQL")
 
             # Delete from vector database
-            self.vector_store.delete_collection(collection.name)
+            self.vector_store.delete_collection(collection.vector_db_name)
             logger.info(f"Collection {collection_id} deleted successfully")
             return True
         except Exception as e:
@@ -167,14 +197,14 @@ class CollectionService:
 
             # Ingest the documents into the collection as background task
             file_paths = [str(self.file_management_service.get_file_path(user_id, collection.id, file.filename)) for file in files]
-            background_tasks.add_task(ingest_documents, file_paths, self.vector_store, str(collection.id))
+            background_tasks.add_task(ingest_documents, file_paths, self.vector_store, collection.vector_db_name)
             logger.info(f"Collection with documents created successfully: {collection.id}")
 
             return collection
         except Exception as e:
             # Delete from vector database if it was created
             try:
-                self.vector_store.delete_collection(collection_name)
+                self.vector_store.delete_collection(collection.vector_db_name)
             except CollectionError as exc:
                 logger.error(f"Error in create_collection_with_documents: {str(exc)}")
             logger.error(f"Error in create_collection_with_documents: {str(e)}")

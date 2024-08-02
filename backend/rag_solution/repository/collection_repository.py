@@ -1,8 +1,9 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from uuid import UUID
 from typing import List, Optional
 from rag_solution.models.collection import Collection
 from rag_solution.models.user_collection import UserCollection
+from rag_solution.models.user import User
 from rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput, FileInfo
 import logging
 from sqlalchemy.exc import SQLAlchemyError
@@ -21,7 +22,7 @@ class CollectionRepository:
         """
         self.db = db
 
-    def create(self, collection: CollectionInput) -> CollectionOutput:
+    def create(self, collection: CollectionInput, vector_db_name: str) -> CollectionOutput:
         """
         Create a new collection in the database.
 
@@ -36,21 +37,12 @@ class CollectionRepository:
         """
         db_collection = Collection(
             name=collection.name,
+            vector_db_name=vector_db_name,
             is_private=collection.is_private
         )
         self.db.add(db_collection)
-        self.db.flush()  # This will assign an ID to db_collection
-
-        if collection.users:
-            user_collections = [
-                UserCollection(user_id=user_id, collection_id=db_collection.id)
-                for user_id in collection.users
-            ]
-            self.db.add_all(user_collections)
-
         self.db.commit()
         self.db.refresh(db_collection)
-
         return self._collection_to_output(db_collection)
 
     def get(self, collection_id: UUID) -> Optional[CollectionOutput]:
@@ -98,11 +90,11 @@ class CollectionRepository:
         try:
             collection = self.db.query(Collection).filter(Collection.id == collection_id).first()
             if collection:
-                for key, value in collection_update.model_dump().items():
+                for key, value in collection_update.items():
                     setattr(collection, key, value)
                 self.db.commit()
                 self.db.refresh(collection)
-                return collection_update
+                return self._collection_to_output(collection)
             return None
         except SQLAlchemyError as e:
             logger.error(f"Error updating collection {collection_id}: {str(e)}")
@@ -147,6 +139,7 @@ class CollectionRepository:
         return CollectionOutput(
             id=collection.id,
             name=collection.name,
+            vector_db_name=collection.vector_db_name,
             is_private=collection.is_private,
             created_at=collection.created_at,
             updated_at=collection.updated_at,

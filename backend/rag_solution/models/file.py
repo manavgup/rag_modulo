@@ -14,7 +14,7 @@ class File(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     collection_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("collections.id"))
     filename: Mapped[str] = mapped_column(String, index=True)
-    filepath: Mapped[str] = mapped_column(String, index=True)
+    file_path: Mapped[str] = mapped_column(String, index=True)
     file_type: Mapped[str] = mapped_column(String)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)

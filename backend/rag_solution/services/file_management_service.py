@@ -21,7 +21,7 @@ class FileManagementService:
         try:
             logger.info(f"Creating file record: {file_input.filename}")
             file = self.file_repository.create(file_input, user_id)
-            logger.info(f"File record created successfully: {file.id}")
+            logger.info(f"File record created successfully: {file.file_path}")
             return file
         except ValueError as e:
             logger.error(f"Value error creating file: {str(e)}")
@@ -82,7 +82,7 @@ class FileManagementService:
                 raise HTTPException(status_code=404, detail="File not found")
             
             self.file_repository.delete(file_id)
-            file_path = Path(file.filepath)
+            file_path = Path(file.file_path)
             if file_path.exists():
                 file_path.unlink()
             
@@ -136,10 +136,10 @@ class FileManagementService:
             file_input = FileInput(
                 collection_id=collection_id,
                 filename=file.filename,
-                filepath=str(file_path),
+                file_path=str(file_path),
                 file_type=file_type
             )
-            return self.create_file(file_input)
+            return self.create_file(file_input, user_id)
         except Exception as e:
             logger.error(f"Unexpected error uploading and creating file record: {str(e)}")
             raise HTTPException(status_code=500, detail="Internal server error")
@@ -168,7 +168,7 @@ class FileManagementService:
         try:
             logger.info(f"Getting file path for {filename} in collection {collection_id}")
             file = self.get_file_by_name(collection_id, filename)
-            return Path(file.filepath)
+            return Path(file.file_path)
         except HTTPException:
             raise
         except Exception as e:

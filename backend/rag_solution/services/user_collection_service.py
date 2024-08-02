@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from rag_solution.repository.user_collection_repository import UserCollectionRepository
 from rag_solution.schemas.user_schema import UserOutput
 from rag_solution.schemas.collection_schema import CollectionOutput
+from rag_solution.schemas.user_collection_schema import UserCollectionOutput
 import logging
 
 logger = logging.getLogger(__name__)
@@ -49,12 +50,30 @@ class UserCollectionService:
             logger.error(f"Error fetching collections for user {user_id}: {str(e)}")
             raise HTTPException(status_code=500, detail="Internal server error")
 
-    def get_collection_users(self, collection_id: UUID) -> List[UserOutput]:
+    def get_collection_users(self, collection_id: UUID) -> List[UserCollectionOutput]:
         try:
             logger.info(f"Fetching users for collection {collection_id}")
-            users = self.user_collection_repository.get_collection_users(collection_id)
-            logger.info(f"Retrieved {len(users)} users for collection {collection_id}")
-            return users
+            user_collections = self.user_collection_repository.get_collection_users(collection_id)
+            logger.info(f"Retrieved {len(user_collections)} users for collection {collection_id}")
+            return user_collections
         except Exception as e:
             logger.error(f"Error fetching users for collection {collection_id}: {str(e)}")
             raise HTTPException(status_code=500, detail="Internal server error")
+
+    def remove_all_users_from_collection(self, collection_id: UUID) -> bool:
+        try:
+            logger.info(f"Removing all users from collection {collection_id}")
+            result = self.user_collection_repository.remove_all_users_from_collection(collection_id)
+            if result:
+                logger.info(f"Successfully removed all users from collection {collection_id}")
+            else:
+                logger.warning(f"No users were removed from collection {collection_id}")
+            return result
+        except Exception as e:
+            logger.error(f"Error removing all users from collection {collection_id}: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+    def _get_user_output(self, user_id: UUID) -> UserOutput:
+        # This method should fetch the user details and return a UserOutput
+        return UserOutput(user_id=user_id)
+
