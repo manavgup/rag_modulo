@@ -13,13 +13,13 @@ class UserTeamRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def create(self, user_team: UserTeamInput) -> UserTeamOutput:
+    def add_user_to_team(self, user_team: UserTeamInput) -> bool:
         try:
             db_user_team = UserTeam(user_id=user_team.user_id, team_id=user_team.team_id)
             self.db.add(db_user_team)
             self.db.commit()
             self.db.refresh(db_user_team)
-            return self._user_team_to_output(db_user_team)
+            return True
         except Exception as e:
             logger.error(f"Error creating user-team association: {str(e)}")
             self.db.rollback()
@@ -46,7 +46,7 @@ class UserTeamRepository:
             self.db.rollback()
             raise
 
-    def list_by_user(self, user_id: UUID) -> List[UserTeamOutput]:
+    def get_user_teams(self, user_id: UUID) -> List[UserTeamOutput]:
         try:
             user_teams = self.db.query(UserTeam).filter(UserTeam.user_id == user_id).all()
             return [self._user_team_to_output(user_team) for user_team in user_teams]
@@ -54,7 +54,7 @@ class UserTeamRepository:
             logger.error(f"Error listing teams for user {user_id}: {str(e)}")
             raise
 
-    def list_by_team(self, team_id: UUID) -> List[UserTeamOutput]:
+    def get_team_users(self, team_id: UUID) -> List[UserTeamOutput]:
         try:
             user_teams = self.db.query(UserTeam).filter(UserTeam.team_id == team_id).all()
             return [self._user_team_to_output(user_team) for user_team in user_teams]
@@ -65,6 +65,7 @@ class UserTeamRepository:
     @staticmethod
     def _user_team_to_output(user_team: UserTeam) -> UserTeamOutput:
         return UserTeamOutput(
-            user=UserOutput.model_validate(user_team.user),
-            team=TeamOutput.model_validate(user_team.team)
+            user_id=user_team.user_id,
+            team_id=user_team.team_id,
+            joined_at=user_team.joined_at
         )
