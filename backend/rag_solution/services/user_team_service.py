@@ -33,15 +33,15 @@ class UserTeamService:
         try:
             logger.info(f"Removing user {user_id} from team {team_id}")
             result = self.user_team_repository.delete(user_id, team_id)
-            if result:
-                logger.info(f"Successfully removed user {user_id} from team {team_id}")
-            else:
+            if not result:
                 logger.warning(f"Failed to remove user {user_id} from team {team_id}")
+                raise HTTPException(status_code=404, detail="User or team not found")
+            logger.info(f"Successfully removed user {user_id} from team {team_id}")
             return result
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Error removing user {user_id} from team {team_id}: {str(e)}")
-            if "not present in table" in str(e):
-                raise HTTPException(status_code=404, detail="User or team not found")
             raise HTTPException(status_code=500, detail="Internal server error")
 
     def get_user_teams(self, user_id: UUID) -> List[UserTeamOutput]:
