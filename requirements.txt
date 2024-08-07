@@ -14,4 +14,4 @@ python-docx
 python-dotenv==1.0.1
 scikit-learn==1.5.1
 weaviate-client==4.5.3
-chromadb-client==0.5.5
+chromadb-client==0.5.6.dev0
