@@ -22,7 +22,10 @@ class UserCollectionService:
                 logger.info(f"Successfully added user {user_id} to collection {collection_id}")
             else:
                 logger.warning(f"Failed to add user {user_id} to collection {collection_id}")
+                raise HTTPException(status_code=404, detail="User or collection not found")
             return result
+        except HTTPException as he:
+            raise he
         except Exception as e:
             logger.error(f"Error adding user {user_id} to collection {collection_id}: {str(e)}")
             raise HTTPException(status_code=500, detail="Internal server error")
@@ -35,12 +38,15 @@ class UserCollectionService:
                 logger.info(f"Successfully removed user {user_id} from collection {collection_id}")
             else:
                 logger.warning(f"Failed to remove user {user_id} from collection {collection_id}")
+                raise HTTPException(status_code=404, detail="User or collection not found")
             return result
+        except HTTPException as he:
+            raise he
         except Exception as e:
             logger.error(f"Error removing user {user_id} from collection {collection_id}: {str(e)}")
             raise HTTPException(status_code=500, detail="Internal server error")
 
-    def get_user_collections(self, user_id: UUID) -> List[CollectionOutput]:
+    def get_user_collections(self, user_id: UUID) -> List[UserCollectionOutput]:
         try:
             logger.info(f"Fetching collections for user {user_id}")
             collections = self.user_collection_repository.get_user_collections(user_id)
