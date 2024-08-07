@@ -7,7 +7,7 @@ import {
 } from '@carbon/react'
 import { Menu, UserAvatar } from '@carbon/icons-react';
 
-const Header = ({ onMenuClick, onSettingsClick }) => (
+const Header = ({ onMenuClick}) => (
   <CarbonHeader aria-label="RAG Modulo">
     <HeaderGlobalAction aria-label="Menu" onClick={onMenuClick}>
       <Menu size={20} />
@@ -16,9 +16,6 @@ const Header = ({ onMenuClick, onSettingsClick }) => (
       RAG Modulo
     </HeaderName>
     <HeaderGlobalBar>
-      <HeaderGlobalAction aria-label="Settings" onClick={onSettingsClick}>
-        Settings
-      </HeaderGlobalAction>
       <HeaderGlobalAction aria-label="User Avatar">
         <UserAvatar />
       </HeaderGlobalAction>

@@ -49,13 +49,17 @@ test: run-services
 run-services:
 	@echo "Starting services..."
 	$(DOCKER_COMPOSE) up -d postgres
+	@echo "Docker-compose up command executed"
 	@echo "Waiting for PostgreSQL to be ready..."
-	@until docker exec $(shell docker ps -q -f name=postgres) pg_isready; do sleep 1; done
+	@CONTAINER_NAME=rag_modulo-postgres-1; \
+	echo "PostgreSQL container name: $$CONTAINER_NAME"; \
+	until docker exec $$CONTAINER_NAME pg_isready; do sleep 1; done
+	@echo "PostgreSQL is ready"
 	@echo "Starting services for VECTOR_DB=${VECTOR_DB}"
 	if [ "$(VECTOR_DB)" = "elasticsearch" ]; then \
 	    $(DOCKER_COMPOSE) up -d --scale elasticsearch=1 elasticsearch; \
 	elif [ "$(VECTOR_DB)" = "milvus" ]; then \
-	    $(DOCKER_COMPOSE) up -d --scale milvus=1 milvus; \
+	    $(DOCKER_COMPOSE) up -d --scale milvus-standalone=1 milvus-standalone; \
 	elif [ "$(VECTOR_DB)" = "chroma" ]; then \
 	    $(DOCKER_COMPOSE) up -d --scale chroma=1 chroma; \
 	elif [ "$(VECTOR_DB)" = "weaviate" ]; then \
@@ -71,8 +75,13 @@ run-services:
 	@echo "Docker containers status:"
 	@docker ps
 	@echo "${VECTOR_DB} logs saved to ${VECTOR_DB}.log:"
-	@$(DOCKER_COMPOSE) logs ${VECTOR_DB} > ${VECTOR_DB}.log
+	@if [ "$(VECTOR_DB)" = "milvus" ]; then \
+	    $(DOCKER_COMPOSE) logs milvus-standalone > milvus-standalone.log; \
+	else \
+	    $(DOCKER_COMPOSE) logs ${VECTOR_DB} > ${VECTOR_DB}.log; \
+	fi
 
+	
 build-app:
 	$(DOCKER_COMPOSE) build backend frontend
 

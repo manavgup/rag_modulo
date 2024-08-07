@@ -12,9 +12,6 @@ const UISideNav = ({ expanded, onNavigate }) => {
         <SideNavLink href="#" onClick={(e) => onNavigate(e, 'create')}>
           Create New Collection
         </SideNavLink>
-        <SideNavLink href="#" onClick={(e) => onNavigate(e, 'settings')}>
-          Settings
-        </SideNavLink>
       </SideNavItems>
     </SideNav>
   );

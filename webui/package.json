@@ -44,6 +44,8 @@
   "devDependencies": {
     "react-scripts": "5.0.1",
     "sass": "^1.77.6",
-    "sass-resources-loader": "^2.2.5"
+    "sass-resources-loader": "^2.2.5",
+    "@babel/plugin-proposal-private-property-in-object": "^7.14.5"
   }
+  
 }
