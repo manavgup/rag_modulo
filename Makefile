@@ -15,9 +15,9 @@ PROJECT_VERSION ?= v$(shell poetry version -s)
 # Tools
 DOCKER_COMPOSE := docker-compose
 
-.DEFAULT_GOAL := all
+.DEFAULT_GOAL := help
 
-.PHONY: init-env init check-toml format lint audit test run-services build-app run-app clean all info
+.PHONY: init-env init check-toml format lint audit test run-services build-app run-app clean all info help
 
 init-env:
 	@touch .env
@@ -47,6 +47,10 @@ test: run-services
 	@while docker ps | grep -q "milvus-standalone"; do sleep 1; done
 
 run-services:
+	@echo "Starting services..."
+	$(DOCKER_COMPOSE) up -d postgres
+	@echo "Waiting for PostgreSQL to be ready..."
+	@until docker exec $(shell docker ps -q -f name=postgres) pg_isready; do sleep 1; done
 	@echo "Starting services for VECTOR_DB=${VECTOR_DB}"
 	if [ "$(VECTOR_DB)" = "elasticsearch" ]; then \
 	    $(DOCKER_COMPOSE) up -d --scale elasticsearch=1 elasticsearch; \
@@ -85,3 +89,22 @@ info:
 	@echo "Project name: ${PROJECT_NAME}"
 	@echo "Project version: ${PROJECT_VERSION}"
 	@echo "Python version: ${PYTHON_VERSION}"
+
+help:
+	@echo "Usage: make [target]"
+	@echo ""
+	@echo "Targets:"
+	@echo "  init-env      Initialize .env file with default values"
+	@echo "  init          Install dependencies"
+	@echo "  check-toml    Check TOML files for syntax errors"
+	@echo "  format        Format code using black and isort"
+	@echo "  lint          Lint code using ruff and mypy"
+	@echo "  audit         Audit code using bandit"
+	@echo "  test          Run tests using pytest"
+	@echo "  run-services  Start services using Docker Compose"
+	@echo "  build-app     Build app using Docker Compose"
+	@echo "  run-app       Run app using Docker Compose"
+	@echo "  clean         Clean up Docker Compose volumes"
+	@echo "  all           Format, lint, audit, and test"
+	@echo "  info          Display project information"
+	@echo "  help          Display this help message"

@@ -5,93 +5,49 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.backend
-    ports:
-      - "8000:8000"
-    environment:
-      - VECTOR_DB=${VECTOR_DB}
     volumes:
       - .:/app
-    networks:
-      - app-network
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+    environment:
+      POSTGRES_DB: rag_modulo
+      POSTGRES_USER: rag_modulo_user
+      POSTGRES_PASSWORD: rag_modulo_password
+      DATABASE_URL: postgres://rag_modulo_user:rag_modulo_password@postgres:5432/rag_modulo
 
   frontend:
     build:
-      context: ./webui
+      context: .
       dockerfile: Dockerfile.frontend
     ports:
       - "3000:80"
-    environment:
-      - REACT_APP_API_URL=http://backend:8000
     depends_on:
       - backend
-    networks:
-      - app-network
 
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
-    environment:
-      - discovery.type=single-node
-    ports:
-      - "9200:9200"
-    networks:
-      - app-network
-    deploy:
-      replicas: 0  # Start with 0 replicas
-
-  milvus:
+  milvus-standalone:
     image: milvusdb/milvus:v2.4.1
-    container_name: milvus-standalone
-    security_opt:
-      - seccomp:unconfined
-    environment:
-      - ETCD_USE_EMBED=true
-      - ETCD_DATA_DIR=/var/lib/milvus/etcd
-      - ETCD_CONFIG_PATH=/milvus/configs/embedEtcd.yaml
-      - COMMON_STORAGETYPE=local
-    volumes:
-      - ./volumes/milvus:/var/lib/milvus
-      - ./embedEtcd.yaml:/milvus/configs/embedEtcd.yaml
     ports:
       - "19530:19530"
-      - "9091:9091"
       - "2379:2379"
+      - "9091:9091"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      test: ["CMD-SHELL", "curl --fail http://localhost:19530/api/v1/status || exit 1"]
       interval: 30s
-      start_period: 120s
-      timeout: 20s
+      timeout: 10s
       retries: 3
-    command: ["milvus", "run", "standalone"]
-    networks:
-      - app-network
-    deploy:
-      replicas: 0  # Start with 0 replicas
 
-  chroma:
-    image: chromadb/chromadb:latest
+  postgres:
+    image: postgres:13
     environment:
-      - CHROMADB_HOST=localhost
-      - CHROMADB_PORT=8000
+      POSTGRES_DB: rag_modulo
+      POSTGRES_USER: rag_modulo_user
+      POSTGRES_PASSWORD: rag_modulo_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     ports:
-      - "8000:8000"
-    networks:
-      - app-network
-    deploy:
-      replicas: 0  # Start with 0 replicas
+      - "5432:5432"
 
-  weaviate:
-    image: semitechnologies/weaviate:latest
-    environment:
-      - QUERY_DEFAULTS_LIMIT=100
-      - AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED=true
-    ports:
-      - "8080:8080"
-      - "50051:50051"
-    networks:
-      - app-network
-    deploy:
-      replicas: 0  # Start with 0 replicas
-
-networks:
-  app-network:
-    driver: bridge
+volumes:
+  postgres_data:
