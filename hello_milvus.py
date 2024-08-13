@@ -9,12 +9,8 @@
 import time
 
 import numpy as np
-from pymilvus import (
-    connections,
-    utility,
-    FieldSchema, CollectionSchema, DataType,
-    Collection,
-)
+from pymilvus import (Collection, CollectionSchema, DataType, FieldSchema,
+                      connections, utility)
 
 fmt = "\n=== {:30} ===\n"
 search_latency_fmt = "search latency = {:.4f}s"

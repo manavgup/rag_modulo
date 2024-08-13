@@ -1,11 +1,12 @@
+from typing import List
+from uuid import UUID
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from uuid import UUID
-from typing import List
 
-from ..schemas.user_schema import UserInput, UserOutput
-from ..services.user_service import UserService
-from rag_solution.file_management.database import get_db
+from backend.rag_solution.file_management.database import get_db
+from backend.rag_solution.schemas.user_schema import UserInput, UserOutput
+from backend.rag_solution.services.user_service import UserService
 
 router = APIRouter()
 

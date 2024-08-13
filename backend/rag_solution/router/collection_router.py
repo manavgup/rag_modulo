@@ -1,12 +1,15 @@
-from fastapi import APIRouter, Depends, UploadFile, BackgroundTasks
-from sqlalchemy.orm import Session
-from typing import List
 import uuid
+from typing import List
 
-from rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput
-from rag_solution.services.collection_service import CollectionService
-from rag_solution.services.file_management_service import FileManagementService
-from rag_solution.file_management.database import get_db
+from fastapi import APIRouter, BackgroundTasks, Depends, UploadFile
+from sqlalchemy.orm import Session
+
+from backend.rag_solution.file_management.database import get_db
+from backend.rag_solution.schemas.collection_schema import (CollectionInput,
+                                                            CollectionOutput)
+from backend.rag_solution.services.collection_service import CollectionService
+from backend.rag_solution.services.file_management_service import \
+    FileManagementService
 
 router = APIRouter(
     prefix="/api/collections",

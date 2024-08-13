@@ -1,4 +1,4 @@
-from vectordbs.vector_store import VectorStore
+from .vector_store import VectorStore
 
 
 def get_datastore(datastore: str) -> VectorStore:

@@ -1,12 +1,16 @@
-from sqlalchemy.orm import Session, joinedload
-from uuid import UUID
-from typing import List, Optional
-from rag_solution.models.collection import Collection
-from rag_solution.models.user_collection import UserCollection
-from rag_solution.models.user import User
-from rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput, FileInfo
 import logging
+from typing import List, Optional
+from uuid import UUID
+
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session, joinedload
+
+from backend.rag_solution.models.collection import Collection
+from backend.rag_solution.models.user import User
+from backend.rag_solution.models.user_collection import UserCollection
+from backend.rag_solution.schemas.collection_schema import (CollectionInput,
+                                                            CollectionOutput,
+                                                            FileInfo)
 
 logger = logging.getLogger(__name__)
 

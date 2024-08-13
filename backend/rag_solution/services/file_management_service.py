@@ -1,15 +1,17 @@
 # file_management_service.py
 
-from uuid import UUID
-from typing import List, Optional
-from sqlalchemy.orm import Session
-from fastapi import HTTPException, UploadFile
-from rag_solution.repository.file_repository import FileRepository
-from rag_solution.schemas.file_schema import FileInput, FileOutput
 import logging
-from pathlib import Path
-from backend.core.config import settings
 from mimetypes import guess_type
+from pathlib import Path
+from typing import List, Optional
+from uuid import UUID
+
+from fastapi import HTTPException, UploadFile
+from sqlalchemy.orm import Session
+
+from backend.core.config import settings
+from backend.rag_solution.repository.file_repository import FileRepository
+from backend.rag_solution.schemas.file_schema import FileInput, FileOutput
 
 logger = logging.getLogger(__name__)
 

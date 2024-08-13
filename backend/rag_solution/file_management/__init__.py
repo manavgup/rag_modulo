@@ -1,5 +1,5 @@
 # project_root/backend/database/__init__.py
 
-from .database import Base, engine
+from backend.rag_solution.file_management.database import Base, engine
 
 Base.metadata.create_all(bind=engine)

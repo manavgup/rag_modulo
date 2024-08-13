@@ -1,11 +1,12 @@
-from fastapi import APIRouter, HTTPException, status, Depends
-from sqlalchemy.orm import Session
-from uuid import UUID
 from typing import List
+from uuid import UUID
 
-from ..schemas.team_schema import TeamInput, TeamOutput
-from ..services.team_service import TeamService
-from ..file_management.database import get_db
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
+from backend.rag_solution.file_management.database import get_db
+from backend.rag_solution.schemas.team_schema import TeamInput, TeamOutput
+from backend.rag_solution.services.team_service import TeamService
 
 router = APIRouter()
 

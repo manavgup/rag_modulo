@@ -1,11 +1,14 @@
 from __future__ import annotations
-from sqlalchemy import String, DateTime
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import UUID
-from datetime import datetime
-import uuid
 
-from ..file_management.database import Base
+import uuid
+from datetime import datetime
+
+from sqlalchemy import DateTime, String
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from backend.rag_solution.file_management.database import Base
+
 
 class User(Base):
     __tablename__ = "users"

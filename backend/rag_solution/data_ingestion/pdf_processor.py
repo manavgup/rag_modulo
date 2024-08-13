@@ -6,12 +6,12 @@ from typing import Iterable, List, Set
 
 import pymupdf  # PyMuPDF
 
-from core.custom_exceptions import DocumentProcessingError
-from rag_solution.doc_utils import clean_text, get_document
-from vectordbs.data_types import Document
-
-from .base_processor import BaseProcessor
-from .chunking import semantic_chunking, semantic_chunking_for_tables
+from backend.core.custom_exceptions import DocumentProcessingError
+from backend.rag_solution.data_ingestion.base_processor import BaseProcessor
+from backend.rag_solution.data_ingestion.chunking import (
+    semantic_chunking, semantic_chunking_for_tables)
+from backend.rag_solution.doc_utils import clean_text, get_document
+from backend.vectordbs.data_types import Document
 
 logger = logging.getLogger(__name__)
 

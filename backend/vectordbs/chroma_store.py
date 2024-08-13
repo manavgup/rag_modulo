@@ -1,14 +1,16 @@
 import logging
-from typing import Dict, List, Optional, Mapping, Union
+from typing import Dict, List, Mapping, Optional, Union
 
 from chromadb import ClientAPI, chromadb
 
-from vectordbs.data_types import (Document, DocumentChunk, DocumentChunkMetadata,
-                                  DocumentMetadataFilter, QueryResult, QueryWithEmbedding, Source)
-from vectordbs.utils.watsonx import get_embeddings
-from vectordbs.vector_store import VectorStore
-from vectordbs.error_types import CollectionError, DocumentError
-from core.config import settings
+from backend.core.config import settings
+from backend.vectordbs.utils.watsonx import get_embeddings
+
+from .data_types import (Document, DocumentChunk, DocumentChunkMetadata,
+                         DocumentMetadataFilter, QueryResult,
+                         QueryWithEmbedding, Source)
+from .error_types import CollectionError, DocumentError
+from .vector_store import VectorStore
 
 CHROMADB_HOST = settings.chromadb_host
 CHROMADB_PORT = settings.chromadb_port

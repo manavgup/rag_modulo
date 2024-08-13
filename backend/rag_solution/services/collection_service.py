@@ -1,19 +1,21 @@
-from uuid import UUID, uuid4
-from typing import List, Optional
-from fastapi import UploadFile, BackgroundTasks, HTTPException
-from sqlalchemy.orm import Session
-from rag_solution.services.file_management_service import FileManagementService
-from rag_solution.services.user_collection_service import UserCollectionService
-from rag_solution.services.user_service import UserService
-from rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput
-from rag_solution.repository.collection_repository import CollectionRepository
-from vectordbs.error_types import CollectionError
-from vectordbs.factory import get_datastore
-from rag_solution.data_ingestion.ingestion import ingest_documents
 import logging
-from core.config import settings
 import os
 import re
+from typing import List, Optional
+from uuid import UUID, uuid4
+
+from backend.core.config import settings
+from fastapi import BackgroundTasks, HTTPException, UploadFile
+from sqlalchemy.orm import Session
+
+from backend.rag_solution.data_ingestion.ingestion import ingest_documents
+from backend.rag_solution.repository.collection_repository import CollectionRepository
+from backend.rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput
+from backend.rag_solution.services.file_management_service import FileManagementService
+from backend.rag_solution.services.user_collection_service import UserCollectionService
+from backend.rag_solution.services.user_service import UserService
+from backend.vectordbs.error_types import CollectionError
+from backend.vectordbs.factory import get_datastore
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

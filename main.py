@@ -1,9 +1,26 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+import os
+import sys
+
+print("Python path:", sys.path)
+print("Current working directory:", os.getcwd())
+print("Contents of /app:", os.listdir('/app'))
+print("Contents of /app/backend:", os.listdir('/app/backend'))
+
 import logging
 
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+try:
+    from backend.core.config import settings
+    print("Successfully imported settings")
+except ImportError as e:
+    print(f"Error importing settings: {e}")
+    raise
+
 from backend.core.config import settings
-from backend.rag_solution.router.collection_router import router as collection_router
+from backend.rag_solution.router.collection_router import \
+    router as collection_router
 from backend.rag_solution.router.file_router import router as file_router
 from backend.rag_solution.router.team_router import router as team_router
 from backend.rag_solution.router.user_router import router as user_router

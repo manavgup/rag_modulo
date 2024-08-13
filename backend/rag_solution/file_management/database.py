@@ -1,8 +1,10 @@
 # rag_solution/file_management/database.py
 import logging
+
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
-from core.config import settings
+from sqlalchemy.orm import declarative_base, sessionmaker
+
+from backend.core.config import settings
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -10,10 +12,10 @@ logger = logging.getLogger(__name__)
 
 # Synchronous database URL
 DATABASE_URL = (
-    f"postgresql://{settings.collectiondb_user}:"
-    f"{settings.collectiondb_pass}@{settings.collectiondb_host}/"
-    f"{settings.collectiondb_name}"
+    f"postgresql://{settings.collectiondb_user}:{settings.collectiondb_pass}@{settings.collectiondb_host}:{settings.collectiondb_port}/{settings.collectiondb_name}"
 )
+
+logger.debug(f"Database URL: {DATABASE_URL}")
 
 # Create synchronous engine and session
 engine = create_engine(DATABASE_URL)

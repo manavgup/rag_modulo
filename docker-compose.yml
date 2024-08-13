@@ -5,22 +5,38 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.backend
-    volumes:
-      - .:/app
+    networks:
+      - app-network
+    command: ["/entrypoint.sh"]
+    working_dir: /app
     ports:
       - "8000:8000"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+      milvus-standalone:
+        condition: service_started
     environment:
-      POSTGRES_DB: rag_modulo
-      POSTGRES_USER: rag_modulo_user
-      POSTGRES_PASSWORD: rag_modulo_password
-      DATABASE_URL: postgres://rag_modulo_user:rag_modulo_password@postgres:5432/rag_modulo
+      - PYTHONPATH=/app
+      - COLLECTIONDB_NAME=${COLLECTIONDB_NAME}
+      - COLLECTIONDB_USER=${COLLECTIONDB_USER}
+      - COLLECTIONDB_PASS=${COLLECTIONDB_PASS}
+      - COLLECTIONDB_HOST=postgres
+      - COLLECTIONDB_PORT=${COLLECTIONDB_PORT}
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   frontend:
     build:
-      context: .
+      context: ./webui
       dockerfile: Dockerfile.frontend
+    networks:
+      - app-network
     ports:
       - "3000:80"
     depends_on:
@@ -28,26 +44,48 @@ services:
 
   milvus-standalone:
     image: milvusdb/milvus:v2.4.1
+    networks:
+      - app-network
+    command: ["milvus", "run", "standalone"]
+    volumes:
+      - ./embedEtcd.yaml:/milvus/configs/embedEtcd.yaml
+      - milvus_data:/var/lib/milvus
     ports:
       - "19530:19530"
-      - "2379:2379"
       - "9091:9091"
+    environment:
+      ETCD_USE_EMBED: "true"
     healthcheck:
-      test: ["CMD-SHELL", "curl --fail http://localhost:19530/api/v1/status || exit 1"]
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
       interval: 30s
-      timeout: 10s
+      timeout: 20s
       retries: 3
 
   postgres:
     image: postgres:13
+    networks:
+      - app-network
+    container_name: ${COLLECTIONDB_HOST}
     environment:
-      POSTGRES_DB: rag_modulo
-      POSTGRES_USER: rag_modulo_user
-      POSTGRES_PASSWORD: rag_modulo_password
+      POSTGRES_DB: ${COLLECTIONDB_NAME}
+      POSTGRES_USER: ${COLLECTIONDB_USER}
+      POSTGRES_PASSWORD: ${COLLECTIONDB_PASS}
+      COLLECTIONDB_NAME: ${COLLECTIONDB_NAME}
+      COLLECTIONDB_USER: ${COLLECTIONDB_USER}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "${COLLECTIONDB_PORT}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${COLLECTIONDB_USER} -d ${COLLECTIONDB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:
+  milvus_data:
+
+networks:
+  app-network:
+    driver: bridge

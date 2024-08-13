@@ -55,7 +55,7 @@ run-services:
 	if [ "$(VECTOR_DB)" = "elasticsearch" ]; then \
 	    $(DOCKER_COMPOSE) up -d --scale elasticsearch=1 elasticsearch; \
 	elif [ "$(VECTOR_DB)" = "milvus" ]; then \
-	    $(DOCKER_COMPOSE) up -d --scale milvus=1 milvus; \
+	    $(DOCKER_COMPOSE) up -d --scale milvus-standalone=1 milvus-standalone; \
 	elif [ "$(VECTOR_DB)" = "chroma" ]; then \
 	    $(DOCKER_COMPOSE) up -d --scale chroma=1 chroma; \
 	elif [ "$(VECTOR_DB)" = "weaviate" ]; then \
@@ -74,10 +74,14 @@ run-services:
 	@$(DOCKER_COMPOSE) logs ${VECTOR_DB} > ${VECTOR_DB}.log
 
 build-app:
-	$(DOCKER_COMPOSE) build backend frontend
+	$(DOCKER_COMPOSE) build
 
 run-app: build-app
-	$(DOCKER_COMPOSE) up -d backend frontend
+	$(DOCKER_COMPOSE) up -d
+
+# Add a new target for logs
+logs:
+	$(DOCKER_COMPOSE) logs -f
 
 clean:
 	$(DOCKER_COMPOSE) down -v

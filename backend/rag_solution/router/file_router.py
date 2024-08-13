@@ -1,11 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from typing import List
 from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
-from rag_solution.services.file_management_service import FileManagementService
-from rag_solution.schemas.file_schema import FileOutput, DocumentDelete
-from rag_solution.file_management.database import get_db
+from backend.rag_solution.file_management.database import get_db
+from backend.rag_solution.schemas.file_schema import DocumentDelete, FileOutput
+from backend.rag_solution.services.file_management_service import \
+    FileManagementService
 
 router = APIRouter(prefix="/api/files", tags=["files"])
 

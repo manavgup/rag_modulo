@@ -3,14 +3,14 @@ from typing import Any, Dict, List, Optional
 
 from elasticsearch import Elasticsearch, NotFoundError
 
-from vectordbs.data_types import (Document, DocumentChunk,
-                                  DocumentChunkMetadata,
-                                  DocumentMetadataFilter, QueryResult,
-                                  QueryWithEmbedding, Source)
-from vectordbs.utils.watsonx import get_embeddings
-from vectordbs.vector_store import VectorStore
-from vectordbs.error_types import CollectionError, DocumentError
-from core.config import settings
+from backend.core.config import settings
+from backend.vectordbs.utils.watsonx import get_embeddings
+
+from .data_types import (Document, DocumentChunk, DocumentChunkMetadata,
+                         DocumentMetadataFilter, QueryResult,
+                         QueryWithEmbedding, Source)
+from .error_types import CollectionError, DocumentError
+from .vector_store import VectorStore
 
 logging.basicConfig(level=settings.log_level)
 

@@ -16,10 +16,10 @@ env/
 .CVS/
 
 # Ignore development and testing directories and files
-tests/
 docs/
 coverage/
 *.log
+**/tests/
 
 # Ignore OS generated files
 .DS_Store

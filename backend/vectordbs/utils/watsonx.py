@@ -9,8 +9,10 @@ from genai.credentials import Credentials
 from genai.schema import TextEmbeddingParameters, TextGenerationParameters
 from genai.text.generation import CreateExecutionOptions
 
-from vectordbs.data_types import Embeddings
-from core.config import settings
+from backend.core.config import settings
+
+from ..data_types import Embeddings
+
 EMBEDDING_MODEL = settings.embedding_model
 
 

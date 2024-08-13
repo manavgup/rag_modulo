@@ -1,18 +1,22 @@
 # user_team_service.py
 
-from uuid import UUID
-from typing import List
-from fastapi import HTTPException
-from rag_solution.repository.user_team_repository import UserTeamRepository
-from rag_solution.schemas.user_schema import UserOutput
-from rag_solution.schemas.user_team_schema import UserTeamInput, UserTeamOutput
 import logging
+from typing import List
+from uuid import UUID
+
+from fastapi import HTTPException
+from sqlalchemy.orm import Session
+
+from backend.rag_solution.repository.user_team_repository import UserTeamRepository
+from backend.rag_solution.schemas.user_schema import UserOutput
+from backend.rag_solution.schemas.user_team_schema import UserTeamInput, UserTeamOutput
 
 logger = logging.getLogger(__name__)
 
 class UserTeamService:
-    def __init__(self, user_team_repository: UserTeamRepository):
-        self.user_team_repository = user_team_repository
+    # TO-DO: Remove hacky dependence on UserTeamRepository
+    def __init__(self, db_session: Session, user_team_repository: UserTeamRepository = None):
+        self.user_team_repository = user_team_repository or UserTeamRepository(db_session)
 
     def add_user_to_team(self, user_id: UUID, team_id: UUID) -> bool:
         try:
