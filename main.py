@@ -24,6 +24,7 @@ from backend.rag_solution.router.collection_router import \
 from backend.rag_solution.router.file_router import router as file_router
 from backend.rag_solution.router.team_router import router as team_router
 from backend.rag_solution.router.user_router import router as user_router
+from backend.rag_solution.router.health_router import router as health_router
 
 # Configure logging
 logging.basicConfig(level=settings.log_level)
@@ -45,6 +46,7 @@ app.include_router(collection_router)
 app.include_router(file_router)
 app.include_router(team_router)
 app.include_router(user_router)
+app.include_router(health_router)
 
 if __name__ == "__main__":
     import uvicorn

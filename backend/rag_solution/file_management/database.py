@@ -3,7 +3,7 @@ import logging
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
-
+from sqlalchemy.exc import SQLAlchemyError
 from backend.core.config import settings
 
 # Configure logging
@@ -34,8 +34,11 @@ def get_db():
     try:
         logger.info("Creating a new database session.")
         yield db
+    except SQLAlchemyError as e:
+        logger.error(f"A database error occurred: {e}", exc_info=True)
+        db.rollback()
     except Exception as e:
-        logger.error(f"An error occurred: {e}", exc_info=True)
+        logger.error(f"An unexpected error occurred: {e}", exc_info=True)
     finally:
         db.close()
         logger.info("Database session closed.")
