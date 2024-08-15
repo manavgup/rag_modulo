@@ -1,4 +1,4 @@
-from vectordbs.vector_store import VectorStore
+from .vector_store import VectorStore
 
 
 def get_datastore(datastore: str) -> VectorStore:
@@ -6,19 +6,19 @@ def get_datastore(datastore: str) -> VectorStore:
         raise ValueError("Datastore must not be None or empty")
 
     if datastore == "pinecone":
-        from vectordbs.pinecone_store import PineconeStore
+        from .pinecone_store import PineconeStore
 
         return PineconeStore()
     elif datastore == "weaviate":
-        from vectordbs.weaviate_store import WeaviateDataStore
+        from .weaviate_store import WeaviateDataStore
 
         return WeaviateDataStore()
     elif datastore == "milvus":
-        from vectordbs.milvus_store import MilvusStore
+        from .milvus_store import MilvusStore
 
         return MilvusStore()
     elif datastore == "elasticsearch":
-        from vectordbs.elasticsearch_store import ElasticSearchStore
+        from .elasticsearch_store import ElasticSearchStore
 
         return ElasticSearchStore()
     else:

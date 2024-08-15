@@ -1,8 +1,11 @@
 from __future__ import annotations
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
-from uuid import UUID
+
 from datetime import datetime
 from typing import List
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
+
 
 class UserInDB(BaseModel):
     id: UUID

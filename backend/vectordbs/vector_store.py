@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-from vectordbs.data_types import Document, DocumentMetadataFilter, QueryResult, QueryWithEmbedding
+from .data_types import (Document, DocumentMetadataFilter, QueryResult,
+                         QueryWithEmbedding)
 
 
 class VectorStore(ABC):

@@ -1,10 +1,12 @@
-from sqlalchemy.orm import Session
-from uuid import UUID
-from typing import List, Optional
-from rag_solution.models.team import Team
-from rag_solution.schemas.team_schema import TeamInput, TeamOutput
-from rag_solution.schemas.user_schema import UserOutput
 import logging
+from typing import List, Optional
+from uuid import UUID
+
+from sqlalchemy.orm import Session
+
+from backend.rag_solution.models.team import Team
+from backend.rag_solution.schemas.team_schema import TeamInput, TeamOutput
+from backend.rag_solution.schemas.user_schema import UserOutput
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +36,9 @@ class TeamRepository:
 
     def list(self, skip: int = 0, limit: int = 100) -> List[TeamOutput]:
         try:
+            logger.debug(f"Attempting to list teams with skip={skip}, limit={limit}")
             teams = self.session.query(Team).offset(skip).limit(limit).all()
+            logger.debug(f"Successfully retrieved {len(teams)} teams")
             return [self._team_to_output(team) for team in teams]
         except Exception as e:
             logger.error(f"Error listing teams: {str(e)}")

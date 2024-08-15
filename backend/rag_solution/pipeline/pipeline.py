@@ -5,8 +5,8 @@ import sys
 # Ensure the base directory is in the Python path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
-from rag_solution.generation.generator import Generator
-from rag_solution.retrieval.retriever import Retriever
+from backend.rag_solution.generation.generator import Generator
+from backend.rag_solution.retrieval.retriever import Retriever
 
 
 class RAGPipeline:

@@ -1,15 +1,14 @@
 import logging
 import os
-from typing import Iterable, Dict
+from typing import Dict, Iterable
 
-from core.custom_exceptions import DocumentProcessingError
-from vectordbs.data_types import Document
-
-from .base_processor import BaseProcessor
-from .excel_processor import ExcelProcessor
-from .pdf_processor import PdfProcessor
-from .txt_processor import TxtProcessor
-from .word_processor import WordProcessor
+from backend.core.custom_exceptions import DocumentProcessingError
+from backend.rag_solution.data_ingestion.base_processor import BaseProcessor
+from backend.rag_solution.data_ingestion.excel_processor import ExcelProcessor
+from backend.rag_solution.data_ingestion.pdf_processor import PdfProcessor
+from backend.rag_solution.data_ingestion.txt_processor import TxtProcessor
+from backend.rag_solution.data_ingestion.word_processor import WordProcessor
+from backend.vectordbs.data_types import Document
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)

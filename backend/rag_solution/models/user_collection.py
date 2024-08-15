@@ -1,10 +1,12 @@
-from sqlalchemy import ForeignKey, DateTime
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import UUID
-from datetime import datetime
 import uuid
+from datetime import datetime
 
-from ..file_management.database import Base
+from sqlalchemy import DateTime, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from backend.rag_solution.file_management.database import Base
+
 
 class UserCollection(Base):
     __tablename__ = "user_collection"

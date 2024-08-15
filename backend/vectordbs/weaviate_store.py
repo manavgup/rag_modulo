@@ -9,14 +9,15 @@ from weaviate.data import DataObject
 from weaviate.exceptions import WeaviateConnectionError
 from weaviate.util import generate_uuid5
 
-from backend.vectordbs.data_types import (Document, DocumentChunk, DocumentChunkMetadata,
-                                          DocumentChunkWithScore, DocumentMetadataFilter,
-                                          QueryResult, QueryWithEmbedding, Source,
-                                          )
-from backend.vectordbs.utils.watsonx import get_embeddings
-from backend.vectordbs.vector_store import VectorStore  # Ensure this import is correct
-from backend.vectordbs.error_types import CollectionError
 from backend.core.config import settings
+from backend.vectordbs.utils.watsonx import get_embeddings
+
+from .data_types import (Document, DocumentChunk, DocumentChunkMetadata,
+                         DocumentChunkWithScore, DocumentMetadataFilter,
+                         QueryResult, QueryWithEmbedding, Source)
+from .error_types import CollectionError
+from .vector_store import VectorStore  # Ensure this import is correct
+
 
 class WeaviateDataStore(VectorStore):
 
