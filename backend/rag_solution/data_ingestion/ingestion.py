@@ -1,14 +1,15 @@
 import logging
 import os
+
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from core.config import settings
-from core.custom_exceptions import DocumentStorageError
-from vectordbs.data_types import Document
-from vectordbs.factory import get_datastore
-from vectordbs.vector_store import VectorStore
-
-from .document_processor import DocumentProcessor
+from backend.core.config import settings
+from backend.core.custom_exceptions import DocumentStorageError
+from backend.rag_solution.data_ingestion.document_processor import \
+    DocumentProcessor
+from backend.vectordbs.data_types import Document
+from backend.vectordbs.factory import get_datastore
+from backend.vectordbs.vector_store import VectorStore
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

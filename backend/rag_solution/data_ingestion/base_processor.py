@@ -1,11 +1,10 @@
+import logging
 from abc import ABC, abstractmethod
 from typing import Iterable
-import logging
 
-from core.config import settings
-from vectordbs.data_types import Document
-
-from .chunking import get_chunking_method
+from backend.core.config import settings
+from backend.rag_solution.data_ingestion.chunking import get_chunking_method
+from backend.vectordbs.data_types import Document
 
 logging.basicConfig(level=logging.INFO)
 

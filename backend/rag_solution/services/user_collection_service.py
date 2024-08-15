@@ -1,12 +1,14 @@
-from uuid import UUID
+import logging
 from typing import List
+from uuid import UUID
+
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
-from rag_solution.repository.user_collection_repository import UserCollectionRepository
-from rag_solution.schemas.user_schema import UserOutput
-from rag_solution.schemas.collection_schema import CollectionOutput
-from rag_solution.schemas.user_collection_schema import UserCollectionOutput
-import logging
+
+from backend.rag_solution.repository.user_collection_repository import UserCollectionRepository
+from backend.rag_solution.schemas.collection_schema import CollectionOutput
+from backend.rag_solution.schemas.user_collection_schema import UserCollectionOutput
+from backend.rag_solution.schemas.user_schema import UserOutput
 
 logger = logging.getLogger(__name__)
 

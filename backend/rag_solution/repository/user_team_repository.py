@@ -1,11 +1,14 @@
-from sqlalchemy.orm import Session
-from uuid import UUID
-from typing import List, Optional
-from rag_solution.models.user_team import UserTeam
-from rag_solution.schemas.user_team_schema import UserTeamInput, UserTeamOutput
-from rag_solution.schemas.user_schema import UserOutput
-from rag_solution.schemas.team_schema import TeamOutput
 import logging
+from typing import List, Optional
+from uuid import UUID
+
+from sqlalchemy.orm import Session
+
+from backend.rag_solution.models.user_team import UserTeam
+from backend.rag_solution.schemas.team_schema import TeamOutput
+from backend.rag_solution.schemas.user_schema import UserOutput
+from backend.rag_solution.schemas.user_team_schema import (UserTeamInput,
+                                                           UserTeamOutput)
 
 logger = logging.getLogger(__name__)
 

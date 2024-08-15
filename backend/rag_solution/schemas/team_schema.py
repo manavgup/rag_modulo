@@ -1,8 +1,11 @@
-from pydantic import BaseModel, ConfigDict
-from uuid import UUID
 from datetime import datetime
-from .user_schema import UserOutput
 from typing import List, Optional
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict
+
+from backend.rag_solution.schemas.user_schema import UserOutput
+
 
 class TeamInDB(BaseModel):
     id: UUID

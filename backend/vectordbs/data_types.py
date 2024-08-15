@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Any, List, Optional, Sequence, Union
 
-
 Embedding = Union[Sequence[float], Sequence[int]]
 Embeddings = List[Embedding]
 

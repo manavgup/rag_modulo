@@ -5,8 +5,8 @@ import sys
 # Ensure the base directory is in the Python path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
-from vectordbs.data_types import QueryResult
-from vectordbs.vector_store import VectorStore
+from backend.vectordbs.data_types import QueryResult
+from backend.vectordbs.vector_store import VectorStore
 
 
 class Retriever:

@@ -4,8 +4,8 @@ from typing import List
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 
-from core.config import settings
-from vectordbs.utils.watsonx import get_embeddings
+from backend.core.config import settings
+from backend.vectordbs.utils.watsonx import get_embeddings
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)

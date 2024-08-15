@@ -1,21 +1,24 @@
 # team_service.py
 
-from uuid import UUID
+import logging
 from typing import List, Optional
+from uuid import UUID
+
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
-from rag_solution.repository.team_repository import TeamRepository
-from rag_solution.schemas.team_schema import TeamInput, TeamOutput
-from rag_solution.schemas.user_schema import UserOutput
-from rag_solution.services.user_team_service import UserTeamService
-import logging
+
+from backend.rag_solution.repository.team_repository import TeamRepository
+from backend.rag_solution.repository.user_team_repository import UserTeamRepository
+from backend.rag_solution.schemas.team_schema import TeamInput, TeamOutput
+from backend.rag_solution.schemas.user_schema import UserOutput
+from backend.rag_solution.services.user_team_service import UserTeamService
 
 logger = logging.getLogger(__name__)
 
 class TeamService:
-    def __init__(self, db: Session, user_team_service: UserTeamService):
+    def __init__(self, db: Session, user_team_service: UserTeamService = None):
         self.team_repository = TeamRepository(db)
-        self.user_team_service = user_team_service
+        self.user_team_service = user_team_service or UserTeamRepository(db)
 
     def create_team(self, team_input: TeamInput) -> TeamOutput:
         try:

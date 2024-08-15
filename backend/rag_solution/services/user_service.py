@@ -1,21 +1,24 @@
 # user_service.py
 
-from sqlalchemy.orm import Session
-from uuid import UUID
-from typing import List
-from rag_solution.repository.user_repository import UserRepository
-from rag_solution.schemas.user_schema import UserInput, UserOutput
-from rag_solution.schemas.team_schema import TeamOutput
-from rag_solution.services.user_team_service import UserTeamService
-from fastapi import HTTPException
 import logging
+from typing import List
+from uuid import UUID
+
+from fastapi import HTTPException
+from sqlalchemy.orm import Session
+
+from backend.rag_solution.repository.user_repository import UserRepository
+from backend.rag_solution.schemas.team_schema import TeamOutput
+from backend.rag_solution.schemas.user_schema import UserInput, UserOutput
+from backend.rag_solution.services.user_team_service import UserTeamService
 
 logger = logging.getLogger(__name__)
 
 class UserService:
-    def __init__(self, db: Session, user_team_service: UserTeamService):
+    # TO-DO: Remove hacky dependence on UserTeamService
+    def __init__(self, db: Session, user_team_service: UserTeamService = None):
         self.user_repository = UserRepository(db)
-        self.user_team_service = user_team_service
+        self.user_team_service = user_team_service or UserTeamService(db)
 
     def create_user(self, user_input: UserInput) -> UserOutput:
         try:

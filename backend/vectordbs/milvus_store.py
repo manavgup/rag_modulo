@@ -1,21 +1,20 @@
+import asyncio
 import json
 import logging
 import time
 from typing import Any, Dict, List, Optional
 
-import asyncio
 from pymilvus import (Collection, CollectionSchema, DataType, FieldSchema,
                       MilvusException, connections, utility)
 
-from vectordbs.data_types import (Document, DocumentChunk,
-                                  DocumentChunkMetadata,
-                                  DocumentChunkWithScore,
-                                  DocumentMetadataFilter, Embeddings,
-                                  QueryResult, QueryWithEmbedding, Source)
-from vectordbs.utils.watsonx import get_embeddings
-from vectordbs.vector_store import VectorStore
-from vectordbs.error_types import VectorStoreError, CollectionError, DocumentError
-from core.config import settings
+from backend.core.config import settings
+from backend.vectordbs.utils.watsonx import get_embeddings
+
+from .data_types import (Document, DocumentChunk, DocumentChunkMetadata,
+                         DocumentChunkWithScore, DocumentMetadataFilter,
+                         Embeddings, QueryResult, QueryWithEmbedding, Source)
+from .error_types import CollectionError, DocumentError, VectorStoreError
+from .vector_store import VectorStore
 
 MILVUS_COLLECTION = settings.collection_name
 MILVUS_HOST = settings.milvus_host

@@ -3,14 +3,14 @@ from typing import Any, Dict, List, Optional
 
 from pinecone import Pinecone, ServerlessSpec
 
-from vectordbs.data_types import (
-    Document, DocumentChunk, DocumentChunkMetadata,
-    DocumentMetadataFilter, QueryResult, QueryWithEmbedding, Source
-)
-from vectordbs.utils.watsonx import get_embeddings
-from vectordbs.vector_store import VectorStore
-from vectordbs.error_types import VectorStoreError, CollectionError
-from core.config import settings
+from backend.core.config import settings
+from backend.vectordbs.utils.watsonx import get_embeddings
+
+from .data_types import (Document, DocumentChunk, DocumentChunkMetadata,
+                         DocumentMetadataFilter, QueryResult,
+                         QueryWithEmbedding, Source)
+from .error_types import CollectionError, VectorStoreError
+from .vector_store import VectorStore
 
 PINECONE_API_KEY = settings.pinecone_api_key
 PINECONE_CLOUD = settings.pinecone_cloud

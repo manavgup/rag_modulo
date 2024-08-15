@@ -1,9 +1,11 @@
-from sqlalchemy.orm import Session
-from uuid import UUID
-from typing import List, Optional
-from rag_solution.models.file import File
-from rag_solution.schemas.file_schema import FileInput, FileOutput
 import logging
+from typing import List, Optional
+from uuid import UUID
+
+from sqlalchemy.orm import Session
+
+from backend.rag_solution.models.file import File
+from backend.rag_solution.schemas.file_schema import FileInput, FileOutput
 
 logger = logging.getLogger(__name__)
 
