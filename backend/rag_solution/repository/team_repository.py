@@ -36,7 +36,9 @@ class TeamRepository:
 
     def list(self, skip: int = 0, limit: int = 100) -> List[TeamOutput]:
         try:
+            logger.debug(f"Attempting to list teams with skip={skip}, limit={limit}")
             teams = self.session.query(Team).offset(skip).limit(limit).all()
+            logger.debug(f"Successfully retrieved {len(teams)} teams")
             return [self._team_to_output(team) for team in teams]
         except Exception as e:
             logger.error(f"Error listing teams: {str(e)}")

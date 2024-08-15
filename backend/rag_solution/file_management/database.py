@@ -1,4 +1,4 @@
-# rag_solution/file_management/database.py
+# backend/rag_solution/file_management/database.py
 import logging
 
 from sqlalchemy import create_engine
@@ -9,7 +9,7 @@ from backend.core.config import settings
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
+logger.info(">>> Database module is being imported")
 # Synchronous database URL
 DATABASE_URL = (
     f"postgresql://{settings.collectiondb_user}:{settings.collectiondb_pass}@{settings.collectiondb_host}:{settings.collectiondb_port}/{settings.collectiondb_name}"
@@ -18,10 +18,11 @@ DATABASE_URL = (
 logger.debug(f"Database URL: {DATABASE_URL}")
 
 # Create synchronous engine and session
-engine = create_engine(DATABASE_URL)
+engine = create_engine(DATABASE_URL, echo=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
+logger.info("Base has been created")
 
 def get_db():
     """
