@@ -134,6 +134,7 @@ class FileManagementService:
 
             file_content = file.file.read()
             file_path = self.upload_file(user_id, collection_id, file_content, file.filename)
+            logger.info(f"{file.filename} path: {file_path}")
             file_type = self.determine_file_type(file.filename)
             file_input = FileInput(
                 collection_id=collection_id,
@@ -170,6 +171,7 @@ class FileManagementService:
         try:
             logger.info(f"Getting file path for {filename} in collection {collection_id}")
             file = self.get_file_by_name(collection_id, filename)
+            logger.info(f"found {file.file_path} for {file}")
             return Path(file.file_path)
         except HTTPException:
             raise

@@ -5,11 +5,12 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 from backend.core.config import settings
 from backend.core.custom_exceptions import DocumentStorageError
-from backend.rag_solution.data_ingestion.document_processor import \
-    DocumentProcessor
+from backend.rag_solution.data_ingestion.document_processor import DocumentProcessor
 from backend.vectordbs.data_types import Document
 from backend.vectordbs.factory import get_datastore
 from backend.vectordbs.vector_store import VectorStore
+from typing import List
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -41,22 +42,24 @@ def process_and_store_document(document: Document, vector_store: VectorStore, co
         logger.error(f"Error processing document {document.document_id}: {e}", exc_info=True)
         raise DocumentStorageError(f"error: {e}")
 
-
-def ingest_documents(data_dir: str, vector_store: VectorStore, collection_name: str) -> None:
+def ingest_documents(data_dir: List[str], vector_store: VectorStore, collection_name: str) -> None:
     """
     Ingest documents from the specified directory into the vector store.
 
     Args:
         data_dir (str): The directory containing the documents to ingest.
         vector_store (VectorStore): The vector store to use for storage.
+        collection_name (str): The name of the collection to store the documents in.
     """
     processor = DocumentProcessor()
 
-    for root, _, files in os.walk(data_dir):
-        for file in files:
-            file_path = os.path.join(root, file)
-            for document in processor.process_document(file_path):
-                process_and_store_document(document, vector_store, collection_name)
+    for file in data_dir:
+        logger.info(f"Trying to process {file}")
+        for document in processor.process_document(file):
+            process_and_store_document(document, vector_store, collection_name)
+
+    logging.info(f"Completed ingestion for collection: {collection_name}")
+    # TO-DO: Add multithreading
 
 
 def main() -> None:

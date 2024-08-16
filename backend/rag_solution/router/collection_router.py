@@ -1,12 +1,13 @@
 import uuid
 from typing import List
 
-from fastapi import APIRouter, BackgroundTasks, Depends, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, UploadFile, Form, File
 from sqlalchemy.orm import Session
 
 from backend.rag_solution.file_management.database import get_db
-from backend.rag_solution.schemas.collection_schema import (CollectionInput,
-                                                            CollectionOutput)
+from backend.rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput
+from backend.rag_solution.schemas.user_schema import UserInput
+from backend.rag_solution.services.user_service import UserService
 from backend.rag_solution.services.collection_service import CollectionService
 from backend.rag_solution.services.file_management_service import \
     FileManagementService
@@ -33,11 +34,10 @@ def create_collection(collection_input: CollectionInput, db: Session = Depends(g
 
 @router.post("/create__with_documents", summary="Create a new collection with documents", response_model=CollectionOutput)
 def create_collection_with_documents(
-    collection_name: str,
-    is_private: bool,
-    user_id: uuid.UUID,
-    files: List[UploadFile],
-    background_tasks: BackgroundTasks,
+    collection_name: str = Form(...),
+    is_private: bool = Form(...),
+    files: List[UploadFile] = File(...),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
     db: Session = Depends(get_db),
 ):
     """
@@ -54,8 +54,12 @@ def create_collection_with_documents(
     Returns:
         CollectionOutput: The created collection with documents.
     """
-    _service = CollectionService(db, FileManagementService(db))
-    return _service.create_collection_with_documents(db, collection_name, is_private, user_id, files, background_tasks)
+    # HACKY - TO BE REMOVED
+    user = UserService(db).create_user(UserInput(ibm_id="test_ibm_id", email="test@example.com", name="Test User"))
+    # HACKY - TO BE REMOVED 
+
+    _service = CollectionService(db)
+    return _service.create_collection_with_documents(collection_name, is_private, user.id, files, background_tasks)
 
 @router.get("/{collection_name}", summary="Retrieve a collection by name", response_model=CollectionOutput)
 def get_collection(collection_name: str, db: Session = Depends(get_db)):

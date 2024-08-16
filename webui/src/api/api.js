@@ -1,19 +1,19 @@
 import axios from 'axios';
-
-const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+import API_ROUTES from './config';
 
 export const createCollectionWithDocuments = async (formData, onUploadProgress) => {
   try {
     console.log(">>> in API.js")
     console.log("formData: ", formData)
     const response = await axios.post(
-      `${BASE_URL}/api/create_collection_with_documents`,
+      API_ROUTES.CREATE_COLLECTION,
       formData,
       {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
         onUploadProgress,
+        withCredentials: false,  // Ensure this is set to false
       }
     );
     console.log("Response: ", response)

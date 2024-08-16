@@ -28,11 +28,11 @@ class CollectionService:
 
     def __init__(self,
                  db: Session,
-                 file_management_service: FileManagementService,
-                 user_collection_service: UserCollectionService):
+                 file_management_service: FileManagementService = None,
+                 user_collection_service: UserCollectionService = None):
         self.collection_repository = CollectionRepository(db)
-        self.file_management_service = file_management_service
-        self.user_collection_service = user_collection_service
+        self.file_management_service = file_management_service or FileManagementService(db)
+        self.user_collection_service = user_collection_service or UserCollectionService(db)
         self.vector_store = get_datastore(settings.vector_db)
 
     @staticmethod

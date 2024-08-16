@@ -142,17 +142,23 @@ def semantic_chunking_for_tables(tables: List[List[List[str]]], min_chunk_size: 
 
 
 def get_chunking_method():
-    if settings.chunking_strategy.lower() == "semantic":
-        return lambda text: semantic_chunking(
+    def semantic_chunker(text):
+        return semantic_chunking(
             text,
             settings.min_chunk_size,
             settings.max_chunk_size,
             settings.semantic_threshold,
         )
-    else:
-        return lambda text: simple_chunking(
+    
+    def simple_chunker(text):
+        return simple_chunking(
             text,
             settings.min_chunk_size,
             settings.max_chunk_size,
             settings.chunk_overlap,
         )
+
+    if settings.chunking_strategy.lower() == "semantic":
+        return semantic_chunker
+    else:
+        return simple_chunker

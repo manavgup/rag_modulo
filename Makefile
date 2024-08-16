@@ -158,3 +158,23 @@ help:
 	@echo "  all           Format, lint, audit, and test"
 	@echo "  info          Display project information"
 	@echo "  help          Display this help message"
+	@echo "  dev           Start development environment"
+	@echo "  dev-build     Build development environment"
+	@echo "  dev-down      Stop development environment"
+	@echo "  dev-backend   Start backend development server"
+	@echo "  dev-frontend  Start frontend development server"
+
+dev:
+	docker-compose -f docker-compose.dev.yml up
+
+dev-build:
+	docker-compose -f docker-compose.dev.yml build
+
+dev-down:
+	docker-compose -f docker-compose.dev.yml down
+
+dev-backend:
+	uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+dev-frontend:
+	cd webui && npm start

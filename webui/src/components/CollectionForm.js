@@ -10,6 +10,7 @@ const CollectionForm = ({ onSubmit }) => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [showError, setShowError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [isSubmitted, setIsSubmitted] = useState(false);
 
   useEffect(() => {
     if (typeof File === 'undefined') {
@@ -69,6 +70,7 @@ const CollectionForm = ({ onSubmit }) => {
         setUploadProgress(percentCompleted);
       });
       console.log('API Response:', response);
+      setIsSubmitted(true);
       onSubmit(response);
     } catch (error) {
       console.log('API Error:', error);
@@ -76,6 +78,15 @@ const CollectionForm = ({ onSubmit }) => {
       setErrorMessage(error.response?.data?.message || 'An error occurred.');
     }
   };
+
+  if (isSubmitted) {
+    return (
+      <div>
+        <h2>Collection Created</h2>
+        <p>The files are being indexed in the vector DB, please check back later.</p>
+      </div>
+    );
+  }
 
   return (
     <Form className="collection-form" onSubmit={handleSubmit}>
