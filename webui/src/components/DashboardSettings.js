@@ -6,7 +6,7 @@ import {
   FormGroup
 } from '@carbon/react';
 
-const Settings = ({ isOpen, onClose, settings, onSettingsChange }) => {
+const DashboardSettings = ({ isOpen, onClose, settings, onSettingsChange }) => {
   return (
     <Modal
       open={isOpen}
@@ -44,4 +44,4 @@ const Settings = ({ isOpen, onClose, settings, onSettingsChange }) => {
   );
 };
 
-export default Settings;
+export default DashboardSettings;
