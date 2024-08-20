@@ -17,6 +17,7 @@ python-dotenv==1.0.1
 scikit-learn==1.5.1
 weaviate-client==4.5.3
 chromadb==0.5.5
+python-multipart
 
 # Additional backend-specific packages
 pytest==7.4.0
