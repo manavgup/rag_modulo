@@ -1,18 +1,17 @@
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from backend.rag_solution.file_management.database import get_db
-from backend.rag_solution.schemas.file_schema import DocumentDelete, FileOutput
-from backend.rag_solution.services.file_management_service import \
-    FileManagementService
+from backend.rag_solution.schemas.file_schema import DocumentDelete, FileOutput, FileMetadata
+from backend.rag_solution.services.file_management_service import FileManagementService
 
 router = APIRouter(prefix="/api/files", tags=["files"])
 
 @router.post("/{user_id}/{collection_id}", response_model=FileOutput)
-def upload_file(user_id: UUID, collection_id: UUID, file: UploadFile, db: Session = Depends(get_db)):
+def upload_file(user_id: UUID, collection_id: UUID, file: UploadFile, metadata: Optional[FileMetadata] = None, db: Session = Depends(get_db)):
     """
     Upload a file to a specific collection for a user.
 
@@ -26,7 +25,7 @@ def upload_file(user_id: UUID, collection_id: UUID, file: UploadFile, db: Sessio
         FileOutput: The uploaded file information.
     """
     _file_service = FileManagementService(db)
-    return _file_service.upload_and_create_file_record(file, user_id, collection_id)
+    return _file_service.upload_and_create_file_record(file, user_id, collection_id, metadata)
 
 @router.get("/{user_id}/{collection_id}", response_model=List[str])
 def get_collection_files(user_id: UUID, collection_id: UUID, db: Session = Depends(get_db)):
@@ -81,3 +80,8 @@ def delete_files(doc_delete: DocumentDelete, db: Session = Depends(get_db)):
     """
     _file_service = FileManagementService(db)
     return _file_service.delete_files(doc_delete.user_id, doc_delete.collection_id, doc_delete.filenames)
+
+@router.put("/{file_id}/metadata", response_model=FileOutput)
+def update_file_metadata(file_id: UUID, metadata: FileMetadata, db: Session = Depends(get_db)):
+    _file_service = FileManagementService(db)
+    return _file_service.update_file_metadata(file_id, metadata)

@@ -10,7 +10,7 @@ const CollectionForm = ({ onSubmit }) => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [showError, setShowError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
 
   useEffect(() => {
     if (typeof File === 'undefined') {
@@ -70,7 +70,7 @@ const CollectionForm = ({ onSubmit }) => {
         setUploadProgress(percentCompleted);
       });
       console.log('API Response:', response);
-      setIsSubmitted(true);
+      setShowSuccessToast(true);
       onSubmit(response);
     } catch (error) {
       console.log('API Error:', error);
@@ -79,90 +79,99 @@ const CollectionForm = ({ onSubmit }) => {
     }
   };
 
-  if (isSubmitted) {
-    return (
-      <div>
-        <h2>Collection Created</h2>
-        <p>The files are being indexed in the vector DB, please check back later.</p>
-      </div>
-    );
-  }
-
   return (
-    <Form className="collection-form" onSubmit={handleSubmit}>
-      <TextInput
-        id="collection-name"
-        labelText="Collection Name"
-        value={collectionName}
-        onChange={(e) => setCollectionName(e.target.value)}
-      />
-      <Checkbox
-        className="cds--label-description"
-        defaultChecked={isPrivate}
-        labelText="Private Collection?"
-        id="checkbox-label-1"
-        onChange={(e) => setIsPrivate(e.target.checked)}
-      />
-      <FormItem>
-        <p className="cds--file--label"> Upload files </p>
-        <p className="cds--label-description"> Max file size is 5MB.</p>
-        <FileUploaderDropContainer
-          accept={[
-            'text/plain',
-            'application/pdf',
-            'application/msword',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'application/vnd.ms-powerpoint',
-            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-            'application/vnd.ms-excel',
-          ]}
-          labelText="Drag and drop files here or click to upload"
-          multiple
-          onAddFiles={handleFileDrop}
+    <>
+      <Form className="collection-form" onSubmit={handleSubmit}>
+        <TextInput
+          id="collection-name"
+          labelText="Collection Name"
+          value={collectionName}
+          onChange={(e) => setCollectionName(e.target.value)}
         />
-        {files.length > 0 && (
-          <div className="selected-files">
-            <p>Selected Files:</p>
-            {files.map((file, index) => (
-              <div key={index} style={{ display: 'flex', alignItems: 'center' }}>
-                <Tag type="gray">{file.name}</Tag>
-                <Button
-                  kind="primary"
-                  size="sm"
-                  hasIconOnly
-                  renderIcon={ TrashCan }
-                  iconDescription="Remove file"
-                  tooltipPosition="right"
-                  onClick={() => handleFileRemove(index)}
-                  style={{ marginLeft: '0.5rem' }}
-                />
-              </div>
-            ))}
-          </div>
-        )}
-      </FormItem>
+        <Checkbox
+          className="cds--label-description"
+          defaultChecked={isPrivate}
+          labelText="Private Collection?"
+          id="checkbox-label-1"
+          onChange={(e) => setIsPrivate(e.target.checked)}
+        />
+        <FormItem>
+          <p className="cds--file--label"> Upload files </p>
+          <p className="cds--label-description"> Max file size is 5MB.</p>
+          <FileUploaderDropContainer
+            accept={[
+              'text/plain',
+              'application/pdf',
+              'application/msword',
+              'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+              'application/vnd.ms-powerpoint',
+              'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+              'application/vnd.ms-excel',
+            ]}
+            labelText="Drag and drop files here or click to upload"
+            multiple
+            onAddFiles={handleFileDrop}
+          />
+          {files.length > 0 && (
+            <div className="selected-files">
+              <p>Selected Files:</p>
+              {files.map((file, index) => (
+                <div key={index} style={{ display: 'flex', alignItems: 'center' }}>
+                  <Tag type="gray">{file.name}</Tag>
+                  <Button
+                    kind="primary"
+                    size="sm"
+                    hasIconOnly
+                    renderIcon={TrashCan}
+                    iconDescription="Remove file"
+                    tooltipPosition="right"
+                    onClick={() => handleFileRemove(index)}
+                    style={{ marginLeft: '0.5rem' }}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </FormItem>
 
-      {uploadProgress > 0 && (
-        <ProgressBar
-          label="Uploading..."
-          value={uploadProgress}
+        {uploadProgress > 0 && (
+          <ProgressBar
+            label="Uploading..."
+            value={uploadProgress}
+          />
+        )}
+
+        <Button type="submit" kind="primary">
+          Create Collection
+        </Button>
+      </Form>
+
+      {showError && (
+        <ToastNotification
+          kind="error"
+          title="Error"
+          subtitle={errorMessage}
+          caption=""
+          timeout={5000}
+          onClose={() => setShowError(false)}
         />
       )}
 
-      <ToastNotification
-        kind="error"
-        title="Error"
-        subtitle={errorMessage}
-        caption=""
-        timeout={5000}
-        onClose={() => setShowError(false)}
-        style={{ display: showError ? 'block' : 'none' }}
-      />
-
-      <Button type="submit" kind="primary">
-        Create Collection
-      </Button>
-    </Form>
+      {showSuccessToast && (
+        <ToastNotification
+          kind="success"
+          title="Collection Created"
+          subtitle="The files are being indexed in the vector DB, please check back later."
+          caption=""
+          timeout={5000}
+          onClose={() => setShowSuccessToast(false)}
+        />
+      )}
+      <div>
+        <h2>Collection Created Successfully</h2>
+        <p>Your collection has been created and the files are being processed. You can now close this window or start a new operation.</p>
+      </div>
+    </>
   );
 };
 

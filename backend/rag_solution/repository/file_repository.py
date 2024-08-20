@@ -1,11 +1,14 @@
+# file_repository.py
+
 import logging
 from typing import List, Optional
 from uuid import UUID
 
+from sqlalchemy import JSON
 from sqlalchemy.orm import Session
 
 from backend.rag_solution.models.file import File
-from backend.rag_solution.schemas.file_schema import FileInput, FileOutput
+from backend.rag_solution.schemas.file_schema import FileInput, FileOutput, FileMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +24,7 @@ class FileRepository:
                 filename=file.filename,
                 file_type=file.file_type,
                 file_path=file.file_path,
+                metadata=file.metadata.model_dump() if file.metadata else None
             )
             self.db.add(db_file)
             self.db.commit()
@@ -55,15 +59,19 @@ class FileRepository:
             logger.error(f"Error getting files for collection {collection_id}: {str(e)}")
             raise
 
-    def update(self, file_id: UUID, file_update: FileInput) -> Optional[FileInput]:
+    def update(self, file_id: UUID, file_update: FileInput) -> Optional[FileOutput]:
         try:
             file = self.db.query(File).filter(File.id == file_id).first()
             if file:
-                for key, value in file_update.model_dump().items():
+                update_data = file_update.model_dump(exclude_unset=True)
+                if 'metadata' in update_data and update_data['metadata'] is not None:
+                    file.file_metadata = update_data['metadata'].model_dump()
+                    del update_data['metadata']
+                for key, value in update_data.items():
                     setattr(file, key, value)
                 self.db.commit()
                 self.db.refresh(file)
-                return file_update
+                return self._file_to_output(file)
             return None
         except Exception as e:
             logger.error(f"Error updating file record {file_id}: {str(e)}")
@@ -93,7 +101,7 @@ class FileRepository:
 
     def get_user_files(self, user_id: UUID) -> List[FileOutput]:
         try:
-            files = self.db.query(File).join(File.collection).filter(File.collection.has(user_id=user_id)).all()
+            files = self.db.query(File).filter(File.user_id == user_id).all()
             return [self._file_to_output(file) for file in files]
         except Exception as e:
             logger.error(f"Error getting files for user {user_id}: {str(e)}")
@@ -120,5 +128,6 @@ class FileRepository:
             id=file.id,
             filename=file.filename,
             file_type=file.file_type,
-            file_path=file.file_path
+            file_path=file.file_path,
+            metadata=FileMetadata(**file.file_metadata) if file.file_metadata else None
         )

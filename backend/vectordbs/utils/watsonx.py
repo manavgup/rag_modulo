@@ -10,21 +10,25 @@ from genai.schema import TextEmbeddingParameters, TextGenerationParameters
 from genai.text.generation import CreateExecutionOptions
 
 from backend.core.config import settings
-
+import logging
 from ..data_types import Embeddings
 
 EMBEDDING_MODEL = settings.embedding_model
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-def init_credentials() -> Client:
-    client = None
-    load_dotenv(override=True)
-    creds = Credentials.from_env()
-    if creds.api_endpoint:
-        logging.info(f"Your API endpoint is: {creds.api_endpoint}")
-    client = Client(credentials=creds)
+# Global client
+client = None
+
+def _get_client() -> Client:
+    global client
+    if client is None:
+        load_dotenv(override=True)
+        creds = Credentials.from_env()
+        client = Client(credentials=creds)
     return client
-
 
 def get_embeddings(texts: Union[str | List[str]]) -> List[float]:
     """
@@ -34,7 +38,7 @@ def get_embeddings(texts: Union[str | List[str]]) -> List[float]:
     :return: A list of floats representing the embeddings.
     """
     embeddings: List[float] = []
-    client = init_credentials()
+    client = _get_client()
 
     # Ensure texts is a list
     if isinstance(texts, str):
@@ -93,7 +97,7 @@ class ChromaEmbeddingFunction(EmbeddingFunction):
     ):
         self._model_id = model_id
         self._parameters = parameters
-        self._client = init_credentials()
+        self._client = _get_client()
 
     def __call__(self, inputs: Documents) -> Embeddings:
         embeddings: Embeddings = []
@@ -106,7 +110,7 @@ class ChromaEmbeddingFunction(EmbeddingFunction):
 
 
 def generate_text(prompt: str, max_tokens: int = 150, temperature: float = 0.7) -> str:
-    client = init_credentials()
+    client = _get_client()
     try:
         response = client.text.generation.create(
             model_id="meta/llama3-8b-v1",

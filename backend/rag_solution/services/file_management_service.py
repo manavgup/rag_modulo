@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from backend.core.config import settings
 from backend.rag_solution.repository.file_repository import FileRepository
-from backend.rag_solution.schemas.file_schema import FileInput, FileOutput
+from backend.rag_solution.schemas.file_schema import FileInput, FileOutput, FileMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +45,20 @@ class FileManagementService:
         except Exception as e:
             logger.error(f"Unexpected error getting file {file_id}: {str(e)}")
             raise HTTPException(status_code=500, detail="Internal server error")
+    
+    def save_file(self, file: UploadFile, collection_id: UUID, user_id: UUID) -> str:
+        file_path = self.upload_file(file, collection_id)
+        
+        file_input = FileInput(
+            collection_id=collection_id,
+            filename=file.filename,
+            file_path=str(file_path),
+            file_type=self.determine_file_type(file.filename),
+            metadata=None  # We'll update this later when processing is complete
+        )
+        self.create_file(file_input, user_id)
+        
+        return file_path
 
     def get_file_by_name(self, collection_id: UUID, filename: str) -> FileOutput:
         try:
@@ -126,7 +140,7 @@ class FileManagementService:
             logger.error(f"Unexpected error getting files for collection {collection_id}: {str(e)}")
             raise HTTPException(status_code=500, detail="Internal server error")
 
-    def upload_and_create_file_record(self, file: UploadFile, user_id: UUID, collection_id: UUID) -> FileOutput:
+    def upload_and_create_file_record(self, file: UploadFile, user_id: UUID, collection_id: UUID,  metadata: Optional[FileMetadata] = None) -> FileOutput:
         try:
             logger.info(f"Uploading file {file.filename} for user {user_id} in collection {collection_id}")
             if file.filename is None:
@@ -140,7 +154,8 @@ class FileManagementService:
                 collection_id=collection_id,
                 filename=file.filename,
                 file_path=str(file_path),
-                file_type=file_type
+                file_type=file_type,
+                metadata=metadata
             )
             return self.create_file(file_input, user_id)
         except Exception as e:
@@ -160,6 +175,30 @@ class FileManagementService:
             return file_path
         except Exception as e:
             logger.error(f"Unexpected error uploading file: {str(e)}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+    
+    def update_file_metadata(self, file_id: UUID, metadata: FileMetadata) -> FileOutput:
+        try:
+            logger.info(f"Updating metadata for file {file_id}")
+            file = self.file_repository.get(file_id)
+            if file is None:
+                logger.warning(f"File not found for metadata update: {file_id}")
+                raise HTTPException(status_code=404, detail="File not found")
+            
+            file_update = FileInput(
+                collection_id=file.collection_id,
+                filename=file.filename,
+                file_path=file.file_path,
+                file_type=file.file_type,
+                metadata=metadata
+            )
+            updated_file = self.file_repository.update(file_id, file_update)
+            logger.info(f"Metadata for file {file_id} updated successfully")
+            return updated_file
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error updating metadata for file {file_id}: {str(e)}")
             raise HTTPException(status_code=500, detail="Internal server error")
 
     @staticmethod

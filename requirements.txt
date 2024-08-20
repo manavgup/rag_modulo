@@ -1,3 +1,4 @@
+# Combined and optimized requirements
 SQLAlchemy==2.0.31
 elasticsearch==8.14.0
 fastapi==0.109.2
@@ -5,7 +6,7 @@ ibm-generative-ai==3.0.0
 openpyxl==3.1.5
 pandas==2.2.2
 pinecone-client==4.0.0
-psycopg2-binary==2.9.9
+psycopg2-binary==2.9.9  # Chose binary version for easier installation
 pydantic==2.7.2
 pydantic_settings==2.3.4
 pydantic[email]
@@ -15,4 +16,8 @@ python-docx
 python-dotenv==1.0.1
 scikit-learn==1.5.1
 weaviate-client==4.5.3
-chromadb
+chromadb==0.5.5
+
+# Additional backend-specific packages
+pytest==7.4.0
+pytest-asyncio==0.21.0

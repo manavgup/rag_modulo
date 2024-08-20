@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from backend.rag_solution.data_ingestion.ingestion import ingest_documents
 from backend.rag_solution.repository.collection_repository import CollectionRepository
-from backend.rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput
+from backend.rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput, CollectionStatus
 from backend.rag_solution.services.file_management_service import FileManagementService
 from backend.rag_solution.services.user_collection_service import UserCollectionService
 from backend.rag_solution.services.user_service import UserService
@@ -191,15 +191,23 @@ class CollectionService:
         """
         try:
             # Create the collection
-            collection = self.create_collection(CollectionInput(name=collection_name, is_private=is_private, users=[user_id]))
+            collection = self.create_collection(CollectionInput(
+                                                name=collection_name,
+                                                is_private=is_private,
+                                                users=[user_id],
+                                                status=CollectionStatus.CREATED
+                        ))
             # Upload the files and create file records in database
 
             for file in files:
                 self.file_management_service.upload_and_create_file_record(file, user_id, collection.id)
+            
+            # Update status to PROCESSING
+            self.update_collection_status(collection.id, CollectionStatus.PROCESSING)
 
             # Ingest the documents into the collection as background task
             file_paths = [str(self.file_management_service.get_file_path(user_id, collection.id, file.filename)) for file in files]
-            background_tasks.add_task(ingest_documents, file_paths, self.vector_store, collection.vector_db_name)
+            background_tasks.add_task(self.process_documents, file_paths, collection.id, collection.vector_db_name)
             logger.info(f"Collection with documents created successfully: {collection.id}")
 
             return collection
@@ -211,3 +219,17 @@ class CollectionService:
                 logger.error(f"Error in create_collection_with_documents: {str(exc)}")
             logger.error(f"Error in create_collection_with_documents: {str(e)}")
             raise HTTPException(status_code=400, detail=f"Failed to create collection with documents: {str(e)}")
+    
+    def process_documents(self, file_paths: List[str], collection_id: UUID, vector_db_name: str):
+        try:
+            ingest_documents(file_paths, self.vector_store, vector_db_name)
+            self.update_collection_status(collection_id, CollectionStatus.COMPLETED)
+        except Exception as e:
+            logger.error(f"Error processing documents for collection {collection_id}: {str(e)}")
+            self.update_collection_status(collection_id, CollectionStatus.ERROR)
+
+    def update_collection_status(self, collection_id: UUID, status: CollectionStatus):
+        try:
+            self.collection_repository.update(collection_id, {"status": status})
+        except Exception as e:
+            logger.error(f"Error updating status for collection {collection_id}: {str(e)}")

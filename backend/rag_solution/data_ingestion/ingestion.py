@@ -52,12 +52,16 @@ def ingest_documents(data_dir: List[str], vector_store: VectorStore, collection_
         collection_name (str): The name of the collection to store the documents in.
     """
     processor = DocumentProcessor()
-
+    
     for file in data_dir:
         logger.info(f"Trying to process {file}")
-        for document in processor.process_document(file):
-            process_and_store_document(document, vector_store, collection_name)
-
+        try:
+            for document in processor.process_document(file):
+                process_and_store_document(document, vector_store, collection_name)
+            logger.info(f"Successfully processed {file}")
+        except Exception as e:
+            logger.error(f"Error processing {file}: {str(e)}")
+    
     logging.info(f"Completed ingestion for collection: {collection_name}")
     # TO-DO: Add multithreading
 

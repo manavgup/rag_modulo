@@ -14,6 +14,7 @@ class Document:
     document_id: str
     chunks: List[DocumentChunk]
     path: Optional[str] = ""
+    metadata: Optional[DocumentChunkMetadata] = None  # New field
 
 
 @dataclass
@@ -25,7 +26,10 @@ class DocumentChunk:
     document_id: Optional[str] = None
 
     def dict(self) -> dict[str, Any]:
-        return {"text": self.text}
+        return {
+            "text": self.text,
+            "metadata": self.metadata.__dict__ if self.metadata else None
+        }
 
 
 @dataclass
@@ -35,6 +39,16 @@ class DocumentChunkMetadata:
     url: Optional[str] = ""
     created_at: Optional[str] = ""
     author: Optional[str] = ""
+    title: Optional[str] = ""
+    subject: Optional[str] = ""
+    keywords: Optional[str] = ""
+    creator: Optional[str] = ""
+    producer: Optional[str] = ""
+    creationDate: Optional[str] = ""
+    modDate: Optional[str] = ""
+    total_pages: Optional[int] = None
+    page_number: Optional[int] = None
+    content_type: Optional[str] = None
 
 
 @dataclass

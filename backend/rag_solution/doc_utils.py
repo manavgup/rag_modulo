@@ -1,11 +1,11 @@
 import uuid
 from typing import Optional
 
-from backend.vectordbs.data_types import Document, DocumentChunk
+from backend.vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, Source
 from backend.vectordbs.utils.watsonx import get_embeddings
 
 
-def get_document(name: str, document_id: str, text: str) -> Document:
+def get_document(name: str, document_id: str, text: str, metadata: Optional[dict] = None) -> Document:
     """
     Create a Document object with embedded vectors.
 
@@ -13,10 +13,16 @@ def get_document(name: str, document_id: str, text: str) -> Document:
         name (str): The name of the document.
         document_id (str): The unique identifier for the document.
         text (str): The text content of the document.
+        metadata (Optional[dict]): Additional metadata for the document.
 
     Returns:
         Document: A Document object with embedded vectors.
     """
+    chunk_metadata = DocumentChunkMetadata(
+        source=Source.PDF if name.lower().endswith('.pdf') else Source.OTHER,
+        **metadata
+    ) if metadata else None
+
     return Document(
         name=name,
         document_id=document_id,
@@ -28,6 +34,7 @@ def get_document(name: str, document_id: str, text: str) -> Document:
                 document_id=document_id,
             )
         ],
+        metadata=chunk_metadata
     )
 
 

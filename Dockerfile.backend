@@ -17,9 +17,8 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 # Verify Rust installation
 RUN rustc --version && cargo --version
 
-COPY requirements.txt requirements_backend.txt ./
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt -r requirements_backend.txt
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Downgrade protobuf to resolve version conflict
 RUN pip install --no-cache-dir protobuf==3.20.3

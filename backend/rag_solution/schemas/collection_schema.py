@@ -3,7 +3,13 @@ from typing import List
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
+from enum import Enum
 
+class CollectionStatus(str, Enum):
+    CREATED = "created"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    ERROR = "error"
 
 class FileInfo(BaseModel):
     id: UUID
@@ -13,6 +19,7 @@ class CollectionInput(BaseModel):
     name: str
     is_private: bool
     users: List[UUID] = []
+    status: CollectionStatus = CollectionStatus.CREATED
 
 class CollectionOutput(BaseModel):
     id: UUID
@@ -23,6 +30,7 @@ class CollectionOutput(BaseModel):
     updated_at: datetime
     user_ids: List[UUID]
     files: List[FileInfo]
+    status: CollectionStatus
 
     model_config = ConfigDict(from_attributes=True)
 

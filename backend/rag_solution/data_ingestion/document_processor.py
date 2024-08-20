@@ -48,10 +48,7 @@ class DocumentProcessor:
             file_extension = os.path.splitext(file_path)[1].lower()
             processor = self.processors.get(file_extension)
             if processor:
-                for doc in processor.process(file_path):
-                    yield doc
-            else:
-                logger.warning(f"Unsupported file type: {file_extension}")
+                return processor.process(file_path)
         except Exception as e:
             logger.error(f"Error processing document {file_path}: {e}", exc_info=True)
             raise DocumentProcessingError(f"Error processing document {file_path}") from e

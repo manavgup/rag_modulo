@@ -1,5 +1,6 @@
 # backend/rag_solution/file_management/database.py
 import logging
+import os
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
@@ -9,7 +10,13 @@ from backend.core.config import settings
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-logger.info(">>> Database module is being imported")
+
+logger.info("Database module is being imported")
+
+host = os.environ.get('DB_HOST', settings.collectiondb_host)
+if host == 'postgres' and os.environ.get('PYTEST_CURRENT_TEST'):
+    host = 'localhost'
+
 # Synchronous database URL
 DATABASE_URL = (
     f"postgresql://{settings.collectiondb_user}:{settings.collectiondb_pass}@{settings.collectiondb_host}:{settings.collectiondb_port}/{settings.collectiondb_name}"
