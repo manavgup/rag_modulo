@@ -155,7 +155,7 @@ class FileManagementService:
                 filename=file.filename,
                 file_path=str(file_path),
                 file_type=file_type,
-                metadata=metadata
+                metadata=FileMetadata(**(metadata or {})) # Use empty dict if metadata is None
             )
             return self.create_file(file_input, user_id)
         except Exception as e:

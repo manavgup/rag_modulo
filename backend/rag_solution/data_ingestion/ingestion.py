@@ -56,7 +56,9 @@ def ingest_documents(data_dir: List[str], vector_store: VectorStore, collection_
     for file in data_dir:
         logger.info(f"Trying to process {file}")
         try:
+            metadata = processor.extract_metadata(file)
             for document in processor.process_document(file):
+                document.metadata.update(metadata) 
                 process_and_store_document(document, vector_store, collection_name)
             logger.info(f"Successfully processed {file}")
         except Exception as e:

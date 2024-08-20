@@ -148,5 +148,6 @@ class CollectionRepository:
             created_at=collection.created_at,
             updated_at=collection.updated_at,
             user_ids=[user.user_id for user in collection.users],
-            files=[FileInfo(id=file.id, filename=file.filename) for file in collection.files]
+            files=[FileInfo(id=file.id, filename=file.filename) for file in collection.files],
+            status=collection.status
         )

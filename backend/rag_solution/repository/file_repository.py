@@ -24,7 +24,7 @@ class FileRepository:
                 filename=file.filename,
                 file_type=file.file_type,
                 file_path=file.file_path,
-                metadata=file.metadata.model_dump() if file.metadata else None
+                metadata=file.metadata.model_dump() if file.metadata else {}
             )
             self.db.add(db_file)
             self.db.commit()
@@ -126,6 +126,7 @@ class FileRepository:
     def _file_to_output(file: File) -> FileOutput:
         return FileOutput(
             id=file.id,
+            collection_id=file.collection_id,
             filename=file.filename,
             file_type=file.file_type,
             file_path=file.file_path,

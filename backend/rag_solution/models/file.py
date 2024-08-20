@@ -19,7 +19,7 @@ class File(Base):
     filename: Mapped[str] = mapped_column(String, index=True)
     file_path: Mapped[str] = mapped_column(String, index=True)
     file_type: Mapped[str] = mapped_column(String)
-    file_metadata: Mapped[JSON] = mapped_column(JSON)
+    file_metadata: Mapped[JSON] = mapped_column(JSON, nullable=False, default=dict)  # Provide a default empty dict
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 

@@ -39,6 +39,8 @@ services:
       - "3000:80"
     depends_on:
       - backend
+    environment:
+    - REACT_APP_API_URL=/api
 
   postgres:
     image: postgres:13
