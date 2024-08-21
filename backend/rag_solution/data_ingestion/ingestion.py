@@ -1,12 +1,12 @@
 import logging
 import os
-
+import multiprocessing
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from backend.core.config import settings
 from backend.core.custom_exceptions import DocumentStorageError
 from backend.rag_solution.data_ingestion.document_processor import DocumentProcessor
-from backend.vectordbs.data_types import Document
+from backend.vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, Source
 from backend.vectordbs.factory import get_datastore
 from backend.vectordbs.vector_store import VectorStore
 from typing import List
@@ -36,35 +36,31 @@ def process_and_store_document(document: Document, vector_store: VectorStore, co
         DocumentStorageError: If there is an error processing or storing the document.
     """
     try:
+        logger.info(f"Attempting to store documents in collection {collection_name}")
         vector_store.add_documents(collection_name, [document])
-        logger.info(f"Document {document.document_id} successfully stored in collection {collection_name}.")
     except Exception as e:
-        logger.error(f"Error processing document {document.document_id}: {e}", exc_info=True)
+        logger.error(f"Error processing document {e}", exc_info=True)
         raise DocumentStorageError(f"error: {e}")
 
 def ingest_documents(data_dir: List[str], vector_store: VectorStore, collection_name: str) -> None:
-    """
-    Ingest documents from the specified directory into the vector store.
+    with multiprocessing.Manager() as manager:
+        processor = DocumentProcessor(manager)
+        
+        for file_path in data_dir:
+            logger.info(f"Trying to process {file_path}")
+            try:
+                # Process the document
+                documents_iterator = processor.process_document(file_path)
+                logger.info("*** Finished processing and chunking. Now store in VectorDB")
 
-    Args:
-        data_dir (str): The directory containing the documents to ingest.
-        vector_store (VectorStore): The vector store to use for storage.
-        collection_name (str): The name of the collection to store the documents in.
-    """
-    processor = DocumentProcessor()
+                for document in documents_iterator:
+                    process_and_store_document(document, vector_store, collection_name)
+
+                logger.info(f"Successfully processed {file_path}")
+            except Exception as e:
+                logger.error(f"Error processing {file_path}: {str(e)}")
     
-    for file in data_dir:
-        logger.info(f"Trying to process {file}")
-        try:
-            metadata = processor.extract_metadata(file)
-            for document in processor.process_document(file):
-                document.metadata.update(metadata) 
-                process_and_store_document(document, vector_store, collection_name)
-            logger.info(f"Successfully processed {file}")
-        except Exception as e:
-            logger.error(f"Error processing {file}: {str(e)}")
-    
-    logging.info(f"Completed ingestion for collection: {collection_name}")
+    logger.info(f"Completed ingestion for collection: {collection_name}")
     # TO-DO: Add multithreading
 
 

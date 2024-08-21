@@ -49,6 +49,8 @@ class DocumentChunkMetadata:
     total_pages: Optional[int] = None
     page_number: Optional[int] = None
     content_type: Optional[str] = None
+    table_index: Optional[int] = None
+    image_index: Optional[int] = None
 
 
 @dataclass
