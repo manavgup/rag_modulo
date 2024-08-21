@@ -33,12 +33,12 @@ SCHEMA = [
     FieldSchema(name="document_id", dtype=DataType.VARCHAR, max_length=65535),
     FieldSchema(name=EMBEDDING_FIELD, dtype=DataType.FLOAT_VECTOR, dim=EMBEDDING_DIM),
     FieldSchema(name="text", dtype=DataType.VARCHAR, max_length=65535),
-    FieldSchema(name="chunk_id", dtype=DataType.VARCHAR, max_length=65535),
-    FieldSchema(name="source_id", dtype=DataType.VARCHAR, max_length=65535),
-    FieldSchema(name="source", dtype=DataType.VARCHAR, max_length=65535),
-    FieldSchema(name="url", dtype=DataType.VARCHAR, max_length=65535),
-    FieldSchema(name="created_at", dtype=DataType.VARCHAR, max_length=65535),
-    FieldSchema(name="author", dtype=DataType.VARCHAR, max_length=65535),
+    FieldSchema(name="chunk_id", dtype=DataType.VARCHAR, max_length=100),
+    FieldSchema(name="source_id", dtype=DataType.VARCHAR, max_length=100),
+    FieldSchema(name="source", dtype=DataType.VARCHAR, max_length=20),
+    FieldSchema(name="url", dtype=DataType.VARCHAR, max_length=500),
+    FieldSchema(name="created_at", dtype=DataType.VARCHAR, max_length=50),
+    FieldSchema(name="author", dtype=DataType.VARCHAR, max_length=100),
 ]
 
 
@@ -172,7 +172,7 @@ class MilvusStore(VectorStore):
                             "author": chunk.metadata.author if chunk.metadata else "",
                         }
                     )
-            logging.debug(f"Inserting data: {data}")
+            logging.info(f"Inserting data: {data}")
             collection.insert(data)
             collection.load()
             logging.info(f"Successfully added documents to collection {collection_name}")

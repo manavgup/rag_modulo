@@ -9,20 +9,15 @@ import concurrent.futures
 from multiprocessing.managers import SyncManager
 
 import pymupdf
-from tqdm import tqdm
 
 from backend.core.custom_exceptions import DocumentProcessingError
 from backend.rag_solution.data_ingestion.base_processor import BaseProcessor
-from backend.rag_solution.data_ingestion.chunking import semantic_chunking, semantic_chunking_for_tables, get_chunking_method
+from backend.rag_solution.data_ingestion.chunking import get_chunking_method
 from backend.rag_solution.doc_utils import clean_text
 from backend.vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, Source
-from backend.core.config import settings
+from backend.vectordbs.utils.watsonx import get_embeddings
 
 logger = logging.getLogger(__name__)
-
-def process_page_wrapper(args: tuple) -> List[DocumentChunk]:
-    processor, page_number, file_path, output_folder, document_id = args
-    return processor.process_page(page_number, file_path, output_folder, document_id)
 
 class PdfProcessor(BaseProcessor):
     def __init__(self, manager: Optional[SyncManager] = None) -> None:
@@ -42,7 +37,6 @@ class PdfProcessor(BaseProcessor):
                 logger.info(f"Extracted metadata from {file_path}: {metadata}")
 
                 document_id = str(uuid.uuid4())
-                # args: List[tuple] = [(self, page.number, file_path, output_folder, document_id) for page in doc]
 
                 with concurrent.futures.ThreadPoolExecutor(max_workers=multiprocessing.cpu_count()) as executor:
                     future_to_page = {executor.submit(self.process_page, page_num, file_path, output_folder, document_id): page_num 
@@ -65,7 +59,7 @@ class PdfProcessor(BaseProcessor):
         except Exception as e:
             logger.error(f"Error reading PDF file {file_path}: {e}", exc_info=True)
             raise DocumentProcessingError(f"Error processing PDF file {file_path}") from e
-    
+
     def process_page(self, page_number: int, file_path: str, output_folder: str, document_id: str) -> List[DocumentChunk]:
         chunks: List[DocumentChunk] = []
         chunking_method = get_chunking_method()
@@ -80,55 +74,57 @@ class PdfProcessor(BaseProcessor):
 
             page_metadata = {
                 'page_number': page_number + 1,
-                'source' : Source.PDF
+                'source': Source.PDF
             }
 
-            for chunk_index, chunk_text in enumerate(chunking_method(full_text)):
-                chunk_id = str(uuid.uuid4())
+            # Process main text
+            text_chunks = chunking_method(full_text)
+            for chunk_text in text_chunks:
+                chunk_embedding = get_embeddings(chunk_text)
                 chunk_metadata = {
                     **page_metadata,
                     'content_type': 'text',
                 }
-                chunks.append(DocumentChunk(
-                    chunk_id=chunk_id,
-                    text=chunk_text,
-                    metadata=DocumentChunkMetadata(**chunk_metadata),
-                    document_id=document_id
-                ))
+                chunks.append(self.create_document_chunk(chunk_text, chunk_embedding, chunk_metadata, document_id))
 
+            # Process tables
             if tables:
                 for table_index, table in enumerate(tables):
-                    for chunk_index, table_chunk in enumerate(semantic_chunking_for_tables([table], settings.min_chunk_size, settings.max_chunk_size, settings.semantic_threshold)):
-                        chunk_id = str(uuid.uuid4())
+                    table_text = "\n".join([" | ".join(row) for row in table])
+                    table_chunks = chunking_method(table_text)
+                    for table_chunk in table_chunks:
+                        table_embedding = get_embeddings(table_chunk)
                         chunk_metadata = {
                             **page_metadata,
                             'content_type': 'table',
                             'table_index': table_index
                         }
-                        chunks.append(DocumentChunk(
-                            chunk_id=chunk_id,
-                            text=table_chunk,
-                            metadata=DocumentChunkMetadata(**chunk_metadata),
-                            document_id=document_id
-                        ))
+                        chunks.append(self.create_document_chunk(table_chunk, table_embedding, chunk_metadata, document_id))
 
+            # Process images
             images: List[str] = self.extract_images_from_page(page, output_folder)
             for img_index, img in enumerate(images):
-                chunk_id = str(uuid.uuid4())
                 chunk_metadata = {
                     **page_metadata,
                     'content_type': 'image',
                     'image_index': img_index
                 }
-                chunks.append(DocumentChunk(
-                    chunk_id=chunk_id,
-                    text=f"Image: {img}",
-                    metadata=DocumentChunkMetadata(**chunk_metadata),
-                    document_id=document_id
-                ))
+                image_text = f"Image: {img}"
+                image_embedding = get_embeddings(image_text)
+                chunks.append(self.create_document_chunk(image_text, image_embedding, chunk_metadata, document_id))
 
         return chunks
-    
+
+    def create_document_chunk(self, chunk_text: str, chunk_embedding: List[float], metadata: Dict[str, Any], document_id: str) -> DocumentChunk:
+        chunk_id = str(uuid.uuid4())
+        return DocumentChunk(
+            chunk_id=chunk_id,
+            text=chunk_text,
+            vectors=chunk_embedding,
+            metadata=DocumentChunkMetadata(**metadata),
+            document_id=document_id
+        )
+
     def extract_text_from_page(self, page: pymupdf.Page) -> List[Dict[str, Any]]:
         blocks: List[Dict[str, Any]] = page.get_text("dict")["blocks"]
         page_text: List[Dict[str, Any]] = []
@@ -166,7 +162,7 @@ class PdfProcessor(BaseProcessor):
                 })
 
         return page_text
-    
+
     def extract_tables_from_page(self, page: pymupdf.Page) -> List[List[List[str]]]:
         tables: List[List[List[str]]] = []
 
@@ -255,7 +251,7 @@ class PdfProcessor(BaseProcessor):
                 logger.error(f"Error extracting image {xref} from page {page.number + 1}: {e}")
 
         return images
-    
+
     def extract_metadata(self, doc: pymupdf.Document) -> Dict[str, Any]:
         metadata: Dict[str, Optional[str]] = doc.metadata
         return {
