@@ -5,6 +5,7 @@ RAG Modulo is a Retrieval-Augmented Generation (RAG) solution that integrates va
 ## Table of Contents
 
 - [Features](#features)
+- [Document Processing Flow](#document-processing-flow)
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
 - [Usage](#usage)
@@ -18,17 +19,65 @@ RAG Modulo is a Retrieval-Augmented Generation (RAG) solution that integrates va
 ## Features
 
 - Support for multiple vector databases (Elasticsearch, Milvus, Pinecone, Weaviate, ChromaDB)
-- Flexible document processing and chunking strategies
+- Flexible document processing and chunking strategies for various formats (PDF, TXT, DOCX, XLSX)
 - Asynchronous API for efficient data ingestion and querying
 - Customizable embedding models
+- Separation of vector storage and metadata storage
+- Repository pattern for database operations
 - Comprehensive test suite
 - CI/CD pipeline with GitHub Actions
+
+## Document Processing Flow
+
+The following diagram illustrates how documents are processed in our RAG solution:
+
+```mermaid
+graph TD
+    A[User Uploads Document] --> B[DocumentProcessor]
+    B --> C{Document Type?}
+    C -->|PDF| D[PdfProcessor]
+    C -->|TXT| E[TxtProcessor]
+    C -->|DOCX| F[WordProcessor]
+    C -->|XLSX| G[ExcelProcessor]
+    D --> H[Extract Text, Tables, Images]
+    E --> I[Process Text]
+    F --> J[Extract Paragraphs]
+    G --> K[Extract Sheets and Data]
+    H --> L[Chunking]
+    I --> L
+    J --> L
+    K --> L
+    L --> M[Get Embeddings]
+    M --> N{Store Data}
+    N -->|Vector Data| O[VectorStore]
+    O --> P{Vector DB Type}
+    P -->|Milvus| Q[MilvusStore]
+    P -->|Elasticsearch| R[ElasticsearchStore]
+    P -->|Pinecone| S[PineconeStore]
+    P -->|Weaviate| T[WeaviateStore]
+    P -->|ChromaDB| U[ChromaDBStore]
+    N -->|Metadata| V[PostgreSQL]
+    V --> W[Repository Layer]
+    W --> X[Service Layer]
+```
+
+Explanation of the document processing flow:
+
+1. A user uploads a document to the system.
+2. The DocumentProcessor determines the type of document and routes it to the appropriate processor (PdfProcessor, TxtProcessor, WordProcessor, or ExcelProcessor).
+3. Each processor extracts the relevant content from the document.
+4. The extracted content goes through a chunking process to break it into manageable pieces.
+5. Embeddings are generated for the chunked content.
+6. The data is then stored in two places:
+   - Vector data (embeddings) are stored in the VectorStore, which can be one of several types (Milvus, Elasticsearch, Pinecone, Weaviate, or ChromaDB).
+   - Metadata is stored in PostgreSQL, accessed through the Repository Layer and Service Layer.
+
+This architecture allows for flexibility in choosing vector databases and ensures efficient storage and retrieval of both vector data and metadata.
 
 ## Prerequisites
 
 - Python 3.11+
 - Docker and Docker Compose
-- Poetry for dependency management
 
 ## Installation
 
@@ -37,9 +86,9 @@ RAG Modulo is a Retrieval-Augmented Generation (RAG) solution that integrates va
     git clone https://github.com/manavgup/rag-modulo.git
     cd rag-modulo
     ```
-2. Install dependencies using Poetry:
+2. Install dependencies:
     ```sh
-    poetry install
+    pip install -r requirements.txt
     ```
 3. Set up your environment variables by copying the `.env.example` file:
     ```sh
@@ -75,8 +124,7 @@ rag_modulo/
 ├── .env                 # Environment variables
 ├── docker-compose.yml   # Docker services configuration
 ├── Makefile             # Project management commands
-├── poetry.lock          # Lock file for dependencies
-├── pyproject.toml       # Project and dependency configuration
+├── requirements.txt     # Project dependencies
 └── README.md            # Project documentation
 ```
 

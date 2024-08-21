@@ -1,7 +1,8 @@
 import logging
 import os
-from typing import Dict, Iterable
-
+from typing import Dict, Iterable, Optional, Any
+import multiprocessing
+from multiprocessing.managers import SyncManager
 from backend.core.custom_exceptions import DocumentProcessingError
 from backend.rag_solution.data_ingestion.base_processor import BaseProcessor
 from backend.rag_solution.data_ingestion.excel_processor import ExcelProcessor
@@ -22,11 +23,13 @@ class DocumentProcessor:
         processors (Dict[str, BaseProcessor]): A dictionary mapping file extensions to their respective processors.
     """
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, manager: Optional[SyncManager] = None):
+        if manager is None:
+            manager = multiprocessing.Manager()
+        self.manager = manager
         self.processors: Dict[str, BaseProcessor] = {
             ".txt": TxtProcessor(),
-            ".pdf": PdfProcessor(),
+            ".pdf": PdfProcessor(self.manager),
             ".docx": WordProcessor(),
             ".xlsx": ExcelProcessor(),
         }
@@ -52,3 +55,11 @@ class DocumentProcessor:
         except Exception as e:
             logger.error(f"Error processing document {file_path}: {e}", exc_info=True)
             raise DocumentProcessingError(f"Error processing document {file_path}") from e
+    
+    def extract_metadata_from_processor(self, file_path: str) -> Dict[str, Any]:
+        file_extension = os.path.splitext(file_path)[1].lower()
+        processor = self.processors.get(file_extension)
+        if processor:
+            return processor.extract_metadata(file_path)
+        else:
+            raise ValueError(f"Unsupported file type: {file_extension}")
