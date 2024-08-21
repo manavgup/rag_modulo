@@ -1,12 +1,16 @@
 import json
 import logging
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Tuple
 
 from chromadb.api.types import Documents, EmbeddingFunction
 from dotenv import load_dotenv
 from genai.client import Client
 from genai.credentials import Credentials
-from genai.schema import TextEmbeddingParameters, TextGenerationParameters
+from genai.schema import (TextEmbeddingParameters, 
+                          TextGenerationParameters, 
+                          TextTokenizationReturnOptions, 
+                          TextTokenizationReturnOptions, 
+                          TextTokenizationParameters)
 from genai.text.generation import CreateExecutionOptions
 
 from backend.core.config import settings
@@ -14,6 +18,7 @@ import logging
 from ..data_types import Embeddings
 
 EMBEDDING_MODEL = settings.embedding_model
+TOKENIZATION_MODEL = "google/flan-t5-xl"  # You can change this to your preferred model
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -56,6 +61,54 @@ def get_embeddings(texts: Union[str | List[str]]) -> List[float]:
         logging.error(e)
 
     return embeddings
+
+def get_tokenization(texts: Union[str, List[str]], batch_size: int = 100) -> List[List[str]]:
+    """
+    Get tokenization for a given text or a list of texts.
+
+    :param texts: A single string or a list of strings.
+    :param batch_size: The batch size for processing.
+    :return: A list of lists of strings representing the tokens.
+    """
+    client = _get_client()
+    
+    # Ensure texts is a list
+    if isinstance(texts, str):
+        texts = [texts]
+
+    all_tokens = []
+
+    try:
+        for response in client.text.tokenization.create(
+            model_id=TOKENIZATION_MODEL,
+            input=texts,
+            execution_options=CreateExecutionOptions(
+                batch_size=batch_size,
+                ordered=True,
+            ),
+            parameters=TextTokenizationParameters(
+                return_options=TextTokenizationReturnOptions(
+                    tokens=True,
+                )
+            ),
+        ):
+            for result in response.results:
+                all_tokens.append(result.tokens)
+    except Exception as e:
+        logging.error(f"Error getting tokenization: {e}")
+
+    return all_tokens
+
+def get_tokenization_and_embeddings(texts: Union[str, List[str]]) -> Tuple[List[List[str]], List[float]]:
+    """
+    Get both tokenization and embeddings for a given text or a list of texts.
+
+    :param texts: A single string or a list of strings.
+    :return: A tuple containing a list of lists of strings (tokens) and a list of floats (embeddings).
+    """
+    tokenized_texts = get_tokenization(texts)
+    embeddings = get_embeddings(texts)
+    return tokenized_texts, embeddings
 
 
 def save_embeddings_to_file(
