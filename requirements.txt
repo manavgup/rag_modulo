@@ -22,3 +22,8 @@ python-multipart
 # Additional backend-specific packages
 pytest==7.4.0
 pytest-asyncio==0.21.0
+
+# OIDC and authentication related packages
+authlib
+httpx
+itsdangerous==2.1.2  # Required for SessionMiddleware

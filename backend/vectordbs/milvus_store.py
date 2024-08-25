@@ -172,7 +172,7 @@ class MilvusStore(VectorStore):
                             "author": chunk.metadata.author if chunk.metadata else "",
                         }
                     )
-            logging.info(f"Inserting data: {data}")
+            logging.info(f"Inserting text: : {chunk.text}")
             collection.insert(data)
             collection.load()
             logging.info(f"Successfully added documents to collection {collection_name}")

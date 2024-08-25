@@ -21,6 +21,12 @@ services:
       - COLLECTIONDB_PASS=${COLLECTIONDB_PASS}
       - COLLECTIONDB_HOST=postgres
       - COLLECTIONDB_PORT=${COLLECTIONDB_PORT}
+      - OIDC_DISCOVERY_ENDPOINT=${OIDC_DISCOVERY_ENDPOINT}
+      - OIDC_AUTH_URL=${OIDC_AUTH_URL}
+      - OIDC_TOKEN_URL=${OIDC_TOKEN_URL}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - IBM_CLIENT_ID=${IBM_CLIENT_ID}
+      - IBM_CLIENT_SECRET=${IBM_CLIENT_SECRET}
     env_file:
       - .env
     healthcheck:
@@ -41,6 +47,7 @@ services:
       - backend
     environment:
     - REACT_APP_API_URL=/api
+    - REACT_APP_OIDC_CLIENT_ID=${IBM_CLIENT_ID}
 
   postgres:
     image: postgres:13

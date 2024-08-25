@@ -86,7 +86,15 @@ def check_file_system():
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"File system health check failed: {str(e)}")
 
-@router.get("/health")
+@router.get("/health",
+    summary="Perform health check",
+    description="Perform a health check on all system components",
+    response_model=dict,
+    responses={
+        200: {"description": "Health check completed successfully"},
+        503: {"description": "One or more components are unhealthy"}
+    }
+)
 def health_check(db: Session = Depends(get_db)):
     """
     Perform a health check on all system components.

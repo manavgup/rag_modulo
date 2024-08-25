@@ -12,6 +12,7 @@
     "axios": "^1.7.2",
     "carbon-components": "^10.58.12",
     "carbon-components-react": "^8.60.3",
+    "oidc-client": "^1.11.5",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.24.0",
@@ -23,6 +24,7 @@
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
+  "proxy": "http://localhost:8000",
   "eslintConfig": {
     "extends": [
       "react-app",
@@ -42,11 +44,9 @@
     ]
   },
   "devDependencies": {
-    "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
+    "@babel/plugin-proposal-private-property-in-object": "^7.14.5",
     "react-scripts": "5.0.1",
     "sass": "^1.77.6",
-    "sass-resources-loader": "^2.2.5",
-    "@babel/plugin-proposal-private-property-in-object": "^7.14.5"
+    "sass-resources-loader": "^2.2.5"
   }
-  
 }

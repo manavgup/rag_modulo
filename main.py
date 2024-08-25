@@ -1,33 +1,27 @@
-import os
-import sys
-
-print("Python path:", sys.path)
-print("Current working directory:", os.getcwd())
-print("Contents of /app:", os.listdir('/app'))
-print("Contents of /app/backend:", os.listdir('/app/backend'))
-
 import logging
 
 from contextlib import asynccontextmanager
 from backend.rag_solution.file_management.database import Base, engine
 from sqlalchemy import inspect
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.openapi.utils import get_openapi
 from fastapi.middleware.cors import CORSMiddleware
-
-try:
-    from backend.core.config import settings
-    print("Successfully imported settings")
-except ImportError as e:
-    print(f"Error importing settings: {e}")
-    raise
+from pydantic import BaseModel
+from starlette.middleware.sessions import SessionMiddleware
 
 from backend.core.config import settings
 from backend.rag_solution.router.collection_router import router as collection_router
 from backend.rag_solution.router.file_router import router as file_router
 from backend.rag_solution.router.team_router import router as team_router
 from backend.rag_solution.router.user_router import router as user_router
+from backend.rag_solution.router.user_collection_router import router as user_collection_router
+from backend.rag_solution.router.user_team_router import router as user_team_router
 from backend.rag_solution.router.health_router import router as health_router
+from backend.rag_solution.router.auth_router import router as auth_router
+from backend.auth.oidc import get_current_user, oauth
+
+from starlette.config import Config
+from authlib.integrations.starlette_client import OAuth
 
 # Configure logging
 logging.basicConfig(level=settings.log_level)
@@ -79,6 +73,16 @@ app = FastAPI(
     redoc_url="/redoc"  # ReDoc endpoint
 )
 
+app.add_middleware(SessionMiddleware, secret_key=settings.ibm_client_secret)
+
+config = Config('.env')
+oauth = OAuth(config)
+
+# Create a dependency for authentication
+async def auth_dependency(user: dict = Depends(get_current_user)):
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return user
 
 # Configure CORS
 app.add_middleware(
@@ -89,13 +93,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Routers
-app.include_router(collection_router)
-app.include_router(file_router)
-app.include_router(team_router)
-app.include_router(user_router)
-app.include_router(health_router)
-
+# Include routers
+app.include_router(auth_router)  # Auth router should not have the auth_dependency
+app.include_router(health_router)  # Health router typically doesn't need auth
+app.include_router(collection_router, dependencies=[Depends(auth_dependency)])
+app.include_router(file_router, dependencies=[Depends(auth_dependency)])
+app.include_router(team_router, dependencies=[Depends(auth_dependency)])
+app.include_router(user_router, dependencies=[Depends(auth_dependency)])
+app.include_router(user_collection_router, dependencies=[Depends(auth_dependency)])
+app.include_router(user_team_router, dependencies=[Depends(auth_dependency)])
 
 def custom_openapi():
     if app.openapi_schema:
@@ -106,6 +112,22 @@ def custom_openapi():
         description="API for interacting with a fully customizable RAG solution",
         routes=app.routes,
     )
+     # Helper function to recursively process schema
+    def process_schema(schema, path=[]):
+        if isinstance(schema, dict):
+            for key, value in schema.items():
+                if isinstance(value, type) and issubclass(value, BaseModel):
+                    logging.warning(f"Found non-serializable model at path: {'.'.join(path + [key])}")
+                    schema[key] = value.model_json_schema()
+                else:
+                    process_schema(value)
+        elif isinstance(schema, list):
+            for item in schema:
+                process_schema(item)
+
+    # Process the entire schema
+    process_schema(openapi_schema)
+
     app.openapi_schema = openapi_schema
     return app.openapi_schema
 
