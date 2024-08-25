@@ -10,7 +10,17 @@ from backend.rag_solution.services.file_management_service import FileManagement
 
 router = APIRouter(prefix="/api/files", tags=["files"])
 
-@router.post("/{user_id}/{collection_id}", response_model=FileOutput)
+@router.post("/{user_id}/{collection_id}", 
+    response_model=FileOutput,
+    summary="Upload a file",
+    description="Upload a file to a specific collection for a user",
+    responses={
+        200: {"description": "File uploaded successfully"},
+        400: {"description": "Invalid input"},
+        404: {"description": "User or collection not found"},
+        500: {"description": "Internal server error"}
+    }
+)
 def upload_file(user_id: UUID, collection_id: UUID, file: UploadFile, metadata: Optional[FileMetadata] = None, db: Session = Depends(get_db)):
     """
     Upload a file to a specific collection for a user.
@@ -27,7 +37,16 @@ def upload_file(user_id: UUID, collection_id: UUID, file: UploadFile, metadata: 
     _file_service = FileManagementService(db)
     return _file_service.upload_and_create_file_record(file, user_id, collection_id, metadata)
 
-@router.get("/{user_id}/{collection_id}", response_model=List[str])
+@router.get("/{user_id}/{collection_id}", 
+    response_model=List[str],
+    summary="Get collection files",
+    description="Get a list of files in a specific collection for a user",
+    responses={
+        200: {"description": "Files retrieved successfully"},
+        404: {"description": "User or collection not found"},
+        500: {"description": "Internal server error"}
+    }
+)
 def get_collection_files(user_id: UUID, collection_id: UUID, db: Session = Depends(get_db)):
     """
     Get a list of files in a specific collection for a user.
@@ -43,7 +62,15 @@ def get_collection_files(user_id: UUID, collection_id: UUID, db: Session = Depen
     _file_service = FileManagementService(db)
     return _file_service.get_files(user_id, collection_id)
 
-@router.get("/{user_id}/{collection_id}/{filename}")
+@router.get("/{user_id}/{collection_id}/{filename}",
+    summary="Get file path",
+    description="Get the file path for a specific file in a collection",
+    responses={
+        200: {"description": "File path retrieved successfully"},
+        404: {"description": "File not found"},
+        500: {"description": "Internal server error"}
+    }
+)
 def get_file_path(user_id: UUID, collection_id: UUID, filename: str, db: Session = Depends(get_db)):
     """
     Get the file path for a specific file in a collection.
@@ -66,7 +93,17 @@ def get_file_path(user_id: UUID, collection_id: UUID, filename: str, db: Session
         raise HTTPException(status_code=404, detail="File not found")
     return {"file_path": str(file_path)}
 
-@router.delete("/", response_model=bool)
+@router.delete("/", 
+    response_model=bool,
+    summary="Delete files",
+    description="Delete files from a collection",
+    responses={
+        200: {"description": "Files deleted successfully"},
+        400: {"description": "Invalid input"},
+        404: {"description": "Files not found"},
+        500: {"description": "Internal server error"}
+    }
+)
 def delete_files(doc_delete: DocumentDelete, db: Session = Depends(get_db)):
     """
     Delete files from a collection.
@@ -81,7 +118,16 @@ def delete_files(doc_delete: DocumentDelete, db: Session = Depends(get_db)):
     _file_service = FileManagementService(db)
     return _file_service.delete_files(doc_delete.user_id, doc_delete.collection_id, doc_delete.filenames)
 
-@router.put("/{file_id}/metadata", response_model=FileOutput)
+@router.put("/{file_id}/metadata", 
+    response_model=FileOutput,
+    summary="Update file metadata",
+    description="Update the metadata of a specific file",
+    responses={
+        200: {"description": "File metadata updated successfully"},
+        404: {"description": "File not found"},
+        500: {"description": "Internal server error"}
+    }
+)
 def update_file_metadata(file_id: UUID, metadata: FileMetadata, db: Session = Depends(get_db)):
     _file_service = FileManagementService(db)
     return _file_service.update_file_metadata(file_id, metadata)

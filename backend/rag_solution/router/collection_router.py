@@ -17,7 +17,16 @@ router = APIRouter(
     tags=["collections"]
 )
 
-@router.post("/create", summary="Create a new collection", response_model=CollectionOutput)
+@router.post("/create", 
+    summary="Create a new collection", 
+    response_model=CollectionOutput,
+    description="Create a new collection with the provided input data.",
+    responses={
+        200: {"description": "Collection created successfully"},
+        400: {"description": "Invalid input data"},
+        500: {"description": "Internal server error"}
+    }
+)
 def create_collection(collection_input: CollectionInput, db: Session = Depends(get_db)):
     """
     Create a new collection.
@@ -32,7 +41,16 @@ def create_collection(collection_input: CollectionInput, db: Session = Depends(g
     _service = CollectionService(db, FileManagementService(db))
     return _service.create_collection(db, collection_input)
 
-@router.post("/create__with_documents", summary="Create a new collection with documents", response_model=CollectionOutput)
+@router.post("/create__with_documents", 
+    summary="Create a new collection with documents", 
+    response_model=CollectionOutput,
+    description="Create a new collection and upload documents to it.",
+    responses={
+        200: {"description": "Collection created with documents successfully"},
+        400: {"description": "Invalid input data"},
+        500: {"description": "Internal server error"}
+    }
+)
 def create_collection_with_documents(
     collection_name: str = Form(...),
     is_private: bool = Form(...),
@@ -61,7 +79,16 @@ def create_collection_with_documents(
     _service = CollectionService(db)
     return _service.create_collection_with_documents(collection_name, is_private, user.id, files, background_tasks)
 
-@router.get("/{collection_name}", summary="Retrieve a collection by name", response_model=CollectionOutput)
+@router.get("/{collection_name}", 
+    summary="Retrieve a collection by name", 
+    response_model=CollectionOutput,
+    description="Retrieve a collection using its name.",
+    responses={
+        200: {"description": "Collection retrieved successfully"},
+        404: {"description": "Collection not found"},
+        500: {"description": "Internal server error"}
+    }
+)
 def get_collection(collection_name: str, db: Session = Depends(get_db)):
     """
     Retrieve a collection by name.
@@ -76,7 +103,16 @@ def get_collection(collection_name: str, db: Session = Depends(get_db)):
     _service = CollectionService(db, FileManagementService(db))
     return _service.get_collection(collection_name)
 
-@router.delete("/{collection_name}", summary="Delete a collection", response_model=bool)
+@router.delete("/{collection_name}", 
+    summary="Delete a collection", 
+    response_model=bool,
+    description="Delete a collection using its name.",
+    responses={
+        200: {"description": "Collection deleted successfully"},
+        404: {"description": "Collection not found"},
+        500: {"description": "Internal server error"}
+    }
+)
 def delete_collection(collection_name: str, db: Session = Depends(get_db)):
     """
     Delete a collection by name.

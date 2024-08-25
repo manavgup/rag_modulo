@@ -116,7 +116,16 @@ run-services: create-volumes
 	@echo "Milvus logs saved to milvus.log:"
 	@$(DOCKER_COMPOSE) logs milvus-standalone > milvus.log
 
+build-frontend:
+	docker build -t $(PROJECT_NAME)-frontend \
+		-f webui/Dockerfile.frontend ./webui
+
+build-backend:
+	docker build -t $(PROJECT_NAME)-backend \
+		-f Dockerfile.backend .
+
 build-app:
+	@echo "Building application containers..."
 	$(DOCKER_COMPOSE) build
 
 run-app: build-app run-services

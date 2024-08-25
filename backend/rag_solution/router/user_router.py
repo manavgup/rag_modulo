@@ -10,7 +10,16 @@ from backend.rag_solution.services.user_service import UserService
 
 router = APIRouter()
 
-@router.post("/", response_model=UserOutput)
+@router.post("/", 
+    response_model=UserOutput,
+    summary="Create a new user",
+    description="Create a new user with the provided input data",
+    responses={
+        201: {"description": "User created successfully"},
+        400: {"description": "Invalid input data"},
+        500: {"description": "Internal server error"}
+    }
+)
 def create_user(user: UserInput, db: Session = Depends(get_db)) -> UserOutput:
     """
     Create a new user.
@@ -25,7 +34,16 @@ def create_user(user: UserInput, db: Session = Depends(get_db)) -> UserOutput:
     user_service = UserService(db)
     return user_service.create_user(user)
 
-@router.get("/{user_id}", response_model=UserOutput)
+@router.get("/{user_id}", 
+    response_model=UserOutput,
+    summary="Get a user by ID",
+    description="Retrieve a user's information using their unique identifier",
+    responses={
+        200: {"description": "User retrieved successfully"},
+        404: {"description": "User not found"},
+        500: {"description": "Internal server error"}
+    }
+)
 def get_user(user_id: UUID, db: Session = Depends(get_db)) -> UserOutput:
     """
     Get a user by their ID.
@@ -40,7 +58,17 @@ def get_user(user_id: UUID, db: Session = Depends(get_db)) -> UserOutput:
     user_service = UserService(db)
     return user_service.get_user_by_id(user_id)
 
-@router.put("/{user_id}", response_model=UserOutput)
+@router.put("/{user_id}", 
+    response_model=UserOutput,
+    summary="Update a user",
+    description="Update an existing user's information",
+    responses={
+        200: {"description": "User updated successfully"},
+        404: {"description": "User not found"},
+        400: {"description": "Invalid input data"},
+        500: {"description": "Internal server error"}
+    }
+)
 def update_user(user_id: UUID, user_update: UserInput, db: Session = Depends(get_db)) -> UserOutput:
     """
     Update a user.
@@ -56,7 +84,16 @@ def update_user(user_id: UUID, user_update: UserInput, db: Session = Depends(get
     user_service = UserService(db)
     return user_service.update_user(user_id, user_update)
 
-@router.delete("/{user_id}", response_model=bool)
+@router.delete("/{user_id}", 
+    response_model=bool,
+    summary="Delete a user",
+    description="Delete a user using their unique identifier",
+    responses={
+        200: {"description": "User deleted successfully"},
+        404: {"description": "User not found"},
+        500: {"description": "Internal server error"}
+    }
+)
 def delete_user(user_id: UUID, db: Session = Depends(get_db)) -> bool:
     """
     Delete a user.
@@ -71,7 +108,15 @@ def delete_user(user_id: UUID, db: Session = Depends(get_db)) -> bool:
     user_service = UserService(db)
     return user_service.delete_user(user_id)
 
-@router.get("/", response_model=List[UserOutput])
+@router.get("/", 
+    response_model=List[UserOutput],
+    summary="List all users",
+    description="Retrieve a list of all users with pagination",
+    responses={
+        200: {"description": "Users retrieved successfully"},
+        500: {"description": "Internal server error"}
+    }
+)
 def list_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)) -> List[UserOutput]:
     """
     List users with pagination.
@@ -86,35 +131,3 @@ def list_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)) -
     """
     user_service = UserService(db)
     return user_service.list_users(skip, limit)
-
-@router.post("/{user_id}/teams/{team_id}", response_model=bool)
-def add_user_to_team(user_id: UUID, team_id: UUID, db: Session = Depends(get_db)) -> bool:
-    """
-    Add a user to a team.
-
-    Args:
-        user_id (UUID): The ID of the user to add to the team.
-        team_id (UUID): The ID of the team to add the user to.
-        db (Session): The database session.
-
-    Returns:
-        bool: True if the user was successfully added to the team, False otherwise.
-    """
-    user_service = UserService(db)
-    return user_service.add_user_to_team(user_id, team_id)
-
-@router.delete("/{user_id}/teams/{team_id}", response_model=bool)
-def remove_user_from_team(user_id: UUID, team_id: UUID, db: Session = Depends(get_db)) -> bool:
-    """
-    Remove a user from a team.
-
-    Args:
-        user_id (UUID): The ID of the user to remove from the team.
-        team_id (UUID): The ID of the team to remove the user from.
-        db (Session): The database session.
-
-    Returns:
-        bool: True if the user was successfully removed from the team, False otherwise.
-    """
-    user_service = UserService(db)
-    return user_service.remove_user_from_team(user_id, team_id)
