@@ -92,6 +92,15 @@ class Settings(BaseSettings):
     collectiondb_port: Optional[str] = None
     collectiondb_name: Optional[str] = None
 
+    # IBM OIDC settings
+    ibm_client_id: Optional[str] = None
+    ibm_client_secret: Optional[str] = None
+    oidc_discovery_endpoint: Optional[str] = None
+    oidc_auth_url: Optional[str] = None
+    oidc_token_url: Optional[str] = None
+    frontend_url: Optional[str] = None
+    oidc_userinfo_endpoint: Optional[str] = None
+    
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
