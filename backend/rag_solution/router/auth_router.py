@@ -77,11 +77,19 @@ async def login(request: Request):
     redirect_uri = request.url_for('auth')
     return await oauth.ibm.authorize_redirect(request, redirect_uri)
 
+@router.get("/session")
+async def get_session(request: Request):
+    session_data = dict(request.session)
+    logger.info(f"Session Data: {session_data}")
+    return JSONResponse(content=session_data)
+
 @router.get("/callback")
 async def auth(request: Request, db: Session = Depends(get_db)):
     try:
         token = await oauth.ibm.authorize_access_token(request)
         user_info = await oauth.ibm.parse_id_token(token)
+
+        logger.info(f"User authenticated. User info: {user_info}")
         
         user_service = UserService(db)
         db_user = user_service.get_or_create_user(
@@ -89,6 +97,8 @@ async def auth(request: Request, db: Session = Depends(get_db)):
             email=user_info['email'],
             name=user_info.get('name', 'Unknown')
         )
+
+        logger.info(f"User in database: {db_user.__dict__}")
         
         request.session['user'] = user_info
         request.session['user_id'] = str(db_user.id)

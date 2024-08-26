@@ -128,6 +128,33 @@ rag_modulo/
 └── README.md            # Project documentation
 ```
 
+## OAuth flow with IBM
+The following diagram illustrates the OAuth 2.0 Authorization Code flow used in our application with IBM as the identity provider:
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Frontend
+    participant Backend
+    participant IBM_OIDC
+
+    User->>Frontend: Clicks Login
+    Frontend->>Backend: GET /api/auth/oidc-config
+    Backend->>IBM_OIDC: GET /.well-known/openid-configuration
+    IBM_OIDC-->>Backend: OIDC Configuration
+    Backend-->>Frontend: OIDC Configuration
+    Frontend->>IBM_OIDC: Redirect to Authorization Endpoint
+    IBM_OIDC->>User: Present Login Page
+    User->>IBM_OIDC: Enter Credentials
+    IBM_OIDC->>Frontend: Redirect with Authorization Code
+    Frontend->>Backend: POST /api/auth/token (with code)
+    Backend->>IBM_OIDC: POST /token (exchange code for tokens)
+    IBM_OIDC-->>Backend: Access Token & ID Token
+    Backend-->>Frontend: Tokens
+    Frontend->>Backend: GET /api/users/current
+    Backend-->>Frontend: User ID
+    Frontend->>User: Display Authenticated UI
+```
 ## Configuration
 Configuration is managed through environment variables. Key variables include:
 

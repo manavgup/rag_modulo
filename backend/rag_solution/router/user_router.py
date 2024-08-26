@@ -1,14 +1,18 @@
-from typing import List
+from typing import List, Dict
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from backend.rag_solution.file_management.database import get_db
 from backend.rag_solution.schemas.user_schema import UserInput, UserOutput
 from backend.rag_solution.services.user_service import UserService
+import logging
 
-router = APIRouter()
+logging.basicConfig(level=logging.ERROR)
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api/users", tags=["users"])
 
 @router.post("/", 
     response_model=UserOutput,
@@ -131,3 +135,34 @@ def list_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)) -
     """
     user_service = UserService(db)
     return user_service.list_users(skip, limit)
+
+@router.get("/current", 
+    response_model=Dict[str, str],
+    summary="Get current user's ID",
+    description="Retrieve the ID of the currently authenticated user from the session",
+    responses={
+        200: {"description": "User ID retrieved successfully"},
+        401: {"description": "User not authenticated"},
+        500: {"description": "Internal server error"}
+    }
+)
+async def get_current_user_id(request: Request):
+    """
+    Get the ID of the currently authenticated user.
+
+    Args:
+        request (Request): The incoming request object.
+
+    Returns:
+        Dict[str, str]: A dictionary containing the user's ID.
+
+    Raises:
+        HTTPException: If the user is not authenticated.
+    """
+    logger.info("In user_router.get_current_user_id")
+    user_id = request.session.get('user_id')
+    if user_id:
+        logger.info(f"Found User ID: {user_id}")
+        return {"id": user_id}
+    else:
+        raise HTTPException(status_code=401, detail="User not authenticated")

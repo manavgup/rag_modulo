@@ -1,17 +1,20 @@
 import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { handleCallback } from '../services/authService';
 
 const Callback = () => {
-  const navigate = useNavigate();
-
   useEffect(() => {
-    handleCallback().then(() => {
-      navigate('/');
-    });
-  }, [navigate]);
+    const processCallback = async () => {
+      try {
+        const user = await handleCallback();
+        console.log('User info after login:', user);
+      } catch (error) {
+        console.error('Error during callback processing:', error);
+      }
+    };
+    processCallback();
+  }, []);
 
-  return <div>Loading...</div>;
+  return <div>Processing login...</div>;
 };
 
 export default Callback;
