@@ -8,7 +8,7 @@ from backend.rag_solution.file_management.database import get_db
 from backend.rag_solution.schemas.team_schema import TeamInput, TeamOutput
 from backend.rag_solution.services.team_service import TeamService
 
-router = APIRouter()
+router = APIRouter(prefix="/api/teams", tags=["teams"])
 
 def get_team_service(db: Session = Depends(get_db)) -> TeamService:
     """

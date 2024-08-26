@@ -138,15 +138,15 @@ const CollectionForm = ({ onSubmit }) => {
       <h2>Your Collections</h2>
       {isLoadingCollections ? (
         <Loading description="Loading collections" withOverlay={false} />
-      ) : userCollections.length > 0 ? (
+      ) : userCollections && userCollections.length > 0 ? (
         userCollections.map((collection) => (
           <ExpandableTile key={collection.id}>
             <TileAboveTheFoldContent>
               <h3>{collection.name}</h3>
-              <p>{collection.files.slice(0, 3).map(file => file.filename).join(', ')}</p>
+              <p>{collection.files && collection.files.slice(0, 3).map(file => file.filename).join(', ')}</p>
             </TileAboveTheFoldContent>
             <TileBelowTheFoldContent>
-              {collection.files.slice(3, 10).map(file => (
+              {collection.files && collection.files.slice(3, 10).map(file => (
                 <p key={file.id}>{file.filename}</p>
               ))}
             </TileBelowTheFoldContent>

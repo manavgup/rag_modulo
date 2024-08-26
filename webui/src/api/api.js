@@ -35,7 +35,10 @@ export const createCollectionWithDocuments = async (formData, onUploadProgress) 
 
 export const getUserCollections = async (userId) => {
   try {
-    console.log("Fetching user collections from:", `${API_ROUTES.GET_USER_COLLECTIONS}${userId}`);
+    console.log("API_ROUTES.GET_USER_COLLECTIONS:", API_ROUTES.GET_USER_COLLECTIONS);
+    console.log("userId:", userId);
+    console.log("Full URL:", `${API_ROUTES.GET_USER_COLLECTIONS}${userId}`);
+
     const response = await axios.get(`${API_ROUTES.GET_USER_COLLECTIONS}${userId}`, {
       withCredentials: false,
     });

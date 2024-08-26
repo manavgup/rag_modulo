@@ -40,7 +40,20 @@ export const signIn = async () => {
 
 export const getUser = async () => {
   const userManager = await createUserManager();
-  return userManager.getUser();
+  const user = await userManager.getUser();
+  console.log("User from OIDC:", user);
+  if (user) {
+    try {
+      const response = await axios.get(`${config.apiUrl}/users/current`);
+      user.id = response.data.id;
+      console.log("User with ID from backend:", user);
+    } catch (error) {
+      console.error("Error fetching user ID:", error);
+    }
+  } else {
+    console.log("No authenticated user found");
+  }
+  return user;
 };
 
 export const handleCallback = async () => {
