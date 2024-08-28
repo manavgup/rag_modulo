@@ -1,5 +1,5 @@
 import axios from 'axios';
-import API_ROUTES from '../config/config';
+import { API_ROUTES }  from '../config/config';
 
 const api = axios.create({
   baseURL: API_ROUTES.GET_USER_COLLECTIONS,
@@ -12,6 +12,9 @@ export const createCollectionWithDocuments = async (formData, onUploadProgress) 
   try {
     console.log(">>> in API.js");
     console.log("formData: ", formData);
+    if (!API_ROUTES.CREATE_COLLECTION) {
+      throw new Error('CREATE_COLLECTION route is undefined');
+    }
     console.log("Sending request to:", API_ROUTES.CREATE_COLLECTION);
     const response = await axios.post(
       API_ROUTES.CREATE_COLLECTION,
@@ -40,7 +43,7 @@ export const getUserCollections = async (userId) => {
     console.log("Full URL:", `${API_ROUTES.GET_USER_COLLECTIONS}${userId}`);
 
     const response = await axios.get(`${API_ROUTES.GET_USER_COLLECTIONS}${userId}`, {
-      withCredentials: false,
+      withCredentials: true, // Change this to true
     });
     console.log("User collections response:", response);
     return response.data;

@@ -1,35 +1,58 @@
-// src/components/Auth.js
-
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, memo } from 'react';
 import { signIn, signOut, getUser } from '../services/authService';
+
+const ErrorMessage = memo(({ message }) => <div>Error: {message}</div>);
+const SignInButton = memo(({ onSignIn }) => <button onClick={onSignIn}>Sign In</button>);
+const UserInfo = memo(({ name, onSignOut }) => (
+  <div>
+    <p>Welcome, {name}!</p>
+    <button onClick={onSignOut}>Sign Out</button>
+  </div>
+));
 
 const Auth = () => {
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    getUser()
-      .then(setUser)
-      .catch(err => {
+    const fetchUser = async () => {
+      try {
+        const userData = await getUser();
+        if (userData && userData.user) {
+          setUser(userData.user);
+        }
+      } catch (err) {
         console.error('Error fetching user:', err);
         setError('Failed to fetch user information');
-      });
+      }
+    };
+
+    fetchUser();
+  }, []);
+
+  const handleSignIn = useCallback(() => {
+    signIn().catch(err => {
+      console.error('Error signing in:', err);
+      setError('Failed to sign in');
+    });
+  }, []);
+
+  const handleSignOut = useCallback(() => {
+    signOut().then(() => setUser(null)).catch(err => {
+      console.error('Error signing out:', err);
+      setError('Failed to sign out');
+    });
   }, []);
 
   if (error) {
-    return <div>Error: {error}</div>;
+    return <ErrorMessage message={error} />;
   }
 
   if (!user) {
-    return <button onClick={signIn}>Sign In</button>;
+    return <SignInButton onSignIn={handleSignIn} />;
   }
 
-  return (
-    <div>
-      <p>Welcome, {user.profile.name}!</p>
-      <button onClick={signOut}>Sign Out</button>
-    </div>
-  );
+  return <UserInfo name={user.name} onSignOut={handleSignOut} />;
 };
 
-export default Auth;
+export default memo(Auth);

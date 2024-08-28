@@ -12,13 +12,15 @@ import {
   ExpandableTile,
   TileAboveTheFoldContent,
   TileBelowTheFoldContent,
-  Loading
+  Loading,
+  InlineLoading
 } from '@carbon/react';
 import { TrashCan } from '@carbon/icons-react';
 import { createCollectionWithDocuments, getUserCollections } from '../api/api';
-import { getUser } from '../services/authService';
+import { useAuth } from '../contexts/AuthContext';
 
 const CollectionForm = ({ onSubmit }) => {
+  const { user, loading: authLoading } = useAuth();
   const [collectionName, setCollectionName] = useState('');
   const [isPrivate, setIsPrivate] = useState(false);
   const [files, setFiles] = useState([]);
@@ -27,26 +29,21 @@ const CollectionForm = ({ onSubmit }) => {
   const [errorMessage, setErrorMessage] = useState('');
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [userCollections, setUserCollections] = useState([]);
-  const [user, setUser] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [isLoadingCollections, setIsLoadingCollections] = useState(true);
+  const [isLoadingCollections, setIsLoadingCollections] = useState(false);
 
   useEffect(() => {
-    const fetchUserAndCollections = async () => {
-      const currentUser = await getUser();
-      setUser(currentUser);
-      if (currentUser) {
-        fetchUserCollections(currentUser.id);
-      }
-    };
-    fetchUserAndCollections();
-  }, []);
+    if (user && user.id) {
+      fetchUserCollections(user.id);
+    }
+  }, [user]);
 
   const fetchUserCollections = async (userId) => {
     setIsLoadingCollections(true);
     try {
       const collections = await getUserCollections(userId);
-      setUserCollections(collections);
+      console.log('User collections:', collections);
+      setUserCollections(Array.isArray(collections) ? collections : []);
     } catch (error) {
       console.error('Error fetching user collections:', error);
       setErrorMessage('Failed to fetch user collections. Please try again later.');
@@ -118,7 +115,7 @@ const CollectionForm = ({ onSubmit }) => {
       console.log('API Response:', response);
       setShowSuccessToast(true);
       onSubmit(response);
-      fetchUserCollections(user.id); // Refresh the list of collections
+      await fetchUserCollections(user.id);
       // Reset form
       setCollectionName('');
       setIsPrivate(false);
@@ -133,20 +130,34 @@ const CollectionForm = ({ onSubmit }) => {
     }
   };
 
+  if (authLoading) {
+    return <Loading description="Loading user data" withOverlay={false} />;
+  }
+
+  if (!user) {
+    return (
+      <div className="collection-form-container">
+        <h2>Sign In Required</h2>
+        <p>Please sign in to view and create collections.</p>
+        <Button onClick={() => window.location.href = '/signin'}>Sign In</Button>
+      </div>
+    );
+  }
+
   return (
-    <div>
+    <div className="collection-form-container">
       <h2>Your Collections</h2>
       {isLoadingCollections ? (
         <Loading description="Loading collections" withOverlay={false} />
-      ) : userCollections && userCollections.length > 0 ? (
+      ) : Array.isArray(userCollections) && userCollections.length > 0 ? (
         userCollections.map((collection) => (
           <ExpandableTile key={collection.id}>
             <TileAboveTheFoldContent>
               <h3>{collection.name}</h3>
-              <p>{collection.files && collection.files.slice(0, 3).map(file => file.filename).join(', ')}</p>
+              <p>{Array.isArray(collection.files) && collection.files.slice(0, 3).map(file => file.filename).join(', ')}</p>
             </TileAboveTheFoldContent>
             <TileBelowTheFoldContent>
-              {collection.files && collection.files.slice(3, 10).map(file => (
+              {Array.isArray(collection.files) && collection.files.slice(3, 10).map(file => (
                 <p key={file.id}>{file.filename}</p>
               ))}
             </TileBelowTheFoldContent>
@@ -223,7 +234,7 @@ const CollectionForm = ({ onSubmit }) => {
         )}
 
         <Button type="submit" kind="primary" disabled={isUploading || files.length === 0}>
-          Create Collection
+          {isUploading ? <InlineLoading description="Creating collection..." /> : "Create Collection"}
         </Button>
       </Form>
 
