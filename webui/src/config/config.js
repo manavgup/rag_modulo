@@ -22,7 +22,7 @@ console.log("API_ROUTES:", API_ROUTES);
 
 const authConfig = {
   client_id: config.oidcClientId,
-  redirect_uri: `${window.location.origin}/callback`,
+  redirect_uri: `${window.location.origin}/api/auth/callback`,
   response_type: "code",
   scope: "openid profile email",
   post_logout_redirect_uri: window.location.origin,

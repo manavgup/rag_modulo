@@ -137,22 +137,22 @@ sequenceDiagram
     participant Frontend
     participant Backend
     participant IBM_OIDC
-
+    participant Database
     User->>Frontend: Clicks Login
-    Frontend->>Backend: GET /api/auth/oidc-config
-    Backend->>IBM_OIDC: GET /.well-known/openid-configuration
-    IBM_OIDC-->>Backend: OIDC Configuration
-    Backend-->>Frontend: OIDC Configuration
-    Frontend->>IBM_OIDC: Redirect to Authorization Endpoint
+    Frontend->>Backend: GET /api/auth/login
+    Backend->>IBM_OIDC: Redirect to Authorization Endpoint
     IBM_OIDC->>User: Present Login Page
     User->>IBM_OIDC: Enter Credentials
-    IBM_OIDC->>Frontend: Redirect with Authorization Code
-    Frontend->>Backend: POST /api/auth/token (with code)
+    IBM_OIDC->>Backend: Redirect with Authorization Code
     Backend->>IBM_OIDC: POST /token (exchange code for tokens)
     IBM_OIDC-->>Backend: Access Token & ID Token
-    Backend-->>Frontend: Tokens
-    Frontend->>Backend: GET /api/users/current
-    Backend-->>Frontend: User ID
+    Backend->>Backend: Parse ID Token
+    Backend->>Database: Get or Create User
+    Database-->>Backend: User Data
+    Backend->>Backend: Set Session Data
+    Backend->>Frontend: Redirect to Dashboard
+    Frontend->>Backend: GET /api/auth/session
+    Backend-->>Frontend: User Data
     Frontend->>User: Display Authenticated UI
 ```
 ## Configuration

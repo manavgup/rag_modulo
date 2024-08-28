@@ -47,3 +47,32 @@
 .create-collection-btn {
     margin-top: 20px;
 }
+
+body, .main-content {
+    color: #161616;
+    background-color: #ffffff;
+}
+
+h2, p {
+    margin-bottom: 15px;
+}
+
+.collection-form-container {
+    color: #161616; /* Dark color for light background */
+    background-color: #f4f4f4; /* Light background */
+    padding: 20px;
+  }
+  
+  .collection-form-container h2,
+  .collection-form-container p,
+  .collection-form-container label {
+    color: #161616; /* Ensure all text is dark */
+  }
+  
+  /* Adjust input fields if needed */
+  .collection-form-container input[type="text"],
+  .collection-form-container input[type="checkbox"] {
+    background-color: #ffffff;
+    color: #161616;
+    border: 1px solid #8d8d8d;
+  }

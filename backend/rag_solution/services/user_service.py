@@ -6,7 +6,7 @@ from uuid import UUID
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
-
+from pydantic import EmailStr
 from backend.rag_solution.repository.user_repository import UserRepository
 from backend.rag_solution.schemas.team_schema import TeamOutput
 from backend.rag_solution.schemas.user_schema import UserInput, UserOutput
@@ -29,6 +29,9 @@ class UserService:
         except ValueError as e:
             logger.error(f"Failed to create user: {str(e)}")
             raise HTTPException(status_code=400, detail=str(e))
+    
+    def get_or_create_user_by_fields(self, ibm_id: str, email: EmailStr, name: str):
+        return self.get_or_create_user(UserInput(ibm_id=ibm_id, email=email, name=name))
     
     def get_or_create_user(self, user_input: UserInput) -> UserOutput:
         try:
