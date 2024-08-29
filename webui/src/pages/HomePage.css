@@ -1,53 +1,79 @@
-.homepage {
+/* Global styles */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif;
+}
+
+.App {
   display: flex;
   flex-direction: column;
   height: 100vh;
 }
 
+/* Header styles */
+.cds--header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 48px;
+  background-color: #161616;
+  z-index: 9000;
+}
+
+/* Main container styles */
 .main-container {
   display: flex;
-  flex: 1;
-  overflow: hidden;
+  height: calc(100vh - 48px);
+  margin-top: 48px;
 }
 
-.main-content {
-  flex: 1;
-  padding: 2rem;
-  transition: margin-left 0.3s ease;
-}
-
-.content-shifted {
-  margin-left: 16rem;
-}
-
+/* SideNav styles */
 .cds--side-nav {
   position: fixed;
   top: 48px;
   bottom: 0;
   left: 0;
-  width: 16rem;
-  background-color: #000000;
-  color: #ffffff;
+  width: 256px;
+  background-color: #161616;
+  color: #f4f4f4;
+  transform: translateX(-256px);
   transition: transform 0.3s ease;
-  z-index: 1000;
+  z-index: 8000;
 }
 
-.cds--side-nav:not(.cds--side-nav--expanded) {
-  transform: translateX(-100%);
+.cds--side-nav--expanded {
+  transform: translateX(0);
+}
+
+.cds--side-nav__items {
+  padding-top: 1rem;
 }
 
 .cds--side-nav__link {
-  color: #ffffff;
+  color: #f4f4f4;
 }
 
-.cds--side-nav__menu {
-  background-color: #000000;
+.cds--side-nav__link:hover {
+  background-color: #353535;
 }
 
-.cds--side-nav__menu-item {
-  color: #ffffff;
+/* Main content styles */
+.main-content {
+  flex: 1;
+  padding: 2rem;
+  margin-left: 0;
+  transition: margin-left 0.3s ease;
+  background-color: #f4f4f4;
+  overflow-y: auto;
 }
 
+.content-shifted {
+  margin-left: 256px;
+}
+
+/* Dashboard specific styles */
 .top-actions {
   display: flex;
   justify-content: flex-end;
@@ -58,86 +84,59 @@
   margin-left: 1rem;
 }
 
-h1 {
-  font-size: 2.5rem;
-  margin-bottom: 0.5rem;
-}
-
-p {
-  font-size: 1rem;
-  margin-bottom: 2rem;
-}
-
 .example-questions {
   display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
   margin-bottom: 2rem;
 }
 
 .example-questions .cds--tile {
-  flex: 1;
+  flex: 1 1 calc(33.333% - 1rem);
+  min-width: 200px;
   background-color: #ffffff;
   cursor: pointer;
   transition: background-color 0.3s;
 }
 
 .example-questions .cds--tile:hover {
-  background-color: #f4f4f4;
+  background-color: #e0e0e0;
 }
 
-.query-input .cds--text-input__field-outer-wrapper .cds--text-input__field-wrapper .cds--text-input {
+/* Query input styles */
+.query-input .cds--text-input__field-wrapper {
+  width: 100%;
+}
+
+.query-input .cds--text-input {
   background-color: #ffffff;
-  border: 1px solid #000000;
-  color: #000000;
-  padding: 0.5rem;
-  border-radius: 4px;
-  box-sizing: border-box;
-  outline: none;
+  border: 1px solid #8d8d8d;
 }
 
-.query-input .cds--text-input__field-outer-wrapper .cds--text-input__field-wrapper .cds--text-input:focus {
-  border-color: #0f62fe;
+/* Results display styles */
+.results-display {
+  margin-top: 2rem;
 }
 
-.query-input .cds--text-input__label-wrapper .cds--label {
-  font-weight: bold;
-  color: #000000;
-}
-
-.cds--header {
-  background-color: #000000;
-}
-
+/* Modal styles */
 .cds--modal-container {
   background-color: #ffffff;
 }
 
+/* Form styles */
 .cds--form-item {
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
 }
 
-.collections-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  margin-top: 2rem;
-}
-
-.collection-tile {
-  background-color: #f4f4f4;
-  padding: 1rem;
-  border-radius: 4px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  width: calc(33.333% - 1rem);
-  box-sizing: border-box;
-}
-
+/* User menu styles */
 .user-menu {
   padding: 1rem;
+  background-color: #262626;
 }
 
 .user-menu p {
   margin-bottom: 0.5rem;
+  color: #f4f4f4;
 }
 
 .user-menu button,
@@ -147,7 +146,7 @@ p {
   padding: 0.5rem;
   background: none;
   border: none;
-  color: inherit;
+  color: #f4f4f4;
   text-align: left;
   text-decoration: none;
   cursor: pointer;
@@ -155,5 +154,16 @@ p {
 
 .user-menu button:hover,
 .user-menu a:hover {
-  background-color: #e0e0e0;
+  background-color: #353535;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .cds--side-nav {
+    width: 200px;
+  }
+  
+  .content-shifted {
+    margin-left: 200px;
+  }
 }

@@ -7,7 +7,6 @@ import SignIn from './components/SignIn';
 import Dashboard from './components/Dashboard';
 import CollectionForm from './components/CollectionForm';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import './App.css';
 import './css/common.css';
 
 function AppContent() {

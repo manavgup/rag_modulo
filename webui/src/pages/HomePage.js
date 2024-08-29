@@ -34,7 +34,9 @@ const HomePage = () => {
     database: 'Milvus',
   });
 
-  const toggleSideNav = () => setIsSideNavExpanded(!isSideNavExpanded);
+  const toggleSideNav = () => {
+    setIsSideNavExpanded(prevState => !prevState);
+  };
 
   const handleSearch = async () => {
     console.log('Searching:', query);
@@ -90,6 +92,7 @@ const HomePage = () => {
         <UISideNav 
           expanded={isSideNavExpanded} 
           onNavigate={handleNavigation}
+          currentPage={currentPage}
         />
         <Content className={`main-content ${isSideNavExpanded ? 'content-shifted' : ''}`}>
           <div className="top-actions">
