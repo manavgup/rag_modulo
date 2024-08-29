@@ -1,10 +1,9 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import { getUserData, signIn, signOut } from '../services/authService';
+import axios from 'axios';
 
 const AuthContext = createContext({
   user: null,
   loading: true,
-  login: () => {},
   logout: () => {}
 });
 
@@ -15,8 +14,8 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     async function fetchUser() {
       try {
-        const userData = await getUserData();
-        setUser(userData);
+        const response = await axios.get('/api/auth/session');
+        setUser(response.data.user);
       } catch (error) {
         console.error('Error fetching user:', error);
       } finally {
@@ -27,21 +26,18 @@ export const AuthProvider = ({ children }) => {
     fetchUser();
   }, []);
 
-  const login = async () => {
-    await signIn();
-    const userData = await getUserData();
-    setUser(userData);
-  };
-
   const logout = async () => {
-    await signOut();
-    setUser(null);
+    try {
+      await axios.get('/api/auth/logout');
+      setUser(null);
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
   };
 
   const value = {
     user,
     loading,
-    login,
     logout
   };
 

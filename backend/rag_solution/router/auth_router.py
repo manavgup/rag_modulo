@@ -190,20 +190,28 @@ async def auth(request: Request, db: Session = Depends(get_db)):
                 401: {"description": "Unauthorized"},
                 500: {"description": "Internal server error"}
             })
+@router.get("/userinfo", response_model=UserInfo, summary="Get User Info",
+            responses={
+                200: {"description": "Successful response", "model": UserInfo},
+                401: {"description": "Unauthorized"},
+                500: {"description": "Internal server error"}
+            })
 async def get_userinfo(request: Request):
     """
-    Retrieve the user information using the provided access token.
+    Retrieve the user information from the session.
     """
-    access_token = request.headers.get("Authorization")
-    if not access_token:
-        raise HTTPException(status_code=401, detail="No access token provided")
-
-    async with httpx.AsyncClient() as client:
-        response = await client.get(
-            f"{settings.oidc_userinfo_endpoint}",
-            headers={"Authorization": access_token}
-        )
-        return JSONResponse(content=response.json(), status_code=response.status_code)
+    user = request.session.get('user')
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    # Extract relevant information from the session user data
+    user_info = {
+        "sub": user.get('sub'),
+        "name": user.get('name'),
+        "email": user.get('email')
+    }
+    
+    return JSONResponse(content=user_info)
 
 @router.get("/logout", summary="Logout User",
             responses={
