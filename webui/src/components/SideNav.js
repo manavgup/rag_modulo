@@ -1,38 +1,35 @@
 import React from 'react';
 import { SideNav, SideNavItems, SideNavLink } from '@carbon/react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
-const UISideNav = ({ expanded, onNavigate, currentPage }) => {
+const UISideNav = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const isActive = (path) => location.pathname === path;
+
+  const onNavigate = (path) => {
+    navigate(path);
+  };
+
   return (
-    <SideNav isFixedNav expanded={expanded} isChildOfHeader={false} aria-label="Side navigation">
+    <SideNav isFixedNav expanded={true} isChildOfHeader={false} aria-label="Side navigation">
       <SideNavItems>
         <SideNavLink
           href="#"
-          onClick={(e) => onNavigate(e, 'dashboard')}
-          isActive={currentPage === 'dashboard'}
+          onClick={() => onNavigate('/dashboard')}
+          isActive={isActive('/dashboard')}
         >
           Dashboard
         </SideNavLink>
         <SideNavLink
           href="#"
-          onClick={(e) => onNavigate(e, 'create')}
-          isActive={currentPage === 'create'}
+          onClick={() => onNavigate('/create-collection')}
+          isActive={isActive('/create-collection')}
         >
           Create New Collection
         </SideNavLink>
-        <SideNavLink
-          href="#"
-          onClick={(e) => onNavigate(e, 'report1')}
-          isActive={currentPage === 'report1'}
-        >
-          Report 1
-        </SideNavLink>
-        <SideNavLink
-          href="#"
-          onClick={(e) => onNavigate(e, 'report2')}
-          isActive={currentPage === 'report2'}
-        >
-          Report 2
-        </SideNavLink>
+        {/* Add more menu items as needed */}
       </SideNavItems>
     </SideNav>
   );

@@ -4,6 +4,22 @@ export const signIn = () => {
   window.location.href = `${config.apiUrl}/auth/login`;
 };
 
+// Function to load IBM scripts through the proxy
+const loadIBMScript = async (path) => {
+  const response = await fetch(`${config.apiUrl}/auth/proxy/ibm/${path}`);
+  const scriptContent = await response.text();
+  const script = document.createElement('script');
+  script.text = scriptContent;
+  document.head.appendChild(script);
+};
+
+// Load IBM scripts through the proxy
+export const loadIBMScripts = async () => {
+  await loadIBMScript('account/ibmidutil/login-ui/locales/en.js');
+  await loadIBMScript('account/ibmidutil/login-ui/assets/stage.client_ids.js');
+  await loadIBMScript('account/ibmidutil/login-ui/main.js');
+};
+
 export const getUserData = async () => {
   try {
     const response = await fetch(`${config.apiUrl}/auth/session`, {

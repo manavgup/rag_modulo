@@ -24,7 +24,7 @@ function AppContent() {
             {user && <UIHeader />}
             <div className="content-wrapper">
               {user && <UISideNav />}
-              <Content className="main-content">
+              <Content className={`main-content ${user ? 'content-shifted' : ''}`}>
                 <Routes>
                   <Route path="/signin" element={user ? <Navigate to="/dashboard" /> : <SignIn />} />
                   <Route
