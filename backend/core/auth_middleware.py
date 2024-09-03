@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         logger.debug(f"AuthMiddleware: Processing request to {request.url.path}")
+        logger.debug(f"AuthMiddleware: Request headers: {request.headers}")
 
         # List of paths that don't require authentication
         open_paths = ['/api/auth/login', '/api/auth/callback', '/api/health', '/api/auth/session', '/api/auth/oidc-config']
@@ -24,6 +25,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 logger.debug("AuthMiddleware: Created new session")
 
             session = request.scope['session']
+            logger.debug(f"AuthMiddleware: Current session: {session}")
 
             # Check if the path requires authentication
             if request.url.path not in open_paths:

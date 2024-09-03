@@ -7,6 +7,8 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from starlette.middleware.sessions import SessionMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.datastructures import Secret
 from sqlalchemy import inspect
 
 from backend.core.config import settings
@@ -25,6 +27,30 @@ from backend.auth.oidc import get_current_user, oauth
 logging.basicConfig(level=settings.log_level)
 logger = logging.getLogger(__name__)
 
+class CustomSessionMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        if 'session' in request.scope:
+            # Modify the Set-Cookie header to include SameSite and Secure attributes
+            for key, value in response.headers.items():
+                if key.lower() == 'set-cookie' and value.startswith('session='):
+                    new_value = value + '; SameSite=None; Secure'
+                    response.headers[key] = new_value
+        return response
+    
+class LoggingCORSMiddleware(CORSMiddleware):
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            logger.debug(f"CORS Request: method={scope['method']}, path={scope['path']}")
+            logger.debug(f"CORS Request headers: {scope['headers']}")
+        
+        response = await super().__call__(scope, receive, send)
+        
+        if scope["type"] == "http":
+            logger.debug(f"CORS Response headers: {response.headers}")
+        
+        return response
+    
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting database initialization")
@@ -66,15 +92,18 @@ app = FastAPI(
 # Add SessionMiddleware first
 app.add_middleware(
     SessionMiddleware,
-    secret_key=settings.ibm_client_secret,
+    secret_key=Secret(settings.ibm_client_secret),
     session_cookie="session",
     max_age=86400  # 1 day in seconds
 )
 
+# Add the custom middleware after SessionMiddleware
+app.add_middleware(CustomSessionMiddleware)
+
 # Configure CORS
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://frontend", "http://frontend:80"],
+    LoggingCORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://frontend", "http://frontend:80", "https://prepiam.ice.ibmcloud.com"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

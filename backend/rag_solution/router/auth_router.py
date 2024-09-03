@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 import httpx
 from pydantic import BaseModel
@@ -11,7 +12,7 @@ from backend.core.config import settings
 import uuid
 import logging
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/auth", tags=["authentication"])
@@ -39,6 +40,22 @@ class UserInfo(BaseModel):
 
 class SessionData(BaseModel):
     user: UserInfo
+
+@router.get("/proxy/ibm/{path:path}")
+async def proxy_ibm_get(path: str, request: Request):
+    url = f"https://wwwstage.ibm.com/{path}"
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url, headers=request.headers, params=request.query_params)
+    return StreamingResponse(response.iter_bytes(), status_code=response.status_code, headers=dict(response.headers))
+
+@router.post("/proxy/ibm/{path:path}")
+async def proxy_ibm_post(path: str, request: Request):
+    url = f"https://wwwstage.ibm.com/{path}"
+    body = await request.body()
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url, headers=request.headers, content=body)
+    return StreamingResponse(response.iter_bytes(), status_code=response.status_code, headers=dict(response.headers))
+
 
 @router.get("/oidc-config", response_model=OIDCConfig, summary="Get OIDC Configuration",
             responses={
@@ -122,7 +139,9 @@ async def login(request: Request):
     """
     Initiate the login process by redirecting to the IBM OIDC authorization endpoint.
     """
-    return await oauth.ibm.authorize_redirect(request, redirect_uri=f"{settings.frontend_url}/api/auth/callback")
+    redirect_uri = f"{settings.frontend_url}/api/auth/callback"
+    logger.debug(f"Login initiated. Redirect URI: {redirect_uri}")
+    return await oauth.ibm.authorize_redirect(request, redirect_uri)
 
 @router.get("/session", response_model=SessionData, summary="Get Session Data",
             responses={
@@ -148,11 +167,16 @@ async def get_session(request: Request):
                 302: {"description": "Redirect to frontend dashboard"},
                 500: {"description": "Authentication failed"}
             })
-async def auth(request: Request, db: Session = Depends(get_db)):
+async def auth(request: Request, response: Response, db: Session = Depends(get_db)):
     """
     Handle the authentication callback from the IBM OIDC provider.
     """
     try:
+        logger.debug(f"Callback received. Request URL: {request.url}")
+        logger.debug(f"Callback query params: {request.query_params}")
+        logger.debug(f"Callback headers: {request.headers}")
+
+        logger.debug("Attempting to get token.")
         token = await oauth.ibm.authorize_access_token(request)
         logger.info(f"Token received: {token}")
 
@@ -171,7 +195,7 @@ async def auth(request: Request, db: Session = Depends(get_db)):
             )
 
         logger.info(f"User in database: {db_user.__dict__}")
-        
+      
         request.session['user'] = user_info
         request.session['user_id'] = str(db_user.id)
         logger.info(f"Session set: user_id={str(db_user.id)}")
@@ -179,9 +203,20 @@ async def auth(request: Request, db: Session = Depends(get_db)):
         redirect_url = f"{settings.frontend_url}/?user_id={str(db_user.id)}"
         logger.info(f"Redirecting to: {redirect_url}")
         
-        return RedirectResponse(url=redirect_url)
+        response = RedirectResponse(url=redirect_url)
+         # Set cookies with proper attributes
+        response.set_cookie(
+            key="session",
+            value=request.session.get('session', ''),
+            httponly=True,
+            secure=True,  # Set to True if using HTTPS
+            samesite="None",  # or "Lax" if not using HTTPS
+            max_age=86400  # 1 day in seconds
+        )
+        logger.debug(f"Response headers: {response.headers}")
+        return response
     except Exception as e:
-        logger.error(f"Error in callback: {str(e)}")
+        logger.error(f"Error in callback: {str(e)}", exc_info=True)
         return RedirectResponse(url=f"{settings.frontend_url}/signin?error=authentication_failed")
 
 @router.get("/userinfo", response_model=UserInfo, summary="Get User Info",

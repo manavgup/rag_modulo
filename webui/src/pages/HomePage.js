@@ -12,7 +12,7 @@ import ResultsDisplay from '../components/ResultsDisplay';
 import DashboardSettings from '../components/DashboardSettings';
 import IngestionSettings from '../components/IngestionSettings';
 import CollectionForm from '../components/CollectionForm';
-import './HomePage.css';
+import '../css/common.css';
 
 const HomePage = () => {
   const [query, setQuery] = useState('');
