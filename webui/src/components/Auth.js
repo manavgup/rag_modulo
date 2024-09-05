@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, memo } from 'react';
-import { signIn, signOut, getUser, loadIBMScripts } from '../services/authService';
+import { signIn, signOut, getUserData, loadIBMScripts } from '../services/authService';
 
 const ErrorMessage = memo(({ message }) => <div>Error: {message}</div>);
 const SignInButton = memo(({ onSignIn }) => <button onClick={onSignIn}>Sign In</button>);
@@ -18,9 +18,11 @@ const Auth = () => {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const userData = await getUser();
-        if (userData && userData.user) {
-          setUser(userData.user);
+        const userData = await getUserData();
+        if (userData) {
+          setUser(userData);
+        } else {
+          setUser(null);
         }
       } catch (err) {
         console.error('Error fetching user:', err);

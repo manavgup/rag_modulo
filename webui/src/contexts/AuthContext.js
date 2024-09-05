@@ -1,5 +1,8 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import axios from 'axios';
+import { getUserData } from '../services/authService';
+
+axios.defaults.withCredentials = true;
 
 const AuthContext = createContext({
   user: null,
@@ -14,8 +17,10 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     async function fetchUser() {
       try {
-        const response = await axios.get('/api/auth/session');
-        setUser(response.data.user);
+        console.log("Fetching user data...");
+        const userData = await getUserData();
+        console.log("User data received:", userData);
+        setUser(userData);
       } catch (error) {
         console.error('Error fetching user:', error);
       } finally {
@@ -30,6 +35,7 @@ export const AuthProvider = ({ children }) => {
     try {
       await axios.get('/api/auth/logout');
       setUser(null);
+      localStorage.removeItem('user_id');
     } catch (error) {
       console.error('Error logging out:', error);
     }

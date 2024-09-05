@@ -1,7 +1,7 @@
 import uuid
 from typing import List
 
-from fastapi import APIRouter, BackgroundTasks, Depends, UploadFile, Form, File
+from fastapi import APIRouter, BackgroundTasks, Depends, UploadFile, Form, File, Request, HTTPException
 from sqlalchemy.orm import Session
 
 from backend.rag_solution.file_management.database import get_db
@@ -11,6 +11,10 @@ from backend.rag_solution.services.user_service import UserService
 from backend.rag_solution.services.collection_service import CollectionService
 from backend.rag_solution.services.file_management_service import \
     FileManagementService
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/api/collections",
@@ -52,6 +56,7 @@ def create_collection(collection_input: CollectionInput, db: Session = Depends(g
     }
 )
 def create_collection_with_documents(
+    request: Request,
     collection_name: str = Form(...),
     is_private: bool = Form(...),
     files: List[UploadFile] = File(...),
@@ -72,12 +77,25 @@ def create_collection_with_documents(
     Returns:
         CollectionOutput: The created collection with documents.
     """
-    # HACKY - TO BE REMOVED
-    user = UserService(db).create_user(UserInput(ibm_id="test_ibm_id", email="test@example.com", name="Test User"))
-    # HACKY - TO BE REMOVED 
+    user_id = request.session.get("user_id")
+    if not user_id:
+        logger.warning("User not authenticated in create_collection_with_documents")
+        raise HTTPException(status_code=401, detail="User not authenticated")
 
-    _service = CollectionService(db)
-    return _service.create_collection_with_documents(collection_name, is_private, user.id, files, background_tasks)
+    try:
+        collection_service = CollectionService(db)
+        collection = collection_service.create_collection_with_documents(
+            collection_name,
+            is_private,
+            user_id,
+            files,
+            background_tasks
+        )
+        logger.info(f"Collection created successfully: {collection.id}")
+        return collection
+    except Exception as e:
+        logger.error(f"Error creating collection: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/{collection_name}", 
     summary="Retrieve a collection by name", 
