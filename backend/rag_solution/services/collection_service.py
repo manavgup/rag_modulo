@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from backend.rag_solution.data_ingestion.ingestion import ingest_documents
 from backend.rag_solution.repository.collection_repository import CollectionRepository
+from backend.rag_solution.repository.user_collection_repository import UserCollectionRepository
 from backend.rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput, CollectionStatus
 from backend.rag_solution.services.file_management_service import FileManagementService
 from backend.rag_solution.services.user_collection_service import UserCollectionService
@@ -26,13 +27,10 @@ class CollectionService:
     Service class for managing collections and their associated documents.
     """
 
-    def __init__(self,
-                 db: Session,
-                 file_management_service: FileManagementService = None,
-                 user_collection_service: UserCollectionService = None):
+    def __init__(self, db: Session):
         self.collection_repository = CollectionRepository(db)
-        self.file_management_service = file_management_service or FileManagementService(db)
-        self.user_collection_service = user_collection_service or UserCollectionService(db)
+        self.user_collection_repository = UserCollectionRepository(db)
+        self.file_management_service = FileManagementService(db)
         self.vector_store = get_datastore(settings.vector_db)
 
     @staticmethod
@@ -60,7 +58,7 @@ class CollectionService:
 
             # 3. Add the creator to the collection
             for user_id in collection.users:
-                self.user_collection_service.add_user_to_collection(user_id, new_collection.id)
+                self.user_collection_repository.add_user_to_collection(user_id, new_collection.id)
                 new_collection.user_ids.append(user_id)
 
             return new_collection

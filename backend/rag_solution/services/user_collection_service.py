@@ -1,87 +1,76 @@
 import logging
 from typing import List
 from uuid import UUID
-
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
-
 from backend.rag_solution.repository.user_collection_repository import UserCollectionRepository
+from backend.rag_solution.schemas.user_collection_schema import UserCollectionOutput, UserCollectionDetailOutput, UserCollectionsOutput
 from backend.rag_solution.schemas.collection_schema import CollectionOutput
-from backend.rag_solution.schemas.user_collection_schema import UserCollectionOutput
-from backend.rag_solution.schemas.user_schema import UserOutput
 
 logger = logging.getLogger(__name__)
 
 class UserCollectionService:
     def __init__(self, db: Session):
+        self.db = db
         self.user_collection_repository = UserCollectionRepository(db)
 
+    def get_user_collections(self, user_id: UUID) -> List[CollectionOutput]:
+        """
+        Get all collections associated with a user.
+        """
+        logger.info(f"Fetching collections for user: {user_id}")
+        return self.user_collection_repository.get_user_collections(user_id)
+
     def add_user_to_collection(self, user_id: UUID, collection_id: UUID) -> bool:
+        """
+        Add a user to a collection.
+        """
+        logger.info(f"Adding user {user_id} to collection {collection_id}")
         try:
-            logger.info(f"Adding user {user_id} to collection {collection_id}")
-            result = self.user_collection_repository.add_user_to_collection(user_id, collection_id)
-            if result:
-                logger.info(f"Successfully added user {user_id} to collection {collection_id}")
-            else:
-                logger.warning(f"Failed to add user {user_id} to collection {collection_id}")
-                raise HTTPException(status_code=404, detail="User or collection not found")
-            return result
-        except HTTPException as he:
-            raise he
+            # Check if the collection exists
+            if not self.user_collection_repository.get_user_collection(user_id, collection_id):
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found")
+            
+            return self.user_collection_repository.add_user_to_collection(user_id, collection_id)
+        except HTTPException:
+            raise
         except Exception as e:
-            logger.error(f"Error adding user {user_id} to collection {collection_id}: {str(e)}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            logger.error(f"Error adding user to collection: {str(e)}")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                                detail=f"Failed to add user to collection: {str(e)}")
 
     def remove_user_from_collection(self, user_id: UUID, collection_id: UUID) -> bool:
+        """
+        Remove a user from a collection.
+        """
+        logger.info(f"Removing user {user_id} from collection {collection_id}")
         try:
-            logger.info(f"Removing user {user_id} from collection {collection_id}")
-            result = self.user_collection_repository.remove_user_from_collection(user_id, collection_id)
-            if result:
-                logger.info(f"Successfully removed user {user_id} from collection {collection_id}")
-            else:
-                logger.warning(f"Failed to remove user {user_id} from collection {collection_id}")
-                raise HTTPException(status_code=404, detail="User or collection not found")
-            return result
-        except HTTPException as he:
-            raise he
+            return self.user_collection_repository.remove_user_from_collection(user_id, collection_id)
         except Exception as e:
-            logger.error(f"Error removing user {user_id} from collection {collection_id}: {str(e)}")
-            raise HTTPException(status_code=500, detail="Internal server error")
-
-    def get_user_collections(self, user_id: UUID) -> List[UserCollectionOutput]:
-        try:
-            logger.info(f"Fetching collections for user {user_id}")
-            collections = self.user_collection_repository.get_user_collections(user_id)
-            logger.info(f"Retrieved {len(collections)} collections for user {user_id}")
-            return collections
-        except Exception as e:
-            logger.error(f"Error fetching collections for user {user_id}: {str(e)}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            logger.error(f"Error removing user from collection: {str(e)}")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+                                detail=f"Failed to remove user from collection: {str(e)}")
 
     def get_collection_users(self, collection_id: UUID) -> List[UserCollectionOutput]:
+        """
+        Get all users associated with a collection.
+        """
+        logger.info(f"Fetching users for collection: {collection_id}")
         try:
-            logger.info(f"Fetching users for collection {collection_id}")
-            user_collections = self.user_collection_repository.get_collection_users(collection_id)
-            logger.info(f"Retrieved {len(user_collections)} users for collection {collection_id}")
-            return user_collections
+            return self.user_collection_repository.get_collection_users(collection_id)
         except Exception as e:
-            logger.error(f"Error fetching users for collection {collection_id}: {str(e)}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            logger.error(f"Error fetching users for collection: {str(e)}")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+                                detail=f"Failed to fetch users for collection: {str(e)}")
 
     def remove_all_users_from_collection(self, collection_id: UUID) -> bool:
+        """
+        Remove all users from a collection.
+        """
+        logger.info(f"Removing all users from collection {collection_id}")
         try:
-            logger.info(f"Removing all users from collection {collection_id}")
-            result = self.user_collection_repository.remove_all_users_from_collection(collection_id)
-            if result:
-                logger.info(f"Successfully removed all users from collection {collection_id}")
-            else:
-                logger.warning(f"No users were removed from collection {collection_id}")
-            return result
+            return self.user_collection_repository.remove_all_users_from_collection(collection_id)
         except Exception as e:
-            logger.error(f"Error removing all users from collection {collection_id}: {str(e)}")
-            raise HTTPException(status_code=500, detail="Internal server error")
-
-    def _get_user_output(self, user_id: UUID) -> UserOutput:
-        # This method should fetch the user details and return a UserOutput
-        return UserOutput(user_id=user_id)
-
+            logger.error(f"Error removing all users from collection: {str(e)}")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+                                detail=f"Failed to remove all users from collection: {str(e)}")

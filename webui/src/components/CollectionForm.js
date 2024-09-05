@@ -9,17 +9,17 @@ import {
   Tag,
   ProgressBar,
   ToastNotification,
-  ExpandableTile,
-  TileAboveTheFoldContent,
-  TileBelowTheFoldContent,
+  Tile,
   Loading,
-  InlineLoading
+  InlineLoading,
+  Grid,
+  Column
 } from '@carbon/react';
-import { TrashCan } from '@carbon/icons-react';
+import { TrashCan, Document } from '@carbon/icons-react';
 import { createCollectionWithDocuments, getUserCollections } from '../api/api';
 import { useAuth } from '../contexts/AuthContext';
 
-const CollectionForm = ({ onSubmit }) => {
+const CollectionForm = () => {
   const { user, loading: authLoading } = useAuth();
   const [collectionName, setCollectionName] = useState('');
   const [isPrivate, setIsPrivate] = useState(false);
@@ -42,7 +42,6 @@ const CollectionForm = ({ onSubmit }) => {
     setIsLoadingCollections(true);
     try {
       const collections = await getUserCollections();
-      console.log('User collections:', collections);
       setUserCollections(Array.isArray(collections) ? collections : []);
     } catch (error) {
       console.error('Error fetching user collections:', error);
@@ -92,8 +91,6 @@ const CollectionForm = ({ onSubmit }) => {
       return;
     }
 
-    console.log("Submitting form with user:", user);
-
     if (files.length === 0) {
       setErrorMessage('Please add at least one file to the collection.');
       setShowError(true);
@@ -110,11 +107,6 @@ const CollectionForm = ({ onSubmit }) => {
       formData.append('files', file);
     });
 
-    // Log the formData contents
-    for (let [key, value] of formData.entries()) {
-      console.log(`${key}: ${value}`);
-    }
-
     try {
       const response = await createCollectionWithDocuments(formData, (event) => {
         const percentCompleted = Math.round((event.loaded * 100) / event.total);
@@ -122,7 +114,6 @@ const CollectionForm = ({ onSubmit }) => {
       });
       console.log('API Response:', response);
       setShowSuccessToast(true);
-      onSubmit(response);
       await fetchUserCollections();
       // Reset form
       setCollectionName('');
@@ -157,20 +148,20 @@ const CollectionForm = ({ onSubmit }) => {
       <h2>Your Collections</h2>
       {isLoadingCollections ? (
         <Loading description="Loading collections" withOverlay={false} />
-      ) : Array.isArray(userCollections) && userCollections.length > 0 ? (
-        userCollections.map((collection) => (
-          <ExpandableTile key={collection.id}>
-            <TileAboveTheFoldContent>
-              <h3>{collection.name}</h3>
-              <p>{Array.isArray(collection.files) && collection.files.slice(0, 3).map(file => file.filename).join(', ')}</p>
-            </TileAboveTheFoldContent>
-            <TileBelowTheFoldContent>
-              {Array.isArray(collection.files) && collection.files.slice(3, 10).map(file => (
-                <p key={file.id}>{file.filename}</p>
-              ))}
-            </TileBelowTheFoldContent>
-          </ExpandableTile>
-        ))
+      ) : userCollections.length > 0 ? (
+        <Grid narrow className="collections-grid">
+          {userCollections.map((collection) => (
+            <Column sm={4} md={4} lg={4} key={collection.id}>
+              <Tile className="collection-tile">
+                <h3>{collection.name}</h3>
+                <p>
+                  <Document size={16} /> Files: {Array.isArray(collection.files) ? collection.files.length : 'N/A'}
+                </p>
+                <p>Created: {new Date(collection.created_at).toLocaleDateString()}</p>
+              </Tile>
+            </Column>
+          ))}
+        </Grid>
       ) : (
         <p>No collections found. Create your first collection below!</p>
       )}
@@ -185,24 +176,23 @@ const CollectionForm = ({ onSubmit }) => {
           disabled={isUploading}
         />
         <Checkbox
-          className="cds--label-description"
           checked={isPrivate}
-          labelText="Private Collection?"
-          id="checkbox-label-1"
+          labelText="Private Collection"
+          id="private-collection-checkbox"
           onChange={(e) => setIsPrivate(e.target.checked)}
           disabled={isUploading}
         />
         <FormItem>
           <p className="cds--file--label">Upload files</p>
-          <p className="cds--label-description">Max file size is 5MB.</p>
+          <p className="cds--label-description">Max file size is 5MB. Supported formats: PDF, PPT, TXT, DOC, DOCX, XLS, XLSX</p>
           <FileUploaderDropContainer
             accept={[
-              'text/plain',
               'application/pdf',
-              'application/msword',
-              'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
               'application/vnd.ms-powerpoint',
               'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+              'text/plain',
+              'application/msword',
+              'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
               'application/vnd.ms-excel',
               'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
             ]}
@@ -215,17 +205,15 @@ const CollectionForm = ({ onSubmit }) => {
             <div className="selected-files">
               <p>Selected Files:</p>
               {files.map((file, index) => (
-                <div key={index} style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
-                  <Tag type="gray">{file.name}</Tag>
+                <div key={index} className="file-tag">
+                  <Tag type="blue">{file.name}</Tag>
                   <Button
                     kind="ghost"
                     size="sm"
                     hasIconOnly
                     renderIcon={TrashCan}
                     iconDescription="Remove file"
-                    tooltipPosition="right"
                     onClick={() => handleFileRemove(index)}
-                    style={{ marginLeft: '8px' }}
                     disabled={isUploading}
                   />
                 </div>
@@ -241,7 +229,7 @@ const CollectionForm = ({ onSubmit }) => {
           />
         )}
 
-        <Button type="submit" kind="primary" disabled={isUploading || files.length === 0}>
+        <Button type="submit" kind="primary" disabled={isUploading || files.length === 0 || !collectionName}>
           {isUploading ? <InlineLoading description="Creating collection..." /> : "Create Collection"}
         </Button>
       </Form>
