@@ -1,4 +1,4 @@
-.App {
+/* .App {
   display: flex;
   flex-direction: column;
   height: 100vh;
@@ -15,12 +15,12 @@
   padding: 2rem;
   overflow-y: auto;
   background-color: #f4f4f4;
-}
+} */
 
 /* Carbon Components default styling overrides */
-.bx--side-nav__items {
+/* .bx--side-nav__items {
   padding-top: 3rem;
-}
+} */
 
 .bx--header {
   background-color: #161616;

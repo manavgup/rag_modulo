@@ -1,8 +1,9 @@
-import React from 'react';
-import { SideNav, SideNavItems, SideNavLink } from '@carbon/react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import React from "react";
+import { SideNav, SideNavItems, SideNavLink } from "@carbon/react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { Fade} from '@carbon/icons-react';
 
-const UISideNav = () => {
+const UISideNav = ({ isSideNavExpanded, handleSideNavExpand }) => {
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -13,19 +14,28 @@ const UISideNav = () => {
   };
 
   return (
-    <SideNav isFixedNav expanded={true} isChildOfHeader={false} aria-label="Side navigation">
+    <SideNav
+      aria-label="Side navigation"
+      isRail
+      expanded={isSideNavExpanded}
+      onOverlayClick={handleSideNavExpand}
+      onSideNavBlur={handleSideNavExpand}
+      // onClick={handleSideNavExpanded}
+    >
       <SideNavItems>
         <SideNavLink
+          renderIcon={Fade}
           href="#"
-          onClick={() => onNavigate('/dashboard')}
-          isActive={isActive('/dashboard')}
+          onClick={() => onNavigate("/dashboard")}
+          isActive={isActive("/dashboard")}
         >
           Dashboard
         </SideNavLink>
         <SideNavLink
+          renderIcon={Fade}
           href="#"
-          onClick={() => onNavigate('/create-collection')}
-          isActive={isActive('/create-collection')}
+          onClick={() => onNavigate("/create-collection")}
+          isActive={isActive("/create-collection")}
         >
           Create New Collection
         </SideNavLink>
