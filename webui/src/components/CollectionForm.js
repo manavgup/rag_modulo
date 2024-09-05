@@ -9,18 +9,17 @@ import {
   Tag,
   ProgressBar,
   ToastNotification,
-  ExpandableTile,
-  TileAboveTheFoldContent,
-  TileBelowTheFoldContent,
+  Tile,
   Loading,
   InlineLoading,
-  Content
+  Grid,
+  Column
 } from '@carbon/react';
-import { TrashCan } from '@carbon/icons-react';
+import { TrashCan, Document } from '@carbon/icons-react';
 import { createCollectionWithDocuments, getUserCollections } from '../api/api';
 import { useAuth } from '../contexts/AuthContext';
 
-const CollectionForm = ({ onSubmit }) => {
+const CollectionForm = () => {
   const { user, loading: authLoading } = useAuth();
   const [collectionName, setCollectionName] = useState('');
   const [isPrivate, setIsPrivate] = useState(false);
@@ -34,16 +33,15 @@ const CollectionForm = ({ onSubmit }) => {
   const [isLoadingCollections, setIsLoadingCollections] = useState(false);
 
   useEffect(() => {
-    if (user && user.id) {
-      fetchUserCollections(user.id);
+    if (user && user.uuid) {
+      fetchUserCollections();
     }
   }, [user]);
 
-  const fetchUserCollections = async (userId) => {
+  const fetchUserCollections = async () => {
     setIsLoadingCollections(true);
     try {
-      const collections = await getUserCollections(userId);
-      console.log('User collections:', collections);
+      const collections = await getUserCollections();
       setUserCollections(Array.isArray(collections) ? collections : []);
     } catch (error) {
       console.error('Error fetching user collections:', error);
@@ -87,6 +85,7 @@ const CollectionForm = ({ onSubmit }) => {
     e.preventDefault();
 
     if (!user) {
+      console.error("User not authenticated");
       setErrorMessage('User not authenticated. Please sign in.');
       setShowError(true);
       return;
@@ -102,7 +101,7 @@ const CollectionForm = ({ onSubmit }) => {
     const formData = new FormData();
     formData.append('collection_name', collectionName);
     formData.append('is_private', isPrivate);
-    formData.append('user_id', user.id);
+    formData.append('user_id', user.uuid);
 
     files.forEach((file) => {
       formData.append('files', file);
@@ -115,8 +114,7 @@ const CollectionForm = ({ onSubmit }) => {
       });
       console.log('API Response:', response);
       setShowSuccessToast(true);
-      onSubmit(response);
-      await fetchUserCollections(user.id);
+      await fetchUserCollections();
       // Reset form
       setCollectionName('');
       setIsPrivate(false);
@@ -146,123 +144,118 @@ const CollectionForm = ({ onSubmit }) => {
   }
 
   return (
-    <Content>
-      <div className="collection-form-container">
-        <h2>Your Collections</h2>
-        {isLoadingCollections ? (
-          <Loading description="Loading collections" withOverlay={false} />
-        ) : Array.isArray(userCollections) && userCollections.length > 0 ? (
-          userCollections.map((collection) => (
-            <ExpandableTile key={collection.id}>
-              <TileAboveTheFoldContent>
+    <div className="collection-form-container">
+      <h2>Your Collections</h2>
+      {isLoadingCollections ? (
+        <Loading description="Loading collections" withOverlay={false} />
+      ) : userCollections.length > 0 ? (
+        <Grid narrow className="collections-grid">
+          {userCollections.map((collection) => (
+            <Column sm={4} md={4} lg={4} key={collection.id}>
+              <Tile className="collection-tile">
                 <h3>{collection.name}</h3>
-                <p>{Array.isArray(collection.files) && collection.files.slice(0, 3).map(file => file.filename).join(', ')}</p>
-              </TileAboveTheFoldContent>
-              <TileBelowTheFoldContent>
-                {Array.isArray(collection.files) && collection.files.slice(3, 10).map(file => (
-                  <p key={file.id}>{file.filename}</p>
-                ))}
-              </TileBelowTheFoldContent>
-            </ExpandableTile>
-          ))
-        ) : (
-          <p>No collections found. Create your first collection below!</p>
-        )}
+                <p>
+                  <Document size={16} /> Files: {Array.isArray(collection.files) ? collection.files.length : 'N/A'}
+                </p>
+                <p>Created: {new Date(collection.created_at).toLocaleDateString()}</p>
+              </Tile>
+            </Column>
+          ))}
+        </Grid>
+      ) : (
+        <p>No collections found. Create your first collection below!</p>
+      )}
 
-        <h2>Create New Collection</h2>
-        <Form className="collection-form" onSubmit={handleSubmit}>
-          <TextInput
-            id="collection-name"
-            labelText="Collection Name"
-            value={collectionName}
-            onChange={(e) => setCollectionName(e.target.value)}
+      <h2>Create New Collection</h2>
+      <Form className="collection-form" onSubmit={handleSubmit}>
+        <TextInput
+          id="collection-name"
+          labelText="Collection Name"
+          value={collectionName}
+          onChange={(e) => setCollectionName(e.target.value)}
+          disabled={isUploading}
+        />
+        <Checkbox
+          checked={isPrivate}
+          labelText="Private Collection"
+          id="private-collection-checkbox"
+          onChange={(e) => setIsPrivate(e.target.checked)}
+          disabled={isUploading}
+        />
+        <FormItem>
+          <p className="cds--file--label">Upload files</p>
+          <p className="cds--label-description">Max file size is 5MB. Supported formats: PDF, PPT, TXT, DOC, DOCX, XLS, XLSX</p>
+          <FileUploaderDropContainer
+            accept={[
+              'application/pdf',
+              'application/vnd.ms-powerpoint',
+              'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+              'text/plain',
+              'application/msword',
+              'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+              'application/vnd.ms-excel',
+              'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            ]}
+            labelText="Drag and drop files here or click to upload"
+            multiple
+            onAddFiles={handleFileDrop}
             disabled={isUploading}
           />
-          <Checkbox
-            className="cds--label-description"
-            checked={isPrivate}
-            labelText="Private Collection?"
-            id="checkbox-label-1"
-            onChange={(e) => setIsPrivate(e.target.checked)}
-            disabled={isUploading}
-          />
-          <FormItem>
-            <p className="cds--file--label">Upload files</p>
-            <p className="cds--label-description">Max file size is 5MB.</p>
-            <FileUploaderDropContainer
-              accept={[
-                'text/plain',
-                'application/pdf',
-                'application/msword',
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                'application/vnd.ms-powerpoint',
-                'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-                'application/vnd.ms-excel',
-                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-              ]}
-              labelText="Drag and drop files here or click to upload"
-              multiple
-              onAddFiles={handleFileDrop}
-              disabled={isUploading}
-            />
-            {files.length > 0 && (
-              <div className="selected-files">
-                <p>Selected Files:</p>
-                {files.map((file, index) => (
-                  <div key={index} style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
-                    <Tag type="gray">{file.name}</Tag>
-                    <Button
-                      kind="ghost"
-                      size="sm"
-                      hasIconOnly
-                      renderIcon={TrashCan}
-                      iconDescription="Remove file"
-                      tooltipPosition="right"
-                      onClick={() => handleFileRemove(index)}
-                      style={{ marginLeft: '8px' }}
-                      disabled={isUploading}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-          </FormItem>
-
-          {uploadProgress > 0 && (
-            <ProgressBar
-              label="Uploading..."
-              value={uploadProgress}
-            />
+          {files.length > 0 && (
+            <div className="selected-files">
+              <p>Selected Files:</p>
+              {files.map((file, index) => (
+                <div key={index} className="file-tag">
+                  <Tag type="blue">{file.name}</Tag>
+                  <Button
+                    kind="ghost"
+                    size="sm"
+                    hasIconOnly
+                    renderIcon={TrashCan}
+                    iconDescription="Remove file"
+                    onClick={() => handleFileRemove(index)}
+                    disabled={isUploading}
+                  />
+                </div>
+              ))}
+            </div>
           )}
+        </FormItem>
 
-          <Button type="submit" kind="primary" disabled={isUploading || files.length === 0}>
-            {isUploading ? <InlineLoading description="Creating collection..." /> : "Create Collection"}
-          </Button>
-        </Form>
-
-        {showError && (
-          <ToastNotification
-            kind="error"
-            title="Error"
-            subtitle={errorMessage}
-            caption=""
-            timeout={5000}
-            onClose={() => setShowError(false)}
+        {uploadProgress > 0 && (
+          <ProgressBar
+            label="Uploading..."
+            value={uploadProgress}
           />
         )}
 
-        {showSuccessToast && (
-          <ToastNotification
-            kind="success"
-            title="Collection Created"
-            subtitle="The files are being indexed in the vector DB, please check back later."
-            caption=""
-            timeout={5000}
-            onClose={() => setShowSuccessToast(false)}
-          />
-        )}
-      </div>
-    </Content>
+        <Button type="submit" kind="primary" disabled={isUploading || files.length === 0 || !collectionName}>
+          {isUploading ? <InlineLoading description="Creating collection..." /> : "Create Collection"}
+        </Button>
+      </Form>
+
+      {showError && (
+        <ToastNotification
+          kind="error"
+          title="Error"
+          subtitle={errorMessage}
+          caption=""
+          timeout={5000}
+          onClose={() => setShowError(false)}
+        />
+      )}
+
+      {showSuccessToast && (
+        <ToastNotification
+          kind="success"
+          title="Collection Created"
+          subtitle="The files are being indexed in the vector DB, please check back later."
+          caption=""
+          timeout={5000}
+          onClose={() => setShowSuccessToast(false)}
+        />
+      )}
+    </div>
   );
 };
 
