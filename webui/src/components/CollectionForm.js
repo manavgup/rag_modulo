@@ -13,7 +13,8 @@ import {
   TileAboveTheFoldContent,
   TileBelowTheFoldContent,
   Loading,
-  InlineLoading
+  InlineLoading,
+  Content
 } from '@carbon/react';
 import { TrashCan } from '@carbon/icons-react';
 import { createCollectionWithDocuments, getUserCollections } from '../api/api';
@@ -145,121 +146,123 @@ const CollectionForm = ({ onSubmit }) => {
   }
 
   return (
-    <div className="collection-form-container">
-      <h2>Your Collections</h2>
-      {isLoadingCollections ? (
-        <Loading description="Loading collections" withOverlay={false} />
-      ) : Array.isArray(userCollections) && userCollections.length > 0 ? (
-        userCollections.map((collection) => (
-          <ExpandableTile key={collection.id}>
-            <TileAboveTheFoldContent>
-              <h3>{collection.name}</h3>
-              <p>{Array.isArray(collection.files) && collection.files.slice(0, 3).map(file => file.filename).join(', ')}</p>
-            </TileAboveTheFoldContent>
-            <TileBelowTheFoldContent>
-              {Array.isArray(collection.files) && collection.files.slice(3, 10).map(file => (
-                <p key={file.id}>{file.filename}</p>
-              ))}
-            </TileBelowTheFoldContent>
-          </ExpandableTile>
-        ))
-      ) : (
-        <p>No collections found. Create your first collection below!</p>
-      )}
+    <Content>
+      <div className="collection-form-container">
+        <h2>Your Collections</h2>
+        {isLoadingCollections ? (
+          <Loading description="Loading collections" withOverlay={false} />
+        ) : Array.isArray(userCollections) && userCollections.length > 0 ? (
+          userCollections.map((collection) => (
+            <ExpandableTile key={collection.id}>
+              <TileAboveTheFoldContent>
+                <h3>{collection.name}</h3>
+                <p>{Array.isArray(collection.files) && collection.files.slice(0, 3).map(file => file.filename).join(', ')}</p>
+              </TileAboveTheFoldContent>
+              <TileBelowTheFoldContent>
+                {Array.isArray(collection.files) && collection.files.slice(3, 10).map(file => (
+                  <p key={file.id}>{file.filename}</p>
+                ))}
+              </TileBelowTheFoldContent>
+            </ExpandableTile>
+          ))
+        ) : (
+          <p>No collections found. Create your first collection below!</p>
+        )}
 
-      <h2>Create New Collection</h2>
-      <Form className="collection-form" onSubmit={handleSubmit}>
-        <TextInput
-          id="collection-name"
-          labelText="Collection Name"
-          value={collectionName}
-          onChange={(e) => setCollectionName(e.target.value)}
-          disabled={isUploading}
-        />
-        <Checkbox
-          className="cds--label-description"
-          checked={isPrivate}
-          labelText="Private Collection?"
-          id="checkbox-label-1"
-          onChange={(e) => setIsPrivate(e.target.checked)}
-          disabled={isUploading}
-        />
-        <FormItem>
-          <p className="cds--file--label">Upload files</p>
-          <p className="cds--label-description">Max file size is 5MB.</p>
-          <FileUploaderDropContainer
-            accept={[
-              'text/plain',
-              'application/pdf',
-              'application/msword',
-              'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-              'application/vnd.ms-powerpoint',
-              'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-              'application/vnd.ms-excel',
-              'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            ]}
-            labelText="Drag and drop files here or click to upload"
-            multiple
-            onAddFiles={handleFileDrop}
+        <h2>Create New Collection</h2>
+        <Form className="collection-form" onSubmit={handleSubmit}>
+          <TextInput
+            id="collection-name"
+            labelText="Collection Name"
+            value={collectionName}
+            onChange={(e) => setCollectionName(e.target.value)}
             disabled={isUploading}
           />
-          {files.length > 0 && (
-            <div className="selected-files">
-              <p>Selected Files:</p>
-              {files.map((file, index) => (
-                <div key={index} style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
-                  <Tag type="gray">{file.name}</Tag>
-                  <Button
-                    kind="ghost"
-                    size="sm"
-                    hasIconOnly
-                    renderIcon={TrashCan}
-                    iconDescription="Remove file"
-                    tooltipPosition="right"
-                    onClick={() => handleFileRemove(index)}
-                    style={{ marginLeft: '8px' }}
-                    disabled={isUploading}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-        </FormItem>
+          <Checkbox
+            className="cds--label-description"
+            checked={isPrivate}
+            labelText="Private Collection?"
+            id="checkbox-label-1"
+            onChange={(e) => setIsPrivate(e.target.checked)}
+            disabled={isUploading}
+          />
+          <FormItem>
+            <p className="cds--file--label">Upload files</p>
+            <p className="cds--label-description">Max file size is 5MB.</p>
+            <FileUploaderDropContainer
+              accept={[
+                'text/plain',
+                'application/pdf',
+                'application/msword',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'application/vnd.ms-powerpoint',
+                'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                'application/vnd.ms-excel',
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+              ]}
+              labelText="Drag and drop files here or click to upload"
+              multiple
+              onAddFiles={handleFileDrop}
+              disabled={isUploading}
+            />
+            {files.length > 0 && (
+              <div className="selected-files">
+                <p>Selected Files:</p>
+                {files.map((file, index) => (
+                  <div key={index} style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
+                    <Tag type="gray">{file.name}</Tag>
+                    <Button
+                      kind="ghost"
+                      size="sm"
+                      hasIconOnly
+                      renderIcon={TrashCan}
+                      iconDescription="Remove file"
+                      tooltipPosition="right"
+                      onClick={() => handleFileRemove(index)}
+                      style={{ marginLeft: '8px' }}
+                      disabled={isUploading}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </FormItem>
 
-        {uploadProgress > 0 && (
-          <ProgressBar
-            label="Uploading..."
-            value={uploadProgress}
+          {uploadProgress > 0 && (
+            <ProgressBar
+              label="Uploading..."
+              value={uploadProgress}
+            />
+          )}
+
+          <Button type="submit" kind="primary" disabled={isUploading || files.length === 0}>
+            {isUploading ? <InlineLoading description="Creating collection..." /> : "Create Collection"}
+          </Button>
+        </Form>
+
+        {showError && (
+          <ToastNotification
+            kind="error"
+            title="Error"
+            subtitle={errorMessage}
+            caption=""
+            timeout={5000}
+            onClose={() => setShowError(false)}
           />
         )}
 
-        <Button type="submit" kind="primary" disabled={isUploading || files.length === 0}>
-          {isUploading ? <InlineLoading description="Creating collection..." /> : "Create Collection"}
-        </Button>
-      </Form>
-
-      {showError && (
-        <ToastNotification
-          kind="error"
-          title="Error"
-          subtitle={errorMessage}
-          caption=""
-          timeout={5000}
-          onClose={() => setShowError(false)}
-        />
-      )}
-
-      {showSuccessToast && (
-        <ToastNotification
-          kind="success"
-          title="Collection Created"
-          subtitle="The files are being indexed in the vector DB, please check back later."
-          caption=""
-          timeout={5000}
-          onClose={() => setShowSuccessToast(false)}
-        />
-      )}
-    </div>
+        {showSuccessToast && (
+          <ToastNotification
+            kind="success"
+            title="Collection Created"
+            subtitle="The files are being indexed in the vector DB, please check back later."
+            caption=""
+            timeout={5000}
+            onClose={() => setShowSuccessToast(false)}
+          />
+        )}
+      </div>
+    </Content>
   );
 };
 
