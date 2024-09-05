@@ -253,3 +253,50 @@ h2, p {
     margin-left: 200px;
   }
 }
+
+/* Add these new styles at the end of your common.css file */
+
+.user-collections-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.collection-tile {
+  height: 100%;
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.collection-tile .cds--tile-content {
+  padding: 16px;
+}
+
+.collection-tile h3 {
+  margin-bottom: 10px;
+  color: #161616;
+}
+
+.collection-tile p {
+  margin: 5px 0;
+  color: #525252;
+}
+
+.collection-tile .cds--tile__chevron {
+  fill: #0f62fe;
+}
+
+.collection-tile:hover {
+  border-color: #0f62fe;
+}
+
+.collection-tile .cds--tile-content__above-the-fold {
+  height: auto;
+}
+
+.collection-tile .cds--tile-content__below-the-fold {
+  padding-top: 16px;
+}
