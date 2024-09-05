@@ -1,5 +1,6 @@
-import React from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import React from "react";
+import { useAuth } from "../contexts/AuthContext";
+import { Content, Theme } from "@carbon/react";
 
 const Dashboard = () => {
   const { user, loading } = useAuth();
@@ -9,10 +10,10 @@ const Dashboard = () => {
   }
 
   return (
-    <div>
-      <h1>Welcome, {user ? user.name : 'Guest'}!</h1>
+    <Content>
+      <h1>Welcome, {user ? user.name : "Guest"}!</h1>
       {/* Add more dashboard content here */}
-    </div>
+    </Content>
   );
 };
 
