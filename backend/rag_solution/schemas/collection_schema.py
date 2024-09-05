@@ -15,11 +15,15 @@ class FileInfo(BaseModel):
     id: UUID
     filename: str
 
+    model_config = ConfigDict(from_attributes=True)
+
 class CollectionInput(BaseModel):
     name: str
     is_private: bool
     users: List[UUID] = []
     status: CollectionStatus = CollectionStatus.CREATED
+
+    model_config = ConfigDict(from_attributes=True)
 
 class CollectionOutput(BaseModel):
     id: UUID

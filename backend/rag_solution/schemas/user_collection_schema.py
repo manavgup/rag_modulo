@@ -27,6 +27,8 @@ class FileInfo(BaseModel):
     id: UUID
     filename: str
 
+    model_config = ConfigDict(from_attributes=True)
+
 class UserCollectionDetailOutput(BaseModel):
     collection_id: UUID
     name: str
