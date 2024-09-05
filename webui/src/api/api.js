@@ -1,11 +1,28 @@
 import axios from 'axios';
-import { API_ROUTES }  from '../config/config';
+import config, { API_ROUTES }  from '../config/config';
+import { getUserData } from '../services/authService';
 
 const api = axios.create({
-  baseURL: API_ROUTES.GET_USER_COLLECTIONS,
+  baseURL: config.apiUrl,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
+});
+
+// Add an interceptor to include the X-User-UUID header in all requests
+api.interceptors.request.use(async function (config) {
+  try {
+    const userData = await getUserData();
+    if (userData && userData.uuid) {
+      config.headers['X-User-UUID'] = userData.uuid;
+    }
+  } catch (error) {
+    console.error('Error getting user data:', error);
+  }
+  return config;
+}, function (error) {
+  return Promise.reject(error);
 });
 
 export const createCollectionWithDocuments = async (formData, onUploadProgress) => {
@@ -16,7 +33,7 @@ export const createCollectionWithDocuments = async (formData, onUploadProgress) 
       throw new Error('CREATE_COLLECTION route is undefined');
     }
     console.log("Sending request to:", API_ROUTES.CREATE_COLLECTION);
-    const response = await axios.post(
+    const response = await api.post(
       API_ROUTES.CREATE_COLLECTION,
       formData,
       {
@@ -24,7 +41,6 @@ export const createCollectionWithDocuments = async (formData, onUploadProgress) 
           'Content-Type': 'multipart/form-data',
         },
         onUploadProgress,
-        withCredentials: false,
       }
     );
     console.log("Response: ", response);
@@ -36,15 +52,19 @@ export const createCollectionWithDocuments = async (formData, onUploadProgress) 
   }
 };
 
-export const getUserCollections = async (userId) => {
+export const getUserCollections = async () => {
   try {
+    const userData = await getUserData();
+    if (!userData || !userData.uuid) {
+      throw new Error('User UUID not available');
+    }
+    
     console.log("API_ROUTES.GET_USER_COLLECTIONS:", API_ROUTES.GET_USER_COLLECTIONS);
-    console.log("userId:", userId);
-    console.log("Full URL:", `${API_ROUTES.GET_USER_COLLECTIONS}${userId}`);
+    console.log("User UUID:", userData.uuid);
+    const fullUrl = `${API_ROUTES.GET_USER_COLLECTIONS}${userData.uuid}`;
+    console.log("Full URL:", fullUrl);
 
-    const response = await axios.get(`${API_ROUTES.GET_USER_COLLECTIONS}${userId}`, {
-      withCredentials: true, // Change this to true
-    });
+    const response = await api.get(fullUrl);
     console.log("User collections response:", response);
     return response.data;
   } catch (error) {

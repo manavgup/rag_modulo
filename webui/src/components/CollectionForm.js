@@ -33,15 +33,15 @@ const CollectionForm = ({ onSubmit }) => {
   const [isLoadingCollections, setIsLoadingCollections] = useState(false);
 
   useEffect(() => {
-    if (user && user.id) {
-      fetchUserCollections(user.id);
+    if (user && user.uuid) {
+      fetchUserCollections();
     }
   }, [user]);
 
-  const fetchUserCollections = async (userId) => {
+  const fetchUserCollections = async () => {
     setIsLoadingCollections(true);
     try {
-      const collections = await getUserCollections(userId);
+      const collections = await getUserCollections();
       console.log('User collections:', collections);
       setUserCollections(Array.isArray(collections) ? collections : []);
     } catch (error) {
@@ -86,10 +86,13 @@ const CollectionForm = ({ onSubmit }) => {
     e.preventDefault();
 
     if (!user) {
+      console.error("User not authenticated");
       setErrorMessage('User not authenticated. Please sign in.');
       setShowError(true);
       return;
     }
+
+    console.log("Submitting form with user:", user);
 
     if (files.length === 0) {
       setErrorMessage('Please add at least one file to the collection.');
@@ -101,11 +104,16 @@ const CollectionForm = ({ onSubmit }) => {
     const formData = new FormData();
     formData.append('collection_name', collectionName);
     formData.append('is_private', isPrivate);
-    formData.append('user_id', user.id);
+    formData.append('user_id', user.uuid);
 
     files.forEach((file) => {
       formData.append('files', file);
     });
+
+    // Log the formData contents
+    for (let [key, value] of formData.entries()) {
+      console.log(`${key}: ${value}`);
+    }
 
     try {
       const response = await createCollectionWithDocuments(formData, (event) => {
@@ -115,7 +123,7 @@ const CollectionForm = ({ onSubmit }) => {
       console.log('API Response:', response);
       setShowSuccessToast(true);
       onSubmit(response);
-      await fetchUserCollections(user.id);
+      await fetchUserCollections();
       // Reset form
       setCollectionName('');
       setIsPrivate(false);

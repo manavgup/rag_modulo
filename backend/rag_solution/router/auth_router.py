@@ -11,6 +11,8 @@ from backend.rag_solution.file_management.database import get_db
 from backend.core.config import settings
 import uuid
 import logging
+import json
+import secrets
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -37,6 +39,7 @@ class UserInfo(BaseModel):
     sub: str
     name: Optional[str]
     email: str
+    uuid: str
 
 class SessionData(BaseModel):
     user: UserInfo
@@ -130,18 +133,24 @@ async def token_exchange(request: Request):
             logger.error(f"An unexpected error occurred: {str(e)}")
             raise HTTPException(status_code=500, detail="Internal server error")
         
-@router.get("/login", summary="Initiate Login",
-            responses={
-                302: {"description": "Redirect to IBM OIDC authorization endpoint"},
-                500: {"description": "Internal server error"}
-            })
+@router.get("/login")
 async def login(request: Request):
-    """
-    Initiate the login process by redirecting to the IBM OIDC authorization endpoint.
-    """
-    redirect_uri = f"{settings.frontend_url}/api/auth/callback"
-    logger.debug(f"Login initiated. Redirect URI: {redirect_uri}")
-    return await oauth.ibm.authorize_redirect(request, redirect_uri)
+    try:
+        redirect_uri = f"{settings.frontend_url}/api/auth/callback"
+        logger.info(f"Initiating login. Redirect URI: {redirect_uri}")
+        
+        # Generate and store nonce in the session
+        nonce = generate_nonce()  # Implement this function to generate a secure random nonce
+        request.session['nonce'] = nonce
+        
+        # Let Authlib handle the redirect and state management
+        return await oauth.ibm.authorize_redirect(request, redirect_uri, nonce=nonce)
+    except Exception as e:
+        logger.error(f"Error in login process: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error during login process")
+
+def generate_nonce():
+    return secrets.token_urlsafe(32)
 
 @router.get("/session", response_model=SessionData, summary="Get Session Data",
             responses={
@@ -158,7 +167,13 @@ async def get_session(request: Request):
     user_id = request.session.get('user_id')
     if user and user_id:
         logger.info(f"User found in session: {user}")
-        return JSONResponse(content={"user": user, "user_id": user_id})
+        user_info = UserInfo(
+            sub=user.get('sub'),
+            name=user.get('name'),
+            email=user.get('email'),
+            uuid=user_id
+        )
+        return JSONResponse(content={"user": user_info.model_dump()})
     logger.warning("No user found in session")
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
 
@@ -167,64 +182,47 @@ async def get_session(request: Request):
                 302: {"description": "Redirect to frontend dashboard"},
                 500: {"description": "Authentication failed"}
             })
-async def auth(request: Request, response: Response, db: Session = Depends(get_db)):
+async def auth(request: Request, db: Session = Depends(get_db)):
     """
     Handle the authentication callback from the IBM OIDC provider.
     """
     try:
-        logger.debug(f"Callback received. Request URL: {request.url}")
-        logger.debug(f"Callback query params: {request.query_params}")
-        logger.debug(f"Callback headers: {request.headers}")
-
-        logger.debug("Attempting to get token.")
+        logger.info("Received authentication callback")
+        
+        # Let Authlib handle the token exchange and state verification
         token = await oauth.ibm.authorize_access_token(request)
-        logger.info(f"Token received: {token}")
+        logger.info("Successfully obtained access token")
 
-        # Extract the nonce from the token or request
-        nonce = token.get('nonce') or request.query_params.get('nonce')
+        # Retrieve the nonce from the session
+        nonce = request.session.get('nonce')
+        if not nonce:
+            logger.warning("Nonce not found in session")
+            nonce = None  # or generate a new nonce if needed
 
         user_info = await oauth.ibm.parse_id_token(token, nonce=nonce)
-        logger.info(f"User authenticated. User info: {user_info}")
+        logger.info(f"Authenticated user: {user_info.get('email')}")
         
         user_service = UserService(db)
-        logger.info(f"Finding or creating user: {user_info['sub']}, {user_info['email']}, {user_info.get('name', 'Unknown')}")
         db_user = user_service.get_or_create_user_by_fields(
             ibm_id=user_info['sub'],
             email=user_info['email'],
             name=user_info.get('name', 'Unknown')
-            )
-
-        logger.info(f"User in database: {db_user.__dict__}")
+        )
+        logger.info(f"User in database: {db_user.id}")
       
+        user_info['uuid'] = str(db_user.id)
         request.session['user'] = user_info
         request.session['user_id'] = str(db_user.id)
-        logger.info(f"Session set: user_id={str(db_user.id)}")
         
         redirect_url = f"{settings.frontend_url}/?user_id={str(db_user.id)}"
         logger.info(f"Redirecting to: {redirect_url}")
         
-        response = RedirectResponse(url=redirect_url)
-         # Set cookies with proper attributes
-        response.set_cookie(
-            key="session",
-            value=request.session.get('session', ''),
-            httponly=True,
-            secure=True,  # Set to True if using HTTPS
-            samesite="None",  # or "Lax" if not using HTTPS
-            max_age=86400  # 1 day in seconds
-        )
-        logger.debug(f"Response headers: {response.headers}")
-        return response
+        return RedirectResponse(url=redirect_url)
     except Exception as e:
-        logger.error(f"Error in callback: {str(e)}", exc_info=True)
-        return RedirectResponse(url=f"{settings.frontend_url}/signin?error=authentication_failed")
+        logger.error(f"Error in authentication callback: {str(e)}", exc_info=True)
+        error_redirect = f"{settings.frontend_url}/signin?error=authentication_failed"
+        return RedirectResponse(url=error_redirect)
 
-@router.get("/userinfo", response_model=UserInfo, summary="Get User Info",
-            responses={
-                200: {"description": "Successful response", "model": UserInfo},
-                401: {"description": "Unauthorized"},
-                500: {"description": "Internal server error"}
-            })
 @router.get("/userinfo", response_model=UserInfo, summary="Get User Info",
             responses={
                 200: {"description": "Successful response", "model": UserInfo},
@@ -236,17 +234,19 @@ async def get_userinfo(request: Request):
     Retrieve the user information from the session.
     """
     user = request.session.get('user')
-    if not user:
+    user_id = request.session.get('user_id')
+    if not user or not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
     # Extract relevant information from the session user data
-    user_info = {
-        "sub": user.get('sub'),
-        "name": user.get('name'),
-        "email": user.get('email')
-    }
+    user_info = UserInfo(
+        sub=user.get('sub'),
+        name=user.get('name'),
+        email=user.get('email'),
+        uuid=user_id
+    )
     
-    return JSONResponse(content=user_info)
+    return JSONResponse(content=user_info.dict())
 
 @router.get("/logout", summary="Logout User",
             responses={

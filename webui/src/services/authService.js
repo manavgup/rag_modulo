@@ -22,19 +22,31 @@ export const loadIBMScripts = async () => {
 
 export const getUserData = async () => {
   try {
+    console.log("Fetching user data...");
+    console.log("All cookies:", document.cookie);
+
     const response = await fetch(`${config.apiUrl}/auth/session`, {
       credentials: 'include'
     });
+    console.log("Session response:", response);
     if (response.ok) {
       const data = await response.json();
-      if (data.user && data.user_id) {
-        localStorage.setItem('user_uuid', data.user_id);
-        return { ...data.user, id: data.user_id };
+      console.log("User data from server:", data);
+      if (data.user && data.user.uuid) {
+        localStorage.setItem('user_id', data.user.uuid);
+        return data.user;
       }
+    } else if (response.status === 401) {
+      console.log("User not authenticated, redirecting to login");
+      signIn();
+      return null;
     }
+    
+    localStorage.removeItem('user_id');
     return null;
   } catch (error) {
     console.error("Error fetching user data:", error);
+    localStorage.removeItem('user_id');
     return null;
   }
 };
@@ -45,12 +57,12 @@ export const signOut = async () => {
       method: 'GET',
       credentials: 'include'
     });
-    localStorage.removeItem('user_uuid');
+    localStorage.removeItem('user_id');
   } catch (error) {
     console.error("Error during sign out:", error);
   }
 };
 
 export const getUserUUID = () => {
-  return localStorage.getItem('user_uuid');
+  return localStorage.getItem('user_id');
 };

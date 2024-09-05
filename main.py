@@ -27,17 +27,6 @@ from backend.auth.oidc import get_current_user, oauth
 logging.basicConfig(level=settings.log_level)
 logger = logging.getLogger(__name__)
 
-class CustomSessionMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        response = await call_next(request)
-        if 'session' in request.scope:
-            # Modify the Set-Cookie header to include SameSite and Secure attributes
-            for key, value in response.headers.items():
-                if key.lower() == 'set-cookie' and value.startswith('session='):
-                    new_value = value + '; SameSite=None; Secure'
-                    response.headers[key] = new_value
-        return response
-    
 class LoggingCORSMiddleware(CORSMiddleware):
     async def __call__(self, scope, receive, send):
         if scope["type"] == "http":
@@ -94,11 +83,10 @@ app.add_middleware(
     SessionMiddleware,
     secret_key=Secret(settings.ibm_client_secret),
     session_cookie="session",
+    same_site="none",
+    https_only=True,
     max_age=86400  # 1 day in seconds
 )
-
-# Add the custom middleware after SessionMiddleware
-app.add_middleware(CustomSessionMiddleware)
 
 # Configure CORS
 app.add_middleware(
@@ -106,24 +94,32 @@ app.add_middleware(
     allow_origins=["http://localhost:3000", "http://frontend", "http://frontend:80", "https://prepiam.ice.ibmcloud.com"],
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*", "X-User-UUID"],
 )
 
 # Add Auth middleware last
 app.add_middleware(AuthMiddleware)
 
-async def auth_dependency(user: Annotated[dict, Depends(get_current_user)]):
-    if not user:
+async def auth_dependency(request: Request):
+    user = request.session.get('user')
+    user_uuid = request.headers.get('X-User-UUID')
+    logger.debug(f"Auth dependency called. Session: {dict(request.session)}")
+    logger.debug(f"Request headers: {dict(request.headers)}")
+    logger.debug(f"Request cookies: {request.cookies}")
+    logger.debug(f"User UUID from headers: {user_uuid}")
+    if not user and not user_uuid:
+        logger.warning("No user found in session or headers")
         raise HTTPException(status_code=401, detail="Authentication required")
-    return user
-
-@app.middleware("http")
-async def debug_middleware(request: Request, call_next):
-    logger.debug("Middleware stack:")
-    for middleware in app.user_middleware:
-        logger.debug(f" - {middleware.__class__.__name__}")
-    response = await call_next(request)
-    return response
+    if user:
+        logger.info(f"User authenticated from session: {user.get('email')}")
+        return user
+    elif user_uuid:
+        logger.info(f"User authenticated from headers: {user_uuid}")
+        # Fetch user data from database using user_uuid
+        # Return user data or raise an exception if not found
+        return {'id': user_uuid}
+    else:
+        raise HTTPException(status_code=401, detail="Authentication required")
 
 # Include routers
 app.include_router(auth_router)

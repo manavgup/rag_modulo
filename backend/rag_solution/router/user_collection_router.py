@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 from uuid import UUID
@@ -49,7 +49,19 @@ def remove_user_from_collection(user_id: UUID, collection_id: UUID, db: Session 
 )
 def get_user_collections(user_id: UUID, db: Session = Depends(get_db)):
     service = UserCollectionService(db)
-    return service.get_user_collections(user_id)
+    try:
+        collections = service.get_user_collections(user_id)
+        if not collections:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No collections found for user with id {user_id}"
+            )
+        return collections
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred while fetching user collections: {str(e)}"
+        )
 
 @router.get("/collection/{collection_id}", 
     response_model=List[UserCollectionOutput],
