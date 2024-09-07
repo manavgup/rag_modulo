@@ -1,57 +1,94 @@
-# retriever.py
-import os
-import sys
+from typing import List, Dict, Any
+from abc import ABC, abstractmethod
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
+from backend.vectordbs.utils.watsonx import generate_text
+from backend.core.config import settings
 
-# Ensure the base directory is in the Python path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+class BaseRetriever(ABC):
+    @abstractmethod
+    def retrieve(self, query: str, k: int = 10) -> List[Dict[str, Any]]:
+        pass
 
-from backend.vectordbs.data_types import QueryResult
-from backend.vectordbs.vector_store import VectorStore
+class VectorRetriever(BaseRetriever):
+    def __init__(self, vector_store):
+        self.vector_store = vector_store
+        self.model = settings.embedding_model
 
+    def retrieve(self, query: str, k: int = 10) -> List[Dict[str, Any]]:
+        query_embedding = self.model.encode([query])[0]
+        results = self.vector_store.search(query_embedding, k=k)
+        return [{"id": r.id, "content": r.payload['content'], "score": r.score} for r in results]
+
+class KeywordRetriever(BaseRetriever):
+    def __init__(self, documents: List[Dict[str, Any]]):
+        self.documents = documents
+        self.vectorizer = TfidfVectorizer()
+        self.tfidf_matrix = self.vectorizer.fit_transform([doc['content'] for doc in documents])
+
+    def retrieve(self, query: str, k: int = 10) -> List[Dict[str, Any]]:
+        query_vec = self.vectorizer.transform([query])
+        similarities = cosine_similarity(query_vec, self.tfidf_matrix).flatten()
+        top_k_indices = similarities.argsort()[-k:][::-1]
+        return [
+            {"id": self.documents[i]['id'],
+             "content": self.documents[i]['content'],
+             "score": similarities[i]}
+            for i in top_k_indices
+        ]
+
+class HybridRetriever(BaseRetriever):
+    def __init__(self, vector_store, documents: List[Dict[str, Any]], vector_weight: float = 0.7):
+        self.vector_retriever = VectorRetriever(vector_store)
+        self.keyword_retriever = KeywordRetriever(documents)
+        self.vector_weight = vector_weight
+
+    def retrieve(self, query: str, k: int = 10) -> List[Dict[str, Any]]:
+        vector_results = self.vector_retriever.retrieve(query, k=k)
+        keyword_results = self.keyword_retriever.retrieve(query, k=k)
+        
+        # Combine and re-rank results
+        combined_results = {}
+        for result in vector_results + keyword_results:
+            if result['id'] in combined_results:
+                combined_results[result['id']]['score'] += self.vector_weight * result['score']
+            else:
+                combined_results[result['id']] = result
+                combined_results[result['id']]['score'] *= self.vector_weight
+
+        ranked_results = sorted(combined_results.values(), key=lambda x: x['score'], reverse=True)
+        return ranked_results[:k]
 
 class Retriever:
-    def __init__(
-        self,
-        vector_store: VectorStore,
-        top_k: int = 5,
-        similarity_threshold: float = 0.8,
-    ):
-        self.vector_store = vector_store
-        self.top_k = top_k
-        self.similarity_threshold = similarity_threshold
+    def __init__(self, config: Dict[str, Any], vector_store, documents: List[Dict[str, Any]]):
+        if config.get('use_hybrid', True):
+            self.retriever = HybridRetriever(vector_store, documents, config.get('vector_weight', 0.7))
+        elif config.get('use_vector', True):
+            self.retriever = VectorRetriever(vector_store)
+        else:
+            self.retriever = KeywordRetriever(documents)
 
-    async def retrieve(self, query: str) -> QueryResult:
-        try:
-            results = await self.vector_store.retrieve_documents_async(
-                query, limit=self.top_k
-            )
-
-            # Apply similarity threshold filter
-            filtered_results = [
-                result
-                for result in results.data
-                if result.score >= self.similarity_threshold
-            ]
-
-            return QueryResult(data=filtered_results)
-        except Exception as e:
-            # Log the error
-            print(f"Error retrieving documents: {e}")
-            return QueryResult(data=[])
-
+    def retrieve(self, query: str, k: int = 10) -> List[Dict[str, Any]]:
+        return self.retriever.retrieve(query, k)
 
 # Example usage
 if __name__ == "__main__":
-    import asyncio
+    from backend.vectordbs.factory import get_vectorstore
+    
+    # Initialize vector store and documents
+    vector_store = get_vectorstore('milvus')  # Or any other supported vector store
+    documents = [
+        {"id": 1, "content": "Einstein developed the theory of relativity."},
+        {"id": 2, "content": "Newton discovered the laws of motion and universal gravitation."},
+        # Add more documents...
+    ]
 
-    from vectordbs.factory import get_datastore
-
-    async def main():
-        vector_store = get_datastore("milvus")
-        retriever = Retriever(vector_store)
-        query = "What is the status of the Tesla project?"
-        results = await retriever.retrieve(query)
-        for result in results.data:
-            print(result.text)
-
-    asyncio.run(main())
+    config = {'use_hybrid': True, 'vector_weight': 0.7}
+    retriever = Retriever(config, vector_store, documents)
+    
+    query = "Who developed the theory of relativity?"
+    results = retriever.retrieve(query, k=5)
+    
+    for result in results:
+        print(f"ID: {result['id']}, Score: {result['score']}, Content: {result['content']}")
