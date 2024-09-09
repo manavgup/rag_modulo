@@ -34,6 +34,14 @@ const UISideNav = ({ isSideNavExpanded, handleSideNavExpand }) => {
         <SideNavLink
           renderIcon={Fade}
           href="#"
+          onClick={() => onNavigate("/collections")}
+          isActive={isActive("/collections")}
+        >
+          Collections
+        </SideNavLink>
+        <SideNavLink
+          renderIcon={Fade}
+          href="#"
           onClick={() => onNavigate("/create-collection")}
           isActive={isActive("/create-collection")}
         >
