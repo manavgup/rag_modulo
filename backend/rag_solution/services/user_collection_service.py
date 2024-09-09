@@ -28,8 +28,8 @@ class UserCollectionService:
         logger.info(f"Adding user {user_id} to collection {collection_id}")
         try:
             # Check if the collection exists
-            if not self.user_collection_repository.get_user_collection(user_id, collection_id):
-                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found")
+            # if not self.user_collection_repository.get_user_collection(user_id, collection_id):
+            #    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found")
             
             return self.user_collection_repository.add_user_to_collection(user_id, collection_id)
         except HTTPException:
