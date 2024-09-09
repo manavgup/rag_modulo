@@ -116,6 +116,9 @@ run-services: create-volumes
 	@echo "Milvus logs saved to milvus.log:"
 	@$(DOCKER_COMPOSE) logs milvus-standalone > milvus.log
 
+run-tests:
+	$(DOCKER_COMPOSE) run --rm test pytest $(ARGS)
+
 build-frontend:
 	docker build -t $(PROJECT_NAME)-frontend \
 		-f webui/Dockerfile.frontend ./webui
