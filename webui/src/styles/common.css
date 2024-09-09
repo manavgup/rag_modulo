@@ -13,7 +13,6 @@
     monospace;
 }*/
 
-  
 /* App layout */
 /* .App {
   display: flex;
@@ -100,7 +99,8 @@
 }
 
 /* Typography */
-h2, p {
+h2,
+p {
   margin-bottom: 15px;
 }
 
@@ -299,4 +299,18 @@ h2, p {
 
 .collection-tile .cds--tile-content__below-the-fold {
   padding-top: 16px;
+}
+
+/* Data loading */
+.data-loading {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 3rem;
+  opacity: 70%;
+}
+
+/* Fix margin for Pagination */
+.cds--pagination .cds--form-item {
+  margin: 0;
 }
