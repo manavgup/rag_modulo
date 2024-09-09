@@ -266,6 +266,15 @@ class MilvusStore(VectorStore):
                 raise CollectionError(f"Failed to delete collection '{name}': {e}")
         else:
             logging.debug(f"Collection '{name}' does not exist.")
+    
+    def list_collections(self):
+        try:
+            collections = utility.list_collections()
+            logging.debug(f"Retrieved collections: {collections}")
+            return collections
+        except Exception as e:
+            logging.error(f"Failed to list collections: {e}")
+            raise VectorStoreError(f"Failed to list collections: {e}")
 
     def get_document(self, document_id: str, collection_name: str) -> Optional[Document]:
         """
