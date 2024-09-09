@@ -1,0 +1,68 @@
+.view-content {
+  padding-right: 0 !important;
+  padding-top: 0 !important;
+}
+
+.view-datatable-header {
+  font-size: 14px;
+  width: 60%;
+  padding: 0.5rem 1rem;
+  color: rgb(82, 82, 82);
+}
+
+.view-tabledata-action {
+  width: 75px;
+  inline-size: 75px !important;
+}
+
+
+.view-title button {
+  display: flex;
+}
+
+.view-detail-grid {
+  border-top: 1px solid #ccc;
+  margin-top: 2rem;
+  padding-top: 1rem;
+  padding-inline: .5rem !important;
+}
+
+.view-detail-grid > div {
+  margin-top: 1.5rem;
+  font-size: 14px;
+}
+
+.view-detail-label {
+  font-weight: 600;
+}
+.view-detail-text {
+  padding-top: .3rem;
+}
+
+
+.view-title {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+.view-title h2 {
+  display: flex;
+}
+
+@media screen and (max-width: 500px) {
+  .view-title {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .view-title h2 {
+    width: 100%;
+  }
+
+  .view-title button {
+    display: flex;
+    /* width: 100%; */
+  }
+}

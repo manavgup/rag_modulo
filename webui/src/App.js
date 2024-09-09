@@ -11,7 +11,11 @@ import SignIn from "./components/SignIn";
 import Dashboard from "./components/Dashboard";
 import CollectionForm from "./components/CollectionForm";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
-import "./css/common.css";
+import Collections from "./components/Collections";
+
+
+import "./styles/common.css";
+import "./styles/global.scss";
 
 function AppContent() {
   const { user, loading } = useAuth();
@@ -26,9 +30,9 @@ function AppContent() {
         <Suspense fallback={<div>Loading...</div>}>
           <div className="App">
             {user && <UIHeader />}
-            <div className="content-wrapper ">
+            {/* <div className="content-wrapper "> */}
               <Content
-                className={"main-content"}
+                // className={"main-content"}
               >
                 <Routes>
                   <Route
@@ -46,13 +50,19 @@ function AppContent() {
                     }
                   />
                   <Route
+                    path="/collections"
+                    element={
+                      user ? <Collections /> : <Navigate to="/signin" />
+                    }
+                  />
+                  <Route
                     path="/"
                     element={<Navigate to={user ? "/dashboard" : "/signin"} />}
                   />
                 </Routes>
               </Content>
             </div>
-          </div>
+          {/* </div> */}
         </Suspense>
       </Router>
     </GlobalTheme>
