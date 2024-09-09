@@ -29,7 +29,7 @@ class CollectionService:
 
     def __init__(self, db: Session):
         self.collection_repository = CollectionRepository(db)
-        self.user_collection_repository = UserCollectionRepository(db)
+        self.user_collection_service = UserCollectionService(db)
         self.file_management_service = FileManagementService(db)
         self.vector_store = get_datastore(settings.vector_db)
 
@@ -58,7 +58,7 @@ class CollectionService:
 
             # 3. Add the creator to the collection
             for user_id in collection.users:
-                self.user_collection_repository.add_user_to_collection(user_id, new_collection.id)
+                self.user_collection_service.add_user_to_collection(user_id, new_collection.id)
                 new_collection.user_ids.append(user_id)
 
             return new_collection
