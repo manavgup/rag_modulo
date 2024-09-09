@@ -120,6 +120,24 @@ services:
       - "minio"
     networks:
       - app-network
+  
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    command: pytest -v -s
+    volumes:
+      - .:/app
+    networks:
+      - app-network
+    depends_on:
+      - milvus-standalone
+      - postgres
+    environment:
+      - MILVUS_HOST=milvus-standalone
+      - MILVUS_PORT=19530
+      - COLLECTIONDB_HOST=postgres
+      - COLLECTIONDB_PORT=5432
 
 volumes:
   postgres_data:
