@@ -3,9 +3,9 @@ import logging
 from typing import List, Callable
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
-from backend.core.config import settings
-from backend.vectordbs.utils.watsonx import get_embeddings
-from backend.vectordbs.utils.watsonx import get_tokenization
+from core.config import settings
+from vectordbs.utils.watsonx import get_embeddings
+from vectordbs.utils.watsonx import get_tokenization
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)

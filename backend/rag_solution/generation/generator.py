@@ -2,8 +2,8 @@ import os
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List
 from dotenv import load_dotenv
-from backend.vectordbs.utils.watsonx import generate_text
-from backend.rag_solution.pipeline.pipeline import pipeline
+from vectordbs.utils.watsonx import generate_text
+from rag_solution.pipeline.pipeline import pipeline
 load_dotenv()
 
 class BaseGenerator(ABC):

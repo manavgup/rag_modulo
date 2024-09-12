@@ -1,8 +1,8 @@
 from typing import List, Dict, Any
-from backend.rag_solution.query_rewriting.query_rewriter import QueryRewriter
-from backend.rag_solution.retrieval.retriever import Retriever
-from backend.rag_solution.generation.generator import Generator
-from backend.vectordbs.factory import get_vectorstore
+from rag_solution.query_rewriting.query_rewriter import QueryRewriter
+from rag_solution.retrieval.retriever import Retriever
+from rag_solution.generation.generator import Generator
+from vectordbs.factory import get_vectorstore
 
 class Pipeline:
     def __init__(self, config: Dict[str, Any]):

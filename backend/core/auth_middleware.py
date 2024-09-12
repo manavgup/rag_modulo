@@ -3,8 +3,8 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from sqlalchemy.orm import Session
-from backend.rag_solution.file_management.database import get_db
-from backend.rag_solution.services.user_service import UserService
+from rag_solution.file_management.database import get_db
+from rag_solution.services.user_service import UserService
 
 logger = logging.getLogger(__name__)
 

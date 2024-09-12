@@ -5,10 +5,10 @@ from uuid import UUID
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
 
-from backend.rag_solution.models.collection import Collection
-from backend.rag_solution.models.user import User
-from backend.rag_solution.models.user_collection import UserCollection
-from backend.rag_solution.schemas.collection_schema import (CollectionInput,
+from rag_solution.models.collection import Collection
+from rag_solution.models.user import User
+from rag_solution.models.user_collection import UserCollection
+from rag_solution.schemas.collection_schema import (CollectionInput,
                                                             CollectionOutput,
                                                             FileInfo)
 

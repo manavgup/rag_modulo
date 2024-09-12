@@ -10,12 +10,12 @@ from multiprocessing.managers import SyncManager
 
 import pymupdf
 
-from backend.core.custom_exceptions import DocumentProcessingError
-from backend.rag_solution.data_ingestion.base_processor import BaseProcessor
-from backend.rag_solution.data_ingestion.chunking import get_chunking_method
-from backend.rag_solution.doc_utils import clean_text
-from backend.vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, Source
-from backend.vectordbs.utils.watsonx import get_embeddings
+from core.custom_exceptions import DocumentProcessingError
+from rag_solution.data_ingestion.base_processor import BaseProcessor
+from rag_solution.data_ingestion.chunking import get_chunking_method
+from rag_solution.doc_utils import clean_text
+from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, Source
+from vectordbs.utils.watsonx import get_embeddings
 
 logger = logging.getLogger(__name__)
 

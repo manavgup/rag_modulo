@@ -4,12 +4,12 @@ from typing import List
 from fastapi import APIRouter, BackgroundTasks, Depends, UploadFile, Form, File, Request, HTTPException
 from sqlalchemy.orm import Session
 
-from backend.rag_solution.file_management.database import get_db
-from backend.rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput
-from backend.rag_solution.schemas.user_schema import UserInput
-from backend.rag_solution.services.user_service import UserService
-from backend.rag_solution.services.collection_service import CollectionService
-from backend.rag_solution.services.file_management_service import \
+from rag_solution.file_management.database import get_db
+from rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput
+from rag_solution.schemas.user_schema import UserInput
+from rag_solution.services.user_service import UserService
+from rag_solution.services.collection_service import CollectionService
+from rag_solution.services.file_management_service import \
     FileManagementService
 import logging
 

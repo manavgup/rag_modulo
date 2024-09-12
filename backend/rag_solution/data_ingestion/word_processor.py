@@ -5,10 +5,10 @@ from typing import Iterable
 
 from docx import Document as DocxDocument
 
-from backend.core.custom_exceptions import DocumentProcessingError
-from backend.rag_solution.data_ingestion.base_processor import BaseProcessor
-from backend.rag_solution.doc_utils import get_document
-from backend.vectordbs.data_types import Document
+from core.custom_exceptions import DocumentProcessingError
+from rag_solution.data_ingestion.base_processor import BaseProcessor
+from rag_solution.doc_utils import get_document
+from vectordbs.data_types import Document
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)

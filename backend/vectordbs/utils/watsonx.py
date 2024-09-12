@@ -13,7 +13,7 @@ from genai.schema import (TextEmbeddingParameters,
                           TextTokenizationParameters)
 from genai.text.generation import CreateExecutionOptions
 
-from backend.core.config import settings
+from core.config import settings
 import logging
 from ..data_types import Embeddings
 
