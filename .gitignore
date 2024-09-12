@@ -19,7 +19,6 @@ env/
 .CVS/
 
 # Ignore development and testing directories and files
-tests/
 docs/
 coverage/
 *.log
@@ -35,9 +34,33 @@ Thumbs.db
 # Ignore node_modules
 node_modules/
 
-# New entries to ignore data and volumes
+# Ignore data and volumes
 data/
 volumes/
 my_chroma_data/
+
+# Ignore logs and shell scripts
 *.log
 *.sh
+
+# Project specific ignores
+chroma/
+milvus.log
+chroma.log
+http_ca.crt
+
+# Python specific
+.coverage
+.pytest_cache/
+.ruff_cache/
+
+# Docker specific
+.dockerignore
+
+# Dependencies
+poetry.lock
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
