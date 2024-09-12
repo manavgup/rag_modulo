@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any, List
 from dotenv import load_dotenv
 from backend.vectordbs.utils.watsonx import generate_text
-from backend.rag_solution.pipeline.pipeline import pipeline
+
 load_dotenv()
 
 class BaseGenerator(ABC):
@@ -13,6 +13,7 @@ class BaseGenerator(ABC):
 
 class HuggingFaceGenerator(BaseGenerator):
     def __init__(self, model_name: str = "gpt2"):
+        from transformers import pipeline
         self.generator = pipeline("text-generation", model=model_name)
 
     def generate(self, query: str, documents: List[Dict[str, Any]]) -> str:

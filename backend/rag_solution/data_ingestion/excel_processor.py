@@ -1,7 +1,7 @@
 import logging
 import os
 import uuid
-from typing import Iterable
+from typing import AsyncIterable
 
 import pandas as pd
 
@@ -19,10 +19,10 @@ class ExcelProcessor(BaseProcessor):
     Processor for reading and chunking Excel files.
 
     Methods:
-        process(file_path: str) -> Iterable[Document]: Process the Excel file and yield Document instances.
+        process(file_path: str) -> AsyncIterable[Document]: Process the Excel file and yield Document instances.
     """
 
-    def process(self, file_path: str) -> Iterable[Document]:
+    async def process(self, file_path: str) -> AsyncIterable[Document]:
         """
         Process the Excel file and yield Document instances.
 
