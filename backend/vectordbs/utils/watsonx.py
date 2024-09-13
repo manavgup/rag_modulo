@@ -1,5 +1,6 @@
 import json
 import logging
+import time
 from typing import List, Optional, Union, Tuple
 
 from chromadb.api.types import Documents, EmbeddingFunction
@@ -9,12 +10,10 @@ from genai.credentials import Credentials
 from genai.schema import (TextEmbeddingParameters, 
                           TextGenerationParameters, 
                           TextTokenizationReturnOptions, 
-                          TextTokenizationReturnOptions, 
                           TextTokenizationParameters)
 from genai.text.generation import CreateExecutionOptions
 
 from core.config import settings
-import logging
 from ..data_types import Embeddings
 
 EMBEDDING_MODEL = settings.embedding_model
@@ -26,6 +25,13 @@ logger = logging.getLogger(__name__)
 
 # Global client
 client = None
+
+# Rate limiting settings
+RATE_LIMIT = 10  # maximum number of requests per minute
+RATE_LIMIT_PERIOD = 60  # in seconds
+
+# Timestamp of the last API call
+last_api_call = 0
 
 def _get_client() -> Client:
     global client
@@ -162,15 +168,40 @@ class ChromaEmbeddingFunction(EmbeddingFunction):
         return embeddings
 
 
-def generate_text(prompt: str, max_tokens: int = 150, temperature: float = 0.7) -> str:
+def generate_text(prompt: str, max_tokens: int = 150, temperature: float = 0.7, timeout: int = 30, max_retries: int = 3) -> str:
+    global last_api_call
     client = _get_client()
-    try:
-        response = client.text.generation.create(
-            model_id="meta/llama3-8b-v1",
-            input=prompt,
-            parameters=TextGenerationParameters(max_new_tokens=max_tokens, temperature=temperature),
-        )
-        return response.results[0].generated_text.strip()
-    except Exception as e:
-        logging.error(f"Error generating text: {e}")
-        return ""
+
+    def make_api_call():
+        global last_api_call
+        current_time = time.time()
+        time_since_last_call = current_time - last_api_call
+
+        if time_since_last_call < RATE_LIMIT_PERIOD / RATE_LIMIT:
+            sleep_time = (RATE_LIMIT_PERIOD / RATE_LIMIT) - time_since_last_call
+            time.sleep(sleep_time)
+
+        try:
+            response = client.text.generation.create(
+                model_id="meta/llama3-8b-v1",
+                input=prompt,
+                parameters=TextGenerationParameters(max_new_tokens=max_tokens, temperature=temperature),
+                execution_options=CreateExecutionOptions(timeout=timeout)
+            )
+            last_api_call = time.time()
+            return response.results[0].generated_text.strip()
+        except Exception as e:
+            logging.error(f"Error generating text: {e}")
+            raise
+
+    for attempt in range(max_retries):
+        try:
+            return make_api_call()
+        except Exception as e:
+            if attempt == max_retries - 1:
+                logging.error(f"Failed to generate text after {max_retries} attempts: {e}")
+                return ""
+            logging.warning(f"Attempt {attempt + 1} failed, retrying...")
+            time.sleep(2 ** attempt)  # Exponential backoff
+
+    return ""  # This line should never be reached, but it's here for completeness

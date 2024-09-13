@@ -19,13 +19,13 @@ class UserTeamRepository:
     def add_user_to_team(self, user_team: UserTeamInput) -> bool:
         try:
             db_user_team = UserTeam(user_id=user_team.user_id, team_id=user_team.team_id)
-            self.db.add(db_user_team)
-            self.db.commit()
-            self.db.refresh(db_user_team)
+            self.db.add(db_user_team)  # Add user-team association
+            self.db.commit()  # Commit to save changes
+            self.db.refresh(db_user_team)  # Refresh to get new state
             return True
         except Exception as e:
             logger.error(f"Error creating user-team association: {str(e)}")
-            self.db.rollback()
+            self.db.rollback()  # Rollback transaction on failure
             raise
 
     def get(self, user_id: UUID, team_id: UUID) -> Optional[UserTeamOutput]:
@@ -41,12 +41,12 @@ class UserTeamRepository:
             user_team = self.db.query(UserTeam).filter(UserTeam.user_id == user_id, UserTeam.team_id == team_id).first()
             if user_team:
                 self.db.delete(user_team)
-                self.db.commit()
+                self.db.commit()  # Commit delete
                 return True
             return False
         except Exception as e:
             logger.error(f"Error deleting user-team association: {str(e)}")
-            self.db.rollback()
+            self.db.rollback()  # Rollback on error
             raise
 
     def get_user_teams(self, user_id: UUID) -> List[UserTeamOutput]:

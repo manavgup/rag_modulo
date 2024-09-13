@@ -51,13 +51,26 @@ def simple_chunking(text: str, min_chunk_size: int, max_chunk_size: int, overlap
     return chunks
 
 def semantic_chunking(text: str, min_chunk_size: int = 1, max_chunk_size: int = 100) -> List[str]:
+    if not text:
+        return []
     sentences = split_sentences(text)
     combined_sentences = combine_sentences(sentences)
     
     embeddings = get_embeddings(combined_sentences)
     embeddings_array = np.array(embeddings)
+
+    # Ensure the array has the correct shape for cosine similarity
+    if embeddings_array.ndim == 1:
+        embeddings_array = embeddings_array.reshape(1, -1)
+    
+    # Check for empty or insufficient embeddings
+    if embeddings_array.size == 0:
+        return []
     
     distances = calculate_cosine_distances(embeddings_array)
+    if len(distances) == 0:
+        return []
+
     breakpoint_percentile_threshold = 80
     breakpoint_distance_threshold = np.percentile(distances, breakpoint_percentile_threshold)
     
@@ -68,13 +81,13 @@ def semantic_chunking(text: str, min_chunk_size: int = 1, max_chunk_size: int = 
     
     for index in indices_above_thresh:
         chunk = ' '.join(sentences[start_index:index+1])
-        if len(chunk) >= min_chunk_size and len(chunk) <= max_chunk_size:
+        if len(chunk) >= min_chunk_size:
             chunks.append(chunk)
         start_index = index + 1
     
     if start_index < len(sentences):
         chunk = ' '.join(sentences[start_index:])
-        if len(chunk) >= min_chunk_size and len(chunk) <= max_chunk_size:
+        if len(chunk) >= min_chunk_size:
             chunks.append(chunk)
     
     return chunks

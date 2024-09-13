@@ -1,7 +1,7 @@
 import logging
 import os
 import uuid
-from typing import Iterable
+from typing import AsyncIterable
 
 from docx import Document as DocxDocument
 
@@ -19,10 +19,10 @@ class WordProcessor(BaseProcessor):
     Processor for reading and chunking Word documents.
 
     Methods:
-        process(file_path: str) -> Iterable[Document]: Process the Word document and yield Document instances.
+        process(file_path: str) -> AsyncIterable[Document]: Process the Word document and yield Document instances.
     """
 
-    def process(self, file_path: str) -> Iterable[Document]:
+    async def process(self, file_path: str) -> AsyncIterable[Document]:
         """
         Process the Word document and yield Document instances.
 

@@ -1,18 +1,19 @@
 from typing import List, Dict, Any
 from rag_solution.query_rewriting.query_rewriter import QueryRewriter
 from rag_solution.retrieval.retriever import Retriever
-from rag_solution.generation.generator import Generator
-from vectordbs.factory import get_vectorstore
+from vectordbs.factory import get_datastore
 
 class Pipeline:
     def __init__(self, config: Dict[str, Any]):
         self.config = config
         self.query_rewriter = QueryRewriter(config.get('query_rewriting', {}))
         
-        vector_store = get_vectorstore(config.get('vector_store', 'milvus'))
+        vector_store = get_datastore(config.get('vector_store', 'milvus'))
         documents = self._load_documents()  # Implement this method to load your documents
         self.retriever = Retriever(config.get('retrieval', {}), vector_store, documents)
         
+        # Lazy import to avoid circular dependency
+        from backend.rag_solution.generation.generator import Generator
         self.generator = Generator(config.get('generation', {}))
 
     def _load_documents(self) -> List[Dict[str, Any]]:
