@@ -4,49 +4,25 @@ export const signIn = () => {
   window.location.href = `${config.apiUrl}/auth/login`;
 };
 
-// Function to load IBM scripts through the proxy
-const loadIBMScript = async (path) => {
-  const response = await fetch(`${config.apiUrl}/auth/proxy/ibm/${path}`);
-  const scriptContent = await response.text();
-  const script = document.createElement('script');
-  script.text = scriptContent;
-  document.head.appendChild(script);
-};
-
-// Load IBM scripts through the proxy
-export const loadIBMScripts = async () => {
-  await loadIBMScript('account/ibmidutil/login-ui/locales/en.js');
-  await loadIBMScript('account/ibmidutil/login-ui/assets/stage.client_ids.js');
-  await loadIBMScript('account/ibmidutil/login-ui/main.js');
-};
-
 export const getUserData = async () => {
   try {
     console.log("Fetching user data...");
-    console.log("All cookies:", document.cookie);
-
     const response = await fetch(`${config.apiUrl}/auth/session`, {
-      credentials: 'include'
+      credentials: 'include' // This is important for including cookies
     });
     console.log("Session response:", response);
     if (response.ok) {
       const data = await response.json();
       console.log("User data from server:", data);
-      if (data.user && data.user.uuid) {
-        localStorage.setItem('user_id', data.user.uuid);
-        return data.user;
-      }
+      return data.user;
     } else if (response.status === 401) {
-      console.log("User not authenticated, redirecting to login");
+      console.log("User not authenticated. Redirecting to login.");
       signIn();
       return null;
     }
-    
-    localStorage.removeItem('user_id');
     return null;
   } catch (error) {
     console.error("Error fetching user data:", error);
-    localStorage.removeItem('user_id');
     return null;
   }
 };
@@ -57,12 +33,33 @@ export const signOut = async () => {
       method: 'GET',
       credentials: 'include'
     });
-    localStorage.removeItem('user_id');
+    // Clear any local storage or state related to authentication
+    // For example, if you're storing the user info in localStorage:
+    localStorage.removeItem('user');
+    window.location.href = '/'; // Redirect to home page after logout
   } catch (error) {
     console.error("Error during sign out:", error);
   }
 };
 
-export const getUserUUID = () => {
-  return localStorage.getItem('user_id');
+export const logout = signOut;
+
+export const handleAuthCallback = () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const error = urlParams.get('error');
+  if (error) {
+    console.error("Authentication error:", error);
+    return false;
+  }
+  // The actual token exchange happens on the server side in the callback route
+  // Here, we just need to check if the authentication was successful
+  const userId = urlParams.get('user_id');
+  if (userId) {
+    // Authentication successful, you might want to fetch user data here
+    getUserData();
+    // Remove the query parameters from the URL
+    window.history.replaceState({}, document.title, window.location.pathname);
+    return true;
+  }
+  return false;
 };
