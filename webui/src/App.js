@@ -1,78 +1,126 @@
-import React, { Suspense } from "react";
-import {
-  BrowserRouter as Router,
-  Route,
-  Routes,
-  Navigate,
-} from "react-router-dom";
-import { Content, GlobalTheme, Theme } from "@carbon/react";
-import UIHeader from "./components/Header";
-import SignIn from "./components/SignIn";
-import Dashboard from "./components/Dashboard";
-import CollectionForm from "./components/CollectionForm";
-import { AuthProvider, useAuth } from "./contexts/AuthContext";
-import Collections from "./components/Collections";
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router, Route, Routes, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { Content } from 'carbon-components-react';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { NotificationProvider } from './contexts/NotificationContext';
+import Header from './components/Header';
+import Footer from './components/Footer';
+import Dashboard from './components/Dashboard';
+import SearchInterface from './components/SearchInterface';
+import CollectionBrowser from './components/CollectionBrowser';
+import DocumentViewer from './components/DocumentViewer';
+import LoginPage from './components/LoginPage';
+import { handleAuthCallback } from './services/authService';
+import './App.css';
+import './styles/global.css';
 
+const ProtectedRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+  
+  return user ? children : <Navigate to="/login" />;
+};
 
-import "./styles/common.css";
-import "./styles/global.scss";
+const AppLayout = ({ children }) => {
+  return (
+    <div className="app-container">
+      <Header />
+      <Content>
+        <div className="page-container">
+          {children}
+        </div>
+      </Content>
+      <Footer />
+    </div>
+  );
+};
+
+function AuthCallback() {
+  const navigate = useNavigate();
+  const { fetchUser } = useAuth();
+
+  useEffect(() => {
+    const processCallback = async () => {
+      const success = handleAuthCallback();
+      if (success) {
+        await fetchUser();
+        navigate('/');
+      } else {
+        navigate('/login');
+      }
+    };
+
+    processCallback();
+  }, [fetchUser, navigate]);
+
+  return <div>Processing authentication...</div>;
+}
 
 function AppContent() {
   const { user, loading } = useAuth();
+  const location = useLocation();
 
-  if (loading) {
+  if (loading && location.pathname !== '/callback') {
     return <div>Loading...</div>;
   }
 
   return (
-    <GlobalTheme theme="white">
-      <Router>
-        <Suspense fallback={<div>Loading...</div>}>
-          <div className="App">
-            {user && <UIHeader />}
-            {/* <div className="content-wrapper "> */}
-              <Content
-                // className={"main-content"}
-              >
-                <Routes>
-                  <Route
-                    path="/signin"
-                    element={user ? <Navigate to="/dashboard" /> : <SignIn />}
-                  />
-                  <Route
-                    path="/dashboard"
-                    element={user ? <Dashboard /> : <Navigate to="/signin" />}
-                  />
-                  <Route
-                    path="/create-collection"
-                    element={
-                      user ? <CollectionForm /> : <Navigate to="/signin" />
-                    }
-                  />
-                  <Route
-                    path="/collections"
-                    element={
-                      user ? <Collections /> : <Navigate to="/signin" />
-                    }
-                  />
-                  <Route
-                    path="/"
-                    element={<Navigate to={user ? "/dashboard" : "/signin"} />}
-                  />
-                </Routes>
-              </Content>
-            </div>
-          {/* </div> */}
-        </Suspense>
-      </Router>
-    </GlobalTheme>
+    <Routes>
+      <Route
+        path="/login"
+        element={user ? <Navigate to="/" /> : <LoginPage />}
+      />
+      <Route path="/callback" element={<AuthCallback />} />
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/search"
+        element={
+          <ProtectedRoute>
+            <SearchInterface />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/collections"
+        element={
+          <ProtectedRoute>
+            <CollectionBrowser />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/document/:id"
+        element={
+          <ProtectedRoute>
+            <DocumentViewer />
+          </ProtectedRoute>
+        }
+      />
+      {/* Add more routes as needed */}
+    </Routes>
   );
 }
 
 function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <NotificationProvider>
+        <Router>
+          <AppLayout>
+            <AppContent />
+          </AppLayout>
+        </Router>
+      </NotificationProvider>
     </AuthProvider>
   );
 }

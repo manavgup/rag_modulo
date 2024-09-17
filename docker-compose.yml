@@ -69,6 +69,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 40s # Increase start_period if needed
 
   etcd:
     container_name: milvus-etcd

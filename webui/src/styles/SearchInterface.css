@@ -1,0 +1,19 @@
+/* Basic styling for the Search Interface */
+.search-interface {
+  padding: 1rem;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.search-box .bx--text-input {
+  flex: 1 1 auto;
+}
+
+.search-box .bx--btn {
+  flex: 0 0 auto;
+}

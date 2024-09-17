@@ -16,7 +16,7 @@ PYTHON_VERSION ?= 3.11
 PROJECT_VERSION ?= v$(shell poetry version -s)
 
 # Tools
-DOCKER_COMPOSE := docker-compose
+DOCKER_COMPOSE := podman-compose
 
 # Set a default value for VECTOR_DB if not already set
 VECTOR_DB ?= milvus
@@ -68,7 +68,7 @@ run-services: create-volumes
 	$(DOCKER_COMPOSE) up -d postgres
 	@echo "Waiting for PostgreSQL to be ready..."
 	@for i in $$(seq 1 30); do \
-		if docker-compose exec postgres pg_isready -U ${COLLECTIONDB_USER} -d ${COLLECTIONDB_NAME}; then \
+		if $(DOCKER_COMPOSE) exec postgres pg_isready -U ${COLLECTIONDB_USER} -d ${COLLECTIONDB_NAME}; then \
 			echo "PostgreSQL is ready"; \
 			break; \
 		fi; \
@@ -85,7 +85,7 @@ run-services: create-volumes
 		$(DOCKER_COMPOSE) up -d etcd minio milvus-standalone || { echo "Failed to start Milvus and its dependencies"; $(DOCKER_COMPOSE) logs; exit 1; }; \
 		echo "Waiting for Milvus to be ready..."; \
 		for i in $$(seq 1 30); do \
-			if docker-compose exec milvus-standalone curl -s http://localhost:9091/healthz | grep -q "OK"; then \
+			if $(DOCKER_COMPOSE) exec milvus-standalone curl -s http://localhost:9091/healthz | grep -q "OK"; then \
 				echo "Milvus is ready"; \
 				break; \
 			fi; \
@@ -140,7 +140,12 @@ logs:
 	$(DOCKER_COMPOSE) logs -f
 
 clean:
+	@echo "Cleaning up Docker Compose resources..."
 	$(DOCKER_COMPOSE) down -v
+	@echo "Cleaning up existing pods and containers..."
+	-@podman pod rm -f $(podman pod ps -q) || true
+	-@podman rm -f $(podman ps -a -q) || true
+	-@podman volume prune -f || true
 	rm -rf .pytest_cache .mypy_cache data volumes my_chroma_data tests
 
 all: format lint audit test

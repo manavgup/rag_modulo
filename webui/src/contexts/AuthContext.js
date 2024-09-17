@@ -1,41 +1,45 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import axios from 'axios';
-import { getUserData } from '../services/authService';
-
-axios.defaults.withCredentials = true;
+import { getUserData, signIn as signInService, signOut as signOutService, handleAuthCallback } from '../services/authService';
+import config, { API_ROUTES } from '../config/config';
 
 const AuthContext = createContext({
   user: null,
   loading: true,
-  logout: () => {}
+  signIn: () => {},
+  signOut: () => {},
+  fetchUser: () => {}
 });
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function fetchUser() {
-      try {
-        console.log("Fetching user data...");
-        const userData = await getUserData();
-        console.log("User data received:", userData);
-        setUser(userData);
-      } catch (error) {
-        console.error('Error fetching user:', error);
-      } finally {
-        setLoading(false);
-      }
+  const fetchUser = async () => {
+    try {
+      console.log("Fetching user data...");
+      const userData = await getUserData();
+      console.log("User data received:", userData);
+      setUser(userData);
+    } catch (error) {
+      console.error('Error fetching user:', error);
+      setUser(null);
+    } finally {
+      setLoading(false);
     }
+  };
 
+  useEffect(() => {
     fetchUser();
   }, []);
 
-  const logout = async () => {
+  const signIn = () => {
+    signInService();
+  };
+
+  const signOut = async () => {
     try {
-      await axios.get('/api/auth/logout');
+      await signOutService();
       setUser(null);
-      localStorage.removeItem('user_id');
     } catch (error) {
       console.error('Error logging out:', error);
     }
@@ -44,7 +48,9 @@ export const AuthProvider = ({ children }) => {
   const value = {
     user,
     loading,
-    logout
+    signIn,
+    signOut,
+    fetchUser
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

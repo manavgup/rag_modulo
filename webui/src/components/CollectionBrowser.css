@@ -1,0 +1,37 @@
+.collection-browser {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.collection-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.collection-actions .bx--search {
+  width: 300px;
+}
+
+.bx--data-table-container {
+  margin-bottom: 1rem;
+}
+
+.bx--pagination {
+  margin-top: 1rem;
+}
+
+.sort-indicator {
+  margin-left: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.bx--file-browse-btn {
+  max-width: 100%;
+}
+
+.bx--file-filename {
+  max-width: calc(100% - 1rem);
+}
