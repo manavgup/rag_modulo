@@ -1,5 +1,5 @@
 import axios from 'axios';
-import config, { API_ROUTES }  from '../config/config';
+import config from '../config/config';
 import { getUserData } from '../services/authService';
 
 const api = axios.create({
@@ -343,6 +343,28 @@ export const getUsageStatistics = async () => {
   }
 };
 
+/**
+ * Refresh the JWT token
+ * @returns {Promise<string>} The new token
+ */
+export const refreshToken = async () => {
+  try {
+    const response = await axios.post(`${config.apiUrl}/auth/token`, null, {
+      withCredentials: true,
+    });
+    const { token } = response.data;
+    localStorage.setItem('jwt_token', token);
+    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    return token;
+  } catch (error) {
+    console.error('Error refreshing token:', error);
+    if (error.response && error.response.status === 401) {
+      window.location.href = '/login';
+    }
+    throw error;
+  }
+};
+
 export default {
   createCollectionWithDocuments,
   getUserCollections,
@@ -358,4 +380,5 @@ export default {
   getDocumentVersions,
   getRecentDocuments,
   getUsageStatistics,
+  refreshToken,
 };
