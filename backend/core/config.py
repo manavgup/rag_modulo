@@ -103,7 +103,7 @@ class Settings(BaseSettings):
 
     # JWT settings
     jwt_secret_key: str = Field(..., env='JWT_SECRET_KEY')
-    jwt_algorithm: str = "HS256"
+    jwt_algorithm: str = "RS256"
     
     class Config:
         env_file = ".env"

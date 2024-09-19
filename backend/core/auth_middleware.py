@@ -18,10 +18,14 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         # Check for JWT in Authorization header
         auth_header = request.headers.get('Authorization')
+        
         if auth_header and auth_header.startswith('Bearer '):
             logger.info("AuthMiddleware: JWT token found in Authorization header")
             token = auth_header.split(' ')[1]
             try:
+                payloaded = jwt.decode(token, algorithms=[settings.jwt_algorithm])
+                logger.info("AuthMiddleware: JWT token decoded successfully: " + str(payloaded))
+                
                 payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
                 request.state.user_id = payload.get('uuid')
                 logger.info(f"AuthMiddleware: User authenticated from JWT, user_id: {request.state.user_id}")
@@ -78,9 +82,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
         open_paths = ['/api/auth/login', '/api/auth/callback', '/api/health', '/api/auth/session', '/api/auth/oidc-config', '/api/auth/token']
 
         if request.url.path.startswith("/api/") and request.url.path not in open_paths:
-            if not hasattr(request.state, 'user_id'):
-                logger.warning(f"AuthMiddleware: User not authenticated for protected endpoint: {request.url.path}")
-                return JSONResponse(status_code=401, content={"detail": "Authentication required"})
+            # if not hasattr(request.state, 'user_id'):
+            logger.warning(f"AuthMiddleware: User not authenticated for protected endpoint: {request.url.path}")
+            return JSONResponse(status_code=401, content={"detail": "Authentication required"})
 
         logger.info("AuthMiddleware: Passing request to next middleware/handler")
         response = await call_next(request)

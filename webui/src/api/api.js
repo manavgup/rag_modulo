@@ -1,28 +1,38 @@
-import axios from 'axios';
-import config from '../config/config';
-import { getUserData } from '../services/authService';
+import axios from "axios";
+import config, { API_ROUTES } from "../config/config";
+import { getUserData } from "../services/authService";
 
 const api = axios.create({
   baseURL: config.apiUrl,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 });
 
 // Add an interceptor to include the JWT in the Authorization header for all requests
-api.interceptors.request.use(async function (config) {
-  try {
-    const userData = await getUserData();
-    if (userData && userData.token) {
-      config.headers['Authorization'] = `Bearer ${userData.token}`;
+api.interceptors.request.use(
+  async function (config) {
+    try {
+      const userData = await getUserData();
+
+      // TODO: Use getUserData() to retrieve the user_id and id_token
+      const id_token = localStorage.getItem("id_token");
+      const user_id = localStorage.getItem("user_id");
+
+      if (id_token && user_id) {
+        // Set the token in the Authorization header
+        config.headers["Authorization"] = `Bearer ${id_token}`;
+        config.headers["X-UUID"] = user_id;
+      }
+    } catch (error) {
+      console.error("Error getting user data:", error);
     }
-  } catch (error) {
-    console.error('Error getting user data:', error);
+    return config;
+  },
+  function (error) {
+    return Promise.reject(error);
   }
-  return config;
-}, function (error) {
-  return Promise.reject(error);
-});
+);
 
 // Add an interceptor to handle token expiration
 api.interceptors.response.use(
@@ -33,11 +43,11 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       try {
         const newToken = await refreshToken();
-        axios.defaults.headers.common['Authorization'] = 'Bearer ' + newToken;
+        axios.defaults.headers.common["Authorization"] = "Bearer " + newToken;
         return api(originalRequest);
       } catch (refreshError) {
         // If token refresh fails, redirect to login
-        window.location.href = '/login';
+        window.location.href = "/login";
         return Promise.reject(refreshError);
       }
     }
@@ -46,26 +56,30 @@ api.interceptors.response.use(
 );
 
 const handleApiError = (error, customErrorMessage) => {
-  console.error('API Error:', error);
+  console.error("API Error:", error);
   if (error.response) {
-    console.error('Response data:', error.response.data);
-    console.error('Response status:', error.response.status);
-    console.error('Response headers:', error.response.headers);
+    console.error("Response data:", error.response.data);
+    console.error("Response status:", error.response.status);
+    console.error("Response headers:", error.response.headers);
     return {
-      message: customErrorMessage || error.response.data.message || 'An error occurred while processing your request.',
-      status: error.response.status
+      message:
+        customErrorMessage ||
+        error.response.data.message ||
+        "An error occurred while processing your request.",
+      status: error.response.status,
     };
   } else if (error.request) {
-    console.error('Request:', error.request);
+    console.error("Request:", error.request);
     return {
-      message: 'No response received from the server. Please try again later.',
-      status: 0
+      message: "No response received from the server. Please try again later.",
+      status: 0,
     };
   } else {
-    console.error('Error message:', error.message);
+    console.error("Error message:", error.message);
     return {
-      message: customErrorMessage || 'An unexpected error occurred. Please try again.',
-      status: 0
+      message:
+        customErrorMessage || "An unexpected error occurred. Please try again.",
+      status: 0,
     };
   }
 };
@@ -76,24 +90,23 @@ const handleApiError = (error, customErrorMessage) => {
  * @param {function} onUploadProgress - Callback function for upload progress
  * @returns {Promise<Object>} The created collection data
  */
-export const createCollectionWithDocuments = async (formData, onUploadProgress) => {
+export const createCollectionWithDocuments = async (
+  formData,
+  onUploadProgress
+) => {
   try {
     if (!API_ROUTES.CREATE_COLLECTION) {
-      throw new Error('CREATE_COLLECTION route is undefined');
+      throw new Error("CREATE_COLLECTION route is undefined");
     }
-    const response = await api.post(
-      API_ROUTES.CREATE_COLLECTION,
-      formData,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        onUploadProgress,
-      }
-    );
+    const response = await api.post(API_ROUTES.CREATE_COLLECTION, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+      onUploadProgress,
+    });
     return response.data;
   } catch (error) {
-    throw handleApiError(error, 'Error creating collection with documents');
+    throw handleApiError(error, "Error creating collection with documents");
   }
 };
 
@@ -106,13 +119,19 @@ export const createCollectionWithDocuments = async (formData, onUploadProgress) 
  * @param {string} sortDirection - Sort direction ('asc' or 'desc')
  * @returns {Promise<Object>} The user collections data
  */
-export const getUserCollections = async (page = 1, pageSize = 10, searchTerm = '', sortField = 'name', sortDirection = 'asc') => {
+export const getUserCollections = async (
+  page = 1,
+  pageSize = 10,
+  searchTerm = "",
+  sortField = "name",
+  sortDirection = "asc"
+) => {
   try {
     const userData = await getUserData();
     if (!userData || !userData.uuid) {
-      throw new Error('User UUID not available');
+      throw new Error("User UUID not available");
     }
-    
+
     const response = await api.get(API_ROUTES.GET_USER_COLLECTIONS, {
       params: {
         uuid: userData.uuid,
@@ -120,12 +139,12 @@ export const getUserCollections = async (page = 1, pageSize = 10, searchTerm = '
         pageSize,
         searchTerm,
         sortField,
-        sortDirection
-      }
+        sortDirection,
+      },
     });
     return response.data;
   } catch (error) {
-    throw handleApiError(error, 'Error fetching user collections');
+    throw handleApiError(error, "Error fetching user collections");
   }
 };
 
@@ -136,7 +155,9 @@ export const getUserCollections = async (page = 1, pageSize = 10, searchTerm = '
  */
 export const getCollectionById = async (collectionId) => {
   try {
-    const response = await api.get(`${API_ROUTES.GET_COLLECTION_BY_ID}${collectionId}`);
+    const response = await api.get(
+      `${API_ROUTES.GET_COLLECTION_BY_ID}${collectionId}`
+    );
     return response.data;
   } catch (error) {
     throw handleApiError(error, `Error fetching collection ${collectionId}`);
@@ -151,7 +172,10 @@ export const getCollectionById = async (collectionId) => {
  */
 export const updateCollection = async (collectionId, updateData) => {
   try {
-    const response = await api.put(`${API_ROUTES.UPDATE_COLLECTION}${collectionId}`, updateData);
+    const response = await api.put(
+      `${API_ROUTES.UPDATE_COLLECTION}${collectionId}`,
+      updateData
+    );
     return response.data;
   } catch (error) {
     throw handleApiError(error, `Error updating collection ${collectionId}`);
@@ -179,7 +203,9 @@ export const deleteCollection = async (collectionId) => {
  */
 export const deleteDocument = async (collectionId, documentId) => {
   try {
-    await api.delete(`${API_ROUTES.REMOVE_DOCUMENT}${collectionId}/documents/${documentId}`);
+    await api.delete(
+      `${API_ROUTES.REMOVE_DOCUMENT}${collectionId}/documents/${documentId}`
+    );
   } catch (error) {
     throw handleApiError(error, `Error deleting document ${documentId}`);
   }
@@ -192,17 +218,28 @@ export const deleteDocument = async (collectionId, documentId) => {
  * @param {function} onUploadProgress - Callback function for upload progress
  * @returns {Promise<Object>} The updated collection data
  */
-export const addDocumentsToCollection = async (collectionId, formData, onUploadProgress) => {
+export const addDocumentsToCollection = async (
+  collectionId,
+  formData,
+  onUploadProgress
+) => {
   try {
-    const response = await api.post(`${API_ROUTES.ADD_DOCUMENTS}${collectionId}/documents`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-      onUploadProgress,
-    });
+    const response = await api.post(
+      `${API_ROUTES.ADD_DOCUMENTS}${collectionId}/documents`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+        onUploadProgress,
+      }
+    );
     return response.data;
   } catch (error) {
-    throw handleApiError(error, `Error adding documents to collection ${collectionId}`);
+    throw handleApiError(
+      error,
+      `Error adding documents to collection ${collectionId}`
+    );
   }
 };
 
@@ -212,11 +249,19 @@ export const addDocumentsToCollection = async (collectionId, formData, onUploadP
  * @param {string} documentId - The ID of the document to remove
  * @returns {Promise<void>}
  */
-export const removeDocumentFromCollection = async (collectionId, documentId) => {
+export const removeDocumentFromCollection = async (
+  collectionId,
+  documentId
+) => {
   try {
-    await api.delete(`${API_ROUTES.REMOVE_DOCUMENT}${collectionId}/documents/${documentId}`);
+    await api.delete(
+      `${API_ROUTES.REMOVE_DOCUMENT}${collectionId}/documents/${documentId}`
+    );
   } catch (error) {
-    throw handleApiError(error, `Error removing document ${documentId} from collection ${collectionId}`);
+    throw handleApiError(
+      error,
+      `Error removing document ${documentId} from collection ${collectionId}`
+    );
   }
 };
 
@@ -227,12 +272,16 @@ export const removeDocumentFromCollection = async (collectionId, documentId) => 
  * @param {string} targetCollectionId - The ID of the target collection
  * @returns {Promise<Object>} The moved document data
  */
-export const moveDocument = async (documentId, sourceCollectionId, targetCollectionId) => {
+export const moveDocument = async (
+  documentId,
+  sourceCollectionId,
+  targetCollectionId
+) => {
   try {
     const response = await api.post(API_ROUTES.MOVE_DOCUMENT, {
       documentId,
       sourceCollectionId,
-      targetCollectionId
+      targetCollectionId,
     });
     return response.data;
   } catch (error) {
@@ -247,14 +296,24 @@ export const moveDocument = async (documentId, sourceCollectionId, targetCollect
  * @param {number} pageSize - The number of items per page (optional, default: 10)
  * @returns {Promise<Object>} The documents data
  */
-export const getDocumentsInCollection = async (collectionId, page = 1, pageSize = 10) => {
+export const getDocumentsInCollection = async (
+  collectionId,
+  page = 1,
+  pageSize = 10
+) => {
   try {
-    const response = await api.get(`${API_ROUTES.GET_DOCUMENTS_IN_COLLECTION}${collectionId}`, {
-      params: { page, pageSize }
-    });
+    const response = await api.get(
+      `${API_ROUTES.GET_DOCUMENTS_IN_COLLECTION}${collectionId}`,
+      {
+        params: { page, pageSize },
+      }
+    );
     return response.data;
   } catch (error) {
-    throw handleApiError(error, `Error fetching documents in collection ${collectionId}`);
+    throw handleApiError(
+      error,
+      `Error fetching documents in collection ${collectionId}`
+    );
   }
 };
 
@@ -266,7 +325,10 @@ export const getDocumentsInCollection = async (collectionId, page = 1, pageSize 
  */
 export const queryCollection = async (collectionId, query) => {
   try {
-    const response = await api.post(`${API_ROUTES.QUERY_COLLECTION}${collectionId}/query`, { query });
+    const response = await api.post(
+      `${API_ROUTES.QUERY_COLLECTION}${collectionId}/query`,
+      { query }
+    );
     return response.data;
   } catch (error) {
     throw handleApiError(error, `Error querying collection ${collectionId}`);
@@ -295,10 +357,16 @@ export const getDocument = async (documentId) => {
  */
 export const updateDocumentMetadata = async (documentId, metadata) => {
   try {
-    const response = await api.put(`${API_ROUTES.UPDATE_DOCUMENT_METADATA}${documentId}`, metadata);
+    const response = await api.put(
+      `${API_ROUTES.UPDATE_DOCUMENT_METADATA}${documentId}`,
+      metadata
+    );
     return response.data;
   } catch (error) {
-    throw handleApiError(error, `Error updating metadata for document ${documentId}`);
+    throw handleApiError(
+      error,
+      `Error updating metadata for document ${documentId}`
+    );
   }
 };
 
@@ -309,10 +377,15 @@ export const updateDocumentMetadata = async (documentId, metadata) => {
  */
 export const getDocumentVersions = async (documentId) => {
   try {
-    const response = await api.get(`${API_ROUTES.GET_DOCUMENT_VERSIONS}${documentId}/versions`);
+    const response = await api.get(
+      `${API_ROUTES.GET_DOCUMENT_VERSIONS}${documentId}/versions`
+    );
     return response.data;
   } catch (error) {
-    throw handleApiError(error, `Error fetching versions for document ${documentId}`);
+    throw handleApiError(
+      error,
+      `Error fetching versions for document ${documentId}`
+    );
   }
 };
 
@@ -323,10 +396,12 @@ export const getDocumentVersions = async (documentId) => {
  */
 export const getRecentDocuments = async (limit = 5) => {
   try {
-    const response = await api.get(API_ROUTES.GET_RECENT_DOCUMENTS, { params: { limit } });
+    const response = await api.get(API_ROUTES.GET_RECENT_DOCUMENTS, {
+      params: { limit },
+    });
     return response.data;
   } catch (error) {
-    throw handleApiError(error, 'Error fetching recent documents');
+    throw handleApiError(error, "Error fetching recent documents");
   }
 };
 
@@ -339,7 +414,7 @@ export const getUsageStatistics = async () => {
     const response = await api.get(API_ROUTES.GET_USAGE_STATISTICS);
     return response.data;
   } catch (error) {
-    throw handleApiError(error, 'Error fetching usage statistics');
+    throw handleApiError(error, "Error fetching usage statistics");
   }
 };
 
@@ -353,13 +428,13 @@ export const refreshToken = async () => {
       withCredentials: true,
     });
     const { token } = response.data;
-    localStorage.setItem('jwt_token', token);
-    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    localStorage.setItem("jwt_token", token);
+    axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
     return token;
   } catch (error) {
-    console.error('Error refreshing token:', error);
+    console.error("Error refreshing token:", error);
     if (error.response && error.response.status === 401) {
-      window.location.href = '/login';
+      window.location.href = "/login";
     }
     throw error;
   }

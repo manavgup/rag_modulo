@@ -45,21 +45,24 @@ export const signOut = async () => {
 export const logout = signOut;
 
 export const handleAuthCallback = () => {
-  const urlParams = new URLSearchParams(window.location.search);
-  const error = urlParams.get('error');
-  if (error) {
-    console.error("Authentication error:", error);
-    return false;
-  }
-  // The actual token exchange happens on the server side in the callback route
-  // Here, we just need to check if the authentication was successful
-  const userId = urlParams.get('user_id');
-  if (userId) {
-    // Authentication successful, you might want to fetch user data here
-    getUserData();
-    // Remove the query parameters from the URL
-    window.history.replaceState({}, document.title, window.location.pathname);
-    return true;
-  }
-  return false;
+  // const urlParams = new URLSearchParams(window.location.search);
+
+  // console.log("URL params:", urlParams);
+
+  // const error = urlParams.get('error');
+  // if (error) {
+  //   console.error("Authentication error:", error);
+  //   return false;
+  // }
+  // // The actual token exchange happens on the server side in the callback route
+  // // Here, we just need to check if the authentication was successful
+  // const userId = urlParams.get('user_id');
+  // if (userId) {
+  //   // Authentication successful, you might want to fetch user data here
+  //   getUserData();
+  //   // Remove the query parameters from the URL
+  //   window.history.replaceState({}, document.title, window.location.pathname);
+  //   return true;
+  // }
+  // return false;
 };

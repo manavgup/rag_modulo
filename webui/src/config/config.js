@@ -1,6 +1,6 @@
 // src/config/config.js
 const config = {
-    apiUrl: process.env.REACT_APP_API_URL || 'http://localhost:3000',
+    apiUrl: process.env.REACT_APP_API_URL || '/api',
     oidcClientId: process.env.REACT_APP_OIDC_CLIENT_ID,
 };
 

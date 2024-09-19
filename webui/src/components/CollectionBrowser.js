@@ -21,7 +21,7 @@ import {
   ModalBody,
   ModalFooter
 } from 'carbon-components-react';
-import { Add, TrashCan, Document} from '@carbon/icons-react';
+import { Add, TrashCan, Document, Edit} from '@carbon/icons-react';
 import { getUserCollections, createCollectionWithDocuments, updateCollection, deleteCollection, getDocumentsInCollection, deleteDocument, moveDocument } from '../api/api';
 import { useNotification } from '../contexts/NotificationContext';
 import './CollectionBrowser.css';

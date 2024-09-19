@@ -153,11 +153,20 @@ async def auth(request: Request, db: Session = Depends(get_db)):
         user_info['uuid'] = str(db_user.id)
         request.session['user'] = user_info
         request.session['user_id'] = str(db_user.id)
+        
+        token_data = dict(
+            access_token=token.get('access_token'),
+            refresh_token=token.get('refresh_token'),
+            id_token=token.get('id_token'),
+            expires_in=token.get('expires_in')
+        )
+        logger.info(f"Token data: {token_data}")
 
-        redirect_url = f"{settings.frontend_url}/?user_id={str(db_user.id)}"
+        # TODO: See about use headers instead of query params to pass the token
+        redirect_url = f"{settings.frontend_url}/?user_id={str(db_user.id)}&id_token={str(token.get('id_token'))}&expires_in={str(token.get('expires_in'))}"
         logger.info(f"Redirecting to: {redirect_url}")
 
-        return RedirectResponse(url=redirect_url)
+        return Response(status_code=status.HTTP_307_TEMPORARY_REDIRECT, headers={'Location': redirect_url, 'Token':str(token_data)})
     except Exception as e:
         logger.error(f"Error in authentication callback: {str(e)}", exc_info=True)
         error_redirect = f"{settings.frontend_url}/signin?error=authentication_failed"
