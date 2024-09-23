@@ -7,10 +7,10 @@ from uuid import UUID
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from pydantic import EmailStr
-from backend.rag_solution.repository.user_repository import UserRepository
-from backend.rag_solution.schemas.team_schema import TeamOutput
-from backend.rag_solution.schemas.user_schema import UserInput, UserOutput
-from backend.rag_solution.services.user_team_service import UserTeamService
+from rag_solution.repository.user_repository import UserRepository
+from rag_solution.schemas.team_schema import TeamOutput
+from rag_solution.schemas.user_schema import UserInput, UserOutput
+from rag_solution.services.user_team_service import UserTeamService
 
 logger = logging.getLogger(__name__)
 

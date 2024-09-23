@@ -1,0 +1,96 @@
+services:
+  postgres:
+    image: postgres:13
+    networks:
+      - app-network
+    environment:
+      POSTGRES_DB: ${COLLECTIONDB_NAME}
+      POSTGRES_USER: ${COLLECTIONDB_USER}
+      POSTGRES_PASSWORD: ${COLLECTIONDB_PASS}
+      COLLECTIONDB_NAME: ${COLLECTIONDB_NAME}
+      COLLECTIONDB_USER: ${COLLECTIONDB_USER}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${COLLECTIONDB_PORT}:5432"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${COLLECTIONDB_USER} -d ${COLLECTIONDB_NAME}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  etcd:
+    container_name: milvus-etcd
+    image: bitnami/etcd:latest
+    environment:
+      - ALLOW_NONE_AUTHENTICATION=yes
+      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd:2379
+    volumes:
+      - etcd_data:/bitnami/etcd
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "/opt/bitnami/scripts/etcd/healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  minio:
+    container_name: milvus-minio
+    image: minio/minio:latest
+    environment:
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    volumes:
+      - minio_data:/data
+    command: minio server /data --console-address ":9001"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "timeout 5s bash -c ':> /dev/tcp/127.0.0.1/9000' || exit 1",
+        ]
+      interval: 5s
+      retries: 1
+      start_period: 5s
+      timeout: 5s
+    networks:
+      - app-network
+
+  milvus-standalone:
+    container_name: milvus-standalone
+    image: milvusdb/milvus:v2.3.3
+    command: ["milvus", "run", "standalone"]
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio:9000
+    volumes:
+      - milvus_data:/var/lib/milvus
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    ports:
+      - "19530:19530"
+    depends_on:
+      - "etcd"
+      - "minio"
+    networks:
+      - app-network
+
+volumes:
+  postgres_data:
+  etcd_data:
+  minio_data:
+  milvus_data:
+
+networks:
+  app-network:
+    driver: bridge

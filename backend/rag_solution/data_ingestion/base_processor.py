@@ -3,9 +3,9 @@ from abc import ABC, abstractmethod
 from typing import Iterable, Dict, Any
 import os
 from datetime import datetime
-from backend.core.config import settings
-from backend.rag_solution.data_ingestion.chunking import get_chunking_method
-from backend.vectordbs.data_types import Document
+from core.config import settings
+from rag_solution.data_ingestion.chunking import get_chunking_method
+from vectordbs.data_types import Document
 
 logging.basicConfig(level=logging.INFO)
 

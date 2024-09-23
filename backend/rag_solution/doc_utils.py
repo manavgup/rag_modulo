@@ -1,8 +1,8 @@
 import uuid
 from typing import Optional
 
-from backend.vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, Source
-from backend.vectordbs.utils.watsonx import get_embeddings
+from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, Source
+from vectordbs.utils.watsonx import get_embeddings
 
 
 def get_document(name: str, document_id: str, text: str, metadata: Optional[dict] = None) -> Document:

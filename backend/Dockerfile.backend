@@ -17,7 +17,7 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 # Verify Rust installation
 RUN rustc --version && cargo --version
 
-COPY requirements.txt ./
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Downgrade protobuf to resolve version conflict
@@ -41,20 +41,15 @@ RUN apt-get update && apt-get install -y \
 COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
-COPY backend /app/backend
+COPY . /app
 
 # Add a delay and check permissions
 RUN sleep 2 && \
-    echo "Contents of /app/backend:" && \
-    ls -R /app/backend && \
-    echo "Permissions of /app/backend:" && \
-    ls -la /app/backend && \
-    chmod -R 755 /app/backend
-    
-COPY main.py /app/main.py
-COPY .env /app/.env
-
-ENV PYTHONPATH=/app
+    echo "Contents of /app:" && \
+    ls -R /app && \
+    echo "Permissions of /app:" && \
+    ls -la /app && \
+    chmod -R 755 /app
 
 # Create entrypoint script
 RUN echo '#!/bin/bash\n\
@@ -63,16 +58,14 @@ echo "Starting entrypoint script"\n\
 echo "Current directory: $(pwd)"\n\
 echo "Contents of /app:"\n\
 ls -la /app\n\
-echo "Contents of /app/backend:"\n\
-ls -la /app/backend\n\
-echo "Contents of /app/backend/core:"\n\
-ls -la /app/backend/core\n\
+echo "Contents of /app/core:"\n\
+ls -la /app/core\n\
 echo "Python path:"\n\
 python -c "import sys; print(sys.path)"\n\
-echo "Trying to import backend.core:"\n\
-python -c "import backend.core" || { echo "Failed to import backend.core"; }\n\
-echo "Trying to import backend.core.config:"\n\
-python -c "import backend.core.config" || { echo "Failed to import backend.core.config"; }\n\
+echo "Trying to import core:"\n\
+python -c "import core" || { echo "Failed to import core"; }\n\
+echo "Trying to import core.config:"\n\
+python -c "import core.config" || { echo "Failed to import core.config"; }\n\
 echo "Trying to import main module:"\n\
 python -c "import main" || { echo "Failed to import main module"; ls -la /app/main.py; cat /app/main.py; }\n\
 echo "Network information:"\n\

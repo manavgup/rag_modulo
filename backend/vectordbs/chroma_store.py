@@ -3,8 +3,8 @@ from typing import Dict, List, Mapping, Optional, Union
 
 from chromadb import ClientAPI, chromadb
 
-from backend.core.config import settings
-from backend.vectordbs.utils.watsonx import get_embeddings
+from core.config import settings
+from vectordbs.utils.watsonx import get_embeddings
 
 from .data_types import (Document, DocumentChunk, DocumentChunkMetadata,
                          DocumentMetadataFilter, QueryResult,

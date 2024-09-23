@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
-from backend.rag_solution.schemas.user_schema import UserOutput
+from rag_solution.schemas.user_schema import UserOutput
 
 
 class TeamInDB(BaseModel):

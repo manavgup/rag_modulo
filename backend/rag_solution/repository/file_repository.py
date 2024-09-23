@@ -7,8 +7,8 @@ from uuid import UUID
 from sqlalchemy import JSON
 from sqlalchemy.orm import Session
 
-from backend.rag_solution.models.file import File
-from backend.rag_solution.schemas.file_schema import FileInput, FileOutput, FileMetadata
+from rag_solution.models.file import File
+from rag_solution.schemas.file_schema import FileInput, FileOutput, FileMetadata
 
 logger = logging.getLogger(__name__)
 

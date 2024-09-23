@@ -5,7 +5,7 @@ from sqlalchemy import DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from backend.rag_solution.file_management.database import Base
+from rag_solution.file_management.database import Base
 
 
 class UserCollection(Base):

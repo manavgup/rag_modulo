@@ -4,8 +4,8 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from backend.rag_solution.models.user_collection import UserCollection
-from backend.rag_solution.schemas.user_collection_schema import \
+from rag_solution.models.user_collection import UserCollection
+from rag_solution.schemas.user_collection_schema import \
     UserCollectionOutput
 
 logger = logging.getLogger(__name__)
