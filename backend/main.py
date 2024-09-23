@@ -11,18 +11,18 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.datastructures import Secret
 from sqlalchemy import inspect
 
-from backend.core.config import settings
-from backend.core.auth_middleware import AuthMiddleware
-from backend.rag_solution.file_management.database import Base, engine
-from backend.rag_solution.router.collection_router import router as collection_router
-from backend.rag_solution.router.file_router import router as file_router
-from backend.rag_solution.router.team_router import router as team_router
-from backend.rag_solution.router.user_router import router as user_router
-from backend.rag_solution.router.user_collection_router import router as user_collection_router
-from backend.rag_solution.router.user_team_router import router as user_team_router
-from backend.rag_solution.router.health_router import router as health_router
-from backend.rag_solution.router.auth_router import router as auth_router
-from backend.auth.oidc import get_current_user, oauth
+from core.config import settings
+from core.auth_middleware import AuthMiddleware
+from rag_solution.file_management.database import Base, engine
+from rag_solution.router.collection_router import router as collection_router
+from rag_solution.router.file_router import router as file_router
+from rag_solution.router.team_router import router as team_router
+from rag_solution.router.user_router import router as user_router
+from rag_solution.router.user_collection_router import router as user_collection_router
+from rag_solution.router.user_team_router import router as user_team_router
+from rag_solution.router.health_router import router as health_router
+from rag_solution.router.auth_router import router as auth_router
+from auth.oidc import get_current_user, oauth
 
 logging.basicConfig(level=settings.log_level)
 logger = logging.getLogger(__name__)

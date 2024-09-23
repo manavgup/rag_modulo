@@ -4,9 +4,9 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
-from backend.rag_solution.file_management.database import get_db
-from backend.rag_solution.schemas.user_schema import UserInput, UserOutput
-from backend.rag_solution.services.user_service import UserService
+from rag_solution.file_management.database import get_db
+from rag_solution.schemas.user_schema import UserInput, UserOutput
+from rag_solution.services.user_service import UserService
 import logging
 
 logging.basicConfig(level=logging.ERROR)

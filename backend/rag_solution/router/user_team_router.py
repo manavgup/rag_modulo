@@ -3,9 +3,9 @@ from sqlalchemy.orm import Session
 from typing import List
 from uuid import UUID
 
-from backend.rag_solution.file_management.database import get_db
-from backend.rag_solution.services.user_team_service import UserTeamService
-from backend.rag_solution.schemas.user_team_schema import UserTeamOutput
+from rag_solution.file_management.database import get_db
+from rag_solution.services.user_team_service import UserTeamService
+from rag_solution.schemas.user_team_schema import UserTeamOutput
 
 router = APIRouter(prefix="/api/user-teams", tags=["user-teams"])
 

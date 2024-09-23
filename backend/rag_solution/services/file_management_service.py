@@ -9,9 +9,9 @@ from uuid import UUID
 from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
-from backend.core.config import settings
-from backend.rag_solution.repository.file_repository import FileRepository
-from backend.rag_solution.schemas.file_schema import FileInput, FileOutput, FileMetadata
+from core.config import settings
+from rag_solution.repository.file_repository import FileRepository
+from rag_solution.schemas.file_schema import FileInput, FileOutput, FileMetadata
 
 logger = logging.getLogger(__name__)
 

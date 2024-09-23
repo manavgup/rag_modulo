@@ -2,7 +2,7 @@ import os
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List
 from dotenv import load_dotenv
-from backend.vectordbs.utils.watsonx import generate_text
+from vectordbs.utils.watsonx import generate_text
 
 load_dotenv()
 
