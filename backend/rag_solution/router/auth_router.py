@@ -163,7 +163,7 @@ async def auth(request: Request, db: Session = Depends(get_db)):
         logger.info(f"Token data: {token_data}")
 
         # TODO: See about use headers instead of query params to pass the token
-        redirect_url = f"{settings.frontend_url}/?user_id={str(db_user.id)}&id_token={str(token.get('id_token'))}&expires_in={str(token.get('expires_in'))}"
+        redirect_url = f"{settings.frontend_url}/?user_id={str(db_user.id)}&access_token={str(token.get('access_token'))}&id_token={str(token.get('id_token'))}&expires_in={str(token.get('expires_in'))}"
         logger.info(f"Redirecting to: {redirect_url}")
 
         return Response(status_code=status.HTTP_307_TEMPORARY_REDIRECT, headers={'Location': redirect_url, 'Token':str(token_data)})

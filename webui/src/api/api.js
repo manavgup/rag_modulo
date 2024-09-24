@@ -16,13 +16,16 @@ api.interceptors.request.use(
       const userData = await getUserData();
 
       // TODO: Use getUserData() to retrieve the user_id and id_token
-      const id_token = localStorage.getItem("id_token");
+      // const id_token = localStorage.getItem("id_token");
+      const access_token = localStorage.getItem("access_token");
       const user_id = localStorage.getItem("user_id");
 
-      if (id_token && user_id) {
+      if (access_token && user_id) {
         // Set the token in the Authorization header
-        config.headers["Authorization"] = `Bearer ${id_token}`;
+        config.headers["Authorization"] = `Bearer ${access_token}`;
+        // config.headers["id_token"] = `${id_token}`;
         config.headers["X-UUID"] = user_id;
+        config.withCredentials = true; // This is important for including cookies
       }
     } catch (error) {
       console.error("Error getting user data:", error);

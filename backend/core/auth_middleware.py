@@ -1,10 +1,18 @@
 import logging
-from fastapi import Request
+from fastapi import Request, HTTPException
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from sqlalchemy.orm import Session
 from backend.rag_solution.file_management.database import get_db
 from backend.rag_solution.services.user_service import UserService
+import httpx
+
+from requests.auth import HTTPBasicAuth
+import requests
+
+from backend.auth.oidc import oauth
+from backend.core.config import settings
+
 import jwt
 from backend.core.config import settings
 
@@ -15,7 +23,50 @@ class AuthMiddleware(BaseHTTPMiddleware):
         logger.info(f"AuthMiddleware: Processing request to {request.url.path}")
         logger.debug(f"AuthMiddleware: Request headers: {request.headers}")
         logger.debug(f"AuthMiddleware: Request scope keys: {request.scope.keys()}")
-
+        
+        # Introspect the token using oauth
+        if 'Authorization' in request.headers:
+            logger.info("AuthMiddleware: Authorization header found")
+            token = request.headers['Authorization'].split(' ')[1]
+            try:
+                logger.info("Introspecting token: " + token)
+                
+            
+                resp = requests.post(
+                    settings.oidc_token_url,
+                    data = {"client_id": settings.ibm_client_id,
+                            # "client_secret": settings.ibm_client_secret,
+                            "grant_type": "authorization_code",
+                            "redirect_uri": settings.frontend_url,
+                            "code": "uK8wnQhpwTRUTPxs0pFpNWcnnOci1_6gUUIJ1sNJkKQ.2EhIBPjqk3LXqwP5OUPzW3--p_1LZfI8ckupH8w-G7JzlhCbmOkwpuySO4APNhCE-4mNv7XzK4EJ-Z3NJDA2oA"},
+                    auth=HTTPBasicAuth(settings.ibm_client_id, settings.ibm_client_secret)
+                    )
+                logger.info("AuthMiddleware: PRocessed Token successfully" )
+                logger.info(resp)
+                
+                resp = requests.post(
+                    settings.oidc_introspect,
+                    data={"token": token},
+                    auth=HTTPBasicAuth(settings.ibm_client_id, settings.ibm_client_secret)
+                    )
+                logger.info("AuthMiddleware: Token introspected successfully" )
+                logger.info(resp.json())
+                
+                # async with httpx.AsyncClient() as client:
+                #     response = await client.post(
+                #         settings.oidc_introspect,
+                #         data={"token": token},
+                #         auth=HTTPBasicAuth(settings.ibm_client_id, settings.ibm_client_secret)
+                #         )
+                #     if response.status_code != 200:
+                #         logger.error(f"Failed to fetch OIDC configuration: {response.text}")
+                #         raise HTTPException(status_code=response.status_code, detail="Failed to fetch OIDC configuration")
+                #     logger.info("AuthMiddleware: OIDC configuration fetched successfully")
+                #     logger.info(response)
+            except Exception as e:
+                logger.warning(f"AuthMiddleware: Error introspecting token - {str(e)}")
+                return JSONResponse(status_code=401, content={"detail": "Invalid authentication credentials"})
+        
         # Check for JWT in Authorization header
         auth_header = request.headers.get('Authorization')
         

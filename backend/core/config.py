@@ -98,6 +98,7 @@ class Settings(BaseSettings):
     oidc_discovery_endpoint: Optional[str] = None
     oidc_auth_url: Optional[str] = None
     oidc_token_url: Optional[str] = None
+    oidc_introspect: Optional[str] = None
     frontend_url: Optional[str] = None
     oidc_userinfo_endpoint: Optional[str] = None
 

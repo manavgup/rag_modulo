@@ -1,4 +1,5 @@
-import config from '../config/config';
+import axios from "axios";
+import config from "../config/config";
 
 export const signIn = () => {
   window.location.href = `${config.apiUrl}/auth/login`;
@@ -7,12 +8,10 @@ export const signIn = () => {
 export const getUserData = async () => {
   try {
     console.log("Fetching user data...");
-    const response = await fetch(`${config.apiUrl}/auth/session`, {
-      credentials: 'include' // This is important for including cookies
-    });
+    const response = await axios.get(`${config.apiUrl}/auth/session`, {});
     console.log("Session response:", response);
-    if (response.ok) {
-      const data = await response.json();
+    if (response.status === 200) {
+      const data = await response.data;
       console.log("User data from server:", data);
       return data.user;
     } else if (response.status === 401) {
@@ -29,14 +28,11 @@ export const getUserData = async () => {
 
 export const signOut = async () => {
   try {
-    await fetch(`${config.apiUrl}/auth/logout`, {
-      method: 'GET',
-      credentials: 'include'
-    });
+    await axios.get(`${config.apiUrl}/auth/logout`, {});
     // Clear any local storage or state related to authentication
     // For example, if you're storing the user info in localStorage:
-    localStorage.removeItem('user');
-    window.location.href = '/'; // Redirect to home page after logout
+    localStorage.removeItem("user");
+    window.location.href = "/"; // Redirect to home page after logout
   } catch (error) {
     console.error("Error during sign out:", error);
   }
@@ -46,9 +42,7 @@ export const logout = signOut;
 
 export const handleAuthCallback = () => {
   // const urlParams = new URLSearchParams(window.location.search);
-
   // console.log("URL params:", urlParams);
-
   // const error = urlParams.get('error');
   // if (error) {
   //   console.error("Authentication error:", error);

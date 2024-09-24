@@ -69,6 +69,7 @@ function AppContent() {
   const navigate = useNavigate();
   const { fetchUser } = useAuth();
   const url_params = new URLSearchParams(window.location.search);
+
   /**
    * Handles the callback from the authentication server after the user has
    * authorized the application.
@@ -81,6 +82,7 @@ function AppContent() {
   const ProcessCallback = async () => {
     if (url_params.entries > 0 || url_params.get("id_token")) {
       console.log("Processing callback...");
+      localStorage.setItem("access_token", url_params.get("access_token"));
       localStorage.setItem("id_token", url_params.get("id_token"));
       localStorage.setItem("expires_in", url_params.get("expires_in"));
       localStorage.setItem("user_id", url_params.get("user_id"));
