@@ -1,0 +1,35 @@
+.login-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background-color: #f4f4f4;
+}
+
+.login-container {
+  background-color: #ffffff;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  max-width: 400px;
+  width: 100%;
+}
+
+.login-container h1 {
+  margin-bottom: 1rem;
+  color: #161616;
+}
+
+.login-container p {
+  margin-bottom: 2rem;
+  color: #525252;
+}
+
+.login-container button {
+  width: 100%;
+}
+
+.login-container .bx--loading {
+  margin: 0 auto;
+}

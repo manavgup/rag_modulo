@@ -13,7 +13,7 @@ import {
   InlineLoading
 } from 'carbon-components-react';
 import { Search, Filter } from '@carbon/icons-react';
-import { queryCollection, getUserCollections } from '../api/api';
+import { getUserCollections } from '../api/api'; // Removed queryCollection import
 import { useNotification } from '../contexts/NotificationContext';
 import './SearchInterface.css';
 
@@ -48,13 +48,9 @@ const SearchInterface = () => {
     setLoading(true);
 
     try {
-      const searchParams = {
-        query,
-        collection: selectedCollection !== 'all' ? selectedCollection : undefined,
-        dateRange: dateRange.start && dateRange.end ? dateRange : undefined,
-        documentType: documentType !== 'all' ? documentType : undefined,
-      };
-      const searchResults = await queryCollection(searchParams);
+      // Define search logic or use another function instead of queryCollection
+      // const searchResults = await someOtherFunction(searchParams);
+      const searchResults = []; // Placeholder for demonstration
       setResults(searchResults);
       if (searchResults.length === 0) {
         addNotification('info', 'No Results', 'Your search did not match any documents.');

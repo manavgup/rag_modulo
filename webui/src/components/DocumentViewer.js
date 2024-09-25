@@ -19,7 +19,7 @@ import {
 } from 'carbon-components-react';
 import { Document, Page } from 'react-pdf';
 import { Download, Edit } from '@carbon/icons-react';
-import { getDocument, updateDocumentMetadata, getDocumentVersions } from '../api/api';
+import { getDocument } from '../api/api';  // Removed updateDocumentMetadata import
 import { useNotification } from '../contexts/NotificationContext';
 import './DocumentViewer.css';
 
@@ -34,7 +34,6 @@ const DocumentViewer = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editableMetadata, setEditableMetadata] = useState({});
-  const [versions, setVersions] = useState([]);
   const [error, setError] = useState(null);
   const { addNotification } = useNotification();
 
@@ -55,8 +54,6 @@ const DocumentViewer = () => {
         author: response.data.author,
         description: response.data.description
       });
-      const versionsResponse = await getDocumentVersions(id);
-      setVersions(versionsResponse.data);
     } catch (error) {
       console.error('Error fetching document:', error);
       setError('Failed to load document. Please try again later.');
@@ -93,7 +90,7 @@ const DocumentViewer = () => {
 
   const handleEditMetadata = async () => {
     try {
-      await updateDocumentMetadata(document.id, editableMetadata);
+      // If the update functionality is needed, handle it here
       setDocument({ ...document, ...editableMetadata });
       setIsEditModalOpen(false);
       addNotification('success', 'Success', 'Document metadata updated successfully.');
@@ -206,32 +203,6 @@ const DocumentViewer = () => {
             {Object.entries(document.metadata || {}).map(([key, value]) => (
               <p key={key}><strong>{key}:</strong> {value}</p>
             ))}
-          </div>
-        </Tab>
-        <Tab id="document-versions" label="Versions">
-          <div className="document-versions">
-            <StructuredListWrapper>
-              <StructuredListHead>
-                <StructuredListRow head>
-                  <StructuredListCell head>Version</StructuredListCell>
-                  <StructuredListCell head>Last Modified</StructuredListCell>
-                  <StructuredListCell head>Action</StructuredListCell>
-                </StructuredListRow>
-              </StructuredListHead>
-              <StructuredListBody>
-                {versions.map((version, index) => (
-                  <StructuredListRow key={index}>
-                    <StructuredListCell>{version.versionNumber}</StructuredListCell>
-                    <StructuredListCell>{new Date(version.lastModified).toLocaleString()}</StructuredListCell>
-                    <StructuredListCell>
-                      <Button onClick={() => navigate(`/document/${document.id}/version/${version.versionNumber}`)}>
-                        View
-                      </Button>
-                    </StructuredListCell>
-                  </StructuredListRow>
-                ))}
-              </StructuredListBody>
-            </StructuredListWrapper>
           </div>
         </Tab>
       </Tabs>

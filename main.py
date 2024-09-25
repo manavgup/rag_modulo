@@ -2,14 +2,13 @@ import logging
 from contextlib import asynccontextmanager
 from typing import Annotated
 
-from fastapi import FastAPI, Depends, HTTPException, Request
+from fastapi import FastAPI, Depends, HTTPException, Request, Header
 from fastapi.openapi.utils import get_openapi
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
 from starlette.middleware.sessions import SessionMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.datastructures import Secret
+from pydantic import BaseModel
 from sqlalchemy import inspect, text
+import jwt
 
 from backend.core.config import settings
 from backend.core.auth_middleware import AuthMiddleware
@@ -22,7 +21,7 @@ from backend.rag_solution.router.user_collection_router import router as user_co
 from backend.rag_solution.router.user_team_router import router as user_team_router
 from backend.rag_solution.router.health_router import router as health_router
 from backend.rag_solution.router.auth_router import router as auth_router
-from backend.auth.oidc import get_current_user, oauth
+from backend.auth.oidc import get_current_user, verify_jwt_token
 
 # Import all models
 from backend.rag_solution.models.user import User
@@ -102,14 +101,12 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# Add SessionMiddleware first
+# Add SessionMiddleware
 app.add_middleware(
     SessionMiddleware,
-    secret_key=Secret(settings.ibm_client_secret),
-    session_cookie="session",
-    same_site="none",
-    https_only=True,
-    max_age=86400  # 1 day in seconds
+    secret_key=settings.ibm_client_secret,
+    session_cookie="rag_modulo_session",
+    max_age=3600,  # 1 hour
 )
 
 # Configure CORS
@@ -121,29 +118,18 @@ app.add_middleware(
     allow_headers=["*", "X-User-UUID"],
 )
 
-# Add Auth middleware last
+# Add Auth middleware
 app.add_middleware(AuthMiddleware)
 
-async def auth_dependency(request: Request):
-    user = request.session.get('user')
-    user_uuid = request.headers.get('X-User-UUID')
-    logger.debug(f"Auth dependency called. Session: {dict(request.session)}")
-    logger.debug(f"Request headers: {dict(request.headers)}")
-    logger.debug(f"Request cookies: {request.cookies}")
-    logger.debug(f"User UUID from headers: {user_uuid}")
-    if not user and not user_uuid:
-        logger.warning("No user found in session or headers")
-        raise HTTPException(status_code=401, detail="Authentication required")
-    if user:
-        logger.info(f"User authenticated from session: {user.get('email')}")
-        return user
-    elif user_uuid:
-        logger.info(f"User authenticated from headers: {user_uuid}")
-        # Fetch user data from database using user_uuid
-        # Return user data or raise an exception if not found
-        return {'id': user_uuid}
-    else:
-        raise HTTPException(status_code=401, detail="Authentication required")
+async def auth_dependency(authorization: str = Header(...)):
+    try:
+        scheme, token = authorization.split()
+        if scheme.lower() != 'bearer':
+            raise HTTPException(status_code=401, detail="Invalid authentication scheme")
+        payload = verify_jwt_token(token)
+        return payload
+    except (jwt.PyJWTError, ValueError):
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
 
 # Include routers
 app.include_router(auth_router)

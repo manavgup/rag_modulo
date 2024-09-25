@@ -1,6 +1,7 @@
 from fastapi import HTTPException, status, Request
-from authlib.integrations.starlette_client import OAuth
+from authlib.integrations.starlette_client import OAuth, OAuthError
 from backend.core.config import settings
+import jwt
 import logging
 
 logging.basicConfig(level=logging.ERROR)
@@ -18,19 +19,42 @@ oauth.register(
     }
 )
 
-# oauth2_scheme = OAuth2AuthorizationCodeBearer(
-#     authorizationUrl=settings.oidc_auth_url,
-#     tokenUrl=settings.oidc_token_url,
-# )
+def verify_jwt_token(token: str):
+    try:
+        payload = jwt.decode(token, options={"verify_signature": False})
+        return payload
+    except jwt.PyJWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 async def get_current_user(request: Request):
-    user = request.session.get('user')
-
-    if not user:
+    auth_header = request.headers.get('Authorization')
+    if not auth_header or not auth_header.startswith('Bearer '):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    logger.info(f"Got User: {user}")
-    return user
+    
+    token = auth_header.split(' ')[1]
+    payload = verify_jwt_token(token)
+    
+    logger.info(f"Got User: {payload}")
+    return payload
+
+async def authorize_redirect(request: Request, redirect_uri: str):
+    try:
+        return await oauth.ibm.authorize_redirect(request, redirect_uri)
+    except OAuthError as error:
+        logger.error(f"OAuth error during authorize_redirect: {str(error)}")
+        raise HTTPException(status_code=500, detail="OAuth authorization error")
+
+async def authorize_access_token(request: Request):
+    try:
+        return await oauth.ibm.authorize_access_token(request)
+    except OAuthError as error:
+        logger.error(f"OAuth error during authorize_access_token: {str(error)}")
+        raise HTTPException(status_code=500, detail="OAuth token authorization error")

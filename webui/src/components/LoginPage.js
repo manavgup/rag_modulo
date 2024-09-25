@@ -1,17 +1,46 @@
-import React from 'react';
-import { Button } from 'carbon-components-react';
+import React, { useState, useEffect } from 'react';
+import { Button, Loading } from 'carbon-components-react';
 import { useAuth } from '../contexts/AuthContext';
+import config, { getFullApiUrl, API_ROUTES } from '../config/config';
+import './LoginPage.css';
+
+console.log('LoginPage component loaded with config:', config);
 
 const LoginPage = () => {
-  const { signIn } = useAuth();
+  const { signIn, user } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    console.log('LoginPage mounted, user:', user);
+    console.log('Current API URL:', config.apiUrl);
+    console.log('Full login URL:', getFullApiUrl(API_ROUTES.LOGIN));
+  }, [user]);
 
   const handleLogin = () => {
-    signIn(); // This will trigger the backend's login process
+    console.log('Login button clicked');
+    setIsLoading(true);
+    try {
+      console.log('Initiating sign-in process');
+      const loginUrl = getFullApiUrl(API_ROUTES.LOGIN);
+      console.log('Redirecting to:', loginUrl);
+      window.location.href = loginUrl;
+    } catch (error) {
+      console.error('Login failed:', error);
+      setIsLoading(false);
+    }
   };
 
   return (
     <div className="login-page">
-      <Button onClick={handleLogin}>Log in with IBM</Button>
+      <div className="login-container">
+        <h1>Welcome to RAG Modulo</h1>
+        <p>Please sign in with your IBM account to access the application.</p>
+        {isLoading ? (
+          <Loading description="Redirecting to login..." withOverlay={false} />
+        ) : (
+          <Button onClick={handleLogin}>Log in with IBM</Button>
+        )}
+      </div>
     </div>
   );
 };

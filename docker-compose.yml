@@ -46,8 +46,9 @@ services:
     depends_on:
       - backend
     environment:
-    - REACT_APP_API_URL=/api
-    - REACT_APP_OIDC_CLIENT_ID=${IBM_CLIENT_ID}
+      - REACT_APP_API_URL=/api
+      - REACT_APP_BACKEND_URL=http://backend:8000
+      - REACT_APP_OIDC_CLIENT_ID=${IBM_CLIENT_ID}
 
   postgres:
     image: postgres:13
