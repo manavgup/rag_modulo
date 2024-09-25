@@ -35,4 +35,3 @@ itsdangerous==2.1.2  # Required for SessionMiddleware
 # Adjusted for dependency compatibility
 grpcio==1.62.1
 grpcio-health-checking==1.62.1
-# Remove the specific protobuf version to allow compatibility with grpcio-health-checking

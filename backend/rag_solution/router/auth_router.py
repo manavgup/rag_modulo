@@ -4,12 +4,12 @@ from sqlalchemy.orm import Session
 import httpx
 from pydantic import BaseModel
 from typing import Optional
-from backend.auth.oidc import oauth
+from backend.auth.oidc import oauth, verify_jwt_token
 from backend.rag_solution.services.user_service import UserService
 from backend.rag_solution.file_management.database import get_db
 from backend.core.config import settings
 import logging
-import secrets
+import jwt
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -37,9 +37,6 @@ class UserInfo(BaseModel):
     name: Optional[str]
     email: str
     uuid: str
-
-class SessionData(BaseModel):
-    user: UserInfo
 
 @router.get("/oidc-config", response_model=OIDCConfig)
 async def get_oidc_config(request: Request):
@@ -94,7 +91,7 @@ async def token_exchange(request: Request):
             )
             response.raise_for_status()
             logger.info(f"Token exchange response status: {response.status_code}")
-            logger.info(f"Token exchange response content: {response.text}")
+            logger.debug(f"Token exchange response content: {response.text}")
             return JSONResponse(content=response.json(), status_code=response.status_code)
         except httpx.HTTPStatusError as e:
             logger.error(f"HTTP error occurred: {e.response.text}")
@@ -107,55 +104,53 @@ async def token_exchange(request: Request):
 async def login(request: Request):
     try:
         redirect_uri = f"{settings.frontend_url}/api/auth/callback"
-        logger.info(f"Initiating login. Redirect URI: {redirect_uri}")
-
-        # Generate and store nonce in the session
-        nonce = secrets.token_urlsafe(32)
-        request.session['nonce'] = nonce
-
-        # Let Authlib handle the redirect and state management
-        return await oauth.ibm.authorize_redirect(request, redirect_uri, nonce=nonce)
+        logger.info(f"Initiating login with redirect_uri: {redirect_uri}")
+        return await oauth.ibm.authorize_redirect(request, redirect_uri)
     except Exception as e:
         logger.error(f"Error in login process: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error during login process")
 
-@router.get("/callback")
+@router.get("/callback", name="auth")
 async def auth(request: Request, db: Session = Depends(get_db)):
-    """
-    Handle the authentication callback from the IBM OIDC provider.
-    """
     try:
         logger.info("Received authentication callback")
-        logger.debug(f"Callback request: {request.url}")
-        logger.debug(f"Callback query params: {request.query_params}")
-
-        # Let Authlib handle the token exchange and state verification
         token = await oauth.ibm.authorize_access_token(request)
-        logger.info("*** Successfully obtained access token")
-        logger.info(f"Token: {token}")
-        user = token.get('userinfo')
-        if user:
-            logger.info(f"Userinfo: {user}")
-            request.session['user'] = user
+        logger.info("Successfully obtained access token")
+        logger.debug(f"Token content: {token}")
 
-        user_info = token.get('userinfo')
-        logger.info(f"Authenticated user: {user_info.get('email')}")
-        logger.debug(f"User info: {user_info}")
+        # Skip token validation
+        user = token.get('userinfo')
+        if not user:
+            logger.error("User info not found in token")
+            raise HTTPException(status_code=400, detail="User info not found in token")
+
+        logger.info(f"Authenticated user: {user.get('email')}")
 
         user_service = UserService(db)
         db_user = user_service.get_or_create_user_by_fields(
-            ibm_id=user_info['sub'],
-            email=user_info['email'],
-            name=user_info.get('name', 'Unknown')
+            ibm_id=user['sub'],
+            email=user['email'],
+            name=user.get('name', 'Unknown')
         )
         logger.info(f"User in database: {db_user.id}")
 
-        user_info['uuid'] = str(db_user.id)
-        request.session['user'] = user_info
-        request.session['user_id'] = str(db_user.id)
+        jwt_token = token.get('id_token')
+        if not jwt_token:
+            logger.error("No JWT token received from OAuth provider")
+            raise HTTPException(status_code=400, detail="No JWT token received from OAuth provider")
 
-        redirect_url = f"{settings.frontend_url}/?user_id={str(db_user.id)}"
-        logger.info(f"Redirecting to: {redirect_url}")
+        # Create a custom JWT with user information including UUID
+        custom_jwt_payload = {
+            "sub": user['sub'],
+            "email": user['email'],
+            "name": user.get('name', 'Unknown'),
+            "uuid": str(db_user.id)  # Include the UUID in the JWT payload
+        }
+        custom_jwt = jwt.encode(custom_jwt_payload, settings.ibm_client_secret, algorithm="HS256")
+
+
+        redirect_url = f"{settings.frontend_url}/?token={custom_jwt}"
+        logger.info(f"Redirecting to frontend: {redirect_url}")
 
         return RedirectResponse(url=redirect_url)
     except Exception as e:
@@ -163,50 +158,93 @@ async def auth(request: Request, db: Session = Depends(get_db)):
         error_redirect = f"{settings.frontend_url}/signin?error=authentication_failed"
         return RedirectResponse(url=error_redirect)
 
-@router.get("/logout")
+@router.post("/logout")
 async def logout(request: Request):
     """
-    Log out the current user by clearing their session.
+    Log out the current user.
     """
-    request.session.pop('user_id', None)
-    request.session.pop('user', None)
-    return RedirectResponse(url="/")
-
-@router.get("/session", response_model=SessionData)
-async def get_session(request: Request):
-    """
-    Retrieve the current session data for the authenticated user.
-    """
-    logger.info(f"Session request received. Session data: {dict(request.session)}")
-    user = request.session.get('user')
-    user_id = request.session.get('user_id')
-    if user and user_id:
-        logger.info(f"User found in session: {user}")
-        user_info = UserInfo(
-            sub=user.get('sub'),
-            name=user.get('name'),
-            email=user.get('email'),
-            uuid=user_id
-        )
-        return JSONResponse(content={"user": user_info.model_dump()})
-    logger.warning("No user found in session")
-    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+    logger.info("Logging out user")
+    request.session.clear()
+    return JSONResponse(content={"message": "Logged out successfully"})
 
 @router.get("/userinfo", response_model=UserInfo)
 async def get_userinfo(request: Request):
     """
-    Retrieve the user information from the session.
+    Retrieve the user information from the JWT Token.
     """
-    user = request.session.get('user')
-    user_id = request.session.get('user_id')
-    if not user or not user_id:
+    logger.info("Received request for /userinfo")
+    authorization = request.headers.get("Authorization")
+    if not authorization:
+        logger.warning("No Authorization header found")
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-    user_info = UserInfo(
-        sub=user.get('sub'),
-        name=user.get('name'),
-        email=user.get('email'),
-        uuid=user_id
-    )
+    try:
+        scheme, token = authorization.split()
+        if scheme.lower() != 'bearer':
+            logger.warning(f"Invalid authorization scheme: {scheme}")
+            raise HTTPException(status_code=401, detail="Invalid authorization scheme")
+        
+        logger.info("Decoding JWT token")
+        payload = jwt.decode(token, settings.ibm_client_secret, algorithms=["HS256"])
+        logger.info(f"JWT payload: {payload}")
+        
+        user_info = UserInfo(
+            sub=payload.get('sub'),
+            name=payload.get('name'),
+            email=payload.get('email'),
+            uuid=payload.get('uuid')
+        )
+        logger.info(f"Retrieved user info for user: {user_info.email}")
+        return JSONResponse(content=user_info.model_dump())
+    except jwt.PyJWTError as e:
+        logger.error(f"Error decoding JWT: {str(e)}")
+        raise HTTPException(status_code=401, detail="Invalid token")
 
-    return JSONResponse(content=user_info.dict())
+@router.get("/check-auth")
+async def check_auth(request: Request):
+    """
+    Check if the user is authenticated.
+    """
+    jwt_token = request.session.get('jwt_token')
+    if not jwt_token:
+        logger.info("No JWT token found in session")
+        return JSONResponse(content={"authenticated": False})
+
+    try:
+        payload = jwt.decode(jwt_token, options={"verify_signature": False})
+        user_id = payload.get('sub')
+        if user_id:
+            logger.info(f"User is authenticated: {user_id}")
+            return JSONResponse(content={"authenticated": True, "user_id": user_id})
+        else:
+            logger.warning("Invalid JWT token: no sub claim")
+            return JSONResponse(content={"authenticated": False, "error": "Invalid token"})
+    except jwt.ExpiredSignatureError:
+        logger.warning("JWT token has expired")
+        return JSONResponse(content={"authenticated": False, "error": "Token expired"})
+    except jwt.InvalidTokenError as e:
+        logger.warning(f"Invalid JWT token: {str(e)}")
+        return JSONResponse(content={"authenticated": False, "error": "Invalid token"})
+
+@router.get("/session")
+async def session_status(request: Request):
+    """
+    Check session status and retrieve user info if authenticated.
+    """
+    jwt_token = request.session.get('jwt_token')
+    if not jwt_token:
+        logger.info("No JWT token found in session")
+        return JSONResponse(content={"authenticated": False, "user": None})
+    try:
+        payload = jwt.decode(jwt_token, options={"verify_signature": False})
+        user_info = UserInfo(
+            sub=payload.get('sub'),
+            name=payload.get('name'),
+            email=payload.get('email'),
+            uuid=payload.get('sub')
+        )
+        logger.info(f"User is authenticated: {user_info.email}")
+        return JSONResponse(content={"authenticated": True, "user": user_info.model_dump()})
+    except jwt.PyJWTError as e:
+        logger.error(f"Error decoding JWT: {str(e)}")
+        return JSONResponse(content={"authenticated": False, "error": "Invalid token"})
