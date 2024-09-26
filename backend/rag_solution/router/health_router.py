@@ -5,9 +5,9 @@ from sqlalchemy import text
 from genai.client import Client
 from genai.credentials import Credentials
 
-from backend.rag_solution.file_management.database import get_db
-from backend.vectordbs.factory import get_datastore
-from backend.core.config import settings
+from rag_solution.file_management.database import get_db
+from vectordbs.factory import get_datastore
+from core.config import settings
 
 router = APIRouter(prefix="/api")  # Add a prefix to avoid conflicts
 

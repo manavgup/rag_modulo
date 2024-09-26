@@ -5,9 +5,9 @@ from uuid import UUID
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
-from backend.rag_solution.models.user import User
-from backend.rag_solution.schemas.team_schema import TeamOutput
-from backend.rag_solution.schemas.user_schema import UserInput, UserOutput
+from rag_solution.models.user import User
+from rag_solution.schemas.team_schema import TeamOutput
+from rag_solution.schemas.user_schema import UserInput, UserOutput
 
 logger = logging.getLogger(__name__)
 

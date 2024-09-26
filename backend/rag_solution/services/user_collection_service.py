@@ -3,9 +3,9 @@ from typing import List
 from uuid import UUID
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
-from backend.rag_solution.repository.user_collection_repository import UserCollectionRepository
-from backend.rag_solution.schemas.user_collection_schema import UserCollectionOutput, UserCollectionDetailOutput, UserCollectionsOutput
-from backend.rag_solution.schemas.collection_schema import CollectionOutput
+from rag_solution.repository.user_collection_repository import UserCollectionRepository
+from rag_solution.schemas.user_collection_schema import UserCollectionOutput, UserCollectionDetailOutput, UserCollectionsOutput
+from rag_solution.schemas.collection_schema import CollectionOutput
 
 logger = logging.getLogger(__name__)
 

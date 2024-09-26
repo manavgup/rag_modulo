@@ -1,7 +1,7 @@
 import logging
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Optional
-from backend.vectordbs.utils.watsonx import generate_text
+from vectordbs.utils.watsonx import generate_text
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')

@@ -4,10 +4,17 @@ from sqlalchemy.orm import Session
 import httpx
 from pydantic import BaseModel
 from typing import Optional
-from backend.auth.oidc import oauth, verify_jwt_token
-from backend.rag_solution.services.user_service import UserService
-from backend.rag_solution.file_management.database import get_db
-from backend.core.config import settings
+
+# from backend.auth.oidc import oauth, verify_jwt_token
+# from backend.rag_solution.services.user_service import UserService
+# from backend.rag_solution.file_management.database import get_db
+# from backend.core.config import settings
+
+from auth.oidc import oauth
+from rag_solution.services.user_service import UserService
+from rag_solution.file_management.database import get_db
+from core.config import settings
+import uuid
 import logging
 import jwt
 

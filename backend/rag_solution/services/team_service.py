@@ -7,11 +7,11 @@ from uuid import UUID
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from backend.rag_solution.repository.team_repository import TeamRepository
-from backend.rag_solution.repository.user_team_repository import UserTeamRepository
-from backend.rag_solution.schemas.team_schema import TeamInput, TeamOutput
-from backend.rag_solution.schemas.user_schema import UserOutput
-from backend.rag_solution.services.user_team_service import UserTeamService
+from rag_solution.repository.team_repository import TeamRepository
+from rag_solution.repository.user_team_repository import UserTeamRepository
+from rag_solution.schemas.team_schema import TeamInput, TeamOutput
+from rag_solution.schemas.user_schema import UserOutput
+from rag_solution.services.user_team_service import UserTeamService
 
 logger = logging.getLogger(__name__)
 
