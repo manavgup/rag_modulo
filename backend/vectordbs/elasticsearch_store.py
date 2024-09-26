@@ -3,8 +3,8 @@ from typing import Any, Dict, List, Optional
 
 from elasticsearch import Elasticsearch, NotFoundError
 
-from backend.core.config import settings
-from backend.vectordbs.utils.watsonx import get_embeddings
+from core.config import settings
+from vectordbs.utils.watsonx import get_embeddings
 
 from .data_types import (Document, DocumentChunk, DocumentChunkMetadata,
                          DocumentMetadataFilter, QueryResult,

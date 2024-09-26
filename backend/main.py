@@ -10,26 +10,30 @@ from pydantic import BaseModel
 from sqlalchemy import inspect, text
 import jwt
 
-from backend.core.config import settings
-from backend.core.auth_middleware import AuthMiddleware
-from backend.rag_solution.file_management.database import Base, engine, get_db
-from backend.rag_solution.router.collection_router import router as collection_router
-from backend.rag_solution.router.file_router import router as file_router
-from backend.rag_solution.router.team_router import router as team_router
-from backend.rag_solution.router.user_router import router as user_router
-from backend.rag_solution.router.user_collection_router import router as user_collection_router
-from backend.rag_solution.router.user_team_router import router as user_team_router
-from backend.rag_solution.router.health_router import router as health_router
-from backend.rag_solution.router.auth_router import router as auth_router
-from backend.auth.oidc import get_current_user, verify_jwt_token
+from core.config import settings
+from auth.oidc import get_current_user, verify_jwt_token
+from rag_solution.file_management.database import Base, engine, get_db
 
 # Import all models
-from backend.rag_solution.models.user import User
-from backend.rag_solution.models.collection import Collection
-from backend.rag_solution.models.file import File
-from backend.rag_solution.models.user_collection import UserCollection
-from backend.rag_solution.models.user_team import UserTeam
-from backend.rag_solution.models.team import Team
+from rag_solution.models.user import User
+from rag_solution.models.collection import Collection
+from rag_solution.models.file import File
+from rag_solution.models.user_collection import UserCollection
+from rag_solution.models.user_team import UserTeam
+from rag_solution.models.team import Team
+
+
+from core.auth_middleware import AuthMiddleware
+from rag_solution.file_management.database import Base, engine
+from rag_solution.router.collection_router import router as collection_router
+from rag_solution.router.file_router import router as file_router
+from rag_solution.router.team_router import router as team_router
+from rag_solution.router.user_router import router as user_router
+from rag_solution.router.user_collection_router import router as user_collection_router
+from rag_solution.router.user_team_router import router as user_team_router
+from rag_solution.router.health_router import router as health_router
+from rag_solution.router.auth_router import router as auth_router
+from auth.oidc import get_current_user, oauth
 
 logging.basicConfig(level=settings.log_level)
 logger = logging.getLogger(__name__)

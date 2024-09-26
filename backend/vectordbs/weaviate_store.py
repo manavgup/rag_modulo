@@ -9,8 +9,8 @@ from weaviate.data import DataObject
 from weaviate.exceptions import WeaviateConnectionError
 from weaviate.util import generate_uuid5
 
-from backend.core.config import settings
-from backend.vectordbs.utils.watsonx import get_embeddings
+from core.config import settings
+from vectordbs.utils.watsonx import get_embeddings
 
 from .data_types import (Document, DocumentChunk, DocumentChunkMetadata,
                          DocumentChunkWithScore, DocumentMetadataFilter,

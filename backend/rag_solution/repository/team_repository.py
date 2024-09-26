@@ -4,9 +4,9 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from backend.rag_solution.models.team import Team
-from backend.rag_solution.schemas.team_schema import TeamInput, TeamOutput
-from backend.rag_solution.schemas.user_schema import UserOutput
+from rag_solution.models.team import Team
+from rag_solution.schemas.team_schema import TeamInput, TeamOutput
+from rag_solution.schemas.user_schema import UserOutput
 
 logger = logging.getLogger(__name__)
 

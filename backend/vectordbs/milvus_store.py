@@ -7,8 +7,8 @@ from typing import Any, Dict, List, Optional
 from pymilvus import (Collection, CollectionSchema, DataType, FieldSchema,
                       MilvusException, connections, utility)
 
-from backend.core.config import settings
-from backend.vectordbs.utils.watsonx import get_embeddings
+from core.config import settings
+from vectordbs.utils.watsonx import get_embeddings
 
 from .data_types import (Document, DocumentChunk, DocumentChunkMetadata,
                          DocumentChunkWithScore, DocumentMetadataFilter,

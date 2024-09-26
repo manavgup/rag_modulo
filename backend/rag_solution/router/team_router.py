@@ -4,9 +4,9 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from backend.rag_solution.file_management.database import get_db
-from backend.rag_solution.schemas.team_schema import TeamInput, TeamOutput
-from backend.rag_solution.services.team_service import TeamService
+from rag_solution.file_management.database import get_db
+from rag_solution.schemas.team_schema import TeamInput, TeamOutput
+from rag_solution.services.team_service import TeamService
 
 router = APIRouter(prefix="/api/teams", tags=["teams"])
 

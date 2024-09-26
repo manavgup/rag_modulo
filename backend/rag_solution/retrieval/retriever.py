@@ -3,8 +3,8 @@ from abc import ABC, abstractmethod
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
-from backend.vectordbs.utils.watsonx import generate_text
-from backend.core.config import settings
+from vectordbs.utils.watsonx import generate_text
+from core.config import settings
 
 class BaseRetriever(ABC):
     @abstractmethod
@@ -74,7 +74,7 @@ class Retriever:
 
 # Example usage
 if __name__ == "__main__":
-    from backend.vectordbs.factory import get_vectorstore
+    from vectordbs.factory import get_vectorstore
     
     # Initialize vector store and documents
     vector_store = get_vectorstore('milvus')  # Or any other supported vector store

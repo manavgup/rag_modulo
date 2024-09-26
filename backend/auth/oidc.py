@@ -1,8 +1,9 @@
 from fastapi import HTTPException, status, Request
-from authlib.integrations.starlette_client import OAuth, OAuthError
-from backend.core.config import settings
 import jwt
 import logging
+
+from authlib.integrations.starlette_client import OAuth, OAuthError
+from core.config import settings
 
 logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)

@@ -3,10 +3,10 @@ from sqlalchemy.orm import Session
 from typing import List
 from uuid import UUID
 
-from backend.rag_solution.file_management.database import get_db
-from backend.rag_solution.services.user_collection_service import UserCollectionService
-from backend.rag_solution.services.user_collection_interaction_service import UserCollectionInteractionService
-from backend.rag_solution.schemas.user_collection_schema import UserCollectionOutput, UserCollectionsOutput
+from rag_solution.file_management.database import get_db
+from rag_solution.services.user_collection_service import UserCollectionService
+from rag_solution.services.user_collection_interaction_service import UserCollectionInteractionService
+from rag_solution.schemas.user_collection_schema import UserCollectionOutput, UserCollectionsOutput
 
 router = APIRouter(prefix="/api/user-collections", tags=["user-collections"])
 
