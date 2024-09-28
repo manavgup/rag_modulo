@@ -100,6 +100,12 @@ class Settings(BaseSettings):
     oidc_token_url: Optional[str] = None
     frontend_url: Optional[str] = None
     oidc_userinfo_endpoint: Optional[str] = None
+    oidc_userinfo_endpoint: Optional[str] = None
+    oidc_introspection_endpoint: Optional[str] = None
+
+    # JWT settings
+    jwt_secret_key: str = Field(..., env='JWT_SECRET_KEY')
+    jwt_algorithm: str = "HS256"
     
     class Config:
         env_file = ".env"
