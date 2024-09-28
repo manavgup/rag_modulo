@@ -16,14 +16,14 @@ PYTHON_VERSION ?= 3.11
 PROJECT_VERSION ?= v$(shell poetry version -s)
 
 # Tools
-DOCKER_COMPOSE := docker-compose
+DOCKER_COMPOSE := podman-compose
 
 # Set a default value for VECTOR_DB if not already set
 VECTOR_DB ?= milvus
 
 .DEFAULT_GOAL := help
 
-.PHONY: init-env init check-toml format lint audit test run-services build-app run-app clean all info help
+.PHONY: init-env init check-toml format lint audit test run-services build-app run-app clean all info help api-test install-deps newman-test run-backend run-frontend
 
 init-env:
 	@touch .env
@@ -31,8 +31,10 @@ init-env:
 	@echo "PYTHON_VERSION=${PYTHON_VERSION}" >> .env
 	@echo "VECTOR_DB=${VECTOR_DB}" >> .env
 
-init: init-env
+install-deps:
 	pip install -r requirements.txt
+
+init: init-env install-deps
 
 check-toml:
 	# No equivalent for pip, so this can be left empty or removed
@@ -53,6 +55,18 @@ test: run-services
 	echo "Waiting for Docker containers to stop..."
 	@while docker ps | grep -q "milvus-standalone"; do sleep 1; done
 
+api-test: run-services
+	pytest $(TEST_DIR)/api -v -m api || { echo "API Tests failed"; exit 1; }
+	@trap '$(DOCKER_COMPOSE) down' EXIT; \
+	echo "Waiting for Docker containers to stop..."
+	@while docker ps | grep -q "milvus-standalone"; do sleep 1; done
+
+newman-test: run-services
+	newman run postman/rag_modulo_api_collection.json
+	@trap '$(DOCKER_COMPOSE) down' EXIT; \
+	echo "Waiting for Docker containers to stop..."
+	@while docker ps | grep -q "milvus-standalone"; do sleep 1; done
+
 create-volumes:
 	@echo "Creating volume directories with correct permissions..."
 	@mkdir -p ./volumes/postgres ./volumes/etcd ./volumes/minio ./volumes/milvus
@@ -68,7 +82,7 @@ run-services: create-volumes
 	$(DOCKER_COMPOSE) up -d postgres
 	@echo "Waiting for PostgreSQL to be ready..."
 	@for i in $$(seq 1 30); do \
-		if docker-compose exec postgres pg_isready -U ${COLLECTIONDB_USER} -d ${COLLECTIONDB_NAME}; then \
+		if $(DOCKER_COMPOSE) exec postgres pg_isready -U ${COLLECTIONDB_USER} -d ${COLLECTIONDB_NAME}; then \
 			echo "PostgreSQL is ready"; \
 			break; \
 		fi; \
@@ -85,7 +99,7 @@ run-services: create-volumes
 		$(DOCKER_COMPOSE) up -d etcd minio milvus-standalone || { echo "Failed to start Milvus and its dependencies"; $(DOCKER_COMPOSE) logs; exit 1; }; \
 		echo "Waiting for Milvus to be ready..."; \
 		for i in $$(seq 1 30); do \
-			if docker-compose exec milvus-standalone curl -s http://localhost:9091/healthz | grep -q "OK"; then \
+			if $(DOCKER_COMPOSE) exec milvus-standalone curl -s http://localhost:9091/healthz | grep -q "OK"; then \
 				echo "Milvus is ready"; \
 				break; \
 			fi; \
@@ -109,8 +123,6 @@ run-services: create-volumes
 		echo "Unknown VECTOR_DB value: $(VECTOR_DB)"; \
 		exit 1; \
 	fi
-	@echo "Starting backend and frontend..."
-	$(DOCKER_COMPOSE) up -d backend frontend
 	@echo "Docker containers status:"
 	@docker ps
 	@echo "Milvus logs saved to milvus.log:"
@@ -120,27 +132,38 @@ run-tests:
 	$(DOCKER_COMPOSE) run --rm test pytest $(ARGS)
 
 build-frontend:
-	docker build -t $(PROJECT_NAME)-frontend \
-		-f webui/Dockerfile.frontend ./webui
+	docker build -t $(PROJECT_NAME)-frontend -f webui/Dockerfile.frontend ./webui
 
 build-backend:
-	docker build -t $(PROJECT_NAME)-backend \
-		-f Dockerfile.backend .
+	docker build --build-arg CACHEBUST=$(date +%s) -t $(PROJECT_NAME)-backend --no-cache -f Dockerfile.backend .
 
 build-app:
 	@echo "Building application containers..."
 	$(DOCKER_COMPOSE) build
 
-run-app: build-app run-services
-	@echo "Starting remaining application containers..."
-	$(DOCKER_COMPOSE) up -d
+run-backend: run-services
+	@echo "Starting backend..."
+	$(DOCKER_COMPOSE) up -d backend
+	@echo "Backend is now running."
+
+run-frontend: run-services
+	@echo "Starting frontend..."
+	$(DOCKER_COMPOSE) up -d frontend
+	@echo "Frontend is now running."
+
+run-app: build-app run-backend run-frontend
 	@echo "All application containers are now running."
 
 logs:
 	$(DOCKER_COMPOSE) logs -f
 
 clean:
+	@echo "Cleaning up Docker Compose resources..."
 	$(DOCKER_COMPOSE) down -v
+	@echo "Cleaning up existing pods and containers..."
+	-@podman pod rm -f $(podman pod ps -q) || true
+	-@podman rm -f $(podman ps -a -q) || true
+	-@podman volume prune -f || true
 	rm -rf .pytest_cache .mypy_cache data volumes my_chroma_data tests
 
 all: format lint audit test
@@ -156,15 +179,20 @@ help:
 	@echo ""
 	@echo "Targets:"
 	@echo "  init-env      Initialize .env file with default values"
-	@echo "  init          Install dependencies"
+	@echo "  init          Initialize environment and install dependencies"
+	@echo "  install-deps  Install project dependencies"
 	@echo "  check-toml    Check TOML files for syntax errors"
 	@echo "  format        Format code using ruff, black, and isort"
 	@echo "  lint          Lint code using ruff and mypy"
 	@echo "  audit         Audit code using bandit"
-	@echo "  test          Run tests using pytest"
+	@echo "  test          Run all tests using pytest"
+	@echo "  api-test      Run API tests using pytest"
+	@echo "  newman-test   Run API tests using Newman"
 	@echo "  run-services  Start services using Docker Compose"
 	@echo "  build-app     Build app using Docker Compose"
-	@echo "  run-app       Run app using Docker Compose"
+	@echo "  run-backend   Run backend using Docker Compose"
+	@echo "  run-frontend  Run frontend using Docker Compose"
+	@echo "  run-app       Run both backend and frontend using Docker Compose"
 	@echo "  logs          View logs of running containers"
 	@echo "  clean         Clean up Docker Compose volumes and cache"
 	@echo "  all           Format, lint, audit, and test"

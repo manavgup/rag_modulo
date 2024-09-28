@@ -10,21 +10,28 @@ psycopg2-binary==2.9.9  # Chose binary version for easier installation
 pydantic==2.7.2
 pydantic_settings==2.3.4
 pydantic[email]
-pymilvus==2.4.4
+pymilvus>=2.4.0,<2.5.0
 PyMuPDF==1.24.8
 python-docx
 python-dotenv==1.0.1
 scikit-learn==1.5.1
 weaviate-client==4.5.3
-chromadb==0.5.5
+chromadb
 python-multipart
+pyjwt
+passlib
 
 # Additional backend-specific packages
 pytest==7.4.0
 pytest-asyncio==0.21.0
 aiofiles
+yarl
 
 # OIDC and authentication related packages
 authlib
 httpx
 itsdangerous==2.1.2  # Required for SessionMiddleware
+
+# Adjusted for dependency compatibility
+grpcio==1.62.1
+grpcio-health-checking==1.62.1

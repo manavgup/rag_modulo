@@ -41,8 +41,8 @@ const CollectionForm = () => {
   const fetchUserCollections = async () => {
     setIsLoadingCollections(true);
     try {
-      const collections = await getUserCollections();
-      setUserCollections(Array.isArray(collections) ? collections : []);
+      const collectionsData = await getUserCollections(1, 10); // Add default page and pageSize
+      setUserCollections(Array.isArray(collectionsData.collections) ? collectionsData.collections : []);
     } catch (error) {
       console.error('Error fetching user collections:', error);
       setErrorMessage('Failed to fetch user collections. Please try again later.');
@@ -123,7 +123,7 @@ const CollectionForm = () => {
     } catch (error) {
       console.error('API Error:', error);
       setShowError(true);
-      setErrorMessage(error.response?.data?.message || 'An error occurred while creating the collection.');
+      setErrorMessage(error.message || 'An error occurred while creating the collection.');
     } finally {
       setIsUploading(false);
     }
@@ -155,7 +155,7 @@ const CollectionForm = () => {
               <Tile className="collection-tile">
                 <h3>{collection.name}</h3>
                 <p>
-                  <Document size={16} /> Files: {Array.isArray(collection.files) ? collection.files.length : 'N/A'}
+                  <Document size={16} /> Files: {collection.document_count || 'N/A'}
                 </p>
                 <p>Created: {new Date(collection.created_at).toLocaleDateString()}</p>
               </Tile>

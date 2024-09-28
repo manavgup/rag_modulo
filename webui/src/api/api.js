@@ -1,111 +1,82 @@
 import axios from 'axios';
-import config, { API_ROUTES }  from '../config/config';
-import { getUserData } from '../services/authService';
+import config, { API_ROUTES, getFullApiUrl } from '../config/config';
+import { getStoredUserData } from '../services/authService';
+
+console.log('API configuration:', config);
 
 const api = axios.create({
-  baseURL: config.apiUrl,
-  withCredentials: true,
+  baseURL: getFullApiUrl(''),
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Add an interceptor to include the X-User-UUID header in all requests
+console.log('Axios instance created with baseURL:', api.defaults.baseURL);
+
+// Add an interceptor to include the JWT in the Authorization header for all requests
 api.interceptors.request.use(async function (config) {
-  try {
-    const userData = await getUserData();
-    if (userData && userData.uuid) {
-      config.headers['X-User-UUID'] = userData.uuid;
-    }
-  } catch (error) {
-    console.error('Error getting user data:', error);
+  console.log('Request interceptor - URL:', config.url, 'Method:', config.method);
+  const token = localStorage.getItem('jwt_token');
+  if (token) {
+    config.headers['Authorization'] = `Bearer ${token}`;
+    console.log('Axios interceptor: Adding token to request headers', config.url);
+  } else {
+    console.log('Axios interceptor: No token found in localStorage');
   }
+  console.log('Final request config:', config);
   return config;
 }, function (error) {
+  console.error('Axios interceptor: Error in request interceptor', error);
   return Promise.reject(error);
 });
 
+// Add an interceptor to handle token expiration
+api.interceptors.response.use(
+  (response) => {
+    console.log('Response interceptor - URL:', response.config.url, 'Status:', response.status);
+    return response;
+  },
+  async (error) => {
+    console.error('Response interceptor - Error:', error);
+    if (error.response && error.response.status === 401) {
+      console.error('Axios interceptor: Unauthorized access, redirecting to login');
+      localStorage.removeItem('jwt_token');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
+const handleApiError = (error, customErrorMessage) => {
+  console.error('API Error:', error);
+  if (error.response) {
+    console.error('Response data:', error.response.data);
+    console.error('Response status:', error.response.status);
+    console.error('Response headers:', error.response.headers);
+    return {
+      message: customErrorMessage || error.response.data.message || 'An error occurred while processing your request.',
+      status: error.response.status
+    };
+  } else if (error.request) {
+    console.error('Request:', error.request);
+    return {
+      message: 'No response received from the server. Please try again later.',
+      status: 0
+    };
+  } else {
+    console.error('Error:', error.message);
+    return {
+      message: customErrorMessage || error.message || 'An unexpected error occurred. Please try again.',
+      status: 0
+    };
+  }
+};
+
 export const createCollectionWithDocuments = async (formData, onUploadProgress) => {
   try {
-    console.log(">>> in API.js");
-    console.log("formData: ", formData);
-    if (!API_ROUTES.CREATE_COLLECTION) {
-      throw new Error('CREATE_COLLECTION route is undefined');
-    }
-    console.log("Sending request to:", API_ROUTES.CREATE_COLLECTION);
-    const response = await api.post(
-      API_ROUTES.CREATE_COLLECTION,
-      formData,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        onUploadProgress,
-      }
-    );
-    console.log("Response: ", response);
-    return response.data;
-  } catch (error) {
-    console.error('Error creating collection with documents:', error);
-    console.error('Error details:', error.response?.data);
-    throw error;
-  }
-};
-
-export const getUserCollections = async () => {
-  try {
-    const userData = await getUserData();
-    if (!userData || !userData.uuid) {
-      throw new Error('User UUID not available');
-    }
-    
-    console.log("API_ROUTES.GET_USER_COLLECTIONS:", API_ROUTES.GET_USER_COLLECTIONS);
-    console.log("User UUID:", userData.uuid);
-    const fullUrl = `${API_ROUTES.GET_USER_COLLECTIONS}${userData.uuid}`;
-    console.log("Full URL:", fullUrl);
-
-    const response = await api.get(fullUrl);
-    console.log("User collections response:", response);
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching user collections:', error);
-    console.error('Error details:', error.response?.data);
-    return [];
-  }
-};
-
-export const getCollectionById = async (collectionId) => {
-  try {
-    const response = await api.get(`${API_ROUTES.GET_COLLECTION_BY_ID}${collectionId}`);
-    return response.data;
-  } catch (error) {
-    console.error(`Error fetching collection ${collectionId}:`, error);
-    throw error;
-  }
-};
-
-export const updateCollection = async (collectionId, updateData) => {
-  try {
-    const response = await api.put(`${API_ROUTES.UPDATE_COLLECTION}${collectionId}`, updateData);
-    return response.data;
-  } catch (error) {
-    console.error(`Error updating collection ${collectionId}:`, error);
-    throw error;
-  }
-};
-
-export const deleteCollection = async (collectionId) => {
-  try {
-    await api.delete(`${API_ROUTES.DELETE_COLLECTION}${collectionId}`);
-  } catch (error) {
-    console.error(`Error deleting collection ${collectionId}:`, error);
-    throw error;
-  }
-};
-
-export const addDocumentsToCollection = async (collectionId, formData, onUploadProgress) => {
-  try {
-    const response = await api.post(`${API_ROUTES.ADD_DOCUMENTS}${collectionId}/documents`, formData, {
+    const url = API_ROUTES.CREATE_COLLECTION;
+    console.log('Creating collection with documents:', getFullApiUrl(url));
+    const response = await api.post(url, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -113,37 +84,113 @@ export const addDocumentsToCollection = async (collectionId, formData, onUploadP
     });
     return response.data;
   } catch (error) {
-    console.error(`Error adding documents to collection ${collectionId}:`, error);
-    throw error;
+    throw handleApiError(error, 'Error creating collection with documents');
   }
 };
 
-export const removeDocumentFromCollection = async (collectionId, documentId) => {
+export const getUserCollections = async () => {
   try {
-    await api.delete(`${API_ROUTES.REMOVE_DOCUMENT}${collectionId}/documents/${documentId}`);
-  } catch (error) {
-    console.error(`Error removing document ${documentId} from collection ${collectionId}:`, error);
-    throw error;
-  }
-};
+    const userData = getStoredUserData();
+    if (!userData || !userData.uuid) {
+      throw new Error('User UUID not available');
+    }
 
-export const queryCollection = async (collectionId, query) => {
-  try {
-    const response = await api.post(`${API_ROUTES.QUERY_COLLECTION}${collectionId}/query`, { query });
+    const url = `${API_ROUTES.GET_USER_COLLECTIONS}/${userData.uuid}`;
+    console.log('Fetching user collections:', getFullApiUrl(url));
+    const response = await api.get(url);
+    console.log('User collections fetched successfully', response.data);
     return response.data;
   } catch (error) {
-    console.error(`Error querying collection ${collectionId}:`, error);
-    throw error;
+    console.error('Error in getUserCollections:', error);
+    throw handleApiError(error, 'Error fetching user collections');
+  }
+};
+
+export const updateCollection = async (collectionId, data) => {
+  try {
+    const url = `${API_ROUTES.UPDATE_COLLECTION}${collectionId}`;
+    console.log('Updating collection:', getFullApiUrl(url));
+    const response = await api.put(url, data);
+    console.log('Collection updated successfully:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error in updateCollection:', error);
+    throw handleApiError(error, 'Error updating collection');
+  }
+};
+
+export const deleteCollection = async (collectionId) => {
+  try {
+    const url = `${API_ROUTES.DELETE_COLLECTION}${collectionId}`;
+    console.log('Deleting collection:', getFullApiUrl(url));
+    const response = await api.delete(url);
+    console.log('Collection deleted successfully:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error in deleteCollection:', error);
+    throw handleApiError(error, 'Error deleting collection');
+  }
+};
+
+export const getDocumentsInCollection = async (collectionId, currentPage, pageSize, searchTerm, sortField, sortDirection) => {
+  try {
+    const url = `${API_ROUTES.GET_COLLECTION_BY_ID}${collectionId}/documents?page=${currentPage}&pageSize=${pageSize}&searchTerm=${searchTerm}&sortField=${sortField}&sortDirection=${sortDirection}`;
+    console.log('Fetching documents in collection:', getFullApiUrl(url));
+    const response = await api.get(url);
+    console.log('Documents fetched successfully:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error in getDocumentsInCollection:', error);
+    throw handleApiError(error, 'Error fetching documents');
+  }
+};
+
+export const deleteDocument = async (collectionId, documentId) => {
+  try {
+    const url = `${API_ROUTES.DELETE_COLLECTION}${collectionId}/documents/${documentId}`;
+    console.log('Deleting document:', getFullApiUrl(url));
+    const response = await api.delete(url);
+    console.log('Document deleted successfully:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error in deleteDocument:', error);
+    throw handleApiError(error, 'Error deleting document');
+  }
+};
+
+export const moveDocument = async (sourceCollectionId, documentId, targetCollectionId) => {
+  try {
+    const url = `${API_ROUTES.GET_COLLECTION_BY_ID}${sourceCollectionId}/documents/${documentId}/move`;
+    console.log('Moving document:', getFullApiUrl(url));
+    const response = await api.post(url, { targetCollectionId });
+    console.log('Document moved successfully:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error in moveDocument:', error);
+    throw handleApiError(error, 'Error moving document');
+  }
+};
+
+export const getDocument = async (documentId) => {
+  try {
+    const url = `${API_ROUTES.GET_COLLECTION_BY_ID}documents/${documentId}`;
+    console.log('Fetching document:', getFullApiUrl(url));
+    const response = await api.get(url);
+    console.log('Document fetched successfully:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error in getDocument:', error);
+    throw handleApiError(error, 'Error fetching document');
   }
 };
 
 export default {
   createCollectionWithDocuments,
   getUserCollections,
-  getCollectionById,
   updateCollection,
   deleteCollection,
-  addDocumentsToCollection,
-  removeDocumentFromCollection,
-  queryCollection,
+  getDocumentsInCollection,
+  deleteDocument,
+  moveDocument,
+  getDocument
 };

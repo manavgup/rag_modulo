@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, memo } from 'react';
-import { signIn, signOut, getUserData, loadIBMScripts } from '../services/authService';
+import { signIn, signOut, getUserData, loadIBMScripts, handleAuthCallback } from '../services/authService';
 
 const ErrorMessage = memo(({ message }) => <div>Error: {message}</div>);
 const SignInButton = memo(({ onSignIn }) => <button onClick={onSignIn}>Sign In</button>);
@@ -15,23 +15,28 @@ const Auth = () => {
   const [user, setUser] = useState(null);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const userData = await getUserData();
-        if (userData) {
-          setUser(userData);
-        } else {
-          setUser(null);
-        }
-      } catch (err) {
-        console.error('Error fetching user:', err);
-        setError('Failed to fetch user information');
+  const fetchUser = useCallback(async () => {
+    try {
+      const userData = await getUserData();
+      if (userData) {
+        setUser(userData);
+      } else {
+        setUser(null);
       }
-    };
-
-    fetchUser();
+    } catch (err) {
+      console.error('Error fetching user:', err);
+      setError('Failed to fetch user information');
+    }
   }, []);
+
+  useEffect(() => {
+    const authSuccess = handleAuthCallback();
+    if (authSuccess) {
+      fetchUser();
+    } else {
+      fetchUser(); // Still try to fetch user data in case they're already authenticated
+    }
+  }, [fetchUser]);
 
   const handleSignIn = useCallback(() => {
     signIn().catch(err => {
