@@ -32,6 +32,8 @@ starlette = "^0.36.3"
 numpy = "^2.1.1"
 setuptools = "^75.1.0"
 tenacity = "^8.5.0"
+pyjwt = "*"
+passlib = "*"
 
 # OIDC and authentication related packages
 authlib = "*"
@@ -63,3 +65,8 @@ ibm-generative-ai = "genai"
 
 [tool.deptry.per_rule_ignores]
 DEP002 = ["psycopg2", "itsdangerous"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["backend/tests"]
+addopts = "-v -s"

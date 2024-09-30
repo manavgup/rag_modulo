@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from typing import List
 from uuid import UUID
@@ -48,7 +48,10 @@ def remove_user_from_collection(user_id: UUID, collection_id: UUID, db: Session 
         500: {"description": "Internal server error"}
     }
 )
-def get_user_collections(user_id: UUID, db: Session = Depends(get_db)):
+def get_user_collections(user_id: UUID, request: Request, db: Session = Depends(get_db)):
+    if not hasattr(request.state, 'user') or request.state.user['uuid'] != str(user_id):
+        raise HTTPException(status_code=403, detail="Not authorized to access this resource")
+    
     service = UserCollectionInteractionService(db)
     try:
         collections = service.get_user_collections_with_files(user_id)
