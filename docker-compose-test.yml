@@ -1,0 +1,43 @@
+include:
+  - path:
+      - docker-compose.yml
+
+services:
+  test:
+    image: rag_modulo/backend
+    command: pytest -v -s
+    volumes:
+      - .:/app
+    networks:
+      - app-network
+    depends_on:
+      - milvus-standalone
+      - postgres
+      - backend
+    environment:
+      - PYTHONPATH=/app
+      - MILVUS_HOST=milvus-standalone
+      - MILVUS_PORT={MILVUS_PORT}
+      - COLLECTIONDB_HOST=postgres
+      - COLLECTIONDB_PORT=5432
+      - COLLECTIONDB_NAME=${COLLECTIONDB_NAME}
+      - COLLECTIONDB_USER=${COLLECTIONDB_USER}
+      - COLLECTIONDB_PASS=${COLLECTIONDB_PASS}
+      - OIDC_DISCOVERY_ENDPOINT=${OIDC_DISCOVERY_ENDPOINT}
+      - OIDC_AUTH_URL=${OIDC_AUTH_URL}
+      - OIDC_TOKEN_URL=${OIDC_TOKEN_URL}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - IBM_CLIENT_ID=${IBM_CLIENT_ID}
+      - IBM_CLIENT_SECRET=${IBM_CLIENT_SECRET}
+    env_file:
+      - .env
+
+volumes:
+  postgres_data:
+  etcd_data:
+  minio_data:
+  milvus_data:
+
+networks:
+  app-network:
+    driver: bridge

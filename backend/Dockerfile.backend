@@ -1,15 +1,28 @@
-# Build stage
-FROM python:3.12-slim AS builder
+# Base stage
+FROM python:3.12-slim AS base
 
-WORKDIR /app
+# Pre-onfigure poetry
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    POETRY_VERSION=1.8.3 \
+    POETRY_HOME="/opt/poetry" \
+    POETRY_VIRTUALENVS_IN_PROJECT=true \
+    POETRY_NO_INTERACTION=1
 
-# Install system dependencies including Rust
-RUN apt-get update && apt-get install -y \
+ENV PATH="$POETRY_HOME/bin:$PATH"
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y curl \
     build-essential \
-    libpq-dev \
-    curl \
-    && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
-    && . $HOME/.cargo/env
+    libpq-dev
+
+# Build stage
+FROM base AS builder
+
+# Install Rust and poetry
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y \
+    && . $HOME/.cargo/env \
+    && curl -sSL https://install.python-poetry.org | python3 -
 
 # Add Rust to PATH
 ENV PATH="/root/.cargo/bin:${PATH}"
@@ -17,11 +30,10 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 # Verify Rust installation
 RUN rustc --version && cargo --version
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+WORKDIR /app
 
-# Downgrade protobuf to resolve version conflict
-RUN pip install --no-cache-dir protobuf==3.20.3
+COPY pyproject.toml poetry.lock ./
+RUN poetry install --only main --no-root
 
 # Final stage
 FROM python:3.12-slim
@@ -38,8 +50,10 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /app/.venv /app/.venv
 COPY --from=builder /usr/local/bin /usr/local/bin
+
+ENV PATH="/app/.venv/bin:$PATH"
 
 COPY . /app
 
@@ -53,30 +67,30 @@ RUN sleep 2 && \
 
 # Create entrypoint script
 RUN echo '#!/bin/bash\n\
-set -ex\n\
-echo "Starting entrypoint script"\n\
-echo "Current directory: $(pwd)"\n\
-echo "Contents of /app:"\n\
-ls -la /app\n\
-echo "Contents of /app/core:"\n\
-ls -la /app/core\n\
-echo "Python path:"\n\
-python -c "import sys; print(sys.path)"\n\
-echo "Trying to import core:"\n\
-python -c "import core" || { echo "Failed to import core"; }\n\
-echo "Trying to import core.config:"\n\
-python -c "import core.config" || { echo "Failed to import core.config"; }\n\
-echo "Trying to import main module:"\n\
-python -c "import main" || { echo "Failed to import main module"; ls -la /app/main.py; cat /app/main.py; }\n\
-echo "Network information:"\n\
-ip addr\n\
-echo "Environment variables:"\n\
-env | grep COLLECTIONDB\n\
-echo "Trying to ping postgres:"\n\
-ping -c 4 postgres || echo "Failed to ping postgres"\n\
-echo "Running main.py:"\n\
-python /app/main.py\n\
-' > /entrypoint.sh && chmod +x /entrypoint.sh
+    set -ex\n\
+    echo "Starting entrypoint script"\n\
+    echo "Current directory: $(pwd)"\n\
+    echo "Contents of /app:"\n\
+    ls -la /app\n\
+    echo "Contents of /app/core:"\n\
+    ls -la /app/core\n\
+    echo "Python path:"\n\
+    python -c "import sys; print(sys.path)"\n\
+    echo "Trying to import core:"\n\
+    python -c "import core" || { echo "Failed to import core"; }\n\
+    echo "Trying to import core.config:"\n\
+    python -c "import core.config" || { echo "Failed to import core.config"; }\n\
+    echo "Trying to import main module:"\n\
+    python -c "import main" || { echo "Failed to import main module"; ls -la /app/main.py; cat /app/main.py; }\n\
+    echo "Network information:"\n\
+    ip addr\n\
+    echo "Environment variables:"\n\
+    env | grep COLLECTIONDB\n\
+    echo "Trying to ping postgres:"\n\
+    ping -c 4 postgres || echo "Failed to ping postgres"\n\
+    echo "Running main.py:"\n\
+    python /app/main.py\n\
+    ' > /entrypoint.sh && chmod +x /entrypoint.sh
 
 CMD ["/entrypoint.sh"]
 

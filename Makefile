@@ -6,8 +6,8 @@ export $(shell sed 's/=.*//' .env)
 export PYTHONPATH=$(pwd):$(pwd)/vectordbs:$(pwd)/rag_solution
 
 # Directories
-SOURCE_DIR := rag_solution
-TEST_DIR := tests
+SOURCE_DIR := ./backend/rag_solution
+TEST_DIR := ./backend/tests
 PROJECT_DIRS := $(SOURCE_DIR) $(TEST_DIR)
 
 # Project info
