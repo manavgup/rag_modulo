@@ -1,6 +1,6 @@
 [tool.poetry]
-name = "rag-modulo"
-version = "0.1.0"
+name = "rag-modulo-backend"
+version = "1.0.0"
 description = "A modular, agentic RAG which allows selection of embeddings, vector dbs, chunking strategy, etc."
 authors = ["Manav Gupta <manavgup@ca.ibm.com>"]
 license = "MIT"
@@ -20,7 +20,7 @@ ibm-generative-ai = "^3.0.0"
 scikit-learn = "^1.5.1"
 weaviate-client = "^4.6.0"
 SQLAlchemy = "^2.0.31"
-psycopg2 = "^2.9.9"
+psycopg2-binary = "^2.9.9" # Chose binary version for easier installation
 python-multipart = "*"
 pandas = "^2.2.2"
 elasticsearch = "^8.14.0"
@@ -42,7 +42,7 @@ itsdangerous = "^2.1.2"  # Required for SessionMiddleware
 
 [build-system]
 requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+build-backendd = "poetry.core.masonry.api"
 
 [tool.poetry.group.test]
 optional = true

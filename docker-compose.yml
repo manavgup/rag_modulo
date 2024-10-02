@@ -2,9 +2,11 @@ include:
   - path:
       - docker-compose-infra.yml
 
+name: ${PROJECT_NAME:-rag-modulo}
+
 services:
   backend:
-    image: rag_modulo/backend
+    image: ${PROJECT_NAME:-rag-modulo}/backend:${PROJECT_VERSION:-1.0.0}
     build:
       context: ./backend
       dockerfile: Dockerfile.backend
@@ -30,7 +32,7 @@ services:
       retries: 3
 
   frontend:
-    image: rag_modulo/frontend
+    image: ${PROJECT_NAME:-rag-modulo}/frontend:${PROJECT_VERSION:-1.0.0}
     build:
       context: ./webui
       dockerfile: Dockerfile.frontend

@@ -11,9 +11,9 @@ TEST_DIR := ./backend/tests
 PROJECT_DIRS := $(SOURCE_DIR) $(TEST_DIR)
 
 # Project info
-PROJECT_NAME ?= rag_modulo
+PROJECT_NAME ?= rag-modulo
 PYTHON_VERSION ?= 3.11
-PROJECT_VERSION ?= v$(shell poetry version -s)
+PROJECT_VERSION ?= 1.0.0
 
 # Tools
 DOCKER_COMPOSE := docker-compose
@@ -132,10 +132,10 @@ run-tests:
 	$(DOCKER_COMPOSE) run --rm test pytest $(ARGS)
 
 build-frontend:
-	docker build -t $(PROJECT_NAME)-frontend -f webui/Dockerfile.frontend ./webui
+	$(DOCKER_COMPOSE) build frontend
 
 build-backend:
-	docker build --build-arg CACHEBUST=$(date +%s) -t $(PROJECT_NAME)-backend --no-cache -f Dockerfile.backend .
+	$(DOCKER_COMPOSE) build backend
 
 build-app:
 	@echo "Building application containers..."
