@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 from uuid import uuid4
 from unittest.mock import patch
-from backend.rag_solution.router.user_team_router import (
+from rag_solution.router.user_team_router import (
     add_user_to_team, remove_user_from_team,
     get_user_teams, get_team_users
 )
@@ -39,7 +39,7 @@ def authenticate_user():
 # Example test cases
 
 def test_add_user_to_team(user_team_data):
-    with patch('backend.rag_solution.services.user_team_service.UserTeamService') as MockService:
+    with patch('rag_solution.services.user_team_service.UserTeamService') as MockService:
         mock_service = MockService.return_value
         mock_service.add_user_to_team.return_value = None
 
@@ -52,7 +52,7 @@ def test_add_user_to_team(user_team_data):
         )
 
 def test_remove_user_from_team(user_team_data):
-    with patch('backend.rag_solution.services.user_team_service.UserTeamService') as MockService:
+    with patch('rag_solution.services.user_team_service.UserTeamService') as MockService:
         mock_service = MockService.return_value
         mock_service.remove_user_from_team.return_value = None
 
@@ -65,7 +65,7 @@ def test_remove_user_from_team(user_team_data):
         )
 
 def test_get_user_teams(user_team_data):
-    with patch('backend.rag_solution.services.user_team_service.UserTeamService') as MockService:
+    with patch('rag_solution.services.user_team_service.UserTeamService') as MockService:
         mock_service = MockService.return_value
         mock_service.get_user_teams.return_value = []
 
@@ -78,7 +78,7 @@ def test_get_user_teams(user_team_data):
         )
 
 def test_get_team_users(user_team_data):
-    with patch('backend.rag_solution.services.user_team_service.UserTeamService') as MockService:
+    with patch('rag_solution.services.user_team_service.UserTeamService') as MockService:
         mock_service = MockService.return_value
         mock_service.get_team_users.return_value = []
 

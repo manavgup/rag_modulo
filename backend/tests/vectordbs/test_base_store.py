@@ -1,11 +1,11 @@
 from datetime import datetime
 
 import pytest
-from backend.vectordbs.data_types import (Document, DocumentChunk,
+from vectordbs.data_types import (Document, DocumentChunk,
                                   DocumentChunkMetadata, QueryWithEmbedding,
                                   Source)
-from backend.vectordbs.error_types import CollectionError
-from backend.vectordbs.utils.watsonx import get_embeddings
+from vectordbs.error_types import CollectionError
+from vectordbs.utils.watsonx import get_embeddings
 
 
 class BaseStoreTest:

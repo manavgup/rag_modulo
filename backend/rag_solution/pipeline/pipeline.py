@@ -13,7 +13,7 @@ class Pipeline:
         self.retriever = Retriever(config.get('retrieval', {}), vector_store, documents)
         
         # Lazy import to avoid circular dependency
-        from backend.rag_solution.generation.generator import Generator
+        from rag_solution.generation.generator import Generator
         self.generator = Generator(config.get('generation', {}))
 
     def _load_documents(self) -> List[Dict[str, Any]]:

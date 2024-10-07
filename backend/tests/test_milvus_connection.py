@@ -1,11 +1,12 @@
+import os
 from pymilvus import connections, utility
 
 def test_milvus_connection():
     try:
         connections.connect(
             alias="default", 
-            host="localhost", 
-            port="19530"
+            host=os.getenv('MILVUS_HOST', 'milvus-standalone'), 
+            port=os.getenv('MILVUS_PORT', '19530')
         )
         print("Successfully connected to Milvus")
         

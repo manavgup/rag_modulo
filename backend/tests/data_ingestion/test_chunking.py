@@ -1,6 +1,6 @@
 # tests/test_chunking.py
 import pytest
-from backend.rag_solution.data_ingestion.chunking import (semantic_chunking,
+from rag_solution.data_ingestion.chunking import (semantic_chunking,
                                                           simple_chunking)
 
 def test_simple_chunking():

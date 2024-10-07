@@ -5,28 +5,28 @@ import chromadb
 import pymupdf
 import pytest
 import weaviate
-from backend.core.config import settings
+from core.config import settings
 from elasticsearch import Elasticsearch
-from backend.vectordbs.milvus_store import MilvusStore
+from vectordbs.milvus_store import MilvusStore
 from fastapi.testclient import TestClient
 from pinecone import Pinecone
 from pymilvus import connections
-from backend.rag_solution.file_management.database import DATABASE_URL, engine as sync_engine, Base, SessionLocal
+from rag_solution.file_management.database import DATABASE_URL, engine as sync_engine, Base, SessionLocal
 # Remove or comment out these lines:
-from backend.rag_solution.models.collection import Collection
-from backend.rag_solution.models.file import File
-from backend.rag_solution.models.team import Team
+from rag_solution.models.collection import Collection
+from rag_solution.models.file import File
+from rag_solution.models.team import Team
 # Import all models to ensure they're registered with SQLAlchemy
-from backend.rag_solution.models.user import User
-from backend.rag_solution.models.user_collection import UserCollection
-from backend.rag_solution.models.user_team import UserTeam
-from backend.rag_solution.schemas.user_schema import UserInput
+from rag_solution.models.user import User
+from rag_solution.models.user_collection import UserCollection
+from rag_solution.models.user_team import UserTeam
+from rag_solution.schemas.user_schema import UserInput
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
-from backend.vectordbs.vector_store import VectorStore
+from vectordbs.vector_store import VectorStore
 import logging
-from backend.vectordbs.factory import get_datastore
-from backend.vectordbs.error_types import CollectionError
+from vectordbs.factory import get_datastore
+from vectordbs.error_types import CollectionError
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 

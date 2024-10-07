@@ -1,7 +1,7 @@
 import pytest
-from backend.vectordbs.data_types import (Document, DocumentMetadataFilter,
+from vectordbs.data_types import (Document, DocumentMetadataFilter,
                                   QueryWithEmbedding)
-from backend.vectordbs.vector_store import VectorStore
+from vectordbs.vector_store import VectorStore
 
 
 class TestVectorStore:

@@ -1,7 +1,7 @@
 import pytest
 
-from backend.core.custom_exceptions import DocumentProcessingError
-from backend.rag_solution.data_ingestion.document_processor import \
+from core.custom_exceptions import DocumentProcessingError
+from rag_solution.data_ingestion.document_processor import \
     DocumentProcessor
 
 

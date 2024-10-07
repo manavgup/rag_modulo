@@ -1,13 +1,13 @@
 import unittest
 from unittest.mock import patch, MagicMock
-from backend.rag_solution.pipeline.pipeline import Pipeline
+from rag_solution.pipeline.pipeline import Pipeline
 
 class TestPipeline(unittest.TestCase):
 
-    @patch('backend.rag_solution.pipeline.pipeline.QueryRewriter')
-    @patch('backend.rag_solution.pipeline.pipeline.Retriever')
-    @patch('backend.rag_solution.pipeline.pipeline.Generator')
-    @patch('backend.rag_solution.pipeline.pipeline.get_vectorstore')
+    @patch('rag_solution.pipeline.pipeline.QueryRewriter')
+    @patch('rag_solution.pipeline.pipeline.Retriever')
+    @patch('rag_solution.pipeline.pipeline.Generator')
+    @patch('rag_solution.pipeline.pipeline.get_vectorstore')
     def setUp(self, mock_get_vectorstore, mock_generator, mock_retriever, mock_query_rewriter):
         self.mock_query_rewriter = mock_query_rewriter.return_value
         self.mock_retriever = mock_retriever.return_value
@@ -57,7 +57,7 @@ class TestPipeline(unittest.TestCase):
         # Check if query rewriter was called with the context
         self.mock_query_rewriter.rewrite.assert_called_once_with(query, context)
 
-    @patch('backend.rag_solution.pipeline.pipeline.Pipeline._load_documents')
+    @patch('rag_solution.pipeline.pipeline.Pipeline._load_documents')
     def test_pipeline_initialization(self, mock_load_documents):
         mock_load_documents.return_value = [
             {"id": 1, "content": "test document 1"},

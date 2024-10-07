@@ -1,6 +1,6 @@
 import unittest
 from fastapi.testclient import TestClient
-from backend.rag_solution.router.file_router import upload_file
+from rag_solution.router.file_router import upload_file
 
 
 class TestFileRouter(unittest.TestCase):

@@ -4,16 +4,16 @@ from io import BytesIO
 
 import pytest
 from fastapi import BackgroundTasks, HTTPException, UploadFile
-from backend.rag_solution.repository.collection_repository import CollectionRepository
-from backend.rag_solution.repository.user_repository import UserRepository
-from backend.rag_solution.schemas.collection_schema import (CollectionInput,
+from rag_solution.repository.collection_repository import CollectionRepository
+from rag_solution.repository.user_repository import UserRepository
+from rag_solution.schemas.collection_schema import (CollectionInput,
                                                     CollectionOutput)
-from backend.rag_solution.schemas.user_schema import UserInput, UserOutput
-from backend.rag_solution.services.collection_service import CollectionService
-from backend.rag_solution.services.file_management_service import FileManagementService
-from backend.rag_solution.services.user_collection_service import UserCollectionService
-from backend.rag_solution.services.user_service import UserService
-from backend.rag_solution.services.user_team_service import UserTeamService
+from rag_solution.schemas.user_schema import UserInput, UserOutput
+from rag_solution.services.collection_service import CollectionService
+from rag_solution.services.file_management_service import FileManagementService
+from rag_solution.services.user_collection_service import UserCollectionService
+from rag_solution.services.user_service import UserService
+from rag_solution.services.user_team_service import UserTeamService
 from sqlalchemy.orm import Session
 import logging
 

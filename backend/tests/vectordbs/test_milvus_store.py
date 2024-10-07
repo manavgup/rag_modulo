@@ -1,10 +1,10 @@
 from contextlib import contextmanager
 
 import pytest
-from backend.vectordbs.milvus_store import MilvusStore
+from vectordbs.milvus_store import MilvusStore
 
-from backend.core.config import settings
-from backend.tests.vectordbs.test_base_store import BaseStoreTest
+from core.config import settings
+from tests.vectordbs.test_base_store import BaseStoreTest
 
 MILVUS_COLLECTION = settings.collection_name
 

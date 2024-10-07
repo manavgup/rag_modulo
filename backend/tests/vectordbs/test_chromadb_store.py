@@ -1,10 +1,10 @@
 from contextlib import contextmanager
 
 import pytest
-from backend.vectordbs.chroma_store import ChromaDBStore
+from vectordbs.chroma_store import ChromaDBStore
 
-from backend.core.config import settings
-from backend.tests.vectordbs.test_base_store import BaseStoreTest
+from core.config import settings
+from tests.vectordbs.test_base_store import BaseStoreTest
 
 EMBEDDING_MODEL = settings.embedding_model
 CHROMA_INDEX = settings.collection_name

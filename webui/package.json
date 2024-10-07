@@ -1,6 +1,6 @@
 {
-  "name": "webui",
-  "version": "0.1.0",
+  "name": "rag-modulo-frontend",
+  "version": "1.0.0",
   "private": true,
   "dependencies": {
     "@carbon/icons-react": "^11.50.0",
@@ -51,4 +51,3 @@
     "sass-resources-loader": "^2.2.5"
   }
 }
-

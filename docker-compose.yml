@@ -2,15 +2,16 @@ include:
   - path:
       - docker-compose-infra.yml
 
+name: ${PROJECT_NAME:-rag-modulo}
+
 services:
   backend:
-    image: rag_modulo/backend
+    image: ${PROJECT_NAME:-rag-modulo}/backend:${PROJECT_VERSION:-1.0.0}
     build:
       context: ./backend
       dockerfile: Dockerfile.backend
     networks:
       - app-network
-    command: ["/entrypoint.sh"]
     working_dir: /app
     ports:
       - "8000:8000"
@@ -18,7 +19,7 @@ services:
       postgres:
         condition: service_healthy
       milvus-standalone:
-        condition: service_started
+        condition: service_healthy
     environment:
       - COLLECTIONDB_HOST=postgres
     env_file:
@@ -30,7 +31,7 @@ services:
       retries: 3
 
   frontend:
-    image: rag_modulo/frontend
+    image: ${PROJECT_NAME:-rag-modulo}/frontend:${PROJECT_VERSION:-1.0.0}
     build:
       context: ./webui
       dockerfile: Dockerfile.frontend
@@ -50,20 +51,25 @@ services:
       retries: 3
 
   test:
-    image: rag_modulo/backend
-    command: pytest -v -s
-    volumes:
-      - .:/app
+    image: ${PROJECT_NAME:-rag-modulo}/backend-test:${PROJECT_VERSION:-1.0.0}
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.test
     networks:
       - app-network
     depends_on:
-      - milvus-standalone
-      - postgres
-      - backend
+      postgres:
+        condition: service_healthy
+      milvus-standalone:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    profiles:
+      - test
     environment:
       - PYTHONPATH=/app
       - MILVUS_HOST=milvus-standalone
-      - MILVUS_PORT={MILVUS_PORT}
+      - MILVUS_PORT=${MILVUS_PORT}
       - COLLECTIONDB_HOST=postgres
       - COLLECTIONDB_PORT=5432
       - COLLECTIONDB_NAME=${COLLECTIONDB_NAME}
@@ -77,13 +83,3 @@ services:
       - IBM_CLIENT_SECRET=${IBM_CLIENT_SECRET}
     env_file:
       - .env
-
-volumes:
-  postgres_data:
-  etcd_data:
-  minio_data:
-  milvus_data:
-
-networks:
-  app-network:
-    driver: bridge

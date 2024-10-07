@@ -1,5 +1,5 @@
 import pytest
-from backend.rag_solution.data_ingestion.pdf_processor import PdfProcessor
+from rag_solution.data_ingestion.pdf_processor import PdfProcessor
 from pathlib import Path
 import pymupdf
 import time
