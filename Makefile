@@ -34,17 +34,15 @@ init-env:
 
 # Build
 build-frontend:
-	$(DOCKER_COMPOSE) build frontend
+	docker build -t ${PROJECT_NAME}/frontend:${PROJECT_VERSION} -f ./webui/Dockerfile.frontend ./webui
 
 build-backend:
-	$(DOCKER_COMPOSE) build backend
+	docker build -t ${PROJECT_NAME}/backend:${PROJECT_VERSION} -f ./backend/Dockerfile.backend ./backend
 
 build-tests:
-	$(DOCKER_COMPOSE) build test
+	docker build -t ${PROJECT_NAME}/backend-test:${PROJECT_VERSION} -f ./backend/Dockerfile.test ./backend
 
-build-all:
-	@echo "Building application containers..."
-	$(DOCKER_COMPOSE) --profile default --profile test build
+build-all: build-frontend build-backend build-tests
 
 # Test
 test: build-all run-app

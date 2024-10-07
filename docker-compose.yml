@@ -7,9 +7,6 @@ name: ${PROJECT_NAME:-rag-modulo}
 services:
   backend:
     image: ${PROJECT_NAME:-rag-modulo}/backend:${PROJECT_VERSION:-1.0.0}
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.backend
     networks:
       - app-network
     working_dir: /app
@@ -32,9 +29,6 @@ services:
 
   frontend:
     image: ${PROJECT_NAME:-rag-modulo}/frontend:${PROJECT_VERSION:-1.0.0}
-    build:
-      context: ./webui
-      dockerfile: Dockerfile.frontend
     networks:
       - app-network
     ports:
@@ -52,9 +46,6 @@ services:
 
   test:
     image: ${PROJECT_NAME:-rag-modulo}/backend-test:${PROJECT_VERSION:-1.0.0}
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.test
     networks:
       - app-network
     depends_on:
