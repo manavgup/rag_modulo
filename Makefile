@@ -16,7 +16,7 @@ PYTHON_VERSION ?= 3.11
 PROJECT_VERSION ?= 1.0.0
 
 # Tools
-DOCKER_COMPOSE := docker-compose
+DOCKER_COMPOSE := docker compose
 
 # Set a default value for VECTOR_DB if not already set
 VECTOR_DB ?= milvus
