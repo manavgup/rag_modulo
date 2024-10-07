@@ -1,6 +1,6 @@
 import unittest
 from fastapi.testclient import TestClient
-from backend.rag_solution.router.collection_router import create_collection
+from rag_solution.router.collection_router import create_collection
 
 
 class TestCollectionRouter(unittest.TestCase):

@@ -40,3 +40,10 @@ experiments/
 # Ignore other cache directories
 .pytest_cache/
 .ruff_cache/
+
+# Dockerfile
+Dockerfile*
+
+# Test resources
+tests/
+pytest.ini

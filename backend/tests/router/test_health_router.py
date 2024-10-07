@@ -1,7 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import patch, MagicMock
-from backend.rag_solution.router.health_router import router
+from rag_solution.router.health_router import router
 from main import app
 
 client = TestClient(app)
@@ -16,10 +16,10 @@ def headers():
 # Mocked services
 @pytest.fixture
 def mock_services():
-    with patch("backend.rag_solution.router.health_router.check_vectordb") as mock_vectordb, \
-         patch("backend.rag_solution.router.health_router.check_datastore") as mock_datastore, \
-         patch("backend.rag_solution.router.health_router.check_watsonx") as mock_watsonx, \
-         patch("backend.rag_solution.router.health_router.check_file_system") as mock_file_system:
+    with patch("rag_solution.router.health_router.check_vectordb") as mock_vectordb, \
+         patch("rag_solution.router.health_router.check_datastore") as mock_datastore, \
+         patch("rag_solution.router.health_router.check_watsonx") as mock_watsonx, \
+         patch("rag_solution.router.health_router.check_file_system") as mock_file_system:
         mock_vectordb.return_value = {"status": "healthy", "message": "Vector DB is connected and operational"}
         mock_datastore.return_value = {"status": "healthy", "message": "Relational DB is connected and operational"}
         mock_watsonx.return_value = {"status": "healthy", "message": "WatsonX is connected and operational"}
@@ -56,25 +56,25 @@ def test_health_check_failure(headers, mock_services):
 
 # Component-specific tests
 def test_check_vectordb(headers, mock_services):
-    with patch("backend.rag_solution.router.health_router.check_vectordb", return_value={"status": "healthy", "message": "Vector DB is connected and operational"}):
+    with patch("rag_solution.router.health_router.check_vectordb", return_value={"status": "healthy", "message": "Vector DB is connected and operational"}):
         response = client.get("/api/health", headers=headers)
         assert response.status_code == 200
         assert response.json()["components"]["vectordb"]["status"] == "healthy"
 
 def test_check_datastore(headers, mock_services):
-    with patch("backend.rag_solution.router.health_router.check_datastore", return_value={"status": "healthy", "message": "Relational DB is connected and operational"}):
+    with patch("rag_solution.router.health_router.check_datastore", return_value={"status": "healthy", "message": "Relational DB is connected and operational"}):
         response = client.get("/api/health", headers=headers)
         assert response.status_code == 200
         assert response.json()["components"]["datastore"]["status"] == "healthy"
 
 def test_check_watsonx(headers, mock_services):
-    with patch("backend.rag_solution.router.health_router.check_watsonx", return_value={"status": "healthy", "message": "WatsonX is connected and operational"}):
+    with patch("rag_solution.router.health_router.check_watsonx", return_value={"status": "healthy", "message": "WatsonX is connected and operational"}):
         response = client.get("/api/health", headers=headers)
         assert response.status_code == 200
         assert response.json()["components"]["watsonx"]["status"] == "healthy"
 
 def test_check_file_system(headers, mock_services):
-    with patch("backend.rag_solution.router.health_router.check_file_system", return_value={"status": "healthy", "message": "File system is accessible and writable"}):
+    with patch("rag_solution.router.health_router.check_file_system", return_value={"status": "healthy", "message": "File system is accessible and writable"}):
         response = client.get("/api/health", headers=headers)
         assert response.status_code == 200
         assert response.json()["components"]["file_system"]["status"] == "healthy"

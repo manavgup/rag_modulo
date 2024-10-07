@@ -3,8 +3,8 @@ from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 import jwt
-from backend.core.config import settings
-from backend.auth.oidc import verify_jwt_token
+from core.config import settings
+from auth.oidc import verify_jwt_token
 from sqlalchemy.orm import Session
 from rag_solution.file_management.database import get_db
 from rag_solution.services.user_service import UserService

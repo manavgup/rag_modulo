@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 from io import StringIO
 import logging
-from backend.rag_solution.query_rewriting.query_rewriter import (
+from rag_solution.query_rewriting.query_rewriter import (
     QueryRewriter, SimpleQueryRewriter, HypotheticalDocumentEmbedding,
     QueryRewriterError, InvalidQueryError, ConfigurationError, RewriterError
 )
@@ -19,7 +19,7 @@ class TestQueryRewriter(unittest.TestCase):
         self.assertIn("important", rewritten_query)
         self.assertIn("key", rewritten_query)
 
-    @patch('backend.rag_solution.query_rewriting.query_rewriter.generate_text')
+    @patch('rag_solution.query_rewriting.query_rewriter.generate_text')
     def test_hde_rewriter(self, mock_generate_text):
         mock_generate_text.return_value = "hypothetical document"
         rewriter = HypotheticalDocumentEmbedding(max_tokens=50, timeout=30, max_retries=3)
@@ -35,7 +35,7 @@ class TestQueryRewriter(unittest.TestCase):
             max_retries=3
         )
 
-    @patch('backend.rag_solution.query_rewriting.query_rewriter.generate_text')
+    @patch('rag_solution.query_rewriting.query_rewriter.generate_text')
     def test_hde_rewriter_with_context(self, mock_generate_text):
         mock_generate_text.return_value = "hypothetical document with context"
         rewriter = HypotheticalDocumentEmbedding(max_tokens=50, timeout=30, max_retries=3)
@@ -52,7 +52,7 @@ class TestQueryRewriter(unittest.TestCase):
             max_retries=3
         )
 
-    @patch('backend.rag_solution.query_rewriting.query_rewriter.generate_text')
+    @patch('rag_solution.query_rewriting.query_rewriter.generate_text')
     def test_hde_rewriter_error_handling(self, mock_generate_text):
         mock_generate_text.side_effect = Exception("API Error")
         rewriter = HypotheticalDocumentEmbedding(max_tokens=50, timeout=30, max_retries=3)
@@ -60,7 +60,7 @@ class TestQueryRewriter(unittest.TestCase):
         with self.assertRaises(RewriterError):
             rewriter.rewrite(query)
 
-    @patch('backend.rag_solution.query_rewriting.query_rewriter.generate_text')
+    @patch('rag_solution.query_rewriting.query_rewriter.generate_text')
     def test_hde_rewriter_empty_response(self, mock_generate_text):
         mock_generate_text.return_value = ""
         rewriter = HypotheticalDocumentEmbedding(max_tokens=50, timeout=30, max_retries=3)
@@ -76,7 +76,7 @@ class TestQueryRewriter(unittest.TestCase):
             'hde_timeout': 30,
             'hde_max_retries': 3
         }
-        with patch('backend.rag_solution.query_rewriting.query_rewriter.HypotheticalDocumentEmbedding') as mock_hde:
+        with patch('rag_solution.query_rewriting.query_rewriter.HypotheticalDocumentEmbedding') as mock_hde:
             mock_hde.return_value.rewrite.return_value = "test query AND (relevant OR important OR key) hde rewritten query"
             
             rewriter = QueryRewriter(config)
@@ -112,7 +112,7 @@ class TestQueryRewriter(unittest.TestCase):
         ch.setLevel(logging.INFO)
         
         # Get the logger used in the SimpleQueryRewriter
-        logger = logging.getLogger('backend.rag_solution.query_rewriting.query_rewriter')
+        logger = logging.getLogger('rag_solution.query_rewriting.query_rewriter')
         logger.addHandler(ch)
         
         rewriter = SimpleQueryRewriter()

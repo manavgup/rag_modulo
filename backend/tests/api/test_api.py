@@ -1,9 +1,10 @@
+import os
 import pytest
 import requests
 import uuid
 from typing import Dict, Any
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = os.getenv("REACT_APP_API_URL", "http://localhost:8000")
 
 @pytest.fixture(scope="module")
 def auth_token():

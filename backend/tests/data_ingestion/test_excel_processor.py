@@ -2,9 +2,9 @@ import os
 
 import pytest
 
-from backend.core.custom_exceptions import DocumentProcessingError
-from backend.rag_solution.data_ingestion.excel_processor import ExcelProcessor
-from backend.vectordbs.data_types import Document
+from core.custom_exceptions import DocumentProcessingError
+from rag_solution.data_ingestion.excel_processor import ExcelProcessor
+from vectordbs.data_types import Document
 
 
 @pytest.mark.asyncio

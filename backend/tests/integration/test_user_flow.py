@@ -1,13 +1,13 @@
 import pytest
 from fastapi.testclient import TestClient
-from backend.rag_solution.router.auth_router import router as auth_router
-from backend.core.config import settings
+from rag_solution.router.auth_router import router as auth_router
+from core.config import settings
 from unittest.mock import patch, MagicMock
 
 # Mock the OAuth client
 @pytest.fixture(autouse=True)
 def mock_oauth_client():
-    with patch("backend.rag_solution.router.auth_router.oauth") as mock_oauth:
+    with patch("rag_solution.router.auth_router.oauth") as mock_oauth:
         mock_oauth.ibm = MagicMock()
         yield mock_oauth
 

@@ -4,13 +4,13 @@ from datetime import datetime
 
 import pytest
 
-from backend.core.config import settings
-from backend.rag_solution.data_ingestion.ingestion import (
+from core.config import settings
+from rag_solution.data_ingestion.ingestion import (
     ingest_documents, process_and_store_document)
-from backend.vectordbs.data_types import (Document, DocumentChunk,
+from vectordbs.data_types import (Document, DocumentChunk,
                                           DocumentChunkMetadata, Source)
-from backend.vectordbs.factory import get_datastore
-from backend.vectordbs.utils.watsonx import get_embeddings
+from vectordbs.factory import get_datastore
+from vectordbs.utils.watsonx import get_embeddings
 
 # Create a unique collection name for testing
 timestamp = int(time.time())  # Get the timestamp as an integer

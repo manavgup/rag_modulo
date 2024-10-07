@@ -68,11 +68,11 @@ class MilvusStore(VectorStore):
                 )
                 logging.info(f"Connected to Milvus at {host}:{port}")
             except MilvusException as e:
-                logging.error(f"Failed to connect to Milvus: {e}")
+                logging.error(f"Failed to connect to Milvus at {host}:{port}: {e}")
                 if attempt < attempts - 1:
                     logging.info(f"Retrying connection to Milvus... (Attempt {attempt + 2}/{attempts})")
                     time.sleep(10)  # Add a delay between retries
-                raise VectorStoreError(f"Failed to connect to Milvus: {e}")
+                raise VectorStoreError(f"Failed to connect to Milvus at {host}:{port}: {e}")
 
     def _get_collection(self, collection_name: str) -> Collection:
         """
