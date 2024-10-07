@@ -1,14 +1,14 @@
 from uuid import UUID
 import pytest
 from fastapi import HTTPException
-from backend.rag_solution.repository.user_team_repository import UserTeamRepository
-from backend.rag_solution.schemas.collection_schema import CollectionInput
-from backend.rag_solution.schemas.user_schema import UserInput
-from backend.rag_solution.services.collection_service import CollectionService
-from backend.rag_solution.services.file_management_service import FileManagementService
-from backend.rag_solution.services.user_collection_service import UserCollectionService
-from backend.rag_solution.services.user_service import UserService
-from backend.rag_solution.services.user_team_service import UserTeamService
+from rag_solution.repository.user_team_repository import UserTeamRepository
+from rag_solution.schemas.collection_schema import CollectionInput
+from rag_solution.schemas.user_schema import UserInput
+from rag_solution.services.collection_service import CollectionService
+from rag_solution.services.file_management_service import FileManagementService
+from rag_solution.services.user_collection_service import UserCollectionService
+from rag_solution.services.user_service import UserService
+from rag_solution.services.user_team_service import UserTeamService
 
 
 @pytest.fixture

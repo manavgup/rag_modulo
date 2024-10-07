@@ -1,7 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import patch, MagicMock
-from backend.rag_solution.router.auth_router import router, create_jwt, decode_jwt, get_current_user
+from rag_solution.router.auth_router import router, create_jwt, decode_jwt, get_current_user
 from main import app
 import jwt
 from datetime import datetime, timedelta, timezone
@@ -24,8 +24,8 @@ def user_data():
 
 @pytest.fixture
 def mock_jwt_settings():
-    with patch("backend.rag_solution.router.auth_router.JWT_SECRET_KEY", TEST_JWT_SECRET_KEY):
-        with patch("backend.rag_solution.router.auth_router.JWT_ALGORITHM", TEST_JWT_ALGORITHM):
+    with patch("rag_solution.router.auth_router.JWT_SECRET_KEY", TEST_JWT_SECRET_KEY):
+        with patch("rag_solution.router.auth_router.JWT_ALGORITHM", TEST_JWT_ALGORITHM):
             yield
 
 @pytest.fixture
@@ -77,7 +77,7 @@ def test_get_oidc_config():
     assert "client_id" in config
     assert "redirect_uri" in config
 
-@patch("backend.rag_solution.router.auth_router.get_current_user")
+@patch("rag_solution.router.auth_router.get_current_user")
 def test_userinfo(mock_get_current_user, user_data, headers):
     mock_get_current_user.return_value = user_data
     response = client.get("/api/auth/userinfo", headers=headers)

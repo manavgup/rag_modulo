@@ -43,3 +43,7 @@ experiments/
 
 # Dockerfile
 Dockerfile*
+
+# Test resources
+tests/
+pytest.ini

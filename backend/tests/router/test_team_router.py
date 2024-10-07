@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 from uuid import uuid4
 from unittest.mock import patch
-from backend.rag_solution.router.team_router import (
+from rag_solution.router.team_router import (
     get_team_service, create_team, get_team,
     update_team, delete_team, list_teams
 )
@@ -31,7 +31,7 @@ def headers():
 # Example test cases
 
 def test_create_team(team_data, headers):
-    with patch('backend.rag_solution.services.team_service.TeamService') as MockService:
+    with patch('rag_solution.services.team_service.TeamService') as MockService:
         mock_service = MockService.return_value
         mock_service.create_team.return_value = team_data
 
@@ -44,7 +44,7 @@ def test_create_team(team_data, headers):
         )
 
 def test_get_team(team_data, headers):
-    with patch('backend.rag_solution.services.team_service.TeamService') as MockService:
+    with patch('rag_solution.services.team_service.TeamService') as MockService:
         mock_service = MockService.return_value
         mock_service.get_team.return_value = team_data
 
@@ -57,7 +57,7 @@ def test_get_team(team_data, headers):
         )
 
 def test_update_team(team_data, headers):
-    with patch('backend.rag_solution.services.team_service.TeamService') as MockService:
+    with patch('rag_solution.services.team_service.TeamService') as MockService:
         mock_service = MockService.return_value
         mock_service.update_team.return_value = team_data
 
@@ -70,7 +70,7 @@ def test_update_team(team_data, headers):
         )
 
 def test_delete_team(team_data, headers):
-    with patch('backend.rag_solution.services.team_service.TeamService') as MockService:
+    with patch('rag_solution.services.team_service.TeamService') as MockService:
         mock_service = MockService.return_value
         mock_service.delete_team.return_value = True
 
@@ -83,7 +83,7 @@ def test_delete_team(team_data, headers):
         )
 
 def test_list_teams(headers):
-    with patch('backend.rag_solution.services.team_service.TeamService') as MockService:
+    with patch('rag_solution.services.team_service.TeamService') as MockService:
         mock_service = MockService.return_value
         mock_service.list_teams.return_value = []
 

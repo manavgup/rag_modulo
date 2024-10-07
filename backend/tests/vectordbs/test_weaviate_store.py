@@ -2,9 +2,9 @@ from contextlib import contextmanager
 
 import pytest
 
-from backend.core.config import settings
-from backend.tests.vectordbs.test_base_store import BaseStoreTest
-from backend.vectordbs.weaviate_store import WeaviateDataStore
+from core.config import settings
+from tests.vectordbs.test_base_store import BaseStoreTest
+from vectordbs.weaviate_store import WeaviateDataStore
 
 WEAVIATE_COLLECTION = settings.collection_name
 

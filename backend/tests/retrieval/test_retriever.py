@@ -1,11 +1,11 @@
 import unittest
 from unittest.mock import patch, MagicMock
 import numpy as np
-from backend.rag_solution.retrieval.retriever import VectorRetriever, KeywordRetriever, HybridRetriever, Retriever
+from rag_solution.retrieval.retriever import VectorRetriever, KeywordRetriever, HybridRetriever, Retriever
 
 class TestRetriever(unittest.TestCase):
 
-    @patch('backend.rag_solution.retrieval.retriever.SentenceTransformer')
+    @patch('rag_solution.retrieval.retriever.SentenceTransformer')
     def test_vector_retriever(self, mock_sentence_transformer):
         mock_model = MagicMock()
         mock_model.encode.return_value = [np.array([0.1, 0.2, 0.3])]
@@ -36,8 +36,8 @@ class TestRetriever(unittest.TestCase):
         self.assertEqual(len(results), 2)
         self.assertTrue(all(r['id'] in [1, 2] for r in results))
 
-    @patch('backend.rag_solution.retrieval.retriever.VectorRetriever')
-    @patch('backend.rag_solution.retrieval.retriever.KeywordRetriever')
+    @patch('rag_solution.retrieval.retriever.VectorRetriever')
+    @patch('rag_solution.retrieval.retriever.KeywordRetriever')
     def test_hybrid_retriever(self, mock_keyword_retriever, mock_vector_retriever):
         mock_vector_retriever.return_value.retrieve.return_value = [
             {"id": 1, "content": "Vector content 1", "score": 0.9},
@@ -58,9 +58,9 @@ class TestRetriever(unittest.TestCase):
         self.assertEqual(results[0]['id'], 2)  # Should be ranked highest due to presence in both results
         self.assertTrue(all(r['id'] in [1, 2, 3] for r in results))
 
-    @patch('backend.rag_solution.retrieval.retriever.VectorRetriever')
-    @patch('backend.rag_solution.retrieval.retriever.KeywordRetriever')
-    @patch('backend.rag_solution.retrieval.retriever.HybridRetriever')
+    @patch('rag_solution.retrieval.retriever.VectorRetriever')
+    @patch('rag_solution.retrieval.retriever.KeywordRetriever')
+    @patch('rag_solution.retrieval.retriever.HybridRetriever')
     def test_retriever_factory(self, mock_hybrid, mock_keyword, mock_vector):
         mock_vector_store = MagicMock()
         documents = [{"id": i, "content": f"Content {i}"} for i in range(1, 4)]

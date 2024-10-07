@@ -1,12 +1,12 @@
 from uuid import UUID
 import pytest
 from fastapi import HTTPException
-from backend.rag_solution.repository.user_team_repository import UserTeamRepository
-from backend.rag_solution.schemas.team_schema import TeamInput
-from backend.rag_solution.schemas.user_schema import UserInput
-from backend.rag_solution.services.team_service import TeamService
-from backend.rag_solution.services.user_service import UserService
-from backend.rag_solution.services.user_team_service import UserTeamService
+from rag_solution.repository.user_team_repository import UserTeamRepository
+from rag_solution.schemas.team_schema import TeamInput
+from rag_solution.schemas.user_schema import UserInput
+from rag_solution.services.team_service import TeamService
+from rag_solution.services.user_service import UserService
+from rag_solution.services.user_team_service import UserTeamService
 
 
 @pytest.fixture

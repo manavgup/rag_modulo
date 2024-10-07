@@ -12,7 +12,6 @@ services:
       dockerfile: Dockerfile.backend
     networks:
       - app-network
-    command: ["/entrypoint.sh"]
     working_dir: /app
     ports:
       - "8000:8000"
@@ -20,7 +19,7 @@ services:
       postgres:
         condition: service_healthy
       milvus-standalone:
-        condition: service_started
+        condition: service_healthy
     environment:
       - COLLECTIONDB_HOST=postgres
     env_file:
@@ -50,3 +49,37 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
+  test:
+    image: ${PROJECT_NAME:-rag-modulo}/backend-test:${PROJECT_VERSION:-1.0.0}
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.test
+    networks:
+      - app-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      milvus-standalone:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    profiles:
+      - test
+    environment:
+      - PYTHONPATH=/app
+      - MILVUS_HOST=milvus-standalone
+      - MILVUS_PORT=${MILVUS_PORT}
+      - COLLECTIONDB_HOST=postgres
+      - COLLECTIONDB_PORT=5432
+      - COLLECTIONDB_NAME=${COLLECTIONDB_NAME}
+      - COLLECTIONDB_USER=${COLLECTIONDB_USER}
+      - COLLECTIONDB_PASS=${COLLECTIONDB_PASS}
+      - OIDC_DISCOVERY_ENDPOINT=${OIDC_DISCOVERY_ENDPOINT}
+      - OIDC_AUTH_URL=${OIDC_AUTH_URL}
+      - OIDC_TOKEN_URL=${OIDC_TOKEN_URL}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - IBM_CLIENT_ID=${IBM_CLIENT_ID}
+      - IBM_CLIENT_SECRET=${IBM_CLIENT_SECRET}
+    env_file:
+      - .env

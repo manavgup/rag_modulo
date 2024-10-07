@@ -2,9 +2,9 @@ from contextlib import contextmanager
 
 import pytest
 
-from backend.core.config import settings
-from backend.tests.vectordbs.test_base_store import BaseStoreTest
-from backend.vectordbs.elasticsearch_store import ElasticSearchStore
+from core.config import settings
+from tests.vectordbs.test_base_store import BaseStoreTest
+from vectordbs.elasticsearch_store import ElasticSearchStore
 
 ELASTIC_INDEX = settings.collection_name
 

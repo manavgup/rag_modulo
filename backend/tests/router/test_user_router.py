@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 from uuid import uuid4
 from unittest.mock import patch
-from backend.rag_solution.router.user_router import (
+from rag_solution.router.user_router import (
     create_user, get_user, update_user,
     delete_user, list_users, get_current_user_id
 )
@@ -32,7 +32,7 @@ def headers():
 # Example test cases
 
 def test_create_user(user_data, headers):
-    with patch('backend.rag_solution.services.user_service.UserService') as MockService:
+    with patch('rag_solution.services.user_service.UserService') as MockService:
         mock_service = MockService.return_value
         mock_service.create_user.return_value = user_data
 
@@ -45,7 +45,7 @@ def test_create_user(user_data, headers):
         )
 
 def test_get_user(user_data, headers):
-    with patch('backend.rag_solution.services.user_service.UserService') as MockService:
+    with patch('rag_solution.services.user_service.UserService') as MockService:
         mock_service = MockService.return_value
         mock_service.get_user.return_value = user_data
 
@@ -58,7 +58,7 @@ def test_get_user(user_data, headers):
         )
 
 def test_update_user(user_data, headers):
-    with patch('backend.rag_solution.services.user_service.UserService') as MockService:
+    with patch('rag_solution.services.user_service.UserService') as MockService:
         mock_service = MockService.return_value
         mock_service.update_user.return_value = user_data
 
@@ -71,7 +71,7 @@ def test_update_user(user_data, headers):
         )
 
 def test_delete_user(user_data, headers):
-    with patch('backend.rag_solution.services.user_service.UserService') as MockService:
+    with patch('rag_solution.services.user_service.UserService') as MockService:
         mock_service = MockService.return_value
         mock_service.delete_user.return_value = True
 
@@ -84,7 +84,7 @@ def test_delete_user(user_data, headers):
         )
 
 def test_list_users(headers):
-    with patch('backend.rag_solution.services.user_service.UserService') as MockService:
+    with patch('rag_solution.services.user_service.UserService') as MockService:
         mock_service = MockService.return_value
         mock_service.list_users.return_value = []
 
