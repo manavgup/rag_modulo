@@ -12,8 +12,10 @@ jobs:
     steps:
       - name: Checkout code repository
         uses: actions/checkout@v4
-      - name: Build all containers (app and tests)
-        run: make build-all
+      - name: Build frontend
+        run: make build-frontend
+      - name: Build backend
+        run: make build-backend
 
   test:
     needs: build
@@ -21,7 +23,41 @@ jobs:
     steps:
       - name: Checkout code repository
         uses: actions/checkout@v4
+      - name: Build tests
+        run: make build-tests
+      - name: Setup .env file with variables required for test environment deployment
+        run: |
+          touch .env
+          cat <<EOL >> .env
+          COLLECTIONDB_NAME=${{ vars.COLLECTIONDB_NAME }}
+          COLLECTIONDB_USER=${{ secrets.COLLECTIONDB_USER }}
+          COLLECTIONDB_PASS=${{ secrets.COLLECTIONDB_USER }}
+          COLLECTIONDB_PORT=${{ vars.COLLECTIONDB_PORT }}
+          COLLECTIONDB_HOST=${{ vars.COLLECTIONDB_HOST }}
+          MINIO_ACCESS_KEY=${{ secrets.MINIO_ACCESS_KEY }}
+          MINIO_SECRET_KEY=${{ secrets.MINIO_SECRET_KEY }}
+          IBM_CLIENT_ID=${{ secrets.IBM_CLIENT_ID }}
+          MILVUS_HOST=${{ vars.MILVUS_HOST }}
+          MILVUS_PORT=${{ vars.MILVUS_PORT }}
+          OIDC_DISCOVERY_ENDPOINT=${{ secrets.OIDC_DISCOVERY_ENDPOINT }}
+          OIDC_AUTH_URL=${{ secrets.OIDC_AUTH_URL }}
+          OIDC_TOKEN_URL=${{ secrets.OIDC_TOKEN_URL }}
+          FRONTEND_URL=${{ vars.FRONTEND_URL }}
+          IBM_CLIENT_SECRET=${{ secrets.IBM_CLIENT_SECRET }}
+          JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
+          ELASTIC_HOST=${{ vars.ELASTIC_HOST }}
+          ELASTIC_PORT=${{ vars.ELASTIC_PORT }}
+          EMBEDDING_MODEL=${{ vars.EMBEDDING_MODEL }}
+          EMBEDDING_FIELD=${{ vars.EMBEDDING_FIELD }}
+          EMBEDDING_DIM=${{ vars.EMBEDDING_DIM }}
+          VECTOR_DB=${{ vars.VECTOR_DB }}
+          GENAI_KEY=${{ secrets.GENAI_KEY }}
+          api_endpoint=${{ secrets.api_endpoint }}
+          GENAI_API=${{ secrets.GENAI_API }}
+          EOL
       - name: Run all tests
+        env:
+          A: B
         run: make all-test
 
   publish:
@@ -29,8 +65,6 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:
-      - uses: actions/checkout@v3
-      - name: Deploy to production
+      - name: Publish built artifacts
         run: |
-          # Add your deployment steps here
-          echo "Deploying to production"
+          # Add publish artifacts actions
