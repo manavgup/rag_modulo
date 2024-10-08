@@ -22,9 +22,10 @@ services:
     env_file:
       - .env
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      test: ["CMD", "python", "healthcheck.py"]
       interval: 30s
       timeout: 10s
+      start_period: 5s
       retries: 3
 
   frontend:
@@ -42,6 +43,7 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost"]
       interval: 30s
       timeout: 10s
+      start_period: 5s
       retries: 3
 
   test:
