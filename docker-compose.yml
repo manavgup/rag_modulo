@@ -33,14 +33,14 @@ services:
     networks:
       - app-network
     ports:
-      - "3000:80"
+      - "3000:8080"
     depends_on:
       - backend
     environment:
       - REACT_APP_API_URL=/api
       - REACT_APP_OIDC_CLIENT_ID=${IBM_CLIENT_ID}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
       interval: 30s
       timeout: 10s
       start_period: 5s

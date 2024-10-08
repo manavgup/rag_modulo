@@ -44,11 +44,16 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 
 ENV PATH="/app/.venv/bin:$PATH"
 
-# Add a build argument for cache busting
-ARG CACHEBUST=1
-
 # COPY backend /app/backend
 COPY . /app
+
+# Create a non-root user and group
+RUN groupadd --gid 10001 backend && \
+    useradd --uid 10001 -g backend -M -d /nonexistent backend && \ 
+    chown -R backend:backend /app
+
+# Switch to non-root user
+USER backend
 
 EXPOSE 8000
 
