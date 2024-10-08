@@ -45,16 +45,16 @@ build-tests:
 build-all: build-frontend build-backend build-tests
 
 # Test
-test: build-all run-app
+test: build-backend build-tests run-backend
 	$(DOCKER_COMPOSE) run test pytest -v -s -m "not (chromadb or elasticsearch or pinecone or weaviate)" || { echo "Tests failed"; $(MAKE) stop-containers; exit 1; }
 
-api-test: build-all run-app
+api-test: build-backend build-tests run-backend
 	$(DOCKER_COMPOSE) run test pytest -v -s -m "api and not (chromadb or elasticsearch or pinecone or weaviate)" || { echo "API Tests failed"; $(MAKE) stop-containers; exit 1; }
 
-newman-test: build-all run-app
+newman-test: build-backend build-tests run-backend
 	$(DOCKER_COMPOSE) run test newman run tests/postman/rag_modulo_api_collection.json --env-var "backend_base_url=${REACT_APP_API_URL}" || { echo "Postman Tests failed"; $(MAKE) stop-containers; exit 1; }
 
-all-test: build-all run-app
+all-test: build-backend build-tests run-backend
 	$(DOCKER_COMPOSE) run test pytest -v -s -m "not (chromadb or elasticsearch or pinecone or weaviate)" || { echo "Tests failed"; $(MAKE) stop-containers; exit 1; }
 	$(DOCKER_COMPOSE) run test newman run tests/postman/rag_modulo_api_collection.json --env-var "backend_base_url=${REACT_APP_API_URL}" || { echo "Postman Tests failed"; $(MAKE) stop-containers; exit 1; }
 
