@@ -7,7 +7,7 @@ on:
     branches: [main, dev, test]
 
 jobs:
-  build:
+  build-test-publish:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code repository
@@ -16,13 +16,6 @@ jobs:
         run: make build-frontend
       - name: Build backend
         run: make build-backend
-
-  test:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code repository
-        uses: actions/checkout@v4
       - name: Build tests
         run: make build-tests
       - name: Setup .env file with variables required for test environment deployment
@@ -56,15 +49,7 @@ jobs:
           GENAI_API=${{ secrets.GENAI_API }}
           EOL
       - name: Run all tests
-        env:
-          A: B
         run: make all-test
-
-  publish:
-    needs: test
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    steps:
       - name: Publish built artifacts
         run: |
           # Add publish artifacts actions

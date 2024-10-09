@@ -82,53 +82,52 @@ This architecture allows for flexibility in choosing vector databases and ensure
 ## Installation
 
 1. Clone the repository:
-    ```sh
-    git clone https://github.com/manavgup/rag-modulo.git
-    cd rag-modulo
-    ```
-2. Install dependencies:
-    ```sh
-    pip install -r requirements.txt
-    ```
-3. Set up your environment variables by copying the `.env.example` file:
-    ```sh
-    cp env.example .env
-    ```
-    Then, edit the `.env` file with your specific configuration.
+   ```sh
+   git clone https://github.com/manavgup/rag-modulo.git
+   cd rag-modulo
+   ```
+2. Set up your environment variables by copying the `.env.example` file:
+   ```sh
+   cp env.example .env
+   ```
+   Then, edit the `.env` file with your specific configuration.
+3. Make sure you have container runtime installed (e.g., podman)
 
 ## Usage
 
-1. Start the required services:
-    ```sh
-    make run-services
-    ```
-2. Build and run the application:
-    ```sh
-    make run-app
-    ```
-3. Access the API at `http://localhost:8000` and the frontend at `http://localhost:3000`.
+1. Build app, start infra services (DBs, etc) and application containers (frontend, backend):
+   ```sh
+   make run-app
+   ```
+2. Access the API at `http://localhost:8000` and the frontend at `http://localhost:3000`.
 
 ## Project Structure
 
 ```plaintext
 rag_modulo/
-├── rag_solution/        # Main application code
-│   ├── data_ingestion/  # Data ingestion modules
-│   ├── generation/      # Text generation modules
-│   ├── pipeline/        # RAG pipeline
-│   ├── query_rewriting/ # Query rewriting modules
-│   └── retrieval/       # Data retrieval modules
-├── tests/               # Test files
-├── vectordbs/           # Vector database interfaces
-├── webui/               # Frontend code
-├── .env                 # Environment variables
-├── docker-compose.yml   # Docker services configuration
-├── Makefile             # Project management commands
-├── requirements.txt     # Project dependencies
-└── README.md            # Project documentation
+├── .github/workflows/ci.yml   # GitHub Actions workflow for build/test/publish
+├── backend                    # python backend application
+│   ├── auth/                  # authentication code (e.g. oidc)
+│   ├── core/                  # config, exceptions, middleware
+│   ├── rag_solution/          # Main application code
+│   │   ├── data_ingestion/    # Data ingestion modules
+│   │   ├── generation/        # Text generation modules
+│   │   ├── pipeline/          # RAG pipeline
+│   │   ├── query_rewriting/   # Query rewriting modules
+│   │   └── retrieval/         # Data retrieval modules
+│   ├── tests/                 # backend test files
+│   └── vectordbs/             # Vector database interfaces
+├── webui/                     # Frontend code
+├── .env                       # Environment variables
+├── docker-compose-infra.yml   # Docker services configuration for infra layer (collection/vector DB)
+├── docker-compose.yml         # Docker services configuration for application (backend / frontend / tests)
+├── Makefile                   # Project management commands
+├── requirements.txt           # Project dependencies
+└── README.md                  # Project documentation
 ```
 
 ## OAuth flow with IBM
+
 The following diagram illustrates the OAuth 2.0 Authorization Code flow used in our application with IBM as the identity provider:
 
 ```mermaid
@@ -155,7 +154,9 @@ sequenceDiagram
     Backend-->>Frontend: User Data
     Frontend->>User: Display Authenticated UI
 ```
+
 ## Configuration
+
 Configuration is managed through environment variables. Key variables include:
 
 - VECTOR_DB: Choose the vector database (elasticsearch, milvus, pinecone, weaviate, chroma)
@@ -165,10 +166,12 @@ Configuration is managed through environment variables. Key variables include:
 Refer to the env.example file for a complete list of configuration options.
 
 ## Testing
+
 Run the test suite using:
 `make test`
 
 ## CI/CD
+
 The project uses GitHub Actions for continuous integration and deployment. The pipeline includes:
 
 - Code formatting
@@ -180,6 +183,7 @@ The project uses GitHub Actions for continuous integration and deployment. The p
 Refer to .github/workflows/ci.yml for the complete workflow.
 
 ## Contributing
+
 Contributions are welcome! Please feel free to submit a Pull Request.
 
 1. Fork the repository
@@ -189,4 +193,5 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 5. Open a Pull Request
 
 ## License
+
 This project is licensed under the MIT License - see the LICENSE file for details.

@@ -128,10 +128,6 @@ run-services: create-volumes
 	@$(DOCKER_COMPOSE) logs milvus-standalone > milvus.log
 
 # Stop / clean
-stop-containers:
-	echo "Stopping containers and removing volumes ..."	
-	$(DOCKER_COMPOSE) down -v
-
 clean:
 	@echo "Cleaning up Docker Compose resources..."
 	$(DOCKER_COMPOSE) down -v
