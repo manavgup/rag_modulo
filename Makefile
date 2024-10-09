@@ -128,9 +128,11 @@ run-services: create-volumes
 	@$(DOCKER_COMPOSE) logs milvus-standalone > milvus.log
 
 # Stop / clean
-clean:
-	@echo "Cleaning up Docker Compose resources..."
-	$(DOCKER_COMPOSE) down -v
+stop-containers:
+	@echo "Stopping containers..."
+	$(DOCKER_COMPOSE) down -v	
+
+clean: stop-containers 
 	@echo "Cleaning up existing pods and containers..."
 	-@podman pod rm -f $(podman pod ps -q) || true
 	-@podman rm -f $(podman ps -a -q) || true
