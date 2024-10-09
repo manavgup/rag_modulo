@@ -68,3 +68,6 @@ poetry.lock
 # local dev files
 dev-env/
 webui/default.conf-dev
+
+# ignore nektos act folder
+.act
