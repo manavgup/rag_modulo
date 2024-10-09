@@ -54,10 +54,15 @@ RUN newman --version
 
 ENV PATH="/app/.venv/bin:$PATH"
 
-# Add a build argument for cache busting
-ARG CACHEBUST=1
-
 # COPY python resources /app/backend
 COPY . /app
+
+# Create a non-root user and group
+RUN groupadd --gid 10001 test && \
+    useradd --uid 10001 -g test -M -d /nonexistent test && \ 
+    chown -R test:test /app
+
+# Switch to non-root user
+USER test
 
 CMD ["pytest", "-v", "-s"]
