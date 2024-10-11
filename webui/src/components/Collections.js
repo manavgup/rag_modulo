@@ -63,6 +63,7 @@ const Collections = () => {
     setIsLoadingCollections(true);
     try {
       const collections = (await getUserCollections())?.collections;
+      console.log(collections);
       // setUserCollections(Array.isArray(collections) ? collections : []);
 
       // datatable requires a field called id

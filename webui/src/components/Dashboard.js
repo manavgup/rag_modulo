@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import {
   Tile,
   ClickableTile,
@@ -9,12 +9,12 @@ import {
   StructuredListBody,
   StructuredListRow,
   StructuredListCell,
-  Button
-} from 'carbon-components-react';
-import { Add, Search, Document } from '@carbon/icons-react';
-import { getUserCollections } from '../api/api';
-import { useNotification } from '../contexts/NotificationContext';
-import './Dashboard.css';
+  Button,
+} from "carbon-components-react";
+import { Add, Search, Document } from "@carbon/icons-react";
+import { getUserCollections } from "../api/api";
+import { useNotification } from "../contexts/NotificationContext";
+import "./Dashboard.css";
 
 const Dashboard = () => {
   const [collections, setCollections] = useState([]);
@@ -28,12 +28,16 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      const collectionsData = await getUserCollections(1, 5);
-      console.log('Fetched collections data:', collectionsData);
-      setCollections(collectionsData.data || []);
+      const collectionsData = await getUserCollections();
+      // console.log("Fetched collections data:", collectionsData.collections);
+      setCollections(collectionsData.collections);
     } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-      addNotification('error', 'Error', 'Failed to load dashboard data. Please try again later.');
+      console.error("Error fetching dashboard data:", error);
+      addNotification(
+        "error",
+        "Error",
+        "Failed to load dashboard data. Please try again later."
+      );
       setCollections([]);
     } finally {
       setLoading(false);
@@ -44,7 +48,7 @@ const Dashboard = () => {
     return <Loading description="Loading dashboard" />;
   }
 
-  if (collections.length === 0) {
+  if (collections?.length === 0) {
     return (
       <div className="dashboard">
         <h1>Welcome to IBM RAG Solution</h1>
@@ -54,31 +58,31 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="dashboard">
+    <div className="children-container dashboard">
       <h1>Welcome to IBM RAG Solution</h1>
       <div className="dashboard-content">
         <Tile className="dashboard-section">
-          <h2>Quick Actions</h2>
+          <h3>Quick Actions</h3>
           <div className="quick-actions">
             <ClickableTile href="/search">
               <Search />
-              <h3>Search Documents</h3>
+              <h4>Search Documents</h4>
               <p>Search across all your collections</p>
             </ClickableTile>
             <ClickableTile href="/collections">
               <Add />
-              <h3>Create Collection</h3>
+              <h4>Create Collection</h4>
               <p>Add a new document collection</p>
             </ClickableTile>
             <ClickableTile href="/upload">
               <Document />
-              <h3>Upload Document</h3>
+              <h4>Upload Document</h4>
               <p>Add a new document to a collection</p>
             </ClickableTile>
           </div>
         </Tile>
         <Tile className="dashboard-section">
-          <h2>Recent Collections</h2>
+          <h3>Recent Collections </h3>
           <StructuredListWrapper ariaLabel="Recent collections">
             <StructuredListHead>
               <StructuredListRow head>
@@ -88,19 +92,25 @@ const Dashboard = () => {
               </StructuredListRow>
             </StructuredListHead>
             <StructuredListBody>
-              {collections.map((collection) => (
+              {collections?.map((collection) => (
                 <StructuredListRow key={collection.id}>
                   <StructuredListCell>
-                    <Link to={`/collections/${collection.id}`}>{collection.name}</Link>
+                    <Link to={`/collections/${collection.id}`}>
+                      {collection.name}
+                    </Link>
                   </StructuredListCell>
-                  <StructuredListCell>{collection.documentCount}</StructuredListCell>
-                  <StructuredListCell>{new Date(collection.lastUpdated).toLocaleDateString()}</StructuredListCell>
+                  <StructuredListCell>
+                    {collection.documentCount}
+                  </StructuredListCell>
+                  <StructuredListCell>
+                    {new Date(collection.lastUpdated).toLocaleDateString()}
+                  </StructuredListCell>
                 </StructuredListRow>
               ))}
             </StructuredListBody>
           </StructuredListWrapper>
           <Link to="/collections" className="view-all-link">
-            <Button kind="ghost" size="small">View all collections</Button>
+            <Button kind="ghost">View all collections</Button>
           </Link>
         </Tile>
       </div>

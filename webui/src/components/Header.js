@@ -1,56 +1,79 @@
-import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import React, { useState } from "react";
 import {
   Header as CarbonHeader,
   HeaderName,
-  HeaderNavigation,
-  HeaderMenuItem,
   HeaderGlobalBar,
   HeaderGlobalAction,
-  SkipToContent,
-} from 'carbon-components-react';
-import { User, Logout } from '@carbon/icons-react';
-import { useAuth } from '../contexts/AuthContext';
-import './Header.css';
+  HeaderPanel,
+  Theme,
+} from "@carbon/react";
+import { Menu, UserAvatar } from "@carbon/icons-react";
+import { useAuth } from "../contexts/AuthContext";
+
+import UISideNav from "./SideNav";
 
 const Header = () => {
-  const { isAuthenticated, user, logout } = useAuth();
-  const location = useLocation();
+  const { user, signOut } = useAuth();
 
-  const isActive = (path) => {
-    return location.pathname === path ? 'active' : '';
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isMainMenuOpen, setIsMainMenuOpen] = useState(false);
+
+  const handleMainMenuOpen = () => {
+    // console.log(isMainMenuOpen);
+    setIsMainMenuOpen((prevState) => !prevState);
+  };
+
+  const handleUserMenuClick = () => {
+    setIsUserMenuOpen((prevState) => !prevState);
+  };
+
+  const handleLogout = () => {
+    signOut();
+    setIsUserMenuOpen(false);
   };
 
   return (
-    <CarbonHeader aria-label="IBM RAG Solution">
-      <SkipToContent />
-      <HeaderName element={Link} to="/" prefix="IBM">
-        RAG Solution
-      </HeaderName>
-      <HeaderNavigation aria-label="IBM RAG Solution">
-        <HeaderMenuItem element={Link} to="/" className={isActive('/')}>
-          Dashboard
-        </HeaderMenuItem>
-        <HeaderMenuItem element={Link} to="/search" className={isActive('/search')}>
-          Search
-        </HeaderMenuItem>
-        <HeaderMenuItem element={Link} to="/collections" className={isActive('/collections')}>
-          Collections
-        </HeaderMenuItem>
-      </HeaderNavigation>
-      <HeaderGlobalBar>
-        {isAuthenticated && (
-          <>
-            <HeaderGlobalAction aria-label="User" tooltipAlignment="end" onClick={() => {}}>
-              <User />
-            </HeaderGlobalAction>
-            <HeaderGlobalAction aria-label="Logout" tooltipAlignment="end" onClick={logout}>
-              <Logout />
-            </HeaderGlobalAction>
-          </>
+    <Theme theme="g100">
+      <CarbonHeader aria-label="RAG Modulo">
+        <HeaderGlobalAction aria-label="" onClick={handleMainMenuOpen}>
+          <Menu size={20} />
+        </HeaderGlobalAction>
+        <HeaderName href="#" prefix="">
+          RAG Modulo
+        </HeaderName>
+        <HeaderGlobalBar>
+          <HeaderGlobalAction
+            aria-label="User Avatar"
+            onClick={handleUserMenuClick}
+            isActive={isUserMenuOpen}
+          >
+            <UserAvatar />
+          </HeaderGlobalAction>
+        </HeaderGlobalBar>
+        {isUserMenuOpen && (
+          <HeaderPanel
+            expanded
+            aria-label="User Menu"
+            className="user-menu-panel"
+          >
+            <div className="user-menu">
+              {user ? (
+                <>
+                  <p>{user.name || "User"}</p>
+                  <button onClick={handleLogout}>Logout</button>
+                </>
+              ) : (
+                <a href="/signin">Sign In</a>
+              )}
+            </div>
+          </HeaderPanel>
         )}
-      </HeaderGlobalBar>
-    </CarbonHeader>
+        <UISideNav
+          isSideNavExpanded={isMainMenuOpen}
+          handleSideNavExpand={handleMainMenuOpen}
+        />
+      </CarbonHeader>
+    </Theme>
   );
 };
 
