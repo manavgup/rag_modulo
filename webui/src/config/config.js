@@ -34,7 +34,8 @@ const getFullApiUrl = (route) => {
 
 const authConfig = {
     client_id: config.oidcClientId,
-    redirect_uri: getFullApiUrl(API_ROUTES.CALLBACK),
+    // redirect_uri: getFullApiUrl(API_ROUTES.CALLBACK),
+    redirect_uri: window.location.origin + '/callback',
     response_type: "code",
     scope: "openid profile email",
     post_logout_redirect_uri: getFullApiUrl(''),

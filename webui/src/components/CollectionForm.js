@@ -144,7 +144,7 @@ const CollectionForm = () => {
   }
 
   return (
-    <div className="collection-form-container">
+    <div className="children-container collection-form">
       <h2>Your Collections</h2>
       {isLoadingCollections ? (
         <Loading description="Loading collections" withOverlay={false} />

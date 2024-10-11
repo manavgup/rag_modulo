@@ -129,7 +129,7 @@ const DocumentViewer = () => {
   }
 
   return (
-    <div className="document-viewer">
+    <div className="children-container document-viewer">
       <Breadcrumb>
         <BreadcrumbItem href="/">Home</BreadcrumbItem>
         <BreadcrumbItem href="/collections">Collections</BreadcrumbItem>
@@ -140,7 +140,8 @@ const DocumentViewer = () => {
       </Breadcrumb>
 
       <div className="document-header">
-        <h1>{document.title}</h1>
+        <h3>{document.title}</h3>
+        
         <div className="document-actions">
           <Button
             kind="ghost"

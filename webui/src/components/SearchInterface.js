@@ -78,8 +78,8 @@ const SearchInterface = () => {
   };
 
   return (
-    <div className="search-interface">
-      <h1>Search Documents</h1>
+    <div className="children-container search-interface">
+      <h3>Search Documents</h3>
       <Tile className="search-box">
         <div className="search-input-wrapper">
           <TextInput
