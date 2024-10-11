@@ -15,7 +15,6 @@
   inline-size: 75px !important;
 }
 
-
 .view-title button {
   display: flex;
 }
@@ -24,21 +23,25 @@
   border-top: 1px solid #ccc;
   margin-top: 2rem;
   padding-top: 1rem;
-  padding-inline: .5rem !important;
+  padding-inline: 0.5rem !important;
 }
 
-.view-detail-grid > div {
-  margin-top: 1.5rem;
+.view-detail-grid .cds--row {
   font-size: 14px;
+  display: flex;
+}
+
+.cds--col{
+  margin-top: 1.5rem;
+  width: 50%;;
 }
 
 .view-detail-label {
   font-weight: 600;
 }
 .view-detail-text {
-  padding-top: .3rem;
+  padding-top: 0.3rem;
 }
-
 
 .view-title {
   display: flex;
@@ -64,5 +67,13 @@
   .view-title button {
     display: flex;
     /* width: 100%; */
+  }
+
+  .view-detail-grid .cds--row {
+    flex-direction: column;
+  }
+
+  .cds--col {
+    width: 100%;
   }
 }

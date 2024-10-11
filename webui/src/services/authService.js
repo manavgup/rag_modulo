@@ -27,7 +27,7 @@ export const handleAuthCallback = async () => {
 export const fetchWithAuthHeader = async (url, options = {}) => {
   const token = localStorage.getItem('jwt_token');
   if (!token) {
-    console.error("No token found, unable to proceed.");
+    console.error("No token found, unable to proceed.", url, options);
     return null;
   }
 

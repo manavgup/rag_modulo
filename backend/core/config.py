@@ -106,6 +106,7 @@ class Settings(BaseSettings):
     # JWT settings
     jwt_secret_key: str = Field(..., env='JWT_SECRET_KEY')
     jwt_algorithm: str = "HS256"
+    frontend_callback: str = "/callback"
     
     class Config:
         env_file = ".env"
