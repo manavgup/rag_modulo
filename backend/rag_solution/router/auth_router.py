@@ -156,7 +156,7 @@ async def auth(request: Request, db: Session = Depends(get_db)):
         custom_jwt = jwt.encode(custom_jwt_payload, settings.ibm_client_secret, algorithm="HS256")
 
 
-        redirect_url = f"{settings.frontend_url}/?token={custom_jwt}"
+        redirect_url = f"{settings.frontend_url}{settings.frontend_callback}/?token={custom_jwt}"
         logger.info(f"Redirecting to frontend: {redirect_url}")
 
         return RedirectResponse(url=redirect_url)

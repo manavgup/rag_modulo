@@ -1,28 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Button, Loading } from 'carbon-components-react';
-import { useAuth } from '../contexts/AuthContext';
-import config, { getFullApiUrl, API_ROUTES } from '../config/config';
+import  { getFullApiUrl, API_ROUTES } from '../config/config';
 import './LoginPage.css';
 
-console.log('LoginPage component loaded with config:', config);
+// console.log('LoginPage component loaded with config:', config);
 
 const LoginPage = () => {
-  const { signIn, user } = useAuth();
+  // const { signIn, user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    console.log('LoginPage mounted, user:', user);
-    console.log('Current API URL:', config.apiUrl);
-    console.log('Full login URL:', getFullApiUrl(API_ROUTES.LOGIN));
-  }, [user]);
+  // useEffect(() => {
+  //   console.log('LoginPage mounted, user:', user);
+  //   console.log('Current API URL:', config.apiUrl);
+  //   console.log('Full login URL:', getFullApiUrl(API_ROUTES.LOGIN));
+  // }, [user]);
 
   const handleLogin = () => {
-    console.log('Login button clicked');
     setIsLoading(true);
     try {
-      console.log('Initiating sign-in process');
       const loginUrl = getFullApiUrl(API_ROUTES.LOGIN);
-      console.log('Redirecting to:', loginUrl);
+      // console.log('Redirecting to:', loginUrl);
       window.location.href = loginUrl;
     } catch (error) {
       console.error('Login failed:', error);
