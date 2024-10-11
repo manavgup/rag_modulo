@@ -34,6 +34,14 @@ const UISideNav = ({ isSideNavExpanded, handleSideNavExpand }) => {
         <SideNavLink
           renderIcon={Fade}
           href="#"
+          onClick={() => onNavigate("/document-collections")}
+          isActive={isActive("/document-collections")}
+        >
+          Document Collections
+        </SideNavLink>
+        <SideNavLink
+          renderIcon={Fade}
+          href="#"
           onClick={() => onNavigate("/collections")}
           isActive={isActive("/collections")}
         >
@@ -42,10 +50,10 @@ const UISideNav = ({ isSideNavExpanded, handleSideNavExpand }) => {
         <SideNavLink
           renderIcon={Fade}
           href="#"
-          onClick={() => onNavigate("/create-collection")}
-          isActive={isActive("/create-collection")}
+          onClick={() => onNavigate("/search")}
+          isActive={isActive("/search")}
         >
-          Create New Collection
+          Search Documents
         </SideNavLink>
         {/* Add more menu items as needed */}
       </SideNavItems>

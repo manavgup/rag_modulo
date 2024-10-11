@@ -199,7 +199,7 @@ const CollectionBrowser = () => {
     { key: 'actions', header: 'Actions' },
   ];
 
-  const collectionRows = collections.map((collection) => ({
+  const collectionRows = collections?.map((collection) => ({
     id: collection.id,
     name: collection.name,
     description: collection.description,
@@ -235,7 +235,7 @@ const CollectionBrowser = () => {
     ),
   }));
 
-  const documentRows = documents.map((document) => ({
+  const documentRows = documents?.map((document) => ({
     id: document.id,
     name: document.name,
     type: document.type,
@@ -262,8 +262,9 @@ const CollectionBrowser = () => {
   }));
 
   return (
-    <div className="collection-browser">
-      <h1>{selectedCollection ? `Documents in ${selectedCollection.name}` : 'Document Collections'}</h1>
+    
+    <div className="children-container collection-browser">
+      <h3>{selectedCollection ? `Documents in ${selectedCollection.name}` : 'Document Collections'}</h3>
       <div className="collection-actions">
         <Search
           labelText="Search collections"
@@ -286,7 +287,7 @@ const CollectionBrowser = () => {
         <InlineLoading description="Loading..." />
       ) : (
         <>
-          <DataTable rows={selectedCollection ? documentRows : collectionRows} headers={selectedCollection ? documentHeaders : collectionHeaders}>
+          <DataTable rows={selectedCollection ? documentRows : []} headers={selectedCollection ? documentHeaders : []}>
             {({ rows, headers, getHeaderProps, getTableProps }) => (
               <TableContainer>
                 <Table {...getTableProps()}>
@@ -389,8 +390,11 @@ const CollectionBrowser = () => {
           <p>Select a collection to move the document to:</p>
           <Dropdown
             id="target-collection"
+            placeholder="Select a collection"
+            ariaLabel="Select a collection"
+            label="Target Collection"
             titleText="Target Collection"
-            items={collections.filter((c) => c.id !== selectedCollection.id)}
+            items={collections ? collections.filter((c) => c.id !== selectedCollection.id) : []}
             itemToString={(item) => (item ? item.name : '')}
             onChange={({ selectedItem }) => setTargetCollection(selectedItem)}
           />

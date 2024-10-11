@@ -4,17 +4,18 @@
   min-height: 100vh;
 }
 
-.bx--content {
-  margin-top: 3rem; /* Adjust based on your Header height */
-  flex-grow: 1;
-  background-color: #f4f4f4;
-}
-
 .page-container {
-  max-width: 1200px;
-  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
   padding: 2rem;
 }
+
+/* .bx--content {
+  margin-top: 3rem; Adjust based on your Header height
+  flex-grow: 1;
+  background-color: #f4f4f4;
+} */
 
 @media (max-width: 1056px) {
   .page-container {
