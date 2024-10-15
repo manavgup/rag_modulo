@@ -16,7 +16,7 @@ PYTHON_VERSION ?= 3.11
 PROJECT_VERSION ?= 1.0.0
 
 # Tools
-DOCKER_COMPOSE := docker-compose
+DOCKER_COMPOSE := docker compose
 
 # Set a default value for VECTOR_DB if not already set
 VECTOR_DB ?= milvus
@@ -34,29 +34,27 @@ init-env:
 
 # Build
 build-frontend:
-	$(DOCKER_COMPOSE) build frontend
+	docker build -t ${PROJECT_NAME}/frontend:${PROJECT_VERSION} -f ./webui/Dockerfile.frontend ./webui
 
 build-backend:
-	$(DOCKER_COMPOSE) build backend
+	docker build -t ${PROJECT_NAME}/backend:${PROJECT_VERSION} -f ./backend/Dockerfile.backend ./backend
 
 build-tests:
-	$(DOCKER_COMPOSE) build test
+	docker build -t ${PROJECT_NAME}/backend-test:${PROJECT_VERSION} -f ./backend/Dockerfile.test ./backend
 
-build-all:
-	@echo "Building application containers..."
-	$(DOCKER_COMPOSE) --profile default --profile test build
+build-all: build-frontend build-backend build-tests
 
 # Test
-test: build-all run-app
+test: build-backend build-tests run-backend
 	$(DOCKER_COMPOSE) run test pytest -v -s -m "not (chromadb or elasticsearch or pinecone or weaviate)" || { echo "Tests failed"; $(MAKE) stop-containers; exit 1; }
 
-api-test: build-all run-app
+api-test: build-backend build-tests run-backend
 	$(DOCKER_COMPOSE) run test pytest -v -s -m "api and not (chromadb or elasticsearch or pinecone or weaviate)" || { echo "API Tests failed"; $(MAKE) stop-containers; exit 1; }
 
-newman-test: build-all run-app
+newman-test: build-backend build-tests run-backend
 	$(DOCKER_COMPOSE) run test newman run tests/postman/rag_modulo_api_collection.json --env-var "backend_base_url=${REACT_APP_API_URL}" || { echo "Postman Tests failed"; $(MAKE) stop-containers; exit 1; }
 
-all-test: build-all run-app
+all-test: build-backend build-tests run-backend
 	$(DOCKER_COMPOSE) run test pytest -v -s -m "not (chromadb or elasticsearch or pinecone or weaviate)" || { echo "Tests failed"; $(MAKE) stop-containers; exit 1; }
 	$(DOCKER_COMPOSE) run test newman run tests/postman/rag_modulo_api_collection.json --env-var "backend_base_url=${REACT_APP_API_URL}" || { echo "Postman Tests failed"; $(MAKE) stop-containers; exit 1; }
 
@@ -131,12 +129,10 @@ run-services: create-volumes
 
 # Stop / clean
 stop-containers:
-	echo "Stopping containers and removing volumes ..."	
-	$(DOCKER_COMPOSE) down -v
+	@echo "Stopping containers..."
+	$(DOCKER_COMPOSE) down -v	
 
-clean:
-	@echo "Cleaning up Docker Compose resources..."
-	$(DOCKER_COMPOSE) down -v
+clean: stop-containers 
 	@echo "Cleaning up existing pods and containers..."
 	-@podman pod rm -f $(podman pod ps -q) || true
 	-@podman rm -f $(podman ps -a -q) || true
