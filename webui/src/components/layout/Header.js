@@ -6,11 +6,14 @@ import {
   HeaderGlobalAction,
   HeaderPanel,
   Theme,
+  UnorderedList,
+  ListItem,
 } from "@carbon/react";
-import { Menu, UserAvatar } from "@carbon/icons-react";
-import { useAuth } from "../contexts/AuthContext";
+import { Menu, UserAvatar, CloseLarge, List } from "@carbon/icons-react";
+import { useAuth } from "src/contexts/AuthContext";
 
 import UISideNav from "./SideNav";
+import "./Header.css";
 
 const Header = () => {
   const { user, signOut } = useAuth();
@@ -36,7 +39,7 @@ const Header = () => {
     <Theme theme="g100">
       <CarbonHeader aria-label="RAG Modulo">
         <HeaderGlobalAction aria-label="" onClick={handleMainMenuOpen}>
-          <Menu size={20} />
+          {isMainMenuOpen ? <CloseLarge size={20} /> : <Menu size={20} />}
         </HeaderGlobalAction>
         <HeaderName href="#" prefix="">
           RAG Modulo
@@ -47,7 +50,7 @@ const Header = () => {
             onClick={handleUserMenuClick}
             isActive={isUserMenuOpen}
           >
-            <UserAvatar />
+            <UserAvatar size={24} />
           </HeaderGlobalAction>
         </HeaderGlobalBar>
         {isUserMenuOpen && (
@@ -57,14 +60,22 @@ const Header = () => {
             className="user-menu-panel"
           >
             <div className="user-menu">
-              {user ? (
-                <>
-                  <p>{user.name || "User"}</p>
-                  <button onClick={handleLogout}>Logout</button>
-                </>
-              ) : (
-                <a href="/signin">Sign In</a>
-              )}
+              <UnorderedList className="user-menu-list">
+                {user ? (
+                  <>
+                    <ListItem key="username" className="user-menu-username"> {user.name || "User"} </ListItem>
+                    <ListItem key="profile"> Profile </ListItem>
+                    <ListItem key="settings"> Settings </ListItem>
+                    <ListItem key="logout" className="user-menu-logout">
+                      <a href="#" onClick={handleLogout}>Logout</a>
+                    </ListItem>
+                  </>
+                ) : (
+                  <ListItem key="signin" className="user-menu-signin">
+                    <a href="/signin">Sign In</a>
+                  </ListItem>
+                )}
+              </UnorderedList>
             </div>
           </HeaderPanel>
         )}

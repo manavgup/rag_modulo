@@ -10,19 +10,20 @@ import {
 import { Content } from "carbon-components-react";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
-import Header from "./components/Header";
-import Footer from "./components/Footer";
-import Dashboard from "./components/Dashboard";
-import SearchInterface from "./components/SearchInterface";
-import CollectionBrowser from "./components/CollectionBrowser";
-import DocumentViewer from "./components/DocumentViewer";
+import Header from "./components/layout/Header";
+import Footer from "./components/layout/Footer";
+import Dashboard from "./components/dashboard/Dashboard";
+import SearchInterface from "./components/common/SearchInterface";
+import DocumentViewer from "./components/document/DocumentViewer";
 import LoginPage from "./components/LoginPage";
 import { handleAuthCallback } from "./services/authService";
-import Collections from "./components/collection/Collections";
+
+import Collection from "./components/collection/Collection";
+import CollectionForm from "./components/collection/CollectionForm";
+import CollectionViewer from "./components/collection/CollectionViewer";
 
 import "./App.css";
 import "./styles/global.css";
-import CollectionForm from "./components/CollectionForm";
 
 function AuthCallback() {
   const navigate = useNavigate();
@@ -100,22 +101,14 @@ function AppContent() {
         }
       />
       <Route
-        path="/document-collections"
-        element={
-          <ProtectedRoute>
-            <CollectionBrowser />
-          </ProtectedRoute>
-        }
-      />
-      <Route
         path="/collections"
         element={
           <ProtectedRoute>
-            <Collections />
+            <Collection />
           </ProtectedRoute>
         }
       >
-        <Route path="view" element={<CollectionBrowser />}></Route>
+        <Route path="view" element={<CollectionViewer />}></Route>
         <Route path="create" element={<CollectionForm />}></Route>
         <Route path="edit" element={<CollectionForm />}></Route>
       </Route>
@@ -124,6 +117,14 @@ function AppContent() {
         element={
           <ProtectedRoute>
             <DocumentViewer />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/document-collections"
+        element={
+          <ProtectedRoute>
+            <CollectionViewer />
           </ProtectedRoute>
         }
       />

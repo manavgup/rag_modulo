@@ -12,8 +12,8 @@ import {
   Button,
 } from "carbon-components-react";
 import { Add, Search, Document } from "@carbon/icons-react";
-import { getUserCollections } from "../api/api";
-import { useNotification } from "../contexts/NotificationContext";
+import { getUserCollections } from "src/api/api";
+import { useNotification } from "src/contexts/NotificationContext";
 import "./Dashboard.css";
 
 const Dashboard = () => {
@@ -24,6 +24,7 @@ const Dashboard = () => {
   useEffect(() => {
     fetchDashboardData();
   }, []);
+
 
   const fetchDashboardData = async () => {
     setLoading(true);
@@ -61,7 +62,7 @@ const Dashboard = () => {
     <div className="children-container dashboard">
       <h1>Welcome to IBM RAG Solution</h1>
       <div className="dashboard-content">
-        <Tile className="dashboard-section">
+        <Tile className="dashboard-section" key="quick-actions">
           <h3>Quick Actions</h3>
           <div className="quick-actions">
             <ClickableTile href="/search">
@@ -81,28 +82,28 @@ const Dashboard = () => {
             </ClickableTile>
           </div>
         </Tile>
-        <Tile className="dashboard-section">
-          <h3>Recent Collections </h3>
-          <StructuredListWrapper ariaLabel="Recent collections">
-            <StructuredListHead>
-              <StructuredListRow head>
-                <StructuredListCell head>Name</StructuredListCell>
-                <StructuredListCell head>Documents</StructuredListCell>
-                <StructuredListCell head>Last Updated</StructuredListCell>
+        <Tile className="dashboard-section" key="recent-collections">
+          <h3>Recent Collections</h3>
+          <StructuredListWrapper aria-label="Recent collections" key="sList">
+            <StructuredListHead key="hHead">
+              <StructuredListRow key="hHeadRow" head >
+                <StructuredListCell key="hName" head>Name</StructuredListCell>
+                <StructuredListCell key="hCount" head>Documents</StructuredListCell>
+                <StructuredListCell key="hLastUpdated" head>Last Updated</StructuredListCell>
               </StructuredListRow>
             </StructuredListHead>
-            <StructuredListBody>
+            <StructuredListBody key="bRow">
               {collections?.map((collection) => (
-                <StructuredListRow key={collection.id}>
-                  <StructuredListCell>
+                <StructuredListRow key={collection.collection_id}>
+                  <StructuredListCell key="name">
                     <Link to={`/collections/${collection.id}`}>
                       {collection.name}
                     </Link>
                   </StructuredListCell>
-                  <StructuredListCell>
+                  <StructuredListCell key="count" > 
                     {collection.documentCount}
                   </StructuredListCell>
-                  <StructuredListCell>
+                  <StructuredListCell key="lastUpdated">
                     {new Date(collection.lastUpdated).toLocaleDateString()}
                   </StructuredListCell>
                 </StructuredListRow>
@@ -117,5 +118,6 @@ const Dashboard = () => {
     </div>
   );
 };
+
 
 export default Dashboard;

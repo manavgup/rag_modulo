@@ -13,8 +13,8 @@ import {
   InlineLoading
 } from 'carbon-components-react';
 import { Search, Filter } from '@carbon/icons-react';
-import { getUserCollections } from '../api/api'; // Removed queryCollection import
-import { useNotification } from '../contexts/NotificationContext';
+import { getUserCollections } from '../../api/api'; // Removed queryCollection import
+import { useNotification } from '../../contexts/NotificationContext';
 import './SearchInterface.css';
 
 const SearchInterface = () => {
