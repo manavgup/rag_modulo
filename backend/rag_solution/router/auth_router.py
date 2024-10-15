@@ -151,7 +151,9 @@ async def auth(request: Request, db: Session = Depends(get_db)):
             "sub": user['sub'],
             "email": user['email'],
             "name": user.get('name', 'Unknown'),
-            "uuid": str(db_user.id)  # Include the UUID in the JWT payload
+            "uuid": str(db_user.id) , # Include the UUID in the JWT payload
+            "exp": token.get('expires_at'),
+            "role": "admin"
         }
         custom_jwt = jwt.encode(custom_jwt_payload, settings.ibm_client_secret, algorithm="HS256")
 

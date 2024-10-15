@@ -4,17 +4,22 @@ from typing import Annotated
 
 from fastapi import FastAPI, Depends, HTTPException, Request, Header
 from fastapi.openapi.utils import get_openapi
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from starlette.middleware.sessions import SessionMiddleware
 from pydantic import BaseModel
 from sqlalchemy import inspect, text
+from auth.oidc import verify_jwt_token
 import jwt
 
+# Import  core modules
+from core.authentication_middleware import AuthenticationMiddleware
+# from backend.core.authorization_decorator import AuthorizationMiddleware
+from core.loggingcors_middleware import LoggingCORSMiddleware
+from core.authorization import authorize_dependency
 from core.config import settings
-from auth.oidc import get_current_user, verify_jwt_token
-from rag_solution.file_management.database import Base, engine, get_db
 
 # Import all models
+from rag_solution.file_management.database import Base, engine, get_db
 from rag_solution.models.user import User
 from rag_solution.models.collection import Collection
 from rag_solution.models.file import File
@@ -22,8 +27,7 @@ from rag_solution.models.user_collection import UserCollection
 from rag_solution.models.user_team import UserTeam
 from rag_solution.models.team import Team
 
-
-from core.auth_middleware import AuthMiddleware
+# Import all routers
 from rag_solution.file_management.database import Base, engine
 from rag_solution.router.collection_router import router as collection_router
 from rag_solution.router.file_router import router as file_router
@@ -33,23 +37,9 @@ from rag_solution.router.user_collection_router import router as user_collection
 from rag_solution.router.user_team_router import router as user_team_router
 from rag_solution.router.health_router import router as health_router
 from rag_solution.router.auth_router import router as auth_router
-from auth.oidc import get_current_user, oauth
 
 logging.basicConfig(level=settings.log_level)
 logger = logging.getLogger(__name__)
-
-class LoggingCORSMiddleware(CORSMiddleware):
-    async def __call__(self, scope, receive, send):
-        if scope["type"] == "http":
-            logger.debug(f"CORS Request: method={scope['method']}, path={scope['path']}")
-            logger.debug(f"CORS Request headers: {scope['headers']}")
-        
-        response = await super().__call__(scope, receive, send)
-        
-        if scope["type"] == "http":
-            logger.debug(f"CORS Response headers: {response.headers}")
-        
-        return response
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -123,27 +113,39 @@ app.add_middleware(
 )
 
 # Add Auth middleware
-app.add_middleware(AuthMiddleware)
+app.add_middleware(AuthenticationMiddleware)
 
-async def auth_dependency(authorization: str = Header(...)):
-    try:
-        scheme, token = authorization.split()
-        if scheme.lower() != 'bearer':
-            raise HTTPException(status_code=401, detail="Invalid authentication scheme")
-        payload = verify_jwt_token(token)
-        return payload
-    except (jwt.PyJWTError, ValueError):
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
+# Replacing with a decorator on each endpoint to allow fine-grained authorization
+# app.add_middleware(AuthorizationMiddleware)
+
+# Already included in AuthMiddleware 
+# async def auth_dependency(authorization: str = Header(...)):
+#     try:
+#         scheme, token = authorization.split()
+#         if scheme.lower() != 'bearer':
+#             raise HTTPException(status_code=401, detail="Invalid authentication scheme")
+#         payload = verify_jwt_token(token)
+#         return payload
+#     except (jwt.PyJWTError, ValueError):
+#         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
 # Include routers
 app.include_router(auth_router)
 app.include_router(health_router)
-app.include_router(collection_router, dependencies=[Depends(auth_dependency)])
-app.include_router(file_router, dependencies=[Depends(auth_dependency)])
-app.include_router(team_router, dependencies=[Depends(auth_dependency)])
-app.include_router(user_router, dependencies=[Depends(auth_dependency)])
-app.include_router(user_collection_router, dependencies=[Depends(auth_dependency)])
-app.include_router(user_team_router, dependencies=[Depends(auth_dependency)])
+app.include_router(collection_router)
+app.include_router(file_router)
+app.include_router(team_router)
+app.include_router(user_router)
+app.include_router(user_collection_router, dependencies=[Depends(authorize_dependency)])
+# app.include_router(user_collection_router)
+app.include_router(user_team_router)
+# app.include_router(collection_router, dependencies=[Depends(auth_dependency)])
+# app.include_router(file_router, dependencies=[Depends(auth_dependency)])
+# app.include_router(team_router, dependencies=[Depends(auth_dependency)])
+# app.include_router(user_router, dependencies=[Depends(auth_dependency)])
+# app.include_router(user_collection_router, dependencies=[Depends(auth_dependency)])
+# app.include_router(user_team_router, dependencies=[Depends(auth_dependency)])
+# app.include_router(collection_router, dependencies=[Depends(auth_dependency)])
 
 def custom_openapi():
     if app.openapi_schema:

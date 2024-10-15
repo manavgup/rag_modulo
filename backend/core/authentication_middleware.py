@@ -9,10 +9,10 @@ from sqlalchemy.orm import Session
 from rag_solution.file_management.database import get_db
 from rag_solution.services.user_service import UserService
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=settings.log_level)
 logger = logging.getLogger(__name__)
 
-class AuthMiddleware(BaseHTTPMiddleware):
+class AuthenticationMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         logger.info(f"AuthMiddleware: Processing request to {request.url.path}")
         logger.debug(f"AuthMiddleware: Request headers: {request.headers}")
@@ -29,7 +29,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
                     'id': payload.get('sub'),
                     'email': payload.get('email'),
                     'name': payload.get('name'),
-                    'uuid': payload.get('uuid')  # Extract UUID from payload
+                    'uuid': payload.get('uuid'),  # Extract UUID from payload
+                    'role': payload.get('role')
                 }
                 logger.info(f"AuthMiddleware: JWT token validated successfully. User: {request.state.user}")
             except jwt.ExpiredSignatureError:
