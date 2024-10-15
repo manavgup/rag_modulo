@@ -151,12 +151,14 @@ async def auth(request: Request, db: Session = Depends(get_db)):
             "sub": user['sub'],
             "email": user['email'],
             "name": user.get('name', 'Unknown'),
-            "uuid": str(db_user.id)  # Include the UUID in the JWT payload
+            "uuid": str(db_user.id) , # Include the UUID in the JWT payload
+            "exp": token.get('expires_at'),
+            "role": "admin"
         }
         custom_jwt = jwt.encode(custom_jwt_payload, settings.ibm_client_secret, algorithm="HS256")
 
 
-        redirect_url = f"{settings.frontend_url}/?token={custom_jwt}"
+        redirect_url = f"{settings.frontend_url}{settings.frontend_callback}/?token={custom_jwt}"
         logger.info(f"Redirecting to frontend: {redirect_url}")
 
         return RedirectResponse(url=redirect_url)

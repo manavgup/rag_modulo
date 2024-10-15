@@ -8,6 +8,8 @@ from rag_solution.services.user_collection_service import UserCollectionService
 from rag_solution.services.user_collection_interaction_service import UserCollectionInteractionService
 from rag_solution.schemas.user_collection_schema import UserCollectionOutput, UserCollectionsOutput
 
+from core.authorization import authorize_decorator
+
 router = APIRouter(prefix="/api/user-collections", tags=["user-collections"])
 
 @router.post("/{user_id}/{collection_id}", 
@@ -48,7 +50,8 @@ def remove_user_from_collection(user_id: UUID, collection_id: UUID, db: Session 
         500: {"description": "Internal server error"}
     }
 )
-def get_user_collections(user_id: UUID, request: Request, db: Session = Depends(get_db)):
+@authorize_decorator(role="admin")
+async def get_user_collections(user_id: UUID, request: Request, db: Session = Depends(get_db)):
     if not hasattr(request.state, 'user') or request.state.user['uuid'] != str(user_id):
         raise HTTPException(status_code=403, detail="Not authorized to access this resource")
     

@@ -1,5 +1,5 @@
 import React from "react";
-import { SideNav, SideNavItems, SideNavLink } from "@carbon/react";
+import { SideNav, SideNavDivider, SideNavItems, SideNavLink } from "@carbon/react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Fade} from '@carbon/icons-react';
 
@@ -42,10 +42,19 @@ const UISideNav = ({ isSideNavExpanded, handleSideNavExpand }) => {
         <SideNavLink
           renderIcon={Fade}
           href="#"
-          onClick={() => onNavigate("/create-collection")}
-          isActive={isActive("/create-collection")}
+          onClick={() => onNavigate("/search")}
+          isActive={isActive("/search")}
         >
-          Create New Collection
+          Search Documents
+        </SideNavLink>
+        <SideNavDivider />
+        <SideNavLink
+          renderIcon={Fade}
+          href="#"
+          onClick={() => onNavigate("/document-collections")}
+          isActive={isActive("/document-collections")}
+        >
+          Document Collections
         </SideNavLink>
         {/* Add more menu items as needed */}
       </SideNavItems>

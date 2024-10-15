@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-
+import { Outlet, useNavigate } from "react-router-dom";
 import {
   Button,
   Content,
@@ -24,12 +23,13 @@ import {
   FlexGrid,
   UnorderedList,
   ListItem,
-  Pagination
+  Pagination,
 } from "@carbon/react";
 import { Add } from "@carbon/icons-react";
 
-import { getUserCollections } from "../api/api";
-import "../styles/view-ui.css";
+import { getUserCollections } from "src/api/api";
+import "./Collection.css";
+import "src/styles/view-ui.css";
 
 const Collections = () => {
   let navigate = useNavigate();
@@ -63,6 +63,7 @@ const Collections = () => {
     setIsLoadingCollections(true);
     try {
       const collections = (await getUserCollections())?.collections;
+      console.log(collections);
       // setUserCollections(Array.isArray(collections) ? collections : []);
 
       // datatable requires a field called id
@@ -91,7 +92,7 @@ const Collections = () => {
   };
 
   const createNewCollection = () => {
-    navigate("/create-collection");
+    navigate("/collections/create", { replace: true });
   };
 
   const onClickCollectionTable = (collectionId) => {
@@ -108,7 +109,7 @@ const Collections = () => {
   };
 
   return (
-    <Content className="view-content">
+    <Content className="children-container  view-content">
       <>
         <div className="view-title">
           <h2>Collections</h2>
@@ -282,6 +283,7 @@ const Collections = () => {
           </Column>
         </Row>
       </FlexGrid>
+      <Outlet />
     </Content>
   );
 };

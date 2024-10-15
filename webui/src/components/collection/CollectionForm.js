@@ -16,8 +16,9 @@ import {
   Column
 } from '@carbon/react';
 import { TrashCan, Document } from '@carbon/icons-react';
-import { createCollectionWithDocuments, getUserCollections } from '../api/api';
-import { useAuth } from '../contexts/AuthContext';
+
+import { createCollectionWithDocuments, getUserCollections } from 'src/api/api';
+import { useAuth } from 'src/contexts/AuthContext';
 
 const CollectionForm = () => {
   const { user, loading: authLoading } = useAuth();
@@ -144,7 +145,7 @@ const CollectionForm = () => {
   }
 
   return (
-    <div className="collection-form-container">
+    <div className="children-container collection-form">
       <h2>Your Collections</h2>
       {isLoadingCollections ? (
         <Loading description="Loading collections" withOverlay={false} />

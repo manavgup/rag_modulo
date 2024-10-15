@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, memo } from 'react';
-import { signIn, signOut, getUserData, loadIBMScripts, handleAuthCallback } from '../services/authService';
+import { signIn, signOut, getUserData, loadIBMScripts, handleAuthCallback } from 'src/services/authService';
 
 const ErrorMessage = memo(({ message }) => <div>Error: {message}</div>);
 const SignInButton = memo(({ onSignIn }) => <button onClick={onSignIn}>Sign In</button>);
