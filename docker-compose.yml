@@ -7,9 +7,6 @@ name: ${PROJECT_NAME:-rag-modulo}
 services:
   backend:
     image: ${PROJECT_NAME:-rag-modulo}/backend:${PROJECT_VERSION:-1.0.0}
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.backend
     networks:
       - app-network
     working_dir: /app
@@ -25,36 +22,32 @@ services:
     env_file:
       - .env
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      test: ["CMD", "python", "healthcheck.py"]
       interval: 30s
       timeout: 10s
+      start_period: 5s
       retries: 3
 
   frontend:
     image: ${PROJECT_NAME:-rag-modulo}/frontend:${PROJECT_VERSION:-1.0.0}
-    build:
-      context: ./webui
-      dockerfile: Dockerfile.frontend
     networks:
       - app-network
     ports:
-      - "3000:80"
+      - "3000:8080"
     depends_on:
       - backend
     environment:
       - REACT_APP_API_URL=/api
       - REACT_APP_OIDC_CLIENT_ID=${IBM_CLIENT_ID}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
       interval: 30s
       timeout: 10s
+      start_period: 5s
       retries: 3
 
   test:
     image: ${PROJECT_NAME:-rag-modulo}/backend-test:${PROJECT_VERSION:-1.0.0}
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.test
     networks:
       - app-network
     depends_on:
