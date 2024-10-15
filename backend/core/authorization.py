@@ -10,13 +10,13 @@ logger = logging.getLogger(__name__)
 
 open_paths = ['/api/auth/login', '/api/auth/callback', '/api/health', '/api/auth/oidc-config', '/api/auth/token', '/api/auth/userinfo']
 
-async def authorize_dependency(request: Request, role: str = 'admin'):
+async def authorize_dependency(request: Request):
     """
     Dependency to check if the user is authorized to access the resource.
+    Uses the RBAC mapping from settings.rbac_mapping to check if the user is authorized to access the resource.
 
     Args:
         request (Request): The request object.
-        role (str, optional): The role required to access the resource. Defaults to 'admin'.
 
     Returns:
         bool: True if the request is authorized, raises HTTPException otherwise.
@@ -40,6 +40,15 @@ async def authorize_dependency(request: Request, role: str = 'admin'):
         raise HTTPException(status_code=403, detail="Failed to authorize request. {rpath} / {rrole}") from exc    
     
 def authorize_decorator(role: str):
+    """
+    Decorator to check if the user is authorized to access the resource.
+
+    Args:
+        role (str): The role required to access the resource.
+
+    Returns:
+        function: Goes to the original handler (function) if the request is authorized, raises HTTPException otherwise.
+    """
     def decorator(handler):
         @functools.wraps(handler)
         async def wrapper(*args, **kwargs):
