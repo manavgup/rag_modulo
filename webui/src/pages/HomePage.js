@@ -5,13 +5,13 @@ import {
   ClickableTile,
 } from '@carbon/react';
 import { Settings as SettingsIcon } from '@carbon/icons-react';
-import Header from '../components/Header.js';
-import UISideNav from '../components/SideNav.js';
-import QueryInput from '../components/QueryInput';
-import ResultsDisplay from '../components/ResultsDisplay';
-import DashboardSettings from '../components/DashboardSettings';
+import Header from '../components/layout/Header.js';
+import UISideNav from '../components/layout/SideNav.js';
+import QueryInput from '../components/common/QueryInput.js';
+import ResultsDisplay from '../components/common/ResultsDisplay.js';
+import DashboardSettings from '../components/dashboard/DashboardSettings.js';
 import IngestionSettings from '../components/IngestionSettings';
-import CollectionForm from '../components/CollectionForm';
+import CollectionForm from '../components/collection/CollectionForm.js';
 import '../css/common.css';
 
 const HomePage = () => {

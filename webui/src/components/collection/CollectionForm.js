@@ -16,8 +16,9 @@ import {
   Column
 } from '@carbon/react';
 import { TrashCan, Document } from '@carbon/icons-react';
-import { createCollectionWithDocuments, getUserCollections } from '../api/api';
-import { useAuth } from '../contexts/AuthContext';
+
+import { createCollectionWithDocuments, getUserCollections } from 'src/api/api';
+import { useAuth } from 'src/contexts/AuthContext';
 
 const CollectionForm = () => {
   const { user, loading: authLoading } = useAuth();

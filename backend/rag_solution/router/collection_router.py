@@ -9,8 +9,7 @@ from rag_solution.schemas.collection_schema import CollectionInput, CollectionOu
 from rag_solution.schemas.user_schema import UserInput
 from rag_solution.services.user_service import UserService
 from rag_solution.services.collection_service import CollectionService
-from rag_solution.services.file_management_service import \
-    FileManagementService
+from rag_solution.services.file_management_service import FileManagementService
 import logging
 
 logging.basicConfig(level=logging.INFO)

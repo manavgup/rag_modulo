@@ -20,11 +20,12 @@ import {
   ModalHeader,
   ModalBody,
   ModalFooter
-} from 'carbon-components-react';
+} from "@carbon/react";
 import { Add, TrashCan, Document, Edit} from '@carbon/icons-react';
-import { getUserCollections, createCollectionWithDocuments, updateCollection, deleteCollection, getDocumentsInCollection, deleteDocument, moveDocument } from '../api/api';
-import { useNotification } from '../contexts/NotificationContext';
-import './CollectionBrowser.css';
+import { getUserCollections, createCollectionWithDocuments, updateCollection, deleteCollection, getDocumentsInCollection, deleteDocument, moveDocument } from '../../api/api';
+import { useNotification } from 'src/contexts/NotificationContext';
+
+import './CollectionViewer.css';
 
 const CollectionBrowser = () => {
   const [collections, setCollections] = useState([]);

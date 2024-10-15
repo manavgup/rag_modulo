@@ -1,9 +1,9 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import CollectionForm from './CollectionForm';
-import { AuthProvider } from '../contexts/AuthContext';
-import { createCollectionWithDocuments, getUserCollections } from '../api/api';
+import CollectionForm from './collection/CollectionForm';
+import { AuthProvider } from 'src/contexts/AuthContext';
+import { createCollectionWithDocuments, getUserCollections } from 'src/api/api';
 
 // Mock the API functions
 jest.mock('../api/api', () => ({
@@ -93,6 +93,9 @@ describe('CollectionForm', () => {
 
     await waitFor(() => {
       expect(createCollectionWithDocuments).toHaveBeenCalled();
+    });
+    
+    await waitFor(() => {
       expect(screen.getByText('Collection Created')).toBeInTheDocument();
     });
   });
