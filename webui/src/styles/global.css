@@ -5,10 +5,10 @@ body {
   color: #161616;
 }
 
-.page-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
+/* Children router container common styles */
+/* Change here to apply to all children router containers */
+.children-container {
+  padding: 2rem 0 2rem 3rem;
 }
 
 .page-header {

@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     react_app_api_url: str
 
     # Logging Level
-    log_level: Optional[str] = None
+    log_level: Optional[str] = "INFO"
 
     # File storage path
     file_storage_path: str = tempfile.gettempdir()
@@ -106,10 +106,33 @@ class Settings(BaseSettings):
     # JWT settings
     jwt_secret_key: str = Field(..., env='JWT_SECRET_KEY')
     jwt_algorithm: str = "HS256"
-    
+    frontend_callback: str = "/callback"
+
+    # Role settings
+    # This is a sample RBAC mapping role / url_patterns / http_methods
+    rbac_mapping: dict = {
+        'admin': {
+            r'^/api/user-collections/(.+)$': ['GET'],
+            r'^/api/user-collections/(.+)/(.+)$': ['POST', 'DELETE'],
+        },
+        'user': {
+            r'^/api/user-collections/(.+)/(.+)$': ['POST', 'DELETE'],
+            r'^/api/user-collections/(.+)$': ['GET'],
+            r'^/api/user-collections/collection/(.+)$': ['GET'],
+            r'^/api/user-collections/collection/(.+)/users$': ['DELETE'],
+            r'^/api/collections/(.+)$': ['GET']
+        },
+        'guest': {
+            r'^/api/user-collections$': ['GET', 'POST', 'DELETE', 'PUT'],
+            r'^/api/collections$': ['GET', 'POST', 'DELETE', 'PUT'],
+            r'^/api/collection/(.+)$': ['GET', 'POST', 'DELETE', 'PUT']
+        }
+    }
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+
 
 settings = Settings(
     react_app_api_url="http://localhost:3000",

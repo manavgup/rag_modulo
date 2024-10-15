@@ -13,8 +13,8 @@ import {
   InlineLoading
 } from 'carbon-components-react';
 import { Search, Filter } from '@carbon/icons-react';
-import { getUserCollections } from '../api/api'; // Removed queryCollection import
-import { useNotification } from '../contexts/NotificationContext';
+import { getUserCollections } from '../../api/api'; // Removed queryCollection import
+import { useNotification } from '../../contexts/NotificationContext';
 import './SearchInterface.css';
 
 const SearchInterface = () => {
@@ -78,8 +78,8 @@ const SearchInterface = () => {
   };
 
   return (
-    <div className="search-interface">
-      <h1>Search Documents</h1>
+    <div className="children-container search-interface">
+      <h3>Search Documents</h3>
       <Tile className="search-box">
         <div className="search-input-wrapper">
           <TextInput

@@ -100,6 +100,7 @@ export const getUserCollections = async () => {
     const response = await api.get(url);
     console.log('User collections fetched successfully', response.data);
     return response.data;
+    
   } catch (error) {
     console.error('Error in getUserCollections:', error);
     throw handleApiError(error, 'Error fetching user collections');

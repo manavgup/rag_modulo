@@ -19,8 +19,8 @@ import {
 } from 'carbon-components-react';
 import { Document, Page } from 'react-pdf';
 import { Download, Edit } from '@carbon/icons-react';
-import { getDocument } from '../api/api';  // Removed updateDocumentMetadata import
-import { useNotification } from '../contexts/NotificationContext';
+import { getDocument } from 'src/api/api';  // Removed updateDocumentMetadata import
+import { useNotification } from 'src/contexts/NotificationContext';
 import './DocumentViewer.css';
 
 const DocumentViewer = () => {
@@ -129,7 +129,7 @@ const DocumentViewer = () => {
   }
 
   return (
-    <div className="document-viewer">
+    <div className="children-container document-viewer">
       <Breadcrumb>
         <BreadcrumbItem href="/">Home</BreadcrumbItem>
         <BreadcrumbItem href="/collections">Collections</BreadcrumbItem>
@@ -140,7 +140,8 @@ const DocumentViewer = () => {
       </Breadcrumb>
 
       <div className="document-header">
-        <h1>{document.title}</h1>
+        <h3>{document.title}</h3>
+        
         <div className="document-actions">
           <Button
             kind="ghost"
