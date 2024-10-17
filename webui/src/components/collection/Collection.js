@@ -27,7 +27,7 @@ import {
 } from "@carbon/react";
 import { Add } from "@carbon/icons-react";
 
-import { getUserCollections } from "src/api/api";
+import { getUserCollections } from "src/api/collection_api";
 import "./Collection.css";
 import "src/styles/view-ui.css";
 

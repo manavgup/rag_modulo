@@ -19,7 +19,7 @@ import {
 } from 'carbon-components-react';
 import { Document, Page } from 'react-pdf';
 import { Download, Edit } from '@carbon/icons-react';
-import { getDocument } from 'src/api/api';  // Removed updateDocumentMetadata import
+import { getDocument } from 'src/api/collection_api';  // Removed updateDocumentMetadata import
 import { useNotification } from 'src/contexts/NotificationContext';
 import './DocumentViewer.css';
 

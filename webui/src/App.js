@@ -18,12 +18,14 @@ import DocumentViewer from "./components/document/DocumentViewer";
 import LoginPage from "./components/LoginPage";
 import { handleAuthCallback } from "./services/authService";
 
-import Collection from "./components/collection/Collection";
+import Collections from "./components/collection/Collection";
 import CollectionForm from "./components/collection/CollectionForm";
 import CollectionViewer from "./components/collection/CollectionViewer";
+import Assistants from "./components/assistant/Assistant";
 
 import "./App.css";
 import "./styles/global.css";
+import AssistantForm from "./components/assistant/AssistantForm";
 
 function AuthCallback() {
   const navigate = useNavigate();
@@ -104,7 +106,7 @@ function AppContent() {
         path="/collections"
         element={
           <ProtectedRoute>
-            <Collection />
+            <Collections />
           </ProtectedRoute>
         }
       >
@@ -125,6 +127,22 @@ function AppContent() {
         element={
           <ProtectedRoute>
             <CollectionViewer />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/assistants"
+        element={
+          <ProtectedRoute>
+            <Assistants />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/assistants/create"
+        element={
+          <ProtectedRoute>
+            <AssistantForm />
           </ProtectedRoute>
         }
       />

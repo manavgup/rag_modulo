@@ -17,7 +17,7 @@ import {
 } from '@carbon/react';
 import { TrashCan, Document } from '@carbon/icons-react';
 
-import { createCollectionWithDocuments, getUserCollections } from 'src/api/api';
+import { createCollectionWithDocuments, getUserCollections } from 'src/api/collection_api';
 import { useAuth } from 'src/contexts/AuthContext';
 
 const CollectionForm = () => {

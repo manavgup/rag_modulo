@@ -12,7 +12,7 @@ import {
   Button,
 } from "carbon-components-react";
 import { Add, Search, Document } from "@carbon/icons-react";
-import { getUserCollections } from "src/api/api";
+import { getUserCollections } from "src/api/collection_api";
 import { useNotification } from "src/contexts/NotificationContext";
 import "./Dashboard.css";
 

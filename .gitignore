@@ -71,3 +71,4 @@ webui/default.conf-dev
 
 # ignore nektos act folder
 .act
+.pylintrc

@@ -22,7 +22,7 @@ import {
   ModalFooter
 } from "@carbon/react";
 import { Add, TrashCan, Document, Edit} from '@carbon/icons-react';
-import { getUserCollections, createCollectionWithDocuments, updateCollection, deleteCollection, getDocumentsInCollection, deleteDocument, moveDocument } from '../../api/api';
+import { getUserCollections, createCollectionWithDocuments, updateCollection, deleteCollection, getDocumentsInCollection, deleteDocument, moveDocument } from '../../api/collection_api';
 import { useNotification } from 'src/contexts/NotificationContext';
 
 import './CollectionViewer.css';

@@ -26,6 +26,7 @@ from rag_solution.models.file import File
 from rag_solution.models.user_collection import UserCollection
 from rag_solution.models.user_team import UserTeam
 from rag_solution.models.team import Team
+from rag_solution.models.assistant import Assistant
 
 # Import all routers
 from rag_solution.file_management.database import Base, engine
@@ -36,6 +37,7 @@ from rag_solution.router.user_router import router as user_router
 from rag_solution.router.user_collection_router import router as user_collection_router
 from rag_solution.router.user_team_router import router as user_team_router
 from rag_solution.router.health_router import router as health_router
+from rag_solution.router.assistant_router import router as assistant_router
 from rag_solution.router.auth_router import router as auth_router
 
 logging.basicConfig(level=settings.log_level)
@@ -139,6 +141,7 @@ app.include_router(user_router)
 app.include_router(user_collection_router, dependencies=[Depends(authorize_dependency)])
 # app.include_router(user_collection_router)
 app.include_router(user_team_router)
+app.include_router(assistant_router)
 # app.include_router(collection_router, dependencies=[Depends(auth_dependency)])
 # app.include_router(file_router, dependencies=[Depends(auth_dependency)])
 # app.include_router(team_router, dependencies=[Depends(auth_dependency)])

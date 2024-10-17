@@ -76,4 +76,8 @@
   .cds--col {
     width: 100%;
   }
+
+  /* .cds--table-column-menu {
+    display: flex;
+  } */
 }

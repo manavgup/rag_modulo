@@ -17,6 +17,13 @@ const API_ROUTES = {
     ADD_DOCUMENTS: `/collections/`,
     REMOVE_DOCUMENT: `/collections/`,
     QUERY_COLLECTION: `/collections/`,
+
+    GET_ASSISTANTS: `/assistants`,
+    GET_ASSISTANT_BY_ID: `/assistants/`,
+    CREATE_ASSISTANT: `/assistants/`,
+    UPDATE_ASSISTANT: `/assistants/`,
+    DELETE_ASSISTANT: `/assistants/`,
+
     OIDC_CONFIG: `/auth/oidc-config`,
     LOGIN: `/auth/login`,
     LOGOUT: `/auth/logout`,

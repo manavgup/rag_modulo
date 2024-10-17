@@ -42,6 +42,14 @@ const UISideNav = ({ isSideNavExpanded, handleSideNavExpand }) => {
         <SideNavLink
           renderIcon={Fade}
           href="#"
+          onClick={() => onNavigate("/assistants")}
+          isActive={isActive("/assistants")}
+        >
+          Assistants
+        </SideNavLink>
+        <SideNavLink
+          renderIcon={Fade}
+          href="#"
           onClick={() => onNavigate("/search")}
           isActive={isActive("/search")}
         >
