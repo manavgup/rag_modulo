@@ -50,7 +50,10 @@ def collection_id(user_id, auth_headers):
 def test_health_check():
     response = requests.get(f"{BASE_URL}/api/health")
     assert response.status_code == 200, f"Health check failed with status code {response.status_code}"
-    assert response.json() == {}, "Health check response should be an empty object"
+    health_response = response.json()
+    assert 'status' in health_response, "Health check response should contain general status"
+    assert 'components' in health_response, "Health check response should contain status of sub components"
+    
 
 @pytest.mark.api
 def test_create_user(auth_headers):

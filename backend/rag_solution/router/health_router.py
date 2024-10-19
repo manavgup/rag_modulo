@@ -22,7 +22,7 @@ def check_vectordb():
     """
     try:
         get_datastore(settings.vector_db)
-        return {"status": "healthy", "message": "Vector DB is connected and operational"}
+        return {"name": "vectordb", "status": "healthy", "message": "Vector DB is connected and operational"}
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"Vector DB health check failed: {str(e)}")
 
@@ -42,7 +42,7 @@ def check_datastore(db: Session = Depends(get_db)):
     try:
         # Execute a simple query
         db.execute(text("Select 1"))
-        return {"status": "healthy", "message": "Relational is connected and operational"}
+        return {"name": "datastore", "status": "healthy", "message": "Relational is connected and operational"}
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"Relational DB health check failed: {str(e)}")
 
@@ -84,7 +84,7 @@ def check_file_system():
         with open(test_file, 'w') as f:
             f.write('test')
         os.remove(test_file)
-        return {"status": "healthy", "message": "File system is accessible and writable"}
+        return {"name": "file_system", "status": "healthy", "message": "File system is accessible and writable"}
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"File system health check failed: {str(e)}")
 
@@ -107,17 +107,12 @@ def health_check(db: Session = Depends(get_db)):
     Returns:
         dict: A dictionary containing the overall status and the status of each component.
     """
-    milvus_health = check_vectordb()
-    postgres_health = check_datastore(db)
-    watsonx_health = check_watsonx()
-    file_system_health = check_file_system()
-
     return {
         "status": "healthy",
-        "components": {
-            "vectordb": milvus_health,
-            "datastore": postgres_health,
-            "watsonx": watsonx_health,
-            "file_system": file_system_health
-        }
+        "components": [
+            check_vectordb(),
+            check_datastore(db),
+            check_watsonx(),
+            check_file_system()
+        ]
     }
