@@ -1,7 +1,7 @@
 import json
 import logging
 import time
-from typing import List, Optional, Union, Tuple
+from typing import List, Optional, Union, Tuple, Generator
 
 from chromadb.api.types import Documents, EmbeddingFunction
 from dotenv import load_dotenv
@@ -168,9 +168,35 @@ class ChromaEmbeddingFunction(EmbeddingFunction):
         return embeddings
 
 
-def generate_text(prompt: str, max_tokens: int = 150, temperature: float = 0.7, timeout: int = 30, max_retries: int = 3) -> str:
+def generate_text(prompt: str) -> str:
+    try:
+        logging.info("Making API call to text generation service")
+        for response in client.text.generation.create(
+            model_id=settings.rag_llm,
+            input=prompt,
+            parameters=TextGenerationParameters(
+                max_new_tokens=settings.max_new_tokens,
+                min_new_tokens=settings.min_new_tokens,
+                temperature=settings.temperature,
+                top_k=settings.top_k,
+                random_seed=settings.random_seed,
+            ),
+        ):
+            result = response.results[0]
+            generated_text = result.generated_text.strip()
+            logging.info(f"Successfully generated text of length {len(generated_text)}")
+            logging.info(f"Generated text: {generated_text}...") # Log first 100 characters of generated text
+            return generated_text
+    except Exception as e:
+        logging.error(f"Error generating text: {e}")
+        raise
+
+def generate_text_stream(prompt: str, max_tokens: int = 150, temperature: float = 0.7, timeout: int = 30, max_retries: int = 3) -> Generator[str, None, None]:
     global last_api_call
     client = _get_client()
+
+    logging.info(f"Generating text with parameters: max_tokens={max_tokens}, temperature={temperature}, timeout={timeout}, max_retries={max_retries}")
+    logging.debug(f"Prompt: {prompt[:100]}...") #
 
     def make_api_call():
         global last_api_call
@@ -179,9 +205,11 @@ def generate_text(prompt: str, max_tokens: int = 150, temperature: float = 0.7, 
 
         if time_since_last_call < RATE_LIMIT_PERIOD / RATE_LIMIT:
             sleep_time = (RATE_LIMIT_PERIOD / RATE_LIMIT) - time_since_last_call
+            logging.debug(f"Rate limiting: Sleeping for {sleep_time:.2f} seconds")
             time.sleep(sleep_time)
 
         try:
+            logging.info("Making API call to text generation service")
             response = client.text.generation.create(
                 model_id="meta/llama3-8b-v1",
                 input=prompt,
@@ -189,19 +217,19 @@ def generate_text(prompt: str, max_tokens: int = 150, temperature: float = 0.7, 
                 execution_options=CreateExecutionOptions(timeout=timeout)
             )
             last_api_call = time.time()
-            return response.results[0].generated_text.strip()
+            for chunk in response:
+                yield chunk.generated_text.strip()
         except Exception as e:
-            logging.error(f"Error generating text: {e}")
+            logging.error(f"Error generating text stream: {e}")
             raise
 
     for attempt in range(max_retries):
         try:
-            return make_api_call()
+            yield from make_api_call()
+            return
         except Exception as e:
             if attempt == max_retries - 1:
-                logging.error(f"Failed to generate text after {max_retries} attempts: {e}")
-                return ""
+                logging.error(f"Failed to generate text stream after {max_retries} attempts: {e}")
+                return
             logging.warning(f"Attempt {attempt + 1} failed, retrying...")
             time.sleep(2 ** attempt)  # Exponential backoff
-
-    return ""  # This line should never be reached, but it's here for completeness

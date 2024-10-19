@@ -1,84 +1,82 @@
-import unittest
-from unittest.mock import patch, MagicMock
-import numpy as np
-from backend.rag_solution.retrieval.retriever import VectorRetriever, KeywordRetriever, HybridRetriever, Retriever
+import pytest
+from unittest.mock import MagicMock, patch
+from rag_solution.retrieval.retriever import VectorRetriever, KeywordRetriever, HybridRetriever
+from vectordbs.data_types import Document, QueryResult
 
-class TestRetriever(unittest.TestCase):
+@pytest.fixture
+def mock_vector_store():
+    return MagicMock()
 
-    @patch('backend.rag_solution.retrieval.retriever.SentenceTransformer')
-    def test_vector_retriever(self, mock_sentence_transformer):
-        mock_model = MagicMock()
-        mock_model.encode.return_value = [np.array([0.1, 0.2, 0.3])]
-        mock_sentence_transformer.return_value = mock_model
+@pytest.fixture
+def sample_documents():
+    return [
+        Document(id="1", content="Einstein developed the theory of relativity."),
+        Document(id="2", content="Newton discovered the laws of motion and universal gravitation."),
+        Document(id="3", content="Quantum mechanics describes the behavior of matter and energy at the atomic scale.")
+    ]
 
-        mock_vector_store = MagicMock()
-        mock_vector_store.search.return_value = [
-            MagicMock(id=1, payload={'content': 'test content 1'}, score=0.9),
-            MagicMock(id=2, payload={'content': 'test content 2'}, score=0.8)
-        ]
+@pytest.fixture
+def mock_get_embeddings():
+    return MagicMock(return_value=[[0.1, 0.2, 0.3]])
 
-        retriever = VectorRetriever(mock_vector_store)
-        results = retriever.retrieve("test query", k=2)
+def test_vector_retriever_init(mock_vector_store):
+    retriever = VectorRetriever(mock_vector_store)
+    assert retriever.vector_store == mock_vector_store
 
-        self.assertEqual(len(results), 2)
-        self.assertEqual(results[0]['id'], 1)
-        self.assertEqual(results[0]['content'], 'test content 1')
-        self.assertEqual(results[0]['score'], 0.9)
+@patch('rag_solution.retrieval.retriever.get_embeddings')
+def test_vector_retriever_retrieve(mock_get_embeddings, mock_vector_store):
+    mock_get_embeddings.return_value = [[0.1, 0.2, 0.3]]
+    mock_vector_store.query.return_value = [
+        QueryResult(document=Document(id="1", content="Test content"), score=0.9)
+    ]
 
-    def test_keyword_retriever(self):
-        documents = [
-            {"id": 1, "content": "This is a test document"},
-            {"id": 2, "content": "Another test document with different content"}
-        ]
-        retriever = KeywordRetriever(documents)
-        results = retriever.retrieve("test document", k=2)
+    retriever = VectorRetriever(mock_vector_store)
+    results = retriever.retrieve("test query", k=1)
 
-        self.assertEqual(len(results), 2)
-        self.assertTrue(all(r['id'] in [1, 2] for r in results))
+    assert len(results) == 1
+    assert results[0].document.id == "1"
+    assert results[0].score == 0.9
+    mock_get_embeddings.assert_called_once_with(["test query"])
+    mock_vector_store.query.assert_called_once()
 
-    @patch('backend.rag_solution.retrieval.retriever.VectorRetriever')
-    @patch('backend.rag_solution.retrieval.retriever.KeywordRetriever')
-    def test_hybrid_retriever(self, mock_keyword_retriever, mock_vector_retriever):
-        mock_vector_retriever.return_value.retrieve.return_value = [
-            {"id": 1, "content": "Vector content 1", "score": 0.9},
-            {"id": 2, "content": "Vector content 2", "score": 0.8}
-        ]
-        mock_keyword_retriever.return_value.retrieve.return_value = [
-            {"id": 2, "content": "Keyword content 2", "score": 0.85},
-            {"id": 3, "content": "Keyword content 3", "score": 0.75}
-        ]
+def test_keyword_retriever_init(sample_documents):
+    retriever = KeywordRetriever(sample_documents)
+    assert len(retriever.documents) == 3
 
-        mock_vector_store = MagicMock()
-        documents = [{"id": i, "content": f"Content {i}"} for i in range(1, 4)]
+def test_keyword_retriever_retrieve(sample_documents):
+    retriever = KeywordRetriever(sample_documents)
+    results = retriever.retrieve("theory of relativity", k=2)
 
-        retriever = HybridRetriever(mock_vector_store, documents, vector_weight=0.7)
-        results = retriever.retrieve("test query", k=3)
+    assert len(results) == 2
+    assert results[0].document.id == "1"
+    assert results[0].score > results[1].score
 
-        self.assertEqual(len(results), 3)
-        self.assertEqual(results[0]['id'], 2)  # Should be ranked highest due to presence in both results
-        self.assertTrue(all(r['id'] in [1, 2, 3] for r in results))
+def test_hybrid_retriever_init(mock_vector_store, sample_documents):
+    retriever = HybridRetriever(mock_vector_store, sample_documents, vector_weight=0.7)
+    assert isinstance(retriever.vector_retriever, VectorRetriever)
+    assert isinstance(retriever.keyword_retriever, KeywordRetriever)
+    assert retriever.vector_weight == 0.7
 
-    @patch('backend.rag_solution.retrieval.retriever.VectorRetriever')
-    @patch('backend.rag_solution.retrieval.retriever.KeywordRetriever')
-    @patch('backend.rag_solution.retrieval.retriever.HybridRetriever')
-    def test_retriever_factory(self, mock_hybrid, mock_keyword, mock_vector):
-        mock_vector_store = MagicMock()
-        documents = [{"id": i, "content": f"Content {i}"} for i in range(1, 4)]
+@patch('rag_solution.retrieval.retriever.VectorRetriever.retrieve')
+@patch('rag_solution.retrieval.retriever.KeywordRetriever.retrieve')
+def test_hybrid_retriever_retrieve(mock_vector_retrieve, mock_keyword_retrieve, mock_vector_store, sample_documents):
+    mock_vector_retrieve.return_value = [
+        QueryResult(document=Document(id="1", content="Vector content"), score=0.9)
+    ]
+    mock_keyword_retrieve.return_value = [
+        QueryResult(document=Document(id="2", content="Keyword content"), score=0.8)
+    ]
 
-        # Test hybrid retriever
-        config = {'use_hybrid': True, 'vector_weight': 0.7}
-        retriever = Retriever(config, mock_vector_store, documents)
-        self.assertIsInstance(retriever.retriever, HybridRetriever)
+    retriever = HybridRetriever(mock_vector_store, sample_documents, vector_weight=0.7)
+    results = retriever.retrieve("test query", k=2)
 
-        # Test vector retriever
-        config = {'use_hybrid': False, 'use_vector': True}
-        retriever = Retriever(config, mock_vector_store, documents)
-        self.assertIsInstance(retriever.retriever, VectorRetriever)
+    assert len(results) == 2
+    assert results[0].document.id == "1"
+    assert results[1].document.id == "2"
+    assert results[0].score > results[1].score
 
-        # Test keyword retriever
-        config = {'use_hybrid': False, 'use_vector': False}
-        retriever = Retriever(config, mock_vector_store, documents)
-        self.assertIsInstance(retriever.retriever, KeywordRetriever)
+    mock_vector_retrieve.assert_called_once_with("test query", k=2)
+    mock_keyword_retrieve.assert_called_once_with("test query", k=2)
 
-if __name__ == '__main__':
-    unittest.main()
+if __name__ == "__main__":
+    pytest.main()

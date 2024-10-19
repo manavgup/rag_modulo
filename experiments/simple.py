@@ -18,8 +18,8 @@ client = Client(credentials=Credentials.from_env())
 print(heading("Simple Text Generation"))
 # yields batch of results that are produced asynchronously and in parallel
 for response in client.text.generation.create(
-    model_id="google/flan-t5-xl",
-    inputs=["What is a molecule?", "What is NLP?"],
+    model_id="meta-llama/llama-3-8b",
+    input="What is a molecule?",
     parameters=TextGenerationParameters(
         max_new_tokens=150,
         min_new_tokens=20,

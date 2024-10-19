@@ -1,4 +1,3 @@
-# config.py
 import tempfile
 from typing import Optional
 
@@ -33,6 +32,14 @@ class Settings(BaseSettings):
     embedding_dim: Optional[int] = None
     embedding_field: Optional[str] = None
     upsert_batch_size: Optional[int] = None
+
+    # LLM settings
+    rag_llm: str = Field(..., env='RAG_LLM')
+    max_new_tokens: int = Field(..., env='MAX_NEW_TOKENS')
+    min_new_tokens: int = Field(..., env='MIN_NEW_TOKENS')
+    random_seed: int = Field(..., env='RANDOM_SEED')
+    top_k: int = Field(..., env='TOP_K')
+    temperature: float = Field(..., env='TEMPERATURE')
 
     # Frontend settings
     react_app_api_url: str
@@ -100,6 +107,10 @@ class Settings(BaseSettings):
     oidc_token_url: Optional[str] = None
     frontend_url: Optional[str] = None
     oidc_userinfo_endpoint: Optional[str] = None
+
+    # JWT settings
+    jwt_secret_key: str = Field(..., env='JWT_SECRET_KEY')
+    jwt_algorithm: str = "HS256"
     
     class Config:
         env_file = ".env"

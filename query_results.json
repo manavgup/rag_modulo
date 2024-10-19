@@ -1,0 +1,152 @@
+[
+  {
+    "similarities": [
+      [
+        0.581531286239624,
+        0.5573771595954895,
+        0.5469444394111633,
+        0.5266287922859192,
+        0.5182865858078003,
+        0.5029454231262207,
+        0.49313122034072876,
+        0.47828108072280884,
+        0.4726250171661377,
+        0.46750515699386597
+      ]
+    ],
+    "ids": [
+      453303365425430698,
+      453303365425430696,
+      453303365425430720,
+      453303365425430694,
+      453303365425430723,
+      453303365425430725,
+      453303365425430714,
+      453303365425430721,
+      453303365425430717,
+      453303365425430695
+    ],
+    "data": [
+      {
+        "chunk_id": 453303365425430698,
+        "text": "age of all areas of R&D activity,  from fundamental to applied research. \nIn addition, CFI provides funding for infrastructure at Canadian universities, colleges, research hospitals and not-for-profit  organizations. Other research funding sources such as Genome Canada also play a role in this area. Further information  on these organizations is provided in the table below. \nTable 2. Key federal f",
+        "score": 0.581531286239624,
+        "metadata": {
+          "source": "pdf",
+          "source_id": "",
+          "url": "",
+          "created_at": "",
+          "author": ""
+        }
+      },
+      {
+        "chunk_id": 453303365425430696,
+        "text": " \nCanada\u2019s science, technology and innovation ecosystem  Page 5 \n3 Federal granting agencies \nThe 3 granting agencies are the main source of federal funding for research, research training and innovation in Canadian  post-secondary institutions. They include the: \n\u2022   Social Sciences and Humanities Research Council of Canada (SSHRC) \n\u2022   Natural Sciences and Engineering Research Council (NSERC) \n\u2022",
+        "score": 0.5573771595954895,
+        "metadata": {
+          "source": "pdf",
+          "source_id": "",
+          "url": "",
+          "created_at": "",
+          "author": ""
+        }
+      },
+      {
+        "chunk_id": 453303365425430720,
+        "text": "86.9M to institutions.  Announced in March  2024, the Government of  Canada provided CFI  $515.3 million to award  funds to 32 institutions  and 100 projects. \nThe CFI makes financial contributions  to Canada\u2019s universities, colleges,  research hospitals and non-profit  research organizations to increase  their capability to carry out high quality  research. \n\u2022   Research  infrastructure              ",
+        "score": 0.5469444394111633,
+        "metadata": {
+          "source": "pdf",
+          "source_id": "",
+          "url": "",
+          "created_at": "",
+          "author": ""
+        }
+      },
+      {
+        "chunk_id": 453303365425430694,
+        "text": " \nCanada\u2019s science, technology and innovation ecosystem  Page 7 \nDepartment or agency  Budget  Mandate  Research supported \nGenome Canada  (created in 2000 as  Corporation and as a  non-profit corporation in  2012): governed by a  board of directors \nBudget 2021 provided  $400 million over 6  years, starting in 2021\u2013 22, to support the  creation of the Canadian  Genomics Strategy to  drive further",
+        "score": 0.5266287922859192,
+        "metadata": {
+          "source": "pdf",
+          "source_id": "",
+          "url": "",
+          "created_at": "",
+          "author": ""
+        }
+      },
+      {
+        "chunk_id": 453303365425430723,
+        "text": "ople to  support the advancement of knowledge and economic prosperity in Canada.  \nThis report provides an overview of the Canadian federal government\u2019s support for  science, technology and innovation, and presents a profile of the National Research  Council of Canada (NRC) and the key federal funding agencies. \n2 Federal government support for \nCanadian science, technology and  innovation \nThe Go",
+        "score": 0.5182865858078003,
+        "metadata": {
+          "source": "pdf",
+          "source_id": "",
+          "url": "",
+          "created_at": "",
+          "author": ""
+        }
+      },
+      {
+        "chunk_id": 453303365425430725,
+        "text": " as international science  engagement through the  New Frontiers in Research Fund  that allows emerging  researchers to expand their horizons, work across disciplines and borders). \nThere are also tax measures to encourage investment in research and development as  well as marketplace framework policies aimed at creating a competitive environment to  support innovative businesses.  \nTable 1  provi",
+        "score": 0.5029454231262207,
+        "metadata": {
+          "source": "pdf",
+          "source_id": "",
+          "url": "",
+          "created_at": "",
+          "author": ""
+        }
+      },
+      {
+        "chunk_id": 453303365425430714,
+        "text": "Engineering  Research Council  \n\u2022   Social Sciences and Humanities Research  Council  \n\u2022   Canadian Institutes of Health Research  \nFederally funded, arm\u2019s- length organizations \n\u2022   Support research and innovation  technologies \n\u2022   Funding research in specific areas \n\u2022   Genome Canada \n\u2022   Canada Foundation for Innovation \n\u2022   Atomic Energy Canada \nScience-based  departments and  agencies  \n\u2022   ",
+        "score": 0.49313122034072876,
+        "metadata": {
+          "source": "pdf",
+          "source_id": "",
+          "url": "",
+          "created_at": "",
+          "author": ""
+        }
+      },
+      {
+        "chunk_id": 453303365425430721,
+        "text": " \nCanada\u2019s science, technology and innovation ecosystem  Page 2 \n1 Introduction \nCanada has a long history of research excellence and scientific success. The  government continues to build on that foundation through investments in science,  technology and innovation. Canada\u2019s Federal Budget 2024 outlines key ongoing actions  to  boost research, innovation and productivity .  \nCanada\u2019s innovation e",
+        "score": 0.47828108072280884,
+        "metadata": {
+          "source": "pdf",
+          "source_id": "",
+          "url": "",
+          "created_at": "",
+          "author": ""
+        }
+      },
+      {
+        "chunk_id": 453303365425430717,
+        "text": " \nCanada\u2019s science, technology and innovation ecosystem  Page 6 \nDepartment or agency  Budget  Mandate  Research supported \nNatural Sciences and  Engineering Research  Council  (created in  1978): government  agency reports to  Parliament through the  Minister of Science  \nApproximately $1.1  billion per year  \nNSERC's vision is to help make  Canada a country of discoverers and  innovators for the",
+        "score": 0.4726250171661377,
+        "metadata": {
+          "source": "pdf",
+          "source_id": "",
+          "url": "",
+          "created_at": "",
+          "author": ""
+        }
+      },
+      {
+        "chunk_id": 453303365425430695,
+        "text": "ve further innovation  in genomics through  commercialization and  adoption. \nGenome Canada invests in genomics  research in key sectors and fosters  networks of expertise in Canada with  a view to generating economic and  social benefits for Canadians. \n\u2022   Genomics related  R&D   ",
+        "score": 0.46750515699386597,
+        "metadata": {
+          "source": "pdf",
+          "source_id": "",
+          "url": "",
+          "created_at": "",
+          "author": ""
+        }
+      }
+    ]
+  }
+]

@@ -48,7 +48,7 @@ audit:
 	bandit -r $(SOURCE_DIR) -x $(TEST_DIR)
 
 test: run-services
-	pytest $(TEST_DIR) || { echo "Tests failed"; exit 1; }
+	pytest $(ARGS) || { echo "Tests failed"; exit 1; }
 	@trap '$(DOCKER_COMPOSE) down' EXIT; \
 	echo "Waiting for Docker containers to stop..."
 	@while docker ps | grep -q "milvus-standalone"; do sleep 1; done
