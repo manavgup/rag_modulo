@@ -156,7 +156,7 @@ const CollectionForm = () => {
               <Tile className="collection-tile">
                 <h3>{collection.name}</h3>
                 <p>
-                  <Document size={16} /> Files: {collection.document_count || 'N/A'}
+                  <Document size={16} /> Files: {collection.files.length || 'N/A'}
                 </p>
                 <p>Created: {new Date(collection.created_at).toLocaleDateString()}</p>
               </Tile>
