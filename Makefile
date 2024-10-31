@@ -34,7 +34,7 @@ init-env:
 
 # Build
 build-frontend:
-	docker build -t ${PROJECT_NAME}/frontend:${PROJECT_VERSION} -f ./webui/Dockerfile.frontend ./webui
+	docker build -t ${PROJECT_NAME}/frontend:${PROJECT_VERSION} -f ./webui/Dockerfile.frontend --build-arg REACT_APP_API_URL=${REACT_APP_API_URL} --build-arg REACT_APP_OIDC_CLIENT_ID=${IBM_CLIENT_ID}  ./webui
 
 build-backend:
 	docker build -t ${PROJECT_NAME}/backend:${PROJECT_VERSION} -f ./backend/Dockerfile.backend ./backend
