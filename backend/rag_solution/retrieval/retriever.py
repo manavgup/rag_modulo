@@ -1,94 +1,182 @@
-from typing import List, Dict, Any
+import logging
+from typing import List, Dict, Any, Optional
 from abc import ABC, abstractmethod
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
-from vectordbs.utils.watsonx import generate_text
+from vectordbs.utils.watsonx import get_embeddings
 from core.config import settings
+from vectordbs.vector_store import VectorStore
+from vectordbs.data_types import Document, DocumentChunk, QueryResult
+from functools import lru_cache
+from rag_solution.data_ingestion.ingestion import DocumentStore
+
+logger = logging.getLogger(__name__)
 
 class BaseRetriever(ABC):
     @abstractmethod
-    def retrieve(self, query: str, k: int = 10) -> List[Dict[str, Any]]:
+    def retrieve(self, collection_name: str, query: str) -> List[QueryResult]:
+        """
+        Retrieve relevant documents based on the query.
+
+        Args:
+            query (str): The query string.
+            k (int): The number of documents to retrieve.
+
+        Returns:
+            List[QueryResult]: A list of retrieved documents with their relevance scores.
+        """
         pass
 
 class VectorRetriever(BaseRetriever):
-    def __init__(self, vector_store):
-        self.vector_store = vector_store
-        self.model = settings.embedding_model
+    def __init__(self, document_store: DocumentStore):
+        """
+        Initialize the VectorRetriever. In our implementation this just calls the vector database.
 
-    def retrieve(self, query: str, k: int = 10) -> List[Dict[str, Any]]:
-        query_embedding = self.model.encode([query])[0]
-        results = self.vector_store.search(query_embedding, k=k)
-        return [{"id": r.id, "content": r.payload['content'], "score": r.score} for r in results]
+        Args:
+            document_store (DocumentStore): The document store to use for retrieval.
+        """
+        self.document_store = document_store
+
+    def retrieve(self, collection_name: str, query: str, number_of_results: int = 10) -> List[QueryResult]:
+        """
+        Retrieve relevant documents based on the query using vector similarity.
+
+        Args:
+            query (str): The query string.
+            k (int): The number of documents to retrieve.
+
+        Returns:
+            List[QueryResult]: A list of retrieved documents with their relevance scores.
+        """
+        try:
+            results: List[QueryResult] = self.document_store.vector_store.retrieve_documents(query, collection_name, number_of_results)
+            logger.info(f"Received {len(results)} documents for query: {query}")
+            return results
+        except Exception as e:
+            logger.error(f"Error retrieving documents for query '{query}': {e}")
+            raise
 
 class KeywordRetriever(BaseRetriever):
-    def __init__(self, documents: List[Dict[str, Any]]):
-        self.documents = documents
-        self.vectorizer = TfidfVectorizer()
-        self.tfidf_matrix = self.vectorizer.fit_transform([doc['content'] for doc in documents])
+    def __init__(self, document_store: DocumentStore):
+        """
+        Initialize the KeywordRetriever.
 
-    def retrieve(self, query: str, k: int = 10) -> List[Dict[str, Any]]:
-        query_vec = self.vectorizer.transform([query])
-        similarities = cosine_similarity(query_vec, self.tfidf_matrix).flatten()
-        top_k_indices = similarities.argsort()[-k:][::-1]
-        return [
-            {"id": self.documents[i]['id'],
-             "content": self.documents[i]['content'],
-             "score": similarities[i]}
-            for i in top_k_indices
-        ]
+        Args:
+            document_store (DocumentStore): The document store to use for retrieval.
+        """
+        self.document_store = document_store
+        self.vectorizer = TfidfVectorizer()
+        self.tfidf_matrix = None
+        self.documents = None
+
+    def _update_tfidf(self):
+        """
+        Update the TF-IDF matrix with the current set of documents.
+        """
+        self.documents = self.document_store.get_documents()
+        texts = [doc.content for doc in self.documents]
+        self.tfidf_matrix = self.vectorizer.fit_transform(texts)
+
+    def retrieve(self, collection_name: str, query: str, k: int = 10) -> List[QueryResult]:
+        """
+        Retrieve relevant documents based on the query using keyword matching.
+
+        Args:
+            collection_name (str): The name of the collection to retrieve from.
+            query (str): The query string.
+            k (int): The number of documents to retrieve.
+
+        Returns:
+            List[QueryResult]: A list of retrieved documents with their relevance scores.
+        """
+        try:
+            if self.tfidf_matrix is None:
+                self._update_tfidf()
+
+            query_vec = self.vectorizer.transform([query])
+            similarities = cosine_similarity(query_vec, self.tfidf_matrix).flatten()
+            top_k_indices = similarities.argsort()[-k:][::-1]
+            
+            results = [
+                QueryResult(
+                    document=self.documents[i],
+                    score=float(similarities[i])
+                )
+                for i in top_k_indices
+            ]
+            logger.info(f"Retrieved {len(results)} documents for query: {query}")
+            return results
+        except Exception as e:
+            logger.error(f"Error retrieving documents for query '{query}': {e}")
+            raise
 
 class HybridRetriever(BaseRetriever):
-    def __init__(self, vector_store, documents: List[Dict[str, Any]], vector_weight: float = 0.7):
-        self.vector_retriever = VectorRetriever(vector_store)
-        self.keyword_retriever = KeywordRetriever(documents)
+    def __init__(self, document_store: DocumentStore, vector_weight: float = 0.7):
+        """
+        Initialize the HybridRetriever.
+
+        Args:
+            document_store (DocumentStore): The document store to use for retrieval.
+            vector_weight (float): The weight to give to vector-based retrieval results.
+        """
+        self.vector_retriever = VectorRetriever(document_store)
+        self.keyword_retriever = KeywordRetriever(document_store)
         self.vector_weight = vector_weight
 
-    def retrieve(self, query: str, k: int = 10) -> List[Dict[str, Any]]:
-        vector_results = self.vector_retriever.retrieve(query, k=k)
-        keyword_results = self.keyword_retriever.retrieve(query, k=k)
-        
-        # Combine and re-rank results
-        combined_results = {}
-        for result in vector_results + keyword_results:
-            if result['id'] in combined_results:
-                combined_results[result['id']]['score'] += self.vector_weight * result['score']
-            else:
-                combined_results[result['id']] = result
-                combined_results[result['id']]['score'] *= self.vector_weight
+    def retrieve(self, collection_name: str, query: str, k: int = 10) -> List[QueryResult]:
+        """
+        Retrieve relevant documents using both vector-based and keyword-based methods.
 
-        ranked_results = sorted(combined_results.values(), key=lambda x: x['score'], reverse=True)
-        return ranked_results[:k]
+        Args:
+            collection_name (str): The name of the collection to retrieve from.
+            query (str): The query string.
+            k (int): The number of documents to retrieve.
 
-class Retriever:
-    def __init__(self, config: Dict[str, Any], vector_store, documents: List[Dict[str, Any]]):
-        if config.get('use_hybrid', True):
-            self.retriever = HybridRetriever(vector_store, documents, config.get('vector_weight', 0.7))
-        elif config.get('use_vector', True):
-            self.retriever = VectorRetriever(vector_store)
-        else:
-            self.retriever = KeywordRetriever(documents)
+        Returns:
+            List[QueryResult]: A list of retrieved documents with their relevance scores.
+        """
+        try:
+            vector_results = self.vector_retriever.retrieve(collection_name, query, k=k)
+            keyword_results = self.keyword_retriever.retrieve(collection_name, query, k=k)
+            
+            # Combine and re-rank results
+            combined_results = {}
+            for result in vector_results + keyword_results:
+                if result.document.id in combined_results:
+                    combined_results[result.document.id].score += self.vector_weight * result.score
+                else:
+                    combined_results[result.document.id] = result
+                    combined_results[result.document.id].score *= self.vector_weight
 
-    def retrieve(self, query: str, k: int = 10) -> List[Dict[str, Any]]:
-        return self.retriever.retrieve(query, k)
+            ranked_results = sorted(combined_results.values(), key=lambda x: x.score, reverse=True)
+            logger.info(f"Retrieved {len(ranked_results)} documents for query: {query}")
+            return ranked_results[:k]
+        except Exception as e:
+            logger.error(f"Error retrieving documents for query '{query}': {e}")
+            raise
 
 # Example usage
 if __name__ == "__main__":
-    from vectordbs.factory import get_vectorstore
+    from vectordbs.factory import get_datastore
+    from .factories import RetrieverFactory
     
     # Initialize vector store and documents
-    vector_store = get_vectorstore('milvus')  # Or any other supported vector store
+    vector_store = get_datastore('milvus')  # Or any other supported vector store
+    document_store = DocumentStore(vector_store, 'test_collection')
+    config = {'type': 'hybrid', 'vector_weight': 0.7}
+    retriever = RetrieverFactory.create_retriever(config, document_store)
+    
+    # Simulate document ingestion
     documents = [
-        {"id": 1, "content": "Einstein developed the theory of relativity."},
-        {"id": 2, "content": "Newton discovered the laws of motion and universal gravitation."},
-        # Add more documents...
+        Document(id="1", content="The theory of relativity was developed by Albert Einstein."),
+        Document(id="2", content="Quantum mechanics describes the behavior of matter and energy at the atomic scale."),
+        Document(id="3", content="The Big Bang theory explains the origin of the universe.")
     ]
-
-    config = {'use_hybrid': True, 'vector_weight': 0.7}
-    retriever = Retriever(config, vector_store, documents)
+    document_store.add_documents(documents)
     
     query = "Who developed the theory of relativity?"
-    results = retriever.retrieve(query, k=5)
+    results = retriever.retrieve(query, k=2)
     
     for result in results:
-        print(f"ID: {result['id']}, Score: {result['score']}, Content: {result['content']}")
+        print(f"ID: {result.document.id}, Score: {result.score}, Content: {result.document.content[:100]}...")
