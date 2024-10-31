@@ -35,7 +35,17 @@ const SearchInterface = () => {
   const fetchCollections = async () => {
     try {
       const userCollections = await getUserCollections();
-      setCollections([{ id: 'all', name: 'All Collections' }, ...userCollections.data]);
+      const collections =
+        userCollections && userCollections.length > 0
+          ? [
+              { id: "all", name: "All Collections" },
+              ...userCollections.map((collection) => ({
+                id: collection.collection_id,
+                name: collection.name,
+              })),
+            ]
+          : [{ id: "all", name: "All Collections" }];
+      setCollections(collections);
     } catch (error) {
       console.error('Error fetching collections:', error);
       addNotification('error', 'Error', 'Failed to fetch collections. Please try again later.');
@@ -73,8 +83,8 @@ const SearchInterface = () => {
     if (!query) return text;
     const regex = new RegExp(`(${query.split(' ').join('|')})`, 'gi');
     return text.split(regex).map((part, index) => 
-      regex.test(part) ? <mark key={index}>{part}</mark> : part
-    );
+        regex.test(part) ? <mark key={index}>{part}</mark> : part
+      );
   };
 
   return (

@@ -25,7 +25,6 @@ const Dashboard = () => {
     fetchDashboardData();
   }, []);
 
-
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
@@ -96,15 +95,15 @@ const Dashboard = () => {
               {collections?.map((collection) => (
                 <StructuredListRow key={collection.collection_id}>
                   <StructuredListCell key="name">
-                    <Link to={`/collections/${collection.id}`}>
+                    <Link to={`/collections/${collection.collection_id}`}>
                       {collection.name}
                     </Link>
                   </StructuredListCell>
-                  <StructuredListCell key="count" > 
-                    {collection.documentCount}
+                  <StructuredListCell key="count">
+                    {collection.files.length}
                   </StructuredListCell>
                   <StructuredListCell key="lastUpdated">
-                    {new Date(collection.lastUpdated).toLocaleDateString()}
+                    {new Date(collection.updated_at).toLocaleDateString()}
                   </StructuredListCell>
                 </StructuredListRow>
               ))}
