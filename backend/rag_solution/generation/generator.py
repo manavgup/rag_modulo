@@ -1,53 +1,209 @@
+from typing import List, Dict, Any, Optional, Generator as TypeGenerator
+from vectordbs.utils.watsonx import generate_text, generate_text_stream
+from backend.core.config import settings
+
 import os
-from abc import ABC, abstractmethod
-from typing import Dict, Any, List
-from dotenv import load_dotenv
-from vectordbs.utils.watsonx import generate_text
+import json
+import logging
+import re
 
-load_dotenv()
+logger = logging.getLogger(__name__)
 
-class BaseGenerator(ABC):
-    @abstractmethod
-    def generate(self, query: str, documents: List[Dict[str, Any]]) -> str:
-        pass
+class PromptTemplate:
+    def __init__(self, config: Dict[str, str]):
+        self.system_prompt = config['system_prompt']
+        self.context_prefix = config['context_prefix']
+        self.query_prefix = config['query_prefix']
+        self.answer_prefix = config['answer_prefix']
 
-class HuggingFaceGenerator(BaseGenerator):
-    def __init__(self, model_name: str = "gpt2"):
-        from transformers import pipeline
-        self.generator = pipeline("text-generation", model=model_name)
+    def format(self, query: str, context: str) -> str:
+        return f"{self.system_prompt}\n\n{self.context_prefix}\n{context}\n\n{self.query_prefix}\n{query}\n\n{self.answer_prefix}"
 
-    def generate(self, query: str, documents: List[Dict[str, Any]]) -> str:
-        context = " ".join([doc['content'] for doc in documents])
-        prompt = f"Query: {query}\nContext: {context}\nAnswer:"
-        response = self.generator(prompt, max_length=150, num_return_sequences=1)[0]['generated_text']
-        return response.split("Answer:")[1].strip()
+class BaseGenerator:
+    def __init__(self, config: Dict[str, Any]):
+        self.config = config
+        self.prompt_template = self._load_prompt_template()
+        self.max_tokens = self.config.get('max_tokens', 2048)
+
+    def _load_prompt_template(self) -> PromptTemplate:
+        prompt_config_path = 'backend/rag_solution/config/prompt_config.json'
+        try:
+            with open(prompt_config_path, 'r') as f:
+                prompt_config = json.load(f)
+            
+            logger.info(f"Config in BaseGenerator: {self.config}")
+            logger.info(f"Prompt type: {self.config.get('type')}")
+
+            prompt_type = self.config.get('type')
+            if prompt_type not in prompt_config:
+                raise ValueError(f"Invalid prompt type: {prompt_type}")
+
+            return PromptTemplate(prompt_config[self.config['type']])
+        except (FileNotFoundError, KeyError) as e:
+            logger.error(f"Error loading prompt template: {e}")
+            raise ValueError(f"Error loading prompt template: {e}")
+
+    def approximate_token_count(self, text: str) -> int:
+        # This is a simple approximation. Adjust as needed for your specific use case.
+        return len(re.findall(r'\w+', text))
+
+    def truncate_context(self, context: str, query: str) -> str:
+        query_tokens = self.approximate_token_count(query)
+        prompt_template_tokens = self.approximate_token_count(self.prompt_template.format("", ""))
+        available_tokens = self.max_tokens - query_tokens - prompt_template_tokens - 50  # Reserve some tokens for safety
+
+        context_words = context.split()
+        if len(context_words) > available_tokens:
+            truncated_context = ' '.join(context_words[:available_tokens])
+            logger.info(f"Context truncated from {len(context_words)} to {available_tokens} tokens")
+            return truncated_context
+        return context
+
+    def generate(self, query: str, context: str, **kwargs) -> str:
+        raise NotImplementedError
+
+    def generate_stream(self, query: str, context: str, **kwargs) -> TypeGenerator[str, None, None]:
+        raise NotImplementedError
 
 class WatsonxGenerator(BaseGenerator):
-    def generate(self, query: str, documents: List[Dict[str, Any]]) -> str:
-        context = " ".join([doc['content'] for doc in documents])
-        prompt = f"Query: {query}\nContext: {context}\nAnswer:"
-        response = generate_text(prompt)
-        return response
-
-class Generator:
     def __init__(self, config: Dict[str, Any]):
-        generator_type = config.get('type', 'huggingface')
-        if generator_type == 'huggingface':
-            model_name = config.get('model_name', 'gpt2')
-            self.generator = HuggingFaceGenerator(model_name)
-        elif generator_type == 'watsonx':
-            self.generator = WatsonxGenerator()
-        else:
-            raise ValueError(f"Unsupported generator type: {generator_type}")
+        if not isinstance(config, dict):
+            raise TypeError(f"Expected config to be a dictionary, but got {type(config).__name__}")
+        
+        super().__init__(config)
+        self.model_name = config.get('model_name', settings.rag_llm)
 
-    def generate(self, query: str, documents: List[Dict[str, Any]]) -> str:
-        return self.generator.generate(query, documents)
+    def generate(self, query: str, context: str, **kwargs) -> str:
+        logger.info(f"Query: {query[:100]}")
+        logger.info(f"Original context length: {len(context)}")
+        
+        truncated_context = self.truncate_context(context, query)
+        logger.info(f"Truncated context length: {len(truncated_context)}")
+        
+        prompt = self.prompt_template.format(query=query, context=truncated_context)
+        prompt_tokens = self.approximate_token_count(prompt)
+        logger.info(f"Prompt created with approximately {prompt_tokens} tokens")
+
+        try:
+            response = generate_text(prompt)
+            return response
+        except Exception as e:
+            logger.error(f"Error generating text: {e}")
+            raise
+
+    def generate_stream(self, query: str, context: str, **kwargs) -> TypeGenerator[str, None, None]:
+        truncated_context = self.truncate_context(context, query)
+        prompt = self.prompt_template.format(query=query, context=truncated_context)
+        try:
+            for chunk in generate_text_stream(self.model_name, prompt, **kwargs):
+                yield chunk
+        except Exception as e:
+            logger.error(f"Error generating text stream: {e}")
+            raise
+
+class OpenAIGenerator(BaseGenerator):
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(config)
+        self.model_name = config.get('model_name', 'gpt-3.5-turbo')
+        import openai
+        openai.api_key = os.getenv("OPENAI_API_KEY")
+
+    def generate(self, query: str, context: str, **kwargs) -> str:
+        import openai
+        truncated_context = self.truncate_context(context, query)
+        prompt = self.prompt_template.format(query=query, context=truncated_context)
+        try:
+            response = openai.ChatCompletion.create(
+                model=self.model_name,
+                messages=[
+                    {"role": "system", "content": self.prompt_template.system_prompt},
+                    {"role": "user", "content": prompt}
+                ],
+                **kwargs
+            )
+            return response.choices[0].message['content'].strip()
+        except Exception as e:
+            logger.error(f"Error generating text with OpenAI: {e}")
+            raise
+
+    def generate_stream(self, query: str, context: str, **kwargs) -> TypeGenerator[str, None, None]:
+        import openai
+        truncated_context = self.truncate_context(context, query)
+        prompt = self.prompt_template.format(query=query, context=truncated_context)
+        try:
+            stream = openai.ChatCompletion.create(
+                model=self.model_name,
+                messages=[
+                    {"role": "system", "content": self.prompt_template.system_prompt},
+                    {"role": "user", "content": prompt}
+                ],
+                stream=True,
+                **kwargs
+            )
+            for chunk in stream:
+                if chunk.choices[0].delta.get("content"):
+                    yield chunk.choices[0].delta.content
+        except Exception as e:
+            logger.error(f"Error generating text stream with OpenAI: {e}")
+            raise
+
+class AnthropicGenerator(BaseGenerator):
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(config)
+        self.model_name = config.get('model_name', 'claude-2')
+        import anthropic
+        self.client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+
+    def generate(self, query: str, context: str, **kwargs) -> str:
+        truncated_context = self.truncate_context(context, query)
+        prompt = self.prompt_template.format(query=query, context=truncated_context)
+        try:
+            response = self.client.completions.create(
+                model=self.model_name,
+                prompt=f"{anthropic.HUMAN_PROMPT} {prompt}{anthropic.AI_PROMPT}",
+                **kwargs
+            )
+            return response.completion
+        except Exception as e:
+            logger.error(f"Error generating text with Anthropic: {e}")
+            raise
+
+    def generate_stream(self, query: str, context: str, **kwargs) -> TypeGenerator[str, None, None]:
+        truncated_context = self.truncate_context(context, query)
+        prompt = self.prompt_template.format(query=query, context=truncated_context)
+        try:
+            stream = self.client.completions.create(
+                model=self.model_name,
+                prompt=f"{anthropic.HUMAN_PROMPT} {prompt}{anthropic.AI_PROMPT}",
+                stream=True,
+                **kwargs
+            )
+            for completion in stream:
+                yield completion.completion
+        except Exception as e:
+            logger.error(f"Error generating text stream with Anthropic: {e}")
+            raise
 
 # Example usage
 if __name__ == "__main__":
-    config = {'type': 'huggingface', 'model_name': 'gpt2'}
-    generator = Generator(config)
+    config = {
+        'type': 'watsonx',
+        'model_name': 'flan-t5-xl',
+        'max_tokens': 2048,
+        'default_params': {
+            'max_new_tokens': 100,
+            'temperature': 0.7
+        }
+    }
+    generator = WatsonxGenerator(config)
     query = "Explain the theory of relativity in simple terms."
-    documents = [{"content": "Einstein's theory of relativity deals with space and time."}]
-    response = generator.generate(query, documents)
+    context = "Einstein's theory of relativity deals with space and time. It revolutionized our understanding of the universe."
+    
+    print("Non-streaming response:")
+    response = generator.generate(query, context)
     print(response)
+    
+    print("\nStreaming response:")
+    for chunk in generator.generate_stream(query, context):
+        print(chunk, end='', flush=True)
+    print()

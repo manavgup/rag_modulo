@@ -32,9 +32,11 @@ class SimpleQueryRewriter(BaseQueryRewriter):
     def rewrite(self, query: str, context: Optional[Dict[str, Any]] = None) -> str:
         logger.info(f"Applying simple query expansion to: {query}")
         try:
-            expanded_query = f"{query} AND (relevant OR important OR key)"
-            logger.info(f"Expanded query: {expanded_query}")
-            return expanded_query
+            if "AND (relevant OR important OR key)" not in query:
+                expanded_query = f"{query} AND (relevant OR important OR key)"
+                logger.info(f"Expanded query: {expanded_query}")
+                return expanded_query
+            return query
         except Exception as e:
             logger.error(f"Error in SimpleQueryRewriter: {str(e)}")
             raise RewriterError(f"SimpleQueryRewriter failed: {str(e)}")
