@@ -1,6 +1,6 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import Iterable, Dict, Any
+from typing import Iterable, Dict, Any, AsyncIterable
 import os
 from datetime import datetime
 from core.config import settings
@@ -47,7 +47,7 @@ class BaseProcessor(ABC):
         }
 
     @abstractmethod
-    def process(self, file_path: str) -> Iterable[Document]:
+    async def process(self, file_path: str) -> AsyncIterable[Document]:
         """
         Abstract method to process a file and yield documents.
 
