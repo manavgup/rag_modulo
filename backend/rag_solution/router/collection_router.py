@@ -1,4 +1,4 @@
-import uuid
+from uuid import UUID
 from typing import List
 
 from fastapi import APIRouter, BackgroundTasks, Depends, UploadFile, Form, File, Request, HTTPException
@@ -58,6 +58,7 @@ def create_collection_with_documents(
     request: Request,
     collection_name: str = Form(...),
     is_private: bool = Form(...),
+    user_id: UUID = Form(...),
     files: List[UploadFile] = File(...),
     background_tasks: BackgroundTasks = BackgroundTasks(),
     db: Session = Depends(get_db),
@@ -76,10 +77,9 @@ def create_collection_with_documents(
     Returns:
         CollectionOutput: The created collection with documents.
     """
-    user_id = request.session.get("user_id")
-    if not user_id:
-        logger.warning("User not authenticated in create_collection_with_documents")
-        raise HTTPException(status_code=401, detail="User not authenticated")
+
+    if not hasattr(request.state, 'user') or request.state.user['uuid'] != str(user_id):
+        raise HTTPException(status_code=403, detail="Not authorized to access this resource")
 
     try:
         collection_service = CollectionService(db)
