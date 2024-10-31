@@ -160,7 +160,7 @@ async def get_current_user_id(request: Request):
         HTTPException: If the user is not authenticated.
     """
     logger.info("In user_router.get_current_user_id")
-    user_id = request.session.get('user_id')
+    user_id = request.state.user['uuid']
     if user_id:
         logger.info(f"Found User ID: {user_id}")
         return {"id": user_id}
