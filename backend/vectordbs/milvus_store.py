@@ -15,6 +15,8 @@ from .data_types import (Document, DocumentChunk, DocumentChunkMetadata,
                          Embeddings, QueryResult, QueryWithEmbedding, Source)
 from .error_types import CollectionError, DocumentError, VectorStoreError
 from .vector_store import VectorStore
+import logging
+logger = logging.getLogger(__name__)
 
 MILVUS_COLLECTION = settings.collection_name
 MILVUS_HOST = settings.milvus_host
@@ -67,12 +69,13 @@ class MilvusStore(VectorStore):
                     port=port
                 )
                 logging.info(f"Connected to Milvus at {host}:{port}")
+                return
             except MilvusException as e:
                 logging.error(f"Failed to connect to Milvus at {host}:{port}: {e}")
                 if attempt < attempts - 1:
                     logging.info(f"Retrying connection to Milvus... (Attempt {attempt + 2}/{attempts})")
                     time.sleep(10)  # Add a delay between retries
-                raise VectorStoreError(f"Failed to connect to Milvus at {host}:{port}: {e}")
+                raise VectorStoreError(f"Failed to connect to Milvus at {host}:{port} after {attempts} attempts")
 
     def _get_collection(self, collection_name: str) -> Collection:
         """
@@ -172,10 +175,10 @@ class MilvusStore(VectorStore):
                             "author": chunk.metadata.author if chunk.metadata else "",
                         }
                     )
-            logging.info(f"Inserting text: : {chunk.text}")
+            # logging.info(f"Inserting text: : {chunk.text}")
             collection.insert(data)
             collection.load()
-            logging.info(f"Successfully added documents to collection {collection_name}")
+            # logging.info(f"Successfully added documents to collection {collection_name}")
             return [doc.document_id for doc in documents]
         except MilvusException as e:
             logging.error(f"Failed to add documents to collection {collection_name}: {e}", exc_info=True)
@@ -206,6 +209,7 @@ class MilvusStore(VectorStore):
         query_embeddings = QueryWithEmbedding(text=query, vectors=embeddings)
 
         try:
+            logger.info(f"Retrieving for query: {query}")
             search_params = {"metric_type": "IP", "params": {"nprobe": 10}}
             search_results = collection.search(
                 data=[query_embeddings.vectors],
@@ -327,6 +331,17 @@ class MilvusStore(VectorStore):
                 anns_field=EMBEDDING_FIELD,
                 param=search_params,
                 limit=number_of_results,
+                output_fields=[
+                    "chunk_id",
+                    "text",
+                    "document_id",
+                    "embedding",
+                    "source",
+                    "source_id",
+                    "url",
+                    "created_at",
+                    "author",
+                ],
             )
             return self._process_search_results(result)
         except MilvusException as e:
@@ -368,28 +383,35 @@ class MilvusStore(VectorStore):
             List[QueryResult]: The list of query results.
         """
         if not results:
+            logger.info("No search results. Returning empty list.")
             return [QueryResult(data=[], similarities=[[]], ids=[])]
 
-        chunks_with_scores = []
-        similarities = []
-        ids = []
+        query_results: List[QueryResult] = []
         for result in results:
+            chunks_with_scores: List[DocumentChunkWithScore] = []
+            similarities: List[float] = []
+            ids: List[str] = []
             for hit in result:
-                chunks_with_scores.append(
-                    DocumentChunkWithScore(
-                        chunk_id=hit.entity.get("chunk_id"),
-                        text=hit.entity.get("text"),
-                        vectors=hit.entity.get("embedding"),
-                        metadata=DocumentChunkMetadata(
-                            source=(Source(hit.entity.get("source")) if hit.entity.get("source") else Source.OTHER),
-                            source_id=(hit.entity.get("source_id") if hit.entity.get("source_id") else ""),
-                            url=hit.entity.get("url") if hit.entity.get("url") else "",
-                            created_at=(hit.entity.get("created_at") if hit.entity.get("created_at") else ""),
-                            author=(hit.entity.get("author") if hit.entity.get("author") else ""),
-                        ),
-                        score=hit.distance,
-                    )
+                #logger.info(f"Processing hit: {hit}")
+                chunk = DocumentChunkWithScore(
+                    chunk_id=hit.id,
+                    text=hit.entity.get("text") or "",  # Use empty string if text is None
+                    vectors=hit.entity.get("embedding"),
+                    metadata=DocumentChunkMetadata(
+                        source=Source(hit.entity.get("source")) if hit.entity.get("source") else Source.OTHER,
+                        source_id=hit.entity.get("source_id"),
+                        url=hit.entity.get("url"),
+                        created_at=hit.entity.get("created_at"),
+                        author=hit.entity.get("author"),
+                    ),
+                    score=hit.distance,
+                    document_id=hit.entity.get("document_id")
                 )
-                ids.append(hit.entity.get("chunk_id"))
-            similarities.append(result.distances)
-        return [QueryResult(data=chunks_with_scores, similarities=similarities, ids=ids)]
+                chunks_with_scores.append(chunk)
+                ids.append(hit.id)
+                similarities.append(hit.distance)
+            
+            query_results.append(QueryResult(data=chunks_with_scores, similarities=[similarities], ids=ids))
+        
+        logger.info(f"Returning {len(query_results)} QueryResult objects")
+        return query_results

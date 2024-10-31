@@ -1,4 +1,3 @@
-# config.py
 import tempfile
 from typing import Optional
 
@@ -34,11 +33,19 @@ class Settings(BaseSettings):
     embedding_field: Optional[str] = None
     upsert_batch_size: Optional[int] = None
 
+    # LLM settings
+    rag_llm: str = Field(..., env='RAG_LLM')
+    max_new_tokens: int = Field(..., env='MAX_NEW_TOKENS')
+    min_new_tokens: int = Field(..., env='MIN_NEW_TOKENS')
+    random_seed: int = Field(..., env='RANDOM_SEED')
+    top_k: int = Field(..., env='TOP_K')
+    temperature: float = Field(..., env='TEMPERATURE')
+
     # Frontend settings
     react_app_api_url: str
 
     # Logging Level
-    log_level: Optional[str] = "INFO"
+    log_level: Optional[str] = None
 
     # File storage path
     file_storage_path: str = tempfile.gettempdir()
@@ -100,14 +107,13 @@ class Settings(BaseSettings):
     oidc_token_url: Optional[str] = None
     frontend_url: Optional[str] = None
     oidc_userinfo_endpoint: Optional[str] = None
-    oidc_userinfo_endpoint: Optional[str] = None
     oidc_introspection_endpoint: Optional[str] = None
 
     # JWT settings
     jwt_secret_key: str = Field(..., env='JWT_SECRET_KEY')
     jwt_algorithm: str = "HS256"
     frontend_callback: str = "/callback"
-
+    
     # Role settings
     # This is a sample RBAC mapping role / url_patterns / http_methods
     rbac_mapping: dict = {
@@ -132,7 +138,6 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
-
 
 settings = Settings(
     react_app_api_url="http://localhost:3000",

@@ -16,6 +16,16 @@ class Document:
     path: Optional[str] = ""
     metadata: Optional[DocumentChunkMetadata] = None  # New field
 
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Document:
+        return cls(
+            name=data["name"],
+            document_id=data["document_id"],
+            chunks=[DocumentChunk.from_dict(chunk) for chunk in data["chunks"]],
+            path=data.get("path", ""),
+            metadata=DocumentChunkMetadata.from_dict(data["metadata"]) if data.get("metadata") else None
+        )
+
 
 @dataclass
 class DocumentChunk:
@@ -27,9 +37,22 @@ class DocumentChunk:
 
     def dict(self) -> dict[str, Any]:
         return {
+            "chunk_id": self.chunk_id,
             "text": self.text,
-            "metadata": self.metadata.__dict__ if self.metadata else None
+            "vectors": self.vectors,
+            "metadata": self.metadata.__dict__ if self.metadata else None,
+            "document_id": self.document_id
         }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> DocumentChunk:
+        return cls(
+            chunk_id=data["chunk_id"],
+            text=data["text"],
+            vectors=data.get("vectors"),
+            metadata=DocumentChunkMetadata.from_dict(data["metadata"]) if data.get("metadata") else None,
+            document_id=data.get("document_id")
+        )
 
 
 @dataclass
@@ -51,6 +74,28 @@ class DocumentChunkMetadata:
     content_type: Optional[str] = None
     table_index: Optional[int] = None
     image_index: Optional[int] = None
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> DocumentChunkMetadata:
+        return cls(
+            source=Source(data["source"]),
+            source_id=data.get("source_id"),
+            url=data.get("url"),
+            created_at=data.get("created_at"),
+            author=data.get("author"),
+            title=data.get("title"),
+            subject=data.get("subject"),
+            keywords=data.get("keywords"),
+            creator=data.get("creator"),
+            producer=data.get("producer"),
+            creationDate=data.get("creationDate"),
+            modDate=data.get("modDate"),
+            total_pages=data.get("total_pages"),
+            page_number=data.get("page_number"),
+            content_type=data.get("content_type"),
+            table_index=data.get("table_index"),
+            image_index=data.get("image_index")
+        )
 
 
 @dataclass
