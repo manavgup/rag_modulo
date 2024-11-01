@@ -64,22 +64,21 @@ const Collections = () => {
     try {
       const collections = (await getUserCollections())?.collections;
       console.log(collections);
-      // setUserCollections(Array.isArray(collections) ? collections : []);
 
-      // datatable requires a field called id
-      const updatedKeys = collections.map(({ collection_id: id, ...rest }) => ({
-        id,
-        ...rest,
-      }));
+      if (collections && collections.length > 0 ) {
+        // data table requires a field called id
+        const updatedKeys = collections.map(({ collection_id: id, ...rest }) => ({
+          id,
+          ...rest,
+        }));
 
-      // change other types fields to string
-      const updatedValues = updatedKeys.map((obj) => {
-        return obj.is_private
-          ? { ...obj, is_private: "true" }
-          : { ...obj, is_private: "false" };
-      });
-      setUserCollections(Array.isArray(updatedValues) ? updatedValues : []);
-      setTableDataRows(updatedValues.slice(0, 5));
+        setUserCollections(updatedKeys);
+        setTableDataRows(updatedKeys.slice(0, 5));
+      } else {
+        setUserCollections([]);
+        setTableDataRows([]);
+      }
+
     } catch (error) {
       console.error("Error fetching user collections:", error);
       setErrorMessage(
@@ -185,7 +184,7 @@ const Collections = () => {
                         >
                           {row.cells.map((cell) => (
                             <>
-                              <TableCell key={cell.id}>{cell.value}</TableCell>
+                              <TableCell key={cell.id}>{typeof cell.value === 'boolean' ? (cell.value ? 'Yes' : 'No') : cell.value}</TableCell>
                             </>
                           ))}
                           <TableCell
@@ -239,7 +238,7 @@ const Collections = () => {
           <Column>
             <div className="view-detail-label">ID:</div>
             <div className="view-detail-text">
-              {selectedCollection?.collection_id}
+              {selectedCollection?.id}
             </div>
           </Column>
         </Row>
