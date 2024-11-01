@@ -29,15 +29,10 @@ const Dashboard = () => {
     setLoading(true);
     try {
       const collectionsData = await getUserCollections();
-      // console.log("Fetched collections data:", collectionsData.collections);
       setCollections(collectionsData.collections);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
-      addNotification(
-        "error",
-        "Error",
-        "Failed to load dashboard data. Please try again later."
-      );
+      addNotification("error", "Error", "Failed to load dashboard data. Please try again later.");
       setCollections([]);
     } finally {
       setLoading(false);
@@ -46,15 +41,6 @@ const Dashboard = () => {
 
   if (loading) {
     return <Loading description="Loading dashboard" />;
-  }
-
-  if (collections?.length === 0) {
-    return (
-      <div className="dashboard">
-        <h1>Welcome to IBM RAG Solution</h1>
-        <p>No collections found. Start by creating a new collection.</p>
-      </div>
-    );
   }
 
   return (
@@ -81,37 +67,38 @@ const Dashboard = () => {
             </ClickableTile>
           </div>
         </Tile>
+        
         <Tile className="dashboard-section" key="recent-collections">
-          <h3>Recent Collections</h3>
-          <StructuredListWrapper aria-label="Recent collections" key="sList">
-            <StructuredListHead key="hHead">
-              <StructuredListRow key="hHeadRow" head >
-                <StructuredListCell key="hName" head>Name</StructuredListCell>
-                <StructuredListCell key="hCount" head>Documents</StructuredListCell>
-                <StructuredListCell key="hLastUpdated" head>Last Updated</StructuredListCell>
-              </StructuredListRow>
-            </StructuredListHead>
-            <StructuredListBody key="bRow">
-              {collections?.map((collection) => (
-                <StructuredListRow key={collection.collection_id}>
-                  <StructuredListCell key="name">
-                    <Link to={`/collections/${collection.collection_id}`}>
-                      {collection.name}
-                    </Link>
-                  </StructuredListCell>
-                  <StructuredListCell key="count">
-                    {collection.files.length}
-                  </StructuredListCell>
-                  <StructuredListCell key="lastUpdated">
-                    {new Date(collection.updated_at).toLocaleDateString()}
-                  </StructuredListCell>
+            <h3>Recent Collections</h3>
+            <StructuredListWrapper aria-label="Recent collections" key="sList">
+              <StructuredListHead key="hHead">
+                <StructuredListRow key="hHeadRow" head >
+                  <StructuredListCell key="hName" head>Name</StructuredListCell>
+                  <StructuredListCell key="hCount" head>Documents</StructuredListCell>
+                  <StructuredListCell key="hLastUpdated" head>Last Updated</StructuredListCell>
                 </StructuredListRow>
-              ))}
-            </StructuredListBody>
-          </StructuredListWrapper>
-          <Link to="/collections" className="view-all-link">
-            <Button kind="ghost">View all collections</Button>
-          </Link>
+              </StructuredListHead>
+              <StructuredListBody key="bRow">
+                {collections?.map((collection) => (
+                  <StructuredListRow key={collection.collection_id}>
+                    <StructuredListCell key="name">
+                      <Link to={`/collections/${collection.collection_id}`}>
+                        {collection.name}
+                      </Link>
+                    </StructuredListCell>
+                    <StructuredListCell key="count">
+                      {collection.files.length}
+                    </StructuredListCell>
+                    <StructuredListCell key="lastUpdated">
+                      {new Date(collection.updated_at).toLocaleDateString()}
+                    </StructuredListCell>
+                  </StructuredListRow>
+                ))}
+              </StructuredListBody>
+            </StructuredListWrapper>
+            <Link to="/collections" className="view-all-link">
+              <Button kind="ghost">View all collections</Button>
+            </Link>
         </Tile>
       </div>
     </div>
