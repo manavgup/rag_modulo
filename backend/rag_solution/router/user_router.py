@@ -1,12 +1,22 @@
-from typing import List, Dict
+from typing import List, Dict, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
 from sqlalchemy.orm import Session
 
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.user_schema import UserInput, UserOutput
 from rag_solution.services.user_service import UserService
+from rag_solution.services.user_collection_service import UserCollectionService
+from rag_solution.services.user_collection_interaction_service import UserCollectionInteractionService
+from rag_solution.services.file_management_service import FileManagementService
+from rag_solution.schemas.user_collection_schema import UserCollectionOutput, UserCollectionsOutput
+from rag_solution.schemas.file_schema import DocumentDelete, FileOutput, FileMetadata
+from rag_solution.services.user_team_service import UserTeamService
+from rag_solution.schemas.user_team_schema import UserTeamOutput
+
+from core.authorization import authorize_decorator
+
 import logging
 
 logging.basicConfig(level=logging.ERROR)
@@ -14,7 +24,31 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 
-@router.post("/", 
+@router.get("", 
+    response_model=List[UserOutput],
+    summary="List all users",
+    description="Retrieve a list of all users with pagination",
+    responses={
+        200: {"description": "Users retrieved successfully"},
+        500: {"description": "Internal server error"}
+    }
+)
+def list_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)) -> List[UserOutput]:
+    """
+    List users with pagination.
+
+    Args:
+        skip (int, optional): The number of users to skip. Defaults to 0.
+        limit (int, optional): The maximum number of users to return. Defaults to 100.
+        db (Session): The database session.
+
+    Returns:
+        List[UserOutput]: A list of users.
+    """
+    user_service = UserService(db)
+    return user_service.list_users(skip, limit)
+
+@router.post("", 
     response_model=UserOutput,
     summary="Create a new user",
     description="Create a new user with the provided input data",
@@ -112,57 +146,125 @@ def delete_user(user_id: UUID, db: Session = Depends(get_db)) -> bool:
     user_service = UserService(db)
     return user_service.delete_user(user_id)
 
-@router.get("/", 
-    response_model=List[UserOutput],
-    summary="List all users",
-    description="Retrieve a list of all users with pagination",
+@router.get("/{user_id}/collections", 
+    response_model=UserCollectionsOutput,
+    summary="Get user collections",
+    description="Get all collections associated with a user",
     responses={
-        200: {"description": "Users retrieved successfully"},
+        200: {"description": "Successfully retrieved user collections"},
+        404: {"description": "User not found"},
         500: {"description": "Internal server error"}
     }
 )
-def list_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)) -> List[UserOutput]:
+
+@authorize_decorator(role="admin")
+async def get_user_collections(user_id: UUID, request: Request, db: Session = Depends(get_db)):
+    if not hasattr(request.state, 'user') or request.state.user['uuid'] != str(user_id):
+        raise HTTPException(status_code=403, detail="Not authorized to access this resource")
+    
+    service = UserCollectionInteractionService(db)
+    try:
+        collections = service.get_user_collections_with_files(user_id)
+        return collections
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred while fetching user collections: {str(e)}"
+        )
+
+@router.post("/{user_id}/collections/{collection_id}", 
+    response_model=bool,
+    summary="Add user to collection",
+    description="Add a user to a specific collection",
+    responses={
+        200: {"description": "User successfully added to collection"},
+        404: {"description": "User or collection not found"},
+        500: {"description": "Internal server error"}
+    }
+)
+def add_user_to_collection(user_id: UUID, collection_id: UUID, db: Session = Depends(get_db)):
+    service = UserCollectionService(db)
+    return service.add_user_to_collection(user_id, collection_id)
+
+@router.delete("/{user_id}/collections/{collection_id}", 
+    response_model=bool,
+    summary="Remove user from collection",
+    description="Remove a user from a specific collection",
+    responses={
+        200: {"description": "User successfully removed from collection"},
+        404: {"description": "User or collection not found"},
+        500: {"description": "Internal server error"}
+    }
+)
+def remove_user_from_collection(user_id: UUID, collection_id: UUID, db: Session = Depends(get_db)):
+    service = UserCollectionService(db)
+    return service.remove_user_from_collection(user_id, collection_id)
+
+@router.post("/{user_id}/collections/{collection_id}/files", 
+    response_model=FileOutput,
+    summary="Upload a file",
+    description="Upload a file to a specific collection for a user",
+    responses={
+        200: {"description": "File uploaded successfully"},
+        400: {"description": "Invalid input"},
+        404: {"description": "User or collection not found"},
+        500: {"description": "Internal server error"}
+    }
+)
+def upload_file(user_id: UUID, collection_id: UUID, file: UploadFile, metadata: Optional[FileMetadata] = None, db: Session = Depends(get_db)):
     """
-    List users with pagination.
+    Upload a file to a specific collection for a user.
 
     Args:
-        skip (int, optional): The number of users to skip. Defaults to 0.
-        limit (int, optional): The maximum number of users to return. Defaults to 100.
+        user_id (UUID): The ID of the user uploading the file.
+        collection_id (UUID): The ID of the collection to upload the file to.
+        file (UploadFile): The file to be uploaded.
         db (Session): The database session.
 
     Returns:
-        List[UserOutput]: A list of users.
+        FileOutput: The uploaded file information.
     """
-    user_service = UserService(db)
-    return user_service.list_users(skip, limit)
+    _file_service = FileManagementService(db)
+    return _file_service.upload_and_create_file_record(file, user_id, collection_id, metadata)
 
-@router.get("/current", 
-    response_model=Dict[str, str],
-    summary="Get current user's ID",
-    description="Retrieve the ID of the currently authenticated user from the session",
+@router.get("/{user_id}/teams", 
+    response_model=List[UserTeamOutput],
+    summary="Get user teams",
+    description="Get all teams associated with a user",
     responses={
-        200: {"description": "User ID retrieved successfully"},
-        401: {"description": "User not authenticated"},
+        200: {"description": "Successfully retrieved user teams"},
+        404: {"description": "User not found"},
         500: {"description": "Internal server error"}
     }
 )
-async def get_current_user_id(request: Request):
-    """
-    Get the ID of the currently authenticated user.
+def get_user_teams(user_id: UUID, db: Session = Depends(get_db)):
+    service = UserTeamService(db)
+    return service.get_user_teams(user_id)
 
-    Args:
-        request (Request): The incoming request object.
+@router.post("/{user_id}/teams/{team_id}", 
+    response_model=bool,
+    summary="Add user to team",
+    description="Add a user to a specific team",
+    responses={
+        200: {"description": "User successfully added to team"},
+        404: {"description": "User or team not found"},
+        500: {"description": "Internal server error"}
+    }
+)
+def add_user_to_team(user_id: UUID, team_id: UUID, db: Session = Depends(get_db)):
+    service = UserTeamService(db)
+    return service.add_user_to_team(user_id, team_id)
 
-    Returns:
-        Dict[str, str]: A dictionary containing the user's ID.
-
-    Raises:
-        HTTPException: If the user is not authenticated.
-    """
-    logger.info("In user_router.get_current_user_id")
-    user_id = request.state.user['uuid']
-    if user_id:
-        logger.info(f"Found User ID: {user_id}")
-        return {"id": user_id}
-    else:
-        raise HTTPException(status_code=401, detail="User not authenticated")
+@router.delete("/{user_id}/teams/{team_id}", 
+    response_model=bool,
+    summary="Remove user from team",
+    description="Remove a user from a specific team",
+    responses={
+        200: {"description": "User successfully removed from team"},
+        404: {"description": "User or team not found"},
+        500: {"description": "Internal server error"}
+    }
+)
+def remove_user_from_team(user_id: UUID, team_id: UUID, db: Session = Depends(get_db)):
+    service = UserTeamService(db)
+    return service.remove_user_from_team(user_id, team_id)
