@@ -43,7 +43,5 @@ class FileOutput(BaseModel):
     file_type: Optional[str] = None
     metadata: Optional[FileMetadata] = None
 
-class DocumentDelete(BaseModel):
-    user_id: UUID
-    collection_id: UUID
+class DocumentDelete(BaseModel):    
     filenames: List[str]

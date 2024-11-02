@@ -9,7 +9,7 @@ from rag_solution.file_management.database import get_db
 from vectordbs.factory import get_datastore
 from core.config import settings
 
-router = APIRouter(prefix="/api")  # Add a prefix to avoid conflicts
+router = APIRouter(prefix="/api", tags=["health"])  # Add a prefix to avoid conflicts
 
 def check_vectordb():
     """

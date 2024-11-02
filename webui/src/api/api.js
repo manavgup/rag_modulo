@@ -74,7 +74,7 @@ const handleApiError = (error, customErrorMessage) => {
 
 export const createCollectionWithDocuments = async (formData, onUploadProgress) => {
   try {
-    const url = API_ROUTES.CREATE_COLLECTION;
+    const url = API_ROUTES.CREATE_COLLECTION_WITH_FILES;
     console.log('Creating collection with documents:', getFullApiUrl(url));
     const response = await api.post(url, formData, {
       headers: {
@@ -95,7 +95,7 @@ export const getUserCollections = async () => {
       throw new Error('User UUID not available');
     }
 
-    const url = `${API_ROUTES.GET_USER_COLLECTIONS}/${userData.uuid}`;
+    const url = `${API_ROUTES.USERS_ENDPOINT}/${userData.uuid}/collections`;
     console.log('Fetching user collections:', getFullApiUrl(url));
     const response = await api.get(url);
     console.log('User collections fetched successfully', response.data);
@@ -109,7 +109,7 @@ export const getUserCollections = async () => {
 
 export const updateCollection = async (collectionId, data) => {
   try {
-    const url = `${API_ROUTES.UPDATE_COLLECTION}${collectionId}`;
+    const url = `${API_ROUTES.COLLECTIONS_ENDPOINT}/${collectionId}`;
     console.log('Updating collection:', getFullApiUrl(url));
     const response = await api.put(url, data);
     console.log('Collection updated successfully:', response.data);
@@ -122,7 +122,7 @@ export const updateCollection = async (collectionId, data) => {
 
 export const deleteCollection = async (collectionId) => {
   try {
-    const url = `${API_ROUTES.DELETE_COLLECTION}${collectionId}`;
+    const url = `${API_ROUTES.COLLECTIONS_ENDPOINT}/${collectionId}`;
     console.log('Deleting collection:', getFullApiUrl(url));
     const response = await api.delete(url);
     console.log('Collection deleted successfully:', response.data);
@@ -135,7 +135,7 @@ export const deleteCollection = async (collectionId) => {
 
 export const getDocumentsInCollection = async (collectionId, currentPage, pageSize, searchTerm, sortField, sortDirection) => {
   try {
-    const url = `${API_ROUTES.GET_COLLECTION_BY_ID}${collectionId}/documents?page=${currentPage}&pageSize=${pageSize}&searchTerm=${searchTerm}&sortField=${sortField}&sortDirection=${sortDirection}`;
+    const url = `${API_ROUTES.COLLECTIONS_ENDPOINT}/${collectionId}/documents?page=${currentPage}&pageSize=${pageSize}&searchTerm=${searchTerm}&sortField=${sortField}&sortDirection=${sortDirection}`;
     console.log('Fetching documents in collection:', getFullApiUrl(url));
     const response = await api.get(url);
     console.log('Documents fetched successfully:', response.data);
@@ -148,7 +148,7 @@ export const getDocumentsInCollection = async (collectionId, currentPage, pageSi
 
 export const deleteDocument = async (collectionId, documentId) => {
   try {
-    const url = `${API_ROUTES.DELETE_COLLECTION}${collectionId}/documents/${documentId}`;
+    const url = `${API_ROUTES.COLLECTIONS_ENDPOINT}/${collectionId}/documents/${documentId}`;
     console.log('Deleting document:', getFullApiUrl(url));
     const response = await api.delete(url);
     console.log('Document deleted successfully:', response.data);
@@ -161,7 +161,7 @@ export const deleteDocument = async (collectionId, documentId) => {
 
 export const moveDocument = async (sourceCollectionId, documentId, targetCollectionId) => {
   try {
-    const url = `${API_ROUTES.GET_COLLECTION_BY_ID}${sourceCollectionId}/documents/${documentId}/move`;
+    const url = `${API_ROUTES.COLLECTIONS_ENDPOINT}/${sourceCollectionId}/documents/${documentId}/move`;
     console.log('Moving document:', getFullApiUrl(url));
     const response = await api.post(url, { targetCollectionId });
     console.log('Document moved successfully:', response.data);
@@ -174,7 +174,7 @@ export const moveDocument = async (sourceCollectionId, documentId, targetCollect
 
 export const getDocument = async (documentId) => {
   try {
-    const url = `${API_ROUTES.GET_COLLECTION_BY_ID}documents/${documentId}`;
+    const url = `${API_ROUTES.COLLECTIONS_ENDPOINT}/documents/${documentId}`;
     console.log('Fetching document:', getFullApiUrl(url));
     const response = await api.get(url);
     console.log('Document fetched successfully:', response.data);
