@@ -30,11 +30,8 @@ from rag_solution.models.team import Team
 # Import all routers
 from rag_solution.file_management.database import Base, engine
 from rag_solution.router.collection_router import router as collection_router
-from rag_solution.router.file_router import router as file_router
 from rag_solution.router.team_router import router as team_router
 from rag_solution.router.user_router import router as user_router
-from rag_solution.router.user_collection_router import router as user_collection_router
-from rag_solution.router.user_team_router import router as user_team_router
 from rag_solution.router.health_router import router as health_router
 from rag_solution.router.auth_router import router as auth_router
 
@@ -115,37 +112,12 @@ app.add_middleware(
 # Add Auth middleware
 app.add_middleware(AuthenticationMiddleware)
 
-# Replacing with a decorator on each endpoint to allow fine-grained authorization
-# app.add_middleware(AuthorizationMiddleware)
-
-# Already included in AuthMiddleware 
-# async def auth_dependency(authorization: str = Header(...)):
-#     try:
-#         scheme, token = authorization.split()
-#         if scheme.lower() != 'bearer':
-#             raise HTTPException(status_code=401, detail="Invalid authentication scheme")
-#         payload = verify_jwt_token(token)
-#         return payload
-#     except (jwt.PyJWTError, ValueError):
-#         raise HTTPException(status_code=401, detail="Invalid or expired token")
-
 # Include routers
 app.include_router(auth_router)
 app.include_router(health_router)
 app.include_router(collection_router)
-app.include_router(file_router)
-app.include_router(team_router)
 app.include_router(user_router)
-app.include_router(user_collection_router, dependencies=[Depends(authorize_dependency)])
-# app.include_router(user_collection_router)
-app.include_router(user_team_router)
-# app.include_router(collection_router, dependencies=[Depends(auth_dependency)])
-# app.include_router(file_router, dependencies=[Depends(auth_dependency)])
-# app.include_router(team_router, dependencies=[Depends(auth_dependency)])
-# app.include_router(user_router, dependencies=[Depends(auth_dependency)])
-# app.include_router(user_collection_router, dependencies=[Depends(auth_dependency)])
-# app.include_router(user_team_router, dependencies=[Depends(auth_dependency)])
-# app.include_router(collection_router, dependencies=[Depends(auth_dependency)])
+app.include_router(team_router)
 
 def custom_openapi():
     if app.openapi_schema:

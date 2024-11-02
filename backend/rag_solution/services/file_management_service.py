@@ -110,7 +110,7 @@ class FileManagementService:
             logger.error(f"Unexpected error deleting file {file_id}: {str(e)}")
             raise HTTPException(status_code=500, detail="Internal server error")
 
-    def delete_files(self, user_id: UUID, collection_id: UUID, filenames: List[str]) -> bool:
+    def delete_files(self, collection_id: UUID, filenames: List[str]) -> bool:
         try:
             logger.info(f"Deleting files {filenames} from collection {collection_id}")
             for filename in filenames:
@@ -132,7 +132,7 @@ class FileManagementService:
             logger.error(f"Unexpected error getting files for collection {collection_id}: {str(e)}")
             raise HTTPException(status_code=500, detail="Internal server error")
 
-    def get_files(self, user_id: UUID, collection_id: UUID) -> List[str]:
+    def get_files(self, collection_id: UUID) -> List[str]:
         try:
             files = self.get_files_by_collection(collection_id)
             return [file.filename for file in files]
@@ -177,7 +177,7 @@ class FileManagementService:
             logger.error(f"Unexpected error uploading file: {str(e)}")
             raise HTTPException(status_code=500, detail="Internal server error")
     
-    def update_file_metadata(self, file_id: UUID, metadata: FileMetadata) -> FileOutput:
+    def update_file_metadata(self, collection_id: UUID, file_id: UUID, metadata: FileMetadata) -> FileOutput:
         try:
             logger.info(f"Updating metadata for file {file_id}")
             file = self.file_repository.get(file_id)
@@ -206,7 +206,7 @@ class FileManagementService:
         file_type, _ = guess_type(filename)
         return file_type or "application/octet-stream"
 
-    def get_file_path(self, user_id: UUID, collection_id: UUID, filename: str) -> Path:
+    def get_file_path(self, collection_id: UUID, filename: str) -> Path:
         try:
             logger.info(f"Getting file path for {filename} in collection {collection_id}")
             file = self.get_file_by_name(collection_id, filename)

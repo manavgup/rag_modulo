@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.team_schema import TeamInput, TeamOutput
 from rag_solution.services.team_service import TeamService
+from rag_solution.services.user_team_service import UserTeamService
+from rag_solution.schemas.user_team_schema import UserTeamOutput
 
 router = APIRouter(prefix="/api/teams", tags=["teams"])
 
@@ -22,7 +24,7 @@ def get_team_service(db: Session = Depends(get_db)) -> TeamService:
     """
     return TeamService(db)
 
-@router.post("/", 
+@router.post("", 
     response_model=TeamOutput,
     summary="Create a new team",
     description="Create a new team with the provided input data",
@@ -138,7 +140,7 @@ def delete_team(team_id: UUID, db: Session = Depends(get_db)) -> bool:
     team_service = get_team_service(db)
     return team_service.delete_team(team_id)
 
-@router.get("/", 
+@router.get("", 
     response_model=List[TeamOutput],
     summary="List all teams",
     description="Retrieve a list of all teams with pagination",
@@ -161,3 +163,17 @@ def list_teams(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)) -
     """
     team_service = get_team_service(db)
     return team_service.list_teams(skip, limit)
+
+@router.get("/{team_id}/users", 
+    response_model=List[UserTeamOutput],
+    summary="Get team users",
+    description="Get all users associated with a team",
+    responses={
+        200: {"description": "Successfully retrieved team users"},
+        404: {"description": "Team not found"},
+        500: {"description": "Internal server error"}
+    }
+)
+def get_team_users(team_id: UUID, db: Session = Depends(get_db)):
+    service = UserTeamService(db)
+    return service.get_team_users(team_id)

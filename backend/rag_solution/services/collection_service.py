@@ -204,7 +204,7 @@ class CollectionService:
             self.update_collection_status(collection.id, CollectionStatus.PROCESSING)
 
             # Ingest the documents into the collection as background task
-            file_paths = [str(self.file_management_service.get_file_path(user_id, collection.id, file.filename)) for file in files]
+            file_paths = [str(self.file_management_service.get_file_path(collection.id, file.filename)) for file in files]
             background_tasks.add_task(self.process_documents, file_paths, collection.id, collection.vector_db_name)
             logger.info(f"Collection with documents created successfully: {collection.id}")
 

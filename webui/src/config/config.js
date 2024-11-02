@@ -9,14 +9,9 @@ console.log("Window location origin:", window.location.origin);
 console.log("Final apiUrl:", config.apiUrl);
 
 const API_ROUTES = {
-    CREATE_COLLECTION: `/collections/create__with_documents`,
-    GET_USER_COLLECTIONS: `/user-collections`,
-    GET_COLLECTION_BY_ID: `/collections`, // Removed trailing slash
-    UPDATE_COLLECTION: `/collections/`,
-    DELETE_COLLECTION: `/collections/`,
-    ADD_DOCUMENTS: `/collections/`,
-    REMOVE_DOCUMENT: `/collections/`,
-    QUERY_COLLECTION: `/collections/`,
+    COLLECTIONS_ENDPOINT: '/collections',
+    CREATE_COLLECTION_WITH_FILES: `/collections/with-files`,
+    USERS_ENDPOINT: '/users',
     OIDC_CONFIG: `/auth/oidc-config`,
     LOGIN: `/auth/login`,
     LOGOUT: `/auth/logout`,
