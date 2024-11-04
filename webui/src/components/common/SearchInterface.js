@@ -36,10 +36,10 @@ const SearchInterface = () => {
     try {
       const userCollections = await getUserCollections();
       const collections =
-        userCollections && userCollections.length > 0
+        userCollections && userCollections.collections.length > 0
           ? [
               { id: "all", name: "All Collections" },
-              ...userCollections.map((collection) => ({
+              ...userCollections.collections.map((collection) => ({
                 id: collection.collection_id,
                 name: collection.name,
               })),
