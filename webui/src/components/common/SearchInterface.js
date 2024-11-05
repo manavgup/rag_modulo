@@ -97,7 +97,7 @@ const SearchInterface = () => {
             labelText="Enter your query"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            onKeyPress={handleKeyPress}
+            onKeyUp={handleKeyPress}
             placeholder="E.g., What is RAG?"
           />
           <Button

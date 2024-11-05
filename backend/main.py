@@ -34,6 +34,7 @@ from rag_solution.router.team_router import router as team_router
 from rag_solution.router.user_router import router as user_router
 from rag_solution.router.health_router import router as health_router
 from rag_solution.router.auth_router import router as auth_router
+from rag_solution.router.search_router import router as search_router
 
 logging.basicConfig(level=settings.log_level)
 logger = logging.getLogger(__name__)
@@ -118,6 +119,7 @@ app.include_router(health_router)
 app.include_router(collection_router)
 app.include_router(user_router)
 app.include_router(team_router)
+app.include_router(search_router)
 
 def custom_openapi():
     if app.openapi_schema:
