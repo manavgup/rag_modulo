@@ -218,9 +218,9 @@ class CollectionService:
             logger.error(f"Error in create_collection_with_documents: {str(e)}")
             raise HTTPException(status_code=400, detail=f"Failed to create collection with documents: {str(e)}")
     
-    def process_documents(self, file_paths: List[str], collection_id: UUID, vector_db_name: str):
+    async def process_documents(self, file_paths: List[str], collection_id: UUID, vector_db_name: str):
         try:
-            ingest_documents(file_paths, self.vector_store, vector_db_name)
+            await ingest_documents(file_paths, self.vector_store, vector_db_name)
             self.update_collection_status(collection_id, CollectionStatus.COMPLETED)
         except Exception as e:
             logger.error(f"Error processing documents for collection {collection_id}: {str(e)}")
