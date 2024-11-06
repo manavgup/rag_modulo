@@ -6,7 +6,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 import concurrent.futures
 
 from core.config import settings
-from core.custom_exceptions import DocumentStorageError
+from core.custom_exceptions import DocumentStorageError, DocumentIngestionError
 from rag_solution.data_ingestion.document_processor import DocumentProcessor
 from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, Source
 from vectordbs.factory import get_datastore
@@ -126,10 +126,12 @@ async def ingest_documents(data_dir: List[str], vector_store: VectorStore, colle
                         processed_documents.append(document)
                     except Exception as e:
                         logger.error(f"Unexpected error while storing document: {e}", exc_info=True)
+                        raise e
 
                 logger.info(f"Successfully processed {file_path}")
             except Exception as e:
                 logger.error(f"Error processing {file_path}: {str(e)}", exc_info=True)
+                raise e
     
     logger.info(f"Completed ingestion for collection: {collection_name}")
     return processed_documents
