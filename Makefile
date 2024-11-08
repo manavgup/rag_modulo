@@ -16,6 +16,7 @@ PYTHON_VERSION ?= 3.11
 PROJECT_VERSION ?= 1.0.0
 
 # Tools
+CONTAINER_CLI := podman
 DOCKER_COMPOSE := docker compose
 
 # Set a default value for VECTOR_DB if not already set
@@ -32,31 +33,34 @@ init-env:
 	@echo "PYTHON_VERSION=${PYTHON_VERSION}" >> .env
 	@echo "VECTOR_DB=${VECTOR_DB}" >> .env
 
+sync-frontend-deps:
+	@echo "Syncing frontend dependencies..."
+	@cd webui && npm install
+	@echo "Frontend dependencies synced."
+
 # Build
-build-frontend:
-	docker build -t ${PROJECT_NAME}/frontend:${PROJECT_VERSION} -f ./webui/Dockerfile.frontend --build-arg REACT_APP_API_URL=${REACT_APP_API_URL} --build-arg REACT_APP_OIDC_CLIENT_ID=${IBM_CLIENT_ID}  ./webui
+build-frontend: sync-frontend-deps
+	$(CONTAINER_CLI) build -t ${PROJECT_NAME}/frontend:${PROJECT_VERSION} -f ./webui/Dockerfile.frontend --build-arg REACT_APP_API_URL=${REACT_APP_API_URL} --build-arg REACT_APP_OIDC_CLIENT_ID=${IBM_CLIENT_ID}  ./webui
 
 build-backend:
-	docker build -t ${PROJECT_NAME}/backend:${PROJECT_VERSION} -f ./backend/Dockerfile.backend ./backend
+	$(CONTAINER_CLI) build -t ${PROJECT_NAME}/backend:${PROJECT_VERSION} -f ./backend/Dockerfile.backend ./backend
 
 build-tests:
-	docker build -t ${PROJECT_NAME}/backend-test:${PROJECT_VERSION} -f ./backend/Dockerfile.test ./backend
+	$(CONTAINER_CLI) build -t ${PROJECT_NAME}/backend-test:${PROJECT_VERSION} -f ./backend/Dockerfile.test ./backend
 
 build-all: build-frontend build-backend build-tests
 
 # Test
-test: build-backend build-tests run-backend
-	$(DOCKER_COMPOSE) run test pytest -v -s -m "not (chromadb or elasticsearch or pinecone or weaviate)" || { echo "Tests failed"; $(MAKE) stop-containers; exit 1; }
+test: build-backend build-tests
+	$(DOCKER_COMPOSE) run --rm test pytest -v -s -m "not (chromadb or elasticsearch or pinecone or weaviate)" || { echo "Tests failed"; $(MAKE) stop-containers; exit 1; }
 
-api-test: build-backend build-tests run-backend
-	$(DOCKER_COMPOSE) run test pytest -v -s -m "api and not (chromadb or elasticsearch or pinecone or weaviate)" || { echo "API Tests failed"; $(MAKE) stop-containers; exit 1; }
+api-test: build-backend build-tests
+	$(DOCKER_COMPOSE) run --rm test pytest -v -s -m "api and not (chromadb or elasticsearch or pinecone or weaviate)" || { echo "API Tests failed"; $(MAKE) stop-containers; exit 1; }
 
-newman-test: build-backend build-tests run-backend
-	$(DOCKER_COMPOSE) run test newman run tests/postman/rag_modulo_api_collection.json --env-var "backend_base_url=${REACT_APP_API_URL}" || { echo "Postman Tests failed"; $(MAKE) stop-containers; exit 1; }
+newman-test: build-backend build-tests
+	$(DOCKER_COMPOSE) run --rm test newman run tests/postman/rag_modulo_api_collection.json --env-var "backend_base_url=${REACT_APP_API_URL}" || { echo "Postman Tests failed"; $(MAKE) stop-containers; exit 1; }
 
-all-test: build-backend build-tests run-backend
-	$(DOCKER_COMPOSE) run test pytest -v -s -m "not (chromadb or elasticsearch or pinecone or weaviate)" || { echo "Tests failed"; $(MAKE) stop-containers; exit 1; }
-	$(DOCKER_COMPOSE) run test newman run tests/postman/rag_modulo_api_collection.json --env-var "backend_base_url=${REACT_APP_API_URL}" || { echo "Postman Tests failed"; $(MAKE) stop-containers; exit 1; }
+all-test: test newman-test
 
 # Run
 run-app: build-all run-backend run-frontend
@@ -93,7 +97,7 @@ run-services: create-volumes
 		sleep 2; \
 	done
 	@echo "Starting services for VECTOR_DB=${VECTOR_DB}"
-	if [ "$(VECTOR_DB)" = "milvus" ]; then \
+	@if [ "$(VECTOR_DB)" = "milvus" ]; then \
 		echo "Starting Milvus and its dependencies..."; \
 		$(DOCKER_COMPOSE) up -d etcd minio milvus-standalone || { echo "Failed to start Milvus and its dependencies"; $(DOCKER_COMPOSE) logs; exit 1; }; \
 		echo "Waiting for Milvus to be ready..."; \
@@ -123,7 +127,7 @@ run-services: create-volumes
 		exit 1; \
 	fi
 	@echo "Docker containers status:"
-	@docker ps
+	@$(CONTAINER_CLI) ps 
 	@echo "Milvus logs saved to milvus.log:"
 	@$(DOCKER_COMPOSE) logs milvus-standalone > milvus.log
 
@@ -133,11 +137,11 @@ stop-containers:
 	$(DOCKER_COMPOSE) down -v	
 
 clean: stop-containers 
-	@echo "Cleaning up existing pods and containers..."
-	-@podman pod rm -f $(podman pod ps -q) || true
-	-@podman rm -f $(podman ps -a -q) || true
-	-@podman volume prune -f || true
-	-@podman container prune -f || true
+	@echo "Cleaning up existing containers and volumes..."
+	-@$(CONTAINER_CLI) pod rm -f $$($(CONTAINER_CLI) pod ls -q) || true
+	-@$(CONTAINER_CLI) rm -f $$($(CONTAINER_CLI) ps -aq) || true
+	-@$(CONTAINER_CLI) volume prune -f || true
+	-@$(CONTAINER_CLI) container prune -f || true
 	rm -rf .pytest_cache .mypy_cache data volumes my_chroma_data tests
 
 # Service / reusable targets
@@ -177,5 +181,5 @@ help:
 	@echo "  clean         		Clean up Docker Compose volumes and cache"
 	@echo "  create-volumes     Create folders for container volumes"	
 	@echo "  logs          		View logs of running containers"
-	@echo "  info          Display project information"
-	@echo "  help          Display this help message"
+	@echo "  info          		Display project information"
+	@echo "  help          		Display this help message"
