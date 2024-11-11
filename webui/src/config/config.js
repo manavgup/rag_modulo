@@ -24,16 +24,15 @@ console.log("API_ROUTES:", API_ROUTES);
 
 // Define the function
 const getFullApiUrl = (route) => {
-    return `${window.location.origin}${config.apiUrl}${route}`;
+    return `${config.apiUrl}${route}`;
 };
 
 const authConfig = {
     client_id: config.oidcClientId,
-    // redirect_uri: getFullApiUrl(API_ROUTES.CALLBACK),
-    redirect_uri: window.location.origin + '/callback',
+    redirect_uri: `${window.location.origin}/api/auth/callback`,
     response_type: "code",
     scope: "openid profile email",
-    post_logout_redirect_uri: getFullApiUrl(''),
+    post_logout_redirect_uri: window.location.origin,
 };
 
 console.log("authConfig:", authConfig);
