@@ -284,6 +284,7 @@ def generate_text_stream(
     max_tokens: int = 150,
     temperature: float = 0.7,
     timeout: int = 30,
+    random_seed: int = 50,
     max_retries: int = 3,
 ) -> Generator:
 
@@ -295,7 +296,7 @@ def generate_text_stream(
         generate_params={
             GenParams.MAX_NEW_TOKENS: max_tokens,
             GenParams.TEMPERATURE: temperature,
-            GenParams.RANDOM_SEED: settings.random_seed,
+            GenParams.RANDOM_SEED: random_seed,
         },
         model_id=model_id,
     )
