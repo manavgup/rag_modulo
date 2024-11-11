@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     temperature: float = Field(..., env='TEMPERATURE')
 
     # Frontend settings
-    react_app_api_url: str
+    react_app_api_url: str = Field(default="/api", env='REACT_APP_API_URL')
 
     # Logging Level
     log_level: Optional[str] = None
@@ -56,7 +56,7 @@ class Settings(BaseSettings):
 
     # Milvus credentials
     milvus_host: Optional[str] = None
-    milvus_port: Optional[str] = None
+    milvus_port: Optional[int] = None
     milvus_user: Optional[str] = None
     milvus_password: Optional[str] = None
     milvus_index_params: Optional[str] = None
@@ -84,10 +84,6 @@ class Settings(BaseSettings):
     weaviate_index: Optional[str] = None
     weaviate_scopes: Optional[str] = None
 
-    # Tokenization settings
-    tokenizer: Optional[str] = None
-    tokenizer_model: Optional[str] = None
-
     # Project settings
     project_name: Optional[str] = None
     python_version: Optional[str] = None
@@ -96,7 +92,7 @@ class Settings(BaseSettings):
     collectiondb_user: Optional[str] = None
     collectiondb_pass: Optional[str] = None
     collectiondb_host: Optional[str] = None
-    collectiondb_port: Optional[str] = None
+    collectiondb_port: Optional[int] = None
     collectiondb_name: Optional[str] = None
 
     # IBM OIDC settings
@@ -105,7 +101,7 @@ class Settings(BaseSettings):
     oidc_discovery_endpoint: Optional[str] = None
     oidc_auth_url: Optional[str] = None
     oidc_token_url: Optional[str] = None
-    frontend_url: Optional[str] = None
+    frontend_url: str = Field(default="http://localhost:3000", env='FRONTEND_URL')
     oidc_userinfo_endpoint: Optional[str] = None
     oidc_introspection_endpoint: Optional[str] = None
 
@@ -139,6 +135,4 @@ class Settings(BaseSettings):
         env_file = ".env"
         env_file_encoding = "utf-8"
 
-settings = Settings(
-    react_app_api_url="http://localhost:3000",
-)
+settings = Settings()
