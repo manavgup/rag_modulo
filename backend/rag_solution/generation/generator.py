@@ -96,7 +96,7 @@ class WatsonxGenerator(BaseGenerator):
         truncated_context = self.truncate_context(context, query)
         prompt = self.prompt_template.format(query=query, context=truncated_context)
         try:
-            for chunk in generate_text_stream(self.model_name, prompt, **kwargs):
+            for chunk in generate_text_stream(model_id=self.model_name,prompt=prompt, **kwargs):
                 yield chunk
         except Exception as e:
             logger.error(f"Error generating text stream: {e}")
