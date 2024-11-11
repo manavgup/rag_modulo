@@ -1,15 +1,15 @@
 import tempfile
 from typing import Optional
-
+import os
 from pydantic import Field
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
     # BAM credentials
-    genai_key: Optional[str] = "None"
-    api_endpoint: Optional[str] = None
-    genai_api: Optional[str] = None
+    wx_project_id: Optional[str] = Field(default_factory=lambda: os.getenv('WATSONX_INSTANCE_ID', None))
+    wx_api_key: Optional[str] = Field(default_factory=lambda: os.getenv('WATSONX_APIKEY', None))
+    wx_url: Optional[str] = Field(default_factory=lambda: os.getenv('WATSONX_URL', None))
 
     # Data Directory
     data_dir: Optional[str] = None
@@ -134,5 +134,6 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+        extra = "allow"
 
 settings = Settings()
