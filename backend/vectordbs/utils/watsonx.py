@@ -1,23 +1,26 @@
 import json
 import logging
-import time
-from typing import List, Optional, Union, Tuple, Generator
-
+import asyncio
+from typing import List, Optional, Union, Tuple, Generator, Dict
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+)
 from chromadb.api.types import Documents, EmbeddingFunction
 from dotenv import load_dotenv
-from genai.client import Client
-from genai.credentials import Credentials
-from genai.schema import (TextEmbeddingParameters, 
-                          TextGenerationParameters, 
-                          TextTokenizationReturnOptions, 
-                          TextTokenizationParameters)
-from genai.text.generation import CreateExecutionOptions
+from ibm_watsonx_ai import APIClient,Credentials
+from ibm_watsonx_ai.metanames import EmbedTextParamsMetaNames as EmbedParams
+from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams
+from ibm_watsonx_ai.foundation_models import ModelInference, Embeddings as wx_Embeddings
 
 from core.config import settings
 from ..data_types import Embeddings
 
+
+WATSONX_INSTANCE_ID = settings.wx_project_id
 EMBEDDING_MODEL = settings.embedding_model
-TOKENIZATION_MODEL = "google/flan-t5-xl"  # You can change this to your preferred model
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -25,6 +28,8 @@ logger = logging.getLogger(__name__)
 
 # Global client
 client = None
+embeddings_client = None
+
 
 # Rate limiting settings
 RATE_LIMIT = 10  # maximum number of requests per minute
@@ -33,51 +38,105 @@ RATE_LIMIT_PERIOD = 60  # in seconds
 # Timestamp of the last API call
 last_api_call = 0
 
-def _get_client() -> Client:
+
+def sublist(inputs: List, n: int) -> Generator[List, None, None]:
+    """
+    returns a generator object that yields successive n-sized lists from the main list.
+
+    :param inputs: List: list of chunks
+    :param n: int: size of each sublist
+    :return: A generator object
+    """
+    if n <= 0:
+        raise ValueError("sublist size n must be a positive integer.")
+
+    for i in range(0, len(inputs), n):
+        yield inputs[i : i + n]
+
+def _get_client() -> APIClient:
     global client
     if client is None:
         load_dotenv(override=True)
-        creds = Credentials.from_env()
-        client = Client(credentials=creds)
+        client = APIClient(
+            project_id=WATSONX_INSTANCE_ID,
+            credentials=Credentials(api_key=settings.wx_api_key, url=settings.wx_url),
+        )
     return client
 
-def get_embeddings(texts: Union[str | List[str]]) -> List[float]:
+
+def get_model(
+    generate_params: Optional[Dict] = None, model_id: str = settings.rag_llm
+) -> ModelInference:
+    api_client = _get_client()
+
+    if generate_params is None:
+        generate_params = {
+            GenParams.MAX_NEW_TOKENS: settings.max_new_tokens,
+            GenParams.MIN_NEW_TOKENS: settings.min_new_tokens,
+            GenParams.TEMPERATURE: settings.temperature,
+            GenParams.TOP_K: settings.top_k,
+            GenParams.RANDOM_SEED: settings.random_seed,
+        }
+
+    model_inference = ModelInference(
+        persistent_connection=True,
+        model_id=model_id,
+        params=generate_params,
+        credentials=Credentials(api_key=settings.wx_api_key, url=settings.wx_url),
+        project_id=WATSONX_INSTANCE_ID,
+    )
+    model_inference.set_api_client(api_client=api_client)
+    return model_inference
+
+
+def _get_embeddings_client(embed_params: Optional[Dict] = None) -> wx_Embeddings:
+    global embeddings_client
+    if embeddings_client is None:
+        embed_params = {
+            EmbedParams.TRUNCATE_INPUT_TOKENS: 3,
+            EmbedParams.RETURN_OPTIONS: {"input_text": True},
+        }
+    if embeddings_client is None:
+        load_dotenv(override=True)
+        embeddings_client = wx_Embeddings(
+            persistent_connection=True,
+            model_id=EMBEDDING_MODEL,
+            params=embed_params,
+            project_id=WATSONX_INSTANCE_ID,
+            credentials=Credentials(api_key=settings.wx_api_key, url=settings.wx_url),
+        )
+    return embeddings_client
+
+
+def get_embeddings(texts: Union[str | List[str]],embed_client: Optional[wx_Embeddings]=None) -> Embeddings:
     """
     Get embeddings for a given text or a list of texts.
 
     :param texts: A single string or a list of strings.
+    :param embed_client: an instance of watsonx embeddings model client.
     :return: A list of floats representing the embeddings.
     """
-    embeddings: List[float] = []
-    client = _get_client()
-
+    if embed_client is None:
+        embed_client = _get_embeddings_client()
     # Ensure texts is a list
     if isinstance(texts, str):
         texts = [texts]
     try:
-        for response in client.text.embedding.create(
-            model_id=EMBEDDING_MODEL,
-            inputs=texts,
-            parameters=TextEmbeddingParameters(truncate_input_tokens=True),
-            execution_options=CreateExecutionOptions(ordered=False),
-        ):
-            for result in response.results:
-                embeddings.extend(result.embedding)  # assuming result is already a list of floats
+        embedding_vectors = embed_client.embed_documents(texts=texts, concurrency_limit=10)
     except Exception as e:
-        logging.error(e)
+        logging.error(f"get_embeddings failed {e}")
+        raise e
+    return embedding_vectors
 
-    return embeddings
 
-def get_tokenization(texts: Union[str, List[str]], batch_size: int = 100) -> List[List[str]]:
+def get_tokenization(texts: Union[str, List[str]]) -> List[List[str]]:
     """
     Get tokenization for a given text or a list of texts.
 
     :param texts: A single string or a list of strings.
-    :param batch_size: The batch size for processing.
     :return: A list of lists of strings representing the tokens.
     """
-    client = _get_client()
-    
+    wx_model = get_model()
     # Ensure texts is a list
     if isinstance(texts, str):
         texts = [texts]
@@ -85,27 +144,19 @@ def get_tokenization(texts: Union[str, List[str]], batch_size: int = 100) -> Lis
     all_tokens = []
 
     try:
-        for response in client.text.tokenization.create(
-            model_id=TOKENIZATION_MODEL,
-            input=texts,
-            execution_options=CreateExecutionOptions(
-                batch_size=batch_size,
-                ordered=True,
-            ),
-            parameters=TextTokenizationParameters(
-                return_options=TextTokenizationReturnOptions(
-                    tokens=True,
-                )
-            ),
-        ):
-            for result in response.results:
-                all_tokens.append(result.tokens)
+        for text in texts:
+            tokens = wx_model.tokenize(prompt=text, return_tokens=True)
+            all_tokens.append(tokens.get("result").get("tokens"))
     except Exception as e:
         logging.error(f"Error getting tokenization: {e}")
-
+    finally:
+        wx_model.close_persistent_connection()
     return all_tokens
 
-def get_tokenization_and_embeddings(texts: Union[str, List[str]]) -> Tuple[List[List[str]], List[float]]:
+
+def get_tokenization_and_embeddings(
+    texts: Union[str, List[str]]
+) -> Tuple[List[List[str]], Embeddings]:
     """
     Get both tokenization and embeddings for a given text or a list of texts.
 
@@ -152,84 +203,100 @@ def save_embeddings_to_file(
 
 class ChromaEmbeddingFunction(EmbeddingFunction):
     def __init__(
-        self, *, model_id: str, parameters: Optional[TextEmbeddingParameters] = None
+        self,
+        *,
+        parameters: Dict,
+        model_id: Optional[str] = settings.rag_llm,
     ):
         self._model_id = model_id
         self._parameters = parameters
         self._client = _get_client()
 
     def __call__(self, inputs: Documents) -> Embeddings:
-        embeddings: Embeddings = []
-        for response in self._client.text.embedding.create(
-            model_id=self._model_id, inputs=inputs, parameters=self._parameters
-        ):
-            embeddings.extend(response.results)
-
-        return embeddings
+        return get_embeddings(texts=inputs)
 
 
-def generate_text(prompt: str) -> str:
+def generate_text(prompt: str, wx_model: Optional[ModelInference] = None) -> str:
     try:
         logging.info("Making API call to text generation service")
-        for response in client.text.generation.create(
-            model_id=settings.rag_llm,
-            input=prompt,
-            parameters=TextGenerationParameters(
-                max_new_tokens=settings.max_new_tokens,
-                min_new_tokens=settings.min_new_tokens,
-                temperature=settings.temperature,
-                top_k=settings.top_k,
-                random_seed=settings.random_seed,
-            ),
-        ):
-            result = response.results[0]
-            generated_text = result.generated_text.strip()
-            logging.info(f"Successfully generated text of length {len(generated_text)}")
-            logging.info(f"Generated text: {generated_text}...") # Log first 100 characters of generated text
-            return generated_text
+        if wx_model is None:
+            wx_model = get_model()
+
+        generated_text = wx_model.generate_text(prompt=prompt).strip()
+        logging.info(f"Generated text: {generated_text[0:100]}...")
+        return generated_text
     except Exception as e:
         logging.error(f"Error generating text: {e}")
         raise
 
-def generate_text_stream(prompt: str, max_tokens: int = 150, temperature: float = 0.7, timeout: int = 30, max_retries: int = 3) -> Generator[str, None, None]:
-    global last_api_call
-    client = _get_client()
 
-    logging.info(f"Generating text with parameters: max_tokens={max_tokens}, temperature={temperature}, timeout={timeout}, max_retries={max_retries}")
-    logging.debug(f"Prompt: {prompt[:100]}...") #
+async def agenerate_responses(
+    prompts: List[str],
+    concurrency_level: int,
+    wx_model: Optional[ModelInference] = None,
+) -> List:
 
-    def make_api_call():
-        global last_api_call
-        current_time = time.time()
-        time_since_last_call = current_time - last_api_call
+    if wx_model is None:
+        wx_model = get_model()
 
-        if time_since_last_call < RATE_LIMIT_PERIOD / RATE_LIMIT:
-            sleep_time = (RATE_LIMIT_PERIOD / RATE_LIMIT) - time_since_last_call
-            logging.debug(f"Rate limiting: Sleeping for {sleep_time:.2f} seconds")
-            time.sleep(sleep_time)
+    async def throttled_agenerate(
+        prompt: str, semaphore: asyncio.Semaphore, wx_mdl: ModelInference
+    ):
+        async with semaphore:
+            response = await wx_mdl.agenerate(prompt=prompt)
+            return response.get("results")[0].get("generated_text").strip()
 
-        try:
-            logging.info("Making API call to text generation service")
-            response = client.text.generation.create(
-                model_id="meta/llama3-8b-v1",
-                input=prompt,
-                parameters=TextGenerationParameters(max_new_tokens=max_tokens, temperature=temperature),
-                execution_options=CreateExecutionOptions(timeout=timeout)
-            )
-            last_api_call = time.time()
-            for chunk in response:
-                yield chunk.generated_text.strip()
-        except Exception as e:
-            logging.error(f"Error generating text stream: {e}")
-            raise
+    semaphore = asyncio.Semaphore(value=concurrency_level)
+    results = await asyncio.gather(
+        *[throttled_agenerate(prompt, semaphore, wx_model) for prompt in prompts]
+    )
+    return results
 
-    for attempt in range(max_retries):
-        try:
-            yield from make_api_call()
-            return
-        except Exception as e:
-            if attempt == max_retries - 1:
-                logging.error(f"Failed to generate text stream after {max_retries} attempts: {e}")
-                return
-            logging.warning(f"Attempt {attempt + 1} failed, retrying...")
-            time.sleep(2 ** attempt)  # Exponential backoff
+
+async def generate_all_responses(
+    prompts: List[str],
+    wx_model: ModelInference,
+    concurrency_level: int = 5,
+) -> List:
+    return await agenerate_responses(
+        prompts, concurrency_level=concurrency_level, wx_model=wx_model
+    )
+
+
+def generate_batch(
+    prompts: List[str],
+    wx_model: Optional[ModelInference] = None,
+    concurrency_level: int = 5,
+) -> List:
+    if wx_model is None:
+        wx_model = get_model()
+    return asyncio.run(generate_all_responses(prompts, wx_model, concurrency_level))
+
+
+@retry(
+    wait=wait_exponential(multiplier=1, min=1, max=30),
+    stop=stop_after_attempt(3),
+    retry=retry_if_exception_type(Exception),
+)
+def generate_text_stream(
+    prompt: str,
+    model_id: str,
+    max_tokens: int = 150,
+    temperature: float = 0.7,
+    timeout: int = 30,
+    max_retries: int = 3,
+) -> Generator:
+
+    logging.info(
+        f"Generating text with parameters: max_tokens={max_tokens}, temperature={temperature}, timeout={timeout}, max_retries={max_retries}"
+    )
+    logging.debug(f"Prompt: {prompt[:100]}...")  #
+    model_inference = get_model(
+        generate_params={
+            GenParams.MAX_NEW_TOKENS: max_tokens,
+            GenParams.TEMPERATURE: temperature,
+            GenParams.RANDOM_SEED: settings.random_seed,
+        },
+        model_id=model_id,
+    )
+    return model_inference.generate_text_stream(prompt=prompt)
