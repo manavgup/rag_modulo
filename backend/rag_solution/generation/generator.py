@@ -3,6 +3,7 @@ from vectordbs.utils.watsonx import generate_text, generate_text_stream
 from backend.core.config import settings
 
 import os
+from os.path import abspath, dirname
 import json
 import logging
 import re
@@ -26,7 +27,7 @@ class BaseGenerator:
         self.max_tokens = self.config.get('max_tokens', 2048)
 
     def _load_prompt_template(self) -> PromptTemplate:
-        prompt_config_path = 'backend/rag_solution/config/prompt_config.json'
+        prompt_config_path = f"{abspath(dirname(dirname(__file__)))}/config/prompt_config.json"
         try:
             with open(prompt_config_path, 'r') as f:
                 prompt_config = json.load(f)
@@ -95,7 +96,7 @@ class WatsonxGenerator(BaseGenerator):
         truncated_context = self.truncate_context(context, query)
         prompt = self.prompt_template.format(query=query, context=truncated_context)
         try:
-            for chunk in generate_text_stream(self.model_name, prompt, **kwargs):
+            for chunk in generate_text_stream(model_id=self.model_name,prompt=prompt, **kwargs):
                 yield chunk
         except Exception as e:
             logger.error(f"Error generating text stream: {e}")

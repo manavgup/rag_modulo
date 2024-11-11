@@ -2,8 +2,7 @@ import os
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from genai.client import Client
-from genai.credentials import Credentials
+from ibm_watsonx_ai import APIClient, Credentials
 
 from rag_solution.file_management.database import get_db
 from vectordbs.factory import get_datastore
@@ -58,7 +57,10 @@ def check_watsonx():
         HTTPException: If the WatsonX health check fails.
     """
     try:
-        Client(credentials=Credentials.from_env())
+        APIClient(
+            project_id=settings.wx_project_id,
+            credentials=Credentials(api_key=settings.wx_api_key, url=settings.wx_url),
+        )
         return {"status": "healthy", "message": "WatsonX is connected and operational"}
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"WatsonX health check failed: {str(e)}")
