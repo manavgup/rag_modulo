@@ -16,6 +16,7 @@ from .data_types import (Document, DocumentChunk, DocumentChunkMetadata,
 from .error_types import CollectionError, DocumentError, VectorStoreError
 from .vector_store import VectorStore
 import logging
+
 logger = logging.getLogger(__name__)
 
 MILVUS_COLLECTION = settings.collection_name
@@ -185,10 +186,10 @@ class MilvusStore(VectorStore):
             raise DocumentError(f"Failed to add documents to collection {collection_name}: {e}")
 
     def retrieve_documents(
-        self,
-        query: str,
-        collection_name: str,
-        limit: int = 10,
+            self,
+            query: str,
+            collection_name: str,
+            limit: int = 10,
     ) -> List[QueryResult]:
         """
         Retrieve documents from the collection.
@@ -203,10 +204,10 @@ class MilvusStore(VectorStore):
         """
         collection = self._get_collection(collection_name)
 
-        embeddings = get_embeddings(query)
+        embeddings = get_embeddings(texts=query)
         if not embeddings:
             raise VectorStoreError("Failed to generate embeddings for the query string.")
-        query_embeddings = QueryWithEmbedding(text=query, vectors=embeddings)
+        query_embeddings = QueryWithEmbedding(text=query, vectors=embeddings[0])
 
         try:
             logger.info(f"Retrieving for query: {query}")
@@ -270,7 +271,7 @@ class MilvusStore(VectorStore):
                 raise CollectionError(f"Failed to delete collection '{name}': {e}")
         else:
             logging.debug(f"Collection '{name}' does not exist.")
-    
+
     def list_collections(self):
         try:
             collections = utility.list_collections()
@@ -304,11 +305,11 @@ class MilvusStore(VectorStore):
             raise CollectionError(f"Failed to get document '{document_id}' from collection '{collection_name}': {e}")
 
     def query(
-        self,
-        collection_name: str,
-        query: QueryWithEmbedding,
-        number_of_results: int = 10,
-        filter: Optional[DocumentMetadataFilter] = None,
+            self,
+            collection_name: str,
+            query: QueryWithEmbedding,
+            number_of_results: int = 10,
+            filter: Optional[DocumentMetadataFilter] = None,
     ) -> List[QueryResult]:
         """
         Query the collection with an embedding query.
@@ -392,7 +393,7 @@ class MilvusStore(VectorStore):
             similarities: List[float] = []
             ids: List[str] = []
             for hit in result:
-                #logger.info(f"Processing hit: {hit}")
+                # logger.info(f"Processing hit: {hit}")
                 chunk = DocumentChunkWithScore(
                     chunk_id=hit.id,
                     text=hit.entity.get("text") or "",  # Use empty string if text is None
@@ -410,8 +411,8 @@ class MilvusStore(VectorStore):
                 chunks_with_scores.append(chunk)
                 ids.append(hit.id)
                 similarities.append(hit.distance)
-            
+
             query_results.append(QueryResult(data=chunks_with_scores, similarities=[similarities], ids=ids))
-        
+
         logger.info(f"Returning {len(query_results)} QueryResult objects")
         return query_results
