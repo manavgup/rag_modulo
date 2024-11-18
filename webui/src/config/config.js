@@ -18,6 +18,8 @@ const API_ROUTES = {
     SESSION: `/auth/session`,
     CALLBACK: `/auth/callback`,
     USERINFO: `/auth/userinfo`,
+    SEARCH: '/search',
+    SEARCH_STREAM: '/search/stream'
 };
 
 console.log("API_ROUTES:", API_ROUTES);

@@ -81,26 +81,48 @@ class ChromaDBStore(VectorStore):
         return ids
 
     def retrieve_documents(
-        self, query: str, collection_name: str, limit: int = 10
+        self, query: str, collection_name: str, number_of_results: int = 10
     ) -> List[QueryResult]:
-        """Retrieves documents based on a query string."""
+        """
+        Retrieves documents based on a query string.
+
+        Args:
+            query (str): The query string.
+            collection_name (str): The name of the collection to retrieve from.
+            number_of_results (int): The maximum number of results to return.
+
+        Returns:
+            List[QueryResult]: The list of query results.
+        """
         query_embeddings = get_embeddings(query)
         if not query_embeddings:
             raise DocumentError("Failed to generate embeddings for the query string.")
         query_with_embedding = QueryWithEmbedding(text=query, vectors=query_embeddings)
-        return self.query(collection_name, query_with_embedding, number_of_results=limit)
+        return self.query(collection_name, query_with_embedding, number_of_results=number_of_results)
 
     def query(
         self, collection_name: str, query: QueryWithEmbedding,
         number_of_results: int = 10, filter: Optional[DocumentMetadataFilter] = None
     ) -> List[QueryResult]:
-        """Queries the vector store with filtering and query mode options."""
+        """
+        Queries the vector store with filtering and query mode options.
+
+        Args:
+            collection_name (str): The name of the collection to query.
+            query (QueryWithEmbedding): The query with embedding to search for.
+            number_of_results (int): The maximum number of results to return.
+            filter (Optional[DocumentMetadataFilter]): Optional filter to apply to the query.
+
+        Returns:
+            List[QueryResult]: The list of query results.
+        """
         collection = self._get_collection(collection_name)
 
         try:
             response = collection.query(
                 query_embeddings=query.vectors,
-                n_results=number_of_results)
+                n_results=number_of_results,  # ChromaDB API uses n_results, but we maintain our consistent interface
+            )
             logging.info(f"Query response: {response}")
             return self._process_search_results(response)
         except Exception as e:

@@ -1,0 +1,127 @@
+.search-interface {
+    padding: 2rem;
+}
+
+.search-box {
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+}
+
+.search-input-wrapper {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.search-input-wrapper .bx--text-input__field-wrapper {
+    flex-grow: 1;
+}
+
+.advanced-search-options {
+    margin-top: 1rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e0e0e0;
+}
+
+/* Answer Section */
+.answer-section {
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background-color: #f4f4f4;
+}
+
+.answer-section h4 {
+    margin-bottom: 1rem;
+    color: #161616;
+    font-weight: 600;
+}
+
+.rewritten-query {
+    margin-top: 1rem;
+    color: #525252;
+    font-style: italic;
+}
+
+/* Sources Section */
+.sources-section {
+    margin-top: 2rem;
+}
+
+.sources-section h4 {
+    margin-bottom: 1rem;
+    color: #161616;
+    font-weight: 600;
+}
+
+.source-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.source-chunk {
+    margin: 0.5rem 0;
+    padding: 1rem;
+    background-color: #ffffff;
+    border-left: 4px solid #0f62fe;
+}
+
+.source-metadata {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.source-metadata .bx--tag {
+    font-size: 0.75rem;
+}
+
+.chunk-score {
+    margin-top: 0.5rem;
+    color: #525252;
+    text-align: right;
+}
+
+/* Highlight search terms */
+mark {
+    background-color: #d0e2ff;
+    padding: 0.1em 0.2em;
+    border-radius: 2px;
+}
+
+/* Carbon overrides */
+.bx--accordion__item {
+    border-top: 1px solid #e0e0e0;
+}
+
+.bx--accordion__content {
+    padding-right: 1rem;
+}
+
+.bx--tile {
+    background-color: #ffffff;
+}
+
+/* Loading state */
+.bx--loading-overlay {
+    background-color: rgba(255, 255, 255, 0.7);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .search-input-wrapper {
+        flex-direction: column;
+    }
+    
+    .search-interface {
+        padding: 1rem;
+    }
+    
+    .advanced-search-options {
+        grid-template-columns: 1fr;
+    }
+}
