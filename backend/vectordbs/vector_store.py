@@ -19,13 +19,13 @@ class VectorStore(ABC):
         pass
 
     @abstractmethod
-    def retrieve_documents(self, query: str, collection_name: str, limit: int = 10) -> List[QueryResult]:
+    def retrieve_documents(self, query: str, collection_name: str, number_of_results: int = 10) -> List[QueryResult]:
         """Retrieves documents based on a query or query embedding.
 
         Args:
             query: Either a text string or a QueryWithEmbedding object.
-            collection_name: Optional name of the collection.
-            limit: Number of top results to return. (Default: 10)
+            collection_name: Name of the collection to search in.
+            number_of_results: Number of top results to return. (Default: 10)
 
         Returns:
             A list of QueryResult objects containing the retrieved documents and their scores.
@@ -37,8 +37,8 @@ class VectorStore(ABC):
         """Queries the vector store with filtering and query mode options.
 
         Args:
+            collection_name: Name of the collection to search in.
             query: Either a text string or a QueryWithEmbedding object.
-            collection_name: Optional name of the collection.
             number_of_results: Number of top results to return. (Default: 10)
             filter: Optional metadata filter to apply to the search.
 

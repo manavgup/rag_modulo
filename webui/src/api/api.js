@@ -72,6 +72,67 @@ const handleApiError = (error, customErrorMessage) => {
   }
 };
 
+export const searchDocuments = async (query, collectionId) => {
+  try {
+    const url = API_ROUTES.SEARCH;
+    console.log('Searching documents:', getFullApiUrl(url));
+    
+    // Skip if 'all' is selected
+    if (collectionId === 'all') {
+      throw new Error('Please select a specific collection to search');
+    }
+
+    const response = await api.post(url, {
+      search_input: {  // Ensure this field is included
+        question: query,
+        collection_id: collectionId
+      }
+    });
+    
+    // Transform response to match frontend expectations if needed
+    const result = {
+      answer: response.data.answer,
+      source_documents: response.data.source_documents.map(doc => ({
+        text: doc.text,
+        metadata: doc.metadata,
+        score: doc.score,
+        document_id: doc.document_id
+      })),
+      rewritten_query: response.data.rewritten_query,
+      evaluation: response.data.evaluation
+    };
+
+    console.log('Search completed successfully:', result);
+    return result;
+  } catch (error) {
+    console.error('Error in searchDocuments:', error);
+    throw handleApiError(error, 'Error searching documents');
+  }
+};
+
+export const searchDocumentsStream = async (query, collectionId) => {
+  try {
+    const url = API_ROUTES.SEARCH_STREAM;
+    console.log('Streaming search:', getFullApiUrl(url));
+    
+    // Skip if 'all' is selected
+    if (collectionId === 'all') {
+      throw new Error('Please select a specific collection to search');
+    }
+
+    const response = await api.post(url, {
+      question: query,  // Changed from query to question to match backend schema
+      collection_id: collectionId  // Backend will validate UUID format
+    }, {
+      responseType: 'stream'
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error in searchDocumentsStream:', error);
+    throw handleApiError(error, 'Error streaming search results');
+  }
+};
+
 export const createCollectionWithDocuments = async (formData, onUploadProgress) => {
   try {
     const url = API_ROUTES.CREATE_COLLECTION_WITH_FILES;
@@ -193,5 +254,7 @@ export default {
   getDocumentsInCollection,
   deleteDocument,
   moveDocument,
-  getDocument
+  getDocument,
+  searchDocuments,
+  searchDocumentsStream
 };

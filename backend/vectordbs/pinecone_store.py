@@ -96,14 +96,14 @@ class PineconeStore(VectorStore):
         logging.info(f"Successfully added documents to index '{collection_name}'")
         return document_ids
 
-    def retrieve_documents(self, query: str, collection_name: str, limit: int = 10) -> List[QueryResult]:
+    def retrieve_documents(self, query: str, collection_name: str, number_of_results: int = 10) -> List[QueryResult]:
         """
         Retrieve documents from the specified Pinecone collection.
 
         Args:
             query (str): The query string.
             collection_name (str): The name of the collection to retrieve documents from.
-            limit (int): The number of results to return.
+            number_of_results (int): The number of results to return.
 
         Returns:
             List[QueryResult]: The list of query results.
@@ -116,7 +116,7 @@ class PineconeStore(VectorStore):
             raise VectorStoreError("Failed to generate embeddings for the query string.")
         query_embeddings = QueryWithEmbedding(text=query, vectors=embeddings)
 
-        results = self.query(collection_name, query_embeddings, number_of_results=limit)
+        results = self.query(collection_name, query_embeddings, number_of_results=number_of_results)
         return results
 
     def query(self, collection_name: str, query: QueryWithEmbedding, number_of_results: int = 10,
@@ -136,7 +136,7 @@ class PineconeStore(VectorStore):
         try:
             response = self.client.Index(collection_name).query(
                 vector=query.vectors,
-                top_k=number_of_results,
+                top_k=number_of_results,  # Pinecone API uses top_k, but we maintain our consistent interface
                 include_metadata=True,
                 include_values=True,
             )

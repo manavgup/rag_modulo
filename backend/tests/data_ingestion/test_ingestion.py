@@ -61,6 +61,6 @@ def test_ingest_documents(vector_store_with_collection):
     )
     # Assuming some documents are present in the data_dir
     stored_docs = vector_store_with_collection.retrieve_documents(
-        "ROI", collection_name, limit=2
+        "ROI", collection_name, number_of_results=2
     )
     assert len(stored_docs) > 0
