@@ -110,6 +110,19 @@ class BaseStoreTest:
                 assert query_result.data is not None
                 assert len(query_result.data) > 0
 
+    def test_retrieve_documents_with_number_of_results(self, store):
+        with store as s:
+            documents = self.create_test_documents()
+            s.add_documents(s.collection_name, documents)
+            # Test with number_of_results=2
+            query_results = s.retrieve_documents(
+                "Hello", s.collection_name, number_of_results=2
+            )
+            assert query_results is not None
+            # Should return exactly 2 results
+            assert len(query_results) == 1  # One QueryResult object
+            assert len(query_results[0].data) == 2  # With two documents
+
     def test_delete_all_documents(self, store):
         with store as s:
             documents = self.create_test_documents()

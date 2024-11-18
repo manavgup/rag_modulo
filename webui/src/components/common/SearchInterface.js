@@ -10,16 +10,18 @@ import {
   Dropdown,
   Tag,
   ExpandableTile,
-  InlineLoading
+  InlineLoading,
+  AccordionItem,
+  Accordion
 } from 'carbon-components-react';
-import { Search, Filter } from '@carbon/icons-react';
-import { getUserCollections } from '../../api/api'; // Removed queryCollection import
+import { Search, Filter, Document } from '@carbon/icons-react';
+import { getUserCollections, searchDocuments } from '../../api/api';
 import { useNotification } from '../../contexts/NotificationContext';
 import './SearchInterface.css';
 
 const SearchInterface = () => {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState([]);
+  const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [collections, setCollections] = useState([]);
   const [selectedCollection, setSelectedCollection] = useState('all');
@@ -58,11 +60,34 @@ const SearchInterface = () => {
     setLoading(true);
 
     try {
-      // Define search logic or use another function instead of queryCollection
-      // const searchResults = await someOtherFunction(searchParams);
-      const searchResults = []; // Placeholder for demonstration
-      setResults(searchResults);
-      if (searchResults.length === 0) {
+      const searchResult = await searchDocuments(query, selectedCollection);
+      
+      // Group source documents by document_id
+      const groupedSources = searchResult.source_documents.reduce((acc, doc) => {
+        const docId = doc.document_id || 'unknown';
+        if (!acc[docId]) {
+          acc[docId] = {
+            documentId: docId,
+            title: doc.metadata?.title || 'Unknown Document',
+            source: doc.metadata?.source || 'unknown',
+            chunks: []
+          };
+        }
+        acc[docId].chunks.push({
+          text: doc.text,
+          metadata: doc.metadata,
+          score: doc.score
+        });
+        return acc;
+      }, {});
+
+      setResults({
+        answer: searchResult.answer,
+        rewrittenQuery: searchResult.rewritten_query,
+        sources: Object.values(groupedSources)
+      });
+
+      if (Object.keys(groupedSources).length === 0) {
         addNotification('info', 'No Results', 'Your search did not match any documents.');
       }
     } catch (error) {
@@ -84,7 +109,30 @@ const SearchInterface = () => {
     const regex = new RegExp(`(${query.split(' ').join('|')})`, 'gi');
     return text.split(regex).map((part, index) => 
         regex.test(part) ? <mark key={index}>{part}</mark> : part
-      );
+    );
+  };
+
+  const renderSourceMetadata = (metadata) => {
+    if (!metadata) return null;
+    
+    const items = [];
+    if (metadata.page_number) {
+      items.push(`Page ${metadata.page_number}${metadata.total_pages ? ` of ${metadata.total_pages}` : ''}`);
+    }
+    if (metadata.source) {
+      items.push(metadata.source);
+    }
+    if (metadata.created_at) {
+      items.push(new Date(metadata.created_at).toLocaleDateString());
+    }
+    
+    return items.length > 0 ? (
+      <div className="source-metadata">
+        {items.map((item, index) => (
+          <Tag key={index} type="blue" size="sm">{item}</Tag>
+        ))}
+      </div>
+    ) : null;
   };
 
   return (
@@ -150,26 +198,48 @@ const SearchInterface = () => {
 
       {loading ? (
         <Loading description="Searching..." withOverlay={false} />
-      ) : (
+      ) : results && (
         <div className="search-results">
-          {results.map((result, index) => (
-            <ExpandableTile key={index} className="result-item">
-              <div className="result-header">
-                <h3>{result.title || 'Untitled Document'}</h3>
-                <div className="result-meta">
-                  <Tag type="blue">{result.documentType}</Tag>
-                  <span className="result-date">{new Date(result.date).toLocaleDateString()}</span>
-                </div>
+          {/* Main Answer Section */}
+          <Tile className="answer-section">
+            <h4>Answer</h4>
+            <p>{results.answer}</p>
+            {results.rewrittenQuery && (
+              <div className="rewritten-query">
+                <small>Rewritten query: {results.rewrittenQuery}</small>
               </div>
-              <div className="result-snippet">{highlightSearchTerms(result.snippet)}</div>
-              <div className="result-expanded-content">
-                <p>{highlightSearchTerms(result.content)}</p>
-                <Link to={`/document/${result.id}`} className="view-document-link">
-                  View Full Document
-                </Link>
-              </div>
-            </ExpandableTile>
-          ))}
+            )}
+          </Tile>
+
+          {/* Sources Section */}
+          <div className="sources-section">
+            <h4>Sources</h4>
+            <Accordion>
+              {results.sources.map((source, sourceIndex) => (
+                <AccordionItem 
+                  key={sourceIndex}
+                  title={
+                    <div className="source-header">
+                      <Document size={20} />
+                      <span>{source.title}</span>
+                    </div>
+                  }
+                >
+                  {source.chunks.map((chunk, chunkIndex) => (
+                    <Tile key={chunkIndex} className="source-chunk">
+                      {renderSourceMetadata(chunk.metadata)}
+                      <p>{highlightSearchTerms(chunk.text)}</p>
+                      {chunk.score && (
+                        <div className="chunk-score">
+                          <small>Relevance Score: {(chunk.score * 100).toFixed(2)}%</small>
+                        </div>
+                      )}
+                    </Tile>
+                  ))}
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </div>
         </div>
       )}
     </div>
