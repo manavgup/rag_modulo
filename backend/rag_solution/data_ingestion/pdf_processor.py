@@ -199,15 +199,18 @@ class PdfProcessor(BaseProcessor):
                 return tables
 
             # Method 1: Use PyMuPDF's built-in table extraction
-            built_in_tables = page.find_tables()
-            for table in built_in_tables:
-                extracted_table = table.extract()
-                cleaned_table: List[List[str]] = [
-                    [clean_text(cell) if cell is not None else "" for cell in row]
-                    for row in extracted_table
-                ]
-                if any(cell for row in cleaned_table for cell in row):
-                    tables.append(cleaned_table)
+            try:
+                built_in_tables = page.find_tables()
+                for table in built_in_tables:
+                    extracted_table = table.extract()
+                    cleaned_table: List[List[str]] = [
+                        [clean_text(cell) if cell is not None else "" for cell in row]
+                        for row in extracted_table
+                    ]
+                    if any(cell for row in cleaned_table for cell in row):
+                        tables.append(cleaned_table)
+            except ValueError as ve:
+                logger.warning(f"Could not find tables on page {page.number + 1}: {ve}")
 
             # Method 2: Use text blocks to identify potential tables
             if not tables:
