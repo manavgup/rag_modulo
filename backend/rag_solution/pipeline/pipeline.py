@@ -33,7 +33,7 @@ class Pipeline:
         self.query_rewriter = QueryRewriter(config.get('query_rewriting', {}))
         
         vector_store_config = config.get('vector_store', {'type': 'milvus'})
-        self.vector_store = get_datastore(vector_store_config)
+        self.vector_store = get_datastore(vector_store_config['type'])
         
         self.collection_name = config.get('collection_name', 'default_collection')
         self.document_store = DocumentStore(self.vector_store, self.collection_name)
@@ -94,10 +94,6 @@ class Pipeline:
                     for chunk_index, chunk in enumerate(doc.data):
                         all_texts.append(chunk.text)
                         logger.info(f"  Chunk {chunk_index + 1}:")
-                        # logger.info(f"    Chunk ID: {chunk.chunk_id}")
-                        # logger.info(f"    Text: {chunk.text[:100]}...")  # Print first 100 characters
-                        # logger.info(f"    Score: {chunk.score}")
-                        # logger.info(f"    Metadata: {chunk.metadata}")
 
             logger.info(f"\nTotal texts extracted: {len(all_texts)}")
 
@@ -212,79 +208,10 @@ class Pipeline:
         # Reinitialize components with new config
         self.query_rewriter = QueryRewriter(self.config.get('query_rewriting', {}))
         vector_store_config = self.config.get('vector_store', {'type': 'milvus'})
-        self.vector_store = get_datastore(vector_store_config)
+        self.vector_store = get_datastore(vector_store_config['type'])
         self.collection_name = self.config.get('collection_name', 'default_collection')
         self.document_store = DocumentStore(self.vector_store, self.collection_name)
         self.retriever = RetrieverFactory.create_retriever(self.config.get('retrieval', {}), self.document_store)
         self.generator = GeneratorFactory.create_generator(self.config.get('generation', {}))
         self.evaluator = EvaluatorFactory.create_evaluator(self.config.get('evaluation', {}))
         logger.info("Pipeline configuration updated")
-
-# Example usage
-if __name__ == "__main__":
-    config = {
-        'query_rewriting': {
-            'use_simple_rewriter': True,
-            'use_hyponym_rewriter': False
-        },
-        'retrieval': {
-            'type': 'hybrid',
-            'vector_weight': 0.7
-        },
-        'generation': {
-            'type': 'watsonx',
-            'model_name': 'flan-t5-xl',
-            'default_params': {
-                'max_new_tokens': 100,
-                'temperature': 0.7
-            }
-        },
-        'vector_store': {
-            'type': 'milvus',
-            'connection_args': {
-                'host': 'localhost',
-                'port': '19530'
-            }
-        },
-        'data_source': ['/path/to/your/documents'],
-        'collection_name': 'my_collection',
-        'top_k': 5,
-    }
-
-    async def run_pipeline():
-        pipeline = Pipeline(config)
-        await pipeline.initialize()
-        query = "What is the theory of relativity?"
-
-        print("Non-streaming response:")
-        result = pipeline.process(query, pipeline.collection_name)
-        print(f"Original Query: {result.original_query}")
-        print(f"Rewritten Query: {result.rewritten_query}")
-        print("Retrieved Documents:")
-        for doc in result.retrieved_documents:
-            print(f"  - Content: {doc[:100]}...")
-        print(f"Generated Response: {result.generated_answer}")
-        print(f"Evaluation: {result.evaluation}")
-
-        print("\nStreaming response:")
-        for chunk in pipeline.process_stream(query, pipeline.collection_name):
-            if 'error' in chunk:
-                print(f"Error: {chunk['error']}")
-            elif 'response_chunk' in chunk:
-                print(chunk['response_chunk'], end='', flush=True)
-            elif 'retrieved_documents' in chunk:
-                print(f"\nOriginal Query: {chunk['original_query']}")
-                print(f"Rewritten Query: {chunk['rewritten_query']}")
-                print("Retrieved Documents:")
-                for doc in chunk['retrieved_documents']:
-                    if isinstance(doc, QueryResult):
-                        print(f"  - Score: {doc.score}, Content: {doc.text[:100]}...")
-                    elif isinstance(doc, dict):
-                        print(f"  - Score: {doc.get('score', 'N/A')}, Content: {doc.get('text', '')[:100]}...")
-            elif 'evaluation' in chunk:
-                print("\nEvaluation Metrics:")
-                for metric, value in chunk['evaluation'].items():
-                    print(f"  {metric}: {value}")
-        print()
-
-    asyncio.run(run_pipeline())

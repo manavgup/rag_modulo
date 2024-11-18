@@ -189,15 +189,15 @@ class MilvusStore(VectorStore):
             self,
             query: str,
             collection_name: str,
-            limit: int = 10,
+            number_of_results: int = 10,
     ) -> List[QueryResult]:
         """
         Retrieve documents from the collection.
 
         Args:
             query (Union[str, QueryWithEmbedding]): The query string or query with embedding.
-            collection_name (Optional[str]): The name of the collection to retrieve documents from.
-            limit (int): The maximum number of results to return.
+            collection_name (str): The name of the collection to retrieve documents from.
+            number_of_results (int): The maximum number of results to return.
 
         Returns:
             List[QueryResult]: The list of query results.
@@ -227,7 +227,7 @@ class MilvusStore(VectorStore):
                     "created_at",
                     "author",
                 ],
-                limit=limit,
+                limit=number_of_results,  # Milvus API uses limit, but we maintain our consistent interface
             )
             return self._process_search_results(search_results)
         except MilvusException as e:
@@ -240,7 +240,7 @@ class MilvusStore(VectorStore):
 
         Args:
             document_ids (List[str]): The list of document IDs to delete.
-            collection_name (Optional[str]): The name of the collection to delete documents from.
+            collection_name (str): The name of the collection to delete documents from.
 
         Returns:
             int: The number of documents deleted.
@@ -287,7 +287,7 @@ class MilvusStore(VectorStore):
 
         Args:
             document_id (str): The ID of the document to retrieve.
-            collection_name (Optional[str]): The name of the collection to retrieve the document from.
+            collection_name (str): The name of the collection to retrieve the document from.
 
         Returns:
             Optional[Document]: The retrieved document or None if not found.
@@ -331,7 +331,7 @@ class MilvusStore(VectorStore):
                 data=[query.vectors],
                 anns_field=EMBEDDING_FIELD,
                 param=search_params,
-                limit=number_of_results,
+                limit=number_of_results,  # Milvus API uses limit, but we maintain our consistent interface
                 output_fields=[
                     "chunk_id",
                     "text",

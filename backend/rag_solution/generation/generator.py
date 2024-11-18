@@ -1,6 +1,6 @@
 from typing import List, Dict, Any, Optional, Generator as TypeGenerator
 from vectordbs.utils.watsonx import generate_text, generate_text_stream
-from backend.core.config import settings
+from core.config import settings
 
 import os
 from os.path import abspath, dirname

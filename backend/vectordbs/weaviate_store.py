@@ -1,4 +1,3 @@
-
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -153,7 +152,7 @@ class WeaviateDataStore(VectorStore):
               filter: Optional[DocumentMetadataFilter] = None) -> List[QueryResult]:
 
         result = self.client.collections.get(collection_name).query.near_vector(
-            near_vector=query.vectors, limit=number_of_results)
+            near_vector=query.vectors, number_of_results=number_of_results)
 
         query_results: List[QueryResult] = []
         response_objects = result.objects
@@ -203,7 +202,7 @@ class WeaviateDataStore(VectorStore):
             logging.error(f"Failed to delete documents from Weaviate index '{collection_name}': {e}")
             raise CollectionError(f"Failed to delete documents from Weaviate index '{collection_name}': {e}")
 
-    def retrieve_documents(self, query: str, collection_name: str, limit: int = 10) -> List[QueryResult]:
+    def retrieve_documents(self, query: str, collection_name: str, number_of_results: int = 10) -> List[QueryResult]:
         if not self.client.collections.exists(collection_name):
             raise CollectionError(f"Collection '{collection_name}' does not exist")
 
@@ -212,4 +211,4 @@ class WeaviateDataStore(VectorStore):
         query_with_embedding = QueryWithEmbedding(
             text=query, vectors=embeddings)
         logging.debug(f"Query with embedding: {query_with_embedding}")
-        return self.query(collection_name, query_with_embedding, number_of_results=limit)
+        return self.query(collection_name, query_with_embedding, number_of_results=number_of_results)
