@@ -108,9 +108,9 @@ function AppContent() {
           </ProtectedRoute>
         }
       >
-        <Route path="view" element={<CollectionViewer />}></Route>
+        {/* <Route path="view" element={<CollectionViewer />}></Route>
         <Route path="create" element={<CollectionForm />}></Route>
-        <Route path="edit" element={<CollectionForm />}></Route>
+        <Route path="edit" element={<CollectionForm />}></Route> */}
       </Route>
       <Route
         path="/document/:id"
@@ -120,14 +120,14 @@ function AppContent() {
           </ProtectedRoute>
         }
       />
-      <Route
+      {/* <Route
         path="/document-collections"
         element={
           <ProtectedRoute>
             <CollectionViewer />
           </ProtectedRoute>
         }
-      />
+      /> */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
