@@ -70,7 +70,6 @@
 .collection-tile-header svg {
   stroke: black;
   stroke-width: 0.5px;
-  /* cursor: pointer; */
 }
 
 .stat-item h3 {
@@ -89,10 +88,6 @@
 
 .cds--content.collection-view-tile {
   padding: 1rem 0;
-  /* display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
-  gap: 1rem;
-  margin-top: 1rem; */
 }
 
 .cds--content.collection-view-table {

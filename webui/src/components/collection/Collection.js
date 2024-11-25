@@ -126,7 +126,6 @@ const Collections = () => {
        fetchUserCollections();
       } else if (itemToDelete.type === "document") {
         await deleteDocument(selectedCollection.id, itemToDelete.id);
-        // fetchDocuments(selectedCollection.id);
       }
       setIsDeleteModalOpen(false);
       setItemToDelete(null);
@@ -163,7 +162,6 @@ const Collections = () => {
         "Failed to fetch user collections. Please try again later."
       );
     } finally {
-      // console.log(rendRows)
       setIsLoadingCollections(false);
     }
   };
@@ -197,8 +195,6 @@ const Collections = () => {
             setUploadProgress(percentCompleted);
           }
         );
-        console.log("API Response:", response);
-        // setShowSuccessToast(true);
         await fetchUserCollections();
         // Reset form
         setUploadProgress(0);
@@ -207,8 +203,6 @@ const Collections = () => {
         setIsModalOpen(false);
         resetModalFields();
       } catch (error) {
-        console.error("API Error:", error);
-        // setShowError(true);
         setErrorMessage(
           error.message || "An error occurred while creating the collection."
         );
@@ -221,23 +215,7 @@ const Collections = () => {
   };
 
   const handleUpdateCollection = async () => {
-    // try {
-    //   await updateCollection(selectedCollection.id, {
-    //     name: collectionName,
-    //     description: collectionDescription,
-    //   });
-    //   addNotification("success", "Success", "Collection updated successfully.");
-    //   fetchCollections();
-    //   setIsModalOpen(false);
-    //   resetModalFields();
-    // } catch (error) {
-    //   console.error("Error updating collection:", error);
-    //   addNotification(
-    //     "error",
-    //     "Error",
-    //     "Failed to update collection. Please try again."
-    //   );
-    // }
+
   };
 
   const onClickCollectionTable = (collectionId) => {
@@ -430,7 +408,6 @@ const Collections = () => {
                           new Date(
                             selectedCollection?.created_at
                           ).toLocaleDateString()}
-                        {/* {selectedCollection?.created_at} */}
                       </div>
                     </Column>
                     <Column>
@@ -440,7 +417,6 @@ const Collections = () => {
                           new Date(
                             selectedCollection?.updated_at
                           ).toLocaleDateString()}
-                        {/* {selectedCollection?.updated_at} */}
                       </div>
                     </Column>
                   </Row>

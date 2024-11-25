@@ -20,7 +20,6 @@ const UISideNav = ({ isSideNavExpanded, handleSideNavExpand }) => {
       expanded={isSideNavExpanded}
       onOverlayClick={handleSideNavExpand}
       onSideNavBlur={handleSideNavExpand}
-      // onClick={handleSideNavExpanded}
     >
       <SideNavItems>
         <SideNavLink
@@ -47,15 +46,6 @@ const UISideNav = ({ isSideNavExpanded, handleSideNavExpand }) => {
         >
           Search Documents
         </SideNavLink>
-        {/* <SideNavDivider /> */}
-        {/* <SideNavLink
-          renderIcon={Fade}
-          href="#"
-          onClick={() => onNavigate("/document-collections")}
-          isActive={isActive("/document-collections")}
-        >
-          Document Collections
-        </SideNavLink> */}
         {/* Add more menu items as needed */}
       </SideNavItems>
     </SideNav>
