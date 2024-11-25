@@ -19,8 +19,6 @@ import LoginPage from "./components/LoginPage";
 import { handleAuthCallback } from "./services/authService";
 
 import Collection from "./components/collection/Collection";
-import CollectionForm from "./components/collection/CollectionForm";
-import CollectionViewer from "./components/collection/CollectionViewer";
 
 import "./App.css";
 import "./styles/global.css";
@@ -108,9 +106,6 @@ function AppContent() {
           </ProtectedRoute>
         }
       >
-        {/* <Route path="view" element={<CollectionViewer />}></Route>
-        <Route path="create" element={<CollectionForm />}></Route>
-        <Route path="edit" element={<CollectionForm />}></Route> */}
       </Route>
       <Route
         path="/document/:id"
@@ -120,14 +115,6 @@ function AppContent() {
           </ProtectedRoute>
         }
       />
-      {/* <Route
-        path="/document-collections"
-        element={
-          <ProtectedRoute>
-            <CollectionViewer />
-          </ProtectedRoute>
-        }
-      /> */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
