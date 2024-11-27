@@ -1,12 +1,7 @@
 # Use a smaller base image for Node.js
 FROM node:18-alpine AS builder
 
-ARG REACT_APP_API_URL=/api
-ARG REACT_APP_OIDC_CLIENT_ID
-
-ENV REACT_APP_API_URL=$REACT_APP_API_URL \
-    REACT_APP_OIDC_CLIENT_ID=$REACT_APP_OIDC_CLIENT_ID \
-    NODE_ENV=production 
+ENV NODE_ENV=production 
 # Set the working directory
 WORKDIR /app
 
