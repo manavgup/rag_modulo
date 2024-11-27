@@ -1,10 +1,8 @@
 const config = {
-    apiUrl: process.env.REACT_APP_API_URL || '/api',
-    oidcClientId: process.env.REACT_APP_OIDC_CLIENT_ID,
+    apiUrl: '/api'
 };
 
 console.log("Config initialized:", config);
-console.log("REACT_APP_API_URL:", process.env.REACT_APP_API_URL);
 console.log("Window location origin:", window.location.origin);
 console.log("Final apiUrl:", config.apiUrl);
 
@@ -30,7 +28,6 @@ const getFullApiUrl = (route) => {
 };
 
 const authConfig = {
-    client_id: config.oidcClientId,
     redirect_uri: `${window.location.origin}/api/auth/callback`,
     response_type: "code",
     scope: "openid profile email",

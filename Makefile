@@ -46,7 +46,7 @@ sync-frontend-deps:
 
 # Build
 build-frontend: sync-frontend-deps
-	$(CONTAINER_CLI) build -t ${PROJECT_NAME}/frontend:${PROJECT_VERSION} -f ./webui/Dockerfile.frontend --build-arg REACT_APP_API_URL=${REACT_APP_API_URL} --build-arg REACT_APP_OIDC_CLIENT_ID=${IBM_CLIENT_ID}  ./webui
+	$(CONTAINER_CLI) build -t ${PROJECT_NAME}/frontend:${PROJECT_VERSION} -f ./webui/Dockerfile.frontend ./webui
 
 build-backend:
 	$(CONTAINER_CLI) build -t ${PROJECT_NAME}/backend:${PROJECT_VERSION} -f ./backend/Dockerfile.backend ./backend
@@ -153,7 +153,7 @@ clean: stop-containers
 # Service / reusable targets
 create-volumes:
 	@echo "Creating volume directories with correct permissions..."
-	@mkdir -p ./volumes/postgres ./volumes/etcd ./volumes/minio ./volumes/milvus
+	@mkdir -p ./volumes/postgres ./volumes/etcd ./volumes/minio ./volumes/milvus ./volumes/backend
 	@chmod -R 777 ./volumes
 	@echo "Volume directories created and permissions set."
 
