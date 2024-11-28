@@ -46,7 +46,7 @@ sync-frontend-deps:
 
 # Build
 build-frontend: sync-frontend-deps
-	$(CONTAINER_CLI) build -t ${PROJECT_NAME}/frontend:${PROJECT_VERSION} -f ./webui/Dockerfile.frontend --build-arg REACT_APP_API_URL=${REACT_APP_API_URL} --build-arg REACT_APP_OIDC_CLIENT_ID=${IBM_CLIENT_ID}  ./webui
+	$(CONTAINER_CLI) build -t ${PROJECT_NAME}/frontend:${PROJECT_VERSION} -f ./webui/Dockerfile.frontend ./webui
 
 build-backend:
 	$(CONTAINER_CLI) build -t ${PROJECT_NAME}/backend:${PROJECT_VERSION} -f ./backend/Dockerfile.backend ./backend
@@ -132,17 +132,19 @@ run-services: create-volumes
 		echo "Unknown VECTOR_DB value: $(VECTOR_DB)"; \
 		exit 1; \
 	fi
+	@echo "start mlflow-server"
+	@$(DOCKER_COMPOSE) up -d mlflow-server || { echo "Failed to start mlflow"; $(DOCKER_COMPOSE) logs; exit 1; };
 	@echo "Docker containers status:"
-	@$(CONTAINER_CLI) ps 
+	@$(CONTAINER_CLI) ps
 	@echo "Milvus logs saved to milvus.log:"
 	@$(DOCKER_COMPOSE) logs milvus-standalone > milvus.log
 
 # Stop / clean
 stop-containers:
 	@echo "Stopping containers..."
-	$(DOCKER_COMPOSE) down -v	
+	$(DOCKER_COMPOSE) down -v
 
-clean: stop-containers 
+clean: stop-containers
 	@echo "Cleaning up existing containers and volumes..."
 	-@$(CONTAINER_CLI) pod rm -f $$($(CONTAINER_CLI) pod ls -q) || true
 	-@$(CONTAINER_CLI) rm -f $$($(CONTAINER_CLI) ps -aq) || true
@@ -153,7 +155,7 @@ clean: stop-containers
 # Service / reusable targets
 create-volumes:
 	@echo "Creating volume directories with correct permissions..."
-	@mkdir -p ./volumes/postgres ./volumes/etcd ./volumes/minio ./volumes/milvus
+	@mkdir -p ./volumes/postgres ./volumes/etcd ./volumes/minio ./volumes/milvus ./volumes/backend
 	@chmod -R 777 ./volumes
 	@echo "Volume directories created and permissions set."
 
@@ -183,9 +185,9 @@ help:
 	@echo "  run-backend   		Run backend using Docker Compose"
 	@echo "  run-frontend  		Run frontend using Docker Compose"
 	@echo "  run-services  		Run services using Docker Compose"
-	@echo "  stop-containers  	Stop all containers using Docker Compose"	
+	@echo "  stop-containers  	Stop all containers using Docker Compose"
 	@echo "  clean         		Clean up Docker Compose volumes and cache"
-	@echo "  create-volumes     Create folders for container volumes"	
+	@echo "  create-volumes     Create folders for container volumes"
 	@echo "  logs          		View logs of running containers"
 	@echo "  info          		Display project information"
 	@echo "  help          		Display this help message"

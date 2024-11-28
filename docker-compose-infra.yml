@@ -22,7 +22,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
   etcd:
     container_name: milvus-etcd
     image: bitnami/etcd:latest
@@ -64,7 +63,7 @@ services:
 
   milvus-standalone:
     container_name: milvus-standalone
-    image: milvusdb/milvus:v2.3.3
+    image: milvusdb/milvus:v2.4.4
     command: ["milvus", "run", "standalone"]
     environment:
       ETCD_ENDPOINTS: etcd:2379
@@ -84,6 +83,35 @@ services:
       - "minio"
     networks:
       - app-network
+
+  mlflow-server:
+    build:
+      context: ./infra
+      dockerfile: Dockerfile.mlflow
+    ports:
+      - "5000:5000"
+    image: mlflow-rag-modulo:0.0.1
+    environment:
+      POSTGRES_DB: ${COLLECTIONDB_NAME}
+      POSTGRES_USER: ${COLLECTIONDB_USER}
+      POSTGRES_PASSWORD: ${COLLECTIONDB_PASS}
+    command: [
+      "mlflow", "server",
+      "--backend-store-uri", "postgresql+psycopg2://${COLLECTIONDB_USER}:${COLLECTIONDB_PASS}@postgres:5432/${COLLECTIONDB_NAME}",
+      "--default-artifact-root", "/mlflow/artifacts",
+      "--host", "0.0.0.0"
+    ]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      - postgres
+    networks:
+      - app-network
+
 
 volumes:
   postgres_data:
