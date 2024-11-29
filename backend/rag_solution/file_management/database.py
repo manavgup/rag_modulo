@@ -2,7 +2,7 @@
 import logging
 import os
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, URL
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.exc import SQLAlchemyError
 from core.config import settings
@@ -18,14 +18,19 @@ if host == 'postgres' and os.environ.get('PYTEST_CURRENT_TEST'):
     host = 'localhost'
 
 # Synchronous database URL
-DATABASE_URL = (
-    f"postgresql://{settings.collectiondb_user}:{settings.collectiondb_pass}@{settings.collectiondb_host}:{settings.collectiondb_port}/{settings.collectiondb_name}"
+database_url = URL.create(
+   drivername="postgresql",
+   username=settings.collectiondb_user,
+   password=settings.collectiondb_pass,
+   host=settings.collectiondb_host,
+   port=settings.collectiondb_port,
+   database=settings.collectiondb_name
 )
 
-logger.debug(f"Database URL: {DATABASE_URL}")
+logger.debug(f"Database URL: {database_url}")
 
 # Create synchronous engine and session
-engine = create_engine(DATABASE_URL, echo=True)
+engine = create_engine(database_url, echo=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
