@@ -10,8 +10,6 @@ services:
     networks:
       - app-network
     working_dir: /app
-    ports:
-      - "8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
