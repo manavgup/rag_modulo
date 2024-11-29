@@ -64,7 +64,7 @@ class Settings(BaseSettings):
 
     # Elasticsearch credentials
     elastic_host: Optional[str] = None
-    elastic_port: Optional[int] = None
+    elastic_port: Optional[int] = 9200
     elastic_password: Optional[str] = None
     elastic_cacert_path: Optional[str] = None
     elastic_cloud_id: Optional[str] = None
