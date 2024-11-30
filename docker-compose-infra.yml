@@ -11,8 +11,6 @@ services:
       COLLECTIONDB_USER: ${COLLECTIONDB_USER}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "${COLLECTIONDB_PORT}:5432"
     healthcheck:
       test:
         [
@@ -76,8 +74,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    ports:
-      - "19530:19530"
     depends_on:
       - "etcd"
       - "minio"

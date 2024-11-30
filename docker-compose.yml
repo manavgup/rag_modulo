@@ -10,8 +10,6 @@ services:
     networks:
       - app-network
     working_dir: /app
-    ports:
-      - "8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -21,6 +19,8 @@ services:
       - COLLECTIONDB_HOST=postgres
     env_file:
       - .env
+    volumes:
+      - backend_data:/mnt/data
     healthcheck:
       test: ["CMD", "python", "healthcheck.py"]
       interval: 30s
@@ -36,9 +36,6 @@ services:
       - "3000:8080"
     depends_on:
       - backend
-    environment:
-      - REACT_APP_API_URL=/api
-      - REACT_APP_OIDC_CLIENT_ID=${IBM_CLIENT_ID}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080"]
       interval: 30s
@@ -76,3 +73,6 @@ services:
       - IBM_CLIENT_SECRET=${IBM_CLIENT_SECRET}
     env_file:
       - .env
+
+volumes:
+  backend_data:
