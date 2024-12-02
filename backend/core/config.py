@@ -48,7 +48,7 @@ class Settings(BaseSettings):
     log_level: Optional[str] = None
 
     # File storage path
-    file_storage_path: str = tempfile.gettempdir()
+    file_storage_path: str = Field(default=tempfile.gettempdir(), env='FILE_STORAGE_PATH')
 
     # ChromaDB credentials
     chromadb_host: Optional[str] = None
@@ -64,7 +64,7 @@ class Settings(BaseSettings):
 
     # Elasticsearch credentials
     elastic_host: Optional[str] = None
-    elastic_port: Optional[int] = None
+    elastic_port: Optional[int] = 9200
     elastic_password: Optional[str] = None
     elastic_cacert_path: Optional[str] = None
     elastic_cloud_id: Optional[str] = None
