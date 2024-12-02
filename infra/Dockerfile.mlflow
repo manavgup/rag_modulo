@@ -1,9 +1,9 @@
 FROM python:3.10-slim-bullseye
 ARG MLFLOW_VERSION
 RUN pip install --no-cache mlflow==$MLFLOW_VERSION
-
+COPY basic_auth.ini /opt/basic_auth.ini
 RUN apt-get -y update && \
-    apt-get -y install python3-dev default-libmysqlclient-dev build-essential pkg-config && \
+    apt-get -y install python3-dev default-libmysqlclient-dev build-essential pkg-config curl && \
     pip install --upgrade pip && \
     pip install mysqlclient && \
     pip install boto3 && \

@@ -21,6 +21,8 @@ DOCKER_COMPOSE := docker compose
 
 # Set a default value for VECTOR_DB if not already set
 VECTOR_DB ?= milvus
+# Infra
+MLFLOW_VERSION := 2.18.0
 
 .DEFAULT_GOAL := help
 
@@ -51,10 +53,13 @@ build-frontend: sync-frontend-deps
 build-backend:
 	$(CONTAINER_CLI) build -t ${PROJECT_NAME}/backend:${PROJECT_VERSION} -f ./backend/Dockerfile.backend ./backend
 
+build-mlflow:
+	$(CONTAINER_CLI) build -t ${PROJECT_NAME}/mlflow-rag-modulo:${MLFLOW_VERSION} -f ./infra/Dockerfile.mlflow ./infra --no-cache --build-arg MLFLOW_VERSION=${MLFLOW_VERSION}
+
 build-tests:
 	$(CONTAINER_CLI) build -t ${PROJECT_NAME}/backend-test:${PROJECT_VERSION} -f ./backend/Dockerfile.test ./backend
 
-build-all: build-frontend build-backend build-tests
+build-all: build-frontend build-backend build-tests build-mlflow
 
 # Test
 test: build-backend build-tests
