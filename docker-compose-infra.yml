@@ -85,14 +85,9 @@ services:
       - app-network
 
   mlflow-server:
-    build:
-      context: ./infra
-      args:
-        - MLFLOW_VERSION=2.18.0
-      dockerfile: Dockerfile.mlflow
     ports:
       - "5000:5000"
-    image: mlflow-rag-modulo:2.18.0
+    image: rag-modulo/mlflow-rag-modulo:2.18.0
     environment:
       POSTGRES_DB: ${COLLECTIONDB_NAME}
       POSTGRES_USER: ${COLLECTIONDB_USER}
@@ -102,10 +97,14 @@ services:
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
       MLFLOW_S3_ENDPOINT_URL: ${MLFLOW_S3_ENDPOINT_URL}
       AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION}
+      MLFLOW_TRACKING_USERNAME: ${MLFLOW_TRACKING_USERNAME}
+      MLFLOW_TRACKING_PASSWORD: ${MLFLOW_TRACKING_PASSWORD}
+      MLFLOW_AUTH_CONFIG_PATH: "/opt/basic_auth.ini"
     command: [
       "mlflow", "server",
       "--backend-store-uri", "postgresql+psycopg2://${COLLECTIONDB_USER}:${COLLECTIONDB_PASS}@postgres:5432/${COLLECTIONDB_NAME}",
-      "--host", "0.0.0.0"
+      "--host", "0.0.0.0",
+      "--app-name", "basic-auth"
     ]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
