@@ -8,8 +8,6 @@ import multiprocessing
 import concurrent.futures
 from multiprocessing.managers import SyncManager
 import pymupdf
-import aiofiles
-import asyncio
 
 from core.custom_exceptions import DocumentProcessingError
 from rag_solution.data_ingestion.base_processor import BaseProcessor
@@ -138,7 +136,7 @@ class PdfProcessor(BaseProcessor):
 
     def create_document_chunk(self, chunk_text: str, chunk_embedding: List[float], metadata: Dict[str, Any],
                               document_id: str) -> DocumentChunk:
-        chunk_id = str(uuid.uuid4())
+        chunk_id = hashlib.md5(chunk_text.encode('utf-8')).hexdigest()
         return DocumentChunk(
             chunk_id=chunk_id,
             text=chunk_text,

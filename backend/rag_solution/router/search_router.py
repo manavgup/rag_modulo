@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from typing import Dict, Any, Optional
 from sqlalchemy.orm import Session
+import os
 
 from rag_solution.schemas.search_schema import SearchInput, SearchOutput
 from rag_solution.file_management.database import get_db
@@ -53,7 +54,12 @@ async def search(
         HTTPException: If there's an error processing the search.
     """
     try:
-        return search_service.search(search_input, context)
+        res = search_service.search(search_input, context)
+        if os.getenv("RUNTIME_EVAL", "False").strip().lower() == "true":
+            context = "\n".join([x.text for x in res.source_documents])
+            evaluation = await search_service.pipeline.evaluator.evaluate(question=res.rewritten_query,answer=res.answer,context=context)
+            res.evaluation = evaluation
+        return res
     except HTTPException as he:
         # Pass through HTTP exceptions from the service
         raise he

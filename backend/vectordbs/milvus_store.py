@@ -395,7 +395,7 @@ class MilvusStore(VectorStore):
             for hit in result:
                 # logger.info(f"Processing hit: {hit}")
                 chunk = DocumentChunkWithScore(
-                    chunk_id=hit.id,
+                    chunk_id=hit.fields.get("chunk_id"), # hit.id,
                     text=hit.entity.get("text") or "",  # Use empty string if text is None
                     vectors=hit.entity.get("embedding"),
                     metadata=DocumentChunkMetadata(
