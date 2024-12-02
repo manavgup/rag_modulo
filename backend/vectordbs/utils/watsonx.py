@@ -93,7 +93,7 @@ def _get_embeddings_client(embed_params: Optional[Dict] = None) -> wx_Embeddings
     global embeddings_client
     if embeddings_client is None:
         embed_params = {
-            EmbedParams.TRUNCATE_INPUT_TOKENS: 3,
+            EmbedParams.TRUNCATE_INPUT_TOKENS: 256,
             EmbedParams.RETURN_OPTIONS: {"input_text": True},
         }
     if embeddings_client is None:
@@ -234,7 +234,21 @@ async def agenerate_responses(
     prompts: List[str],
     concurrency_level: int,
     wx_model: Optional[ModelInference] = None,
-) -> List:
+) -> List[str]:
+    """
+    Asynchronously generate responses for a list of prompts with throttled concurrency.
+
+    Args:
+        prompts: List of input prompts for the watsonx model.
+        concurrency_level: Number of concurrent requests to allow.
+        wx_model: Optional watsonx model instance for inference.
+
+    Returns:
+        List of generated responses as strings.
+    """
+
+    if concurrency_level <= 0:
+        raise ValueError("concurrency_level must be greater than 0.")
 
     if wx_model is None:
         wx_model = get_model()
@@ -243,8 +257,12 @@ async def agenerate_responses(
         prompt: str, semaphore: asyncio.Semaphore, wx_mdl: ModelInference
     ):
         async with semaphore:
-            response = await wx_mdl.agenerate(prompt=prompt)
-            return response.get("results")[0].get("generated_text").strip()
+            try:
+                response = await wx_mdl.agenerate(prompt=prompt)
+                return response.get("results")[0].get("generated_text").strip()
+            except (IndexError, AttributeError) as e:
+                logger.error(f"Error generating response for prompt: {prompt}, error: {e}")
+                return "<error>"
 
     semaphore = asyncio.Semaphore(value=concurrency_level)
     results = await asyncio.gather(
@@ -267,10 +285,15 @@ def generate_batch(
     prompts: List[str],
     wx_model: Optional[ModelInference] = None,
     concurrency_level: int = 5,
+    loop: Optional[asyncio.AbstractEventLoop] = None,
 ) -> List:
     if wx_model is None:
         wx_model = get_model()
-    return asyncio.run(generate_all_responses(prompts, wx_model, concurrency_level))
+    if loop is None:
+        #loop = asyncio.get_event_loop()
+        return asyncio.run(generate_all_responses(prompts, wx_model, concurrency_level))
+
+    return loop.run_until_complete(generate_all_responses(prompts, wx_model, concurrency_level))
 
 
 @retry(
