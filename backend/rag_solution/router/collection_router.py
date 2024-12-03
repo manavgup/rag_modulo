@@ -13,6 +13,8 @@ from rag_solution.schemas.user_collection_schema import UserCollectionOutput
 from rag_solution.services.collection_service import CollectionService
 from rag_solution.services.file_management_service import FileManagementService
 from rag_solution.schemas.file_schema import DocumentDelete, FileOutput, FileMetadata
+from rag_solution.services.question_service import QuestionService
+from rag_solution.schemas.question_schema import QuestionInDB, QuestionInput, QuestionOutput
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -57,13 +59,12 @@ def create_collection(collection_input: CollectionInput, db: Session = Depends(g
         500: {"description": "Internal server error"}
     }
 )
-def create_collection_with_documents(
+async def create_collection_with_documents(
     request: Request,
     collection_name: str = Form(...),
     is_private: bool = Form(...),
     user_id: UUID = Form(...),
     files: List[UploadFile] = File(...),
-    background_tasks: BackgroundTasks = BackgroundTasks(),
     db: Session = Depends(get_db),
 ):
     """
@@ -90,8 +91,7 @@ def create_collection_with_documents(
             collection_name,
             is_private,
             user_id,
-            files,
-            background_tasks
+            files
         )
         logger.info(f"Collection created successfully: {collection.id}")
         return collection
@@ -122,6 +122,90 @@ def get_collection(collection_id: UUID, db: Session = Depends(get_db)):
     """
     _service = CollectionService(db, FileManagementService(db))
     return _service.get_collection(collection_id)
+
+@router.post("/{collection_id}/questions", 
+    summary="Create a question for a collection",
+    response_model=QuestionOutput,
+    description="Create a new question for the specified collection",
+    responses={
+        200: {"description": "Question created successfully"},
+        404: {"description": "Collection not found"},
+        500: {"description": "Internal server error"}
+    }
+)
+def create_collection_question(
+    collection_id: UUID, 
+    question: str, 
+    db: Session = Depends(get_db)
+) -> QuestionOutput:
+    """Create a new question for a collection."""
+    try:
+        question_service = QuestionService(db)
+        question_input = QuestionInput(
+            collection_id=collection_id,
+            question=question
+        )
+        result = question_service.create_question(question_input)
+        return QuestionOutput.model_validate(result)
+    except Exception as e:
+        logger.error(f"Error creating question for collection {collection_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/{collection_id}/questions",
+    summary="Get questions for a collection",
+    response_model=List[QuestionOutput],
+    description="Get all questions for the specified collection",
+    responses={
+        200: {"description": "Questions retrieved successfully"},
+        404: {"description": "Collection not found"},
+        500: {"description": "Internal server error"}
+    }
+)
+def get_collection_questions(collection_id: UUID, db: Session = Depends(get_db)) -> List[QuestionOutput]:
+    """Get all questions for a collection."""
+    try:
+        question_service = QuestionService(db)
+        questions = question_service.get_collection_questions(collection_id)
+        return [QuestionOutput.model_validate(q) for q in questions]
+    except Exception as e:
+        logger.error(f"Error getting questions for collection {collection_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/{collection_id}/questions/{question_id}",
+    summary="Delete a specific question",
+    description="Delete a specific question from a collection",
+    responses={
+        204: {"description": "Question deleted successfully"},
+        404: {"description": "Question not found"},
+        500: {"description": "Internal server error"}
+    }
+)
+def delete_collection_question(collection_id: UUID, question_id: UUID, db: Session = Depends(get_db)) -> None:
+    """Delete a specific question from a collection."""
+    try:
+        question_service = QuestionService(db)
+        question_service.delete_question(question_id)
+    except Exception as e:
+        logger.error(f"Error deleting question {question_id} from collection {collection_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/{collection_id}/questions",
+    summary="Delete all questions for a collection",
+    description="Delete all questions associated with the specified collection",
+    responses={
+        204: {"description": "All questions deleted successfully"},
+        404: {"description": "Collection not found"},
+        500: {"description": "Internal server error"}
+    }
+)
+def delete_collection_questions(collection_id: UUID, db: Session = Depends(get_db)) -> None:
+    """Delete all questions for a collection."""
+    try:
+        question_service = QuestionService(db)
+        question_service.delete_questions_by_collection(collection_id)
+    except Exception as e:
+        logger.error(f"Error deleting questions for collection {collection_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/{collection_id}", 
     summary="Delete a collection by id.", 
