@@ -2,19 +2,19 @@ from typing import Dict, Any, Optional
 from uuid import UUID
 from fastapi import HTTPException, Depends
 from sqlalchemy.orm import Session
-
+import asyncio
 from core.config import settings
-from rag_solution.pipeline.pipeline import Pipeline
+from rag_solution.pipeline.pipeline import Pipeline, PipelineResult
 from rag_solution.schemas.search_schema import SearchInput, SearchOutput
 from rag_solution.schemas.collection_schema import CollectionOutput
 from rag_solution.services.collection_service import CollectionService
 
 class SearchService:
     def __init__(self, db: Session):
-        self.pipeline = self._create_pipeline()
+        self.pipeline = self._create_pipeline(db)
         self.collection_service = CollectionService(db)
 
-    def _create_pipeline(self) -> Pipeline:
+    def _create_pipeline(self, db:Session) -> Pipeline:
         """
         Create and configure the RAG pipeline using settings.
         
@@ -67,7 +67,7 @@ class SearchService:
                 'batch_size': settings.upsert_batch_size
             }
         }
-        return Pipeline(config)
+        return Pipeline(config, db)
 
     def _get_collection_vector_db_name(self, collection_id: UUID) -> str:
         """
@@ -95,89 +95,59 @@ class SearchService:
                 status_code=400,
                 detail=f"Error accessing collection: {str(e)}"
             )
-
-    def search(self, search_input: SearchInput, context: Optional[Dict[str, Any]] = None) -> SearchOutput:
+    
+    async def search(self, search_input: SearchInput, context: Optional[Dict[str, Any]] = None) -> SearchOutput:
         """
         Process a search query through the RAG pipeline.
 
         Args:
-            search_input (SearchInput): Input data containing question and collection.
-            context (Optional[Dict[str, Any]]): Additional context for query processing.
+            search_input (SearchInput): The input containing the query and collection details.
+                question (str): The query text
+                collection_id (UUID): The collection identifier
+            context (Optional[Dict[str, Any]]): Additional context for search customization.
 
         Returns:
-            SearchOutput: Contains the answer and related information.
+            SearchOutput: The result of the search operation containing:
+                - answer (str): Generated response
+                - source_documents (List[Dict[str, Any]]): Retrieved source documents
+                - rewritten_query (Optional[str]): Query after rewriting
+                - evaluation (Optional[Dict[str, Any]]): Evaluation metrics
 
         Raises:
-            HTTPException: If collection lookup fails or search processing fails
+            HTTPException: 
+                - 404: If collection not found
+                - 400: If invalid input or collection access error
+                - 500: If processing error occurs
         """
         try:
-            # Get the actual vector db collection name from the collection ID
-            vector_db_collection = self._get_collection_vector_db_name(search_input.collection_id)
+            # Get collection name with typed return
+            collection_name: str = self._get_collection_vector_db_name(search_input.collection_id)
             
-            # Process the search through the pipeline
-            result = self.pipeline.process(
+            # Process through pipeline with strong typing
+            pipeline_result: PipelineResult = await self.pipeline.process(
                 query=search_input.question,
-                collection_name=vector_db_collection,
+                collection_name=collection_name,
                 context=context
             )
-            
-            # Convert pipeline result to match SearchOutput schema
-            source_documents = []
-            for doc in result.retrieved_documents:
-                if isinstance(doc, str):
-                    # If it's just text, create a basic document
-                    source_documents.append({
-                        'text': doc,
-                        'metadata': None,
-                        'score': None,
-                        'document_id': None
-                    })
-                else:
-                    # If it's a structured document, preserve its structure
-                    source_documents.append(doc)
-            
+
+            # Transform pipeline result to search output
             return SearchOutput(
-                answer=result.generated_answer,
-                source_documents=source_documents,
-                rewritten_query=result.rewritten_query,
-                evaluation=result.evaluation
+                answer=pipeline_result.generated_answer,
+                source_documents=[
+                    {
+                        'text': doc,
+                        'metadata': None  # Add metadata if available in your implementation
+                    }
+                    for doc in pipeline_result.retrieved_documents
+                ],
+                rewritten_query=pipeline_result.rewritten_query,
+                evaluation=pipeline_result.evaluation
             )
+
         except HTTPException as he:
+            # Re-raise existing HTTP exceptions
             raise he
+        except ValueError as ve:
+            raise HTTPException(status_code=400, detail=f"Invalid input: {str(ve)}")
         except Exception as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Error processing search: {str(e)}"
-            )
-
-    def search_stream(self, search_input: SearchInput, context: Optional[Dict[str, Any]] = None):
-        """
-        Process a search query through the RAG pipeline with streaming response.
-
-        Args:
-            search_input (SearchInput): Input data containing question and collection.
-            context (Optional[Dict[str, Any]]): Additional context for query processing.
-
-        Returns:
-            Iterator: Streams the generated answer and related information.
-
-        Raises:
-            HTTPException: If collection lookup fails or search processing fails
-        """
-        try:
-            # Get the actual vector db collection name from the collection ID
-            vector_db_collection = self._get_collection_vector_db_name(search_input.collection_id)
-            
-            # Return streaming response
-            return self.pipeline.process_stream(
-                query=search_input.question,
-                collection_name=vector_db_collection,
-                context=context
-            )
-        except HTTPException as he:
-            raise he
-        except Exception as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Error processing streaming search: {str(e)}"
-            )
+            raise HTTPException(status_code=500, detail=f"Error processing search: {str(e)}")
