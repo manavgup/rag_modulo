@@ -1,12 +1,7 @@
 # Use a smaller base image for Node.js
 FROM node:18-alpine AS builder
 
-ARG REACT_APP_API_URL=/api
-ARG REACT_APP_OIDC_CLIENT_ID
-
-ENV REACT_APP_API_URL=$REACT_APP_API_URL \
-    REACT_APP_OIDC_CLIENT_ID=$REACT_APP_OIDC_CLIENT_ID \
-    NODE_ENV=production 
+ENV NODE_ENV=production 
 # Set the working directory
 WORKDIR /app
 
@@ -29,12 +24,13 @@ FROM nginx:alpine
 COPY --from=builder /app/build /usr/share/nginx/html
 
 # Copy the default.conf file
-COPY default.conf /etc/nginx/conf.d/default.conf
+COPY --chown=nginx:nginx default.conf /etc/nginx/conf.d/default.conf
 
 # Create a non-root user and group
-RUN chown -R nginx:nginx /usr/share/nginx && chmod -R 755 /usr/share/nginx && \
-    chown -R nginx:nginx /var/cache/nginx /var/log/nginx /etc/nginx/conf.d && \
-    touch /var/run/nginx.pid && chown -R nginx:nginx /var/run/nginx.pid
+RUN sed -i 's,/var/run/nginx.pid,/tmp/nginx.pid,' /etc/nginx/nginx.conf && \
+    sed -i '/user  nginx;/d' /etc/nginx/nginx.conf && \
+    chown -R nginx:nginx /usr/share/nginx /var/cache/nginx /var/log/nginx /etc/nginx && \
+    chmod -R 755 /usr/share/nginx /var/cache/nginx /var/log/nginx /etc/nginx
 
 USER nginx
 

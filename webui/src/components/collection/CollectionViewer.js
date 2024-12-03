@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   DataTable,
   TableContainer,
@@ -19,13 +19,21 @@ import {
   ComposedModal,
   ModalHeader,
   ModalBody,
-  ModalFooter
+  ModalFooter,
 } from "@carbon/react";
-import { Add, TrashCan, Document, Edit} from '@carbon/icons-react';
-import { getUserCollections, createCollectionWithDocuments, updateCollection, deleteCollection, getDocumentsInCollection, deleteDocument, moveDocument } from '../../api/api';
-import { useNotification } from 'src/contexts/NotificationContext';
+import { Add, TrashCan, Document, Edit } from "@carbon/icons-react";
+import {
+  getUserCollections,
+  createCollectionWithDocuments,
+  updateCollection,
+  deleteCollection,
+  getDocumentsInCollection,
+  deleteDocument,
+  moveDocument,
+} from "../../api/api";
+import { useNotification } from "src/contexts/NotificationContext";
 
-import './CollectionViewer.css';
+import "./CollectionViewer.css";
 
 const CollectionBrowser = () => {
   const [collections, setCollections] = useState([]);
@@ -33,21 +41,21 @@ const CollectionBrowser = () => {
   const [totalItems, setTotalItems] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState('create');
+  const [modalMode, setModalMode] = useState("create");
   const [selectedCollection, setSelectedCollection] = useState(null);
-  const [collectionName, setCollectionName] = useState('');
-  const [collectionDescription, setCollectionDescription] = useState('');
+  const [collectionName, setCollectionName] = useState("");
+  const [collectionDescription, setCollectionDescription] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
   const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
   const [documentToMove, setDocumentToMove] = useState(null);
   const [targetCollection, setTargetCollection] = useState(null);
-  const [sortField, setSortField] = useState('name');
-  const [sortDirection, setSortDirection] = useState('asc');
+  const [sortField, setSortField] = useState("name");
+  const [sortDirection, setSortDirection] = useState("asc");
   const { addNotification } = useNotification();
 
   useEffect(() => {
@@ -57,12 +65,22 @@ const CollectionBrowser = () => {
   const fetchCollections = async () => {
     setIsLoading(true);
     try {
-      const response = await getUserCollections(currentPage, pageSize, searchTerm, sortField, sortDirection);
+      const response = await getUserCollections(
+        currentPage,
+        pageSize,
+        searchTerm,
+        sortField,
+        sortDirection
+      );
       setCollections(response.data);
       setTotalItems(response.totalItems);
     } catch (error) {
-      console.error('Error fetching collections:', error);
-      addNotification('error', 'Error', 'Failed to fetch collections. Please try again.');
+      console.error("Error fetching collections:", error);
+      addNotification(
+        "error",
+        "Error",
+        "Failed to fetch collections. Please try again."
+      );
     }
     setIsLoading(false);
   };
@@ -70,82 +88,109 @@ const CollectionBrowser = () => {
   const handleCreateCollection = async () => {
     try {
       const formData = new FormData();
-      formData.append('name', collectionName);
-      formData.append('description', collectionDescription);
+      formData.append("name", collectionName);
+      formData.append("description", collectionDescription);
       uploadedFiles.forEach((file) => {
-        formData.append('documents', file);
+        formData.append("documents", file);
       });
       await createCollectionWithDocuments(formData);
-      addNotification('success', 'Success', 'Collection created successfully.');
+      addNotification("success", "Success", "Collection created successfully.");
       fetchCollections();
       setIsModalOpen(false);
       resetModalFields();
     } catch (error) {
-      console.error('Error creating collection:', error);
-      addNotification('error', 'Error', 'Failed to create collection. Please try again.');
+      console.error("Error creating collection:", error);
+      addNotification(
+        "error",
+        "Error",
+        "Failed to create collection. Please try again."
+      );
     }
   };
 
   const handleUpdateCollection = async () => {
     try {
-      await updateCollection(selectedCollection.id, { name: collectionName, description: collectionDescription });
-      addNotification('success', 'Success', 'Collection updated successfully.');
+      await updateCollection(selectedCollection.id, {
+        name: collectionName,
+        description: collectionDescription,
+      });
+      addNotification("success", "Success", "Collection updated successfully.");
       fetchCollections();
       setIsModalOpen(false);
       resetModalFields();
     } catch (error) {
-      console.error('Error updating collection:', error);
-      addNotification('error', 'Error', 'Failed to update collection. Please try again.');
+      console.error("Error updating collection:", error);
+      addNotification(
+        "error",
+        "Error",
+        "Failed to update collection. Please try again."
+      );
     }
   };
 
   const handleDeleteConfirm = async () => {
     try {
-      if (itemToDelete.type === 'collection') {
+      if (itemToDelete.type === "collection") {
         await deleteCollection(itemToDelete.id);
-        addNotification('success', 'Success', 'Collection deleted successfully.');
+        addNotification(
+          "success",
+          "Success",
+          "Collection deleted successfully."
+        );
         fetchCollections();
-      } else if (itemToDelete.type === 'document') {
+      } else if (itemToDelete.type === "document") {
         await deleteDocument(selectedCollection.id, itemToDelete.id);
-        addNotification('success', 'Success', 'Document deleted successfully.');
+        addNotification("success", "Success", "Document deleted successfully.");
         fetchDocuments(selectedCollection.id);
       }
       setIsDeleteModalOpen(false);
       setItemToDelete(null);
     } catch (error) {
-      console.error('Error deleting item:', error);
-      addNotification('error', 'Error', 'Failed to delete item. Please try again.');
+      console.error("Error deleting item:", error);
+      addNotification(
+        "error",
+        "Error",
+        "Failed to delete item. Please try again."
+      );
     }
   };
 
   const handleMoveDocument = async () => {
     try {
-      await moveDocument(selectedCollection.id, documentToMove.id, targetCollection.id);
-      addNotification('success', 'Success', 'Document moved successfully.');
+      await moveDocument(
+        selectedCollection.id,
+        documentToMove.id,
+        targetCollection.id
+      );
+      addNotification("success", "Success", "Document moved successfully.");
       fetchDocuments(selectedCollection.id);
       setIsMoveModalOpen(false);
       setDocumentToMove(null);
       setTargetCollection(null);
     } catch (error) {
-      console.error('Error moving document:', error);
-      addNotification('error', 'Error', 'Failed to move document. Please try again.');
+      console.error("Error moving document:", error);
+      addNotification(
+        "error",
+        "Error",
+        "Failed to move document. Please try again."
+      );
     }
   };
 
   const resetModalFields = () => {
-    setCollectionName('');
-    setCollectionDescription('');
+    setCollectionName("");
+    setCollectionDescription("");
     setUploadedFiles([]);
     setSelectedCollection(null);
   };
 
   const openCreateModal = () => {
-    setModalMode('create');
+    setModalMode("create");
     setIsModalOpen(true);
   };
 
   const openEditModal = (collection) => {
-    setModalMode('edit');
+    setModalMode("edit");
     setSelectedCollection(collection);
     setCollectionName(collection.name);
     setCollectionDescription(collection.description);
@@ -165,39 +210,50 @@ const CollectionBrowser = () => {
   const fetchDocuments = async (collectionId) => {
     setIsLoading(true);
     try {
-      const response = await getDocumentsInCollection(collectionId, currentPage, pageSize, searchTerm, sortField, sortDirection);
+      const response = await getDocumentsInCollection(
+        collectionId,
+        currentPage,
+        pageSize,
+        searchTerm,
+        sortField,
+        sortDirection
+      );
       setDocuments(response.data);
       setTotalItems(response.totalItems);
     } catch (error) {
-      console.error('Error fetching documents:', error);
-      addNotification('error', 'Error', 'Failed to fetch documents. Please try again.');
+      console.error("Error fetching documents:", error);
+      addNotification(
+        "error",
+        "Error",
+        "Failed to fetch documents. Please try again."
+      );
     }
     setIsLoading(false);
   };
 
   const handleSort = (field) => {
     if (field === sortField) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
     } else {
       setSortField(field);
-      setSortDirection('asc');
+      setSortDirection("asc");
     }
   };
 
   const collectionHeaders = [
-    { key: 'name', header: 'Name' },
-    { key: 'description', header: 'Description' },
-    { key: 'documentCount', header: 'Documents' },
-    { key: 'lastUpdated', header: 'Last Updated' },
-    { key: 'actions', header: 'Actions' },
+    { key: "name", header: "Name" },
+    { key: "description", header: "Description" },
+    { key: "documentCount", header: "Documents" },
+    { key: "lastUpdated", header: "Last Updated" },
+    { key: "actions", header: "Actions" },
   ];
 
   const documentHeaders = [
-    { key: 'name', header: 'Name' },
-    { key: 'type', header: 'Type' },
-    { key: 'size', header: 'Size' },
-    { key: 'lastModified', header: 'Last Modified' },
-    { key: 'actions', header: 'Actions' },
+    { key: "name", header: "Name" },
+    { key: "type", header: "Type" },
+    { key: "size", header: "Size" },
+    { key: "lastModified", header: "Last Modified" },
+    { key: "actions", header: "Actions" },
   ];
 
   const collectionRows = collections?.map((collection) => ({
@@ -230,7 +286,7 @@ const CollectionBrowser = () => {
           size="small"
           renderIcon={TrashCan}
           iconDescription="Delete"
-          onClick={() => openDeleteModal(collection, 'collection')}
+          onClick={() => openDeleteModal(collection, "collection")}
         />
       </>
     ),
@@ -249,7 +305,7 @@ const CollectionBrowser = () => {
           size="small"
           renderIcon={TrashCan}
           iconDescription="Delete"
-          onClick={() => openDeleteModal(document, 'document')}
+          onClick={() => openDeleteModal(document, "document")}
         />
         <Button
           kind="ghost"
@@ -263,9 +319,12 @@ const CollectionBrowser = () => {
   }));
 
   return (
-    
     <div className="children-container collection-browser">
-      <h3>{selectedCollection ? `Documents in ${selectedCollection.name}` : 'Document Collections'}</h3>
+      <h3>
+        {selectedCollection
+          ? `Documents in ${selectedCollection.name}`
+          : "Document Collections"}
+      </h3>
       <div className="collection-actions">
         <Search
           labelText="Search collections"
@@ -288,17 +347,27 @@ const CollectionBrowser = () => {
         <InlineLoading description="Loading..." />
       ) : (
         <>
-          <DataTable rows={selectedCollection ? documentRows : []} headers={selectedCollection ? documentHeaders : []}>
+        <h4>Documents</h4>
+         
+          <DataTable
+            rows={selectedCollection ? documentRows : []}
+            headers={selectedCollection ? documentHeaders : []}
+          >
             {({ rows, headers, getHeaderProps, getTableProps }) => (
               <TableContainer>
                 <Table {...getTableProps()}>
                   <TableHead>
                     <TableRow>
                       {headers.map((header) => (
-                        <TableHeader {...getHeaderProps({ header })} onClick={() => handleSort(header.key)}>
+                        <TableHeader
+                          {...getHeaderProps({ header })}
+                          onClick={() => handleSort(header.key)}
+                        >
                           {header.header}
                           {sortField === header.key && (
-                            <span className="sort-indicator">{sortDirection === 'asc' ? '▲' : '▼'}</span>
+                            <span className="sort-indicator">
+                              {sortDirection === "asc" ? "▲" : "▼"}
+                            </span>
                           )}
                         </TableHeader>
                       ))}
@@ -335,10 +404,16 @@ const CollectionBrowser = () => {
           setIsModalOpen(false);
           resetModalFields();
         }}
-        modalHeading={modalMode === 'create' ? 'Create Collection' : 'Edit Collection'}
-        primaryButtonText={modalMode === 'create' ? 'Create' : 'Update'}
+        modalHeading={
+          modalMode === "create" ? "Create Collection" : "Edit Collection"
+        }
+        primaryButtonText={modalMode === "create" ? "Create" : "Update"}
         secondaryButtonText="Cancel"
-        onRequestSubmit={modalMode === 'create' ? handleCreateCollection : handleUpdateCollection}
+        onRequestSubmit={
+          modalMode === "create"
+            ? handleCreateCollection
+            : handleUpdateCollection
+        }
       >
         <TextInput
           id="collection-name"
@@ -355,13 +430,13 @@ const CollectionBrowser = () => {
           onChange={(e) => setCollectionDescription(e.target.value)}
           placeholder="Enter collection description"
         />
-        {modalMode === 'create' && (
+        {modalMode === "create" && (
           <FileUploader
             labelTitle="Upload Documents"
             labelDescription="Max file size is 500mb. Only .pdf, .doc, .docx, and .txt files are supported."
             buttonLabel="Add files"
             filenameStatus="edit"
-            accept={['.pdf', '.doc', '.docx', '.txt']}
+            accept={[".pdf", ".doc", ".docx", ".txt"]}
             multiple
             onChange={(e) => setUploadedFiles(e.target.files)}
           />
@@ -373,7 +448,10 @@ const CollectionBrowser = () => {
       >
         <ModalHeader title="Confirm Deletion" />
         <ModalBody>
-          <p>Are you sure you want to delete this {itemToDelete?.type}? This action cannot be undone.</p>
+          <p>
+            Are you sure you want to delete this {itemToDelete?.type}? This
+            action cannot be undone.
+          </p>
         </ModalBody>
         <ModalFooter
           primaryButtonText="Delete"
@@ -395,8 +473,12 @@ const CollectionBrowser = () => {
             ariaLabel="Select a collection"
             label="Target Collection"
             titleText="Target Collection"
-            items={collections ? collections.filter((c) => c.id !== selectedCollection.id) : []}
-            itemToString={(item) => (item ? item.name : '')}
+            items={
+              collections
+                ? collections.filter((c) => c.id !== selectedCollection.id)
+                : []
+            }
+            itemToString={(item) => (item ? item.name : "")}
             onChange={({ selectedItem }) => setTargetCollection(selectedItem)}
           />
         </ModalBody>
