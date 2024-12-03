@@ -1,35 +1,36 @@
+"""Pipeline implementation for RAG processing."""
+
 import logging
-import json
-import asyncio
-from typing import List, Dict, Any, Generator, Optional, Iterator
+from typing import List, Dict, Any, Generator, Optional, Iterator, AsyncIterator
+from uuid import UUID
+from sqlalchemy.orm import Session
 from dataclasses import dataclass
+
 from rag_solution.query_rewriting.query_rewriter import QueryRewriter
 from rag_solution.retrieval.factories import RetrieverFactory
 from rag_solution.generation.factories import GeneratorFactory, EvaluatorFactory
 from vectordbs.factory import get_datastore
 from rag_solution.data_ingestion.ingestion import DocumentStore
 from vectordbs.data_types import Document, QueryResult, DocumentChunkWithScore
+from core.config import settings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 @dataclass
 class PipelineResult:
+    """Result from pipeline processing."""
     original_query: str
     rewritten_query: str
     retrieved_documents: List[str]
     generated_answer: str
     evaluation: Optional[Dict[str, Any]] = None
 
-class Pipeline:
-    def __init__(self, config: Dict[str, Any]):
-        """
-        Initialize the RAG Pipeline.
-
-        Args:
-            config (Dict[str, Any]): Configuration dictionary for the pipeline.
-        """
+class Pipeline():
+    def __init__(self, config: Dict[str, Any], db: Session):
+        """Initialize the RAG Pipeline."""
         self.config = config
+        self.db = db
         self.query_rewriter = QueryRewriter(config.get('query_rewriting', {}))
         
         vector_store_config = config.get('vector_store', {'type': 'milvus'})
@@ -43,17 +44,12 @@ class Pipeline:
         self.evaluator = EvaluatorFactory.create_evaluator(config.get('evaluation', {}))
 
     async def initialize(self):
-        """
-        Asynchronously initialize the pipeline, including document loading.
-        """
+        """Initialize the pipeline and load documents."""
         await self._load_documents()
 
     async def _load_documents(self):
-        """
-        Load documents from the specified data source and ingest them into the document store.
-        """
+        """Load and process documents."""
         data_source = self.config.get('data_source', [])
-        
         try:
             await self.document_store.load_documents(data_source)
             logger.info(f"Loaded documents into collection: {self.collection_name}")
@@ -61,18 +57,36 @@ class Pipeline:
             logger.error(f"Error loading documents: {str(e)}")
             raise
 
-    def process(self, query: str, collection_name: str, context: Optional[Dict[str, Any]] = None) -> PipelineResult:
+    def get_collection_chunks(self, collection_name: str) -> List[DocumentChunkWithScore]:
         """
-        Process a query through the RAG pipeline.
-
+        Get document chunks from a collection.
+        
         Args:
-            query (str): The query to process.
-            collection_name (str): The name of the collection to search in.
-            context (Optional[Dict[str, Any]]): Additional context for query rewriting.
-
+            collection_name: Name of the collection
+            
         Returns:
-            PipelineResult: The processed result containing query, rewritten query, retrieved documents, response, and evaluation metrics.
+            List[DocumentChunkWithScore]: List of document chunks with scores
         """
+        try:
+            # Use retriever to get representative documents
+            retrieved_docs = self.retriever.retrieve(
+                collection_name=collection_name,
+                query="",  # Empty query to get representative documents
+                number_of_results=settings.top_k  # Use configured top_k from settings
+            )
+            
+            # Extract chunks from retrieved documents
+            chunks = []
+            for doc in retrieved_docs:
+                if hasattr(doc, 'data') and doc.data:
+                    chunks.extend(doc.data)
+            return chunks
+        except Exception as e:
+            logger.error(f"Error getting collection chunks: {e}")
+            return []
+
+    async def process(self, query: str, collection_name: str, context: Optional[Dict[str, Any]] = None) -> PipelineResult:
+        """Process a query through the RAG pipeline."""
         try:
             if not query.strip():
                 raise ValueError("Query cannot be empty")
@@ -97,14 +111,13 @@ class Pipeline:
 
             logger.info(f"\nTotal texts extracted: {len(all_texts)}")
 
+            # Generate answer
             context = "\n".join(all_texts)
             logger.info(f"Calling generator.generate with {rewritten_query}")
             generated_answer = self.generator.generate(rewritten_query, context)
             logger.info(f"Generated answer: {generated_answer}")
 
             logger.info("Now going to evaluate the results")
-
-            # evaluation_result = self.evaluator.evaluate(query, generated_answer, retrieved_docs)
             evaluation_result = None
             
             return PipelineResult(
@@ -124,45 +137,8 @@ class Pipeline:
                 evaluation={"error": str(e)}
             )
 
-    def _extract_chunk_text(self, chunk: Any) -> Optional[str]:
-        """
-        Extract text from a chunk, handling different possible structures.
-        """
-        if isinstance(chunk, str):
-            return chunk
-        elif isinstance(chunk, dict):
-            return chunk.get('text') or chunk.get('content')
-        elif hasattr(chunk, 'text'):
-            return chunk.text
-        elif hasattr(chunk, 'content'):
-            return chunk.content
-        else:
-            logger.warning(f"Unable to extract text from chunk: {chunk}")
-            return None
-
-    def _extract_chunk_metadata(self, chunk: Any) -> Dict[str, Any]:
-        """
-        Extract metadata from a chunk, handling different possible structures.
-        """
-        if isinstance(chunk, dict):
-            return {k: v for k, v in chunk.items() if k not in ['text', 'content']}
-        elif hasattr(chunk, '__dict__'):
-            return {k: v for k, v in chunk.__dict__.items() if k not in ['text', 'content']}
-        else:
-            return {}
-
-    def process_stream(self, query: str, collection_name: str, context: Optional[Dict[str, Any]] = None) -> Iterator[Dict[str, Any]]:
-        """
-        Process a query through the RAG pipeline with streaming response.
-
-        Args:
-            query (str): The query to process.
-            collection_name (str): The name of the collection to search in.
-            context (Optional[Dict[str, Any]]): Additional context for query rewriting.
-
-        Yields:
-            Dict[str, Any]: Chunks of the processed result.
-        """
+    async def process_stream(self, query: str, collection_name: str, context: Optional[Dict[str, Any]] = None) -> AsyncIterator[Dict[str, Any]]:
+        """Process a query with streaming response."""
         try:
             if not query.strip():
                 raise ValueError("Query cannot be empty")
@@ -179,7 +155,14 @@ class Pipeline:
                 'retrieved_documents': retrieved_documents,
             }
 
-            generation_params = self.config.get('generation', {}).get('default_params', {})
+            generation_params = {
+                'max_new_tokens': settings.max_new_tokens,
+                'min_new_tokens': settings.min_new_tokens,
+                'temperature': settings.temperature,
+                'top_k': settings.top_k,
+                'random_seed': settings.random_seed
+            }
+            
             response_chunks = []
             for chunk in self.generator.generate_stream(rewritten_query, retrieved_documents, **generation_params):
                 response_chunks.append(chunk)
@@ -198,12 +181,7 @@ class Pipeline:
             }
 
     def update_config(self, new_config: Dict[str, Any]):
-        """
-        Update the pipeline configuration.
-
-        Args:
-            new_config (Dict[str, Any]): New configuration to update.
-        """
+        """Update pipeline configuration."""
         self.config.update(new_config)
         # Reinitialize components with new config
         self.query_rewriter = QueryRewriter(self.config.get('query_rewriting', {}))
