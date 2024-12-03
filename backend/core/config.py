@@ -93,8 +93,8 @@ class Settings(BaseSettings):
     # Logging settings
     log_level: str = Field(default="INFO", env='LOG_LEVEL')
 
-    # File storage settings
-    file_storage_path: str = Field(default_factory=lambda: tempfile.gettempdir())
+    # File storage path
+    file_storage_path: str = Field(default=tempfile.gettempdir(), env='FILE_STORAGE_PATH')
 
     # Vector Database Credentials
     # ChromaDB

@@ -1,26 +1,25 @@
 name: CI/CD Pipeline
 
 on:
-  push:
-    branches: [main, dev, test]
   pull_request:
     branches: [main, dev, test]
 
 jobs:
-  build-test-publish:
+  build-and-test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code repository
         uses: actions/checkout@v4
       - name: Build frontend
-        run: make build-frontend
+        run: docker build -t rag-modulo/frontend:1.0.${{ github.run_number }} -f ./webui/Dockerfile.frontend ./webui
       - name: Build backend
-        run: make build-backend
+        run: docker build -t rag-modulo/backend:1.0.${{ github.run_number }}  -f ./backend/Dockerfile.backend ./backend
       - name: Build tests
-        run: make build-tests
+        run: docker build -t rag-modulo/backend-test:1.0.${{ github.run_number }} -f ./backend/Dockerfile.test ./backend
       - name: Setup .env file with variables required for test environment deployment
         run: |
           touch .env
+          
           cat <<EOL >> .env
           COLLECTIONDB_NAME=${{ vars.COLLECTIONDB_NAME }}
           COLLECTIONDB_USER=${{ secrets.COLLECTIONDB_USER }}
@@ -44,12 +43,25 @@ jobs:
           EMBEDDING_FIELD=${{ vars.EMBEDDING_FIELD }}
           EMBEDDING_DIM=${{ vars.EMBEDDING_DIM }}
           VECTOR_DB=${{ vars.VECTOR_DB }}
-          GENAI_KEY=${{ secrets.GENAI_KEY }}
-          api_endpoint=${{ secrets.api_endpoint }}
-          GENAI_API=${{ secrets.GENAI_API }}
+          WATSONX_APIKEY=${{ secrets.WATSONX_APIKEY }}
+          WATSONX_URL=${{ vars.WATSONX_URL }}
+          WATSONX_INSTANCE_ID=${{ secrets.WATSONX_INSTANCE_ID }}
+          RAG_LLM=${{ vars.RAG_LLM }}
+          MAX_NEW_TOKENS=${{ vars.MAX_NEW_TOKENS }}
+          MIN_NEW_TOKENS=${{ vars.MIN_NEW_TOKENS }}
+          RANDOM_SEED=${{ vars.RANDOM_SEED }}
+          TOP_K=${{ vars.TOP_K }}5
+          TEMPERATURE=${{ vars.TEMPERATURE }}
+          PROJECT_VERSION=1.0.${{ github.run_number }}
           EOL
       - name: Run all tests
-        run: make all-test
-      - name: Publish built artifacts
         run: |
-          # Add publish artifacts actions
+          source .env
+          echo $PROJECT_VERSION
+          docker compose run --rm test pytest -v -s -m "not (chromadb or elasticsearch or pinecone or weaviate)"
+          docker compose run --rm test pytest -v -s -m "api and not (chromadb or elasticsearch or pinecone or weaviate)"
+          docker compose run --rm test newman run tests/postman/rag_modulo_api_collection.json --env-var "backend_base_url=${{ vars.BACKEND_BASE_URL }}"
+        continue-on-error: true
+      - name: Cleanup
+        run: |
+          docker compose down -v

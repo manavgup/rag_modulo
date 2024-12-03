@@ -1,6 +1,7 @@
-.view-content {
-  padding-right: 0 !important;
-  padding-top: 0 !important;
+.cds--content.view-content {
+  padding-right: 0 ;
+  padding-top: 0 ;
+  padding-left: 2.5rem;
 }
 
 .view-datatable-header {
@@ -66,7 +67,6 @@
 
   .view-title button {
     display: flex;
-    /* width: 100%; */
   }
 
   .view-detail-grid .cds--row {

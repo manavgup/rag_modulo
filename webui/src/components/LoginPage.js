@@ -3,23 +3,13 @@ import { Button, Loading } from 'carbon-components-react';
 import  { getFullApiUrl, API_ROUTES } from '../config/config';
 import './LoginPage.css';
 
-// console.log('LoginPage component loaded with config:', config);
-
 const LoginPage = () => {
-  // const { signIn, user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-
-  // useEffect(() => {
-  //   console.log('LoginPage mounted, user:', user);
-  //   console.log('Current API URL:', config.apiUrl);
-  //   console.log('Full login URL:', getFullApiUrl(API_ROUTES.LOGIN));
-  // }, [user]);
 
   const handleLogin = () => {
     setIsLoading(true);
     try {
       const loginUrl = getFullApiUrl(API_ROUTES.LOGIN);
-      // console.log('Redirecting to:', loginUrl);
       window.location.href = loginUrl;
     } catch (error) {
       console.error('Login failed:', error);
