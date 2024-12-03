@@ -8,6 +8,7 @@ from tenacity import (
     wait_exponential,
     retry_if_exception_type,
 )
+from functools import lru_cache
 from chromadb.api.types import Documents, EmbeddingFunction
 from dotenv import load_dotenv
 from ibm_watsonx_ai import APIClient,Credentials
@@ -152,6 +153,46 @@ def get_tokenization(texts: Union[str, List[str]]) -> List[List[str]]:
     finally:
         wx_model.close_persistent_connection()
     return all_tokens
+
+@lru_cache(maxsize=128)
+def extract_entities(text: str, wx_model: Optional[ModelInference] = None) -> List[Dict]:
+    if wx_model is None:
+        wx_model = get_model()
+    
+    prompt = (
+        "Extract the named entities from the following text and respond ONLY with a JSON list of dictionaries. Each dictionary should have 'entity' and 'type' keys, and nothing else.\n"
+        "Example: [{'entity': 'New York', 'type': 'location'}, {'entity': 'IBM', 'type': 'organization'}]\n"
+        f"Text: {text}"
+    )
+    
+    try:
+        response = generate_text(prompt, wx_model)
+        
+        # Find the start and end of the JSON list
+        start = response.find('[')
+        end = response.rfind(']')
+        if start != -1 and end != -1 and start < end:
+            json_str = response[start:end+1]
+            logger.debug(f"Parsing JSON: {json_str}")
+            entities = json.loads(json_str)
+            cleaned_entities = clean_entities(entities)
+            return cleaned_entities
+        else:
+            logger.warning(f"No JSON list found in response: {response}")
+            return []
+    except json.JSONDecodeError as e:
+        logger.warning(f"Failed to parse JSON response: {response}. Error: {e}")
+        return []
+    except Exception as e:
+        logger.error(f"Error extracting entities: {e}")
+        return []
+
+def clean_entities(entities: List[Dict]) -> List[Dict]:
+    cleaned = []
+    for entity in entities:
+        if isinstance(entity, dict) and 'entity' in entity and 'type' in entity:
+            cleaned.append(entity)
+    return cleaned
 
 
 def get_tokenization_and_embeddings(
