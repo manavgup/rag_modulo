@@ -32,6 +32,7 @@ class CollectionRepository:
 
         Args:
             collection (CollectionInput): The collection data to create.
+            vector_db_name (str): The name to use in the vector database.
 
         Returns:
             CollectionInDB: The created collection.
@@ -39,15 +40,33 @@ class CollectionRepository:
         Raises:
             SQLAlchemyError: If there's an error during database operations.
         """
-        db_collection = Collection(
-            name=collection.name,
-            vector_db_name=vector_db_name,
-            is_private=collection.is_private
-        )
-        self.db.add(db_collection)
-        self.db.commit()
-        self.db.refresh(db_collection)
-        return self._collection_to_output(db_collection)
+        try:
+            # Create the collection
+            db_collection = Collection(
+                name=collection.name,
+                vector_db_name=vector_db_name,
+                is_private=collection.is_private,
+                status=collection.status
+            )
+            self.db.add(db_collection)
+            self.db.flush()  # Flush to get the collection ID
+
+            # Create user-collection relationships
+            if collection.users:
+                for user_id in collection.users:
+                    user_collection = UserCollection(
+                        user_id=user_id,
+                        collection_id=db_collection.id
+                    )
+                    self.db.add(user_collection)
+
+            self.db.commit()
+            self.db.refresh(db_collection)
+            return self._collection_to_output(db_collection)
+        except SQLAlchemyError as e:
+            self.db.rollback()
+            logger.error(f"Error creating collection: {str(e)}")
+            raise
 
     def get(self, collection_id: UUID) -> Optional[CollectionOutput]:
         """
@@ -77,13 +96,13 @@ class CollectionRepository:
             logger.error(f"Error getting collections for user {user_id}: {str(e)}")
             raise
 
-    def update(self, collection_id: UUID, collection_update: CollectionInput) -> Optional[CollectionInput]:
+    def update(self, collection_id: UUID, collection_update: dict) -> Optional[CollectionOutput]:
         """
         Update an existing collection.
 
         Args:
             collection_id (UUID): The ID of the collection to update.
-            collection_update (CollectionInput): The updated collection data.
+            collection_update (dict): The updated collection data.
 
         Returns:
             Optional[CollectionInDB]: The updated collection if found, None otherwise.
