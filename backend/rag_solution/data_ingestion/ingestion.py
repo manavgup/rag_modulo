@@ -78,8 +78,8 @@ class DocumentStore:
     async def clear(self):
         """Clear all documents from the document store and vector store."""
         try:
-            await self.vector_store.delete_collection(self.collection_name)
-            await self.vector_store.create_collection(self.collection_name)
+            self.vector_store.delete_collection(self.collection_name)
+            self.vector_store.create_collection(self.collection_name)
             self.documents.clear()
             logger.info(f"Cleared all documents from collection: {self.collection_name}")
         except Exception as e:
