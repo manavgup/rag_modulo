@@ -51,10 +51,13 @@ build-frontend: sync-frontend-deps
 build-backend:
 	$(CONTAINER_CLI) build -t ${PROJECT_NAME}/backend:${PROJECT_VERSION} -f ./backend/Dockerfile.backend ./backend
 
+build-mlflow:
+	$(CONTAINER_CLI) build -t ${PROJECT_NAME}/mlflow:2.18.0 -f ./infra/Dockerfile.mlflow ./infra
+
 build-tests:
 	$(CONTAINER_CLI) build -t ${PROJECT_NAME}/backend-test:${PROJECT_VERSION} -f ./backend/Dockerfile.test ./backend
 
-build-all: build-frontend build-backend build-tests
+build-all: build-frontend build-backend build-tests build-mlflow
 
 # Test
 test: build-backend build-tests
@@ -132,17 +135,19 @@ run-services: create-volumes
 		echo "Unknown VECTOR_DB value: $(VECTOR_DB)"; \
 		exit 1; \
 	fi
+	@echo "start mlflow-server"
+	@$(DOCKER_COMPOSE) up -d mlflow-server || { echo "Failed to start mlflow"; $(DOCKER_COMPOSE) logs; exit 1; };
 	@echo "Docker containers status:"
-	@$(CONTAINER_CLI) ps 
+	@$(CONTAINER_CLI) ps
 	@echo "Milvus logs saved to milvus.log:"
 	@$(DOCKER_COMPOSE) logs milvus-standalone > milvus.log
 
 # Stop / clean
 stop-containers:
 	@echo "Stopping containers..."
-	$(DOCKER_COMPOSE) down -v	
+	$(DOCKER_COMPOSE) down -v
 
-clean: stop-containers 
+clean: stop-containers
 	@echo "Cleaning up existing containers and volumes..."
 	-@$(CONTAINER_CLI) pod rm -f $$($(CONTAINER_CLI) pod ls -q) || true
 	-@$(CONTAINER_CLI) rm -f $$($(CONTAINER_CLI) ps -aq) || true
@@ -183,9 +188,9 @@ help:
 	@echo "  run-backend   		Run backend using Docker Compose"
 	@echo "  run-frontend  		Run frontend using Docker Compose"
 	@echo "  run-services  		Run services using Docker Compose"
-	@echo "  stop-containers  	Stop all containers using Docker Compose"	
+	@echo "  stop-containers  	Stop all containers using Docker Compose"
 	@echo "  clean         		Clean up Docker Compose volumes and cache"
-	@echo "  create-volumes     Create folders for container volumes"	
+	@echo "  create-volumes     Create folders for container volumes"
 	@echo "  logs          		View logs of running containers"
 	@echo "  info          		Display project information"
 	@echo "  help          		Display this help message"
