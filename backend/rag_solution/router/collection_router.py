@@ -65,6 +65,7 @@ async def create_collection_with_documents(
     is_private: bool = Form(...),
     user_id: UUID = Form(...),
     files: List[UploadFile] = File(...),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
     db: Session = Depends(get_db),
 ):
     """
@@ -91,7 +92,8 @@ async def create_collection_with_documents(
             collection_name,
             is_private,
             user_id,
-            files
+            files, 
+            background_tasks
         )
         logger.info(f"Collection created successfully: {collection.id}")
         return collection
