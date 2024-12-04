@@ -191,14 +191,15 @@ class PdfProcessor(BaseProcessor):
 
     def extract_tables_from_page(self, page: pymupdf.Page) -> List[List[List[str]]]:
         tables: List[List[List[str]]] = []
-
+        
         try:
-            # Check if the page contains text
-            if not page.get_text("text"):
-                logger.warning(f"Skipping page {page.number + 1}: not a text page.")
+            # First check if the page has any text content at all
+            page_text = page.get_text("text").strip()
+            if not page_text:
+                logger.warning(f"Skipping page {page.number + 1}: no text content found.")
                 return tables
 
-            # Method 1: Use PyMuPDF's built-in table extraction
+            # Method 1: Use PyMuPDF's built-in table extraction with proper exception handling
             try:
                 built_in_tables = page.find_tables()
                 for table in built_in_tables:
@@ -207,60 +208,150 @@ class PdfProcessor(BaseProcessor):
                         [clean_text(cell) if cell is not None else "" for cell in row]
                         for row in extracted_table
                     ]
-                    if any(cell for row in cleaned_table for cell in row):
+                    if any(cell for row in cleaned_table for cell in row):  # Only add non-empty tables
                         tables.append(cleaned_table)
+                if tables:
+                    logger.info(f"Successfully extracted {len(tables)} tables using PyMuPDF's built-in method")
+                    return tables
             except ValueError as ve:
-                logger.warning(f"Could not find tables on page {page.number + 1}: {ve}")
+                if "not a textpage of this page" in str(ve):
+                    logger.info(f"Page {page.number + 1} doesn't support textpage extraction, falling back to alternative methods")
+                else:
+                    logger.warning(f"Unexpected ValueError during table extraction on page {page.number + 1}: {ve}")
+            except Exception as e:
+                logger.warning(f"Error during built-in table extraction on page {page.number + 1}: {e}")
 
             # Method 2: Use text blocks to identify potential tables
-            if not tables:
+            try:
                 text_blocks: List[Dict[str, Any]] = self.extract_text_from_page(page)
                 potential_table: List[List[str]] = []
+                current_y_position = None
+                tolerance = 5  # Pixels tolerance for considering text blocks as part of the same row
+
                 for block in text_blocks:
                     if block["type"] == "text":
-                        lines: List[str] = block["content"].split("\n")
-                        for line in lines:
-                            cells: List[str] = re.split(r'\s{2,}', line.strip())
+                        # Get the y-position of this block
+                        block_y = block["bbox"][1]  # y-coordinate of top of block
+                        
+                        # If this is a new row (y-position differs significantly from previous)
+                        if current_y_position is None or abs(block_y - current_y_position) > tolerance:
+                            if potential_table:  # Save the previous row if it exists
+                                if len(potential_table[-1]) > 1:  # Only if it has multiple cells
+                                    current_y_position = block_y
+                                else:
+                                    potential_table.pop()  # Remove single-cell rows
+                            
+                            # Start a new row
+                            cells = [cell.strip() for cell in re.split(r'\s{3,}', block["content"].strip())]
                             if len(cells) > 1:
                                 potential_table.append(cells)
-                            elif potential_table:
-                                if len(potential_table) > 1 and len(potential_table[0]) > 1:
-                                    tables.append(potential_table)
-                                potential_table = []
-                if len(potential_table) > 1 and len(potential_table[0]) > 1:
+                                current_y_position = block_y
+                        else:
+                            # Add to the current row
+                            if potential_table:
+                                potential_table[-1].extend(
+                                    cell.strip() for cell in re.split(r'\s{3,}', block["content"].strip())
+                                )
+
+                # Add the last table if it meets our criteria
+                if len(potential_table) > 1 and all(len(row) > 1 for row in potential_table):
                     tables.append(potential_table)
+                    logger.info(f"Successfully extracted table using text block analysis")
+                    return tables
+            except Exception as e:
+                logger.warning(f"Error during text block table extraction on page {page.number + 1}: {e}")
 
             # Method 3: Look for grid-like structures
-            if not tables:
+            try:
                 words: List[tuple] = page.get_text("words")
-                grid: Dict[int, Dict[int, str]] = {}
+                grid: Dict[float, Dict[float, List[str]]] = {}
+                
+                # Improved grid detection with floating-point tolerance
                 for word in words:
-                    x, y = int(word[0]), int(word[1])
-                    if y not in grid:
-                        grid[y] = {}
-                    if x not in grid[y]:
-                        grid[y][x] = ""
-                    grid[y][x] += word[4] + " "
+                    x, y = float(word[0]), float(word[1])
+                    
+                    # Find or create appropriate row (with tolerance)
+                    row_key = None
+                    for existing_y in grid.keys():
+                        if abs(existing_y - y) < 5:  # 5 pixel tolerance for row alignment
+                            row_key = existing_y
+                            break
+                    if row_key is None:
+                        row_key = y
+                        grid[row_key] = {}
+                    
+                    # Find or create appropriate column (with tolerance)
+                    col_key = None
+                    for existing_x in grid[row_key].keys():
+                        if abs(existing_x - x) < 5:  # 5 pixel tolerance for column alignment
+                            col_key = existing_x
+                            break
+                    if col_key is None:
+                        col_key = x
+                        grid[row_key][col_key] = []
+                    
+                    grid[row_key][col_key].append(word[4])
 
+                # Convert grid to table format
                 if len(grid) > 1:
                     table: List[List[str]] = []
                     for y in sorted(grid.keys()):
-                        row: List[str] = [grid[y][x].strip() for x in sorted(grid[y].keys())]
-                        if len(row) > 1:  # Only add rows with more than one cell
+                        row: List[str] = [
+                            " ".join(grid[y][x]).strip() 
+                            for x in sorted(grid[y].keys())
+                        ]
+                        if len(row) > 1 and any(cell.strip() for cell in row):  # Only add non-empty rows
                             table.append(row)
-                    if len(table) > 1:  # Only add tables with more than one row
+                    
+                    if len(table) > 1 and self._is_likely_table(table):
                         tables.append(table)
+                        logger.info(f"Successfully extracted table using grid analysis")
+                        return tables
+            except Exception as e:
+                logger.warning(f"Error during grid-based table extraction on page {page.number + 1}: {e}")
 
-            logger.info(f"Extracted {len(tables)} tables from page {page.number + 1}")
-            for i, table in enumerate(tables):
-                logger.info(f"Table {i + 1} dimensions: {len(table)}x{len(table[0]) if table else 0}")
-                logger.info(
-                    f"Table {i + 1} sample content: {' | '.join(table[0][:5]) if table and table[0] else 'Empty'}")
+            # Log if no tables were found by any method
+            if not tables:
+                logger.info(f"No tables found on page {page.number + 1} using any extraction method")
+            
+            return tables
 
         except Exception as e:
-            logger.error(f"Error extracting tables from page {page.number}: {e}", exc_info=True)
+            logger.error(f"Error in table extraction process for page {page.number + 1}: {e}", exc_info=True)
+            return tables
 
-        return tables
+    def _is_likely_table(self, table: List[List[str]]) -> bool:
+        """
+        Helper method to determine if a potential table structure is likely to be a real table.
+        
+        Args:
+            table: The potential table structure to evaluate
+            
+        Returns:
+            bool: True if the structure appears to be a real table, False otherwise
+        """
+        if not table or len(table) < 2:  # Need at least 2 rows
+            return False
+            
+        # Check for consistent number of columns
+        col_count = len(table[0])
+        if col_count < 2:  # Need at least 2 columns
+            return False
+            
+        if not all(len(row) == col_count for row in table):
+            return False
+            
+        # Check if there's enough non-empty content
+        non_empty_cells = sum(
+            1 for row in table 
+            for cell in row 
+            if cell.strip()
+        )
+        total_cells = len(table) * col_count
+        if non_empty_cells / total_cells < 0.25:  # At least 25% of cells should have content
+            return False
+            
+        return True
 
     def extract_images_from_page(self, page: pymupdf.Page, output_folder: str) -> List[str]:
         images: List[str] = []
