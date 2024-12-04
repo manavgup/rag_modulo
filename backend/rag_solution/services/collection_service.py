@@ -5,7 +5,6 @@ import os
 import re
 from typing import List, Optional
 from uuid import UUID, uuid4
-import asyncio
 
 from core.config import settings
 from fastapi import BackgroundTasks, HTTPException, UploadFile
@@ -163,7 +162,7 @@ class CollectionService:
         return self.collection_repository.get_user_collections(user_id)
 
     def create_collection_with_documents(self, collection_name: str, is_private: bool, user_id: UUID,
-                                         files: List[UploadFile]) -> CollectionOutput:
+                                         files: List[UploadFile], background_tasks: BackgroundTasks) -> CollectionOutput:
         """
         Create a new collection with documents.
         """
@@ -189,7 +188,7 @@ class CollectionService:
             file_paths = [str(self.file_management_service.get_file_path(collection.id, file.filename)) for file in files]
 
             # Process documents and generate questions as a background task
-            asyncio.create_task(self.process_documents(file_paths, collection.id, collection.vector_db_name))
+            background_tasks.add_task(self.process_documents, file_paths, collection.id, collection.vector_db_name)
             logger.info(f"Collection with documents created successfully: {collection.id}")
 
             return collection
