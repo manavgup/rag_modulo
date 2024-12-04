@@ -30,7 +30,7 @@ WORKDIR /app
 COPY --from=builder /app/venv /app/venv
 ENV PATH="/app/venv/bin:$PATH"
 
-COPY basic_auth.ini healthcheck.py ./
+COPY healthcheck.py ./
 
 # Create a non-root user and group
 RUN groupadd --gid 10001 mlflow && \
@@ -39,5 +39,5 @@ RUN groupadd --gid 10001 mlflow && \
 
 # Switch to non-root user
 USER mlflow
-
+EXPOSE 5000
 CMD ["mlflow", "server", "--host", "0.0.0.0", "--app-name", "basic-auth", "--port", "5000"]
