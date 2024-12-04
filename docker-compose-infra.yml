@@ -20,7 +20,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
   etcd:
     container_name: milvus-etcd
     image: bitnami/etcd:latest
@@ -62,7 +61,7 @@ services:
 
   milvus-standalone:
     container_name: milvus-standalone
-    image: milvusdb/milvus:v2.3.3
+    image: milvusdb/milvus:v2.4.4
     command: ["milvus", "run", "standalone"]
     environment:
       ETCD_ENDPOINTS: etcd:2379
@@ -80,6 +79,34 @@ services:
       - "minio"
     networks:
       - app-network
+
+  mlflow-server:
+    ports:
+      - "5000:5000"
+    image: rag-modulo/mlflow:2.18.0
+    environment:
+      POSTGRES_DB: ${COLLECTIONDB_NAME}
+      POSTGRES_USER: ${COLLECTIONDB_USER}
+      POSTGRES_PASSWORD: ${COLLECTIONDB_PASS}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      MLFLOW_BUCKET_ENDPOINT: ${MLFLOW_BUCKET_ENDPOINT}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      MLFLOW_S3_ENDPOINT_URL: ${MLFLOW_S3_ENDPOINT_URL}
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION}
+      MLFLOW_TRACKING_USERNAME: ${MLFLOW_TRACKING_USERNAME}
+      MLFLOW_TRACKING_PASSWORD: ${MLFLOW_TRACKING_PASSWORD}
+      BACKEND_STORE_URI: "postgresql+psycopg2://${COLLECTIONDB_USER}:${COLLECTIONDB_PASS}@postgres:5432/${COLLECTIONDB_NAME}" 
+    healthcheck:
+      test: ["CMD", "python", "healthcheck.py"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      - postgres
+    networks:
+      - app-network
+
 
 volumes:
   postgres_data:
