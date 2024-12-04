@@ -81,6 +81,8 @@ services:
       - app-network
 
   mlflow-server:
+    ports:
+      - "5000:5000"
     image: rag-modulo/mlflow:2.18.0
     environment:
       POSTGRES_DB: ${COLLECTIONDB_NAME}
