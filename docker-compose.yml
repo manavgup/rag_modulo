@@ -17,6 +17,7 @@ services:
         condition: service_healthy
     environment:
       - COLLECTIONDB_HOST=postgres
+      - WEB_CONCURRENCY=4
     env_file:
       - .env
     volumes:
