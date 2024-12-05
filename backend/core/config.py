@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     rag_llm: str = Field(..., env='RAG_LLM')
     max_new_tokens: int = Field(default=500, env='MAX_NEW_TOKENS')
     min_new_tokens: int = Field(default=200, env='MIN_NEW_TOKENS')
+    max_context_length: int = Field(default=2048, env='MAX_CONTEXT_LENGTH')  # Total context window
     random_seed: int = Field(default=50, env='RANDOM_SEED')
     top_k: int = Field(default=5, env='TOP_K')
     top_p: float = Field(default=0.95, env='TOP_P')

@@ -218,44 +218,59 @@ class QuestionService:
             if not texts:
                 return []
 
-            chunking_method = get_chunking_method()
-            tasks = []
+            # These texts are already chunked by collection_service
+            logger.info("Processing %d text chunks", len(texts))
             
-            # Generate questions concurrently
-            for text in texts:
-                chunks = chunking_method(text)
-                for chunk in chunks:
-                    tasks.append(self._generate_questions_async(chunk, num_questions))
+            # Create prompts for all chunks
+            prompts = [
+                self._generate_question_prompt(text, num_questions or self.num_questions)
+                for text in texts
+            ]
 
-            # Gather all generated questions
-            generated_questions_list = await asyncio.gather(*tasks)
+            # Process in batches of 10 (API's max concurrency)
+            all_questions: List[str] = []
+            batch_size = 10
             
-            # Flatten and validate questions
-            all_questions = []
-            for questions in generated_questions_list:
-                for question in questions:
-                    if self._validate_question(question, " ".join(texts)):
-                        all_questions.append(question)
-            
-            # Remove duplicates
+            for i in range(0, len(prompts), batch_size):
+                batch = prompts[i:i + batch_size]
+                batch_queries = [p[0] for p in batch]
+                batch_contexts = [p[1] for p in batch]
+                
+                # Let WatsonX handle the concurrency
+                responses = self.generator.generate(query=batch_queries, context=batch_contexts)
+                
+                # Process this batch's responses
+                if isinstance(responses, list):
+                    for response in responses:
+                        questions = [
+                            q.strip() for q in response.split('\n') 
+                            if q.strip().endswith('?')
+                        ]
+                        filtered_questions = [
+                            q for q in questions 
+                            if self._validate_question(q, " ".join(texts))
+                        ]
+                        all_questions.extend(filtered_questions)
+                        
+                logger.info(
+                    "Processed batch %d-%d, got %d questions so far", 
+                    i, min(i + batch_size, len(prompts)), len(all_questions)
+                )
+
+            # Post-process results
             unique_questions = self._filter_duplicate_questions(all_questions)
-            
-            # Rank questions
             ranked_questions = self._rank_questions(unique_questions, " ".join(texts))
-            
-            # Limit to requested number if specified
             final_questions = ranked_questions[:num_questions] if num_questions else ranked_questions
-            
-            # Store ALL valid questions
+
             if final_questions:
                 await asyncio.to_thread(self.store_questions, collection_id, final_questions)
-                logger.info(f"Stored {len(final_questions)} questions in database")
+                logger.info("Stored %d questions", len(final_questions))
 
             return final_questions
 
         except Exception as e:
-            logger.error(f"Error suggesting questions: {e}", exc_info=True)
-            raise  # Re-raise the exception to notify the caller
+            logger.error("Error suggesting questions: %s", str(e))
+            raise
 
     def get_collection_questions(self, collection_id: UUID) -> List[str]:
         """
