@@ -257,17 +257,46 @@ class ChromaEmbeddingFunction(EmbeddingFunction):
         return get_embeddings(texts=inputs)
 
 
-def generate_text(prompt: str, wx_model: Optional[ModelInference] = None) -> str:
+def generate_text(prompt: Union[str, List[str]], wx_model: Optional[ModelInference] = None,
+                  concurrency_limit: int = 10) -> Union[str, List[str]]:
+    """Generate text using the WatsonX model.
+
+    Args:
+        prompt: Single prompt string or list of prompts for batch processing
+        wx_model: Optional model instance, will create new one if not provided
+        concurrency_limit: Max concurrent requests (default 10)
+
+    Returns:
+        Generated text(s) - string for single prompt, list for batch
+    """
     try:
         logging.info("Making API call to text generation service")
         if wx_model is None:
             wx_model = get_model()
+        
+        response = wx_model.generate_text(prompt=prompt, concurrency_limit=concurrency_limit)
 
-        generated_text = wx_model.generate_text(prompt=prompt).strip()
-        logging.info(f"Generated text: {generated_text[0:100]}...")
-        return generated_text
+         # Handle batch responses
+        if isinstance(prompt, list):
+            if isinstance(response, dict) and 'results' in response:
+                return [r['generated_text'].strip() for r in response['results']]
+            elif isinstance(response, list):
+                return [r.strip() if isinstance(r, str) else r['generated_text'].strip() for r in response]
+            else:
+                logger.error(f"Unexpected response type: {type(response)}")
+                raise ValueError(f"Unexpected response type: {type(response)}")
+        
+        # Handle single response
+        if isinstance(response, dict):
+            if 'results' in response:
+                return response['results'][0]['generated_text'].strip()
+            elif 'generated_text' in response:
+                return response['generated_text'].strip()
+            
+        return response.strip() if isinstance(response, str) else response['generated_text'].strip()
+    
     except Exception as e:
-        logging.error(f"Error generating text: {e}")
+        logger.error("Error generating text: %s", str(e))
         raise
 
 
