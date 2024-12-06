@@ -41,8 +41,8 @@ services:
     container_name: milvus-minio
     image: minio/minio:latest
     environment:
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_SECRET_KEY: minioadmin
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     volumes:
       - minio_data:/data
     command: minio server /data --console-address ":9001"
@@ -66,6 +66,8 @@ services:
     environment:
       ETCD_ENDPOINTS: etcd:2379
       MINIO_ADDRESS: minio:9000
+      MINIO_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      MINIO_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD} 
     volumes:
       - milvus_data:/var/lib/milvus
     healthcheck:
@@ -88,11 +90,10 @@ services:
       POSTGRES_DB: ${COLLECTIONDB_NAME}
       POSTGRES_USER: ${COLLECTIONDB_USER}
       POSTGRES_PASSWORD: ${COLLECTIONDB_PASS}
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
-      MLFLOW_BUCKET_ENDPOINT: ${MLFLOW_BUCKET_ENDPOINT}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
-      MLFLOW_S3_ENDPOINT_URL: ${MLFLOW_S3_ENDPOINT_URL}
-      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION}
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      MLFLOW_BUCKET_ENDPOINT: s3://rag-modulo-mlfow
       MLFLOW_TRACKING_USERNAME: ${MLFLOW_TRACKING_USERNAME}
       MLFLOW_TRACKING_PASSWORD: ${MLFLOW_TRACKING_PASSWORD}
       BACKEND_STORE_URI: "postgresql+psycopg2://${COLLECTIONDB_USER}:${COLLECTIONDB_PASS}@postgres:5432/${COLLECTIONDB_NAME}" 
@@ -106,7 +107,6 @@ services:
       - postgres
     networks:
       - app-network
-
 
 volumes:
   postgres_data:
