@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Optional, Generator as TypeGenerator
+from typing import List, Dict, Any, Union, Optional, Generator as TypeGenerator
 from vectordbs.utils.watsonx import generate_text, generate_text_stream
 from core.config import settings
 
@@ -74,22 +74,29 @@ class WatsonxGenerator(BaseGenerator):
         super().__init__(config)
         self.model_name = config.get('model_name', settings.rag_llm)
 
-    def generate(self, query: str, context: str, **kwargs) -> str:
-        logger.info(f"Query: {query[:100]}")
-        logger.info(f"Original context length: {len(context)}")
+    def generate(self, query: str, context: Union[str, List[str]], **kwargs) -> Union[str, List[str]]:
+        """Generate text using the language model.
         
-        truncated_context = self.truncate_context(context, query)
-        logger.info(f"Truncated context length: {len(truncated_context)}")
-        
-        prompt = self.prompt_template.format(query=query, context=truncated_context)
-        prompt_tokens = self.approximate_token_count(prompt)
-        logger.info(f"Prompt created with approximately {prompt_tokens} tokens")
-
+        Args:
+            query: The query text
+            context: Either a single context string or list of prompts for batch processing
+            **kwargs: Additional generation parameters
+        """
         try:
-            response = generate_text(prompt)
-            return response
+            if isinstance(context, list):
+                # Batch mode - prompts are already formatted
+                return generate_text(
+                    prompt=context,
+                    concurrency_limit=10
+                )
+            
+            # Single prompt mode
+            truncated_context = self.truncate_context(context, query)
+            prompt = self.prompt_template.format(query=query, context=truncated_context)
+            return generate_text(prompt)
+            
         except Exception as e:
-            logger.error(f"Error generating text: {e}")
+            logger.error("Error generating: %s", str(e))
             raise
 
     def generate_stream(self, query: str, context: str, **kwargs) -> TypeGenerator[str, None, None]:
