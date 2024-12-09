@@ -258,13 +258,14 @@ class ChromaEmbeddingFunction(EmbeddingFunction):
 
 
 def generate_text(prompt: Union[str, List[str]], wx_model: Optional[ModelInference] = None,
-                  concurrency_limit: int = 10) -> Union[str, List[str]]:
+                  concurrency_limit: int = 10, params: Optional[Dict] = None) -> Union[str, List[str]]:
     """Generate text using the WatsonX model.
 
     Args:
         prompt: Single prompt string or list of prompts for batch processing
         wx_model: Optional model instance, will create new one if not provided
         concurrency_limit: Max concurrent requests (default 10)
+        params: Generation parameters
 
     Returns:
         Generated text(s) - string for single prompt, list for batch
