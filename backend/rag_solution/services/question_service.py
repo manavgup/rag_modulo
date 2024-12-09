@@ -6,6 +6,7 @@ from uuid import UUID
 import asyncio
 import re
 from sqlalchemy.orm import Session
+import time
 
 from rag_solution.repository.question_repository import QuestionRepository
 from rag_solution.data_ingestion.chunking import get_chunking_method
@@ -201,6 +202,28 @@ class QuestionService:
                 unique_questions.append(question)
                 
         return unique_questions
+    
+    def _combine_text_chunks(self, texts: List[str], available_context_length: int) -> List[str]:
+        """Combine text chunks while respecting context length limits."""
+        combined_texts = []
+        current_batch = []
+        current_length = 0
+
+        for text in texts:
+            text_length = len(text)
+            if current_length + text_length <= available_context_length:
+                current_batch.append(text)
+                current_length += text_length
+            else:
+                if current_batch:
+                    combined_texts.append(" ".join(current_batch))
+                current_batch = [text]
+                current_length = text_length
+
+        if current_batch:
+            combined_texts.append(" ".join(current_batch))
+
+        return combined_texts
 
     async def suggest_questions(self, texts: List[str], collection_id: UUID, num_questions: Optional[int] = None) -> List[str]:
         """
@@ -214,62 +237,50 @@ class QuestionService:
         Returns:
             List[str]: List of generated questions
         """
+        start_time = time.time()
+        stats = {'total_chunks': len(texts), 'successful_generations': 0, 'failed_generations': 0}
+
         try:
             if not texts:
                 return []
 
-            # These texts are already chunked by collection_service
-            logger.info("Processing %d text chunks", len(texts))
+            # Combine texts respecting context length
+            available_context_length = settings.max_context_length - settings.max_new_tokens
+            combined_texts = self._combine_text_chunks(texts, available_context_length)
             
-            # Create prompts for all chunks
-            prompts = [
-                self._generate_question_prompt(text, num_questions or self.num_questions)
-                for text in texts
-            ]
-
-            # Process in batches of 10 (API's max concurrency)
-            all_questions: List[str] = []
-            batch_size = 10
+            all_questions = []
+            batch_times = []
             
-            for i in range(0, len(prompts), batch_size):
-                batch = prompts[i:i + batch_size]
-                batch_queries = [p[0] for p in batch]
-                batch_contexts = [p[1] for p in batch]
+            for i in range(0, len(combined_texts), settings.llm_concurrency):
+                batch = combined_texts[i:i + settings.llm_concurrency]
+                prompts = [self._generate_question_prompt(text, num_questions or self.num_questions) for text in batch]
                 
-                # Let WatsonX handle the concurrency
-                responses = self.generator.generate(query=batch_queries, context=batch_contexts)
-                
-                # Process this batch's responses
-                if isinstance(responses, list):
-                    for response in responses:
-                        questions = [
-                            q.strip() for q in response.split('\n') 
-                            if q.strip().endswith('?')
-                        ]
-                        filtered_questions = [
-                            q for q in questions 
-                            if self._validate_question(q, " ".join(texts))
-                        ]
-                        all_questions.extend(filtered_questions)
-                        
-                logger.info(
-                    "Processed batch %d-%d, got %d questions so far", 
-                    i, min(i + batch_size, len(prompts)), len(all_questions)
-                )
+                try:
+                    responses = self.generator.generate(prompts, context=None, concurrency_limit=settings.llm_concurrency)
+                    
+                    if isinstance(responses, list):
+                        for response in responses:
+                            questions = [q.strip() for q in response.split('\n') if q.strip().endswith('?')]
+                            filtered = [q for q in questions if self._validate_question(q, " ".join(texts))]
+                            all_questions.extend(filtered)
+                            stats['successful_generations'] += 1
+              
+                except Exception as e:
+                    logger.error(f"Batch generation failed: {e}")
+                    stats['failed_generations'] += 1
 
-            # Post-process results
             unique_questions = self._filter_duplicate_questions(all_questions)
             ranked_questions = self._rank_questions(unique_questions, " ".join(texts))
             final_questions = ranked_questions[:num_questions] if num_questions else ranked_questions
 
             if final_questions:
                 await asyncio.to_thread(self.store_questions, collection_id, final_questions)
-                logger.info("Stored %d questions", len(final_questions))
 
+            logger.info(f"Generated {len(final_questions)} questions in {time.time() - start_time:.2f}s")
             return final_questions
 
         except Exception as e:
-            logger.error("Error suggesting questions: %s", str(e))
+            logger.error(f"Error suggesting questions: {e}")
             raise
 
     def get_collection_questions(self, collection_id: UUID) -> List[str]:
