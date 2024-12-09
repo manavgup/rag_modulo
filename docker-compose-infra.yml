@@ -1,5 +1,7 @@
 services:
   postgres:
+    ports:
+      - "5432:5432"
     image: postgres:13
     networks:
       - app-network
@@ -38,6 +40,8 @@ services:
       start_period: 30s
 
   minio:
+    ports:
+      - "9001:9001"
     container_name: milvus-minio
     image: minio/minio:latest
     environment:
@@ -85,7 +89,7 @@ services:
   mlflow-server:
     ports:
       - "5000:5000"
-    image: rag-modulo/mlflow:2.18.0
+    image: quay.io/jslecointre/rag-modulo/mlflow:2.18.0
     environment:
       POSTGRES_DB: ${COLLECTIONDB_NAME}
       POSTGRES_USER: ${COLLECTIONDB_USER}
@@ -93,7 +97,7 @@ services:
       AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
       AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
       MLFLOW_S3_ENDPOINT_URL: http://minio:9000
-      MLFLOW_BUCKET_ENDPOINT: s3://rag-modulo-mlfow
+      MLFLOW_BUCKET_ENDPOINT: s3://rag-modulo-mlflow
       MLFLOW_TRACKING_USERNAME: ${MLFLOW_TRACKING_USERNAME}
       MLFLOW_TRACKING_PASSWORD: ${MLFLOW_TRACKING_PASSWORD}
       BACKEND_STORE_URI: "postgresql+psycopg2://${COLLECTIONDB_USER}:${COLLECTIONDB_PASS}@postgres:5432/${COLLECTIONDB_NAME}" 
