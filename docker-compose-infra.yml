@@ -81,19 +81,18 @@ services:
       retries: 3
       start_period: 40s
     depends_on:
-      - "etcd"
-      - "minio"
+      etcd:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
     networks:
       - app-network
 
   mlflow-server:
     ports:
       - "5000:5000"
-    image: quay.io/jslecointre/rag-modulo/mlflow:2.18.0
+    image: quay.io/mtykhenko/rag-modulo-mlflow:latest
     environment:
-      POSTGRES_DB: ${COLLECTIONDB_NAME}
-      POSTGRES_USER: ${COLLECTIONDB_USER}
-      POSTGRES_PASSWORD: ${COLLECTIONDB_PASS}
       AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
       AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
       MLFLOW_S3_ENDPOINT_URL: http://minio:9000
@@ -108,7 +107,10 @@ services:
       retries: 3
       start_period: 40s
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
     networks:
       - app-network
 
