@@ -1,4 +1,5 @@
-import logging
+import os
+from pathlib import Path
 from contextlib import asynccontextmanager
 from typing import Annotated
 
@@ -11,9 +12,27 @@ from sqlalchemy import inspect, text
 from auth.oidc import verify_jwt_token
 import jwt
 
+# Setup logging before any other imports
+from core.logging_utils import setup_logging, get_logger
+
+# Create logs directory if running in container
+log_dir = None
+if os.getenv("CONTAINER_ENV"):
+    log_dir = Path("/app/logs")
+else:
+    # For local development, create logs in the project root
+    project_root = Path(__file__).parent.parent
+    log_dir = project_root / "logs"
+
+# Ensure logs directory exists
+log_dir.mkdir(parents=True, exist_ok=True)
+
+# Initialize logging
+setup_logging(log_dir)
+logger = get_logger(__name__)
+
 # Import  core modules
 from core.authentication_middleware import AuthenticationMiddleware
-# from backend.core.authorization_decorator import AuthorizationMiddleware
 from core.loggingcors_middleware import LoggingCORSMiddleware
 from core.authorization import authorize_dependency
 from core.config import settings
@@ -35,9 +54,6 @@ from rag_solution.router.user_router import router as user_router
 from rag_solution.router.health_router import router as health_router
 from rag_solution.router.auth_router import router as auth_router
 from rag_solution.router.search_router import router as search_router
-
-logging.basicConfig(level=settings.log_level)
-logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -135,7 +151,7 @@ def custom_openapi():
         if isinstance(schema, dict):
             for key, value in schema.items():
                 if isinstance(value, type) and issubclass(value, BaseModel):
-                    logging.warning(f"Found non-serializable model at path: {'.'.join(path + [key])}")
+                    logger.warning(f"Found non-serializable model at path: {'.'.join(path + [key])}")
                     schema[key] = value.model_json_schema()
                 else:
                     process_schema(value, path + [key])
