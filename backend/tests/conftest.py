@@ -7,11 +7,13 @@ import pytest
 import weaviate
 from core.config import settings
 from elasticsearch import Elasticsearch
+
+from rag_solution.models.question import SuggestedQuestion
 from vectordbs.milvus_store import MilvusStore
 from fastapi.testclient import TestClient
 from pinecone import Pinecone
 from pymilvus import connections
-from rag_solution.file_management.database import DATABASE_URL, engine as sync_engine, Base, SessionLocal
+from rag_solution.file_management.database import engine as sync_engine, Base, SessionLocal
 # Remove or comment out these lines:
 from rag_solution.models.collection import Collection
 from rag_solution.models.file import File
@@ -73,6 +75,7 @@ def clean_db(db_session):
     db_session.query(Collection).delete()
     db_session.query(Team).delete()
     db_session.query(User).delete()
+    db_session.query(SuggestedQuestion).delete()
     db_session.commit()
 
 @pytest.fixture(autouse=True)
