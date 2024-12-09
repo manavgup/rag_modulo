@@ -51,9 +51,6 @@ build-frontend: sync-frontend-deps
 build-backend:
 	$(CONTAINER_CLI) build -t ${PROJECT_NAME}/backend:${PROJECT_VERSION} -f ./backend/Dockerfile.backend ./backend
 
-build-mlflow:
-	$(CONTAINER_CLI) build -t quay.io/jslecointre/${PROJECT_NAME}/mlflow:2.18.0 -f ./infra/Dockerfile.mlflow ./infra
-
 build-tests:
 	$(CONTAINER_CLI) build -t ${PROJECT_NAME}/backend-test:${PROJECT_VERSION} -f ./backend/Dockerfile.test ./backend
 
