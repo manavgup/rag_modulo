@@ -60,10 +60,10 @@ class BaseGenerator:
             return truncated_context
         return context
 
-    def generate(self, query: str, context: str, **kwargs) -> str:
+    def generate(self, prompt: Union[str, List[str]], context: Optional[str] = None, **kwargs) -> Union[str, List[str]]:
         raise NotImplementedError
 
-    def generate_stream(self, query: str, context: str, **kwargs) -> TypeGenerator[str, None, None]:
+    def generate_stream(self, prompt: Union[str, List[str]], context: Optional[str] = None, **kwargs) -> Union[str, List[str]]:
         raise NotImplementedError
 
 class WatsonxGenerator(BaseGenerator):
@@ -74,27 +74,23 @@ class WatsonxGenerator(BaseGenerator):
         super().__init__(config)
         self.model_name = config.get('model_name', settings.rag_llm)
 
-    def generate(self, query: str, context: Union[str, List[str]], **kwargs) -> Union[str, List[str]]:
+    def generate(self, prompt: Union[str, List[str]], context: Optional[str] = None, **kwargs) -> Union[str, List[str]]:
         """Generate text using the language model.
         
         Args:
             query: The query text
             context: Either a single context string or list of prompts for batch processing
             **kwargs: Additional generation parameters
+
+        Returns:
+            Generated text(s)
         """
         try:
-            if isinstance(context, list):
-                # Batch mode - prompts are already formatted
-                return generate_text(
-                    prompt=context,
-                    concurrency_limit=10
-                )
-            
-            # Single prompt mode
-            truncated_context = self.truncate_context(context, query)
-            prompt = self.prompt_template.format(query=query, context=truncated_context)
-            return generate_text(prompt)
-            
+            return generate_text(
+                prompt=prompt,
+                concurrency_limit=kwargs.get('concurrency_limit', 10),
+                params=kwargs.get('params', self.config.get('default_params'))
+            )
         except Exception as e:
             logger.error("Error generating: %s", str(e))
             raise
