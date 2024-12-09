@@ -45,7 +45,7 @@ sync-frontend-deps:
 	@echo "Frontend dependencies synced."
 
 # Build
-build-frontend: sync-frontend-deps
+build-frontend:
 	$(CONTAINER_CLI) build -t ${PROJECT_NAME}/frontend:${PROJECT_VERSION} -f ./webui/Dockerfile.frontend ./webui
 
 build-backend:
