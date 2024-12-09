@@ -46,7 +46,13 @@ COPY . /app
 # Create a non-root user and group
 RUN groupadd --gid 10001 backend && \
     useradd --uid 10001 -g backend -M -d /nonexistent backend && \ 
-    chown -R backend:backend /app
+    mkdir -p /app/logs && \
+    chown -R backend:backend /app && \
+    chmod -R 755 /app && \
+    chmod 777 /app/logs
+
+# Set environment variable to indicate container environment
+ENV CONTAINER_ENV=1
 
 # Switch to non-root user
 USER backend
