@@ -38,7 +38,8 @@ services:
     ports:
       - "3000:8080"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080"]
       interval: 30s

@@ -57,9 +57,6 @@ http_ca.crt
 # Docker specific
 .dockerignore
 
-# Dependencies
-poetry.lock
-
 # Temporary files
 *.tmp
 *.bak
