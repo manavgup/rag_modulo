@@ -26,12 +26,6 @@ VECTOR_DB ?= milvus
 
 .PHONY: init-env sync-frontend-deps build-frontend build-backend build-tests build-all test api-test newman-test all-test run-app run-backend run-frontend run-services stop-containers clean create-volumes logs info help
 
-# Add this before the build targets
-sync-frontend-deps:
-	@echo "Syncing frontend dependencies..."
-	@cd webui && npm install
-	@echo "Frontend dependencies synced."
-
 # Init
 init-env:
 	@touch .env
