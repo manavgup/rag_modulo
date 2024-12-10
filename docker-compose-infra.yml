@@ -115,8 +115,6 @@ services:
       AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
       MLFLOW_S3_ENDPOINT_URL: http://minio:9000
       MLFLOW_ARTIFACT_URI: s3://rag-modulo-mlflow
-      MLFLOW_TRACKING_USERNAME: ${MLFLOW_TRACKING_USERNAME}
-      MLFLOW_TRACKING_PASSWORD: ${MLFLOW_TRACKING_PASSWORD}
       MLFLOW_BACKEND_STORE_URI: "postgresql+psycopg2://${COLLECTIONDB_USER}:${COLLECTIONDB_PASS}@postgres:5432/${COLLECTIONDB_NAME}"
     healthcheck:
       test: ["CMD", "python", "healthcheck.py"]
