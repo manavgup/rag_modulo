@@ -214,7 +214,7 @@ class CollectionService:
                     if chunk.text:
                         document_texts.append(chunk.text)
             # Suggest example questions
-            await self.question_service.suggest_questions(document_texts, collection_id)
+            await self.question_service.suggest_questions(document_texts, collection_id, settings.question_max_per_collection)
             logger.info(f"Generated questions for collection {collection_id}")
 
             # Update collection status to COMPLETED

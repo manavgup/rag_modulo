@@ -7,6 +7,8 @@ import asyncio
 import re
 from sqlalchemy.orm import Session
 import time
+import json
+from pprint import pformat
 
 from rag_solution.repository.question_repository import QuestionRepository
 from rag_solution.data_ingestion.chunking import get_chunking_method
@@ -53,42 +55,30 @@ class QuestionService:
 
     def _validate_question(self, question: str, context: str) -> bool:
         """Validate that question is well-formed and relevant to context."""
-        # Basic formatting checks
-        question = question.strip()
-        if not question or not question.endswith('?'):
-            logger.debug(f"Question rejected - formatting: {question}")
-            return False
-            
-        # Remove any numbering prefix
-        question = re.sub(r'^\d+\.\s*', '', question)
+        question_text = question['question'].strip()
         
-        # Reject if it's meta-commentary or contains notes/answers
-        meta_patterns = [
-            r'note:', r'answer:', r'here are', r'the following',
-            r'questions will be', r'let me help'
-        ]
-        if any(re.search(pattern, question.lower()) for pattern in meta_patterns):
-            logger.debug(f"Question rejected - meta-commentary: {question}")
-            return False
+        # Basic validation
+        if not question_text or not question_text.endswith('?'):
+            return False, 0.0
 
-        # Content relevance check
-        question_words = set(re.findall(r'\b\w+\b', question.lower()))
+        # Remove numbering prefix
+        question_text = re.sub(r'^\d+\.\s*', '', question_text)
+        
+        # Check for meta-commentary
+        meta_patterns = [r'note:', r'answer:', r'here are', r'the following']
+        if any(re.search(pattern, question_text.lower()) for pattern in meta_patterns):
+            return False, 0.0
+
+        # Content relevance using pre-extracted entities
+        question_entities = set(e.lower() for e in question.get('entities', []))
         context_words = set(re.findall(r'\b\w+\b', context.lower()))
         
-        # Calculate overlap score
-        relevance_score = len(question_words.intersection(context_words)) / len(question_words)
-        min_relevance = 0.3  # At least 30% of question terms should appear in context
+        # Calculate relevance score using entities and word overlap
+        entity_score = len(question_entities) / 10  # Normalize by assuming max 10 entities
+        word_overlap = len(context_words.intersection(set(re.findall(r'\b\w+\b', question_text.lower())))) / len(question_text.split())
         
-        if relevance_score < min_relevance:
-            logger.debug(f"Question rejected - low relevance ({relevance_score}): {question}")
-            return False
-            
-        # Avoid questions that are too generic or too specific
-        if len(question_words) < 5 or len(question_words) > 25:
-            logger.debug(f"Question rejected - length: {question}")
-            return False
-
-        return True 
+        relevance_score = (entity_score + word_overlap) / 2
+        return relevance_score >= 0.3, relevance_score 
     
     def _rank_questions(self, questions: List[str], context: str) -> List[str]:
         """Rank questions by relevance and quality."""
@@ -108,101 +98,51 @@ class QuestionService:
 
     def _generate_question_prompt(self, context: str, num_questions: int) -> str:
         return f"""
-        Generate exactly {num_questions} specific questions based strictly on the following text. For each question, also list the entities relevant to the question.
-
-        Requirements:
-        - Questions MUST be directly answerable from the provided text.
-        - Focus ONLY on information explicitly stated in the text.
-        - DO NOT make assumptions or generate questions about topics not covered.
-        - DO NOT include any meta-commentary or notes about the questions.
-        - Each question should end with a question mark.
-
-        Format the output as follows:
-        Question 1?
-        - Entity1
-        - Entity2
-        Question 2?
-        - Entity3
-        - Entity4
-        ...
+        Generate {num_questions} questions from this text with their relevant entities.
+        Format your entire response as a JSON array like this, with no other text:
+        [
+            {{"question": "What is X?", "entities": ["Entity1", "Entity2"]}},
+            {{"question": "How does Y work?", "entities": ["Entity3", "Entity4"]}}
+        ]
 
         Text:
         {context}
-
-        Generate {num_questions} questions with their relevant entities:
         """
 
-
-    def _generate_questions(self, context: str, num_questions: Optional[int] = None) -> List[str]:
-        """
-        Generate questions for context using the language model.
-
-        Args:
-            context: Document context
-            num_questions: Number of questions to generate
-
-        Returns:
-            List[str]: Generated questions
-        """
-        num_questions = num_questions or self.num_questions
-        prompt = self._generate_question_prompt(context, num_questions)
-
+    def _parse_llm_response(self, response: str) -> List[Dict[str, Any]]:
+        """Parse LLM response into list of questions with entities"""
         try:
-            response = self.generator.generate(query='', context=prompt, stop=['\n\n', 'Answer:', 'Question:'])
-
-            # Split the response into lines
-            lines = response.strip().split('\n')
-            generated_questions = []
-            entities_by_question = {}
-
-            i = 0
-            while i < len(lines):
-                line = lines[i].strip()
-                if line.endswith('?'):
-                    question = line
-                    entities = []
-                    i += 1
-                    while i < len(lines) and lines[i].startswith('- '):
-                        entities.append(lines[i][2:].strip())
-                        i += 1
-                    generated_questions.append(question)
-                    entities_by_question[question] = entities
-                else:
-                    i += 1
-
-            logger.info(f"Generated questions with entities: {generated_questions}")
-
-            # Validate and select the required number of questions
-            valid_questions = []
-            for question in generated_questions:
-                if self._validate_question(question, context) and question not in valid_questions:
-                    logger.info(f"Suggested question: {question}")
-                    valid_questions.append(question)
-                if len(valid_questions) >= num_questions:
-                    break
-            logger.info(f"Valid questions after validation: {valid_questions}")
-            return valid_questions
-        except Exception as e:
-            logger.error(f"Error generating questions using LLM: {e}", exc_info=True)
-            return []
-    
-    async def _generate_questions_async(self, chunk: str, num_questions: Optional[int]) -> List[str]:
-        return await asyncio.to_thread(self._generate_questions, chunk, num_questions)
-    
-    def _filter_duplicate_questions(self, questions: List[str]) -> List[str]:
-        """Remove duplicate questions using normalized comparison."""
-        seen = set()
-        unique_questions = []
-        
-        for question in questions:
-            # Normalize question for comparison
-            normalized = re.sub(r'\s+', ' ', question.lower().strip())
-            if normalized not in seen:
-                seen.add(normalized)
-                unique_questions.append(question)
+            # Clean the response - remove any non-JSON content
+            response = response.strip()
+            logger.info("--> validating llm response: %s\n", response)
+            start = response.find('[')
+            end = response.rfind(']') + 1
+            if start == -1 or end == 0:
+                logger.warning(f"No JSON array found in response: {response}")
+                return []
                 
-        return unique_questions
-    
+            json_str = response[start:end]
+            
+            # Parse and validate
+            questions = json.loads(json_str)
+            if not isinstance(questions, list):
+                logger.warning("Response not a JSON array")
+                return []
+                
+            # Validate each question has required fields
+            validated = []
+            for q in questions:
+                if isinstance(q, dict) and 'question' in q and 'entities' in q:
+                    if not q['question'].endswith('?'):
+                        q['question'] += '?'
+                    validated.append(q)
+                    
+            return validated
+            
+        except json.JSONDecodeError as e:
+            logger.warning(f"Failed to parse JSON: {e}")
+            return []
+       
     def _combine_text_chunks(self, texts: List[str], available_context_length: int) -> List[str]:
         """Combine text chunks while respecting context length limits."""
         combined_texts = []
@@ -238,50 +178,57 @@ class QuestionService:
             List[str]: List of generated questions
         """
         start_time = time.time()
-        stats = {'total_chunks': len(texts), 'successful_generations': 0, 'failed_generations': 0}
+        num_questions = num_questions or self.num_questions
 
-        try:
-            if not texts:
-                return []
+        if not texts:
+            return []
 
-            # Combine texts respecting context length
-            available_context_length = settings.max_context_length - settings.max_new_tokens
-            combined_texts = self._combine_text_chunks(texts, available_context_length)
+        # Combine texts respecting context length
+        available_context_length = settings.max_context_length - settings.max_new_tokens
+        combined_texts = self._combine_text_chunks(texts, available_context_length)
+        
+        all_questions = []
+        
+        # Process texts in batches
+        for i in range(0, len(combined_texts), settings.llm_concurrency):
+            batch = combined_texts[i:i + settings.llm_concurrency]
+            prompts = [self._generate_question_prompt(text, num_questions) for text in batch]
             
-            all_questions = []
-            batch_times = []
-            
-            for i in range(0, len(combined_texts), settings.llm_concurrency):
-                batch = combined_texts[i:i + settings.llm_concurrency]
-                prompts = [self._generate_question_prompt(text, num_questions or self.num_questions) for text in batch]
+            try:
+                logger.debug("Generated prompts:\n%s", pformat(prompts))
+                responses = self.generator.generate(prompts, context=None, concurrency_limit=settings.llm_concurrency)
                 
-                try:
-                    responses = self.generator.generate(prompts, context=None, concurrency_limit=settings.llm_concurrency)
-                    
-                    if isinstance(responses, list):
-                        for response in responses:
-                            questions = [q.strip() for q in response.split('\n') if q.strip().endswith('?')]
-                            filtered = [q for q in questions if self._validate_question(q, " ".join(texts))]
-                            all_questions.extend(filtered)
-                            stats['successful_generations'] += 1
-              
-                except Exception as e:
-                    logger.error(f"Batch generation failed: {e}")
-                    stats['failed_generations'] += 1
+                if isinstance(responses, list):
+                    for response in responses:
+                        questions = self._parse_llm_response(response)
+                        for q in questions:
+                            logger.info("*** Validating question: %s\n", q)
+                            valid, score = self._validate_question(q, " ".join(texts))
+                            if valid:
+                                q['relevance_score'] = score
+                                all_questions.append(q)
+            except Exception as e:
+                logger.error(f"Batch generation failed: {e}")
 
-            unique_questions = self._filter_duplicate_questions(all_questions)
-            ranked_questions = self._rank_questions(unique_questions, " ".join(texts))
-            final_questions = ranked_questions[:num_questions] if num_questions else ranked_questions
+        # Sort by relevance score and deduplicate
+        all_questions.sort(key=lambda x: x['relevance_score'], reverse=True)
 
-            if final_questions:
-                await asyncio.to_thread(self.store_questions, collection_id, final_questions)
+        # Deduplicate
+        seen = set()
+        unique_questions = []
+        for q in all_questions:
+            normalized = re.sub(r'\s+', ' ', q['question'].lower().strip())
+            if normalized not in seen:
+                seen.add(normalized)
+                unique_questions.append(q['question'])
 
-            logger.info(f"Generated {len(final_questions)} questions in {time.time() - start_time:.2f}s")
-            return final_questions
+        final_questions = unique_questions[:num_questions] if num_questions else unique_questions
 
-        except Exception as e:
-            logger.error(f"Error suggesting questions: {e}")
-            raise
+        if final_questions:
+            await asyncio.to_thread(self.store_questions, collection_id, final_questions)
+
+        logger.info(f"Generated {len(final_questions)} questions in {time.time() - start_time:.2f}s")
+        return final_questions
 
     def get_collection_questions(self, collection_id: UUID) -> List[str]:
         """

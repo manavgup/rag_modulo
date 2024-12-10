@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     wx_project_id: Optional[str] = Field(default_factory=lambda: os.getenv('WATSONX_INSTANCE_ID', None))
     wx_api_key: Optional[str] = Field(default_factory=lambda: os.getenv('WATSONX_APIKEY', None))
     wx_url: Optional[str] = Field(default_factory=lambda: os.getenv('WATSONX_URL', None))
-    llm_concurrency: int = Field(default=10, env='LLM_CONCURRENCY')
+    llm_concurrency: int = Field(default=7, env='LLM_CONCURRENCY')
 
     # Core data settings
     data_dir: Optional[str] = None
@@ -59,6 +59,7 @@ class Settings(BaseSettings):
     hybrid_weight: float = Field(default=0.5, env='HYBRID_WEIGHT')
 
     # Question suggestion settings
+    question_max_per_collection: int = Field(default=20, env='QUESTION_SUGGESTION_MAX')
     question_suggestion_num: int = Field(default=3, env='QUESTION_SUGGESTION_NUM')
     question_min_length: int = Field(default=15, env='QUESTION_MIN_LENGTH')
     question_max_length: int = Field(default=150, env='QUESTION_MAX_LENGTH')

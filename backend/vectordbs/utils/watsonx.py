@@ -123,7 +123,7 @@ def get_embeddings(texts: Union[str | List[str]],embed_client: Optional[wx_Embed
     if isinstance(texts, str):
         texts = [texts]
     try:
-        embedding_vectors = embed_client.embed_documents(texts=texts, concurrency_limit=10)
+        embedding_vectors = embed_client.embed_documents(texts=texts, concurrency_limit=settings.llm_concurrency)
     except Exception as e:
         logging.error(f"get_embeddings failed {e}")
         raise e
