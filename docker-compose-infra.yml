@@ -63,6 +63,24 @@ services:
     networks:
       - app-network
 
+  # Create minio bucket for MLFlow
+  createbuckets:
+    image: minio/mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc config host add myminio http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD;
+      /usr/bin/mc mb --ignore-existing myminio/rag-modulo-mlflow;
+      exit 0;
+      "
+    networks:
+      - app-network
+
   milvus-standalone:
     container_name: milvus-standalone
     image: milvusdb/milvus:v2.4.4
@@ -99,7 +117,7 @@ services:
       MLFLOW_ARTIFACT_URI: s3://rag-modulo-mlflow
       MLFLOW_TRACKING_USERNAME: ${MLFLOW_TRACKING_USERNAME}
       MLFLOW_TRACKING_PASSWORD: ${MLFLOW_TRACKING_PASSWORD}
-      MLFLOW_BACKEND_STORE_URI: "postgresql+psycopg2://${COLLECTIONDB_USER}:${COLLECTIONDB_PASS}@postgres:5432/${COLLECTIONDB_NAME}" 
+      MLFLOW_BACKEND_STORE_URI: "postgresql+psycopg2://${COLLECTIONDB_USER}:${COLLECTIONDB_PASS}@postgres:5432/${COLLECTIONDB_NAME}"
     healthcheck:
       test: ["CMD", "python", "healthcheck.py"]
       interval: 30s
@@ -116,9 +134,25 @@ services:
 
 volumes:
   postgres_data:
+    driver_opts:
+      type: none
+      device: ${PWD}/volumes/postgres
+      o: bind
   etcd_data:
+    driver_opts:
+      type: none
+      device: ${PWD}/volumes/etcd
+      o: bind
   minio_data:
+    driver_opts:
+      type: none
+      device: ${PWD}/volumes/minio
+      o: bind
   milvus_data:
+    driver_opts:
+      type: none
+      device: ${PWD}/volumes/milvus
+      o: bind
 
 networks:
   app-network:
