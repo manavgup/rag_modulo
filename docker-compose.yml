@@ -20,6 +20,8 @@ services:
     environment:
       - COLLECTIONDB_HOST=postgres
       - WEB_CONCURRENCY=4
+      - MLFLOW_TRACKING_USERNAME=${MLFLOW_TRACKING_USERNAME}
+      - MLFLOW_TRACKING_PASSWORD=${MLFLOW_TRACKING_PASSWORD}
     env_file:
       - .env
     volumes:
