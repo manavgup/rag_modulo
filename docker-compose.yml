@@ -80,3 +80,7 @@ services:
 
 volumes:
   backend_data:
+    driver_opts:
+      type: none
+      device: ${PWD}/volumes/backend
+      o: bind
