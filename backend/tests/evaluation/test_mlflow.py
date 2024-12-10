@@ -1,5 +1,6 @@
 import pytest
 import os
+import re
 from minio import Minio
 import numpy as np
 import pandas as pd
@@ -32,22 +33,23 @@ def minio_client():
 
 @pytest.fixture()
 def minio_bucket(minio_client):
-    bucket_name = 'rag-modulo-mlflow'
-    if not minio_client.bucket_exists(bucket_name):
-        minio_client.make_bucket(bucket_name)
+    if match:=re.match(r"s3://([^/]+)/?", os.getenv('MLFLOW_ARTIFACT_URI')):
+        bucket_name = match.group(1)
+    else:
+        raise ValueError(f'no bucket name could be found')
     return bucket_name
 
 
 @pytest.fixture()
 def mlflow_experiment(minio_bucket):
     experiment_name = 'pytest'
-    bucket_endpoint = f"s3://{minio_bucket}"
     if mlflow.get_experiment_by_name(experiment_name) is None:
-        mlflow.create_experiment(experiment_name, artifact_location=bucket_endpoint)
+        mlflow.create_experiment(experiment_name, artifact_location=os.environ['MLFLOW_ARTIFACT_URI'])
     return experiment_name
 
 
 def test_log_minio_artifact(mlflow_experiment,minio_client,minio_bucket):
+    assert minio_client.bucket_exists(minio_bucket),f'bucket {minio_bucket} was not created' # minio_client.make_bucket(minio_bucket)
     mlflow.set_experiment(mlflow_experiment)
     mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI",'http://rag-modulo-mlflow-server-1:5000'))
     mlflow.autolog()

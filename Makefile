@@ -26,12 +26,6 @@ VECTOR_DB ?= milvus
 
 .PHONY: init-env sync-frontend-deps build-frontend build-backend build-tests build-all test api-test newman-test all-test run-app run-backend run-frontend run-services stop-containers clean create-volumes logs info help
 
-# Add this before the build targets
-sync-frontend-deps:
-	@echo "Syncing frontend dependencies..."
-	@cd webui && npm install
-	@echo "Frontend dependencies synced."
-
 # Init
 init-env:
 	@touch .env
@@ -105,7 +99,7 @@ run-services: create-volumes
 	@echo "Starting services for VECTOR_DB=${VECTOR_DB}"
 	@if [ "$(VECTOR_DB)" = "milvus" ]; then \
 		echo "Starting Milvus and its dependencies..."; \
-		$(DOCKER_COMPOSE) up -d etcd minio milvus-standalone || { echo "Failed to start Milvus and its dependencies"; $(DOCKER_COMPOSE) logs; exit 1; }; \
+		$(DOCKER_COMPOSE) up -d etcd minio createbuckets milvus-standalone || { echo "Failed to start Milvus and its dependencies"; $(DOCKER_COMPOSE) logs; exit 1; }; \
 		echo "Waiting for Milvus to be ready..."; \
 		for i in $$(seq 1 30); do \
 			if $(DOCKER_COMPOSE) exec milvus-standalone curl -s http://localhost:9091/healthz | grep -q "OK"; then \
