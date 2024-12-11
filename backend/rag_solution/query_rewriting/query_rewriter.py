@@ -4,7 +4,7 @@ from typing import Dict, Any, List, Optional
 from vectordbs.utils.watsonx import generate_text
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class QueryRewriterError(Exception):
