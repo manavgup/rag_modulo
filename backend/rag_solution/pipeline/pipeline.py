@@ -1,6 +1,7 @@
 """Pipeline implementation for RAG processing."""
 
 import logging
+import os
 from typing import List, Dict, Any, Generator, Optional, Iterator, AsyncIterator
 from uuid import UUID
 from sqlalchemy.orm import Session
@@ -118,7 +119,11 @@ class Pipeline():
             logger.info(f"Generated answer: {generated_answer}")
 
             logger.info("Now going to evaluate the results")
-            evaluation_result = None
+            if settings.runtime_eval:
+                evaluation_result = await self.evaluator.evaluate(question=rewritten_query,
+                                                                          answer=generated_answer, context=context)
+            else:
+                evaluation_result=None
             
             return PipelineResult(
                 original_query=query,

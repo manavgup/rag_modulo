@@ -132,25 +132,9 @@ services:
 
 volumes:
   postgres_data:
-    driver_opts:
-      type: none
-      device: ${PWD}/volumes/postgres
-      o: bind
   etcd_data:
-    driver_opts:
-      type: none
-      device: ${PWD}/volumes/etcd
-      o: bind
   minio_data:
-    driver_opts:
-      type: none
-      device: ${PWD}/volumes/minio
-      o: bind
   milvus_data:
-    driver_opts:
-      type: none
-      device: ${PWD}/volumes/milvus
-      o: bind
 
 networks:
   app-network:

@@ -45,6 +45,7 @@ class Settings(BaseSettings):
     top_p: float = Field(default=0.95, env='TOP_P')
     temperature: float = Field(default=0.7, env='TEMPERATURE')
     repetition_penalty: float = Field(default=1.1, env='REPETITION_PENALTY')
+    runtime_eval = bool = Field(default=False, env='RUNTIME_EVAL')
 
     # Query Rewriting settings
     use_simple_rewriter: bool = Field(default=True, env='USE_SIMPLE_REWRITER')
@@ -108,6 +109,9 @@ class Settings(BaseSettings):
     milvus_host: Optional[str] = Field(default="localhost", env='MILVUS_HOST')
     milvus_port: Optional[int] = Field(default=19530, env='MILVUS_PORT')
     milvus_user: Optional[str] = Field(default="root", env='MILVUS_USER')
+    milvus_secure: Optional[bool] = Field(default="no", env='MILVUS_SECURE')
+    milvus_server_name: Optional[str] = Field(default=None, env='MILVUS_SERVER_NAME')
+    milvus_cert_pem_path: Optional[str] = Field(default=None, env='MILVUS_CERT')
     milvus_password: Optional[str] = Field(default="milvus", env='MILVUS_PASSWORD')
     milvus_index_params: Optional[str] = Field(default=None, env='MILVUS_INDEX_PARAMS')
     milvus_search_params: Optional[str] = Field(default=None, env='MILVUS_SEARCH_PARAMS')
