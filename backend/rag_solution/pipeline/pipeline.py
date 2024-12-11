@@ -93,8 +93,9 @@ class Pipeline():
 
             rewritten_query = self.query_rewriter.rewrite(query, context)
             logger.info(f"Rewritten query: {rewritten_query}")
+            logger.info(f"Going with original query: {query}")
 
-            retrieved_docs: List[QueryResult] = self.retriever.retrieve(collection_name, rewritten_query)
+            retrieved_docs: List[QueryResult] = self.retriever.retrieve(collection_name, query)
             logger.info(f"Retrieved {len(retrieved_docs)} documents")
 
             # Extract text from retrieved documents
@@ -113,8 +114,8 @@ class Pipeline():
 
             # Generate answer
             context = "\n".join(all_texts)
-            logger.info(f"Calling generator.generate with {rewritten_query}")
-            generated_answer = self.generator.generate(rewritten_query, context)
+            logger.info(f"Calling generator.generate with {query}")
+            generated_answer = self.generator.generate(query, context)
             logger.info(f"Generated answer: {generated_answer}")
 
             logger.info("Now going to evaluate the results")
