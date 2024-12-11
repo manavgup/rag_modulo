@@ -1,13 +1,19 @@
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from uuid import UUID
 from fastapi import HTTPException, Depends
 from sqlalchemy.orm import Session
-import asyncio
+import logging
+import re
+
 from core.config import settings
 from rag_solution.pipeline.pipeline import Pipeline, PipelineResult
-from rag_solution.schemas.search_schema import SearchInput, SearchOutput
+from rag_solution.schemas.search_schema import SearchInput, SearchOutput, DocumentMetadata, SourceDocument
 from rag_solution.schemas.collection_schema import CollectionOutput
 from rag_solution.services.collection_service import CollectionService
+from vectordbs.data_types import QueryResult, DocumentChunkWithScore, Source
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class SearchService:
     def __init__(self, db: Session):
@@ -96,6 +102,130 @@ class SearchService:
                 detail=f"Error accessing collection: {str(e)}"
             )
     
+    def _transform_retrieved_documents(self, retrieved_documents: List[QueryResult]) -> List[SourceDocument]:
+        """
+        Transform retrieved documents from pipeline format to API response format.
+        
+        Args:
+            retrieved_documents: List[QueryResult] from the pipeline
+            
+        Returns:
+            List[SourceDocument]: Transformed documents for API response
+            
+        Example structure:
+            Input:
+            retrieved_documents = [
+                QueryResult(
+                    data=[DocumentChunkWithScore(text="...", score=0.8, ...)],
+                    similarities=[0.8],
+                    ids=["123"]
+                ),
+                QueryResult(...)
+            ]
+            
+            Output:
+            [
+                SourceDocument(
+                    text="...",
+                    metadata=DocumentMetadata(...),
+                    score=0.8,
+                    document_id="123"
+                ),
+                ...
+            ]
+        """
+        source_documents = []
+        
+        if not retrieved_documents:
+            logger.warning("No retrieved documents to process")
+            return source_documents
+
+        try:
+            # Handle if retrieved_documents is a single QueryResult
+            if isinstance(retrieved_documents, QueryResult):
+                retrieved_documents = [retrieved_documents]
+            
+            # Handle if retrieved_documents is a list but not of QueryResults
+            if isinstance(retrieved_documents, list):
+                for doc in retrieved_documents:
+                    if isinstance(doc, str):
+                        # Handle case where document is just text
+                        source_documents.append(SourceDocument(
+                            text=doc,
+                            metadata=None,
+                            score=None,
+                            document_id=None
+                        ))
+                    elif hasattr(doc, 'data') and doc.data:
+                        # Handle proper QueryResult objects
+                        for chunk in doc.data:
+                            metadata = self._create_metadata(chunk) if hasattr(chunk, 'metadata') else None
+                            source_documents.append(SourceDocument(
+                                text=chunk.text if hasattr(chunk, 'text') else str(chunk),
+                                metadata=metadata,
+                                score=chunk.score if hasattr(chunk, 'score') else None,
+                                document_id=chunk.document_id if hasattr(chunk, 'document_id') else None
+                            ))
+
+            return source_documents
+
+        except Exception as e:
+            self.logger.error(f"Error processing retrieved documents: {str(e)}")
+            return source_documents
+    
+    def _create_metadata(self, chunk: Any) -> Optional[DocumentMetadata]:
+        """Create metadata object from chunk data."""
+        try:
+            if not chunk.metadata:
+                return None
+                
+            return DocumentMetadata(
+                source=chunk.metadata.source.value if hasattr(chunk.metadata, 'source') else 'unknown',
+                source_id=getattr(chunk.metadata, 'source_id', None),
+                url=getattr(chunk.metadata, 'url', None),
+                created_at=getattr(chunk.metadata, 'created_at', None),
+                author=getattr(chunk.metadata, 'author', None),
+                title=getattr(chunk.metadata, 'title', None),
+                page_number=getattr(chunk.metadata, 'page_number', None),
+                total_pages=getattr(chunk.metadata, 'total_pages', None)
+            )
+        except Exception as e:
+            logger.error(f"Error creating metadata: {str(e)}")
+            return None
+    
+    def _prepare_query(self, query: str) -> str:
+        """Prepare query by removing any existing boolean operators."""
+        # Remove boolean operators and parentheses
+        clean_query = re.sub(r'\s+(AND|OR)\s+', ' ', query)
+        clean_query = re.sub(r'[\(\)]', '', clean_query)
+        return clean_query.strip()
+    
+    def _clean_generated_answer(self, answer: str) -> str:
+        """Clean up the generated answer."""
+        if not answer:
+            return ""
+        
+        # Remove boolean operation prefixes
+        answer = re.sub(r'^AND\s+\([^)]+\)(\s+AND\s+\([^)]+\))*\s*', '', answer)
+        
+        # Remove duplicate lines
+        lines = answer.split('\n')
+        unique_lines = []
+        seen = set()
+        for line in lines:
+            clean_line = line.strip()
+            if clean_line and clean_line not in seen:
+                seen.add(clean_line)
+                unique_lines.append(clean_line)
+        
+        # Join unique lines back together
+        cleaned = '\n'.join(unique_lines)
+        
+        # Clean up any remaining artifacts
+        cleaned = re.sub(r'\s+', ' ', cleaned)
+        
+        return cleaned.strip()
+    
     async def search(self, search_input: SearchInput, context: Optional[Dict[str, Any]] = None) -> SearchOutput:
         """
         Process a search query through the RAG pipeline.
@@ -122,27 +252,38 @@ class SearchService:
         try:
             # Get collection name with typed return
             collection_name: str = self._get_collection_vector_db_name(search_input.collection_id)
+
+            # Clean the query before sending to pipeline
+            clean_query = self._prepare_query(search_input.question)
             
             # Process through pipeline with strong typing
             pipeline_result: PipelineResult = await self.pipeline.process(
-                query=search_input.question,
+                query=clean_query,
                 collection_name=collection_name,
                 context=context
             )
+            # Clean generated answer
+            cleaned_answer = self._clean_generated_answer(pipeline_result.generated_answer)
 
-            # Transform pipeline result to search output
-            return SearchOutput(
-                answer=pipeline_result.generated_answer,
-                source_documents=[
-                    {
-                        'text': doc,
-                        'metadata': None  # Add metadata if available in your implementation
-                    }
-                    for doc in pipeline_result.retrieved_documents
-                ],
-                rewritten_query=pipeline_result.rewritten_query,
+            # Transform pipeline results to source documents
+            source_documents:List[SourceDocument]  = self._transform_retrieved_documents(pipeline_result.retrieved_documents)
+
+            if not source_documents:
+                logger.warning(f"No source documents found for query: {search_input.question}")
+
+            # Create the final SearchOutput
+            search_output = SearchOutput(
+                answer=cleaned_answer,
+                source_documents=source_documents,
+                rewritten_query=clean_query,
                 evaluation=pipeline_result.evaluation
             )
+
+            # Validate we have some results
+            if not source_documents:
+                logger.warning(f"No source documents found for query: {search_input.question}")
+                
+            return search_output
 
         except HTTPException as he:
             # Re-raise existing HTTP exceptions
