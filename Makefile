@@ -77,61 +77,33 @@ run-frontend: run-services
 	@echo "Frontend is now running."
 
 run-services: create-volumes
-	@if [ -z "$(VECTOR_DB)" ]; then \
-		echo "Warning: VECTOR_DB is not set. Using default value: milvus"; \
-		export VECTOR_DB=milvus; \
-	fi
-	@echo "Starting services..."
-	$(DOCKER_COMPOSE) up -d postgres
-	@echo "Waiting for PostgreSQL to be ready..."
-	@for i in $$(seq 1 30); do \
-		if $(DOCKER_COMPOSE) exec postgres pg_isready -U ${COLLECTIONDB_USER} -d ${COLLECTIONDB_NAME}; then \
-			echo "PostgreSQL is ready"; \
-			break; \
-		fi; \
-		if [ $$i -eq 30 ]; then \
-			echo "PostgreSQL did not become ready in time"; \
-			exit 1; \
-		fi; \
-		echo "Waiting for PostgreSQL to be ready... ($$i/30)"; \
-		sleep 2; \
-	done
-	@echo "Starting services for VECTOR_DB=${VECTOR_DB}"
-	@if [ "$(VECTOR_DB)" = "milvus" ]; then \
-		echo "Starting Milvus and its dependencies..."; \
-		$(DOCKER_COMPOSE) up -d etcd minio createbuckets milvus-standalone || { echo "Failed to start Milvus and its dependencies"; $(DOCKER_COMPOSE) logs; exit 1; }; \
-		echo "Waiting for Milvus to be ready..."; \
-		for i in $$(seq 1 30); do \
-			if $(DOCKER_COMPOSE) exec milvus-standalone curl -s http://localhost:9091/healthz | grep -q "OK"; then \
-				echo "Milvus is ready"; \
-				break; \
+	@echo "Starting services:"
+	$(DOCKER_COMPOSE) up -d postgres minio milvus-etcd milvus-standalone createbuckets mlflow-server || \
+	{ \
+		echo "Failed to infra services"; \
+		unhealthy_containers=$$($(CONTAINER_CLI) ps -f health=unhealthy -q); \
+		if [ -n "$$unhealthy_containers" ]; then \
+			echo "Logs from unhealthy containers:"; \
+			for container in $$unhealthy_containers; do \
+				echo "Container ID: $$container"; \
+				$(CONTAINER_CLI) logs $$container; \
+			done; \
+		else \
+			echo "No unhealthy containers found, checking for failed containers..."; \
+			failed_containers=$$($(CONTAINER_CLI) ps -f status=exited -q); \
+			if [ -n "$$failed_containers" ]; then \
+				echo "Logs from failed containers:"; \
+				for container in $$failed_containers; do \
+					echo "Container ID: $$container"; \
+					$(CONTAINER_CLI) logs $$container; \
+				done; \
+			else \
+				echo "No failed containers found, showing logs for all services."; \
+				$(DOCKER_COMPOSE) logs; \
 			fi; \
-			if [ $$i -eq 30 ]; then \
-				echo "Milvus did not become ready in time"; \
-				$(DOCKER_COMPOSE) logs milvus-standalone; \
-				exit 1; \
-			fi; \
-			echo "Waiting for Milvus to be ready... ($$i/30)"; \
-			sleep 10; \
-		done; \
-	elif [ "$(VECTOR_DB)" = "elasticsearch" ]; then \
-		$(DOCKER_COMPOSE) up -d --scale elasticsearch=1 elasticsearch; \
-	elif [ "$(VECTOR_DB)" = "chroma" ]; then \
-		$(DOCKER_COMPOSE) up -d --scale chroma=1 chroma; \
-	elif [ "$(VECTOR_DB)" = "weaviate" ]; then \
-		$(DOCKER_COMPOSE) up -d --scale weaviate=1 weaviate; \
-	elif [ "$(VECTOR_DB)" = "pinecone" ]; then \
-		echo "Pinecone does not require a local Docker container."; \
-	else \
-		echo "Unknown VECTOR_DB value: $(VECTOR_DB)"; \
+		fi; \
 		exit 1; \
-	fi
-	@echo "start mlflow-server"
-	@$(DOCKER_COMPOSE) up -d mlflow-server || { echo "Failed to start mlflow"; $(DOCKER_COMPOSE) logs; exit 1; };
-	@echo "Docker containers status:"
-	@$(CONTAINER_CLI) ps
-	@echo "Milvus logs saved to milvus.log:"
-	@$(DOCKER_COMPOSE) logs milvus-standalone > milvus.log
+	}
 
 # Stop / clean
 stop-containers:
