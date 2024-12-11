@@ -1,4 +1,5 @@
 services:
+  # Main database used for persistence by backend and some infra components
   postgres:
     ports:
       - "5432:5432"
@@ -22,27 +23,12 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-  etcd:
-    container_name: milvus-etcd
-    image: bitnami/etcd:latest
-    environment:
-      - ALLOW_NONE_AUTHENTICATION=yes
-      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd:2379
-    volumes:
-      - etcd_data:/bitnami/etcd
-    networks:
-      - app-network
-    healthcheck:
-      test: ["CMD", "/opt/bitnami/scripts/etcd/healthcheck.sh"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
 
+  # AWS S3 compartible storage services used by Milvus and MLFlow
   minio:
     ports:
       - "9001:9001"
-    container_name: milvus-minio
+    container_name: minio
     image: minio/minio:latest
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
@@ -63,6 +49,49 @@ services:
     networks:
       - app-network
 
+  # etcd for milvus standalone deployment
+  milvus-etcd:
+    container_name: milvus-etcd
+    image: bitnami/etcd:latest
+    environment:
+      - ALLOW_NONE_AUTHENTICATION=yes
+      - ETCD_ADVERTISE_CLIENT_URLS=http://milvus-etcd:2379
+    volumes:
+      - etcd_data:/bitnami/etcd
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "/opt/bitnami/scripts/etcd/healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  milvus-standalone:
+    container_name: milvus-standalone
+    image: milvusdb/milvus:v2.4.4
+    command: ["milvus", "run", "standalone"]
+    environment:
+      ETCD_ENDPOINTS: milvus-etcd:2379
+      MINIO_ADDRESS: minio:9000
+      MINIO_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      MINIO_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD} 
+    volumes:
+      - milvus_data:/var/lib/milvus
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      milvus-etcd:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - app-network
+
   # Create minio bucket for MLFlow
   createbuckets:
     image: minio/mc
@@ -78,31 +107,6 @@ services:
       /usr/bin/mc mb --ignore-existing myminio/rag-modulo-mlflow;
       exit 0;
       "
-    networks:
-      - app-network
-
-  milvus-standalone:
-    container_name: milvus-standalone
-    image: milvusdb/milvus:v2.4.4
-    command: ["milvus", "run", "standalone"]
-    environment:
-      ETCD_ENDPOINTS: etcd:2379
-      MINIO_ADDRESS: minio:9000
-      MINIO_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
-      MINIO_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD} 
-    volumes:
-      - milvus_data:/var/lib/milvus
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    depends_on:
-      etcd:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
     networks:
       - app-network
 
@@ -127,6 +131,8 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      createbuckets:
+        condition: service_completed_successfully
     networks:
       - app-network
 
