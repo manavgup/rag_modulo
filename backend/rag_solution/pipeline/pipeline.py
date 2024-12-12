@@ -22,7 +22,7 @@ class PipelineResult:
     """Result from pipeline processing."""
     original_query: str
     rewritten_query: str
-    retrieved_documents: List[str]
+    retrieved_documents: List[QueryResult] # changed from List[str]
     generated_answer: str
     evaluation: Optional[Dict[str, Any]] = None
 
@@ -124,7 +124,7 @@ class Pipeline():
             return PipelineResult(
                 original_query=query,
                 rewritten_query=rewritten_query,
-                retrieved_documents=all_texts,
+                retrieved_documents=retrieved_docs,
                 generated_answer=generated_answer,
                 evaluation=evaluation_result
             )
