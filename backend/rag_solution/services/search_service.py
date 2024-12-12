@@ -103,74 +103,38 @@ class SearchService:
             )
     
     def _transform_retrieved_documents(self, retrieved_documents: List[QueryResult]) -> List[SourceDocument]:
-        """
-        Transform retrieved documents from pipeline format to API response format.
-        
-        Args:
-            retrieved_documents: List[QueryResult] from the pipeline
-            
-        Returns:
-            List[SourceDocument]: Transformed documents for API response
-            
-        Example structure:
-            Input:
-            retrieved_documents = [
-                QueryResult(
-                    data=[DocumentChunkWithScore(text="...", score=0.8, ...)],
-                    similarities=[0.8],
-                    ids=["123"]
-                ),
-                QueryResult(...)
-            ]
-            
-            Output:
-            [
-                SourceDocument(
-                    text="...",
-                    metadata=DocumentMetadata(...),
-                    score=0.8,
-                    document_id="123"
-                ),
-                ...
-            ]
-        """
+        """Transform retrieved documents from pipeline format to API response format."""
         source_documents = []
-        
+
         if not retrieved_documents:
             logger.warning("No retrieved documents to process")
             return source_documents
 
         try:
-            # Handle if retrieved_documents is a single QueryResult
-            if isinstance(retrieved_documents, QueryResult):
-                retrieved_documents = [retrieved_documents]
-            
-            # Handle if retrieved_documents is a list but not of QueryResults
-            if isinstance(retrieved_documents, list):
-                for doc in retrieved_documents:
-                    if isinstance(doc, str):
-                        # Handle case where document is just text
+            # Process each QueryResult
+            for query_result in retrieved_documents:
+                if query_result.data:
+                    for chunk in query_result.data:
+                        metadata = DocumentMetadata(
+                            source=chunk.metadata.source.value if chunk.metadata else 'unknown',
+                            source_id=chunk.metadata.source_id if chunk.metadata else None,
+                            url=chunk.metadata.url if chunk.metadata else None,
+                            created_at=chunk.metadata.created_at if chunk.metadata else None,
+                            author=chunk.metadata.author if chunk.metadata else None,
+                            page_number=chunk.metadata.page_number if chunk.metadata else None
+                        )
+                        
                         source_documents.append(SourceDocument(
-                            text=doc,
-                            metadata=None,
-                            score=None,
-                            document_id=None
+                            text=chunk.text,
+                            metadata=metadata,
+                            score=chunk.score,
+                            document_id=chunk.document_id
                         ))
-                    elif hasattr(doc, 'data') and doc.data:
-                        # Handle proper QueryResult objects
-                        for chunk in doc.data:
-                            metadata = self._create_metadata(chunk) if hasattr(chunk, 'metadata') else None
-                            source_documents.append(SourceDocument(
-                                text=chunk.text if hasattr(chunk, 'text') else str(chunk),
-                                metadata=metadata,
-                                score=chunk.score if hasattr(chunk, 'score') else None,
-                                document_id=chunk.document_id if hasattr(chunk, 'document_id') else None
-                            ))
 
             return source_documents
 
         except Exception as e:
-            self.logger.error(f"Error processing retrieved documents: {str(e)}")
+            logger.error(f"Error processing retrieved documents: {str(e)}")
             return source_documents
     
     def _create_metadata(self, chunk: Any) -> Optional[DocumentMetadata]:
