@@ -1,7 +1,12 @@
 import React from "react";
-import { SideNav, SideNavDivider, SideNavItems, SideNavLink } from "@carbon/react";
+import {
+  SideNav,
+  SideNavDivider,
+  SideNavItems,
+  SideNavLink,
+} from "@carbon/react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Fade} from '@carbon/icons-react';
+import { Search, ModelAlt, Dashboard } from "@carbon/icons-react";
 
 const UISideNav = ({ isSideNavExpanded, handleSideNavExpand }) => {
   const location = useLocation();
@@ -23,7 +28,7 @@ const UISideNav = ({ isSideNavExpanded, handleSideNavExpand }) => {
     >
       <SideNavItems>
         <SideNavLink
-          renderIcon={Fade}
+          renderIcon={Dashboard}
           href="#"
           onClick={() => onNavigate("/dashboard")}
           isActive={isActive("/dashboard")}
@@ -31,7 +36,7 @@ const UISideNav = ({ isSideNavExpanded, handleSideNavExpand }) => {
           Dashboard
         </SideNavLink>
         <SideNavLink
-          renderIcon={Fade}
+          renderIcon={ModelAlt}
           href="#"
           onClick={() => onNavigate("/collections")}
           isActive={isActive("/collections")}
@@ -39,7 +44,7 @@ const UISideNav = ({ isSideNavExpanded, handleSideNavExpand }) => {
           Collections
         </SideNavLink>
         <SideNavLink
-          renderIcon={Fade}
+          renderIcon={Search}
           href="#"
           onClick={() => onNavigate("/search")}
           isActive={isActive("/search")}
