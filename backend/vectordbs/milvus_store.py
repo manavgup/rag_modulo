@@ -42,6 +42,7 @@ SCHEMA = [
     FieldSchema(name="url", dtype=DataType.VARCHAR, max_length=500),
     FieldSchema(name="created_at", dtype=DataType.VARCHAR, max_length=50),
     FieldSchema(name="author", dtype=DataType.VARCHAR, max_length=100),
+    FieldSchema(name="page_number", dtype=DataType.INT64), # Temporary fix
 ]
 
 
@@ -174,6 +175,7 @@ class MilvusStore(VectorStore):
                             "url": chunk.metadata.url if chunk.metadata else "",
                             "created_at": chunk.metadata.created_at if chunk.metadata else "",
                             "author": chunk.metadata.author if chunk.metadata else "",
+                            "page_number": chunk.metadata.page_number if chunk.metadata else 0,  # Temporary fix
                         }
                     )
             # logging.info(f"Inserting text: : {chunk.text}")
@@ -226,6 +228,7 @@ class MilvusStore(VectorStore):
                     "url",
                     "created_at",
                     "author",
+                    "page_number", # Temporary fix
                 ],
                 limit=number_of_results,  # Milvus API uses limit, but we maintain our consistent interface
             )
@@ -342,6 +345,7 @@ class MilvusStore(VectorStore):
                     "url",
                     "created_at",
                     "author",
+                    "page_number",
                 ],
             )
             return self._process_search_results(result)
@@ -369,6 +373,7 @@ class MilvusStore(VectorStore):
                 url=data.get("url"),
                 created_at=data.get("created_at"),
                 author=data.get("author"),
+                page_number=data.get("page_number"),  # Temporary fix to add page number
             ),
             document_id=data["document_id"],
         )
@@ -393,7 +398,6 @@ class MilvusStore(VectorStore):
             similarities: List[float] = []
             ids: List[str] = []
             for hit in result:
-                # logger.info(f"Processing hit: {hit}")
                 chunk = DocumentChunkWithScore(
                     chunk_id=hit.id,
                     text=hit.entity.get("text") or "",  # Use empty string if text is None
@@ -404,10 +408,12 @@ class MilvusStore(VectorStore):
                         url=hit.entity.get("url"),
                         created_at=hit.entity.get("created_at"),
                         author=hit.entity.get("author"),
+                        page_number=hit.entity.get("page_number"),  # Temporay fix
                     ),
                     score=hit.distance,
                     document_id=hit.entity.get("document_id")
                 )
+                logger.info(f"Created chunk with metadata: {chunk.metadata.__dict__ if chunk.metadata else None}")
                 chunks_with_scores.append(chunk)
                 ids.append(hit.id)
                 similarities.append(hit.distance)
