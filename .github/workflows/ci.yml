@@ -58,10 +58,42 @@ jobs:
         run: |
           source .env
           echo $PROJECT_VERSION
+
+          echo "Creating volume directories with correct permissions..."
+          mkdir -p ./volumes/postgres ./volumes/etcd ./volumes/minio ./volumes/milvus ./volumes/backend
+          chmod -R 777 ./volumes
+          echo "Volume directories created and permissions set."
+
+          @echo "Starting services:"
+          docker compose up -d postgres minio milvus-etcd milvus-standalone createbuckets mlflow-server || \
+          { \
+            echo "Failed to infra services"; \
+            unhealthy_containers=$$(docker ps -f health=unhealthy -q); \
+            if [ -n "$$unhealthy_containers" ]; then \
+              echo "Logs from unhealthy containers:"; \
+              for container in $$unhealthy_containers; do \
+                echo "Container ID: $$container"; \
+                docker logs $$container; \
+              done; \
+            else \
+              echo "No unhealthy containers found, checking for failed containers..."; \
+              failed_containers=$$(docker ps -f status=exited -q); \
+              if [ -n "$$failed_containers" ]; then \
+                echo "Logs from failed containers:"; \
+                for container in $$failed_containers; do \
+                  echo "Container ID: $$container"; \
+                  docker logs $$container; \
+                done; \
+              else \
+                echo "No failed containers found, showing logs for all services."; \
+                docker compose logs; \
+              fi; \
+            fi; \
+            exit 1; \
+          }
+
+          echo "Starting backend..."
+          docker compose up -d backend
+          echo "Backend is now running."
+
           docker compose run --rm test pytest -v -s -m "not (chromadb or elasticsearch or pinecone or weaviate)"
-          docker compose run --rm test pytest -v -s -m "api and not (chromadb or elasticsearch or pinecone or weaviate)"
-          docker compose run --rm test newman run tests/postman/rag_modulo_api_collection.json --env-var "backend_base_url=${{ vars.BACKEND_BASE_URL }}"
-        continue-on-error: true
-      - name: Cleanup
-        run: |
-          docker compose down -v
