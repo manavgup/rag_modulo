@@ -68,21 +68,21 @@ jobs:
           docker compose up -d postgres minio milvus-etcd milvus-standalone createbuckets mlflow-server || \
           { \
             echo "Failed to infra services"; \
-            unhealthy_containers=$$(docker ps -f health=unhealthy -q); \
-            if [ -n "$$unhealthy_containers" ]; then \
+            unhealthy_containers=$(docker ps -f health=unhealthy -q); \
+            if [ -n "$unhealthy_containers" ]; then \
               echo "Logs from unhealthy containers:"; \
-              for container in $$unhealthy_containers; do \
-                echo "Container ID: $$container"; \
-                docker logs $$container; \
+              for container in $unhealthy_containers; do \
+                echo "Container ID: $container"; \
+                docker logs $container; \
               done; \
             else \
               echo "No unhealthy containers found, checking for failed containers..."; \
-              failed_containers=$$(docker ps -f status=exited -q); \
-              if [ -n "$$failed_containers" ]; then \
+              failed_containers=$(docker ps -f status=exited -q); \
+              if [ -n "$failed_containers" ]; then \
                 echo "Logs from failed containers:"; \
-                for container in $$failed_containers; do \
-                  echo "Container ID: $$container"; \
-                  docker logs $$container; \
+                for container in $failed_containers; do \
+                  echo "Container ID: $container"; \
+                  docker logs $container; \
                 done; \
               else \
                 echo "No failed containers found, showing logs for all services."; \
