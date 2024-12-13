@@ -54,10 +54,6 @@ services:
     networks:
       - app-network
     depends_on:
-      postgres:
-        condition: service_healthy
-      milvus-standalone:
-        condition: service_healthy
       backend:
         condition: service_healthy
     profiles:
