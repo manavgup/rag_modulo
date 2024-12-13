@@ -64,7 +64,7 @@ jobs:
           chmod -R 777 ./volumes
           echo "Volume directories created and permissions set."
 
-          @echo "Starting services:"
+          echo "Starting services:"
           docker compose up -d postgres minio milvus-etcd milvus-standalone createbuckets mlflow-server || \
           { \
             echo "Failed to infra services"; \
