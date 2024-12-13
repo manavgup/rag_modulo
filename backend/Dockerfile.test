@@ -42,15 +42,6 @@ COPY --from=builder /app/.venv /app/.venv
 # Copy built binaries (rust)
 COPY --from=builder /usr/local/bin /usr/local/bin
 
-# Install Node.js and newman in same step in the final image
-RUN apt-get update && \
-    apt-get install -y curl && \
-    curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
-    apt-get install -y nodejs && \
-    npm install -g newman && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-
 ENV PATH="/app/.venv/bin:$PATH"
 
 # COPY python resources /app/backend
