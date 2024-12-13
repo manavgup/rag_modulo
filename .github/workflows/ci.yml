@@ -52,6 +52,10 @@ jobs:
           RANDOM_SEED=${{ vars.RANDOM_SEED }}
           TOP_K=${{ vars.TOP_K }}5
           TEMPERATURE=${{ vars.TEMPERATURE }}
+          MLFLOW_TRACKING_USERNAME=${{ secrets.MLFLOW_TRACKING_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD=${{ secrets.MLFLOW_TRACKING_PASSWORD }}
+          MINIO_ROOT_USER=${{ secrets.MINIO_ROOT_USER }}
+          MINIO_ROOT_PASSWORD=${{ secrets.MINIO_ROOT_PASSWORD }}
           PROJECT_VERSION=1.0.${{ github.run_number }}
           EOL
       - name: Run all tests
