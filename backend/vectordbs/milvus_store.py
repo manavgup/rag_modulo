@@ -2,7 +2,6 @@ import asyncio
 import json
 import logging
 import time
-import os
 from typing import Any, Dict, List, Optional
 
 from pymilvus import (Collection, CollectionSchema, DataType, FieldSchema,
@@ -25,9 +24,6 @@ MILVUS_HOST = settings.milvus_host
 MILVUS_PORT = settings.milvus_port
 MILVUS_USER = settings.milvus_user
 MILVUS_PASSWORD = settings.milvus_password
-MILVUS_SECURE=settings.milvus_secure
-MILVUS_CERT = settings.milvus_cert if MILVUS_SECURE is True else None
-MILVUS_SERVER_NAME = settings.milvus_server_name
 MILVUS_USE_SECURITY = False if MILVUS_PASSWORD is None else True
 EMBEDDING_DIM = settings.embedding_dim
 EMBEDDING_FIELD = settings.embedding_field
@@ -50,7 +46,8 @@ SCHEMA = [
 
 
 class MilvusStore(VectorStore):
-    def __init__(self, host: str = MILVUS_HOST,port: str = MILVUS_PORT) -> None:
+    def __init__(self, host: str = MILVUS_HOST,
+                 port: str = MILVUS_PORT) -> None:
         """
         Initialize MilvusStore with connection parameters.
 
@@ -58,7 +55,7 @@ class MilvusStore(VectorStore):
             host (str): The host address for Milvus.
             port (str): The port for Milvus.
         """
-        self._connect(host=host,port=port)
+        self._connect(host, port)
 
     def _connect(self, host: str, port: str) -> None:
         """
@@ -70,13 +67,7 @@ class MilvusStore(VectorStore):
                 connections.connect(
                     "default",
                     host=host,
-                    port=port,
-                    server_pem_path=MILVUS_CERT,
-                    secure=MILVUS_SECURE,
-                    user=MILVUS_USER,
-                    password=MILVUS_PASSWORD,
-                    server_name=MILVUS_SERVER_NAME
-
+                    port=port
                 )
                 logging.info(f"Connected to Milvus at {host}:{port}")
                 return
@@ -212,7 +203,7 @@ class MilvusStore(VectorStore):
             List[QueryResult]: The list of query results.
         """
         collection = self._get_collection(collection_name)
-        #collection.load() #!TODO REMOVE
+
         embeddings = get_embeddings(texts=query)
         if not embeddings:
             raise VectorStoreError("Failed to generate embeddings for the query string.")
