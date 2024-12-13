@@ -30,6 +30,14 @@ const SearchInterface = () => {
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
   const { addNotification } = useNotification();
 
+  const sortChunksByPage = (chunks) => {
+    return [...chunks].sort((a, b) => {
+      const pageA = a.metadata?.page_number || 0;
+      const pageB = b.metadata?.page_number || 0;
+      return pageA - pageB;
+    });
+  };
+
   useEffect(() => {
     fetchCollections();
   }, []);
@@ -68,7 +76,7 @@ const SearchInterface = () => {
         if (!acc[docId]) {
           acc[docId] = {
             documentId: docId,
-            title: doc.metadata?.title || 'Unknown Document',
+            title: doc.metadata?.document_name || 'Untitled Document',
             source: doc.metadata?.source || 'unknown',
             chunks: []
           };
@@ -80,6 +88,11 @@ const SearchInterface = () => {
         });
         return acc;
       }, {});
+
+      // Sort chunks by page number within each document
+      Object.values(groupedSources).forEach(group => {
+        group.chunks = sortChunksByPage(group.chunks);
+      });
 
       setResults({
         answer: searchResult.answer,
@@ -111,6 +124,15 @@ const SearchInterface = () => {
         regex.test(part) ? <mark key={index}>{part}</mark> : part
     );
   };
+
+  const renderSourceHeader = (source) => (
+    <div className="source-header">
+      <Document size={20} />
+      <span>{source.title}</span>
+      <Tag type="gray" size="sm">{source.source}</Tag>
+      <Tag type="blue" size="sm">{`${source.chunks.length} matches`}</Tag>
+    </div>
+  );
 
   const renderSourceMetadata = (metadata) => {
     if (!metadata) return null;
@@ -218,12 +240,7 @@ const SearchInterface = () => {
               {results.sources.map((source, sourceIndex) => (
                 <AccordionItem 
                   key={sourceIndex}
-                  title={
-                    <div className="source-header">
-                      <Document size={20} />
-                      <span>{source.title}</span>
-                    </div>
-                  }
+                  title={renderSourceHeader(source)}
                 >
                   {source.chunks.map((chunk, chunkIndex) => (
                     <Tile key={chunkIndex} className="source-chunk">

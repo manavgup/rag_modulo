@@ -43,6 +43,7 @@ SCHEMA = [
     FieldSchema(name="created_at", dtype=DataType.VARCHAR, max_length=50),
     FieldSchema(name="author", dtype=DataType.VARCHAR, max_length=100),
     FieldSchema(name="page_number", dtype=DataType.INT64), # Temporary fix
+    FieldSchema(name="document_name", dtype=DataType.VARCHAR, max_length=65535),
 ]
 
 
@@ -170,6 +171,7 @@ class MilvusStore(VectorStore):
                             "embedding": chunk.vectors,
                             "text": chunk.text,
                             "chunk_id": chunk.chunk_id,
+                            "document_name": document.name,  # Add document name
                             "source_id": chunk.metadata.source_id if chunk.metadata else "",
                             "source": chunk.metadata.source.value if chunk.metadata else "",
                             "url": chunk.metadata.url if chunk.metadata else "",
@@ -229,6 +231,7 @@ class MilvusStore(VectorStore):
                     "created_at",
                     "author",
                     "page_number", # Temporary fix
+                    "document_name", 
                 ],
                 limit=number_of_results,  # Milvus API uses limit, but we maintain our consistent interface
             )
@@ -346,6 +349,7 @@ class MilvusStore(VectorStore):
                     "created_at",
                     "author",
                     "page_number",
+                    "document_name",
                 ],
             )
             return self._process_search_results(result)
@@ -404,6 +408,7 @@ class MilvusStore(VectorStore):
                     vectors=hit.entity.get("embedding"),
                     metadata=DocumentChunkMetadata(
                         source=Source(hit.entity.get("source")) if hit.entity.get("source") else Source.OTHER,
+                        document_name=hit.entity.get("document_name") if hit.entity.get("document_name") else "Untitled Document",
                         source_id=hit.entity.get("source_id"),
                         url=hit.entity.get("url"),
                         created_at=hit.entity.get("created_at"),
