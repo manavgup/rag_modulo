@@ -94,7 +94,7 @@ def _get_embeddings_client(embed_params: Optional[Dict] = None) -> wx_Embeddings
     global embeddings_client
     if embeddings_client is None:
         embed_params = {
-            EmbedParams.TRUNCATE_INPUT_TOKENS: 256,
+            EmbedParams.TRUNCATE_INPUT_TOKENS: 3,
             EmbedParams.RETURN_OPTIONS: {"input_text": True},
         }
     if embeddings_client is None:
