@@ -74,6 +74,7 @@ class DocumentChunkMetadata:
     content_type: Optional[str] = None
     table_index: Optional[int] = None
     image_index: Optional[int] = None
+    document_name: Optional[str] = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> DocumentChunkMetadata:

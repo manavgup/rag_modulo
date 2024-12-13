@@ -11,6 +11,7 @@ class DocumentMetadata(BaseModel):
     title: Optional[str] = None
     page_number: Optional[int] = None
     total_pages: Optional[int] = None
+    document_name: Optional[str] = None 
 
 class SourceDocument(BaseModel):
     text: str
