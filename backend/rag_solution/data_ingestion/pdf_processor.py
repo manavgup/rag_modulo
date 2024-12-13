@@ -138,7 +138,7 @@ class PdfProcessor(BaseProcessor):
 
     def create_document_chunk(self, chunk_text: str, chunk_embedding: List[float], metadata: Dict[str, Any],
                               document_id: str) -> DocumentChunk:
-        chunk_id = hashlib.md5(chunk_text.encode('utf-8')).hexdigest()
+        chunk_id = str(uuid.uuid4())
         return DocumentChunk(
             chunk_id=chunk_id,
             text=chunk_text,
