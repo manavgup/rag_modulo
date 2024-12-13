@@ -121,7 +121,8 @@ class SearchService:
                             url=chunk.metadata.url if chunk.metadata else None,
                             created_at=chunk.metadata.created_at if chunk.metadata else None,
                             author=chunk.metadata.author if chunk.metadata else None,
-                            page_number=chunk.metadata.page_number if chunk.metadata else None
+                            page_number=chunk.metadata.page_number if chunk.metadata else None,
+                            document_name=chunk.metadata.document_name if chunk.metadata else None
                         )
                         
                         source_documents.append(SourceDocument(
