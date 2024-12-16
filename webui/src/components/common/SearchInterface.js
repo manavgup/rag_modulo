@@ -84,7 +84,8 @@ const SearchInterface = () => {
       setResults({
         answer: searchResult.answer,
         rewrittenQuery: searchResult.rewritten_query,
-        sources: Object.values(groupedSources)
+        sources: Object.values(groupedSources),
+        evaluation: searchResult.evaluation,
       });
 
       if (Object.keys(groupedSources).length === 0) {
@@ -134,6 +135,12 @@ const SearchInterface = () => {
       </div>
     ) : null;
   };
+
+  const getColor = (rate) => {
+        if (rate === 'High') return 'green';
+        if (rate === 'Medium') return 'orange';
+        return 'red';
+      };
 
   return (
     <div className="children-container search-interface">
@@ -216,7 +223,7 @@ const SearchInterface = () => {
             <h4>Sources</h4>
             <Accordion>
               {results.sources.map((source, sourceIndex) => (
-                <AccordionItem 
+                <AccordionItem
                   key={sourceIndex}
                   title={
                     <div className="source-header">
@@ -240,7 +247,33 @@ const SearchInterface = () => {
               ))}
             </Accordion>
           </div>
-        </div>
+        {results.evaluation && (
+          <div className="evaluation-section">
+            <h4>Evaluation</h4>
+            <Accordion>
+              <AccordionItem title="Faithfulness">
+                <span style={{ color: getColor(results.evaluation.faithfulness.faithfulness_rate) }}>
+                  <p>{results.evaluation.faithfulness.faithfulness_rate}</p>
+                </span>
+                <p>Reasoning: {results.evaluation.faithfulness.reasoning}</p>
+              </AccordionItem>
+              <AccordionItem title="Answer Relevance">
+                <span style={{ color: getColor(results.evaluation.answer_relevance.answer_relevance_rate) }}>
+                  <p>{results.evaluation.answer_relevance.answer_relevance_rate}</p>
+                </span>
+                <p>Reasoning: {results.evaluation.answer_relevance.reasoning}</p>
+              </AccordionItem>
+              <AccordionItem title="Context Relevance">
+                <span style={{ color: getColor(results.evaluation.context_relevance.context_relevance_rate) }}>
+                  <p>{results.evaluation.context_relevance.context_relevance_rate}</p>
+                </span>
+                <p>Reasoning: {results.evaluation.context_relevance.reasoning}</p>
+              </AccordionItem>
+            </Accordion>
+          </div>
+        )}
+          </div>
+
       )}
     </div>
   );
