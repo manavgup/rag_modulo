@@ -403,7 +403,7 @@ class MilvusStore(VectorStore):
             ids: List[str] = []
             for hit in result:
                 chunk = DocumentChunkWithScore(
-                    chunk_id=hit.id,
+                    chunk_id=hit.fields.get("chunk_id"),
                     text=hit.entity.get("text") or "",  # Use empty string if text is None
                     vectors=hit.entity.get("embedding"),
                     metadata=DocumentChunkMetadata(

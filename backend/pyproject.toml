@@ -43,6 +43,8 @@ ibm-watsonx-ai = "^1.1.22"
 pyarrow = "^18.0.0"
 boto3 = "^1.35.71"
 mlflow-skinny = "2.18.0"
+json-repair = "^0.30.3"
+flatdict = "^4.0.1"
 
 [build-system]
 requires = ["poetry-core"]
