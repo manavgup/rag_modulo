@@ -140,9 +140,9 @@ class FileManagementService:
             logger.error(f"Unexpected error getting files for collection {collection_id}: {str(e)}")
             raise HTTPException(status_code=500, detail="Internal server error")
 
-    def upload_and_create_file_record(self, file: UploadFile, user_id: UUID, collection_id: UUID,  metadata: Optional[FileMetadata] = None) -> FileOutput:
+    def upload_and_create_file_record(self, file: UploadFile, user_id: UUID, collection_id: UUID, document_id: str, metadata: Optional[FileMetadata] = None) -> FileOutput:
         try:
-            logger.info(f"Uploading file {file.filename} for user {user_id} in collection {collection_id}")
+            logger.info(f"Uploading file {file.filename} for user {user_id} in collection {collection_id} with document_id {document_id}")
             if file.filename is None:
                 raise HTTPException(status_code=400, detail="File name cannot be empty")
 
@@ -155,7 +155,8 @@ class FileManagementService:
                 filename=file.filename,
                 file_path=str(file_path),
                 file_type=file_type,
-                metadata=FileMetadata(**(metadata or {})) # Use empty dict if metadata is None
+                metadata=FileMetadata(**(metadata or {})), # Use empty dict if metadata is None
+                document_id=document_id
             )
             return self.create_file(file_input, user_id)
         except Exception as e:

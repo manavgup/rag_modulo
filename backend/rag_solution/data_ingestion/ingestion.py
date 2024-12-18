@@ -5,7 +5,7 @@ import os
 import multiprocessing
 import asyncio
 from tenacity import retry, stop_after_attempt, wait_exponential
-from uuid import UUID
+import uuid
 from core.config import settings
 from core.custom_exceptions import DocumentStorageError, DocumentIngestionError
 from rag_solution.data_ingestion.document_processor import DocumentProcessor
@@ -53,6 +53,8 @@ class DocumentStore:
                     # Process the document
                     documents_iterator = processor.process_document(file_path)
                     async for document in documents_iterator:
+                        document_id = str(uuid.uuid4())
+                        document.document_id = document_id
                         processed_documents.append(document)
                         # Store document in vector store
                         self.store_documents_in_vector_store([document])

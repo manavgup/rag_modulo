@@ -1,35 +1,60 @@
 .collection-browser {
-
+  padding: 20px;
 }
 
 .collection-actions {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 20px;
+}
+
+.processing-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.document-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stats-details {
+  color: #525252;
+  font-size: 0.875rem;
+  margin-left: 8px;
+}
+
+.collection-stats {
+  display: flex;
+  gap: 16px;
+  color: #525252;
+  font-size: 0.875rem;
+}
+
+.collection-tile {
+  margin-bottom: 1rem;
+  padding: 1rem;
+}
+
+.collection-tile-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 1rem;
 }
 
-.collection-actions .bx--search {
-  width: 300px;
+.collection-tile-name {
+  margin: 0;
 }
 
-.bx--data-table-container {
-  margin-bottom: 1rem;
+.list-file-name {
+  margin: 0 0.5rem;
 }
 
-.bx--pagination {
-  margin-top: 1rem;
-}
-
-.sort-indicator {
-  margin-left: 0.5rem;
-  font-size: 0.75rem;
-}
-
-.bx--file-browse-btn {
-  max-width: 100%;
-}
-
-.bx--file-filename {
-  max-width: calc(100% - 1rem);
+.list-file-size {
+  color: #525252;
+  font-size: 0.875rem;
 }
