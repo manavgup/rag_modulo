@@ -1,3 +1,5 @@
+"""Service layer for search functionality."""
+
 from typing import Dict, Any, Optional, List
 from uuid import UUID
 from fastapi import HTTPException, Depends
@@ -7,23 +9,34 @@ import re
 
 from core.config import settings
 from rag_solution.pipeline.pipeline import Pipeline, PipelineResult
-from rag_solution.schemas.search_schema import SearchInput, SearchOutput, DocumentMetadata, SourceDocument
+from rag_solution.schemas.search_schema import SearchInput, SearchOutput
 from rag_solution.schemas.collection_schema import CollectionOutput
 from rag_solution.services.collection_service import CollectionService
-from vectordbs.data_types import QueryResult, DocumentChunkWithScore, Source
+from rag_solution.services.file_management_service import FileManagementService
+from vectordbs.data_types import QueryResult, DocumentMetadata
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class SearchService:
+    """Service for handling search operations through the RAG pipeline."""
+    
     def __init__(self, db: Session):
-        self.pipeline = self._create_pipeline(db)
-        self.collection_service = CollectionService(db)
-
-    def _create_pipeline(self, db:Session) -> Pipeline:
-        """
-        Create and configure the RAG pipeline using settings.
+        """Initialize search service.
         
+        Args:
+            db: Database session
+        """
+        self.pipeline = self._create_pipeline(db)
+        self.collection_service: CollectionService = CollectionService(db)
+        self.file_service: FileManagementService = FileManagementService(db)
+
+    def _create_pipeline(self, db: Session) -> Pipeline:
+        """Create and configure the RAG pipeline using settings.
+        
+        Args:
+            db: Database session
+            
         Returns:
             Pipeline: Configured pipeline instance
         """
@@ -58,7 +71,7 @@ class SearchService:
                     'search_params': settings.milvus_search_params
                 }
             },
-            'top_k': settings.top_k,
+            'number_of_results': settings.number_of_results,
             'chunking': {
                 'strategy': settings.chunking_strategy,
                 'min_chunk_size': settings.min_chunk_size,
@@ -76,11 +89,10 @@ class SearchService:
         return Pipeline(config, db)
 
     def _get_collection_vector_db_name(self, collection_id: UUID) -> str:
-        """
-        Get the vector database collection name for a given collection ID.
+        """Get the vector database collection name for a given collection ID.
         
         Args:
-            collection_id (UUID): The UUID of the collection
+            collection_id: The UUID of the collection
             
         Returns:
             str: The vector database collection name
@@ -102,71 +114,29 @@ class SearchService:
                 detail=f"Error accessing collection: {str(e)}"
             )
     
-    def _transform_retrieved_documents(self, retrieved_documents: List[QueryResult]) -> List[SourceDocument]:
-        """Transform retrieved documents from pipeline format to API response format."""
-        source_documents = []
-
-        if not retrieved_documents:
-            logger.warning("No retrieved documents to process")
-            return source_documents
-
-        try:
-            # Process each QueryResult
-            for query_result in retrieved_documents:
-                if query_result.data:
-                    for chunk in query_result.data:
-                        metadata = DocumentMetadata(
-                            source=chunk.metadata.source.value if chunk.metadata else 'unknown',
-                            source_id=chunk.metadata.source_id if chunk.metadata else None,
-                            url=chunk.metadata.url if chunk.metadata else None,
-                            created_at=chunk.metadata.created_at if chunk.metadata else None,
-                            author=chunk.metadata.author if chunk.metadata else None,
-                            page_number=chunk.metadata.page_number if chunk.metadata else None,
-                            document_name=chunk.metadata.document_name if chunk.metadata else None
-                        )
-                        
-                        source_documents.append(SourceDocument(
-                            text=chunk.text,
-                            metadata=metadata,
-                            score=chunk.score,
-                            document_id=chunk.document_id
-                        ))
-
-            return source_documents
-
-        except Exception as e:
-            logger.error(f"Error processing retrieved documents: {str(e)}")
-            return source_documents
-    
-    def _create_metadata(self, chunk: Any) -> Optional[DocumentMetadata]:
-        """Create metadata object from chunk data."""
-        try:
-            if not chunk.metadata:
-                return None
-                
-            return DocumentMetadata(
-                source=chunk.metadata.source.value if hasattr(chunk.metadata, 'source') else 'unknown',
-                source_id=getattr(chunk.metadata, 'source_id', None),
-                url=getattr(chunk.metadata, 'url', None),
-                created_at=getattr(chunk.metadata, 'created_at', None),
-                author=getattr(chunk.metadata, 'author', None),
-                title=getattr(chunk.metadata, 'title', None),
-                page_number=getattr(chunk.metadata, 'page_number', None),
-                total_pages=getattr(chunk.metadata, 'total_pages', None)
-            )
-        except Exception as e:
-            logger.error(f"Error creating metadata: {str(e)}")
-            return None
-    
     def _prepare_query(self, query: str) -> str:
-        """Prepare query by removing any existing boolean operators."""
+        """Prepare query by removing any existing boolean operators.
+        
+        Args:
+            query: Raw query string
+            
+        Returns:
+            str: Cleaned query string
+        """
         # Remove boolean operators and parentheses
         clean_query = re.sub(r'\s+(AND|OR)\s+', ' ', query)
         clean_query = re.sub(r'[\(\)]', '', clean_query)
         return clean_query.strip()
     
     def _clean_generated_answer(self, answer: str) -> str:
-        """Clean up the generated answer."""
+        """Clean up the generated answer.
+        
+        Args:
+            answer: Raw generated answer
+            
+        Returns:
+            str: Cleaned answer text
+        """
         if not answer:
             return ""
         
@@ -190,23 +160,71 @@ class SearchService:
         cleaned = re.sub(r'\s+', ' ', cleaned)
         
         return cleaned.strip()
-    
-    async def search(self, search_input: SearchInput, context: Optional[Dict[str, Any]] = None) -> SearchOutput:
+
+    def _generate_document_metadata(self, query_results: List[QueryResult],
+        collection_id: UUID
+        ) -> List[DocumentMetadata]:
         """
-        Process a search query through the RAG pipeline.
+        Generate document metadata from query results and database records.
 
         Args:
-            search_input (SearchInput): The input containing the query and collection details.
-                question (str): The query text
-                collection_id (UUID): The collection identifier
-            context (Optional[Dict[str, Any]]): Additional context for search customization.
+            query_results (List[QueryResult]): The list of QueryResult objects from the search.
+            collection_id (UUID): The UUID of the collection to fetch the file metadata from.
 
         Returns:
-            SearchOutput: The result of the search operation containing:
-                - answer (str): Generated response
-                - source_documents (List[Dict[str, Any]]): Retrieved source documents
-                - rewritten_query (Optional[str]): Query after rewriting
-                - evaluation (Optional[Dict[str, Any]]): Evaluation metrics
+            List[DocumentMetadata]: The list of DocumentMetadata objects for the relevant documents.
+
+        Raises:
+            Exception: If an error occurs while generating the document metadata.
+        """
+        try:
+            # Get all unique document IDs from query results
+            doc_ids = {
+                result.document_id
+                for result in query_results
+                if result.document_id is not None
+            }
+            logger.info(f"Found {doc_ids} unique document IDs from query results")
+
+            # Fetch file metadata from database for the relevant documents
+            files = self.file_service.get_files_by_collection(collection_id)
+            logger.info(f"received files: {files}")
+
+            file_metadata_by_id = {}
+            for file in files:
+                filename = file.filename
+                logger.info(f"Processing file: {file}")
+                if file.document_id:  
+                    file_metadata_by_id[file.document_id] = DocumentMetadata(
+                                        document_name=filename,
+                                        total_pages=file.metadata.total_pages if file.metadata else None,
+                                        total_chunks=file.metadata.total_chunks if file.metadata else None,
+                                        keywords=file.metadata.keywords if file.metadata else None
+                    )
+            logger.info(f"Created {len(file_metadata_by_id)} document metadata objects")
+
+            # Return the relevant DocumentMetadata objects
+            doc_metadata = [
+                file_metadata_by_id[doc_id]
+                for doc_id in doc_ids
+                if doc_id in file_metadata_by_id
+            ]
+            logger.info(f"Returning {len(doc_metadata)} DocumentMetadata objects")
+            return doc_metadata
+
+        except Exception as e:
+            logger.error(f"Error generating document metadata: {e}")
+            raise
+    
+    async def search(self, search_input: SearchInput, context: Optional[Dict[str, Any]] = None) -> SearchOutput:
+        """Process a search query through the RAG pipeline.
+
+        Args:
+            search_input: The input containing the query and collection details
+            context: Additional context for search customization
+
+        Returns:
+            SearchOutput: The result of the search operation
 
         Raises:
             HTTPException: 
@@ -227,26 +245,27 @@ class SearchService:
                 collection_name=collection_name,
                 context=context
             )
+
+            # Generate metadata
+            document_metadata: List[DocumentMetadata] = self._generate_document_metadata(
+                pipeline_result.query_results,
+                search_input.collection_id
+            )
+            
             # Clean generated answer
             cleaned_answer = self._clean_generated_answer(pipeline_result.generated_answer)
 
-            # Transform pipeline results to source documents
-            source_documents:List[SourceDocument]  = self._transform_retrieved_documents(pipeline_result.retrieved_documents)
-
-            if not source_documents:
-                logger.warning(f"No source documents found for query: {search_input.question}")
-
-            # Create the final SearchOutput
+            # Create SearchOutput directly from PipelineResult
             search_output = SearchOutput(
                 answer=cleaned_answer,
-                source_documents=source_documents,
-                rewritten_query=clean_query,
+                documents=document_metadata,
+                query_results=pipeline_result.query_results,
+                rewritten_query=pipeline_result.rewritten_query,
                 evaluation=pipeline_result.evaluation
             )
 
-            # Validate we have some results
-            if not source_documents:
-                logger.warning(f"No source documents found for query: {search_input.question}")
+            if not pipeline_result.query_results:
+                logger.warning(f"No results found for query: {search_input.question}")
                 
             return search_output
 

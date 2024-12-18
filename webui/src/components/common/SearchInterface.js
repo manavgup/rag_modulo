@@ -71,20 +71,27 @@ const SearchInterface = () => {
       const searchResult = await searchDocuments(query, selectedCollection);
       
       // Group source documents by document_id
-      const groupedSources = searchResult.source_documents.reduce((acc, doc) => {
-        const docId = doc.document_id || 'unknown';
+      const groupedSources = searchResult.query_results.reduce((acc, result) => {
+        const docId = result.chunk.document_id || 'unknown';
         if (!acc[docId]) {
+          // Find corresponding document metadata
+          const docMetadata = searchResult.documents.find(
+            doc => docId === result.chunk.document_id
+          ) || {};
+
+          console.log('Document metadata found:', docMetadata); 
+
           acc[docId] = {
             documentId: docId,
-            title: doc.metadata?.document_name || 'Untitled Document',
-            source: doc.metadata?.source || 'unknown',
+            title: docMetadata.document_name || 'Untitled Document',
+            source: result.chunk.metadata?.source || 'unknown',
             chunks: []
           };
         }
         acc[docId].chunks.push({
-          text: doc.text,
-          metadata: doc.metadata,
-          score: doc.score
+          text: result.chunk.text,
+          metadata: result.chunk.metadata,
+          score: result.score
         });
         return acc;
       }, {});
