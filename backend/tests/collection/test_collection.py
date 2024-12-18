@@ -6,8 +6,7 @@ import pytest
 from fastapi import BackgroundTasks, HTTPException, UploadFile
 from rag_solution.repository.collection_repository import CollectionRepository
 from rag_solution.repository.user_repository import UserRepository
-from rag_solution.schemas.collection_schema import (CollectionInput,
-                                                    CollectionOutput)
+from rag_solution.schemas.collection_schema import (CollectionInput, CollectionOutput)
 from rag_solution.schemas.user_schema import UserInput, UserOutput
 from rag_solution.services.collection_service import CollectionService
 from rag_solution.services.file_management_service import FileManagementService
@@ -142,7 +141,7 @@ def test_create_collection_with_documents(
     assert created_collection.is_private == collection_input.is_private
     assert len(created_collection.user_ids) == 1
     assert user.id in created_collection.user_ids
-    collection_files = file_management_service.get_files(user.id, created_collection.id)
+    collection_files = file_management_service.get_files(created_collection.id)
     assert len(collection_files) == 2
     assert "test_file_1.txt" in collection_files
     assert "test_file_2.txt" in collection_files
