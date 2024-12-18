@@ -178,8 +178,11 @@ class CollectionService:
             collection = self.create_collection(collection_input)
 
             # Upload the files and create file records in the database
+            document_ids = []
             for file in files:
-                self.file_management_service.upload_and_create_file_record(file, user_id, collection.id)
+                document_id = str(uuid4()) # create unique document ID
+                self.file_management_service.upload_and_create_file_record(file, user_id, collection.id, document_id)
+                document_ids.append(document_id)
 
             # Update status to PROCESSING
             self.update_collection_status(collection.id, CollectionStatus.PROCESSING)
@@ -188,7 +191,7 @@ class CollectionService:
             file_paths = [str(self.file_management_service.get_file_path(collection.id, file.filename)) for file in files]
 
             # Process documents and generate questions as a background task
-            background_tasks.add_task(self.process_documents, file_paths, collection.id, collection.vector_db_name)
+            background_tasks.add_task(self.process_documents, file_paths, collection.id, collection.vector_db_name, document_ids)
             logger.info(f"Collection with documents created successfully: {collection.id}")
 
             return collection
@@ -202,10 +205,10 @@ class CollectionService:
             logger.error(f"Error in create_collection_with_documents: {str(e)}")
             raise HTTPException(status_code=400, detail=f"Failed to create collection with documents: {str(e)}")
 
-    async def process_documents(self, file_paths: List[str], collection_id: UUID, vector_db_name: str):
+    async def process_documents(self, file_paths: List[str], collection_id: UUID, vector_db_name: str, document_ids: List[str]):
         try:
             # Process documents and get the processed data
-            processed_documents = await self.ingest_documents(file_paths, vector_db_name)
+            processed_documents = await self.ingest_documents(file_paths, vector_db_name, document_ids)
 
             # Generate questions using the processed documents
             document_texts = []
@@ -223,17 +226,17 @@ class CollectionService:
             logger.error(f"Error processing documents for collection {collection_id}: {str(e)}")
             self.update_collection_status(collection_id, CollectionStatus.ERROR)
 
-    async def ingest_documents(self, file_paths: List[str], vector_db_name: str) -> List[Document]:
+    async def ingest_documents(self, file_paths: List[str], vector_db_name: str, document_ids: List[str]) -> List[Document]:
         """Ingest documents and store them in the vector store."""
         processed_documents = []
         with multiprocessing.Manager() as manager:
             processor = DocumentProcessor(manager)
 
-            for file_path in file_paths:
+            for file_path, document_id in zip(file_paths, document_ids):
                 logger.info(f"Processing file: {file_path}")
                 try:
                     # Process the document
-                    documents_iterator = processor.process_document(file_path)
+                    documents_iterator = processor.process_document(file_path, document_id)
                     async for document in documents_iterator:
                         processed_documents.append(document)
                         # Store document in vector store

@@ -3,19 +3,7 @@ from typing import List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
-
-class FileMetadata(BaseModel):
-    title: Optional[str] = None
-    author: Optional[str] = None
-    subject: Optional[str] = None
-    keywords: Optional[str] = None
-    creator: Optional[str] = None
-    producer: Optional[str] = None
-    creationDate: Optional[str] = None
-    modDate: Optional[str] = None
-    total_pages: Optional[int] = None
-
-    model_config = ConfigDict(from_attributes=True)
+from vectordbs.data_types import FileMetadata 
 
 class FileInDB(BaseModel):
     id: UUID
@@ -34,6 +22,7 @@ class FileInput(BaseModel):
     file_path: str
     file_type: str
     metadata: Optional[FileMetadata] = None
+    document_id: Optional[str] = None
 
 class FileOutput(BaseModel):
     id: UUID
@@ -42,6 +31,7 @@ class FileOutput(BaseModel):
     file_path: Optional[str] = None
     file_type: Optional[str] = None
     metadata: Optional[FileMetadata] = None
+    document_id: Optional[str] = None 
 
 class DocumentDelete(BaseModel):    
     filenames: List[str]

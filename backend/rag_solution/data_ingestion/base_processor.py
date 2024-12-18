@@ -5,7 +5,7 @@ import os
 from datetime import datetime
 from core.config import settings
 from rag_solution.data_ingestion.chunking import get_chunking_method
-from vectordbs.data_types import Document
+from vectordbs.data_types import Document, DocumentMetadata
 
 logging.basicConfig(level=logging.INFO)
 
@@ -27,7 +27,7 @@ class BaseProcessor(ABC):
         self.semantic_threshold: float = settings.semantic_threshold
         self.chunking_method = get_chunking_method()
     
-    def extract_metadata(self, file_path: str) -> Dict[str, Any]:
+    def extract_metadata(self, file_path: str) -> DocumentMetadata:
         """
         Extract basic metadata from the file.
 
@@ -35,26 +35,49 @@ class BaseProcessor(ABC):
             file_path (str): The path to the file.
 
         Returns:
-            Dict[str, Any]: A dictionary containing the extracted metadata.
+            DocumentMetadata: Metadata object containing file information.
+            
+        Raises:
+            FileNotFoundError: If the file does not exist.
+            PermissionError: If the file cannot be accessed.
         """
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"File not found: {file_path}")
+            
         file_stat = os.stat(file_path)
-        return {
-            'filename': os.path.basename(file_path),
-            'file_size': file_stat.st_size,
-            'creation_time': datetime.fromtimestamp(file_stat.st_ctime).isoformat(),
-            'modification_time': datetime.fromtimestamp(file_stat.st_mtime).isoformat(),
-            'file_extension': os.path.splitext(file_path)[1],
-        }
+        filename = os.path.basename(file_path)
+        
+        return DocumentMetadata(
+            document_name=filename,
+            title=filename,  # Default to filename if no specific title
+            author=None,
+            subject=None,
+            keywords={},
+            creator=None,
+            producer=None,
+            creation_date=datetime.fromtimestamp(file_stat.st_ctime),
+            mod_date=datetime.fromtimestamp(file_stat.st_mtime),
+            total_pages=None,  # To be set by specific processors
+            total_chunks=None,  # To be set after chunking
+        )
 
     @abstractmethod
-    async def process(self, file_path: str) -> AsyncIterable[Document]:
+    async def process(self, file_path: str, document_id: str) -> AsyncIterable[Document]:
         """
-        Abstract method to process a file and yield documents.
-
+        Process a document file and generate Document objects.
+        
+        This abstract method must be implemented by specific processors to handle
+        their respective document types. It should handle the complete document
+        processing pipeline including parsing, chunking, and metadata extraction.
+        
         Args:
-            file_path (str): The path to the file to be processed.
-
+            file_path: Path to the document file.
+            
         Yields:
-            Document: An instance of Document containing the processed data.
+            Document: Processed document objects containing chunks and metadata.
+            
+        Raises:
+            DocumentProcessingError: If there is an error processing the document.
+            NotImplementedError: If the processor doesn't implement this method.
         """
         pass
