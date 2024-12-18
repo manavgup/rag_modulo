@@ -1,5 +1,5 @@
 from typing import List, Dict, Any
-from vectordbs.data_types import QueryResult, DocumentChunkWithScore
+from vectordbs.data_types import QueryResult
 from sklearn.metrics.pairwise import cosine_similarity
 from vectordbs.utils.watsonx import get_embeddings
 import logging
@@ -90,15 +90,15 @@ class RAGEvaluator:
 
 # Example usage
 if __name__ == "__main__":
-    from vectordbs.data_types import DocumentChunkWithScore
+    from vectordbs.data_types import DocumentChunk
 
     evaluator = RAGEvaluator()
     
     query = "What is the theory of relativity?"
     response = "The theory of relativity, proposed by Albert Einstein, describes how space and time are interconnected and how gravity affects the fabric of spacetime."
     retrieved_documents = [
-        QueryResult(data=[DocumentChunkWithScore(content="Albert Einstein's theory of relativity revolutionized our understanding of space, time, and gravity.", score=0.9)]),
-        QueryResult(data=[DocumentChunkWithScore(content="The theory of relativity consists of two parts: special relativity and general relativity.", score=0.8)]),
+        QueryResult(data=[DocumentChunk(content="Albert Einstein's theory of relativity revolutionized our understanding of space, time, and gravity.", score=0.9)]),
+        QueryResult(data=[DocumentChunk(content="The theory of relativity consists of two parts: special relativity and general relativity.", score=0.8)]),
     ]
 
     evaluation_results = evaluator.evaluate(query, response, retrieved_documents)

@@ -44,7 +44,7 @@ class DocumentProcessor:
             ".xlsx": ExcelProcessor(),
         }
 
-    async def _process_async(self, processor: BaseProcessor, file_path: str) -> list[Document]:
+    async def _process_async(self, processor: BaseProcessor, file_path: str, document_id: str) -> list[Document]:
         """
         Process document asynchronously.
         
@@ -56,11 +56,11 @@ class DocumentProcessor:
             List of processed documents
         """
         documents = []
-        async for doc in processor.process(file_path):
+        async for doc in processor.process(file_path, document_id):
             documents.append(doc)
         return documents
 
-    async def process_document(self, file_path: str) -> AsyncIterable[Document]:
+    async def process_document(self, file_path: str, document_id: str) -> AsyncIterable[Document]:
         """
         Process a document based on its file extension and generate suggested questions.
 
@@ -82,7 +82,7 @@ class DocumentProcessor:
                 return
             
             # Process the document asynchronously
-            documents = await self._process_async(processor, file_path)
+            documents = await self._process_async(processor, file_path, document_id)
                        
             # Yield documents
             for doc in documents:

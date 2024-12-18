@@ -17,7 +17,7 @@ from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams
 from ibm_watsonx_ai.foundation_models import ModelInference, Embeddings as wx_Embeddings
 
 from core.config import settings
-from ..data_types import Embeddings
+from ..data_types import Embeddings, EmbeddingsList
 
 
 WATSONX_INSTANCE_ID = settings.wx_project_id
@@ -109,7 +109,7 @@ def _get_embeddings_client(embed_params: Optional[Dict] = None) -> wx_Embeddings
     return embeddings_client
 
 
-def get_embeddings(texts: Union[str | List[str]],embed_client: Optional[wx_Embeddings]=None) -> Embeddings:
+def get_embeddings(texts: Union[str | List[str]],embed_client: Optional[wx_Embeddings]=None) -> EmbeddingsList:
     """
     Get embeddings for a given text or a list of texts.
 
@@ -124,11 +124,10 @@ def get_embeddings(texts: Union[str | List[str]],embed_client: Optional[wx_Embed
         texts = [texts]
     try:
         embedding_vectors = embed_client.embed_documents(texts=texts, concurrency_limit=10)
+        return embedding_vectors
     except Exception as e:
         logging.error(f"get_embeddings failed {e}")
         raise e
-    return embedding_vectors
-
 
 def get_tokenization(texts: Union[str, List[str]]) -> List[List[str]]:
     """

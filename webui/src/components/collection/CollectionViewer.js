@@ -20,6 +20,8 @@ import {
   ModalHeader,
   ModalBody,
   ModalFooter,
+  Tag,
+  Loading,
 } from "@carbon/react";
 import { Add, TrashCan, Document, Edit } from "@carbon/icons-react";
 import {
@@ -34,6 +36,51 @@ import {
 import { useNotification } from "src/contexts/NotificationContext";
 
 import "./CollectionViewer.css";
+
+const getDocumentMetadata = (document) => {
+  try {
+    return {
+      creator: document.metadata?.creator || 'Unknown',
+      total_chunks: document.metadata?.total_chunks,
+      total_pages: document.metadata?.total_pages,
+      content_type: document.metadata?.content_type || document.type,
+      lastModified: document.metadata?.mod_date
+        ? new Date(document.metadata.mod_date).toLocaleDateString()
+        : 'N/A'
+    };
+  } catch (error) {
+    console.error('Error accessing document metadata:', error);
+    return {
+      creator: 'Unknown',
+      total_chunks: null,
+      total_pages: null,
+      content_type: 'Unknown',
+      lastModified: 'N/A'
+    };
+  }
+};
+
+const ProcessingStatus = ({ document }) => {
+  const metadata = getDocumentMetadata(document);
+  
+  if (!metadata.total_chunks) {
+    return (
+      <div className="processing-status">
+        <InlineLoading description="Processing..." />
+      </div>
+    );
+  }
+
+  return (
+    <div className="document-stats">
+      <Tag type="green">Processed</Tag>
+      <span className="stats-details">
+        {metadata.total_chunks} chunks
+        {metadata.total_pages && ` | ${metadata.total_pages} pages`}
+      </span>
+    </div>
+  );
+};
 
 const CollectionBrowser = () => {
   const [collections, setCollections] = useState([]);
@@ -65,10 +112,18 @@ const CollectionBrowser = () => {
   const fetchCollections = async () => {
     setIsLoading(true);
     try {
+      const searchParams = {
+        term: searchTerm,
+        filters: {
+          content_type: selectedContentType !== 'all' ? selectedContentType : undefined,
+          creator: selectedCreator !== 'all' ? selectedCreator : undefined
+        }
+      };
+
       const response = await getUserCollections(
         currentPage,
         pageSize,
-        searchTerm,
+        searchParams,
         sortField,
         sortDirection
       );
@@ -83,6 +138,22 @@ const CollectionBrowser = () => {
       );
     }
     setIsLoading(false);
+  };
+
+  const handleSearch = () => {
+    const searchParams = {
+      term: searchTerm,
+      filters: {
+        content_type: selectedContentType !== 'all' ? selectedContentType : undefined,
+        creator: selectedCreator !== 'all' ? selectedCreator : undefined
+      }
+    };
+    
+    if (selectedCollection) {
+      fetchDocuments(selectedCollection.id, searchParams);
+    } else {
+      fetchCollections(searchParams);
+    }
   };
 
   const handleCreateCollection = async () => {
@@ -243,7 +314,8 @@ const CollectionBrowser = () => {
   const collectionHeaders = [
     { key: "name", header: "Name" },
     { key: "description", header: "Description" },
-    { key: "documentCount", header: "Documents" },
+    { key: "status", header: "Status" },
+    { key: "stats", header: "Statistics" },
     { key: "lastUpdated", header: "Last Updated" },
     { key: "actions", header: "Actions" },
   ];
@@ -251,72 +323,112 @@ const CollectionBrowser = () => {
   const documentHeaders = [
     { key: "name", header: "Name" },
     { key: "type", header: "Type" },
-    { key: "size", header: "Size" },
+    { key: "creator", header: "Creator" },
+    { key: "processingStatus", header: "Status" },
+    { key: "stats", header: "Statistics" },
     { key: "lastModified", header: "Last Modified" },
     { key: "actions", header: "Actions" },
   ];
 
-  const collectionRows = collections?.map((collection) => ({
-    id: collection.id,
-    name: collection.name,
-    description: collection.description,
-    documentCount: collection.documentCount,
-    lastUpdated: new Date(collection.lastUpdated).toLocaleDateString(),
-    actions: (
-      <>
-        <Button
-          kind="ghost"
-          size="small"
-          renderIcon={Document}
-          iconDescription="View Documents"
-          onClick={() => {
-            setSelectedCollection(collection);
-            fetchDocuments(collection.id);
-          }}
-        />
-        <Button
-          kind="ghost"
-          size="small"
-          renderIcon={Edit}
-          iconDescription="Edit"
-          onClick={() => openEditModal(collection)}
-        />
-        <Button
-          kind="ghost"
-          size="small"
-          renderIcon={TrashCan}
-          iconDescription="Delete"
-          onClick={() => openDeleteModal(collection, "collection")}
-        />
-      </>
-    ),
-  }));
+  const collectionRows = collections?.map((collection) => {
+    const isProcessing = collection.documents.some(doc => 
+      !getDocumentMetadata(doc).total_chunks
+    );
+    const totalChunks = collection.documents.reduce((sum, doc) => 
+      sum + (getDocumentMetadata(doc).total_chunks || 0), 0
+    );
 
-  const documentRows = documents?.map((document) => ({
-    id: document.id,
-    name: document.name,
-    type: document.type,
-    size: `${(document.size / 1024).toFixed(2)} KB`,
-    lastModified: new Date(document.lastModified).toLocaleDateString(),
-    actions: (
-      <>
-        <Button
-          kind="ghost"
-          size="small"
-          renderIcon={TrashCan}
-          iconDescription="Delete"
-          onClick={() => openDeleteModal(document, "document")}
-        />
-        <Button
-          kind="ghost"
-          size="small"
-          renderIcon={Edit}
-          iconDescription="Move"
-          onClick={() => openMoveModal(document)}
-        />
-      </>
-    ),
-  }));
+    return {
+      id: collection.id,
+      name: collection.name,
+      description: collection.description,
+      status: (
+        <Tag type={isProcessing ? "blue" : "green"}>
+          {isProcessing ? "Processing" : "Ready"}
+        </Tag>
+      ),
+      stats: (
+        <div className="collection-stats">
+          <div>{collection.documents.length} documents</div>
+          <div>{totalChunks} total chunks</div>
+        </div>
+      ),
+      lastUpdated: new Date(collection.lastUpdated).toLocaleDateString(),
+      actions: (
+        <>
+          <Button
+            kind="ghost"
+            size="small"
+            renderIcon={Document}
+            iconDescription="View Documents"
+            onClick={() => {
+              setSelectedCollection(collection);
+              fetchDocuments(collection.id);
+            }}
+          />
+          <Button
+            kind="ghost"
+            size="small"
+            renderIcon={Edit}
+            iconDescription="Edit"
+            onClick={() => openEditModal(collection)}
+          />
+          <Button
+            kind="ghost"
+            size="small"
+            renderIcon={TrashCan}
+            iconDescription="Delete"
+            onClick={() => openDeleteModal(collection, "collection")}
+          />
+        </>
+      ),
+    };
+  });
+
+  const documentRows = documents?.map((document) => {
+    const metadata = getDocumentMetadata(document);
+    
+    return {
+      id: document.id,
+      name: document.name,
+      type: metadata.content_type,
+      creator: metadata.creator,
+      processingStatus: (
+        <ProcessingStatus document={document} />
+      ),
+      stats: (
+        <div className="document-stats">
+          {metadata.total_chunks && (
+            <>
+              <div>{metadata.total_chunks} chunks</div>
+              {metadata.total_pages && <div>{metadata.total_pages} pages</div>}
+            </>
+          )}
+        </div>
+      ),
+      lastModified: metadata.lastModified,
+      actions: (
+        <>
+          <Button
+            kind="ghost"
+            size="small"
+            renderIcon={TrashCan}
+            iconDescription="Delete"
+            onClick={() => openDeleteModal(document, "document")}
+            disabled={!metadata.total_chunks}
+          />
+          <Button
+            kind="ghost"
+            size="small"
+            renderIcon={Edit}
+            iconDescription="Move"
+            onClick={() => openMoveModal(document)}
+            disabled={!metadata.total_chunks}
+          />
+        </>
+      ),
+    };
+  });
 
   return (
     <div className="children-container collection-browser">
@@ -350,8 +462,8 @@ const CollectionBrowser = () => {
         <h4>Documents</h4>
          
           <DataTable
-            rows={selectedCollection ? documentRows : []}
-            headers={selectedCollection ? documentHeaders : []}
+            rows={selectedCollection ? documentRows : collectionRows}
+            headers={selectedCollection ? documentHeaders : collectionHeaders}
           >
             {({ rows, headers, getHeaderProps, getTableProps }) => (
               <TableContainer>

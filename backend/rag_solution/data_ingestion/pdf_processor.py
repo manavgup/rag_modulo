@@ -8,14 +8,13 @@ import multiprocessing
 import concurrent.futures
 from multiprocessing.managers import SyncManager
 import pymupdf
-import aiofiles
-import asyncio
+from datetime import datetime
 
 from core.custom_exceptions import DocumentProcessingError
 from rag_solution.data_ingestion.base_processor import BaseProcessor
 from rag_solution.data_ingestion.chunking import get_chunking_method
 from rag_solution.doc_utils import clean_text
-from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, Source
+from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, Source, Embeddings, DocumentMetadata
 from vectordbs.utils.watsonx import get_embeddings, _get_embeddings_client, sublist
 
 logger = logging.getLogger(__name__)
@@ -28,7 +27,7 @@ class PdfProcessor(BaseProcessor):
             manager = multiprocessing.Manager()
         self.saved_image_hashes = set(manager.list())
 
-    async def process(self, file_path: str) -> AsyncIterable[Document]:
+    async def process(self, file_path: str, document_id: str) -> AsyncIterable[Document]:
         logger.info(f"PdfProcessor: Attempting to process file: {file_path}")
         logger.info(f"File exists: {os.path.exists(file_path)}")
         # logger.info(f"Current working directory: {os.getcwd()}")
@@ -40,10 +39,10 @@ class PdfProcessor(BaseProcessor):
 
         try:
             with pymupdf.open(file_path) as doc:
-                metadata: Dict[str, Any] = await self.extract_metadata(doc)
+                metadata: DocumentMetadata = await self.extract_metadata(doc)
                 logger.info(f"Extracted metadata from {file_path}: {metadata}")
 
-                document_id = str(uuid.uuid4())
+                total_chunks = 0
 
                 with concurrent.futures.ThreadPoolExecutor(max_workers=multiprocessing.cpu_count()) as executor:
                     futures = [executor.submit(self.process_page, page_num, file_path, output_folder, document_id)
@@ -54,12 +53,15 @@ class PdfProcessor(BaseProcessor):
                         try:
                             chunks = future.result()
                             if chunks:
+                                total_chunks += len(chunks)
+                                # Update total_chunks in metadata
+                                metadata.total_chunks = total_chunks
                                 yield Document(
                                     name=os.path.basename(file_path),
                                     document_id=document_id,
                                     chunks=chunks,
                                     path=file_path,
-                                    metadata=DocumentChunkMetadata(**metadata, page_number=page_num + 1)
+                                    metadata=metadata
                                 )
                         except Exception as e:
                             logger.error(f"Error processing page {page_num} of {file_path}: {e}", exc_info=True)
@@ -71,6 +73,7 @@ class PdfProcessor(BaseProcessor):
         DocumentChunk]:
         chunks: List[DocumentChunk] = []
         chunking_method = get_chunking_method()
+        chunk_counter = 0  # Initialize counter at start of page
 
         try:
             with pymupdf.open(file_path) as doc:
@@ -93,16 +96,26 @@ class PdfProcessor(BaseProcessor):
 
                 # Process main text
                 text_chunks = chunking_method(full_text)
+                current_position = 0  # Track position in full text
                 embed_client = _get_embeddings_client()
                 for subset_chunks in sublist(inputs=text_chunks, n=5):
                     chunk_embeddings = get_embeddings(texts=subset_chunks, embed_client=embed_client)
                     for ix, chunk_text in enumerate(subset_chunks):
+                        start_idx = full_text.find(chunk_text, current_position)
+                        end_idx = start_idx + len(chunk_text)
+                        current_position = end_idx  # Update for next search
+
                         chunk_metadata = {
                             **page_metadata,
-                            'content_type': 'text',
+                            'chunk_number': chunk_counter,
+                            'start_index': start_idx,
+                            'end_index': end_idx,
+                            'table_index': 0,  # Not a table
+                            'image_index': 0   # Not an image
                         }
                         chunks.append(
                             self.create_document_chunk(chunk_text, chunk_embeddings[ix], chunk_metadata, document_id))
+                        chunk_counter += 1 
 
                 # Process tables
                 if tables:
@@ -113,36 +126,44 @@ class PdfProcessor(BaseProcessor):
                             table_embedding = get_embeddings(texts=table_chunk, embed_client=embed_client)
                             chunk_metadata = {
                                 **page_metadata,
-                                'content_type': 'table',
-                                'table_index': table_index
+                                'chunk_number': chunk_counter,
+                                'start_index': 0,  # Tables don't have character positions
+                                'end_index': 0,
+                                'table_index': table_index,
+                                'image_index': 0   # Not an image
                             }
                             chunks.append(self.create_document_chunk(table_chunk, table_embedding[0], chunk_metadata,
                                                                      document_id))
+                            chunk_counter += 1 
 
                 # Process images
                 images: List[str] = self.extract_images_from_page(page, output_folder)
                 for img_index, img in enumerate(images):
                     chunk_metadata = {
                         **page_metadata,
-                        'content_type': 'image',
+                        'chunk_number': chunk_counter,
+                        'start_index': 0,  # Images don't have character positions
+                        'end_index': 0,
+                        'table_index': 0,  # Not a table
                         'image_index': img_index
                     }
                     image_text = f"Image: {img}"
                     image_embedding = get_embeddings(texts=image_text, embed_client=embed_client)
                     chunks.append(
                         self.create_document_chunk(image_text, image_embedding[0], chunk_metadata, document_id))
+                    chunk_counter += 1 
 
         except Exception as e:
             logger.error(f"Error processing page {page_number} of {file_path}: {e}", exc_info=True)
         return chunks
 
-    def create_document_chunk(self, chunk_text: str, chunk_embedding: List[float], metadata: Dict[str, Any],
+    def create_document_chunk(self, chunk_text: str, chunk_embedding: Embeddings, metadata: Dict[str, Any],
                               document_id: str) -> DocumentChunk:
         chunk_id = str(uuid.uuid4())
         return DocumentChunk(
             chunk_id=chunk_id,
             text=chunk_text,
-            vectors=chunk_embedding,
+            embeddings=chunk_embedding,
             metadata=DocumentChunkMetadata(**metadata),
             document_id=document_id
         )
@@ -387,32 +408,57 @@ class PdfProcessor(BaseProcessor):
 
         return images
 
-    async def extract_metadata(self, doc: pymupdf.Document) -> Dict[str, Any]:
+    async def extract_metadata(self, doc: pymupdf.Document) -> DocumentMetadata:
+        """
+        Extract metadata from a PDF document.
+        
+        Args:
+            doc: PyMuPDF document object
+            
+        Returns:
+            DocumentMetadata: Structured metadata from the PDF
+        """
         try:
-            metadata: Dict[str, Optional[str]] = doc.metadata
-            return {
-                'title': metadata.get('title', 'Unknown'),
-                'author': metadata.get('author', 'Unknown'),
-                'subject': metadata.get('subject', ''),
-                'keywords': metadata.get('keywords', ''),
-                'creator': metadata.get('creator', ''),
-                'producer': metadata.get('producer', ''),
-                'creationDate': metadata.get('creationDate', ''),
-                'modDate': metadata.get('modDate', ''),
-                'total_pages': len(doc),
-                'source': Source.PDF
-            }
+            # Get base metadata from parent class
+            base_metadata = super().extract_metadata(doc.name)
+            pdf_metadata = doc.metadata
+            # Parse creation and modification dates
+            creation_date = None
+            mod_date = None
+            if pdf_metadata.get('creationDate'):
+                try:
+                    # PDF dates are in format "D:YYYYMMDDHHmmSS"
+                    creation_str = pdf_metadata['creationDate'].replace("D:", "")
+                    creation_date = datetime.strptime(creation_str[:14], "%Y%m%d%H%M%S")
+                except ValueError:
+                    creation_date = base_metadata.creation_date
+                    
+            if pdf_metadata.get('modDate'):
+                try:
+                    mod_str = pdf_metadata['modDate'].replace("D:", "")
+                    mod_date = datetime.strptime(mod_str[:14], "%Y%m%d%H%M%S")
+                except ValueError:
+                    mod_date = base_metadata.mod_date
+
+            # Parse keywords into structured format
+            keywords = {}
+            if pdf_metadata.get('keywords'):
+                keyword_list = [k.strip() for k in pdf_metadata['keywords'].replace(';', ',').split(',')]
+                keywords = {f"keyword_{i}": k for i, k in enumerate(keyword_list) if k}
+
+            return DocumentMetadata(
+                document_name=base_metadata.document_name,
+                title=pdf_metadata.get('title') or base_metadata.document_name,
+                author=pdf_metadata.get('author'),
+                subject=pdf_metadata.get('subject'),
+                keywords=keywords,
+                creator=pdf_metadata.get('creator'),
+                producer=pdf_metadata.get('producer'),
+                creation_date=creation_date or base_metadata.creation_date,
+                mod_date=mod_date or base_metadata.mod_date,
+                total_pages=len(doc),
+                total_chunks=None  # Will be set during processing
+            )
         except Exception as e:
-            logger.error(f"Error extracting metadata: {e}", exc_info=True)
-            return {
-                'title': 'Unknown',
-                'author': 'Unknown',
-                'subject': '',
-                'keywords': '',
-                'creator': '',
-                'producer': '',
-                'creationDate': '',
-                'modDate': '',
-                'total_pages': 0,
-                'source': Source.PDF
-            }
+            logger.error(f"Error extracting PDF metadata: {e}", exc_info=True)
+            return super().extract_metadata(doc.name)
