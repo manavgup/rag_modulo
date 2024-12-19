@@ -50,17 +50,60 @@ build-tests:
 
 build-all: build-frontend build-backend build-tests
 
-# Test
-test:
+# Helper function to check if containers are healthy
+check_containers:
+	@echo "Checking if required containers are running and healthy..."
+	@if [ -z "$$(docker compose ps -q backend)" ] || \
+		[ -z "$$(docker compose ps -q postgres)" ] || \
+		[ -z "$$(docker compose ps -q milvus-standalone)" ] || \
+		[ -z "$$(docker compose ps -q mlflow-server)" ]; then \
+		echo "Some containers are not running. Starting services..."; \
+		$(MAKE) run-backend; \
+		echo "Waiting for containers to be healthy..."; \
+		sleep 10; \
+	else \
+		echo "All required containers are running."; \
+	fi
+
+# Test target with proper volume mounting and path handling
+test: check_containers
 	@if [ -z "$(test_name)" ]; then \
-        echo "Error: Please provide test_name. Example: make test test_name=tests/router/test_user_collection_router.py "; \
-        exit 1; \
-    else \
-		$(MAKE) run-backend \
-        echo "Running test: $(test_name)"; \
-        $(DOCKER_COMPOSE) run --rm test pytest -v -s $(test_name) || { echo "Test $(test_name) failed"; $(MAKE) stop-containers; exit 1; } \
-    fi
-	
+		echo "Error: Please provide test_name. Example: make test test_name=tests/router/test_user_collection_router.py"; \
+		exit 1; \
+	else \
+		echo "Running test: $(test_name)"; \
+		$(DOCKER_COMPOSE) run --rm \
+			-v $$(pwd)/backend:/app/backend:ro \
+			test pytest -s $(test_name) || \
+		{ \
+			echo "Test $(test_name) failed"; \
+			if [ "$(cleanup)" = "true" ]; then \
+				echo "Cleaning up containers (cleanup=true)..."; \
+				$(MAKE) stop-containers; \
+			fi; \
+			exit 1; \
+		}; \
+		if [ "$(cleanup)" = "true" ]; then \
+			echo "Tests completed. Cleaning up containers (cleanup=true)..."; \
+			$(MAKE) stop-containers; \
+		fi \
+	fi
+
+# Clean test run that stops containers afterward
+test-clean: cleanup=true
+test-clean: test
+
+# Helper to just run tests if containers are already running
+test-only:
+	@if [ -z "$(test_name)" ]; then \
+		echo "Error: Please provide test_name. Example: make test-only test_name=tests/router/test_user_collection_router.py"; \
+		exit 1; \
+	else \
+		echo "Running test: $(test_name)"; \
+		$(DOCKER_COMPOSE) run --rm \
+			-v $$(pwd)/backend:/app/backend:ro \
+			test pytest -v -s /app/$(test_name); \
+	fi
 
 tests: run-backend
 	$(DOCKER_COMPOSE) run --rm test pytest -v -s -m "not (chromadb or elasticsearch or pinecone or weaviate)" || { echo "Tests failed"; $(MAKE) stop-containers; exit 1; }
