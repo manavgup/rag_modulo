@@ -6,14 +6,12 @@ import pytest
 from fastapi import BackgroundTasks, HTTPException, UploadFile
 from rag_solution.repository.collection_repository import CollectionRepository
 from rag_solution.repository.user_repository import UserRepository
-from rag_solution.schemas.collection_schema import (CollectionInput,
-                                                    CollectionOutput)
+from rag_solution.schemas.collection_schema import (CollectionInput, CollectionOutput)
 from rag_solution.schemas.user_schema import UserInput, UserOutput
 from rag_solution.services.collection_service import CollectionService
 from rag_solution.services.file_management_service import FileManagementService
 from rag_solution.services.user_collection_service import UserCollectionService
 from rag_solution.services.user_service import UserService
-from rag_solution.services.user_team_service import UserTeamService
 from sqlalchemy.orm import Session
 import logging
 
@@ -37,8 +35,8 @@ def collection_repository(db_session):
     return CollectionRepository(db_session)
 
 @pytest.fixture
-def user_service(db_session: Session, user_team_service: UserTeamService):
-    return UserService(db_session, user_team_service)
+def user_service(db_session: Session):
+    return UserService(db_session)
 
 @pytest.fixture
 def file_management_service(db_session):
@@ -54,11 +52,6 @@ def collection_service(db_session):
     service = CollectionService(db_session)
     logger.debug("CollectionService initialized successfully")
     return service
-
-@pytest.fixture
-def user_team_service(db_session):
-    return UserTeamService(db_session)
-
 
 def test_create_collection(user_service: UserService, collection_service: CollectionService):
     user = user_service.create_user(UserInput(ibm_id="test_ibm_id", email="test@example.com", name="Test User"))
@@ -142,12 +135,12 @@ def test_create_collection_with_documents(
     assert created_collection.is_private == collection_input.is_private
     assert len(created_collection.user_ids) == 1
     assert user.id in created_collection.user_ids
-    collection_files = file_management_service.get_files(user.id, created_collection.id)
+    collection_files = file_management_service.get_files(created_collection.id)
     assert len(collection_files) == 2
     assert "test_file_1.txt" in collection_files
     assert "test_file_2.txt" in collection_files
     for file in files:
-        file_path = file_management_service.get_file_path(user.id, created_collection.id, file.filename)
+        file_path = file_management_service.get_file_path(created_collection.id, file.filename)
         assert file_path.exists()
         with open(file_path, "rb") as f:
             content = f.read()
@@ -155,7 +148,7 @@ def test_create_collection_with_documents(
                 assert content == file_content_1
             elif file.filename == "test_file_2.txt":
                 assert content == file_content_2
-    file_management_service.delete_files(user.id, created_collection.id, ["test_file_1.txt", "test_file_2.txt"])
+    file_management_service.delete_files(created_collection.id, ["test_file_1.txt", "test_file_2.txt"])
     collection_service.delete_collection(created_collection.id)
     user_service.delete_user(user.id)
 

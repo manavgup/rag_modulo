@@ -74,5 +74,5 @@ DEP002 = ["psycopg2", "itsdangerous"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
-testpaths = ["backend/tests"]
+testpaths = ["./tests"]
 addopts = "-v -s"

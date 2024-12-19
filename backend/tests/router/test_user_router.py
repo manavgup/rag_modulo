@@ -2,10 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 from uuid import uuid4
 from unittest.mock import patch
-from rag_solution.router.user_router import (
-    create_user, get_user, update_user,
-    delete_user, list_users, get_current_user_id
-)
+
 from main import app
 
 client = TestClient(app)
@@ -17,8 +14,9 @@ def user_data():
     return {
         "user_id": UUID_EXAMPLE,
         "user_name": "Mock User",
-        "email": "mockuser@example.com"
-        # Add other necessary fields
+        "email": "mockuser@example.com",
+        "team_id": UUID_EXAMPLE,
+        "collection_id": UUID_EXAMPLE
     }
 
 @pytest.fixture
@@ -93,3 +91,81 @@ def test_list_users(headers):
         assert response.status_code == 200
         
         mock_service.list_users.assert_called_once()
+
+def test_add_user_to_team(user_team_data):
+    with patch('rag_solution.services.user_team_service.UserTeamService') as MockService:
+        mock_service = MockService.return_value
+        mock_service.add_user_to_team.return_value = None
+
+        response = client.post(f"/api/users/{user_team_data["user_id"]}/teams/{user_team_data["team_id"]}", json=user_team_data)
+
+        assert response.status_code == 200
+        
+        mock_service.add_user_to_team.assert_called_once_with(
+            user_team_data["user_id"], user_team_data["team_id"]
+        )
+
+def test_remove_user_from_team(user_team_data):
+    with patch('rag_solution.services.user_team_service.UserTeamService') as MockService:
+        mock_service = MockService.return_value
+        mock_service.remove_user_from_team.return_value = None
+
+        response = client.delete(f"/api/users/{user_team_data['user_id']}/teams/{user_team_data['team_id']}")
+
+        assert response.status_code == 200
+        
+        mock_service.remove_user_from_team.assert_called_once_with(
+            user_team_data["user_id"], user_team_data["team_id"]
+        )
+
+def test_get_user_teams(user_team_data):
+    with patch('rag_solution.services.user_team_service.UserTeamService') as MockService:
+        mock_service = MockService.return_value
+        mock_service.get_user_teams.return_value = []
+
+        response = client.get(f"/api/users/{user_team_data['user_id']}/teams")
+
+        assert response.status_code == 200
+        
+        mock_service.get_user_teams.assert_called_once_with(
+            user_team_data["user_id"]
+        )
+
+def test_add_user_to_collection(user_team_data):
+    with patch('rag_solution.services.user_collection_service.UserCollectionService') as MockService:
+        mock_service = MockService.return_value
+        mock_service.add_user_to_collection.return_value = None
+
+        response = client.post(f"/api/users/{user_team_data["user_id"]}/collections/{user_team_data["collection_id"]}")
+
+        assert response.status_code == 200
+        
+        mock_service.add_user_to_collection.assert_called_once_with(
+            user_team_data["user_id"], user_team_data["collection_id"]
+        )
+
+def test_remove_user_from_collection(user_team_data):
+    with patch('rag_solution.services.user_collection_service.UserCollectionService') as MockService:
+        mock_service = MockService.return_value
+        mock_service.remove_user_from_collection.return_value = None
+
+        response = client.delete(f"/api/users/{user_team_data['user_id']}/collections/{user_team_data['collection_id']}")
+
+        assert response.status_code == 200
+        
+        mock_service.remove_user_from_collection.assert_called_once_with(
+            user_team_data["user_id"], user_team_data["collection_id"]
+        )
+
+def test_get_user_collections(user_team_data):
+    with patch('rag_solution.services.user_collection_interaction_service.UserCollectionInteractionService') as MockService:
+        mock_service = MockService.return_value
+        mock_service.get_user_collections_with_files.return_value = []
+
+        response = client.get(f"/api/users/{user_team_data['user_id']}/collections")
+
+        assert response.status_code == 200
+        
+        mock_service.get_user_collections_with_files.assert_called_once_with(
+            user_team_data["user_id"]
+        )

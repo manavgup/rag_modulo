@@ -1,19 +1,13 @@
-import asyncio
 import uuid
 
-import chromadb
 import pymupdf
 import pytest
-import weaviate
 from core.config import settings
-from elasticsearch import Elasticsearch
 
 from rag_solution.models.question import SuggestedQuestion
 from vectordbs.milvus_store import MilvusStore
 from fastapi.testclient import TestClient
-from pinecone import Pinecone
-from pymilvus import connections
-from rag_solution.file_management.database import engine as sync_engine, Base, SessionLocal
+from rag_solution.file_management.database import engine as sync_engine, Base
 # Remove or comment out these lines:
 from rag_solution.models.collection import Collection
 from rag_solution.models.file import File
@@ -25,24 +19,11 @@ from rag_solution.models.user_team import UserTeam
 from rag_solution.schemas.user_schema import UserInput
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
-from vectordbs.vector_store import VectorStore
 import logging
 from vectordbs.factory import get_datastore
 from vectordbs.error_types import CollectionError
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
-
-
-#from main import app
-
-# DATABASE_URL = (
-#     f"postgresql://{settings.collectiondb_user}:{settings.collectiondb_pass}@{settings.collectiondb_host}:{settings.collectiondb_port}/{settings.collectiondb_name}"
-# )
-# # Use synchronous database URL
-
-# print (f"**DATABASE URL: {DATABASE_URL}")
-# sync_engine = create_engine(DATABASE_URL)
-# SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=sync_engine)
 
 @pytest.fixture(scope="session")
 def db_engine():
