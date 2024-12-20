@@ -77,35 +77,35 @@ export const searchDocuments = async (query, collectionId) => {
     const url = API_ROUTES.SEARCH;
     console.log('Searching documents:', getFullApiUrl(url));
     
-    // Skip if 'all' is selected
     if (collectionId === 'all') {
       throw new Error('Please select a specific collection to search');
     }
 
     const response = await api.post(url, {
-      search_input: {  // Ensure this field is included
+      search_input: {  // Wrap the parameters in search_input
         question: query,
         collection_id: collectionId
       }
     });
     
-    // Transform response to match frontend expectations if needed
-    const result = {
+    console.log('Full search response:', response.data);
+    
+    return {
       answer: response.data.answer,
-      source_documents: response.data.source_documents.map(doc => ({
-        text: doc.text,
-        metadata: doc.metadata,
-        score: doc.score,
-        document_id: doc.document_id
-      })),
+      query_results: response.data.query_results || [],
+      documents: response.data.documents || [],
       rewritten_query: response.data.rewritten_query,
       evaluation: response.data.evaluation
     };
-
-    console.log('Search completed successfully:', result);
-    return result;
   } catch (error) {
     console.error('Error in searchDocuments:', error);
+    
+    // Log more details about the error
+    if (error.response) {
+      console.error('Error response details:', error.response.data);
+      console.error('Error status:', error.response.status);
+    }
+    
     throw handleApiError(error, 'Error searching documents');
   }
 };

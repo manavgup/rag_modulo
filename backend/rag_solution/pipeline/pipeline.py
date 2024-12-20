@@ -1,35 +1,83 @@
 """Pipeline implementation for RAG processing."""
 
 import logging
-import os
-from typing import List, Dict, Any, Generator, Optional, Iterator, AsyncIterator
+from typing import List, Dict, Any, Optional, AsyncIterator
 from uuid import UUID
 from sqlalchemy.orm import Session
-from dataclasses import dataclass
+from pydantic import BaseModel, ConfigDict
 
 from rag_solution.query_rewriting.query_rewriter import QueryRewriter
 from rag_solution.retrieval.factories import RetrieverFactory
 from rag_solution.generation.factories import GeneratorFactory, EvaluatorFactory
 from vectordbs.factory import get_datastore
 from rag_solution.data_ingestion.ingestion import DocumentStore
-from vectordbs.data_types import Document, QueryResult, DocumentChunkWithScore
+from vectordbs.data_types import QueryResult, DocumentChunk, DocumentMetadata, VectorQuery
 from core.config import settings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-@dataclass
-class PipelineResult:
-    """Result from pipeline processing."""
-    original_query: str
+class PipelineResult(BaseModel):
+    """Result from pipeline processing.
+    
+    Attributes:
+        rewritten_query: Query after rewriting
+        document_metadata: Unique document metadata for display
+        query_results: List of vector similarity matches
+        generated_answer: Generated answer text
+        evaluation: Optional evaluation results
+    """
     rewritten_query: str
-    retrieved_documents: List[str]
+    query_results: List[QueryResult]
     generated_answer: str
     evaluation: Optional[Dict[str, Any]] = None
 
+    model_config = ConfigDict(from_attributes=True)
+
+    def get_sorted_results(self) -> List[QueryResult]:
+        """Get results sorted by similarity score."""
+        return sorted(self.query_results, key=lambda x: x.score, reverse=True)
+
+    def get_top_k_results(self, k: int) -> List[QueryResult]:
+        """Get top k results by similarity score."""
+        return self.get_sorted_results()[:k]
+
+    def get_all_texts(self) -> List[str]:
+        """Get all chunk texts from results."""
+        return [result.chunk.text for result in self.query_results]
+
+    def get_unique_document_ids(self) -> set[str]:
+        """Get set of unique document IDs from results."""
+        return {
+            result.document_id  # Using the convenience property
+            for result in self.query_results 
+            if result.document_id is not None
+        }
+
+    def get_results_for_document(self, document_id: str) -> List[QueryResult]:
+        """Get all results from a specific document."""
+        return [
+            result for result in self.query_results 
+            if result.document_id == document_id
+        ]
+
 class Pipeline():
+    """Main RAG pipeline implementation.
+    
+    This class orchestrates the entire RAG process:
+    1. Query rewriting
+    2. Document retrieval
+    3. Answer generation
+    4. Optional evaluation
+    """
+    
     def __init__(self, config: Dict[str, Any], db: Session):
-        """Initialize the RAG Pipeline."""
+        """Initialize the RAG Pipeline.
+        
+        Args:
+            config: Configuration dictionary containing settings for all components
+            db: SQLAlchemy database session
+        """
         self.config = config
         self.db = db
         self.query_rewriter = QueryRewriter(config.get('query_rewriting', {}))
@@ -44,12 +92,12 @@ class Pipeline():
         self.generator = GeneratorFactory.create_generator(config.get('generation', {}))
         self.evaluator = EvaluatorFactory.create_evaluator(config.get('evaluation', {}))
 
-    async def initialize(self):
+    async def initialize(self) -> None:
         """Initialize the pipeline and load documents."""
         await self._load_documents()
 
-    async def _load_documents(self):
-        """Load and process documents."""
+    async def _load_documents(self) -> None:
+        """Load and process documents from configured data sources."""
         data_source = self.config.get('data_source', [])
         try:
             await self.document_store.load_documents(data_source)
@@ -58,136 +106,94 @@ class Pipeline():
             logger.error(f"Error loading documents: {str(e)}")
             raise
 
-    def get_collection_chunks(self, collection_name: str) -> List[DocumentChunkWithScore]:
-        """
-        Get document chunks from a collection.
+    def get_collection_chunks(self, collection_name: str) -> List[DocumentChunk]:
+        """Get document chunks from a collection.
         
         Args:
-            collection_name: Name of the collection
+            collection_name: Name of the collection to retrieve chunks from
             
         Returns:
-            List[DocumentChunkWithScore]: List of document chunks with scores
+            List[DocumentChunk]: List of document chunks
         """
         try:
-            # Use retriever to get representative documents
+            # Create an empty query to get representative documents
+            query = VectorQuery(
+                text="",  # Empty query to get representative documents
+                number_of_results=settings.number_of_results
+            )
+            
             retrieved_docs = self.retriever.retrieve(
                 collection_name=collection_name,
-                query="",  # Empty query to get representative documents
-                number_of_results=settings.top_k  # Use configured top_k from settings
+                query=query
             )
             
             # Extract chunks from retrieved documents
             chunks = []
-            for doc in retrieved_docs:
-                if hasattr(doc, 'data') and doc.data:
-                    chunks.extend(doc.data)
+            for result in retrieved_docs:
+                chunks.extend(result.chunk)
             return chunks
+            
         except Exception as e:
             logger.error(f"Error getting collection chunks: {e}")
             return []
 
     async def process(self, query: str, collection_name: str, context: Optional[Dict[str, Any]] = None) -> PipelineResult:
-        """Process a query through the RAG pipeline."""
+        """Process a query through the RAG pipeline.
+        
+        Args:
+            query: The user's query string
+            collection_name: Name of the collection to search in
+            context: Optional context information for query processing
+            
+        Returns:
+            PipelineResult: Contains the generated answer and supporting information
+        """
         try:
             if not query.strip():
                 raise ValueError("Query cannot be empty")
 
+            # 1: Query Rewriting
             rewritten_query = self.query_rewriter.rewrite(query, context)
             logger.info(f"Rewritten query: {rewritten_query}")
             logger.info(f"Going with original query: {query}")
 
-            retrieved_docs: List[QueryResult] = self.retriever.retrieve(collection_name, query)
-            logger.info(f"Retrieved {len(retrieved_docs)} documents")
+            #2: Vector Retrieval
+            query_results: List[QueryResult] = self.retriever.retrieve(collection_name, query)
+            logger.info(f"Retrieved {len(query_results)} documents")
 
-            # Extract text from retrieved documents
-            all_texts = []
-            for doc_index, doc in enumerate(retrieved_docs):
-                logger.info(f"Processing QueryResult {doc_index + 1}")
-                logger.info(f"  Similarities: {doc.similarities}")
-                logger.info(f"  IDs: {doc.ids}")
-                
-                if doc.data:
-                    for chunk_index, chunk in enumerate(doc.data):
-                        all_texts.append(chunk.text)
-                        logger.info(f"  Chunk {chunk_index + 1}:")
+            # Get all chunks to generate the answer from the LLM
+            all_texts = "\n".join(result.chunk.text for result in query_results)
 
-            logger.info(f"\nTotal texts extracted: {len(all_texts)}")
-
-            # Generate answer
-            context = "\n".join(all_texts)
-            logger.info(f"Calling generator.generate with {query}")
-            generated_answer = self.generator.generate(query, context)
+            #3. Generate answer from all chunks 
+            logger.info(f"Calling generator.generate with {all_texts}")
+            generated_answer = self.generator.generate(query, all_texts)
             logger.info(f"Generated answer: {generated_answer}")
 
+            #4. Evaluation
             logger.info("Now going to evaluate the results")
-            if settings.runtime_eval:
-                evaluation_result = await self.evaluator.evaluate(question=rewritten_query,
-                                                                          answer=generated_answer, context=context)
-            else:
-                evaluation_result=None
+            evaluation_result = None
             
             return PipelineResult(
-                original_query=query,
                 rewritten_query=rewritten_query,
-                retrieved_documents=all_texts,
+                query_results=query_results,
                 generated_answer=generated_answer,
                 evaluation=evaluation_result
             )
         except Exception as e:
             logger.error(f"Error in pipeline: {str(e)}")
             return PipelineResult(
-                original_query=query,
                 rewritten_query=rewritten_query if 'rewritten_query' in locals() else "",
-                retrieved_documents=[],
+                query_results = [],
                 generated_answer="",
                 evaluation={"error": str(e)}
             )
-
-    async def process_stream(self, query: str, collection_name: str, context: Optional[Dict[str, Any]] = None) -> AsyncIterator[Dict[str, Any]]:
-        """Process a query with streaming response."""
-        try:
-            if not query.strip():
-                raise ValueError("Query cannot be empty")
-
-            rewritten_query = self.query_rewriter.rewrite(query, context)
-            logger.info(f"Rewritten query: {rewritten_query}")
-            
-            retrieved_documents = self.retriever.retrieve(collection_name, rewritten_query)
-            logger.info(f"Retrieved {len(retrieved_documents)} documents")
-            
-            yield {
-                'original_query': query,
-                'rewritten_query': rewritten_query,
-                'retrieved_documents': retrieved_documents,
-            }
-
-            generation_params = {
-                'max_new_tokens': settings.max_new_tokens,
-                'min_new_tokens': settings.min_new_tokens,
-                'temperature': settings.temperature,
-                'top_k': settings.top_k,
-                'random_seed': settings.random_seed
-            }
-            
-            response_chunks = []
-            for chunk in self.generator.generate_stream(rewritten_query, retrieved_documents, **generation_params):
-                response_chunks.append(chunk)
-                yield {'response_chunk': chunk}
-
-            full_response = ''.join(response_chunks)
-            evaluation_result = self.evaluator.evaluate(query, full_response, retrieved_documents)
-            yield {'evaluation': evaluation_result}
-
-            logger.info("Finished streaming response")
-        except Exception as e:
-            logger.error(f"Error in pipeline stream: {str(e)}")
-            yield {
-                'error': str(e),
-                'original_query': query
-            }
-
-    def update_config(self, new_config: Dict[str, Any]):
-        """Update pipeline configuration."""
+        
+    def update_config(self, new_config: Dict[str, Any]) -> None:
+        """Update pipeline configuration.
+        
+        Args:
+            new_config: New configuration dictionary to update with
+        """
         self.config.update(new_config)
         # Reinitialize components with new config
         self.query_rewriter = QueryRewriter(self.config.get('query_rewriting', {}))

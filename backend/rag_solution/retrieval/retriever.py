@@ -3,12 +3,7 @@ from typing import List, Dict, Any, Optional
 from abc import ABC, abstractmethod
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-import numpy as np
-from vectordbs.utils.watsonx import get_embeddings
-from core.config import settings
-from vectordbs.vector_store import VectorStore
-from vectordbs.data_types import Document, DocumentChunk, QueryResult
-from functools import lru_cache
+from vectordbs.data_types import Document, QueryResult
 from rag_solution.data_ingestion.ingestion import DocumentStore
 
 logger = logging.getLogger(__name__)

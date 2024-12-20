@@ -12,7 +12,7 @@ from core.config import settings
 from vectordbs.utils.watsonx import get_embeddings
 
 from .data_types import (Document, DocumentChunk, DocumentChunkMetadata,
-                         DocumentChunkWithScore, DocumentMetadataFilter,
+                         DocumentMetadataFilter,
                          QueryResult, QueryWithEmbedding, Source)
 from .error_types import CollectionError
 from .vector_store import VectorStore  # Ensure this import is correct
@@ -159,7 +159,7 @@ class WeaviateDataStore(VectorStore):
 
         for obj in response_objects:
             properties = obj.properties
-            document_chunk_with_score = DocumentChunkWithScore(
+            document_chunk_with_score = DocumentChunk(
                 chunk_id=properties["chunk_id"],
                 text=properties["text"],
                 metadata=DocumentChunkMetadata(

@@ -24,7 +24,8 @@ class FileRepository:
                 filename=file.filename,
                 file_type=file.file_type,
                 file_path=file.file_path,
-                metadata=file.metadata.model_dump() if file.metadata else {}
+                metadata=file.metadata.model_dump() if file.metadata else {},
+                document_id=file.document_id
             )
             self.db.add(db_file)
             self.db.commit()
@@ -130,5 +131,6 @@ class FileRepository:
             filename=file.filename,
             file_type=file.file_type,
             file_path=file.file_path,
-            metadata=FileMetadata(**file.file_metadata) if file.file_metadata else None
+            metadata=FileMetadata(**file.file_metadata) if file.file_metadata else None,
+            document_id=file.document_id
         )

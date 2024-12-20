@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     vector_db: str = "None"
     collection_name: Optional[str] = None
 
+    # Search settings
+    number_of_results: int = Field(default=5, env='NUMBER_OF_RESULTS')
 
     # Chunking settings
     chunking_strategy: str = Field(default="fixed", env='CHUNKING_STRATEGY')

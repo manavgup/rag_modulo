@@ -24,7 +24,7 @@ VECTOR_DB ?= milvus
 
 .DEFAULT_GOAL := help
 
-.PHONY: init-env sync-frontend-deps build-frontend build-backend build-tests build-all test api-test newman-test all-test run-app run-backend run-frontend run-services stop-containers clean create-volumes logs info help
+.PHONY: init-env sync-frontend-deps build-frontend build-backend build-tests build-all test tests api-tests all-tests run-app run-backend run-frontend run-services stop-containers clean create-volumes logs info help
 
 # Init
 init-env:
@@ -50,17 +50,66 @@ build-tests:
 
 build-all: build-frontend build-backend build-tests
 
-# Test
-test: build-backend build-tests
+# Helper function to check if containers are healthy
+check_containers:
+	@echo "Checking if required containers are running and healthy..."
+	@if [ -z "$$(docker compose ps -q backend)" ] || \
+		[ -z "$$(docker compose ps -q postgres)" ] || \
+		[ -z "$$(docker compose ps -q milvus-standalone)" ] || \
+		[ -z "$$(docker compose ps -q mlflow-server)" ]; then \
+		echo "Some containers are not running. Starting services..."; \
+		$(MAKE) run-backend; \
+		echo "Waiting for containers to be healthy..."; \
+		sleep 10; \
+	else \
+		echo "All required containers are running."; \
+	fi
+
+# Test target with proper volume mounting and path handling
+test: check_containers
+	@if [ -z "$(test_name)" ]; then \
+		echo "Error: Please provide test_name. Example: make test test_name=tests/router/test_user_collection_router.py"; \
+		exit 1; \
+	else \
+		echo "Running test: $(test_name)"; \
+		$(DOCKER_COMPOSE) run --rm \
+			-v $$(pwd)/backend:/app/backend:ro \
+			test pytest -s $(test_name) || \
+		{ \
+			echo "Test $(test_name) failed"; \
+			if [ "$(cleanup)" = "true" ]; then \
+				echo "Cleaning up containers (cleanup=true)..."; \
+				$(MAKE) stop-containers; \
+			fi; \
+			exit 1; \
+		}; \
+		if [ "$(cleanup)" = "true" ]; then \
+			echo "Tests completed. Cleaning up containers (cleanup=true)..."; \
+			$(MAKE) stop-containers; \
+		fi \
+	fi
+
+# Clean test run that stops containers afterward
+test-clean: cleanup=true
+test-clean: test
+
+# Helper to just run tests if containers are already running
+test-only:
+	@if [ -z "$(test_name)" ]; then \
+		echo "Error: Please provide test_name. Example: make test-only test_name=tests/router/test_user_collection_router.py"; \
+		exit 1; \
+	else \
+		echo "Running test: $(test_name)"; \
+		$(DOCKER_COMPOSE) run --rm \
+			-v $$(pwd)/backend:/app/backend:ro \
+			test pytest -v -s /app/$(test_name); \
+	fi
+
+tests: run-backend
 	$(DOCKER_COMPOSE) run --rm test pytest -v -s -m "not (chromadb or elasticsearch or pinecone or weaviate)" || { echo "Tests failed"; $(MAKE) stop-containers; exit 1; }
 
-api-test: build-backend build-tests
+api-tests: run-backend
 	$(DOCKER_COMPOSE) run --rm test pytest -v -s -m "api and not (chromadb or elasticsearch or pinecone or weaviate)" || { echo "API Tests failed"; $(MAKE) stop-containers; exit 1; }
-
-newman-test: build-backend build-tests
-	$(DOCKER_COMPOSE) run --rm test newman run tests/postman/rag_modulo_api_collection.json --env-var "backend_base_url=${REACT_APP_API_URL}" || { echo "Postman Tests failed"; $(MAKE) stop-containers; exit 1; }
-
-all-test: test newman-test
 
 # Run
 run-app: build-all run-backend run-frontend
@@ -143,10 +192,10 @@ help:
 	@echo "  build-backend   	Build backend code/container"
 	@echo "  build-tests   		Build test code/container"
 	@echo "  build-all   		Build frontend/backend/test code/container"
-	@echo "  test          		Run all tests using pytest"
-	@echo "  api-test      		Run API tests using pytest"
-	@echo "  newman-test   		Run API tests using newman"
-	@echo "  all-test   		Run all tests using pytest and newman"
+	@echo "  test          		Run specific test, test_name param is required (make test test_name=tests/router/test_user_collection_router.py)"
+	@echo "  tests          	Run all tests using pytest"
+	@echo "  api-tests      	Run API tests only (using pytest)"
+	@echo "  all-tests   		Run all tests: REST API and others"
 	@echo "  run-app       		Run both backend and frontend using Docker Compose"
 	@echo "  run-backend   		Run backend using Docker Compose"
 	@echo "  run-frontend  		Run frontend using Docker Compose"
