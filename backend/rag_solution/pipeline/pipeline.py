@@ -172,8 +172,8 @@ class Pipeline():
             #4. Evaluation
             logger.info("Now going to evaluate the results")
             if settings.runtime_eval:
-                evaluation_result = await self.evaluator.evaluate(question=rewritten_query,
-                                                                          answer=generated_answer, context=context)
+                evaluation_result = await self.evaluator.evaluate(question=query,
+                                                                          answer=generated_answer, context=all_texts)
             else:
                 evaluation_result=None
             
