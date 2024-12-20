@@ -279,19 +279,19 @@ const SearchInterface = () => {
                 <span style={{ color: getColor(results.evaluation.faithfulness.faithfulness_rate) }}>
                   <p>{results.evaluation.faithfulness.faithfulness_rate}</p>
                 </span>
-                <p>Reasoning: {results.evaluation.faithfulness.reasoning}</p>
+                <p>{results.evaluation.faithfulness.reasoning}</p>
               </AccordionItem>
               <AccordionItem title="Answer Relevance">
                 <span style={{ color: getColor(results.evaluation.answer_relevance.answer_relevance_rate) }}>
                   <p>{results.evaluation.answer_relevance.answer_relevance_rate}</p>
                 </span>
-                <p>Reasoning: {results.evaluation.answer_relevance.reasoning}</p>
+                <p>{results.evaluation.answer_relevance.reasoning}</p>
               </AccordionItem>
               <AccordionItem title="Context Relevance">
                 <span style={{ color: getColor(results.evaluation.context_relevance.context_relevance_rate) }}>
                   <p>{results.evaluation.context_relevance.context_relevance_rate}</p>
                 </span>
-                <p>Reasoning: {results.evaluation.context_relevance.reasoning}</p>
+                <p>{results.evaluation.context_relevance.reasoning}</p>
               </AccordionItem>
             </Accordion>
           </div>
