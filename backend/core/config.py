@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     top_p: float = Field(default=0.95, env='TOP_P')
     temperature: float = Field(default=0.7, env='TEMPERATURE')
     repetition_penalty: float = Field(default=1.1, env='REPETITION_PENALTY')
+    runtime_eval: bool = Field(default=False, env='RUNTIME_EVAL')
 
     # Query Rewriting settings
     use_simple_rewriter: bool = Field(default=True, env='USE_SIMPLE_REWRITER')
