@@ -15,11 +15,17 @@ class Settings(BaseSettings):
     wx_api_key: Optional[str] = Field(default_factory=lambda: os.getenv('WATSONX_APIKEY', None))
     wx_url: Optional[str] = Field(default_factory=lambda: os.getenv('WATSONX_URL', None))
     llm_concurrency: int = Field(default=10, env='LLM_CONCURRENCY')
+    #OpenAI credentials
+    openai_api_key: Optional[str] = Field(default_factory=lambda: os.getenv('OPENAI_KEY', ""))
+    openai_org_id: Optional[str] = Field(default_factory=lambda: os.getenv('OPENAI_ORG_ID', ""))
+    # Anthropic credentials
+    anthropic_api_key: Optional[str] = Field(default_factory=lambda: os.getenv('OPENAI_KEY', ""))
 
     # Core data settings
     data_dir: Optional[str] = None
     vector_db: str = "None"
     collection_name: Optional[str] = None
+    prompt_params_settings: str = Field(default_factory=lambda: os.getenv('PROMPT_PARAMS_SETTINGS', "/app/rag_solution/config/prompt_config.json"))
 
     # Search settings
     number_of_results: int = Field(default=5, env='NUMBER_OF_RESULTS')
@@ -38,6 +44,7 @@ class Settings(BaseSettings):
     upsert_batch_size: int = Field(default=100, env='UPSERT_BATCH_SIZE')
 
     # LLM settings
+    default_llm_provider:  str = Field(default='watsonx', env='DEFAULT_LLM_PROVIDER')
     rag_llm: str = Field(..., env='RAG_LLM')
     max_new_tokens: int = Field(default=500, env='MAX_NEW_TOKENS')
     min_new_tokens: int = Field(default=200, env='MIN_NEW_TOKENS')
@@ -62,6 +69,7 @@ class Settings(BaseSettings):
     hybrid_weight: float = Field(default=0.5, env='HYBRID_WEIGHT')
 
     # Question suggestion settings
+    question_provider: str = Field(default="watsonx", env='QUESTION_PROVIDER')
     question_suggestion_num: int = Field(default=3, env='QUESTION_SUGGESTION_NUM')
     question_min_length: int = Field(default=15, env='QUESTION_MIN_LENGTH')
     question_max_length: int = Field(default=150, env='QUESTION_MAX_LENGTH')
