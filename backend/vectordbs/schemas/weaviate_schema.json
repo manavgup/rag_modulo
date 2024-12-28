@@ -1,0 +1,47 @@
+{
+    "class": "DocumentChunk",
+    "description": "The main class",
+    "properties": [
+      {
+        "name": "chunk_id",
+        "dataType": ["string"],
+        "description": "The chunk id"
+      },
+      {
+        "name": "document_id",
+        "dataType": ["string"],
+        "description": "The document id"
+      },
+      {
+        "name": "text",
+        "dataType": ["string"],
+        "description": "The chunk's text"
+      },
+      {
+        "name": "source",
+        "dataType": ["string"],
+        "description": "The source of the data"
+      },
+      {
+        "name": "source_id",
+        "dataType": ["string"],
+        "description": "The source id"
+      },
+      {
+        "name": "url",
+        "dataType": ["string"],
+        "description": "The source url"
+      },
+      {
+        "name": "created_at",
+        "dataType": ["date"],
+        "description": "Creation date of document"
+      },
+      {
+        "name": "author",
+        "dataType": ["string"],
+        "description": "Document author"
+      }
+    ]
+  }
+  

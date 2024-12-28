@@ -1,0 +1,163 @@
+services:
+  # Main database used for persistence by backend and some infra components
+  postgres:
+    ports:
+      - "5432:5432"
+    image: postgres:13
+    networks:
+      - app-network
+    environment:
+      POSTGRES_DB: ${COLLECTIONDB_NAME}
+      POSTGRES_USER: ${COLLECTIONDB_USER}
+      POSTGRES_PASSWORD: ${COLLECTIONDB_PASS}
+      COLLECTIONDB_NAME: ${COLLECTIONDB_NAME}
+      COLLECTIONDB_USER: ${COLLECTIONDB_USER}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${COLLECTIONDB_USER} -d ${COLLECTIONDB_NAME}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # AWS S3 compartible storage services used by Milvus and MLFlow
+  minio:
+    ports:
+      - "9001:9001"
+    container_name: minio
+    image: minio/minio:latest
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    command: minio server /data --console-address ":9001"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "timeout 5s bash -c ':> /dev/tcp/127.0.0.1/9000' || exit 1",
+        ]
+      interval: 5s
+      retries: 1
+      start_period: 5s
+      timeout: 5s
+    networks:
+      - app-network
+
+  # etcd for milvus standalone deployment
+  milvus-etcd:
+    container_name: milvus-etcd
+    image: bitnami/etcd:latest
+    environment:
+      - ALLOW_NONE_AUTHENTICATION=yes
+      - ETCD_ADVERTISE_CLIENT_URLS=http://milvus-etcd:2379
+    volumes:
+      - etcd_data:/bitnami/etcd
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "/opt/bitnami/scripts/etcd/healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  milvus-standalone:
+    container_name: milvus-standalone
+    image: milvusdb/milvus:v2.4.4
+    command: ["milvus", "run", "standalone"]
+    environment:
+      ETCD_ENDPOINTS: milvus-etcd:2379
+      MINIO_ADDRESS: minio:9000
+      MINIO_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      MINIO_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD} 
+    volumes:
+      - milvus_data:/var/lib/milvus
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      milvus-etcd:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  # Create minio bucket for MLFlow
+  createbuckets:
+    image: minio/mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc config host add myminio http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD;
+      /usr/bin/mc mb --ignore-existing myminio/rag-modulo-mlflow;
+      exit 0;
+      "
+    networks:
+      - app-network
+
+  mlflow-server:
+    ports:
+      - "5000:5000"
+    image: quay.io/mtykhenko/rag-modulo-mlflow:latest
+    environment:
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      MLFLOW_ARTIFACT_URI: s3://rag-modulo-mlflow
+      MLFLOW_BACKEND_STORE_URI: "postgresql+psycopg2://${COLLECTIONDB_USER}:${COLLECTIONDB_PASS}@postgres:5432/${COLLECTIONDB_NAME}"
+    healthcheck:
+      test: ["CMD", "python", "healthcheck.py"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      createbuckets:
+        condition: service_completed_successfully
+    networks:
+      - app-network
+
+volumes:
+  postgres_data:
+    driver_opts:
+      type: none
+      device: ${PWD}/volumes/postgres
+      o: bind
+  etcd_data:
+    driver_opts:
+      type: none
+      device: ${PWD}/volumes/etcd
+      o: bind
+  minio_data:
+    driver_opts:
+      type: none
+      device: ${PWD}/volumes/minio
+      o: bind
+  milvus_data:
+    driver_opts:
+      type: none
+      device: ${PWD}/volumes/milvus
+      o: bind
+
+networks:
+  app-network:
+    driver: bridge

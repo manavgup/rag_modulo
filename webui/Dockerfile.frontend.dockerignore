@@ -1,0 +1,21 @@
+# Ignore version control files and directories
+.git/
+.hg/
+.svn/
+.CVS/
+
+# Ignore OS generated files
+.DS_Store
+Thumbs.db
+
+# Ignore editor files
+.vscode/
+.idea/
+
+# Ignore node_modules, experiments and webui directory
+node_modules/
+webui/
+experiments/
+
+# Dockerfile
+Dockerfile*

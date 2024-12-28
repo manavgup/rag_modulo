@@ -1,0 +1,24 @@
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.page-container {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  padding: 2rem;
+}
+
+/* .bx--content {
+  margin-top: 3rem; Adjust based on your Header height
+  flex-grow: 1;
+  background-color: #f4f4f4;
+} */
+
+@media (max-width: 1056px) {
+  .page-container {
+    padding: 1rem;
+  }
+}

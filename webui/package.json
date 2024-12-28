@@ -1,0 +1,54 @@
+{
+  "name": "rag-modulo-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@carbon/icons-react": "^11.50.0",
+    "@carbon/react": "^1.65.0",
+    "@carbon/styles": "^1.64.0",
+    "@testing-library/jest-dom": "^5.17.0",
+    "@testing-library/react": "^13.4.0",
+    "@testing-library/user-event": "^13.5.0",
+    "axios": "^1.7.2",
+    "carbon-components-react": "^8.67.0",
+    "jwt-decode": "^3.1.2",
+    "oidc-client": "^1.11.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-pdf": "^5.7.2",
+    "react-router-dom": "^6.24.0",
+    "react-scripts": "5.0.1",
+    "@babel/plugin-proposal-private-property-in-object": "^7.14.5",
+    "web-vitals": "^2.1.4"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "DISABLE_ESLINT_PLUGIN=true react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "dev": "WDS_SOCKET_PORT=3000 CHOKIDAR_USEPOLLING=true WATCHPACK_POLLING=true FAST_REFRESH=false react-scripts start"
+  },
+  "proxy": "http://localhost:8000",
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "sass": "^1.77.6",
+    "sass-resources-loader": "^2.2.5"
+  }
+}

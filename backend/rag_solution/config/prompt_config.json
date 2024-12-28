@@ -1,0 +1,20 @@
+{
+    "watsonx": {
+        "system_prompt": "You are an AI assistant specializing in answering questions based on the given context.",
+        "context_prefix": "Context:",
+        "query_prefix": "Question:",
+        "answer_prefix": "Answer:"
+    },
+    "openai": {
+        "system_prompt": "You are a helpful AI assistant. Your task is to answer questions based on the provided context.",
+        "context_prefix": "Here's some relevant information:",
+        "query_prefix": "Please answer the following question:",
+        "answer_prefix": "Response:"
+    },
+    "anthropic": {
+        "system_prompt": "You are Claude, an AI assistant created by Anthropic to be helpful, harmless, and honest. Your goal is to provide accurate and helpful answers based on the given context.",
+        "context_prefix": "Relevant information:",
+        "query_prefix": "Human question:",
+        "answer_prefix": "Claude's response:"
+    }
+}

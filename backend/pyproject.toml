@@ -1,0 +1,80 @@
+[tool.poetry]
+name = "rag-modulo-backend"
+version = "1.0.0"
+description = "A modular, agentic RAG which allows selection of embeddings, vector dbs, chunking strategy, etc."
+authors = ["Manav Gupta <manavgup@ca.ibm.com>"]
+license = "MIT"
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = ">=3.12,<3.13"
+fastapi = "^0.109.2"
+uvicorn = ">=0.18.3"
+pydantic = {version = "^2.8.2", extras = ["email"]}
+pydantic-settings = "^2.3.4"
+python-dotenv = "^1.0.1"
+pinecone = "^4.0.0"
+pymilvus = "^2.4.4"
+scikit-learn = "^1.5.1"
+weaviate-client = "^4.6.0"
+SQLAlchemy = "^2.0.31"
+psycopg2-binary = "^2.9.9" # Chose binary version for easier installation
+python-multipart = "*"
+pandas = "^2.1.4"
+elasticsearch = "^8.14.0"
+PyMuPDF = "^1.24.8"
+chromadb = "^0.5.16"
+aiofiles = "*"
+python-docx = "*"
+starlette = "^0.36.3"
+setuptools = "^75.1.0"
+tenacity = "^8.5.0"
+pyjwt = "*"
+passlib = "*"
+anthropic = "*"
+openai = "*"
+
+# OIDC and authentication related packages
+authlib = "*"
+httpx = "*"
+itsdangerous = "^2.1.2"  # Required for SessionMiddleware
+ibm-watsonx-ai = "^1.1.22"
+pyarrow = "^18.0.0"
+boto3 = "^1.35.71"
+mlflow-skinny = "2.18.0"
+json-repair = "^0.30.3"
+flatdict = "^4.0.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backendd = "poetry.core.masonry.api"
+
+[tool.poetry.group.test]
+optional = true
+
+[tool.poetry.group.test.dependencies]
+pytest = "^7.4.0"
+pytest-asyncio = "^0.21.0"
+minio = "^7.2.12"
+matplotlib = "^3.9.3"
+
+[tool.poetry.group.dev]
+optional = true
+
+[tool.poetry.group.dev.dependencies]
+deptry = "^0.20.0"
+ruff = "^0.5.0"
+black = "*"
+mypy = "*"
+
+[tool.deptry.package_module_name_map]
+ibm-generative-ai = "genai"
+
+[tool.deptry.per_rule_ignores]
+DEP002 = ["psycopg2", "itsdangerous"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["backend/tests"]
+addopts = "-v -s"
