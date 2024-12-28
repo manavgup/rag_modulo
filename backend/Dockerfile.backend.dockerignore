@@ -1,0 +1,49 @@
+# Ignore Python bytecode and cache
+**__pycache__/
+**/*.pyc
+*.pyo
+*.pyd
+
+# Ignore virtual environments
+venv/
+env/
+.venv/
+
+# Ignore version control files and directories
+.git/
+.hg/
+.svn/
+.CVS/
+
+# Ignore development and testing directories and files
+docs/
+coverage/
+*.log
+**/tests/
+
+# Ignore OS generated files
+.DS_Store
+Thumbs.db
+
+# Ignore editor files
+.vscode/
+.idea/
+
+# Ignore node_modules, experiments and webui directory
+node_modules/
+webui/
+experiments/
+
+# Ignore mypy cache
+.mypy_cache/
+
+# Ignore other cache directories
+.pytest_cache/
+.ruff_cache/
+
+# Dockerfile
+Dockerfile*
+
+# Test resources
+tests/
+pytest.ini

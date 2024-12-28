@@ -1,0 +1,57 @@
+# backend/rag_solution/file_management/database.py
+import logging
+import os
+
+from sqlalchemy import create_engine, URL
+from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.exc import SQLAlchemyError
+from core.config import settings
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+logger.info("Database module is being imported")
+
+host = os.environ.get('DB_HOST', settings.collectiondb_host)
+if host == 'postgres' and os.environ.get('PYTEST_CURRENT_TEST'):
+    host = 'localhost'
+
+# Synchronous database URL
+database_url = URL.create(
+   drivername="postgresql",
+   username=settings.collectiondb_user,
+   password=settings.collectiondb_pass,
+   host=settings.collectiondb_host,
+   port=settings.collectiondb_port,
+   database=settings.collectiondb_name
+)
+
+logger.debug(f"Database URL: {database_url}")
+
+# Create synchronous engine and session
+engine = create_engine(database_url, echo=True)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+Base = declarative_base()
+logger.info("Base has been created")
+
+def get_db():
+    """
+    Create a synchronous database session.
+
+    Yields:
+        Session: The database session.
+    """
+    db = SessionLocal()
+    try:
+        logger.info("Creating a new database session.")
+        yield db
+    except SQLAlchemyError as e:
+        logger.error(f"A database error occurred: {e}", exc_info=True)
+        db.rollback()
+    except Exception as e:
+        logger.error(f"An unexpected error occurred: {e}", exc_info=True)
+    finally:
+        db.close()
+        logger.info("Database session closed.")

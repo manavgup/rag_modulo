@@ -1,0 +1,58 @@
+# Build stage: build rust, install poetry and python dependencies
+FROM python:3.12-slim AS builder
+
+# Pre-configure poetry
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    POETRY_VERSION=1.8.3 \
+    POETRY_HOME="/opt/poetry" \
+    POETRY_VIRTUALENVS_IN_PROJECT=true \
+    POETRY_NO_INTERACTION=1
+
+ENV PATH="$POETRY_HOME/bin:$PATH"
+
+# Install system dependencies
+RUN apt-get update && \ 
+    apt-get install -y build-essential curl
+
+# Install Rust and poetry
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && . $HOME/.cargo/env \
+    && curl -sSL https://install.python-poetry.org | python3 -
+
+# Add Rust to PATH
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Verify Rust installation
+RUN rustc --version && cargo --version
+
+WORKDIR /app
+
+# Install python dependencies using poetry
+COPY pyproject.toml poetry.lock ./
+RUN poetry install --with main,test --no-root
+
+# Final stage
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Copy python dependencies
+COPY --from=builder /app/.venv /app/.venv
+
+# Copy built binaries (rust)
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+ENV PATH="/app/.venv/bin:$PATH"
+
+# COPY python resources /app/backend
+COPY . /app
+
+# Create a non-root user and group
+RUN groupadd --gid 10001 test && \
+    useradd --uid 10001 -g test -M -d /nonexistent test && \ 
+    chown -R test:test /app
+
+# Switch to non-root user
+USER test
+
+CMD ["pytest", "-v", "-s"]

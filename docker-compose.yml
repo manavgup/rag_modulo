@@ -1,0 +1,85 @@
+include:
+  - path:
+      - docker-compose-infra.yml
+
+name: ${PROJECT_NAME:-rag-modulo}
+
+services:
+  backend:
+    image: ${PROJECT_NAME:-rag-modulo}/backend:${PROJECT_VERSION:-1.0.0}
+    networks:
+      - app-network
+    working_dir: /app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      milvus-standalone:
+        condition: service_healthy
+      mlflow-server:
+       condition: service_healthy 
+    environment:
+      - COLLECTIONDB_HOST=postgres
+      - WEB_CONCURRENCY=4
+      - MLFLOW_TRACKING_USERNAME=${MLFLOW_TRACKING_USERNAME}
+      - MLFLOW_TRACKING_PASSWORD=${MLFLOW_TRACKING_PASSWORD}
+      - RUNTIME_EVAL=${RUNTIME_EVAL}
+    env_file:
+      - .env
+    volumes:
+      - backend_data:/mnt/data
+    healthcheck:
+      test: ["CMD", "python", "healthcheck.py"]
+      interval: 30s
+      timeout: 10s
+      start_period: 5s
+      retries: 3
+
+  frontend:
+    image: ${PROJECT_NAME:-rag-modulo}/frontend:${PROJECT_VERSION:-1.0.0}
+    networks:
+      - app-network
+    ports:
+      - "3000:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      interval: 30s
+      timeout: 10s
+      start_period: 5s
+      retries: 3
+
+  test:
+    image: ${PROJECT_NAME:-rag-modulo}/backend-test:${PROJECT_VERSION:-1.0.0}
+    networks:
+      - app-network
+    depends_on:
+      backend:
+        condition: service_healthy
+    profiles:
+      - test
+    environment:
+      - PYTHONPATH=/app
+      - MILVUS_HOST=milvus-standalone
+      - MILVUS_PORT=${MILVUS_PORT}
+      - COLLECTIONDB_HOST=postgres
+      - COLLECTIONDB_PORT=5432
+      - COLLECTIONDB_NAME=${COLLECTIONDB_NAME}
+      - COLLECTIONDB_USER=${COLLECTIONDB_USER}
+      - COLLECTIONDB_PASS=${COLLECTIONDB_PASS}
+      - OIDC_DISCOVERY_ENDPOINT=${OIDC_DISCOVERY_ENDPOINT}
+      - OIDC_AUTH_URL=${OIDC_AUTH_URL}
+      - OIDC_TOKEN_URL=${OIDC_TOKEN_URL}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - IBM_CLIENT_ID=${IBM_CLIENT_ID}
+      - IBM_CLIENT_SECRET=${IBM_CLIENT_SECRET}
+    env_file:
+      - .env
+
+volumes:
+  backend_data:
+    driver_opts:
+      type: none
+      device: ${PWD}/volumes/backend
+      o: bind

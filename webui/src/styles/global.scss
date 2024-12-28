@@ -1,0 +1,5 @@
+@use '@carbon/react' with (
+//   $css--default-type: true,
+//   $css--reset: true,
+  $use-flexbox-grid: true
+);
