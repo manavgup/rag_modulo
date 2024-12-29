@@ -269,3 +269,75 @@ class DefaultParameterError(ValidationError):
                 "parameter_name": param_name
             }
         )
+
+class PromptTemplateNotFoundError(NotFoundException):
+    """Exception raised when a prompt template is not found."""
+    
+    def __init__(
+        self,
+        template_id: str,
+        message: Optional[str] = None
+    ) -> None:
+        """Initialize prompt template not found error.
+        
+        Args:
+            template_id: ID of the template
+            message: Optional custom error message
+        """
+        super().__init__(
+            "PromptTemplate",
+            template_id,
+            message or f"Prompt template with id {template_id} not found"
+        )
+
+class DuplicatePromptTemplateError(ValidationError):
+    """Exception raised when attempting to create a duplicate prompt template."""
+    
+    def __init__(
+        self,
+        template_name: str,
+        provider: str,
+        message: Optional[str] = None
+    ) -> None:
+        """Initialize duplicate prompt template error.
+        
+        Args:
+            template_name: Name of the template
+            provider: LLM provider
+            message: Optional custom error message
+        """
+        super().__init__(
+            message or f"Prompt template '{template_name}' for provider '{provider}' already exists",
+            field="name",
+            value=template_name,
+            details={
+                "template_name": template_name,
+                "provider": provider
+            }
+        )
+
+class InvalidPromptTemplateError(ValidationError):
+    """Exception raised when prompt template validation fails."""
+    
+    def __init__(
+        self,
+        template_id: str,
+        reason: str,
+        message: Optional[str] = None
+    ) -> None:
+        """Initialize invalid prompt template error.
+        
+        Args:
+            template_id: ID of the template
+            reason: Reason for validation failure
+            message: Optional custom error message
+        """
+        super().__init__(
+            message or f"Invalid prompt template: {reason}",
+            field="template",
+            value=template_id,
+            details={
+                "template_id": template_id,
+                "reason": reason
+            }
+        )
