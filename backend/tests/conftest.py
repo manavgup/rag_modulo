@@ -2,7 +2,7 @@
 
 import os
 import pytest
-from backend.core.config import Settings
+from backend.core.config import Settings, LegacySettings
 
 @pytest.fixture
 def test_settings() -> Settings:
@@ -25,3 +25,18 @@ def mock_db_settings() -> Settings:
         collectiondb_name='test_db',
         jwt_secret_key='test-key'
     )
+
+@pytest.fixture
+def test_legacy_settings() -> LegacySettings:
+    """Create test legacy settings with required configuration."""
+    os.environ.update({
+        'JWT_SECRET_KEY': 'test-secret-key',
+        'RAG_LLM': 'test-model',
+        'WATSONX_INSTANCE_ID': 'test-instance',
+        'WATSONX_APIKEY': 'test-api-key',
+        'WATSONX_URL': 'https://test.watsonx.ai',
+        'CHUNKING_STRATEGY': 'fixed',
+        'EMBEDDING_MODEL': 'test-embedding'
+    })
+    
+    return LegacySettings()
