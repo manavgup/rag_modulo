@@ -5,6 +5,7 @@ import pytest
 from pydantic import ValidationError
 from backend.core.config import Settings, LegacySettings
 
+# Core Settings Tests
 def test_minimal_config():
     """Test minimal configuration with only required settings."""
     os.environ['JWT_SECRET_KEY'] = 'test-key'
@@ -38,6 +39,23 @@ def test_missing_jwt_key():
         Settings()
     assert 'field required' in str(exc_info.value)
     assert 'jwt_secret_key' in str(exc_info.value)
+
+def test_env_file_loading(tmp_path):
+    """Test loading configuration from .env file."""
+    env_file = tmp_path / ".env"
+    env_file.write_text("""
+    JWT_SECRET_KEY=file-test-key
+    COLLECTIONDB_USER=file-test-user
+    COLLECTIONDB_PORT=5555
+    """)
+    
+    # Temporarily set env_file path
+    Settings.Config.env_file = str(env_file)
+    settings = Settings()
+    
+    assert settings.jwt_secret_key == 'file-test-key'
+    assert settings.collectiondb_user == 'file-test-user'
+    assert settings.collectiondb_port == 5555
 
 # Legacy Settings Tests
 def test_legacy_settings_compatibility():
@@ -94,3 +112,37 @@ def test_feature_flag():
     reload(backend.core.config)
     from backend.core.config import settings
     assert isinstance(settings, LegacySettings)
+
+def test_legacy_settings_validation():
+    """Test validation in legacy settings."""
+    with pytest.raises(ValidationError) as exc_info:
+        LegacySettings(
+            jwt_secret_key='test-key',
+            max_new_tokens=-1  # Invalid value
+        )
+    assert 'ensure this value is greater than or equal to 0' in str(exc_info.value)
+
+def test_legacy_settings_override():
+    """Test overriding default values in legacy settings."""
+    custom_settings = LegacySettings(
+        jwt_secret_key='test-key',
+        RAG_LLM='custom-model',
+        chunk_overlap=20,
+        temperature=0.5,
+        embedding_model='custom-embedding'
+    )
+    
+    assert custom_settings.chunk_overlap == 20
+    assert custom_settings.temperature == 0.5
+    assert custom_settings.embedding_model == 'custom-embedding'
+
+def test_env_var_parsing():
+    """Test environment variable parsing for list fields."""
+    os.environ.update({
+        'JWT_SECRET_KEY': 'test-key',
+        'RAG_LLM': 'test-model',
+        'QUESTION_TYPES': '["What", "How", "Why"]'
+    })
+    
+    settings = LegacySettings()
+    assert settings.question_types == ['What', 'How', 'Why']
