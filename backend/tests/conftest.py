@@ -2,7 +2,8 @@
 
 import os
 import pytest
-
+from rag_solution.file_management.database import engine, Base, SessionLocal
+from sqlalchemy.orm import sessionmaker, scoped_session
 
 @pytest.fixture(autouse=True)
 def env_cleanup():
@@ -41,3 +42,24 @@ def base_environment():
     os.environ['JWT_SECRET_KEY'] = 'test_secret_key'
     os.environ['RAG_LLM'] = 'test_llm'
     yield
+
+@pytest.fixture(scope="session")
+def db_engine():
+    """Create a synchronous engine for the database session."""
+    Base.metadata.create_all(bind=engine)
+    yield engine
+    Base.metadata.drop_all(bind=engine)
+
+@pytest.fixture(scope="function")
+def db_session(db_engine):
+    """Create a new database session for a test."""
+    connection = db_engine.connect()
+    transaction = connection.begin()
+    session_factory = sessionmaker(bind=connection)
+    session = scoped_session(session_factory)
+
+    yield session
+
+    session.close()
+    transaction.rollback()
+    connection.close()
