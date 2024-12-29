@@ -1,9 +1,10 @@
-"""Core configuration settings for RAG Modulo application initialization."""
+"""Core configuration required at application startup."""
 
-from typing import Optional, List, Dict
+import tempfile
+from typing import Optional, List, Dict, Any
 import os
-from pydantic import Field, validator
-from pydantic_settings import BaseSettings
+from pydantic import Field, field_validator, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -79,18 +80,19 @@ class Settings(BaseSettings):
     )
     jwt_algorithm: str = "HS256"
 
-    @validator('collectiondb_port')
-    def validate_port(cls, v):
+    @field_validator('collectiondb_port')
+    @classmethod
+    def validate_port(cls, v: int) -> int:
         """Validate port number is in valid range."""
         if not 1 <= v <= 65535:
             raise ValueError('Port must be between 1 and 65535')
         return v
 
-    class Config:
-        """Pydantic config settings."""
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        extra = "allow"
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="allow"
+    )
 
 
 class LegacySettings(Settings):
@@ -147,15 +149,128 @@ class LegacySettings(Settings):
     )
     rewriter_temperature: float = Field(default=0.7, env='REWRITER_TEMPERATURE')
 
-    # ... other legacy settings ...
+    # Retrieval settings
+    retrieval_type: str = Field(
+        default="vector",
+        env='RETRIEVAL_TYPE'
+    )
+    vector_weight: float = Field(default=0.7, env='VECTOR_WEIGHT')
+    keyword_weight: float = Field(default=0.3, env='KEYWORD_WEIGHT')
+    hybrid_weight: float = Field(default=0.5, env='HYBRID_WEIGHT')
 
+    # Question suggestion settings
+    question_suggestion_num: int = Field(default=3, env='QUESTION_SUGGESTION_NUM')
+    question_min_length: int = Field(default=15, env='QUESTION_MIN_LENGTH')
+    question_max_length: int = Field(default=150, env='QUESTION_MAX_LENGTH')
+    question_temperature: float = Field(default=0.7, env='QUESTION_TEMPERATURE')
+    question_types: List[str] = Field(
+        default=[
+            "What is",
+            "How does",
+            "Why is",
+            "When should",
+            "Which factors"
+        ],
+        env='QUESTION_TYPES'
+    )
+    question_patterns: List[str] = Field(
+        default=[
+            "^What",
+            "^How",
+            "^Why",
+            "^When",
+            "^Which"
+        ],
+        env='QUESTION_PATTERNS'
+    )
+    question_required_terms: List[str] = Field(
+        default=[],
+        env='QUESTION_REQUIRED_TERMS'
+    )
+
+    # Frontend settings
+    react_app_api_url: str = Field(default="/api", env='REACT_APP_API_URL')
+    frontend_url: str = Field(default="http://localhost:3000", env='FRONTEND_URL')
+    frontend_callback: str = "/callback"
+
+    # Logging settings
+    log_level: str = Field(default="INFO", env='LOG_LEVEL')
+
+    # File storage path
+    file_storage_path: str = Field(default=tempfile.gettempdir(), env='FILE_STORAGE_PATH')
+
+    # Vector Database Credentials
+    # ChromaDB
+    chromadb_host: Optional[str] = Field(default="localhost", env='CHROMADB_HOST')
+    chromadb_port: Optional[int] = Field(default=8000, env='CHROMADB_PORT')
+
+    # Milvus
+    milvus_host: Optional[str] = Field(default="localhost", env='MILVUS_HOST')
+    milvus_port: Optional[int] = Field(default=19530, env='MILVUS_PORT')
+    milvus_user: Optional[str] = Field(default="root", env='MILVUS_USER')
+    milvus_password: Optional[str] = Field(default="milvus", env='MILVUS_PASSWORD')
+    milvus_index_params: Optional[str] = Field(default=None, env='MILVUS_INDEX_PARAMS')
+    milvus_search_params: Optional[str] = Field(default=None, env='MILVUS_SEARCH_PARAMS')
+
+    # Elasticsearch
+    elastic_host: Optional[str] = Field(default="localhost", env='ELASTIC_HOST')
+    elastic_port: Optional[int] = Field(default=9200, env='ELASTIC_PORT')
+    elastic_password: Optional[str] = Field(default=None, env='ELASTIC_PASSWORD')
+    elastic_cacert_path: Optional[str] = Field(default=None, env='ELASTIC_CACERT_PATH')
+    elastic_cloud_id: Optional[str] = Field(default=None, env='ELASTIC_CLOUD_ID')
+    elastic_api_key: Optional[str] = Field(default=None, env='ELASTIC_API_KEY')
+
+    # Pinecone
+    pinecone_api_key: Optional[str] = Field(default=None, env='PINECONE_API_KEY')
+    pinecone_cloud: Optional[str] = Field(default="aws", env='PINECONE_CLOUD')
+    pinecone_region: Optional[str] = Field(default="us-east-1", env='PINECONE_REGION')
+
+    # Weaviate
+    weaviate_host: Optional[str] = Field(default="localhost", env='WEAVIATE_HOST')
+    weaviate_port: Optional[int] = Field(default=8080, env='WEAVIATE_PORT')
+    weaviate_grpc_port: Optional[int] = Field(default=50051, env='WEAVIATE_GRPC_PORT')
+    weaviate_username: Optional[str] = Field(default=None, env='WEAVIATE_USERNAME')
+    weaviate_password: Optional[str] = Field(default=None, env='WEAVIATE_PASSWORD')
+    weaviate_index: Optional[str] = Field(default="default", env='WEAVIATE_INDEX')
+    weaviate_scopes: Optional[str] = Field(default=None, env='WEAVIATE_SCOPES')
+
+    # OIDC endpoints
+    oidc_discovery_endpoint: Optional[str] = Field(default=None, env='OIDC_DISCOVERY_ENDPOINT')
+    oidc_auth_url: Optional[str] = Field(default=None, env='OIDC_AUTH_URL')
+    oidc_token_url: Optional[str] = Field(default=None, env='OIDC_TOKEN_URL')
+    oidc_userinfo_endpoint: Optional[str] = Field(default=None, env='OIDC_USERINFO_ENDPOINT')
+    oidc_introspection_endpoint: Optional[str] = Field(default=None, env='OIDC_INTROSPECTION_ENDPOINT')
+
+    # RBAC settings
+    rbac_mapping: Dict[str, Dict[str, List[str]]] = {
+        'admin': {
+            r'^/api/user-collections/(.+)$': ['GET'],
+            r'^/api/user-collections/(.+)/(.+)$': ['POST', 'DELETE'],
+        },
+        'user': {
+            r'^/api/user-collections/(.+)/(.+)$': ['POST', 'DELETE'],
+            r'^/api/user-collections/(.+)$': ['GET'],
+            r'^/api/user-collections/collection/(.+)$': ['GET'],
+            r'^/api/user-collections/collection/(.+)/users$': ['DELETE'],
+            r'^/api/collections/(.+)$': ['GET']
+        },
+        'guest': {
+            r'^/api/user-collections$': ['GET', 'POST', 'DELETE', 'PUT'],
+            r'^/api/collections$': ['GET', 'POST', 'DELETE', 'PUT'],
+            r'^/api/collection/(.+)$': ['GET', 'POST', 'DELETE', 'PUT']
+        }
+    }
+
+    @model_validator(mode='before')
     @classmethod
-    def parse_env_var(cls, field_name: str, raw_val: str) -> Any:
+    def parse_env_lists(cls, values: Dict[str, Any]) -> Dict[str, Any]:
         """Parse environment variables, handling lists and special types."""
-        if field_name in {"question_types", "question_patterns", "question_required_terms"}:
-            if raw_val.startswith("[") and raw_val.endswith("]"):
-                return [item.strip(' "\'') for item in raw_val[1:-1].split(",")]
-        return raw_val
+        for field_name in {"question_types", "question_patterns", "question_required_terms"}:
+            if isinstance(values.get(field_name), str):
+                raw_val = values[field_name]
+                if raw_val.startswith("[") and raw_val.endswith("]"):
+                    values[field_name] = [item.strip(' "\'') for item in raw_val[1:-1].split(",")]
+        return values
 
 
 # Feature flag for new configuration system
