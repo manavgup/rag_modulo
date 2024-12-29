@@ -1,14 +1,15 @@
-"""Configuration settings for the RAG Modulo application."""
+"""Core configuration required at application startup."""
 
-import tempfile
-from typing import Optional, List, Dict, Any
 import os
+from typing import Optional, List, Dict, Any
 from pydantic import Field
 from pydantic_settings import BaseSettings
 
+# Feature flag for new configuration system
+USE_NEW_CONFIG = os.getenv('USE_NEW_CONFIG', 'false').lower() == 'true'
 
-class Settings(BaseSettings):
-    """Application settings loaded from environment variables with defaults."""
+class LegacySettings(BaseSettings):
+    """Legacy application settings loaded from environment variables."""
 
     # WatsonX.ai credentials
     wx_project_id: Optional[str] = Field(default_factory=lambda: os.getenv('WATSONX_INSTANCE_ID', None))
@@ -41,7 +42,7 @@ class Settings(BaseSettings):
     rag_llm: str = Field(..., env='RAG_LLM')
     max_new_tokens: int = Field(default=500, env='MAX_NEW_TOKENS')
     min_new_tokens: int = Field(default=200, env='MIN_NEW_TOKENS')
-    max_context_length: int = Field(default=2048, env='MAX_CONTEXT_LENGTH')  # Total context window
+    max_context_length: int = Field(default=2048, env='MAX_CONTEXT_LENGTH')
     random_seed: int = Field(default=50, env='RANDOM_SEED')
     top_k: int = Field(default=5, env='TOP_K')
     top_p: float = Field(default=0.95, env='TOP_P')
@@ -56,7 +57,7 @@ class Settings(BaseSettings):
     rewriter_temperature: float = Field(default=0.7, env='REWRITER_TEMPERATURE')
 
     # Retrieval settings
-    retrieval_type: str = Field(default="vector", env='RETRIEVAL_TYPE')  # Options: vector, keyword, hybrid
+    retrieval_type: str = Field(default="vector", env='RETRIEVAL_TYPE')
     vector_weight: float = Field(default=0.7, env='VECTOR_WEIGHT')
     keyword_weight: float = Field(default=0.3, env='KEYWORD_WEIGHT')
     hybrid_weight: float = Field(default=0.5, env='HYBRID_WEIGHT')
@@ -96,50 +97,14 @@ class Settings(BaseSettings):
     frontend_url: str = Field(default="http://localhost:3000", env='FRONTEND_URL')
     frontend_callback: str = "/callback"
 
-    # Logging settings
-    log_level: str = Field(default="INFO", env='LOG_LEVEL')
-
-    # File storage path
-    file_storage_path: str = Field(default=tempfile.gettempdir(), env='FILE_STORAGE_PATH')
-
-    # Vector Database Credentials
-    # ChromaDB
-    chromadb_host: Optional[str] = Field(default="localhost", env='CHROMADB_HOST')
-    chromadb_port: Optional[int] = Field(default=8000, env='CHROMADB_PORT')
-
-    # Milvus
-    milvus_host: Optional[str] = Field(default="localhost", env='MILVUS_HOST')
-    milvus_port: Optional[int] = Field(default=19530, env='MILVUS_PORT')
-    milvus_user: Optional[str] = Field(default="root", env='MILVUS_USER')
-    milvus_password: Optional[str] = Field(default="milvus", env='MILVUS_PASSWORD')
-    milvus_index_params: Optional[str] = Field(default=None, env='MILVUS_INDEX_PARAMS')
-    milvus_search_params: Optional[str] = Field(default=None, env='MILVUS_SEARCH_PARAMS')
-
-    # Elasticsearch
-    elastic_host: Optional[str] = Field(default="localhost", env='ELASTIC_HOST')
-    elastic_port: Optional[int] = Field(default=9200, env='ELASTIC_PORT')
-    elastic_password: Optional[str] = Field(default=None, env='ELASTIC_PASSWORD')
-    elastic_cacert_path: Optional[str] = Field(default=None, env='ELASTIC_CACERT_PATH')
-    elastic_cloud_id: Optional[str] = Field(default=None, env='ELASTIC_CLOUD_ID')
-    elastic_api_key: Optional[str] = Field(default=None, env='ELASTIC_API_KEY')
-
-    # Pinecone
-    pinecone_api_key: Optional[str] = Field(default=None, env='PINECONE_API_KEY')
-    pinecone_cloud: Optional[str] = Field(default="aws", env='PINECONE_CLOUD')
-    pinecone_region: Optional[str] = Field(default="us-east-1", env='PINECONE_REGION')
-
-    # Weaviate
-    weaviate_host: Optional[str] = Field(default="localhost", env='WEAVIATE_HOST')
-    weaviate_port: Optional[int] = Field(default=8080, env='WEAVIATE_PORT')
-    weaviate_grpc_port: Optional[int] = Field(default=50051, env='WEAVIATE_GRPC_PORT')
-    weaviate_username: Optional[str] = Field(default=None, env='WEAVIATE_USERNAME')
-    weaviate_password: Optional[str] = Field(default=None, env='WEAVIATE_PASSWORD')
-    weaviate_index: Optional[str] = Field(default="default", env='WEAVIATE_INDEX')
-    weaviate_scopes: Optional[str] = Field(default=None, env='WEAVIATE_SCOPES')
-
-    # Project settings
-    project_name: str = Field(default="rag_modulo", env='PROJECT_NAME')
-    python_version: str = Field(default="3.11", env='PYTHON_VERSION')
+    # IBM OIDC settings
+    ibm_client_id: Optional[str] = Field(default=None, env='IBM_CLIENT_ID')
+    ibm_client_secret: Optional[str] = Field(default=None, env='IBM_CLIENT_SECRET')
+    oidc_discovery_endpoint: Optional[str] = Field(default=None, env='OIDC_DISCOVERY_ENDPOINT')
+    oidc_auth_url: Optional[str] = Field(default=None, env='OIDC_AUTH_URL')
+    oidc_token_url: Optional[str] = Field(default=None, env='OIDC_TOKEN_URL')
+    oidc_userinfo_endpoint: Optional[str] = Field(default=None, env='OIDC_USERINFO_ENDPOINT')
+    oidc_introspection_endpoint: Optional[str] = Field(default=None, env='OIDC_INTROSPECTION_ENDPOINT')
 
     # Collection database settings
     collectiondb_user: str = Field(default="rag_modulo_user", env='COLLECTIONDB_USER')
@@ -147,6 +112,52 @@ class Settings(BaseSettings):
     collectiondb_host: str = Field(default="localhost", env='COLLECTIONDB_HOST')
     collectiondb_port: int = Field(default=5432, env='COLLECTIONDB_PORT')
     collectiondb_name: str = Field(default="rag_modulo", env='COLLECTIONDB_NAME')
+
+    # Project settings
+    project_name: str = Field(default="rag_modulo", env='PROJECT_NAME')
+    python_version: str = Field(default="3.11", env='PYTHON_VERSION')
+
+    # JWT settings
+    jwt_secret_key: str = Field(..., env='JWT_SECRET_KEY')
+    jwt_algorithm: str = "HS256"
+
+    class Config:
+        """Pydantic config class."""
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+        extra = "allow"
+
+        @classmethod
+        def parse_env_var(cls, field_name: str, raw_val: str) -> Any:
+            """Parse environment variables, handling lists and special types."""
+            if field_name in {"question_types", "question_patterns", "question_required_terms"}:
+                if raw_val.startswith("[") and raw_val.endswith("]"):
+                    return [item.strip(' "\'') for item in raw_val[1:-1].split(",")]
+            return raw_val
+
+class Settings(BaseSettings):
+    """New minimal application settings required at startup."""
+
+    # WatsonX.ai credentials
+    wx_project_id: Optional[str] = Field(default_factory=lambda: os.getenv('WATSONX_INSTANCE_ID', None))
+    wx_api_key: Optional[str] = Field(default_factory=lambda: os.getenv('WATSONX_APIKEY', None))
+    wx_url: Optional[str] = Field(default_factory=lambda: os.getenv('WATSONX_URL', None))
+    llm_concurrency: int = Field(default=10, env='LLM_CONCURRENCY')
+
+    # Core data settings
+    data_dir: Optional[str] = None
+    vector_db: str = Field(default="milvus", env='VECTOR_DB')
+
+    # Default vector DB connection (Milvus)
+    milvus_host: str = Field(default="localhost", env='MILVUS_HOST')
+    milvus_port: int = Field(default=19530, env='MILVUS_PORT')
+    milvus_user: str = Field(default="root", env='MILVUS_USER')
+    milvus_password: str = Field(default="milvus", env='MILVUS_PASSWORD')
+
+    # Frontend settings
+    react_app_api_url: str = Field(default="/api", env='REACT_APP_API_URL')
+    frontend_url: str = Field(default="http://localhost:3000", env='FRONTEND_URL')
+    frontend_callback: str = "/callback"
 
     # IBM OIDC settings
     ibm_client_id: Optional[str] = Field(default=None, env='IBM_CLIENT_ID')
@@ -157,44 +168,25 @@ class Settings(BaseSettings):
     oidc_userinfo_endpoint: Optional[str] = Field(default=None, env='OIDC_USERINFO_ENDPOINT')
     oidc_introspection_endpoint: Optional[str] = Field(default=None, env='OIDC_INTROSPECTION_ENDPOINT')
 
+    # Collection database settings
+    collectiondb_user: str = Field(default="rag_modulo_user", env='COLLECTIONDB_USER')
+    collectiondb_pass: str = Field(default="rag_modulo_password", env='COLLECTIONDB_PASS')
+    collectiondb_host: str = Field(default="localhost", env='COLLECTIONDB_HOST')
+    collectiondb_port: int = Field(default=5432, env='COLLECTIONDB_PORT')
+    collectiondb_name: str = Field(default="rag_modulo", env='COLLECTIONDB_NAME')
+
+    # Project settings
+    project_name: str = Field(default="rag_modulo", env='PROJECT_NAME')
+    python_version: str = Field(default="3.11", env='PYTHON_VERSION')
+
     # JWT settings
     jwt_secret_key: str = Field(..., env='JWT_SECRET_KEY')
     jwt_algorithm: str = "HS256"
-
-    # RBAC settings
-    rbac_mapping: Dict[str, Dict[str, List[str]]] = {
-        'admin': {
-            r'^/api/user-collections/(.+)$': ['GET'],
-            r'^/api/user-collections/(.+)/(.+)$': ['POST', 'DELETE'],
-        },
-        'user': {
-            r'^/api/user-collections/(.+)/(.+)$': ['POST', 'DELETE'],
-            r'^/api/user-collections/(.+)$': ['GET'],
-            r'^/api/user-collections/collection/(.+)$': ['GET'],
-            r'^/api/user-collections/collection/(.+)/users$': ['DELETE'],
-            r'^/api/collections/(.+)$': ['GET']
-        },
-        'guest': {
-            r'^/api/user-collections$': ['GET', 'POST', 'DELETE', 'PUT'],
-            r'^/api/collections$': ['GET', 'POST', 'DELETE', 'PUT'],
-            r'^/api/collection/(.+)$': ['GET', 'POST', 'DELETE', 'PUT']
-        }
-    }
 
     class Config:
         """Pydantic config class."""
         env_file = ".env"
         env_file_encoding = "utf-8"
-        extra = "allow"
-        
-        @classmethod
-        def parse_env_var(cls, field_name: str, raw_val: str) -> Any:
-            """Parse environment variables, handling lists and special types."""
-            if field_name in {"question_types", "question_patterns", "question_required_terms"}:
-                if raw_val.startswith("[") and raw_val.endswith("]"):
-                    return [item.strip(' "\'') for item in raw_val[1:-1].split(",")]
-            return raw_val
 
-
-# Create settings instance
-settings = Settings()
+# Create appropriate settings instance
+settings = Settings() if USE_NEW_CONFIG else LegacySettings()
