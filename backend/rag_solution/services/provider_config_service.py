@@ -9,6 +9,7 @@ from core.custom_exceptions import ProviderConfigError, LLMParameterError
 from rag_solution.repository.provider_config_repository import ProviderConfigRepository
 from rag_solution.repository.llm_parameters_repository import LLMParametersRepository
 from rag_solution.schemas.provider_config_schema import (
+    ProviderModelConfigBase,
     ProviderModelConfigCreate,
     ProviderModelConfigUpdate,
     ProviderModelConfigResponse,
@@ -38,6 +39,7 @@ class ProviderConfigService:
         provider: str,
         model_id: str,
         parameters: LLMParametersCreate,
+        provider_config: ProviderModelConfigBase,
         prompt_template: Optional[PromptTemplateCreate] = None
     ) -> ProviderModelConfigResponse:
         """Register a new provider model with parameters.
@@ -46,6 +48,8 @@ class ProviderConfigService:
             provider: Provider name
             model_id: Model identifier
             parameters: LLM parameters for the model
+            provider_config: Provider configuration with credentials and settings
+            prompt_template: Optional prompt template
             
         Returns:
             Created provider configuration
@@ -73,11 +77,20 @@ class ProviderConfigService:
                 template_repo = PromptTemplateRepository(self.db)
                 template_repo.create(prompt_template)
 
-            # Create provider config
+            # Create provider config with credentials and settings
             config = ProviderModelConfigCreate(
                 provider_name=provider,
                 model_id=model_id,
                 parameters_id=created_params.id,
+                api_key=provider_config.api_key,
+                api_url=provider_config.api_url,
+                project_id=provider_config.project_id,
+                org_id=provider_config.org_id,
+                default_model_id=provider_config.default_model_id,
+                embedding_model=provider_config.embedding_model,
+                timeout=provider_config.timeout,
+                max_retries=provider_config.max_retries,
+                batch_size=provider_config.batch_size,
                 is_active=True
             )
             return self.provider_repo.create(config)
@@ -108,6 +121,52 @@ class ProviderConfigService:
                     error_type="registration_error",
                     message=f"Failed to register provider model: {str(e)}"
                 )
+
+    def get_provider_config(
+        self,
+        provider_name: str
+    ) -> Optional[ProviderModelConfigBase]:
+        """Get provider configuration by name.
+        
+        Args:
+            provider_name: Name of the provider (e.g. 'watsonx')
+            
+        Returns:
+            Provider configuration if found, None otherwise
+            
+        Raises:
+            ProviderConfigError: If retrieval fails
+        """
+        try:
+            # Get active config for provider
+            configs = self.provider_repo.list(active_only=True)
+            for config in configs.providers:
+                if config.provider_name == provider_name and config.is_active:
+                    return ProviderModelConfigBase(
+                        model_id=config.model_id,
+                        provider_name=config.provider_name,
+                        api_key=config.api_key,
+                        api_url=config.api_url,
+                        project_id=config.project_id,
+                        org_id=config.org_id,
+                        default_model_id=config.default_model_id,
+                        embedding_model=config.embedding_model,
+                        parameters_id=config.parameters_id,
+                        timeout=config.timeout,
+                        max_retries=config.max_retries,
+                        batch_size=config.batch_size,
+                        is_active=config.is_active
+                    )
+            return None
+            
+        except Exception as e:
+            self.logger.error(f"Error getting provider config for {provider_name}: {str(e)}")
+            raise ProviderConfigError(
+                provider=provider_name,
+                model_id="",
+                error_type="retrieval_error",
+                message=f"Failed to get provider config: {str(e)}"
+            )
 
     def get_provider_model(
         self,

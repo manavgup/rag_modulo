@@ -28,6 +28,53 @@ class ProviderModelConfig(Base):
         nullable=False,
         index=True
     )
+    
+    # Provider credentials
+    api_key: Mapped[str] = mapped_column(
+        String(1024),
+        nullable=False
+    )
+    api_url: Mapped[Optional[str]] = mapped_column(
+        String(1024),
+        nullable=True
+    )
+    project_id: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True
+    )
+    org_id: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True
+    )
+    
+    # Model settings
+    default_model_id: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False
+    )
+    embedding_model: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True
+    )
+    
+    # Runtime settings
+    timeout: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=30
+    )
+    max_retries: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=3
+    )
+    batch_size: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=10
+    )
+    
+    # Status
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
@@ -65,9 +112,9 @@ class ProviderModelConfig(Base):
         onupdate=func.now()
     )
 
-    @validates('model_id')
-    def validate_model_id(self, key: str, value: str) -> str:
-        """Validate model_id is not empty and has proper format.
+    @validates('model_id', 'provider_name', 'api_key', 'default_model_id')
+    def validate_required_string(self, key: str, value: str) -> str:
+        """Validate required string fields are not empty.
         
         Args:
             key: Field name being validated
@@ -77,15 +124,16 @@ class ProviderModelConfig(Base):
             Validated value
             
         Raises:
-            ValueError: If value is empty or invalid
+            ValueError: If value is empty
         """
         if not value or not value.strip():
-            raise ValueError("model_id cannot be empty")
-        return value.strip()
+            raise ValueError(f"{key} cannot be empty")
+        value = value.strip()
+        return value.lower() if key == 'provider_name' else value
 
-    @validates('provider_name')
-    def validate_provider_name(self, key: str, value: str) -> str:
-        """Validate provider_name is not empty and has proper format.
+    @validates('timeout', 'max_retries', 'batch_size')
+    def validate_positive_int(self, key: str, value: int) -> int:
+        """Validate integer fields are positive.
         
         Args:
             key: Field name being validated
@@ -95,11 +143,11 @@ class ProviderModelConfig(Base):
             Validated value
             
         Raises:
-            ValueError: If value is empty or invalid
+            ValueError: If value is not positive
         """
-        if not value or not value.strip():
-            raise ValueError("provider_name cannot be empty")
-        return value.strip().lower()
+        if value <= 0:
+            raise ValueError(f"{key} must be positive")
+        return value
 
     def __repr__(self) -> str:
         """String representation of ProviderModelConfig."""

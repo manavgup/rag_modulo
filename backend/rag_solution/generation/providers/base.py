@@ -3,24 +3,109 @@
 from abc import ABC, abstractmethod
 from typing import Generator, List, Optional, Union, Dict, Any
 from pathlib import Path
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, ConfigDict
 
 from core.logging_utils import setup_logging, get_logger
 from core.custom_exceptions import LLMProviderError
-from rag_solution.schemas.model_parameters_schema import ModelParametersInput
-from rag_solution.schemas.prompt_template_schema import BasePromptTemplate, PromptTemplateInput
+from rag_solution.schemas.llm_parameters_schema import LLMParametersBase
+from rag_solution.schemas.prompt_template_schema import PromptTemplateBase
 from vectordbs.data_types import EmbeddingsList
 
 # Setup logging
 setup_logging(Path("logs"))
 logger = get_logger("llm.providers")
 
+# Error types for consistent error reporting
+PROVIDER_ERROR_TYPES = {
+    # Initialization errors
+    "INIT_FAILED": "initialization_failed",
+    "AUTH_FAILED": "authentication_failed",
+    "CONFIG_INVALID": "configuration_invalid",
+    
+    # Runtime errors
+    "RATE_LIMIT": "rate_limit_exceeded",
+    "TIMEOUT": "request_timeout",
+    "API_ERROR": "api_error",
+    
+    # Generation errors
+    "PROMPT_ERROR": "prompt_preparation_failed",
+    "TEMPLATE_ERROR": "template_formatting_failed",
+    "PARAM_ERROR": "invalid_parameters",
+    
+    # Resource errors
+    "MODEL_ERROR": "model_not_available",
+    "RESOURCE_ERROR": "resource_exhausted",
+    
+    # Response errors
+    "RESPONSE_ERROR": "invalid_response",
+    "PARSING_ERROR": "response_parsing_failed"
+}
+
 class ProviderConfig(BaseModel):
-    """Provider-specific configuration not covered by model parameters."""
-    concurrency_limit: int = 10
-    timeout: int = 30
-    batch_size: int = 10
-    stream: bool = False
+    """Runtime configuration for LLM providers.
+    
+    This configuration class handles runtime behavior settings only.
+    Startup configuration (API keys, endpoints, etc.) is managed by
+    provider_config_service.
+    
+    Attributes:
+        concurrency_limit: Maximum concurrent requests
+        timeout: Request timeout in seconds
+        batch_size: Size of batches for bulk operations
+        stream: Whether to use streaming mode
+        rate_limit: Maximum requests per second
+        retry_attempts: Number of retry attempts
+        retry_delay: Delay between retries in seconds
+    """
+    
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [{
+                "concurrency_limit": 5,
+                "timeout": 60,
+                "batch_size": 20,
+                "stream": True,
+                "rate_limit": 20,
+                "retry_attempts": 3,
+                "retry_delay": 1.0
+            }]
+        }
+    )
+
+    concurrency_limit: int = Field(
+        default=10,
+        ge=1,
+        description="Maximum concurrent requests"
+    )
+    timeout: int = Field(
+        default=30,
+        ge=1,
+        description="Request timeout in seconds"
+    )
+    batch_size: int = Field(
+        default=10,
+        ge=1,
+        description="Size of batches for bulk operations"
+    )
+    stream: bool = Field(
+        default=False,
+        description="Whether to use streaming mode"
+    )
+    rate_limit: int = Field(
+        default=10,
+        ge=1,
+        description="Maximum requests per second"
+    )
+    retry_attempts: int = Field(
+        default=3,
+        ge=0,
+        description="Number of retry attempts"
+    )
+    retry_delay: float = Field(
+        default=1.0,
+        ge=0.0,
+        description="Delay between retries in seconds"
+    )
 
 class LLMProvider(ABC):
     """Abstract base class for language model providers."""
@@ -43,9 +128,13 @@ class LLMProvider(ABC):
             self.logger.warning("Client not initialized, attempting to initialize")
             self.initialize_client()
             if self.client is None:
-                raise LLMProviderError("Failed to initialize client")
+                raise LLMProviderError(
+                    provider=self.__class__.__name__.lower(),
+                    error_type=PROVIDER_ERROR_TYPES["INIT_FAILED"],
+                    message="Failed to initialize client"
+                )
 
-    def format_prompt(self, template: BasePromptTemplate, variables: Dict[str, Any]) -> str:
+    def format_prompt(self, template: PromptTemplateBase, variables: Dict[str, Any]) -> str:
         """Format prompt template with variables.
 
         Args:
@@ -84,12 +173,16 @@ class LLMProvider(ABC):
             return "\n\n".join(part.strip() for part in formatted_parts if part)
 
         except Exception as e:
-            raise LLMProviderError(f"Failed to format prompt template: {str(e)}")
+            raise LLMProviderError(
+                provider=self.__class__.__name__.lower(),
+                error_type=PROVIDER_ERROR_TYPES["TEMPLATE_ERROR"],
+                message=f"Failed to format prompt template: {str(e)}"
+            )
 
     def _prepare_prompts(
         self,
         prompt: Union[str, List[str]],
-        template: Optional[BasePromptTemplate] = None,
+        template: Optional[PromptTemplateBase] = None,
         variables: Optional[Dict[str, Any]] = None
     ) -> Union[str, List[str]]:
         """Prepare prompts using template if provided.
@@ -119,26 +212,30 @@ class LLMProvider(ABC):
                 for vars in vars_list
             ]
 
-        raise LLMProviderError(f"Unsupported prompt type: {type(prompt)}")
+        raise LLMProviderError(
+            provider=self.__class__.__name__.lower(),
+            error_type=PROVIDER_ERROR_TYPES["PROMPT_ERROR"],
+            message=f"Unsupported prompt type: {type(prompt)}"
+        )
 
     @abstractmethod
     def generate_text(
         self,
         prompt: Union[str, List[str]],
-        model_parameters: ModelParametersInput,
-        template: Optional[BasePromptTemplate] = None,
+        model_parameters: LLMParametersBase,
+        template: Optional[PromptTemplateBase] = None,
         provider_config: Optional[ProviderConfig] = None
     ) -> Union[str, List[str]]:
         """Generate text using the model.
 
         Args:
-            prompt (Union[str, List[str]]): Input text prompt or list of prompts.
-            model_parameters (ModelParametersInput): Generation parameters from model config.
-            template (Optional[PromptTemplateInput]): Optional prompt template.
-            provider_config (Optional[ProviderConfig]): Optional provider-specific settings.
+            prompt: Input text prompt or list of prompts
+            model_parameters: Generation parameters from model config
+            template: Optional prompt template
+            provider_config: Optional provider-specific settings
 
         Returns:
-            Union[str, List[str]]: Generated text response or list of responses.
+            Generated text response or list of responses
         """
         pass
 
@@ -146,20 +243,20 @@ class LLMProvider(ABC):
     def generate_text_stream(
         self,
         prompt: str,
-        model_parameters: ModelParametersInput,
-        template: Optional[BasePromptTemplate] = None,
+        model_parameters: LLMParametersBase,
+        template: Optional[PromptTemplateBase] = None,
         provider_config: Optional[ProviderConfig] = None
     ) -> Generator[str, None, None]:
         """Generate text in streaming mode.
 
         Args:
-            prompt (str): Input text prompt.
-            model_parameters (ModelParametersInput): Generation parameters from model config.
-            template (Optional[PromptTemplateInput]): Optional prompt template.
-            provider_config (Optional[ProviderConfig]): Optional provider-specific settings.
+            prompt: Input text prompt
+            model_parameters: Generation parameters from model config
+            template: Optional prompt template
+            provider_config: Optional provider-specific settings
 
         Yields:
-            Generator[str, None, None]: Generated text chunks.
+            Generated text chunks
         """
         pass
 
@@ -172,11 +269,11 @@ class LLMProvider(ABC):
         """Generate embeddings for texts.
 
         Args:
-            texts (Union[str, List[str]]): Text or list of texts to embed.
-            provider_config (Optional[ProviderConfig]): Optional provider-specific settings.
+            texts: Text or list of texts to embed
+            provider_config: Optional provider-specific settings
 
         Returns:
-            EmbeddingsList: List of embedding vectors.
+            List of embedding vectors
         """
         pass
 
