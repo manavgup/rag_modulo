@@ -6,25 +6,32 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 from anthropic import Anthropic
 from core.custom_exceptions import LLMProviderError
-from core.config import settings
 
 from .base import LLMProvider, ProviderConfig
 from vectordbs.data_types import EmbeddingsList
-from rag_solution.schemas.model_parameters_schema import ModelParametersInput
-from rag_solution.schemas.prompt_template_schema import BasePromptTemplate
+from rag_solution.schemas.llm_parameters_schema import LLMParametersBase
+from rag_solution.schemas.prompt_template_schema import PromptTemplateBase
 
 logger = get_logger("llm.providers.anthropic")
 class AnthropicProvider(LLMProvider):
     """Anthropic implementation using Anthropic API."""
 
-    def __init__(self) -> None:
+    def __init__(self, provider_config_service) -> None:
         """Initialize Anthropic provider with cached client."""
         super().__init__()
+        self.provider_config_service = provider_config_service
+        self.provider_config = self.provider_config_service.get_provider_config("anthropic")
+        if not self.provider_config:
+            raise LLMProviderError(
+                provider="anthropic",
+                error_type="config_invalid",
+                message="No configuration found for Anthropic provider"
+            )
     
     def initialize_client(self) -> None:
         """Initialize Anthropic client."""
         try:
-            self.client = Anthropic(api_key=settings.anthropic_api_key)
+            self.client = Anthropic(api_key=self.provider_config.api_key)
             self.default_model = "claude-3-opus-20240229"
             self._model_cache = {}
             self.rate_limit = 10
@@ -43,8 +50,8 @@ class AnthropicProvider(LLMProvider):
     def generate_text(
     self,
     prompt: Union[str, List[str]],
-    model_parameters: ModelParametersInput,
-    template: Optional[BasePromptTemplate] = None,
+    model_parameters: LLMParametersBase,
+    template: Optional[PromptTemplateBase] = None,
     provider_config: Optional[ProviderConfig] = None
 ) -> Union[str, List[str]]:
         """Generate text using the Anthropic model."""
@@ -86,8 +93,8 @@ class AnthropicProvider(LLMProvider):
     def generate_text_stream(
         self,
         prompt: str,
-        model_parameters: ModelParametersInput,
-        template: Optional[BasePromptTemplate] = None,
+        model_parameters: LLMParametersBase,
+        template: Optional[PromptTemplateBase] = None,
         provider_config: Optional[ProviderConfig] = None
     ) -> Generator[str, None, None]:
         """Generate text in streaming mode."""
