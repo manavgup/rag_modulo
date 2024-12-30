@@ -341,3 +341,34 @@ class InvalidPromptTemplateError(ValidationError):
                 "reason": reason
             }
         )
+
+class ProviderConfigError(BaseCustomException):
+    """Exception raised for errors related to provider configuration."""
+    
+    def __init__(
+        self,
+        provider: str,
+        model_id: str,
+        error_type: str,
+        message: str,
+        details: Optional[Dict[str, Any]] = None
+    ) -> None:
+        """Initialize provider configuration error.
+        
+        Args:
+            provider: Name of the provider
+            model_id: Model identifier
+            error_type: Type of configuration error
+            message: Error message
+            details: Additional error details
+        """
+        super().__init__(
+            message,
+            status_code=400,
+            details={
+                "provider": provider,
+                "model_id": model_id,
+                "error_type": error_type,
+                **(details or {})
+            }
+        )
