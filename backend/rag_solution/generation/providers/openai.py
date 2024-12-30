@@ -10,24 +10,32 @@ from .base import LLMProvider, ProviderConfig
 from core.config import settings
 from vectordbs.data_types import EmbeddingsList
 from core.custom_exceptions import LLMProviderError
-from rag_solution.schemas.model_parameters_schema import ModelParametersInput
-from rag_solution.schemas.prompt_template_schema import BasePromptTemplate
+from rag_solution.schemas.llm_parameters_schema import LLMParametersBase
+from rag_solution.schemas.prompt_template_schema import PromptTemplateBase
 
 logger = get_logger("llm.providers.openai")
 
 class OpenAIProvider(LLMProvider):
     """OpenAI implementation using OpenAI API."""
 
-    def __init__(self) -> None:
+    def __init__(self, provider_config_service) -> None:
         """Initialize OpenAI provider with cached client."""
         super().__init__()
+        self.provider_config_service = provider_config_service
+        self.provider_config = self.provider_config_service.get_provider_config("openai")
+        if not self.provider_config:
+            raise LLMProviderError(
+                provider="openai",
+                error_type="config_invalid",
+                message="No configuration found for OpenAI provider"
+            )
     
     def initialize_client(self) -> None:
         """Initialize OpenAI client."""
         try:
             self.client = OpenAI(
-                api_key=settings.openai_api_key,
-                organization=settings.openai_org_id
+                api_key=self.provider_config.api_key,
+                organization=self.provider_config.org_id
             )
             self.default_model = "gpt-3.5-turbo"
             self.default_embedding_model = "text-embedding-ada-002"
@@ -60,8 +68,8 @@ class OpenAIProvider(LLMProvider):
     def generate_text(
     self,
     prompt: Union[str, List[str]],
-    model_parameters: ModelParametersInput,
-    template: Optional[BasePromptTemplate] = None,
+    model_parameters: LLMParametersBase,
+    template: Optional[PromptTemplateBase] = None,
     provider_config: Optional[ProviderConfig] = None
 ) -> Union[str, List[str]]:
         """Generate text using the OpenAI model."""
@@ -105,8 +113,8 @@ class OpenAIProvider(LLMProvider):
     def generate_text_stream(
         self,
         prompt: str,
-        model_parameters: ModelParametersInput,
-        template: Optional[BasePromptTemplate] = None,
+    model_parameters: LLMParametersBase,
+    template: Optional[PromptTemplateBase] = None,
         provider_config: Optional[ProviderConfig] = None
     ) -> Generator[str, None, None]:
         """Generate text in streaming mode."""

@@ -342,6 +342,45 @@ class InvalidPromptTemplateError(ValidationError):
             }
         )
 
+class LLMProviderError(BaseCustomException):
+    """Exception raised for errors during LLM provider operations.
+    
+    This exception handles errors that occur during:
+    - Provider initialization
+    - Text generation
+    - Streaming generation
+    - Embedding generation
+    - Client operations
+    """
+    
+    def __init__(
+        self,
+        provider: str,
+        error_type: str,
+        message: str,
+        operation: Optional[str] = None,
+        details: Optional[Dict[str, Any]] = None
+    ) -> None:
+        """Initialize LLM provider error.
+        
+        Args:
+            provider: Name of the LLM provider (e.g., watsonx, openai, anthropic)
+            error_type: Type of error (e.g., initialization, authentication, rate_limit)
+            message: Error message
+            operation: Optional operation that failed (e.g., generate, embed)
+            details: Additional error details
+        """
+        super().__init__(
+            message,
+            status_code=500,
+            details={
+                "provider": provider,
+                "error_type": error_type,
+                **({"operation": operation} if operation else {}),
+                **(details or {})
+            }
+        )
+
 class ProviderConfigError(BaseCustomException):
     """Exception raised for errors related to provider configuration."""
     
