@@ -46,6 +46,12 @@ class LegacySettings(BaseSettings):
     repetition_penalty: float = Field(default=1.1, env='REPETITION_PENALTY')
     runtime_eval: bool = Field(default=False, env='RUNTIME_EVAL')
 
+    # WatsonX.ai settings
+    wx_project_id: Optional[str] = Field(default=None, env='WATSONX_INSTANCE_ID')
+    wx_api_key: Optional[str] = Field(default=None, env='WATSONX_APIKEY')
+    wx_url: Optional[str] = Field(default=None, env='WATSONX_URL')
+    llm_concurrency: int = Field(default=10)
+
     # Query Rewriting settings
     use_simple_rewriter: bool = Field(default=True, env='USE_SIMPLE_REWRITER')
     use_hyponym_rewriter: bool = Field(default=False, env='USE_HYPONYM_REWRITER')
@@ -83,6 +89,11 @@ class LegacySettings(BaseSettings):
     chromadb_host: Optional[str] = Field(default="localhost", env='CHROMADB_HOST')
     chromadb_port: Optional[int] = Field(default=8000, env='CHROMADB_PORT')
     
+    # Milvus settings
+    milvus_host: str = Field(default="milvus-standalone", env='MILVUS_HOST')
+    milvus_port: int = Field(default=19530, env='MILVUS_PORT')
+    milvus_user: str = Field(default="root", env='MILVUS_USER')
+    milvus_password: str = Field(default="milvus", env='MILVUS_PASSWORD')
     milvus_index_params: Optional[str] = Field(default=None, env='MILVUS_INDEX_PARAMS')
     milvus_search_params: Optional[str] = Field(default=None, env='MILVUS_SEARCH_PARAMS')
 
@@ -104,6 +115,13 @@ class LegacySettings(BaseSettings):
     weaviate_password: Optional[str] = Field(default=None, env='WEAVIATE_PASSWORD')
     weaviate_index: Optional[str] = Field(default="default", env='WEAVIATE_INDEX')
     weaviate_scopes: Optional[str] = Field(default=None, env='WEAVIATE_SCOPES')
+
+    # Collection database settings
+    collectiondb_user: str = Field(default="rag_modulo_user", env='COLLECTIONDB_USER')
+    collectiondb_pass: str = Field(default="rag_modulo_password", env='COLLECTIONDB_PASS')
+    collectiondb_host: str = Field(default="localhost", env='COLLECTIONDB_HOST')
+    collectiondb_port: int = Field(default=5432, env='COLLECTIONDB_PORT')
+    collectiondb_name: str = Field(default="rag_modulo", env='COLLECTIONDB_NAME')
 
     # RBAC settings
     rbac_mapping: Dict[str, Dict[str, List[str]]] = {
@@ -136,21 +154,10 @@ class Settings(BaseSettings):
         validate_default=True
     )
 
-    # WatsonX.ai credentials
-    wx_project_id: Optional[str] = Field(default=None, env='WATSONX_INSTANCE_ID')
-    wx_api_key: Optional[str] = Field(default=None, env='WATSONX_APIKEY')
-    wx_url: Optional[str] = Field(default=None, env='WATSONX_URL')
-    llm_concurrency: int = Field(default=10)
-
     # Core data settings
     data_dir: Optional[str] = None
     vector_db: str = Field(default="milvus", env='VECTOR_DB')
 
-    # Default vector DB connection (Milvus)
-    milvus_host: str = Field(default="milvus-standalone", env='MILVUS_HOST')
-    milvus_port: int = Field(default=19530, env='MILVUS_PORT')
-    milvus_user: str = Field(default="root", env='MILVUS_USER')
-    milvus_password: str = Field(default="milvus", env='MILVUS_PASSWORD')
 
     # Frontend settings
     react_app_api_url: str = Field(default="/api", env='REACT_APP_API_URL')
@@ -166,12 +173,6 @@ class Settings(BaseSettings):
     oidc_userinfo_endpoint: Optional[str] = Field(default=None, env='OIDC_USERINFO_ENDPOINT')
     oidc_introspection_endpoint: Optional[str] = Field(default=None, env='OIDC_INTROSPECTION_ENDPOINT')
 
-    # Collection database settings
-    collectiondb_user: str = Field(default="rag_modulo_user", env='COLLECTIONDB_USER')
-    collectiondb_pass: str = Field(default="rag_modulo_password", env='COLLECTIONDB_PASS')
-    collectiondb_host: str = Field(default="localhost", env='COLLECTIONDB_HOST')
-    collectiondb_port: int = Field(default=5432, env='COLLECTIONDB_PORT')
-    collectiondb_name: str = Field(default="rag_modulo", env='COLLECTIONDB_NAME')
 
     # Project settings
     project_name: str = Field(default="rag_modulo", env='PROJECT_NAME')
