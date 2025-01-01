@@ -9,9 +9,9 @@ from core.logging_utils import get_logger
 from core.custom_exceptions import ProviderConfigError
 from rag_solution.models.provider_config import ProviderModelConfig
 from rag_solution.schemas.provider_config_schema import (
-    ProviderModelConfigCreate,
+    ProviderModelConfigInput,
     ProviderModelConfigUpdate,
-    ProviderModelConfigResponse,
+    ProviderModelConfigOutput,
     ProviderRegistryResponse
 )
 
@@ -29,7 +29,7 @@ class ProviderConfigRepository:
         self.session = session
         self.logger = get_logger(__name__)
 
-    def create(self, config: ProviderModelConfigCreate) -> ProviderModelConfigResponse:
+    def create(self, config: ProviderModelConfigInput) -> ProviderModelConfigOutput:
         """Create new provider configuration.
         
         Args:
@@ -65,7 +65,7 @@ class ProviderConfigRepository:
                 message=f"Failed to create provider configuration: {str(e)}"
             )
 
-    def get(self, config_id: int) -> Optional[ProviderModelConfigResponse]:
+    def get(self, config_id: int) -> Optional[ProviderModelConfigOutput]:
         """Get provider configuration by ID.
         
         Args:
@@ -97,7 +97,7 @@ class ProviderConfigRepository:
         self,
         provider: str,
         model_id: str
-    ) -> Optional[ProviderModelConfigResponse]:
+    ) -> Optional[ProviderModelConfigOutput]:
         """Get provider configuration by provider name and model ID.
         
         Args:
@@ -178,11 +178,21 @@ class ProviderConfigRepository:
                 .all()
             )
             
-            configs = [self._to_response(result) for result in results]
+            # Convert results to response schemas
+            configs = []
+            for result in results:
+                config = self._to_response(result)
+                if config:
+                    configs.append(config)
+            
+            # Create registry response
             return ProviderRegistryResponse(
                 total_providers=total,
                 active_providers=active,
-                providers=configs
+                providers=[
+                    ProviderModelConfigOutput.model_validate(config)
+                    for config in configs
+                ]
             )
         except Exception as e:
             self.logger.error(f"Error listing provider configs: {str(e)}")
@@ -197,7 +207,7 @@ class ProviderConfigRepository:
         self,
         config_id: int,
         config: ProviderModelConfigUpdate
-    ) -> Optional[ProviderModelConfigResponse]:
+    ) -> Optional[ProviderModelConfigOutput]:
         """Update provider configuration.
         
         Args:
@@ -282,7 +292,7 @@ class ProviderConfigRepository:
                 message=f"Failed to delete provider configuration: {str(e)}"
             )
 
-    def update_verification(self, config_id: int) -> Optional[ProviderModelConfigResponse]:
+    def update_verification(self, config_id: int) -> Optional[ProviderModelConfigOutput]:
         """Update last_verified timestamp for a provider configuration.
         
         Args:
@@ -328,7 +338,7 @@ class ProviderConfigRepository:
     @staticmethod
     def _to_response(
         config: Optional[ProviderModelConfig]
-    ) -> Optional[ProviderModelConfigResponse]:
+    ) -> Optional[ProviderModelConfigOutput]:
         """Convert database model to response schema.
         
         Args:
@@ -340,6 +350,6 @@ class ProviderConfigRepository:
         if config is None:
             return None
         return cast(
-            ProviderModelConfigResponse,
-            ProviderModelConfigResponse.model_validate(config)
+            ProviderModelConfigOutput,
+            ProviderModelConfigOutput.model_validate(config)
         )

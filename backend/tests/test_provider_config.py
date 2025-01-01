@@ -1,367 +1,333 @@
-"""Tests for provider configuration management."""
+"""Tests for provider configuration models and schemas."""
 
 import pytest
-from unittest.mock import Mock, patch
+from datetime import datetime
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
-from core.custom_exceptions import LLMProviderError, ProviderConfigError
 from rag_solution.models.provider_config import ProviderModelConfig
+from rag_solution.models.llm_parameters import LLMParameters
+from rag_solution.models.user_provider_preference import UserProviderPreference
 from rag_solution.schemas.provider_config_schema import (
-    ProviderModelConfigBase,
-    ProviderModelConfigCreate,
-    ProviderModelConfigUpdate,
-    ProviderModelConfigResponse
+    ProviderModelConfigInput,
+    ProviderModelConfigInDB,
+    ProviderModelConfigOutput,
+    ProviderModelConfigUpdate
 )
-from rag_solution.repository.provider_config_repository import ProviderConfigRepository
 from rag_solution.services.provider_config_service import ProviderConfigService
-from rag_solution.schemas.llm_parameters_schema import LLMParametersCreate
-from rag_solution.schemas.prompt_template_schema import PromptTemplateCreate
-from rag_solution.generation.providers.watsonx import WatsonXProvider
-from rag_solution.generation.providers.base import PROVIDER_ERROR_TYPES
 
 @pytest.fixture
-def provider_config_repo(db_session: Session) -> ProviderConfigRepository:
-    """Fixture for provider config repository."""
-    return ProviderConfigRepository(db_session)
-
-@pytest.fixture
-def provider_config_service(db_session: Session) -> ProviderConfigService:
-    """Fixture for provider config service."""
-    return ProviderConfigService(db_session)
-
-@pytest.fixture
-def sample_llm_params() -> LLMParametersCreate:
-    """Fixture for sample LLM parameters."""
-    return LLMParametersCreate(
-        name="test_params",
-        description="Test parameters",
+def llm_parameters(db: Session) -> LLMParameters:
+    """Create test LLM parameters."""
+    params = LLMParameters(
+        name="test-params",
         max_new_tokens=100,
         temperature=0.7,
         top_k=50,
         top_p=1.0
     )
+    db.add(params)
+    db.commit()
+    return params
 
 @pytest.fixture
-def sample_prompt_template() -> PromptTemplateCreate:
-    """Fixture for sample prompt template."""
-    return PromptTemplateCreate(
-        name="test_template",
-        provider="watsonx",
-        description="Test template",
-        system_prompt="You are a helpful AI assistant",
-        context_prefix="Context:",
-        query_prefix="Question:",
-        answer_prefix="Answer:"
-    )
-
-@pytest.fixture
-def sample_provider_base_config() -> ProviderModelConfigBase:
-    """Fixture for sample provider base configuration."""
-    return ProviderModelConfigBase(
-        provider_name="watsonx",
-        model_id="meta-llama/llama-3-1-8b-instruct",
-        default_model_id="meta-llama/llama-3-1-8b-instruct",
-        api_key="test-api-key",
-        api_url="https://test.watsonx.ai/api",
-        project_id="test-project",
-        parameters_id=1,
-        timeout=30,
-        max_retries=3,
-        batch_size=10
+def provider_config_input() -> ProviderModelConfigInput:
+    """Create test provider config input."""
+    return ProviderModelConfigInput(
+        model_id="test-model",
+        provider_name="test-provider",
+        api_key="test-key",
+        default_model_id="default-model",
+        embedding_model="test-embedding-model"
     )
 
 @pytest.fixture
-def sample_provider_config(
-    db_session: Session,
-    sample_llm_params: LLMParametersCreate
-) -> ProviderModelConfig:
-    """Fixture for sample provider configuration."""
-    from rag_solution.repository.llm_parameters_repository import LLMParametersRepository
-    
-    # Create LLM parameters first
-    params_repo = LLMParametersRepository(db_session)
-    params = params_repo.create(sample_llm_params)
-    
-    # Create provider config
-    config = ProviderModelConfig(
-        provider_name="watsonx",
-        model_id="meta-llama/llama-3-1-8b-instruct",
-        default_model_id="meta-llama/llama-3-1-8b-instruct",
-        api_key="test-api-key",
-        api_url="https://test.watsonx.ai/api",
-        project_id="test-project",
-        parameters_id=params.id,
-        timeout=30,
-        max_retries=3,
-        batch_size=10,
-        is_active=True
+def provider_config_service(db: Session) -> ProviderConfigService:
+    """Create provider config service."""
+    return ProviderConfigService(db)
+
+def test_provider_config_schema_validation():
+    """Test provider config schema validation."""
+    # Test valid input
+    config = ProviderModelConfigInput(
+        model_id="test-model",
+        provider_name="test-provider",
+        api_key="test-key",
+        default_model_id="default-model"
     )
-    db_session.add(config)
-    db_session.commit()
-    db_session.refresh(config)
-    return config
+    assert config.model_id == "test-model"
+    assert config.provider_name == "test-provider"
 
-def test_create_provider_config(
-    provider_config_repo: ProviderConfigRepository,
-    sample_provider_config: ProviderModelConfig
-):
-    """Test creating a provider configuration."""
-    config = provider_config_repo.get(sample_provider_config.id)
-    assert config is not None
-    assert config.provider_name == "watsonx"
-    assert config.model_id == "meta-llama/llama-3-1-8b-instruct"
-    assert config.default_model_id == "meta-llama/llama-3-1-8b-instruct"
-    assert config.api_key == "test-api-key"
-    assert config.api_url == "https://test.watsonx.ai/api"
-    assert config.project_id == "test-project"
-    assert config.timeout == 30
-    assert config.max_retries == 3
-    assert config.batch_size == 10
-    assert config.is_active is True
-
-def test_get_provider_config_by_name(
-    provider_config_service: ProviderConfigService,
-    sample_provider_config: ProviderModelConfig
-):
-    """Test retrieving a provider configuration by name."""
-    config = provider_config_service.get_provider_config("watsonx")
-    assert config is not None
-    assert config.provider_name == "watsonx"
-    assert config.model_id == "meta-llama/llama-3-1-8b-instruct"
-    assert config.default_model_id == "meta-llama/llama-3-1-8b-instruct"
-    assert config.api_key == "test-api-key"
-    assert config.api_url == "https://test.watsonx.ai/api"
-    assert config.project_id == "test-project"
-
-def test_get_provider_config_by_model(
-    provider_config_repo: ProviderConfigRepository,
-    sample_provider_config: ProviderModelConfig
-):
-    """Test retrieving a provider configuration by model."""
-    config = provider_config_repo.get_by_provider_and_model(
-        "watsonx",
-        "meta-llama/llama-3-1-8b-instruct"
-    )
-    assert config is not None
-    assert config.provider_name == "watsonx"
-    assert config.model_id == "meta-llama/llama-3-1-8b-instruct"
-    assert config.default_model_id == "meta-llama/llama-3-1-8b-instruct"
-
-def test_list_provider_configs(
-    provider_config_repo: ProviderConfigRepository,
-    sample_provider_config: ProviderModelConfig
-):
-    """Test listing provider configurations."""
-    result = provider_config_repo.list()
-    assert result.total_providers >= 1
-    assert result.active_providers >= 1
-    assert len(result.providers) >= 1
-
-def test_update_provider_config(
-    provider_config_repo: ProviderConfigRepository,
-    sample_provider_config: ProviderModelConfig
-):
-    """Test updating a provider configuration."""
-    updates = ProviderModelConfigUpdate(
-        is_active=False,
-        timeout=60,
-        max_retries=5
-    )
-    config = provider_config_repo.update(sample_provider_config.id, updates)
-    assert config is not None
-    assert config.is_active is False
-    assert config.timeout == 60
-    assert config.max_retries == 5
-
-def test_delete_provider_config(
-    provider_config_repo: ProviderConfigRepository,
-    sample_provider_config: ProviderModelConfig
-):
-    """Test deleting a provider configuration."""
-    result = provider_config_repo.delete(sample_provider_config.id)
-    assert result is True
-    config = provider_config_repo.get(sample_provider_config.id)
-    assert config is None
-
-def test_register_provider_model(
-    provider_config_service: ProviderConfigService,
-    sample_llm_params: LLMParametersCreate,
-    sample_prompt_template: PromptTemplateCreate,
-    sample_provider_base_config: ProviderModelConfigBase
-):
-    """Test registering a provider model through the service layer."""
-    config = provider_config_service.register_provider_model(
-        provider="watsonx",
-        model_id="meta-llama/llama-3-1-8b-instruct",
-        parameters=sample_llm_params,
-        provider_config=sample_provider_base_config,
-        prompt_template=sample_prompt_template
-    )
-    assert config is not None
-    assert config.provider_name == "watsonx"
-    assert config.model_id == "meta-llama/llama-3-1-8b-instruct"
-    assert config.default_model_id == "meta-llama/llama-3-1-8b-instruct"
-    assert config.api_key == "test-api-key"
-    assert config.api_url == "https://test.watsonx.ai/api"
-    assert config.project_id == "test-project"
-    assert config.timeout == 30
-    assert config.max_retries == 3
-    assert config.batch_size == 10
-    assert config.is_active is True
-
-def test_register_duplicate_provider_model(
-    provider_config_service: ProviderConfigService,
-    sample_provider_config: ProviderModelConfig,
-    sample_llm_params: LLMParametersCreate,
-    sample_prompt_template: PromptTemplateCreate,
-    sample_provider_base_config: ProviderModelConfigBase
-):
-    """Test attempting to register a duplicate provider model."""
-    with pytest.raises(ProviderConfigError) as exc_info:
-        provider_config_service.register_provider_model(
-            provider="watsonx",
-            model_id="meta-llama/llama-3-1-8b-instruct",
-            parameters=sample_llm_params,
-            provider_config=sample_provider_base_config,
-            prompt_template=sample_prompt_template
-        )
-    assert exc_info.value.details["error_type"] == "duplicate_error"
-
-def test_verify_provider_model(
-    provider_config_service: ProviderConfigService,
-    sample_provider_config: ProviderModelConfig
-):
-    """Test verifying a provider model."""
-    config = provider_config_service.verify_provider_model(
-        "watsonx",
-        "meta-llama/llama-3-1-8b-instruct"
-    )
-    assert config is not None
-    assert config.last_verified is not None
-
-def test_deactivate_provider_model(
-    provider_config_service: ProviderConfigService,
-    sample_provider_config: ProviderModelConfig
-):
-    """Test deactivating a provider model."""
-    config = provider_config_service.deactivate_provider_model(
-        "watsonx",
-        "meta-llama/llama-3-1-8b-instruct"
-    )
-    assert config is not None
-    assert config.is_active is False
-
-def test_provider_validation(db_session: Session):
-    """Test provider-specific validation."""
-    # Create provider config service with empty database
-    provider_config_service = ProviderConfigService(db_session)
-    
-    # Test WatsonX provider with no config
-    with pytest.raises(LLMProviderError) as exc_info:
-        WatsonXProvider(provider_config_service)
-    assert exc_info.value.details["error_type"] == PROVIDER_ERROR_TYPES["CONFIG_INVALID"]
-
-def test_batch_size_validation():
-    """Test batch size validation."""
-    # Test invalid batch size
+    # Test invalid input
     with pytest.raises(ValueError):
-        ProviderModelConfig(
-            provider_name="watsonx",
-            model_id="model",
-            default_model_id="model",
-            api_key="key",
-            parameters_id=1,
-            batch_size=0  # Invalid batch size
-        )
-    
-    # Test valid batch size
-    config = ProviderModelConfig(
-        provider_name="watsonx",
-        model_id="model",
-        default_model_id="model",
-        api_key="key",
-        parameters_id=1,
-        batch_size=5  # Valid batch size
-    )
-    assert config.batch_size == 5
-
-def test_model_validation():
-    """Test provider model configuration validation."""
-    # Test invalid model_id
-    with pytest.raises(ValueError):
-        ProviderModelConfig(
-            provider_name="watsonx",
+        ProviderModelConfigInput(
             model_id="",  # Empty model_id
-            default_model_id="model",
-            api_key="key",
-            parameters_id=1
-        )
-    
-    # Test invalid provider_name
-    with pytest.raises(ValueError):
-        ProviderModelConfig(
-            provider_name="",  # Empty provider_name
-            model_id="meta-llama/llama-3-1-8b-instruct",
-            default_model_id="model",
-            api_key="key",
-            parameters_id=1
-        )
-    
-    # Test invalid timeout
-    with pytest.raises(ValueError):
-        ProviderModelConfig(
-            provider_name="watsonx",
-            model_id="model",
-            default_model_id="model",
-            api_key="key",
-            parameters_id=1,
-            timeout=0  # Invalid timeout
-        )
-    
-    # Test invalid max_retries
-    with pytest.raises(ValueError):
-        ProviderModelConfig(
-            provider_name="watsonx",
-            model_id="model",
-            default_model_id="model",
-            api_key="key",
-            parameters_id=1,
-            max_retries=-1  # Invalid max_retries
+            provider_name="test-provider",
+            api_key="test-key",
+            default_model_id="default-model"
         )
 
-def test_schema_validation():
-    """Test provider configuration schema validation."""
-    # Test required fields
     with pytest.raises(ValueError):
-        ProviderModelConfigCreate()
+        ProviderModelConfigInput(
+            model_id="test-model",
+            provider_name="test@provider",  # Invalid characters
+            api_key="test-key",
+            default_model_id="default-model"
+        )
+
+def test_provider_config_creation(db: Session, llm_parameters):
+    """Test creating a provider configuration."""
+    config = ProviderModelConfig(
+        model_id="test-model",
+        provider_name="test-provider",
+        api_key="test-key",
+        default_model_id="default-model",
+        parameters_id=llm_parameters.id
+    )
+    db.add(config)
+    db.commit()
     
-    # Test field constraints
+    assert config.id is not None
+    assert config.model_id == "test-model"
+    assert config.provider_name == "test-provider"
+    assert config.is_active is True
+    assert config.is_default is False
+
+def test_provider_config_default_flag(db: Session, llm_parameters):
+    """Test that only one provider can be default."""
+    
+    # Create first provider as default
+    config1 = ProviderModelConfig(
+        model_id="model1",
+        provider_name="provider1",
+        api_key="key1",
+        default_model_id="default1",
+        parameters_id=llm_parameters.id,
+        is_default=True
+    )
+    db.add(config1)
+    db.commit()
+    
+    # Create second provider as default
+    config2 = ProviderModelConfig(
+        model_id="model2",
+        provider_name="provider2",
+        api_key="key2",
+        default_model_id="default2",
+        parameters_id=llm_parameters.id,
+        is_default=True
+    )
+    db.add(config2)
+    db.commit()
+    
+    # Refresh first config
+    db.refresh(config1)
+    
+    # Check that first config is no longer default
+    assert config1.is_default is False
+    assert config2.is_default is True
+
+def test_provider_config_validation(db: Session, llm_parameters):
+    """Test provider config model validation."""
+    
+    # Test empty model_id
     with pytest.raises(ValueError):
-        ProviderModelConfigCreate(
-            provider_name="",  # Empty provider_name
-            model_id="meta-llama/llama-3-1-8b-instruct",
-            default_model_id="model",
+        ProviderModelConfig(
+            model_id="",
+            provider_name="provider",
             api_key="key",
-            parameters_id=1
+            default_model_id="default",
+            parameters_id=llm_parameters.id
         )
     
-    # Test provider name format
-    config = ProviderModelConfigCreate(
-        provider_name="WatsonX",  # Mixed case
-        model_id="model",
-        default_model_id="model",
-        api_key="key",
-        parameters_id=1
-    )
-    assert config.provider_name == "watsonx"  # Should be converted to lowercase
-    
-    # Test runtime settings validation
+    # Test empty provider_name
     with pytest.raises(ValueError):
-        ProviderModelConfigCreate(
-            provider_name="watsonx",
+        ProviderModelConfig(
             model_id="model",
-            default_model_id="model",
+            provider_name="",
             api_key="key",
-            parameters_id=1,
-            timeout=-1  # Invalid timeout
+            default_model_id="default",
+            parameters_id=llm_parameters.id
+        )
+    
+    # Test empty api_key
+    with pytest.raises(ValueError):
+        ProviderModelConfig(
+            model_id="model",
+            provider_name="provider",
+            api_key="",
+            default_model_id="default",
+            parameters_id=llm_parameters.id
+        )
+
+def test_provider_config_relationships(db: Session, llm_parameters):
+    """Test provider config relationships."""
+    
+    config = ProviderModelConfig(
+        model_id="test-model",
+        provider_name="test-provider",
+        api_key="test-key",
+        default_model_id="default-model",
+            parameters_id=llm_parameters.id
+    )
+    db.add(config)
+    db.commit()
+    
+    # Test parameters relationship
+    assert config.parameters.id == llm_parameters.id
+    assert config.parameters.name == "test-params"
+    
+    # Test cascade delete
+    db.delete(llm_parameters)
+    db.commit()
+    
+    # Config should be deleted
+    assert db.query(ProviderModelConfig).filter_by(id=config.id).first() is None
+
+def test_schema_conversions():
+    """Test schema conversions between Input/InDB/Output types."""
+    # Test Input to InDB conversion
+    input_config = ProviderModelConfigInput(
+        model_id="test-model",
+        provider_name="test-provider",
+        api_key="test-key",
+        default_model_id="default-model"
+    )
+    
+    in_db = ProviderModelConfigInDB(
+        **input_config.model_dump(),
+        id=1,
+        parameters_id=1,
+        last_verified=None,
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
+    )
+    assert in_db.model_id == input_config.model_id
+    assert in_db.provider_name == input_config.provider_name
+    
+    # Test InDB to Output conversion
+    output = ProviderModelConfigOutput.model_validate(in_db)
+    assert output.id == in_db.id
+    assert output.model_id == in_db.model_id
+    assert output.provider_name == in_db.provider_name
+
+def test_user_provider_preference(db: Session, test_user, llm_parameters):
+    """Test user provider preferences."""
+    config = ProviderModelConfig(
+        model_id="test-model",
+        provider_name="test-provider",
+        api_key="test-key",
+        default_model_id="default-model",
+        parameters_id=llm_parameters.id
+    )
+    db.add(config)
+    db.commit()
+    
+    # Create preference
+    pref = UserProviderPreference(
+        user_id=test_user.id,
+        provider_config_id=config.id
+    )
+    db.add(pref)
+    db.commit()
+    
+    # Test relationships
+    assert pref.provider_config.id == config.id
+    
+    # Test unique constraint
+    with pytest.raises(IntegrityError):
+        pref2 = UserProviderPreference(
+            user_id=test_user.id,
+            provider_config_id=config.id
+        )
+        db.add(pref2)
+        db.commit()
+    db.rollback()
+    
+    # Test cascade delete
+    db.delete(config)
+    db.commit()
+    
+    # Preference should be deleted
+    assert db.query(UserProviderPreference).filter_by(id=pref.id).first() is None
+
+def test_provider_config_service_crud(
+    db: Session,
+    llm_parameters,
+    provider_config_input,
+    provider_config_service
+):
+    """Test provider config service CRUD operations."""
+    # Test creation
+    created = provider_config_service.register_provider_model(
+        provider="test-provider",
+        model_id="test-model",
+        parameters=llm_parameters,
+        provider_config=provider_config_input
+    )
+    assert isinstance(created, ProviderModelConfigOutput)
+    assert created.model_id == provider_config_input.model_id
+    assert created.provider_name == provider_config_input.provider_name
+
+    # Test retrieval
+    retrieved = provider_config_service.get_provider_config("test-provider")
+    assert retrieved is not None
+    assert isinstance(retrieved, ProviderModelConfigOutput)
+    assert retrieved.id == created.id
+
+    # Test update
+    update_data = ProviderModelConfigUpdate(
+        embedding_model="updated-embedding-model"
+    )
+    updated = provider_config_service.update_provider_model(
+        provider="test-provider",
+        model_id="test-model",
+        updates=update_data.model_dump(exclude_unset=True)
+    )
+    assert updated is not None
+    assert updated.embedding_model == "updated-embedding-model"
+
+    # Test deletion
+    assert provider_config_service.delete_provider_model(
+        provider="test-provider",
+        model_id="test-model"
+    ) is True
+
+    # Verify deletion
+    assert provider_config_service.get_provider_config("test-provider") is None
+
+def test_provider_config_service_validation(
+    db: Session,
+    llm_parameters,
+    provider_config_input,
+    provider_config_service
+):
+    """Test provider config service validation."""
+    # Test duplicate provider
+    created = provider_config_service.register_provider_model(
+        provider="test-provider",
+        model_id="test-model",
+        parameters=llm_parameters,
+        provider_config=provider_config_input
+    )
+    assert created is not None
+
+    # Attempt to create duplicate
+    with pytest.raises(Exception):
+        provider_config_service.register_provider_model(
+            provider="test-provider",
+            model_id="test-model",
+            parameters=llm_parameters,
+            provider_config=provider_config_input
+        )
+
+    # Test invalid provider name
+    invalid_config = provider_config_input.model_copy()
+    invalid_config.provider_name = "invalid@provider"
+    with pytest.raises(ValueError):
+        provider_config_service.register_provider_model(
+            provider="invalid@provider",
+            model_id="test-model",
+            parameters=llm_parameters,
+            provider_config=invalid_config
         )

@@ -2,8 +2,8 @@
 
 from typing import Optional
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
-from sqlalchemy.orm import validates, relationship, Mapped, mapped_column
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, select
+from sqlalchemy.orm import validates, relationship, Mapped, mapped_column, object_session
 from sqlalchemy.sql import func
 
 from rag_solution.file_management.database import Base
@@ -74,11 +74,17 @@ class ProviderModelConfig(Base):
         default=10
     )
     
-    # Status
+    # Status and defaults
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
         default=True,
+        index=True
+    )
+    is_default: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
         index=True
     )
     last_verified: Mapped[Optional[datetime]] = mapped_column(
@@ -133,20 +139,48 @@ class ProviderModelConfig(Base):
 
     @validates('timeout', 'max_retries', 'batch_size')
     def validate_positive_int(self, key: str, value: int) -> int:
-        """Validate integer fields are positive.
+        """Validate integer fields are positive."""
+        if value <= 0:
+            raise ValueError(f"{key} must be positive")
+        return value
+
+    @validates('is_default')
+    def validate_default(self, key: str, value: bool) -> bool:
+        """Validate is_default field.
+        
+        Ensures:
+        1. Value is not empty
+        2. Only one default provider exists
         
         Args:
             key: Field name being validated
             value: Value to validate
             
         Returns:
-            Validated value
+            bool: Validated value
             
         Raises:
-            ValueError: If value is not positive
+            ValueError: If value is invalid
         """
-        if value <= 0:
-            raise ValueError(f"{key} must be positive")
+        # Ensure value is not None
+        if value is None:
+            raise ValueError("is_default cannot be None")
+            
+        # Ensure only one default exists
+        if value and hasattr(self, 'id'):  # Skip during creation
+            session = object_session(self)
+            if not session:
+                # Can't check for other defaults without session
+                return value
+                
+            stmt = select(self.__class__).where(
+                self.__class__.is_default == True,
+                self.__class__.id != self.id
+            )
+            current_default = session.execute(stmt).scalar_one_or_none()
+            if current_default:
+                current_default.is_default = False
+                
         return value
 
     def __repr__(self) -> str:

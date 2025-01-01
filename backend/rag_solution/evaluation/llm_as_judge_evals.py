@@ -1,7 +1,7 @@
 import asyncio
 from pydantic import BaseModel
 import json
-from typing import Dict, Union, List, Any
+from typing import Dict, Union, List, Any, Optional
 from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams
 from dotenv import find_dotenv, load_dotenv
 from ibm_watsonx_ai.foundation_models import ModelInference
@@ -20,7 +20,9 @@ from rag_solution.evaluation.metrics import (
     AnswerSimilarity,
     ContextRelevance
 )
-from rag_solution.evaluation import logger
+from core.logging_utils import get_logger
+
+logger = get_logger(__name__)
 from vectordbs.utils.watsonx import get_model, generate_text, generate_batch
 
 BASE_LLM_PARAMETERS = {
@@ -66,22 +68,28 @@ def init_llm(
     :param MODEL_ID: A string representing the model ID. Defaults to a specific model.
     :return: An instance of a language model - BaseLanguageModel
     """
-    _ = load_dotenv(find_dotenv())
-    return get_model(generate_params=parameters,model_id=MODEL_ID)
+    try:
+        _ = load_dotenv(find_dotenv())
+        return get_model(generate_params=parameters, model_id=MODEL_ID)
+    except Exception as e:
+        logger.error(f"Failed to initialize LLM: {e}")
+        raise RuntimeError(f"Failed to initialize LLM: {e}")
 
 
-LLM_LLAMA3_EVALUATOR = init_llm(parameters=BASE_LLM_PARAMETERS)
+def get_evaluator():
+    """Get or create the evaluator instance."""
+    return init_llm(parameters=BASE_LLM_PARAMETERS)
 
 
 # Base class for evaluators with a default LLM
 class BaseEvaluator:
     def __init__(
         self,
-        llm: ModelInference = LLM_LLAMA3_EVALUATOR,
+        llm: Optional[ModelInference] = None,
         prompt: str = None,
         pydantic_model: BaseModel = None,
     ):
-        self.llm = llm
+        self.llm = llm or get_evaluator()
         self.prompt = prompt
         self.pydantic_model = pydantic_model
 
@@ -155,9 +163,8 @@ class BaseEvaluator:
 class FaithfulnessEvaluator(BaseEvaluator):
     def __init__(self):
         super().__init__(
-            LLM_LLAMA3_EVALUATOR,
-            FAITHFULNESS_PROMPT_LLAMA3,
-            Faithfulness,
+            prompt=FAITHFULNESS_PROMPT_LLAMA3,
+            pydantic_model=Faithfulness
         )
         self.scores = {
             "High": 1,
@@ -191,7 +198,9 @@ class FaithfulnessEvaluator(BaseEvaluator):
 class AnswerRelevanceEvaluator(BaseEvaluator):
     def __init__(self):
         super().__init__(
-            LLM_LLAMA3_EVALUATOR, ANSWER_RELEVANCE_PROMPT_LLAMA3, AnswerRelevance)
+            prompt=ANSWER_RELEVANCE_PROMPT_LLAMA3,
+            pydantic_model=AnswerRelevance
+        )
         self.scores = {
             "High": 1,
             "Medium": 0.5,
@@ -222,7 +231,8 @@ class AnswerRelevanceEvaluator(BaseEvaluator):
 class AnswerSimilarityEvaluator(BaseEvaluator):
     def __init__(self):
         super().__init__(
-            LLM_LLAMA3_EVALUATOR, ANSWER_SIMILARITY_EVALUATION_PROMPT_LLAMA3, AnswerSimilarity
+            prompt=ANSWER_SIMILARITY_EVALUATION_PROMPT_LLAMA3,
+            pydantic_model=AnswerSimilarity
         )
 
     def evaluate(
@@ -244,9 +254,8 @@ class AnswerSimilarityEvaluator(BaseEvaluator):
 class ContextRelevanceEvaluator(BaseEvaluator):
     def __init__(self):
         super().__init__(
-            LLM_LLAMA3_EVALUATOR,
-            CONTEXT_RELEVANCY_PROMPT_LLAMA3,
-            ContextRelevance,
+            prompt=CONTEXT_RELEVANCY_PROMPT_LLAMA3,
+            pydantic_model=ContextRelevance
         )
         self.scores = {
             "High": 1,

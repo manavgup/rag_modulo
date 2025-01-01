@@ -8,11 +8,14 @@ import logging
 import re
 
 from core.config import settings
+from core.custom_exceptions import ConfigurationError
 from rag_solution.pipeline.pipeline import Pipeline, PipelineResult
 from rag_solution.schemas.search_schema import SearchInput, SearchOutput
 from rag_solution.schemas.collection_schema import CollectionOutput
 from rag_solution.services.collection_service import CollectionService
 from rag_solution.services.file_management_service import FileManagementService
+from rag_solution.services.runtime_config_service import RuntimeConfigService
+from rag_solution.generation.providers.factory import LLMProviderFactory
 from vectordbs.data_types import QueryResult, DocumentMetadata
 
 logging.basicConfig(level=logging.INFO)
@@ -27,66 +30,49 @@ class SearchService:
         Args:
             db: Database session
         """
-        self.pipeline = self._create_pipeline(db)
+        self.db: Session = db
+        self.runtime_config_service: RuntimeConfigService = RuntimeConfigService(db)
         self.collection_service: CollectionService = CollectionService(db)
         self.file_service: FileManagementService = FileManagementService(db)
+        self.llm_factory: LLMProviderFactory = LLMProviderFactory(db)
+        self.pipeline: Optional[Pipeline] = None  # Will be initialized per request
 
-    def _create_pipeline(self, db: Session) -> Pipeline:
-        """Create and configure the RAG pipeline using settings.
+    def _initialize_pipeline(self, user_id: Optional[UUID] = None) -> Pipeline:
+        """Initialize pipeline with runtime configuration.
         
         Args:
-            db: Database session
+            user_id: Optional user ID for configuration preferences
             
         Returns:
             Pipeline: Configured pipeline instance
+            
+        Raises:
+            HTTPException: If configuration error occurs
         """
-        config = {
-            'query_rewriting': {
-                'use_simple_rewriter': True,
-                'use_hyponym_rewriter': False
-            },
-            'retrieval': {
-                'type': 'vector',
-                'vector_weight': 0.7
-            },
-            'generation': {
-                'type': 'watsonx',
-                'model_name': settings.rag_llm,
-                'default_params': {
-                    'max_new_tokens': settings.max_new_tokens,
-                    'min_new_tokens': settings.min_new_tokens,
-                    'temperature': settings.temperature,
-                    'random_seed': settings.random_seed,
-                    'top_k': settings.top_k
-                }
-            },
-            'vector_store': {
-                'type': settings.vector_db,
-                'connection_args': {
-                    'host': settings.milvus_host,
-                    'port': settings.milvus_port,
-                    'user': settings.milvus_user,
-                    'password': settings.milvus_password,
-                    'index_params': settings.milvus_index_params,
-                    'search_params': settings.milvus_search_params
-                }
-            },
-            'number_of_results': settings.number_of_results,
-            'chunking': {
-                'strategy': settings.chunking_strategy,
-                'min_chunk_size': settings.min_chunk_size,
-                'max_chunk_size': settings.max_chunk_size,
-                'chunk_overlap': settings.chunk_overlap,
-                'semantic_threshold': settings.semantic_threshold
-            },
-            'embedding': {
-                'model': settings.embedding_model,
-                'dimension': settings.embedding_dim,
-                'field': settings.embedding_field,
-                'batch_size': settings.upsert_batch_size
-            }
-        }
-        return Pipeline(config, db)
+        try:
+            # Get runtime configuration
+            config = self.runtime_config_service.get_runtime_config(user_id)
+            
+            # Create provider instance with runtime config
+            provider = self.llm_factory.get_provider(
+                provider_name=config.provider_config.provider_name,
+                model_id=config.provider_config.model_id
+            )
+            
+            # Create pipeline with all required parameters
+            return Pipeline(
+                db=self.db,
+                provider=provider,
+                model_parameters=config.llm_parameters,
+                prompt_template=config.prompt_template,
+                collection_name='default_collection'
+            )
+            
+        except ConfigurationError as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to initialize pipeline: {str(e)}"
+            )
 
     def _get_collection_vector_db_name(self, collection_id: UUID) -> str:
         """Get the vector database collection name for a given collection ID.
@@ -216,7 +202,12 @@ class SearchService:
             logger.error(f"Error generating document metadata: {e}")
             raise
     
-    async def search(self, search_input: SearchInput, context: Optional[Dict[str, Any]] = None) -> SearchOutput:
+    async def search(
+        self,
+        search_input: SearchInput,
+        user_id: Optional[UUID] = None,
+        context: Optional[Dict[str, Any]] = None
+    ) -> SearchOutput:
         """Process a search query through the RAG pipeline.
 
         Args:
@@ -239,7 +230,10 @@ class SearchService:
             # Clean the query before sending to pipeline
             clean_query = self._prepare_query(search_input.question)
             
-            # Process through pipeline with strong typing
+            # Initialize pipeline with user configuration
+            self.pipeline = self._initialize_pipeline(user_id)
+            
+            # Process through pipeline
             pipeline_result: PipelineResult = await self.pipeline.process(
                 query=clean_query,
                 collection_name=collection_name,
