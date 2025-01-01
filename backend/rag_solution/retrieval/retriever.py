@@ -3,21 +3,20 @@ from typing import List, Dict, Any, Optional
 from abc import ABC, abstractmethod
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-from vectordbs.data_types import Document, QueryResult
+from vectordbs.data_types import Document, QueryResult, VectorQuery
 from rag_solution.data_ingestion.ingestion import DocumentStore
 
 logger = logging.getLogger(__name__)
 
 class BaseRetriever(ABC):
     @abstractmethod
-    def retrieve(self, collection_name: str, query: str, number_of_results: int = 10) -> List[QueryResult]:
+    def retrieve(self, collection_name: str, query: VectorQuery) -> List[QueryResult]:
         """
         Retrieve relevant documents based on the query.
 
         Args:
             collection_name (str): The name of the collection to retrieve from.
-            query (str): The query string.
-            number_of_results (int): The number of documents to retrieve.
+            query (VectorQuery): The query object containing search parameters.
 
         Returns:
             List[QueryResult]: A list of retrieved documents with their relevance scores.
@@ -34,21 +33,24 @@ class VectorRetriever(BaseRetriever):
         """
         self.document_store = document_store
 
-    def retrieve(self, collection_name: str, query: str, number_of_results: int = 10) -> List[QueryResult]:
+    def retrieve(self, collection_name: str, query: VectorQuery) -> List[QueryResult]:
         """
         Retrieve relevant documents based on the query using vector similarity.
 
         Args:
             collection_name (str): The name of the collection to retrieve from.
-            query (str): The query string.
-            number_of_results (int): The number of documents to retrieve.
+            query (VectorQuery): The query object containing search parameters.
 
         Returns:
             List[QueryResult]: A list of retrieved documents with their relevance scores.
         """
         try:
-            results: List[QueryResult] = self.document_store.vector_store.retrieve_documents(query, collection_name, number_of_results)
-            logger.info(f"Received {len(results)} documents for query: {query}")
+            results: List[QueryResult] = self.document_store.vector_store.retrieve_documents(
+                query.text, 
+                collection_name, 
+                query.number_of_results
+            )
+            logger.info(f"Received {len(results)} documents for query: {query.text}")
             return results
         except Exception as e:
             logger.error(f"Error retrieving documents for query '{query}': {e}")
@@ -75,14 +77,13 @@ class KeywordRetriever(BaseRetriever):
         texts = [doc.content for doc in self.documents]
         self.tfidf_matrix = self.vectorizer.fit_transform(texts)
 
-    def retrieve(self, collection_name: str, query: str, number_of_results: int = 10) -> List[QueryResult]:
+    def retrieve(self, collection_name: str, query: VectorQuery) -> List[QueryResult]:
         """
         Retrieve relevant documents based on the query using keyword matching.
 
         Args:
             collection_name (str): The name of the collection to retrieve from.
-            query (str): The query string.
-            number_of_results (int): The number of documents to retrieve.
+            query (VectorQuery): The query object containing search parameters.
 
         Returns:
             List[QueryResult]: A list of retrieved documents with their relevance scores.
@@ -91,9 +92,9 @@ class KeywordRetriever(BaseRetriever):
             if self.tfidf_matrix is None:
                 self._update_tfidf()
 
-            query_vec = self.vectorizer.transform([query])
+            query_vec = self.vectorizer.transform([query.text])
             similarities = cosine_similarity(query_vec, self.tfidf_matrix).flatten()
-            top_k_indices = similarities.argsort()[-number_of_results:][::-1]
+            top_k_indices = similarities.argsort()[-query.number_of_results:][::-1]
             
             results = [
                 QueryResult(
@@ -121,21 +122,20 @@ class HybridRetriever(BaseRetriever):
         self.keyword_retriever = KeywordRetriever(document_store)
         self.vector_weight = vector_weight
 
-    def retrieve(self, collection_name: str, query: str, number_of_results: int = 10) -> List[QueryResult]:
+    def retrieve(self, collection_name: str, query: VectorQuery) -> List[QueryResult]:
         """
         Retrieve relevant documents using both vector-based and keyword-based methods.
 
         Args:
             collection_name (str): The name of the collection to retrieve from.
-            query (str): The query string.
-            number_of_results (int): The number of documents to retrieve.
+            query (VectorQuery): The query object containing search parameters.
 
         Returns:
             List[QueryResult]: A list of retrieved documents with their relevance scores.
         """
         try:
-            vector_results = self.vector_retriever.retrieve(collection_name, query, number_of_results=number_of_results)
-            keyword_results = self.keyword_retriever.retrieve(collection_name, query, number_of_results=number_of_results)
+            vector_results = self.vector_retriever.retrieve(collection_name, query)
+            keyword_results = self.keyword_retriever.retrieve(collection_name, query)
             
             # Combine and re-rank results
             combined_results = {}
@@ -148,7 +148,7 @@ class HybridRetriever(BaseRetriever):
 
             ranked_results = sorted(combined_results.values(), key=lambda x: x.score, reverse=True)
             logger.info(f"Retrieved {len(ranked_results)} documents for query: {query}")
-            return ranked_results[:number_of_results]
+            return ranked_results[:query.number_of_results]
         except Exception as e:
             logger.error(f"Error retrieving documents for query '{query}': {e}")
             raise
@@ -172,8 +172,12 @@ if __name__ == "__main__":
     ]
     document_store.add_documents(documents)
     
-    query = "Who developed the theory of relativity?"
-    results = retriever.retrieve("test_collection", query, number_of_results=2)
+    # Create a vector query
+    query = VectorQuery(
+        text="Who developed the theory of relativity?",
+        number_of_results=2
+    )
+    results = retriever.retrieve("test_collection", query)
     
     for result in results:
         print(f"ID: {result.document.id}, Score: {result.score}, Content: {result.document.content[:100]}...")

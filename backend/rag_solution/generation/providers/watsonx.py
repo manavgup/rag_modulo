@@ -108,12 +108,13 @@ class WatsonXProvider(LLMProvider):
                 message=f"Failed to initialize client: {str(e)}"
             )
 
-    def _get_model(self, model_id: Optional[str] = None) -> ModelInference:
+    def _get_model(self) -> ModelInference:
         """Get cached or create new model instance."""
         try:
-            # Use provided model_id or default from config
-            model_id = model_id or self._provider_config.default_model_id
+            # Use model_id from base class or default from config
+            model_id = self._model_id or self._provider_config.default_model_id
             
+            # Create new model instance if needed
             if model_id not in self._model_cache:
                 model = ModelInference(
                     model_id=model_id,
@@ -124,6 +125,17 @@ class WatsonXProvider(LLMProvider):
                     )
                 )
                 model.set_api_client(api_client=self.client)
+                
+                # Set parameters if available
+                if self._parameters:
+                    model.params.update({
+                        GenParams.MAX_NEW_TOKENS: self._parameters.get('max_new_tokens', 150),
+                        GenParams.TEMPERATURE: self._parameters.get('temperature', 0.7),
+                        GenParams.TOP_K: self._parameters.get('top_k', 50),
+                        GenParams.TOP_P: self._parameters.get('top_p', 1.0),
+                        GenParams.RANDOM_SEED: self._parameters.get('random_seed', None)
+                    })
+                
                 self._model_cache[model_id] = model
                 
             return self._model_cache[model_id]
@@ -156,15 +168,8 @@ class WatsonXProvider(LLMProvider):
             # Prepare prompt
             prompt = self._prepare_prompts(prompt, template)
             
-            # Get model and set parameters
+            # Get model (parameters already set in _get_model)
             model = self._get_model()
-            model.params.update({
-                GenParams.MAX_NEW_TOKENS: model_parameters.max_new_tokens,
-                GenParams.TEMPERATURE: model_parameters.temperature,
-                GenParams.TOP_K: model_parameters.top_k,
-                GenParams.TOP_P: model_parameters.top_p,
-                GenParams.RANDOM_SEED: model_parameters.random_seed
-            })
             
             # Generate with runtime settings
             response = model.generate_text(
@@ -225,13 +230,8 @@ class WatsonXProvider(LLMProvider):
             # Prepare prompt
             prompt = self._prepare_prompts(prompt, template)
             
-            # Get model and set parameters
+            # Get model (parameters already set in _get_model)
             model = self._get_model()
-            model.params.update({
-                GenParams.MAX_NEW_TOKENS: model_parameters.max_new_tokens,
-                GenParams.TEMPERATURE: model_parameters.temperature,
-                GenParams.RANDOM_SEED: model_parameters.random_seed
-            })
             
             # Stream generation with runtime settings
             stream = model.generate_text_stream(

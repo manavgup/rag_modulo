@@ -115,7 +115,33 @@ class LLMProvider(ABC):
         self.logger = get_logger(f"llm.providers.{self.__class__.__name__}")
         self.logger.info(f"Initializing {self.__class__.__name__}")
         self.client = None
+        self._model_id: Optional[str] = None
+        self._parameters: Optional[Dict[str, Any]] = None
         self.initialize_client()
+
+    @property
+    def model_id(self) -> Optional[str]:
+        """Get the current model ID."""
+        return self._model_id
+
+    @model_id.setter
+    def model_id(self, value: str) -> None:
+        """Set the model ID and reinitialize client if needed."""
+        if value != self._model_id:
+            self._model_id = value
+            self.initialize_client()
+
+    @property
+    def parameters(self) -> Optional[Dict[str, Any]]:
+        """Get the current parameters."""
+        return self._parameters
+
+    @parameters.setter
+    def parameters(self, value: Dict[str, Any]) -> None:
+        """Set the parameters and reinitialize client if needed."""
+        if value != self._parameters:
+            self._parameters = value
+            self.initialize_client()
     
     @abstractmethod
     def initialize_client(self) -> None:

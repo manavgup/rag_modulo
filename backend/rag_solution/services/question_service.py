@@ -12,7 +12,8 @@ from rag_solution.repository.question_repository import QuestionRepository
 from rag_solution.data_ingestion.chunking import get_chunking_method
 from vectordbs.utils.watsonx import extract_entities
 from core.config import settings
-from rag_solution.generation.factories import GeneratorFactory
+from rag_solution.generation.providers.factory import LLMProviderFactory
+from rag_solution.services.runtime_config_service import RuntimeConfigService
 
 logger = logging.getLogger(__name__)
 
@@ -28,28 +29,22 @@ class QuestionService:
             db: Database session
             config: Optional configuration override
         """
+        self.db = db
         self.config = config or {}
         self.question_repository = QuestionRepository(db)
 
-        # Load configuration
+        # Load question-specific configuration
         self.num_questions = self.config.get('num_questions', settings.question_suggestion_num)
         self.min_length = self.config.get('min_length', settings.question_min_length)
         self.max_length = self.config.get('max_length', settings.question_max_length)
-        self.temperature = self.config.get('temperature', settings.question_temperature)
         self.question_types = self.config.get('question_types', settings.question_types)
         self.required_terms = self.config.get('required_terms', settings.question_required_terms)
         self.question_patterns = self.config.get('question_patterns', settings.question_patterns)
 
-        # Initialize the generator
-        generator_config = {
-            'type': 'watsonx',
-            'model_name': 'meta-llama/llama-3-1-8b-instruct',
-            'default_params': {
-                'max_new_tokens': 150,
-                'temperature': 0.7
-            }
-        }
-        self.generator = GeneratorFactory.create_generator(generator_config)
+        # Initialize the LLM provider with configuration
+        self.llm_factory = LLMProviderFactory(db)
+        provider_type = self.config.get('provider', {}).get('type', 'watsonx')
+        self.provider = self.llm_factory.get_provider(provider_type)
 
     def _validate_question(self, question: str, context: str) -> bool:
         """Validate that question is well-formed and relevant to context."""
@@ -148,7 +143,7 @@ class QuestionService:
         prompt = self._generate_question_prompt(context, num_questions)
 
         try:
-            response = self.generator.generate(query='', context=prompt, stop=['\n\n', 'Answer:', 'Question:'])
+            response = self.provider.generate(query='', context=prompt, stop=['\n\n', 'Answer:', 'Question:'])
 
             # Split the response into lines
             lines = response.strip().split('\n')
@@ -256,7 +251,15 @@ class QuestionService:
                 prompts = [self._generate_question_prompt(text, num_questions or self.num_questions) for text in batch]
                 
                 try:
-                    responses = self.generator.generate(prompts, context=None, concurrency_limit=settings.llm_concurrency)
+                    # Get runtime config for provider
+                    runtime_config = RuntimeConfigService(self.db).get_runtime_config()
+                    
+                    # Generate text with all required parameters
+                    responses = self.provider.generate_text(
+                        prompts,
+                        model_parameters=runtime_config.llm_parameters,
+                        template=runtime_config.prompt_template
+                    )
                     
                     if isinstance(responses, list):
                         for response in responses:
