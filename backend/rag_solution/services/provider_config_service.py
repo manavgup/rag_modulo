@@ -9,11 +9,11 @@ from core.custom_exceptions import ProviderConfigError, LLMParameterError
 from rag_solution.repository.provider_config_repository import ProviderConfigRepository
 from rag_solution.repository.llm_parameters_repository import LLMParametersRepository
 from rag_solution.schemas.provider_config_schema import (
-    ProviderModelConfigBase,
-    ProviderModelConfigCreate,
-    ProviderModelConfigUpdate,
-    ProviderModelConfigResponse,
-    ProviderRegistryResponse
+    ProviderConfig,
+    ProviderInDB,
+    ProviderRuntimeSettings,
+    ProviderUpdate,
+    ProviderRegistry
 )
 from rag_solution.schemas.llm_parameters_schema import LLMParametersCreate
 from rag_solution.schemas.prompt_template_schema import PromptTemplateCreate
@@ -39,9 +39,9 @@ class ProviderConfigService:
         provider: str,
         model_id: str,
         parameters: LLMParametersCreate,
-        provider_config: ProviderModelConfigBase,
+        provider_config: ProviderConfig,
         prompt_template: Optional[PromptTemplateCreate] = None
-    ) -> ProviderModelConfigResponse:
+    ) -> ProviderConfig:
         """Register a new provider model with parameters.
         
         Args:
@@ -73,12 +73,28 @@ class ProviderConfigService:
 
             # Create prompt template if provided
             if prompt_template:
-                from rag_solution.repository.prompt_template_repository import PromptTemplateRepository
-                template_repo = PromptTemplateRepository(self.db)
-                template_repo.create(prompt_template)
+                try:
+                    from rag_solution.repository.prompt_template_repository import PromptTemplateRepository
+                    template_repo = PromptTemplateRepository(self.db)
+                    created_template = template_repo.create(prompt_template)
+                    if not created_template:
+                        raise ProviderConfigError(
+                            provider=provider,
+                            model_id=model_id,
+                            error_type="template_error",
+                            message="Failed to create prompt template"
+                        )
+                except Exception as e:
+                    self.logger.error(f"Error creating prompt template: {str(e)}")
+                    raise ProviderConfigError(
+                        provider=provider,
+                        model_id=model_id,
+                        error_type="template_error",
+                        message=f"Failed to create prompt template: {str(e)}"
+                    )
 
-            # Create provider config with credentials and settings
-            config = ProviderModelConfigCreate(
+            # Create provider config with credentials, settings, and the new parameters ID
+            config = ProviderConfig(
                 provider_name=provider,
                 model_id=model_id,
                 parameters_id=created_params.id,
@@ -88,9 +104,7 @@ class ProviderConfigService:
                 org_id=provider_config.org_id,
                 default_model_id=provider_config.default_model_id,
                 embedding_model=provider_config.embedding_model,
-                timeout=provider_config.timeout,
-                max_retries=provider_config.max_retries,
-                batch_size=provider_config.batch_size,
+                runtime=provider_config.runtime,
                 is_active=True
             )
             return self.provider_repo.create(config)
@@ -125,7 +139,7 @@ class ProviderConfigService:
     def get_provider_config(
         self,
         provider_name: str
-    ) -> Optional[ProviderModelConfigBase]:
+    ) -> Optional[ProviderConfig]:
         """Get provider configuration by name.
         
         Args:
@@ -142,21 +156,7 @@ class ProviderConfigService:
             configs = self.provider_repo.list(active_only=True)
             for config in configs.providers:
                 if config.provider_name == provider_name and config.is_active:
-                    return ProviderModelConfigBase(
-                        model_id=config.model_id,
-                        provider_name=config.provider_name,
-                        api_key=config.api_key,
-                        api_url=config.api_url,
-                        project_id=config.project_id,
-                        org_id=config.org_id,
-                        default_model_id=config.default_model_id,
-                        embedding_model=config.embedding_model,
-                        parameters_id=config.parameters_id,
-                        timeout=config.timeout,
-                        max_retries=config.max_retries,
-                        batch_size=config.batch_size,
-                        is_active=config.is_active
-                    )
+                    return ProviderConfig.model_validate(config)
             return None
             
         except Exception as e:
@@ -172,7 +172,7 @@ class ProviderConfigService:
         self,
         provider: str,
         model_id: str
-    ) -> Optional[ProviderModelConfigResponse]:
+    ) -> Optional[ProviderConfig]:
         """Get provider model configuration.
         
         Args:
@@ -192,7 +192,7 @@ class ProviderConfigService:
         skip: int = 0,
         limit: int = 100,
         active_only: bool = False
-    ) -> ProviderRegistryResponse:
+    ) -> ProviderRegistry:
         """List all provider configurations.
         
         Args:
@@ -213,7 +213,7 @@ class ProviderConfigService:
         provider: str,
         model_id: str,
         updates: Dict[str, Any]
-    ) -> Optional[ProviderModelConfigResponse]:
+    ) -> Optional[ProviderConfig]:
         """Update provider model configuration.
         
         Args:
@@ -234,7 +234,7 @@ class ProviderConfigService:
                 return None
 
             # Update configuration
-            config = ProviderModelConfigUpdate(**updates)
+            config = ProviderUpdate(**updates)
             return self.provider_repo.update(existing.id, config)
 
         except Exception as e:
@@ -252,7 +252,7 @@ class ProviderConfigService:
         self,
         provider: str,
         model_id: str
-    ) -> Optional[ProviderModelConfigResponse]:
+    ) -> Optional[ProviderConfig]:
         """Verify provider model and update verification timestamp.
         
         Args:
@@ -295,7 +295,7 @@ class ProviderConfigService:
         self,
         provider: str,
         model_id: str
-    ) -> Optional[ProviderModelConfigResponse]:
+    ) -> Optional[ProviderConfig]:
         """Deactivate a provider model configuration.
         
         Args:
@@ -315,7 +315,7 @@ class ProviderConfigService:
                 return None
 
             # Deactivate configuration
-            updates = ProviderModelConfigUpdate(is_active=False)
+            updates = ProviderUpdate(is_active=False)
             return self.provider_repo.update(existing.id, updates)
 
         except Exception as e:

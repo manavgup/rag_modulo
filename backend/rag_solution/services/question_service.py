@@ -12,7 +12,11 @@ from rag_solution.repository.question_repository import QuestionRepository
 from rag_solution.data_ingestion.chunking import get_chunking_method
 from vectordbs.utils.watsonx import extract_entities
 from core.config import settings
-from rag_solution.generation.factories import GeneratorFactory
+from rag_solution.generation.providers.factory import LLMProviderFactory
+from rag_solution.generation.providers.base import LLMProvider
+from rag_solution.services.runtime_config_service import RuntimeConfigService
+from rag_solution.models.prompt_template import PromptTemplate
+from rag_solution.repository.prompt_template_repository import PromptTemplateRepository
 
 logger = logging.getLogger(__name__)
 
@@ -20,36 +24,33 @@ logger = logging.getLogger(__name__)
 class QuestionService:
     """Service for managing question suggestions."""
 
-    def __init__(self, db: Session, config: Optional[Dict[str, Any]] = None):
+    def __init__(
+        self,
+        db: Session,
+        provider: LLMProvider,  # Pre-configured provider instance
+        config: Optional[Dict[str, Any]] = None
+    ):
         """
         Initialize question service.
 
         Args:
             db: Database session
+            provider: Pre-configured LLM provider instance
             config: Optional configuration override
         """
+        self.db = db
+        self.provider = provider
         self.config = config or {}
         self.question_repository = QuestionRepository(db)
 
-        # Load configuration
+        # Load question-specific configuration
         self.num_questions = self.config.get('num_questions', settings.question_suggestion_num)
         self.min_length = self.config.get('min_length', settings.question_min_length)
         self.max_length = self.config.get('max_length', settings.question_max_length)
-        self.temperature = self.config.get('temperature', settings.question_temperature)
         self.question_types = self.config.get('question_types', settings.question_types)
         self.required_terms = self.config.get('required_terms', settings.question_required_terms)
         self.question_patterns = self.config.get('question_patterns', settings.question_patterns)
-
-        # Initialize the generator
-        generator_config = {
-            'type': 'watsonx',
-            'model_name': 'meta-llama/llama-3-1-8b-instruct',
-            'default_params': {
-                'max_new_tokens': 150,
-                'temperature': 0.7
-            }
-        }
-        self.generator = GeneratorFactory.create_generator(generator_config)
+        self.model_parameters = self.config.get('model_parameters')
 
     def _validate_question(self, question: str, context: str) -> bool:
         """Validate that question is well-formed and relevant to context."""
@@ -106,89 +107,14 @@ class QuestionService:
         scored_questions.sort(key=lambda x: x[1], reverse=True)
         return [q[0] for q in scored_questions]
 
-    def _generate_question_prompt(self, context: str, num_questions: int) -> str:
-        return f"""
-        Generate exactly {num_questions} specific questions based strictly on the following text. For each question, also list the entities relevant to the question.
+    def _get_question_template(self) -> PromptTemplate:
+        """Get the question generation template."""
+        template_repo = PromptTemplateRepository(self.db)
+        template = template_repo.get_by_name_and_provider("watsonx-question-gen", "watsonx")
+        if not template:
+            raise ValueError("Question generation template not found")
+        return template
 
-        Requirements:
-        - Questions MUST be directly answerable from the provided text.
-        - Focus ONLY on information explicitly stated in the text.
-        - DO NOT make assumptions or generate questions about topics not covered.
-        - DO NOT include any meta-commentary or notes about the questions.
-        - Each question should end with a question mark.
-
-        Format the output as follows:
-        Question 1?
-        - Entity1
-        - Entity2
-        Question 2?
-        - Entity3
-        - Entity4
-        ...
-
-        Text:
-        {context}
-
-        Generate {num_questions} questions with their relevant entities:
-        """
-
-
-    def _generate_questions(self, context: str, num_questions: Optional[int] = None) -> List[str]:
-        """
-        Generate questions for context using the language model.
-
-        Args:
-            context: Document context
-            num_questions: Number of questions to generate
-
-        Returns:
-            List[str]: Generated questions
-        """
-        num_questions = num_questions or self.num_questions
-        prompt = self._generate_question_prompt(context, num_questions)
-
-        try:
-            response = self.generator.generate(query='', context=prompt, stop=['\n\n', 'Answer:', 'Question:'])
-
-            # Split the response into lines
-            lines = response.strip().split('\n')
-            generated_questions = []
-            entities_by_question = {}
-
-            i = 0
-            while i < len(lines):
-                line = lines[i].strip()
-                if line.endswith('?'):
-                    question = line
-                    entities = []
-                    i += 1
-                    while i < len(lines) and lines[i].startswith('- '):
-                        entities.append(lines[i][2:].strip())
-                        i += 1
-                    generated_questions.append(question)
-                    entities_by_question[question] = entities
-                else:
-                    i += 1
-
-            logger.info(f"Generated questions with entities: {generated_questions}")
-
-            # Validate and select the required number of questions
-            valid_questions = []
-            for question in generated_questions:
-                if self._validate_question(question, context) and question not in valid_questions:
-                    logger.info(f"Suggested question: {question}")
-                    valid_questions.append(question)
-                if len(valid_questions) >= num_questions:
-                    break
-            logger.info(f"Valid questions after validation: {valid_questions}")
-            return valid_questions
-        except Exception as e:
-            logger.error(f"Error generating questions using LLM: {e}", exc_info=True)
-            return []
-    
-    async def _generate_questions_async(self, chunk: str, num_questions: Optional[int]) -> List[str]:
-        return await asyncio.to_thread(self._generate_questions, chunk, num_questions)
-    
     def _filter_duplicate_questions(self, questions: List[str]) -> List[str]:
         """Remove duplicate questions using normalized comparison."""
         seen = set()
@@ -253,10 +179,20 @@ class QuestionService:
             
             for i in range(0, len(combined_texts), settings.llm_concurrency):
                 batch = combined_texts[i:i + settings.llm_concurrency]
-                prompts = [self._generate_question_prompt(text, num_questions or self.num_questions) for text in batch]
+                # Get question template
+                template = self._get_question_template()
                 
                 try:
-                    responses = self.generator.generate(prompts, context=None, concurrency_limit=settings.llm_concurrency)
+                    # Generate text with template
+                    responses = self.provider.generate_text(
+                        batch,
+                        model_parameters=self.model_parameters,
+                        template=template,
+                        variables={
+                            "context": " ".join(batch),
+                            "num_questions": str(num_questions or self.num_questions)
+                        }
+                    )
                     
                     if isinstance(responses, list):
                         for response in responses:

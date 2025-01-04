@@ -1,13 +1,15 @@
 from typing import List, Dict, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, status
 from sqlalchemy.orm import Session
 
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.user_schema import UserInput, UserOutput
 from rag_solution.services.user_service import UserService
 from rag_solution.services.user_collection_service import UserCollectionService
+from rag_solution.services.runtime_config_service import RuntimeConfigService
+from rag_solution.schemas.provider_config_schema import ProviderConfig
 from rag_solution.services.user_collection_interaction_service import UserCollectionInteractionService
 from rag_solution.services.file_management_service import FileManagementService
 from rag_solution.schemas.user_collection_schema import UserCollectionOutput, UserCollectionsOutput
@@ -268,3 +270,93 @@ def add_user_to_team(user_id: UUID, team_id: UUID, db: Session = Depends(get_db)
 def remove_user_from_team(user_id: UUID, team_id: UUID, db: Session = Depends(get_db)):
     service = UserTeamService(db)
     return service.remove_user_from_team(user_id, team_id)
+
+@router.get("/{user_id}/provider-preference",
+    response_model=ProviderConfig,
+    summary="Get user's provider preference",
+    description="Get the user's preferred LLM provider configuration",
+    responses={
+        200: {"description": "Successfully retrieved provider preference"},
+        404: {"description": "No preference found"},
+        500: {"description": "Internal server error"}
+    }
+)
+@authorize_decorator(role="user")
+async def get_provider_preference(
+    user_id: UUID,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Get user's preferred provider configuration."""
+    if not hasattr(request.state, 'user') or request.state.user['uuid'] != str(user_id):
+        raise HTTPException(status_code=403, detail="Not authorized to access this resource")
+    
+    service = RuntimeConfigService(db)
+    try:
+        config = await service.get_runtime_config(user_id)
+        return config.provider_config
+    except Exception as e:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No provider preference found: {str(e)}"
+        )
+
+@router.post("/{user_id}/provider-preference/{config_id}",
+    response_model=ProviderConfig,
+    summary="Set user's provider preference",
+    description="Set the user's preferred LLM provider configuration",
+    responses={
+        200: {"description": "Successfully set provider preference"},
+        404: {"description": "Provider config not found"},
+        500: {"description": "Internal server error"}
+    }
+)
+@authorize_decorator(role="user")
+async def set_provider_preference(
+    user_id: UUID,
+    config_id: int,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Set user's preferred provider configuration."""
+    if not hasattr(request.state, 'user') or request.state.user['uuid'] != str(user_id):
+        raise HTTPException(status_code=403, detail="Not authorized to access this resource")
+    
+    service = RuntimeConfigService(db)
+    try:
+        await service.set_user_provider_preference(user_id, config_id)
+        config = await service.get_runtime_config(user_id)
+        return config.provider_config
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to set provider preference: {str(e)}"
+        )
+
+@router.delete("/{user_id}/provider-preference",
+    summary="Clear user's provider preference",
+    description="Remove the user's preferred LLM provider configuration",
+    responses={
+        200: {"description": "Successfully cleared provider preference"},
+        500: {"description": "Internal server error"}
+    }
+)
+@authorize_decorator(role="user")
+async def clear_provider_preference(
+    user_id: UUID,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Clear user's provider preference."""
+    if not hasattr(request.state, 'user') or request.state.user['uuid'] != str(user_id):
+        raise HTTPException(status_code=403, detail="Not authorized to access this resource")
+    
+    service = RuntimeConfigService(db)
+    try:
+        await service.clear_user_provider_preference(user_id)
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to clear provider preference: {str(e)}"
+        )

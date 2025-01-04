@@ -3,18 +3,24 @@
         "system_prompt": "You are an AI assistant specializing in answering questions based on the given context.",
         "context_prefix": "Context:",
         "query_prefix": "Question:",
-        "answer_prefix": "Answer:"
+        "answer_prefix": "Answer:",
+        "input_variables": ["context", "question"],
+        "template_format": "Based on the following context:\n{context}\n\nAnswer this question: {question}"
     },
     "openai": {
         "system_prompt": "You are a helpful AI assistant. Your task is to answer questions based on the provided context.",
         "context_prefix": "Here's some relevant information:",
         "query_prefix": "Please answer the following question:",
-        "answer_prefix": "Response:"
+        "answer_prefix": "Response:",
+        "input_variables": ["context", "question"],
+        "template_format": "Using the provided information:\n{context}\n\nPlease answer this question: {question}"
     },
     "anthropic": {
         "system_prompt": "You are Claude, an AI assistant created by Anthropic to be helpful, harmless, and honest. Your goal is to provide accurate and helpful answers based on the given context.",
         "context_prefix": "Relevant information:",
         "query_prefix": "Human question:",
-        "answer_prefix": "Claude's response:"
+        "answer_prefix": "Claude's response:",
+        "input_variables": ["context", "question"],
+        "template_format": "Based on this context:\n{context}\n\nHuman: Please answer this question: {question}\n\nAssistant: I'll help answer that based on the context provided."
     }
 }

@@ -17,7 +17,10 @@ class Collection(Base):
     name: Mapped[str] = mapped_column(String, index=True)
     vector_db_name: Mapped[str] = mapped_column(String, nullable=False)
     is_private: Mapped[bool] = mapped_column(Boolean, default=False)
-    status: Mapped[CollectionStatus] = mapped_column(Enum(CollectionStatus), default=CollectionStatus.CREATED)
+    status: Mapped[CollectionStatus] = mapped_column(
+        Enum(CollectionStatus, name='collectionstatus', create_type=False),
+        default=CollectionStatus.CREATED
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 

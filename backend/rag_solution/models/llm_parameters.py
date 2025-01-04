@@ -56,6 +56,11 @@ class LLMParameters(Base):
         Integer,
         nullable=True
     )
+    repetition_penalty: Mapped[Optional[float]] = mapped_column(
+        Float,
+        nullable=True,
+        default=1.1
+    )
     
     # Status flags
     is_default: Mapped[bool] = mapped_column(
@@ -169,6 +174,24 @@ class LLMParameters(Base):
         """
         if not 0.0 <= value <= 1.0:
             raise ValueError("top_p must be between 0.0 and 1.0")
+        return value
+
+    @validates('repetition_penalty')
+    def validate_repetition_penalty(self, key: str, value: Optional[float]) -> Optional[float]:
+        """Validate repetition_penalty is within acceptable range.
+        
+        Args:
+            key: Field name being validated
+            value: Value to validate
+            
+        Returns:
+            Validated value
+            
+        Raises:
+            ValueError: If value is outside acceptable range
+        """
+        if value is not None and not 1.0 <= value <= 2.0:
+            raise ValueError("repetition_penalty must be between 1.0 and 2.0")
         return value
 
     def __repr__(self) -> str:

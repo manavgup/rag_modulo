@@ -63,11 +63,20 @@ class AnthropicProvider(LLMProvider):
             if isinstance(prompt, list):
                 responses = []
                 for p in prompt:
+                    # Use runtime config or defaults from provider config
+                    config = provider_config or ProviderConfig(
+                        timeout=self._provider_config.runtime.timeout,
+                        max_retries=self._provider_config.runtime.max_retries,
+                        batch_size=self._provider_config.runtime.batch_size,
+                        retry_delay=self._provider_config.runtime.retry_delay
+                    )
+
                     response = self.client.messages.create(
                         model=self.default_model,
                         max_tokens=model_parameters.max_new_tokens,
                         temperature=model_parameters.temperature,
-                        messages=[{"role": "user", "content": p}]
+                        messages=[{"role": "user", "content": p}],
+                        timeout=config.timeout
                     )
                     responses.append(response.content[0].text)
 
@@ -75,11 +84,20 @@ class AnthropicProvider(LLMProvider):
                 logger.info(f"***** Response content: {responses}")
                 return responses
             else:
+                # Use runtime config or defaults from provider config
+                config = provider_config or ProviderConfig(
+                    timeout=self._provider_config.runtime.timeout,
+                    max_retries=self._provider_config.runtime.max_retries,
+                    batch_size=self._provider_config.runtime.batch_size,
+                    retry_delay=self._provider_config.runtime.retry_delay
+                )
+
                 response = self.client.messages.create(
                     model=self.default_model,
                     max_tokens=model_parameters.max_new_tokens,
                     temperature=model_parameters.temperature,
-                    messages=[{"role": "user", "content": prompt}]
+                    messages=[{"role": "user", "content": prompt}],
+                    timeout=config.timeout
                 )
                 return response.content[0].text
         except Exception as e:
@@ -103,12 +121,22 @@ class AnthropicProvider(LLMProvider):
             # Prepare the prompt using the template if provided
             prompt = self._prepare_prompts(prompt, template)
 
+            # Use runtime config or defaults from provider config
+            config = provider_config or ProviderConfig(
+                timeout=self._provider_config.runtime.timeout,
+                max_retries=self._provider_config.runtime.max_retries,
+                batch_size=self._provider_config.runtime.batch_size,
+                retry_delay=self._provider_config.runtime.retry_delay,
+                stream=True
+            )
+
             # Create the stream object
             with self.client.messages.stream(
                 model=self.default_model,
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=model_parameters.max_new_tokens,
                 temperature=model_parameters.temperature,
+                timeout=config.timeout
             ) as stream:
                 # Log the stream object for debugging
                 logger.debug(f"Stream object: {stream}")
