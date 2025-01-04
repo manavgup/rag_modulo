@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from core.logging_utils import get_logger
 from rag_solution.generation.providers.factory import LLMProviderFactory
-from rag_solution.generation.providers.base import LLMProvider
+from rag_solution.generation.providers.base import LLMProvider, LLMProviderError
 from rag_solution.schemas.collection_schema import CollectionInput, CollectionStatus
 from rag_solution.schemas.prompt_template_schema import PromptTemplateCreate
 from rag_solution.schemas.user_schema import UserInput
@@ -18,11 +18,6 @@ from rag_solution.services.user_service import UserService
 from rag_solution.services.user_team_service import UserTeamService
 
 logger = get_logger(__name__)
-
-@pytest.fixture
-def test_collection_id() -> UUID:
-    """Test collection ID."""
-    return UUID('12345678-1234-5678-1234-567812345678')
 
 @pytest.fixture
 def user_team_service(db_session):
@@ -57,7 +52,7 @@ def provider(db_session: Session):
     provider.close()
 
 @pytest.fixture
-def question_service(db_session: Session, provider: LLMProvider, test_collection_id: UUID, test_user, collection_service, user_service):
+def question_service(db_session: Session, provider: LLMProvider):
     """Create question service instance with real provider."""
     try:
         # Create prompt template
@@ -73,14 +68,6 @@ def question_service(db_session: Session, provider: LLMProvider, test_collection
             input_variables=["prompt", "context", "num_questions"],
             template_format="{prompt}\n\nBased on this context:\n{context}\n\nGenerate {num_questions} questions about the above context."
         ))
-
-        # Create test collection
-        collection = collection_service.create_collection(CollectionInput(
-            name="test_collection",
-            is_private=True,
-            users=[test_user.id],
-            status=CollectionStatus.CREATED
-        ))
         
         # Create service
         service = QuestionService(
@@ -92,29 +79,33 @@ def question_service(db_session: Session, provider: LLMProvider, test_collection
                 'max_length': 100
             }
         )
-        yield service
-        
-        # Cleanup
-        service.question_repository.delete_questions_by_collection(collection.id)
-        collection_service.delete_collection(collection.id)
-        user_service.delete_user(test_user.id)
+        return service
     except Exception as e:
         logger.error(f"Error in question service fixture: {e}")
         raise
 
 @pytest.mark.asyncio
-async def test_suggest_questions_provider_error(question_service: QuestionService, collection_service: CollectionService):
+async def test_suggest_questions_provider_error(question_service: QuestionService, collection_service: CollectionService, test_user):
     """Test question suggestion with provider error."""
     try:
         logger.info("Testing question suggestion with provider error")
         
+        # Create test collection
+        collection = collection_service.create_collection(CollectionInput(
+            name="test_collection",
+            is_private=True,
+            users=[test_user.id],
+            status=CollectionStatus.CREATED
+        ))
+        
         # Break the provider client
         question_service.provider.client = None
+        question_service.provider.initialize_client = lambda: None  # Prevent auto-initialization
         
         texts = ["Test context"]
         
-        with pytest.raises(Exception, match="Provider client is not initialized"):
-            await question_service.suggest_questions(texts, test_collection_id, 2)
+        with pytest.raises(LLMProviderError, match="Provider client is not initialized"):
+            await question_service.suggest_questions(texts, collection.id, 2)
         
         logger.info("Provider error test passed")
     except Exception as e:
