@@ -2,7 +2,7 @@
 
 from typing import Optional
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, select
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Float, select
 from sqlalchemy.orm import validates, relationship, Mapped, mapped_column, object_session
 from sqlalchemy.sql import func
 
@@ -73,6 +73,26 @@ class ProviderModelConfig(Base):
         nullable=False,
         default=10
     )
+    retry_delay: Mapped[float] = mapped_column(
+        Float,
+        nullable=False,
+        default=1.0
+    )
+    concurrency_limit: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=10
+    )
+    stream: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False
+    )
+    rate_limit: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=10
+    )
     
     # Status and defaults
     is_active: Mapped[bool] = mapped_column(
@@ -137,11 +157,18 @@ class ProviderModelConfig(Base):
         value = value.strip()
         return value.lower() if key == 'provider_name' else value
 
-    @validates('timeout', 'max_retries', 'batch_size')
+    @validates('timeout', 'max_retries', 'batch_size', 'concurrency_limit', 'rate_limit')
     def validate_positive_int(self, key: str, value: int) -> int:
         """Validate integer fields are positive."""
         if value <= 0:
             raise ValueError(f"{key} must be positive")
+        return value
+
+    @validates('retry_delay')
+    def validate_positive_float(self, key: str, value: float) -> float:
+        """Validate float fields are positive."""
+        if value < 0:
+            raise ValueError(f"{key} must be non-negative")
         return value
 
     @validates('is_default')

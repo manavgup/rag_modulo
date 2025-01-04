@@ -41,6 +41,16 @@ def setup_logging(log_dir: Optional[Path] = None) -> None:
     logging.getLogger('urllib3').setLevel(logging.WARNING)
     logging.getLogger('asyncio').setLevel(logging.WARNING)
 
+    # Suppress SQLAlchemy logging
+    logging.getLogger('sqlalchemy').setLevel(logging.WARNING)
+    logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
+    logging.getLogger('sqlalchemy.engine.base.Engine').setLevel(logging.WARNING)
+    logging.getLogger('sqlalchemy.dialects').setLevel(logging.WARNING)
+    logging.getLogger('sqlalchemy.pool').setLevel(logging.WARNING)
+    logging.getLogger('sqlalchemy.orm').setLevel(logging.WARNING)
+
+    
+
 def get_logger(name: str) -> logging.Logger:
     """Get a logger with the given name."""
     return logging.getLogger(name)

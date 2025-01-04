@@ -9,7 +9,7 @@ from core.logging_utils import get_logger
 from rag_solution.services.provider_config_service import ProviderConfigService
 from rag_solution.repository.prompt_template_repository import PromptTemplateRepository
 from rag_solution.schemas.llm_parameters_schema import LLMParametersCreate
-from rag_solution.schemas.provider_config_schema import ProviderModelConfigInput
+from rag_solution.schemas.provider_config_schema import ProviderConfig, ProviderRuntimeSettings
 from rag_solution.schemas.prompt_template_schema import PromptTemplateCreate
 
 logger = get_logger(__name__)
@@ -40,8 +40,19 @@ def initialize_watsonx_provider(db: Session) -> None:
             repetition_penalty=settings.repetition_penalty
         )
 
+        # Create runtime configuration
+        runtime_config = ProviderRuntimeSettings(
+            timeout=30,
+            max_retries=3,
+            batch_size=10,
+            retry_delay=1.0,
+            concurrency_limit=10,
+            stream=False,
+            rate_limit=10
+        )
+
         # Create provider configuration
-        provider_config = ProviderModelConfigInput(
+        provider_config = ProviderConfig(
             model_id=settings.rag_llm,
             provider_name="watsonx",
             api_key=settings.wx_api_key,
@@ -49,6 +60,7 @@ def initialize_watsonx_provider(db: Session) -> None:
             project_id=settings.wx_project_id,
             default_model_id=settings.rag_llm,
             embedding_model=settings.embedding_model,
+            runtime=runtime_config,
             is_active=True
         )
 
@@ -56,8 +68,9 @@ def initialize_watsonx_provider(db: Session) -> None:
         template_repo = PromptTemplateRepository(db)
         default_template = template_repo.get_default_for_provider("watsonx")
         if not default_template:
-            template = PromptTemplateCreate(
-                name="watsonx-default",
+            # Create default chat template
+            chat_template = PromptTemplateCreate(
+                name="watsonx-chat",
                 provider="watsonx",
                 system_prompt="You are an AI assistant specializing in answering questions based on the given context.",
                 context_prefix="Context:",
@@ -65,8 +78,21 @@ def initialize_watsonx_provider(db: Session) -> None:
                 answer_prefix="Answer:",
                 is_default=True
             )
-            template_repo.create(template)
-            logger.info("Created default prompt template for WatsonX")
+            template_repo.create(chat_template)
+            logger.info("Created default chat template for WatsonX")
+
+            # Create question generation template
+            question_template = PromptTemplateCreate(
+                name="watsonx-question-gen",
+                provider="watsonx",
+                system_prompt="You are an AI assistant specializing in generating insightful questions from given text.",
+                context_prefix="Text to generate questions from:\n",
+                query_prefix="Generate {num_questions} specific questions based on the text. Questions must be directly answerable from the text. Focus only on information explicitly stated. Each question should end with a question mark.\n",
+                answer_prefix="Generated questions:",
+                is_default=False
+            )
+            template_repo.create(question_template)
+            logger.info("Created question generation template for WatsonX")
 
         # Register the provider
         provider_service.register_provider_model(

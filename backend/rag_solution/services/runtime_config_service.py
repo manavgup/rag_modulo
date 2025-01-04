@@ -8,7 +8,7 @@ from sqlalchemy import select, delete
 from pydantic import BaseModel
 
 from rag_solution.models.provider_config import ProviderModelConfig
-from rag_solution.schemas.provider_config_schema import ProviderModelConfigOutput
+from rag_solution.schemas.provider_config_schema import ProviderOutput
 from rag_solution.models.user_provider_preference import UserProviderPreference
 from rag_solution.models.llm_parameters import LLMParameters
 from rag_solution.models.prompt_template import PromptTemplate
@@ -17,10 +17,17 @@ from core.custom_exceptions import ConfigurationError
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class RuntimeConfig(BaseModel):
-    """Container for runtime configuration."""
+class RuntimeServiceConfig(BaseModel):
+    """Container for service runtime configuration.
     
-    provider_config: ProviderModelConfigOutput
+    This class represents the complete runtime configuration needed for the service,
+    including provider settings, LLM parameters, and prompt templates.
+    
+    This is distinct from the provider-level RuntimeConfig which handles
+    provider-specific settings like timeouts and retries.
+    """
+    
+    provider_config: ProviderOutput
     llm_parameters: LLMParameters
     prompt_template: PromptTemplate
     
@@ -43,7 +50,7 @@ class RuntimeConfigService:
     def get_runtime_config(
         self,
         user_id: Optional[UUID] = None
-    ) -> RuntimeConfig:
+    ) -> RuntimeServiceConfig:
         """Get runtime configuration based on context.
         
         Selection hierarchy:
@@ -55,7 +62,7 @@ class RuntimeConfigService:
             user_id: Optional user ID for preferences
             
         Returns:
-            RuntimeConfig: Current runtime configuration
+            RuntimeServiceConfig: Current runtime configuration
             
         Raises:
             ConfigurationError: If no valid configuration found
@@ -68,7 +75,7 @@ class RuntimeConfigService:
             llm_params = self._get_llm_parameters(provider_config.parameters_id)
             prompt_template = self._get_prompt_template(provider_config.provider_name)
             
-            return RuntimeConfig(
+            return RuntimeServiceConfig(
                 provider_config=provider_config,
                 llm_parameters=llm_params,
                 prompt_template=prompt_template
@@ -81,14 +88,14 @@ class RuntimeConfigService:
     def _get_provider_config(
         self,
         user_id: Optional[UUID] = None
-    ) -> ProviderModelConfigOutput:
+    ) -> ProviderOutput:
         """Get appropriate provider configuration.
         
         Args:
             user_id: Optional user ID to check preferences
             
         Returns:
-            ProviderModelConfig: Selected provider configuration
+            ProviderOutput: Selected provider configuration
             
         Raises:
             ConfigurationError: If no valid provider found
@@ -104,7 +111,7 @@ class RuntimeConfigService:
             result = self.db.execute(stmt)
             preference = result.scalar_one_or_none()
             if preference:
-                return ProviderModelConfigOutput.model_validate(preference.provider_config)
+                return ProviderOutput.model_validate(preference.provider_config)
         
         # Check system default
         stmt = select(ProviderModelConfig).filter(
@@ -114,7 +121,7 @@ class RuntimeConfigService:
         result = self.db.execute(stmt)
         default_provider = result.scalar_one_or_none()
         if default_provider:
-            return ProviderModelConfigOutput.model_validate(default_provider)
+            return ProviderOutput.model_validate(default_provider)
             
         # Fall back to first active provider
         stmt = select(ProviderModelConfig).filter(
@@ -123,7 +130,7 @@ class RuntimeConfigService:
         result = self.db.execute(stmt)
         active_provider = result.scalar_one_or_none()
         if active_provider:
-            return ProviderModelConfigOutput.model_validate(active_provider)
+            return ProviderOutput.model_validate(active_provider)
             
         raise ConfigurationError("No valid provider configuration found")
     

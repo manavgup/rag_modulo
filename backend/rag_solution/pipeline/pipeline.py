@@ -23,28 +23,11 @@ from core.config import settings
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class GenerationVariables(BaseModel):
-    """Variables for LLM text generation.
-    
-    Attributes:
-        context: Context for generation
-        question: Question to answer
-    """
-    context: str = Field(..., description="Context for generation")
-    question: str = Field(..., description="Question to answer")
-    
-    model_config = ConfigDict(
-        frozen=True,  # Make immutable
-        validate_assignment=True,
-        extra="forbid"  # No extra fields allowed
-    )
-
 class PipelineResult(BaseModel):
     """Result from pipeline processing.
     
     Attributes:
         rewritten_query: Query after rewriting
-        document_metadata: Unique document metadata for display
         query_results: List of vector similarity matches
         generated_answer: Generated answer text
         evaluation: Optional evaluation results
@@ -136,37 +119,6 @@ class Pipeline():
             logger.error(f"Error loading documents: {str(e)}")
             raise
 
-    def get_collection_chunks(self, collection_name: str) -> List[DocumentChunk]:
-        """Get document chunks from a collection.
-        
-        Args:
-            collection_name: Name of the collection to retrieve chunks from
-            
-        Returns:
-            List[DocumentChunk]: List of document chunks
-        """
-        try:
-            # Create an empty query to get representative documents
-            query = VectorQuery(
-                text="",  # Empty query to get representative documents
-                number_of_results=settings.number_of_results
-            )
-            
-            retrieved_docs = self.retriever.retrieve(
-                collection_name=collection_name,
-                query=query
-            )
-            
-            # Extract chunks from retrieved documents
-            chunks = []
-            for result in retrieved_docs:
-                chunks.extend(result.chunk)
-            return chunks
-            
-        except Exception as e:
-            logger.error(f"Error getting collection chunks: {e}")
-            return []
-
     async def process(self, query: str, collection_name: str, context: Optional[Dict[str, Any]] = None) -> PipelineResult:
         """Process a query through the RAG pipeline.
         
@@ -178,16 +130,22 @@ class Pipeline():
         Returns:
             PipelineResult: Contains the generated answer and supporting information
         """
-        try:
-            if not query.strip():
-                raise ValueError("Query cannot be empty")
+        # Validate query first, before try block
+        if not query.strip():
+            raise ValueError("Query cannot be empty")
 
-            # 1: Query Rewriting
+        try:
+            # 1: Check provider first
+            if self.provider.client is None:
+                logger.error("Provider client is not initialized")
+                raise Exception("Provider client is not initialized")
+
+            # 2: Query Rewriting
             rewritten_query = self.query_rewriter.rewrite(query, context)
             logger.info(f"Rewritten query: {rewritten_query}")
             logger.info(f"Going with original query: {query}")
 
-            #2: Vector Retrieval
+            # 3: Vector Retrieval
             vector_query = VectorQuery(
                 text=query,
                 number_of_results=settings.number_of_results
@@ -195,38 +153,56 @@ class Pipeline():
             query_results: List[QueryResult] = self.retriever.retrieve(collection_name, vector_query)
             logger.info(f"Retrieved {len(query_results)} documents")
 
-            # Get all chunks to generate the answer from the LLM
-            all_texts = "\n".join(result.chunk.text for result in query_results)
+            # Get all texts from retrieved documents
+            retrieved_texts = [result.chunk.text for result in query_results]
+            context_text = "\n\n".join(retrieved_texts)
 
-            #3. Generate answer from all chunks 
-            logger.info(f"Calling provider.generate_text with context length: {len(all_texts)}")
-            
-            # Generate answer using provider with proper parameters
-            generation_vars = GenerationVariables(
-                context=all_texts,
-                question=query
-            )
-            
-            generated_answer = self.provider.generate_text(
-                prompt=query,
-                model_parameters=self.model_parameters,
-                template=self.prompt_template,
-                variables=generation_vars.model_dump()
-            )
-            
-            if isinstance(generated_answer, list):
-                generated_answer = generated_answer[0]  # Take first response if list returned
+            # 4: Format prompt and generate answer
+            try:
+                if not retrieved_texts:
+                    logger.warning("No documents found for query")
+                    generated_answer = "I apologize, but I couldn't find any relevant documents to answer your question."
+                else:
+                    try:
+                        # Use the template's format_prompt method to create the complete prompt
+                        formatted_prompt = self.prompt_template.format_prompt(
+                            context=context_text,
+                            question=query
+                        )
+                        logger.info(f"Generated prompt with context length: {len(formatted_prompt)}")
+                        
+                        # Generate answer using provider with pre-formatted prompt
+                        # Since we've already formatted the prompt, don't pass template to avoid double formatting
+                        generated_answer = self.provider.generate_text(
+                            prompt=formatted_prompt,
+                            model_parameters=self.model_parameters
+                        )
+                    except ValueError as e:
+                        # Handle specific template formatting errors
+                        logger.error(f"Error formatting prompt: {str(e)}")
+                        # Fall back to using query directly if template formatting fails
+                        formatted_prompt = f"{self.prompt_template.system_prompt}\n{self.prompt_template.context_prefix}{context_text}\n{self.prompt_template.query_prefix}{query}\n{self.prompt_template.answer_prefix}"
+                        generated_answer = self.provider.generate_text(
+                            prompt=formatted_prompt,
+                            model_parameters=self.model_parameters
+                        )
+                    
+                    if isinstance(generated_answer, list):
+                        generated_answer = generated_answer[0]  # Take first response if list returned
+            except Exception as e:
+                logger.error(f"Error generating answer: {str(e)}")
+                generated_answer = ""
                 
             logger.info(f"Generated answer: {generated_answer}")
 
-            #4. Evaluation
+            # 4: Evaluation
             logger.info("Now going to evaluate the results")
             try:
                 if settings.runtime_eval:
                     evaluation_result = await self.evaluator.evaluate(
                         question=query,
                         answer=generated_answer,
-                        context=all_texts
+                        context=context_text
                     )
                 else:
                     evaluation_result = None
@@ -244,7 +220,7 @@ class Pipeline():
             logger.error(f"Error in pipeline: {str(e)}")
             return PipelineResult(
                 rewritten_query=rewritten_query if 'rewritten_query' in locals() else "",
-                query_results = [],
+                query_results=[],
                 generated_answer="",
                 evaluation={"error": str(e)}
             )

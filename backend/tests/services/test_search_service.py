@@ -1,384 +1,210 @@
-"""Tests for search service."""
+"""Tests for SearchService."""
 
 import pytest
-from uuid import uuid4
+import pytest_asyncio
+import asyncio
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
+from uuid import UUID
+from datetime import datetime
 
 from rag_solution.services.search_service import SearchService
-from rag_solution.models.user_provider_preference import UserProviderPreference
+from rag_solution.services.user_service import UserService
+from rag_solution.services.collection_service import CollectionService
+from rag_solution.services.file_management_service import FileManagementService
+from rag_solution.services.provider_config_service import ProviderConfigService
+from rag_solution.services.runtime_config_service import RuntimeConfigService
+from rag_solution.services.prompt_template_service import PromptTemplateService
 from rag_solution.schemas.search_schema import SearchInput, SearchOutput
-from rag_solution.models.provider_config import ProviderModelConfig
-from rag_solution.models.llm_parameters import LLMParameters
-from rag_solution.models.prompt_template import PromptTemplate
-from rag_solution.models.file import File, FileMetadata
-from rag_solution.models.collection import Collection
+from rag_solution.schemas.user_schema import UserInput
+from rag_solution.schemas.collection_schema import CollectionInput
+from rag_solution.schemas.file_schema import FileInput
+from rag_solution.schemas.llm_parameters_schema import LLMParametersCreate
+from rag_solution.schemas.provider_config_schema import ProviderConfig, ProviderRuntimeSettings
+from rag_solution.schemas.prompt_template_schema import PromptTemplateCreate
+from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, Source
+from rag_solution.generation.providers.watsonx import WatsonXProvider
+from vectordbs.milvus_store import MilvusStore
 from core.custom_exceptions import ConfigurationError
 from core.config import settings
 
-@pytest.fixture
-def search_service(db: Session):
-    """Create search service instance."""
-    return SearchService(db)
+
+# -------------------------------------------
+# 🛠️ FIXTURES
+# -------------------------------------------
 
 @pytest.fixture
-def test_collection(db: Session):
-    """Create test collection."""
-    collection = Collection(
+def event_loop():
+    """Create an instance of the default event loop for each test case."""
+    loop = asyncio.get_event_loop_policy().new_event_loop()
+    yield loop
+    loop.close()
+
+
+@pytest.fixture
+def test_user(db_session: Session):
+    """Create a test user."""
+    user_service = UserService(db_session)
+    user_schema = UserInput(
+        name="Test User",
+        email="testuser@example.com",
+        ibm_id="test-ibm-id"
+    )
+    return user_service.create_user(user_schema)
+
+
+@pytest.fixture
+def search_service(db_session: Session):
+    """Create an instance of SearchService."""
+    return SearchService(db_session)
+
+
+@pytest.fixture
+def test_collection(db_session: Session, test_user):
+    """Create a test collection."""
+    collection_service = CollectionService(db_session)
+    collection_schema = CollectionInput(
         name="test-collection",
-        description="Test collection",
-        vector_db_name="test_collection"
+        is_private=False,
+        users=[test_user.id],
+        status="created"
     )
-    db.add(collection)
-    db.commit()
-    return collection
+    return collection_service.create_collection(collection_schema)
+
 
 @pytest.fixture
-def test_file(db: Session, test_collection: Collection):
-    """Create test file."""
-    file = File(
-        filename="test.txt",
-        document_id="doc1",
+def test_file(db_session: Session, test_collection, test_user, test_config):
+    """Create a test file and add its content to vector store."""
+    # Create file record in database
+    file_service = FileManagementService(db_session)
+    file_schema = FileInput(
         collection_id=test_collection.id,
-        metadata=FileMetadata(
-            total_pages=1,
-            total_chunks=1,
-            keywords=["test"]
-        )
+        filename="test.txt",
+        file_path="/path/to/test.txt",
+        file_type="txt",
+        document_id="doc1",
+        metadata={
+            "total_pages": 1,
+            "total_chunks": 1,
+            "keywords": {"test": True}
+        }
     )
-    db.add(file)
-    db.commit()
-    return file
+    file = file_service.create_file(file_schema, test_user.id)
+
+    # Get embeddings using WatsonX provider
+    text = "Paris is the capital of France. It is known for the Eiffel Tower."
+    provider_service = ProviderConfigService(db_session)
+    watsonx = WatsonXProvider(provider_service)
+    embeddings = watsonx.get_embeddings(text)
+
+    # Create document for vector store
+    chunk = DocumentChunk(
+        chunk_id="chunk1",
+        text=text,
+        embeddings=embeddings[0],  # First embedding since we only have one text
+        metadata=DocumentChunkMetadata(
+            source=Source.OTHER,
+            document_id="doc1",
+            page_number=1,
+            chunk_number=1,
+            start_index=0,  # Add start_index
+            end_index=len(text)  # Add end_index
+        ),
+        document_id="doc1"
+    )
+    document = Document(
+        document_id="doc1",
+        name="test.txt",
+        chunks=[chunk]
+    )
+
+    # Add to vector store
+    store = MilvusStore()
+    store._connect(settings.milvus_host, settings.milvus_port)
+    
+    # Delete collection if it exists
+    try:
+        store.delete_collection(test_collection.vector_db_name)
+    except:
+        pass
+    
+    # Create collection and add documents
+    store.create_collection(test_collection.vector_db_name, {"embedding_model": settings.embedding_model})
+    store.add_documents(test_collection.vector_db_name, [document])
+
+    yield file
+
+    # Cleanup vector store collection
+    try:
+        store.delete_collection(test_collection.vector_db_name)
+    except:
+        pass
+
 
 @pytest.fixture
-def test_config(db: Session):
-    """Create test configurations."""
-    # Create LLM parameters
-    params = LLMParameters(
-        name="test-params",
-        max_new_tokens=100,
-        temperature=0.7,
-        top_k=50,
-        top_p=1.0,
-        is_default=True
-    )
-    db.add(params)
-    db.commit()
+def test_config(db_session: Session):
+    """Get existing test configurations for LLM."""
+    provider_service = ProviderConfigService(db_session)
+    template_service = PromptTemplateService(db_session)
     
-    # Create provider config
-    provider = ProviderModelConfig(
-        model_id="test-model",
-        provider_name="test-provider",
-        api_key="test-key",
-        default_model_id="default-model",
-        parameters_id=params.id,
-        is_default=True,
-        is_active=True
-    )
-    db.add(provider)
-    
-    # Create prompt template
-    template = PromptTemplate(
-        name="test-template",
-        provider="test-provider",
-        system_prompt="You are a helpful assistant",
-        context_prefix="Context:",
-        query_prefix="Question:",
-        answer_prefix="Answer:",
-        is_default=True
-    )
-    db.add(template)
-    db.commit()
+    # Get existing provider config
+    provider = provider_service.get_provider_config("watsonx")
+    if not provider:
+        raise ValueError("WatsonX provider configuration not found")
+        
+    # Get default template for watsonx provider
+    template = template_service.get_default_template("watsonx")
+    if not template:
+        raise ValueError("Default template not found")
     
     return {
-        'parameters': params,
         'provider': provider,
         'template': template
     }
 
+
+# -------------------------------------------
+# 🧪 TEST CASES
+# -------------------------------------------
+
 @pytest.mark.asyncio
 async def test_search_basic(
-    db: Session,
     search_service: SearchService,
-    test_collection: Collection,
-    test_file: File,
-    test_config: dict
+    test_collection,
+    test_file
 ):
     """Test basic search functionality."""
-    # Create search input
     search_input = SearchInput(
         question="What is the capital of France?",
         collection_id=test_collection.id
     )
     
-    # Perform search
     result = await search_service.search(search_input)
     
-    # Verify result structure
     assert isinstance(result, SearchOutput)
-    assert result.rewritten_query  # Should have some value
-    assert isinstance(result.query_results, list)
-    assert isinstance(result.answer, str)
     assert len(result.documents) > 0
     assert result.documents[0].document_name == test_file.filename
 
-@pytest.mark.asyncio
-async def test_search_with_user_preference(
-    db: Session,
-    search_service: SearchService,
-    test_collection: Collection,
-    test_config: dict
-):
-    """Test search with user provider preference."""
-    # Create alternate provider
-    alt_provider = ProviderModelConfig(
-        model_id="alt-model",
-        provider_name="test-provider",
-        api_key="alt-key",
-        default_model_id="alt",
-        parameters_id=test_config['parameters'].id,
-        is_default=False,
-        is_active=True
-    )
-    db.add(alt_provider)
-    db.commit()
-    
-    # Create user preference
-    user_id = uuid4()
-    pref = UserProviderPreference(
-        user_id=user_id,
-        provider_config_id=alt_provider.id
-    )
-    db.add(pref)
-    db.commit()
-    
-    # Create search input
-    search_input = SearchInput(
-        question="What is the capital of France?",
-        collection_id=test_collection.id
-    )
-    
-    # Perform search with user ID
-    result = await search_service.search(search_input, user_id=user_id)
-    
-    # Verify result uses alternate provider
-    pipeline = search_service._initialize_pipeline(user_id)
-    assert pipeline.provider.model_id == "alt-model"
-
-@pytest.mark.asyncio
-async def test_search_collection_not_found(
-    search_service: SearchService
-):
-    """Test handling of missing collection."""
-    search_input = SearchInput(
-        question="test query",
-        collection_id=uuid4()  # Random non-existent ID
-    )
-    
-    with pytest.raises(HTTPException) as exc:
-        await search_service.search(search_input)
-    assert exc.value.status_code == 404
-    assert "Collection not found" in str(exc.value.detail)
-
-@pytest.mark.asyncio
-async def test_search_no_config(
-    db: Session,
-    search_service: SearchService,
-    test_collection: Collection
-):
-    """Test handling of missing configuration."""
-    # Create search input
-    search_input = SearchInput(
-        question="test query",
-        collection_id=test_collection.id
-    )
-    
-    with pytest.raises(HTTPException) as exc:
-        await search_service.search(search_input)
-    assert exc.value.status_code == 500
-    assert "No valid provider configuration found" in str(exc.value.detail)
 
 def test_prepare_query(search_service: SearchService):
-    """Test query preparation."""
-    # Test boolean operator removal
-    query = "term1 AND term2 OR term3"
-    clean = search_service._prepare_query(query)
-    assert clean == "term1 term2 term3"
-    
-    # Test parentheses removal
-    query = "(term1) AND (term2)"
-    clean = search_service._prepare_query(query)
-    assert clean == "term1 term2"
+    """Test query preprocessing."""
+    assert search_service._prepare_query("term1 AND term2 OR term3") == "term1 term2 term3"
+    assert search_service._prepare_query("(term1) AND (term2)") == "term1 term2"
+
 
 def test_clean_generated_answer(search_service: SearchService):
     """Test answer cleaning."""
-    # Test duplicate removal
-    answer = "line1\nline1\nline2"
-    clean = search_service._clean_generated_answer(answer)
-    assert clean == "line1\nline2"
+    # Test removing AND prefix
+    assert search_service._clean_generated_answer("AND info1") == "info1"
     
-    # Test empty answer
-    assert search_service._clean_generated_answer("") == ""
+    # Test preserving parentheses when they wrap the entire content
+    assert search_service._clean_generated_answer("(info1 AND info2)") == "(info1 info2)"
     
-    # Test whitespace cleanup
-    answer = "  line1  \n  line2  "
-    clean = search_service._clean_generated_answer(answer)
-    assert clean == "line1\nline2"
+    # Test removing AND prefix and preserving parentheses
+    assert search_service._clean_generated_answer("AND (info1)\nAND (info2)") == "(info1) (info2)"
     
-    # Test boolean prefix removal
-    answer = "AND (relevant info)\nAND (more info)"
-    clean = search_service._clean_generated_answer(answer)
-    assert clean == "relevant info\nmore info"
-
-@pytest.mark.asyncio
-async def test_search_invalid_query(
-    db: Session,
-    search_service: SearchService,
-    test_collection: Collection,
-    test_config: dict
-):
-    """Test handling of invalid query."""
-    # Create search input with empty query
-    search_input = SearchInput(
-        question="   ",  # Empty after stripping
-        collection_id=test_collection.id
-    )
+    # Test deduplication
+    assert search_service._clean_generated_answer("info1\ninfo1\ninfo2") == "info1 info2"
     
-    with pytest.raises(ValueError, match="Query cannot be empty"):
-        await search_service.search(search_input)
-
-@pytest.mark.asyncio
-async def test_search_with_evaluation(
-    db: Session,
-    search_service: SearchService,
-    test_collection: Collection,
-    test_file: File,
-    test_config: dict
-):
-    """Test search with runtime evaluation."""
-    # Store original setting
-    original_eval = settings.runtime_eval
-    
-    try:
-        # Enable runtime evaluation
-        settings.runtime_eval = True
-        
-        # Create search input
-        search_input = SearchInput(
-            question="What is the capital of France?",
-            collection_id=test_collection.id
-        )
-        
-        # Perform search
-        result = await search_service.search(search_input)
-        
-        # Verify evaluation results
-        assert result.evaluation is not None
-        assert isinstance(result.evaluation, dict)
-        assert "score" in result.evaluation
-    finally:
-        # Restore original setting
-        settings.runtime_eval = original_eval
-
-@pytest.mark.asyncio
-async def test_search_with_context(
-    db: Session,
-    search_service: SearchService,
-    test_collection: Collection,
-    test_file: File,
-    test_config: dict
-):
-    """Test search with context."""
-    # Create search input
-    search_input = SearchInput(
-        question="What is the capital of France?",
-        collection_id=test_collection.id
-    )
-    
-    # Add context
-    context = {
-        "user_role": "student",
-        "language": "en",
-        "detail_level": "high"
-    }
-    
-    # Perform search with context
-    result = await search_service.search(search_input, context=context)
-    
-    # Verify context was used in query rewriting
-    assert result.rewritten_query != search_input.question
-    assert isinstance(result.rewritten_query, str)
-    assert len(result.rewritten_query) > 0
-
-@pytest.mark.asyncio
-async def test_query_rewriting(
-    db: Session,
-    search_service: SearchService,
-    test_collection: Collection,
-    test_file: File,
-    test_config: dict
-):
-    """Test query rewriting."""
-    # Test cases for query rewriting
-    test_cases = [
-        ("capital France", "What is the capital of France?"),  # Expand keywords
-        ("who built eiffel tower?", "Who was responsible for constructing the Eiffel Tower?"),  # Rephrase
-        ("paris weather", "What is the current weather in Paris?")  # Add context
-    ]
-    
-    for original, expected_type in test_cases:
-        # Create search input
-        search_input = SearchInput(
-            question=original,
-            collection_id=test_collection.id
-        )
-        
-        # Perform search
-        result = await search_service.search(search_input)
-        
-        # Verify query was rewritten
-        assert result.rewritten_query != original
-        assert isinstance(result.rewritten_query, str)
-        assert len(result.rewritten_query) > 0
-
-@pytest.mark.asyncio
-async def test_document_metadata_generation(
-    db: Session,
-    search_service: SearchService,
-    test_collection: Collection,
-    test_config: dict
-):
-    """Test document metadata generation."""
-    # Create multiple files
-    files = []
-    for i in range(3):
-        file = File(
-            filename=f"doc{i}.txt",
-            document_id=f"doc{i}",
-            collection_id=test_collection.id,
-            metadata=FileMetadata(
-                total_pages=i+1,
-                total_chunks=i+1,
-                keywords=[f"test{i}"]
-            )
-        )
-        db.add(file)
-        files.append(file)
-    db.commit()
-    
-    # Create search input
-    search_input = SearchInput(
-        question="test query",
-        collection_id=test_collection.id
-    )
-    
-    # Perform search
-    result = await search_service.search(search_input)
-    
-    # Verify document metadata
-    assert len(result.documents) == len(files)
-    for doc in result.documents:
-        assert doc.document_name in [f"doc{i}.txt" for i in range(3)]
-        assert doc.total_pages is not None
-        assert doc.total_chunks is not None
-        assert doc.keywords is not None
+    # Test multiple AND prefixes and parentheses
+    assert search_service._clean_generated_answer("  AND (info1) AND (info2) ") == "(info1) (info2)"

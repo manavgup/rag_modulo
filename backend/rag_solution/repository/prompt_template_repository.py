@@ -45,7 +45,9 @@ class PromptTemplateRepository:
                 context_prefix=template.context_prefix,
                 query_prefix=template.query_prefix,
                 answer_prefix=template.answer_prefix,
-                is_default=template.is_default
+                is_default=template.is_default,
+                input_variables=template.input_variables,
+                template_format=template.template_format
             )
             
             # If setting as default, unset any existing default for this provider
@@ -97,6 +99,21 @@ class PromptTemplateRepository:
         return self._session.query(PromptTemplate).filter(
             PromptTemplate.provider == provider
         ).all()
+
+    def get_by_name_and_provider(self, name: str, provider: str) -> Optional[PromptTemplate]:
+        """Get template by name and provider.
+        
+        Args:
+            name: Template name
+            provider: LLM provider name
+            
+        Returns:
+            Template if found, None otherwise
+        """
+        return self._session.query(PromptTemplate).filter(
+            PromptTemplate.name == name,
+            PromptTemplate.provider == provider
+        ).first()
 
     def get_default_for_provider(self, provider: str) -> Optional[PromptTemplate]:
         """Get default template for a provider.

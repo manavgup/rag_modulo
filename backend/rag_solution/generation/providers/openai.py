@@ -45,7 +45,7 @@ class OpenAIProvider(LLMProvider):
             logger.error(f"Failed to initialize OpenAI client: {str(e)}")
             raise LLMProviderError(f"Initialization failed: {str(e)}")
 
-    async def get_embeddings(
+    def get_embeddings(
         self,
         texts: Union[str, List[str]],
         provider_config: Optional[ProviderConfig] = None
@@ -56,9 +56,18 @@ class OpenAIProvider(LLMProvider):
             if isinstance(texts, str):
                 texts = [texts]
 
-            response = await self.client.embeddings.create(
+            # Use runtime config or defaults from provider config
+            config = provider_config or ProviderConfig(
+                timeout=self._provider_config.runtime.timeout,
+                max_retries=self._provider_config.runtime.max_retries,
+                batch_size=self._provider_config.runtime.batch_size,
+                retry_delay=self._provider_config.runtime.retry_delay
+            )
+
+            response = self.client.embeddings.create(
                 model=self.default_embedding_model,
-                input=texts
+                input=texts,
+                timeout=config.timeout
             )
             return [data.embedding for data in response.data]
         except Exception as e:
@@ -81,25 +90,43 @@ class OpenAIProvider(LLMProvider):
             if isinstance(prompt, list):
                 responses = []
                 for p in prompt:
+                    # Use runtime config or defaults from provider config
+                    config = provider_config or ProviderConfig(
+                        timeout=self._provider_config.runtime.timeout,
+                        max_retries=self._provider_config.runtime.max_retries,
+                        batch_size=self._provider_config.runtime.batch_size,
+                        retry_delay=self._provider_config.runtime.retry_delay
+                    )
+
                     response = self.client.chat.completions.create(
                         model=self.default_model,
                         messages=[{"role": "user", "content": p}],
                         max_tokens=model_parameters.max_new_tokens,
                         temperature=model_parameters.temperature,
                         top_p=model_parameters.top_p,
-                        seed=model_parameters.random_seed
+                        seed=model_parameters.random_seed,
+                        timeout=config.timeout
                     )
                     responses.append(response.choices[0].message.content.strip())
 
                 return responses
             else:
+                # Use runtime config or defaults from provider config
+                config = provider_config or ProviderConfig(
+                    timeout=self._provider_config.runtime.timeout,
+                    max_retries=self._provider_config.runtime.max_retries,
+                    batch_size=self._provider_config.runtime.batch_size,
+                    retry_delay=self._provider_config.runtime.retry_delay
+                )
+
                 response = self.client.chat.completions.create(
                     model=self.default_model,
                     messages=[{"role": "user", "content": prompt}],
                     max_tokens=model_parameters.max_new_tokens,
                     temperature=model_parameters.temperature,
                     top_p=model_parameters.top_p,
-                    seed=model_parameters.random_seed
+                    seed=model_parameters.random_seed,
+                    timeout=config.timeout
                 )
                 return response.choices[0].message.content.strip()
         except Exception as e:
@@ -123,13 +150,23 @@ class OpenAIProvider(LLMProvider):
             # Prepare the prompt using the template if provided
             prompt = self._prepare_prompts(prompt, template)
 
+            # Use runtime config or defaults from provider config
+            config = provider_config or ProviderConfig(
+                timeout=self._provider_config.runtime.timeout,
+                max_retries=self._provider_config.runtime.max_retries,
+                batch_size=self._provider_config.runtime.batch_size,
+                retry_delay=self._provider_config.runtime.retry_delay,
+                stream=True
+            )
+
             stream = self.client.chat.completions.create(
                 model=self.default_model,
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=model_parameters.max_new_tokens,
                 temperature=model_parameters.temperature,
-                stream=True,
-                seed=model_parameters.random_seed
+                stream=config.stream,
+                seed=model_parameters.random_seed,
+                timeout=config.timeout
             )
 
             for chunk in stream:

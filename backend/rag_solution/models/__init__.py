@@ -19,6 +19,7 @@ from rag_solution.models.provider_config import ProviderModelConfig
 from rag_solution.models.question import SuggestedQuestion
 from rag_solution.models.user_collection import UserCollection
 from rag_solution.models.user_team import UserTeam
+from rag_solution.models.user_provider_preference import UserProviderPreference
 
 # Register all models with Base.metadata
 __all__ = [
@@ -31,5 +32,6 @@ __all__ = [
     'ProviderModelConfig',
     'SuggestedQuestion',
     'UserCollection',
-    'UserTeam'
+    'UserTeam',
+    'UserProviderPreference'
 ]

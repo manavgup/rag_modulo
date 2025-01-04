@@ -18,7 +18,7 @@ class RetrieverFactory:
         Raises:
             ValueError: If an invalid retriever type is specified in the configuration.
         """
-        retriever_type = config.get('type', 'hybrid')
+        retriever_type = config.get('type', 'vector')
         
         if retriever_type == 'hybrid':
             return HybridRetriever(

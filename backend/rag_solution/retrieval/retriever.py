@@ -52,9 +52,10 @@ class VectorRetriever(BaseRetriever):
             )
             logger.info(f"Received {len(results)} documents for query: {query.text}")
             return results
-        except Exception as e:
-            logger.error(f"Error retrieving documents for query '{query}': {e}")
-            raise
+        except ValueError as e:
+            logger.warning(f"Vector retrieval failed: {e}")
+            return []
+
 
 class KeywordRetriever(BaseRetriever):
     def __init__(self, document_store: DocumentStore):
@@ -92,22 +93,30 @@ class KeywordRetriever(BaseRetriever):
             if self.tfidf_matrix is None:
                 self._update_tfidf()
 
-            query_vec = self.vectorizer.transform([query.text])
-            similarities = cosine_similarity(query_vec, self.tfidf_matrix).flatten()
-            top_k_indices = similarities.argsort()[-query.number_of_results:][::-1]
-            
-            results = [
-                QueryResult(
-                    document=self.documents[i],
-                    score=float(similarities[i])
-                )
-                for i in top_k_indices
-            ]
+            if not self.documents:
+                logger.warning("No documents available for retrieval")
+                return []
+
+            try:
+                query_vec = self.vectorizer.transform([query.text])
+                similarities = cosine_similarity(query_vec, self.tfidf_matrix).flatten()
+                top_k_indices = similarities.argsort()[-query.number_of_results:][::-1]
+                
+                results = [
+                    QueryResult(
+                        document=self.documents[i],
+                        score=float(similarities[i])
+                    )
+                    for i in top_k_indices
+                ]
+            except ValueError as e:
+                logger.warning(f"TF-IDF vectorization failed: {e}")
+                return []
             logger.info(f"Retrieved {len(results)} documents for query: {query}")
             return results
         except Exception as e:
             logger.error(f"Error retrieving documents for query '{query}': {e}")
-            raise
+            return []
 
 class HybridRetriever(BaseRetriever):
     def __init__(self, document_store: DocumentStore, vector_weight: float = 0.7):
@@ -134,8 +143,14 @@ class HybridRetriever(BaseRetriever):
             List[QueryResult]: A list of retrieved documents with their relevance scores.
         """
         try:
+            # Get results from both retrievers
             vector_results = self.vector_retriever.retrieve(collection_name, query)
             keyword_results = self.keyword_retriever.retrieve(collection_name, query)
+            
+            # If both retrievers return empty results, return early
+            if not vector_results and not keyword_results:
+                logger.warning("No results from either retriever")
+                return []
             
             # Combine and re-rank results
             combined_results = {}
@@ -150,8 +165,8 @@ class HybridRetriever(BaseRetriever):
             logger.info(f"Retrieved {len(ranked_results)} documents for query: {query}")
             return ranked_results[:query.number_of_results]
         except Exception as e:
-            logger.error(f"Error retrieving documents for query '{query}': {e}")
-            raise
+            logger.error(f"Error in hybrid retrieval for query '{query}': {e}")
+            return []
 
 # Example usage
 if __name__ == "__main__":

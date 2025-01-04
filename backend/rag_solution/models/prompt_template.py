@@ -1,6 +1,7 @@
 from datetime import datetime
-from typing import Optional, Dict
-from sqlalchemy import Column, String, Boolean, DateTime, Text, UniqueConstraint
+from typing import Optional, Dict, List
+from sqlalchemy import Column, String, Boolean, DateTime, Text, UniqueConstraint, JSON
+from string import Formatter
 from sqlalchemy.sql import func
 
 from rag_solution.file_management.database import Base
@@ -15,7 +16,7 @@ class PromptTemplate(Base):
     __tablename__ = "prompt_templates"
     
     # Example templates for different LLM providers
-    EXAMPLE_TEMPLATES: Dict[str, Dict[str, str]] = {
+    EXAMPLE_TEMPLATES: Dict[str, Dict[str, any]] = {
         "watsonx": {
             "name": "watsonx_granite_default",
             "provider": "watsonx",
@@ -23,7 +24,9 @@ class PromptTemplate(Base):
             "system_prompt": "You are a helpful AI assistant powered by IBM Watsonx. Answer questions accurately based on the provided context.",
             "context_prefix": "Context information:\n",
             "query_prefix": "Question:\n",
-            "answer_prefix": "Answer:\n"
+            "answer_prefix": "Answer:\n",
+            "input_variables": ["context", "question"],
+            "template_format": "Based on the following context:\n{context}\n\nAnswer this question: {question}"
         },
         "llama2": {
             "name": "llama2_default",
@@ -32,7 +35,9 @@ class PromptTemplate(Base):
             "system_prompt": "[INST] <<SYS>> You are a helpful AI assistant. Always provide accurate and relevant answers based on the given context. <</SYS>>",
             "context_prefix": "Reference information:\n",
             "query_prefix": "User question:\n",
-            "answer_prefix": "[/INST]\n"
+            "answer_prefix": "[/INST]\n",
+            "input_variables": ["context", "question"],
+            "template_format": "Based on the provided context:\n{context}\n\nAnswer this question: {question}"
         },
         "claude": {
             "name": "claude_default", 
@@ -41,7 +46,9 @@ class PromptTemplate(Base):
             "system_prompt": "Human: You are Claude, an AI assistant created by Anthropic. Please help answer questions based on the provided context information. Keep your responses accurate and focused on the given context.\n\nAssistant: I understand. I'll help answer questions by carefully analyzing the provided context and giving accurate, relevant responses.",
             "context_prefix": "Here is the relevant context:\n",
             "query_prefix": "\nHuman: ",
-            "answer_prefix": "\nAssistant: "
+            "answer_prefix": "\nAssistant: ",
+            "input_variables": ["context", "question"],
+            "template_format": "Using the given context:\n{context}\n\nPlease answer: {question}"
         },
         "openai": {
             "name": "gpt4_default",
@@ -50,7 +57,9 @@ class PromptTemplate(Base):
             "system_prompt": "You are a knowledgeable AI assistant. Your task is to provide accurate and helpful answers based on the given context. Focus on relevant information and avoid speculation.",
             "context_prefix": "Reference material:\n",
             "query_prefix": "User query:\n", 
-            "answer_prefix": "Response:\n"
+            "answer_prefix": "Response:\n",
+            "input_variables": ["context", "question"],
+            "template_format": "Using the reference material:\n{context}\n\nPlease answer: {question}"
         },
         "falcon": {
             "name": "falcon_default",
@@ -59,7 +68,9 @@ class PromptTemplate(Base):
             "system_prompt": "You are an AI assistant based on the Falcon model. Answer questions accurately using the provided context.",
             "context_prefix": "Context:\n",
             "query_prefix": "Question:\n",
-            "answer_prefix": "Answer:\n"
+            "answer_prefix": "Answer:\n",
+            "input_variables": ["context", "question"],
+            "template_format": "Based on this context:\n{context}\n\nAnswer the following: {question}"
         }
     }
     
@@ -73,6 +84,10 @@ class PromptTemplate(Base):
     context_prefix = Column(String(255), nullable=False)
     query_prefix = Column(String(255), nullable=False) 
     answer_prefix = Column(String(255), nullable=False)
+    
+    # Variable handling
+    input_variables = Column(JSON, nullable=True)  # List of variable names
+    template_format = Column(Text, nullable=True)  # Format string with variables
     
     # Metadata
     is_default = Column(Boolean, default=False, nullable=False)
@@ -94,7 +109,9 @@ class PromptTemplate(Base):
         query_prefix: str,
         answer_prefix: str,
         description: Optional[str] = None,
-        is_default: bool = False
+        is_default: bool = False,
+        input_variables: Optional[List[str]] = None,
+        template_format: Optional[str] = None
     ) -> None:
         """Initialize a new prompt template.
         
@@ -108,6 +125,8 @@ class PromptTemplate(Base):
             answer_prefix: Prefix for answer section
             description: Optional template description
             is_default: Whether this is the default template for the provider
+            input_variables: Optional list of variable names that can be used in the template
+            template_format: Optional format string containing variables to be replaced
         """
         self.id = id
         self.name = name
@@ -118,8 +137,80 @@ class PromptTemplate(Base):
         self.answer_prefix = answer_prefix
         self.description = description
         self.is_default = is_default
+        self.input_variables = input_variables
+        self.template_format = template_format
+        
+        # Validate template format if provided
+        if template_format:
+            self._validate_template_format()
+            
+    def _validate_template_format(self) -> None:
+        """Validate that all variables in template_format are declared in input_variables."""
+        if not self.template_format or not self.input_variables:
+            return
+            
+        # Extract variables from the template format string
+        formatter = Formatter()
+        template_vars = {v[1] for v in formatter.parse(self.template_format) if v[1]}
+        
+        # Check if all template variables are declared
+        undeclared_vars = template_vars - set(self.input_variables)
+        if undeclared_vars:
+            raise ValueError(f"Template contains undeclared variables: {undeclared_vars}")
+            
+    def format_prompt(self, **kwargs: Dict[str, str]) -> str:
+        """Format the prompt template with provided variable values.
+        
+        Args:
+            **kwargs: Dictionary of variable names and their values
+            
+        Returns:
+            Formatted prompt string
+            
+        Raises:
+            ValueError: If required variables are missing or if undeclared variables are provided
+        """
+        # Get the formatted question
+        try:
+            if self.template_format:
+                # If template format exists, validate variables
+                if not self.input_variables:
+                    raise ValueError("No input variables defined")
+                
+                # Check for missing required variables
+                missing_vars = set(self.input_variables) - set(kwargs.keys())
+                if missing_vars:
+                    raise ValueError(f"Missing required variables: {missing_vars}")
+                
+                # Check for undeclared variables
+                extra_vars = set(kwargs.keys()) - set(self.input_variables)
+                if extra_vars:
+                    raise ValueError(f"Received undeclared variables: {extra_vars}")
+                
+                # Format using template
+                formatted_question = self.template_format.format(**kwargs)
+            else:
+                # Fall back to using question directly
+                formatted_question = kwargs.get('question', '')
+                if not formatted_question:
+                    raise ValueError("No question provided and no template format defined")
+            
+            # Assemble complete prompt with all components
+            prompt_parts = [
+                self.system_prompt,
+                f"{self.context_prefix}{kwargs.get('context', '')}",
+                f"{self.query_prefix}{formatted_question}",
+                self.answer_prefix
+            ]
+            
+            return "\n\n".join(prompt_parts)
+            
+        except KeyError as e:
+            raise ValueError(f"Missing variable in template: {e}")
+        except Exception as e:
+            raise ValueError(f"Error formatting template: {e}")
     
-    def to_dict(self) -> dict:
+    def to_dict(self) -> Dict[str, any]:
         """Convert prompt template to dictionary representation.
         
         Returns:
@@ -136,7 +227,9 @@ class PromptTemplate(Base):
             "answer_prefix": self.answer_prefix,
             "is_default": self.is_default,
             "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "input_variables": self.input_variables,
+            "template_format": self.template_format
         }
     
     @classmethod
