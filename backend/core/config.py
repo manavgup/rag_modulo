@@ -17,9 +17,22 @@ class LegacySettings(BaseSettings):
         validate_default=True
     )
 
+    # Required settings
+    jwt_secret_key: str = Field(..., env='JWT_SECRET_KEY')
+
     # Search settings
     number_of_results: int = Field(default=5, env='NUMBER_OF_RESULTS')
+    runtime_eval: bool = Field(default=False, env='RUNTIME_EVAL')
+
+    # Core data settings
+    data_dir: Optional[str] = None
+    vector_db: str = Field(default="milvus", env='VECTOR_DB')
     collection_name: Optional[str] = None
+
+    # WatsonX.ai credentials
+    wx_project_id: Optional[str] = Field(default_factory=lambda: os.getenv('WATSONX_INSTANCE_ID', None))
+    wx_api_key: Optional[str] = Field(default_factory=lambda: os.getenv('WATSONX_APIKEY', None))
+    wx_url: Optional[str] = Field(default_factory=lambda: os.getenv('WATSONX_URL', None))
 
     # Chunking settings
     chunking_strategy: str = Field(default="fixed", env='CHUNKING_STRATEGY')
@@ -35,21 +48,15 @@ class LegacySettings(BaseSettings):
     upsert_batch_size: int = Field(default=100, env='UPSERT_BATCH_SIZE')
 
     # LLM settings
-    rag_llm: str = Field(..., validation_alias='RAG_LLM')
+    rag_llm: str = Field(..., env='RAG_LLM')
     max_new_tokens: int = Field(default=500, env='MAX_NEW_TOKENS')
     min_new_tokens: int = Field(default=200, env='MIN_NEW_TOKENS')
-    max_context_length: int = Field(default=2048, env='MAX_CONTEXT_LENGTH')
+    max_context_length: int = Field(default=2048, env='MAX_CONTEXT_LENGTH')  # Total context window
     random_seed: int = Field(default=50, env='RANDOM_SEED')
     top_k: int = Field(default=5, env='TOP_K')
     top_p: float = Field(default=0.95, env='TOP_P')
     temperature: float = Field(default=0.7, env='TEMPERATURE')
     repetition_penalty: float = Field(default=1.1, env='REPETITION_PENALTY')
-    runtime_eval: bool = Field(default=False, env='RUNTIME_EVAL')
-
-    # WatsonX.ai settings
-    wx_project_id: Optional[str] = Field(default=None, env='WATSONX_INSTANCE_ID')
-    wx_api_key: Optional[str] = Field(default=None, env='WATSONX_APIKEY')
-    wx_url: Optional[str] = Field(default=None, env='WATSONX_URL')
     llm_concurrency: int = Field(default=10)
 
     # Query Rewriting settings
@@ -59,25 +66,45 @@ class LegacySettings(BaseSettings):
     rewriter_temperature: float = Field(default=0.7, env='REWRITER_TEMPERATURE')
 
     # Retrieval settings
-    retrieval_type: str = Field(default="vector", env='RETRIEVAL_TYPE')
+    retrieval_type: str = Field(default="vector", env='RETRIEVAL_TYPE')  # Options: vector, keyword, hybrid
     vector_weight: float = Field(default=0.7, env='VECTOR_WEIGHT')
     keyword_weight: float = Field(default=0.3, env='KEYWORD_WEIGHT')
     hybrid_weight: float = Field(default=0.5, env='HYBRID_WEIGHT')
 
     # Question suggestion settings
-    question_suggestion_num: int = Field(default=3, env='QUESTION_SUGGESTION_NUM')
+    question_suggestion_num: int = Field(default=5, env='QUESTION_SUGGESTION_NUM')
     question_min_length: int = Field(default=15, env='QUESTION_MIN_LENGTH')
     question_max_length: int = Field(default=150, env='QUESTION_MAX_LENGTH')
     question_temperature: float = Field(default=0.7, env='QUESTION_TEMPERATURE')
     question_types: List[str] = Field(
-        default=["What is", "How does", "Why is", "When should", "Which factors"],
+        default=[
+            "What is",
+            "How does",
+            "Why is",
+            "When should",
+            "Which factors"
+        ],
         env='QUESTION_TYPES'
     )
     question_patterns: List[str] = Field(
-        default=["^What", "^How", "^Why", "^When", "^Which"],
+        default=[
+            "^What",
+            "^How",
+            "^Why",
+            "^When",
+            "^Which"
+        ],
         env='QUESTION_PATTERNS'
     )
-    question_required_terms: List[str] = Field(default=[], env='QUESTION_REQUIRED_TERMS')
+    question_required_terms: List[str] = Field(
+        default=[],
+        env='QUESTION_REQUIRED_TERMS'
+    )
+
+    # Frontend settings
+    react_app_api_url: str = Field(default="/api", env='REACT_APP_API_URL')
+    frontend_url: str = Field(default="http://localhost:3000", env='FRONTEND_URL')
+    frontend_callback: str = "/callback"
 
     # Logging settings
     log_level: str = Field(default="INFO", env='LOG_LEVEL')
@@ -86,17 +113,19 @@ class LegacySettings(BaseSettings):
     file_storage_path: str = Field(default=tempfile.gettempdir(), env='FILE_STORAGE_PATH')
 
     # Vector Database Credentials
+    # ChromaDB
     chromadb_host: Optional[str] = Field(default="localhost", env='CHROMADB_HOST')
     chromadb_port: Optional[int] = Field(default=8000, env='CHROMADB_PORT')
-    
-    # Milvus settings
-    milvus_host: str = Field(default="milvus-standalone", env='MILVUS_HOST')
-    milvus_port: int = Field(default=19530, env='MILVUS_PORT')
-    milvus_user: str = Field(default="root", env='MILVUS_USER')
-    milvus_password: str = Field(default="milvus", env='MILVUS_PASSWORD')
+
+    # Milvus
+    milvus_host: Optional[str] = Field(default="localhost", env='MILVUS_HOST')
+    milvus_port: Optional[int] = Field(default=19530, env='MILVUS_PORT')
+    milvus_user: Optional[str] = Field(default="root", env='MILVUS_USER')
+    milvus_password: Optional[str] = Field(default="milvus", env='MILVUS_PASSWORD')
     milvus_index_params: Optional[str] = Field(default=None, env='MILVUS_INDEX_PARAMS')
     milvus_search_params: Optional[str] = Field(default=None, env='MILVUS_SEARCH_PARAMS')
 
+    # Elasticsearch
     elastic_host: Optional[str] = Field(default="localhost", env='ELASTIC_HOST')
     elastic_port: Optional[int] = Field(default=9200, env='ELASTIC_PORT')
     elastic_password: Optional[str] = Field(default=None, env='ELASTIC_PASSWORD')
@@ -104,10 +133,12 @@ class LegacySettings(BaseSettings):
     elastic_cloud_id: Optional[str] = Field(default=None, env='ELASTIC_CLOUD_ID')
     elastic_api_key: Optional[str] = Field(default=None, env='ELASTIC_API_KEY')
 
+    # Pinecone
     pinecone_api_key: Optional[str] = Field(default=None, env='PINECONE_API_KEY')
     pinecone_cloud: Optional[str] = Field(default="aws", env='PINECONE_CLOUD')
     pinecone_region: Optional[str] = Field(default="us-east-1", env='PINECONE_REGION')
 
+    # Weaviate
     weaviate_host: Optional[str] = Field(default="localhost", env='WEAVIATE_HOST')
     weaviate_port: Optional[int] = Field(default=8080, env='WEAVIATE_PORT')
     weaviate_grpc_port: Optional[int] = Field(default=50051, env='WEAVIATE_GRPC_PORT')
@@ -116,12 +147,29 @@ class LegacySettings(BaseSettings):
     weaviate_index: Optional[str] = Field(default="default", env='WEAVIATE_INDEX')
     weaviate_scopes: Optional[str] = Field(default=None, env='WEAVIATE_SCOPES')
 
+    # Project settings
+    project_name: str = Field(default="rag_modulo", env='PROJECT_NAME')
+    python_version: str = Field(default="3.11", env='PYTHON_VERSION')
+
     # Collection database settings
     collectiondb_user: str = Field(default="rag_modulo_user", env='COLLECTIONDB_USER')
     collectiondb_pass: str = Field(default="rag_modulo_password", env='COLLECTIONDB_PASS')
     collectiondb_host: str = Field(default="localhost", env='COLLECTIONDB_HOST')
     collectiondb_port: int = Field(default=5432, env='COLLECTIONDB_PORT')
     collectiondb_name: str = Field(default="rag_modulo", env='COLLECTIONDB_NAME')
+
+    # IBM OIDC settings
+    ibm_client_id: Optional[str] = Field(default=None, env='IBM_CLIENT_ID')
+    ibm_client_secret: Optional[str] = Field(default=None, env='IBM_CLIENT_SECRET')
+    oidc_discovery_endpoint: Optional[str] = Field(default=None, env='OIDC_DISCOVERY_ENDPOINT')
+    oidc_auth_url: Optional[str] = Field(default=None, env='OIDC_AUTH_URL')
+    oidc_token_url: Optional[str] = Field(default=None, env='OIDC_TOKEN_URL')
+    oidc_userinfo_endpoint: Optional[str] = Field(default=None, env='OIDC_USERINFO_ENDPOINT')
+    oidc_introspection_endpoint: Optional[str] = Field(default=None, env='OIDC_INTROSPECTION_ENDPOINT')
+
+    # JWT settings
+    jwt_secret_key: str = Field(..., env='JWT_SECRET_KEY')
+    jwt_algorithm: str = "HS256"
 
     # RBAC settings
     rbac_mapping: Dict[str, Dict[str, List[str]]] = {
@@ -196,6 +244,10 @@ def get_settings(testing: bool = False) -> BaseSettings:
         config = ConfigDict(env_file=None, validate_default=True)
         Settings.model_config = config
         LegacySettings.model_config = config
+        
+        # Set required test values
+        os.environ['RAG_LLM'] = 'watsonx'
+        os.environ['JWT_SECRET_KEY'] = 'test_secret_key'
     
     return Settings() if use_new_config else LegacySettings()
 

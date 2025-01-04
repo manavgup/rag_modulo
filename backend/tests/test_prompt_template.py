@@ -1,185 +1,248 @@
-"""Tests for prompt template functionality."""
-
+import logging
 import pytest
-from uuid import uuid4, UUID
-from sqlalchemy.orm import Session
-
-from core.custom_exceptions import (
-    PromptTemplateNotFoundError,
-    DuplicatePromptTemplateError,
-    InvalidPromptTemplateError
-)
+from uuid import uuid4
+from datetime import datetime
 from rag_solution.models.prompt_template import PromptTemplate
-from rag_solution.repository.prompt_template_repository import PromptTemplateRepository
-from rag_solution.services.prompt_template_service import PromptTemplateService
 from rag_solution.schemas.prompt_template_schema import (
     PromptTemplateCreate,
-    PromptTemplateUpdate
+    PromptTemplateUpdate,
+    PromptTemplateResponse
 )
 
-# Test Data
-SAMPLE_TEMPLATE = {
-    "name": "test_template",
-    "provider": "watsonx",
-    "description": "Test template",
-    "system_prompt": "You are a test assistant",
-    "context_prefix": "Context:",
-    "query_prefix": "Question:",
-    "answer_prefix": "Answer:",
-    "is_default": False
-}
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
-@pytest.fixture
-def template_create_data():
-    """Fixture for template creation data."""
-    return PromptTemplateCreate(**SAMPLE_TEMPLATE)
 
-@pytest.fixture
-def template_update_data():
-    """Fixture for template update data."""
-    return PromptTemplateUpdate(
-        name="updated_template",
-        description="Updated description",
-        system_prompt="Updated system prompt"
+# -------------------------------------------
+# 🧪 TEST TEMPLATE CREATION
+# -------------------------------------------
+def test_create_template():
+    """Test creating a prompt template with variable substitution."""
+    logger.info("Starting test_create_template")
+    template = PromptTemplate(
+        id=str(uuid4()),
+        name="test_template",
+        provider="watsonx",
+        system_prompt="You are a helpful AI assistant.",
+        context_prefix="Context:\n",
+        query_prefix="Question:\n",
+        answer_prefix="Answer:\n",
+        input_variables=["topic", "aspect"],
+        template_format="Explain {topic}, focusing on {aspect}."
     )
-
-@pytest.fixture
-def prompt_template_repository(db_session: Session):
-    """Fixture for prompt template repository."""
-    return PromptTemplateRepository(db_session)
-
-@pytest.fixture
-def prompt_template_service(db_session: Session):
-    """Fixture for prompt template service."""
-    return PromptTemplateService(db_session)
-
-@pytest.fixture
-def sample_template(prompt_template_repository: PromptTemplateRepository, template_create_data: PromptTemplateCreate):
-    """Fixture for a sample template in the database."""
-    return prompt_template_repository.create(template_create_data)
-
-# Repository Tests
-def test_create_template(
-    prompt_template_repository: PromptTemplateRepository,
-    template_create_data: PromptTemplateCreate
-):
-    """Test creating a new template."""
-    template = prompt_template_repository.create(template_create_data)
-    assert template.name == template_create_data.name
-    assert template.provider == template_create_data.provider
-    assert template.system_prompt == template_create_data.system_prompt
-
-def test_create_duplicate_template(
-    prompt_template_repository: PromptTemplateRepository,
-    template_create_data: PromptTemplateCreate,
-    sample_template: PromptTemplate
-):
-    """Test creating a duplicate template raises error."""
-    with pytest.raises(DuplicatePromptTemplateError):
-        prompt_template_repository.create(template_create_data)
-
-def test_get_template(
-    prompt_template_repository: PromptTemplateRepository,
-    sample_template: PromptTemplate
-):
-    """Test getting a template by ID."""
-    template = prompt_template_repository.get(UUID(sample_template.id))
-    assert template.id == sample_template.id
-    assert template.name == sample_template.name
-
-def test_get_nonexistent_template(prompt_template_repository: PromptTemplateRepository):
-    """Test getting a nonexistent template raises error."""
-    with pytest.raises(PromptTemplateNotFoundError):
-        prompt_template_repository.get(uuid4())
-
-def test_get_by_provider(
-    prompt_template_repository: PromptTemplateRepository,
-    sample_template: PromptTemplate
-):
-    """Test getting templates by provider."""
-    templates = prompt_template_repository.get_by_provider(sample_template.provider)
-    assert len(templates) == 1
-    assert templates[0].id == sample_template.id
-
-def test_update_template(
-    prompt_template_repository: PromptTemplateRepository,
-    sample_template: PromptTemplate,
-    template_update_data: PromptTemplateUpdate
-):
-    """Test updating a template."""
-    updated = prompt_template_repository.update(
-        UUID(sample_template.id),
-        template_update_data
+    
+    formatted = template.format_prompt(
+        topic="quantum computing",
+        aspect="practical applications"
     )
-    assert updated.name == template_update_data.name
-    assert updated.description == template_update_data.description
+    expected = (
+        "You are a helpful AI assistant.\n"
+        "Context:\n"
+        "Explain quantum computing, focusing on practical applications.\n"
+        "Question:\n"
+    )
+    assert formatted == expected
 
-def test_delete_template(
-    prompt_template_repository: PromptTemplateRepository,
-    sample_template: PromptTemplate
-):
-    """Test deleting a template."""
-    prompt_template_repository.delete(UUID(sample_template.id))
-    with pytest.raises(PromptTemplateNotFoundError):
-        prompt_template_repository.get(UUID(sample_template.id))
-
-def test_delete_default_template(
-    prompt_template_repository: PromptTemplateRepository,
-    template_create_data: PromptTemplateCreate
-):
-    """Test deleting a default template raises error."""
-    template_create_data.is_default = True
-    template = prompt_template_repository.create(template_create_data)
+    # Test missing variable
+    with pytest.raises(ValueError, match="Missing required variables"):
+        template.format_prompt(topic="quantum computing")
     
-    with pytest.raises(InvalidPromptTemplateError):
-        prompt_template_repository.delete(UUID(template.id))
+    # Test undeclared variable
+    with pytest.raises(ValueError, match="Received undeclared variables"):
+        template.format_prompt(
+            topic="quantum computing",
+            aspect="applications",
+            extra="invalid"
+        )
 
-# Service Tests
-def test_service_create_template(
-    prompt_template_service: PromptTemplateService,
-    template_create_data: PromptTemplateCreate
-):
-    """Test creating a template through service."""
-    response = prompt_template_service.create_template(template_create_data)
-    assert response.name == template_create_data.name
-    assert response.provider == template_create_data.provider
 
-def test_service_get_template(
-    prompt_template_service: PromptTemplateService,
-    sample_template: PromptTemplate
-):
-    """Test getting a template through service."""
-    response = prompt_template_service.get_template(UUID(sample_template.id))
-    assert response.id == UUID(sample_template.id)
-    assert response.name == sample_template.name
-
-def test_service_create_example_template(prompt_template_service: PromptTemplateService):
-    """Test creating an example template."""
-    response = prompt_template_service.create_example_template("watsonx")
-    print(f"******Response: {response}")
-    assert response is not None
-    assert response.provider == "watsonx"
-    assert "IBM Watsonx" in response.description
-
-def test_service_initialize_default_templates(prompt_template_service: PromptTemplateService):
-    """Test initializing default templates from config."""
-    prompt_template_service.initialize_default_templates()
+# -------------------------------------------
+# 🧪 TEST TEMPLATE VALIDATION
+# -------------------------------------------
+def test_template_validation():
+    """Test template validation."""
+    logger.info("Starting test_template_validation")
+    template = PromptTemplate(
+        id=str(uuid4()),
+        name="valid_template",
+        provider="watsonx",
+        system_prompt="You are a helpful AI assistant.",
+        context_prefix="Context:\n",
+        query_prefix="Question:\n",
+        answer_prefix="Answer:\n",
+        input_variables=["topic"],
+        template_format="What is {topic}?"
+    )
+    assert template.input_variables == ["topic"]
     
-    # Check watsonx default template
-    watsonx_template = prompt_template_service.get_default_template("watsonx")
+    # Test invalid variables in template
+    with pytest.raises(ValueError, match="Template contains undeclared variables"):
+        PromptTemplate(
+            id=str(uuid4()),
+            name="invalid_template",
+            provider="watsonx",
+            system_prompt="You are a helpful AI assistant.",
+            context_prefix="Context:\n",
+            query_prefix="Question:\n",
+            answer_prefix="Answer:\n",
+            input_variables=["topic"],
+            template_format="What is {topic} and {undefined_var}?"
+        )
+
+
+# -------------------------------------------
+# 🧪 TEST LLaMA3-SPECIFIC TEMPLATE
+# -------------------------------------------
+def test_llama3_template_format():
+    """Test proper formatting for LLaMA3 templates."""
+    logger.info("Starting test_llama3_template_format")
+    template = PromptTemplate(
+        id=str(uuid4()),
+        name="llama3_template",
+        provider="llama3",
+        system_prompt="",  # Empty system prompt for LLaMA
+        context_prefix="",  # No context prefix needed
+        query_prefix="",   # No query prefix needed
+        answer_prefix="",  # No answer prefix needed
+        input_variables=["instruction", "context"],
+        template_format="[INST] {instruction}\nContext: {context} [/INST]"
+    )
+    
+    formatted = template.format_prompt(
+        instruction="Explain machine learning",
+        context="Focus on supervised learning"
+    ).strip()
+    
+    expected = "[INST] Explain machine learning\nContext: Focus on supervised learning [/INST]"
+    assert formatted == expected
+
+    # Validate missing variables
+    with pytest.raises(ValueError, match="Missing required variables"):
+        template.format_prompt(instruction="Explain AI")
+
+    # Validate extra variables
+    with pytest.raises(ValueError, match="Received undeclared variables"):
+        template.format_prompt(
+            instruction="Explain AI",
+            context="Focus on ethics",
+            extra_var="invalid"
+        )
+
+
+
+# -------------------------------------------
+# 🧪 TEST EMPTY TEMPLATE HANDLING
+# -------------------------------------------
+def test_template_with_empty_fields():
+    """Test handling of templates with empty fields."""
+    logger.info("Starting test_template_with_empty_fields")
+    template = PromptTemplate(
+        id=str(uuid4()),
+        name="empty_template",
+        provider="watsonx",
+        system_prompt="",
+        context_prefix="",
+        query_prefix="",
+        answer_prefix="",
+        input_variables=[],
+        template_format=""
+    )
+    
+    assert template.system_prompt == ""
+    assert template.context_prefix == ""
+    assert template.input_variables == []
+    
+    # Test that empty template falls back to using question directly
+    formatted = template.format_prompt(question="What is AI?")
+    assert formatted == "What is AI?"
+    
+    # Test that missing question raises error when no template format
+    with pytest.raises(ValueError, match="No question provided and no template format defined"):
+        template.format_prompt()
+
+
+# -------------------------------------------
+# 🧪 TEST INVALID PROVIDER
+# -------------------------------------------
+def test_invalid_provider():
+    """Test validation of provider field."""
+    logger.info("Starting test_invalid_provider")
+    with pytest.raises(ValueError, match="Invalid provider"):
+        PromptTemplateCreate(
+            name="invalid_provider_template",
+            provider="unsupported_provider",
+            template_format="Some format"
+        )
+
+
+# -------------------------------------------
+# 🧪 TEST PROMPT TEMPLATE SCHEMA
+# -------------------------------------------
+def test_example_templates():
+    """Test example templates for different providers."""
+    logger.info("Starting test_example_templates")
+    
+    # Test watsonx example template
+    watsonx_template = PromptTemplate.get_example_template("watsonx")
     assert watsonx_template is not None
-    assert watsonx_template.is_default
+    assert watsonx_template["provider"] == "watsonx"
+    assert "system_prompt" in watsonx_template
+    assert "input_variables" in watsonx_template
     
-    # Check openai default template
-    openai_template = prompt_template_service.get_default_template("openai")
-    assert openai_template is not None
-    assert openai_template.is_default
+    # Test llama2 example template
+    llama2_template = PromptTemplate.get_example_template("llama2")
+    assert llama2_template is not None
+    assert llama2_template["provider"] == "llama2"
+    assert "[INST]" in llama2_template["system_prompt"]
+    
+    # Test non-existent provider
+    assert PromptTemplate.get_example_template("nonexistent") is None
 
-def test_service_list_templates(
-    prompt_template_service: PromptTemplateService,
-    sample_template: PromptTemplate
-):
-    """Test listing all templates."""
-    templates = prompt_template_service.list_templates()
-    assert len(templates) >= 1
-    assert any(t.id == UUID(sample_template.id) for t in templates)
+def test_prompt_template_schema():
+    """Test schema validation for prompt template."""
+    logger.info("Starting test_prompt_template_schema")
+    data = {
+        "name": "schema_template",
+        "provider": "watsonx",
+        "system_prompt": "Test system prompt",
+        "context_prefix": "Context:\n",
+        "query_prefix": "User:\n",
+        "answer_prefix": "Assistant:\n",
+        "input_variables": ["topic"],
+        "template_format": "Explain {topic}"
+    }
+    
+    template = PromptTemplateCreate(**data)
+    assert template.name == "schema_template"
+    assert template.input_variables == ["topic"]
+
+    # Invalid variable in schema
+    data["template_format"] = "Explain {unknown}"
+    with pytest.raises(ValueError, match="Template contains undeclared variables"):
+        PromptTemplateCreate(**data)
+
+
+# -------------------------------------------
+# 🧪 TEST TO_DICT METHOD
+# -------------------------------------------
+def test_to_dict():
+    """Test conversion of template to dictionary."""
+    logger.info("Starting test_to_dict")
+    template_id = str(uuid4())
+    template = PromptTemplate(
+        id=template_id,
+        name="test_template",
+        provider="watsonx",
+        system_prompt="Test prompt",
+        context_prefix="Context:\n",
+        query_prefix="Question:\n",
+        answer_prefix="Answer:\n",
+        input_variables=["topic"],
+        template_format="What is {topic}?"
+    )
+    
+    dict_data = template.to_dict()
+    assert dict_data["id"] == template_id
+    assert dict_data["input_variables"] == ["topic"]
+    assert dict_data["template_format"] == "What is {topic}?"

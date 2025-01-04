@@ -17,6 +17,7 @@ from rag_solution.schemas.collection_schema import CollectionInput, CollectionOu
 from rag_solution.services.file_management_service import FileManagementService
 from rag_solution.services.user_collection_service import UserCollectionService
 from rag_solution.services.question_service import QuestionService
+from rag_solution.generation.providers.factory import LLMProviderFactory
 from vectordbs.error_types import CollectionError
 from vectordbs.factory import get_datastore
 from vectordbs.data_types import Document
@@ -39,7 +40,9 @@ class CollectionService:
         self.user_collection_service = UserCollectionService(db)
         self.file_management_service = FileManagementService(db)
         self.vector_store = get_datastore(settings.vector_db)
-        self.question_service = QuestionService(db=db)
+        # Initialize provider for question service
+        provider = LLMProviderFactory(db).get_provider("watsonx")
+        self.question_service = QuestionService(db=db, provider=provider)
 
     @staticmethod
     def _generate_valid_collection_name() -> str:

@@ -108,12 +108,13 @@ class WatsonXProvider(LLMProvider):
                 message=f"Failed to initialize client: {str(e)}"
             )
 
-    def _get_model(self, model_id: Optional[str] = None) -> ModelInference:
+    def _get_model(self) -> ModelInference:
         """Get cached or create new model instance."""
         try:
-            # Use provided model_id or default from config
-            model_id = model_id or self._provider_config.default_model_id
+            # Use model_id from base class or default from config
+            model_id = self._model_id or self._provider_config.default_model_id
             
+            # Create new model instance if needed
             if model_id not in self._model_cache:
                 model = ModelInference(
                     model_id=model_id,
@@ -124,6 +125,17 @@ class WatsonXProvider(LLMProvider):
                     )
                 )
                 model.set_api_client(api_client=self.client)
+                
+                # Set parameters if available
+                if self._parameters:
+                    model.params.update({
+                        GenParams.MAX_NEW_TOKENS: self._parameters.get('max_new_tokens', 150),
+                        GenParams.TEMPERATURE: self._parameters.get('temperature', 0.7),
+                        GenParams.TOP_K: self._parameters.get('top_k', 50),
+                        GenParams.TOP_P: self._parameters.get('top_p', 1.0),
+                        GenParams.RANDOM_SEED: self._parameters.get('random_seed', None)
+                    })
+                
                 self._model_cache[model_id] = model
                 
             return self._model_cache[model_id]
@@ -140,38 +152,21 @@ class WatsonXProvider(LLMProvider):
         prompt: Union[str, List[str]],
         model_parameters: LLMParametersBase,
         template: Optional[PromptTemplateBase] = None,
-        provider_config: Optional[ProviderConfig] = None
+        provider_config: Optional[ProviderConfig] = None,
+        variables: Optional[Dict[str, Any]] = None
     ) -> Union[str, List[str]]:
         """Generate text using the WatsonX model."""
         try:
             self._ensure_client()
             
-            # Use runtime config or defaults from provider config
-            config = provider_config or ProviderConfig(
-                timeout=self._provider_config.timeout,
-                max_retries=self._provider_config.max_retries,
-                batch_size=self._provider_config.batch_size
-            )
+            # Prepare prompt using template if provided
+            prepared_prompt = self._prepare_prompts(prompt, template, variables)
             
-            # Prepare prompt
-            prompt = self._prepare_prompts(prompt, template)
-            
-            # Get model and set parameters
+            # Get model (parameters already set in _get_model)
             model = self._get_model()
-            model.params.update({
-                GenParams.MAX_NEW_TOKENS: model_parameters.max_new_tokens,
-                GenParams.TEMPERATURE: model_parameters.temperature,
-                GenParams.TOP_K: model_parameters.top_k,
-                GenParams.TOP_P: model_parameters.top_p,
-                GenParams.RANDOM_SEED: model_parameters.random_seed
-            })
             
-            # Generate with runtime settings
-            response = model.generate_text(
-                prompt=prompt,
-                timeout=config.timeout,
-                max_retries=config.max_retries
-            )
+            # Generate text
+            response = model.generate_text(prompt=prepared_prompt)
 
             # Handle batch responses
             if isinstance(prompt, list):
@@ -209,37 +204,21 @@ class WatsonXProvider(LLMProvider):
         prompt: str,
         model_parameters: LLMParametersBase,
         template: Optional[PromptTemplateBase] = None,
-        provider_config: Optional[ProviderConfig] = None
+        provider_config: Optional[ProviderConfig] = None,
+        variables: Optional[Dict[str, Any]] = None
     ) -> Generator[str, None, None]:
         """Generate text in streaming mode."""
         try:
             self._ensure_client()
             
-            # Use runtime config or defaults from provider config
-            config = provider_config or ProviderConfig(
-                timeout=self._provider_config.timeout,
-                max_retries=self._provider_config.max_retries,
-                batch_size=self._provider_config.batch_size
-            )
+            # Prepare prompt using template if provided
+            prepared_prompt = self._prepare_prompts(prompt, template, variables)
             
-            # Prepare prompt
-            prompt = self._prepare_prompts(prompt, template)
-            
-            # Get model and set parameters
+            # Get model (parameters already set in _get_model)
             model = self._get_model()
-            model.params.update({
-                GenParams.MAX_NEW_TOKENS: model_parameters.max_new_tokens,
-                GenParams.TEMPERATURE: model_parameters.temperature,
-                GenParams.RANDOM_SEED: model_parameters.random_seed
-            })
             
-            # Stream generation with runtime settings
-            stream = model.generate_text_stream(
-                prompt=prompt,
-                timeout=config.timeout,
-                max_retries=config.max_retries
-            )
-            for chunk in stream:
+            # Stream generation
+            for chunk in model.generate_text_stream(prompt=prepared_prompt):
                 if chunk and chunk.strip():
                     yield chunk.strip()
                     
@@ -252,7 +231,7 @@ class WatsonXProvider(LLMProvider):
                 message=f"Failed to generate streaming text: {str(e)}"
             )
 
-    async def get_embeddings(
+    def get_embeddings(
         self,
         texts: Union[str, List[str]],
         provider_config: Optional[ProviderConfig] = None
@@ -269,24 +248,12 @@ class WatsonXProvider(LLMProvider):
                     message="Embeddings not configured - no embedding model specified"
                 )
             
-            # Use runtime config or defaults from provider config
-            config = provider_config or ProviderConfig(
-                timeout=self._provider_config.timeout,
-                max_retries=self._provider_config.max_retries,
-                batch_size=self._provider_config.batch_size
-            )
-            
             # Convert to list
             if isinstance(texts, str):
                 texts = [texts]
             
-            # Generate embeddings with runtime settings
-            embedding_vectors = await asyncio.to_thread(
-                self.embeddings_client.embed_documents,
-                texts=texts,
-                timeout=config.timeout,
-                max_retries=config.max_retries
-            )
+            # Generate embeddings without runtime settings since they're not supported
+            embedding_vectors = self.embeddings_client.embed_documents(texts=texts)
             
             return embedding_vectors
             

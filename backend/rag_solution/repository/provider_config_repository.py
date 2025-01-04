@@ -9,10 +9,11 @@ from core.logging_utils import get_logger
 from core.custom_exceptions import ProviderConfigError
 from rag_solution.models.provider_config import ProviderModelConfig
 from rag_solution.schemas.provider_config_schema import (
-    ProviderModelConfigCreate,
-    ProviderModelConfigUpdate,
-    ProviderModelConfigResponse,
-    ProviderRegistryResponse
+    ProviderConfig,
+    ProviderInDB,
+    ProviderRuntimeSettings,
+    ProviderUpdate,
+    ProviderRegistry
 )
 
 logger = get_logger("repository.provider_config")
@@ -29,7 +30,7 @@ class ProviderConfigRepository:
         self.session = session
         self.logger = get_logger(__name__)
 
-    def create(self, config: ProviderModelConfigCreate) -> ProviderModelConfigResponse:
+    def create(self, config: ProviderConfig) -> ProviderConfig:
         """Create new provider configuration.
         
         Args:
@@ -42,7 +43,12 @@ class ProviderConfigRepository:
             ProviderConfigError: If creation fails
         """
         try:
-            db_config = ProviderModelConfig(**config.model_dump())
+            # Convert config to dict and handle runtime settings
+            config_dict = config.model_dump()
+            runtime_settings = config_dict.pop('runtime', {})
+            config_dict.update(runtime_settings)  # Flatten runtime settings into main config
+            
+            db_config = ProviderModelConfig(**config_dict)
             self.session.add(db_config)
             self.session.commit()
             self.session.refresh(db_config)
@@ -65,7 +71,7 @@ class ProviderConfigRepository:
                 message=f"Failed to create provider configuration: {str(e)}"
             )
 
-    def get(self, config_id: int) -> Optional[ProviderModelConfigResponse]:
+    def get(self, config_id: int) -> Optional[ProviderConfig]:
         """Get provider configuration by ID.
         
         Args:
@@ -97,7 +103,7 @@ class ProviderConfigRepository:
         self,
         provider: str,
         model_id: str
-    ) -> Optional[ProviderModelConfigResponse]:
+    ) -> Optional[ProviderConfig]:
         """Get provider configuration by provider name and model ID.
         
         Args:
@@ -136,7 +142,7 @@ class ProviderConfigRepository:
         skip: int = 0,
         limit: int = 100,
         active_only: bool = False
-    ) -> ProviderRegistryResponse:
+    ) -> ProviderRegistry:
         """List provider configurations with pagination.
         
         Args:
@@ -178,8 +184,15 @@ class ProviderConfigRepository:
                 .all()
             )
             
-            configs = [self._to_response(result) for result in results]
-            return ProviderRegistryResponse(
+            # Convert results to response schemas
+            configs = []
+            for result in results:
+                config = self._to_response(result)
+                if config:
+                    configs.append(config)
+            
+            # Create registry response
+            return ProviderRegistry(
                 total_providers=total,
                 active_providers=active,
                 providers=configs
@@ -196,8 +209,8 @@ class ProviderConfigRepository:
     def update(
         self,
         config_id: int,
-        config: ProviderModelConfigUpdate
-    ) -> Optional[ProviderModelConfigResponse]:
+        config: ProviderUpdate
+    ) -> Optional[ProviderConfig]:
         """Update provider configuration.
         
         Args:
@@ -220,6 +233,11 @@ class ProviderConfigRepository:
 
             # Update config
             update_data = config.model_dump(exclude_unset=True)
+            # Handle runtime settings if present
+            if 'runtime' in update_data:
+                runtime = update_data.pop('runtime')
+                update_data.update(runtime)
+                
             for key, value in update_data.items():
                 setattr(db_config, key, value)
 
@@ -282,7 +300,7 @@ class ProviderConfigRepository:
                 message=f"Failed to delete provider configuration: {str(e)}"
             )
 
-    def update_verification(self, config_id: int) -> Optional[ProviderModelConfigResponse]:
+    def update_verification(self, config_id: int) -> Optional[ProviderConfig]:
         """Update last_verified timestamp for a provider configuration.
         
         Args:
@@ -328,7 +346,7 @@ class ProviderConfigRepository:
     @staticmethod
     def _to_response(
         config: Optional[ProviderModelConfig]
-    ) -> Optional[ProviderModelConfigResponse]:
+    ) -> Optional[ProviderConfig]:
         """Convert database model to response schema.
         
         Args:
@@ -339,7 +357,23 @@ class ProviderConfigRepository:
         """
         if config is None:
             return None
-        return cast(
-            ProviderModelConfigResponse,
-            ProviderModelConfigResponse.model_validate(config)
-        )
+            
+        # Extract runtime settings
+        runtime_fields = {
+            'timeout', 'max_retries', 'batch_size', 'retry_delay',
+            'concurrency_limit', 'stream', 'rate_limit'
+        }
+        config_dict = config.__dict__
+        runtime_settings = {
+            k: config_dict[k] for k in runtime_fields 
+            if k in config_dict
+        }
+        
+        # Remove runtime fields from main config
+        for field in runtime_fields:
+            config_dict.pop(field, None)
+            
+        # Add runtime config
+        config_dict['runtime'] = ProviderRuntimeSettings(**runtime_settings)
+        
+        return ProviderConfig.model_validate(config_dict)

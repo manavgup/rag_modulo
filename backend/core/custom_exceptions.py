@@ -381,6 +381,26 @@ class LLMProviderError(BaseCustomException):
             }
         )
 
+class ConfigurationError(BaseCustomException):
+    """Exception raised for general configuration errors."""
+    
+    def __init__(
+        self,
+        message: str,
+        details: Optional[Dict[str, Any]] = None
+    ) -> None:
+        """Initialize configuration error.
+        
+        Args:
+            message: Error message describing the configuration issue
+            details: Additional error details
+        """
+        super().__init__(
+            message,
+            status_code=500,
+            details=details or {}
+        )
+
 class ProviderConfigError(BaseCustomException):
     """Exception raised for errors related to provider configuration."""
     

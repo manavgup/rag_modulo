@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 from contextlib import asynccontextmanager
 from typing import Annotated
@@ -39,12 +40,17 @@ from core.config import settings
 
 # Import all models
 from rag_solution.file_management.database import Base, engine, get_db
+from rag_solution.initialization.init_llm_providers import initialize_llm_providers
 from rag_solution.models.user import User
 from rag_solution.models.collection import Collection
 from rag_solution.models.file import File
 from rag_solution.models.user_collection import UserCollection
 from rag_solution.models.user_team import UserTeam
 from rag_solution.models.team import Team
+from rag_solution.models.provider_config import ProviderModelConfig
+from rag_solution.models.llm_parameters import LLMParameters
+from rag_solution.models.prompt_template import PromptTemplate
+from rag_solution.models.user_provider_preference import UserProviderPreference
 
 # Import all routers
 from rag_solution.file_management.database import Base, engine
@@ -64,18 +70,30 @@ async def lifespan(app: FastAPI):
         logger.info(f"Tables before creation: {tables_before}")
 
         # Ensure all models are in the Base.metadata
-        for model in [User, Collection, File, UserCollection, UserTeam, Team]:
+        for model in [
+            User, Collection, File, UserCollection, UserTeam, Team,
+            ProviderModelConfig, LLMParameters, PromptTemplate, UserProviderPreference
+        ]:
             if model.__table__ not in Base.metadata.tables.values():
                 Base.metadata.tables[model.__tablename__] = model.__table__
 
-        Base.metadata.create_all(bind=engine)
+        #avoid table re-creation during tests.
+        if "pytest" not in sys.modules:
+            Base.metadata.create_all(bind=engine)
+            logger.info("Base.metadata.create_all() executed outside pytest.")
+        else:
+            logger.info("Skipping Base.metadata.create_all() during pytest execution.")
+
         logger.info("Base.metadata.create_all() completed")
 
         tables_after = inspector.get_table_names()
         logger.info(f"Tables after creation: {tables_after}")
 
         # Check if all tables exist
-        expected_tables = {'users', 'collections', 'files', 'user_collections', 'user_teams', 'teams'}
+        expected_tables = {
+            'users', 'collections', 'files', 'user_collections', 'user_teams', 'teams',
+            'provider_model_configs', 'llm_parameters', 'prompt_templates', 'user_provider_preferences'
+        }
         missing_tables = expected_tables - set(tables_after)
         if missing_tables:
             logger.warning(f"Missing tables: {missing_tables}")
@@ -91,8 +109,14 @@ async def lifespan(app: FastAPI):
             result = connection.execute(text("SELECT 1"))
             logger.info(f"Database connection test result: {result.fetchone()}")
 
+        # Initialize LLM providers
+        logger.info("Starting LLM provider initialization")
+        with next(get_db()) as db:
+            initialize_llm_providers(db)
+        logger.info("LLM provider initialization completed")
+
     except Exception as e:
-        logger.error(f"Error during database initialization: {e}", exc_info=True)
+        logger.error(f"Error during application initialization: {e}", exc_info=True)
         raise
 
     yield

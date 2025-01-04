@@ -58,6 +58,8 @@ class PromptTemplateService:
                         context_prefix=template["context_prefix"],
                         query_prefix=template["query_prefix"],
                         answer_prefix=template["answer_prefix"],
+                        input_variables=template["input_variables"],
+                        template_format=template["template_format"],
                         is_default=True
                     ))
                     logger.info(f"Created default template for {provider}")
@@ -203,6 +205,8 @@ class PromptTemplateService:
                 context_prefix=example["context_prefix"],
                 query_prefix=example["query_prefix"],
                 answer_prefix=example["answer_prefix"],
+                input_variables=example["input_variables"],
+                template_format=example["template_format"],
                 is_default=is_default
             )
             return self.create_template(template)

@@ -19,7 +19,8 @@ class LLMParametersBase(BaseModel):
                 "max_new_tokens": 100,
                 "temperature": 0.7,
                 "top_k": 50,
-                "top_p": 1.0
+                "top_p": 1.0,
+                "repetition_penalty": 1.1
             }]
         },
         str_strip_whitespace=True,
@@ -60,6 +61,12 @@ class LLMParametersBase(BaseModel):
     random_seed: Optional[int] = Field(
         default=None,
         description="Seed for random number generation"
+    )
+    repetition_penalty: Optional[float] = Field(
+        default=1.1,
+        ge=1.0,
+        le=2.0,
+        description="Penalty for repeating tokens; higher values discourage repetition"
     )
     
     @model_validator(mode='after')
@@ -107,6 +114,7 @@ class LLMParametersCreate(LLMParametersBase):
                 "temperature": 0.8,
                 "top_k": 50,
                 "top_p": 0.9,
+                "repetition_penalty": 1.1,
                 "is_default": False
             }]
         },
@@ -152,6 +160,11 @@ class LLMParametersUpdate(BaseModel):
     random_seed: Annotated[Optional[int], Field(
         examples=[42]
     )] = None
+    repetition_penalty: Annotated[Optional[float], Field(
+        ge=1.0,
+        le=2.0,
+        examples=[1.1]
+    )] = None
     is_default: Optional[bool] = None
 
     model_config = ConfigDict(
@@ -161,6 +174,7 @@ class LLMParametersUpdate(BaseModel):
                 "name": "gpt4-creative-v2",
                 "temperature": 0.8,
                 "top_k": 40,
+                "repetition_penalty": 1.1,
                 "description": "Updated creative parameters"
             }]
         }
@@ -205,6 +219,7 @@ class LLMParametersResponse(LLMParametersBase):
                 "temperature": 0.8,
                 "top_k": 50,
                 "top_p": 0.9,
+                "repetition_penalty": 1.1,
                 "is_default": False,
                 "created_at": "2024-01-01T00:00:00",
                 "updated_at": "2024-01-01T00:00:00"
