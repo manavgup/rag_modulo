@@ -9,7 +9,7 @@ from rag_solution.schemas.user_schema import UserInput, UserOutput
 from rag_solution.services.user_service import UserService
 from rag_solution.services.user_collection_service import UserCollectionService
 from rag_solution.services.runtime_config_service import RuntimeConfigService
-from rag_solution.schemas.provider_config_schema import ProviderRegistryResponse
+from rag_solution.schemas.provider_config_schema import ProviderConfig
 from rag_solution.services.user_collection_interaction_service import UserCollectionInteractionService
 from rag_solution.services.file_management_service import FileManagementService
 from rag_solution.schemas.user_collection_schema import UserCollectionOutput, UserCollectionsOutput
@@ -272,7 +272,7 @@ def remove_user_from_team(user_id: UUID, team_id: UUID, db: Session = Depends(ge
     return service.remove_user_from_team(user_id, team_id)
 
 @router.get("/{user_id}/provider-preference",
-    response_model=ProviderRegistryResponse,
+    response_model=ProviderConfig,
     summary="Get user's provider preference",
     description="Get the user's preferred LLM provider configuration",
     responses={
@@ -302,7 +302,7 @@ async def get_provider_preference(
         )
 
 @router.post("/{user_id}/provider-preference/{config_id}",
-    response_model=ProviderRegistryResponse,
+    response_model=ProviderConfig,
     summary="Set user's provider preference",
     description="Set the user's preferred LLM provider configuration",
     responses={

@@ -123,7 +123,7 @@ class LLMProviderFactory:
 
         return self._instances[config_key]
 
-    async def close_all(self) -> None:
+    def close_all(self) -> None:
         """Clean up all provider instances.
         
         Closes all active provider instances and clears the instance cache.
@@ -132,7 +132,7 @@ class LLMProviderFactory:
         logger.info("Closing all provider instances")
         for provider_type, provider in self._instances.items():
             try:
-                provider.close()  # Remove the await since close() is sync
+                provider.close()
                 logger.debug(f"Closed {provider_type} provider")
             except Exception as e:
                 logger.error(f"Error closing {provider_type} provider: {str(e)}")

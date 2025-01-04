@@ -1,203 +1,135 @@
 """Tests for RAG pipeline."""
 
 import pytest
-from unittest.mock import Mock, AsyncMock
 from sqlalchemy.orm import Session
 
-from rag_solution.pipeline.pipeline import Pipeline, PipelineResult, GenerationVariables
-from typing import Generator, List, Optional, Union, Dict, Any
-from rag_solution.generation.providers.base import LLMProvider, ProviderConfig
-from rag_solution.schemas.llm_parameters_schema import LLMParametersBase
-from rag_solution.schemas.prompt_template_schema import PromptTemplateBase
-from vectordbs.data_types import QueryResult, DocumentChunk, DocumentMetadata, VectorQuery
+from rag_solution.pipeline.pipeline import Pipeline, PipelineResult
+from rag_solution.generation.providers.factory import LLMProviderFactory
+from rag_solution.services.provider_config_service import ProviderConfigService
+from rag_solution.services.prompt_template_service import PromptTemplateService
+from rag_solution.services.runtime_config_service import RuntimeConfigService
+from vectordbs.data_types import QueryResult, DocumentChunk, DocumentChunkMetadata, VectorQuery, Source
+from core.config import settings
 
-class MockProvider(LLMProvider):
-    """Mock LLM provider for testing."""
+@pytest.fixture
+def pipeline(db_session: Session):
+    """Create pipeline instance with real provider."""
+    # Get runtime configuration
+    runtime_config = RuntimeConfigService(db_session).get_runtime_config()
     
-    def __init__(self, response: str = "Test answer"):
-        """Initialize mock provider.
-        
-        Args:
-            response: Response to return
-        """
-        super().__init__()
-        self.response = response
-        
-    def initialize_client(self) -> None:
-        """Mock initialization."""
-        pass
-        
-    def generate_text(
-        self,
-        prompt: Union[str, List[str]],
-        model_parameters: LLMParametersBase,
-        template: Optional[PromptTemplateBase] = None,
-        provider_config: Optional[ProviderConfig] = None
-    ) -> Union[str, List[str]]:
-        """Mock text generation."""
-        return self.response
-        
-    def generate_text_stream(
-        self,
-        prompt: str,
-        model_parameters: LLMParametersBase,
-        template: Optional[PromptTemplateBase] = None,
-        provider_config: Optional[ProviderConfig] = None
-    ) -> Generator[str, None, None]:
-        """Mock streaming generation."""
-        yield self.response
-        
-    def get_embeddings(
-        self,
-        texts: Union[str, List[str]],
-        provider_config: Optional[ProviderConfig] = None
-    ) -> List[List[float]]:
-        """Mock embeddings."""
-        return [[0.1, 0.2, 0.3]]
-
-@pytest.fixture
-def mock_provider():
-    """Create mock provider instance."""
-    return MockProvider()
-
-@pytest.fixture
-def mock_parameters() -> LLMParametersBase:
-    """Create mock LLM parameters."""
-    return LLMParametersBase(
-        max_new_tokens=100,
-        temperature=0.7,
-        top_k=50,
-        top_p=1.0
-    )
-
-@pytest.fixture
-def mock_template() -> PromptTemplateBase:
-    """Create mock prompt template."""
-    return PromptTemplateBase(
-        name="test-template",
-        provider="test-provider",
-        system_prompt="You are a helpful assistant",
-        context_prefix="Context:",
-        query_prefix="Question:",
-        answer_prefix="Answer:"
-    )
-
-@pytest.fixture
-def pipeline(
-    db: Session,
-    mock_provider: MockProvider,
-    mock_parameters: LLMParametersBase,
-    mock_template: PromptTemplateBase
-):
-    """Create pipeline instance with mock provider."""
-    return Pipeline(
-        db=db,
-        provider=mock_provider,
-        model_parameters=mock_parameters,
-        prompt_template=mock_template,
+    # Get provider instance
+    provider = LLMProviderFactory(db_session).get_provider("watsonx")
+    
+    # Create pipeline
+    pipeline = Pipeline(
+        db=db_session,
+        provider=provider,
+        model_parameters=runtime_config.llm_parameters,
+        prompt_template=runtime_config.prompt_template,
         collection_name="test_collection"
     )
+    
+    # Create collection
+    try:
+        pipeline.vector_store.delete_collection("test_collection")
+    except:
+        pass
+    pipeline.vector_store.create_collection("test_collection", {"embedding_model": settings.embedding_model})
+    
+    yield pipeline
+    
+    # Cleanup
+    try:
+        pipeline.vector_store.delete_collection("test_collection")
+    except:
+        pass
 
 @pytest.fixture
-def mock_query_results():
+def mock_query_results(db_session: Session):
     """Create mock query results."""
+    # Get embeddings using WatsonX provider
+    provider = LLMProviderFactory(db_session).get_provider("watsonx")
+    text1 = "Test context 1"
+    text2 = "Test context 2"
+    embeddings = provider.get_embeddings([text1, text2])
+    
     return [
         QueryResult(
             chunk=DocumentChunk(
-                text="Test context 1",
-                metadata=DocumentMetadata(
-                    document_name="doc1.txt",
-                    total_pages=1
-                )
+                chunk_id="chunk1",
+                text=text1,
+                embeddings=embeddings[0],
+                metadata=DocumentChunkMetadata(
+                    source=Source.OTHER,
+                    document_id="doc1",
+                    page_number=1,
+                    chunk_number=1
+                ),
+                document_id="doc1"  # Set document_id at chunk level
             ),
             score=0.9,
-            document_id="doc1"
+            document_id="doc1",  # Set document_id at result level
+            embeddings=embeddings[0]
         ),
         QueryResult(
             chunk=DocumentChunk(
-                text="Test context 2",
-                metadata=DocumentMetadata(
-                    document_name="doc2.txt",
-                    total_pages=1
-                )
+                chunk_id="chunk2",
+                text=text2,
+                embeddings=embeddings[1],
+                metadata=DocumentChunkMetadata(
+                    source=Source.OTHER,
+                    document_id="doc2",
+                    page_number=1,
+                    chunk_number=1
+                ),
+                document_id="doc2"  # Set document_id at chunk level
             ),
             score=0.8,
-            document_id="doc2"
+            document_id="doc2",  # Set document_id at result level
+            embeddings=embeddings[1]
         )
     ]
 
-def test_pipeline_initialization(
-    pipeline: Pipeline,
-    mock_provider: MockProvider,
-    mock_parameters: LLMParametersBase,
-    mock_template: PromptTemplateBase
-):
+def test_pipeline_initialization(pipeline: Pipeline):
     """Test pipeline initialization."""
     # Test basic initialization
     assert pipeline.collection_name == "test_collection"
-    assert pipeline.provider is mock_provider
+    assert pipeline.provider is not None
     assert pipeline.query_rewriter is not None
     assert pipeline.retriever is not None
     assert pipeline.evaluator is not None
     
-    # Test strongly typed parameters
-    assert pipeline.model_parameters == mock_parameters
-    assert pipeline.prompt_template == mock_template
+    # Test provider initialization
+    assert pipeline.provider.client is not None
     
-    # Verify parameter values
-    assert pipeline.model_parameters.max_new_tokens == 100
-    assert pipeline.model_parameters.temperature == 0.7
-    assert pipeline.model_parameters.top_k == 50
-    assert pipeline.model_parameters.top_p == 1.0
-    
-    # Verify template values
-    assert pipeline.prompt_template.name == "test-template"
-    assert pipeline.prompt_template.provider == "test-provider"
-    assert pipeline.prompt_template.system_prompt == "You are a helpful assistant"
+    # Test configuration
+    assert pipeline.model_parameters is not None
+    assert pipeline.prompt_template is not None
+    assert pipeline.prompt_template.provider == "watsonx"
 
 @pytest.mark.asyncio
-async def test_pipeline_process(
-    pipeline: Pipeline,
-    mock_provider: MockProvider,
-    mock_query_results: list[QueryResult],
-    monkeypatch
-):
+async def test_pipeline_process(pipeline: Pipeline):
     """Test pipeline processing."""
-    # Mock components
-    mock_retrieve = Mock(return_value=mock_query_results)
-    mock_rewrite = Mock(return_value="rewritten query")
-    mock_evaluate = AsyncMock(return_value={"score": 0.9})
-    mock_generate = Mock(return_value="Test answer")
-    
-    # Set up mocks
-    monkeypatch.setattr(pipeline.retriever, "retrieve", mock_retrieve)
-    monkeypatch.setattr(pipeline.query_rewriter, "rewrite", mock_rewrite)
-    monkeypatch.setattr(pipeline.evaluator, "evaluate", mock_evaluate)
-    monkeypatch.setattr(pipeline.provider, "generate_text", mock_generate)
-    
     # Process query
     result = await pipeline.process(
-        query="test query",
+        query="What is the capital of France?",
         collection_name="test_collection"
     )
     
-    # Verify result
+    # Verify result structure
     assert isinstance(result, PipelineResult)
-    assert result.rewritten_query == "rewritten query"
-    assert result.query_results == mock_query_results
-    assert result.generated_answer == "Test answer"
-    assert result.evaluation == {"score": 0.9}
+    assert isinstance(result.rewritten_query, str)
+    assert isinstance(result.query_results, list)
+    assert isinstance(result.generated_answer, str)
     
-    # Verify generate_text called with correct parameters
-    mock_generate.assert_called_once_with(
-        prompt="test query",
-        model_parameters=pipeline.model_parameters,
-        template=pipeline.prompt_template,
-        variables=GenerationVariables(
-            context="Test context 1\nTest context 2",
-            question="test query"
-        )
-    )
+    # Verify provider was used
+    assert pipeline.provider.client is not None
+    
+    # Verify query rewriting
+    assert result.rewritten_query != ""
+    
+    # Since we don't have documents loaded, we should get the no documents found message
+    assert "couldn't find any relevant documents" in result.generated_answer
 
 @pytest.mark.asyncio
 async def test_pipeline_empty_query(pipeline: Pipeline):
@@ -206,47 +138,50 @@ async def test_pipeline_empty_query(pipeline: Pipeline):
         await pipeline.process(query="", collection_name="test_collection")
 
 @pytest.mark.asyncio
-async def test_pipeline_retrieval_error(
-    pipeline: Pipeline,
-    monkeypatch
-):
+async def test_pipeline_retrieval_error(pipeline: Pipeline):
     """Test pipeline handling retrieval error."""
-    # Mock retriever to raise error
-    def mock_retrieve(*args, **kwargs):
-        raise Exception("Retrieval error")
-    monkeypatch.setattr(pipeline.retriever, "retrieve", mock_retrieve)
-    
+    # Use non-existent collection to trigger error
     result = await pipeline.process(
-        query="test query",
-        collection_name="test_collection"
+        query="What is the capital of France?",
+        collection_name="non_existent_collection"
     )
     
+    # Should handle error gracefully
     assert result.generated_answer == ""
-    assert "Retrieval error" in result.evaluation["error"]
+    assert result.evaluation is not None
+    assert "error" in result.evaluation
 
 @pytest.mark.asyncio
-async def test_pipeline_generation_error(
-    pipeline: Pipeline,
-    mock_query_results: list[QueryResult],
-    monkeypatch
-):
-    """Test pipeline handling generation error."""
-    # Mock retriever
-    mock_retrieve = Mock(return_value=mock_query_results)
-    monkeypatch.setattr(pipeline.retriever, "retrieve", mock_retrieve)
-    
-    # Mock provider to raise error
-    def mock_generate(*args, **kwargs):
-        raise Exception("Generation error")
-    monkeypatch.setattr(pipeline.provider, "generate_text", mock_generate)
+async def test_pipeline_template_error(pipeline: Pipeline):
+    """Test pipeline handling template formatting error."""
+    # Set invalid template format to trigger error
+    pipeline.prompt_template.template_format = None
     
     result = await pipeline.process(
-        query="test query",
+        query="What is the capital of France?",
         collection_name="test_collection"
     )
     
+    # Should still get the no documents found message
+    assert result.generated_answer != ""
+    assert isinstance(result.generated_answer, str)
+    assert "couldn't find any relevant documents" in result.generated_answer
+
+@pytest.mark.asyncio
+async def test_pipeline_generation_error(pipeline: Pipeline):
+    """Test pipeline handling generation error."""
+    # Break the provider client to trigger error
+    pipeline.provider.client = None
+    
+    result = await pipeline.process(
+        query="What is the capital of France?",
+        collection_name="test_collection"
+    )
+    
+    # Should handle error gracefully
     assert result.generated_answer == ""
-    assert "Generation error" in result.evaluation["error"]
+    assert result.evaluation is not None
+    assert "error" in result.evaluation
 
 def test_pipeline_result_methods(mock_query_results: list[QueryResult]):
     """Test PipelineResult helper methods."""

@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 from contextlib import asynccontextmanager
 from typing import Annotated
@@ -76,7 +77,13 @@ async def lifespan(app: FastAPI):
             if model.__table__ not in Base.metadata.tables.values():
                 Base.metadata.tables[model.__tablename__] = model.__table__
 
-        Base.metadata.create_all(bind=engine)
+        #avoid table re-creation during tests.
+        if "pytest" not in sys.modules:
+            Base.metadata.create_all(bind=engine)
+            logger.info("Base.metadata.create_all() executed outside pytest.")
+        else:
+            logger.info("Skipping Base.metadata.create_all() during pytest execution.")
+
         logger.info("Base.metadata.create_all() completed")
 
         tables_after = inspector.get_table_names()
