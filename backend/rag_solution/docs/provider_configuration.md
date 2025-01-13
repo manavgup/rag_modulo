@@ -4,268 +4,368 @@
 
 The provider configuration system enables dynamic registration and management of LLM providers and their models. It provides a flexible way to configure and manage different LLM providers with their specific parameters, active status, and verification tracking.
 
-## Configuration Types
+## Service Layer Architecture
 
-### 1. Provider Configuration
-Managed by provider_config_service, these are essential configurations required for provider initialization:
+### Core Services
 
 ```python
-# Example Provider Configuration
-watsonx_config = provider_config_service.get_provider_config("watsonx")
-if not watsonx_config:
-    raise LLMProviderError(
-        provider="watsonx",
-        error_type=PROVIDER_ERROR_TYPES["CONFIG_INVALID"],
-        message="No configuration found for WatsonX provider"
-    )
+from rag_solution.services.llm_provider_service import LLMProviderService
+from rag_solution.services.llm_parameters_service import LLMParametersService
+from rag_solution.services.provider_config_service import ProviderConfigService
+
+# Initialize services
+provider_service = LLMProviderService(db)
+parameters_service = LLMParametersService(db)
+config_service = ProviderConfigService(db)
 ```
 
-Provider-specific requirements:
-- WatsonX: api_key, api_url, project_id
-- OpenAI: api_key, org_id
-- Anthropic: api_key
-
-### 2. Runtime Configuration
-Managed through ProviderConfig, these settings control runtime behavior:
+### Provider Configuration
 
 ```python
-runtime_config = ProviderConfig(
-    concurrency_limit=5,
-    timeout=60,
-    batch_size=20,
-    stream=True,
-    rate_limit=20,
-    retry_attempts=3,
-    retry_delay=1.0
+from rag_solution.schemas.provider_config_schema import ProviderConfigInput
+
+# Create provider configuration
+config = ProviderConfigInput(
+    provider="watsonx",
+    api_key="your-api-key",
+    api_url="https://api.watsonx.ibm.com",
+    project_id="your-project-id",
+    active=True,
+    parameters={
+        "concurrency_limit": 5,
+        "timeout": 60,
+        "batch_size": 20
+    }
+)
+
+# Register provider
+provider_config = config_service.create_provider_config(config)
+```
+
+### LLM Parameters
+
+```python
+from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
+
+# Create LLM parameters
+parameters = LLMParametersInput(
+    name="watsonx-default",
+    provider="watsonx",
+    model_id="granite-13b",
+    temperature=0.7,
+    top_p=0.95,
+    top_k=50,
+    max_new_tokens=1000,
+    min_new_tokens=1,
+    repetition_penalty=1.1,
+    stop_sequences=["User:", "Assistant:"]
+)
+
+# Register parameters
+llm_parameters = parameters_service.create_parameters(parameters)
+```
+
+## Provider Integration
+
+### Provider Service Usage
+
+```python
+# Get provider instance
+provider = provider_service.get_provider_by_name("watsonx")
+
+# Generate text
+response = provider.generate_text(
+    prompt="Your prompt here",
+    model_parameters=llm_parameters
+)
+
+# Generate embeddings
+embeddings = provider.generate_embeddings(
+    texts=["Text to embed"],
+    model_parameters=llm_parameters
 )
 ```
 
-Settings include:
-- concurrency_limit: Maximum concurrent requests
-- timeout: Request timeout in seconds
-- batch_size: Size of batches for bulk operations
-- stream: Whether to use streaming mode
-- rate_limit: Maximum requests per second
-- retry_attempts: Number of retry attempts
-- retry_delay: Delay between retries in seconds
+### Pipeline Integration
 
-## Architecture
+```python
+from rag_solution.services.pipeline_service import PipelineService
+from rag_solution.services.prompt_template_service import PromptTemplateService
 
-### Configuration Storage Hierarchy
+# Initialize services
+pipeline_service = PipelineService(db)
+template_service = PromptTemplateService(db)
 
+# Configure pipeline with templates
+pipeline_config = PipelineConfigInput(
+    name="default-pipeline",
+    provider_id=provider.id,
+    llm_parameters_id=llm_parameters.id,
+    evaluator_config={
+        "enabled": True,
+        "metrics": ["relevance", "coherence", "factuality"],
+        "threshold": 0.8
+    },
+    performance_config={
+        "max_concurrent_requests": 10,
+        "timeout_seconds": 30,
+        "batch_size": 5
+    },
+    retrieval_config={
+        "top_k": 3,
+        "similarity_threshold": 0.7,
+        "reranking_enabled": True
+    }
+)
+
+# Create pipeline configuration
+pipeline = pipeline_service.create_pipeline_config(pipeline_config)
+
+# Initialize pipeline with templates
+await pipeline_service.initialize(
+    collection_id=collection_id,
+    config_overrides={
+        "max_concurrent_requests": 20,
+        "timeout_seconds": 45
+    }
+)
+
+# Execute pipeline with evaluation
+result = await pipeline_service.execute_pipeline(
+    search_input=SearchInput(
+        question="What is RAG?",
+        collection_id=collection_id,
+        metadata={
+            "max_length": 100,
+            "temperature": 0.7
+        }
+    ),
+    user_id=user_id,
+    evaluation_enabled=True
+)
+
+# Access metrics
+metrics = pipeline_service.get_performance_metrics()
+print(f"Average latency: {metrics.avg_latency_ms}ms")
+print(f"Success rate: {metrics.success_rate}%")
+print(f"Throughput: {metrics.requests_per_second} req/s")
 ```
-ProviderModelConfig (SQLAlchemy Model)
-├── Provider Configuration
-│   ├── Provider name
-│   ├── Model ID
-│   ├── Active status
-│   └── Verification status
-└── LLM Parameters (Foreign Key)
-    ├── Model parameters
-    ├── Token limits
-    └── Temperature settings
+
+### Provider Performance Monitoring
+
+```python
+class LLMProviderService:
+    def __init__(self, db: Session):
+        self._metrics = ProviderMetrics()
+        self._cache = ResponseCache()
+        
+    async def generate_text(
+        self,
+        prompt: str,
+        model_parameters: LLMParameters,
+        use_cache: bool = True
+    ) -> str:
+        """Generate text with performance monitoring."""
+        # Try cache first
+        if use_cache:
+            cached = self._cache.get(prompt, model_parameters)
+            if cached:
+                self._metrics.record_cache_hit()
+                return cached
+                
+        # Track metrics
+        start_time = time.time()
+        try:
+            response = await self._generate_text_internal(
+                prompt,
+                model_parameters
+            )
+            self._metrics.record_success(time.time() - start_time)
+            
+            # Cache response
+            if use_cache:
+                self._cache.set(prompt, model_parameters, response)
+                
+            return response
+            
+        except Exception as e:
+            self._metrics.record_error(str(e))
+            raise
+            
+    def get_metrics(self) -> Dict[str, Any]:
+        """Get provider performance metrics."""
+        return {
+            "latency": self._metrics.get_average_latency(),
+            "success_rate": self._metrics.get_success_rate(),
+            "error_rate": self._metrics.get_error_rate(),
+            "cache_hit_rate": self._metrics.get_cache_hit_rate(),
+            "requests_per_second": self._metrics.get_throughput()
+        }
 ```
-
-### Components
-
-1. **Model (ProviderModelConfig)**
-   - SQLAlchemy model for database storage
-   - Links to LLM parameters
-   - Status tracking
-   - Verification timestamps
-
-2. **Schema**
-   - `ProviderModelConfigBase`: Common fields and validation
-   - `ProviderModelConfigCreate`: Creation schema
-   - `ProviderModelConfigUpdate`: Partial update support
-   - `ProviderModelConfigResponse`: API response format
-
-3. **Repository**
-   - CRUD operations
-   - Provider-specific queries
-   - Status management
-   - Verification tracking
-
-4. **Service**
-   - Business logic
-   - Provider registration
-   - Model verification
-   - Parameter management
 
 ## Error Handling
 
-The system provides standardized error types for consistent error handling across providers:
+### Custom Exceptions
 
-### Error Categories
+```python
+from core.custom_exceptions import (
+    ConfigurationError,
+    ValidationError,
+    ProviderError,
+    NotFoundError
+)
 
-1. Initialization Errors
+try:
+    # Get provider
+    provider = provider_service.get_provider_by_name("watsonx")
+    
+    # Get parameters
+    parameters = parameters_service.get_parameters(parameters_id)
+    
+    # Generate text
+    response = provider.generate_text(
+        prompt=prompt,
+        model_parameters=parameters
+    )
+except ConfigurationError as e:
+    # Handle configuration errors
+    logger.error(f"Configuration error: {str(e)}")
+except ValidationError as e:
+    # Handle validation errors
+    logger.error(f"Validation error: {str(e)}")
+except ProviderError as e:
+    # Handle provider-specific errors
+    logger.error(f"Provider error: {str(e)}")
+except NotFoundError as e:
+    # Handle not found errors
+    logger.error(f"Not found error: {str(e)}")
+```
+
+### Error Types
+
 ```python
 PROVIDER_ERROR_TYPES = {
+    # Initialization Errors
     "INIT_FAILED": "initialization_failed",
     "AUTH_FAILED": "authentication_failed",
-    "CONFIG_INVALID": "configuration_invalid"
-}
-```
-
-2. Runtime Errors
-```python
-PROVIDER_ERROR_TYPES = {
+    "CONFIG_INVALID": "configuration_invalid",
+    
+    # Runtime Errors
     "RATE_LIMIT": "rate_limit_exceeded",
     "TIMEOUT": "request_timeout",
-    "API_ERROR": "api_error"
-}
-```
-
-3. Generation Errors
-```python
-PROVIDER_ERROR_TYPES = {
+    "API_ERROR": "api_error",
+    
+    # Generation Errors
     "PROMPT_ERROR": "prompt_preparation_failed",
     "TEMPLATE_ERROR": "template_formatting_failed",
-    "PARAM_ERROR": "invalid_parameters"
-}
-```
-
-4. Resource Errors
-```python
-PROVIDER_ERROR_TYPES = {
+    "PARAM_ERROR": "invalid_parameters",
+    
+    # Resource Errors
     "MODEL_ERROR": "model_not_available",
-    "RESOURCE_ERROR": "resource_exhausted"
-}
-```
-
-5. Response Errors
-```python
-PROVIDER_ERROR_TYPES = {
+    "RESOURCE_ERROR": "resource_exhausted",
+    
+    # Response Errors
     "RESPONSE_ERROR": "invalid_response",
     "PARSING_ERROR": "response_parsing_failed"
 }
 ```
 
-## Integration Examples
-
-### Provider Implementation
-
-```python
-class WatsonXProvider(LLMProvider):
-    def __init__(self, provider_config_service: ProviderConfigService) -> None:
-        """Initialize WatsonX provider.
-        
-        Args:
-            provider_config_service: Service for provider configuration
-        """
-        # Initialize base attributes
-        self.provider_config_service = provider_config_service
-        self.client = None
-        self.embeddings_client = None
-        self._model_cache = {}
-        
-        # Get and validate configuration
-        self._provider_config = self.provider_config_service.get_provider_config("watsonx")
-        if not self._provider_config:
-            raise LLMProviderError(
-                provider="watsonx",
-                error_type=PROVIDER_ERROR_TYPES["CONFIG_INVALID"],
-                message="No configuration found for WatsonX provider"
-            )
-
-        # Initialize base class
-        super().__init__()
-
-    def initialize_client(self) -> None:
-        """Initialize WatsonX client."""
-        try:
-            self.client = APIClient(
-                project_id=self._provider_config.project_id,
-                credentials=Credentials(
-                    api_key=self._provider_config.api_key,
-                    url=self._provider_config.api_url
-                )
-            )
-        except Exception as e:
-            raise LLMProviderError(
-                provider="watsonx",
-                error_type=PROVIDER_ERROR_TYPES["INIT_FAILED"],
-                message=f"Failed to initialize client: {str(e)}"
-            )
-```
-
-### Factory Implementation
-
-```python
-class LLMProviderFactory:
-    """Factory for creating and managing LLM providers with logging."""
-    
-    _providers: Dict[str, Type[LLMProvider]] = {
-        "watsonx": WatsonXProvider,
-        "openai": OpenAIProvider,
-        "anthropic": AnthropicProvider
-    }
-    _instances: Dict[str, LLMProvider] = {}
-
-    def __init__(self, db: Session) -> None:
-        """Initialize factory with database session."""
-        self._provider_config_service = ProviderConfigService(db)
-
-    def get_provider(self, provider_type: str) -> LLMProvider:
-        """Get or create a provider instance."""
-        provider_type = provider_type.lower()
-        
-        if provider_type not in self._providers:
-            raise LLMProviderError(
-                provider=provider_type,
-                error_type="unknown_provider",
-                message=f"Unknown provider type: {provider_type}"
-            )
-
-        # Create new instance if needed
-        if provider_type not in self._instances:
-            self._instances[provider_type] = self._providers[provider_type](
-                provider_config_service=self._provider_config_service
-            )
-
-        return self._instances[provider_type]
-```
-
 ## Best Practices
 
-1. **Configuration Management**
-   - Use provider_config_service for provider settings
-   - Use ProviderConfig for runtime settings
-   - Validate configurations at startup
+1. Service Initialization:
+   - Use dependency injection
+   - Initialize services properly
+   - Handle database sessions
 
-2. **Error Handling**
-   - Use standardized error types from PROVIDER_ERROR_TYPES
-   - Include provider name in errors
+2. Configuration Management:
+   - Use service layer for all operations
+   - Validate configurations early
+   - Handle provider-specific requirements
+
+3. Error Handling:
+   - Use custom exceptions
    - Log errors with context
+   - Provide clear error messages
 
-3. **Provider Implementation**
-   - Initialize configuration in __init__
-   - Handle client initialization separately
-   - Clean up resources in close()
+4. Resource Management:
+   - Clean up resources
+   - Handle async operations
+   - Monitor usage limits
 
-4. **Testing**
-   - Test provider validation
-   - Test error handling
-   - Mock external services
+## Security Considerations
+
+1. API Key Management:
+   - Store keys securely
+   - Rotate keys regularly
+   - Use environment variables
+
+2. Access Control:
+   - Implement RBAC
+   - Audit configuration changes
+   - Monitor usage patterns
+
+3. Error Handling:
+   - Sanitize error messages
+   - Log security events
+   - Handle sensitive data
 
 ## Future Improvements
 
-1. **Configuration Management**
-   - Dynamic runtime configuration updates
-   - Configuration validation rules
+1. Configuration Management:
+   - Dynamic configuration updates
    - Configuration versioning
+   - Validation rules
+   - A/B testing support
+   - Environment-specific configs
+   - Configuration inheritance
+   - Auto-optimization
 
-2. **Error Handling**
-   - Custom error recovery strategies
-   - Error aggregation and analysis
-   - Automatic error recovery
+2. Performance Monitoring:
+   - Real-time metrics dashboard
+   - Performance alerts
+   - Resource utilization tracking
+   - Bottleneck detection
+   - Query optimization
+   - Cache hit ratios
+   - Error rate monitoring
+   - Latency tracking
 
-3. **Monitoring**
-   - Configuration usage metrics
-   - Error rate tracking
-   - Performance monitoring
+3. Provider Optimization:
+   - Load balancing
+   - Request batching
+   - Response streaming
+   - Token optimization
+   - Concurrent request handling
+   - Circuit breakers
+   - Rate limiting
+   - Request queuing
 
-4. **Security**
-   - Configuration encryption
-   - Access control
-   - Audit logging
+4. Security Enhancements:
+   - Enhanced encryption at rest
+   - Key rotation automation
+   - Fine-grained access policies
+   - Comprehensive audit logging
+   - Security scanning
+   - Compliance reporting
+   - Data anonymization
+   - Access monitoring
+
+5. Integration Features:
+   - Provider-specific optimizations
+   - Custom handler support
+   - Automated testing
+   - CI/CD integration
+   - Health checks
+   - Documentation generation
+   - Monitoring dashboards
+   - Performance profiling
+
+6. Caching & Storage:
+   - Distributed caching
+   - Response caching
+   - Token optimization
+   - Cache invalidation
+   - Cache warming
+   - Storage optimization
+   - Backup strategies
+   - Data retention

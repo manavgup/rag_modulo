@@ -2,7 +2,7 @@
 
 ## Overview
 
-The prompt template system provides a flexible way to manage and customize prompts for different LLM providers. It supports default templates, custom templates, and provider-specific configurations.
+The prompt template system provides a flexible way to manage and customize prompts for different LLM providers, with support for validation, context handling, and template types.
 
 ## Architecture
 
@@ -10,336 +10,403 @@ The prompt template system provides a flexible way to manage and customize promp
 
 ```
 PromptTemplate (SQLAlchemy Model)
-├── EXAMPLE_TEMPLATES (built-in defaults)
-│   ├── watsonx_granite
-│   ├── llama2
-│   ├── claude
-│   ├── gpt4
-│   └── falcon
-└── Database Records
-    ├── Default templates (one per provider)
-    └── Custom templates
+├── Core Fields
+│   ├── id: UUID
+│   ├── collection_id: Optional[UUID]
+│   ├── name: str
+│   ├── provider: str
+│   └── template_type: PromptTemplateType
+├── Template Content
+│   ├── system_prompt: Optional[str]
+│   ├── template_format: str
+│   └── input_variables: Optional[Dict[str, str]]
+├── Validation & Examples
+│   ├── validation_schema: Optional[Dict]
+│   └── example_inputs: Optional[Dict]
+└── Context Handling
+    ├── context_strategy: Optional[Dict]
+    ├── max_context_length: Optional[int]
+    └── stop_sequences: Optional[List[str]]
 ```
 
-### Components
+### Template Types
 
-1. **Model (PromptTemplate)**
-   - SQLAlchemy model for database storage
-   - Built-in example templates
-   - Timestamp tracking
-   - Default template management
+```python
+class PromptTemplateType(str, Enum):
+    RAG_QUERY = "rag_query"
+    QUESTION_GENERATION = "question_generation"
+    RESPONSE_EVALUATION = "response_evaluation"
+    CUSTOM = "custom"
+```
 
-2. **Schema**
-   - `PromptTemplateBase`: Common fields and validation
-   - `PromptTemplateCreate`: Creation schema with provider validation
-   - `PromptTemplateUpdate`: Partial update support
-   - `PromptTemplateResponse`: API response format
+### Context Strategies
 
-3. **Repository**
-   - CRUD operations
-   - Default template management
-   - Provider-specific queries
-
-4. **Service**
-   - Business logic
-   - Template initialization
-   - Configuration management
+```python
+class ContextStrategyType(str, Enum):
+    CONCATENATE = "concatenate"
+    SUMMARIZE = "summarize"
+    TRUNCATE = "truncate"
+    PRIORITY = "priority"
+```
 
 ## Configuration
 
-### Database Setup
+### Template Creation
 
-The prompt template system uses PostgreSQL for template storage. The SQLAlchemy model automatically creates the required table:
+```python
+from rag_solution.schemas.prompt_template_schema import (
+    PromptTemplateInput,
+    PromptTemplateType,
+    ContextStrategyType
+)
 
-```sql
-CREATE TABLE prompt_templates (
-    id VARCHAR(36) PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    provider VARCHAR(50) NOT NULL,
-    description TEXT,
-    system_prompt TEXT NOT NULL,
-    context_prefix VARCHAR(255) NOT NULL,
-    query_prefix VARCHAR(255) NOT NULL,
-    answer_prefix VARCHAR(255) NOT NULL,
-    is_default BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE,
-    UNIQUE(name, provider)
-);
+template = PromptTemplateInput(
+    name="rag-query-template",
+    provider="watsonx",
+    template_type=PromptTemplateType.RAG_QUERY,
+    system_prompt="You are a helpful AI assistant.",
+    template_format=(
+        "Context:\n{context}\n\n"
+        "Question: {question}\n\n"
+        "Answer:"
+    ),
+    input_variables={
+        "context": "Retrieved passages from knowledge base",
+        "question": "User's question to answer"
+    },
+    validation_schema={
+        "type": "object",
+        "properties": {
+            "context": {"type": "string", "minLength": 1},
+            "question": {"type": "string", "minLength": 1}
+        },
+        "required": ["context", "question"]
+    },
+    context_strategy={
+        "strategy": ContextStrategyType.PRIORITY,
+        "max_chunks": 3,
+        "chunk_separator": "\n\n",
+        "ordering": "relevance"
+    },
+    example_inputs={
+        "simple": {
+            "context": "Python was created by Guido van Rossum.",
+            "question": "Who created Python?"
+        }
+    }
+)
 ```
 
-### System Initialization
+### Context Strategy Configuration
 
-1. **First-Time Setup**
-   - Database tables are created if they don't exist
-   - Service checks for default templates
-   - If no defaults exist, they are created from either:
-     * prompt_config.json if available
-     * Built-in EXAMPLE_TEMPLATES if no config
+Different strategies for handling context:
 
-2. **Template Migration**
-   - Existing templates are preserved during updates
-   - New providers can be added without affecting existing templates
-   - Default templates can be updated via prompt_config.json
-
-### Built-in Templates
-
-Templates are provided for common LLM providers:
-- IBM Watsonx Granite
-- Meta's LLaMA 2
-- Anthropic's Claude
-- OpenAI's GPT-4
-- TII's Falcon
-
-### External Configuration
-
-Optional `prompt_config.json`:
-```json
+```python
+# Priority Strategy
 {
-    "watsonx": {
-        "system_prompt": "...",
-        "context_prefix": "Context:",
-        "query_prefix": "Question:",
-        "answer_prefix": "Answer:"
-    },
-    // Other providers...
+    "strategy": "priority",
+    "max_chunks": 3,
+    "ordering": "relevance"
+}
+
+# Concatenation Strategy
+{
+    "strategy": "concatenate",
+    "chunk_separator": "\n\n",
+    "max_chunks": 5
+}
+
+# Truncation Strategy
+{
+    "strategy": "truncate",
+    "max_length": 1000,
+    "truncation": "end"  # or "start" or "middle"
+}
+
+# Summarization Strategy
+{
+    "strategy": "summarize",
+    "max_length": 1000,
+    "style": "extractive"  # or "abstractive"
 }
 ```
 
-### Initialization Flow
+## Service Layer Usage
 
-```mermaid
-graph TD
-    A[Start] --> B{Check prompt_config.json}
-    B -->|Exists| C[Load Config]
-    B -->|Missing| D[Use Built-in Templates]
-    C --> E[Create Default Templates]
-    D --> E
-    E --> F[End]
-```
-
-## Usage
-
-### Creating Templates
+### Template Management
 
 ```python
-template = PromptTemplateCreate(
-    name="custom_watsonx",
-    provider="watsonx",
-    description="Custom template for specific use case",
-    system_prompt="Custom system prompt",
-    context_prefix="Context:",
-    query_prefix="Question:",
-    answer_prefix="Answer:",
-    is_default=False
+from rag_solution.services.prompt_template_service import PromptTemplateService
+
+# Initialize service
+template_service = PromptTemplateService(db)
+
+# Create template
+template = template_service.create_template(template_input)
+
+# Get template by type
+rag_template = template_service.get_by_type(
+    PromptTemplateType.RAG_QUERY,
+    collection_id
+)
+
+# Format prompt
+formatted_prompt = template_service.format_prompt(
+    template.id,
+    {
+        "context": context_text,
+        "question": query
+    }
+)
+
+# Apply context strategy
+formatted_context = template_service.apply_context_strategy(
+    template.id,
+    context_chunks
 )
 ```
 
-### Managing Templates
+### Pipeline Integration
 
 ```python
-# Get default template
-default = service.get_default_template("watsonx")
+from rag_solution.services.pipeline_service import PipelineService
+from rag_solution.services.prompt_template_service import PromptTemplateService
 
-# Create from example
-example = service.create_example_template("watsonx_granite")
-
-# Update template
-update = PromptTemplateUpdate(
-    name="updated_name",
-    description="Updated description"
-)
-service.update_template(template_id, update)
+class PipelineService:
+    def __init__(self, db: Session):
+        self._template_service = PromptTemplateService(db)
+        self._evaluator = None
+        self._provider = None
+        
+    async def initialize(
+        self,
+        collection_id: UUID,
+        config_overrides: Optional[Dict[str, Any]] = None
+    ) -> None:
+        """Initialize pipeline with templates."""
+        # Get templates
+        self.query_template = self._template_service.get_by_type(
+            PromptTemplateType.RAG_QUERY,
+            collection_id
+        )
+        self.eval_template = self._template_service.get_by_type(
+            PromptTemplateType.RESPONSE_EVALUATION,
+            collection_id
+        )
+        
+        # Initialize evaluator with template
+        self._evaluator = RAGEvaluator(
+            provider=self._provider,
+            template=self.eval_template
+        )
+        
+    async def execute_pipeline(
+        self,
+        search_input: SearchInput,
+        user_id: Optional[UUID] = None,
+        evaluation_enabled: bool = True
+    ) -> PipelineResult:
+        """Execute pipeline with template handling."""
+        try:
+            # Format query template
+            formatted_query = self._template_service.format_prompt(
+                self.query_template.id,
+                {
+                    "context": self._get_context(query_results),
+                    "question": search_input.question
+                }
+            )
+            
+            # Generate answer
+            generated_answer = await self._provider.generate_text(
+                formatted_query,
+                search_input.metadata
+            )
+            
+            # Run evaluation if enabled
+            evaluation = None
+            if evaluation_enabled:
+                evaluation = await self._evaluator.evaluate(
+                    question=search_input.question,
+                    answer=generated_answer,
+                    context=self._get_context(query_results)
+                )
+            
+            return PipelineResult(
+                rewritten_query=rewritten_query,
+                query_results=query_results,
+                generated_answer=generated_answer,
+                evaluation=evaluation
+            )
+            
+        except Exception as e:
+            logger.error(f"Pipeline error: {str(e)}")
+            return self._create_error_result(str(e))
 ```
 
-## Best Practices
+### Template Performance Optimization
 
-1. **Default Templates**
-   - Each provider should have one default template
-   - Default templates cannot be deleted
-   - Use built-in examples as starting points
-
-2. **Custom Templates**
-   - Create provider-specific templates for different use cases
-   - Follow provider's prompt engineering guidelines
-   - Document template purposes and use cases
-
-3. **Template Management**
-   - Use meaningful names and descriptions
-   - Test templates before setting as default
-   - Keep system prompts focused and clear
+```python
+class PromptTemplateService:
+    def __init__(self, db: Session):
+        self._template_repository = PromptTemplateRepository(db)
+        self._cache = TemplateCache()
+        
+    def format_prompt(
+        self,
+        template_id: UUID,
+        variables: Dict[str, Any],
+        use_cache: bool = True
+    ) -> str:
+        """Format prompt with caching."""
+        # Try cache first
+        if use_cache:
+            cache_key = self._get_cache_key(template_id, variables)
+            cached = self._cache.get(cache_key)
+            if cached:
+                return cached
+        
+        # Format prompt
+        template = self._template_repository.get_by_id(template_id)
+        formatted = template.format_prompt(variables)
+        
+        # Cache result
+        if use_cache:
+            self._cache.set(cache_key, formatted)
+        
+        return formatted
+        
+    def apply_context_strategy(
+        self,
+        template_id: UUID,
+        context_chunks: List[str],
+        max_tokens: Optional[int] = None
+    ) -> str:
+        """Apply context strategy with token limit."""
+        template = self._template_repository.get_by_id(template_id)
+        strategy = template.context_strategy
+        
+        if strategy["strategy"] == ContextStrategyType.PRIORITY:
+            return self._apply_priority_strategy(
+                context_chunks,
+                strategy,
+                max_tokens
+            )
+        elif strategy["strategy"] == ContextStrategyType.SUMMARIZE:
+            return self._apply_summarize_strategy(
+                context_chunks,
+                strategy,
+                max_tokens
+            )
+        # ... other strategies
+```
 
 ## Error Handling
 
 The system provides specific exceptions:
-- `PromptTemplateNotFoundError`
-- `DuplicatePromptTemplateError`
-- `InvalidPromptTemplateError`
 
-## Example Templates
-
-### IBM Watsonx
 ```python
-{
-    "name": "watsonx_granite_default",
-    "provider": "watsonx",
-    "description": "Default template for IBM Watsonx Granite models",
-    "system_prompt": "You are a helpful AI assistant powered by IBM Watsonx...",
-    "context_prefix": "Context information:\n",
-    "query_prefix": "Question:\n",
-    "answer_prefix": "Answer:\n"
-}
+from core.custom_exceptions import (
+    ValidationError,
+    NotFoundError,
+    ConfigurationError
+)
+
+try:
+    # Format prompt
+    formatted_prompt = template_service.format_prompt(
+        template_id,
+        variables
+    )
+except ValidationError as e:
+    # Handle validation errors
+    logger.error(f"Template validation failed: {str(e)}")
+except NotFoundError as e:
+    # Handle missing template
+    logger.error(f"Template not found: {str(e)}")
+except ConfigurationError as e:
+    # Handle configuration errors
+    logger.error(f"Configuration error: {str(e)}")
 ```
 
-### LLaMA 2
-```python
-{
-    "name": "llama2_default",
-    "provider": "llama2",
-    "description": "Default template for Meta's LLaMA 2 models",
-    "system_prompt": "[INST] <<SYS>> You are a helpful AI assistant...",
-    "context_prefix": "Reference information:\n",
-    "query_prefix": "User question:\n",
-    "answer_prefix": "[/INST]\n"
-}
-```
+## Best Practices
 
-## Security Considerations
+1. Template Management:
+   - Use appropriate template types
+   - Validate inputs with schemas
+   - Provide example inputs
+   - Document template purposes
 
-### Access Control
-- Templates can contain sensitive business logic and prompting strategies
-- Implement role-based access control (RBAC) for template management
-- Consider separate permissions for:
-  * Viewing templates
-  * Creating templates
-  * Modifying templates
-  * Setting default templates
-  * Deleting templates
+2. Context Handling:
+   - Choose appropriate strategies
+   - Configure chunk limits
+   - Consider token limits
+   - Test with different content
 
-### Template Validation
-- Validate templates before use to prevent prompt injection
-- Sanitize user inputs when used with templates
-- Consider implementing template content policies
-- Monitor template usage for unusual patterns
+3. Error Handling:
+   - Use custom exceptions
+   - Validate inputs early
+   - Log errors appropriately
+   - Provide helpful messages
 
-### Environment Separation
-- Use different default templates per environment (dev/staging/prod)
-- Consider template versioning for production deployments
-- Implement audit logging for template changes
-- Regular backup of template configurations
-
-## Integration
-
-### API Endpoints
-
-The prompt template system exposes the following endpoints:
-
-```
-GET    /api/v1/templates           # List all templates
-GET    /api/v1/templates/{id}      # Get template by ID
-POST   /api/v1/templates           # Create new template
-PUT    /api/v1/templates/{id}      # Update template
-DELETE /api/v1/templates/{id}      # Delete template
-GET    /api/v1/templates/provider/{provider}  # Get templates by provider
-GET    /api/v1/templates/default/{provider}   # Get default template for provider
-```
-
-### Integration with RAG Pipeline
-
-The prompt template system integrates with the RAG pipeline through:
-
-1. **Generator Integration**
-   ```python
-   # In generation/generator.py
-   template = prompt_template_service.get_default_template(provider)
-   prompt = f"{template.system_prompt}\n\n"
-   prompt += f"{template.context_prefix} {context}\n"
-   prompt += f"{template.query_prefix} {query}\n"
-   prompt += template.answer_prefix
-   ```
-
-2. **Provider Integration**
-   - Each provider (watsonx, openai, etc.) uses templates for consistent prompting
-   - Templates ensure proper formatting for each provider's requirements
-   - Default templates maintain standard behavior
-
-3. **Service Layer Usage**
-   ```python
-   # Example service integration
-   class SearchService:
-       def __init__(self, prompt_template_service: PromptTemplateService):
-           self._template_service = prompt_template_service
-           
-       def search(self, query: str, provider: str):
-           template = self._template_service.get_default_template(provider)
-           # Use template for search...
-   ```
-
-### Testing
-
-The system includes comprehensive tests:
-- Repository operations
-- Service functionality
-- Template validation
-- Error handling
-- Default template management
-- API endpoint testing
-- Integration testing
-
-## Deployment Considerations
-
-### High Availability
-- Templates are critical for RAG pipeline operation
-- Consider caching frequently used templates
-- Implement fallback mechanisms for template failures
-- Monitor template usage and performance
-
-### Monitoring
-- Track template usage patterns
-- Monitor template performance metrics
-- Alert on template failures or issues
-- Collect feedback on template effectiveness
-
-### Maintenance
-- Regular review of default templates
-- Clean up unused templates
-- Update templates based on model updates
-- Document template changes and versions
+4. Service Integration:
+   - Use dependency injection
+   - Initialize services properly
+   - Handle async operations
+   - Clean up resources
 
 ## Future Improvements
 
-Potential enhancements:
-1. Template versioning
-   - Track changes to templates
-   - Support rollback to previous versions
-   - Version comparison tools
+1. Template Features:
+   - Version control and history
+   - Template inheritance and composition
+   - Dynamic validation with feedback
+   - Real-time performance metrics
+   - A/B testing support
+   - Template analytics
+   - Auto-optimization
 
-2. Template categories/tags
-   - Organize templates by use case
-   - Support template discovery
-   - Enable filtering and search
+2. Context Handling:
+   - Advanced context strategies
+   - ML-based summarization
+   - Dynamic chunk optimization
+   - Context relevance scoring
+   - Token optimization
+   - Cross-reference support
+   - Context caching
 
-3. Usage statistics
-   - Track template performance
-   - Monitor usage patterns
-   - Identify popular templates
+3. Service Enhancements:
+   - Distributed caching
+   - Bulk operations
+   - Template migration tools
+   - Usage analytics
+   - Performance monitoring
+   - Error tracking
+   - Auto-scaling
 
-4. A/B testing support
-   - Compare template effectiveness
-   - Automated performance tracking
-   - Statistical analysis tools
+4. Performance Optimization:
+   - Template compilation
+   - Caching strategies
+   - Batch processing
+   - Token optimization
+   - Response streaming
+   - Async processing
+   - Load balancing
 
-5. Template sharing/export
-   - Export templates to JSON
-   - Import from other instances
-   - Template marketplace support
+5. Integration Features:
+   - Provider-specific optimizations
+   - Custom strategy support
+   - Template marketplace
+   - Testing tools
+   - Monitoring dashboards
+   - Documentation generation
+   - CI/CD integration
 
-6. Advanced validation
-   - Syntax checking for prompts
-   - Provider-specific validation rules
-   - Template testing tools
-
-7. Template composition
-   - Reusable template components
-   - Template inheritance
-   - Component library
+6. Template Management:
+   - UI-based editor
+   - Version control
+   - Template sharing
+   - Access control
+   - Validation tools
+   - Testing suite
+   - Documentation
