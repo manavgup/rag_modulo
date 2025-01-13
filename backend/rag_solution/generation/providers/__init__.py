@@ -1,13 +1,13 @@
 """Provider implementations package."""
 
-from .base import LLMProvider
-from .watsonx import WatsonXProvider
-from .openai import OpenAIProvider
-from .anthropic import AnthropicProvider
+from .base import LLMBase
+from .watsonx import WatsonXLLM
+from .openai import OpenAILLM
+from .anthropic import AnthropicLLM
 
 __all__ = [
-    "LLMProvider",
-    "WatsonXProvider",
-    "OpenAIProvider",
-    "AnthropicProvider"
+    "LLMBase",
+    "WatsonXLLM",
+    "OpenAILLM",
+    "AnthropicLLM"
 ]

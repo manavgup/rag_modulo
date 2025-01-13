@@ -1,223 +1,150 @@
-"""Base provider interface for LLM interactions using established schemas."""
-
-from abc import ABC, abstractmethod
-from typing import Generator, List, Optional, Union, Dict, Any
+from abc import ABC, ABCMeta, abstractmethod
+from typing import Sequence, Generator, Optional, Union, Any, Dict
+from uuid import UUID
 from pathlib import Path
 
 from core.logging_utils import setup_logging, get_logger
 from core.custom_exceptions import LLMProviderError
-from rag_solution.schemas.llm_parameters_schema import LLMParametersBase
 from rag_solution.schemas.prompt_template_schema import PromptTemplateBase
-from rag_solution.schemas.provider_config_schema import ProviderRuntimeSettings, ProviderExtendedSettings
+from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
+from rag_solution.services.llm_provider_service import LLMProviderService
+from rag_solution.services.llm_parameters_service import LLMParametersService
+from rag_solution.services.prompt_template_service import PromptTemplateService
 from vectordbs.data_types import EmbeddingsList
 
-# Setup logging
 setup_logging(Path("logs"))
 logger = get_logger("llm.providers")
 
-# Error types for consistent error reporting
-PROVIDER_ERROR_TYPES = {
-    # Initialization errors
-    "INIT_FAILED": "initialization_failed",
-    "AUTH_FAILED": "authentication_failed",
-    "CONFIG_INVALID": "configuration_invalid",
-    
-    # Runtime errors
-    "RATE_LIMIT": "rate_limit_exceeded",
-    "TIMEOUT": "request_timeout",
-    "API_ERROR": "api_error",
-    
-    # Generation errors
-    "PROMPT_ERROR": "prompt_preparation_failed",
-    "TEMPLATE_ERROR": "template_formatting_failed",
-    "PARAM_ERROR": "invalid_parameters",
-    
-    # Resource errors
-    "MODEL_ERROR": "model_not_available",
-    "RESOURCE_ERROR": "resource_exhausted",
-    
-    # Response errors
-    "RESPONSE_ERROR": "invalid_response",
-    "PARSING_ERROR": "response_parsing_failed"
-}
-
-class ProviderConfig(ProviderExtendedSettings):
-    """Runtime configuration for LLM providers.
-    
-    This class inherits from ProviderExtendedSettings which provides:
-    - Base runtime settings (timeout, max_retries, batch_size, retry_delay) from ProviderRuntimeSettings
-    - Extended runtime settings (concurrency_limit, stream, rate_limit)
-    
-    The separation of ProviderRuntimeSettings and ProviderExtendedSettings allows for:
-    - Common settings to be shared across different types of configurations
-    - Provider-specific settings to be added without affecting the base settings
-    - Consistent runtime behavior across all providers
-    
-    See ProviderRuntimeSettings and ProviderExtendedSettings for full documentation.
+class LLMMeta(ABCMeta):
     """
-    pass
+    Metaclass for automatically registering provider classes with the factory.
+    """
+    def __init__(cls, name, bases, dct):
+        super().__init__(name, bases, dct)
+        # Automatically register the provider class if it's not the base class
+        if name != "LLMBase" and not cls.__module__.startswith("abc"):
+            logger.debug(f"Registering provider class: {name}")
+            cls.register()
 
-class LLMProvider(ABC):
-    """Abstract base class for language model providers."""
+class LLMBase(ABC, metaclass=LLMMeta):
+    """
+    Base class for language model integrations.
 
-    def __init__(self) -> None:
-        """Initialize provider with logging."""
-        self.logger = get_logger(f"llm.providers.{self.__class__.__name__}")
+    Subclasses must implement methods for text generation, streaming, and embedding generation.
+    """
+
+    def __init__(
+        self,
+        llm_provider_service: LLMProviderService,
+        llm_parameters_service: LLMParametersService,
+        prompt_template_service: PromptTemplateService
+    ) -> None:
+        """Initialize provider with required services."""
+        self.logger: Any = get_logger(f"llm.providers.{self.__class__.__name__}")
         self.logger.info(f"Initializing {self.__class__.__name__}")
-        self.client = None
+        
+        self.llm_provider_service: LLMProviderService = llm_provider_service
+        self.llm_parameters_service: LLMParametersService = llm_parameters_service
+        self.prompt_template_service: PromptTemplateService = prompt_template_service
+        
         self._model_id: Optional[str] = None
-        self._parameters: Optional[Dict[str, Any]] = None
+        self._provider_name: str = self.__class__.__name__.lower()
+        self.client: Optional[Any] = None
+        
+        # Initialize client during provider creation
         self.initialize_client()
+    
+    @classmethod
+    def register(cls):
+        """
+        Automatically register the provider with the factory using the module name.
+        """
+        # Import the factory here to avoid circular imports
+        from rag_solution.generation.providers.factory import LLMProviderFactory
+        provider_name = cls.__module__.split(".")[-1].lower()  # Extract the module name
+        logger.debug(f"Attempting to register provider: {provider_name}")
+        LLMProviderFactory.register_provider(provider_name, cls)
+        logger.info(f"Registered provider: {provider_name}")
+
+    def _get_provider_config(self, provider_name: str) -> Dict[str, Any]:
+        """Get provider configuration from service."""
+        provider = self.llm_provider_service.get_provider_by_name(provider_name)
+        if not provider or not provider.is_active:
+            raise LLMProviderError(
+                provider=provider_name,
+                error_type="provider_not_found",
+                message=f"Active {provider_name} provider not found"
+            )
+        return provider
 
     @property
     def model_id(self) -> Optional[str]:
-        """Get the current model ID."""
+        """Get current model ID."""
         return self._model_id
 
     @model_id.setter
     def model_id(self, value: str) -> None:
-        """Set the model ID and reinitialize client if needed."""
+        """Set model ID and reinitialize if needed."""
         if value != self._model_id:
             self._model_id = value
             self.initialize_client()
 
-    @property
-    def parameters(self) -> Optional[Dict[str, Any]]:
-        """Get the current parameters."""
-        return self._parameters
-
-    @parameters.setter
-    def parameters(self, value: Dict[str, Any]) -> None:
-        """Set the parameters and reinitialize client if needed."""
-        if value != self._parameters:
-            self._parameters = value
-            self.initialize_client()
-    
     @abstractmethod
     def initialize_client(self) -> None:
-        """Initialize the provider client. Must be implemented by subclasses."""
+        """Initialize or reinitialize the provider client."""
         pass
 
     def _ensure_client(self) -> None:
-        """Ensure client is initialized."""
-        if self.client is None:
-            self.logger.warning("Client not initialized, attempting to initialize")
-            self.initialize_client()
-            if self.client is None:
-                raise LLMProviderError(
-                    provider=self.__class__.__name__.lower(),
-                    error_type=PROVIDER_ERROR_TYPES["INIT_FAILED"],
-                    message="Failed to initialize client"
-                )
-
-    def _prepare_prompts(
-        self,
-        prompt: Union[str, List[str]],
-        template: Optional[PromptTemplateBase] = None,
-        variables: Optional[Dict[str, Any]] = None
-    ) -> Union[str, List[str]]:
-        """Prepare prompts using template components.
-
-        Args:
-            prompt: The input prompt or list of prompts
-            template: Optional template to format the prompt
-            variables: Optional variables to substitute in the template
-
-        Returns:
-            The prepared prompt or list of prompts
-
-        Raises:
-            LLMProviderError: If prompt preparation fails
-        """
-        if template is None:
-            return prompt
-
+        """Ensure client is initialized and valid."""
         try:
-            if isinstance(prompt, str):
-                # Ensure variables is a dict and include the prompt
-                vars_dict = dict(variables or {})
-                vars_dict['prompt'] = prompt
-                return template.format_prompt(**vars_dict)
-
-            if isinstance(prompt, list):
-                return [self._prepare_prompts(p, template, variables) for p in prompt]
-
-            raise LLMProviderError(
-                provider=self.__class__.__name__.lower(),
-                error_type=PROVIDER_ERROR_TYPES["PROMPT_ERROR"],
-                message=f"Unsupported prompt type: {type(prompt)}"
-            )
-
+            if self.client is None:
+                self.logger.warning("Client not initialized, attempting to initialize")
+                self.initialize_client()
+            self.validate_client()
         except Exception as e:
             raise LLMProviderError(
-                provider=self.__class__.__name__.lower(),
-                error_type=PROVIDER_ERROR_TYPES["TEMPLATE_ERROR"],
-                message=f"Failed to prepare prompt: {str(e)}"
+                provider=self._provider_name,
+                error_type="client_error",
+                message=f"Client error: {str(e)}"
             )
+    
+    def validate_client(self) -> None:
+        """Validate OpenAI client state."""
+        if self.client is None:
+            raise ValueError("OpenAI client is not initialized")
 
     @abstractmethod
     def generate_text(
         self,
-        prompt: Union[str, List[str]],
-        model_parameters: LLMParametersBase,
+        user_id: UUID,
+        prompt: Union[str, Sequence[str]],
+        model_parameters: Optional[LLMParametersInput] = None,
         template: Optional[PromptTemplateBase] = None,
-        provider_config: Optional[ProviderConfig] = None,
         variables: Optional[Dict[str, Any]] = None
-    ) -> Union[str, List[str]]:
-        """Generate text using the model.
-
-        Args:
-            prompt: Input text prompt or list of prompts
-            model_parameters: Generation parameters from model config
-            template: Optional prompt template
-            provider_config: Optional provider-specific settings
-            variables: Optional variables to substitute in template
-
-        Returns:
-            Generated text response or list of responses
-        """
+    ) -> Union[str, list[str]]:
+        """Generate text using the model."""
         pass
 
     @abstractmethod
     def generate_text_stream(
         self,
+        user_id: UUID,
         prompt: str,
-        model_parameters: LLMParametersBase,
+        model_parameters: Optional[LLMParametersInput] = None,
         template: Optional[PromptTemplateBase] = None,
-        provider_config: Optional[ProviderConfig] = None,
         variables: Optional[Dict[str, Any]] = None
     ) -> Generator[str, None, None]:
-        """Generate text in streaming mode.
-
-        Args:
-            prompt: Input text prompt
-            model_parameters: Generation parameters from model config
-            template: Optional prompt template
-            provider_config: Optional provider-specific settings
-            variables: Optional variables to substitute in template
-
-        Yields:
-            Generated text chunks
-        """
+        """Generate text in streaming mode."""
         pass
 
     @abstractmethod
     def get_embeddings(
         self,
-        texts: Union[str, List[str]],
-        provider_config: Optional[ProviderConfig] = None
+        texts: Union[str, Sequence[str]]
     ) -> EmbeddingsList:
-        """Generate embeddings for texts.
-
-        Args:
-            texts: Text or list of texts to embed
-            provider_config: Optional provider-specific settings
-
-        Returns:
-            List of embedding vectors
-        """
+        """Generate embeddings for texts."""
         pass
 
     def close(self) -> None:
         """Clean up provider resources."""
-        pass
+        self.client = None
