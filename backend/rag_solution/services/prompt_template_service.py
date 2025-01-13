@@ -1,213 +1,204 @@
-import json
-from typing import List, Optional
-from uuid import UUID
-import logging
-from pathlib import Path
-
 from sqlalchemy.orm import Session
+from uuid import UUID
+from typing import Optional, List, Dict, Any
+from pydantic import ValidationError as PydanticValidationError
 
-from core.custom_exceptions import (
-    PromptTemplateNotFoundError,
-    DuplicatePromptTemplateError,
-    InvalidPromptTemplateError
-)
-from rag_solution.models.prompt_template import PromptTemplate
 from rag_solution.repository.prompt_template_repository import PromptTemplateRepository
 from rag_solution.schemas.prompt_template_schema import (
-    PromptTemplateCreate,
-    PromptTemplateUpdate,
-    PromptTemplateResponse
+    PromptTemplateInput,
+    PromptTemplateOutput,
+    PromptTemplateInDB,
+    PromptTemplateType
 )
+from rag_solution.models.prompt_template import PromptTemplate
+from core.custom_exceptions import ValidationError, NotFoundError
 
-logger = logging.getLogger(__name__)
+
+def _template_to_dict(template: PromptTemplate) -> Dict[str, Any]:
+    """Convert a PromptTemplate SQLAlchemy model to a dictionary for Pydantic validation."""
+    return {
+        "id": template.id,
+        "user_id": template.user_id,
+        "name": template.name,
+        "provider": template.provider,
+        "template_type": template.template_type,
+        "system_prompt": template.system_prompt,
+        "template_format": template.template_format,
+        "input_variables": template.input_variables,
+        "example_inputs": template.example_inputs,
+        "context_strategy": template.context_strategy,
+        "max_context_length": template.max_context_length,
+        "stop_sequences": template.stop_sequences,
+        "validation_schema": template.validation_schema,
+        "is_default": template.is_default,
+        "created_at": template.created_at,
+        "updated_at": template.updated_at
+    }
+
 
 class PromptTemplateService:
-    """Service for managing prompt templates."""
+    """
+    Service layer for managing Prompt Templates.
+    Handles template validation, formatting, and repository interaction.
+    """
 
-    def __init__(self, session: Session):
-        """Initialize service with database session.
-        
-        Args:
-            session: SQLAlchemy session
-        """
-        self._session = session
-        self._repository = PromptTemplateRepository(session)
+    def __init__(self, db: Session):
+        self.repository = PromptTemplateRepository(db)
 
-    def initialize_default_templates(self) -> None:
-        """Initialize default templates from prompt_config.json if not exists.
-        
-        This method reads the prompt_config.json file and creates default templates
-        for each provider if they don't already exist.
-        """
-        config_path = Path(__file__).parent.parent / "config" / "prompt_config.json"
-        
-        try:
-            with open(config_path) as f:
-                config = json.load(f)
-                
-            for provider, template in config.items():
-                # Check if default template exists for provider
-                existing = self._repository.get_default_for_provider(provider)
-                if not existing:
-                    # Create default template
-                    self._repository.create(PromptTemplateCreate(
-                        name=f"{provider}_default",
-                        provider=provider,
-                        description=f"Default template for {provider}",
-                        system_prompt=template["system_prompt"],
-                        context_prefix=template["context_prefix"],
-                        query_prefix=template["query_prefix"],
-                        answer_prefix=template["answer_prefix"],
-                        input_variables=template["input_variables"],
-                        template_format=template["template_format"],
-                        is_default=True
-                    ))
-                    logger.info(f"Created default template for {provider}")
-                    
-        except Exception as e:
-            logger.error(f"Error initializing default templates: {str(e)}")
-            raise
-
-    def create_template(
+    # 📝 Template Creation and Updates
+    def create_or_update_template(
         self,
-        template: PromptTemplateCreate
-    ) -> PromptTemplateResponse:
-        """Create a new prompt template.
+        user_id: UUID,
+        template: PromptTemplateInput
+    ) -> PromptTemplateOutput:
+        """
+        Create or update a Prompt Template for a user.
         
         Args:
-            template: Template data
+            user_id: User UUID
+            template: Template input data
             
         Returns:
-            Created template
-            
-        Raises:
-            DuplicatePromptTemplateError: If template with same name exists
+            Created/updated template
         """
-        db_template = self._repository.create(template)
-        return PromptTemplateResponse.model_validate(db_template.to_dict())
+        prompt_template = self.repository.create_or_update_by_user_id(
+            user_id, template
+        )
+        return PromptTemplateOutput.model_validate(_template_to_dict(prompt_template))
 
-    def get_template(
+    # 🔍 Template Retrieval
+    def get_by_id(self, template_id: UUID) -> Optional[PromptTemplateOutput]:
+        """Get a specific template by ID."""
+        template = self.repository.get_by_id(template_id)
+        if not template:
+            return None
+        return PromptTemplateOutput.model_validate(_template_to_dict(template))
+
+    def get_user_templates(
         self,
-        template_id: UUID
-    ) -> PromptTemplateResponse:
-        """Get prompt template by ID.
-        
-        Args:
-            template_id: Template UUID
-            
-        Returns:
-            Found template
-            
-        Raises:
-            PromptTemplateNotFoundError: If template not found
-        """
-        template = self._repository.get(template_id)
-        return PromptTemplateResponse.model_validate(template.to_dict())
+        user_id: UUID
+    ) -> List[PromptTemplateOutput]:
+        """Get all templates for a specific user."""
+        templates = self.repository.get_by_user_id(user_id)
+        return [PromptTemplateOutput.model_validate(_template_to_dict(t)) for t in templates]
 
-    def get_templates_by_provider(
+    def get_by_type(
         self,
-        provider: str
-    ) -> List[PromptTemplateResponse]:
-        """Get all templates for a specific provider.
-        
-        Args:
-            provider: LLM provider name
-            
-        Returns:
-            List of templates
+        template_type: PromptTemplateType,
+        user_id: UUID
+    ) -> Optional[PromptTemplateOutput]:
         """
-        templates = self._repository.get_by_provider(provider)
-        return [PromptTemplateResponse.model_validate(t.to_dict()) for t in templates]
-
-    def get_default_template(
-        self,
-        provider: str
-    ) -> Optional[PromptTemplateResponse]:
-        """Get default template for a provider.
-        
-        Args:
-            provider: LLM provider name
-            
-        Returns:
-            Default template if exists, None otherwise
+        Get a template by type for a specific user.
+        Returns the user's default template of that type.
         """
-        template = self._repository.get_default_for_provider(provider)
-        return PromptTemplateResponse.model_validate(template.to_dict()) if template else None
+        template = self.repository.get_user_default_by_type(user_id, template_type)
+        if not template:
+            # Try to get any template of this type if no default exists
+            templates = self.repository.get_by_user_id_and_type(user_id, template_type)
+            if templates:
+                template = templates[0]  # Use first available template
+            else:
+                return None
+        return PromptTemplateOutput.model_validate(_template_to_dict(template))
 
-    def list_templates(self) -> List[PromptTemplateResponse]:
-        """Get all prompt templates.
-        
-        Returns:
-            List of all templates
-        """
-        templates = self._repository.list()
-        return [PromptTemplateResponse.model_validate(t.to_dict()) for t in templates]
+    # 🗑️ Template Deletion
+    def delete_template(self, user_id: UUID, template_id: UUID) -> bool:
+        """Delete a specific template for a user."""
+        return self.repository.delete_user_template(user_id, template_id)
 
-    def update_template(
+    # 🌟 Default Template Management
+    def get_user_default(self, user_id: UUID) -> Optional[PromptTemplateOutput]:
+        """Get the user's default template."""
+        template = self.repository.get_user_default(user_id)
+        if not template:
+            return None
+        return PromptTemplateOutput.model_validate(_template_to_dict(template))
+
+    # 📋 Template Usage
+    def format_prompt(
         self,
         template_id: UUID,
-        template_update: PromptTemplateUpdate
-    ) -> PromptTemplateResponse:
-        """Update an existing prompt template.
+        variables: Dict[str, Any]
+    ) -> str:
+        """
+        Format a prompt using a template and variables.
         
         Args:
             template_id: Template UUID
-            template_update: Update data
+            variables: Variables to substitute in template
             
         Returns:
-            Updated template
+            Formatted prompt string
             
         Raises:
-            PromptTemplateNotFoundError: If template not found
-            DuplicatePromptTemplateError: If update would create duplicate
+            NotFoundError: If template not found
+            ValidationError: If variables don't match schema
         """
-        template = self._repository.update(template_id, template_update)
-        return PromptTemplateResponse.model_validate(template.to_dict())
+        template = self.repository.get_by_id(template_id)
+        if not template:
+            raise NotFoundError(f"Template {template_id} not found")
 
-    def delete_template(self, template_id: UUID) -> None:
-        """Delete a prompt template.
-        
-        Args:
-            template_id: Template UUID
-            
-        Raises:
-            PromptTemplateNotFoundError: If template not found
-            InvalidPromptTemplateError: If attempting to delete default template
-        """
-        self._repository.delete(template_id)
+        # Format prompt
+        try:
+            parts = []
+            if template.system_prompt:
+                parts.append(template.system_prompt)
+            parts.append(template.template_format.format(**variables))
+            return "\n\n".join(parts)
+        except KeyError as e:
+            raise ValidationError(f"Missing required variable: {str(e)}")
 
-    def create_example_template(
+    def apply_context_strategy(
         self,
-        provider: str,
-        name: Optional[str] = None,
-        is_default: bool = False
-    ) -> Optional[PromptTemplateResponse]:
-        """Create a template using example configuration.
+        template_id: UUID,
+        contexts: List[str]
+    ) -> str:
+        """
+        Apply a template's context strategy to format multiple context chunks.
         
         Args:
-            provider: LLM provider to get example for
-            name: Optional custom name for template
-            is_default: Whether to set as default template
+            template_id: Template UUID
+            contexts: List of context chunks
             
         Returns:
-            Created template if example exists, None otherwise
+            Formatted context string
             
         Raises:
-            DuplicatePromptTemplateError: If template with same name exists
+            NotFoundError: If template not found
         """
-        example = PromptTemplate.get_example_template(provider)
-        if example:
-            template = PromptTemplateCreate(
-                name=name or example["name"],
-                provider=provider,
-                description=example["description"],
-                system_prompt=example["system_prompt"],
-                context_prefix=example["context_prefix"],
-                query_prefix=example["query_prefix"],
-                answer_prefix=example["answer_prefix"],
-                input_variables=example["input_variables"],
-                template_format=example["template_format"],
-                is_default=is_default
-            )
-            return self.create_template(template)
-        return None
+        template = self.repository.get_by_id(template_id)
+        if not template:
+            raise NotFoundError(f"Template {template_id} not found")
+
+        if not template.context_strategy:
+            # Default to simple concatenation
+            return "\n\n".join(contexts)
+
+        strategy = template.context_strategy
+        max_chunks = strategy.get("max_chunks", len(contexts))
+        separator = strategy.get("chunk_separator", "\n\n")
+        ordering = strategy.get("ordering", "relevance")
+        truncation = strategy.get("truncation", "end")
+
+        # Apply strategy settings
+        selected_contexts = contexts[:max_chunks]
+        if ordering == "priority":
+            # Already ordered by relevance
+            pass
+        elif ordering == "chronological":
+            # Would need metadata for true chronological ordering
+            pass
+
+        formatted_contexts = []
+        for chunk in selected_contexts:
+            if template.max_context_length and len(chunk) > template.max_context_length:
+                if truncation == "end":
+                    chunk = chunk[:template.max_context_length]
+                elif truncation == "start":
+                    chunk = chunk[-template.max_context_length:]
+                elif truncation == "middle":
+                    half = template.max_context_length // 2
+                    chunk = chunk[:half] + "..." + chunk[-half:]
+            formatted_contexts.append(chunk)
+
+        return separator.join(formatted_contexts)
