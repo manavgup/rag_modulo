@@ -1,108 +1,153 @@
 """Anthropic provider implementation for text generation."""
 
-from typing import Dict, List, Optional, Union, Generator, Any
+from typing import Dict, List, Optional, Union, Generator, Any, Sequence
+from uuid import UUID
 from core.logging_utils import get_logger
 from tenacity import retry, stop_after_attempt, wait_exponential
+import asyncio
 
-from anthropic import Anthropic
-from core.custom_exceptions import LLMProviderError
-
-from .base import LLMProvider, ProviderConfig
+import anthropic
+from core.custom_exceptions import LLMProviderError, ValidationError, NotFoundError
+from .base import LLMBase
 from vectordbs.data_types import EmbeddingsList
-from rag_solution.schemas.llm_parameters_schema import LLMParametersBase
 from rag_solution.schemas.prompt_template_schema import PromptTemplateBase
+from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
+from rag_solution.schemas.llm_provider_schema import ModelType
 
 logger = get_logger("llm.providers.anthropic")
-class AnthropicProvider(LLMProvider):
-    """Anthropic implementation using Anthropic API."""
 
-    def __init__(self, provider_config_service) -> None:
-        """Initialize Anthropic provider with cached client."""
-        super().__init__()
-        self.provider_config_service = provider_config_service
-        self.provider_config = self.provider_config_service.get_provider_config("anthropic")
-        if not self.provider_config:
-            raise LLMProviderError(
-                provider="anthropic",
-                error_type="config_invalid",
-                message="No configuration found for Anthropic provider"
-            )
-    
+class AnthropicLLM(LLMBase):
+    """Anthropic provider implementation using Claude API."""
+
     def initialize_client(self) -> None:
         """Initialize Anthropic client."""
         try:
-            self.client = Anthropic(api_key=self.provider_config.api_key)
-            self.default_model = "claude-3-opus-20240229"
-            self._model_cache = {}
-            self.rate_limit = 10
-        except Exception as e:
-            logger.error(f"Failed to initialize Anthropic client: {str(e)}")
-            raise LLMProviderError(f"Initialization failed: {str(e)}")
+            provider = self._get_provider_config("anthropic")
+            self._provider = provider
 
-    def get_embeddings(
-        self,
-        texts: Union[str, List[str]],
-        provider_config: Optional[ProviderConfig] = None
-    ) -> EmbeddingsList:
-        """Embeddings not supported by Anthropic."""
-        raise NotImplementedError("Anthropic does not support embeddings")
+            self.client = anthropic.Anthropic(
+                api_key=provider.api_key,
+                base_url=provider.base_url
+            )
+
+            self._models = self.llm_provider_service.get_models_by_provider(provider.id)
+            self._initialize_default_model()
+
+        except Exception as e:
+            raise LLMProviderError(
+                provider="anthropic",
+                error_type="initialization_failed",
+                message=f"Failed to initialize client: {str(e)}"
+            )
+
+    def _initialize_default_model(self) -> None:
+        """Initialize default model for generation."""
+        self._default_model = next(
+            (m for m in self._models if m.is_default and m.model_type == ModelType.GENERATION),
+            None
+        )
+
+        if not self._default_model:
+            logger.warning("No default model configured, using claude-3-opus-20240229")
+            self._default_model_id = "claude-3-opus-20240229"
+        else:
+            self._default_model_id = self._default_model.model_id
+
+    def _get_generation_params(self, user_id: UUID, model_parameters: Optional[LLMParametersInput] = None) -> Dict[str, Any]:
+        """Get validated generation parameters."""
+        params = self.llm_parameters_service.get_parameters(user_id) if not model_parameters else \
+            self.llm_parameters_service.create_or_update_parameters(user_id, model_parameters)
+
+        return {
+            "max_tokens": params.max_new_tokens if params else 150,
+            "temperature": params.temperature if params else 0.7,
+            "top_p": params.top_p if params else 1.0
+        }
 
     def generate_text(
-    self,
-    prompt: Union[str, List[str]],
-    model_parameters: LLMParametersBase,
-    template: Optional[PromptTemplateBase] = None,
-    provider_config: Optional[ProviderConfig] = None
-) -> Union[str, List[str]]:
-        """Generate text using the Anthropic model."""
+        self,
+        user_id: UUID,
+        prompt: Union[str, Sequence[str]],
+        model_parameters: Optional[LLMParametersInput] = None,
+        template: Optional[PromptTemplateBase] = None,
+        variables: Optional[Dict[str, Any]] = None
+    ) -> Union[str, list[str]]:
+        """Generate text using Anthropic model."""
         try:
             self._ensure_client()
-            # Prepare the prompt using the template if provided
-            prompt = self._prepare_prompts(prompt, template)
+            model_id = self._model_id or self._default_model_id
+            generation_params = self._get_generation_params(user_id, model_parameters)
 
+            # Handle batch generation
             if isinstance(prompt, list):
-                responses = []
-                for p in prompt:
-                    # Use runtime config or defaults from provider config
-                    config = provider_config or ProviderConfig(
-                        timeout=self._provider_config.runtime.timeout,
-                        max_retries=self._provider_config.runtime.max_retries,
-                        batch_size=self._provider_config.runtime.batch_size,
-                        retry_delay=self._provider_config.runtime.retry_delay
-                    )
-
-                    response = self.client.messages.create(
-                        model=self.default_model,
-                        max_tokens=model_parameters.max_new_tokens,
-                        temperature=model_parameters.temperature,
-                        messages=[{"role": "user", "content": p}],
-                        timeout=config.timeout
-                    )
-                    responses.append(response.content[0].text)
-
-                logger.info(f"***** Response type: {type(responses)}")
-                logger.info(f"***** Response content: {responses}")
-                return responses
+                formatted_prompts = [
+                    self._format_prompt(p, template, variables) for p in prompt
+                ]
+                # Use asyncio for concurrent processing
+                return asyncio.run(self._generate_batch(model_id, formatted_prompts, generation_params))
             else:
-                # Use runtime config or defaults from provider config
-                config = provider_config or ProviderConfig(
-                    timeout=self._provider_config.runtime.timeout,
-                    max_retries=self._provider_config.runtime.max_retries,
-                    batch_size=self._provider_config.runtime.batch_size,
-                    retry_delay=self._provider_config.runtime.retry_delay
-                )
-
+                formatted_prompt = self._format_prompt(prompt, template, variables)
                 response = self.client.messages.create(
-                    model=self.default_model,
-                    max_tokens=model_parameters.max_new_tokens,
-                    temperature=model_parameters.temperature,
-                    messages=[{"role": "user", "content": prompt}],
-                    timeout=config.timeout
+                    model=model_id,
+                    messages=[{"role": "user", "content": formatted_prompt}],
+                    **generation_params
                 )
-                return response.content[0].text
+                return response.content[0].text.strip()
+
+        except (ValidationError, NotFoundError) as e:
+            raise LLMProviderError(
+                provider="anthropic",
+                error_type="invalid_template" if isinstance(e, ValidationError) else "template_not_found",
+                message=str(e)
+            )
         except Exception as e:
-            logger.error(f"Text generation failed: {str(e)}")
-            raise LLMProviderError(f"Failed to generate text: {str(e)}")
+            raise LLMProviderError(
+                provider="anthropic",
+                error_type="generation_failed",
+                message=f"Failed to generate text: {str(e)}"
+            )
+
+    def _format_prompt(
+        self,
+        prompt: str,
+        template: Optional[PromptTemplateBase] = None,
+        variables: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """Format a prompt using a template and variables."""
+        if template:
+            vars_dict = dict(variables or {})
+            vars_dict['prompt'] = prompt
+            return self.prompt_template_service.format_prompt(template.id, vars_dict)
+        return prompt
+
+    async def _generate_batch(
+        self,
+        model_id: str,
+        prompts: List[str],
+        generation_params: Dict[str, Any]
+    ) -> List[str]:
+        """Generate text for multiple prompts concurrently."""
+        async def generate_single(prompt: str) -> str:
+            # Create a new client for each request to avoid session conflicts
+            async with anthropic.AsyncAnthropic(
+                api_key=self._provider.api_key,
+                base_url=self._provider.base_url
+            ) as client:
+                response = await client.messages.create(
+                    model=model_id,
+                    messages=[{"role": "user", "content": prompt}],
+                    **generation_params
+                )
+                return response.content[0].text.strip()
+
+        # Process prompts concurrently with a semaphore to limit concurrency
+        semaphore = asyncio.Semaphore(10)  # Limit concurrent requests
+        async def bounded_generate(prompt: str) -> str:
+            async with semaphore:
+                return await generate_single(prompt)
+
+        tasks = [bounded_generate(prompt) for prompt in prompts]
+        return await asyncio.gather(*tasks)
 
     @retry(
         wait=wait_exponential(multiplier=1, min=1, max=30),
@@ -110,57 +155,60 @@ class AnthropicProvider(LLMProvider):
     )
     def generate_text_stream(
         self,
+        user_id: UUID,
         prompt: str,
-        model_parameters: LLMParametersBase,
+        model_parameters: Optional[LLMParametersInput] = None,
         template: Optional[PromptTemplateBase] = None,
-        provider_config: Optional[ProviderConfig] = None
+        variables: Optional[Dict[str, Any]] = None
     ) -> Generator[str, None, None]:
         """Generate text in streaming mode."""
         try:
             self._ensure_client()
-            # Prepare the prompt using the template if provided
-            prompt = self._prepare_prompts(prompt, template)
+            model_id = self._model_id or self._default_model_id
+            generation_params = self._get_generation_params(user_id, model_parameters)
+            generation_params["stream"] = True
 
-            # Use runtime config or defaults from provider config
-            config = provider_config or ProviderConfig(
-                timeout=self._provider_config.runtime.timeout,
-                max_retries=self._provider_config.runtime.max_retries,
-                batch_size=self._provider_config.runtime.batch_size,
-                retry_delay=self._provider_config.runtime.retry_delay,
-                stream=True
+            formatted_prompt = self._format_prompt(prompt, template, variables)
+            stream = self.client.messages.create(
+                model=model_id,
+                messages=[{"role": "user", "content": formatted_prompt}],
+                **generation_params
             )
 
-            # Create the stream object
-            with self.client.messages.stream(
-                model=self.default_model,
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=model_parameters.max_new_tokens,
-                temperature=model_parameters.temperature,
-                timeout=config.timeout
-            ) as stream:
-                # Log the stream object for debugging
-                logger.debug(f"Stream object: {stream}")
+            for chunk in stream:
+                if chunk.type == "content_block_delta" and chunk.delta.text:
+                    yield chunk.delta.text
 
-                # Process the stream events
-                for event in stream:
-                    logger.debug(f"Received event: {event}")
-
-                    if hasattr(event, 'type') and event.type == 'content_block_delta':
-                        if hasattr(event.delta, 'text'):
-                            yield event.delta.text
-                    # Alternative check for text events
-                    elif hasattr(event, 'type') and event.type == 'text':
-                        if hasattr(event, 'text'):
-                            yield event.text
-                    else:
-                        logger.debug(f"Skipping non-text event: {event}")
-                        continue
+        except (ValidationError, NotFoundError) as e:
+            raise LLMProviderError(
+                provider="anthropic",
+                error_type="invalid_template" if isinstance(e, ValidationError) else "template_not_found",
+                message=str(e)
+            )
         except Exception as e:
-            logger.error(f"Streaming generation failed: {str(e)}")
-            raise LLMProviderError(f"Failed to generate streaming text: {str(e)}")
+            raise LLMProviderError(
+                provider="anthropic",
+                error_type="streaming_failed",
+                message=f"Failed to generate streaming text: {str(e)}"
+            )
+
+    def get_embeddings(
+        self,
+        texts: Union[str, List[str]]
+    ) -> EmbeddingsList:
+        """Generate embeddings for texts.
+        
+        Raises:
+            LLMProviderError: Anthropic does not provide embeddings
+        """
+        raise LLMProviderError(
+            provider="anthropic",
+            error_type="not_supported",
+            message="Anthropic does not provide embeddings"
+        )
 
     def close(self) -> None:
         """Clean up provider resources."""
         if hasattr(self, 'client') and self.client:
             self.client.close()
-        self.client = None
+        super().close()
