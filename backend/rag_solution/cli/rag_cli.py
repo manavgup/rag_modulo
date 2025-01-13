@@ -1,3 +1,20 @@
+"""
+DEPRECATED: This module is deprecated and will be removed in a future version.
+A new CLI tool using the service layer architecture will be created to replace
+this standalone utility. This module currently uses file-based configuration
+(prompt_config.json) instead of the database-driven approach used by the main
+application.
+"""
+
+import warnings
+
+warnings.warn(
+    "The rag_cli.py module is deprecated and will be removed in a future version. "
+    "A new CLI tool using the service layer architecture will replace this utility.",
+    DeprecationWarning,
+    stacklevel=2
+)
+
 import argparse
 import json
 from typing import Dict, Any

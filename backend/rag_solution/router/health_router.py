@@ -7,6 +7,9 @@ from ibm_watsonx_ai import APIClient, Credentials
 from rag_solution.file_management.database import get_db
 from vectordbs.factory import get_datastore
 from core.config import settings
+from core.logging_utils import get_logger
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api", tags=["health"])  # Add a prefix to avoid conflicts
 
@@ -56,6 +59,11 @@ def check_watsonx():
     Raises:
         HTTPException: If the WatsonX health check fails.
     """
+    # Check if WatsonX is configured
+    if not all([settings.wx_project_id, settings.wx_api_key, settings.wx_url]):
+        logger.warning("WatsonX not configured - skipping health check")
+        return {"status": "skipped", "message": "WatsonX not configured"}
+
     try:
         APIClient(
             project_id=settings.wx_project_id,
