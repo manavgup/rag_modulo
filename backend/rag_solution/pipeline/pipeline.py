@@ -1,6 +1,19 @@
-"""Pipeline implementation for RAG processing."""
+"""
+DEPRECATED: This module is deprecated in favor of pipeline_service.py.
+It is kept temporarily for reference during the service migration.
+New code should use rag_solution.services.pipeline_service.PipelineService instead.
+"""
 
 import logging
+import warnings
+
+warnings.warn(
+    "The pipeline.py module is deprecated and will be removed in a future version. "
+    "Use pipeline_service.py instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
+
 from typing import List, Dict, Any, Optional, AsyncIterator
 from uuid import UUID
 from sqlalchemy.orm import Session
@@ -9,7 +22,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from rag_solution.query_rewriting.query_rewriter import QueryRewriter
 from rag_solution.retrieval.factories import RetrieverFactory
 from rag_solution.retrieval.retriever import BaseRetriever
-from rag_solution.generation.providers.base import LLMProvider
+from rag_solution.generation.providers.base import LLMBase
 from rag_solution.schemas.llm_parameters_schema import LLMParametersBase
 from rag_solution.schemas.prompt_template_schema import PromptTemplateBase
 from rag_solution.generation.providers.factory import LLMProviderFactory
@@ -79,7 +92,7 @@ class Pipeline():
     def __init__(
         self,
         db: Session,
-        provider: LLMProvider,  # Pre-configured provider instance
+        provider: LLMBase,  # Pre-configured provider instance
         model_parameters: LLMParametersBase,  # LLM generation parameters
         prompt_template: PromptTemplateBase,  # Prompt template for generation
         collection_name: str = 'default_collection'
@@ -94,7 +107,7 @@ class Pipeline():
             collection_name: Name of the collection to use
         """
         self.db: Session = db
-        self.provider: LLMProvider = provider
+        self.provider: LLMBase = provider
         self.model_parameters: LLMParametersBase = model_parameters
         self.prompt_template: PromptTemplateBase = prompt_template
         

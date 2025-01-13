@@ -1,8 +1,16 @@
+"""Tests for the deprecated generator module."""
+
 import unittest
 from unittest.mock import patch, MagicMock
-from rag_solution.generation.generator import WatsonxGenerator,BaseGenerator
+
+from rag_solution.generation.generator import WatsonxGenerator, BaseGenerator
 
 class TestGenerator(unittest.TestCase):
+    """
+    DEPRECATED: These tests are for the deprecated generator module.
+    This test module will be removed along with generator.py in favor of
+    the new service-based architecture.
+    """
 
     def test_huggingface_generator(self):
         config = {'type': 'huggingface', 'model_name': 'gpt2'}
@@ -24,17 +32,16 @@ class TestGenerator(unittest.TestCase):
             response = generator.generate(query=query, context="context")
             self.assertEqual(response, "Test response")
 
-
     def test_watsonx_generate_stream(self):
         config = {
-        'type': 'watsonx',
-        'model_name': 'meta-llama/llama-3-8b-instruct',
-        'default_params': {
-             'max_new_tokens': 20,
-             'temperature': 0.7,
-             'random_seed': 50
-         }
-    }
+            'type': 'watsonx',
+            'model_name': 'meta-llama/llama-3-8b-instruct',
+            'default_params': {
+                'max_new_tokens': 20,
+                'temperature': 0.7,
+                'random_seed': 50
+            }
+        }
         generator = WatsonxGenerator(config)
         ctx = ("The quarter saw total revenue of $15bn, up one percent year-over-year (YoY). Software revenue increased "
                "by 10 percent YoY, while consulting revenue remained flat and infrastructure revenue fell by seven percent."

@@ -1,139 +1,213 @@
-"""Factory for LLM providers with logging."""
+"""Factory for creating and managing LLM provider instances."""
 
-from typing import Dict, Type, Optional, Any
+from typing import Dict, Type, Optional, Any, ClassVar
+from threading import Lock
 from sqlalchemy.orm import Session
-from core.logging_utils import get_logger
-from .base import LLMProvider
-from .watsonx import WatsonXProvider
-from .openai import OpenAIProvider
-from .anthropic import AnthropicProvider
+
 from core.custom_exceptions import LLMProviderError
-from rag_solution.services.provider_config_service import ProviderConfigService
+from core.logging_utils import get_logger
+from rag_solution.services.llm_provider_service import LLMProviderService
+from rag_solution.services.llm_parameters_service import LLMParametersService
+from rag_solution.services.prompt_template_service import PromptTemplateService
+from .base import LLMBase
 
 logger = get_logger("llm.providers.factory")
 
 class LLMProviderFactory:
-    """Factory for creating and managing LLM providers with logging.
-    
-    This factory manages the lifecycle of LLM provider instances and ensures
-    only one instance of each provider type exists.
-    
-    Attributes:
-        _providers: Mapping of provider names to their implementation classes
-        _instances: Cache of provider instances
-        _provider_config_service: Service for provider configuration
     """
+    Factory for creating and managing LLM provider instances.
     
-    _providers: Dict[str, Type[LLMProvider]] = {
-        "watsonx": WatsonXProvider,
-        "openai": OpenAIProvider,
-        "anthropic": AnthropicProvider
-    }
-    _instances: Dict[str, LLMProvider] = {}
+    This factory implements the singleton pattern for provider instances to ensure
+    resource efficiency and consistent state. It handles provider registration,
+    instance caching, and cleanup.
+
+    Class Attributes:
+        _providers (ClassVar[Dict[str, Type[LLMBase]]]): Registry of provider implementations
+        _lock (ClassVar[Lock]): Lock for thread-safe provider registration
+
+    Instance Attributes:
+        _instances (Dict[str, LLMBase]): Cache of provider instances
+        _db (Session): Database session
+        _llm_provider_service (LLMProviderService): Service for provider configuration
+        _llm_parameters_service (LLMParametersService): Service for LLM parameters
+        _prompt_template_service (PromptTemplateService): Service for prompt templates
+    """
+
+    _providers: ClassVar[Dict[str, Type[LLMBase]]] = {}
+    _lock: ClassVar[Lock] = Lock()
 
     def __init__(self, db: Session) -> None:
-        """Initialize factory with database session.
-        
+        """
+        Initialize factory with database session and required services.
+
         Args:
             db: SQLAlchemy database session
         """
-        self._provider_config_service = ProviderConfigService(db)
+        self._db = db
+        self._instances: Dict[str, LLMBase] = {}
+        
+        # Initialize required services
+        self._llm_provider_service = LLMProviderService(db)
+        self._llm_parameters_service = LLMParametersService(db)
+        self._prompt_template_service = PromptTemplateService(db)
 
-    def get_provider(
-        self, 
-        provider_name: str, 
-        model_id: Optional[str] = None,
-        parameters: Optional[Dict[str, Any]] = None
-    ) -> LLMProvider:
-        """Get or create a provider instance with logging.
-        
-        Args:
-            provider_name: Name of provider to create/retrieve
-            model_id: Optional model ID to use
-            parameters: Optional parameters for the provider
-            
-        Returns:
-            LLMProvider: Instance of the requested provider
-            
-        Raises:
-            LLMProviderError: If provider type is unknown or configuration invalid
+    def _get_cache_key(self, provider_name: str, model_id: Optional[str] = None) -> str:
         """
-        provider_name = provider_name.lower()
-        
-        if provider_name not in self._providers:
-            logger.error(f"Unknown provider type requested: {provider_name}")
+        Generate cache key for provider instance.
+
+        Args:
+            provider_name: Provider name
+            model_id: Optional model ID
+
+        Returns:
+            Cache key string
+        """
+        return f"{provider_name.lower()}:{model_id}" if model_id else provider_name.lower()
+
+    def _validate_provider_instance(self, provider: LLMBase, provider_name: str) -> None:
+        """
+        Validate provider instance is properly initialized.
+
+        Args:
+            provider: Provider instance to validate
+            provider_name: Name of the provider for error reporting
+
+        Raises:
+            LLMProviderError: If provider validation fails
+        """
+        try:
+            if provider.client is None:
+                raise ValueError("Provider client initialization failed")
+            provider.validate_client()
+        except Exception as e:
             raise LLMProviderError(
                 provider=provider_name,
-                error_type="unknown_provider",
-                message=f"Unknown provider type: {provider_name}"
+                error_type="initialization_failed",
+                message=f"Provider validation failed: {str(e)}"
             )
 
-        # Generate a unique key for this configuration
-        config_key = f"{provider_name}"
-        if model_id:
-            config_key += f"_{model_id}"
-        if parameters:
-            config_key += f"_{hash(frozenset(parameters.items()))}"
-
-        # Check if we have a valid instance with this configuration
-        if (config_key not in self._instances or 
-            self._instances[config_key].client is None):
-            
-            # If instance exists but client is None, clean it up first
-            if config_key in self._instances:
-                logger.warning(f"Found stale {provider_name} provider instance, reinitializing")
-                try:
-                    self._instances[config_key].close()
-                except Exception as e:
-                    logger.error(f"Error closing stale provider: {str(e)}")
-                self._instances.pop(config_key)
-
-            # Create new instance with configuration
-            logger.info(f"Creating new instance of {provider_name} provider")
-            try:
-                provider_class = self._providers[provider_name]
-                provider_instance = provider_class(
-                    provider_config_service=self._provider_config_service
-                )
-                
-                # Configure the provider with model and parameters if provided
-                if model_id:
-                    provider_instance.model_id = model_id
-                if parameters:
-                    provider_instance.parameters = parameters
-                
-                self._instances[config_key] = provider_instance
-                
-            except Exception as e:
-                logger.error(f"Failed to initialize {provider_name} provider: {str(e)}")
-                raise LLMProviderError(
-                    provider=provider_name,
-                    error_type="initialization_error",
-                    message=f"Failed to initialize provider: {str(e)}"
-                )
-
-            # Verify initialization
-            if self._instances[config_key].client is None:
-                logger.error(f"Failed to initialize {provider_name} provider client")
-                raise LLMProviderError(
-                    provider=provider_name,
-                    error_type="initialization_error",
-                    message=f"Failed to initialize provider client"
-                )
-
-        return self._instances[config_key]
-
-    def close_all(self) -> None:
-        """Clean up all provider instances.
-        
-        Closes all active provider instances and clears the instance cache.
-        Logs any errors that occur during cleanup.
+    def get_provider(self, provider_name: str, model_id: Optional[str] = None) -> LLMBase:
         """
-        logger.info("Closing all provider instances")
-        for provider_type, provider in self._instances.items():
-            try:
-                provider.close()
-                logger.debug(f"Closed {provider_type} provider")
-            except Exception as e:
-                logger.error(f"Error closing {provider_type} provider: {str(e)}")
+        Get a configured provider instance. Returns cached instance if available.
+
+        Args:
+            provider_name: Name of provider to get (case insensitive)
+            model_id: Optional specific model ID to use
+
+        Returns:
+            Configured provider instance
+
+        Raises:
+            LLMProviderError: If provider creation or configuration fails
+        """
+        try:
+            # Normalize provider name and get cache key
+            provider_name = provider_name.lower()
+            cache_key = self._get_cache_key(provider_name, model_id)
+
+            # Check for cached instance
+            if cache_key in self._instances:
+                provider = self._instances[cache_key]
+                try:
+                    # Validate cached instance
+                    self._validate_provider_instance(provider, provider_name)
+                    logger.debug(f"Returning validated cached provider instance for {cache_key}")
+                    return provider
+                except LLMProviderError:
+                    # Remove invalid instance from cache
+                    logger.warning(f"Cached provider {cache_key} validation failed, reinitializing")
+                    self.cleanup_provider(provider_name, model_id)
+
+            # Validate provider type exists
+            if provider_name not in self._providers:
+                raise LLMProviderError(
+                    provider=provider_name,
+                    error_type="unknown_provider",
+                    message=f"Unknown provider type: {provider_name}"
+                )
+
+            # Create new provider instance
+            provider_class = self._providers[provider_name]
+            provider = provider_class(
+                self._llm_provider_service,
+                self._llm_parameters_service,
+                self._prompt_template_service
+            )
+
+            # Configure model if specified
+            if model_id:
+                provider.model_id = model_id
+
+            # Validate new instance
+            self._validate_provider_instance(provider, provider_name)
+
+            # Cache validated instance
+            self._instances[cache_key] = provider
+            logger.debug(f"Cached new provider instance for {cache_key}")
+
+            return provider
+
+        except LLMProviderError:
+            raise
+        except Exception as e:
+            raise LLMProviderError(
+                provider=provider_name,
+                error_type="creation_failed",
+                message=f"Failed to create provider: {str(e)}"
+            )
+
+    def cleanup_provider(self, provider_name: str, model_id: Optional[str] = None) -> None:
+        """
+        Clean up provider instance and remove from cache.
+
+        Args:
+            provider_name: Name of provider to clean up
+            model_id: Optional model ID to specify which instance to clean up
+        """
+        cache_key = self._get_cache_key(provider_name, model_id)
+        if cache_key in self._instances:
+            provider = self._instances[cache_key]
+            provider.close()
+            del self._instances[cache_key]
+            logger.debug(f"Cleaned up provider instance for {cache_key}")
+
+    def cleanup_all(self) -> None:
+        """Clean up all provider instances."""
+        for cache_key, provider in list(self._instances.items()):
+            provider.close()
+            logger.debug(f"Cleaned up provider instance for {cache_key}")
         self._instances.clear()
+
+    @classmethod
+    def register_provider(cls, name: str, provider_class: Type[LLMBase]) -> None:
+        """
+        Register a new provider implementation.
+
+        This method is thread-safe and ensures no duplicate registrations.
+
+        Args:
+            name: Name to register the provider under
+            provider_class: Provider class to register
+
+        Raises:
+            ValueError: If provider is already registered
+        """
+        with cls._lock:
+            name = name.lower()
+            if name in cls._providers:
+                raise ValueError(f"Provider '{name}' is already registered")
+            cls._providers[name] = provider_class
+            logger.info(f"Registered new provider: {name}")
+            logger.debug(f"Current providers: {cls._providers}")
+
+    @classmethod
+    def list_providers(cls) -> Dict[str, Type[LLMBase]]:
+        """
+        List all registered providers.
+
+        Returns:
+            A copy of the registered providers dictionary
+        """
+        with cls._lock:
+            logger.debug(f"Listing providers: {cls._providers}")
+            return cls._providers.copy()  # Return a copy to prevent modification

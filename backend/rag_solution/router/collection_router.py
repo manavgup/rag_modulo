@@ -14,11 +14,17 @@ from rag_solution.services.collection_service import CollectionService
 from rag_solution.services.file_management_service import FileManagementService
 from rag_solution.schemas.file_schema import DocumentDelete, FileOutput, FileMetadata
 from rag_solution.services.question_service import QuestionService
+from rag_solution.generation.providers.factory import LLMProviderFactory
 from rag_solution.schemas.question_schema import QuestionInDB, QuestionInput, QuestionOutput
-import logging
+from core.logging_utils import get_logger
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# New Imports for LLMParameters and PromptTemplates
+from rag_solution.schemas.llm_parameters_schema import LLMParametersInput, LLMParametersOutput
+from rag_solution.schemas.prompt_template_schema import PromptTemplateInput, PromptTemplateOutput
+from rag_solution.services.llm_parameters_service import LLMParametersService
+from rag_solution.services.prompt_template_service import PromptTemplateService
+
+logger = get_logger("router.collections")
 
 router = APIRouter(
     prefix="/api/collections",
@@ -142,7 +148,12 @@ def create_collection_question(
 ) -> QuestionOutput:
     """Create a new question for a collection."""
     try:
-        question_service = QuestionService(db)
+        # Initialize provider
+        provider = LLMProviderFactory(db).get_provider("watsonx")
+        provider.initialize_client()
+        
+        # Create service with provider
+        question_service = QuestionService(db=db, provider=provider)
         question_input = QuestionInput(
             collection_id=collection_id,
             question=question
@@ -166,7 +177,12 @@ def create_collection_question(
 def get_collection_questions(collection_id: UUID, db: Session = Depends(get_db)) -> List[QuestionOutput]:
     """Get all questions for a collection."""
     try:
-        question_service = QuestionService(db)
+        # Initialize provider
+        provider = LLMProviderFactory(db).get_provider("watsonx")
+        provider.initialize_client()
+        
+        # Create service with provider
+        question_service = QuestionService(db=db, provider=provider)
         questions = question_service.get_collection_questions(collection_id)
         return [QuestionOutput.model_validate(q) for q in questions]
     except Exception as e:
@@ -185,7 +201,12 @@ def get_collection_questions(collection_id: UUID, db: Session = Depends(get_db))
 def delete_collection_question(collection_id: UUID, question_id: UUID, db: Session = Depends(get_db)) -> None:
     """Delete a specific question from a collection."""
     try:
-        question_service = QuestionService(db)
+        # Initialize provider
+        provider = LLMProviderFactory(db).get_provider("watsonx")
+        provider.initialize_client()
+        
+        # Create service with provider
+        question_service = QuestionService(db=db, provider=provider)
         question_service.delete_question(question_id)
     except Exception as e:
         logger.error(f"Error deleting question {question_id} from collection {collection_id}: {e}")
@@ -203,7 +224,12 @@ def delete_collection_question(collection_id: UUID, question_id: UUID, db: Sessi
 def delete_collection_questions(collection_id: UUID, db: Session = Depends(get_db)) -> None:
     """Delete all questions for a collection."""
     try:
-        question_service = QuestionService(db)
+        # Initialize provider
+        provider = LLMProviderFactory(db).get_provider("watsonx")
+        provider.initialize_client()
+        
+        # Create service with provider
+        question_service = QuestionService(db=db, provider=provider)
         question_service.delete_questions_by_collection(collection_id)
     except Exception as e:
         logger.error(f"Error deleting questions for collection {collection_id}: {e}")
@@ -347,3 +373,164 @@ def delete_files(collection_id: UUID, doc_delete: DocumentDelete, db: Session = 
 def update_file_metadata(collection_id: UUID, file_id: UUID, metadata: FileMetadata, db: Session = Depends(get_db)):
     _file_service = FileManagementService(db)
     return _file_service.update_file_metadata(collection_id, file_id, metadata)
+
+# ---------------------------
+# 🟢 LLM PARAMETERS ENDPOINTS
+# ---------------------------
+
+@router.post("/{collection_id}/llm-parameters",
+    summary="Create LLM Parameters for a collection",
+    response_model=LLMParametersOutput,
+    description="Create or update LLM parameters for a specific collection.",
+    responses={
+        200: {"description": "LLM parameters created/updated successfully"},
+        400: {"description": "Invalid input data"},
+        404: {"description": "Collection not found"},
+        500: {"description": "Internal server error"}
+    }
+)
+def create_llm_parameters(
+    collection_id: UUID,
+    llm_parameters_input: LLMParametersInput,
+    db: Session = Depends(get_db)
+):
+    """
+    Create or update LLM Parameters for a specific collection.
+
+    Args:
+        collection_id (UUID): The ID of the collection.
+        llm_parameters_input (LLMParametersInput): Input schema for LLM parameters.
+        db (Session): The database session.
+
+    Returns:
+        LLMParametersOutput: The created or updated LLM parameters.
+    """
+    service = LLMParametersService(db)
+    return service.create_or_update_parameters(collection_id, llm_parameters_input)
+
+
+@router.get("/{collection_id}/llm-parameters",
+    summary="Get LLM Parameters for a collection",
+    response_model=LLMParametersOutput,
+    description="Retrieve the LLM parameters for a specific collection.",
+    responses={
+        200: {"description": "LLM parameters retrieved successfully"},
+        404: {"description": "Collection or LLM parameters not found"},
+        500: {"description": "Internal server error"}
+    }
+)
+def get_llm_parameters(collection_id: UUID, db: Session = Depends(get_db)):
+    """
+    Get LLM Parameters for a specific collection.
+
+    Args:
+        collection_id (UUID): The ID of the collection.
+        db (Session): The database session.
+
+    Returns:
+        LLMParametersOutput: The LLM parameters of the collection.
+    """
+    service = LLMParametersService(db)
+    return service.get_parameters(collection_id)
+
+
+@router.delete("/{collection_id}/llm-parameters",
+    summary="Delete LLM Parameters for a collection",
+    description="Delete the LLM parameters associated with a specific collection.",
+    responses={
+        204: {"description": "LLM parameters deleted successfully"},
+        404: {"description": "Collection or LLM parameters not found"},
+        500: {"description": "Internal server error"}
+    }
+)
+def delete_llm_parameters(collection_id: UUID, db: Session = Depends(get_db)):
+    """
+    Delete LLM Parameters for a specific collection.
+
+    Args:
+        collection_id (UUID): The ID of the collection.
+        db (Session): The database session.
+    """
+    service = LLMParametersService(db)
+    service.delete_parameters(collection_id)
+
+
+# ---------------------------
+# 🟢 PROMPT TEMPLATE ENDPOINTS
+# ---------------------------
+
+@router.post("/{collection_id}/prompt-templates",
+    summary="Create Prompt Template for a collection",
+    response_model=PromptTemplateOutput,
+    description="Create or update a Prompt Template for a specific collection.",
+    responses={
+        200: {"description": "Prompt template created/updated successfully"},
+        400: {"description": "Invalid input data"},
+        404: {"description": "Collection not found"},
+        500: {"description": "Internal server error"}
+    }
+)
+def create_prompt_template(
+    collection_id: UUID,
+    prompt_template_input: PromptTemplateInput,
+    db: Session = Depends(get_db)
+):
+    """
+    Create or update a Prompt Template for a specific collection.
+
+    Args:
+        collection_id (UUID): The ID of the collection.
+        prompt_template_input (PromptTemplateInput): Input schema for prompt template.
+        db (Session): The database session.
+
+    Returns:
+        PromptTemplateOutput: The created or updated Prompt Template.
+    """
+    service = PromptTemplateService(db)
+    return service.create_or_update_template(collection_id, prompt_template_input)
+
+
+@router.get("/{collection_id}/prompt-templates",
+    summary="Get Prompt Template for a collection",
+    response_model=PromptTemplateOutput,
+    description="Retrieve the Prompt Template for a specific collection.",
+    responses={
+        200: {"description": "Prompt template retrieved successfully"},
+        404: {"description": "Collection or Prompt Template not found"},
+        500: {"description": "Internal server error"}
+    }
+)
+def get_prompt_template(collection_id: UUID, db: Session = Depends(get_db)):
+    """
+    Get the Prompt Template for a specific collection.
+
+    Args:
+        collection_id (UUID): The ID of the collection.
+        db (Session): The database session.
+
+    Returns:
+        PromptTemplateOutput: The Prompt Template of the collection.
+    """
+    service = PromptTemplateService(db)
+    return service.get_template(collection_id)
+
+
+@router.delete("/{collection_id}/prompt-templates",
+    summary="Delete Prompt Template for a collection",
+    description="Delete the Prompt Template associated with a specific collection.",
+    responses={
+        204: {"description": "Prompt template deleted successfully"},
+        404: {"description": "Collection or Prompt Template not found"},
+        500: {"description": "Internal server error"}
+    }
+)
+def delete_prompt_template(collection_id: UUID, db: Session = Depends(get_db)):
+    """
+    Delete the Prompt Template for a specific collection.
+
+    Args:
+        collection_id (UUID): The ID of the collection.
+        db (Session): The database session.
+    """
+    service = PromptTemplateService(db)
+    service.delete_template(collection_id)

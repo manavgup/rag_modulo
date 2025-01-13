@@ -12,17 +12,16 @@ from sqlalchemy.orm import Session
 
 from rag_solution.data_ingestion.document_processor import DocumentProcessor
 from rag_solution.repository.collection_repository import CollectionRepository
-from rag_solution.repository.user_collection_repository import UserCollectionRepository
 from rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput, CollectionStatus
 from rag_solution.services.file_management_service import FileManagementService
 from rag_solution.services.user_collection_service import UserCollectionService
 from rag_solution.services.question_service import QuestionService
-from rag_solution.generation.providers.factory import LLMProviderFactory
+from rag_solution.services.llm_provider_service import LLMProviderService
 from vectordbs.error_types import CollectionError
 from vectordbs.factory import get_datastore
 from vectordbs.data_types import Document
 from vectordbs.vector_store import VectorStore
-from core.custom_exceptions import DocumentStorageError
+from core.custom_exceptions import DocumentStorageError, LLMProviderError
 import multiprocessing
 
 logging.basicConfig(level=logging.INFO)
@@ -40,9 +39,9 @@ class CollectionService:
         self.user_collection_service = UserCollectionService(db)
         self.file_management_service = FileManagementService(db)
         self.vector_store = get_datastore(settings.vector_db)
-        # Initialize provider for question service
-        provider = LLMProviderFactory(db).get_provider("watsonx")
-        self.question_service = QuestionService(db=db, provider=provider)
+        self.llm_provider_service = LLMProviderService(db)
+        # Initialize question service
+        self.question_service = QuestionService(db=db)
 
     @staticmethod
     def _generate_valid_collection_name() -> str:
@@ -194,7 +193,7 @@ class CollectionService:
             file_paths = [str(self.file_management_service.get_file_path(collection.id, file.filename)) for file in files]
 
             # Process documents and generate questions as a background task
-            background_tasks.add_task(self.process_documents, file_paths, collection.id, collection.vector_db_name, document_ids)
+            background_tasks.add_task(self.process_documents, file_paths, collection.id, collection.vector_db_name, document_ids, user_id)
             logger.info(f"Collection with documents created successfully: {collection.id}")
 
             return collection
@@ -208,8 +207,14 @@ class CollectionService:
             logger.error(f"Error in create_collection_with_documents: {str(e)}")
             raise HTTPException(status_code=400, detail=f"Failed to create collection with documents: {str(e)}")
 
-    async def process_documents(self, file_paths: List[str], collection_id: UUID, vector_db_name: str, document_ids: List[str]):
+    async def process_documents(self, file_paths: List[str], collection_id: UUID, 
+                                vector_db_name: str, document_ids: List[str], user_id: UUID):
         try:
+            # Get appropriate provider for user
+            provider = self.llm_provider_service.get_user_provider(user_id)
+            if not provider:
+                raise LLMProviderError("No available LLM provider found")
+            
             # Process documents and get the processed data
             processed_documents = await self.ingest_documents(file_paths, vector_db_name, document_ids)
 
@@ -220,7 +225,12 @@ class CollectionService:
                     if chunk.text:
                         document_texts.append(chunk.text)
             # Suggest example questions
-            await self.question_service.suggest_questions(document_texts, collection_id)
+            await self.question_service.suggest_questions(
+                texts=document_texts,
+                collection_id=collection_id,
+                user_id=user_id,
+                provider_name=provider.name
+            )
             logger.info(f"Generated questions for collection {collection_id}")
 
             # Update collection status to COMPLETED

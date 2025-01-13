@@ -1,6 +1,17 @@
-"""Tests for RAG pipeline."""
+"""
+Tests for legacy RAG pipeline.
+
+Note: These tests use the deprecated pipeline.py module which is being migrated to
+pipeline_service.py. Once migration is complete, these tests will be updated or
+removed in favor of test_pipeline_service.py.
+"""
 
 import pytest
+import warnings
+
+# Suppress deprecation warning for pipeline.py during tests
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="rag_solution.pipeline.pipeline")
+
 from sqlalchemy.orm import Session
 
 from rag_solution.pipeline.pipeline import Pipeline, PipelineResult

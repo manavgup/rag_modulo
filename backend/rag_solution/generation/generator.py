@@ -1,3 +1,20 @@
+"""
+DEPRECATED: This module is deprecated and will be removed in a future version.
+A new CLI tool using the service layer architecture will be created to replace
+this standalone utility. This module currently uses file-based configuration
+(prompt_config.json) instead of the database-driven approach used by the main
+application.
+"""
+
+import warnings
+
+warnings.warn(
+    "The generator.py module is deprecated and will be removed in a future version. "
+    "A new CLI tool using the service layer architecture will replace this utility.",
+    DeprecationWarning,
+    stacklevel=2
+)
+
 from typing import List, Dict, Any, Union, Optional, Generator as TypeGenerator
 from vectordbs.utils.watsonx import generate_text, generate_text_stream
 from core.config import settings

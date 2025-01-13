@@ -1,214 +1,145 @@
-from typing import List, Optional
-from uuid import UUID, uuid4
-from sqlalchemy import select, update
-from sqlalchemy.exc import IntegrityError
+"""Repository for managing Prompt Templates in the database."""
 from sqlalchemy.orm import Session
+from typing import Optional, List
+from uuid import UUID
 
-from core.custom_exceptions import (
-    PromptTemplateNotFoundError,
-    DuplicatePromptTemplateError,
-    InvalidPromptTemplateError
-)
 from rag_solution.models.prompt_template import PromptTemplate
-from rag_solution.schemas.prompt_template_schema import PromptTemplateCreate, PromptTemplateUpdate
+from rag_solution.schemas.prompt_template_schema import PromptTemplateInput, PromptTemplateType
+
 
 class PromptTemplateRepository:
-    """Repository for managing prompt templates in the database."""
+    """
+    Repository for managing Prompt Templates in the database.
+    Provides CRUD operations and utility methods.
+    """
 
-    def __init__(self, session: Session):
-        """Initialize repository with database session.
-        
-        Args:
-            session: SQLAlchemy session
-        """
-        self._session = session
+    def __init__(self, db: Session):
+        self.db = db
 
-    def create(self, template: PromptTemplateCreate) -> PromptTemplate:
-        """Create a new prompt template.
-        
-        Args:
-            template: Template data
-            
-        Returns:
-            Created template
-            
-        Raises:
-            DuplicatePromptTemplateError: If template with same name and provider exists
-        """
-        try:
+    # 📝 Create or Update by User ID
+    def create_or_update_by_user_id(self, user_id: UUID, template: PromptTemplateInput) -> PromptTemplate:
+        """Create or update a Prompt Template for a specific user."""
+        db_template = (
+            self.db.query(PromptTemplate)
+            .filter(PromptTemplate.user_id == user_id)
+            .filter(PromptTemplate.name == template.name)
+            .first()
+        )
+
+        if db_template:
+            # Update existing - exclude user_id to avoid conflicts
+            for field, value in template.model_dump(exclude={"user_id"}, exclude_unset=True).items():
+                setattr(db_template, field, value)
+        else:
+            # Create new
             db_template = PromptTemplate(
-                id=str(uuid4()),
+                user_id=user_id,
                 name=template.name,
                 provider=template.provider,
-                description=template.description,
+                template_type=template.template_type,
                 system_prompt=template.system_prompt,
-                context_prefix=template.context_prefix,
-                query_prefix=template.query_prefix,
-                answer_prefix=template.answer_prefix,
-                is_default=template.is_default,
+                template_format=template.template_format,
                 input_variables=template.input_variables,
-                template_format=template.template_format
-            )
-            
-            # If setting as default, unset any existing default for this provider
-            if template.is_default:
-                self._unset_default_for_provider(template.provider)
-            
-            self._session.add(db_template)
-            self._session.commit()
-            self._session.refresh(db_template)
-            return db_template
-            
-        except IntegrityError:
-            self._session.rollback()
-            raise DuplicatePromptTemplateError(
-                template_name=template.name,
-                provider=template.provider
+                example_inputs=template.example_inputs,
+                context_strategy=template.context_strategy,
+                max_context_length=template.max_context_length,
+                stop_sequences=template.stop_sequences,
+                is_default=template.is_default
             )
 
-    def get(self, template_id: UUID) -> PromptTemplate:
-        """Get prompt template by ID.
-        
-        Args:
-            template_id: Template UUID
-            
-        Returns:
-            Found template
-            
-        Raises:
-            PromptTemplateNotFoundError: If template not found
-        """
-        template = self._session.query(PromptTemplate).filter(
-            PromptTemplate.id == str(template_id)
-        ).first()
-        
-        if not template:
-            raise PromptTemplateNotFoundError(template_id=str(template_id))
-            
-        return template
+        self.db.add(db_template)
+        self.db.commit()
+        self.db.refresh(db_template)
+        return db_template
 
-    def get_by_provider(self, provider: str) -> List[PromptTemplate]:
-        """Get all templates for a specific provider.
-        
-        Args:
-            provider: LLM provider name
-            
-        Returns:
-            List of templates
-        """
-        return self._session.query(PromptTemplate).filter(
-            PromptTemplate.provider == provider
-        ).all()
+    # 🔍 Get by ID
+    def get_by_id(self, id: UUID) -> Optional[PromptTemplate]:
+        """Fetch a Prompt Template by ID."""
+        return self.db.query(PromptTemplate).filter(PromptTemplate.id == id).first()
 
-    def get_by_name_and_provider(self, name: str, provider: str) -> Optional[PromptTemplate]:
-        """Get template by name and provider.
-        
-        Args:
-            name: Template name
-            provider: LLM provider name
-            
-        Returns:
-            Template if found, None otherwise
-        """
-        return self._session.query(PromptTemplate).filter(
-            PromptTemplate.name == name,
-            PromptTemplate.provider == provider
-        ).first()
+    # 🔍 Get by User ID
+    def get_by_user_id(self, user_id: UUID) -> List[PromptTemplate]:
+        """Fetch all Prompt Templates for a user."""
+        return (
+            self.db.query(PromptTemplate)
+            .filter(PromptTemplate.user_id == user_id)
+            .all()
+        )
 
-    def get_default_for_provider(self, provider: str) -> Optional[PromptTemplate]:
-        """Get default template for a provider.
-        
-        Args:
-            provider: LLM provider name
-            
-        Returns:
-            Default template if exists, None otherwise
-        """
-        return self._session.query(PromptTemplate).filter(
-            PromptTemplate.provider == provider,
-            PromptTemplate.is_default == True
-        ).first()
+    def get_by_user_id_and_type(self, user_id: UUID, template_type: PromptTemplateType) -> List[PromptTemplate]:
+        """Fetch all Prompt Templates for a user of a specific type."""
+        return (
+            self.db.query(PromptTemplate)
+            .filter(PromptTemplate.user_id == user_id)
+            .filter(PromptTemplate.template_type == template_type)
+            .all()
+        )
 
-    def list(self) -> List[PromptTemplate]:
-        """Get all prompt templates.
-        
-        Returns:
-            List of all templates
-        """
-        return self._session.query(PromptTemplate).all()
+    # 🌟 Get User's Default Template
+    def get_user_default(self, user_id: UUID) -> Optional[PromptTemplate]:
+        """Fetch the default Prompt Template for a user."""
+        return (
+            self.db.query(PromptTemplate)
+            .filter(PromptTemplate.user_id == user_id)
+            .filter(PromptTemplate.is_default == True)
+            .first()
+        )
 
-    def update(
-        self,
-        template_id: UUID,
-        template_update: PromptTemplateUpdate
-    ) -> PromptTemplate:
-        """Update an existing prompt template.
-        
-        Args:
-            template_id: Template UUID
-            template_update: Update data
-            
-        Returns:
-            Updated template
-            
-        Raises:
-            PromptTemplateNotFoundError: If template not found
-            DuplicatePromptTemplateError: If update would create duplicate
-        """
-        try:
-            # Get existing template
-            db_template = self.get(template_id)
-            
-            # Update fields
-            update_data = template_update.model_dump(exclude_unset=True)
-            
-            # Handle default flag changes
-            if "is_default" in update_data and update_data["is_default"]:
-                self._unset_default_for_provider(db_template.provider)
-            
-            for field, value in update_data.items():
-                setattr(db_template, field, value)
-            
-            self._session.commit()
-            self._session.refresh(db_template)
-            return db_template
-            
-        except IntegrityError:
-            self._session.rollback()
-            raise DuplicatePromptTemplateError(
-                template_name=template_update.name,
-                provider=db_template.provider
-            )
+    # 🔍 Get User's Default Template by Type
+    def get_user_default_by_type(self, user_id: UUID, template_type: PromptTemplateType) -> Optional[PromptTemplate]:
+        """Fetch a user's default template of a specific type."""
+        return (
+            self.db.query(PromptTemplate)
+            .filter(PromptTemplate.user_id == user_id)
+            .filter(PromptTemplate.template_type == template_type)
+            .filter(PromptTemplate.is_default == True)
+            .first()
+        )
 
-    def delete(self, template_id: UUID) -> None:
-        """Delete a prompt template.
-        
-        Args:
-            template_id: Template UUID
-            
-        Raises:
-            PromptTemplateNotFoundError: If template not found
-            InvalidPromptTemplateError: If attempting to delete default template
-        """
-        template = self.get(template_id)
-        
-        if template.is_default:
-            raise InvalidPromptTemplateError(
-                template_id=str(template_id),
-                reason="Cannot delete default template"
-            )
-        
-        self._session.delete(template)
-        self._session.commit()
+    # 🔍 Get User's Templates by Provider
+    def get_user_templates_by_provider(self, user_id: UUID, provider: str) -> List[PromptTemplate]:
+        """Fetch a user's templates for a specific provider."""
+        return (
+            self.db.query(PromptTemplate)
+            .filter(PromptTemplate.user_id == user_id)
+            .filter(PromptTemplate.provider == provider)
+            .all()
+        )
 
-    def _unset_default_for_provider(self, provider: str) -> None:
-        """Unset default flag for all templates of a provider.
-        
-        Args:
-            provider: LLM provider name
-        """
-        self._session.query(PromptTemplate).filter(
-            PromptTemplate.provider == provider,
-            PromptTemplate.is_default == True
-        ).update({"is_default": False})
-        self._session.commit()
+    # 🛠️ Update
+    def update(self, id: UUID, template: PromptTemplateInput) -> Optional[PromptTemplate]:
+        """Update an existing Prompt Template."""
+        db_template = self.get_by_id(id)
+        if not db_template:
+            return None
+
+        # Update fields - exclude user_id to avoid conflicts
+        for field, value in template.model_dump(exclude={"user_id"}, exclude_unset=True).items():
+            setattr(db_template, field, value)
+
+        self.db.commit()
+        self.db.refresh(db_template)
+        return db_template
+
+    # 🗑️ Delete by ID
+    def delete(self, id: UUID) -> bool:
+        """Delete a Prompt Template by ID."""
+        db_template = self.get_by_id(id)
+        if not db_template:
+            return False
+
+        self.db.delete(db_template)
+        self.db.commit()
+        return True
+
+    # 🗑️ Delete User Template
+    def delete_user_template(self, user_id: UUID, template_id: UUID) -> bool:
+        """Delete a specific template for a user."""
+        result = (
+            self.db.query(PromptTemplate)
+            .filter(PromptTemplate.user_id == user_id)
+            .filter(PromptTemplate.id == template_id)
+            .delete()
+        )
+        self.db.commit()
+        return result > 0

@@ -7,18 +7,22 @@ from pydantic import Field, ConfigDict
 from pydantic_settings import BaseSettings
 
 
-class LegacySettings(BaseSettings):
-    """Legacy application settings maintained for backward compatibility."""
+class Settings(BaseSettings):
+    """Application settings with environment variable loading."""
     
     model_config = ConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
         extra="allow",
-        validate_default=True
+        validate_default=True,
+        case_sensitive=False,  # Make environment variable names case-insensitive
+        env_nested_delimiter='__',  # Allow nested config using double underscore
+        protected_namespaces=()  # Allow all names to be used as field names
     )
 
     # Required settings
     jwt_secret_key: str = Field(..., env='JWT_SECRET_KEY')
+    rag_llm: str = Field(..., env='RAG_LLM')
 
     # Search settings
     number_of_results: int = Field(default=5, env='NUMBER_OF_RESULTS')
@@ -29,10 +33,12 @@ class LegacySettings(BaseSettings):
     vector_db: str = Field(default="milvus", env='VECTOR_DB')
     collection_name: Optional[str] = None
 
-    # WatsonX.ai credentials
-    wx_project_id: Optional[str] = Field(default_factory=lambda: os.getenv('WATSONX_INSTANCE_ID', None))
-    wx_api_key: Optional[str] = Field(default_factory=lambda: os.getenv('WATSONX_APIKEY', None))
-    wx_url: Optional[str] = Field(default_factory=lambda: os.getenv('WATSONX_URL', None))
+    # LLM Provider credentials
+    wx_project_id: str = Field(alias='WATSONX_INSTANCE_ID')
+    wx_api_key: str = Field(alias='WATSONX_APIKEY')
+    wx_url: str = Field(alias='WATSONX_URL')
+    openai_api_key: Optional[str] = Field(default=None, env='OPENAI_API_KEY')
+    anthropic_api_key: Optional[str] = Field(default=None, env='ANTHROPIC_API_KEY')
 
     # Chunking settings
     chunking_strategy: str = Field(default="fixed", env='CHUNKING_STRATEGY')
@@ -48,7 +54,6 @@ class LegacySettings(BaseSettings):
     upsert_batch_size: int = Field(default=100, env='UPSERT_BATCH_SIZE')
 
     # LLM settings
-    rag_llm: str = Field(..., env='RAG_LLM')
     max_new_tokens: int = Field(default=500, env='MAX_NEW_TOKENS')
     min_new_tokens: int = Field(default=200, env='MIN_NEW_TOKENS')
     max_context_length: int = Field(default=2048, env='MAX_CONTEXT_LENGTH')  # Total context window
@@ -168,7 +173,6 @@ class LegacySettings(BaseSettings):
     oidc_introspection_endpoint: Optional[str] = Field(default=None, env='OIDC_INTROSPECTION_ENDPOINT')
 
     # JWT settings
-    jwt_secret_key: str = Field(..., env='JWT_SECRET_KEY')
     jwt_algorithm: str = "HS256"
 
     # RBAC settings
@@ -192,63 +196,5 @@ class LegacySettings(BaseSettings):
     }
 
 
-class Settings(BaseSettings):
-    """New minimal application settings required at startup."""
-    
-    model_config = ConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="allow",
-        validate_default=True
-    )
-
-    # Core data settings
-    data_dir: Optional[str] = None
-    vector_db: str = Field(default="milvus", env='VECTOR_DB')
-
-
-    # Frontend settings
-    react_app_api_url: str = Field(default="/api", env='REACT_APP_API_URL')
-    frontend_url: str = Field(default="http://localhost:3000", env='FRONTEND_URL')
-    frontend_callback: str = "/callback"
-
-    # IBM OIDC settings
-    ibm_client_id: Optional[str] = Field(default=None, env='IBM_CLIENT_ID')
-    ibm_client_secret: Optional[str] = Field(default=None, env='IBM_CLIENT_SECRET')
-    oidc_discovery_endpoint: Optional[str] = Field(default=None, env='OIDC_DISCOVERY_ENDPOINT')
-    oidc_auth_url: Optional[str] = Field(default=None, env='OIDC_AUTH_URL')
-    oidc_token_url: Optional[str] = Field(default=None, env='OIDC_TOKEN_URL')
-    oidc_userinfo_endpoint: Optional[str] = Field(default=None, env='OIDC_USERINFO_ENDPOINT')
-    oidc_introspection_endpoint: Optional[str] = Field(default=None, env='OIDC_INTROSPECTION_ENDPOINT')
-
-
-    # Project settings
-    project_name: str = Field(default="rag_modulo", env='PROJECT_NAME')
-    python_version: str = Field(default="3.11", env='PYTHON_VERSION')
-
-    # JWT settings
-    jwt_secret_key: str = Field(..., validation_alias='JWT_SECRET_KEY')
-    jwt_algorithm: str = "HS256"
-
-
-def get_settings(testing: bool = False) -> BaseSettings:
-    """Get settings instance based on configuration.
-    
-    Args:
-        testing: If True, ignore .env files for testing purposes
-    """
-    use_new_config = os.getenv('USE_NEW_CONFIG', 'false').lower() == 'true'
-    
-    if testing:
-        # For testing, use a fresh environment without .env files
-        config = ConfigDict(env_file=None, validate_default=True)
-        Settings.model_config = config
-        LegacySettings.model_config = config
-        
-        # Set required test values
-        os.environ['RAG_LLM'] = 'watsonx'
-        os.environ['JWT_SECRET_KEY'] = 'test_secret_key'
-    
-    return Settings() if use_new_config else LegacySettings()
-
-settings = get_settings()
+# Singleton for settings
+settings = Settings()
