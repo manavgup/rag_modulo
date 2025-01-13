@@ -1,4 +1,8 @@
-from typing import Optional, Any, Dict
+"""Custom exceptions for the application with strong typing."""
+
+from typing import Optional, Any, Dict, Union
+from pydantic import ValidationError as PydanticValidationError
+
 
 class BaseCustomException(Exception):
     """Base class for custom exceptions."""
@@ -30,6 +34,7 @@ class BaseCustomException(Exception):
             "details": self.details
         }
 
+
 class UnsupportedFileTypeError(BaseCustomException):
     """Exception raised for unsupported file types."""
     
@@ -54,6 +59,7 @@ class UnsupportedFileTypeError(BaseCustomException):
                 "supported_types": supported_types
             }
         )
+
 
 class DocumentProcessingError(BaseCustomException):
     """Exception raised for errors during document processing."""
@@ -83,6 +89,7 @@ class DocumentProcessingError(BaseCustomException):
             }
         )
 
+
 class DocumentStorageError(BaseCustomException):
     """Exception raised for errors during document storage."""
     
@@ -110,6 +117,7 @@ class DocumentStorageError(BaseCustomException):
                 "error_type": error_type
             }
         )
+
 
 class DocumentIngestionError(BaseCustomException):
     """Exception raised for errors during document ingestion."""
@@ -142,6 +150,7 @@ class DocumentIngestionError(BaseCustomException):
             }
         )
 
+
 class NotFoundException(BaseCustomException):
     """Exception raised when a requested resource is not found."""
     
@@ -166,6 +175,11 @@ class NotFoundException(BaseCustomException):
                 "resource_id": str(resource_id)
             }
         )
+
+
+# Alias for backward compatibility
+NotFoundError = NotFoundException
+
 
 class ValidationError(BaseCustomException):
     """Exception raised when data validation fails."""
@@ -195,6 +209,59 @@ class ValidationError(BaseCustomException):
             }
         )
 
+
+class ProviderValidationError(ValidationError):
+    """Exception raised when LLM provider validation fails.
+    
+    This exception handles validation errors specific to LLM providers,
+    including Pydantic validation failures for provider schemas.
+    """
+    
+    def __init__(
+        self,
+        provider_name: str,
+        validation_error: Union[PydanticValidationError, str],
+        field: Optional[str] = None,
+        value: Optional[Any] = None,
+        details: Optional[Dict[str, Any]] = None
+    ) -> None:
+        """Initialize provider validation error.
+        
+        Args:
+            provider_name: Name of the provider
+            validation_error: Pydantic validation error or error message
+            field: Field that failed validation
+            value: Invalid value
+            details: Additional validation details
+        """
+        if isinstance(validation_error, PydanticValidationError):
+            error_details = {
+                "errors": [
+                    {
+                        "loc": [".".join(str(loc) for loc in error["loc"])],
+                        "msg": error["msg"],
+                        "type": error["type"]
+                    }
+                    for error in validation_error.errors()
+                ]
+            }
+            message = f"Provider validation failed for {provider_name}: {validation_error}"
+        else:
+            error_details = {}
+            message = str(validation_error)
+
+        super().__init__(
+            message,
+            field=field,
+            value=value,
+            details={
+                "provider": provider_name,
+                **error_details,
+                **(details or {})
+            }
+        )
+
+
 class LLMParameterError(BaseCustomException):
     """Exception raised for errors related to LLM parameters."""
     
@@ -223,6 +290,7 @@ class LLMParameterError(BaseCustomException):
             }
         )
 
+
 class DuplicateParameterError(ValidationError):
     """Exception raised when attempting to create duplicate LLM parameters."""
     
@@ -243,6 +311,7 @@ class DuplicateParameterError(ValidationError):
             value=param_name,
             details={"parameter_name": param_name}
         )
+
 
 class DefaultParameterError(ValidationError):
     """Exception raised for errors related to default parameter operations."""
@@ -270,6 +339,7 @@ class DefaultParameterError(ValidationError):
             }
         )
 
+
 class PromptTemplateNotFoundError(NotFoundException):
     """Exception raised when a prompt template is not found."""
     
@@ -289,6 +359,7 @@ class PromptTemplateNotFoundError(NotFoundException):
             template_id,
             message or f"Prompt template with id {template_id} not found"
         )
+
 
 class DuplicatePromptTemplateError(ValidationError):
     """Exception raised when attempting to create a duplicate prompt template."""
@@ -316,6 +387,7 @@ class DuplicatePromptTemplateError(ValidationError):
             }
         )
 
+
 class InvalidPromptTemplateError(ValidationError):
     """Exception raised when prompt template validation fails."""
     
@@ -341,6 +413,7 @@ class InvalidPromptTemplateError(ValidationError):
                 "reason": reason
             }
         )
+
 
 class LLMProviderError(BaseCustomException):
     """Exception raised for errors during LLM provider operations.
@@ -381,6 +454,7 @@ class LLMProviderError(BaseCustomException):
             }
         )
 
+
 class ConfigurationError(BaseCustomException):
     """Exception raised for general configuration errors."""
     
@@ -400,6 +474,7 @@ class ConfigurationError(BaseCustomException):
             status_code=500,
             details=details or {}
         )
+
 
 class ProviderConfigError(BaseCustomException):
     """Exception raised for errors related to provider configuration."""
