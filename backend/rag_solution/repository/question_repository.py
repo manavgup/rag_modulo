@@ -1,15 +1,15 @@
 """Repository for managing suggested questions."""
 
-import logging
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 
 from rag_solution.models.question import SuggestedQuestion
 from rag_solution.schemas.question_schema import QuestionInDB, QuestionInput
+from core.logging_utils import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger("repository.question")
 
 
 class QuestionRepository:
@@ -24,7 +24,7 @@ class QuestionRepository:
         """
         self.session = session
 
-    def create_question(self, question_input: QuestionInput) -> QuestionInDB:
+    def create_question(self, question_input: QuestionInput) -> SuggestedQuestion:
         """
         Create a new suggested question.
 
@@ -32,7 +32,10 @@ class QuestionRepository:
             question_input: Question input data
 
         Returns:
-            QuestionInDB: Created question
+            SuggestedQuestion: Created question model
+
+        Raises:
+            SQLAlchemyError: If there's a database error
         """
         try:
             db_question = SuggestedQuestion(
@@ -43,41 +46,48 @@ class QuestionRepository:
             self.session.commit()
             self.session.refresh(db_question)
             logger.info(f"Created question '{question_input.question}' for collection {question_input.collection_id}")
-            return QuestionInDB.model_validate(db_question)
+            return db_question
         except SQLAlchemyError as e:
             logger.error(f"Error creating suggested question: {e}", exc_info=True)
             self.session.rollback()
             raise
 
-    def create_questions(self, collection_id: UUID, questions: List[str]) -> List[QuestionInDB]:
+    def create_questions(
+        self, 
+        collection_id: UUID, 
+        questions: List[SuggestedQuestion]
+    ) -> List[SuggestedQuestion]:
         """
         Create multiple suggested questions.
 
         Args:
             collection_id: ID of the collection
-            questions: List of question texts
+            questions: List of SuggestedQuestion instances
 
         Returns:
-            List[QuestionInDB]: List of created questions
+            List[SuggestedQuestion]: List of created questions
+
+        Raises:
+            SQLAlchemyError: If there's a database error
         """
         try:
-            db_questions = [
-                SuggestedQuestion(collection_id=collection_id, question=q)
-                for q in questions
-            ]
-            self.session.add_all(db_questions)
+            # Ensure all questions have the correct collection_id
+            for question in questions:
+                question.collection_id = collection_id
+            
+            self.session.add_all(questions)
             self.session.commit()
-            for question in db_questions:
+            for question in questions:
                 self.session.refresh(question)
             
             logger.info(f"Created {len(questions)} questions for collection {collection_id}")
-            return [QuestionInDB.model_validate(q) for q in db_questions]
+            return questions
         except SQLAlchemyError as e:
             logger.error(f"Error creating suggested questions: {e}", exc_info=True)
             self.session.rollback()
             raise
 
-    def get_questions_by_collection(self, collection_id: UUID) -> List[QuestionInDB]:
+    def get_questions_by_collection(self, collection_id: UUID) -> List[SuggestedQuestion]:
         """
         Get all suggested questions for a collection.
 
@@ -85,43 +95,59 @@ class QuestionRepository:
             collection_id: ID of the collection
 
         Returns:
-            List[QuestionInDB]: List of questions
+            List[SuggestedQuestion]: List of questions
+
+        Raises:
+            SQLAlchemyError: If there's a database error
         """
         try:
             questions = self.session.query(SuggestedQuestion).filter(
                 SuggestedQuestion.collection_id == collection_id
-            ).all()
+            ).order_by(SuggestedQuestion.id).all()
             
             logger.info(f"Retrieved {len(questions)} questions for collection {collection_id}")
-            return [QuestionInDB.model_validate(q) for q in questions]
+            return questions
         except SQLAlchemyError as e:
             logger.error(f"Error getting questions for collection {collection_id}: {e}", exc_info=True)
             raise
 
-    def delete_questions_by_collection(self, collection_id: UUID) -> None:
+    def delete_questions_by_collection(self, collection_id: UUID) -> int:
         """
         Delete all suggested questions for a collection.
 
         Args:
             collection_id: ID of the collection
+
+        Returns:
+            int: Number of questions deleted
+
+        Raises:
+            SQLAlchemyError: If there's a database error
         """
         try:
-            self.session.query(SuggestedQuestion).filter(
+            count = self.session.query(SuggestedQuestion).filter(
                 SuggestedQuestion.collection_id == collection_id
             ).delete()
             self.session.commit()
-            logger.info(f"Deleted all questions for collection {collection_id}")
+            logger.info(f"Deleted {count} questions for collection {collection_id}")
+            return count
         except SQLAlchemyError as e:
             logger.error(f"Error deleting questions for collection {collection_id}: {e}", exc_info=True)
             self.session.rollback()
             raise
 
-    def delete_question(self, question_id: UUID) -> None:
+    def delete_question(self, question_id: UUID) -> bool:
         """
         Delete a specific suggested question.
 
         Args:
             question_id: ID of the question to delete
+
+        Returns:
+            bool: True if question was deleted, False if not found
+
+        Raises:
+            SQLAlchemyError: If there's a database error
         """
         try:
             question = self.session.query(SuggestedQuestion).filter(
@@ -131,8 +157,10 @@ class QuestionRepository:
                 self.session.delete(question)
                 self.session.commit()
                 logger.info(f"Deleted question {question_id}")
+                return True
             else:
                 logger.warning(f"Question {question_id} not found for deletion")
+                return False
         except SQLAlchemyError as e:
             logger.error(f"Error deleting question {question_id}: {e}", exc_info=True)
             self.session.rollback()
