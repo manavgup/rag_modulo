@@ -81,10 +81,26 @@ export const searchDocuments = async (query, collectionId) => {
       throw new Error('Please select a specific collection to search');
     }
 
+    // First, fetch the default pipeline for the collection
+    const userData = getStoredUserData();
+    if (!userData || !userData.uuid) {
+      throw new Error('User UUID not available');
+    }
+
+    const pipelinesUrl = `${API_ROUTES.USERS_ENDPOINT}/${userData.uuid}/pipelines?collection_id=${collectionId}&is_default=true`;
+    const pipelinesResponse = await api.get(pipelinesUrl);
+    
+    if (!pipelinesResponse.data || pipelinesResponse.data.length === 0) {
+      throw new Error('No default pipeline found for the selected collection');
+    }
+
+    const defaultPipelineId = pipelinesResponse.data[0].id;
+
     const response = await api.post(url, {
       search_input: {  // Wrap the parameters in search_input
         question: query,
-        collection_id: collectionId
+        collection_id: collectionId,
+        pipeline_id: defaultPipelineId
       }
     });
     

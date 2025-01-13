@@ -1,24 +1,55 @@
+/* App container */
 .app-container {
-  display: flex;
-  flex-direction: column;
   min-height: 100vh;
+  background: var(--cds-background);
 }
 
+/* Main content area */
 .page-container {
-  display: flex;
-  flex-direction: column;
-  flex-grow: 1;
-  padding: 2rem;
+  margin-top: 3rem;
+  margin-left: 16rem;  /* Always keep space for sidebar */
+  min-height: calc(100vh - 3rem);
+  transition: margin-left 0.2s ease-in-out;
+  padding: 1rem 2rem;  /* Increased horizontal padding */
 }
 
-/* .bx--content {
-  margin-top: 3rem; Adjust based on your Header height
-  flex-grow: 1;
-  background-color: #f4f4f4;
-} */
+/* Configuration styles */
+.configuration-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem;
+}
 
-@media (max-width: 1056px) {
-  .page-container {
-    padding: 1rem;
-  }
+.configuration-page h1 {
+  margin-bottom: 2rem;
+  color: var(--cds-text-primary);
+}
+
+/* Table styles */
+.cds--data-table-container {
+  margin-top: 1rem;
+  background: var(--cds-layer);
+  border-radius: 4px;
+}
+
+/* Form styles */
+.cds--form {
+  max-width: 600px;
+}
+
+/* Modal styles */
+.cds--modal-container {
+  background: var(--cds-layer);
+}
+
+/* System config row style */
+.system-config {
+  background-color: var(--cds-layer-hover);
+}
+
+
+/* Ensure proper z-index stacking */
+.cds--header ~ .page-container {
+  position: relative;
+  z-index: 1;
 }
