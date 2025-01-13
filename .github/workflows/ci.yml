@@ -5,99 +5,131 @@ on:
     branches: [main, dev, test]
 
 jobs:
-  build-and-test:
+  test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        vector_db: [milvus, chromadb, weaviate, pinecone]
+      fail-fast: false  # Continue with other tests even if one fails
+    
+    env:
+      VECTOR_DB: ${{ matrix.vector_db }}
+      
     steps:
-      - name: Checkout code repository
-        uses: actions/checkout@v4
-      - name: Build frontend
-        run: docker build -t rag-modulo/frontend:1.0.${{ github.run_number }} -f ./webui/Dockerfile.frontend ./webui
-      - name: Build backend
-        run: docker build -t rag-modulo/backend:1.0.${{ github.run_number }}  -f ./backend/Dockerfile.backend ./backend
-      - name: Build tests
-        run: docker build -t rag-modulo/backend-test:1.0.${{ github.run_number }} -f ./backend/Dockerfile.test ./backend
-      - name: Setup .env file with variables required for test environment deployment
+      - uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+      
+      - name: Build and start services
         run: |
-          touch .env
+          make clean
+          make build-all
+          make run-services
+        env:
+          DOCKER_BUILDKIT: 1
           
-          cat <<EOL >> .env
-          COLLECTIONDB_NAME=${{ vars.COLLECTIONDB_NAME }}
-          COLLECTIONDB_USER=${{ secrets.COLLECTIONDB_USER }}
-          COLLECTIONDB_PASS=${{ secrets.COLLECTIONDB_USER }}
-          COLLECTIONDB_PORT=${{ vars.COLLECTIONDB_PORT }}
-          COLLECTIONDB_HOST=${{ vars.COLLECTIONDB_HOST }}
-          MINIO_ACCESS_KEY=${{ secrets.MINIO_ACCESS_KEY }}
-          MINIO_SECRET_KEY=${{ secrets.MINIO_SECRET_KEY }}
-          IBM_CLIENT_ID=${{ secrets.IBM_CLIENT_ID }}
-          MILVUS_HOST=${{ vars.MILVUS_HOST }}
-          MILVUS_PORT=${{ vars.MILVUS_PORT }}
-          OIDC_DISCOVERY_ENDPOINT=${{ secrets.OIDC_DISCOVERY_ENDPOINT }}
-          OIDC_AUTH_URL=${{ secrets.OIDC_AUTH_URL }}
-          OIDC_TOKEN_URL=${{ secrets.OIDC_TOKEN_URL }}
-          FRONTEND_URL=${{ vars.FRONTEND_URL }}
-          IBM_CLIENT_SECRET=${{ secrets.IBM_CLIENT_SECRET }}
-          JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
-          ELASTIC_HOST=${{ vars.ELASTIC_HOST }}
-          ELASTIC_PORT=${{ vars.ELASTIC_PORT }}
-          EMBEDDING_MODEL=${{ vars.EMBEDDING_MODEL }}
-          EMBEDDING_FIELD=${{ vars.EMBEDDING_FIELD }}
-          EMBEDDING_DIM=${{ vars.EMBEDDING_DIM }}
-          VECTOR_DB=${{ vars.VECTOR_DB }}
-          WATSONX_APIKEY=${{ secrets.WATSONX_APIKEY }}
-          WATSONX_URL=${{ vars.WATSONX_URL }}
-          WATSONX_INSTANCE_ID=${{ secrets.WATSONX_INSTANCE_ID }}
-          RAG_LLM=${{ vars.RAG_LLM }}
-          MAX_NEW_TOKENS=${{ vars.MAX_NEW_TOKENS }}
-          MIN_NEW_TOKENS=${{ vars.MIN_NEW_TOKENS }}
-          RANDOM_SEED=${{ vars.RANDOM_SEED }}
-          TOP_K=${{ vars.TOP_K }}5
-          TEMPERATURE=${{ vars.TEMPERATURE }}
-          MLFLOW_TRACKING_USERNAME=${{ secrets.MLFLOW_TRACKING_USERNAME }}
-          MLFLOW_TRACKING_PASSWORD=${{ secrets.MLFLOW_TRACKING_PASSWORD }}
-          MINIO_ROOT_USER=${{ secrets.MINIO_ROOT_USER }}
-          MINIO_ROOT_PASSWORD=${{ secrets.MINIO_ROOT_PASSWORD }}
-          PROJECT_VERSION=1.0.${{ github.run_number }}
-          EOL
+      - name: Wait for services to be healthy
+        run: |
+          echo "Waiting for services to be healthy..."
+          timeout 300 bash -c '
+            while true; do
+              if docker-compose ps | grep -q "healthy"; then
+                echo "Services are healthy"
+                exit 0
+              fi
+              echo "Waiting for services to become healthy..."
+              docker-compose ps
+              sleep 10
+            done'
+            
       - name: Run all tests
         run: |
-          source .env
-          echo $PROJECT_VERSION
+          make create-test-dirs
+          make tests
+        
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-reports-${{ matrix.vector_db }}
+          path: test-reports/
+          retention-days: 1
 
-          echo "Creating volume directories with correct permissions..."
-          mkdir -p ./volumes/postgres ./volumes/etcd ./volumes/minio ./volumes/milvus ./volumes/backend
-          chmod -R 777 ./volumes
-          echo "Volume directories created and permissions set."
-
-          echo "Starting services:"
-          docker compose up -d postgres minio milvus-etcd milvus-standalone createbuckets mlflow-server || \
-          { \
-            echo "Failed to infra services"; \
-            unhealthy_containers=$(docker ps -f health=unhealthy -q); \
-            if [ -n "$unhealthy_containers" ]; then \
-              echo "Logs from unhealthy containers:"; \
-              for container in $unhealthy_containers; do \
-                echo "Container ID: $container"; \
-                docker logs $container; \
-              done; \
-            else \
-              echo "No unhealthy containers found, checking for failed containers..."; \
-              failed_containers=$(docker ps -f status=exited -q); \
-              if [ -n "$failed_containers" ]; then \
-                echo "Logs from failed containers:"; \
-                for container in $failed_containers; do \
-                  echo "Container ID: $container"; \
-                  docker logs $container; \
-                done; \
-              else \
-                echo "No failed containers found, showing logs for all services."; \
-                docker compose logs; \
-              fi; \
-            fi; \
-            exit 1; \
-          }
-
-          echo "Starting backend..."
-          docker compose up -d backend
-          echo "Backend is now running."
-
-          docker compose run --rm test pytest -v -s -m "not (chromadb or elasticsearch or pinecone or weaviate)"
+  report:
+    needs: test
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          
+      - name: Install coverage
+        run: pip install coverage
+        
+      - name: Download all test reports
+        uses: actions/download-artifact@v3
+        with:
+          path: test-reports-download
+          
+      - name: Generate combined test report
+        run: |
+          mkdir -p ./test-reports/combined
+          coverage combine ./test-reports-download/*/coverage/.coverage* || true
+          coverage html -d ./test-reports/combined/coverage || true
+          coverage xml -o ./test-reports/combined/coverage.xml || true
+          
+      - name: Upload combined test report
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-reports-combined
+          path: test-reports/combined
+          retention-days: 1
+          
+      - name: Add PR comment
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          body="## Test Results Summary\n\n"
+          body+="### Coverage\n\`\`\`\n$(coverage report || echo 'No coverage data available')\n\`\`\`\n"
+          body+="### Test Results\n\n"
+          body+="| Vector DB | Test Type | Total | Passed | Failed |\n|-----------|-----------|-------|--------|--------|\n"
+          
+          for db in milvus chromadb weaviate pinecone; do
+            if [ -f "./test-reports-download/test-reports-$db/junit.xml" ]; then
+              results=$(python -c "
+                import xml.etree.ElementTree as ET
+                try:
+                    tree = ET.parse('./test-reports-download/test-reports-$db/junit.xml')
+                    root = tree.getroot()
+                    total = int(root.attrib.get('tests', 0))
+                    failures = int(root.attrib.get('failures', 0))
+                    errors = int(root.attrib.get('errors', 0))
+                    passed = total - failures - errors
+                    print(f'$db:Integration:{total}:{passed}:{failures + errors}')
+                except Exception as e:
+                    print(f'$db:Integration:0:0:0')
+              ")
+              IFS=':' read -r db type total passed failed <<< "$results"
+              body+="| $db | $type | $total | $passed | $failed |\n"
+            fi
+          done
+          
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            /repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments \
+            -f body="$body"
