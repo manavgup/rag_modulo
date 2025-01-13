@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import Optional
 from pathlib import Path
 import logging.handlers
@@ -37,17 +38,21 @@ def setup_logging(log_dir: Optional[Path] = None) -> None:
         root_logger.addHandler(file_handler)
 
     # Configure third-party loggers
-    logging.getLogger('ibm-watson-machine-learning').setLevel(logging.WARNING)
+    logging.getLogger('ibm-watson-machine-learning').setLevel(logging.ERROR)
+    logging.getLogger('ibm-watsonx-ai').setLevel(logging.ERROR)
+    logging.getLogger('ibm_watsonx_ai').setLevel(logging.ERROR)
+    logging.getLogger('ibm_watsonx_ai.wml_resource').setLevel(logging.ERROR)
     logging.getLogger('urllib3').setLevel(logging.WARNING)
     logging.getLogger('asyncio').setLevel(logging.WARNING)
 
     # Suppress SQLAlchemy logging
-    logging.getLogger('sqlalchemy').setLevel(logging.WARNING)
-    logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
-    logging.getLogger('sqlalchemy.engine.base.Engine').setLevel(logging.WARNING)
-    logging.getLogger('sqlalchemy.dialects').setLevel(logging.WARNING)
-    logging.getLogger('sqlalchemy.pool').setLevel(logging.WARNING)
-    logging.getLogger('sqlalchemy.orm').setLevel(logging.WARNING)
+    sql_level = logging.CRITICAL
+    logging.getLogger('sqlalchemy').setLevel(sql_level)
+    logging.getLogger('sqlalchemy.engine').setLevel(sql_level)
+    logging.getLogger('sqlalchemy.engine.base.Engine').setLevel(sql_level)
+    logging.getLogger('sqlalchemy.dialects').setLevel(sql_level)
+    logging.getLogger('sqlalchemy.pool').setLevel(sql_level)
+    logging.getLogger('sqlalchemy.orm').setLevel(sql_level)
 
     
 
