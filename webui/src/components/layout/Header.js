@@ -22,7 +22,6 @@ const Header = () => {
   const [isMainMenuOpen, setIsMainMenuOpen] = useState(false);
 
   const handleMainMenuOpen = () => {
-    // console.log(isMainMenuOpen);
     setIsMainMenuOpen((prevState) => !prevState);
   };
 
@@ -35,10 +34,21 @@ const Header = () => {
     setIsUserMenuOpen(false);
   };
 
+  const handleSideNavBlur = () => {
+    if (isMainMenuOpen) {
+      setIsMainMenuOpen(false);
+    }
+  };
+
   return (
     <Theme theme="g100">
       <CarbonHeader aria-label="RAG Modulo">
-        <HeaderGlobalAction aria-label="" onClick={handleMainMenuOpen}>
+        <HeaderGlobalAction
+          aria-label="Menu"
+          onClick={handleMainMenuOpen}
+          isActive={isMainMenuOpen}
+          className="header-menu-trigger"
+        >
           {isMainMenuOpen ? <CloseLarge size={20} /> : <Menu size={20} />}
         </HeaderGlobalAction>
         <HeaderName href="#" prefix="">
@@ -79,10 +89,12 @@ const Header = () => {
             </div>
           </HeaderPanel>
         )}
-        <UISideNav
-          isSideNavExpanded={isMainMenuOpen}
-          handleSideNavExpand={handleMainMenuOpen}
-        />
+        <div className={`side-nav-container ${isMainMenuOpen ? 'expanded' : ''}`}>
+          <UISideNav
+            isSideNavExpanded={isMainMenuOpen}
+            handleSideNavExpand={handleSideNavBlur}
+          />
+        </div>
       </CarbonHeader>
     </Theme>
   );
