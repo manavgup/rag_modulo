@@ -1,16 +1,22 @@
+"""User router for managing user-related operations."""
+
 from typing import List, Dict, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, status, Query
 from sqlalchemy.orm import Session
 
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.user_schema import UserInput, UserOutput
 from rag_solution.services.user_service import UserService
 from rag_solution.services.user_collection_service import UserCollectionService
-from rag_solution.services.runtime_config_service import RuntimeConfigService
-from rag_solution.schemas.provider_config_schema import ProviderConfig
+from rag_solution.services.pipeline_service import PipelineService
 from rag_solution.services.user_collection_interaction_service import UserCollectionInteractionService
+from rag_solution.schemas.pipeline_schema import (
+    PipelineConfigInput,
+    PipelineConfigOutput,
+    PipelineResult
+)
 from rag_solution.services.file_management_service import FileManagementService
 from rag_solution.schemas.user_collection_schema import UserCollectionOutput, UserCollectionsOutput
 from rag_solution.schemas.file_schema import DocumentDelete, FileOutput, FileMetadata
@@ -158,7 +164,6 @@ def delete_user(user_id: UUID, db: Session = Depends(get_db)) -> bool:
         500: {"description": "Internal server error"}
     }
 )
-
 @authorize_decorator(role="admin")
 async def get_user_collections(user_id: UUID, request: Request, db: Session = Depends(get_db)):
     if not hasattr(request.state, 'user') or request.state.user['uuid'] != str(user_id):
@@ -271,92 +276,222 @@ def remove_user_from_team(user_id: UUID, team_id: UUID, db: Session = Depends(ge
     service = UserTeamService(db)
     return service.remove_user_from_team(user_id, team_id)
 
-@router.get("/{user_id}/provider-preference",
-    response_model=ProviderConfig,
-    summary="Get user's provider preference",
-    description="Get the user's preferred LLM provider configuration",
+# Pipeline Configuration Endpoints
+
+@router.get("/{user_id}/pipelines",
+    response_model=List[PipelineConfigOutput],
+    summary="Get user's pipelines",
+    description="Get all RAG pipelines configured for a user",
     responses={
-        200: {"description": "Successfully retrieved provider preference"},
-        404: {"description": "No preference found"},
+        200: {"description": "Successfully retrieved pipelines"},
+        404: {"description": "No pipelines found"},
         500: {"description": "Internal server error"}
     }
 )
 @authorize_decorator(role="user")
-async def get_provider_preference(
+async def get_pipelines(
     user_id: UUID,
     request: Request,
-    db: Session = Depends(get_db)
-):
-    """Get user's preferred provider configuration."""
+    db: Session = Depends(get_db),
+    include_system: bool = Query(True)
+) -> List[PipelineConfigOutput]:
+    """Get user's pipeline configurations."""
     if not hasattr(request.state, 'user') or request.state.user['uuid'] != str(user_id):
         raise HTTPException(status_code=403, detail="Not authorized to access this resource")
     
-    service = RuntimeConfigService(db)
+    service = PipelineService(db)
     try:
-        config = await service.get_runtime_config(user_id)
-        return config.provider_config
+        return service.get_user_pipelines(user_id, include_system)
     except Exception as e:
         raise HTTPException(
             status_code=404,
-            detail=f"No provider preference found: {str(e)}"
+            detail=f"No pipelines found: {str(e)}"
         )
 
-@router.post("/{user_id}/provider-preference/{config_id}",
-    response_model=ProviderConfig,
-    summary="Set user's provider preference",
-    description="Set the user's preferred LLM provider configuration",
+@router.post("/{user_id}/pipelines",
+    response_model=PipelineConfigOutput,
+    summary="Create pipeline",
+    description="Create a new RAG pipeline configuration",
     responses={
-        200: {"description": "Successfully set provider preference"},
-        404: {"description": "Provider config not found"},
+        200: {"description": "Successfully created pipeline"},
+        400: {"description": "Invalid pipeline configuration"},
         500: {"description": "Internal server error"}
     }
 )
 @authorize_decorator(role="user")
-async def set_provider_preference(
+async def create_pipeline(
     user_id: UUID,
-    config_id: int,
+    pipeline: PipelineConfigInput,
     request: Request,
     db: Session = Depends(get_db)
-):
-    """Set user's preferred provider configuration."""
+) -> PipelineConfigOutput:
+    """Create a new pipeline configuration."""
     if not hasattr(request.state, 'user') or request.state.user['uuid'] != str(user_id):
         raise HTTPException(status_code=403, detail="Not authorized to access this resource")
     
-    service = RuntimeConfigService(db)
+    service = PipelineService(db)
     try:
-        await service.set_user_provider_preference(user_id, config_id)
-        config = await service.get_runtime_config(user_id)
-        return config.provider_config
+        return service.create_pipeline(user_id, pipeline)
     except Exception as e:
         raise HTTPException(
             status_code=400,
-            detail=f"Failed to set provider preference: {str(e)}"
+            detail=f"Failed to create pipeline: {str(e)}"
         )
 
-@router.delete("/{user_id}/provider-preference",
-    summary="Clear user's provider preference",
-    description="Remove the user's preferred LLM provider configuration",
+@router.put("/{user_id}/pipelines/{pipeline_id}",
+    response_model=PipelineConfigOutput,
+    summary="Update pipeline",
+    description="Update an existing RAG pipeline configuration",
     responses={
-        200: {"description": "Successfully cleared provider preference"},
+        200: {"description": "Successfully updated pipeline"},
+        400: {"description": "Invalid pipeline configuration"},
+        404: {"description": "Pipeline not found"},
         500: {"description": "Internal server error"}
     }
 )
 @authorize_decorator(role="user")
-async def clear_provider_preference(
+async def update_pipeline(
     user_id: UUID,
+    pipeline_id: UUID,
+    pipeline: PipelineConfigInput,
     request: Request,
     db: Session = Depends(get_db)
-):
-    """Clear user's provider preference."""
+) -> PipelineConfigOutput:
+    """Update a pipeline configuration."""
     if not hasattr(request.state, 'user') or request.state.user['uuid'] != str(user_id):
         raise HTTPException(status_code=403, detail="Not authorized to access this resource")
     
-    service = RuntimeConfigService(db)
+    service = PipelineService(db)
     try:
-        await service.clear_user_provider_preference(user_id)
+        updated = service.update_pipeline(pipeline_id, pipeline)
+        if not updated:
+            raise HTTPException(status_code=404, detail="Pipeline not found")
+        return updated
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to update pipeline: {str(e)}"
+        )
+
+@router.delete("/{user_id}/pipelines/{pipeline_id}",
+    summary="Delete pipeline",
+    description="Delete an existing RAG pipeline configuration",
+    responses={
+        200: {"description": "Successfully deleted pipeline"},
+        404: {"description": "Pipeline not found"},
+        500: {"description": "Internal server error"}
+    }
+)
+@authorize_decorator(role="user")
+async def delete_pipeline(
+    user_id: UUID,
+    pipeline_id: UUID,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Delete a pipeline configuration."""
+    if not hasattr(request.state, 'user') or request.state.user['uuid'] != str(user_id):
+        raise HTTPException(status_code=403, detail="Not authorized to access this resource")
+    
+    service = PipelineService(db)
+    try:
+        if not service.delete_pipeline(pipeline_id):
+            raise HTTPException(status_code=404, detail="Pipeline not found")
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to clear provider preference: {str(e)}"
+            detail=f"Failed to delete pipeline: {str(e)}"
+        )
+
+@router.put("/{user_id}/pipelines/{pipeline_id}/default",
+    response_model=PipelineConfigOutput,
+    summary="Set default pipeline",
+    description="Set a pipeline as the default for a user",
+    responses={
+        200: {"description": "Successfully set default pipeline"},
+        404: {"description": "Pipeline not found"},
+        500: {"description": "Internal server error"}
+    }
+)
+@authorize_decorator(role="user")
+async def set_default_pipeline(
+    user_id: UUID,
+    pipeline_id: UUID,
+    request: Request,
+    db: Session = Depends(get_db)
+) -> PipelineConfigOutput:
+    """Set a pipeline as the default."""
+    if not hasattr(request.state, 'user') or request.state.user['uuid'] != str(user_id):
+        raise HTTPException(status_code=403, detail="Not authorized to access this resource")
+    
+    service = PipelineService(db)
+    try:
+        return service.set_default_pipeline(user_id, pipeline_id)
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to set default pipeline: {str(e)}"
+        )
+
+@router.post("/{user_id}/pipelines/{pipeline_id}/validate",
+    response_model=PipelineResult,
+    summary="Validate pipeline",
+    description="Validate a pipeline configuration",
+    responses={
+        200: {"description": "Successfully validated pipeline"},
+        400: {"description": "Invalid pipeline configuration"},
+        404: {"description": "Pipeline not found"},
+        500: {"description": "Internal server error"}
+    }
+)
+@authorize_decorator(role="user")
+async def validate_pipeline(
+    user_id: UUID,
+    pipeline_id: UUID,
+    request: Request,
+    db: Session = Depends(get_db)
+) -> PipelineResult:
+    """Validate a pipeline configuration."""
+    if not hasattr(request.state, 'user') or request.state.user['uuid'] != str(user_id):
+        raise HTTPException(status_code=403, detail="Not authorized to access this resource")
+    
+    service = PipelineService(db)
+    try:
+        return service.validate_pipeline(pipeline_id)
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to validate pipeline: {str(e)}"
+        )
+
+@router.post("/{user_id}/pipelines/{pipeline_id}/test",
+    summary="Test pipeline",
+    description="Test a pipeline with a sample query",
+    responses={
+        200: {"description": "Successfully tested pipeline"},
+        400: {"description": "Test failed"},
+        404: {"description": "Pipeline not found"},
+        500: {"description": "Internal server error"}
+    }
+)
+@authorize_decorator(role="user")
+async def test_pipeline(
+    user_id: UUID,
+    pipeline_id: UUID,
+    request: Request,
+    db: Session = Depends(get_db),
+    query: str = Query(..., description="Test query to run through the pipeline")
+):
+    """Test a pipeline with a sample query."""
+    if not hasattr(request.state, 'user') or request.state.user['uuid'] != str(user_id):
+        raise HTTPException(status_code=403, detail="Not authorized to access this resource")
+    
+    service = PipelineService(db)
+    try:
+        return service.test_pipeline(pipeline_id, query)
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Pipeline test failed: {str(e)}"
         )
