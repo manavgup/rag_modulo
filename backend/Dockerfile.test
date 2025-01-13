@@ -29,7 +29,8 @@ WORKDIR /app
 
 # Install python dependencies using poetry
 COPY pyproject.toml poetry.lock ./
-RUN poetry install --with main,test --no-root
+RUN poetry lock --no-update && \
+    poetry install --with main,test --no-root
 
 # Final stage
 FROM python:3.12-slim
@@ -44,7 +45,7 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 
 ENV PATH="/app/.venv/bin:$PATH"
 
-# COPY python resources /app/backend
+# Copy python resources
 COPY . /app
 
 # Create a non-root user and group

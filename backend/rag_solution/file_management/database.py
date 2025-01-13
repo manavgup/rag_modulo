@@ -7,11 +7,13 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.exc import SQLAlchemyError
 from core.config import settings
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Configure logging only if not in test environment
+if not os.environ.get('PYTEST_CURRENT_TEST'):
+    logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-logger.info("Database module is being imported")
+if not os.environ.get('PYTEST_CURRENT_TEST'):
+    logger.info("Database module is being imported")
 
 host = os.environ.get('DB_HOST', settings.collectiondb_host)
 if host == 'postgres' and os.environ.get('PYTEST_CURRENT_TEST'):
@@ -27,14 +29,20 @@ database_url = URL.create(
    database=settings.collectiondb_name
 )
 
-logger.debug(f"Database URL: {database_url}")
+if not os.environ.get('PYTEST_CURRENT_TEST'):
+    logger.debug(f"Database URL: {database_url}")
 
 # Create synchronous engine and session
-engine = create_engine(database_url, echo=True)
+# Disable SQL echo in test environment
+engine = create_engine(
+    database_url,
+    echo=not bool(os.environ.get('PYTEST_CURRENT_TEST'))
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
-logger.info("Base has been created")
+if not os.environ.get('PYTEST_CURRENT_TEST'):
+    logger.info("Base has been created")
 
 def get_db():
     """
@@ -45,7 +53,8 @@ def get_db():
     """
     db = SessionLocal()
     try:
-        logger.info("Creating a new database session.")
+        if not os.environ.get('PYTEST_CURRENT_TEST'):
+            logger.info("Creating a new database session.")
         yield db
     except SQLAlchemyError as e:
         logger.error(f"A database error occurred: {e}", exc_info=True)
@@ -54,4 +63,5 @@ def get_db():
         logger.error(f"An unexpected error occurred: {e}", exc_info=True)
     finally:
         db.close()
-        logger.info("Database session closed.")
+        if not os.environ.get('PYTEST_CURRENT_TEST'):
+            logger.info("Database session closed.")

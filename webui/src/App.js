@@ -16,6 +16,11 @@ import Dashboard from "./components/dashboard/Dashboard";
 import SearchInterface from "./components/common/SearchInterface";
 import DocumentViewer from "./components/document/DocumentViewer";
 import LoginPage from "./components/LoginPage";
+import ConfigurationPage from "./components/configuration/ConfigurationPage";
+import LLMParameters from "./components/configuration/LLMParameters";
+import PromptTemplates from "./components/configuration/PromptTemplates";
+import PipelineSettings from "./components/configuration/PipelineSettings";
+import ProviderSettings from "./components/configuration/ProviderSettings";
 import { handleAuthCallback } from "./services/authService";
 
 import Collection from "./components/collection/Collection";
@@ -56,8 +61,10 @@ const AppLayout = ({ children }) => {
   return (
     <div className="app-container">
       {user && <Header />}
-      <Content className="page-container">{children}</Content>
-      {user && <Footer />}
+      <div className="page-container">
+        <Content>{children}</Content>
+        {user && <Footer />}
+      </div>
     </div>
   );
 };
@@ -80,8 +87,11 @@ const ProtectedRoute = ({ children }) => {
 function AppContent() {
   return (
     <Routes>
+      {/* Auth Routes */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/callback" element={<AuthCallback />} />
+
+      {/* Main Routes */}
       <Route
         path="/"
         element={
@@ -105,8 +115,7 @@ function AppContent() {
             <Collection />
           </ProtectedRoute>
         }
-      >
-      </Route>
+      />
       <Route
         path="/document/:id"
         element={
@@ -115,6 +124,24 @@ function AppContent() {
           </ProtectedRoute>
         }
       />
+
+      {/* Configuration Routes */}
+      <Route
+        path="/configuration/*"
+        element={
+          <ProtectedRoute>
+            <ConfigurationPage />
+          </ProtectedRoute>
+        }
+      >
+        <Route path="providers" element={<ProviderSettings />} />
+        <Route path="pipeline" element={<PipelineSettings />} />
+        <Route path="llm" element={<LLMParameters />} />
+        <Route path="templates" element={<PromptTemplates />} />
+        <Route index element={<Navigate to="providers" replace />} />
+      </Route>
+
+      {/* Fallback Route */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

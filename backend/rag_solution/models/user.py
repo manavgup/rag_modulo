@@ -23,6 +23,8 @@ class User(Base):
     teams = relationship("UserTeam", back_populates="user")
     collections = relationship("UserCollection", back_populates="user")
     files = relationship("File", back_populates="user")
+    llm_parameters = relationship("LLMParameters", back_populates="user")
+    prompt_templates = relationship("PromptTemplate", back_populates="user")
 
     def __repr__(self):
         return f"User(id='{self.id}', ibm_id='{self.ibm_id}', email='{self.email}', name='{self.name}')"
