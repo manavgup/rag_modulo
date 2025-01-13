@@ -24,7 +24,7 @@ VECTOR_DB ?= milvus
 
 .DEFAULT_GOAL := help
 
-.PHONY: init-env sync-frontend-deps build-frontend build-backend build-tests build-all test tests api-tests all-tests run-app run-backend run-frontend run-services stop-containers clean create-volumes logs info help
+.PHONY: init-env sync-frontend-deps build-frontend build-backend build-tests build-all test tests api-tests unit-tests integration-tests performance-tests service-tests pipeline-tests all-tests run-app run-backend run-frontend run-services stop-containers clean create-volumes logs info help
 
 # Init
 init-env:
@@ -65,8 +65,13 @@ check_containers:
 		echo "All required containers are running."; \
 	fi
 
-# Test target with proper volume mounting and path handling
-test: check_containers
+# Create test report directories
+create-test-dirs:
+	@mkdir -p ./test-reports/{unit,integration,performance,coverage}
+	@chmod -R 777 ./test-reports
+
+# Test targets with proper volume mounting and reporting
+test: check_containers create-test-dirs build-tests
 	@if [ -z "$(test_name)" ]; then \
 		echo "Error: Please provide test_name. Example: make test test_name=tests/router/test_user_collection_router.py"; \
 		exit 1; \
@@ -74,7 +79,8 @@ test: check_containers
 		echo "Running test: $(test_name)"; \
 		$(DOCKER_COMPOSE) run --rm \
 			-v $$(pwd)/backend:/app/backend:ro \
-			test pytest -s $(test_name) || \
+			-v $$(pwd)/test-reports:/app/test-reports \
+			test pytest -v $(test_name) || \
 		{ \
 			echo "Test $(test_name) failed"; \
 			if [ "$(cleanup)" = "true" ]; then \
@@ -105,11 +111,82 @@ test-only:
 			test pytest -v -s /app/$(test_name); \
 	fi
 
-tests: run-backend
-	$(DOCKER_COMPOSE) run --rm test pytest -v -s -m "not (chromadb or elasticsearch or pinecone or weaviate)" || { echo "Tests failed"; $(MAKE) stop-containers; exit 1; }
+# Specialized test targets
+unit-tests: run-backend create-test-dirs
+	$(DOCKER_COMPOSE) run --rm \
+		-v $$(pwd)/test-reports:/app/test-reports \
+		test pytest -v -s -m "unit" \
+		--html=/app/test-reports/unit/report.html \
+		--self-contained-html \
+		--junitxml=/app/test-reports/unit/junit.xml \
+		--cov=backend/rag_solution \
+		--cov-report=html:/app/test-reports/coverage/html \
+		--cov-report=xml:/app/test-reports/coverage/coverage.xml \
+		|| { echo "Unit tests failed"; $(MAKE) stop-containers; exit 1; }
 
-api-tests: run-backend
-	$(DOCKER_COMPOSE) run --rm test pytest -v -s -m "api and not (chromadb or elasticsearch or pinecone or weaviate)" || { echo "API Tests failed"; $(MAKE) stop-containers; exit 1; }
+integration-tests: run-backend create-test-dirs
+	$(DOCKER_COMPOSE) run --rm \
+		-v $$(pwd)/test-reports:/app/test-reports \
+		test pytest -v -s -m "integration" \
+		--html=/app/test-reports/integration/report.html \
+		--self-contained-html \
+		--junitxml=/app/test-reports/integration/junit.xml \
+		|| { echo "Integration tests failed"; $(MAKE) stop-containers; exit 1; }
+
+performance-tests: run-backend create-test-dirs
+	$(DOCKER_COMPOSE) run --rm \
+		-v $$(pwd)/test-reports:/app/test-reports \
+		-e PERF_TEST_DURATION=300 \
+		-e PERF_TEST_CONCURRENT=10 \
+		-e PERF_TEST_TOTAL=100 \
+		-e PERF_TEST_MEMORY_LIMIT=80 \
+		-e PERF_REPORT_DIR=/app/test-reports/performance \
+		-e PERF_REPORT_FORMAT=html,json \
+		-e PERF_METRICS_ENABLED=true \
+		test pytest -v -s -m "performance" \
+		--html=/app/test-reports/performance/report.html \
+		--self-contained-html \
+		--junitxml=/app/test-reports/performance/junit.xml \
+		|| { echo "Performance tests failed"; $(MAKE) stop-containers; exit 1; }
+
+service-tests: run-backend create-test-dirs
+	$(DOCKER_COMPOSE) run --rm \
+		-v $$(pwd)/test-reports:/app/test-reports \
+		test pytest -v -s -m "service" \
+		--html=/app/test-reports/service/report.html \
+		--self-contained-html \
+		--junitxml=/app/test-reports/service/junit.xml \
+		|| { echo "Service tests failed"; $(MAKE) stop-containers; exit 1; }
+
+pipeline-tests: run-backend create-test-dirs
+	$(DOCKER_COMPOSE) run --rm \
+		-v $$(pwd)/test-reports:/app/test-reports \
+		test pytest -v -s -m "pipeline" \
+		--html=/app/test-reports/pipeline/report.html \
+		--self-contained-html \
+		--junitxml=/app/test-reports/pipeline/junit.xml \
+		|| { echo "Pipeline tests failed"; $(MAKE) stop-containers; exit 1; }
+
+api-tests: run-backend create-test-dirs
+	$(DOCKER_COMPOSE) run --rm \
+		-v $$(pwd)/test-reports:/app/test-reports \
+		test pytest -v -s -m "api and not (chromadb or elasticsearch or pinecone or weaviate)" \
+		--html=/app/test-reports/api/report.html \
+		--self-contained-html \
+		--junitxml=/app/test-reports/api/junit.xml \
+		|| { echo "API Tests failed"; $(MAKE) stop-containers; exit 1; }
+
+tests: run-backend create-test-dirs
+	$(DOCKER_COMPOSE) run --rm \
+		-v $$(pwd)/test-reports:/app/test-reports \
+		test pytest -v -s -m "not (chromadb or elasticsearch or pinecone or weaviate)" \
+		--html=/app/test-reports/report.html \
+		--self-contained-html \
+		--junitxml=/app/test-reports/junit.xml \
+		--cov=backend/rag_solution \
+		--cov-report=html:/app/test-reports/coverage/html \
+		--cov-report=xml:/app/test-reports/coverage/coverage.xml \
+		|| { echo "Tests failed"; $(MAKE) stop-containers; exit 1; }
 
 # Run
 run-app: build-all run-backend run-frontend
@@ -192,10 +269,14 @@ help:
 	@echo "  build-backend   	Build backend code/container"
 	@echo "  build-tests   		Build test code/container"
 	@echo "  build-all   		Build frontend/backend/test code/container"
-	@echo "  test          		Run specific test, test_name param is required (make test test_name=tests/router/test_user_collection_router.py)"
-	@echo "  tests          	Run all tests using pytest"
-	@echo "  api-tests      	Run API tests only (using pytest)"
-	@echo "  all-tests   		Run all tests: REST API and others"
+	@echo "  test          		Run specific test with coverage and reports"
+	@echo "  unit-tests    		Run unit tests with coverage and reports"
+	@echo "  integration-tests   Run integration tests with reports"
+	@echo "  performance-tests   Run performance tests with metrics"
+	@echo "  service-tests       Run service-specific tests"
+	@echo "  pipeline-tests      Run pipeline-related tests"
+	@echo "  api-tests      	Run API tests with reports"
+	@echo "  tests          	Run all tests with coverage and reports"
 	@echo "  run-app       		Run both backend and frontend using Docker Compose"
 	@echo "  run-backend   		Run backend using Docker Compose"
 	@echo "  run-frontend  		Run frontend using Docker Compose"
@@ -203,6 +284,7 @@ help:
 	@echo "  stop-containers  	Stop all containers using Docker Compose"
 	@echo "  clean         		Clean up Docker Compose volumes and cache"
 	@echo "  create-volumes     Create folders for container volumes"
+	@echo "  create-test-dirs   Create test report directories"
 	@echo "  logs          		View logs of running containers"
 	@echo "  info          		Display project information"
 	@echo "  help          		Display this help message"
