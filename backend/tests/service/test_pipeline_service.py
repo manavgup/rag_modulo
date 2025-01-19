@@ -317,8 +317,15 @@ def test_validate_collection_default_rules(
     # Try to set system-wide pipeline as default
     config_input = PipelineConfigInput(
         name="test-system",
-        embedding_model="sentence-transformers/all-minilm-l6-v2",
+        description="Test system pipeline",
+        chunking_strategy="fixed",
+        embedding_model="sentence-transformers/all-mpnet-base-v2",
+        retriever="vector",
+        context_strategy="priority",
         provider_id=test_config['pipeline'].provider_id,
+        enable_logging=True,
+        max_context_length=2048,
+        timeout=30.0,
         is_default=True  # This should fail validation
     )
     

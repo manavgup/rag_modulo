@@ -33,11 +33,11 @@ async def authorize_dependency(request: Request):
             for pattern, method in settings.rbac_mapping[rrole].items():
                 if re.match(pattern, rpath) and request.method in method:
                     return True
-        raise HTTPException(status_code=403, detail="Failed to authorize request. {rpath} / {rrole}")
+        raise HTTPException(status_code=403, detail=f"Failed to authorize request. {rpath} / {rrole}")
 
     except (KeyError, ValueError) as exc:
         logger.warning(f"Failed to authorize request. {rpath} / {rrole}")
-        raise HTTPException(status_code=403, detail="Failed to authorize request. {rpath} / {rrole}") from exc    
+        raise HTTPException(status_code=403, detail=f"Failed to authorize request. {rpath} / {rrole}") from exc    
     
 def authorize_decorator(role: str):
     """
@@ -60,5 +60,4 @@ def authorize_decorator(role: str):
                     return JSONResponse(status_code=403, content={"detail": f"User is not authorized to access this resource (requires {role} role)"})
             return await handler(*args, **kwargs)
         return wrapper
-    return decorator    
-
+    return decorator

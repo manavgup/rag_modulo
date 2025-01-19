@@ -20,7 +20,8 @@ class UserRepository:
             db_user = User(
                 ibm_id=user.ibm_id,
                 email=user.email,
-                name=user.name
+                name=user.name,
+                role=user.role
             )
             self.db.add(db_user)
             self.db.commit()
@@ -95,6 +96,7 @@ class UserRepository:
             ibm_id=user.ibm_id,
             email=user.email,
             name=user.name,
+            role=user.role,
             teams=[TeamOutput.model_validate(team) for team in user.teams],
             created_at=user.created_at,
             updated_at=user.updated_at

@@ -22,7 +22,7 @@ from core.custom_exceptions import (
     ConfigurationError,
     ValidationError,
     NotFoundError,
-    ProviderError
+    LLMProviderError
 )
 
 @pytest.fixture
@@ -100,7 +100,20 @@ async def test_provider_initialization_error(pipeline_setup):
         # Initialize pipeline
         with pytest.raises(ConfigurationError) as exc_info:
             await pipeline_setup['pipeline_service'].initialize(
-                pipeline_setup['collection'].vector_db_name
+                collection_name=pipeline_setup['collection'].vector_db_name,
+                config=PipelineConfigInput(
+                    name="test-pipeline",
+                    description="Test pipeline",
+                    chunking_strategy="fixed",
+                    embedding_model="sentence-transformers/all-mpnet-base-v2",
+                    retriever="vector",
+                    context_strategy="priority",
+                    provider_id=pipeline_setup['provider_service'].get_default_provider().id,
+                    enable_logging=True,
+                    max_context_length=2048,
+                    timeout=30.0,
+                    is_default=False
+                )
             )
         
         assert "Failed to initialize provider" in str(exc_info.value)
@@ -110,7 +123,7 @@ async def test_provider_authentication_error(pipeline_setup):
     """Test handling provider authentication errors."""
     # Break provider authentication
     with patch('rag_solution.generation.providers.watsonx.WatsonXProvider.authenticate') as mock_auth:
-        mock_auth.side_effect = ProviderError("Authentication failed")
+        mock_auth.side_effect = LLMProviderError("watsonx", "authentication", "Authentication failed")
         
         search_input = SearchInput(
             question="Test query",
@@ -193,7 +206,7 @@ async def test_generation_error(pipeline_setup):
     """Test handling text generation errors."""
     # Break text generation
     with patch('rag_solution.generation.providers.watsonx.WatsonXProvider.generate_text') as mock_generate:
-        mock_generate.side_effect = ProviderError("Generation failed")
+        mock_generate.side_effect = LLMProviderError("watsonx", "generation", "Generation failed")
         
         search_input = SearchInput(
             question="Test query",
@@ -272,7 +285,7 @@ async def test_concurrent_error_handling(pipeline_setup):
     def random_error(*args, **kwargs):
         import random
         if random.choice([True, False]):
-            raise ProviderError("Random error")
+            raise LLMProviderError("watsonx", "generation", "Random error")
         return "Generated text"
     
     with patch('rag_solution.generation.providers.watsonx.WatsonXProvider.generate_text') as mock_generate:

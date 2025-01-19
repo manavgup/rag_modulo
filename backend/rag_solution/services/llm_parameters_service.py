@@ -8,6 +8,7 @@ from rag_solution.schemas.llm_parameters_schema import (
     LLMParametersInDB
 )
 from rag_solution.models.llm_parameters import LLMParameters
+from core.custom_exceptions import NotFoundException
 
 
 class LLMParametersService:
@@ -17,70 +18,106 @@ class LLMParametersService:
     """
 
     def __init__(self, db: Session):
+        self.db = db
         self.repository = LLMParametersRepository(db)
+    
+    def create_parameters(self, user_id: UUID, parameters_input: LLMParametersInput) -> LLMParametersOutput:
+        """
+        Create new LLM Parameters for a user.
 
-    # 📝 Create or Update Parameters
-    def create_or_update_parameters(self, user_id: UUID, params: LLMParametersInput) -> LLMParametersOutput:
-        """Create or update LLM Parameters for a user."""
-        llm_params = self.repository.create_or_update_by_user_id(user_id, params)
-        return LLMParametersOutput.model_validate({
-            "id": llm_params.id,
-            "user_id": llm_params.user_id,
-            "name": llm_params.name,
-            "description": llm_params.description,
-            "max_new_tokens": llm_params.max_new_tokens,
-            "temperature": llm_params.temperature,
-            "top_k": llm_params.top_k,
-            "top_p": llm_params.top_p,
-            "repetition_penalty": llm_params.repetition_penalty,
-            "is_default": llm_params.is_default,
-            "created_at": llm_params.created_at,
-            "updated_at": llm_params.updated_at
-        })
+        Args:
+            user_id (UUID): ID of the user.
+            parameters_input (LLMParametersInput): Input data for creating parameters.
 
-    # 🔍 Fetch by Collection ID
-    def get_parameters(self, user_id: UUID) -> Optional[LLMParametersOutput]:
-        """Fetch LLM Parameters for a specific user."""
+        Returns:
+            LLMParametersOutput: Created parameters.
+        """
+        new_params = self.repository.create_or_update_by_user_id(user_id, parameters_input)
+        return LLMParametersOutput.model_validate(new_params)
+
+    def update_parameters(self, parameter_id: UUID, parameters_input: LLMParametersInput) -> LLMParametersOutput:
+        """
+        Update existing LLM Parameters.
+
+        Args:
+            parameter_id (UUID): ID of the parameters to update.
+            parameters_input (LLMParametersInput): Updated parameters data.
+
+        Returns:
+            LLMParametersOutput: Updated parameters.
+        """
+        updated_params = self.repository.update(parameter_id, parameters_input)
+        return LLMParametersOutput.model_validate(updated_params)
+
+    def create_or_update_parameters(self, user_id: UUID, parameters_input: LLMParametersInput) -> LLMParametersOutput:
+        """
+        Create new or update existing LLM Parameters for a user.
+
+        Args:
+            user_id (UUID): ID of the user.
+            parameters_input (LLMParametersInput): Input data for creating/updating parameters.
+
+        Returns:
+            LLMParametersOutput: Created or updated parameters.
+        """
+        existing_params = self.repository.get_by_user_id(user_id)
+        if existing_params:
+            # Update existing parameters
+            updated_params = self.repository.update(existing_params.id, parameters_input)
+            return LLMParametersOutput.model_validate(updated_params)
+        else:
+            # Create new parameters
+            new_params = self.repository.create_or_update_by_user_id(user_id, parameters_input)
+            return LLMParametersOutput.model_validate(new_params)
+
+    def delete_parameters(self, parameter_id: UUID) -> bool:
+        """
+        Delete LLM Parameters.
+
+        Args:
+            parameter_id (UUID): ID of the parameters to delete.
+
+        Returns:
+            bool: True if deletion was successful.
+        """
+        return self.repository.delete(parameter_id)
+
+    def set_default_parameters(self, parameter_id: UUID) -> LLMParametersOutput:
+        """
+        Set specific parameters as default for a user.
+
+        Args:
+            parameter_id (UUID): ID of the parameters to set as default.
+
+        Returns:
+            LLMParametersOutput: Updated default parameters.
+        """
+        existing_params = self.repository.get_by_id(parameter_id)
+        if not existing_params:
+            raise NotFoundException("LLM Parameters", parameter_id)
+
+        # Reset other default parameters for the same user
+        self.repository.reset_user_default_parameters(existing_params.user_id)
+
+        # Create an input with is_default set to True
+        default_input = LLMParametersInput(
+            **existing_params.__dict__,
+            is_default=True
+        )
+
+        # Update parameters to set as default
+        updated_params = self.repository.update(parameter_id, default_input)
+        return LLMParametersOutput.model_validate(updated_params)
+
+    def get_parameters(self, user_id: UUID) -> List[LLMParametersOutput]:
+        """
+        Fetch LLM Parameters for a specific user.
+
+        Args:
+            user_id (UUID): ID of the user.
+
+        Returns:
+            List[LLMParametersOutput]: List of user's parameters.
+        """
         llm_params = self.repository.get_by_user_id(user_id)
-        if not llm_params:
-            return None
-        return LLMParametersOutput.model_validate({
-            "id": llm_params.id,
-            "user_id": llm_params.user_id,
-            "name": llm_params.name,
-            "description": llm_params.description,
-            "max_new_tokens": llm_params.max_new_tokens,
-            "temperature": llm_params.temperature,
-            "top_k": llm_params.top_k,
-            "top_p": llm_params.top_p,
-            "repetition_penalty": llm_params.repetition_penalty,
-            "is_default": llm_params.is_default,
-            "created_at": llm_params.created_at,
-            "updated_at": llm_params.updated_at
-        })
-
-    # 🗑️ Delete Parameters by Collection ID
-    def delete_parameters(self, user_id: UUID) -> bool:
-        """Delete LLM Parameters associated with a specific user."""
-        return self.repository.delete_by_user_id(user_id)
-
-    # 🔍 Fetch Default Parameters
-    def get_user_default(self, user_id: UUID) -> Optional[LLMParametersOutput]:
-        """Fetch default LLM Parameters for a user."""
-        llm_params = self.repository.get_user_default(user_id)
-        if not llm_params:
-            return None
-        return LLMParametersOutput.model_validate({
-            "id": llm_params.id,
-            "user_id": llm_params.user_id,
-            "name": llm_params.name,
-            "description": llm_params.description,
-            "max_new_tokens": llm_params.max_new_tokens,
-            "temperature": llm_params.temperature,
-            "top_k": llm_params.top_k,
-            "top_p": llm_params.top_p,
-            "repetition_penalty": llm_params.repetition_penalty,
-            "is_default": llm_params.is_default,
-            "created_at": llm_params.created_at,
-            "updated_at": llm_params.updated_at
-        })
+        return [LLMParametersOutput.model_validate(params) for params in llm_params]

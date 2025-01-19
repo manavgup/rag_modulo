@@ -64,22 +64,6 @@ class LLMProviderInput(BaseModel):
         }
     )
 
-    @model_validator(mode='before')
-    @classmethod
-    def validate_data(cls, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Validate and transform input data."""
-        # Convert base_url to string if it's not already
-        base_url = data.get('base_url')
-        if base_url is not None and not isinstance(base_url, str):
-            data['base_url'] = str(base_url)
-        
-        # Convert api_key to string if it's SecretStr
-        api_key = data.get('api_key')
-        if isinstance(api_key, SecretStr):
-            data['api_key'] = api_key.get_secret_value()
-        
-        return data
-
 
 class LLMProviderOutput(BaseModel):
     """Schema for provider output with all fields.
@@ -102,12 +86,21 @@ class LLMProviderOutput(BaseModel):
     api_key: str  # Added api_key field for UI display
     org_id: Optional[str] = None
     project_id: Optional[str] = None
-    is_active: bool
+    is_active: bool = True  # Default to True
     created_at: datetime
     updated_at: datetime
 
+    @field_validator('created_at', 'updated_at', mode='before')
+    @classmethod
+    def validate_datetime(cls, v):
+        """Handle SQLAlchemy datetime attributes."""
+        if hasattr(v, '_sa_instance_state'):
+            return v.isoformat()
+        return v
+
     model_config = ConfigDict(
         from_attributes=True,
+        validate_assignment=True,
         json_schema_extra={
             "example": {
                 "id": "123e4567-e89b-12d3-a456-426614174000",
@@ -225,6 +218,8 @@ class LLMProviderModelInput(BaseModel):
     )] = True
 
     model_config = ConfigDict(
+        from_attributes=True,
+        validate_assignment=True,
         json_schema_extra={
             "example": {
                 "provider_id": "123e4567-e89b-12d3-a456-426614174000",
@@ -279,13 +274,22 @@ class LLMProviderModelOutput(BaseModel):
     concurrency_limit: Annotated[int, Field(ge=1, le=100)]
     stream: bool
     rate_limit: Annotated[int, Field(ge=1, le=1000)]
-    is_default: bool
-    is_active: bool
+    is_default: bool = False
+    is_active: bool = True
     created_at: datetime
     updated_at: datetime
 
+    @field_validator('created_at', 'updated_at', mode='before')
+    @classmethod
+    def validate_datetime(cls, v):
+        """Handle SQLAlchemy datetime attributes."""
+        if hasattr(v, '_sa_instance_state'):
+            return v.isoformat()
+        return v
+
     model_config = ConfigDict(
         from_attributes=True,
+        validate_assignment=True,
         json_schema_extra={
             "example": {
                 "id": "123e4567-e89b-12d3-a456-426614174000",

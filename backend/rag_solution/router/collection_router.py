@@ -1,7 +1,7 @@
 from uuid import UUID
 from typing import List
 
-from fastapi import APIRouter, BackgroundTasks, Depends, UploadFile, Form, File, Request, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, UploadFile, Form, File, Request, HTTPException, Response
 from sqlalchemy.orm import Session
 
 from rag_solution.file_management.database import get_db
@@ -17,6 +17,7 @@ from rag_solution.services.question_service import QuestionService
 from rag_solution.generation.providers.factory import LLMProviderFactory
 from rag_solution.schemas.question_schema import QuestionInDB, QuestionInput, QuestionOutput
 from core.logging_utils import get_logger
+from core.custom_exceptions import ValidationError, NotFoundError
 
 # New Imports for LLMParameters and PromptTemplates
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput, LLMParametersOutput
@@ -37,7 +38,9 @@ router = APIRouter(
     description="Create a new collection with the provided input data.",
     responses={
         200: {"description": "Collection created successfully"},
-        400: {"description": "Invalid input data"},
+        400: {"description": "Business validation error"},
+        404: {"description": "Collection not found"},
+        422: {"description": "Request validation error"},
         500: {"description": "Internal server error"}
     }
 )
@@ -51,9 +54,22 @@ def create_collection(collection_input: CollectionInput, db: Session = Depends(g
 
     Returns:
         CollectionOutput: The created collection.
+        
+    Raises:
+        HTTPException: If validation fails, collection not found, or creation fails
     """
-    _service = CollectionService(db, FileManagementService(db))
-    return _service.create_collection(db, collection_input)
+    try:
+        service = CollectionService(db)
+        return service.create_collection(collection_input)
+    except ValidationError as e:
+        logger.error(f"Validation error creating collection: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except NotFoundError as e:
+        logger.error(f"Not found error creating collection: {e}")
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error creating collection: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/with-files", 
     summary="Create a new collection with documents", 
@@ -61,7 +77,10 @@ def create_collection(collection_input: CollectionInput, db: Session = Depends(g
     description="Create a new collection and upload documents to it.",
     responses={
         200: {"description": "Collection created with documents successfully"},
-        400: {"description": "Invalid input data"},
+        400: {"description": "Business validation error"},
+        403: {"description": "Not authorized to access this resource"},
+        404: {"description": "Collection not found"},
+        422: {"description": "Request validation error"},
         500: {"description": "Internal server error"}
     }
 )
@@ -78,6 +97,7 @@ async def create_collection_with_documents(
     Create a new collection with documents.
 
     Args:
+        request (Request): The FastAPI request object.
         collection_name (str): The name of the collection.
         is_private (bool): Whether the collection is private.
         user_id (uuid.UUID): The ID of the user creating the collection.
@@ -87,9 +107,13 @@ async def create_collection_with_documents(
 
     Returns:
         CollectionOutput: The created collection with documents.
+        
+    Raises:
+        HTTPException: If authorization fails, validation fails, or creation fails
     """
-
+    # Check authorization
     if not hasattr(request.state, 'user') or request.state.user['uuid'] != str(user_id):
+        logger.error(f"Authorization failed for user {user_id}")
         raise HTTPException(status_code=403, detail="Not authorized to access this resource")
 
     try:
@@ -103,8 +127,14 @@ async def create_collection_with_documents(
         )
         logger.info(f"Collection created successfully: {collection.id}")
         return collection
+    except ValidationError as e:
+        logger.error(f"Validation error creating collection with documents: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except NotFoundError as e:
+        logger.error(f"Not found error creating collection with documents: {e}")
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        logger.error(f"Error creating collection: {str(e)}")
+        logger.error(f"Error creating collection with documents: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/{collection_id}", 
@@ -127,9 +157,20 @@ def get_collection(collection_id: UUID, db: Session = Depends(get_db)):
 
     Returns:
         CollectionOutput: The retrieved collection.
+        
+    Raises:
+        HTTPException: If collection not found
     """
-    _service = CollectionService(db, FileManagementService(db))
-    return _service.get_collection(collection_id)
+    try:
+        service = CollectionService(db)
+        collection = service.get_collection(collection_id)
+        return collection
+    except HTTPException as e:
+        # Propagate the HTTPException (e.g., 404 for not found)
+        raise e
+    except Exception as e:
+        logger.error(f"Error getting collection: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.post("/{collection_id}/questions", 
     summary="Create a question for a collection",
@@ -137,29 +178,40 @@ def get_collection(collection_id: UUID, db: Session = Depends(get_db)):
     description="Create a new question for the specified collection",
     responses={
         200: {"description": "Question created successfully"},
+        400: {"description": "Business validation error"},
+        422: {"description": "Request validation error"},
         404: {"description": "Collection not found"},
         500: {"description": "Internal server error"}
     }
 )
 def create_collection_question(
-    collection_id: UUID, 
-    question: str, 
+    collection_id: UUID,
+    question_input: QuestionInput = Body(..., description="Question input data"),
     db: Session = Depends(get_db)
 ) -> QuestionOutput:
-    """Create a new question for a collection."""
-    try:
-        # Initialize provider
-        provider = LLMProviderFactory(db).get_provider("watsonx")
-        provider.initialize_client()
+    """Create a new question for a collection.
+    
+    Args:
+        collection_id: ID of the collection
+        question_input: Question input data
+        db: Database session
         
-        # Create service with provider
-        question_service = QuestionService(db=db, provider=provider)
-        question_input = QuestionInput(
-            collection_id=collection_id,
-            question=question
-        )
+    Returns:
+        QuestionOutput: Created question
+        
+    Raises:
+        HTTPException: If question creation fails
+    """
+    try:
+        # Create question service instance
+        question_service = QuestionService(db=db)
+        # Ensure collection_id matches route parameter
+        question_input.collection_id = collection_id
         result = question_service.create_question(question_input)
         return QuestionOutput.model_validate(result)
+    except HTTPException as e:
+        # Propagate the HTTPException (e.g., 404 for not found)
+        raise e
     except Exception as e:
         logger.error(f"Error creating question for collection {collection_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -171,20 +223,31 @@ def create_collection_question(
     responses={
         200: {"description": "Questions retrieved successfully"},
         404: {"description": "Collection not found"},
+        422: {"description": "Invalid UUID format"},
         500: {"description": "Internal server error"}
     }
 )
 def get_collection_questions(collection_id: UUID, db: Session = Depends(get_db)) -> List[QuestionOutput]:
-    """Get all questions for a collection."""
-    try:
-        # Initialize provider
-        provider = LLMProviderFactory(db).get_provider("watsonx")
-        provider.initialize_client()
+    """
+    Get all questions for a collection.
+
+    Args:
+        collection_id (UUID): The ID of the collection.
+        db (Session): The database session.
+
+    Returns:
+        List[QuestionOutput]: List of questions in the collection.
         
-        # Create service with provider
-        question_service = QuestionService(db=db, provider=provider)
+    Raises:
+        HTTPException: If collection not found or retrieval fails
+    """
+    try:
+        question_service = QuestionService(db=db)
         questions = question_service.get_collection_questions(collection_id)
         return [QuestionOutput.model_validate(q) for q in questions]
+    except NotFoundError as e:
+        logger.error(f"Not found error getting questions: {e}")
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         logger.error(f"Error getting questions for collection {collection_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -195,19 +258,29 @@ def get_collection_questions(collection_id: UUID, db: Session = Depends(get_db))
     responses={
         204: {"description": "Question deleted successfully"},
         404: {"description": "Question not found"},
+        422: {"description": "Invalid UUID format"},
         500: {"description": "Internal server error"}
     }
 )
 def delete_collection_question(collection_id: UUID, question_id: UUID, db: Session = Depends(get_db)) -> None:
-    """Delete a specific question from a collection."""
-    try:
-        # Initialize provider
-        provider = LLMProviderFactory(db).get_provider("watsonx")
-        provider.initialize_client()
+    """
+    Delete a specific question from a collection.
+
+    Args:
+        collection_id (UUID): The ID of the collection.
+        question_id (UUID): The ID of the question.
+        db (Session): The database session.
         
-        # Create service with provider
-        question_service = QuestionService(db=db, provider=provider)
+    Raises:
+        HTTPException: If question not found or deletion fails
+    """
+    try:
+        question_service = QuestionService(db=db)
         question_service.delete_question(question_id)
+        return None
+    except NotFoundError as e:
+        logger.error(f"Not found error deleting question: {e}")
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         logger.error(f"Error deleting question {question_id} from collection {collection_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -222,15 +295,23 @@ def delete_collection_question(collection_id: UUID, question_id: UUID, db: Sessi
     }
 )
 def delete_collection_questions(collection_id: UUID, db: Session = Depends(get_db)) -> None:
-    """Delete all questions for a collection."""
-    try:
-        # Initialize provider
-        provider = LLMProviderFactory(db).get_provider("watsonx")
-        provider.initialize_client()
+    """
+    Delete all questions for a collection.
+
+    Args:
+        collection_id (UUID): The ID of the collection.
+        db (Session): The database session.
         
-        # Create service with provider
-        question_service = QuestionService(db=db, provider=provider)
+    Raises:
+        HTTPException: If collection not found or deletion fails
+    """
+    try:
+        question_service = QuestionService(db=db)
         question_service.delete_questions_by_collection(collection_id)
+        return Response(status_code=204)
+    except NotFoundError as e:
+        logger.error(f"Not found error deleting questions: {e}")
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         logger.error(f"Error deleting questions for collection {collection_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -254,9 +335,19 @@ def delete_collection(collection_id: UUID, db: Session = Depends(get_db)):
 
     Returns:
         bool: True if the collection was successfully deleted, False otherwise.
+        
+    Raises:
+        HTTPException: If collection not found or deletion fails
     """
-    _service = CollectionService(db, FileManagementService(db))
-    _service.delete_collection(collection_id)
+    try:
+        service = CollectionService(db)
+        service.delete_collection(collection_id)
+    except NotFoundError as e:
+        logger.error(f"Not found error deleting collection: {e}")
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error deleting collection: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/{collection_id}/users", 
     response_model=List[UserCollectionOutput],
@@ -269,8 +360,28 @@ def delete_collection(collection_id: UUID, db: Session = Depends(get_db)):
     }
 )
 def get_collection_users(collection_id: UUID, db: Session = Depends(get_db)):
-    service = UserCollectionService(db)
-    return service.get_collection_users(collection_id)
+    """
+    Get all users associated with a collection.
+
+    Args:
+        collection_id (UUID): The ID of the collection.
+        db (Session): The database session.
+
+    Returns:
+        List[UserCollectionOutput]: List of users associated with the collection.
+        
+    Raises:
+        HTTPException: If collection not found
+    """
+    try:
+        service = UserCollectionService(db)
+        return service.get_collection_users(collection_id)
+    except NotFoundError as e:
+        logger.error(f"Not found error getting collection users: {e}")
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error getting collection users: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/{collection_id}/users", 
     summary="Remove all users from collection",
@@ -282,8 +393,25 @@ def get_collection_users(collection_id: UUID, db: Session = Depends(get_db)):
     }
 )
 def remove_all_users_from_collection(collection_id: UUID, db: Session = Depends(get_db)):
-    service = UserCollectionService(db)
-    service.remove_all_users_from_collection(collection_id)
+    """
+    Remove all users from a collection.
+
+    Args:
+        collection_id (UUID): The ID of the collection.
+        db (Session): The database session.
+        
+    Raises:
+        HTTPException: If collection not found or removal fails
+    """
+    try:
+        service = UserCollectionService(db)
+        service.remove_all_users_from_collection(collection_id)
+    except NotFoundError as e:
+        logger.error(f"Not found error removing users from collection: {e}")
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error removing users from collection: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/{collection_id}/files", 
     response_model=List[str],
@@ -305,9 +433,19 @@ def get_collection_files(collection_id: UUID, db: Session = Depends(get_db)):
 
     Returns:
         List[str]: A list of filenames in the collection.
+        
+    Raises:
+        HTTPException: If collection not found
     """
-    _file_service = FileManagementService(db)
-    return _file_service.get_files(collection_id)
+    try:
+        service = FileManagementService(db)
+        return service.get_files(collection_id)
+    except NotFoundError as e:
+        logger.error(f"Not found error getting collection files: {e}")
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error getting collection files: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/{collection_id}/files/{filename}",
     summary="Get file path",
@@ -331,20 +469,29 @@ def get_file_path(collection_id: UUID, filename: str, db: Session = Depends(get_
         dict: A dictionary containing the file path.
 
     Raises:
-        HTTPException: If the file is not found.
+        HTTPException: If file not found
     """
-    _file_service = FileManagementService(db)
-    file_path = _file_service.get_file_path(collection_id, filename)
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail="File not found")
-    return {"file_path": str(file_path)}
+    try:
+        service = FileManagementService(db)
+        file_path = service.get_file_path(collection_id, filename)
+        if not file_path.exists():
+            logger.error(f"File not found: {filename}")
+            raise HTTPException(status_code=404, detail="File not found")
+        return {"file_path": str(file_path)}
+    except NotFoundError as e:
+        logger.error(f"Not found error getting file path: {e}")
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error getting file path: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/{collection_id}/files", 
     summary="Delete files",
     description="Delete files from a collection",
     responses={
         204: {"description": "No content if files deleted successfully"},
-        400: {"description": "Invalid input"},
+        400: {"description": "Business validation error"},
+        422: {"description": "Request validation error"},
         404: {"description": "Files not found"},
         500: {"description": "Internal server error"}
     }
@@ -354,11 +501,25 @@ def delete_files(collection_id: UUID, doc_delete: DocumentDelete, db: Session = 
     Delete files from a collection.
 
     Args:
+        collection_id (UUID): The ID of the collection.
         doc_delete (DocumentDelete): The document delete request containing list of filenames.
         db (Session): The database session.
+        
+    Raises:
+        HTTPException: If files not found or deletion fails
     """
-    _file_service = FileManagementService(db)
-    _file_service.delete_files(collection_id, doc_delete.filenames)
+    try:
+        service = FileManagementService(db)
+        service.delete_files(collection_id, doc_delete.filenames)
+    except ValidationError as e:
+        logger.error(f"Validation error deleting files: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except NotFoundError as e:
+        logger.error(f"Not found error deleting files: {e}")
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error deleting files: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.put("/{collection_id}/files/{file_id}/metadata", 
     response_model=FileOutput,
@@ -366,171 +527,37 @@ def delete_files(collection_id: UUID, doc_delete: DocumentDelete, db: Session = 
     description="Update the metadata of a specific file",
     responses={
         200: {"description": "File metadata updated successfully"},
+        400: {"description": "Business validation error"},
+        422: {"description": "Request validation error"},
         404: {"description": "File not found"},
         500: {"description": "Internal server error"}
     }
 )
 def update_file_metadata(collection_id: UUID, file_id: UUID, metadata: FileMetadata, db: Session = Depends(get_db)):
-    _file_service = FileManagementService(db)
-    return _file_service.update_file_metadata(collection_id, file_id, metadata)
-
-# ---------------------------
-# 🟢 LLM PARAMETERS ENDPOINTS
-# ---------------------------
-
-@router.post("/{collection_id}/llm-parameters",
-    summary="Create LLM Parameters for a collection",
-    response_model=LLMParametersOutput,
-    description="Create or update LLM parameters for a specific collection.",
-    responses={
-        200: {"description": "LLM parameters created/updated successfully"},
-        400: {"description": "Invalid input data"},
-        404: {"description": "Collection not found"},
-        500: {"description": "Internal server error"}
-    }
-)
-def create_llm_parameters(
-    collection_id: UUID,
-    llm_parameters_input: LLMParametersInput,
-    db: Session = Depends(get_db)
-):
     """
-    Create or update LLM Parameters for a specific collection.
+    Update metadata for a specific file.
 
     Args:
         collection_id (UUID): The ID of the collection.
-        llm_parameters_input (LLMParametersInput): Input schema for LLM parameters.
+        file_id (UUID): The ID of the file.
+        metadata (FileMetadata): The new metadata.
         db (Session): The database session.
 
     Returns:
-        LLMParametersOutput: The created or updated LLM parameters.
+        FileOutput: The updated file metadata.
+        
+    Raises:
+        HTTPException: If validation fails, file not found, or update fails
     """
-    service = LLMParametersService(db)
-    return service.create_or_update_parameters(collection_id, llm_parameters_input)
-
-
-@router.get("/{collection_id}/llm-parameters",
-    summary="Get LLM Parameters for a collection",
-    response_model=LLMParametersOutput,
-    description="Retrieve the LLM parameters for a specific collection.",
-    responses={
-        200: {"description": "LLM parameters retrieved successfully"},
-        404: {"description": "Collection or LLM parameters not found"},
-        500: {"description": "Internal server error"}
-    }
-)
-def get_llm_parameters(collection_id: UUID, db: Session = Depends(get_db)):
-    """
-    Get LLM Parameters for a specific collection.
-
-    Args:
-        collection_id (UUID): The ID of the collection.
-        db (Session): The database session.
-
-    Returns:
-        LLMParametersOutput: The LLM parameters of the collection.
-    """
-    service = LLMParametersService(db)
-    return service.get_parameters(collection_id)
-
-
-@router.delete("/{collection_id}/llm-parameters",
-    summary="Delete LLM Parameters for a collection",
-    description="Delete the LLM parameters associated with a specific collection.",
-    responses={
-        204: {"description": "LLM parameters deleted successfully"},
-        404: {"description": "Collection or LLM parameters not found"},
-        500: {"description": "Internal server error"}
-    }
-)
-def delete_llm_parameters(collection_id: UUID, db: Session = Depends(get_db)):
-    """
-    Delete LLM Parameters for a specific collection.
-
-    Args:
-        collection_id (UUID): The ID of the collection.
-        db (Session): The database session.
-    """
-    service = LLMParametersService(db)
-    service.delete_parameters(collection_id)
-
-
-# ---------------------------
-# 🟢 PROMPT TEMPLATE ENDPOINTS
-# ---------------------------
-
-@router.post("/{collection_id}/prompt-templates",
-    summary="Create Prompt Template for a collection",
-    response_model=PromptTemplateOutput,
-    description="Create or update a Prompt Template for a specific collection.",
-    responses={
-        200: {"description": "Prompt template created/updated successfully"},
-        400: {"description": "Invalid input data"},
-        404: {"description": "Collection not found"},
-        500: {"description": "Internal server error"}
-    }
-)
-def create_prompt_template(
-    collection_id: UUID,
-    prompt_template_input: PromptTemplateInput,
-    db: Session = Depends(get_db)
-):
-    """
-    Create or update a Prompt Template for a specific collection.
-
-    Args:
-        collection_id (UUID): The ID of the collection.
-        prompt_template_input (PromptTemplateInput): Input schema for prompt template.
-        db (Session): The database session.
-
-    Returns:
-        PromptTemplateOutput: The created or updated Prompt Template.
-    """
-    service = PromptTemplateService(db)
-    return service.create_or_update_template(collection_id, prompt_template_input)
-
-
-@router.get("/{collection_id}/prompt-templates",
-    summary="Get Prompt Template for a collection",
-    response_model=PromptTemplateOutput,
-    description="Retrieve the Prompt Template for a specific collection.",
-    responses={
-        200: {"description": "Prompt template retrieved successfully"},
-        404: {"description": "Collection or Prompt Template not found"},
-        500: {"description": "Internal server error"}
-    }
-)
-def get_prompt_template(collection_id: UUID, db: Session = Depends(get_db)):
-    """
-    Get the Prompt Template for a specific collection.
-
-    Args:
-        collection_id (UUID): The ID of the collection.
-        db (Session): The database session.
-
-    Returns:
-        PromptTemplateOutput: The Prompt Template of the collection.
-    """
-    service = PromptTemplateService(db)
-    return service.get_template(collection_id)
-
-
-@router.delete("/{collection_id}/prompt-templates",
-    summary="Delete Prompt Template for a collection",
-    description="Delete the Prompt Template associated with a specific collection.",
-    responses={
-        204: {"description": "Prompt template deleted successfully"},
-        404: {"description": "Collection or Prompt Template not found"},
-        500: {"description": "Internal server error"}
-    }
-)
-def delete_prompt_template(collection_id: UUID, db: Session = Depends(get_db)):
-    """
-    Delete the Prompt Template for a specific collection.
-
-    Args:
-        collection_id (UUID): The ID of the collection.
-        db (Session): The database session.
-    """
-    service = PromptTemplateService(db)
-    service.delete_template(collection_id)
+    try:
+        service = FileManagementService(db)
+        return service.update_file_metadata(collection_id, file_id, metadata)
+    except ValidationError as e:
+        logger.error(f"Validation error updating file metadata: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except NotFoundError as e:
+        logger.error(f"Not found error updating file metadata: {e}")
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error updating file metadata: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))

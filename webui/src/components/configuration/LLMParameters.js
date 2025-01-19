@@ -32,7 +32,6 @@ const LLMParameters = () => {
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentParameter, setCurrentParameter] = useState(null);
-  const [showSystemParams, setShowSystemParams] = useState(true);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -66,16 +65,12 @@ const LLMParameters = () => {
     if (user) {
       fetchData();
     }
-  }, [user, showSystemParams]);
+  }, [user]);
 
   const fetchData = async () => {
     try {
-      const queryParams = new URLSearchParams({
-        include_system: showSystemParams
-      }).toString();
-
       const [paramsData, providersData] = await Promise.all([
-        fetchWithAuthHeader(`${getFullApiUrl(getParametersUrl())}?${queryParams}`),
+        fetchWithAuthHeader(getFullApiUrl(getParametersUrl())),
         fetchWithAuthHeader(getFullApiUrl(getProviderUrl()))
       ]);
 
@@ -262,12 +257,6 @@ const LLMParameters = () => {
           Add Parameters
         </Button>
 
-        <Toggle
-          id="show-system-params"
-          labelText="Show System Parameters"
-          toggled={showSystemParams}
-          onToggle={() => setShowSystemParams(!showSystemParams)}
-        />
       </div>
 
       <DataTable rows={getTableRows()} headers={headers}>

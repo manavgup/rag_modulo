@@ -1,27 +1,10 @@
 import pytest
-from vectordbs.data_types import (Document, DocumentMetadataFilter,
-                                  QueryWithEmbedding)
-from vectordbs.vector_store import VectorStore
-
+from vectordbs.data_types import Document, QueryWithEmbedding
 
 class TestVectorStore:
     """
     A generic test class for VectorStore implementations.
     """
-
-    @pytest.fixture
-    def store(self) -> VectorStore:
-        """
-        Fixture to provide an instance of the vector store for testing.
-        Subclasses must either implement this fixture or define a `store_class` attribute.
-        """
-        if hasattr(self, "store_class"):
-            with self.store_class() as store:
-                yield store
-        else:
-            raise NotImplementedError(
-                "Subclasses must either implement the 'store' fixture or define a 'store_class' attribute."
-            )
 
     def test_create_collection(self, store):
         store.create_collection("test_collection")

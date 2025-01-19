@@ -5,8 +5,10 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 
+from rag_solution.models.collection import Collection
 from rag_solution.models.question import SuggestedQuestion
 from rag_solution.schemas.question_schema import QuestionInDB, QuestionInput
+from core.custom_exceptions import NotFoundException
 from core.logging_utils import get_logger
 
 logger = get_logger("repository.question")
@@ -101,6 +103,20 @@ class QuestionRepository:
             SQLAlchemyError: If there's a database error
         """
         try:
+            # Check if the collection exists
+            exists = self.session.query(
+                self.session.query(Collection)
+                .filter(Collection.id == collection_id)
+                .exists()
+            ).scalar()
+            if not exists:
+                raise NotFoundException(
+                    resource_type="Collection",
+                    resource_id=collection_id,
+                    message=f"Collection with ID {collection_id} not found."
+                )
+
+            # Fetch questions for the collection
             questions = self.session.query(SuggestedQuestion).filter(
                 SuggestedQuestion.collection_id == collection_id
             ).order_by(SuggestedQuestion.id).all()
