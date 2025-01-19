@@ -32,7 +32,6 @@ const PipelineSettings = () => {
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentPipeline, setCurrentPipeline] = useState(null);
-  const [showSystemPipelines, setShowSystemPipelines] = useState(true);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -71,15 +70,11 @@ const PipelineSettings = () => {
     if (user) {
       fetchPipelines();
     }
-  }, [user, showSystemPipelines]);
+  }, [user]);
 
   const fetchPipelines = async () => {
     try {
-      const queryParams = new URLSearchParams({
-        include_system: showSystemPipelines
-      }).toString();
-      
-      const data = await fetchWithAuthHeader(`${getFullApiUrl(getPipelinesUrl())}?${queryParams}`);
+      const data = await fetchWithAuthHeader(getFullApiUrl(getPipelinesUrl()));
       setPipelines(Array.isArray(data) ? data : [data]);
       setError(null);
     } catch (err) {
@@ -271,12 +266,6 @@ const PipelineSettings = () => {
           Add Pipeline
         </Button>
 
-        <Toggle
-          id="show-system-pipelines"
-          labelText="Show System Pipelines"
-          toggled={showSystemPipelines}
-          onToggle={() => setShowSystemPipelines(!showSystemPipelines)}
-        />
       </div>
 
       <DataTable rows={getTableRows()} headers={headers}>

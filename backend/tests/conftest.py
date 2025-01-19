@@ -5,15 +5,40 @@ import os
 from typing import Generator, List
 import pytest
 from uuid import UUID, uuid4
+from unittest.mock import patch
+from fastapi.testclient import TestClient
+from main import app
 from sqlalchemy.orm import scoped_session, sessionmaker, Session
 from sqlalchemy.engine import Engine
 from sqlalchemy import text
+from pydantic import SecretStr
 
 from core.config import settings
 from core.logging_utils import setup_logging
 from rag_solution.file_management.database import Base, engine
 from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.generation.providers.factory import LLMProviderFactory
+
+@pytest.fixture
+def test_client(base_user):
+    """Create a test client with mocked authentication."""
+    def mock_verify_token(token):
+        return {
+            "sub": base_user.ibm_id,
+            "email": base_user.email,
+            "name": base_user.name,
+            "uuid": str(base_user.id),
+            "role": "user"
+        }
+    
+    with patch("core.authentication_middleware.verify_jwt_token", side_effect=mock_verify_token):
+        client = TestClient(app)
+        yield client
+
+@pytest.fixture
+def auth_headers():
+    """Create authentication headers for test requests."""
+    return {"Authorization": "Bearer test_token"}
 
 @pytest.fixture(autouse=True)
 def capture_logs(caplog):
@@ -120,12 +145,13 @@ def llm_parameters_service(db_session: Session) -> LLMParametersService:
 def base_user(db_session: Session) -> User:
     """Create test user."""
     user = User(
-        ibm_id="test_user",
+        ibm_id=f"test_user_{uuid4()}",  # Ensure unique ibm_id for each test
         email="test@example.com",
         name="Test User"
     )
     db_session.add(user)
     db_session.commit()
+    db_session.refresh(user)
     return user
 
 @pytest.fixture
@@ -158,6 +184,23 @@ def base_llm_parameters(db_session: Session, base_user: User) -> LLMParameters:
     db_session.commit()  # Change flush to commit
     db_session.refresh(params)
     return params
+
+@pytest.fixture
+def base_file(db_session: Session, base_collection: Collection, base_user: User) -> File:
+    """Create a base file for testing."""
+    from rag_solution.services.file_management_service import FileManagementService
+    from rag_solution.schemas.file_schema import FileInput
+    
+    service = FileManagementService(db_session)
+    file_input = FileInput(
+        collection_id=base_collection.id,
+        filename="test.txt",
+        file_path="/tmp/test.txt",
+        file_type="text/plain",
+        metadata=None,
+        document_id=None
+    )
+    return service.create_file(file_input, base_user.id)
 
 @pytest.fixture
 def base_prompt_template(db_session: Session, base_user: User) -> PromptTemplate:
@@ -305,18 +348,18 @@ def db_engine() -> Generator[Engine, None, None]:
 # -------------------------------------------
 @pytest.fixture(scope="function")
 def db_session(db_engine: Engine) -> Generator[Session, None, None]:
-    """Provide a fresh database session for each test."""
-    connection = db_engine.connect()
-    transaction = connection.begin()
-    session_factory = sessionmaker(bind=connection)
-    session = scoped_session(session_factory)
+    """Provide a fresh SQLAlchemy session for each test."""
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=db_engine)
+    session = SessionLocal()
 
-    yield session
-
-    transaction.rollback()
-    session.close()
-    connection.close()
-
+    try:
+        yield session
+        session.commit()  # Commit transactions at the end of the test
+    except Exception as e:
+        session.rollback()  # Rollback if any error occurs
+        raise
+    finally:
+        session.close()  # Always close the session after the test
 
 # -------------------------------------------
 # 🛡️ Ensure WatsonX Provider Configuration
@@ -326,61 +369,89 @@ def ensure_watsonx_provider(db_session: Session, base_user: User) -> None:
     """Ensure WatsonX provider is configured."""
     provider_service = LLMProviderService(db_session)
     logger = get_logger("tests.conftest")
-
-    # Use default values for testing if settings are not available
-    api_key = settings.wx_api_key or "vOP8jN6QNnWXR2HJGguzs1AvGOdadZY3_ppjwV-jJfjg"
-    logger.debug(f"Using API key type: {type(api_key)}, length: {len(str(api_key))}")
-
-    provider_input = LLMProviderInput(
-        name="watsonx",
-        base_url=settings.wx_url or "https://us-south.ml.cloud.ibm.com",
-        api_key=api_key,
-        project_id=settings.wx_project_id or "3f77f23d-71b7-426b-ae13-bc4710769880"
-    )
-
-    # Create provider
-    provider = provider_service.create_provider(provider_input)
-    logger.debug(f"Created provider with ID: {provider.id}")
-    logger.debug(f"Provider API key type: {type(provider.api_key)}, length: {len(str(provider.api_key))}")
-
-    # Use default model ID for testing if not set
-    default_model = "meta-llama/llama-3-1-8b-instruct"
     
-    # Create generation model
-    gen_model_input = LLMProviderModelInput(
-        provider_id=provider.id,
-        model_id=settings.rag_llm or default_model,
-        default_model_id=settings.rag_llm or default_model,
-        model_type=ModelType.GENERATION,
-        timeout=30,
-        max_retries=3,
-        batch_size=10,
-        retry_delay=1.0,
-        concurrency_limit=10,
-        stream=False,
-        rate_limit=10,
-        is_default=True,
-        is_active=True
-    )
-    provider_service.create_provider_model(gen_model_input)
+    try:
+        # Clean up any existing providers
+        logger.info("Cleaning up existing providers...")
+        db_session.query(LLMProviderModel).delete()
+        db_session.query(LLMProvider).delete()
+        db_session.commit()
+        
+        # Use default values for testing if settings are not available
+        api_key = settings.wx_api_key or "vOP8jN6QNnWXR2HJGguzs1AvGOdadZY3_ppjwV-jJfjg"
+        logger.debug(f"Using API key type: {type(api_key)}, length: {len(str(api_key))}")
 
-    # Create embedding model
-    embed_model_input = LLMProviderModelInput(
-        provider_id=provider.id,
-        model_id="sentence-transformers/all-minilm-l6-v2",
-        default_model_id="sentence-transformers/all-minilm-l6-v2",
-        model_type=ModelType.EMBEDDING,
-        timeout=30,
-        max_retries=3,
-        batch_size=10,
-        retry_delay=1.0,
-        concurrency_limit=10,
-        stream=False,
-        rate_limit=10,
-        is_default=True,
-        is_active=True
-    )
-    provider_service.create_provider_model(embed_model_input)
+        provider_input = LLMProviderInput(
+            name="watsonx",
+            base_url=settings.wx_url or "https://us-south.ml.cloud.ibm.com",
+            api_key=SecretStr(api_key),
+            project_id=settings.wx_project_id or "3f77f23d-71b7-426b-ae13-bc4710769880"
+        )
+
+        # Create provider
+        logger.info("Creating provider...")
+        provider = provider_service.create_provider(provider_input)
+        if not provider:
+            raise RuntimeError("Provider creation returned None")
+        
+        logger.debug(f"Created provider with ID: {provider.id}")
+        logger.debug(f"Provider API key type: {type(provider.api_key)}, length: {len(str(provider.api_key))}")
+        logger.debug(f"Provider is_active: {provider.is_active}")
+
+        # Use default model ID for testing if not set
+        default_model = "meta-llama/llama-3-1-8b-instruct"
+        
+        # Create generation model
+        logger.info("Creating generation model...")
+        gen_model_input = LLMProviderModelInput(
+            provider_id=provider.id,
+            model_id=settings.rag_llm or default_model,
+            default_model_id=settings.rag_llm or default_model,
+            model_type=ModelType.GENERATION,
+            timeout=30,
+            max_retries=3,
+            batch_size=10,
+            retry_delay=1.0,
+            concurrency_limit=10,
+            stream=False,
+            rate_limit=10,
+            is_default=True,
+            is_active=True
+        )
+        provider_service.create_provider_model(gen_model_input)
+
+        # Create embedding model
+        logger.info("Creating embedding model...")
+        embed_model_input = LLMProviderModelInput(
+            provider_id=provider.id,
+            model_id="sentence-transformers/all-minilm-l6-v2",
+            default_model_id="sentence-transformers/all-minilm-l6-v2",
+            model_type=ModelType.EMBEDDING,
+            timeout=30,
+            max_retries=3,
+            batch_size=10,
+            retry_delay=1.0,
+            concurrency_limit=10,
+            stream=False,
+            rate_limit=10,
+            is_default=True,
+            is_active=True
+        )
+        provider_service.create_provider_model(embed_model_input)
+        
+        logger.info("Successfully configured WatsonX provider and models")
+        
+    except Exception as e:
+        logger.error(f"Failed to configure WatsonX provider: {e}")
+        # Clean up on failure
+        db_session.rollback()
+        try:
+            db_session.query(LLMProviderModel).delete()
+            db_session.query(LLMProvider).delete()
+            db_session.commit()
+        except Exception as cleanup_error:
+            logger.error(f"Cleanup after failure also failed: {cleanup_error}")
+        raise
 
     # Create templates
     template_service = PromptTemplateService(db_session)
@@ -456,30 +527,60 @@ def ensure_watsonx_provider(db_session: Session, base_user: User) -> None:
 # 🧼 Autouse Fixture for Database Cleanup
 # -------------------------------------------
 @pytest.fixture(autouse=True)
-def clean_db(db_session: Session) -> None:
-    """Clean up the database before each test."""
+def clean_db(db_session: Session, base_user: User):
+    """Clean up the database before and after each test."""
     try:
-        logger.info("Cleaning database tables in reverse dependency order.")
-        with db_session.begin_nested():
-            db_session.execute(text("SET CONSTRAINTS ALL DEFERRED"))
-            
-            db_session.query(UserCollection).delete()
-            db_session.query(UserTeam).delete()
-            db_session.query(File).delete()
-            db_session.query(SuggestedQuestion).delete()
-            db_session.query(PipelineConfig).delete()
-            db_session.query(Collection).delete()
-            db_session.query(Team).delete()
-            db_session.query(LLMProviderModel).delete()
-            db_session.query(LLMProvider).delete()
-            db_session.query(LLMParameters).delete()
-            db_session.query(PromptTemplate).delete()
-            db_session.query(User).delete()
-            
-            db_session.execute(text("SET CONSTRAINTS ALL IMMEDIATE"))
+        logger.info("Initial database cleanup.")
+        db_session.execute(text("SET CONSTRAINTS ALL DEFERRED"))
         
+        # Clean up in correct order (respect foreign key relationships)
+        tables_to_clean = [
+            (UserCollection, "UserCollection"),
+            (UserTeam, "UserTeam"),
+            (File, "File"),
+            (SuggestedQuestion, "SuggestedQuestion"),
+            (PipelineConfig, "PipelineConfig"),
+            (Collection, "Collection"),
+            (Team, "Team"),
+            (LLMProviderModel, "LLMProviderModel"),
+            (LLMProvider, "LLMProvider"),
+            (LLMParameters, "LLMParameters"),
+            (PromptTemplate, "PromptTemplate")
+            # User table removed to preserve base_user
+        ]
+        
+        for model, name in tables_to_clean:
+            try:
+                count = db_session.query(model).delete()
+                logger.debug(f"Deleted {count} rows from {name}")
+            except Exception as e:
+                logger.error(f"Error cleaning {name}: {e}")
+                raise
+                
         db_session.commit()
     except Exception as e:
-        logger.error(f"Error during database cleanup: {e}")
+        logger.error(f"Error during initial database cleanup: {e}")
+        db_session.rollback()
+        raise
+
+    yield  # Let the test run
+
+    try:
+        logger.info("Final database cleanup.")
+        db_session.rollback()  # Rollback any uncommitted changes
+        db_session.execute(text("SET CONSTRAINTS ALL DEFERRED"))
+        
+        # Clean up again in same order
+        for model, name in tables_to_clean:
+            try:
+                count = db_session.query(model).delete()
+                logger.debug(f"Deleted {count} rows from {name}")
+            except Exception as e:
+                logger.error(f"Error cleaning {name}: {e}")
+                raise
+                
+        db_session.commit()
+    except Exception as e:
+        logger.error(f"Error during final database cleanup: {e}")
         db_session.rollback()
         raise

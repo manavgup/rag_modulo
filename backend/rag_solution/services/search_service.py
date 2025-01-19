@@ -65,18 +65,20 @@ class SearchService:
         try:
             # Get collection
             collection = self.collection_service.get_collection(collection_id)
-            if not collection:
-                raise NotFoundError(f"Collection {collection_id} not found")
 
             # Initialize pipeline
             await self.pipeline_service.initialize(collection.vector_db_name)
             return collection.vector_db_name
 
-        except NotFoundError:
-            raise
+        except NotFoundError as e:
+            logger.error(f"Collection not found: {e}")
+            raise HTTPException(status_code=404, detail=str(e))
+        except ConfigurationError as e:
+            logger.error(f"Configuration error: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
         except Exception as e:
             logger.error(f"Error initializing pipeline: {e}")
-            raise ConfigurationError(f"Pipeline initialization failed: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Pipeline initialization failed: {str(e)}")
 
     def _generate_document_metadata(
         self,
@@ -147,6 +149,13 @@ class SearchService:
         start_time = time.time()
         logger.info("Starting search operation")
 
+        # Validate query
+        if not search_input.question or not search_input.question.strip():
+            raise HTTPException(
+                status_code=400,
+                detail="Query cannot be empty"
+            )
+
         try:
             # Initialize pipeline for collection
             collection_name = await self._initialize_pipeline(search_input.collection_id)
@@ -197,6 +206,8 @@ class SearchService:
             raise HTTPException(status_code=404, detail=str(e))
         except ConfigurationError as e:
             logger.error(f"Configuration error: {str(e)}")
+            if "Collection not found" in str(e):
+                raise HTTPException(status_code=404, detail=str(e))
             raise HTTPException(status_code=500, detail=str(e))
         except Exception as e:
             logger.error(f"Unexpected error during search: {e}")

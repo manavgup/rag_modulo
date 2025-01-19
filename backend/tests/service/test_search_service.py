@@ -281,20 +281,24 @@ async def test_search_unauthorized_collection(
 
     # Create LLM parameters
     llm_params_service = LLMParametersService(db_session)
-    llm_params = llm_params_service.create_parameters(LLMParametersInput(
-        name="test-params",
-        model_name="test-model",
-        temperature=0.7,
-        max_tokens=100
-    ))
+    llm_params = llm_params_service.create_or_update_parameters(
+        unauthorized_user.id,
+        LLMParametersInput(
+            name="test-params",
+            temperature=0.7,
+            max_new_tokens=1000,
+            top_k=50,
+            top_p=0.95,
+            is_default=True
+        )
+    )
 
-    # Create private collection with configured parameters
+    # Create private collection without parameters
     private_collection = collection_service.create_collection(CollectionInput(
         name="Private Collection",
         is_private=True,
         users=[],
-        status="created",
-        llm_parameters_id=llm_params.id
+        status="created"
     ))
 
     search_input = SearchInput(
@@ -303,8 +307,10 @@ async def test_search_unauthorized_collection(
         pipeline_id=test_config['pipeline'].id
     )
 
-    with pytest.raises(NotFoundError):
+    with pytest.raises(HTTPException) as exc_info:
         await search_service.search(search_input, unauthorized_user.id)
+    assert exc_info.value.status_code == 404
+    assert "Collection not found" in str(exc_info.value.detail)
 
 @pytest.mark.asyncio
 async def test_search_multiple_documents(
@@ -402,8 +408,10 @@ async def test_search_invalid_pipeline(
         pipeline_id=str(UUID(int=0))  # Invalid UUID
     )
 
-    with pytest.raises(NotFoundError):
+    with pytest.raises(HTTPException) as exc_info:
         await search_service.search(search_input, test_user.id)
+    assert exc_info.value.status_code == 404
+    assert "Pipeline configuration not found" in str(exc_info.value.detail)
 
 @pytest.mark.asyncio
 async def test_search_empty_question(
@@ -422,7 +430,7 @@ async def test_search_empty_question(
     with pytest.raises(HTTPException) as exc_info:
         await search_service.search(search_input, test_user.id)
     assert exc_info.value.status_code == 400
-    assert "Question cannot be empty" in str(exc_info.value.detail)
+    assert "Query cannot be empty" in str(exc_info.value.detail)
 
 @pytest.mark.asyncio
 async def test_search_vector_store_error(
@@ -442,8 +450,10 @@ async def test_search_vector_store_error(
         pipeline_id=test_config['pipeline'].id
     )
 
-    with pytest.raises(ConfigurationError):
+    with pytest.raises(HTTPException) as exc_info:
         await search_service.search(search_input, test_user.id)
+    assert exc_info.value.status_code == 500
+    assert "Connection failed" in str(exc_info.value.detail)
 
 @pytest.mark.asyncio
 async def test_search_llm_provider_error(
@@ -463,5 +473,146 @@ async def test_search_llm_provider_error(
         pipeline_id=test_config['pipeline'].id
     )
 
-    with pytest.raises(ConfigurationError):
+    with pytest.raises(HTTPException) as exc_info:
         await search_service.search(search_input, test_user.id)
+    assert exc_info.value.status_code == 500
+    assert "LLM provider error" in str(exc_info.value.detail)
+
+def test_clean_generated_answer(search_service: SearchService):
+    """Test cleaning of generated answers."""
+    test_cases = [
+        # Remove AND prefixes
+        ("AND this AND that", "this that"),
+        # Remove duplicate words
+        ("the the answer answer is is here here", "the answer is here"),
+        # Handle multiple spaces
+        ("answer   with   extra   spaces", "answer with extra spaces"),
+        # Handle empty input
+        ("", ""),
+        # Handle single word
+        ("answer", "answer"),
+        # Handle special characters
+        ("AND answer! AND with? AND punctuation.", "answer! with? punctuation."),
+    ]
+    
+    for input_text, expected in test_cases:
+        cleaned = search_service._clean_generated_answer(input_text)
+        assert cleaned == expected
+
+def test_generate_document_metadata_missing_files(
+    search_service: SearchService,
+    test_collection,
+    test_user
+):
+    """Test metadata generation with missing files."""
+    # Create query results with non-existent document IDs
+    query_results = [
+        QueryResult(
+            document_id="nonexistent1",
+            data=[DocumentChunk(chunk_id="chunk1", text="test")]
+        ),
+        QueryResult(
+            document_id="nonexistent2",
+            data=[DocumentChunk(chunk_id="chunk2", text="test")]
+        )
+    ]
+    
+    metadata = search_service._generate_document_metadata(
+        query_results,
+        test_collection.id
+    )
+    assert len(metadata) == 0
+
+def test_generate_document_metadata_error(
+    search_service: SearchService,
+    test_collection,
+    mocker
+):
+    """Test metadata generation with file service error."""
+    mocker.patch.object(
+        search_service.file_service,
+        'get_files_by_collection',
+        side_effect=Exception("File service error")
+    )
+    
+    query_results = [
+        QueryResult(
+            document_id="test",
+            data=[DocumentChunk(chunk_id="chunk1", text="test")]
+        )
+    ]
+    
+    with pytest.raises(ConfigurationError) as exc_info:
+        search_service._generate_document_metadata(
+            query_results,
+            test_collection.id
+        )
+    assert "Metadata generation failed" in str(exc_info.value)
+
+def test_lazy_service_initialization(db_session: Session):
+    """Test lazy initialization of services."""
+    service = SearchService(db_session)
+    
+    # Initially services should be None
+    assert service._file_service is None
+    assert service._collection_service is None
+    assert service._pipeline_service is None
+    
+    # Access services to trigger initialization
+    assert service.file_service is not None
+    assert service.collection_service is not None
+    assert service.pipeline_service is not None
+    
+    # Services should remain initialized
+    assert service._file_service is not None
+    assert service._collection_service is not None
+    assert service._pipeline_service is not None
+
+@pytest.mark.asyncio
+async def test_initialize_pipeline_error(
+    search_service: SearchService,
+    test_collection,
+    mocker
+):
+    """Test pipeline initialization error."""
+    mocker.patch.object(
+        search_service.pipeline_service,
+        'initialize',
+        side_effect=ConfigurationError("Pipeline initialization failed")
+    )
+    
+    with pytest.raises(HTTPException) as exc_info:
+        await search_service._initialize_pipeline(test_collection.id)
+    assert exc_info.value.status_code == 500
+    assert "Pipeline initialization failed" in str(exc_info.value.detail)
+
+@pytest.mark.asyncio
+async def test_search_with_context(
+    search_service: SearchService,
+    test_collection,
+    test_file,
+    test_user,
+    test_config
+):
+    """Test search with additional context."""
+    search_input = SearchInput(
+        question="What is the capital of France?",
+        collection_id=test_collection.id,
+        pipeline_id=test_config['pipeline'].id
+    )
+    
+    context = {
+        "user_preferences": {"language": "en"},
+        "session_data": {"previous_queries": ["What is France known for?"]}
+    }
+    
+    result = await search_service.search(
+        search_input,
+        test_user.id,
+        context=context
+    )
+    
+    assert isinstance(result, SearchOutput)
+    assert len(result.documents) > 0
+    assert result.metadata is not None
+    assert "execution_time" in result.metadata

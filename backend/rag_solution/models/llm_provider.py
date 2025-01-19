@@ -1,25 +1,24 @@
-from datetime import datetime
 from sqlalchemy import Column, String, Integer, Boolean, Float, DateTime, ForeignKey, Enum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from rag_solution.file_management.database import Base
 from rag_solution.schemas.llm_provider_schema import ModelType
-
+import uuid
 
 class LLMProvider(Base):
     __tablename__ = "llm_providers"
     
-    id = Column(UUID(as_uuid=True), primary_key=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
     name = Column(String(255), nullable=False, unique=True)
     base_url = Column(String(1024), nullable=False)
     api_key = Column(String(1024), nullable=False)
     org_id = Column(String(255), nullable=True)
     project_id = Column(String(255), nullable=True)
-    is_active = Column(Boolean, nullable=False, default=True)
+    is_active = Column(Boolean, nullable=False, default=True, server_default='true')
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
-    is_default = Column(Boolean, nullable=False, default=False)
+    is_default = Column(Boolean, nullable=False, default=False, server_default='false')
     
     models = relationship("LLMProviderModel", back_populates="provider")
 
@@ -30,24 +29,24 @@ class LLMProvider(Base):
 class LLMProviderModel(Base):
     __tablename__ = "llm_provider_models"
     
-    id = Column(UUID(as_uuid=True), primary_key=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
     provider_id = Column(UUID(as_uuid=True), ForeignKey("llm_providers.id"), nullable=False)
     model_id = Column(String(255), nullable=False, index=True)
     default_model_id = Column(String(255), nullable=False)
-    model_type = Column(Enum(ModelType, name='llm_model_type', native_enum=True), nullable=False, default=ModelType.GENERATION)
+    model_type = Column(Enum(ModelType, name='llm_model_type', native_enum=True), nullable=False, default=ModelType.GENERATION, server_default=ModelType.GENERATION.name)
     
     # Runtime Settings
-    timeout = Column(Integer, nullable=False, default=30)
-    max_retries = Column(Integer, nullable=False, default=3)
-    batch_size = Column(Integer, nullable=False, default=10)
-    retry_delay = Column(Float, nullable=False, default=1.0)
-    concurrency_limit = Column(Integer, nullable=False, default=10)
-    stream = Column(Boolean, nullable=False, default=False)
-    rate_limit = Column(Integer, nullable=False, default=10)
+    timeout = Column(Integer, nullable=False, default=30, server_default='30')
+    max_retries = Column(Integer, nullable=False, default=3, server_default='3')
+    batch_size = Column(Integer, nullable=False, default=10, server_default='10')
+    retry_delay = Column(Float, nullable=False, default=1.0, server_default='1.0')
+    concurrency_limit = Column(Integer, nullable=False, default=10, server_default='10')
+    stream = Column(Boolean, nullable=False, default=False, server_default='false')
+    rate_limit = Column(Integer, nullable=False, default=10, server_default='10')
     
     # State
-    is_default = Column(Boolean, nullable=False, default=False)
-    is_active = Column(Boolean, nullable=False, default=True)
+    is_default = Column(Boolean, nullable=False, default=False, server_default='false')
+    is_active = Column(Boolean, nullable=False, default=True, server_default='true')
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
     

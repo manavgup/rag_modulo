@@ -46,7 +46,7 @@ class Collection(Base):
         "File", back_populates="collection", lazy="selectin"
     )
     users: Mapped[list['UserCollection']] = relationship(
-        "UserCollection", back_populates="collection"
+        "UserCollection", back_populates="collection", lazy="selectin"
     )
     suggested_questions: Mapped[list['SuggestedQuestion']] = relationship(
         "SuggestedQuestion", back_populates="collection", cascade="all, delete-orphan"

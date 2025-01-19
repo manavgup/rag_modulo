@@ -8,10 +8,11 @@ import time
 from sqlalchemy.orm import Session
 
 from rag_solution.models.question import SuggestedQuestion
+from rag_solution.schemas.question_schema import QuestionInput
 from rag_solution.services.llm_parameters_service import LLMParametersService
 from rag_solution.repository.question_repository import QuestionRepository
 from core.config import settings
-from core.custom_exceptions import ValidationError, NotFoundError
+from core.custom_exceptions import ValidationError, NotFoundError, NotFoundException
 from rag_solution.services.prompt_template_service import PromptTemplateService
 from rag_solution.schemas.prompt_template_schema import PromptTemplateType
 from rag_solution.generation.providers.factory import LLMProviderFactory
@@ -29,26 +30,15 @@ class QuestionService:
 
         Args:
             db: Database session
-            config: Optional configuration override
 
         Raises:
             ValidationError: If configuration is invalid
         """
         self.db = db
-        self.config = config or {}
         self._question_repository: Optional[QuestionRepository] = None
         self._prompt_template_service: Optional[PromptTemplateService] = None
         self._llm_parameters_service: Optional[LLMParametersService] = None
         self._provider_factory = LLMProviderFactory(db)
-
-        # Load question-specific configuration with type hints
-        self.num_questions: int = self.config.get('num_questions', settings.question_suggestion_num)
-        self.min_length: int = self.config.get('min_length', settings.question_min_length)
-        self.max_length: int = self.config.get('max_length', settings.question_max_length)
-        self.question_types: List[str] = self.config.get('question_types', settings.question_types)
-        self.required_terms: Set[str] = set(self.config.get('required_terms', settings.question_required_terms))
-        self.question_patterns: List[str] = self.config.get('question_patterns', settings.question_patterns)
-        self.model_parameters: Optional[Dict[str, Any]] = self.config.get('model_parameters')
 
     @property
     def question_repository(self) -> QuestionRepository:
@@ -202,7 +192,11 @@ class QuestionService:
                 user_id
             )
             if not template:
-                raise NotFoundError("Question generation template not found")
+                raise NotFoundException(
+                    resource_type="PromptTemplate",
+                    resource_id=f"type:{PromptTemplateType.QUESTION_GENERATION}",
+                    message="Question generation template not found"
+                )
 
             # Format context using template's strategy
             context_text = self.prompt_template_service.apply_context_strategy(
@@ -227,7 +221,7 @@ class QuestionService:
                     template.id,
                     {
                         "context": context_text,
-                        "num_questions": str(num_questions or self.num_questions)
+                        "num_questions": str(num_questions)
                     }
                 )
                 logger.debug(f"Formatted Prompt: {formatted_prompt}")
@@ -299,6 +293,63 @@ class QuestionService:
         except Exception as e:
             logger.error(f"Error suggesting questions: {e}")
             raise
+
+    def create_question(self, question_input: QuestionInput) -> SuggestedQuestion:
+        """
+        Create a new question.
+
+        Args:
+            question_input: QuestionInput schema with question details
+
+        Returns:
+            SuggestedQuestion: Created question model
+
+        Raises:
+            ValidationError: If question validation fails
+        """
+        try:
+            # Pass the QuestionInput directly to repository
+            return self.question_repository.create_question(question_input)
+        except Exception as e:
+            logger.error(f"Error creating question: {e}")
+            raise
+    
+    def delete_question(self, question_id: UUID) -> None:
+        """
+        Delete a specific question.
+
+        Args:
+            question_id: The ID of the question to delete.
+
+        Raises:
+            NotFoundError: If the question does not exist.
+        """
+        try:
+            self.question_repository.delete_question(question_id)
+        except NotFoundError:
+            raise
+        except Exception as e:
+            logger.error(f"Error deleting question {question_id}: {e}")
+            raise
+    
+    def delete_questions_by_collection(self, collection_id: UUID) -> None:
+        """
+        Delete all questions for a specific collection.
+
+        Args:
+            collection_id: The ID of the collection.
+
+        Raises:
+            NotFoundError: If the collection does not exist.
+        """
+        try:
+            self.question_repository.delete_questions_by_collection(collection_id)
+        except NotFoundError:
+            raise
+        except Exception as e:
+            logger.error(f"Error deleting questions for collection {collection_id}: {e}")
+            raise
+
 
     def get_collection_questions(self, collection_id: UUID) -> List[SuggestedQuestion]:
         """

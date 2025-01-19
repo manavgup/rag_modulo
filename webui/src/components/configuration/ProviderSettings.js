@@ -67,24 +67,30 @@ const ProviderSettings = () => {
 
   const fetchData = async () => {
     try {
-      const [providersResponse, modelsResponse] = await Promise.all([
-        fetchWithAuthHeader(
-          `${getFullApiUrl(getProvidersUrl())}?${new URLSearchParams({
-            include_system: showSystemProviders
-          }).toString()}`
-        ),
-        fetchWithAuthHeader(
-          `${getFullApiUrl(getProvidersUrl())}/models`
-        )
-      ]);
-
+      // Get providers
+      const providersResponse = await fetchWithAuthHeader(
+        `${getFullApiUrl(getProvidersUrl())}?${new URLSearchParams({
+          include_system: showSystemProviders
+        }).toString()}`
+      );
+      
       const providersData = Array.isArray(providersResponse) ? providersResponse : [providersResponse];
-      const modelsData = Array.isArray(modelsResponse) ? modelsResponse : [];
+      
+      // Get models for each provider
+      const modelsPromises = providersData.map(provider => 
+        fetchWithAuthHeader(getFullApiUrl(getProviderModelsUrl(provider.id)))
+          .catch(err => {
+            console.warn(`Failed to fetch models for provider ${provider.id}:`, err);
+            return []; // Return empty array if models fetch fails
+          })
+      );
+      
+      const modelsResponses = await Promise.all(modelsPromises);
 
       // Enhance providers with their models
-      const enhancedProviders = providersData.map(provider => ({
+      const enhancedProviders = providersData.map((provider, index) => ({
         ...provider,
-        models: modelsData.filter(model => model.provider_id === provider.id)
+        models: modelsResponses[index] || []
       }));
 
       setProviders(enhancedProviders);
