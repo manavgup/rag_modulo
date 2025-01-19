@@ -1,26 +1,72 @@
 from contextlib import contextmanager
-
 import pytest
 from vectordbs.chroma_store import ChromaDBStore
 
 from core.config import settings
-from tests.vectordbs.test_base_store import BaseStoreTest
-
-EMBEDDING_MODEL = settings.embedding_model
-CHROMA_INDEX = settings.collection_name
 
 @pytest.mark.chromadb
-class TestChromaDBStore(BaseStoreTest):
-    store_class = ChromaDBStore
-
+class TestChromaDBStore:
     @pytest.fixture
     @contextmanager
-    def store(self):
-        store = ChromaDBStore()
-        store.create_collection(CHROMA_INDEX, {"embedding_model": EMBEDDING_MODEL})
-        store.collection_name = CHROMA_INDEX
-        yield store
-        try:
-            store.delete_collection(CHROMA_INDEX)
-        except Exception as e:
-            print(f"Error occurred during teardown: {str(e)}")
+    def store(self, chroma_store):
+        yield chroma_store
+
+    def test_chroma_store_integration(self, store):
+        """Test basic operations on the Chroma DB store."""
+        # Add some documents
+        doc1 = {"id": "doc1", "text": "This is the first document."}
+        doc2 = {"id": "doc2", "text": "This is the second document."}
+        store.add_documents([doc1, doc2])
+
+        # Retrieve documents by ID
+        retrieved_doc1 = store.get_document_by_id("doc1")
+        assert retrieved_doc1 == doc1
+
+        # Search for documents
+        results = store.search("document", 1)
+        assert len(results) == 1
+        assert results[0]["id"] in ["doc1", "doc2"]
+
+        # Delete a document
+        store.delete_document_by_id("doc1")
+        results = store.search("document", 2)
+        assert len(results) == 1
+        assert results[0]["id"] == "doc2"
+
+    def test_chroma_store_errors(self, store):
+        """Test error handling in the Chroma DB store."""
+        with pytest.raises(ValueError):
+            store.get_document_by_id("non-existent-id")
+
+        with pytest.raises(ValueError):
+            store.delete_document_by_id("non-existent-id")
+
+    def test_chroma_store_integration(self, store):
+        """Test basic operations on the Chroma DB store."""
+        # Add some documents
+        doc1 = {"id": "doc1", "text": "This is the first document."}
+        doc2 = {"id": "doc2", "text": "This is the second document."}
+        store.add_documents([doc1, doc2])
+
+        # Retrieve documents by ID
+        retrieved_doc1 = store.get_document_by_id("doc1")
+        assert retrieved_doc1 == doc1
+
+        # Search for documents
+        results = store.search("document", 1)
+        assert len(results) == 1
+        assert results[0]["id"] in ["doc1", "doc2"]
+
+        # Delete a document
+        store.delete_document_by_id("doc1")
+        results = store.search("document", 2)
+        assert len(results) == 1
+        assert results[0]["id"] == "doc2"
+
+    def test_chroma_store_errors(self, store):
+        """Test error handling in the Chroma DB store."""
+        with pytest.raises(ValueError):
+            store.get_document_by_id("non-existent-id")
+
+        with pytest.raises(ValueError):
+            store.delete_document_by_id("non-existent-id")

@@ -4,6 +4,7 @@ from uuid import UUID
 
 from rag_solution.models.llm_parameters import LLMParameters
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
+from core.custom_exceptions import NotFoundError
 
 
 class LLMParametersRepository:
@@ -14,6 +15,25 @@ class LLMParametersRepository:
 
     def __init__(self, db: Session):
         self.db = db
+
+    def create(self, user_id: UUID, params: LLMParametersInput) -> LLMParameters:
+        db_params = LLMParameters(**params.model_dump(exclude={'user_id'}), user_id=user_id)
+        self.db.add(db_params)
+        self.db.commit()
+        self.db.refresh(db_params)
+        return db_params
+
+    def update_by_id(self, user_id: UUID, params: LLMParametersInput) -> LLMParameters:
+        db_params = self.get_by_user_id(user_id)
+        if not db_params:
+            raise NotFoundError("LLM Parameters", id)
+
+        for field, value in params.model_dump(exclude_unset=True).items():
+            setattr(db_params, field, value)
+
+        self.db.commit()
+        self.db.refresh(db_params)
+        return db_params
 
     # 📝 Create or Update by Collection ID
     def create_or_update_by_user_id(self, user_id: UUID, params: LLMParametersInput) -> LLMParameters:
@@ -43,7 +63,7 @@ class LLMParametersRepository:
         """Fetch LLM Parameters by ID."""
         return self.db.query(LLMParameters).filter(LLMParameters.id == id).first()
 
-    # 🔍 Get by Collection ID
+    # 🔍 Get by user ID
     def get_by_user_id(self, user_id: UUID) -> List[LLMParameters]:
         """Fetch all LLM Parameters for a user."""
         return (
@@ -75,6 +95,16 @@ class LLMParametersRepository:
         self.db.commit()
         self.db.refresh(db_params)
         return db_params
+
+    # 🔄 Reset User Default Parameters
+    def reset_user_default_parameters(self, user_id: UUID) -> None:
+        """Reset default status for all user's parameters."""
+        (
+            self.db.query(LLMParameters)
+            .filter(LLMParameters.user_id == user_id)
+            .update({"is_default": False})
+        )
+        self.db.commit()
 
     # 🗑️ Delete by ID
     def delete(self, id: UUID) -> bool:

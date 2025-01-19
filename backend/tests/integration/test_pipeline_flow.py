@@ -13,7 +13,7 @@ from rag_solution.schemas.prompt_template_schema import (
     PromptTemplateType,
     PromptTemplateInput
 )
-from rag_solution.schemas.pipeline_schema import PipelineInput
+from rag_solution.schemas.pipeline_schema import PipelineConfigInput
 
 
 def test_complete_pipeline_flow(db_session: Session, base_user):
@@ -104,20 +104,27 @@ def test_complete_pipeline_flow(db_session: Session, base_user):
     # Create pipeline
     pipeline_service = PipelineService(db_session)
     pipeline = pipeline_service.create_pipeline(
-        PipelineInput(
+        PipelineConfigInput(
             name="test-pipeline",
             description="Test pipeline for RAG workflow",
-            rag_template_id=rag_template.id,
-            question_template_id=question_template.id,
-            user_id=base_user.id,
-            is_active=True
+            chunking_strategy="fixed",
+            embedding_model="sentence-transformers/all-mpnet-base-v2",
+            retriever="vector",
+            context_strategy="priority",
+            provider_id=provider.id,
+            enable_logging=True,
+            max_context_length=2048,
+            timeout=30.0,
+            is_default=True
         )
     )
 
     assert pipeline.name == "test-pipeline"
-    assert pipeline.rag_template_id == rag_template.id
-    assert pipeline.question_template_id == question_template.id
-    assert pipeline.is_active is True
+    assert pipeline.description == "Test pipeline for RAG workflow"
+    assert pipeline.chunking_strategy == "fixed"
+    assert pipeline.embedding_model == "sentence-transformers/all-mpnet-base-v2"
+    assert pipeline.provider_id == provider.id
+    assert pipeline.is_default is True
 
     # Test pipeline execution
     context = (
@@ -198,26 +205,36 @@ def test_pipeline_update_flow(db_session: Session, base_user):
     # Create initial pipeline
     pipeline_service = PipelineService(db_session)
     pipeline = pipeline_service.create_pipeline(
-        PipelineInput(
+        PipelineConfigInput(
             name="test-pipeline",
             description="Initial pipeline description",
-            rag_template_id=rag_template.id,
-            question_template_id=question_template.id,
-            user_id=base_user.id,
-            is_active=True
+            chunking_strategy="fixed",
+            embedding_model="sentence-transformers/all-mpnet-base-v2",
+            retriever="vector",
+            context_strategy="priority",
+            provider_id=provider.id,
+            enable_logging=True,
+            max_context_length=2048,
+            timeout=30.0,
+            is_default=True
         )
     )
 
     # Update pipeline
     updated_pipeline = pipeline_service.update_pipeline(
         pipeline.id,
-        PipelineInput(
+        PipelineConfigInput(
             name="updated-pipeline",
             description="Updated pipeline description",
-            rag_template_id=rag_template.id,
-            question_template_id=question_template.id,
-            user_id=base_user.id,
-            is_active=True
+            chunking_strategy="semantic",
+            embedding_model="sentence-transformers/all-mpnet-base-v2",
+            retriever="vector",
+            context_strategy="priority",
+            provider_id=provider.id,
+            enable_logging=True,
+            max_context_length=2048,
+            timeout=30.0,
+            is_default=True
         )
     )
 

@@ -12,6 +12,7 @@ class UserInDB(BaseModel):
     ibm_id: str
     email: EmailStr
     name: str
+    role: str = Field(default="user")
     created_at: datetime
     updated_at: datetime
 
@@ -21,12 +22,14 @@ class UserInput(BaseModel):
     ibm_id: str = Field(..., min_length=1)
     email: EmailStr
     name: str = Field(..., min_length=1)
+    role: str = Field(default="user")
 
 class UserOutput(BaseModel):
     id: UUID
     ibm_id: str
     email: EmailStr
     name: str
+    role: str
     created_at: datetime
     updated_at: datetime
 

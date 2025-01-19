@@ -15,6 +15,8 @@ from core.custom_exceptions import (
     LLMProviderError,
     NotFoundException
 )
+from rag_solution.services.prompt_template_service import PromptTemplateService
+from rag_solution.schemas.prompt_template_schema import PromptTemplateInput, PromptTemplateType
 from rag_solution.repository.llm_provider_repository import LLMProviderRepository
 from rag_solution.schemas.llm_provider_schema import (
     LLMProviderInput,
@@ -43,25 +45,16 @@ class LLMProviderService:
         Args:
             db: SQLAlchemy database session
         """
+        self.db = db
         self.repository = LLMProviderRepository(db)
+        self._prompt_template_service = None
 
-    def _convert_provider_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Convert Pydantic types to database-compatible types.
-        
-        Args:
-            data: Dictionary of provider data
-            
-        Returns:
-            Dictionary with converted types
-        """
-        converted = data.copy()
-        
-        # Convert SecretStr to string if present
-        api_key = converted.get('api_key')
-        if isinstance(api_key, SecretStr):
-            converted['api_key'] = api_key.get_secret_value()
-        
-        return converted
+    @property
+    def prompt_template_service(self) -> PromptTemplateService:
+        """Lazy initialization of prompt template service."""
+        if self._prompt_template_service is None:
+            self._prompt_template_service = PromptTemplateService(self.db)
+        return self._prompt_template_service
 
     # -------------------------------
     # PROVIDER METHODS
@@ -81,9 +74,7 @@ class LLMProviderService:
             LLMProviderError: If provider creation fails
         """
         try:
-            # Convert Pydantic types to database types
-            provider_data = self._convert_provider_data(provider_input.model_dump())
-            provider = self.repository.create_provider(LLMProviderInput(**provider_data))
+            provider = self.repository.create_provider(provider_input)
             return LLMProviderOutput.model_validate(provider)
         except PydanticValidationError as e:
             raise ProviderValidationError(
@@ -185,9 +176,6 @@ class LLMProviderService:
             LLMProviderError: If update fails
         """
         try:
-            # Convert Pydantic types to database types
-            updates = self._convert_provider_data(updates)
-            
             provider = self.repository.update_provider(provider_id, updates)
             if not provider:
                 return None
@@ -389,6 +377,53 @@ class LLMProviderService:
                 'unknown',
                 'model_deletion',
                 f"Failed to delete model {model_id}: {str(e)}"
+            )
+
+    def get_providers_for_user(self, user_id: UUID) -> List[LLMProviderOutput]:
+        """Get all providers available for a user.
+        
+        Args:
+            user_id: UUID of the user
+            
+        Returns:
+            List of provider instances available for the user
+            
+        Raises:
+            LLMProviderError: If retrieval fails
+        """
+        try:
+            # For now, return all active providers
+            # In future, we might want to filter based on user permissions
+            providers = self.repository.get_all_providers(is_active=True)
+            return [LLMProviderOutput.model_validate(p) for p in providers]
+        except Exception as e:
+            raise LLMProviderError(
+                'unknown',
+                'provider_retrieval',
+                f"Failed to retrieve providers for user {user_id}: {str(e)}"
+            )
+
+    def get_available_models(self, provider_id: UUID) -> List[LLMProviderModelOutput]:
+        """Get all available models for a provider.
+        
+        Args:
+            provider_id: UUID of the provider
+            
+        Returns:
+            List of model instances available for the provider
+            
+        Raises:
+            LLMProviderError: If retrieval fails
+        """
+        try:
+            # Get all active models for the provider
+            models = self.repository.get_models_by_provider(provider_id)
+            return [LLMProviderModelOutput.model_validate(m) for m in models]
+        except Exception as e:
+            raise LLMProviderError(
+                str(provider_id),
+                'model_retrieval',
+                f"Failed to retrieve provider models: {str(e)}"
             )
 
     def get_user_provider(self, user_id: UUID) -> Optional[LLMProviderOutput]:

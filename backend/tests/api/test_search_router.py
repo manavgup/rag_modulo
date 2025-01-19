@@ -8,8 +8,9 @@ from sqlalchemy.orm import Session
 
 from rag_solution.router.search_router import router
 from rag_solution.models.collection import Collection
-from rag_solution.models.file import File, FileMetadata
-from rag_solution.models.provider_config import ProviderModelConfig
+from rag_solution.models.file import File
+from vectordbs.data_types import FileMetadata
+from rag_solution.models.llm_provider import LLMProviderModel, LLMProvider
 from rag_solution.models.llm_parameters import LLMParameters
 from rag_solution.models.prompt_template import PromptTemplate
 from rag_solution.schemas.search_schema import SearchInput
@@ -84,17 +85,25 @@ def test_config(test_db: Session):
     test_db.add(params)
     test_db.commit()
     
-    # Create provider config
-    provider = ProviderModelConfig(
-        model_id="test-model",
-        provider_name="test-provider",
+    # Create provider and model
+    provider = LLMProvider(
+        name="test-provider",
+        base_url="https://api.test.com",
         api_key="test-key",
-        default_model_id="default-model",
-        parameters_id=params.id,
         is_default=True,
         is_active=True
     )
     test_db.add(provider)
+    test_db.commit()
+
+    provider_model = LLMProviderModel(
+        provider_id=provider.id,
+        model_id="test-model",
+        default_model_id="default-model",
+        is_default=True,
+        is_active=True
+    )
+    test_db.add(provider_model)
     
     # Create prompt template
     template = PromptTemplate(
@@ -207,6 +216,85 @@ async def test_search_endpoint_with_context(
     assert data["rewritten_query"] != search_input["question"]
     assert isinstance(data["rewritten_query"], str)
     assert len(data["rewritten_query"]) > 0
+
+@pytest.mark.asyncio
+async def test_search_endpoint_large_query(
+    client: TestClient,
+    test_collection: Collection
+):
+    """Test search with an extremely large query."""
+    search_input = {
+        "question": "x" * 10000,  # Very large query
+        "collection_id": str(test_collection.id)
+    }
+    
+    response = client.post("/api/search", json=search_input)
+    assert response.status_code == 400
+    assert "Query too long" in response.json()["detail"]
+
+@pytest.mark.asyncio
+async def test_search_endpoint_malformed_context(
+    client: TestClient,
+    test_collection: Collection
+):
+    """Test search with malformed context data."""
+    search_input = {
+        "question": "What is the capital of France?",
+        "collection_id": str(test_collection.id)
+    }
+    
+    # Send invalid context format
+    response = client.post(
+        "/api/search", 
+        json=search_input,
+        params={"context": "invalid-context-format"}
+    )
+    assert response.status_code == 422
+
+@pytest.mark.asyncio
+async def test_search_endpoint_invalid_collection_format(
+    client: TestClient,
+    test_collection: Collection,
+    test_db: Session
+):
+    """Test search with invalid collection data format."""
+    # Create a collection with invalid format
+    invalid_collection = Collection(
+        name="invalid-collection",
+        description="Invalid collection",
+        vector_db_name=""  # Invalid empty vector_db_name
+    )
+    test_db.add(invalid_collection)
+    test_db.commit()
+
+    search_input = {
+        "question": "What is the capital of France?",
+        "collection_id": str(invalid_collection.id)
+    }
+    
+    response = client.post("/api/search", json=search_input)
+    assert response.status_code == 400
+    assert "Invalid collection configuration" in response.json()["detail"]
+
+@pytest.mark.asyncio
+async def test_search_endpoint_missing_template(
+    client: TestClient,
+    test_collection: Collection,
+    test_db: Session
+):
+    """Test search with missing prompt template configuration."""
+    # Remove all prompt templates
+    test_db.query(PromptTemplate).delete()
+    test_db.commit()
+
+    search_input = {
+        "question": "What is the capital of France?",
+        "collection_id": str(test_collection.id)
+    }
+    
+    response = client.post("/api/search", json=search_input)
+    assert response.status_code == 500
+    assert "No valid prompt template found" in response.json()["detail"]
 
 @pytest.mark.asyncio
 async def test_search_endpoint_no_config(
