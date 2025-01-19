@@ -1,7 +1,4 @@
 # collection_service.py
-
-import logging
-import os
 import re
 from typing import List, Optional
 from uuid import UUID, uuid4
@@ -21,11 +18,12 @@ from vectordbs.error_types import CollectionError
 from vectordbs.factory import get_datastore
 from vectordbs.data_types import Document
 from vectordbs.vector_store import VectorStore
-from core.custom_exceptions import DocumentStorageError, LLMProviderError
+from core.custom_exceptions import DocumentStorageError, LLMProviderError, NotFoundException
+from core.logging_utils import get_logger
 import multiprocessing
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+
+logger = get_logger("services.collection")
 
 
 class CollectionService:
@@ -74,14 +72,18 @@ class CollectionService:
             logger.error(f"Error creating collection: {str(e)}")
             raise HTTPException(status_code=400, detail=f"Failed to create collection: {str(e)}")
 
-    def get_collection(self, collection_id: UUID) -> Optional[CollectionOutput]:
+    def get_collection(self, collection_id: UUID) -> CollectionOutput:
         """
         Get a collection by its ID.
         """
-        collection = self.collection_repository.get(collection_id)
-        if collection is None:
-            raise HTTPException(status_code=404, detail="Collection not found")
-        return collection
+        try:
+            return self.collection_repository.get(collection_id)
+        except NotFoundException as e:
+            logger.error(f"Collection not found: {e}")
+            raise HTTPException(status_code=e.status_code, detail=e.message)
+        except Exception as e:
+            logger.error(f"Unexpected error in service layer: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail="Internal server error")
 
     def update_collection(self, collection_id: UUID, collection_update: CollectionInput) -> Optional[CollectionOutput]:
         """

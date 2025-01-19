@@ -30,14 +30,19 @@ class UserService:
             logger.error(f"Failed to create user: {str(e)}")
             raise HTTPException(status_code=400, detail=str(e))
     
-    def get_or_create_user_by_fields(self, ibm_id: str, email: EmailStr, name: str):
-        return self.get_or_create_user(UserInput(ibm_id=ibm_id, email=email, name=name))
+    def get_or_create_user_by_fields(self, ibm_id: str, email: EmailStr, name: str, role: str = "user"):
+        return self.get_or_create_user(UserInput(ibm_id=ibm_id, email=email, name=name, role=role))
     
     def get_or_create_user(self, user_input: UserInput) -> UserOutput:
         try:
             user = self.user_repository.get_user_by_ibm_id(user_input.ibm_id)
             if not user:
-                return self.create_user(UserInput(ibm_id=user_input.ibm_id, email=user_input.email, name=user_input.name))
+                return self.create_user(UserInput(
+                    ibm_id=user_input.ibm_id,
+                    email=user_input.email,
+                    name=user_input.name,
+                    role=user_input.role
+                ))
         except ValueError as e:
             logger.error(f"Failed to create user: {str(e)}")
             raise HTTPException(status_code=400, detail=str(e))

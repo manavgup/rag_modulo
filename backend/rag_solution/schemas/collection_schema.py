@@ -23,7 +23,12 @@ class CollectionInput(BaseModel):
     users: List[UUID] = []
     status: CollectionStatus = CollectionStatus.CREATED
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_encoders={
+            UUID: lambda v: str(v),  # Convert UUID to string during serialization
+        }
+    )
 
 class CollectionOutput(BaseModel):
     id: UUID

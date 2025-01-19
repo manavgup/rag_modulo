@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from core.config import settings
 from rag_solution.repository.file_repository import FileRepository
 from rag_solution.schemas.file_schema import FileInput, FileOutput, FileMetadata
+from core.custom_exceptions import NotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -36,12 +37,10 @@ class FileManagementService:
         try:
             logger.info(f"Fetching file with id: {file_id}")
             file = self.file_repository.get(file_id)
-            if file is None:
-                logger.warning(f"File not found: {file_id}")
-                raise HTTPException(status_code=404, detail="File not found")
             return file
-        except HTTPException:
-            raise
+        except NotFoundError as e:
+            logger.warning(f"File not found: {file_id}")
+            raise  # Propagate the NotFoundError
         except Exception as e:
             logger.error(f"Unexpected error getting file {file_id}: {str(e)}")
             raise HTTPException(status_code=500, detail="Internal server error")
@@ -64,12 +63,10 @@ class FileManagementService:
         try:
             logger.info(f"Fetching file {filename} from collection {collection_id}")
             file = self.file_repository.get_file_by_name(collection_id, filename)
-            if file is None:
-                logger.warning(f"File not found: {filename} in collection {collection_id}")
-                raise HTTPException(status_code=404, detail="File not found")
             return file
-        except HTTPException:
-            raise
+        except NotFoundError as e:
+            logger.warning(f"File not found: {filename} in collection {collection_id}")
+            raise  # Propagate the NotFoundError
         except Exception as e:
             logger.error(f"Unexpected error getting file by name {filename} in collection {collection_id}: {str(e)}")
             raise HTTPException(status_code=500, detail="Internal server error")
@@ -133,9 +130,27 @@ class FileManagementService:
             raise HTTPException(status_code=500, detail="Internal server error")
 
     def get_files(self, collection_id: UUID) -> List[str]:
+        """
+        Get a list of files in a specific collection.
+
+        Args:
+            collection_id (UUID): The ID of the collection.
+
+        Returns:
+            List[str]: A list of filenames in the collection.
+
+        Raises:
+            NotFoundError: If the collection or files are not found.
+            HTTPException: If an unexpected error occurs.
+        """
         try:
             files = self.get_files_by_collection(collection_id)
+            if not files:
+                raise NotFoundError(f"No files found for collection {collection_id}")
             return [file.filename for file in files]
+        except NotFoundError as e:
+            logger.error(f"Not found error getting files for collection {collection_id}: {str(e)}")
+            raise  # Propagate the NotFoundError
         except Exception as e:
             logger.error(f"Unexpected error getting files for collection {collection_id}: {str(e)}")
             raise HTTPException(status_code=500, detail="Internal server error")

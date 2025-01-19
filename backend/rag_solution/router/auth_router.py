@@ -7,6 +7,8 @@ from typing import Optional
 
 from auth.oidc import oauth
 from rag_solution.services.user_service import UserService
+from rag_solution.services.llm_provider_service import LLMProviderService
+from rag_solution.services.prompt_template_service import PromptTemplateService
 from rag_solution.file_management.database import get_db
 from core.config import settings
 import uuid
@@ -39,6 +41,7 @@ class UserInfo(BaseModel):
     name: Optional[str]
     email: str
     uuid: str
+    role: Optional[str]
 
 @router.get("/oidc-config", response_model=OIDCConfig)
 async def get_oidc_config(request: Request):
@@ -130,6 +133,7 @@ async def auth(request: Request, db: Session = Depends(get_db)):
 
         logger.info(f"Authenticated user: {user.get('email')}")
 
+        # Create or get user
         user_service = UserService(db)
         db_user = user_service.get_or_create_user_by_fields(
             ibm_id=user['sub'],
@@ -137,6 +141,24 @@ async def auth(request: Request, db: Session = Depends(get_db)):
             name=user.get('name', 'Unknown')
         )
         logger.info(f"User in database: {db_user.id}")
+
+        # Initialize default templates for user
+        try:
+            # Get user's provider
+            provider_service = LLMProviderService(db)
+            provider = provider_service.get_user_provider(db_user.id)
+            if not provider:
+                logger.error("No LLM provider available for user")
+                raise HTTPException(status_code=500, detail="No LLM provider available")
+
+            # Initialize templates
+            template_service = PromptTemplateService(db)
+            template_service.initialize_default_templates(db_user.id, provider.name)
+            logger.info("Successfully initialized default templates for user")
+        except Exception as e:
+            logger.error(f"Error initializing templates: {str(e)}")
+            # Continue with authentication even if template initialization fails
+            # The templates will be created on demand when needed
 
         jwt_token = token.get('id_token')
         if not jwt_token:
@@ -149,7 +171,7 @@ async def auth(request: Request, db: Session = Depends(get_db)):
             "name": user.get('name', 'Unknown'),
             "uuid": str(db_user.id),
             "exp": token.get('expires_at'),
-            "role": "admin"
+            "role": db_user.role
         }
         custom_jwt = jwt.encode(custom_jwt_payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
 
@@ -196,7 +218,8 @@ async def get_userinfo(request: Request):
             sub=payload.get('sub'),
             name=payload.get('name'),
             email=payload.get('email'),
-            uuid=payload.get('uuid')
+            uuid=payload.get('uuid'),
+            role=payload.get('role', 'user')
         )
         logger.info(f"Retrieved user info for user: {user_info.email}")
         return JSONResponse(content=user_info.model_dump())
@@ -256,7 +279,8 @@ async def session_status(request: Request):
             sub=payload.get('sub'),
             name=payload.get('name'),
             email=payload.get('email'),
-            uuid=payload.get('uuid')
+            uuid=payload.get('uuid'),
+            role=payload.get('role', 'user')
         )
         logger.info(f"User is authenticated: {user_info.email}")
         return JSONResponse(content={"authenticated": True, "user": user_info.model_dump()})

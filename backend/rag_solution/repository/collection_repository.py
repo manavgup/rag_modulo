@@ -11,6 +11,7 @@ from rag_solution.models.user_collection import UserCollection
 from rag_solution.schemas.collection_schema import (CollectionInput,
                                                             CollectionOutput,
                                                             FileInfo)
+from core.custom_exceptions import NotFoundException
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +62,16 @@ class CollectionRepository:
                     self.db.add(user_collection)
 
             self.db.commit()
-            self.db.refresh(db_collection)
+            # Refresh with relationships loaded
+            db_collection = (
+                self.db.query(Collection)
+                .options(
+                    joinedload(Collection.users),
+                    joinedload(Collection.files)
+                )
+                .filter(Collection.id == db_collection.id)
+                .first()
+            )
             return self._collection_to_output(db_collection)
         except SQLAlchemyError as e:
             self.db.rollback()
@@ -76,13 +86,28 @@ class CollectionRepository:
             collection_id (UUID): The ID of the collection to retrieve.
 
         Returns:
-            Optional[CollectionInDB]: The collection if found, None otherwise.
+            CollectionOutput: The collection if found.
 
         Raises:
-            SQLAlchemyError: If there's an error during database operations.
+            NotFoundError: If the collection does not exist.
+            SQLAlchemyError: If there's a database error.
         """
         try:
-            collection = self.db.query(Collection).filter(Collection.id == collection_id).first()
+            collection = (
+                self.db.query(Collection)
+                .options(
+                    joinedload(Collection.users),
+                    joinedload(Collection.files)
+                )
+                .filter(Collection.id == collection_id)
+                .first()
+            )
+            if not collection:
+                raise NotFoundException(
+                resource_type="Collection",
+                resource_id=collection_id,
+                message=f"Collection with ID {collection_id} not found."
+            )
             return self._collection_to_output(collection) if collection else None
         except SQLAlchemyError as e:
             logger.error(f"Error getting collection {collection_id}: {str(e)}")
@@ -90,7 +115,16 @@ class CollectionRepository:
 
     def get_user_collections(self, user_id: UUID) -> List[CollectionOutput]:
         try:
-            collections = self.db.query(Collection).join(UserCollection).filter(UserCollection.user_id == user_id).all()
+            collections = (
+                self.db.query(Collection)
+                .options(
+                    joinedload(Collection.users),
+                    joinedload(Collection.files)
+                )
+                .join(UserCollection)
+                .filter(UserCollection.user_id == user_id)
+                .all()
+            )
             return [self._collection_to_output(collection) for collection in collections]
         except SQLAlchemyError as e:
             logger.error(f"Error getting collections for user {user_id}: {str(e)}")
@@ -111,12 +145,29 @@ class CollectionRepository:
             SQLAlchemyError: If there's an error during database operations.
         """
         try:
-            collection = self.db.query(Collection).filter(Collection.id == collection_id).first()
+            collection = (
+                self.db.query(Collection)
+                .options(
+                    joinedload(Collection.users),
+                    joinedload(Collection.files)
+                )
+                .filter(Collection.id == collection_id)
+                .first()
+            )
             if collection:
                 for key, value in collection_update.items():
                     setattr(collection, key, value)
                 self.db.commit()
-                self.db.refresh(collection)
+                # Refresh with relationships loaded
+                collection = (
+                    self.db.query(Collection)
+                    .options(
+                        joinedload(Collection.users),
+                        joinedload(Collection.files)
+                    )
+                    .filter(Collection.id == collection_id)
+                    .first()
+                )
                 return self._collection_to_output(collection)
             return None
         except SQLAlchemyError as e:
@@ -151,7 +202,16 @@ class CollectionRepository:
 
     def list(self, skip: int = 0, limit: int = 100) -> List[CollectionOutput]:
         try:
-            collections = self.db.query(Collection).offset(skip).limit(limit).all()
+            collections = (
+                self.db.query(Collection)
+                .options(
+                    joinedload(Collection.users),
+                    joinedload(Collection.files)
+                )
+                .offset(skip)
+                .limit(limit)
+                .all()
+            )
             return [self._collection_to_output(collection) for collection in collections]
         except SQLAlchemyError as e:
             logger.error(f"Error listing collections: {str(e)}")
@@ -166,7 +226,7 @@ class CollectionRepository:
             is_private=collection.is_private,
             created_at=collection.created_at,
             updated_at=collection.updated_at,
-            user_ids=[user.user_id for user in collection.users],
-            files=[FileInfo(id=file.id, filename=file.filename) for file in collection.files],
+            files=[FileInfo(id=file.id, filename=file.filename) for file in collection.files or []],
+            user_ids=[user.user_id for user in collection.users or []],
             status=collection.status
         )

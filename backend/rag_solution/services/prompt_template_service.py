@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from uuid import UUID
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
+from uuid import UUID
 from pydantic import ValidationError as PydanticValidationError
 
 from rag_solution.repository.prompt_template_repository import PromptTemplateRepository
@@ -12,6 +13,9 @@ from rag_solution.schemas.prompt_template_schema import (
 )
 from rag_solution.models.prompt_template import PromptTemplate
 from core.custom_exceptions import ValidationError, NotFoundError
+from core.logging_utils import get_logger
+
+logger = get_logger("services.prompt_template")
 
 
 def _template_to_dict(template: PromptTemplate) -> Dict[str, Any]:
@@ -43,9 +47,176 @@ class PromptTemplateService:
     """
 
     def __init__(self, db: Session):
+        self.db = db
         self.repository = PromptTemplateRepository(db)
 
     # 📝 Template Creation and Updates
+    def initialize_default_templates(
+        self,
+        user_id: UUID,
+        provider_name: str
+    ) -> Tuple[PromptTemplateOutput, PromptTemplateOutput]:
+        """
+        Initialize default prompt templates for a new user.
+        
+        Args:
+            user_id: User's UUID
+            provider_name: Name of the LLM provider (e.g., 'watsonx')
+            
+        Returns:
+            Tuple of (rag_template, question_template)
+        """
+        logger.info(f"Initializing default templates for user {user_id}")
+
+        # Check if templates already exist
+        rag_template = self.get_by_type(PromptTemplateType.RAG_QUERY, user_id)
+        question_template = self.get_by_type(PromptTemplateType.QUESTION_GENERATION, user_id)
+
+        if rag_template and question_template:
+            logger.info("Default templates already exist for user")
+            return rag_template, question_template
+
+        # Create RAG query template if needed
+        if not rag_template:
+            logger.info("Creating default RAG template")
+            rag_template = self.create_or_update_template(
+                user_id,
+                PromptTemplateInput(
+                    name="default-rag-template",
+                    provider=provider_name,
+                    template_type=PromptTemplateType.RAG_QUERY,
+                    system_prompt="You are a helpful AI assistant specializing in answering questions based on the given context.",
+                    template_format="{context}\n\n{question}",
+                    input_variables={
+                        "context": "Retrieved context for answering the question",
+                        "question": "User's question to answer"
+                    },
+                    example_inputs={
+                        "context": "Python was created by Guido van Rossum.",
+                        "question": "Who created Python?"
+                    },
+                    is_default=True,
+                    validation_schema={
+                        "model": "PromptVariables",
+                        "fields": {
+                            "context": {"type": "str", "min_length": 1},
+                            "question": {"type": "str", "min_length": 1}
+                        },
+                        "required": ["context", "question"]
+                    }
+                )
+            )
+
+        # Create question generation template if needed
+        if not question_template:
+            logger.info("Creating default question generation template")
+            question_template = self.create_or_update_template(
+                user_id,
+                PromptTemplateInput(
+                    name="default-question-template",
+                    provider=provider_name,
+                    template_type=PromptTemplateType.QUESTION_GENERATION,
+                    system_prompt=(
+                        "You are an AI assistant that generates relevant questions based on "
+                        "the given context. Generate clear, focused questions that can be "
+                        "answered using the information provided."
+                    ),
+                    template_format=(
+                        "{context}\n\n"
+                        "Generate {num_questions} specific questions that can be answered "
+                        "using only the information provided above."
+                    ),
+                    input_variables={
+                        "context": "Retrieved passages from knowledge base",
+                        "num_questions": "Number of questions to generate"
+                    },
+                    example_inputs={
+                        "context": "Python supports multiple programming paradigms.",
+                        "num_questions": 3
+                    },
+                    is_default=True,
+                    validation_schema={
+                        "model": "PromptVariables",
+                        "fields": {
+                            "context": {"type": "str", "min_length": 1},
+                            "num_questions": {"type": "int", "gt": 0}
+                        },
+                        "required": ["context", "num_questions"]
+                    }
+                )
+            )
+
+        logger.info(f"Successfully initialized default templates for user {user_id}")
+        return rag_template, question_template
+
+    def create_template(
+        self,
+        template: PromptTemplateInput
+    ) -> PromptTemplateOutput:
+        """
+        Create a new Prompt Template.
+        
+        Args:
+            template: Template input data
+            
+        Returns:
+            Created template
+        """
+        prompt_template = self.repository.create(template)
+        return PromptTemplateOutput.model_validate(_template_to_dict(prompt_template))
+
+    def update_template(
+        self,
+        template_id: UUID,
+        updates: Dict[str, Any]
+    ) -> PromptTemplateOutput:
+        """
+        Update an existing Prompt Template.
+        
+        Args:
+            template_id: Template UUID to update
+            updates: Dictionary of fields to update
+            
+        Returns:
+            Updated template
+            
+        Raises:
+            NotFoundError: If template not found
+        """
+        template = self.repository.get_by_id(template_id)
+        if not template:
+            raise NotFoundError(f"Template {template_id} not found")
+        
+        updated_template = self.repository.update(template_id, updates)
+        return PromptTemplateOutput.model_validate(_template_to_dict(updated_template))
+
+    def set_default_template(
+        self,
+        template_id: UUID
+    ) -> PromptTemplateOutput:
+        """
+        Set a template as default.
+        
+        Args:
+            template_id: Template UUID to set as default
+            
+        Returns:
+            Updated template
+            
+        Raises:
+            NotFoundError: If template not found
+        """
+        template = self.repository.get_by_id(template_id)
+        if not template:
+            raise NotFoundError(f"Template {template_id} not found")
+        
+        # Reset other default templates for the same user and type
+        self.repository.reset_user_default_templates(template.user_id, template.template_type)
+        
+        # Set this template as default
+        updated_template = self.repository.update(template_id, {"is_default": True})
+        return PromptTemplateOutput.model_validate(_template_to_dict(updated_template))
+
     def create_or_update_template(
         self,
         user_id: UUID,

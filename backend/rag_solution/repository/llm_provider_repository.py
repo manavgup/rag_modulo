@@ -4,7 +4,7 @@ from typing import List, Optional, Dict, Any
 from uuid import UUID, uuid4
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
-from pydantic import TypeAdapter, SecretStr
+from pydantic import SecretStr
 
 from rag_solution.models.llm_provider import LLMProvider, LLMProviderModel
 from rag_solution.schemas.llm_provider_schema import (
@@ -14,7 +14,9 @@ from rag_solution.schemas.llm_provider_schema import (
     LLMProviderModelOutput,
     ModelType
 )
+from core.logging_utils import get_logger
 
+logger = get_logger("repository.llm_provider")
 
 class LLMProviderRepository:
     """Repository for managing LLM Providers and their Models.
@@ -35,8 +37,6 @@ class LLMProviderRepository:
             db: SQLAlchemy database session
         """
         self.db = db
-        self.provider_adapter = TypeAdapter(LLMProviderOutput)
-        self.model_adapter = TypeAdapter(LLMProviderModelOutput)
 
     def _convert_provider_data(self, provider_data: Dict[str, Any]) -> Dict[str, Any]:
         """Convert Pydantic types to database-compatible types.
@@ -88,16 +88,18 @@ class LLMProviderRepository:
         """
         try:
             provider_data = provider_input.model_dump()
-            provider_data['id'] = uuid4()
             
             # Convert Pydantic types to database types
             provider_data = self._convert_provider_data(provider_data)
             
+            # Create provider with SQLAlchemy model
             provider = LLMProvider(**provider_data)
             self.db.add(provider)
             self.db.commit()
             self.db.refresh(provider)
-            return self.provider_adapter.validate_python(provider)
+            
+            # Convert to Pydantic model after SQLAlchemy has set all fields
+            return LLMProviderOutput.model_validate(provider, from_attributes=True, context={"session": self.db})
         except SQLAlchemyError as e:
             self.db.rollback()
             raise e
@@ -115,7 +117,7 @@ class LLMProviderRepository:
         if is_active is not None:
             query = query.filter(LLMProvider.is_active == is_active)
         providers = query.all()
-        return [self.provider_adapter.validate_python(p) for p in providers]
+        return [LLMProviderOutput.model_validate(p, from_attributes=True) for p in providers]
 
     def get_provider_by_id(self, provider_id: UUID) -> Optional[LLMProviderOutput]:
         """Retrieve a specific provider by ID.
@@ -127,7 +129,7 @@ class LLMProviderRepository:
             Provider instance if found, None otherwise
         """
         provider = self.db.query(LLMProvider).filter(LLMProvider.id == provider_id).first()
-        return self.provider_adapter.validate_python(provider) if provider else None
+        return LLMProviderOutput.model_validate(provider, from_attributes=True) if provider else None
 
     def update_provider(self, provider_id: UUID, updates: Dict[str, Any]) -> Optional[LLMProviderOutput]:
         """Update provider details.
@@ -155,7 +157,7 @@ class LLMProviderRepository:
             
             self.db.commit()
             self.db.refresh(provider)
-            return self.provider_adapter.validate_python(provider)
+            return LLMProviderOutput.model_validate(provider, from_attributes=True)
         except SQLAlchemyError as e:
             self.db.rollback()
             raise e
@@ -207,7 +209,7 @@ class LLMProviderRepository:
             self.db.add(model)
             self.db.commit()
             self.db.refresh(model)
-            return self.model_adapter.validate_python(model)
+            return LLMProviderModelOutput.model_validate(model, from_attributes=True)
         except SQLAlchemyError as e:
             self.db.rollback()
             raise e
@@ -226,7 +228,7 @@ class LLMProviderRepository:
             .filter(LLMProviderModel.provider_id == provider_id)
             .all()
         )
-        return [self.model_adapter.validate_python(m) for m in models]
+        return [LLMProviderModelOutput.model_validate(m, from_attributes=True) for m in models]
 
     def get_models_by_type(self, model_type: ModelType) -> List[LLMProviderModelOutput]:
         """Retrieve all models of a specific type.
@@ -242,7 +244,7 @@ class LLMProviderRepository:
             .filter(LLMProviderModel.model_type == model_type)
             .all()
         )
-        return [self.model_adapter.validate_python(m) for m in models]
+        return [LLMProviderModelOutput.model_validate(m, from_attributes=True) for m in models]
 
     def get_model_by_id(self, model_id: UUID) -> Optional[LLMProviderModelOutput]:
         """Retrieve a specific model by ID.
@@ -258,7 +260,7 @@ class LLMProviderRepository:
             .filter(LLMProviderModel.id == model_id)
             .first()
         )
-        return self.model_adapter.validate_python(model) if model else None
+        return LLMProviderModelOutput.model_validate(model, from_attributes=True) if model else None
 
     def update_model(self, model_id: UUID, updates: Dict[str, Any]) -> Optional[LLMProviderModelOutput]:
         """Update model configuration details.
@@ -283,7 +285,7 @@ class LLMProviderRepository:
             
             self.db.commit()
             self.db.refresh(model)
-            return self.model_adapter.validate_python(model)
+            return LLMProviderModelOutput.model_validate(model, from_attributes=True)
         except SQLAlchemyError as e:
             self.db.rollback()
             raise e
@@ -331,4 +333,4 @@ class LLMProviderRepository:
             .join(LLMProvider.models)
             .first()
         )
-        return self.provider_adapter.validate_python(provider) if provider else None
+        return LLMProviderOutput.model_validate(provider, from_attributes=True) if provider else None

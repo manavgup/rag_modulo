@@ -180,13 +180,20 @@ class Settings(BaseSettings):
         'admin': {
             r'^/api/user-collections/(.+)$': ['GET'],
             r'^/api/user-collections/(.+)/(.+)$': ['POST', 'DELETE'],
+            r'^/api/users/(.+)/.*$': ['GET', 'POST', 'PUT', 'DELETE'],
+            r'^/api/collections/(.+)$': ['GET', 'POST', 'PUT', 'DELETE'],
         },
         'user': {
             r'^/api/user-collections/(.+)/(.+)$': ['POST', 'DELETE'],
             r'^/api/user-collections/(.+)$': ['GET'],
             r'^/api/user-collections/collection/(.+)$': ['GET'],
             r'^/api/user-collections/collection/(.+)/users$': ['DELETE'],
-            r'^/api/collections/(.+)$': ['GET']
+            r'^/api/collections/(.+)$': ['GET'],
+            r'^/api/users/(.+)/llm-providers.*$': ['GET', 'POST', 'PUT', 'DELETE'],
+            r'^/api/users/(.+)/llm-parameters.*$': ['GET', 'POST', 'PUT', 'DELETE'],
+            r'^/api/users/(.+)/prompt-templates.*$': ['GET', 'POST', 'PUT', 'DELETE'],
+            r'^/api/users/(.+)/pipelines.*$': ['GET', 'POST', 'PUT', 'DELETE'],
+            r'^/api/users/(.+)/collections.*$': ['GET', 'POST', 'PUT', 'DELETE']
         },
         'guest': {
             r'^/api/user-collections$': ['GET', 'POST', 'DELETE', 'PUT'],

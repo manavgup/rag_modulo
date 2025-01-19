@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from rag_solution.models.file import File
 from rag_solution.schemas.file_schema import FileInput, FileOutput, FileMetadata
+from core.custom_exceptions import NotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +40,9 @@ class FileRepository:
     def get(self, file_id: UUID) -> Optional[FileOutput]:
         try:
             file = self.db.query(File).filter(File.id == file_id).first()
-            return self._file_to_output(file) if file else None
+            if not file:
+                raise NotFoundError(f"File with ID {file_id} not found")
+            return self._file_to_output(file)
         except Exception as e:
             logger.error(f"Error getting file record {file_id}: {str(e)}")
             raise

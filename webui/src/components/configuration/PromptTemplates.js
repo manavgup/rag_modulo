@@ -33,7 +33,6 @@ const PromptTemplates = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentTemplate, setCurrentTemplate] = useState(null);
   const [newVariable, setNewVariable] = useState('');
-  const [showSystemTemplates, setShowSystemTemplates] = useState(true);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -68,16 +67,12 @@ const PromptTemplates = () => {
     if (user) {
       fetchData();
     }
-  }, [user, showSystemTemplates]);
+  }, [user]);
 
   const fetchData = async () => {
     try {
-      const queryParams = new URLSearchParams({
-        include_system: showSystemTemplates
-      }).toString();
-
       const [templatesData, providersData] = await Promise.all([
-        fetchWithAuthHeader(`${getFullApiUrl(getTemplatesUrl())}?${queryParams}`),
+        fetchWithAuthHeader(getFullApiUrl(getTemplatesUrl())),
         fetchWithAuthHeader(getFullApiUrl(getProviderUrl()))
       ]);
 
@@ -283,12 +278,6 @@ const PromptTemplates = () => {
           Add Template
         </Button>
 
-        <Toggle
-          id="show-system-templates"
-          labelText="Show System Templates"
-          toggled={showSystemTemplates}
-          onToggle={() => setShowSystemTemplates(!showSystemTemplates)}
-        />
       </div>
 
       <DataTable rows={getTableRows()} headers={headers}>
