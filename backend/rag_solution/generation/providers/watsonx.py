@@ -95,7 +95,7 @@ class WatsonXLLM(LLMBase):
         # Get and update parameters
         params = self._get_generation_params(user_id, model_parameters)
         model.params.update(params)
-        
+        logger.debug(f"Model ID: {model_id}")
         logger.debug(f"Model parameters: {model.params}")
         return model
 
@@ -115,20 +115,19 @@ class WatsonXLLM(LLMBase):
 
     def _get_generation_params(self, user_id: UUID, model_parameters: Optional[LLMParametersInput] = None) -> Dict[str, Any]:
         """Get validated generation parameters."""
-        # Get parameters from service and convert to Pydantic model
-        params = self.llm_parameters_service.get_parameters(user_id) if not model_parameters else \
-            self.llm_parameters_service.create_or_update_parameters(user_id, model_parameters)
-
-        # Use default values if no parameters are found
-        if not params:
-            return {
-                GenParams.MAX_NEW_TOKENS: 150,
-                GenParams.TEMPERATURE: 0.7,
-                GenParams.TOP_K: 50,
-                GenParams.TOP_P: 1.0
-            }
-
-        # Parameters are already in Pydantic model form from the service
+        if model_parameters:
+            params = self.llm_parameters_service.create_or_update_parameters(user_id, model_parameters)
+        else:
+            params = self.llm_parameters_service.get_latest_or_default_parameters(user_id)
+            if not params:
+                return {
+                    GenParams.MAX_NEW_TOKENS: 1000,
+                    GenParams.TEMPERATURE: 0.7,
+                    GenParams.TOP_K: 50,
+                    GenParams.TOP_P: 1.0
+                }
+            # Convert Output to Input since we need model_dump
+            params = params.to_input()
         return {
             GenParams.MAX_NEW_TOKENS: params.max_new_tokens,
             GenParams.TEMPERATURE: params.temperature,
@@ -151,13 +150,26 @@ class WatsonXLLM(LLMBase):
 
             # Handle batch generation with concurrency_limit
             if isinstance(prompt, list):
-                formatted_prompts = [
-                    self._format_prompt(p, template, variables) for p in prompt
-                ]
+                formatted_prompts = []
+                for text in prompt:
+                    # For each text, create a new variables dict with the text as context
+                    prompt_variables = {"context": text}
+                    if variables:
+                        prompt_variables.update(variables)
+                    
+                    formatted = self.prompt_template_service.format_prompt(
+                        template_or_id=template,
+                        variables=prompt_variables
+                    )
+                    formatted_prompts.append(formatted)
+                    logger.debug(f"Formatted prompt*******: {formatted}")  # Log first 200 chars
+
                 response = model.generate_text(
                     prompt=formatted_prompts,
                     concurrency_limit=10  # Max concurrency limit
                 )
+                
+                logger.debug(f'Response: {response}')
                 if isinstance(response, dict) and 'results' in response:
                     return [r['generated_text'].strip() for r in response['results']]
                 elif isinstance(response, list):
@@ -165,7 +177,17 @@ class WatsonXLLM(LLMBase):
                 else:
                     return [str(response).strip()]
             else:
-                formatted_prompt = self._format_prompt(prompt, template, variables)
+                # Single prompt handling
+                prompt_variables = {"context": prompt}
+                if variables:
+                    prompt_variables.update(variables)
+                
+                formatted_prompt = self.prompt_template_service.format_prompt(
+                    template_or_id=template,
+                    variables=prompt_variables
+                )
+                logger.debug(f"Formatted single prompt: {formatted_prompt[:200]}...")
+
                 response = model.generate_text(prompt=formatted_prompt)
                 logger.debug(f"Response from model: {response}")
                 
@@ -184,24 +206,13 @@ class WatsonXLLM(LLMBase):
                 message=str(e)
             )
         except Exception as e:
+            logger.error(f"Error in generate_text: {str(e)}")
+            logger.exception(e)
             raise LLMProviderError(
                 provider=self._provider_name,
                 error_type="generation_failed",
                 message=f"Failed to generate text: {str(e)}"
             )
-
-    def _format_prompt(
-        self,
-        prompt: str,
-        template: Optional[PromptTemplateBase] = None,
-        variables: Optional[Dict[str, Any]] = None
-    ) -> str:
-        """Format a prompt using a template and variables."""
-        if template:
-            vars_dict = dict(variables or {})
-            vars_dict['prompt'] = prompt
-            return self.prompt_template_service.format_prompt(template.id, vars_dict)
-        return prompt
 
     def generate_text_stream(
         self,
@@ -216,7 +227,7 @@ class WatsonXLLM(LLMBase):
             self._ensure_client()
             model = self._get_model(user_id, model_parameters)
 
-            formatted_prompt = self._format_prompt(prompt, template, variables)
+            formatted_prompt = super()._format_prompt(prompt, template, variables)
             for chunk in model.generate_text_stream(prompt=formatted_prompt):
                 if chunk and chunk.strip():
                     yield chunk.strip()

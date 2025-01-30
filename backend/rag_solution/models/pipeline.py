@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Integer, Float, JSON
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from datetime import datetime
 import uuid
@@ -34,7 +34,7 @@ class PipelineConfig(Base):
     # Advanced Configuration
     max_context_length: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, default=2048)
     timeout: Mapped[Optional[float]] = mapped_column(Float, nullable=True, default=30.0)
-    config_metadata: Mapped[Optional[Dict]] = mapped_column(JSON, nullable=True)
+    config_metadata: Mapped[Optional[Dict]] = mapped_column(JSONB, nullable=True)
     is_default: Mapped[bool] = mapped_column(Boolean, default=False)
     
     # Provider reference
