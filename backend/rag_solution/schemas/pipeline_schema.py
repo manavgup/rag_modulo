@@ -133,11 +133,20 @@ class PipelineConfigInput(PipelineConfigBase):
         description="ID of the LLM provider to use"
     )
 
+class LLMProviderInfo(BaseModel):
+    """Schema for LLM provider information."""
+    id: UUID4
+    name: str
+    base_url: Optional[str] = None
+    is_active: bool = True
+    is_default: bool = False
+
 class PipelineConfigOutput(PipelineConfigBase):
     """Output schema for pipeline configuration with timestamps."""
     id: UUID4 = Field(..., description="Unique identifier for the configuration")
     collection_id: Optional[UUID4]
     provider_id: UUID4
+    provider: Optional[LLMProviderInfo] = None
     created_at: datetime
     updated_at: datetime
 
@@ -156,6 +165,16 @@ class PipelineConfigOutput(PipelineConfigBase):
             ValueError: If conversion fails
         """
         try:
+            provider_info = None
+            if model.provider:
+                provider_info = LLMProviderInfo(
+                    id=model.provider.id,
+                    name=model.provider.name,
+                    base_url=model.provider.base_url,
+                    is_active=model.provider.is_active,
+                    is_default=model.provider.is_default
+                )
+            
             return cls.model_validate({
                 "id": model.id,
                 "name": model.name,
@@ -165,6 +184,7 @@ class PipelineConfigOutput(PipelineConfigBase):
                 "retriever": model.retriever,
                 "context_strategy": model.context_strategy,
                 "provider_id": model.provider_id,
+                "provider": provider_info,
                 "collection_id": model.collection_id,
                 "enable_logging": model.enable_logging,
                 "max_context_length": model.max_context_length,

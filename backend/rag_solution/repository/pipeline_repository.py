@@ -62,19 +62,29 @@ class PipelineConfigRepository:
         Returns:
             List of pipeline configurations the user has access to
         """
-        query = (
-            self.db.query(PipelineConfig)
-            .options(joinedload(PipelineConfig.provider))
-            .join(Collection, PipelineConfig.collection_id == Collection.id)
-            .join(UserCollection, Collection.id == UserCollection.collection_id)
-            .filter(UserCollection.user_id == user_id)
-        )
+        # Start with base query
+        base_query = self.db.query(PipelineConfig)
         
         if include_system:
-            # Also include pipelines not tied to any collection (system-wide)
-            query = query.union(
-                self.db.query(PipelineConfig).filter(PipelineConfig.collection_id.is_(None))
+            # Get both collection-specific and system-wide pipelines
+            query = base_query.filter(
+                (PipelineConfig.collection_id.is_(None)) |  # System-wide pipelines
+                (PipelineConfig.collection_id.in_(  # User's collection-specific pipelines
+                    self.db.query(UserCollection.collection_id)
+                    .filter(UserCollection.user_id == user_id)
+                ))
             )
+        else:
+            # Only get collection-specific pipelines
+            query = base_query.filter(
+                PipelineConfig.collection_id.in_(
+                    self.db.query(UserCollection.collection_id)
+                    .filter(UserCollection.user_id == user_id)
+                )
+            )
+        
+        # Load provider relationship
+        query = query.options(joinedload(PipelineConfig.provider))
         
         return [PipelineConfigOutput.from_db_model(p) for p in query.all()]
 
