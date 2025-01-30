@@ -5,8 +5,12 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from rag_solution.models.user_collection import UserCollection
-from rag_solution.schemas.user_collection_schema import \
-    UserCollectionOutput
+from rag_solution.models.collection import Collection
+from rag_solution.models.file import File
+from rag_solution.schemas.user_collection_schema import (
+    UserCollectionOutput,
+    FileInfo
+)
 
 logger = logging.getLogger(__name__)
 
@@ -75,10 +79,37 @@ class UserCollectionRepository:
             logger.error(f"Error getting user-collection association: {str(e)}")
             raise
 
-    @staticmethod
-    def _user_collection_to_output(user_collection: UserCollection) -> UserCollectionOutput:
+    def _user_collection_to_output(self, user_collection: UserCollection) -> UserCollectionOutput:
+        """Convert a UserCollection model to UserCollectionOutput schema.
+        
+        Uses the relationships defined in the models to efficiently fetch related data.
+        The Collection model has lazy="selectin" for its relationships, so this won't 
+        cause N+1 query issues.
+        
+        Args:
+            user_collection: The UserCollection model instance
+            
+        Returns:
+            UserCollectionOutput: The output schema with all required fields
+            
+        Raises:
+            ValueError: If the associated collection is not found
+        """
+        collection = user_collection.collection
+        if not collection:
+            logger.error(f"Collection {user_collection.collection_id} not found")
+            raise ValueError(f"Collection {user_collection.collection_id} not found")
+
         return UserCollectionOutput(
+            id=collection.id,
+            name=collection.name,
+            vector_db_name=collection.vector_db_name,
+            is_private=collection.is_private,
+            created_at=collection.created_at,
+            updated_at=collection.updated_at,
+            user_ids=[uc.user_id for uc in collection.users],
+            files=[FileInfo(id=f.id, filename=f.filename) for f in collection.files],
+            status=collection.status,
             user_id=user_collection.user_id,
-            collection_id=user_collection.collection_id,
-            joined_at=user_collection.joined_at
+            collection_id=user_collection.collection_id
         )

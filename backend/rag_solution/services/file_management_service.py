@@ -146,7 +146,9 @@ class FileManagementService:
         try:
             files = self.get_files_by_collection(collection_id)
             if not files:
-                raise NotFoundError(f"No files found for collection {collection_id}")
+                raise NotFoundError(resource_id=str(collection_id),
+                                    resource_type="File",
+                                    message=f"No files found for collection {collection_id}")
             return [file.filename for file in files]
         except NotFoundError as e:
             logger.error(f"Not found error getting files for collection {collection_id}: {str(e)}")

@@ -150,7 +150,9 @@ class LLMProviderService:
         try:
             provider = self.repository.get_provider_by_id(provider_id)
             if not provider:
-                raise NotFoundException("Provider", provider_id)
+                raise NotFoundException(resource_type="LLMProvider", 
+                                        resource_id=str(provider_id),
+                                        message="Provider not found")
             return LLMProviderOutput.model_validate(provider)
         except NotFoundException:
             return None
@@ -314,7 +316,9 @@ class LLMProviderService:
         try:
             model = self.repository.get_model_by_id(model_id)
             if not model:
-                raise NotFoundException("Model", model_id)
+                raise NotFoundException(resource_type="LLMProviderModel", 
+                                        resource_id=str(model_id),
+                                        message="Model not found")
             return LLMProviderModelOutput.model_validate(model)
         except NotFoundException:
             return None
@@ -587,6 +591,32 @@ class LLMProviderService:
                     # Create new provider
                     logger.info(f"Creating new provider: {name}")
                     provider = self.create_provider(config)
+
+                # Set up default models for WatsonX
+                if name == "watsonx":
+                    # Create default generation model
+                    model_input = LLMProviderModelInput(
+                        provider_id=provider.id,
+                        model_id="ibm/granite-3-8b-instruct",  # Using the model from config
+                        default_model_id="ibm/granite-3-8b-instruct",
+                        model_type=ModelType.GENERATION,
+                        timeout=30,
+                        max_retries=3,
+                        batch_size=10,
+                        retry_delay=1.0,
+                        concurrency_limit=10,
+                        stream=False,
+                        rate_limit=10,
+                        is_default=True,
+                        is_active=True
+                    )
+                    try:
+                        self.create_provider_model(model_input)
+                        logger.info(f"Created default generation model for {name}")
+                    except Exception as e:
+                        logger.error(f"Error creating default model for {name}: {str(e)}")
+                        if raise_on_error:
+                            raise
 
                 initialized_providers.append(provider)
                 logger.info(f"Successfully initialized provider: {name}")
