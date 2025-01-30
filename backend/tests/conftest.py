@@ -17,7 +17,7 @@ from core.config import settings
 from core.logging_utils import setup_logging
 from rag_solution.file_management.database import Base, engine
 from rag_solution.services.llm_provider_service import LLMProviderService
-from rag_solution.generation.providers.factory import LLMProviderFactory
+from rag_solution.generation.providers.factory import LLMProviderFactory, LLMBase
 
 @pytest.fixture
 def test_client(base_user):
@@ -91,18 +91,40 @@ from rag_solution.models.user import User
 from rag_solution.models.llm_provider import LLMProvider, LLMProviderModel
 from rag_solution.models.prompt_template import PromptTemplate
 from rag_solution.models.llm_parameters import LLMParameters
+from rag_solution.services.llm_parameters_service import LLMParametersService
+from rag_solution.repository.llm_parameters_repository import LLMParametersRepository
+from rag_solution.services.prompt_template_service import PromptTemplateService
+from rag_solution.repository.pipeline_repository import PipelineConfigRepository
+from rag_solution.services.llm_provider_service import LLMProviderService
+from rag_solution.schemas.llm_parameters_schema import LLMParametersInput, LLMParametersOutput
+from rag_solution.schemas.prompt_template_schema import PromptTemplateInput, PromptTemplateType
 from rag_solution.models.question import SuggestedQuestion
 from rag_solution.models.pipeline import PipelineConfig
 from rag_solution.services.user_service import UserService
 from rag_solution.services.collection_service import CollectionService
 from rag_solution.services.question_service import QuestionService
+from rag_solution.services.search_service import SearchService
 from rag_solution.schemas.user_schema import UserInput
 from rag_solution.schemas.collection_schema import CollectionInput, CollectionStatus
 from rag_solution.generation.providers.factory import LLMProviderFactory
 from rag_solution.generation.providers.watsonx import WatsonXLLM  # Import to trigger registration
+from vectordbs.vector_store import VectorStore
 from core.logging_utils import get_logger
 
 logger = get_logger("tests.conftest")
+
+# -------------------------------------------
+# 🛠️ vector database fixture
+# -------------------------------------------
+@pytest.fixture(scope="function")
+def vector_store():
+    """Initialize and return a vector store instance for testing."""
+    from vectordbs.milvus_store import MilvusStore
+
+    store = MilvusStore()
+    store._connect(settings.milvus_host, settings.milvus_port)
+    yield store
+    # Clean up after the test
 
 
 # -------------------------------------------
@@ -119,6 +141,10 @@ def collection_service(db_session: Session) -> CollectionService:
     """Create collection service fixture."""
     return CollectionService(db_session)
 
+@pytest.fixture
+def search_service(db_session: Session):
+    """Create an instance of SearchService."""
+    return SearchService(db_session)
 
 @pytest.fixture
 def question_service(db_session: Session) -> QuestionService:
@@ -137,6 +163,10 @@ def llm_parameters_service(db_session: Session) -> LLMParametersService:
     """Create LLM parameters service fixture."""
     return LLMParametersService(db_session)
 
+@pytest.fixture
+def get_watsonx(provider_factory: LLMProviderFactory) -> LLMBase:
+    """Create watsonx provider"""
+    return provider_factory.get_provider("watsonx")
 
 # -------------------------------------------
 # 🧪 Model Fixtures
@@ -167,23 +197,46 @@ def base_collection(db_session: Session, base_user: User) -> Collection:
     return collection_service.create_collection(collection_input)
 
 @pytest.fixture
-def base_llm_parameters(db_session: Session, base_user: User) -> LLMParameters:
-    """Create default LLM parameters for test user."""
-    params = LLMParameters(
-        user_id=base_user.id,
+def base_file_with_content(db_session: Session, base_collection: Collection, base_user: User) -> File:
+    """Create a base file with content for testing."""
+    from rag_solution.services.file_management_service import FileManagementService
+    from rag_solution.schemas.file_schema import FileInput
+    
+    service = FileManagementService(db_session)
+    file_input = FileInput(
+        collection_id=base_collection.id,
+        filename="test.txt",
+        file_path="/tmp/test.txt",
+        file_type="text/plain",
+        metadata={
+            "total_pages": 1,
+            "total_chunks": 1,
+            "keywords": {"test": True}
+        },
+        document_id=str(uuid4())
+    )
+    return service.create_file(file_input, base_user.id)
+
+@pytest.fixture
+def base_llm_parameters(db_session: Session, base_user: User) -> LLMParametersOutput:
+    """Create default LLM parameters using repository (ensures business logic is followed)."""
+    repository = LLMParametersRepository(db_session)
+
+    params_input = LLMParametersInput(
         name="default",
         description="Default test parameters",
-        max_new_tokens=200,
+        max_new_tokens=1000,
         temperature=0.7,
         top_k=50,
         top_p=1.0,
         repetition_penalty=1.1,
         is_default=True
     )
-    db_session.add(params)
-    db_session.commit()  # Change flush to commit
-    db_session.refresh(params)
-    return params
+
+    # ✅ Use repository to create parameters
+    created_params = repository.create(base_user.id, params_input)  # This should return LLMParametersOutput
+
+    return created_params  # ✅ Returns a Pydantic model (good)
 
 @pytest.fixture
 def base_file(db_session: Session, base_collection: Collection, base_user: User) -> File:
@@ -198,7 +251,7 @@ def base_file(db_session: Session, base_collection: Collection, base_user: User)
         file_path="/tmp/test.txt",
         file_type="text/plain",
         metadata=None,
-        document_id=None
+        document_id=str(uuid4())
     )
     return service.create_file(file_input, base_user.id)
 
@@ -273,6 +326,66 @@ def initialize_factory(db_session):
     """Initialize LLMProviderFactory with database session."""
     return LLMProviderFactory(db_session)
 
+@pytest.fixture
+def test_config(db_session: Session, base_user, base_collection):
+    """Create test configurations for user."""
+    parameters_service = LLMParametersService(db_session)
+    template_service = PromptTemplateService(db_session)
+    pipeline_repository = PipelineConfigRepository(db_session)
+    provider_service = LLMProviderService(db_session)
+    
+    # Get existing WatsonX provider
+    watsonx_provider = provider_service.get_provider_by_name("watsonx")
+    if not watsonx_provider:
+        raise ValueError("WatsonX provider not found")
+
+    parameters_input = LLMParametersInput(
+        name="test-parameters",
+        temperature=0.7,
+        max_new_tokens=1000,
+        top_k=50,
+        top_p=0.95,
+        is_default=True
+    )
+    parameters = parameters_service.create_or_update_parameters(
+        base_user.id,
+        parameters_input
+    )
+
+    templates = {}
+    for template_type in [PromptTemplateType.RAG_QUERY, PromptTemplateType.RESPONSE_EVALUATION]:
+        template_input = PromptTemplateInput(
+            name=f"test-{template_type.value}",
+            provider="watsonx",
+            template_type=template_type,
+            template_format="Context:\n{context}\nQuestion:{question}",
+            input_variables={"context": "Retrieved passages from knowledge base", "question": "User's question to answer"},
+            is_default=True
+        )
+        templates[template_type] = template_service.create_or_update_template(
+            base_user.id,
+            template_input
+        )
+
+    pipeline_config = pipeline_repository.create({
+        "name": "test-pipeline",
+        "description": "Test pipeline configuration",
+        "chunking_strategy": "fixed",
+        "embedding_model": "sentence-transformers/all-minilm-l6-v2",
+        "retriever": "vector",
+        "context_strategy": "simple",
+        "provider_id": watsonx_provider.id,  # Use existing WatsonX provider ID
+        "collection_id": base_collection.id,
+        "enable_logging": True,
+        "max_context_length": 2048,
+        "timeout": 30.0
+    })
+
+    return {
+        'parameters': parameters,
+        'templates': templates,
+        'pipeline': pipeline_config
+    }
 
 # -------------------------------------------
 # 🧪 Test Data Fixtures
@@ -281,11 +394,18 @@ def initialize_factory(db_session):
 def test_documents() -> List[str]:
     """Create test document texts."""
     return [
-        "The Python programming language was created by Guido van Rossum in 1991. "
-        "Python is known for its simplicity and readability.",
+        "Python is a high-level programming language created by Guido van Rossum in 1991. "
+        "It is widely used in software development, data science, and artificial intelligence. "
+        "Python is known for its simplicity, readability, and extensive standard library.",
         
         "Python supports multiple programming paradigms, including procedural, "
-        "object-oriented, and functional programming."
+        "object-oriented, and functional programming. Its design philosophy emphasizes "
+        "code readability with the use of significant indentation and clean syntax.",
+        
+        "The Python Package Index (PyPI) contains over 300,000 packages for various "
+        "programming tasks. Popular frameworks like Django and Flask are used for "
+        "web development, while libraries like NumPy and Pandas are essential for "
+        "data analysis."
     ]
 
 @pytest.fixture
@@ -323,6 +443,42 @@ def test_prompt_template_data(base_user: User) -> dict:
         "is_default": True
     }
 
+@pytest.fixture(scope="function")
+def indexed_documents(vector_store, base_collection, base_file, get_watsonx):
+    """Add documents to the vector store and return the collection name."""
+    from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, Source
+
+    # Create a document from the base_file fixture
+    text = "Sample text from the file."  # Define the text as a string
+    document = Document(
+        document_id=base_file.document_id or str(uuid4()),
+        name=base_file.filename,
+        chunks=[
+            DocumentChunk(
+                chunk_id=f"chunk_{base_file.filename}",
+                text="Sample text from the file.",
+                embeddings=get_watsonx.get_embeddings([text])[0],
+                metadata=DocumentChunkMetadata(
+                    source=Source.OTHER,
+                    document_id=base_file.document_id or str(uuid4()),
+                    page_number=1,
+                    chunk_number=1,
+                    start_index=0,
+                    end_index=len("Sample text from the file.")
+                )
+            )
+        ]
+    )
+
+    # Add the document to the vector store
+    vector_store.delete_collection(base_collection.vector_db_name)  # Clean up any existing collection
+    vector_store.create_collection(base_collection.vector_db_name, {"embedding_model": settings.embedding_model})
+    vector_store.add_documents(base_collection.vector_db_name, [document])
+
+    yield base_collection.vector_db_name  # Return the collection name for use in tests
+
+    # Clean up after the test
+    vector_store.delete_collection(base_collection.vector_db_name)
 
 # -------------------------------------------
 # 🛠️ Session-level Database Engine Fixture
@@ -399,7 +555,7 @@ def ensure_watsonx_provider(db_session: Session, base_user: User) -> None:
         logger.debug(f"Provider is_active: {provider.is_active}")
 
         # Use default model ID for testing if not set
-        default_model = "meta-llama/llama-3-1-8b-instruct"
+        default_model = "ibm/granite-3-8b-instruct"
         
         # Create generation model
         logger.info("Creating generation model...")
