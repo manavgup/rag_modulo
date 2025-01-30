@@ -8,7 +8,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from rag_solution.models.collection import Collection
 from rag_solution.models.question import SuggestedQuestion
 from rag_solution.schemas.question_schema import QuestionInDB, QuestionInput
-from core.custom_exceptions import NotFoundException
+from core.custom_exceptions import NotFoundError
 from core.logging_utils import get_logger
 
 logger = get_logger("repository.question")
@@ -110,9 +110,9 @@ class QuestionRepository:
                 .exists()
             ).scalar()
             if not exists:
-                raise NotFoundException(
+                raise NotFoundError(
                     resource_type="Collection",
-                    resource_id=collection_id,
+                    resource_id=str(collection_id),
                     message=f"Collection with ID {collection_id} not found."
                 )
 

@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from uuid import UUID
-from typing import Optional, List, Dict, Any, Tuple
+from typing import Optional, List, Dict, Any, Tuple, Union
 from uuid import UUID
 from pydantic import ValidationError as PydanticValidationError
 
@@ -12,6 +12,7 @@ from rag_solution.schemas.prompt_template_schema import (
     PromptTemplateType
 )
 from rag_solution.models.prompt_template import PromptTemplate
+from rag_solution.schemas.prompt_template_schema import PromptTemplateBase
 from core.custom_exceptions import ValidationError, NotFoundError
 from core.logging_utils import get_logger
 
@@ -185,7 +186,9 @@ class PromptTemplateService:
         """
         template = self.repository.get_by_id(template_id)
         if not template:
-            raise NotFoundError(f"Template {template_id} not found")
+            raise NotFoundError(resource_type="PromptTemplate",
+                resource_id=str(template_id),
+                message=f"Template {template_id} not found")
         
         updated_template = self.repository.update(template_id, updates)
         return PromptTemplateOutput.model_validate(_template_to_dict(updated_template))
@@ -208,10 +211,12 @@ class PromptTemplateService:
         """
         template = self.repository.get_by_id(template_id)
         if not template:
-            raise NotFoundError(f"Template {template_id} not found")
+            raise NotFoundError(resource_type="PromptTemplate",
+                resource_id=str(template_id),
+                message=f"Template {template_id} not found")
         
         # Reset other default templates for the same user and type
-        self.repository.reset_user_default_templates(template.user_id, template.template_type)
+        self.repository.create_or_update_by_user_id(template.user_id, template.template_type)
         
         # Set this template as default
         updated_template = self.repository.update(template_id, {"is_default": True})
@@ -288,7 +293,7 @@ class PromptTemplateService:
     # 📋 Template Usage
     def format_prompt(
         self,
-        template_id: UUID,
+        template_or_id: Union[UUID, PromptTemplateBase],
         variables: Dict[str, Any]
     ) -> str:
         """
@@ -305,9 +310,16 @@ class PromptTemplateService:
             NotFoundError: If template not found
             ValidationError: If variables don't match schema
         """
-        template = self.repository.get_by_id(template_id)
-        if not template:
-            raise NotFoundError(f"Template {template_id} not found")
+        # Fetch the template if a UUID is provided
+        if isinstance(template_or_id, UUID):
+            template = self.repository.get_by_id(template_or_id)
+            if not template:
+                raise NotFoundError(resource_type="PromptTemplate",
+                    resource_id=str(template_or_id),
+                    message=f"Template {template_or_id} not found")
+        else:
+            # Use the provided PromptTemplateBase object
+            template = template_or_id
 
         # Format prompt
         try:
@@ -321,25 +333,32 @@ class PromptTemplateService:
 
     def apply_context_strategy(
         self,
-        template_id: UUID,
+        template_or_id: Union[UUID, PromptTemplateBase],  # Accept either a UUID or a PromptTemplateBase
         contexts: List[str]
     ) -> str:
         """
         Apply a template's context strategy to format multiple context chunks.
         
         Args:
-            template_id: Template UUID
+            template_or_id: Either a Template UUID or a PromptTemplateBase object
             contexts: List of context chunks
             
         Returns:
             Formatted context string
             
         Raises:
-            NotFoundError: If template not found
+            NotFoundError: If template not found (when template_id is provided)
         """
-        template = self.repository.get_by_id(template_id)
-        if not template:
-            raise NotFoundError(f"Template {template_id} not found")
+        # Fetch the template if a UUID is provided
+        if isinstance(template_or_id, UUID):
+            template = self.repository.get_by_id(template_or_id)
+            if not template:
+                raise NotFoundError(resource_type="PromptTemplate",
+                    resource_id=str(template_or_id),
+                    message=f"Template {template_or_id} not found")
+        else:
+            # Use the provided PromptTemplateBase object
+            template = template_or_id
 
         if not template.context_strategy:
             # Default to simple concatenation

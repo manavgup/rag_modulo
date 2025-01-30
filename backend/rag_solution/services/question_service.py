@@ -9,10 +9,12 @@ from sqlalchemy.orm import Session
 
 from rag_solution.models.question import SuggestedQuestion
 from rag_solution.schemas.question_schema import QuestionInput
+from rag_solution.schemas.prompt_template_schema import PromptTemplateBase
+from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
 from rag_solution.services.llm_parameters_service import LLMParametersService
 from rag_solution.repository.question_repository import QuestionRepository
 from core.config import settings
-from core.custom_exceptions import ValidationError, NotFoundError, NotFoundException
+from core.custom_exceptions import ValidationError, NotFoundError
 from rag_solution.services.prompt_template_service import PromptTemplateService
 from rag_solution.schemas.prompt_template_schema import PromptTemplateType
 from rag_solution.generation.providers.factory import LLMProviderFactory
@@ -24,7 +26,7 @@ logger = get_logger("services.question")
 class QuestionService:
     """Service for managing question suggestions."""
 
-    def __init__(self, db: Session, config: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(self, db: Session) -> None:
         """
         Initialize question service.
 
@@ -73,22 +75,40 @@ class QuestionService:
             Tuple of (is_valid, cleaned_question)
         """
         # Basic formatting checks
-        question = question.strip()
         if not question or not question.endswith('?'):
+            logger.debug(f"Question rejected: No question mark or empty: {question}")
             return False, question
-            
+
+        question = question.strip()
+        
         # Remove any numbering prefix
         cleaned_question = re.sub(r'^\d+\.\s*', '', question)
         
-        # Reduce minimum word requirement for short but valid questions
-        question_words = set(re.findall(r'\b\w+\b', cleaned_question.lower()))
-        if len(question_words) < 3:  # Changed from 5
+        # Check for multiple question marks
+        if cleaned_question.count('?') > 1:
             return False, cleaned_question
         
-        # Reduce relevance threshold for short questions
+        # Check for proper spacing between words
+        if not re.search(r'\w+\s+\w+', cleaned_question):
+            return False, cleaned_question
+        
+        # Basic word count check for very short questions
+        question_words = set(re.findall(r'\b\w+\b', cleaned_question.lower()))
+        if len(question_words) < 2:  # Allow shorter but valid questions
+            return False, cleaned_question
+        
+        # Calculate relevance with more lenient threshold
         context_words = set(re.findall(r'\b\w+\b', context.lower()))
+        
+        # Special handling for short questions (2-3 words)
+        if len(question_words) <= 3:
+            # For short questions, require at least one content word match
+            content_words = question_words - {'what', 'who', 'when', 'where', 'why', 'how', 'is', 'are', 'do', 'does'}
+            return bool(content_words.intersection(context_words)), cleaned_question
+        
+        # For longer questions, calculate relevance score
         relevance_score = len(question_words.intersection(context_words)) / len(question_words)
-        min_relevance = 0.2  # Reduced from 0.3
+        min_relevance = 0.25  # Stricter threshold for relevance
         
         return relevance_score >= min_relevance, cleaned_question
     
@@ -114,12 +134,14 @@ class QuestionService:
                 question_words = set(re.findall(r'\b\w+\b', cleaned_question.lower()))
                 context_words = set(re.findall(r'\b\w+\b', context.lower()))
                 
-                # Calculate relevance score based on word overlap
+                # Calculate relevance score with more weight on context overlap
                 relevance_score = len(question_words.intersection(context_words)) / len(question_words)
                 
-                # Add complexity bonus for longer, more detailed questions
-                complexity_bonus: float = min(len(question_words) * 0.05, 0.3)
-                final_score: float = relevance_score + complexity_bonus
+                # Add smaller complexity bonus for longer questions
+                complexity_bonus: float = min(len(question_words) * 0.02, 0.15)  # Reduced bonus
+                
+                # Only apply complexity bonus if question has minimum relevance
+                final_score: float = relevance_score + (complexity_bonus if relevance_score >= 0.25 else 0)
                 
                 scored_questions.append((cleaned_question, final_score))
         
@@ -152,28 +174,56 @@ class QuestionService:
                 
         return unique_questions
 
+    def _combine_text_chunks(self, texts: List[str], available_context_length: int) -> List[str]:
+        """Combine text chunks while respecting context length limits."""
+        combined_texts = []
+        current_batch = []
+        current_length = 0
+
+        for text in texts:
+            text_length = len(text)
+            if current_length + text_length <= available_context_length:
+                current_batch.append(text)
+                current_length += text_length
+            else:
+                if current_batch:
+                    combined_texts.append(" ".join(current_batch))
+                    current_batch = [text]
+                    current_length = text_length
+
+        if current_batch:
+            combined_texts.append(" ".join(current_batch))
+
+        return combined_texts
+
     async def suggest_questions(
         self,
         texts: List[str],
         collection_id: UUID,
         user_id: UUID,
         provider_name: str,
+        template: PromptTemplateBase,
+        parameters: LLMParametersInput,
         num_questions: Optional[int] = None
     ) -> List[SuggestedQuestion]:
-        """
-        Generate suggested questions based on the provided texts.
-
+        """Generate suggested questions based on the provided texts.
+        
         Args:
             texts: List of text chunks to generate questions from
-            collection_id: The ID of the collection
+            collection_id: Collection UUID
+            user_id: User UUID
+            provider_name: Name of LLM provider to use
+            template: Prompt template for question generation
+            parameters: LLM parameters to use
             num_questions: Optional number of questions to generate
-
+            
         Returns:
-            List[SuggestedQuestion]: List of generated question models
-
+            List of generated question models
+            
         Raises:
-            ValidationError: If inputs are invalid
-            NotFoundError: If required template not found
+            ValidationError: If parameters validation fails
+            LLMProviderError: If provider errors occur
+            QuestionGenerationError: If question generation fails
         """
         start_time = time.time()
         stats = {
@@ -185,82 +235,68 @@ class QuestionService:
         try:
             if not texts:
                 return []
+            
+            logger.debug(f"Using template: {template}")
+            logger.debug(f"Using parameters: {parameters}")
 
-            # Get question generation template for the user
-            template = self.prompt_template_service.get_by_type(
-                PromptTemplateType.QUESTION_GENERATION,
-                user_id
-            )
-            if not template:
-                raise NotFoundException(
-                    resource_type="PromptTemplate",
-                    resource_id=f"type:{PromptTemplateType.QUESTION_GENERATION}",
-                    message="Question generation template not found"
-                )
+            # Get provider from factory
+            provider = self._provider_factory.get_provider(provider_name)
+            logger.debug(f"Provider: {provider}")
 
-            # Format context using template's strategy
-            context_text = self.prompt_template_service.apply_context_strategy(
-                template.id,
-                texts
-            )
+            # Combine texts respecting context length
+            available_context_length = settings.max_context_length - settings.max_new_tokens
+            combined_texts = self._combine_text_chunks(texts, available_context_length)
             
             all_questions = []
             
-            try:
-                # Get parameters
-                parameters = self.llm_parameters_service.get_user_default(user_id)
-                if not parameters:
-                    raise ValidationError("No default LLM parameters found")
-
-                # Get provider from factory
-                provider = self._provider_factory.get_provider(provider_name)
-                logger.debug(f"Provider: {provider}")
-
-                # Format prompt using template
-                formatted_prompt = self.prompt_template_service.format_prompt(
-                    template.id,
-                    {
-                        "context": context_text,
-                        "num_questions": str(num_questions)
-                    }
-                )
-                logger.debug(f"Formatted Prompt: {formatted_prompt}")
-
-                # Generate questions
-                response = provider.generate_text(
-                    user_id=user_id,  # Temporary until GenerationService implementation
-                    prompt=formatted_prompt,
-                    model_parameters=parameters.to_input()
-                )
-                logger.debug(f"Generated Questions: {response}")
+            # Process in batches respecting concurrency limit
+            for i in range(0, len(combined_texts), settings.llm_concurrency):
+                batch = combined_texts[i:i + settings.llm_concurrency]
                 
-                if isinstance(response, list):
-                    for r in response:
-                        questions = [q.strip() for q in r.split('\n') if q.strip().endswith('?')]
-                        filtered = [q for q in questions if self._validate_question(q, context_text)]
+                try:
+                    # Generate questions for batch - let generate_text handle the formatting
+                    variables = {
+                        "num_questions": str(num_questions if num_questions else 3)
+                    }
+                    
+                    responses = provider.generate_text(
+                        user_id=user_id,
+                        prompt=batch,  # Pass raw texts
+                        model_parameters=parameters,
+                        template=template,
+                        variables=variables  # Pass variables needed for formatting
+                    )
+
+                    if isinstance(responses, list):
+                        for response in responses:
+                            questions = [q.strip() for q in response.split('\n') if q.strip().endswith('?')]
+                            filtered = [q for q in questions if self._validate_question(q, " ".join(texts))[0]]
+                            all_questions.extend(filtered)
+                            stats['successful_generations'] += 1
+                    else:
+                        questions = [q.strip() for q in responses.split('\n') if q.strip().endswith('?')]
+                        filtered = [q for q in questions if self._validate_question(q, " ".join(texts))[0]]
                         all_questions.extend(filtered)
                         stats['successful_generations'] += 1
-                else:
-                    questions = [q.strip() for q in response.split('\n') if q.strip().endswith('?')]
-                    filtered = [q for q in questions if self._validate_question(q, context_text)]
-                    all_questions.extend(filtered)
-                    stats['successful_generations'] += 1
 
-            except ValidationError as e:
-                logger.error(f"Template validation error: {str(e)}")
-                stats['failed_generations'] += 1
-                raise
-            except Exception as e:
-                logger.error(f"Generation error: {str(e)}")
-                stats['failed_generations'] += 1
-                raise
+                except Exception as e:
+                    logger.error(f"Batch generation failed: {str(e)}")
+                    logger.exception(e)
+                    stats['failed_generations'] += 1
+                    continue  # Continue with next batch
+
+            if not all_questions:
+                logger.warning("No valid questions were generated")
+                return []
 
             # Post-process questions
             unique_questions = self._filter_duplicate_questions(all_questions)
-            ranked_questions = self._rank_questions(questions=unique_questions,
-                                            context=context_text,
-                                            user_id=user_id,
-                                            provider_name=provider_name)
+            ranked_questions = self._rank_questions(
+                questions=unique_questions,
+                context=" ".join(texts),
+                user_id=user_id,
+                provider_name=provider_name
+            )
             final_questions = ranked_questions[:num_questions] if num_questions else ranked_questions
 
             # Create and store question models
@@ -292,6 +328,7 @@ class QuestionService:
             raise
         except Exception as e:
             logger.error(f"Error suggesting questions: {e}")
+            logger.exception(e)
             raise
 
     def create_question(self, question_input: QuestionInput) -> SuggestedQuestion:
@@ -377,6 +414,8 @@ class QuestionService:
         user_id: UUID,
         texts: List[str],
         provider_name: str,
+        template: PromptTemplateBase,
+        parameters: LLMParametersInput,
         num_questions: Optional[int] = None
     ) -> List[SuggestedQuestion]:
         """
@@ -384,14 +423,20 @@ class QuestionService:
         
         Args:
             collection_id: ID of the collection to regenerate questions for
+            user_id: User UUID
             texts: List of text chunks to generate questions from
+            provider_name: Name of LLM provider to use
+            template: Prompt template for question generation
+            parameters: LLM parameters to use
             num_questions: Optional number of questions to generate
             
         Returns:
             List[SuggestedQuestion]: List of newly generated question models
             
         Raises:
-            Exception: If there's an error regenerating questions
+            ValidationError: If parameters validation fails
+            LLMProviderError: If provider errors occur
+            QuestionGenerationError: If question generation fails
         """
         try:
             # Delete existing questions
@@ -403,6 +448,8 @@ class QuestionService:
                 collection_id=collection_id,
                 user_id=user_id,
                 provider_name=provider_name,
+                template=template,
+                parameters=parameters,
                 num_questions=num_questions
             )
         except Exception as e:
