@@ -506,3 +506,85 @@ class ProviderConfigError(BaseCustomException):
                 **(details or {})
             }
         )
+
+
+class QuestionGenerationError(BaseCustomException):
+    """Exception raised for failures in the question generation process."""
+    
+    def __init__(
+        self,
+        collection_id: str,
+        error_type: str,
+        message: str,
+        details: Optional[Dict[str, Any]] = None
+    ) -> None:
+        """Initialize question generation error.
+        
+        Args:
+            collection_id: Collection identifier
+            error_type: Type of generation error
+            message: Error message
+            details: Additional error details
+        """
+        super().__init__(
+            message,
+            status_code=500,
+            details={
+                "collection_id": collection_id,
+                "error_type": error_type,
+                **(details or {})
+            }
+        )
+
+
+class EmptyDocumentError(BaseCustomException):
+    """Exception raised when no valid text chunks are found."""
+    
+    def __init__(
+        self,
+        collection_id: str,
+        message: Optional[str] = None
+    ) -> None:
+        """Initialize empty document error.
+        
+        Args:
+            collection_id: Collection identifier
+            message: Optional custom error message
+        """
+        super().__init__(
+            message or f"No valid text chunks found in documents for collection {collection_id}",
+            status_code=400,
+            details={"collection_id": collection_id}
+        )
+
+
+class CollectionProcessingError(BaseCustomException):
+    """Exception raised for general collection processing failures."""
+    
+    def __init__(
+        self,
+        collection_id: str,
+        stage: str,
+        error_type: str,
+        message: str,
+        details: Optional[Dict[str, Any]] = None
+    ) -> None:
+        """Initialize collection processing error.
+        
+        Args:
+            collection_id: Collection identifier
+            stage: Processing stage where error occurred
+            error_type: Type of processing error
+            message: Error message
+            details: Additional error details
+        """
+        super().__init__(
+            message,
+            status_code=500,
+            details={
+                "collection_id": collection_id,
+                "stage": stage,
+                "error_type": error_type,
+                **(details or {})
+            }
+        )
