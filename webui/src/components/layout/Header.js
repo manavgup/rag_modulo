@@ -9,7 +9,15 @@ import {
   UnorderedList,
   ListItem,
 } from "@carbon/react";
-import { Menu, UserAvatar, CloseLarge, List } from "@carbon/icons-react";
+import {
+  Menu,
+  UserAvatar,
+  CloseLarge,
+  Settings,
+  Logout,
+  User,
+} from "@carbon/icons-react";
+
 import { useAuth } from "src/contexts/AuthContext";
 
 import UISideNav from "./SideNav";
@@ -73,11 +81,22 @@ const Header = () => {
               <UnorderedList className="user-menu-list">
                 {user ? (
                   <>
-                    <ListItem key="username" className="user-menu-username"> {user.name || "User"} </ListItem>
-                    <ListItem key="profile"> Profile </ListItem>
-                    <ListItem key="settings"> Settings </ListItem>
+                    <ListItem key="username" className="user-menu-username">
+                      {user.name || "User"}
+                    </ListItem>
+                    <ListItem key="profile">
+                      <User />
+                      Profile
+                    </ListItem>
+                    <ListItem key="settings">
+                      <Settings />
+                      Settings
+                    </ListItem>
                     <ListItem key="logout" className="user-menu-logout">
-                      <a href="#" onClick={handleLogout}>Logout</a>
+                      <a href="#" onClick={handleLogout}>
+                        <Logout />
+                        Logout
+                      </a>
                     </ListItem>
                   </>
                 ) : (
@@ -89,7 +108,9 @@ const Header = () => {
             </div>
           </HeaderPanel>
         )}
-        <div className={`side-nav-container ${isMainMenuOpen ? 'expanded' : ''}`}>
+        <div
+          className={`side-nav-container ${isMainMenuOpen ? "expanded" : ""}`}
+        >
           <UISideNav
             isSideNavExpanded={isMainMenuOpen}
             handleSideNavExpand={handleSideNavBlur}

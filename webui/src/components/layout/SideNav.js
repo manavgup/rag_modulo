@@ -1,24 +1,23 @@
 import React, { useState } from "react";
-import "./SideNav.css";
 import {
   SideNav,
-  SideNavDivider,
   SideNavItems,
   SideNavLink,
-  SideNavMenu,
-  SideNavMenuItem
+  SideNavMenu
 } from "@carbon/react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { 
-  Search, 
-  ModelAlt, 
-  Dashboard, 
+import {
+  Search,
+  ModelAlt,
+  Dashboard,
   Settings,
   Flow,
   Template,
   Cloud,
-  SettingsAdjust
+  SettingsAdjust,
 } from "@carbon/icons-react";
+
+import "./SideNav.css";
 
 const UISideNav = ({ isSideNavExpanded, handleSideNavExpand }) => {
   const location = useLocation();
@@ -46,82 +45,68 @@ const UISideNav = ({ isSideNavExpanded, handleSideNavExpand }) => {
           href="#"
           onClick={() => onNavigate("/dashboard")}
           isActive={isActive("/dashboard")}
+          renderIcon={Dashboard}
         >
-          <div className="side-nav-menu-item">
-            <Dashboard size={16} />
-            <span>Dashboard</span>
-          </div>
+          Dashboard
         </SideNavLink>
         <SideNavLink
           href="#"
           onClick={() => onNavigate("/collections")}
           isActive={isActive("/collections")}
+          renderIcon={ModelAlt}
         >
-          <div className="side-nav-menu-item">
-            <ModelAlt size={16} />
-            <span>Collections</span>
-          </div>
+          Collections
         </SideNavLink>
         <SideNavLink
           href="#"
           onClick={() => onNavigate("/search")}
           isActive={isActive("/search")}
+          renderIcon={Search}
         >
-          <div className="side-nav-menu-item">
-            <Search size={16} />
-            <span>Search Documents</span>
-          </div>
+          Search Documents
         </SideNavLink>
-        
-        <SideNavDivider />
-        
+
         <SideNavMenu
           isActive={isConfigActive()}
           defaultExpanded={true}
+          expanded={isConfigExpanded}
           onToggle={() => setIsConfigExpanded(!isConfigExpanded)}
-          title={
-            <div className="side-nav-menu-item">
-              <Settings size={16} />
-              <span>Configuration</span>
-            </div>
-          }
+          renderIcon={Settings}
+          title="Configuration"
+          className="side-nav-menu"
         >
-          <SideNavMenuItem
+          <SideNavLink
+            href="#"
             onClick={() => onNavigate("/configuration/providers")}
             isActive={isActive("/configuration/providers")}
+            renderIcon={Cloud}
           >
-            <div className="side-nav-menu-item">
-              <Cloud size={16} />
-              <span>Provider Settings</span>
-            </div>
-          </SideNavMenuItem>
-          <SideNavMenuItem
+            Provider Settings
+          </SideNavLink>
+          <SideNavLink
+            href="#"
             onClick={() => onNavigate("/configuration/pipeline")}
             isActive={isActive("/configuration/pipeline")}
+            renderIcon={Flow}
           >
-            <div className="side-nav-menu-item">
-              <Flow size={16} />
-              <span>Pipeline Settings</span>
-            </div>
-          </SideNavMenuItem>
-          <SideNavMenuItem
+            Pipeline Settings
+          </SideNavLink>
+          <SideNavLink
+            href="#"
             onClick={() => onNavigate("/configuration/llm")}
             isActive={isActive("/configuration/llm")}
+            renderIcon={SettingsAdjust}
           >
-            <div className="side-nav-menu-item">
-              <SettingsAdjust size={16} />
-              <span>LLM Parameters</span>
-            </div>
-          </SideNavMenuItem>
-          <SideNavMenuItem
+            LLM Parameters
+          </SideNavLink>
+          <SideNavLink
+            href="#"
             onClick={() => onNavigate("/configuration/templates")}
             isActive={isActive("/configuration/templates")}
+            renderIcon={Template}
           >
-            <div className="side-nav-menu-item">
-              <Template size={16} />
-              <span>Prompt Templates</span>
-            </div>
-          </SideNavMenuItem>
+            Prompt Templates
+          </SideNavLink>
         </SideNavMenu>
       </SideNavItems>
     </SideNav>

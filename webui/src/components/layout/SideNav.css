@@ -1,6 +1,6 @@
 .cds--side-nav {
   position: fixed;
-  top: 3rem;
+  top: 0rem !important;
   bottom: 0;
   background-color: var(--cds-layer);
   color: var(--cds-text-primary);
@@ -22,6 +22,15 @@
   border-bottom: 1px solid var(--cds-border-subtle);
 }
 
+.side-nav-menu .cds--side-nav__link {
+  padding-inline-start: 2rem !important;
+  height: 3rem !important;
+}
+
+.side-nav-menu .cds--side-nav__submenu-title {
+  padding: 0 !important;
+}
+
 .cds--side-nav__link-text {
   color: var(--cds-text-primary);
 }
@@ -37,20 +46,6 @@
 .cds--side-nav__menu-item:hover,
 .cds--side-nav__submenu:hover {
   background-color: var(--cds-layer-hover);
-}
-
-/* Menu item icons and text */
-.side-nav-menu-item {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 0 1rem;
-  height: 100%;
-}
-
-.side-nav-menu-item svg {
-  flex-shrink: 0;
-  color: var(--cds-icon-primary);
 }
 
 /* Expanded state */
@@ -74,4 +69,11 @@
 
 .cds--side-nav__menu-item .side-nav-menu-item {
   padding-left: 2rem;
+}
+
+/* fis overlay not showing on deskop */
+.cds--side-nav__overlay-active {
+  position: initial !important;
+  height: 100vh !important;
+  width: 100vw !important;
 }
