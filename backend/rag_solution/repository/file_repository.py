@@ -41,7 +41,9 @@ class FileRepository:
         try:
             file = self.db.query(File).filter(File.id == file_id).first()
             if not file:
-                raise NotFoundError(f"File with ID {file_id} not found")
+                raise NotFoundError(resource_type="File", 
+                                    resource_id=str(file_id),
+                                    message=f"File with ID {file_id} not found")
             return self._file_to_output(file)
         except Exception as e:
             logger.error(f"Error getting file record {file_id}: {str(e)}")
