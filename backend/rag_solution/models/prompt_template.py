@@ -59,7 +59,8 @@ class PromptTemplate(Base):
     )
     template_format: Mapped[str] = mapped_column(
         Text, nullable=False,
-        comment="Format string with placeholders like {context}, {question}"
+        comment="Format string with placeholders like {context}, {question}",
+        doc="Must include {context} variable for RAG pipelines. Example: 'Answer {question} using: {context}'"
     )
     input_variables: Mapped[Optional[Dict[str, str]]] = mapped_column(
         JSON, nullable=True,
