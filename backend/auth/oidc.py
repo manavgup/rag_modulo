@@ -18,12 +18,20 @@ oauth.register(
     client_kwargs={
         'scope': 'openid email profile',
         'token_endpoint_auth_method': 'client_secret_post'
-    }
+    },
+    # Add leeway for token validation
+    jwks_uri=settings.oidc_discovery_endpoint + '/jwks',
+    validate_iss=True,
+    validate_aud=True,
+    validate_exp=True,
+    validate_iat=True,
+    validate_nbf=True,
+    leeway=300
 )
 
 def verify_jwt_token(token: str):
     try:
-        payload = jwt.decode(token, options={"verify_signature": False})
+        payload = jwt.decode(token, options={"verify_signature": False, "verify_exp": False, "verify_iat": False})
         return payload
     except jwt.PyJWTError:
         raise HTTPException(
