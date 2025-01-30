@@ -36,13 +36,7 @@ class LLMParametersOutput(LLMParametersBase):
     created_at: datetime = Field(..., description="Creation timestamp")
     updated_at: datetime = Field(..., description="Last update timestamp")
 
-    model_config = ConfigDict(
-        strict=True,
-        extra="ignore",
-        title="LLM Parameters Output",
-        frozen=True,
-        from_attributes=True
-    )
+    model_config = ConfigDict(from_attributes=True)
 
     def to_input(self) -> "LLMParametersInput":
         """Convert the current instance to an LLMParametersInput schema."""

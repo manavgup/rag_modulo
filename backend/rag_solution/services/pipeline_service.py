@@ -14,12 +14,11 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from core.config import settings
-from core.custom_exceptions import ConfigurationError, ValidationError, NotFoundError
+from core.custom_exceptions import ConfigurationError, ValidationError, NotFoundError, LLMProviderError
 from core.logging_utils import get_logger
 
 from rag_solution.data_ingestion.ingestion import DocumentStore
 from rag_solution.evaluation.evaluator import RAGEvaluator
-from rag_solution.models.llm_parameters import LLMParameters
 from rag_solution.models.llm_provider import LLMProvider
 from rag_solution.models.pipeline import PipelineConfig
 from rag_solution.models.prompt_template import PromptTemplate
@@ -27,7 +26,7 @@ from rag_solution.query_rewriting.query_rewriter import QueryRewriter
 from rag_solution.repository.pipeline_repository import PipelineConfigRepository
 from rag_solution.retrieval.factories import RetrieverFactory
 from rag_solution.retrieval.retriever import BaseRetriever
-from rag_solution.schemas.llm_parameters_schema import LLMParametersOutput
+from rag_solution.schemas.llm_parameters_schema import LLMParametersOutput, LLMParametersInput
 from rag_solution.schemas.pipeline_schema import (
     PipelineConfigInput,
     PipelineConfigOutput,
@@ -39,7 +38,9 @@ from rag_solution.services.file_management_service import FileManagementService
 from rag_solution.services.llm_parameters_service import LLMParametersService
 from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.prompt_template_service import PromptTemplateService
+from rag_solution.services.collection_service import CollectionService
 from rag_solution.generation.providers.factory import LLMProviderFactory
+from rag_solution.generation.providers.base import LLMBase
 from vectordbs.data_types import QueryResult, DocumentChunk, DocumentMetadata, VectorQuery
 from vectordbs.factory import get_datastore
 from vectordbs.vector_store import VectorStore
@@ -59,6 +60,7 @@ class PipelineService:
         self._prompt_template_service: Optional[PromptTemplateService] = None
         self._llm_provider_service: Optional[LLMProviderService] = None
         self._file_management_service: Optional[FileManagementService] = None
+        self._collection_service: Optional[CollectionService] = None
         
         # Core RAG components
         self.query_rewriter = QueryRewriter({})
@@ -99,6 +101,12 @@ class PipelineService:
         if self._file_management_service is None:
             self._file_management_service = FileManagementService(self.db)
         return self._file_management_service
+
+    @property
+    def collection_service(self) -> CollectionService:
+        if self._collection_service is None:
+            self._collection_service = CollectionService(self.db)
+        return self._collection_service
 
     @property
     def document_store(self) -> DocumentStore:
@@ -148,6 +156,12 @@ class PipelineService:
     def get_pipeline_config(self, pipeline_id: UUID) -> Optional[PipelineConfigOutput]:
         """Retrieve pipeline configuration by ID."""
         pipeline = self.pipeline_repository.get_by_id(pipeline_id)
+        if not pipeline:
+            raise NotFoundError(
+                resource_type="PipelineConfig",
+                resource_id=str(pipeline_id),
+                message="Pipeline configuration not found"
+            )
         return PipelineConfigOutput.model_validate(pipeline) if pipeline else None
 
     def create_pipeline(self, config_input: PipelineConfigInput) -> PipelineConfigOutput:
@@ -163,12 +177,24 @@ class PipelineService:
                 raise ValidationError("Invalid collection ID")
                 
         return self.pipeline_repository.create(config_input.model_dump())
+    
+    def delete_pipeline(self, pipeline_id: UUID) -> bool:
+        """Delete a pipeline configuration by ID."""
+        pipeline = self.pipeline_repository.get_by_id(pipeline_id)
+        if not pipeline:
+            raise NotFoundError(resource_id=str(pipeline_id), 
+                                resource_type="PipelineConfig",
+                                message="Pipeline configuration not found")
+        
+        return self.pipeline_repository.delete(pipeline_id)
 
     def validate_pipeline(self, pipeline_id: UUID) -> PipelineResult:
         """Validate pipeline configuration."""
         pipeline: PipelineConfig = self.pipeline_repository.get_by_id(pipeline_id)
         if not pipeline:
-            raise NotFoundError("Pipeline not found")
+            raise NotFoundError(resource_type="PipelineConfig",
+                                resource_id=str(pipeline_id),
+                                message="Pipeline not found")
 
         errors = []
         warnings = []
@@ -191,7 +217,9 @@ class PipelineService:
         """Test pipeline with a sample query."""
         pipeline = self.pipeline_repository.get_by_id(pipeline_id)
         if not pipeline:
-            raise NotFoundError("Pipeline not found")
+            raise NotFoundError(resource_type="PipelineConfig",
+                                resource_id=str(pipeline_id),
+                                message="Pipeline not found")
 
         try:
             # Initialize retriever with basic config
@@ -241,7 +269,9 @@ class PipelineService:
         """
         pipeline = self.pipeline_repository.get_by_id(pipeline_id)
         if not pipeline:
-            raise NotFoundError("Pipeline not found")
+            raise NotFoundError(resource_type="PipelineConfig",
+                                resource_id=str(pipeline_id),
+                                message="Pipeline not found")
 
         # Use collection-specific clear
         if pipeline.collection_id:
@@ -268,33 +298,43 @@ class PipelineService:
             logger.error(f"Error formatting context: {str(e)}")
             return "\n\n".join(texts)
 
-    def _validate_configuration(self, pipeline_id: UUID, user_id: UUID) -> Tuple[PipelineConfigOutput, LLMParametersOutput, LLMProvider]:
-        """Validate pipeline configuration and return required components."""
-        # Get pipeline configuration as schema
+    def _validate_configuration(self, pipeline_id: UUID, user_id: UUID) -> Tuple[PipelineConfigOutput, LLMParametersInput, LLMProvider]:
+        """
+        Validate pipeline configuration and return required components.
+        
+        Args:
+            pipeline_id: Pipeline UUID to validate
+            user_id: User UUID
+            
+        Returns:
+            Tuple of (pipeline config, LLM parameters, provider)
+            
+        Raises:
+            NotFoundError: If pipeline or provider not found
+            ConfigurationError: If validation fails
+        """
+        # Get pipeline configuration
         pipeline_config = self.pipeline_repository.get_by_id(pipeline_id)
         if not pipeline_config:
-            raise ConfigurationError("Pipeline configuration not found")
+            raise NotFoundError(resource_type="PipelineConfig",
+                                resource_id=str(pipeline_id),
+                                message="Pipeline configuration not found")
 
-        # Get and validate LLM parameters
-        llm_parameters = self.llm_parameters_service.get_user_default(user_id)
+        llm_parameters = self.llm_parameters_service.get_latest_or_default_parameters(user_id)
         if not llm_parameters:
             raise ConfigurationError("No default LLM parameters found")
 
-        # Get and validate provider - need to get actual provider instance, not just schema
         provider_output = self.llm_provider_service.get_provider_by_id(pipeline_config.provider_id)
         if not provider_output:
-            raise ConfigurationError("LLM provider not found")
+            raise NotFoundError(resource_type="LLMProvider",
+                                resource_id=str(pipeline_config.provider_id),
+                                message="LLM provider not found")
 
-        # Get provider factory instance
-        try:
-            provider_factory = LLMProviderFactory(self.db)
-            provider = provider_factory.get_provider(provider_output.name)
-            if not provider:
-                raise ConfigurationError("Failed to initialize LLM provider")
-        except Exception as e:
-            raise ConfigurationError(f"Failed to initialize LLM provider: {str(e)}")
+        provider = LLMProviderFactory(self.db).get_provider(provider_output.name)
+        if not provider:
+            raise ConfigurationError("Failed to initialize LLM provider")
 
-        return pipeline_config, llm_parameters, provider
+        return (pipeline_config, llm_parameters.to_input(), provider)
 
     def _get_templates(self, user_id: UUID) -> Tuple[PromptTemplate, Optional[PromptTemplate]]:
         """
@@ -309,19 +349,16 @@ class PipelineService:
         Raises:
             NotFoundError: If required template not found
         """
-        rag_template = self.prompt_template_service.get_by_type(
-            PromptTemplateType.RAG_QUERY,
-            user_id
-        )
+        rag_template = self.prompt_template_service.get_by_type(PromptTemplateType.RAG_QUERY, user_id)
         if not rag_template:
-            raise NotFoundError("User's RAG query template not found")
+            raise NotFoundError(resource_type="PromptTemplateType",
+                                resource_id=str(user_id),
+                                message="User's RAG query template not found")
 
-        eval_template = None
-        if settings.runtime_eval:
-            eval_template = self.prompt_template_service.get_by_type(
-                PromptTemplateType.RESPONSE_EVALUATION,
-                user_id
-            )
+        eval_template = (
+            self.prompt_template_service.get_by_type(PromptTemplateType.RESPONSE_EVALUATION, user_id)
+            if settings.runtime_eval else None
+        )
 
         return rag_template, eval_template
 
@@ -331,31 +368,40 @@ class PipelineService:
         
         Args:
             query: The query text
-            collection_id: ID of the collection to search
+            collection_name: Name of the collection to search
             
         Returns:
             List of query results
+            
+        Raises:
+            ConfigurationError: If retrieval fails
         """
-        vector_query = VectorQuery(
-            text=query,
-            number_of_results=settings.number_of_results
-        )
-        results = self.retriever.retrieve(collection_name, vector_query)
-        logger.info(f"Retrieved {len(results)} documents")
-        return results
+        try:
+            vector_query = VectorQuery(
+                text=query,
+                number_of_results=settings.number_of_results
+            )
+            results = self.retriever.retrieve(collection_name, vector_query)
+            logger.info(f"Retrieved {len(results)} documents")
+            return results
+        except Exception as e:
+            logger.error(f"Error retrieving documents: {str(e)}")
+            raise ConfigurationError(f"Failed to retrieve documents: {str(e)}")
 
     def _generate_answer(
         self,
+        user_id: UUID,
         query: str,
         context: str,
-        provider: LLMProvider,
-        llm_params: LLMParameters,
+        provider: LLMBase,
+        llm_params: LLMParametersInput,
         template: PromptTemplate
     ) -> str:
         """
         Generate answer using the LLM.
         
         Args:
+            user_id: User's UUID
             query: The query text
             context: The context text
             provider: The LLM provider
@@ -364,25 +410,30 @@ class PipelineService:
             
         Returns:
             Generated answer text
+            
+        Raises:
+            LLMProviderError: If generation fails
         """
         try:
-            formatted_prompt = self.prompt_template_service.format_prompt(
-                template.id,
-                {
-                    "context": context,
-                    "question": query,
-                    "max_length": llm_params.max_new_tokens
-                }
-            )
-
+            # Let provider handle prompt formatting and generation
             answer = provider.generate_text(
-                prompt=formatted_prompt,
-                model_parameters=llm_params
+                user_id=user_id,
+                prompt=query,
+                model_parameters=llm_params,
+                template=template,
+                variables={"context": context, "question": query}
             )
-            return answer[0] if isinstance(answer, list) else answer
+            return answer[0] if isinstance(answer, list) else str(answer)
+            
+        except LLMProviderError:
+            raise
         except Exception as e:
             logger.error(f"Error in generation: {str(e)}")
-            return "I apologize, but I encountered an error while generating the answer."
+            raise LLMProviderError(
+                provider=provider._provider_name,
+                error_type="generation_failed",
+                message=f"LLM provider error: {str(e)}"
+            )
 
     async def _evaluate_response(
         self,
@@ -422,49 +473,80 @@ class PipelineService:
             logger.error(f"Evaluation failed: {str(e)}")
             return {"error": str(e)}
 
-    async def execute_pipeline(self, search_input: SearchInput, user_id: UUID, collection_name: str) -> PipelineResult:
+    def _validate_collection_access(self, collection_id: UUID) -> None:
+        """
+        Validate that the user has access to the specified collection.
+
+        Args:
+            collection_id: Collection UUID to validate.
+
+        Raises:
+            NotFoundError: If the collection does not exist or the user does not have access.
+        """
+        collection = self.collection_service.get_collection(collection_id)
+        if not collection:
+            raise NotFoundError(resource_type="Collection",
+                                resource_id=str(collection_id),
+                                message="Collection not found")
+        
+    async def execute_pipeline(
+    self,
+    search_input: SearchInput,
+    user_id: UUID,
+    collection_name: str
+) -> PipelineResult:
         """
         Execute the RAG pipeline.
-        
+
         Args:
-            search_input: Search parameters and query
-            user_id: ID of the user
-            
+            search_input: Search parameters and query.
+            user_id: ID of the user.
+            collection_name: Name of the collection to search.
+
         Returns:
-            PipelineResult containing generated answer and metadata
+            PipelineResult containing generated answer and metadata.
+
+        Raises:
+            HTTPException: With appropriate status codes for different error types.
         """
         start_time = time.time()
         logger.info("Starting RAG pipeline execution")
 
         try:
-            # Configuration validation
-            pipeline_config, llm_parameters, provider = self._validate_configuration(search_input.pipeline_id, user_id)
+            # Validate input query
+            if not search_input.question or not search_input.question.strip():
+                raise ValidationError("Query cannot be empty")
+
+            # Validate pipeline configuration
+            pipeline_config, llm_parameters_input, provider = self._validate_configuration(
+                search_input.pipeline_id, user_id
+            )
+
+            # Validate collection access
+            self._validate_collection_access(search_input.collection_id)
+
+            # Get required templates
             rag_template, eval_template = self._get_templates(user_id)
 
-            # Query processing and retrieval
+            # Process query and retrieve documents
             clean_query = self._prepare_query(search_input.question)
             rewritten_query = self.query_rewriter.rewrite(clean_query)
-            
             query_results = self._retrieve_documents(rewritten_query, collection_name)
 
-            # Answer generation
+            # Generate answer and evaluate response
             if not query_results:
                 generated_answer = "I apologize, but I couldn't find any relevant documents."
+                evaluation_result = {"error": "No documents found"}
             else:
                 context_text = self._format_context(rag_template.id, query_results)
                 generated_answer = self._generate_answer(
-                    clean_query, context_text, provider, llm_parameters, rag_template
+                    user_id, clean_query, context_text, provider, llm_parameters_input, rag_template
                 )
-
-            # Optional evaluation
-            evaluation_result = None
-            if settings.runtime_eval and eval_template and query_results:
-                context_text = self._format_context(rag_template.id, query_results)
                 evaluation_result = await self._evaluate_response(
                     clean_query, generated_answer, context_text, eval_template
-                )
+                ) if settings.runtime_eval and eval_template else None
 
-            # Prepare result
+            # Prepare and return the result
             execution_time = time.time() - start_time
             logger.info(f"Pipeline executed in {execution_time:.2f} seconds")
 
@@ -473,12 +555,26 @@ class PipelineService:
                 rewritten_query=rewritten_query,
                 query_results=query_results,
                 generated_answer=generated_answer,
-                evaluation=evaluation_result
+                evaluation=evaluation_result,
+                metadata={
+                    "execution_time": execution_time,
+                    "num_chunks": len(query_results),
+                    "unique_docs": len(set(r.document_id for r in query_results if r.document_id))
+                }
             )
 
-        except (ValidationError, NotFoundError, ConfigurationError) as e:
-            logger.error(f"{type(e).__name__}: {str(e)}")
-            return PipelineResult(success=False, error=str(e))
+        except ValidationError as e:
+            logger.error(f"Validation error: {str(e)}")
+            raise HTTPException(status_code=400, detail=str(e))
+        except NotFoundError as e:
+            logger.error(f"Resource not found: {str(e)}")
+            raise HTTPException(status_code=404, detail=str(e))
+        except ConfigurationError as e:
+            logger.error(f"Configuration error: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+        except LLMProviderError as e:
+            logger.error(f"LLM provider error: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
         except Exception as e:
-            logger.error(f"Pipeline execution failed: {str(e)}")
-            return PipelineResult(success=False, error=f"Pipeline execution failed: {str(e)}")
+            logger.error(f"Unexpected error: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Pipeline execution failed: {str(e)}")
