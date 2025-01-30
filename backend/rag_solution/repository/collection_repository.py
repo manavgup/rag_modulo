@@ -11,7 +11,7 @@ from rag_solution.models.user_collection import UserCollection
 from rag_solution.schemas.collection_schema import (CollectionInput,
                                                             CollectionOutput,
                                                             FileInfo)
-from core.custom_exceptions import NotFoundException
+from core.custom_exceptions import NotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -103,9 +103,9 @@ class CollectionRepository:
                 .first()
             )
             if not collection:
-                raise NotFoundException(
+                raise NotFoundError(
                 resource_type="Collection",
-                resource_id=collection_id,
+                resource_id=str(collection_id),
                 message=f"Collection with ID {collection_id} not found."
             )
             return self._collection_to_output(collection) if collection else None

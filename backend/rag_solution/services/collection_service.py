@@ -14,11 +14,25 @@ from rag_solution.services.file_management_service import FileManagementService
 from rag_solution.services.user_collection_service import UserCollectionService
 from rag_solution.services.question_service import QuestionService
 from rag_solution.services.llm_provider_service import LLMProviderService
+from rag_solution.services.prompt_template_service import PromptTemplateService
+from rag_solution.services.llm_parameters_service import LLMParametersService
+from rag_solution.schemas.prompt_template_schema import PromptTemplateType
 from vectordbs.error_types import CollectionError
 from vectordbs.factory import get_datastore
 from vectordbs.data_types import Document
 from vectordbs.vector_store import VectorStore
-from core.custom_exceptions import DocumentStorageError, LLMProviderError, NotFoundException
+from core.custom_exceptions import (
+                        DocumentStorageError, 
+                        LLMProviderError, 
+                        NotFoundException, 
+                        CollectionProcessingError, 
+                        DocumentProcessingError,
+                        QuestionGenerationError, 
+                        EmptyDocumentError,
+                        DocumentIngestionError,
+                        UnsupportedFileTypeError, 
+                        ValidationError,
+                        NotFoundError)
 from core.logging_utils import get_logger
 import multiprocessing
 
@@ -38,6 +52,8 @@ class CollectionService:
         self.file_management_service = FileManagementService(db)
         self.vector_store = get_datastore(settings.vector_db)
         self.llm_provider_service = LLMProviderService(db)
+        self.prompt_template_service = PromptTemplateService(db)
+        self.llm_parameters_service = LLMParametersService(db)
         # Initialize question service
         self.question_service = QuestionService(db=db)
 
@@ -79,7 +95,7 @@ class CollectionService:
         try:
             return self.collection_repository.get(collection_id)
         except NotFoundException as e:
-            logger.error(f"Collection not found: {e}")
+            logger.error(f"Collection not found: {e}, status_code={e.status_code}, message={e.message}")
             raise HTTPException(status_code=e.status_code, detail=e.message)
         except Exception as e:
             logger.error(f"Unexpected error in service layer: {e}", exc_info=True)
@@ -211,38 +227,138 @@ class CollectionService:
 
     async def process_documents(self, file_paths: List[str], collection_id: UUID, 
                                 vector_db_name: str, document_ids: List[str], user_id: UUID):
-        try:
-            # Get appropriate provider for user
-            provider = self.llm_provider_service.get_user_provider(user_id)
-            if not provider:
-                raise LLMProviderError("No available LLM provider found")
+        """Process documents and generate questions for a collection.
+        
+        Args:
+            file_paths: List of paths to documents
+            collection_id: Collection UUID
+            vector_db_name: Name of vector database collection
+            document_ids: List of document IDs
+            user_id: User UUID
             
-            # Process documents and get the processed data
+        Raises:
+            LLMProviderError: If no provider is available
+            DocumentIngestionError: If document ingestion fails
+            EmptyDocumentError: If no valid text chunks are found
+            QuestionGenerationError: If question generation fails
+            CollectionProcessingError: For other processing errors
+        """
+        # Get appropriate provider for user
+        provider = self.llm_provider_service.get_user_provider(user_id)
+        if not provider:
+            logger.error(f"No available LLM provider found for user {user_id}")
+            self.update_collection_status(collection_id, CollectionStatus.ERROR)
+            raise LLMProviderError(
+                provider="unknown",
+                error_type="provider_not_found",
+                message=f"No available LLM provider found for user {user_id}"
+            )
+        
+        # Process documents and get the processed data
+        try:
             processed_documents = await self.ingest_documents(file_paths, vector_db_name, document_ids)
+        except DocumentIngestionError as e:
+            logger.error(f"Document ingestion failed: {str(e)}")
+            self.update_collection_status(collection_id, CollectionStatus.ERROR)
+            raise CollectionProcessingError(
+                collection_id=str(collection_id),
+                stage="ingestion",
+                error_type="ingestion_failed",
+                message=str(e)
+            )
 
-            # Generate questions using the processed documents
-            document_texts = []
-            for doc in processed_documents:
-                for chunk in doc.chunks:
-                    if chunk.text:
-                        document_texts.append(chunk.text)
-            # Suggest example questions
-            await self.question_service.suggest_questions(
+        # Extract text chunks from processed documents
+        document_texts = []
+        for doc in processed_documents:
+            for chunk in doc.chunks:
+                if chunk.text:
+                    document_texts.append(chunk.text)
+
+        if not document_texts:
+            logger.error(f"No valid text chunks found in documents for collection {collection_id}")
+            self.update_collection_status(collection_id, CollectionStatus.ERROR)
+            raise EmptyDocumentError(collection_id=str(collection_id))
+
+        # Get question generation template
+        template = self.prompt_template_service.get_by_type(
+            PromptTemplateType.QUESTION_GENERATION,
+            user_id
+        )
+        if not template:
+            logger.error(f"Question generation template not found for user {user_id}")
+            self.update_collection_status(collection_id, CollectionStatus.ERROR)
+            raise NotFoundError(
+                resource_type="PromptTemplate",
+                resource_id=f"type:{PromptTemplateType.QUESTION_GENERATION}",
+                message="Question generation template not found"
+            )
+
+        # Get LLM parameters
+        parameters = self.llm_parameters_service.get_latest_or_default_parameters(user_id)
+        if not parameters:
+            logger.error(f"No LLM parameters found for user {user_id}")
+            self.update_collection_status(collection_id, CollectionStatus.ERROR)
+            raise ValidationError("No default LLM parameters found")
+
+        # Generate questions
+        try:
+            questions = await self.question_service.suggest_questions(
                 texts=document_texts,
                 collection_id=collection_id,
                 user_id=user_id,
-                provider_name=provider.name
+                provider_name=provider.name,
+                template=template,
+                parameters=parameters
             )
-            logger.info(f"Generated questions for collection {collection_id}")
-
-            # Update collection status to COMPLETED
+            
+            if not questions:
+                logger.warning(f"No questions were generated for collection {collection_id}")
+                self.update_collection_status(collection_id, CollectionStatus.ERROR)
+                raise QuestionGenerationError(
+                    collection_id=str(collection_id),
+                    error_type="no_questions",
+                    message="No questions were generated"
+                )
+            
+            logger.info(f"Generated {len(questions)} questions for collection {collection_id}")
             self.update_collection_status(collection_id, CollectionStatus.COMPLETED)
-        except Exception as e:
-            logger.error(f"Error processing documents for collection {collection_id}: {str(e)}")
+            
+        except (ValidationError, NotFoundError, LLMProviderError) as e:
+            error_type = "validation_error" if isinstance(e, ValidationError) else \
+                       "template_not_found" if isinstance(e, NotFoundError) else \
+                       "provider_error"
+            logger.error(f"Question generation failed ({error_type}): {str(e)}")
             self.update_collection_status(collection_id, CollectionStatus.ERROR)
+            raise QuestionGenerationError(
+                collection_id=str(collection_id),
+                error_type=error_type,
+                message=str(e)
+            ) from e
+        except Exception as e:
+            logger.error(f"Unexpected error during question generation: {str(e)}")
+            self.update_collection_status(collection_id, CollectionStatus.ERROR)
+            raise QuestionGenerationError(
+                collection_id=str(collection_id),
+                error_type="unexpected_error",
+                message=str(e)
+            ) from e
 
     async def ingest_documents(self, file_paths: List[str], vector_db_name: str, document_ids: List[str]) -> List[Document]:
-        """Ingest documents and store them in the vector store."""
+        """Ingest documents and store them in the vector store.
+        
+        Args:
+            file_paths: List of paths to documents
+            vector_db_name: Name of vector database collection
+            document_ids: List of document IDs
+            
+        Returns:
+            List of processed Document objects
+            
+        Raises:
+            DocumentProcessingError: If document processing fails
+            DocumentStorageError: If storing in vector store fails
+            DocumentIngestionError: For other ingestion-related errors
+        """
         processed_documents = []
         with multiprocessing.Manager() as manager:
             processor = DocumentProcessor(manager)
@@ -254,22 +370,57 @@ class CollectionService:
                     documents_iterator = processor.process_document(file_path, document_id)
                     async for document in documents_iterator:
                         processed_documents.append(document)
-                        # Store document in vector store
-                        self.store_documents_in_vector_store([document], vector_db_name)
-                except Exception as e:
-                    logger.error(f"Error processing file {file_path}: {str(e)}", exc_info=True)
-                    raise e
+                        try:
+                            # Store document in vector store
+                            self.store_documents_in_vector_store([document], vector_db_name)
+                        except DocumentStorageError as e:
+                            logger.error(f"Failed to store document {document_id} in vector store: {str(e)}")
+                            raise DocumentIngestionError(
+                                doc_id=document_id,
+                                stage="vector_store",
+                                error_type="storage_failed",
+                                message=str(e)
+                            )
+                except (UnsupportedFileTypeError, DocumentProcessingError) as e:
+                    logger.error(f"Error processing file {file_path}: {str(e)}")
+                    raise DocumentIngestionError(
+                        doc_id=document_id,
+                        stage="processing",
+                        error_type="processing_failed",
+                        message=str(e)
+                    )
         return processed_documents
 
     def store_documents_in_vector_store(self, documents: List[Document], collection_name: str):
-        """Store documents in the vector store."""
+        """Store documents in the vector store.
+        
+        Args:
+            documents: List of documents to store
+            collection_name: Name of vector store collection
+            
+        Raises:
+            DocumentStorageError: If storing documents fails
+        """
         try:
             logger.info(f"Storing documents in collection {collection_name}")
             self.vector_store.add_documents(collection_name, documents)
             logger.info(f"Successfully stored documents in collection {collection_name}")
+        except CollectionError as e:
+            logger.error(f"Vector store error: {str(e)}")
+            raise DocumentStorageError(
+                doc_id=documents[0].id if documents else "unknown",
+                storage_path=collection_name,
+                error_type="vector_store_error",
+                message=str(e)
+            )
         except Exception as e:
-            logger.error(f"Error storing documents: {e}", exc_info=True)
-            raise DocumentStorageError(f"Error: {e}")
+            logger.error(f"Unexpected error storing documents: {str(e)}")
+            raise DocumentStorageError(
+                doc_id=documents[0].id if documents else "unknown",
+                storage_path=collection_name,
+                error_type="unexpected_error",
+                message=str(e)
+            )
 
     def update_collection_status(self, collection_id: UUID, status: CollectionStatus):
         """Update the status of a collection."""
