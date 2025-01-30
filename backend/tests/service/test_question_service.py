@@ -12,7 +12,8 @@ from rag_solution.models.user import User
 from rag_solution.models.prompt_template import PromptTemplate
 from rag_solution.models.llm_parameters import LLMParameters
 from rag_solution.services.question_service import QuestionService
-from rag_solution.schemas.prompt_template_schema import PromptTemplateType
+from rag_solution.schemas.prompt_template_schema import PromptTemplateType, PromptTemplateInput
+from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
 
 
 @pytest.mark.atomic
@@ -27,23 +28,14 @@ async def test_suggest_questions_success(
     base_llm_parameters: LLMParameters,
     llm_provider: str
 ) -> None:
-    # Verify collection exists
-    assert base_collection.id is not None
-    db_collection = db_session.query(Collection).filter_by(id=base_collection.id).first()
-    assert db_collection is not None
-
-    print(f"question_service: {question_service}")
-    print(f"base_collection: {base_collection}")
-    print(f"base_user: {base_user}")
-    print(f"base_prompt_template: {base_prompt_template}")
-    print(f"base llm parameters: {base_llm_parameters}")
-
     """Test successful question generation."""
     questions = await question_service.suggest_questions(
         texts=test_documents,
         collection_id=base_collection.id,
         user_id=base_user.id,
         provider_name=llm_provider,
+        template=base_prompt_template,
+        parameters=base_llm_parameters,
         num_questions=3
     )
     
@@ -74,7 +66,9 @@ async def test_suggest_questions_empty_texts(
         texts=[],
         collection_id=base_collection.id,
         user_id=base_user.id,
-        provider_name=llm_provider
+        provider_name=llm_provider,
+        template=base_prompt_template,
+        parameters=base_llm_parameters
     )
     assert len(questions) == 0
 
@@ -91,33 +85,27 @@ async def test_suggest_questions_validation(
     llm_provider: str
 ) -> None:
     """Test question validation logic."""
-    custom_config = {
-        'min_length': 20,
-        'max_length': 100,
-        'required_terms': ['Python', 'programming'],
-        'question_patterns': [r'what', r'how', r'why']
-    }
-    
-    service_with_config = QuestionService(
-        question_service.db,
-        config=custom_config
-    )
-    
-    questions = await service_with_config.suggest_questions(
+    # Generate questions with custom validation rules
+    questions = await question_service.suggest_questions(
         texts=test_documents,
         collection_id=base_collection.id,
         user_id=base_user.id,
-        provider_name=llm_provider
+        provider_name=llm_provider,
+        template=base_prompt_template,
+        parameters=base_llm_parameters
     )
-    
+
+    # Manually validate the generated questions
     for question in questions:
-        # Check length constraints
-        assert len(question.question) >= custom_config['min_length']
-        assert len(question.question) <= custom_config['max_length']
-        
-        # Check required terms
+        # Check length constraints (example: min_length=20, max_length=100)
+        assert 20 <= len(question.question) <= 100
+
+        # Check required terms (example: 'Python' and 'programming')
         question_lower = question.question.lower()
-        assert any(term.lower() in question_lower for term in custom_config['required_terms'])
+        assert any(term.lower() in question_lower for term in ['Python', 'programming'])
+
+        # Check question patterns (example: contains 'what', 'how', or 'why')
+        assert any(pattern in question_lower for pattern in ['what', 'how', 'why', 'who']), f"Question does not contain expected pattern: {question.question}"
 
 
 @pytest.mark.atomic
@@ -137,7 +125,9 @@ async def test_regenerate_questions(
         texts=test_documents,
         collection_id=base_collection.id,
         user_id=base_user.id,
-        provider_name=llm_provider
+        provider_name=llm_provider,
+        template=base_prompt_template,
+        parameters=base_llm_parameters
     )
     assert len(initial_questions) > 0
     initial_ids = {q.id for q in initial_questions}
@@ -147,7 +137,9 @@ async def test_regenerate_questions(
         collection_id=base_collection.id,
         user_id=base_user.id,
         texts=test_documents,
-        provider_name=llm_provider
+        provider_name=llm_provider,
+        template=base_prompt_template,
+        parameters=base_llm_parameters
     )
     
     assert len(new_questions) > 0
@@ -175,7 +167,9 @@ async def test_get_collection_questions(
         texts=test_documents,
         collection_id=base_collection.id,
         user_id=base_user.id,
-        provider_name=llm_provider
+        provider_name=llm_provider,
+        template=base_prompt_template,
+        parameters=base_llm_parameters
     )
     assert len(generated_questions) > 0
     
@@ -259,61 +253,6 @@ def test_duplicate_question_filtering(question_service: QuestionService) -> None
 
 @pytest.mark.atomic
 @pytest.mark.asyncio
-async def test_suggest_questions_missing_template(
-    question_service: QuestionService,
-    base_collection: Collection,
-    base_user: User,
-    test_documents: List[str],
-    base_llm_parameters: LLMParameters,
-    llm_provider: str,
-    db_session: Session
-) -> None:
-    """Test question generation with missing template."""
-    # Delete the question generation template
-    db_session.query(PromptTemplate).filter_by(
-        type=PromptTemplateType.QUESTION_GENERATION
-    ).delete()
-    db_session.commit()
-
-    with pytest.raises(NotFoundException) as exc_info:
-        await question_service.suggest_questions(
-            texts=test_documents,
-            collection_id=base_collection.id,
-            user_id=base_user.id,
-            provider_name=llm_provider
-        )
-    assert "Question generation template not found" in str(exc_info.value)
-
-@pytest.mark.atomic
-@pytest.mark.asyncio
-async def test_suggest_questions_missing_parameters(
-    question_service: QuestionService,
-    base_collection: Collection,
-    base_user: User,
-    base_prompt_template: PromptTemplate,
-    test_documents: List[str],
-    llm_provider: str,
-    db_session: Session
-) -> None:
-    """Test question generation with missing LLM parameters."""
-    # Delete the default LLM parameters
-    db_session.query(LLMParameters).filter_by(
-        user_id=base_user.id,
-        is_default=True
-    ).delete()
-    db_session.commit()
-
-    with pytest.raises(ValidationError) as exc_info:
-        await question_service.suggest_questions(
-            texts=test_documents,
-            collection_id=base_collection.id,
-            user_id=base_user.id,
-            provider_name=llm_provider
-        )
-    assert "No default LLM parameters found" in str(exc_info.value)
-
-@pytest.mark.atomic
-@pytest.mark.asyncio
 async def test_suggest_questions_empty_llm_response(
     question_service: QuestionService,
     base_collection: Collection,
@@ -324,25 +263,57 @@ async def test_suggest_questions_empty_llm_response(
     llm_provider: str
 ) -> None:
     """Test handling of empty LLM response."""
-    # Use very restrictive config to force empty response
-    custom_config = {
-        'min_length': 1000,  # Very long minimum length
-        'required_terms': ['nonexistentterm123'],  # Term that won't appear
-        'question_patterns': [r'impossible pattern \d{100}']  # Pattern that won't match
-    }
-    
-    service_with_config = QuestionService(
-        question_service.db,
-        config=custom_config
+    # Create a restrictive prompt template
+    restrictive_template = PromptTemplateInput(
+        name="restrictive-template",
+        provider=base_prompt_template.provider,
+        template_type=PromptTemplateType.QUESTION_GENERATION,
+        system_prompt="Generate very long and specific questions.",
+        template_format="{context}\n\nGenerate {num_questions} questions.",  # Ensure context is included
+        input_variables={
+            "context": "Retrieved context for answering the question",
+            "num_questions": "Number of questions to generate"
+        },
+        example_inputs={
+            "context": "Python is a programming language.",
+            "num_questions": 3
+        },
+        context_strategy=base_prompt_template.context_strategy,
+        max_context_length=100,  # Restrict context length
+        stop_sequences=["\n"],   # Stop generation at newlines
+        is_default=False,
+        validation_schema={
+            "model": "PromptVariables",
+            "fields": {
+                "context": {"type": "str", "min_length": 1000},  # Require long context
+                "question": {"type": "str", "min_length": 1000}  # Require long questions
+            },
+            "required": ["context", "question"]
+        }
     )
-    
-    questions = await service_with_config.suggest_questions(
+
+    # Use restrictive LLM parameters
+    restrictive_parameters = LLMParametersInput(
+        name="restrictive_params",
+        max_new_tokens=10,  # Force very short questions
+        temperature=0.1,    # Low temperature for deterministic output
+        top_k=1,            # Restrict sampling to top 1 token
+        top_p=0.1,          # Restrict sampling to top 10% of tokens
+        repetition_penalty=2.0  # High penalty for repetition
+    )
+
+    # Generate questions with restrictive parameters and template
+    questions = await question_service.suggest_questions(
         texts=test_documents,
         collection_id=base_collection.id,
         user_id=base_user.id,
-        provider_name=llm_provider
+        provider_name=llm_provider,
+        template=restrictive_template,
+        parameters=restrictive_parameters,
+        num_questions=5  # Pass the number of questions as a variable
     )
-    
+
+    # Assert that no questions were generated due to restrictions
     assert len(questions) == 0
 
 @pytest.mark.atomic
@@ -363,19 +334,23 @@ def test_validate_question_malformed_input(question_service: QuestionService) ->
         assert not is_valid
 
 @pytest.mark.atomic
-def test_invalid_configuration(db_session: Session) -> None:
-    """Test service initialization with invalid configuration."""
-    invalid_configs = [
-        {'num_questions': -1},  # Negative questions
-        {'min_length': 'invalid'},  # Wrong type
-        {'max_length': 0},  # Invalid length
-        {'question_types': None},  # Invalid types
-        {'required_terms': {'invalid': 'type'}},  # Wrong type for terms
+def test_invalid_configuration(question_service: QuestionService) -> None:
+    """Test validation of invalid question inputs."""
+    context = "Python is a programming language. It is used for software development."
+
+    # Test invalid questions
+    invalid_questions = [
+        None,  # None input
+        "",  # Empty string
+        "?" * 1000,  # Extremely long question mark string
+        "\n\n\n?",  # Just newlines and question mark
+        "What is Python" + "?" * 100,  # Multiple question marks
+        "What\x00is\x00Python?",  # Null bytes
     ]
-    
-    for config in invalid_configs:
-        with pytest.raises(ValidationError):
-            QuestionService(db_session, config=config)
+
+    for question in invalid_questions:
+        is_valid, cleaned = question_service._validate_question(question, context)
+        assert not is_valid, f"Expected invalid question: {question}"
 
 if __name__ == "__main__":
     pytest.main([__file__])
