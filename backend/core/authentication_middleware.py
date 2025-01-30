@@ -42,12 +42,32 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         else:
             logger.info("AuthMiddleware: No JWT token found")
 
-        open_paths = ['/api/auth/login', '/api/auth/callback', '/api/health', '/api/auth/oidc-config', '/api/auth/token']
+        open_paths = [
+            '/api/',
+            '/api/auth/login',
+            '/api/auth/callback',
+            '/api/health',
+            '/api/auth/oidc-config',
+            '/api/auth/token',
+            '/api/docs',
+            '/api/openapi.json',
+            '/api/redoc',
+            '/api/docs/oauth2-redirect',
+            '/api/docs/swagger-ui.css',
+            '/api/docs/swagger-ui-bundle.js',
+            '/api/docs/swagger-ui-standalone-preset.js',
+            '/api/docs/favicon.png'
+        ]
 
-        if request.url.path.startswith("/api/") and request.url.path not in open_paths:
-            if not hasattr(request.state, 'user'):
-                logger.warning(f"AuthMiddleware: User not authenticated for protected endpoint: {request.url.path}")
-                return JSONResponse(status_code=401, content={"detail": "Authentication required"})
+        # Skip authentication for open paths and static files
+        if request.url.path in open_paths or request.url.path.startswith('/static/'):
+            logger.info(f"AuthMiddleware: Allowing access to open path: {request.url.path}")
+            return await call_next(request)
+
+        # Require authentication for all other paths
+        if not hasattr(request.state, 'user'):
+            logger.warning(f"AuthMiddleware: User not authenticated for protected endpoint: {request.url.path}")
+            return JSONResponse(status_code=401, content={"detail": "Authentication required"})
 
         logger.info("AuthMiddleware: Passing request to next middleware/handler")
         response = await call_next(request)
