@@ -2,7 +2,8 @@
 
 from sqlalchemy.orm import Session
 from uuid import UUID
-from typing import Optional, Dict, Any, List
+from functools import wraps
+from typing import Optional, Dict, Any, List, TypeVar, Callable, ParamSpec
 import time
 import re
 
@@ -11,7 +12,8 @@ from core.config import settings
 from core.custom_exceptions import (
     ConfigurationError,
     ValidationError,
-    NotFoundError
+    NotFoundError, 
+    LLMProviderError
 )
 from core.logging_utils import get_logger
 
@@ -24,6 +26,31 @@ from vectordbs.data_types import QueryResult, DocumentMetadata
 
 logger = get_logger("services.search")
 
+T = TypeVar('T')
+P = ParamSpec('P')
+
+def handle_search_errors(func: Callable[P, T]) -> Callable[P, T]:
+    """Decorator to handle common search errors and convert them to HTTPExceptions."""
+    @wraps(func)
+    async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+        try:
+            return await func(*args, **kwargs)
+        except NotFoundError as e:
+            logger.error(f"Resource not found: {str(e)}")
+            raise HTTPException(status_code=404, detail=str(e))
+        except ValidationError as e:
+            logger.error(f"Validation error: {str(e)}")
+            raise HTTPException(status_code=400, detail=str(e))
+        except LLMProviderError as e:
+            logger.error(f"LLM provider error: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+        except ConfigurationError as e:
+            logger.error(f"Configuration error: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+        except Exception as e:
+            logger.error(f"Unexpected error during search: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Error processing search: {str(e)}")
+    return wrapper
 
 class SearchService:
     """Service for handling search operations through the RAG pipeline."""
@@ -60,25 +87,28 @@ class SearchService:
             self._pipeline_service = PipelineService(self.db)
         return self._pipeline_service
 
+    @handle_search_errors
     async def _initialize_pipeline(self, collection_id: UUID) -> str:
-        """Initialize pipeline for collection and return vector DB name."""
+        """Initialize pipeline with collection."""
         try:
             # Get collection
             collection = self.collection_service.get_collection(collection_id)
-
+            if not collection:
+                raise NotFoundError(
+                    resource_type="Collection",
+                    resource_id=str(collection_id),
+                    message=f"Collection with ID {collection_id} not found"
+                )
+            
             # Initialize pipeline
             await self.pipeline_service.initialize(collection.vector_db_name)
             return collection.vector_db_name
-
-        except NotFoundError as e:
-            logger.error(f"Collection not found: {e}")
-            raise HTTPException(status_code=404, detail=str(e))
-        except ConfigurationError as e:
-            logger.error(f"Configuration error: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
+        
+        except (NotFoundError, ConfigurationError):
+            raise
         except Exception as e:
-            logger.error(f"Error initializing pipeline: {e}")
-            raise HTTPException(status_code=500, detail=f"Pipeline initialization failed: {str(e)}")
+            logger.error(f"Error initializing pipeline: {str(e)}")
+            raise ConfigurationError(f"Pipeline initialization failed: {str(e)}")
 
     def _generate_document_metadata(
         self,
@@ -87,37 +117,52 @@ class SearchService:
     ) -> List[DocumentMetadata]:
         """Generate metadata from retrieved query results."""
         logger.debug("Generating document metadata")
-        try:
-            # Get unique document IDs from results
-            doc_ids = {
-                result.document_id
-                for result in query_results
-                if result.document_id is not None
-            }
+        
+        # Get unique document IDs from results
+        doc_ids = {
+            result.document_id
+            for result in query_results
+            if result.document_id is not None
+        }
 
-            # Get file metadata
-            files = self.file_service.get_files_by_collection(collection_id)
-            file_metadata_by_id: Dict[str, DocumentMetadata] = {
-                file.document_id: DocumentMetadata(
-                    document_name=file.filename,
-                    total_pages=file.metadata.total_pages if file.metadata else None,
-                    total_chunks=file.metadata.total_chunks if file.metadata else None,
-                    keywords=file.metadata.keywords if file.metadata else None
-                )
-                for file in files if file.document_id
-            }
+        if not doc_ids:
+            return []
 
-            # Map metadata to results
-            doc_metadata = [
-                file_metadata_by_id[doc_id]
-                for doc_id in doc_ids if doc_id in file_metadata_by_id
-            ]
-            logger.debug(f"Generated metadata for {len(doc_metadata)} documents")
-            return doc_metadata
+        # Get file metadata
+        files = self.file_service.get_files_by_collection(collection_id)
+        if not files:
+            # Only return empty list if there are no query results requiring metadata
+            if not doc_ids:
+                return []
+            raise ConfigurationError(f"No files found for collection {collection_id} but documents were referenced")
 
-        except Exception as e:
-            logger.error(f"Error generating document metadata: {e}")
-            raise ConfigurationError(f"Metadata generation failed: {str(e)}")
+        file_metadata_by_id: Dict[str, DocumentMetadata] = {
+            file.document_id: DocumentMetadata(
+                document_name=file.filename,
+                total_pages=file.metadata.total_pages if file.metadata else None,
+                total_chunks=file.metadata.total_chunks if file.metadata else None,
+                keywords=file.metadata.keywords if file.metadata else None
+            )
+            for file in files if file.document_id
+        }
+
+        # Map metadata to results
+        doc_metadata = []
+        missing_docs = []
+        for doc_id in doc_ids:
+            if doc_id not in file_metadata_by_id:
+                missing_docs.append(doc_id)
+
+        if missing_docs:
+            raise ConfigurationError(
+                f"Metadata generation failed: Documents not found in collection metadata: {', '.join(missing_docs)}"
+            )
+
+        for doc_id in doc_ids:
+            doc_metadata.append(file_metadata_by_id[doc_id])
+
+        logger.debug(f"Generated metadata for {len(doc_metadata)} documents")
+        return doc_metadata
 
     def _clean_generated_answer(self, answer: str) -> str:
         # Remove AND prefixes and deduplicate
@@ -126,92 +171,98 @@ class SearchService:
         cleaned = " ".join(dict.fromkeys(cleaned.split()))
         return cleaned
 
+    def _validate_search_input(self, search_input: SearchInput) -> None:
+        """Validate search input parameters."""
+        if not search_input.question or not search_input.question.strip():
+            raise ValidationError("Query cannot be empty")
+
+    def _validate_collection_access(self, collection_id: UUID, user_id: Optional[UUID]) -> None:
+        """Validate collection access."""
+        try:
+            collection = self.collection_service.get_collection(collection_id)
+            if not collection:
+                raise NotFoundError(
+                    resource_type="Collection",
+                    resource_id=str(collection_id),
+                    message=f"Collection with ID {collection_id} not found"
+                )
+                
+            if user_id and collection.is_private:
+                user_collections = self.collection_service.get_user_collections(user_id)
+                if collection.id not in [c.id for c in user_collections]:
+                    raise NotFoundError(
+                        resource_type="Collection",
+                        resource_id=str(collection_id),
+                        message="Collection not found or access denied"
+                    )
+        except HTTPException as e:
+            # Convert HTTPException to NotFoundError to ensure consistent error handling
+            if e.status_code == 404:
+                raise NotFoundError(
+                    resource_type="Collection",
+                    resource_id=str(collection_id),
+                    message=str(e.detail)
+                )
+            raise
+
+    def _validate_pipeline(self, pipeline_id: UUID) -> None:
+        """Validate pipeline configuration."""
+        pipeline_config = self.pipeline_service.get_pipeline_config(pipeline_id)
+        if not pipeline_config:
+            raise NotFoundError(
+                resource_type="Pipeline",
+                resource_id=str(pipeline_id),
+                message="Pipeline configuration not found"
+            )
+
+    @handle_search_errors
     async def search(
         self,
         search_input: SearchInput,
         user_id: Optional[UUID] = None,
         context: Optional[Dict[str, Any]] = None
     ) -> SearchOutput:
-        """
-        Process a search query through the RAG pipeline.
-        
-        Args:
-            search_input: Search parameters and query
-            user_id: Optional user ID for tracking
-            context: Optional context information
-            
-        Returns:
-            SearchOutput containing answer and supporting information
-            
-        Raises:
-            HTTPException: For various error conditions
-        """
+        """Process a search query through the RAG pipeline."""
         start_time = time.time()
         logger.info("Starting search operation")
 
-        # Validate query
-        if not search_input.question or not search_input.question.strip():
-            raise HTTPException(
-                status_code=400,
-                detail="Query cannot be empty"
-            )
+        # Validate inputs
+        self._validate_search_input(search_input)
+        self._validate_collection_access(search_input.collection_id, user_id)
+        self._validate_pipeline(search_input.pipeline_id)
 
-        try:
-            # Initialize pipeline for collection
-            collection_name = await self._initialize_pipeline(search_input.collection_id)
+        # Initialize pipeline
+        collection_name = await self._initialize_pipeline(search_input.collection_id)
 
-            # Execute pipeline
-            pipeline_result = await self.pipeline_service.execute_pipeline(
-                search_input=search_input,
-                user_id=user_id,
-                collection_name=collection_name
-            )
-            
-            if not pipeline_result.success:
-                raise ConfigurationError(pipeline_result.error or "Pipeline execution failed")
+        # Execute pipeline
+        pipeline_result = await self.pipeline_service.execute_pipeline(
+            search_input=search_input,
+            user_id=user_id,
+            collection_name=collection_name
+        )
 
-            # Generate metadata
-            document_metadata = self._generate_document_metadata(
-                pipeline_result.query_results,
-                search_input.collection_id
-            )
+        if not pipeline_result.success:
+            raise ConfigurationError(pipeline_result.error or "Pipeline execution failed")
 
-            # Clean answer
-            cleaned_answer = self._clean_generated_answer(
-                pipeline_result.generated_answer
-            )
+        # Generate metadata
+        document_metadata = self._generate_document_metadata(
+            pipeline_result.query_results,
+            search_input.collection_id
+        )
 
-            # Build response
-            search_output = SearchOutput(
-                answer=cleaned_answer,
-                documents=document_metadata,
-                query_results=pipeline_result.query_results,
-                rewritten_query=pipeline_result.rewritten_query,
-                evaluation=pipeline_result.evaluation,
-                metadata={
-                    "execution_time": time.time() - start_time,
-                    "num_chunks": len(pipeline_result.query_results),
-                    "unique_docs": len(pipeline_result.get_unique_document_ids())
-                }
-            )
+        # Clean answer
+        cleaned_answer = self._clean_generated_answer(pipeline_result.generated_answer)
 
-            logger.info(f"Search completed in {time.time() - start_time:.2f}s")
-            return search_output
-
-        except ValidationError as e:
-            logger.error(f"Validation error: {str(e)}")
-            raise HTTPException(status_code=422, detail=str(e))
-        except NotFoundError as e:
-            logger.error(f"Not found error: {str(e)}")
-            raise HTTPException(status_code=404, detail=str(e))
-        except ConfigurationError as e:
-            logger.error(f"Configuration error: {str(e)}")
-            if "Collection not found" in str(e):
-                raise HTTPException(status_code=404, detail=str(e))
-            raise HTTPException(status_code=500, detail=str(e))
-        except Exception as e:
-            logger.error(f"Unexpected error during search: {e}")
-            raise HTTPException(
-                status_code=500,
-                detail=f"Error processing search: {str(e)}"
-            )
+        # Build response
+        return SearchOutput(
+            answer=cleaned_answer,
+            documents=document_metadata,
+            query_results=pipeline_result.query_results,
+            rewritten_query=pipeline_result.rewritten_query,
+            evaluation=pipeline_result.evaluation,
+            metadata={
+                "execution_time": time.time() - start_time,
+                "num_chunks": len(pipeline_result.query_results),
+                "unique_docs": len(set(r.document_id for r in pipeline_result.query_results if r.document_id))
+            }
+        )
