@@ -113,6 +113,20 @@ class LLMBase(ABC, metaclass=LLMMeta):
         if self.client is None:
             raise ValueError("OpenAI client is not initialized")
 
+    def _format_prompt(
+        self,
+        prompt: str,
+        template: Optional[PromptTemplateBase] = None,
+        variables: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """Format prompt using template service."""
+        if not template:
+            return prompt
+        return self.prompt_template_service.format_prompt(
+            template_or_id=template,
+            variables=variables or {}
+        )
+
     @abstractmethod
     def generate_text(
         self,
