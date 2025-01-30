@@ -59,12 +59,12 @@ const AppLayout = ({ children }) => {
   }, []);
 
   return (
-    <div className="app-container">
+    <div className="app-container" id="app-container">
       {user && <Header />}
       <div className="page-container">
         <Content>{children}</Content>
-        {user && <Footer />}
       </div>
+      {user && <Footer />}
     </div>
   );
 };
@@ -84,7 +84,7 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
-function AppContent() {
+const AppContent = () => {
   return (
     <Routes>
       {/* Auth Routes */}
@@ -145,7 +145,7 @@ function AppContent() {
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
-}
+};
 
 const App = () => {
   return (
