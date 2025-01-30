@@ -67,4 +67,10 @@ dev-env/
 webui/default.conf-dev
 
 # ignore nektos act folder
-.act
+.act/
+
+# Test reports and coverage
+test-reports/
+coverage/
+junit.xml
+report.html
