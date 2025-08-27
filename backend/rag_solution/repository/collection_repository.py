@@ -129,6 +129,30 @@ class CollectionRepository:
         except SQLAlchemyError as e:
             logger.error(f"Error getting collections for user {user_id}: {str(e)}")
             raise
+    
+    def get_by_name(self, name: str) -> Optional[CollectionOutput]:
+        """Get a collection by name.
+        
+        Args:
+            name: Collection name to search for
+            
+        Returns:
+            CollectionOutput if found, None otherwise
+        """
+        try:
+            collection = (
+                self.db.query(Collection)
+                .options(
+                    joinedload(Collection.users),
+                    joinedload(Collection.files)
+                )
+                .filter(Collection.name == name)
+                .first()
+            )
+            return self._collection_to_output(collection) if collection else None
+        except SQLAlchemyError as e:
+            logger.error(f"Error getting collection by name {name}: {str(e)}")
+            raise
 
     def update(self, collection_id: UUID, collection_update: dict) -> Optional[CollectionOutput]:
         """

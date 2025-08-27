@@ -3,11 +3,8 @@ import pytest
 from sqlalchemy.orm import Session
 from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.prompt_template_service import PromptTemplateService
-from rag_solution.schemas.llm_provider_schema import (
-    LLMProviderInput,
-    LLMProviderModelInput,
-    ModelType
-)
+from rag_solution.schemas.llm_provider_schema import LLMProviderInput
+from rag_solution.schemas.llm_model_schema import ModelType, LLMModelInput
 from rag_solution.schemas.prompt_template_schema import (
     PromptTemplateType,
     PromptTemplateInput
@@ -34,7 +31,7 @@ def test_complete_configuration_flow(db_session: Session, base_user):
     assert provider.project_id == "test-project-id"
 
     # Create model
-    model_input = LLMProviderModelInput(
+    model_input = LLMModelInput(
         provider_id=provider.id,
         model_id="google/flan-ul2",
         default_model_id="google/flan-ul2",
@@ -60,7 +57,7 @@ def test_complete_configuration_flow(db_session: Session, base_user):
     template_service = PromptTemplateService(db_session)
 
     # Create RAG query template
-    rag_template = template_service.create_or_update_template(
+    rag_template = template_service.create_template(
         base_user.id,
         PromptTemplateInput(
             name="test-rag-template",
@@ -89,7 +86,7 @@ def test_complete_configuration_flow(db_session: Session, base_user):
     assert "question" in rag_template.input_variables
 
     # Create question generation template
-    question_template = template_service.create_or_update_template(
+    question_template = template_service.create_template(
         base_user.id,
         PromptTemplateInput(
             name="test-question-template",
@@ -144,7 +141,7 @@ def test_update_template_flow(db_session: Session, base_user):
     template_service = PromptTemplateService(db_session)
 
     # Create initial template
-    template = template_service.create_or_update_template(
+    template = template_service.create_template(
         base_user.id,
         PromptTemplateInput(
             name="test-template",
@@ -165,7 +162,7 @@ def test_update_template_flow(db_session: Session, base_user):
     )
 
     # Update template
-    updated_template = template_service.create_or_update_template(
+    updated_template = template_service.create_template(
         base_user.id,
         PromptTemplateInput(
             name="test-template",  # Same name to update

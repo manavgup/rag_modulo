@@ -3,11 +3,8 @@ import pytest
 from sqlalchemy.orm import Session
 from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.prompt_template_service import PromptTemplateService
-from rag_solution.schemas.llm_provider_schema import (
-    LLMProviderInput,
-    LLMProviderModelInput,
-    ModelType
-)
+from rag_solution.schemas.llm_provider_schema import LLMProviderInput
+from rag_solution.schemas.llm_model_schema import LLMModelInput, LLMModelOutput, ModelType
 from rag_solution.schemas.prompt_template_schema import (
     PromptTemplateType,
     PromptTemplateInput
@@ -33,7 +30,7 @@ def test_invalid_template_variables(db_session: Session, base_user):
 
     # Test missing required variable
     with pytest.raises(ValueError, match="Template variables missing"):
-        template_service.create_or_update_template(
+        template_service.create_template(
             base_user.id,
             PromptTemplateInput(
                 name="test-template",
@@ -46,7 +43,7 @@ def test_invalid_template_variables(db_session: Session, base_user):
 
     # Test undefined variable in template
     with pytest.raises(ValueError, match="Template variables missing"):
-        template_service.create_or_update_template(
+        template_service.create_template(
             base_user.id,
             PromptTemplateInput(
                 name="test-template",
@@ -77,7 +74,7 @@ def test_invalid_provider_configuration(db_session: Session, base_user):
 
     # Test invalid provider name
     with pytest.raises(ValueError, match="Invalid provider"):
-        template_service.create_or_update_template(
+        template_service.create_template(
             base_user.id,
             PromptTemplateInput(
                 name="test-template",
@@ -108,7 +105,7 @@ def test_invalid_model_configuration(db_session: Session):
     # Test invalid model configuration
     with pytest.raises(ValueError):
         provider_service.create_provider_model(
-            LLMProviderModelInput(
+            LLMModelInput(
                 provider_id=provider.id,
                 model_id="",  # Empty model ID
                 default_model_id="google/flan-ul2",
@@ -128,7 +125,7 @@ def test_invalid_model_configuration(db_session: Session):
     # Test negative timeout
     with pytest.raises(ValueError):
         provider_service.create_provider_model(
-            LLMProviderModelInput(
+            LLMModelInput(
                 provider_id=provider.id,
                 model_id="google/flan-ul2",
                 default_model_id="google/flan-ul2",

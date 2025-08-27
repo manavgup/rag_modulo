@@ -6,7 +6,7 @@ from sqlalchemy import String, Float, Boolean, Text, DateTime, ForeignKey, Integ
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 from rag_solution.file_management.database import Base
-
+from pydantic import field_validator
 
 class LLMParameters(Base):
     """
@@ -45,6 +45,16 @@ class LLMParameters(Base):
     user: Mapped["User"] = relationship(
         "User", back_populates="llm_parameters", lazy="selectin"
     )
+
+    @field_validator('user_id')
+    @classmethod
+    def validate_uuid(cls, v):
+        if not isinstance(v, UUID):
+            try:
+                return UUID(v)
+            except ValueError:
+                raise ValueError("Invalid UUID format")
+        return v
 
     def __repr__(self):
         return f"<LLMParameters(id={self.id}, name='{self.name}', is_default={self.is_default})>"

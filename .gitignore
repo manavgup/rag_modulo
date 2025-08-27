@@ -53,6 +53,9 @@ http_ca.crt
 .coverage
 .pytest_cache/
 .ruff_cache/
+coverage_report/
+experiments/
+.mypy_cache/
 
 # Docker specific
 .dockerignore
@@ -74,3 +77,9 @@ test-reports/
 coverage/
 junit.xml
 report.html
+
+#backup or deprecated files
+backend/tests_backup
+
+# Ignore history
+.history/

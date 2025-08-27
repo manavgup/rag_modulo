@@ -12,7 +12,7 @@ from .base import LLMBase
 from vectordbs.data_types import EmbeddingsList
 from rag_solution.schemas.prompt_template_schema import PromptTemplateBase
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
-from rag_solution.schemas.llm_provider_schema import ModelType
+from rag_solution.schemas.llm_model_schema import ModelType
 
 logger = get_logger("llm.providers.anthropic")
 
@@ -30,7 +30,7 @@ class AnthropicLLM(LLMBase):
                 base_url=provider.base_url
             )
 
-            self._models = self.llm_provider_service.get_models_by_provider(provider.id)
+            self._models = self.llm_model_service.get_models_by_provider(provider.id)
             self._initialize_default_model()
 
         except Exception as e:
@@ -55,9 +55,7 @@ class AnthropicLLM(LLMBase):
 
     def _get_generation_params(self, user_id: UUID, model_parameters: Optional[LLMParametersInput] = None) -> Dict[str, Any]:
         """Get validated generation parameters."""
-        params = self.llm_parameters_service.get_parameters(user_id) if not model_parameters else \
-            self.llm_parameters_service.create_or_update_parameters(user_id, model_parameters)
-
+        params = model_parameters or self.llm_parameters_service.get_latest_or_default_parameters(user_id)
         return {
             "max_tokens": params.max_new_tokens if params else 150,
             "temperature": params.temperature if params else 0.7,
