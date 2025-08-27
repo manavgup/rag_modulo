@@ -11,11 +11,8 @@ from rag_solution.services.search_service import SearchService
 from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.llm_parameters_service import LLMParametersService
 from rag_solution.services.prompt_template_service import PromptTemplateService
-from rag_solution.services.collection_service import CollectionService
-from rag_solution.services.user_service import UserService
 from rag_solution.schemas.search_schema import SearchInput
-from rag_solution.schemas.collection_schema import CollectionInput
-from rag_solution.schemas.user_schema import UserInput
+from rag_solution.schemas.pipeline_schema import PipelineConfigInput
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
 from rag_solution.schemas.prompt_template_schema import PromptTemplateInput, PromptTemplateType
 from core.custom_exceptions import (
@@ -26,7 +23,7 @@ from core.custom_exceptions import (
 )
 
 @pytest.fixture
-def pipeline_setup(db_session: Session, test_user, test_collection):
+def pipeline_setup(db_session: Session, base_user, test_collection):
     """Set up pipeline with services."""
     pipeline_service = PipelineService(db_session)
     search_service = SearchService(db_session)
@@ -37,14 +34,14 @@ def pipeline_setup(db_session: Session, test_user, test_collection):
     # Create user's default parameters
     parameters_input = LLMParametersInput(
         name="test-parameters",
-        user_id=test_user.id,
+        user_id=base_user.id,
         temperature=0.7,
         max_new_tokens=1000,
         top_k=50,
         top_p=0.95,
         is_default=True
     )
-    parameters = parameters_service.create_or_update_parameters(test_user.id, parameters_input)
+    parameters = parameters_service.create_parameters(parameters_input)
     
     # Create user's default templates
     templates = {}
@@ -73,8 +70,8 @@ def pipeline_setup(db_session: Session, test_user, test_collection):
             template_type=template_type,
             **template_base
         )
-        templates[template_type] = template_service.create_or_update_template(
-            test_user.id,
+        templates[template_type] = template_service.create_template(
+            base_user.id,
             template_input
         )
     
@@ -85,7 +82,7 @@ def pipeline_setup(db_session: Session, test_user, test_collection):
         'parameters_service': parameters_service,
         'template_service': template_service,
         'collection': test_collection,
-        'user': test_user,
+        'user': base_user,
         'parameters': parameters,
         'templates': templates
     }

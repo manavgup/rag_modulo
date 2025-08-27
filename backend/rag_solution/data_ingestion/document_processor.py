@@ -90,7 +90,9 @@ class DocumentProcessor:
             
         except Exception as e:
             logger.error(f"Error processing document {file_path}: {e}", exc_info=True)
-            raise DocumentProcessingError(f"Error processing document {file_path}") from e
+            raise DocumentProcessingError(doc_id=document_id,
+                                          error_type="DocumentProcessingError",
+                        message=f"Error processing document {file_path}") from e
 
     
     def extract_metadata_from_processor(self, file_path: str) -> Dict[str, Any]:

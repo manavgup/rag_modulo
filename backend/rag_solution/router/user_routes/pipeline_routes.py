@@ -78,7 +78,7 @@ async def create_pipeline(
         return service.create_pipeline(pipeline_input)
     except Exception as e:
         raise HTTPException(
-            status_code=400,
+            status_code=500,
             detail=f"Failed to create pipeline configuration: {str(e)}"
         )
 

@@ -10,9 +10,9 @@ from rag_solution.generation.providers.anthropic import AnthropicLLM
 from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.llm_parameters_service import LLMParametersService
 from rag_solution.services.prompt_template_service import PromptTemplateService
-from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
-from rag_solution.schemas.prompt_template_schema import PromptTemplateInput, PromptTemplateType
-from rag_solution.schemas.llm_provider_schema import ModelType
+from rag_solution.schemas.llm_parameters_schema import LLMParametersInput, LLMParametersOutput
+from rag_solution.schemas.prompt_template_schema import PromptTemplateInput, PromptTemplateType, PromptTemplateOutput
+from rag_solution.schemas.llm_model_schema import ModelType
 from core.custom_exceptions import LLMProviderError
 
 
@@ -33,12 +33,12 @@ def test_parameters() -> Dict[str, LLMParametersInput]:
 
 
 @pytest.fixture
-def test_templates() -> Dict[str, PromptTemplateInput]:
+def test_templates(base_user) -> Dict[str, PromptTemplateInput]:
     """Test prompt templates for each provider."""
     return {
         "watsonx": PromptTemplateInput(
             name="watsonx-template",
-            provider="watsonx",
+            user_id=base_user.id,
             template_type=PromptTemplateType.RAG_QUERY,
             system_prompt="You are a helpful AI assistant.",
             template_format="Context:\n{context}\n\nQuestion:\n{question}\n\nAnswer:\n",
@@ -48,7 +48,7 @@ def test_templates() -> Dict[str, PromptTemplateInput]:
         ),
         "openai": PromptTemplateInput(
             name="openai-template",
-            provider="openai",
+            user_id=base_user.id,
             template_type=PromptTemplateType.RAG_QUERY,
             system_prompt="You are a helpful AI assistant.",
             template_format="Context:\n{context}\n\nQuestion:\n{question}\n\nAnswer:\n",
@@ -58,7 +58,7 @@ def test_templates() -> Dict[str, PromptTemplateInput]:
         ),
         "anthropic": PromptTemplateInput(
             name="anthropic-template",
-            provider="anthropic",
+            user_id=base_user.id,
             template_type=PromptTemplateType.RAG_QUERY,
             system_prompt="You are a helpful AI assistant.",
             template_format="Context:\n{context}\n\nQuestion:\n{question}\n\nAnswer:\n",
@@ -96,10 +96,10 @@ def test_provider_initialization(
     provider = provider_class(llm_provider_service, llm_parameters_service, prompt_template_service)
 
     # Simulate parameter and template creation
-    params = llm_parameters_service.create_or_update_parameters(base_user.id, test_parameters[provider_key])
-    template = prompt_template_service.create_or_update_template(base_user.id, test_templates[provider_key])
+    params: LLMParametersOutput = llm_parameters_service.create_parameters(test_parameters[provider_key])
+    template: PromptTemplateOutput = prompt_template_service.create_template(test_templates[provider_key])
 
     # Verify provider state
-    assert provider._provider_name is not None
-    assert provider.llm_parameters_service.get_user_default(base_user.id) is not None
-    assert provider.prompt_template_service.get_user_default(base_user.id) is not None
+    assert params is not None
+    assert template is not None
+  

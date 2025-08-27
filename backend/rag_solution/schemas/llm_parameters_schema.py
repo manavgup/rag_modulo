@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, UUID4, ConfigDict
+from pydantic import BaseModel, Field, UUID4, ConfigDict, field_validator
 from typing import Optional
 from datetime import datetime
 
@@ -9,6 +9,7 @@ class LLMParametersBase(BaseModel):
 
 # ⚙️ Core LLM Parameters
 class LLMParametersInput(LLMParametersBase):
+    user_id: UUID4 = Field(..., description="ID of the user who owns these parameters")
     max_new_tokens: int = Field(default=100, ge=1, le=2048, description="Maximum number of new tokens")
     temperature: float = Field(default=0.7, ge=0.0, le=2.0, description="Sampling temperature")
     top_k: int = Field(default=50, ge=1, le=100, description="Top-k sampling parameter")
@@ -22,6 +23,11 @@ class LLMParametersInput(LLMParametersBase):
         title="LLM Parameters Input",
         frozen=False
     )
+    @field_validator('temperature')
+    def validate_temperature(cls, v):
+        if v < 0.0 or v > 1.0:
+            raise ValueError('Temperature must be between 0.0 and 1.0')
+        return v
 
 # 🟢 Output Schema
 class LLMParametersOutput(LLMParametersBase):
@@ -41,6 +47,7 @@ class LLMParametersOutput(LLMParametersBase):
     def to_input(self) -> "LLMParametersInput":
         """Convert the current instance to an LLMParametersInput schema."""
         return LLMParametersInput(
+            user_id=self.user_id,
             name=self.name,
             description=self.description,
             max_new_tokens=self.max_new_tokens,

@@ -7,8 +7,8 @@ from typing import Optional
 
 from auth.oidc import oauth
 from rag_solution.services.user_service import UserService
-from rag_solution.services.llm_provider_service import LLMProviderService
-from rag_solution.services.prompt_template_service import PromptTemplateService
+from rag_solution.services.user_provider_service import UserProviderService
+from rag_solution.services.system_initialization_service import SystemInitializationService
 from rag_solution.file_management.database import get_db
 from core.config import settings
 import uuid
@@ -141,24 +141,6 @@ async def auth(request: Request, db: Session = Depends(get_db)):
             name=user.get('name', 'Unknown')
         )
         logger.info(f"User in database: {db_user.id}")
-
-        # Initialize default templates for user
-        try:
-            # Get user's provider
-            provider_service = LLMProviderService(db)
-            provider = provider_service.get_user_provider(db_user.id)
-            if not provider:
-                logger.error("No LLM provider available for user")
-                raise HTTPException(status_code=500, detail="No LLM provider available")
-
-            # Initialize templates
-            template_service = PromptTemplateService(db)
-            template_service.initialize_default_templates(db_user.id, provider.name)
-            logger.info("Successfully initialized default templates for user")
-        except Exception as e:
-            logger.error(f"Error initializing templates: {str(e)}")
-            # Continue with authentication even if template initialization fails
-            # The templates will be created on demand when needed
 
         jwt_token = token.get('id_token')
         if not jwt_token:

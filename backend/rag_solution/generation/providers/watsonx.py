@@ -13,7 +13,8 @@ from vectordbs.data_types import EmbeddingsList
 from core.custom_exceptions import LLMProviderError, ValidationError, NotFoundError
 from rag_solution.schemas.prompt_template_schema import PromptTemplateBase
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
-from rag_solution.schemas.llm_provider_schema import ModelType
+from rag_solution.schemas.llm_model_schema import ModelType
+from rag_solution.schemas.llm_provider_schema import LLMProviderConfig
 logger = get_logger("llm.providers.watsonx")
 
 class WatsonXLLM(LLMBase):
@@ -31,7 +32,7 @@ class WatsonXLLM(LLMBase):
             try:
                 # Convert Pydantic model fields to strings for IBM client
                 credentials = Credentials(
-                    api_key=str(self._provider.api_key),
+                    api_key=self._provider.api_key.get_secret_value(),
                     url=str(self._provider.base_url)
                 )
                 logger.debug("Created IBM credentials")
@@ -46,7 +47,7 @@ class WatsonXLLM(LLMBase):
                 raise
 
             # Get models for this provider
-            self._models = self.llm_provider_service.get_models_by_provider(self._provider.id)
+            self._models = self.llm_model_service.get_models_by_provider(self._provider.id)
             self._initialize_embeddings_client()
 
         except Exception as e:
@@ -69,7 +70,7 @@ class WatsonXLLM(LLMBase):
                 model_id=str(embedding_model.model_id),
                 project_id=str(self._provider.project_id),
                 credentials=Credentials(
-                    api_key=str(self._provider.api_key),
+                    api_key=self._provider.api_key.get_secret_value(),
                     url=str(self._provider.base_url)
                 ),
                 params={EmbedParams.RETURN_OPTIONS: {"input_text": True}}
@@ -83,7 +84,7 @@ class WatsonXLLM(LLMBase):
             model_id=str(model_id),
             project_id=str(self._provider.project_id),
             credentials=Credentials(
-                api_key=str(self._provider.api_key),
+                api_key=self._provider.api_key.get_secret_value(),
                 url=str(self._provider.base_url)
             )
         )
@@ -95,8 +96,8 @@ class WatsonXLLM(LLMBase):
         # Get and update parameters
         params = self._get_generation_params(user_id, model_parameters)
         model.params.update(params)
-        logger.debug(f"Model ID: {model_id}")
-        logger.debug(f"Model parameters: {model.params}")
+        logger.info(f"Model ID: {model_id}")
+        logger.info(f"Model parameters: {model.params}")
         return model
 
     def _get_default_model_id(self) -> str:
@@ -114,21 +115,21 @@ class WatsonXLLM(LLMBase):
         return default_model.model_id
 
     def _get_generation_params(self, user_id: UUID, model_parameters: Optional[LLMParametersInput] = None) -> Dict[str, Any]:
-        """Get validated generation parameters."""
-        if model_parameters:
-            params = self.llm_parameters_service.create_or_update_parameters(user_id, model_parameters)
-        else:
-            params = self.llm_parameters_service.get_latest_or_default_parameters(user_id)
-            if not params:
-                return {
-                    GenParams.MAX_NEW_TOKENS: 1000,
-                    GenParams.TEMPERATURE: 0.7,
-                    GenParams.TOP_K: 50,
-                    GenParams.TOP_P: 1.0
-                }
-            # Convert Output to Input since we need model_dump
-            params = params.to_input()
+        """Get generation parameters for WatsonX.
+        
+        Args:
+            user_id: User UUID 
+            model_parameters: Optional parameters to use directly
+            
+        Returns:
+            Dict of WatsonX generation parameters
+        """
+        # Use provided parameters if available
+        params = model_parameters or self.llm_parameters_service.get_latest_or_default_parameters(user_id)
+
+        # Convert to WatsonX format
         return {
+            GenParams.DECODING_METHOD: "sample",
             GenParams.MAX_NEW_TOKENS: params.max_new_tokens,
             GenParams.TEMPERATURE: params.temperature,
             GenParams.TOP_K: params.top_k,
@@ -145,6 +146,7 @@ class WatsonXLLM(LLMBase):
     ) -> Union[str, list[str]]:
         """Generate text using WatsonX model."""
         try:
+            logger.info(f"user_id: {user_id}, prompt: {prompt}, model_parameters: {model_parameters}, template: {template}, variables: {variables}") 
             self._ensure_client()
             model = self._get_model(user_id, model_parameters)
 
@@ -186,7 +188,7 @@ class WatsonXLLM(LLMBase):
                     template_or_id=template,
                     variables=prompt_variables
                 )
-                logger.debug(f"Formatted single prompt: {formatted_prompt[:200]}...")
+                logger.debug(f"Formatted single prompt: {formatted_prompt}...")
 
                 response = model.generate_text(prompt=formatted_prompt)
                 logger.debug(f"Response from model: {response}")

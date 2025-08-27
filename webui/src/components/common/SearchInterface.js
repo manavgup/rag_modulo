@@ -45,12 +45,10 @@ const SearchInterface = () => {
   const fetchCollections = async () => {
     try {
       const userCollections = await getUserCollections();
-      const collections =
-        userCollections && userCollections.collections.length > 0
-          ? [
+      const collections = userCollections?.collections? [
               { id: "all", name: "All Collections" },
               ...userCollections.collections.map((collection) => ({
-                id: collection.collection_id,
+                id: collection.id || collection.collection_id,
                 name: collection.name,
               })),
             ]
@@ -59,6 +57,8 @@ const SearchInterface = () => {
     } catch (error) {
       console.error('Error fetching collections:', error);
       addNotification('error', 'Error', 'Failed to fetch collections. Please try again later.');
+      // Set default collections array even on error
+      setCollections([{ id: "all", name: "All Collections" }]);
     }
   };
 
