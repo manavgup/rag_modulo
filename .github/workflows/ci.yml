@@ -37,6 +37,11 @@ jobs:
       
       - name: Create volume directories
         run: make create-volumes
+        
+      - name: Build minimal test image (required for testing)
+        run: |
+          echo "Building minimal test image for CI..."
+          make build-tests
           
       - name: Start services
         run: make run-services
