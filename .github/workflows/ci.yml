@@ -46,38 +46,64 @@ jobs:
           docker build -t ghcr.io/manavgup/rag_modulo/frontend:latest -f ./webui/Dockerfile.frontend ./webui
           
       - name: Start services
-        run: make run-services
+        run: |
+          echo "Starting infrastructure services..."
+          make create-volumes
+          docker compose up -d postgres minio milvus-etcd milvus-standalone createbuckets mlflow-server
+          echo "Services started, checking status..."
+          docker compose ps
         env:
           DOCKER_BUILDKIT: 1
           
-      - name: Wait for services to be healthy (optimized)
+      - name: Wait for services to be healthy
         run: |
           echo "Waiting for services to be healthy..."
           
-          # Start with a quick check
-          sleep 5
+          # Start with a longer initial wait for CI environment
+          sleep 10
           
-          # More aggressive health checking
-          max_wait=180  # Reduced from 300 to 3 minutes
-          check_interval=5  # Reduced from 10 to 5 seconds
+          max_wait=300  # 5 minutes for CI environment
+          check_interval=10
+          elapsed=0
           
-          timeout $max_wait bash -c "
-            while true; do
-              # Check all services at once
-              healthy_count=\$(docker compose ps --format 'table {{.Name}}\t{{.Status}}' | grep -c 'healthy')
-              total_services=5  # postgres, minio, milvus-etcd, milvus-standalone, mlflow-server
-              
-              if [ \$healthy_count -eq \$total_services ]; then
-                echo \"✅ All services are healthy (\$healthy_count/\$total_services)\"
-                docker compose ps
-                exit 0
-              fi
-              
-              echo \"⏳ Services healthy: \$healthy_count/\$total_services\"
-              docker compose ps --format 'table {{.Name}}\t{{.Status}}' | grep -v 'healthy'
-              sleep $check_interval
-            done
-          "
+          while [ $elapsed -lt $max_wait ]; do
+            echo "⏳ Checking service health (${elapsed}s/${max_wait}s)..."
+            
+            # Show current status
+            docker compose ps
+            
+            # Check for healthy services
+            healthy_count=$(docker compose ps --format 'table {{.Name}}\t{{.Status}}' | grep -c 'healthy' || echo 0)
+            total_services=5  # postgres, minio, milvus-etcd, milvus-standalone, mlflow-server
+            
+            if [ "$healthy_count" -eq "$total_services" ]; then
+              echo "✅ All services are healthy ($healthy_count/$total_services)"
+              exit 0
+            fi
+            
+            # Show logs for any unhealthy services
+            echo "⚠️ Services healthy: $healthy_count/$total_services"
+            docker compose ps --format 'table {{.Name}}\t{{.Status}}' | grep -v 'healthy' || true
+            
+            # Show logs for failed containers
+            failed_containers=$(docker ps -f status=exited -q || echo "")
+            if [ -n "$failed_containers" ]; then
+              echo "📋 Logs from failed containers:"
+              for container in $failed_containers; do
+                echo "--- Container $container ---"
+                docker logs --tail 20 $container || true
+              done
+            fi
+            
+            sleep $check_interval
+            elapsed=$((elapsed + check_interval))
+          done
+          
+          echo "❌ Timeout waiting for services to be healthy"
+          echo "Final status:"
+          docker compose ps
+          docker compose logs --tail 50
+          exit 1
             
       - name: Run all tests
         run: |
