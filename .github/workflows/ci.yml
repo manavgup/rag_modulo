@@ -35,11 +35,39 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildx-
       
-      - name: Pull latest GHCR images
+      - name: Try to pull GHCR images (with fallback)
+        id: pull-images
         run: |
-          docker pull ${{ env.BACKEND_IMAGE }}
-          docker pull ${{ env.FRONTEND_IMAGE }}
-          docker pull ${{ env.TEST_IMAGE }}
+          echo "Attempting to pull GHCR images..."
+          if docker pull ${{ env.BACKEND_IMAGE }} 2>/dev/null; then
+            echo "✅ Successfully pulled backend image"
+            echo "backend_image_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ Backend image not found in GHCR, will build locally"
+            echo "backend_image_exists=false" >> $GITHUB_OUTPUT
+          fi
+          
+          if docker pull ${{ env.FRONTEND_IMAGE }} 2>/dev/null; then
+            echo "✅ Successfully pulled frontend image"
+            echo "frontend_image_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ Frontend image not found in GHCR, will build locally"
+            echo "frontend_image_exists=false" >> $GITHUB_OUTPUT
+          fi
+          
+          if docker pull ${{ env.TEST_IMAGE }} 2>/dev/null; then
+            echo "✅ Successfully pulled test image"
+            echo "test_image_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ Test image not found in GHCR, will build locally"
+            echo "test_image_exists=false" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Build images locally (if GHCR images not available)
+        if: steps.pull-images.outputs.backend_image_exists == 'false' || steps.pull-images.outputs.frontend_image_exists == 'false' || steps.pull-images.outputs.test_image_exists == 'false'
+        run: |
+          echo "Building images locally..."
+          make build-all
           
       - name: Create volume directories
         run: make create-volumes
