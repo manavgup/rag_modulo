@@ -38,10 +38,12 @@ jobs:
       - name: Create volume directories
         run: make create-volumes
         
-      - name: Build minimal test image (required for testing)
+      - name: Build images locally for CI
         run: |
-          echo "Building minimal test image for CI..."
-          make build-tests
+          echo "Building images locally for CI testing..."
+          # Build images locally without pushing to GHCR
+          docker build -t ghcr.io/manavgup/rag_modulo/backend:latest -f ./backend/Dockerfile.backend ./backend
+          docker build -t ghcr.io/manavgup/rag_modulo/frontend:latest -f ./webui/Dockerfile.frontend ./webui
           
       - name: Start services
         run: make run-services
