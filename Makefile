@@ -14,6 +14,7 @@ PROJECT_DIRS := $(SOURCE_DIR) $(TEST_DIR)
 PROJECT_NAME ?= rag-modulo
 PYTHON_VERSION ?= 3.11
 PROJECT_VERSION ?= 1.0.0
+GHCR_REPO ?= ghcr.io/manavgup/rag_modulo
 
 # Tools
 CONTAINER_CLI := podman
@@ -24,7 +25,7 @@ VECTOR_DB ?= milvus
 
 .DEFAULT_GOAL := help
 
-.PHONY: init-env sync-frontend-deps build-frontend build-backend build-tests build-all test tests api-tests unit-tests integration-tests performance-tests service-tests pipeline-tests all-tests run-app run-backend run-frontend run-services stop-containers clean create-volumes logs info help
+.PHONY: init-env sync-frontend-deps build-frontend build-backend build-tests build-all test tests api-tests unit-tests integration-tests performance-tests service-tests pipeline-tests all-tests run-app run-backend run-frontend run-services stop-containers clean create-volumes logs info help pull-ghcr-images
 
 # Init
 init-env:
@@ -49,6 +50,13 @@ build-tests:
 	$(CONTAINER_CLI) build -t ${PROJECT_NAME}/backend-test:${PROJECT_VERSION} -f ./backend/Dockerfile.test ./backend
 
 build-all: build-frontend build-backend build-tests
+
+# Pull latest images from GHCR
+pull-ghcr-images:
+	@echo "Pulling latest images from GitHub Container Registry..."
+	$(CONTAINER_CLI) pull ${GHCR_REPO}/frontend:latest
+	$(CONTAINER_CLI) pull ${GHCR_REPO}/backend:latest
+	@echo "Images pulled successfully. Use 'make run-services' to start with GHCR images."
 
 # Helper function to check if containers are healthy
 check_containers:
@@ -183,7 +191,6 @@ service-tests: run-backend create-test-dirs
 pipeline-tests: run-backend create-test-dirs
 	$(DOCKER_COMPOSE) run --rm \
 		-v $$(pwd)/backend:/app/backend:ro \
-		-v $$(pwd)/tests:/app/tests:ro \
 		-v $$(pwd)/test-reports:/app/test-reports \
 		-e TESTING=true \
 		-e CONTAINER_ENV=false \
@@ -252,13 +259,7 @@ run-services: create-volumes
 			echo "No unhealthy containers found, checking for failed containers..."; \
 					failed_containers=$$($(CONTAINER_CLI) ps -f status=exited -q); \
 		if [ -n "$$failed_containers" ]; then \
-			echo "Logs from failed containers:"; \
-			for container in $$failed_containers; do \
-				echo "Container ID: $$container"; \
-				$(CONTAINER_CLI) logs $$container; \
-			done; \
-		else \
-				echo "No failed containers found, showing logs for all services."; \
+			echo "No failed containers found, showing logs for all services."; \
 				$(DOCKER_COMPOSE) logs; \
 			fi; \
 		fi; \
@@ -293,6 +294,7 @@ info:
 	@echo "Project version: ${PROJECT_VERSION}"
 	@echo "Python version: ${PYTHON_VERSION}"
 	@echo "Vector DB: ${VECTOR_DB}"
+	@echo "GHCR repository: ${GHCR_REPO}"
 
 help:
 	@echo "Usage: make [target]"
@@ -303,6 +305,7 @@ help:
 	@echo "  build-backend   	Build backend code/container"
 	@echo "  build-tests   		Build test code/container"
 	@echo "  build-all   		Build frontend/backend/test code/container"
+	@echo "  pull-ghcr-images   Pull latest images from GitHub Container Registry"
 	@echo "  test          		Run specific test with coverage and reports"
 	@echo "  test-only     		Run specific test without coverage (if containers running)"
 	@echo "  test-clean    		Run specific test and cleanup containers afterward"
@@ -329,3 +332,4 @@ help:
 	@echo "  make test testfile=tests/api/test_auth.py"
 	@echo "  make test testfile=tests/api/test_auth.py::test_login"
 	@echo "  make test-only testfile=tests/core/test_database.py"
+	@echo "  make pull-ghcr-images  # Pull latest images from GHCR"

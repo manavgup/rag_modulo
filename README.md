@@ -534,3 +534,50 @@ For detailed development guidelines, see:
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Troubleshooting
+
+### Test Import Issues
+
+If you encounter import errors when running tests, it's likely due to the test files being moved outside the backend folder. The tests expect certain import paths that may need updating.
+
+Common import errors:
+```
+ImportError: cannot import name 'LLMProviderModelInput' from 'rag_solution.schemas.llm_provider_schema'
+ImportError: cannot import name 'LLMProviderModel' from 'rag_solution.models.llm_provider'
+```
+
+**Solution**: Update the test files to use the correct import paths and class names that match your current schema definitions.
+
+### Container Issues
+
+#### IBM Cloud Registry Authorization Errors
+
+If you see errors like:
+```
+denied: You are not authorized to access the specified resource
+```
+
+**Solution**: We now use GitHub Container Registry (GHCR) by default. The images are automatically published to `ghcr.io/manavgup/rag_modulo/*` and don't require external API keys.
+
+#### Service Health Check Failures
+
+If services fail to become healthy:
+```bash
+# Check service logs
+make logs
+
+# Restart services
+make stop-containers
+make run-services
+
+# Check individual container health
+docker compose ps
+```
+
+### Performance Issues
+
+For large datasets or high concurrency:
+- Increase memory limits in docker-compose files
+- Adjust vector database configuration
+- Monitor resource usage with `docker stats`

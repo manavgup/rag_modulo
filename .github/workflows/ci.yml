@@ -4,6 +4,12 @@ on:
   pull_request:
     branches: [main, dev, test]
 
+env:
+  # Use GHCR images by default
+  BACKEND_IMAGE: ghcr.io/manavgup/rag_modulo/backend:latest
+  FRONTEND_IMAGE: ghcr.io/manavgup/rag_modulo/frontend:latest
+  TEST_IMAGE: ghcr.io/manavgup/rag_modulo/backend:latest
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -29,11 +35,17 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildx-
       
-      - name: Build and start services
+      - name: Pull latest GHCR images
         run: |
-          make clean
-          make build-all
-          make run-services
+          docker pull ${{ env.BACKEND_IMAGE }}
+          docker pull ${{ env.FRONTEND_IMAGE }}
+          docker pull ${{ env.TEST_IMAGE }}
+          
+      - name: Create volume directories
+        run: make create-volumes
+          
+      - name: Start services
+        run: make run-services
         env:
           DOCKER_BUILDKIT: 1
           
