@@ -38,7 +38,6 @@ from rag_solution.services.file_management_service import FileManagementService
 from rag_solution.services.llm_parameters_service import LLMParametersService
 from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.prompt_template_service import PromptTemplateService
-from rag_solution.services.collection_service import CollectionService
 from rag_solution.generation.providers.factory import LLMProviderFactory
 from rag_solution.generation.providers.base import LLMBase
 from vectordbs.data_types import QueryResult, DocumentChunk, DocumentMetadata, VectorQuery
@@ -60,7 +59,6 @@ class PipelineService:
         self._prompt_template_service: Optional[PromptTemplateService] = None
         self._llm_provider_service: Optional[LLMProviderService] = None
         self._file_management_service: Optional[FileManagementService] = None
-        self._collection_service: Optional[CollectionService] = None
         
         # Core RAG components
         self.query_rewriter = QueryRewriter({})
@@ -103,12 +101,6 @@ class PipelineService:
         return self._file_management_service
 
     @property
-    def collection_service(self) -> CollectionService:
-        if self._collection_service is None:
-            self._collection_service = CollectionService(self.db)
-        return self._collection_service
-
-    @property
     def document_store(self) -> DocumentStore:
         """Lazy initialization of document store."""
         if self._document_store is None:
@@ -148,10 +140,104 @@ class PipelineService:
             logger.error(f"Error loading documents: {str(e)}")
             raise ConfigurationError(f"Document loading failed: {str(e)}")
 
-    def get_user_pipelines(self, user_id: UUID, include_system: bool = True) -> List[PipelineConfigOutput]:
+    def get_user_pipelines(self, user_id: UUID) -> List[PipelineConfigOutput]:
         """Get all pipelines for a user."""
-        pipelines = self.pipeline_repository.get_by_user(user_id, include_system)
-        return [PipelineConfigOutput.model_validate(p) for p in pipelines]
+        try:
+            pipelines = self.pipeline_repository.get_by_user(user_id)
+
+            # If no pipelines exist, create a default one for existing users
+            if not pipelines:
+                logger.info(f"No pipelines found for user {user_id}, creating default pipeline")
+                
+                # Get user's provider or system default
+                provider = self.llm_provider_service.get_user_provider(user_id)
+                if not provider:
+                    # Try to get system default provider
+                    providers = self.llm_provider_service.get_all_providers()
+                    if providers:
+                        provider = providers[0]  # Use first available provider
+                    else:
+                        logger.error("No LLM providers available in the system")
+                        raise HTTPException(
+                            status_code=500,
+                            detail="No LLM providers available. Please contact administrator."
+                        )
+                
+                # Create default pipeline for existing user
+                try:
+                    default_pipeline = self.initialize_user_pipeline(user_id, provider.id)
+                    return [default_pipeline]
+                except Exception as init_error:
+                    logger.error(f"Failed to create default pipeline: {str(init_error)}")
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"Failed to create default pipeline: {str(init_error)}"
+                    )
+                    
+            return pipelines  # Already PipelineConfigOutput objects from repository
+        except HTTPException:
+            raise  # Re-raise HTTP exceptions
+        except Exception as e:
+            logger.error(f"Failed to get user pipelines: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to retrieve pipeline configurations: {str(e)}"
+            )
+    
+    def get_default_pipeline(self, user_id: UUID, collection_id: Optional[UUID] = None) -> Optional[PipelineConfigOutput]:
+        """Get default pipeline for a user or collection.
+        
+        Args:
+            user_id: User UUID
+            collection_id: Optional collection UUID to get collection-specific default
+            
+        Returns:
+            Optional[PipelineConfigOutput]: Default pipeline configuration if found
+        """
+        try:
+            if collection_id:
+                pipeline = self.pipeline_repository.get_collection_default(collection_id)
+                if pipeline:
+                    return pipeline
+                    
+            # Fall back to user default if no collection default exists
+            return self.pipeline_repository.get_user_default(user_id)
+        except Exception as e:
+            logger.error(f"Failed to get default pipeline: {str(e)}")
+            return None
+    
+    def initialize_user_pipeline(self, user_id: UUID, provider_id: UUID) -> PipelineConfigOutput:
+        """Initialize default pipeline for a new user.
+        
+        Args:
+            user_id: User UUID
+            provider_id: Provider UUID to use for pipeline
+            
+        Returns:
+            PipelineConfigOutput: Created default pipeline
+        """
+        try:
+            pipeline_input = PipelineConfigInput(
+                name="Default Pipeline",
+                description="Default RAG pipeline configuration",
+                user_id=user_id,
+                provider_id=provider_id,
+                chunking_strategy=settings.chunking_strategy,
+                embedding_model=settings.embedding_model,
+                retriever=settings.retrieval_type,
+                context_strategy="priority",
+                enable_logging=True,
+                max_context_length=settings.max_context_length,
+                timeout=30.0,
+                is_default=True
+            )
+            return self.create_pipeline(pipeline_input)
+        except Exception as e:
+            logger.error(f"Failed to initialize default pipeline: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to initialize default pipeline: {str(e)}"
+            )
 
     def get_pipeline_config(self, pipeline_id: UUID) -> Optional[PipelineConfigOutput]:
         """Retrieve pipeline configuration by ID."""
@@ -169,14 +255,8 @@ class PipelineService:
         # Validate provider exists
         if not self.llm_provider_service.get_provider_by_id(config_input.provider_id):
             raise ValidationError("Invalid provider ID")
-            
-        # Validate collection exists if specified
-        if config_input.collection_id:
-            collection = self.collection_service.get_collection(config_input.collection_id)
-            if not collection:
-                raise ValidationError("Invalid collection ID")
                 
-        return self.pipeline_repository.create(config_input.model_dump())
+        return self.pipeline_repository.create(config_input)
     
     def delete_pipeline(self, pipeline_id: UUID) -> bool:
         """Delete a pipeline configuration by ID."""
@@ -235,11 +315,11 @@ class PipelineService:
             # Process query
             rewritten_query = self.query_rewriter.rewrite(query)
             vector_query = VectorQuery(
-                text=rewritten_query,
+                text=query,
                 number_of_results=settings.number_of_results
             )
             results = self.retriever.retrieve("test_collection", vector_query)
-
+            logger.info(f"**** Results: {results}")
             return PipelineResult(
                 success=True,
                 rewritten_query=rewritten_query,
@@ -277,11 +357,12 @@ class PipelineService:
         if pipeline.collection_id:
             self.pipeline_repository.clear_collection_defaults(pipeline.collection_id)
         
+        # Get fields from current pipeline
+        update_data = pipeline.model_dump(include=set(PipelineConfigInput.model_fields.keys()))
+        update_data['is_default'] = True  # Override the is_default field
+            
         # Update using input schema
-        return self.pipeline_repository.update(
-            pipeline_id,
-            PipelineConfigInput(**{**pipeline.model_dump(), "is_default": True})
-        )
+        return self.pipeline_repository.update(pipeline_id, PipelineConfigInput(**update_data))
 
     def _prepare_query(self, query: str) -> str:
         """Sanitize and prepare query for execution."""
@@ -313,6 +394,7 @@ class PipelineService:
             NotFoundError: If pipeline or provider not found
             ConfigurationError: If validation fails
         """
+        logger.info(f"**** Validating configuration for user_id: {user_id}") 
         # Get pipeline configuration
         pipeline_config = self.pipeline_repository.get_by_id(pipeline_id)
         if not pipeline_config:
@@ -349,14 +431,14 @@ class PipelineService:
         Raises:
             NotFoundError: If required template not found
         """
-        rag_template = self.prompt_template_service.get_by_type(PromptTemplateType.RAG_QUERY, user_id)
+        rag_template = self.prompt_template_service.get_by_type(user_id, PromptTemplateType.RAG_QUERY,)
         if not rag_template:
             raise NotFoundError(resource_type="PromptTemplateType",
                                 resource_id=str(user_id),
                                 message="User's RAG query template not found")
 
         eval_template = (
-            self.prompt_template_service.get_by_type(PromptTemplateType.RESPONSE_EVALUATION, user_id)
+            self.prompt_template_service.get_by_type(user_id, PromptTemplateType.RESPONSE_EVALUATION, )
             if settings.runtime_eval else None
         )
 
@@ -472,27 +554,10 @@ class PipelineService:
         except Exception as e:
             logger.error(f"Evaluation failed: {str(e)}")
             return {"error": str(e)}
-
-    def _validate_collection_access(self, collection_id: UUID) -> None:
-        """
-        Validate that the user has access to the specified collection.
-
-        Args:
-            collection_id: Collection UUID to validate.
-
-        Raises:
-            NotFoundError: If the collection does not exist or the user does not have access.
-        """
-        collection = self.collection_service.get_collection(collection_id)
-        if not collection:
-            raise NotFoundError(resource_type="Collection",
-                                resource_id=str(collection_id),
-                                message="Collection not found")
         
     async def execute_pipeline(
     self,
     search_input: SearchInput,
-    user_id: UUID,
     collection_name: str
 ) -> PipelineResult:
         """
@@ -519,14 +584,11 @@ class PipelineService:
 
             # Validate pipeline configuration
             pipeline_config, llm_parameters_input, provider = self._validate_configuration(
-                search_input.pipeline_id, user_id
+                search_input.pipeline_id, search_input.user_id
             )
 
-            # Validate collection access
-            self._validate_collection_access(search_input.collection_id)
-
             # Get required templates
-            rag_template, eval_template = self._get_templates(user_id)
+            rag_template, eval_template = self._get_templates(search_input.user_id)
 
             # Process query and retrieve documents
             clean_query = self._prepare_query(search_input.question)
@@ -540,7 +602,7 @@ class PipelineService:
             else:
                 context_text = self._format_context(rag_template.id, query_results)
                 generated_answer = self._generate_answer(
-                    user_id, clean_query, context_text, provider, llm_parameters_input, rag_template
+                    search_input.user_id, clean_query, context_text, provider, llm_parameters_input, rag_template
                 )
                 evaluation_result = await self._evaluate_response(
                     clean_query, generated_answer, context_text, eval_template

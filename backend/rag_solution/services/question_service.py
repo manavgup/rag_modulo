@@ -236,8 +236,8 @@ class QuestionService:
             if not texts:
                 return []
             
-            logger.debug(f"Using template: {template}")
-            logger.debug(f"Using parameters: {parameters}")
+            logger.info(f"Using template: {template}")
+            logger.info(f"Using parameters: {parameters}")
 
             # Get provider from factory
             provider = self._provider_factory.get_provider(provider_name)

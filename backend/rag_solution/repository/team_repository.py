@@ -16,6 +16,11 @@ class TeamRepository:
 
     def create(self, team: TeamInput) -> TeamOutput:
         try:
+            # Check for existing team with same name
+            existing_team = self.session.query(Team).filter(Team.name == team.name).first()
+            if existing_team:
+                raise ValueError(f"Team with name '{team.name}' already exists")
+            
             db_team = Team(**team.model_dump())
             self.session.add(db_team)
             self.session.commit()
@@ -44,15 +49,23 @@ class TeamRepository:
             logger.error(f"Error listing teams: {str(e)}")
             raise
 
-    def update(self, team_id: UUID, team_update: TeamInput) -> TeamInput:
+    def update(self, team_id: UUID, team_update: TeamInput) -> TeamOutput:  # Changed return type
         try:
             team = self.session.query(Team).filter(Team.id == team_id).first()
             if team:
+                # Check for duplicate name, excluding current team
+                existing_team = self.session.query(Team).filter(
+                    Team.name == team_update.name,
+                    Team.id != team_id
+                ).first()
+                if existing_team:
+                    raise ValueError(f"Team with name '{team_update.name}' already exists")
+
                 for key, value in team_update.model_dump().items():
                     setattr(team, key, value)
                 self.session.commit()
                 self.session.refresh(team)
-                return team_update
+                return self._team_to_output(team)  # Return TeamOutput instead of TeamInput
             return None
         except Exception as e:
             logger.error(f"Error updating team {team_id}: {str(e)}")

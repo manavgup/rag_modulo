@@ -29,8 +29,9 @@ from rag_solution.models.user_team import UserTeam
 from rag_solution.models.team import Team
 from rag_solution.models.llm_parameters import LLMParameters
 from rag_solution.models.prompt_template import PromptTemplate
-from rag_solution.models.llm_provider import LLMProviderModel
-
+from rag_solution.models.llm_provider import LLMProvider
+from rag_solution.models.llm_model import LLMModel
+from rag_solution.models.pipeline import PipelineConfig
 # Routers
 from rag_solution.router.collection_router import router as collection_router
 from rag_solution.router.team_router import router as team_router
@@ -40,7 +41,7 @@ from rag_solution.router.auth_router import router as auth_router
 from rag_solution.router.search_router import router as search_router
 
 # Services
-from rag_solution.services.llm_provider_service import LLMProviderService
+from rag_solution.services.system_initialization_service import SystemInitializationService
 
 # Setup logging
 log_dir = Path("/app/logs") if os.getenv("CONTAINER_ENV") else Path(__file__).parent.parent / "logs"
@@ -73,8 +74,8 @@ async def lifespan(app: FastAPI):
         # Initialize LLM Providers
         logger.info("Initializing LLM Providers...")
         with next(get_db()) as db:
-            llm_service = LLMProviderService(db)
-            providers = llm_service.initialize_providers(raise_on_error=True)
+            system_init_service = SystemInitializationService(db)
+            providers = system_init_service.initialize_providers(raise_on_error=True)
             logger.info(f"Initialized providers: {', '.join(p.name for p in providers)}")
 
     except Exception as e:

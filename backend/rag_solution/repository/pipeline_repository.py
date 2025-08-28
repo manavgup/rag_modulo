@@ -1,138 +1,251 @@
-"""Repository for managing Pipeline Configurations."""
+"""Repository for managing Pipeline Configurations.
 
-from sqlalchemy.orm import Session, joinedload
-from typing import Optional, List
+This module provides database operations for pipeline configurations while maintaining
+strict type boundaries and clean separation of concerns.
+"""
+
+from typing import Optional, List, Dict, Any
 from uuid import UUID
 
-from rag_solution.models.collection import Collection
+from sqlalchemy.orm import Session, joinedload
+
 from rag_solution.models.pipeline import PipelineConfig
 from rag_solution.models.user_collection import UserCollection
-from rag_solution.schemas.pipeline_schema import PipelineConfigInput, PipelineConfigOutput
+from rag_solution.schemas.pipeline_schema import (
+    PipelineConfigInput,
+    PipelineConfigOutput)
+from core.custom_exceptions import RepositoryError
 
 
 class PipelineConfigRepository:
-    """Repository for managing Pipeline Configurations."""
+    """Repository for managing Pipeline Configurations.
+    
+    This class handles all database operations related to pipeline configurations,
+    maintaining strict type boundaries between database models and schemas.
+    
+    Attributes:
+        db (Session): SQLAlchemy database session
+    """
 
     def __init__(self, db: Session):
+        """Initialize repository with database session.
+        
+        Args:
+            db: SQLAlchemy database session
+        """
         self.db = db
     
-    def get_collection_default(self, collection_id: UUID) -> Optional[PipelineConfigOutput]:
-        """Get the default pipeline for a collection."""
-        pipeline = self.db.query(PipelineConfig).filter(
-            PipelineConfig.collection_id == collection_id,
-            PipelineConfig.is_default.is_(True)
-        ).first()
-        return PipelineConfigOutput.from_db_model(pipeline) if pipeline else None
-
-    def _get_db_model(self, pipeline_id: UUID) -> Optional[PipelineConfig]:
-        """Get raw database model by ID."""
-        return self.db.query(PipelineConfig).filter(PipelineConfig.id == pipeline_id).first()
-
-    def create(self, config: dict) -> PipelineConfigOutput:
-        """
-        Create a new pipeline configuration.
+    def get_user_default(self, user_id: UUID) -> Optional[PipelineConfigOutput]:
+        """Get the default pipeline for a user (non-collection specific).
         
         Args:
-            config: Dictionary containing pipeline configuration
+            user_id: UUID of the user
             
         Returns:
-            PipelineConfigOutput containing created pipeline
+            Optional[PipelineConfigOutput]: The default pipeline configuration if found
+            
+        Raises:
+            RepositoryError: If database operation fails
         """
-        db_config = PipelineConfig(**config)
-        self.db.add(db_config)
-        self.db.commit()
-        self.db.refresh(db_config)
-        return PipelineConfigOutput.from_db_model(db_config)
+        try:
+            pipeline = self.db.query(PipelineConfig).filter(
+                PipelineConfig.user_id == user_id,
+                PipelineConfig.collection_id.is_(None),
+                PipelineConfig.is_default.is_(True)
+            ).first()
+            return PipelineConfigOutput.from_db_model(pipeline) if pipeline else None
+        except Exception as e:
+            raise RepositoryError(f"Failed to get user default pipeline: {str(e)}")
+
+    def get_collection_default(self, collection_id: UUID) -> Optional[PipelineConfigOutput]:
+        """Get the default pipeline for a collection.
+        
+        Args:
+            collection_id: UUID of the collection
+            
+        Returns:
+            Optional[PipelineConfigOutput]: The default pipeline configuration if found
+            
+        Raises:
+            RepositoryError: If database operation fails
+        """
+        try:
+            pipeline = self.db.query(PipelineConfig).filter(
+                PipelineConfig.collection_id == collection_id,
+                PipelineConfig.is_default.is_(True)
+            ).first()
+            return PipelineConfigOutput.from_db_model(pipeline) if pipeline else None
+        except Exception as e:
+            raise RepositoryError(f"Failed to get collection default pipeline: {str(e)}")
+
+    def create(self, config: PipelineConfigInput) -> PipelineConfigOutput:
+        """Create a new pipeline configuration.
+        
+        Args:
+            config: Pipeline configuration input schema
+            
+        Returns:
+            PipelineConfigOutput: Created pipeline configuration
+            
+        Raises:
+            RepositoryError: If creation fails
+        """
+        try:
+            db_config = PipelineConfig(**config.model_dump())
+            self.db.add(db_config)
+            self.db.commit()
+            self.db.refresh(db_config)
+            return PipelineConfigOutput.from_db_model(db_config)
+        except Exception as e:
+            self.db.rollback()
+            raise RepositoryError(f"Failed to create pipeline configuration: {str(e)}")
 
     def get_by_id(self, pipeline_id: UUID) -> Optional[PipelineConfigOutput]:
-        """Get pipeline configuration by ID converted to schema."""
-        pipeline = self._get_db_model(pipeline_id)
-        if not pipeline:
-            return None
-        return PipelineConfigOutput.from_db_model(pipeline)
-
-    def get_by_user(self, user_id: UUID, include_system: bool = True) -> List[PipelineConfigOutput]:
-        """
-        Get all pipelines for a user through their collection access.
+        """Get pipeline configuration by ID.
         
         Args:
-            user_id: User ID to get pipelines for
-            include_system: Whether to include system-wide pipelines (collection_id is null)
+            pipeline_id: UUID of the pipeline configuration
             
         Returns:
-            List of pipeline configurations the user has access to
+            Optional[PipelineConfigOutput]: Pipeline configuration if found
+            
+        Raises:
+            RepositoryError: If database operation fails
         """
-        # Start with base query
-        base_query = self.db.query(PipelineConfig)
-        
-        if include_system:
-            # Get both collection-specific and system-wide pipelines
-            query = base_query.filter(
-                (PipelineConfig.collection_id.is_(None)) |  # System-wide pipelines
-                (PipelineConfig.collection_id.in_(  # User's collection-specific pipelines
-                    self.db.query(UserCollection.collection_id)
-                    .filter(UserCollection.user_id == user_id)
-                ))
-            )
-        else:
-            # Only get collection-specific pipelines
-            query = base_query.filter(
-                PipelineConfig.collection_id.in_(
-                    self.db.query(UserCollection.collection_id)
-                    .filter(UserCollection.user_id == user_id)
-                )
-            )
-        
-        # Load provider relationship
-        query = query.options(joinedload(PipelineConfig.provider))
-        
-        return [PipelineConfigOutput.from_db_model(p) for p in query.all()]
+        try:
+            pipeline = self.db.query(PipelineConfig).filter(
+                PipelineConfig.id == pipeline_id
+            ).first()
+            return PipelineConfigOutput.from_db_model(pipeline) if pipeline else None
+        except Exception as e:
+            raise RepositoryError(f"Failed to get pipeline by ID: {str(e)}")
 
-    def get_by_collection_id(self, collection_id: UUID) -> List[PipelineConfigOutput]:
-        """Get all pipelines for a collection."""
-        pipelines = self.db.query(PipelineConfig).filter(
-            PipelineConfig.collection_id == collection_id
-        ).all()
-        return [PipelineConfigOutput.from_db_model(p) for p in pipelines]
+    def get_by_user(
+        self,
+        user_id: UUID
+    ) -> List[PipelineConfigOutput]:
+        """Get all pipelines for a user with optional filtering.
+        
+        Args:
+            user_id: UUID of the user
+            filters: Optional filter parameters
+            
+        Returns:
+            List[PipelineConfigOutput]: List of matching pipeline configurations
+            
+        Raises:
+            RepositoryError: If database operation fails
+        """
+        try:
+            query = self.db.query(PipelineConfig).filter(
+                PipelineConfig.user_id == user_id
+            )
+
+            # Always load provider relationship
+            query = query.options(joinedload(PipelineConfig.provider))
+            
+            pipelines = query.all()
+            return [PipelineConfigOutput.from_db_model(p) for p in pipelines]
+        except Exception as e:
+            raise RepositoryError(f"Failed to get pipelines for user: {str(e)}")
 
     def update(self, id: UUID, config: PipelineConfigInput) -> Optional[PipelineConfigOutput]:
-        db_config = self._get_db_model(id)
-        if not db_config:
-            return None
+        """Update an existing pipeline configuration.
         
-        # If setting as default, clear other defaults first
-        if config.is_default and db_config.collection_id:
-            self.clear_collection_defaults(db_config.collection_id)
-        
-        # Update fields
-        for field, value in config.model_dump(exclude_unset=True).items():
-            setattr(db_config, field, value)
-        
-        self.db.commit()
-        self.db.refresh(db_config)
-        return PipelineConfigOutput.from_db_model(db_config)
+        Args:
+            id: UUID of the pipeline to update
+            config: Updated configuration input schema
+            
+        Returns:
+            Optional[PipelineConfigOutput]: Updated pipeline configuration if found
+            
+        Raises:
+            RepositoryError: If update fails
+        """
+        try:
+            pipeline = self.db.query(PipelineConfig).filter(
+                PipelineConfig.id == id
+            ).first()
+            
+            if not pipeline:
+                return None
+
+            # If setting as default, clear other defaults first
+            if config.is_default:
+                if config.collection_id:
+                    self.clear_collection_defaults(config.collection_id)
+                else:
+                    self.clear_user_defaults(config.user_id)
+
+            # Update fields
+            update_data = config.model_dump(exclude_unset=True)
+            for field, value in update_data.items():
+                setattr(pipeline, field, value)
+
+            self.db.commit()
+            self.db.refresh(pipeline)
+            return PipelineConfigOutput.from_db_model(pipeline)
+        except Exception as e:
+            self.db.rollback()
+            raise RepositoryError(f"Failed to update pipeline configuration: {str(e)}")
 
     def delete(self, id: UUID) -> bool:
-        """Delete pipeline configuration by ID."""
-        db_config = self._get_db_model(id)
-        if not db_config:
-            return False
-
-        self.db.delete(db_config)
-        self.db.commit()
-        return True
+        """Delete a pipeline configuration.
+        
+        Args:
+            id: UUID of the pipeline to delete
+            
+        Returns:
+            bool: True if deleted, False if not found
+            
+        Raises:
+            RepositoryError: If deletion fails
+        """
+        try:
+            result = self.db.query(PipelineConfig).filter(
+                PipelineConfig.id == id
+            ).delete()
+            self.db.commit()
+            return result > 0
+        except Exception as e:
+            self.db.rollback()
+            raise RepositoryError(f"Failed to delete pipeline configuration: {str(e)}")
 
     def clear_collection_defaults(self, collection_id: UUID) -> None:
-        """Clear any existing default pipeline for a collection."""
-        self.db.query(PipelineConfig).filter(
-            PipelineConfig.collection_id == collection_id,
-            PipelineConfig.is_default.is_(True)
-        ).update({"is_default": False})
-        self.db.commit()
+        """Clear default flags for all pipelines in a collection.
+        
+        Args:
+            collection_id: UUID of the collection
+            
+        Raises:
+            RepositoryError: If operation fails
+        """
+        try:
+            self.db.query(PipelineConfig).filter(
+                PipelineConfig.collection_id == collection_id,
+                PipelineConfig.is_default.is_(True)
+            ).update({"is_default": False})
+            self.db.commit()
+        except Exception as e:
+            self.db.rollback()
+            raise RepositoryError(f"Failed to clear collection defaults: {str(e)}")
 
-    def clear_default(self) -> None:
-        """Clear the default flag from all pipelines."""
-        self.db.query(PipelineConfig).filter(
-            PipelineConfig.is_default.is_(True)
-        ).update({"is_default": False})
-        self.db.commit()
+    def clear_user_defaults(self, user_id: UUID) -> None:
+        """Clear default flags for all user's non-collection pipelines.
+        
+        Args:
+            user_id: UUID of the user
+            
+        Raises:
+            RepositoryError: If operation fails
+        """
+        try:
+            self.db.query(PipelineConfig).filter(
+                PipelineConfig.user_id == user_id,
+                PipelineConfig.collection_id.is_(None),
+                PipelineConfig.is_default.is_(True)
+            ).update({"is_default": False})
+            self.db.commit()
+        except Exception as e:
+            self.db.rollback()
+            raise RepositoryError(f"Failed to clear user defaults: {str(e)}")

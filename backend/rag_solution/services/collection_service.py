@@ -13,7 +13,8 @@ from rag_solution.schemas.collection_schema import CollectionInput, CollectionOu
 from rag_solution.services.file_management_service import FileManagementService
 from rag_solution.services.user_collection_service import UserCollectionService
 from rag_solution.services.question_service import QuestionService
-from rag_solution.services.llm_provider_service import LLMProviderService
+from rag_solution.services.user_provider_service import UserProviderService
+from rag_solution.services.llm_model_service import LLMModelService
 from rag_solution.services.prompt_template_service import PromptTemplateService
 from rag_solution.services.llm_parameters_service import LLMParametersService
 from rag_solution.schemas.prompt_template_schema import PromptTemplateType
@@ -51,11 +52,12 @@ class CollectionService:
         self.user_collection_service = UserCollectionService(db)
         self.file_management_service = FileManagementService(db)
         self.vector_store = get_datastore(settings.vector_db)
-        self.llm_provider_service = LLMProviderService(db)
+        self.user_provider_service = UserProviderService(db)
         self.prompt_template_service = PromptTemplateService(db)
         self.llm_parameters_service = LLMParametersService(db)
         # Initialize question service
         self.question_service = QuestionService(db=db)
+        self.llm_model_service = LLMModelService(db) 
 
     @staticmethod
     def _generate_valid_collection_name() -> str:
@@ -70,6 +72,13 @@ class CollectionService:
 
     def create_collection(self, collection: CollectionInput) -> CollectionOutput:
         """ Create a new collection in the database and vectordb """
+        # Check if collection with same name exists
+        if self.collection_repository.get_by_name(collection.name):
+            raise HTTPException(
+                status_code=400, 
+                detail="Collection name already exists"
+            )
+        
         vector_db_name = self._generate_valid_collection_name()
         try:
             logger.info(f"Creating collection: {collection.name} (Vector DB: {vector_db_name})")
@@ -244,7 +253,7 @@ class CollectionService:
             CollectionProcessingError: For other processing errors
         """
         # Get appropriate provider for user
-        provider = self.llm_provider_service.get_user_provider(user_id)
+        provider = self.user_provider_service.get_user_provider(user_id)
         if not provider:
             logger.error(f"No available LLM provider found for user {user_id}")
             self.update_collection_status(collection_id, CollectionStatus.ERROR)
@@ -268,6 +277,7 @@ class CollectionService:
             )
 
         # Extract text chunks from processed documents
+        logger.info("Extracting document chunks for question generation")
         document_texts = []
         for doc in processed_documents:
             for chunk in doc.chunks:
@@ -278,11 +288,12 @@ class CollectionService:
             logger.error(f"No valid text chunks found in documents for collection {collection_id}")
             self.update_collection_status(collection_id, CollectionStatus.ERROR)
             raise EmptyDocumentError(collection_id=str(collection_id))
-
+        
+        logger.info("Fetching Template")
         # Get question generation template
         template = self.prompt_template_service.get_by_type(
-            PromptTemplateType.QUESTION_GENERATION,
-            user_id
+            user_id,
+            PromptTemplateType.QUESTION_GENERATION
         )
         if not template:
             logger.error(f"Question generation template not found for user {user_id}")
@@ -290,18 +301,20 @@ class CollectionService:
             raise NotFoundError(
                 resource_type="PromptTemplate",
                 resource_id=f"type:{PromptTemplateType.QUESTION_GENERATION}",
-                message="Question generation template not found"
+                message="Question generation template not found. This template should have been created during user initialization. Please try logging out and logging back in to reinitialize your account."
             )
 
         # Get LLM parameters
+        logger.info("Attempting to get parameters")
         parameters = self.llm_parameters_service.get_latest_or_default_parameters(user_id)
         if not parameters:
             logger.error(f"No LLM parameters found for user {user_id}")
             self.update_collection_status(collection_id, CollectionStatus.ERROR)
             raise ValidationError("No default LLM parameters found")
-
+        logger.info(f"got parameters: {parameters}")
         # Generate questions
         try:
+            logger.info("Attempting to generate questions")
             questions = await self.question_service.suggest_questions(
                 texts=document_texts,
                 collection_id=collection_id,
@@ -389,6 +402,7 @@ class CollectionService:
                         error_type="processing_failed",
                         message=str(e)
                     )
+        logger.info("Document processing complete")
         return processed_documents
 
     def store_documents_in_vector_store(self, documents: List[Document], collection_name: str):

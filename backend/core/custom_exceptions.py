@@ -291,7 +291,7 @@ class LLMParameterError(BaseCustomException):
         )
 
 
-class DuplicateParameterError(ValidationError):
+class DuplicateEntryError(ValidationError):
     """Exception raised when attempting to create duplicate LLM parameters."""
     
     def __init__(
@@ -361,31 +361,13 @@ class PromptTemplateNotFoundError(NotFoundException):
         )
 
 
-class DuplicatePromptTemplateError(ValidationError):
-    """Exception raised when attempting to create a duplicate prompt template."""
-    
-    def __init__(
-        self,
-        template_name: str,
-        provider: str,
-        message: Optional[str] = None
-    ) -> None:
-        """Initialize duplicate prompt template error.
-        
-        Args:
-            template_name: Name of the template
-            provider: LLM provider
-            message: Optional custom error message
-        """
-        super().__init__(
-            message or f"Prompt template '{template_name}' for provider '{provider}' already exists",
-            field="name",
-            value=template_name,
-            details={
-                "template_name": template_name,
-                "provider": provider
-            }
-        )
+class PromptTemplateConflictError(ValidationError):
+    """Exception raised when there is a conflict with prompt templates."""
+    def __init__(self, template_name: str, provider_id: str, message: str):
+        self.template_name = template_name
+        self.provider_id = provider_id
+        self.message = message
+        super().__init__(f"Template conflict for '{template_name}' with provider '{provider_id}': {message}")
 
 
 class InvalidPromptTemplateError(ValidationError):
@@ -587,4 +569,100 @@ class CollectionProcessingError(BaseCustomException):
                 "error_type": error_type,
                 **(details or {})
             }
+        )
+
+class RepositoryError(BaseCustomException):
+    """Exception raised for repository/database-related errors."""
+
+    def __init__(
+        self,
+        message: str,
+        details: Optional[dict] = None
+    ) -> None:
+        """Initialize repository error.
+        
+        Args:
+            message: Description of the error.
+            details: Optional dictionary with additional error details.
+        """
+        super().__init__(
+            message=message,
+            status_code=500,
+            details=details or {}
+        )
+
+class ModelValidationError(ValidationError):
+    """Exception raised when LLM model validation fails.
+    
+    This exception handles validation errors specific to LLM models,
+    including Pydantic validation failures for model schemas.
+    """
+    
+    def __init__(
+        self,
+        field: str,
+        message: str,
+        value: Optional[Any] = None,
+        details: Optional[Dict[str, Any]] = None
+    ) -> None:
+        """Initialize model validation error.
+        
+        Args:
+            field: Field that failed validation
+            message: Error message describing the validation failure
+            value: Optional invalid value that caused the error
+            details: Additional validation details
+        """
+        super().__init__(
+            message=message,
+            field=field,
+            value=value,
+            details={
+                "validation_type": "model",
+                **(details or {})
+            }
+        )
+
+
+class ModelConfigError(BaseCustomException):
+    """Exception raised for errors related to model configuration.
+    
+    This exception handles configuration errors specific to LLM models,
+    such as invalid model settings, missing required configurations,
+    or incompatible model configurations.
+    """
+    
+    def __init__(
+        self,
+        field: str,
+        message: str,
+        model_id: Optional[str] = None,
+        provider_id: Optional[str] = None,
+        details: Optional[Dict[str, Any]] = None
+    ) -> None:
+        """Initialize model configuration error.
+        
+        Args:
+            field: Configuration field that caused the error
+            message: Error message describing the configuration issue
+            model_id: Optional identifier of the model
+            provider_id: Optional identifier of the provider
+            details: Additional error details
+        """
+        error_details = {
+            "field": field,
+            "config_type": "model"
+        }
+        
+        if model_id:
+            error_details["model_id"] = model_id
+        if provider_id:
+            error_details["provider_id"] = provider_id
+        if details:
+            error_details.update(details)
+
+        super().__init__(
+            message=message,
+            status_code=400,
+            details=error_details
         )

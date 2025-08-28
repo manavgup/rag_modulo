@@ -11,6 +11,7 @@ from rag_solution.schemas.prompt_template_schema import (
     PromptTemplateOutput,
     PromptTemplateInput
 )
+from rag_solution.models.prompt_template import PromptTemplateType
 from rag_solution.services.prompt_template_service import PromptTemplateService
 from core.authorization import authorize_decorator
 
@@ -108,8 +109,10 @@ async def update_prompt_template(
     
     service = PromptTemplateService(db)
     try:
-        update_data = template_input.model_dump(exclude_unset=True)
-        return service.update_template(template_id, update_data)
+        # Ensure user_id is set in the input
+        if not template_input.user_id:
+            template_input.user_id = user_id
+        return service.create_template(template_input)
     except Exception as e:
         raise HTTPException(
             status_code=400,
@@ -140,7 +143,7 @@ async def delete_prompt_template(
     
     service = PromptTemplateService(db)
     try:
-        return service.delete_template(template_id)
+        return service.delete_template(user_id, template_id)
     except Exception as e:
         raise HTTPException(
             status_code=400,
@@ -176,4 +179,33 @@ async def set_default_prompt_template(
         raise HTTPException(
             status_code=400,
             detail=f"Failed to set default prompt template: {str(e)}"
+        )
+@router.get("/{user_id}/prompt-templates/type/{template_type}", 
+    response_model=List[PromptTemplateOutput],
+    summary="Get prompt templates by type",
+    description="Retrieve prompt templates for a user by their type",
+    responses={
+        200: {"description": "Prompt templates retrieved successfully"},
+        403: {"description": "Not authorized"},
+        500: {"description": "Internal server error"}
+    }
+)
+@authorize_decorator(role="user")
+async def get_prompt_templates_by_type(
+    user_id: UUID,
+    template_type: PromptTemplateType,
+    request: Request,
+    db: Session = Depends(get_db)
+) -> List[PromptTemplateOutput]:
+    """Retrieve prompt templates for a user by their type."""
+    if not hasattr(request.state, 'user') or request.state.user['uuid'] != str(user_id):
+        raise HTTPException(status_code=403, detail="Not authorized to access templates")
+    
+    service = PromptTemplateService(db)
+    try:
+        return service.get_templates_by_type(user_id, template_type)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to retrieve prompt templates: {str(e)}"
         )

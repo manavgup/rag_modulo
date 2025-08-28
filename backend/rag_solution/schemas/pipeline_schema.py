@@ -97,7 +97,11 @@ class PipelineConfigBase(BaseModel):
         extra="forbid",
         frozen=False,
         str_strip_whitespace=True,
-        use_enum_values=True
+        use_enum_values=True,
+        json_schema_serialization_defaults=True,
+        json_encoders={
+            UUID4: str
+        }
     )
 
     @field_validator("embedding_model")
@@ -114,16 +118,10 @@ class PipelineConfigBase(BaseModel):
         if self.retriever == RetrieverType.HYBRID and not self.config_metadata:
             raise ValueError("Hybrid retriever requires configuration in metadata")
         return self
-    
-    @model_validator(mode="after")
-    def validate_default_settings(self) -> "PipelineConfigBase":
-        """Validate default pipeline settings."""
-        if self.is_default and self.collection_id is None:
-            raise ValueError("Default pipeline must be associated with a collection")
-        return self
 
 class PipelineConfigInput(PipelineConfigBase):
     """Input schema for pipeline configuration."""
+    user_id: UUID4 = Field(..., description="ID of the owner user")
     collection_id: Optional[UUID4] = Field(
         None,
         description="ID of the associated collection"
@@ -133,6 +131,19 @@ class PipelineConfigInput(PipelineConfigBase):
         description="ID of the LLM provider to use"
     )
 
+    @model_validator(mode='before')
+    @classmethod
+    def convert_str_to_uuid(cls, data: Any) -> Any:
+        """Convert string UUIDs to UUID objects."""
+        if isinstance(data, dict):
+            for field in ['user_id', 'provider_id', 'collection_id']:
+                if field in data and isinstance(data[field], str):
+                    try:
+                        data[field] = UUID4(data[field])
+                    except (ValueError, AttributeError):
+                        pass  # Let Pydantic's normal validation handle invalid values
+        return data
+    
 class LLMProviderInfo(BaseModel):
     """Schema for LLM provider information."""
     id: UUID4
@@ -144,6 +155,7 @@ class LLMProviderInfo(BaseModel):
 class PipelineConfigOutput(PipelineConfigBase):
     """Output schema for pipeline configuration with timestamps."""
     id: UUID4 = Field(..., description="Unique identifier for the configuration")
+    user_id: UUID4
     collection_id: Optional[UUID4]
     provider_id: UUID4
     provider: Optional[LLMProviderInfo] = None
@@ -186,6 +198,7 @@ class PipelineConfigOutput(PipelineConfigBase):
                 "provider_id": model.provider_id,
                 "provider": provider_info,
                 "collection_id": model.collection_id,
+                "user_id": model.user_id,
                 "enable_logging": model.enable_logging,
                 "max_context_length": model.max_context_length,
                 "timeout": model.timeout,

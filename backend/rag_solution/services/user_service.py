@@ -1,55 +1,97 @@
-# user_service.py
-
-import logging
-from typing import List
+from typing import List, Optional
 from uuid import UUID
-
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from pydantic import EmailStr
-from rag_solution.repository.user_repository import UserRepository
-from rag_solution.schemas.team_schema import TeamOutput
-from rag_solution.schemas.user_schema import UserInput, UserOutput
-from rag_solution.services.user_team_service import UserTeamService
 
-logger = logging.getLogger(__name__)
+from rag_solution.repository.user_repository import UserRepository
+from rag_solution.services.user_provider_service import UserProviderService
+from rag_solution.schemas.user_schema import UserInput, UserOutput
+from rag_solution.schemas.team_schema import TeamOutput
+from core.custom_exceptions import NotFoundException
+from core.logging_utils import get_logger
+
+logger = get_logger(__name__)
 
 class UserService:
-    # TO-DO: Remove hacky dependence on UserTeamService
-    def __init__(self, db: Session, user_team_service: UserTeamService = None):
+    """Service for managing user-related operations."""
+
+    def __init__(self, db: Session):
+        """Initialize with database session."""
+        self.db = db
         self.user_repository = UserRepository(db)
-        self.user_team_service = user_team_service or UserTeamService(db)
+        self.user_provider_service = UserProviderService(db)
+
 
     def create_user(self, user_input: UserInput) -> UserOutput:
+        """Creates a new user with validation."""
         try:
-            logger.info(f"Creating user with input: {user_input}")
+            # First attempt to create the user
             user = self.user_repository.create(user_input)
-            logger.info(f"User created successfully: {user.id}")
+            
+            # Then initialize user defaults
+            try:
+                provider, templates, parameters = self.user_provider_service.initialize_user_defaults(user.id)
+                if not provider or not templates or len(templates) < 2 or not parameters:
+                    self.db.rollback()
+                    raise HTTPException(
+                        status_code=500,
+                        detail="Failed to initialize required user configuration"
+                    )
+                
+                self.db.commit()
+                return user
+                
+            except Exception as e:
+                # If default initialization fails, rollback user creation
+                self.db.rollback()
+                logger.error(f"Error initializing user defaults: {str(e)}")
+                raise HTTPException(
+                    status_code=500,
+                    detail="Failed to initialize user configuration"
+                )
+                
+        except ValueError as e:
+            # Handle known validation errors from repository
+            logger.warning(f"Validation error in user creation: {str(e)}")
+            raise HTTPException(
+                status_code=400,
+                detail=str(e)
+            )
+        except Exception as e:
+            # Handle unexpected errors
+            logger.error(f"Unexpected error in user creation: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail="Internal server error during user creation"
+            )
+
+
+    def get_or_create_user_by_fields(
+        self, 
+        ibm_id: str, 
+        email: EmailStr, 
+        name: str, 
+        role: str = "user"
+    ) -> UserOutput:
+        """Gets existing user or creates new one by fields."""
+        return self.get_or_create_user(
+            UserInput(ibm_id=ibm_id, email=email, name=name, role=role)
+        )
+
+    def get_or_create_user(self, user_input: UserInput) -> UserOutput:
+        """Gets existing user or creates new one from input model."""
+        try:
+            user = self.user_repository.get_by_ibm_id(user_input.ibm_id)
+            if not user:
+                return self.create_user(user_input)
             return user
         except ValueError as e:
-            logger.error(f"Failed to create user: {str(e)}")
+            logger.error(f"Failed to get/create user: {str(e)}")
             raise HTTPException(status_code=400, detail=str(e))
-    
-    def get_or_create_user_by_fields(self, ibm_id: str, email: EmailStr, name: str, role: str = "user"):
-        return self.get_or_create_user(UserInput(ibm_id=ibm_id, email=email, name=name, role=role))
-    
-    def get_or_create_user(self, user_input: UserInput) -> UserOutput:
-        try:
-            user = self.user_repository.get_user_by_ibm_id(user_input.ibm_id)
-            if not user:
-                return self.create_user(UserInput(
-                    ibm_id=user_input.ibm_id,
-                    email=user_input.email,
-                    name=user_input.name,
-                    role=user_input.role
-                ))
-        except ValueError as e:
-            logger.error(f"Failed to create user: {str(e)}")
-            raise HTTPException(status_code=400, detail=str(e))
-
-        return user
 
     def get_user_by_id(self, user_id: UUID) -> UserOutput:
+        """Gets user by ID with validation."""
         logger.info(f"Fetching user with id: {user_id}")
         user = self.user_repository.get_by_id(user_id)
         if user is None:
@@ -58,23 +100,30 @@ class UserService:
         return user
 
     def get_user_by_ibm_id(self, ibm_id: str) -> UserOutput:
+        """Gets user by IBM ID with validation."""
         logger.info(f"Fetching user with IBM ID: {ibm_id}")
-        user = self.user_repository.get_user_by_ibm_id(ibm_id)
+        user = self.user_repository.get_by_ibm_id(ibm_id)
         if user is None:
             logger.warning(f"User not found with IBM ID: {ibm_id}")
             raise HTTPException(status_code=404, detail="User not found")
         return user
 
     def update_user(self, user_id: UUID, user_update: UserInput) -> UserOutput:
-        logger.info(f"Updating user {user_id} with input: {user_update}")
-        user = self.user_repository.update(user_id, user_update)
-        if user is None:
-            logger.warning(f"User not found for update: {user_id}")
-            raise HTTPException(status_code=404, detail="User not found")
-        logger.info(f"User {user_id} updated successfully")
-        return user
+        """Updates user with validation."""
+        logger.info(f"Updating user {user_id}")
+        try:
+            user = self.user_repository.update(user_id, user_update)
+            if user is None:
+                logger.warning(f"User not found for update: {user_id}")
+                raise HTTPException(status_code=404, detail="User not found")
+            logger.info(f"User {user_id} updated successfully")
+            return user
+        except ValueError as e:
+            logger.error(f"Failed to update user: {str(e)}")
+            raise HTTPException(status_code=400, detail=str(e))
 
     def delete_user(self, user_id: UUID) -> bool:
+        """Deletes user with validation."""
         logger.info(f"Deleting user: {user_id}")
         if not self.user_repository.delete(user_id):
             logger.warning(f"User not found for deletion: {user_id}")
@@ -82,11 +131,8 @@ class UserService:
         logger.info(f"User {user_id} deleted successfully")
         return True
 
-    def get_user_teams(self, user_id: UUID) -> List[TeamOutput]:
-        logger.info(f"Fetching teams for user: {user_id}")
-        return self.user_team_service.get_user_teams(user_id)
-
     def list_users(self, skip: int = 0, limit: int = 100) -> List[UserOutput]:
+        """Lists users with pagination."""
         logger.info(f"Listing users with skip={skip} and limit={limit}")
         try:
             users = self.user_repository.list_users(skip, limit)

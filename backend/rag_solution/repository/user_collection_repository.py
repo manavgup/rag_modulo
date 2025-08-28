@@ -1,105 +1,135 @@
-import logging
 from typing import List, Optional
 from uuid import UUID
-
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
+from rag_solution.models.user import User
 from rag_solution.models.user_collection import UserCollection
 from rag_solution.models.collection import Collection
-from rag_solution.models.file import File
-from rag_solution.schemas.user_collection_schema import (
-    UserCollectionOutput,
-    FileInfo
-)
+from rag_solution.schemas.user_collection_schema import UserCollectionOutput, FileInfo
+from core.logging_utils import get_logger
+from core.custom_exceptions import NotFoundError, DuplicateEntryError
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class UserCollectionRepository:
     def __init__(self, db: Session):
         self.db = db
 
     def add_user_to_collection(self, user_id: UUID, collection_id: UUID) -> bool:
+        # First check if collection exists
+        collection = self.db.query(Collection).filter(Collection.id == collection_id).first()
+        if not collection:
+            raise NotFoundError(resource_id=str(collection_id),
+                                resource_type="Collection",
+                                message=f"Collection with id {collection_id} not found.")
+            
+        # Check if user exists (assuming you have a User model)
+        user = self.db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise NotFoundError(resource_id=str(user_id),
+                                resource_type= "User", 
+                                message=f"User with id {user_id} not found.")
+            
+        existing_entry = (
+            self.db.query(UserCollection)
+            .filter(UserCollection.user_id == user_id, UserCollection.collection_id == collection_id)
+            .first()
+        )
+
+        if existing_entry:
+            logger.info(f"User {user_id} is already in collection {collection_id}.")
+            return True
+
         try:
             user_collection = UserCollection(user_id=user_id, collection_id=collection_id)
             self.db.add(user_collection)
             self.db.commit()
             return True
-        except Exception as e:
+        except IntegrityError as e:
             self.db.rollback()
-            logger.error(f"Error adding user to collection: {str(e)}")
-            raise
+            logger.error(f"IntegrityError: {str(e)}")
+            raise DuplicateEntryError(
+                param_name="UserCollection",
+                message=f"User {user_id} is already in collection {collection_id}")
+
 
     def remove_user_from_collection(self, user_id: UUID, collection_id: UUID) -> bool:
-        try:
-            result = self.db.query(UserCollection).filter(
+        # First check if the relationship exists
+        user_collection = (
+            self.db.query(UserCollection)
+            .filter(
                 UserCollection.user_id == user_id,
                 UserCollection.collection_id == collection_id
-            ).delete()
+            )
+            .first()
+        )
+        
+        if not user_collection:
+            raise NotFoundError(
+                resource_id=str(user_id),
+                resource_type="UserCollection",
+                message=f"User {user_id} is not in collection {collection_id}"
+            )
+
+        try:
+            self.db.delete(user_collection)
             self.db.commit()
-            return result > 0
+            return True
         except Exception as e:
             self.db.rollback()
-            logger.error(f"Error removing user from collection: {str(e)}")
+            logger.error(f"Database error: {str(e)}")
             raise
 
     def get_user_collections(self, user_id: UUID) -> List[UserCollectionOutput]:
         try:
-            user_collections = self.db.query(UserCollection).filter(UserCollection.user_id == user_id).all()
-            return [self._user_collection_to_output(user_collection) for user_collection in user_collections]
+            user_collections = (self.db.query(UserCollection)
+                              .filter(UserCollection.user_id == user_id)
+                              .all())
+            return [self._to_output(uc) for uc in user_collections]
         except Exception as e:
-            logger.error(f"Error listing collections for user {user_id}: {str(e)}")
+            logger.error(f"Database error: {str(e)}")
             raise
 
     def get_collection_users(self, collection_id: UUID) -> List[UserCollectionOutput]:
         try:
-            user_collections = self.db.query(UserCollection).filter(UserCollection.collection_id == collection_id).all()
-            return [self._user_collection_to_output(user_collection) for user_collection in user_collections]
+            user_collections = (self.db.query(UserCollection)
+                              .filter(UserCollection.collection_id == collection_id)
+                              .all())
+            return [self._to_output(uc) for uc in user_collections]
         except Exception as e:
-            logger.error(f"Error listing users for collection {collection_id}: {str(e)}")
+            logger.error(f"Database error: {str(e)}")
             raise
 
     def remove_all_users_from_collection(self, collection_id: UUID) -> bool:
         try:
-            result = self.db.query(UserCollection).filter(UserCollection.collection_id == collection_id).delete()
+            result = (self.db.query(UserCollection)
+                     .filter(UserCollection.collection_id == collection_id)
+                     .delete())
             self.db.commit()
             return result > 0
         except Exception as e:
+            logger.error(f"Database error: {str(e)}")
             self.db.rollback()
-            logger.error(f"Error removing all users from collection {collection_id}: {str(e)}")
             raise
 
     def get_user_collection(self, user_id: UUID, collection_id: UUID) -> Optional[UserCollectionOutput]:
         try:
-            user_collection = self.db.query(UserCollection).filter(
-                UserCollection.user_id == user_id,
-                UserCollection.collection_id == collection_id
-            ).first()
-            return self._user_collection_to_output(user_collection) if user_collection else None
+            user_collection = (self.db.query(UserCollection)
+                             .filter(UserCollection.user_id == user_id,
+                                    UserCollection.collection_id == collection_id)
+                             .first())
+            return self._to_output(user_collection) if user_collection else None
         except Exception as e:
-            logger.error(f"Error getting user-collection association: {str(e)}")
+            logger.error(f"Database error: {str(e)}")
             raise
 
-    def _user_collection_to_output(self, user_collection: UserCollection) -> UserCollectionOutput:
-        """Convert a UserCollection model to UserCollectionOutput schema.
-        
-        Uses the relationships defined in the models to efficiently fetch related data.
-        The Collection model has lazy="selectin" for its relationships, so this won't 
-        cause N+1 query issues.
-        
-        Args:
-            user_collection: The UserCollection model instance
-            
-        Returns:
-            UserCollectionOutput: The output schema with all required fields
-            
-        Raises:
-            ValueError: If the associated collection is not found
-        """
+    def _to_output(self, user_collection: UserCollection) -> UserCollectionOutput:
         collection = user_collection.collection
         if not collection:
             logger.error(f"Collection {user_collection.collection_id} not found")
             raise ValueError(f"Collection {user_collection.collection_id} not found")
-
+        
         return UserCollectionOutput(
             id=collection.id,
             name=collection.name,
