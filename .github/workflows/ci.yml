@@ -26,7 +26,7 @@ jobs:
       
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-      
+        
       - name: Cache Docker layers
         uses: actions/cache@v4
         with:
@@ -35,40 +35,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildx-
       
-      - name: Try to pull GHCR images (with fallback)
-        id: pull-images
-        run: |
-          echo "Attempting to pull GHCR images..."
-          if docker pull ${{ env.BACKEND_IMAGE }} 2>/dev/null; then
-            echo "✅ Successfully pulled backend image"
-            echo "backend_image_exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "⚠️ Backend image not found in GHCR, will build locally"
-            echo "backend_image_exists=false" >> $GITHUB_OUTPUT
-          fi
-          
-          if docker pull ${{ env.FRONTEND_IMAGE }} 2>/dev/null; then
-            echo "✅ Successfully pulled frontend image"
-            echo "frontend_image_exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "⚠️ Frontend image not found in GHCR, will build locally"
-            echo "frontend_image_exists=false" >> $GITHUB_OUTPUT
-          fi
-          
-          if docker pull ${{ env.TEST_IMAGE }} 2>/dev/null; then
-            echo "✅ Successfully pulled test image"
-            echo "test_image_exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "⚠️ Test image not found in GHCR, will build locally"
-            echo "test_image_exists=false" >> $GITHUB_OUTPUT
-          fi
-          
-      - name: Build images locally (if GHCR images not available)
-        if: steps.pull-images.outputs.backend_image_exists == 'false' || steps.pull-images.outputs.frontend_image_exists == 'false' || steps.pull-images.outputs.test_image_exists == 'false'
-        run: |
-          echo "Building images locally..."
-          make build-all
-          
       - name: Create volume directories
         run: make create-volumes
           
@@ -77,19 +43,34 @@ jobs:
         env:
           DOCKER_BUILDKIT: 1
           
-      - name: Wait for services to be healthy
+      - name: Wait for services to be healthy (optimized)
         run: |
           echo "Waiting for services to be healthy..."
-          timeout 300 bash -c '
+          
+          # Start with a quick check
+          sleep 5
+          
+          # More aggressive health checking
+          max_wait=180  # Reduced from 300 to 3 minutes
+          check_interval=5  # Reduced from 10 to 5 seconds
+          
+          timeout $max_wait bash -c "
             while true; do
-              if docker compose ps | grep -q "healthy"; then
-                echo "Services are healthy"
+              # Check all services at once
+              healthy_count=\$(docker compose ps --format 'table {{.Name}}\t{{.Status}}' | grep -c 'healthy')
+              total_services=5  # postgres, minio, milvus-etcd, milvus-standalone, mlflow-server
+              
+              if [ \$healthy_count -eq \$total_services ]; then
+                echo \"✅ All services are healthy (\$healthy_count/\$total_services)\"
+                docker compose ps
                 exit 0
               fi
-              echo "Waiting for services to become healthy..."
-              docker compose ps
-              sleep 10
-            done'
+              
+              echo \"⏳ Services healthy: \$healthy_count/\$total_services\"
+              docker compose ps --format 'table {{.Name}}\t{{.Status}}' | grep -v 'healthy'
+              sleep $check_interval
+            done
+          "
             
       - name: Run all tests
         run: |
