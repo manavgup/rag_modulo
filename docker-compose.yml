@@ -6,7 +6,7 @@ name: ${PROJECT_NAME:-rag-modulo}
 
 services:
   backend:
-    image: ${BACKEND_IMAGE:-ghcr.io/manavgup/rag_modulo/backend:${PROJECT_VERSION:-latest}}
+    image: ${BACKEND_IMAGE:-ghcr.io/manavgup/rag_modulo/backend:latest}
     ports:
       - "8000:8000"
     networks:
@@ -37,7 +37,7 @@ services:
       retries: 3
 
   frontend:
-    image: ${FRONTEND_IMAGE:-ghcr.io/manavgup/rag_modulo/frontend:${PROJECT_VERSION:-latest}}
+    image: ${FRONTEND_IMAGE:-ghcr.io/manavgup/rag_modulo/frontend:latest}
     networks:
       - app-network
     ports:
@@ -53,7 +53,7 @@ services:
       retries: 3
 
   test:
-    image: ${TEST_IMAGE:-ghcr.io/manavgup/rag_modulo/backend:${PROJECT_VERSION:-latest}}
+    image: ${TEST_IMAGE:-ghcr.io/manavgup/rag_modulo/backend:latest}
     networks:
       - app-network
     depends_on:
