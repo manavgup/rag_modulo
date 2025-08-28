@@ -51,6 +51,16 @@ class UserProviderRepository:
     
     def get_user_provider(self, user_id: UUID) -> Optional[LLMProviderOutput]:
         try:
+            # First check if user has a preferred provider
+            user = self.db.query(User).filter(User.id == user_id).first()
+            if user and user.preferred_provider_id:
+                provider = self.db.query(LLMProvider).filter(
+                    LLMProvider.id == user.preferred_provider_id
+                ).first()
+                if provider:
+                    return LLMProviderOutput.model_validate(provider)
+            
+            # Fall back to default provider
             provider = (self.db.query(LLMProvider)
                         .filter(LLMProvider.is_default.is_(True))
                         .first())

@@ -90,3 +90,66 @@ class LLMProviderService:
     def delete_provider(self, provider_id: UUID) -> bool:
         """Soft delete a provider."""
         return self.repository.delete_provider(provider_id)
+    
+    def get_user_provider(self, user_id: UUID) -> Optional[LLMProviderOutput]:
+        """Get user's preferred provider or default provider.
+        
+        Args:
+            user_id: User UUID
+            
+        Returns:
+            Optional[LLMProviderOutput]: Provider configuration if found
+        """
+        try:
+            # Try to get user's preferred provider first
+            from rag_solution.models.user import User
+            user = self.session.query(User).filter(User.id == user_id).first()
+            if user and user.preferred_provider_id:
+                provider = self.repository.get_provider_by_id(user.preferred_provider_id)
+                if provider:
+                    return LLMProviderOutput.model_validate(provider)
+            
+            # Fall back to system default provider
+            default_provider = self.repository.get_default_provider()
+            if default_provider:
+                return LLMProviderOutput.model_validate(default_provider)
+            
+            # Return first active provider if no default
+            providers = self.repository.get_all_providers(is_active=True)
+            if providers:
+                return LLMProviderOutput.model_validate(providers[0])
+                
+            return None
+        except Exception as e:
+            logger.error(f"Error getting user provider: {str(e)}")
+            return None
+    
+    def get_provider_models(self, provider_id: UUID) -> List[Dict[str, Any]]:
+        """Get available models for a specific provider."""
+        # For now, return predefined models based on provider
+        # In a real implementation, this would query the provider's API
+        provider = self.repository.get_provider_by_id(provider_id)
+        if not provider:
+            return []
+        
+        # Return IBM Watson models as default
+        return [
+            {
+                "id": str(UUID("11111111-1111-1111-1111-111111111111")),
+                "provider_id": str(provider_id),
+                "model_id": "meta-llama/llama-3-3-70b-instruct",
+                "default_model_id": "meta-llama/llama-3-3-70b-instruct",
+                "model_type": "generation",
+                "timeout": 30,
+                "max_retries": 3,
+                "batch_size": 10,
+                "retry_delay": 1.0,
+                "concurrency_limit": 10,
+                "stream": False,
+                "rate_limit": 10,
+                "is_default": True,
+                "is_active": True,
+                "created_at": "2024-01-01T00:00:00Z",
+                "updated_at": "2024-01-01T00:00:00Z"
+            }
+        ]

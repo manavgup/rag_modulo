@@ -145,19 +145,38 @@ class PipelineService:
         try:
             pipelines = self.pipeline_repository.get_by_user(user_id)
 
-            # If no pipelines exist, try to get default
+            # If no pipelines exist, create a default one for existing users
             if not pipelines:
-                default_pipeline = self.get_default_pipeline(user_id)
-                if default_pipeline:
+                logger.info(f"No pipelines found for user {user_id}, creating default pipeline")
+                
+                # Get user's provider or system default
+                provider = self.llm_provider_service.get_user_provider(user_id)
+                if not provider:
+                    # Try to get system default provider
+                    providers = self.llm_provider_service.get_all_providers()
+                    if providers:
+                        provider = providers[0]  # Use first available provider
+                    else:
+                        logger.error("No LLM providers available in the system")
+                        raise HTTPException(
+                            status_code=500,
+                            detail="No LLM providers available. Please contact administrator."
+                        )
+                
+                # Create default pipeline for existing user
+                try:
+                    default_pipeline = self.initialize_user_pipeline(user_id, provider.id)
                     return [default_pipeline]
-                else:
-                    # This should normally not happen as default pipeline should be created during user initialization
-                    logger.warning(f"No pipelines found for user {user_id} and no default pipeline exists")
+                except Exception as init_error:
+                    logger.error(f"Failed to create default pipeline: {str(init_error)}")
                     raise HTTPException(
-                        status_code=404,
-                        detail="No pipelines found for the user and no default pipeline exists"
+                        status_code=500,
+                        detail=f"Failed to create default pipeline: {str(init_error)}"
                     )
-            return [PipelineConfigOutput.model_validate(p) for p in pipelines]
+                    
+            return pipelines  # Already PipelineConfigOutput objects from repository
+        except HTTPException:
+            raise  # Re-raise HTTP exceptions
         except Exception as e:
             logger.error(f"Failed to get user pipelines: {str(e)}")
             raise HTTPException(
