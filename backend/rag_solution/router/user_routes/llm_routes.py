@@ -13,9 +13,9 @@ from rag_solution.schemas.llm_parameters_schema import (
 )
 from rag_solution.schemas.llm_provider_schema import (
     LLMProviderOutput,
-    LLMProviderModelOutput,
     LLMProviderInput
 )
+from rag_solution.schemas.llm_model_schema import LLMModelOutput
 from rag_solution.services.llm_parameters_service import LLMParametersService
 from rag_solution.services.llm_provider_service import LLMProviderService
 from core.authorization import authorize_decorator
@@ -49,7 +49,7 @@ async def get_llm_parameters(
     
     service = LLMParametersService(db)
     try:
-        return service.get_parameters(user_id)
+        return service.get_user_parameters(user_id)
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -74,7 +74,7 @@ async def create_llm_parameters(
     
     service = LLMParametersService(db)
     try:
-        return service.create_or_update_parameters(user_id, parameters_input)
+        return service.create_parameters(parameters_input)
     except Exception as e:
         raise HTTPException(
             status_code=400,
@@ -176,7 +176,7 @@ async def get_llm_providers(
     
     service = LLMProviderService(db)
     try:
-        return service.get_providers_for_user(user_id)
+        return service.get_all_providers(is_active=True)
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -263,7 +263,7 @@ async def delete_llm_provider(
         )
 
 @router.get("/{user_id}/llm-providers/models", 
-    response_model=List[LLMProviderModelOutput],
+    response_model=List[LLMModelOutput],
     summary="Get provider models",
     description="Retrieve all available models from providers"
 )
@@ -272,18 +272,18 @@ async def get_provider_models(
     user_id: UUID,
     request: Request,
     db: Session = Depends(get_db)
-) -> List[LLMProviderModelOutput]:
+) -> List[LLMModelOutput]:
     """Retrieve all available models from providers."""
     if not hasattr(request.state, 'user') or request.state.user['uuid'] != str(user_id):
         raise HTTPException(status_code=403, detail="Not authorized to access provider models")
     
     service = LLMProviderService(db)
     try:
-        # Get all providers for the user and their models
-        providers = service.get_providers_for_user(user_id)
+        # Get all active providers and their models
+        providers = service.get_all_providers(is_active=True)
         all_models = []
         for provider in providers:
-            models = service.get_available_models(provider.id)
+            models = service.get_provider_models(provider.id)
             all_models.extend(models)
         return all_models
     except Exception as e:
@@ -293,7 +293,7 @@ async def get_provider_models(
         )
 
 @router.get("/{user_id}/llm-providers/{provider_id}/models", 
-    response_model=List[LLMProviderModelOutput],
+    response_model=List[LLMModelOutput],
     summary="Get provider models",
     description="Retrieve all available models for a specific provider"
 )
@@ -303,7 +303,7 @@ async def get_provider_specific_models(
     provider_id: UUID,
     request: Request,
     db: Session = Depends(get_db)
-) -> List[LLMProviderModelOutput]:
+) -> List[LLMModelOutput]:
     """Retrieve all available models for a specific provider."""
     if not hasattr(request.state, 'user') or request.state.user['uuid'] != str(user_id):
         raise HTTPException(status_code=403, detail="Not authorized to access provider models")

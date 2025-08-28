@@ -15,6 +15,12 @@ class PipelineConfig(Base):
 
     # Identifiers
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[UUID] = mapped_column(  # Add user ownership
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )   
     collection_id: Mapped[Optional[UUID]] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("collections.id", ondelete="CASCADE"),

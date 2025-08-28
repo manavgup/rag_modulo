@@ -1,10 +1,11 @@
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from typing import Optional, List
 from uuid import UUID
 
 from rag_solution.models.llm_parameters import LLMParameters
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput, LLMParametersOutput
-from core.custom_exceptions import NotFoundError
+from core.custom_exceptions import NotFoundError, RepositoryError
 from core.logging_utils import get_logger
 
 logger = get_logger("repository.llm_parameters")
@@ -20,23 +21,38 @@ class LLMParametersRepository:
         """
         self.db = db
 
-    def create(self, user_id: UUID, params: LLMParametersInput) -> LLMParametersOutput:
+    def create(self, parameters: LLMParametersInput) -> LLMParametersOutput:
         """Create new LLM Parameters for a user.
         
         Args:
-            user_id: UUID of the user who owns these parameters
-            params: Parameters to create
+            parameters: Parameters to create including user_id
             
         Returns:
             LLMParametersOutput: Created parameters
         """
-        db_params = LLMParameters(**params.model_dump(), user_id=user_id)
-        self.db.add(db_params)
-        self.db.commit()
-        self.db.refresh(db_params)
-        return LLMParametersOutput.model_validate(db_params)
+        try:
+            db_params = LLMParameters(**parameters.model_dump())
+            self.db.add(db_params)
+            self.db.commit()
+            self.db.refresh(db_params)
+            return LLMParametersOutput.model_validate(db_params)
+        except IntegrityError as e:
+            self.db.rollback()
+            if "violates foreign key constraint" in str(e):
+                raise RepositoryError(
+                    message=f"Referenced user {parameters.user_id} does not exist",
+                    details={
+                        "user_id": str(parameters.user_id),
+                        "constraint": "foreign_key",
+                        "table": "users"
+                    }
+                )
+            raise RepositoryError(
+                message=f"Database constraint violation: {str(e)}",
+                details={"error": str(e)}
+            )
 
-    def get_by_id(self, parameter_id: UUID) -> Optional[LLMParametersOutput]:
+    def get_parameters(self, parameter_id: UUID) -> Optional[LLMParametersOutput]:
         """Get LLM Parameters by ID.
         
         Args:
@@ -52,12 +68,12 @@ class LLMParametersRepository:
         )
         return LLMParametersOutput.model_validate(db_params) if db_params else None
 
-    def update(self, parameter_id: UUID, params: LLMParametersInput) -> LLMParametersOutput:
+    def update(self, parameter_id: UUID, parameters: LLMParametersInput) -> LLMParametersOutput:
         """Update existing LLM Parameters.
         
         Args:
             parameter_id: UUID of the parameters to update
-            params: New parameter values
+            parameters: New parameter values
             
         Returns:
             LLMParametersOutput: Updated parameters
@@ -65,7 +81,6 @@ class LLMParametersRepository:
         Raises:
             NotFoundError: If parameters not found
         """
-        logger.debug(f"Type of params received in update: {type(params)}")
         db_params = (
             self.db.query(LLMParameters)
             .filter(LLMParameters.id == parameter_id)
@@ -78,20 +93,34 @@ class LLMParametersRepository:
                 message=f"LLMParameters with ID {parameter_id} not found"
             )
 
-        param_dict = params.model_dump(exclude_unset=True)
+        # Validate that user_id cannot be changed
+        if parameters.user_id != db_params.user_id:
+            raise RepositoryError(
+                message="Cannot change user_id of existing parameters",
+                details={
+                    "current_user_id": str(db_params.user_id),
+                    "attempted_user_id": str(parameters.user_id)
+                }
+            )
+
+        param_dict = parameters.model_dump(exclude_unset=True)
         for field, value in param_dict.items():
-            setattr(db_params, field, value)
+            if field != 'user_id':  # Skip user_id to prevent accidental changes
+                setattr(db_params, field, value)
 
         self.db.commit()
         self.db.refresh(db_params)
         return LLMParametersOutput.model_validate(db_params)
 
-    def delete(self, parameter_id: UUID) -> None:
+    def delete(self, parameter_id: UUID) -> bool:
         """Delete LLM Parameters.
         
         Args:
             parameter_id: UUID of the parameters to delete
             
+        Returns:
+            bool: True if deletion was successful
+        
         Raises:
             NotFoundError: If parameters not found
         """
@@ -109,19 +138,40 @@ class LLMParametersRepository:
 
         self.db.delete(db_params)
         self.db.commit()
+        return True
 
-    def delete_by_user_id(self, user_id: UUID) -> None:
+    def delete_by_user_id(self, user_id: UUID) -> int:
         """Delete all LLM Parameters for a user.
         
         Args:
             user_id: UUID of the user whose parameters should be deleted
+            
+        Returns:
+            int: Number of parameters deleted
         """
-        (
+        deleted_count = (
             self.db.query(LLMParameters)
             .filter(LLMParameters.user_id == user_id)
             .delete()
         )
         self.db.commit()
+        return deleted_count
+
+    def get_parameters_by_user_id(self, user_id: UUID) -> List[LLMParametersOutput]:
+        """Get all LLM Parameters for a user.
+        
+        Args:
+            user_id: UUID of the user
+            
+        Returns:
+            List[LLMParametersOutput]: List of all parameters for the user
+        """
+        db_params = (
+            self.db.query(LLMParameters)
+            .filter(LLMParameters.user_id == user_id)
+            .all()
+        )
+        return [LLMParametersOutput.model_validate(p) for p in db_params]
 
     def get_default_parameters(self, user_id: UUID) -> Optional[LLMParametersOutput]:
         """Get default LLM Parameters for a user.
@@ -142,13 +192,16 @@ class LLMParametersRepository:
         )
         return LLMParametersOutput.model_validate(db_params) if db_params else None
 
-    def reset_default_parameters(self, user_id: UUID) -> None:
+    def reset_default_parameters(self, user_id: UUID) -> int:
         """Reset default flag for all of a user's parameters.
         
         Args:
             user_id: UUID of the user
+            
+        Returns:
+            int: Number of parameters updated
         """
-        (
+        updated_count = (
             self.db.query(LLMParameters)
             .filter(
                 LLMParameters.user_id == user_id,
@@ -157,19 +210,4 @@ class LLMParametersRepository:
             .update({"is_default": False})
         )
         self.db.commit()
-
-    def get_parameters_by_user_id(self, user_id: UUID) -> List[LLMParametersOutput]:
-        """Get all LLM Parameters for a user.
-        
-        Args:
-            user_id: UUID of the user
-            
-        Returns:
-            List[LLMParametersOutput]: List of all parameters for the user
-        """
-        db_params = (
-            self.db.query(LLMParameters)
-            .filter(LLMParameters.user_id == user_id)
-            .all()
-        )
-        return [LLMParametersOutput.model_validate(p) for p in db_params]
+        return updated_count

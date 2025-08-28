@@ -3,11 +3,8 @@ import pytest
 from sqlalchemy.orm import Session
 from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.prompt_template_service import PromptTemplateService
-from rag_solution.schemas.llm_provider_schema import (
-    LLMProviderInput,
-    LLMProviderModelInput,
-    ModelType
-)
+from rag_solution.schemas.llm_provider_schema import LLMProviderInput
+from rag_solution.schemas.llm_model_schema import LLMModelInput, ModelType
 from rag_solution.schemas.prompt_template_schema import (
     PromptTemplateType,
     PromptTemplateInput
@@ -29,7 +26,7 @@ def test_watsonx_provider_setup(db_session: Session, base_user):
     provider = provider_service.create_provider(provider_input)
 
     # Create model
-    model_input = LLMProviderModelInput(
+    model_input = LLMModelInput(
         provider_id=provider.id,
         model_id="google/flan-ul2",
         default_model_id="google/flan-ul2",
@@ -55,7 +52,7 @@ def test_watsonx_provider_setup(db_session: Session, base_user):
     template_service = PromptTemplateService(db_session)
 
     # Create RAG query template
-    rag_template = template_service.create_or_update_template(
+    rag_template = template_service.create_template(
         base_user.id,
         PromptTemplateInput(
             name="test-rag-template",
@@ -81,7 +78,7 @@ def test_watsonx_provider_setup(db_session: Session, base_user):
     assert rag_template.is_default is True
 
     # Create question generation template
-    question_template = template_service.create_or_update_template(
+    question_template = template_service.create_template(
         base_user.id,
         PromptTemplateInput(
             name="test-question-template",
@@ -131,7 +128,7 @@ def test_watsonx_provider_invalid_setup(db_session: Session, base_user):
 
     # Test creating template with missing variables
     with pytest.raises(ValueError, match="Template variables missing"):
-        template_service.create_or_update_template(
+        template_service.create_template(
             base_user.id,
             PromptTemplateInput(
                 name="test-template",
@@ -144,7 +141,7 @@ def test_watsonx_provider_invalid_setup(db_session: Session, base_user):
 
     # Test creating template with invalid provider
     with pytest.raises(ValueError, match="Invalid provider"):
-        template_service.create_or_update_template(
+        template_service.create_template(
             base_user.id,
             PromptTemplateInput(
                 name="test-template",

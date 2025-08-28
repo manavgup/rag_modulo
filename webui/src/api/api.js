@@ -100,7 +100,8 @@ export const searchDocuments = async (query, collectionId) => {
       search_input: {  // Wrap the parameters in search_input
         question: query,
         collection_id: collectionId,
-        pipeline_id: defaultPipelineId
+        pipeline_id: defaultPipelineId,
+        user_id: userData.uuid
       }
     });
     
@@ -175,9 +176,15 @@ export const getUserCollections = async () => {
     const url = `${API_ROUTES.USERS_ENDPOINT}/${userData.uuid}/collections`;
     console.log('Fetching user collections:', getFullApiUrl(url));
     const response = await api.get(url);
-    console.log('User collections fetched successfully', response.data);
-    return response.data;
     
+    // Transform the data structure
+    const collections = Array.isArray(response.data) ? response.data : (response.data.collections || []);
+    return {
+      collections: collections.map(collection => ({
+        id: collection.collection_id || collection.id,
+        ...collection,
+      }))
+    };
   } catch (error) {
     console.error('Error in getUserCollections:', error);
     throw handleApiError(error, 'Error fetching user collections');

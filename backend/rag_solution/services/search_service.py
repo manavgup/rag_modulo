@@ -219,7 +219,6 @@ class SearchService:
     async def search(
         self,
         search_input: SearchInput,
-        user_id: Optional[UUID] = None,
         context: Optional[Dict[str, Any]] = None
     ) -> SearchOutput:
         """Process a search query through the RAG pipeline."""
@@ -228,7 +227,7 @@ class SearchService:
 
         # Validate inputs
         self._validate_search_input(search_input)
-        self._validate_collection_access(search_input.collection_id, user_id)
+        self._validate_collection_access(search_input.collection_id, search_input.user_id)
         self._validate_pipeline(search_input.pipeline_id)
 
         # Initialize pipeline
@@ -237,7 +236,6 @@ class SearchService:
         # Execute pipeline
         pipeline_result = await self.pipeline_service.execute_pipeline(
             search_input=search_input,
-            user_id=user_id,
             collection_name=collection_name
         )
 

@@ -1,74 +1,86 @@
-import logging
 from typing import List, Optional
 from uuid import UUID
-
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from rag_solution.models.user_team import UserTeam
-from rag_solution.schemas.team_schema import TeamOutput
-from rag_solution.schemas.user_schema import UserOutput
-from rag_solution.schemas.user_team_schema import (UserTeamInput,
-                                                           UserTeamOutput)
+from rag_solution.schemas.user_team_schema import UserTeamInput, UserTeamOutput
+from core.logging_utils import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class UserTeamRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def add_user_to_team(self, user_team: UserTeamInput) -> bool:
+    def add_user_to_team(self, user_id: UUID, team_id: UUID) -> bool:
+        """Adds a user to a team if not already present. Returns True if successful or if the user is already in the team."""
+        
+        existing_entry = (
+            self.db.query(UserTeam)
+            .filter(UserTeam.user_id == user_id, UserTeam.team_id == team_id)
+            .first()
+        )
+
+        if existing_entry:
+            logger.info(f"User {user_id} is already in team {team_id}. No action needed.")
+            return True  # Idempotent behavior
+
         try:
-            db_user_team = UserTeam(user_id=user_team.user_id, team_id=user_team.team_id)
-            self.db.add(db_user_team)  # Add user-team association
-            self.db.commit()  # Commit to save changes
-            self.db.refresh(db_user_team)  # Refresh to get new state
+            db_user_team = UserTeam(user_id=user_id, team_id=team_id)
+            self.db.add(db_user_team)
+            self.db.commit()
             return True
+        except IntegrityError as e:
+            self.db.rollback()
+            logger.error(f"IntegrityError: {e}")
+            raise ValueError("User or team not found or duplicate entry")
         except Exception as e:
-            logger.error(f"Error creating user-team association: {str(e)}")
-            self.db.rollback()  # Rollback transaction on failure
-            raise
+            self.db.rollback()
+            logger.error(f"Unexpected error creating team association: {str(e)}")
+            raise RuntimeError("Failed to add user to team due to an internal error.")
+        
 
-    def get(self, user_id: UUID, team_id: UUID) -> Optional[UserTeamOutput]:
+    def remove_user_from_team(self, user_id: UUID, team_id: UUID) -> bool:
         try:
-            user_team = self.db.query(UserTeam).filter(UserTeam.user_id == user_id, UserTeam.team_id == team_id).first()
-            return self._user_team_to_output(user_team) if user_team else None
+            result = self.db.query(UserTeam).filter(
+                UserTeam.user_id == user_id,
+                UserTeam.team_id == team_id
+            ).delete()
+            self.db.commit()
+            return result > 0
         except Exception as e:
-            logger.error(f"Error getting user-team association: {str(e)}")
-            raise
-
-    def delete(self, user_id: UUID, team_id: UUID) -> bool:
-        try:
-            user_team = self.db.query(UserTeam).filter(UserTeam.user_id == user_id, UserTeam.team_id == team_id).first()
-            if user_team:
-                self.db.delete(user_team)
-                self.db.commit()  # Commit delete
-                return True
-            return False
-        except Exception as e:
-            logger.error(f"Error deleting user-team association: {str(e)}")
-            self.db.rollback()  # Rollback on error
+            logger.error(f"Error removing team association: {str(e)}")
+            self.db.rollback()
             raise
 
     def get_user_teams(self, user_id: UUID) -> List[UserTeamOutput]:
         try:
-            user_teams = self.db.query(UserTeam).filter(UserTeam.user_id == user_id).all()
-            return [self._user_team_to_output(user_team) for user_team in user_teams]
+            user_teams = (self.db.query(UserTeam)
+                         .filter(UserTeam.user_id == user_id)
+                         .all())
+            return [UserTeamOutput.model_validate(ut, from_attributes=True) for ut in user_teams]
         except Exception as e:
-            logger.error(f"Error listing teams for user {user_id}: {str(e)}")
+            logger.error(f"Error listing teams: {str(e)}")
             raise
 
     def get_team_users(self, team_id: UUID) -> List[UserTeamOutput]:
         try:
-            user_teams = self.db.query(UserTeam).filter(UserTeam.team_id == team_id).all()
-            return [self._user_team_to_output(user_team) for user_team in user_teams]
+            user_teams = (self.db.query(UserTeam)
+                         .filter(UserTeam.team_id == team_id)
+                         .all())
+            return [UserTeamOutput.model_validate(ut) for ut in user_teams]
         except Exception as e:
-            logger.error(f"Error listing users for team {team_id}: {str(e)}")
+            logger.error(f"Error listing users: {str(e)}")
             raise
 
-    @staticmethod
-    def _user_team_to_output(user_team: UserTeam) -> UserTeamOutput:
-        return UserTeamOutput(
-            user_id=user_team.user_id,
-            team_id=user_team.team_id,
-            joined_at=user_team.joined_at
-        )
+    def get_user_team(self, user_id: UUID, team_id: UUID) -> Optional[UserTeamOutput]:
+        try:
+            user_team = (self.db.query(UserTeam)
+                        .filter(UserTeam.user_id == user_id,
+                               UserTeam.team_id == team_id)
+                        .first())
+            return UserTeamOutput.model_validate(user_team) if user_team else None
+        except Exception as e:
+            logger.error(f"Error getting team association: {str(e)}")
+            raise

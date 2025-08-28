@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from ibm_watsonx_ai import APIClient, Credentials
+from typing import Dict, Any
 
 from rag_solution.file_management.database import get_db
 from vectordbs.factory import get_datastore
@@ -11,55 +12,28 @@ from core.logging_utils import get_logger
 
 logger = get_logger(__name__)
 
-router = APIRouter(prefix="/api", tags=["health"])  # Add a prefix to avoid conflicts
+router = APIRouter(prefix="/api", tags=["health"])
 
-def check_vectordb():
-    """
-    Check the health of the vector database.
-
-    Returns:
-        dict: A dictionary containing the status and message of the vector database health check.
-
-    Raises:
-        HTTPException: If the vector database health check fails.
-    """
+def check_vectordb() -> Dict[str, str]:
+    """Check the health of the vector database."""
     try:
         get_datastore(settings.vector_db)
         return {"status": "healthy", "message": "Vector DB is connected and operational"}
     except Exception as e:
-        raise HTTPException(status_code=503, detail=f"Vector DB health check failed: {str(e)}")
+        logger.error(f"Vector DB health check failed: {str(e)}")
+        return {"status": "unhealthy", "message": f"Vector DB health check failed: {str(e)}"}
 
-def check_datastore(db: Session = Depends(get_db)):
-    """
-    Check the health of the relational database.
-
-    Args:
-        db (Session): The database session.
-
-    Returns:
-        dict: A dictionary containing the status and message of the relational database health check.
-
-    Raises:
-        HTTPException: If the relational database health check fails.
-    """
+def check_datastore(db: Session = Depends(get_db)) -> Dict[str, str]:
+    """Check the health of the relational database."""
     try:
-        # Execute a simple query
         db.execute(text("Select 1"))
-        return {"status": "healthy", "message": "Relational is connected and operational"}
+        return {"status": "healthy", "message": "Relational DB is connected and operational"}
     except Exception as e:
-        raise HTTPException(status_code=503, detail=f"Relational DB health check failed: {str(e)}")
+        logger.error(f"Relational DB health check failed: {str(e)}")
+        return {"status": "unhealthy", "message": f"Relational DB health check failed: {str(e)}"}
 
-def check_watsonx():
-    """
-    Check the health of the WatsonX service.
-
-    Returns:
-        dict: A dictionary containing the status and message of the WatsonX health check.
-
-    Raises:
-        HTTPException: If the WatsonX health check fails.
-    """
-    # Check if WatsonX is configured
+def check_watsonx() -> Dict[str, str]:
+    """Check the health of the WatsonX service."""
     if not all([settings.wx_project_id, settings.wx_api_key, settings.wx_url]):
         logger.warning("WatsonX not configured - skipping health check")
         return {"status": "skipped", "message": "WatsonX not configured"}
@@ -71,20 +45,12 @@ def check_watsonx():
         )
         return {"status": "healthy", "message": "WatsonX is connected and operational"}
     except Exception as e:
-        raise HTTPException(status_code=503, detail=f"WatsonX health check failed: {str(e)}")
+        logger.error(f"WatsonX health check failed: {str(e)}")
+        return {"status": "unhealthy", "message": f"WatsonX health check failed: {str(e)}"}
 
-def check_file_system():
-    """
-    Check the health of the file system.
-
-    Returns:
-        dict: A dictionary containing the status and message of the file system health check.
-
-    Raises:
-        HTTPException: If the file system health check fails.
-    """
+def check_file_system() -> Dict[str, str]:
+    """Check the health of the file system."""
     try:
-        # Check if the upload directory exists and is writable
         upload_dir = settings.file_storage_path
         if not os.path.exists(upload_dir):
             os.makedirs(upload_dir)
@@ -94,7 +60,23 @@ def check_file_system():
         os.remove(test_file)
         return {"status": "healthy", "message": "File system is accessible and writable"}
     except Exception as e:
-        raise HTTPException(status_code=503, detail=f"File system health check failed: {str(e)}")
+        logger.error(f"File system health check failed: {str(e)}")
+        return {"status": "unhealthy", "message": f"File system health check failed: {str(e)}"}
+
+def check_system_health(components: Dict[str, Dict[str, str]]) -> bool:
+    """
+    Check if any critical component is unhealthy.
+    
+    Args:
+        components: Dictionary of component health check results
+        
+    Returns:
+        bool: True if system is healthy, False otherwise
+    """
+    for name, status in components.items():
+        if status["status"] == "unhealthy":
+            return False
+    return True
 
 @router.get("/health",
     summary="Perform health check",
@@ -110,22 +92,35 @@ def health_check(db: Session = Depends(get_db)):
     Perform a health check on all system components.
 
     Args:
-        db (Session): The database session.
+        db: The database session.
 
     Returns:
-        dict: A dictionary containing the overall status and the status of each component.
+        dict: Health check results for all components
+        
+    Raises:
+        HTTPException: If any component is unhealthy
     """
-    milvus_health = check_vectordb()
-    postgres_health = check_datastore(db)
-    watsonx_health = check_watsonx()
-    file_system_health = check_file_system()
+    components = {
+        "vectordb": check_vectordb(),
+        "datastore": check_datastore(db),
+        "watsonx": check_watsonx(),
+        "file_system": check_file_system()
+    }
+
+    is_healthy = check_system_health(components)
+    
+    if not is_healthy:
+        unhealthy_components = [
+            f"{name} ({status['message']})"
+            for name, status in components.items()
+            if status["status"] == "unhealthy"
+        ]
+        raise HTTPException(
+            status_code=503,
+            detail=f"System unhealthy. Components: {', '.join(unhealthy_components)}"
+        )
 
     return {
         "status": "healthy",
-        "components": {
-            "vectordb": milvus_health,
-            "datastore": postgres_health,
-            "watsonx": watsonx_health,
-            "file_system": file_system_health
-        }
+        "components": components
     }

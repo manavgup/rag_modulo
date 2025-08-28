@@ -7,6 +7,8 @@ name: ${PROJECT_NAME:-rag-modulo}
 services:
   backend:
     image: ${PROJECT_NAME:-rag-modulo}/backend:${PROJECT_VERSION:-1.0.0}
+    ports:
+      - "8000:8000"
     networks:
       - app-network
     working_dir: /app

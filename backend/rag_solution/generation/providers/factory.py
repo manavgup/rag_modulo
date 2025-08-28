@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from core.custom_exceptions import LLMProviderError
 from core.logging_utils import get_logger
 from rag_solution.services.llm_provider_service import LLMProviderService
+from rag_solution.services.llm_model_service import LLMModelService
 from rag_solution.services.llm_parameters_service import LLMParametersService
 from rag_solution.services.prompt_template_service import PromptTemplateService
 from .base import LLMBase
@@ -50,6 +51,7 @@ class LLMProviderFactory:
         self._llm_provider_service = LLMProviderService(db)
         self._llm_parameters_service = LLMParametersService(db)
         self._prompt_template_service = PromptTemplateService(db)
+        self._llm_model_service = LLMModelService(db) 
 
     def _get_cache_key(self, provider_name: str, model_id: Optional[str] = None) -> str:
         """
@@ -131,7 +133,8 @@ class LLMProviderFactory:
             provider = provider_class(
                 self._llm_provider_service,
                 self._llm_parameters_service,
-                self._prompt_template_service
+                self._prompt_template_service,
+                self._llm_model_service 
             )
 
             # Configure model if specified

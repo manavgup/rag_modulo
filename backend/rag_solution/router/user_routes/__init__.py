@@ -6,7 +6,8 @@ from . import (
     prompt_routes,
     pipeline_routes,
     collection_routes,
-    file_routes
+    file_routes,
+    provider_routes
 )
 
 __all__ = [
@@ -15,5 +16,6 @@ __all__ = [
     'prompt_routes',
     'pipeline_routes',
     'collection_routes',
-    'file_routes'
+    'file_routes',
+    'provider_routes'
 ]

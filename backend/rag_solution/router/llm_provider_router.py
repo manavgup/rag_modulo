@@ -5,13 +5,8 @@ from uuid import UUID
 
 from rag_solution.file_management.database import get_db
 from rag_solution.services.llm_provider_service import LLMProviderService
-from rag_solution.schemas.llm_provider_schema import (
-    LLMProviderInput,
-    LLMProviderOutput,
-    LLMProviderModelInput,
-    LLMProviderModelOutput,
-    ModelType
-)
+from rag_solution.schemas.llm_provider_schema import LLMProviderInput, LLMProviderOutput
+from rag_solution.schemas.llm_model_schema import LLMModelInput, LLMModelOutput, ModelType
 
 
 router = APIRouter(
@@ -82,15 +77,15 @@ def delete_provider(provider_id: UUID, service: LLMProviderService = Depends(get
 # PROVIDER MODEL ROUTES
 # -------------------------------
 
-@router.post("/models/", response_model=LLMProviderModelOutput)
-def create_provider_model(model_input: LLMProviderModelInput, service: LLMProviderService = Depends(get_service)):
+@router.post("/models/", response_model=LLMModelOutput)
+def create_provider_model(model_input: LLMModelInput, service: LLMProviderService = Depends(get_service)):
     """
     Create a new Model for an LLM Provider.
     """
     return service.create_provider_model(model_input)
 
 
-@router.get("/models/provider/{provider_id}", response_model=List[LLMProviderModelOutput])
+@router.get("/models/provider/{provider_id}", response_model=List[LLMModelOutput])
 def get_models_by_provider(provider_id: UUID, service: LLMProviderService = Depends(get_service)):
     """
     Get all Models associated with an LLM Provider.
@@ -98,7 +93,7 @@ def get_models_by_provider(provider_id: UUID, service: LLMProviderService = Depe
     return service.get_models_by_provider(provider_id)
 
 
-@router.get("/models/type/{model_type}", response_model=List[LLMProviderModelOutput])
+@router.get("/models/type/{model_type}", response_model=List[LLMModelOutput])
 def get_models_by_type(model_type: ModelType, service: LLMProviderService = Depends(get_service)):
     """
     Get Models filtered by type (e.g., 'generation', 'embedding').
@@ -106,7 +101,7 @@ def get_models_by_type(model_type: ModelType, service: LLMProviderService = Depe
     return service.get_models_by_type(model_type)
 
 
-@router.get("/models/{model_id}", response_model=LLMProviderModelOutput)
+@router.get("/models/{model_id}", response_model=LLMModelOutput)
 def get_model_by_id(model_id: UUID, service: LLMProviderService = Depends(get_service)):
     """
     Get a specific Model by ID.
@@ -117,7 +112,7 @@ def get_model_by_id(model_id: UUID, service: LLMProviderService = Depends(get_se
     return model
 
 
-@router.put("/models/{model_id}", response_model=LLMProviderModelOutput)
+@router.put("/models/{model_id}", response_model=LLMModelOutput)
 def update_model(model_id: UUID, updates: dict, service: LLMProviderService = Depends(get_service)):
     """
     Update a specific Model.

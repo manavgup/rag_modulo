@@ -7,7 +7,9 @@ from core.logging_utils import setup_logging, get_logger
 from core.custom_exceptions import LLMProviderError
 from rag_solution.schemas.prompt_template_schema import PromptTemplateBase
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
+from rag_solution.schemas.llm_provider_schema import LLMProviderConfig
 from rag_solution.services.llm_provider_service import LLMProviderService
+from rag_solution.services.llm_model_service import LLMModelService
 from rag_solution.services.llm_parameters_service import LLMParametersService
 from rag_solution.services.prompt_template_service import PromptTemplateService
 from vectordbs.data_types import EmbeddingsList
@@ -37,7 +39,8 @@ class LLMBase(ABC, metaclass=LLMMeta):
         self,
         llm_provider_service: LLMProviderService,
         llm_parameters_service: LLMParametersService,
-        prompt_template_service: PromptTemplateService
+        prompt_template_service: PromptTemplateService,
+        llm_model_service: LLMModelService
     ) -> None:
         """Initialize provider with required services."""
         self.logger: Any = get_logger(f"llm.providers.{self.__class__.__name__}")
@@ -46,6 +49,7 @@ class LLMBase(ABC, metaclass=LLMMeta):
         self.llm_provider_service: LLMProviderService = llm_provider_service
         self.llm_parameters_service: LLMParametersService = llm_parameters_service
         self.prompt_template_service: PromptTemplateService = prompt_template_service
+        self.llm_model_service: LLMModelService = llm_model_service
         
         self._model_id: Optional[str] = None
         self._provider_name: str = self.__class__.__name__.lower()
@@ -66,7 +70,7 @@ class LLMBase(ABC, metaclass=LLMMeta):
         LLMProviderFactory.register_provider(provider_name, cls)
         logger.info(f"Registered provider: {provider_name}")
 
-    def _get_provider_config(self, provider_name: str) -> Dict[str, Any]:
+    def _get_provider_config(self, provider_name: str) -> LLMProviderConfig:
         """Get provider configuration from service."""
         provider = self.llm_provider_service.get_provider_by_name(provider_name)
         if not provider or not provider.is_active:

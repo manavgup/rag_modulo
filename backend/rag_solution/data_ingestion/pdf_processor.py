@@ -67,7 +67,10 @@ class PdfProcessor(BaseProcessor):
                             logger.error(f"Error processing page {page_num} of {file_path}: {e}", exc_info=True)
         except Exception as e:
             logger.error(f"Error reading PDF file {file_path}: {e}", exc_info=True)
-            raise DocumentProcessingError(f"Error processing PDF file {file_path}") from e
+            raise DocumentProcessingError(
+                doc_id=file_path,
+                error_type="DocumentProcessingError",
+                message=f"Error processing PDF file {file_path}") from e
 
     def process_page(self, page_number: int, file_path: str, output_folder: str, document_id: str) -> List[
         DocumentChunk]:
