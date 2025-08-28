@@ -45,7 +45,16 @@ from rag_solution.services.system_initialization_service import SystemInitializa
 
 # Setup logging
 log_dir = Path("/app/logs") if os.getenv("CONTAINER_ENV") else Path(__file__).parent.parent / "logs"
-log_dir.mkdir(parents=True, exist_ok=True)
+
+# Only create log directory if not in testing mode
+if not os.getenv("TESTING"):
+    try:
+        log_dir.mkdir(parents=True, exist_ok=True)
+    except PermissionError:
+        # Fallback to current directory if we can't create logs directory
+        log_dir = Path.cwd() / "logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+
 setup_logging(log_dir)
 logger = get_logger(__name__)
 
