@@ -33,7 +33,7 @@ jobs:
       MINIO_ROOT_PASSWORD: minioadmin
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v2
@@ -74,7 +74,7 @@ jobs:
       id: run-tests
       run: |
         make create-test-dirs
-        make tests || echo "::set-output name=tests_failed::true"
+        make tests || echo "tests_failed=true" >> $GITHUB_OUTPUT
 
     - name: Create issues for failed tests
       if: steps.run-tests.outputs.tests_failed == 'true'
@@ -123,7 +123,7 @@ jobs:
 
     - name: Upload test results
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: test-reports-${{ matrix.vector_db }}
         path: |
