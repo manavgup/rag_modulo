@@ -17,7 +17,7 @@ PROJECT_VERSION ?= 1.0.0
 GHCR_REPO ?= ghcr.io/manavgup/rag_modulo
 
 # Tools
-CONTAINER_CLI := podman
+CONTAINER_CLI := docker
 DOCKER_COMPOSE := docker compose
 
 # Set a default value for VECTOR_DB if not already set
@@ -39,15 +39,23 @@ sync-frontend-deps:
 	@cd webui && npm install
 	@echo "Frontend dependencies synced."
 
-# Build
+# Build and Push - GHCR-first strategy
 build-frontend:
-	$(CONTAINER_CLI) build -t ${PROJECT_NAME}/frontend:${PROJECT_VERSION} -f ./webui/Dockerfile.frontend ./webui
+	@echo "Building and pushing frontend image..."
+	$(CONTAINER_CLI) build -t ${GHCR_REPO}/frontend:${PROJECT_VERSION} -t ${GHCR_REPO}/frontend:latest -f ./webui/Dockerfile.frontend ./webui
+	$(CONTAINER_CLI) push ${GHCR_REPO}/frontend:${PROJECT_VERSION}
+	$(CONTAINER_CLI) push ${GHCR_REPO}/frontend:latest
 
 build-backend:
-	$(CONTAINER_CLI) build -t ${PROJECT_NAME}/backend:${PROJECT_VERSION} -f ./backend/Dockerfile.backend ./backend
+	@echo "Building and pushing backend image..."
+	$(CONTAINER_CLI) build -t ${GHCR_REPO}/backend:${PROJECT_VERSION} -t ${GHCR_REPO}/backend:latest -f ./backend/Dockerfile.backend ./backend
+	$(CONTAINER_CLI) push ${GHCR_REPO}/backend:${PROJECT_VERSION}
+	$(CONTAINER_CLI) push ${GHCR_REPO}/backend:latest
 
 build-tests:
-	$(CONTAINER_CLI) build -t ${PROJECT_NAME}/backend-test:${PROJECT_VERSION} -f ./backend/Dockerfile.test ./backend
+	@echo "Building test image..."
+	$(CONTAINER_CLI) build -t ${GHCR_REPO}/backend:test-${PROJECT_VERSION} -f ./backend/Dockerfile.test ./backend
+	$(CONTAINER_CLI) push ${GHCR_REPO}/backend:test-${PROJECT_VERSION}
 
 build-all: build-frontend build-backend build-tests
 
@@ -56,7 +64,15 @@ pull-ghcr-images:
 	@echo "Pulling latest images from GitHub Container Registry..."
 	$(CONTAINER_CLI) pull ${GHCR_REPO}/frontend:latest
 	$(CONTAINER_CLI) pull ${GHCR_REPO}/backend:latest
-	@echo "Images pulled successfully. Use 'make run-services' to start with GHCR images."
+	@echo "Images pulled successfully. Use 'make run-ghcr' to start with GHCR images."
+
+# Configure for GHCR images (production)
+use-ghcr-images:
+	@echo "Configuring environment for GHCR images..."
+	@echo "BACKEND_IMAGE=${GHCR_REPO}/backend:latest" > .env.local
+	@echo "FRONTEND_IMAGE=${GHCR_REPO}/frontend:latest" >> .env.local
+	@echo "TEST_IMAGE=${GHCR_REPO}/backend:latest" >> .env.local
+	@echo "GHCR image configuration saved to .env.local"
 
 # Helper function to check if containers are healthy
 check_containers:
@@ -229,9 +245,9 @@ tests: run-backend create-test-dirs
 		--cov-report=xml:/app/test-reports/coverage/coverage.xml \
 		|| { echo "Tests failed"; $(MAKE) stop-containers; exit 1; }
 
-# Run
+# Run - Local Development (default - uses local builds)
 run-app: build-all run-backend run-frontend
-	@echo "All application containers are now running."
+	@echo "All application containers are now running with local images."
 
 run-backend: run-services
 	@echo "Starting backend..."
@@ -242,6 +258,12 @@ run-frontend: run-services
 	@echo "Starting frontend..."
 	$(DOCKER_COMPOSE) up -d frontend
 	@echo "Frontend is now running."
+
+# Run - GHCR Images (for production-like testing)
+run-ghcr: pull-ghcr-images use-ghcr-images
+	@echo "Starting services with GHCR images..."
+	$(DOCKER_COMPOSE) --env-file .env.local up -d
+	@echo "All application containers are now running with GHCR images."
 
 run-services: create-volumes
 	@echo "Starting services:"
@@ -306,6 +328,7 @@ help:
 	@echo "  build-tests   		Build test code/container"
 	@echo "  build-all   		Build frontend/backend/test code/container"
 	@echo "  pull-ghcr-images   Pull latest images from GitHub Container Registry"
+	@echo "  use-ghcr-images    Configure environment for GHCR images"
 	@echo "  test          		Run specific test with coverage and reports"
 	@echo "  test-only     		Run specific test without coverage (if containers running)"
 	@echo "  test-clean    		Run specific test and cleanup containers afterward"
@@ -316,9 +339,10 @@ help:
 	@echo "  pipeline-tests      Run pipeline-related tests"
 	@echo "  api-tests      	Run API tests with reports"
 	@echo "  tests          	Run all tests with coverage and reports"
-	@echo "  run-app       		Run both backend and frontend using Docker Compose"
-	@echo "  run-backend   		Run backend using Docker Compose"
-	@echo "  run-frontend  		Run frontend using Docker Compose"
+	@echo "  run-app       		Run both backend and frontend using local images"
+	@echo "  run-backend   		Run backend using local images"
+	@echo "  run-frontend  		Run frontend using local images"
+	@echo "  run-ghcr      		Run both backend and frontend using GHCR images"
 	@echo "  run-services  		Run services using Docker Compose"
 	@echo "  stop-containers  	Stop all containers using Docker Compose"
 	@echo "  clean         		Clean up Docker Compose volumes and cache"
