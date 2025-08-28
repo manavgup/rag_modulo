@@ -49,7 +49,7 @@ async def get_llm_parameters(
     
     service = LLMParametersService(db)
     try:
-        return service.get_parameters(user_id)
+        return service.get_user_parameters(user_id)
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -279,11 +279,11 @@ async def get_provider_models(
     
     service = LLMProviderService(db)
     try:
-        # Get all providers for the user and their models
-        providers = service.get_providers_for_user(user_id)
+        # Get all active providers and their models
+        providers = service.get_all_providers(is_active=True)
         all_models = []
         for provider in providers:
-            models = service.get_available_models(provider.id)
+            models = service.get_provider_models(provider.id)
             all_models.extend(models)
         return all_models
     except Exception as e:

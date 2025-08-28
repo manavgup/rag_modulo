@@ -49,7 +49,19 @@ class LLMParametersService:
         Returns:
             List[LLMParametersOutput]: List of user's parameters
         """
-        return self.repository.get_parameters_by_user_id(user_id)
+        params = self.repository.get_parameters_by_user_id(user_id)
+        
+        # If user has no parameters, create default ones
+        if not params:
+            logger.info(f"No LLM parameters found for user {user_id}, creating default")
+            try:
+                default_params = self.initialize_default_parameters(user_id)
+                if default_params:
+                    return [default_params]
+            except Exception as e:
+                logger.error(f"Failed to create default parameters: {str(e)}")
+        
+        return params if params else []
 
     def update_parameters(self, parameter_id: UUID, parameters: LLMParametersInput) -> LLMParametersOutput:
         """Update existing LLM parameters.
@@ -133,17 +145,14 @@ class LLMParametersService:
         
         return self.create_parameters(default_params)
 
-    def get_latest_or_default_parameters(self, user_id: UUID) -> LLMParametersOutput:
+    def get_latest_or_default_parameters(self, user_id: UUID) -> Optional[LLMParametersOutput]:
         """Get default parameters or latest parameters if no default exists.
         
         Args:
             user_id: UUID of the user
             
         Returns:
-            LLMParametersOutput: Default or latest parameters
-            
-        Raises:
-            ValidationError: If no parameters exist for the user
+            Optional[LLMParametersOutput]: Default or latest parameters, or None if creation fails
         """
         default_params = self.repository.get_default_parameters(user_id)
         if default_params:
@@ -151,6 +160,12 @@ class LLMParametersService:
 
         all_params = self.repository.get_parameters_by_user_id(user_id)
         if not all_params:
-            raise ValidationError("No parameters found for user")
+            # Auto-create default parameters for existing users
+            logger.info(f"No parameters found for user {user_id}, initializing defaults")
+            try:
+                return self.initialize_default_parameters(user_id)
+            except Exception as e:
+                logger.error(f"Failed to initialize default parameters: {str(e)}")
+                return None
 
         return max(all_params, key=lambda p: p.updated_at)

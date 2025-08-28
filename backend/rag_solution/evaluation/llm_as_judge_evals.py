@@ -59,7 +59,7 @@ def get_schema(pydantic_object:  pydantic.BaseModel,empty:bool=False,json_output
 
 def init_llm(
     parameters: Dict[str, Union[str, int, float]] = BASE_LLM_PARAMETERS,
-    MODEL_ID="meta-llama/llama-3-1-8b-instruct",
+    MODEL_ID="meta-llama/llama-3-3-70b-instruct",
 ) -> ModelInference:
     """
     Initializes a language model with the given parameters.
