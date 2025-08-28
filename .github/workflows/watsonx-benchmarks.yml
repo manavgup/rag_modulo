@@ -43,7 +43,7 @@ jobs:
       WX_PROJECT_ID: ${{ secrets.WX_PROJECT_ID }}
     
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Full history for trend analysis
       
@@ -63,7 +63,7 @@ jobs:
           poetry config virtualenvs.in-project true
       
       - name: Cache Poetry virtualenv
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ./.venv
           key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
@@ -74,7 +74,7 @@ jobs:
           poetry install
       
       - name: Load previous benchmark results
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: backend/benchmark_results.json
           key: benchmark-results-${{ github.ref }}
@@ -104,7 +104,7 @@ jobs:
           fi
       
       - name: Save benchmark results
-        uses: actions/cache/save@v3
+        uses: actions/cache/save@v4
         with:
           path: backend/benchmark_results.json
           key: benchmark-results-${{ github.ref }}-${{ github.sha }}
@@ -179,7 +179,7 @@ jobs:
       
       # Upload benchmark results as artifact
       - name: Upload benchmark results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: benchmark-results
           path: |
