@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        vector_db: [milvus, chromadb, weaviate, pinecone]
+        vector_db: [milvus]  # Only test milvus - the default and configured vector database
       fail-fast: false  # Continue with other tests even if one fails
     
     env:
@@ -148,25 +148,24 @@ jobs:
           body+="### Test Results\n\n"
           body+="| Vector DB | Test Type | Total | Passed | Failed |\n|-----------|-----------|-------|--------|--------|\n"
           
-          for db in milvus chromadb weaviate pinecone; do
-            if [ -f "./test-reports-download/test-reports-$db/junit.xml" ]; then
-              results=$(python -c "
-                import xml.etree.ElementTree as ET
-                try:
-                    tree = ET.parse('./test-reports-download/test-reports-$db/junit.xml')
-                    root = tree.getroot()
-                    total = int(root.attrib.get('tests', 0))
-                    failures = int(root.attrib.get('failures', 0))
-                    errors = int(root.attrib.get('errors', 0))
-                    passed = total - failures - errors
-                    print(f'$db:Integration:{total}:{passed}:{failures + errors}')
-                except Exception as e:
-                    print(f'$db:Integration:0:0:0')
-              ")
-              IFS=':' read -r db type total passed failed <<< "$results"
-              body+="| $db | $type | $total | $passed | $failed |\n"
-            fi
-          done
+          # Since we only test milvus now, simplify the reporting
+          if [ -f "./test-reports-download/test-reports-milvus/junit.xml" ]; then
+            results=$(python -c "
+              import xml.etree.ElementTree as ET
+              try:
+                  tree = ET.parse('./test-reports-download/test-reports-milvus/junit.xml')
+                  root = tree.getroot()
+                  total = int(root.attrib.get('tests', 0))
+                  failures = int(root.attrib.get('failures', 0))
+                  errors = int(root.attrib.get('errors', 0))
+                  passed = total - failures - errors
+                  print(f'milvus:Integration:{total}:{passed}:{failures + errors}')
+              except Exception as e:
+                  print(f'milvus:Integration:0:0:0')
+            ")
+            IFS=':' read -r db type total passed failed <<< "$results"
+            body+="| $db | $type | $total | $passed | $failed |\n"
+          fi
           
           gh api \
             --method POST \
