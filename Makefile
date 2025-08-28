@@ -7,7 +7,7 @@ export PYTHONPATH=$(pwd):$(pwd)/vectordbs:$(pwd)/rag_solution
 
 # Directories
 SOURCE_DIR := ./backend/rag_solution
-TEST_DIR := ./backend/tests
+TEST_DIR := ./tests
 PROJECT_DIRS := $(SOURCE_DIR) $(TEST_DIR)
 
 # Project info
@@ -72,17 +72,20 @@ create-test-dirs:
 
 # Test targets with proper volume mounting and reporting
 test: check_containers create-test-dirs build-tests
-	@if [ -z "$(test_name)" ]; then \
-		echo "Error: Please provide test_name. Example: make test test_name=tests/router/test_user_collection_router.py"; \
+	@if [ -z "$(testfile)" ]; then \
+		echo "Error: Please provide testfile. Example: make test testfile=tests/api/test_auth.py"; \
 		exit 1; \
 	else \
-		echo "Running test: $(test_name)"; \
+		echo "Running test: $(testfile)"; \
 		$(DOCKER_COMPOSE) run --rm \
 			-v $$(pwd)/backend:/app/backend:ro \
+			-v $$(pwd)/tests:/app/tests:ro \
 			-v $$(pwd)/test-reports:/app/test-reports \
-			test pytest -v $(test_name) || \
+			-e TESTING=true \
+			-e CONTAINER_ENV=false \
+			test pytest -v $(testfile) || \
 		{ \
-			echo "Test $(test_name) failed"; \
+			echo "Test $(testfile) failed"; \
 			if [ "$(cleanup)" = "true" ]; then \
 				echo "Cleaning up containers (cleanup=true)..."; \
 				$(MAKE) stop-containers; \
@@ -101,20 +104,27 @@ test-clean: test
 
 # Helper to just run tests if containers are already running
 test-only:
-	@if [ -z "$(test_name)" ]; then \
-		echo "Error: Please provide test_name. Example: make test-only test_name=tests/router/test_user_collection_router.py"; \
+	@if [ -z "$(testfile)" ]; then \
+		echo "Error: Please provide testfile. Example: make test-only testfile=tests/api/test_auth.py"; \
 		exit 1; \
 	else \
-		echo "Running test: $(test_name)"; \
+		echo "Running test: $(testfile)"; \
 		$(DOCKER_COMPOSE) run --rm \
 			-v $$(pwd)/backend:/app/backend:ro \
-			test pytest -v -s /app/$(test_name); \
+			-v $$(pwd)/tests:/app/tests:ro \
+			-e TESTING=true \
+			-e CONTAINER_ENV=false \
+			test pytest -v -s /app/$(testfile); \
 	fi
 
 # Specialized test targets
 unit-tests: run-backend create-test-dirs
 	$(DOCKER_COMPOSE) run --rm \
+		-v $$(pwd)/backend:/app/backend:ro \
+		-v $$(pwd)/tests:/app/tests:ro \
 		-v $$(pwd)/test-reports:/app/test-reports \
+		-e TESTING=true \
+		-e CONTAINER_ENV=false \
 		test pytest -v -s -m "unit" \
 		--html=/app/test-reports/unit/report.html \
 		--self-contained-html \
@@ -126,7 +136,11 @@ unit-tests: run-backend create-test-dirs
 
 integration-tests: run-backend create-test-dirs
 	$(DOCKER_COMPOSE) run --rm \
+		-v $$(pwd)/backend:/app/backend:ro \
+		-v $$(pwd)/tests:/app/tests:ro \
 		-v $$(pwd)/test-reports:/app/test-reports \
+		-e TESTING=true \
+		-e CONTAINER_ENV=false \
 		test pytest -v -s -m "integration" \
 		--html=/app/test-reports/integration/report.html \
 		--self-contained-html \
@@ -135,7 +149,11 @@ integration-tests: run-backend create-test-dirs
 
 performance-tests: run-backend create-test-dirs
 	$(DOCKER_COMPOSE) run --rm \
+		-v $$(pwd)/backend:/app/backend:ro \
+		-v $$(pwd)/tests:/app/tests:ro \
 		-v $$(pwd)/test-reports:/app/test-reports \
+		-e TESTING=true \
+		-e CONTAINER_ENV=false \
 		-e PERF_TEST_DURATION=300 \
 		-e PERF_TEST_CONCURRENT=10 \
 		-e PERF_TEST_TOTAL=100 \
@@ -151,7 +169,11 @@ performance-tests: run-backend create-test-dirs
 
 service-tests: run-backend create-test-dirs
 	$(DOCKER_COMPOSE) run --rm \
+		-v $$(pwd)/backend:/app/backend:ro \
+		-v $$(pwd)/tests:/app/tests:ro \
 		-v $$(pwd)/test-reports:/app/test-reports \
+		-e TESTING=true \
+		-e CONTAINER_ENV=false \
 		test pytest -v -s -m "service" \
 		--html=/app/test-reports/service/report.html \
 		--self-contained-html \
@@ -160,7 +182,11 @@ service-tests: run-backend create-test-dirs
 
 pipeline-tests: run-backend create-test-dirs
 	$(DOCKER_COMPOSE) run --rm \
+		-v $$(pwd)/backend:/app/backend:ro \
+		-v $$(pwd)/tests:/app/tests:ro \
 		-v $$(pwd)/test-reports:/app/test-reports \
+		-e TESTING=true \
+		-e CONTAINER_ENV=false \
 		test pytest -v -s -m "pipeline" \
 		--html=/app/test-reports/pipeline/report.html \
 		--self-contained-html \
@@ -169,7 +195,11 @@ pipeline-tests: run-backend create-test-dirs
 
 api-tests: run-backend create-test-dirs
 	$(DOCKER_COMPOSE) run --rm \
+		-v $$(pwd)/backend:/app/backend:ro \
+		-v $$(pwd)/tests:/app/tests:ro \
 		-v $$(pwd)/test-reports:/app/test-reports \
+		-e TESTING=true \
+		-e CONTAINER_ENV=false \
 		test pytest -v -s -m "api and not (chromadb or elasticsearch or pinecone or weaviate)" \
 		--html=/app/test-reports/api/report.html \
 		--self-contained-html \
@@ -178,7 +208,11 @@ api-tests: run-backend create-test-dirs
 
 tests: run-backend create-test-dirs
 	$(DOCKER_COMPOSE) run --rm \
+		-v $$(pwd)/backend:/app/backend:ro \
+		-v $$(pwd)/tests:/app/tests:ro \
 		-v $$(pwd)/test-reports:/app/test-reports \
+		-e TESTING=true \
+		-e CONTAINER_ENV=false \
 		test pytest -v -s -m "not (chromadb or elasticsearch or pinecone or weaviate)" \
 		--html=/app/test-reports/report.html \
 		--self-contained-html \
@@ -216,14 +250,14 @@ run-services: create-volumes
 			done; \
 		else \
 			echo "No unhealthy containers found, checking for failed containers..."; \
-			failed_containers=$$($(CONTAINER_CLI) ps -f status=exited -q); \
-			if [ -n "$$failed_containers" ]; then \
-				echo "Logs from failed containers:"; \
-				for container in $$failed_containers; do \
-					echo "Container ID: $$container"; \
-					$(CONTAINER_CLI) logs $$container; \
-				done; \
-			else \
+					failed_containers=$$($(CONTAINER_CLI) ps -f status=exited -q); \
+		if [ -n "$$failed_containers" ]; then \
+			echo "Logs from failed containers:"; \
+			for container in $$failed_containers; do \
+				echo "Container ID: $$container"; \
+				$(CONTAINER_CLI) logs $$container; \
+			done; \
+		else \
 				echo "No failed containers found, showing logs for all services."; \
 				$(DOCKER_COMPOSE) logs; \
 			fi; \
@@ -270,6 +304,8 @@ help:
 	@echo "  build-tests   		Build test code/container"
 	@echo "  build-all   		Build frontend/backend/test code/container"
 	@echo "  test          		Run specific test with coverage and reports"
+	@echo "  test-only     		Run specific test without coverage (if containers running)"
+	@echo "  test-clean    		Run specific test and cleanup containers afterward"
 	@echo "  unit-tests    		Run unit tests with coverage and reports"
 	@echo "  integration-tests   Run integration tests with reports"
 	@echo "  performance-tests   Run performance tests with metrics"
@@ -288,3 +324,8 @@ help:
 	@echo "  logs          		View logs of running containers"
 	@echo "  info          		Display project information"
 	@echo "  help          		Display this help message"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make test testfile=tests/api/test_auth.py"
+	@echo "  make test testfile=tests/api/test_auth.py::test_login"
+	@echo "  make test-only testfile=tests/core/test_database.py"
