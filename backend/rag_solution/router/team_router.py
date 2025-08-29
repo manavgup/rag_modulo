@@ -67,7 +67,7 @@ def create_team(team: TeamInput, db: Session = Depends(get_db)) -> TeamOutput:
     try:
         return team_service.create_team(team)
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
 
 @router.put(
@@ -227,7 +227,7 @@ def list_teams(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)) -
         500: {"description": "Internal server error"},
     },
 )
-def get_team_users(team_id: UUID, db: Session = Depends(get_db)):
+def get_team_users(team_id: UUID, db: Session = Depends(get_db)) -> list[UserTeamOutput]:
     service = UserTeamService(db)
     return service.get_team_users(team_id)
 
@@ -263,7 +263,7 @@ def add_user_to_team(team_id: UUID, user_team_input: UserTeamInput, db: Session 
     try:
         # Validate that the team exists
         team_service = TeamService(db)
-        team_service.get_team(team_id)
+        team_service.get_team_by_id(team_id)
         return user_team_service.add_user_to_team(user_team_input.user_id, user_team_input.team_id)
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e

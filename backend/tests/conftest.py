@@ -8,32 +8,14 @@ This file serves as the main pytest configuration, handling:
 import logging
 
 import pytest
-import pytest_asyncio
-from httpx import AsyncClient
 
 from core.logging_utils import get_logger, setup_logging
-from main import app
-
-# Import all fixtures from the fixtures package
-from .fixtures import *
 
 logger = get_logger("tests.conftest")
 
 # Define collect_ignore at module level
 collect_ignore = ["backend/tests.bak", "backend/tests_backup"]
 collect_ignore_glob = ["tests.bak/*", "tests_backup/*"]
-
-
-# Add these fixtures to your existing conftest.py
-@pytest.fixture
-def app():
-    return app
-
-
-@pytest_asyncio.fixture
-async def client():
-    async with AsyncClient(app=app, base_url="http://test") as client:
-        yield client
 
 
 @pytest.fixture(autouse=True)

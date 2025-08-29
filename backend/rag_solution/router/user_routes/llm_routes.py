@@ -43,7 +43,7 @@ async def get_llm_parameters(
     try:
         return service.get_user_parameters(user_id)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve LLM parameters: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve LLM parameters: {e!s}") from e
 
 
 @router.post(
@@ -64,7 +64,7 @@ async def create_llm_parameters(
     try:
         return service.create_parameters(parameters_input)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to create LLM parameters: {e!s}")
+        raise HTTPException(status_code=400, detail=f"Failed to create LLM parameters: {e!s}") from e
 
 
 @router.put(
@@ -90,7 +90,7 @@ async def update_llm_parameters(
         update_data = parameters_input.model_dump(exclude_unset=True)
         return service.update_parameters(parameter_id, update_data)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to update LLM parameters: {e!s}")
+        raise HTTPException(status_code=400, detail=f"Failed to update LLM parameters: {e!s}") from e
 
 
 @router.delete(
@@ -109,9 +109,10 @@ async def delete_llm_parameters(
 
     service = LLMParametersService(db)
     try:
-        return service.delete_parameters(parameter_id)
+        service.delete_parameters(parameter_id)
+        return True
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to delete LLM parameters: {e!s}")
+        raise HTTPException(status_code=400, detail=f"Failed to delete LLM parameters: {e!s}") from e
 
 
 @router.put(
@@ -132,7 +133,7 @@ async def set_default_llm_parameters(
     try:
         return service.set_default_parameters(parameter_id)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to set default LLM parameters: {e!s}")
+        raise HTTPException(status_code=400, detail=f"Failed to set default LLM parameters: {e!s}") from e
 
 
 # LLM Provider Routes
@@ -152,7 +153,7 @@ async def get_llm_providers(user_id: UUID, request: Request, db: Session = Depen
     try:
         return service.get_all_providers(is_active=True)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve LLM providers: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve LLM providers: {e!s}") from e
 
 
 @router.post(
@@ -175,7 +176,7 @@ async def create_llm_provider(
             provider_input.user_id = user_id
         return service.create_provider(provider_input)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to create LLM provider: {e!s}")
+        raise HTTPException(status_code=400, detail=f"Failed to create LLM provider: {e!s}") from e
 
 
 @router.put(
@@ -197,7 +198,7 @@ async def update_llm_provider(
         update_data = provider_input.model_dump(exclude_unset=True)
         return service.update_provider(provider_id, update_data)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to update LLM provider: {e!s}")
+        raise HTTPException(status_code=400, detail=f"Failed to update LLM provider: {e!s}") from e
 
 
 @router.delete(
@@ -218,7 +219,7 @@ async def delete_llm_provider(
     try:
         return service.delete_provider(provider_id)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to delete LLM provider: {e!s}")
+        raise HTTPException(status_code=400, detail=f"Failed to delete LLM provider: {e!s}") from e
 
 
 @router.get(
@@ -243,7 +244,7 @@ async def get_provider_models(user_id: UUID, request: Request, db: Session = Dep
             all_models.extend(models)
         return all_models
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve provider models: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve provider models: {e!s}") from e
 
 
 @router.get(
@@ -264,4 +265,4 @@ async def get_provider_specific_models(
     try:
         return service.get_provider_models(provider_id)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve provider models: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve provider models: {e!s}") from e

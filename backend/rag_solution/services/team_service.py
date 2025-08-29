@@ -28,10 +28,10 @@ class TeamService:
             return team
         except ValueError as e:
             logger.error(f"Value error creating team: {e!s}")
-            raise HTTPException(status_code=400, detail=str(e))
+            raise HTTPException(status_code=400, detail=str(e)) from e
         except Exception as e:
             logger.error(f"Unexpected error creating team: {e!s}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            raise HTTPException(status_code=500, detail="Internal server error") from e
 
     def get_team_by_id(self, team_id: UUID) -> TeamOutput | None:
         try:
@@ -45,7 +45,7 @@ class TeamService:
             raise
         except Exception as e:
             logger.error(f"Unexpected error getting team {team_id}: {e!s}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            raise HTTPException(status_code=500, detail="Internal server error") from e
 
     def update_team(self, team_id: UUID, team_update: TeamInput) -> TeamOutput | None:
         try:
@@ -60,7 +60,7 @@ class TeamService:
             raise
         except Exception as e:
             logger.error(f"Unexpected error updating team {team_id}: {e!s}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            raise HTTPException(status_code=500, detail="Internal server error") from e
 
     def delete_team(self, team_id: UUID) -> bool:
         try:
@@ -75,7 +75,7 @@ class TeamService:
             raise
         except Exception as e:
             logger.error(f"Unexpected error deleting team {team_id}: {e!s}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            raise HTTPException(status_code=500, detail="Internal server error") from e
 
     def get_team_users(self, team_id: UUID) -> list[UserOutput]:
         logger.info(f"Fetching users for team: {team_id}")
@@ -97,4 +97,4 @@ class TeamService:
             return teams
         except Exception as e:
             logger.error(f"Unexpected error listing teams: {e!s}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            raise HTTPException(status_code=500, detail="Internal server error") from e

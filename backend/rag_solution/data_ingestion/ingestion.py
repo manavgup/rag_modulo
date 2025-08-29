@@ -42,7 +42,7 @@ class DocumentStore:
 
     async def ingest_documents(self, file_paths: list[str]) -> list[Document]:
         """Ingest documents and store them in the vector store."""
-        processed_documents = []
+        processed_documents: list[Document] = []
         with multiprocessing.Manager() as manager:
             processor = DocumentProcessor(manager)
 
@@ -70,7 +70,7 @@ class DocumentStore:
             logger.info(f"Successfully stored documents in collection {self.collection_name}")
         except Exception as e:
             logger.error(f"Error storing documents: {e}", exc_info=True)
-            raise DocumentStorageError(f"Error: {e}")
+            raise DocumentStorageError(f"Error: {e}") from e
 
     def get_documents(self) -> list[Document]:
         """Get all documents in the document store."""

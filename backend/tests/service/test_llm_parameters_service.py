@@ -46,7 +46,7 @@ def test_parameters_service(db_session: Session) -> LLMParametersService:
 class TestLLMParametersSchema:
     """Test LLM parameters schema validation."""
 
-    def test_valid_parameters(self, base_user: User):
+    def test_valid_parameters(self, base_user: User):  # noqa: ARG002
         """Test valid parameter creation."""
         params = LLMParametersInput(
             name="test", max_new_tokens=100, temperature=0.7, top_k=50, top_p=1.0, repetition_penalty=1.1

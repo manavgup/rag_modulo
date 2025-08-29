@@ -210,7 +210,7 @@ def get_tokenization_and_embeddings(
 
 def save_embeddings_to_file(
     embeddings: Embeddings, file_path: str, file_format: str = "json"
-):
+) -> None:
     """
     Save embeddings to a file.
 
@@ -304,7 +304,7 @@ async def agenerate_responses(
     prompts: List[str],
     concurrency_level: int,
     wx_model: Optional[ModelInference] = None,
-) -> List:
+) -> List[str]:
 
     if wx_model is None:
         wx_model = get_model()
@@ -327,7 +327,7 @@ async def generate_all_responses(
     prompts: List[str],
     wx_model: ModelInference,
     concurrency_level: int = 5,
-) -> List:
+) -> List[str]:
     return await agenerate_responses(
         prompts, concurrency_level=concurrency_level, wx_model=wx_model
     )
@@ -337,7 +337,7 @@ def generate_batch(
     prompts: List[str],
     wx_model: Optional[ModelInference] = None,
     concurrency_level: int = 5,
-) -> List:
+) -> List[str]:
     if wx_model is None:
         wx_model = get_model()
     return asyncio.run(generate_all_responses(prompts, wx_model, concurrency_level))
@@ -356,7 +356,7 @@ def generate_text_stream(
     timeout: int = 30,
     random_seed: int = 50,
     max_retries: int = 3,
-) -> Generator:
+) -> Generator[Any, None, None]:
 
     logging.info(
         f"Generating text with parameters: max_tokens={max_tokens}, temperature={temperature}, timeout={timeout}, max_retries={max_retries}"

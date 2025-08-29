@@ -1,6 +1,6 @@
 # base_test.py
 
-from typing import Any
+from typing import Any, ClassVar
 from unittest.mock import patch
 
 import jwt
@@ -14,7 +14,7 @@ class BaseTestRouter:
     """Base class for all router tests."""
 
     # Test user data
-    TEST_USER = {
+    TEST_USER: ClassVar[dict[str, str]] = {
         "sub": "test-ibm-id",
         "email": "test@example.com",
         "name": "Test User",

@@ -99,6 +99,10 @@ class DocumentChunkMetadata(BaseModel):
     end_index: Optional[int] = None    # Added
     table_index: Optional[int] = None
     image_index: Optional[int] = None
+    source_id: Optional[str] = None
+    url: Optional[str] = None
+    created_at: Optional[str] = None
+    author: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -115,20 +119,13 @@ class DocumentChunk(BaseModel):
     chunk_id: str
     text: str
     embeddings: Optional[Embeddings] = None
+    vectors: Optional[Embeddings] = None  # Alias for embeddings
     metadata: Optional[DocumentChunkMetadata] = None
     document_id: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
-    def dict(self) -> dict[str, Any]:
-        """Convert to dictionary representation."""
-        return {
-            "chunk_id": self.chunk_id,
-            "text": self.text,
-            "embeddings": self.embeddings,
-            "metadata": self.metadata.model_dump() if self.metadata else None,
-            "document_id": self.document_id
-        }
+
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> DocumentChunk:
@@ -147,6 +144,7 @@ class Document(BaseModel):
     Attributes:
         name: Document name
         document_id: Unique identifier
+        id: Alias for document_id
         chunks: List of document chunks
         path: Optional file path
         metadata: Document-level metadata
@@ -156,6 +154,11 @@ class Document(BaseModel):
     chunks: List[DocumentChunk]
     path: Optional[str] = ""
     metadata: Optional[DocumentMetadata] = None
+
+    @property
+    def id(self) -> str:
+        """Alias for document_id."""
+        return self.document_id
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -210,10 +213,21 @@ class QueryResult(BaseModel):
         chunk: Retrieved document chunks
         score: Similarity scores for each chunk
         embeddings: Vector embeddings for each chunk
+        data: List of chunks (for backward compatibility)
     """
     chunk: DocumentChunk
     score: float
     embeddings: Embeddings
+
+    @property
+    def data(self) -> list[DocumentChunk]:
+        """List of chunks for backward compatibility."""
+        return [self.chunk]
+
+    @property
+    def document(self) -> DocumentChunk:
+        """Alias for chunk (for backward compatibility)."""
+        return self.chunk
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -233,17 +247,28 @@ class QueryResult(BaseModel):
 
     def __len__(self) -> int:
         """Return number of results."""
-        return len(self.chunk)
+        return 1
 
 class QueryWithEmbedding(BaseModel):
     """A query with its vector embedding.
     
     Attributes:
         text: Query text
-        embedding: Vector embedding of the text
+        embeddings: Vector embedding of the text
+        vectors: Alias for embeddings
     """
     text: str
     embeddings: Embeddings
 
     model_config = ConfigDict(from_attributes=True)
+
+    @property
+    def vectors(self) -> Embeddings:
+        """Alias for embeddings."""
+        return self.embeddings
+
+    @vectors.setter
+    def vectors(self, value: Embeddings) -> None:
+        """Set vectors (updates embeddings)."""
+        self.embeddings = value
 

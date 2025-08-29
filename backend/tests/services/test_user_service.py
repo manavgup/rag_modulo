@@ -170,7 +170,7 @@ def test_list_users(
     user_service,
     base_user: UserOutput,
     db_session,
-    clean_db,  # Add explicit dependency on clean_db fixture
+    clean_db,  # ,  # Add explicit dependency on clean_db fixture
 ):
     """Test listing users."""
     # Create additional user

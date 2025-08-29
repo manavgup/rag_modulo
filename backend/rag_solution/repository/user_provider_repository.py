@@ -3,6 +3,7 @@ from uuid import UUID
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from core.custom_exceptions import RepositoryError
 from core.logging_utils import get_logger
 from rag_solution.models.llm_provider import LLMProvider
 from rag_solution.models.user import User
@@ -15,7 +16,7 @@ class UserProviderRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def set_user_provider(self, user_id: UUID, provider_id: UUID, outer_transaction=None) -> bool:
+    def set_user_provider(self, user_id: UUID, provider_id: UUID, outer_transaction: Session | None = None) -> bool:
         transaction = outer_transaction or self.db.begin_nested()
         try:
             user = self.db.query(User).filter(User.id == user_id).with_for_update().first()
@@ -30,7 +31,7 @@ class UserProviderRepository:
         except Exception as e:
             transaction.rollback()
             logger.error(f"Error setting provider: {e!s}")
-            raise
+            raise RepositoryError(f"Failed to set user provider: {e!s}") from e
 
     def set_user_provider_simple(self, user_id: UUID, provider_id: UUID) -> bool:
         try:
@@ -41,13 +42,13 @@ class UserProviderRepository:
             user.preferred_provider_id = provider_id
             self.db.commit()
             return True
-        except IntegrityError:
+        except IntegrityError as e:
             self.db.rollback()
-            raise ValueError("Invalid provider ID")
+            raise ValueError("Invalid provider ID") from e
         except Exception as e:
             logger.error(f"Error setting provider for user {user_id}: {e!s}")
             self.db.rollback()
-            raise
+            raise RepositoryError(f"Failed to set user provider simple: {e!s}") from e
 
     def get_user_provider(self, user_id: UUID) -> LLMProviderOutput | None:
         try:
@@ -63,7 +64,7 @@ class UserProviderRepository:
             return LLMProviderOutput.model_validate(provider) if provider else None
         except Exception as e:
             logger.error(f"Error fetching provider: {e!s}")
-            raise
+            raise RepositoryError(f"Failed to get user provider: {e!s}") from e
 
     def get_default_provider(self) -> LLMProviderOutput | None:
         try:
@@ -71,4 +72,4 @@ class UserProviderRepository:
             return LLMProviderOutput.model_validate(provider) if provider else None
         except Exception as e:
             logger.error(f"Error fetching default provider: {e!s}")
-            raise
+            raise RepositoryError(f"Failed to get default provider: {e!s}") from e

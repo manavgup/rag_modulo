@@ -20,10 +20,10 @@ class UserTeamService:
             logger.info(f"Adding user {user_id} to team {team_id}")
             return self.user_team_repository.add_user_to_team(UserTeamInput(user_id=user_id, team_id=team_id))
         except ValueError as e:
-            raise HTTPException(status_code=404, detail=str(e))
+            raise HTTPException(status_code=404, detail=str(e)) from e
         except Exception as e:
             logger.error(f"Error adding user to team: {e!s}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            raise HTTPException(status_code=500, detail="Internal server error") from e
 
     def remove_user_from_team(self, user_id: UUID, team_id: UUID) -> bool:
         logger.info(f"Removing user {user_id} from team {team_id}")
@@ -37,7 +37,7 @@ class UserTeamService:
             return self.user_team_repository.get_user_teams(user_id)
         except Exception as e:
             logger.error(f"Error fetching teams: {e!s}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            raise HTTPException(status_code=500, detail="Internal server error") from e
 
     def get_team_users(self, team_id: UUID) -> list[UserTeamOutput]:
         try:
@@ -45,7 +45,7 @@ class UserTeamService:
             return self.user_team_repository.get_team_users(team_id)
         except Exception as e:
             logger.error(f"Error fetching users: {e!s}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            raise HTTPException(status_code=500, detail="Internal server error") from e
 
     def get_user_team(self, user_id: UUID, team_id: UUID) -> UserTeamOutput:
         try:
@@ -57,7 +57,7 @@ class UserTeamService:
             raise
         except Exception as e:
             logger.error(f"Error fetching team association: {e!s}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            raise HTTPException(status_code=500, detail="Internal server error") from e
 
     def update_user_role_in_team(self, user_id: UUID, team_id: UUID, role: str) -> UserTeamOutput:
         try:
@@ -74,4 +74,4 @@ class UserTeamService:
         except Exception as e:
             logger.error(f"Error updating user role: {e!s}")
             self.db.rollback()
-            raise HTTPException(status_code=500, detail="Internal server error")
+            raise HTTPException(status_code=500, detail="Internal server error") from e

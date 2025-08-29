@@ -156,7 +156,10 @@ class TestUserManagement:
 
 class TestUserCollections:
     def test_get_user_collections_success(
-        self, client: TestClient, test_user: User, test_user_collection: UserCollection
+        self,
+        client: TestClient,
+        test_user: User,
+        test_user_collection: UserCollection,  # noqa: ARG002
     ):
         """Test successful user collections retrieval."""
         # Mock authentication
@@ -179,7 +182,11 @@ class TestUserCollections:
         assert response.json() is True
 
     def test_remove_user_from_collection_success(
-        self, client: TestClient, test_user: User, test_collection: Collection, test_user_collection: UserCollection
+        self,
+        client: TestClient,
+        test_user: User,
+        test_collection: Collection,
+        test_user_collection: UserCollection,  # noqa: ARG002
     ):
         """Test successful removal of user from collection."""
         response = client.delete(f"/api/users/{test_user.id}/collections/{test_collection.id}")
@@ -188,7 +195,7 @@ class TestUserCollections:
 
 
 class TestUserTeams:
-    def test_get_user_teams_success(self, client: TestClient, test_user: User, test_user_team: UserTeam):
+    def test_get_user_teams_success(self, client: TestClient, test_user: User, test_user_team: UserTeam):  # noqa: ARG002
         """Test successful user teams retrieval."""
         response = client.get(f"/api/users/{test_user.id}/teams")
         assert response.status_code == 200
@@ -203,7 +210,11 @@ class TestUserTeams:
         assert response.json() is True
 
     def test_remove_user_from_team_success(
-        self, client: TestClient, test_user: User, test_team: Team, test_user_team: UserTeam
+        self,
+        client: TestClient,
+        test_user: User,
+        test_team: Team,
+        test_user_team: UserTeam,  # noqa: ARG002
     ):
         """Test successful removal of user from team."""
         response = client.delete(f"/api/users/{test_user.id}/teams/{test_team.id}")
@@ -238,7 +249,7 @@ class TestUserFiles:
 
 
 class TestUserPipelines:
-    def test_get_pipelines_success(self, client: TestClient, test_user: User, test_pipeline: PipelineConfig):
+    def test_get_pipelines_success(self, client: TestClient, test_user: User, test_pipeline: PipelineConfig):  # noqa: ARG002
         """Test successful pipelines retrieval."""
         # Mock authentication
         client.headers = {"Authorization": f"Bearer {test_user.id}"}

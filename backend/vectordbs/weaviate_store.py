@@ -109,7 +109,7 @@ class WeaviateDataStore(VectorStore):
 
                 doc_ids.append(doc_id)
             collection.data.insert_many(question_objs)
-        return doc_ids
+            return doc_ids
 
     def get_collection(self, name: str) -> DataObject:
         if self.client and self.client.collections.exists(name):

@@ -21,13 +21,14 @@ from rag_solution.models.user_team import UserTeam
 
 # Register all models with Base.metadata
 __all__ = [
-    "User",
-    "Team",
-    "File",
+    "Base",
     "Collection",
+    "File",
     "LLMParameters",
     "PromptTemplate",
     "SuggestedQuestion",
+    "Team",
+    "User",
     "UserCollection",
     "UserTeam",
 ]

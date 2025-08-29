@@ -54,7 +54,7 @@ class TestLLMProvider(BaseTestRouter):
         # Cleanup
         await self.delete(f"/api/llm-providers/{data['id']}")
 
-    async def test_get_all_providers(self, ensure_watsonx_provider):
+    async def test_get_all_providers(self, ensure_watsonx_provider):  # noqa: ARG002
         """Test GET /api/llm-providers/"""
         response = await self.get("/api/llm-providers/")
         self.assert_success(response)

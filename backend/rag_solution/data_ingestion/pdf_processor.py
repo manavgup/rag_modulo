@@ -371,10 +371,7 @@ class PdfProcessor(BaseProcessor):
         # Check if there's enough non-empty content
         non_empty_cells = sum(1 for row in table for cell in row if cell.strip())
         total_cells = len(table) * col_count
-        if non_empty_cells / total_cells < 0.25:  # At least 25% of cells should have content
-            return False
-
-        return True
+        return non_empty_cells / total_cells >= 0.25  # At least 25% of cells should have content
 
     def extract_images_from_page(self, page: pymupdf.Page, output_folder: str) -> list[str]:
         images: list[str] = []

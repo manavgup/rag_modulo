@@ -34,7 +34,7 @@ class TestVectorStore:
     def test_delete_collection(self, store):
         store.create_collection("test_collection")
         store.delete_collection("test_collection")
-        with pytest.raises(Exception):
+        with pytest.raises(Exception, match=".*"):
             store.retrieve_documents("test query", "test_collection")
 
     def test_delete_documents(self, store):

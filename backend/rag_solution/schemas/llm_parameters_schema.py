@@ -22,7 +22,7 @@ class LLMParametersInput(LLMParametersBase):
     model_config = ConfigDict(strict=True, extra="forbid", title="LLM Parameters Input", frozen=False)
 
     @field_validator("temperature")
-    def validate_temperature(self, v):
+    def validate_temperature(self, v: float) -> float:
         if v < 0.0 or v > 1.0:
             raise ValueError("Temperature must be between 0.0 and 1.0")
         return v
