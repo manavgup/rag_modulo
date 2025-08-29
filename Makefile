@@ -8,6 +8,12 @@ endif
 # Set PYTHONPATH
 export PYTHONPATH=$(pwd):$(pwd)/vectordbs:$(pwd)/rag_solution
 
+# Virtual environment setup
+VENVS_DIR := backend/.venv
+PYTHON := $(VENVS_DIR)/bin/python
+UV := $(shell which uv 2>/dev/null || echo "uv")
+POETRY := poetry
+
 # Directories
 SOURCE_DIR := ./backend/rag_solution
 TEST_DIR := ./tests
@@ -28,7 +34,7 @@ VECTOR_DB ?= milvus
 
 .DEFAULT_GOAL := help
 
-.PHONY: init-env sync-frontend-deps build-frontend build-backend build-tests build-all test tests api-tests unit-tests integration-tests performance-tests service-tests pipeline-tests all-tests run-app run-backend run-frontend run-services stop-containers clean create-volumes logs info help pull-ghcr-images
+.PHONY: init-env sync-frontend-deps build-frontend build-backend build-tests build-all test tests api-tests unit-tests integration-tests performance-tests service-tests pipeline-tests all-tests run-app run-backend run-frontend run-services stop-containers clean create-volumes logs info help pull-ghcr-images venv clean-venv format-imports check-imports quick-check
 
 # Init
 init-env:
@@ -36,6 +42,20 @@ init-env:
 	@echo "PROJECT_NAME=${PROJECT_NAME}" >> .env
 	@echo "PYTHON_VERSION=${PYTHON_VERSION}" >> .env
 	@echo "VECTOR_DB=${VECTOR_DB}" >> .env
+
+# Virtual environment management
+venv: $(VENVS_DIR)/bin/activate
+
+$(VENVS_DIR)/bin/activate:
+	@echo "Setting up Python virtual environment..."
+	@cd backend && $(POETRY) config virtualenvs.in-project true
+	@cd backend && $(POETRY) install --with dev
+	@echo "Virtual environment ready."
+
+clean-venv:
+	@echo "Cleaning virtual environment..."
+	@rm -rf $(VENVS_DIR)
+	@echo "Virtual environment cleaned."
 
 sync-frontend-deps:
 	@echo "Syncing frontend dependencies..."
@@ -334,14 +354,14 @@ NC := \033[0m # No Color
 lint: lint-ruff lint-mypy
 	@echo "$(GREEN)✅ All linting checks completed$(NC)"
 
-lint-ruff:
+lint-ruff: venv
 	@echo "$(CYAN)🔍 Running Ruff linter...$(NC)"
-	cd backend && poetry run ruff check rag_solution/ tests/ --line-length 120
+	@cd backend && $(POETRY) run ruff check rag_solution/ tests/ --line-length 120
 	@echo "$(GREEN)✅ Ruff checks passed$(NC)"
 
-lint-mypy:
+lint-mypy: venv
 	@echo "$(CYAN)🔎 Running Mypy type checker...$(NC)"
-	cd backend && poetry run mypy rag_solution/ --ignore-missing-imports --disable-error-code=misc --disable-error-code=unused-ignore --no-strict-optional
+	@cd backend && $(POETRY) run mypy rag_solution/ --ignore-missing-imports --disable-error-code=misc --disable-error-code=unused-ignore --no-strict-optional
 	@echo "$(GREEN)✅ Mypy type checks passed$(NC)"
 
 ## NEW: Strict type checking target
@@ -373,20 +393,31 @@ test-doctest:
 	cd backend && poetry run pytest --doctest-modules rag_solution/ -v
 	@echo "$(GREEN)✅ Doctest examples passed$(NC)"
 
+## Import sorting targets
+format-imports: venv
+	@echo "$(CYAN)🔧 Sorting imports...$(NC)"
+	@cd backend && $(POETRY) run ruff check --select I --fix rag_solution/ tests/
+	@echo "$(GREEN)✅ Import sorting completed$(NC)"
+
+check-imports: venv
+	@echo "$(CYAN)🔍 Checking import order...$(NC)"
+	@cd backend && $(POETRY) run ruff check --select I rag_solution/ tests/
+	@echo "$(GREEN)✅ Import check completed$(NC)"
+
 ## Formatting targets
-format: format-ruff
+format: format-ruff format-imports
 	@echo "$(GREEN)✅ All formatting completed$(NC)"
 
-format-ruff:
-	@echo "$(CYAN)🔧 Running Ruff formatter and import sorter...$(NC)"
-	cd backend && poetry run ruff format rag_solution/ tests/ --line-length 120
-	cd backend && poetry run ruff check --fix rag_solution/ tests/ --line-length 120
-	@echo "$(GREEN)✅ Ruff formatting and import sorting completed$(NC)"
+format-ruff: venv
+	@echo "$(CYAN)🔧 Running Ruff formatter...$(NC)"
+	@cd backend && $(POETRY) run ruff format rag_solution/ tests/ --line-length 120
+	@cd backend && $(POETRY) run ruff check --fix rag_solution/ tests/ --line-length 120
+	@echo "$(GREEN)✅ Ruff formatting completed$(NC)"
 
-format-check:
+format-check: venv
 	@echo "$(CYAN)🔍 Checking code formatting...$(NC)"
-	cd backend && poetry run ruff format --check rag_solution/ tests/ --line-length 120
-	cd backend && poetry run ruff check rag_solution/ tests/ --line-length 120
+	@cd backend && $(POETRY) run ruff format --check rag_solution/ tests/ --line-length 120
+	@cd backend && $(POETRY) run ruff check rag_solution/ tests/ --line-length 120
 	@echo "$(GREEN)✅ Format check completed$(NC)"
 
 ## Pre-commit targets
@@ -432,6 +463,10 @@ analyze:
 	cd backend && poetry run mypy rag_solution/ --show-error-codes --show-error-context || true
 	@echo "$(GREEN)✅ Code analysis completed$(NC)"
 
+## Quick check target for developer workflow
+quick-check: format-check check-imports lint-ruff
+	@echo "$(GREEN)✅ Quick checks passed$(NC)"
+
 ## Combined targets
 ci-local: format-check lint unit-tests-local
 	@echo "$(GREEN)✅ Local CI checks completed successfully!$(NC)"
@@ -460,9 +495,11 @@ help:
 	@echo "  lint-docstrings-strict\tCheck docstring coverage (50% threshold)"
 	@echo ""
 	@echo "$(CYAN)🎨 Formatting Targets:$(NC)"
-	@echo "  format        \t\tAuto-format code with Ruff"
+	@echo "  format        \t\tAuto-format code and sort imports"
 	@echo "  format-check  \t\tCheck formatting without changes"
-	@echo "  format-ruff   \t\tRun Ruff formatter and import sorter"
+	@echo "  format-ruff   \t\tRun Ruff formatter with fixes"
+	@echo "  format-imports\t\tSort imports with ruff"
+	@echo "  check-imports \t\tCheck import order without fixes"
 	@echo ""
 	@echo "$(CYAN)🧪 Testing Targets:$(NC)"
 	@echo "  unit-tests-local  \tRun unit tests locally"
@@ -470,12 +507,15 @@ help:
 	@echo ""
 	@echo "$(CYAN)🎯 Quality Targets:$(NC)"
 	@echo "  check-fast        \tQuick essential checks (format-check + lint-ruff)"
+	@echo "  quick-check       \tQuick checks for development (format-check + check-imports + lint-ruff)"
 	@echo "  check-quality     \tComprehensive quality with formatting"
 	@echo "  check-style       \tStyle checks without fixes"
 	@echo "  strict            \tStrictest quality requirements"
 	@echo "  analyze           \tCode analysis and metrics"
 	@echo ""
 	@echo "$(CYAN)🛠️ Setup Targets:$(NC)"
+	@echo "  venv              \tSet up Python virtual environment"
+	@echo "  clean-venv        \tClean Python virtual environment"
 	@echo "  setup-pre-commit  \tInstall pre-commit hooks"
 	@echo "  pre-commit-update \tUpdate pre-commit hooks to latest"
 	@echo "  validate-ci   \t\tValidate CI workflows with act"
