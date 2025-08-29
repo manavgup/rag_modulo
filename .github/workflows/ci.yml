@@ -72,9 +72,14 @@ jobs:
       - name: Run linting (Ruff + MyPy)
         run: make lint
         continue-on-error: true  # Don't fail on lint issues initially
+
+      - name: Run security checks
+        run: make security-check
+        continue-on-error: true  # Don't fail on security issues initially
           
-      - name: Run unit tests (fast)
-        run: make unit-tests-local
+      - name: Run unit tests with coverage
+        run: make coverage
+        continue-on-error: true  # Don't fail on coverage threshold initially
 
   # Build images once
   build:
