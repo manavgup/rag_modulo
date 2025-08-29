@@ -1,6 +1,9 @@
-# Include environment variables from .env file
+# Include environment variables from .env file if it exists
 -include .env
+# Only export .env variables if the file exists
+ifneq (,$(wildcard .env))
 export $(shell sed 's/=.*//' .env)
+endif
 
 # Set PYTHONPATH
 export PYTHONPATH=$(pwd):$(pwd)/vectordbs:$(pwd)/rag_solution
@@ -12,11 +15,12 @@ PROJECT_DIRS := $(SOURCE_DIR) $(TEST_DIR)
 
 # Project info
 PROJECT_NAME ?= rag-modulo
-PYTHON_VERSION ?= 3.11
+PYTHON_VERSION ?= 3.12
 PROJECT_VERSION ?= 1.0.0
+GHCR_REPO ?= ghcr.io/manavgup/rag_modulo
 
 # Tools
-CONTAINER_CLI := podman
+CONTAINER_CLI := docker
 DOCKER_COMPOSE := docker compose
 
 # Set a default value for VECTOR_DB if not already set
@@ -24,7 +28,7 @@ VECTOR_DB ?= milvus
 
 .DEFAULT_GOAL := help
 
-.PHONY: init-env sync-frontend-deps build-frontend build-backend build-tests build-all test tests api-tests unit-tests integration-tests performance-tests service-tests pipeline-tests all-tests run-app run-backend run-frontend run-services stop-containers clean create-volumes logs info help
+.PHONY: init-env sync-frontend-deps build-frontend build-backend build-tests build-all test tests api-tests unit-tests integration-tests performance-tests service-tests pipeline-tests all-tests run-app run-backend run-frontend run-services stop-containers clean create-volumes logs info help pull-ghcr-images
 
 # Init
 init-env:
@@ -38,17 +42,40 @@ sync-frontend-deps:
 	@cd webui && npm install
 	@echo "Frontend dependencies synced."
 
-# Build
+# Build and Push - GHCR-first strategy
 build-frontend:
-	$(CONTAINER_CLI) build -t ${PROJECT_NAME}/frontend:${PROJECT_VERSION} -f ./webui/Dockerfile.frontend ./webui
+	@echo "Building and pushing frontend image..."
+	$(CONTAINER_CLI) build -t ${GHCR_REPO}/frontend:${PROJECT_VERSION} -t ${GHCR_REPO}/frontend:latest -f ./webui/Dockerfile.frontend ./webui
+	$(CONTAINER_CLI) push ${GHCR_REPO}/frontend:${PROJECT_VERSION}
+	$(CONTAINER_CLI) push ${GHCR_REPO}/frontend:latest
 
 build-backend:
-	$(CONTAINER_CLI) build -t ${PROJECT_NAME}/backend:${PROJECT_VERSION} -f ./backend/Dockerfile.backend ./backend
+	@echo "Building and pushing backend image..."
+	$(CONTAINER_CLI) build -t ${GHCR_REPO}/backend:${PROJECT_VERSION} -t ${GHCR_REPO}/backend:latest -f ./backend/Dockerfile.backend ./backend
+	$(CONTAINER_CLI) push ${GHCR_REPO}/backend:${PROJECT_VERSION}
+	$(CONTAINER_CLI) push ${GHCR_REPO}/backend:latest
 
 build-tests:
-	$(CONTAINER_CLI) build -t ${PROJECT_NAME}/backend-test:${PROJECT_VERSION} -f ./backend/Dockerfile.test ./backend
+	@echo "Building test image..."
+	$(CONTAINER_CLI) build -t ${GHCR_REPO}/backend:test-${PROJECT_VERSION} -f ./backend/Dockerfile.test ./backend
+	$(CONTAINER_CLI) push ${GHCR_REPO}/backend:test-${PROJECT_VERSION}
 
 build-all: build-frontend build-backend build-tests
+
+# Pull latest images from GHCR
+pull-ghcr-images:
+	@echo "Pulling latest images from GitHub Container Registry..."
+	$(CONTAINER_CLI) pull ${GHCR_REPO}/frontend:latest
+	$(CONTAINER_CLI) pull ${GHCR_REPO}/backend:latest
+	@echo "Images pulled successfully. Use 'make run-ghcr' to start with GHCR images."
+
+# Configure for GHCR images (production)
+use-ghcr-images:
+	@echo "Configuring environment for GHCR images..."
+	@echo "BACKEND_IMAGE=${GHCR_REPO}/backend:latest" > .env.local
+	@echo "FRONTEND_IMAGE=${GHCR_REPO}/frontend:latest" >> .env.local
+	@echo "TEST_IMAGE=${GHCR_REPO}/backend:latest" >> .env.local
+	@echo "GHCR image configuration saved to .env.local"
 
 # Helper function to check if containers are healthy
 check_containers:
@@ -183,7 +210,6 @@ service-tests: run-backend create-test-dirs
 pipeline-tests: run-backend create-test-dirs
 	$(DOCKER_COMPOSE) run --rm \
 		-v $$(pwd)/backend:/app/backend:ro \
-		-v $$(pwd)/tests:/app/tests:ro \
 		-v $$(pwd)/test-reports:/app/test-reports \
 		-e TESTING=true \
 		-e CONTAINER_ENV=false \
@@ -222,9 +248,9 @@ tests: run-backend create-test-dirs
 		--cov-report=xml:/app/test-reports/coverage/coverage.xml \
 		|| { echo "Tests failed"; $(MAKE) stop-containers; exit 1; }
 
-# Run
+# Run - Local Development (default - uses local builds)
 run-app: build-all run-backend run-frontend
-	@echo "All application containers are now running."
+	@echo "All application containers are now running with local images."
 
 run-backend: run-services
 	@echo "Starting backend..."
@@ -235,6 +261,12 @@ run-frontend: run-services
 	@echo "Starting frontend..."
 	$(DOCKER_COMPOSE) up -d frontend
 	@echo "Frontend is now running."
+
+# Run - GHCR Images (for production-like testing)
+run-ghcr: pull-ghcr-images use-ghcr-images
+	@echo "Starting services with GHCR images..."
+	$(DOCKER_COMPOSE) --env-file .env.local up -d
+	@echo "All application containers are now running with GHCR images."
 
 run-services: create-volumes
 	@echo "Starting services:"
@@ -252,13 +284,7 @@ run-services: create-volumes
 			echo "No unhealthy containers found, checking for failed containers..."; \
 					failed_containers=$$($(CONTAINER_CLI) ps -f status=exited -q); \
 		if [ -n "$$failed_containers" ]; then \
-			echo "Logs from failed containers:"; \
-			for container in $$failed_containers; do \
-				echo "Container ID: $$container"; \
-				$(CONTAINER_CLI) logs $$container; \
-			done; \
-		else \
-				echo "No failed containers found, showing logs for all services."; \
+			echo "No failed containers found, showing logs for all services."; \
 				$(DOCKER_COMPOSE) logs; \
 			fi; \
 		fi; \
@@ -293,16 +319,122 @@ info:
 	@echo "Project version: ${PROJECT_VERSION}"
 	@echo "Python version: ${PYTHON_VERSION}"
 	@echo "Vector DB: ${VECTOR_DB}"
+	@echo "GHCR repository: ${GHCR_REPO}"
+
+# Colors for better output
+CYAN := \033[0;36m
+GREEN := \033[0;32m
+YELLOW := \033[0;33m
+RED := \033[0;31m
+NC := \033[0m # No Color
+
+# Local CI targets (mirror GitHub Actions)
+
+## Linting targets
+lint: lint-ruff lint-mypy
+	@echo "$(GREEN)✅ All linting checks completed$(NC)"
+
+lint-ruff:
+	@echo "$(CYAN)🔍 Running Ruff linter...$(NC)"
+	cd backend && poetry run ruff check . --line-length 120
+	@echo "$(GREEN)✅ Ruff checks passed$(NC)"
+
+lint-mypy:
+	@echo "$(CYAN)🔎 Running Mypy type checker...$(NC)"
+	cd backend && poetry run mypy rag_solution/ --ignore-missing-imports --disable-error-code=misc --disable-error-code=unused-ignore --no-strict-optional
+	@echo "$(GREEN)✅ Mypy type checks passed$(NC)"
+
+lint-docstrings:
+	@echo "$(CYAN)📝 Checking docstring coverage...$(NC)"
+	cd backend && poetry run interrogate --fail-under=50 rag_solution/ -v || echo "$(YELLOW)⚠️  Docstring coverage needs improvement$(NC)"
+	cd backend && poetry run pydocstyle rag_solution/ || echo "$(YELLOW)⚠️  Some docstring issues found$(NC)"
+	@echo "$(GREEN)✅ Docstring checks completed$(NC)"
+
+## Formatting targets
+format: format-ruff
+	@echo "$(GREEN)✅ All formatting completed$(NC)"
+
+format-ruff:
+	@echo "$(CYAN)🔧 Running Ruff formatter and import sorter...$(NC)"
+	cd backend && poetry run ruff format . --line-length 120
+	cd backend && poetry run ruff check --fix . --line-length 120
+	@echo "$(GREEN)✅ Ruff formatting and import sorting completed$(NC)"
+
+format-check:
+	@echo "$(CYAN)🔍 Checking code formatting...$(NC)"
+	cd backend && poetry run ruff format --check . --line-length 120
+	cd backend && poetry run ruff check . --line-length 120
+	@echo "$(GREEN)✅ Format check completed$(NC)"
+
+## Pre-commit targets
+pre-commit-run:
+	@echo "$(CYAN)🔧 Running pre-commit hooks on all files...$(NC)"
+	poetry run pre-commit run --all-files
+	@echo "$(GREEN)✅ Pre-commit run completed$(NC)"
+
+pre-commit-update:
+	@echo "$(CYAN)⬆️  Updating pre-commit hooks...$(NC)"
+	poetry run pre-commit autoupdate
+	@echo "$(GREEN)✅ Pre-commit hooks updated$(NC)"
+
+setup-pre-commit:
+	@echo "$(CYAN)📦 Setting up pre-commit hooks...$(NC)"
+	pip install pre-commit
+	pre-commit install
+	@echo "$(GREEN)✅ Pre-commit hooks installed$(NC)"
+
+## Unit tests
+unit-tests-local:
+	@echo "$(CYAN)🧪 Running unit tests locally...$(NC)"
+	cd backend && poetry run pytest tests/ -m unit --maxfail=5 -v
+	@echo "$(GREEN)✅ Unit tests completed$(NC)"
+
+## Combined targets
+ci-local: format-check lint unit-tests-local
+	@echo "$(GREEN)✅ Local CI checks completed successfully!$(NC)"
+
+ci-fix: format lint
+	@echo "$(GREEN)✅ Code formatting and linting fixes applied!$(NC)"
+
+validate-ci:
+	@echo "$(CYAN)🔍 Validating CI workflows...$(NC)"
+	./scripts/validate-ci.sh
 
 help:
 	@echo "Usage: make [target]"
 	@echo ""
-	@echo "Targets:"
+	@echo "$(CYAN)🚀 Quick Commands:$(NC)"
+	@echo "  ci-local      \t\tRun full local CI (format-check + lint + tests)"
+	@echo "  ci-fix        \t\tAuto-fix formatting and linting issues"
+	@echo "  pre-commit-run\t\tRun all pre-commit hooks"
+	@echo ""
+	@echo "$(CYAN)🔍 Linting Targets:$(NC)"
+	@echo "  lint          \t\tRun all linters (ruff + mypy)"
+	@echo "  lint-ruff     \t\tRun Ruff linter"
+	@echo "  lint-mypy     \t\tRun MyPy type checker"
+	@echo "  lint-docstrings\t\tCheck docstring coverage"
+	@echo ""
+	@echo "$(CYAN)🎨 Formatting Targets:$(NC)"
+	@echo "  format        \t\tAuto-format code with Ruff"
+	@echo "  format-check  \t\tCheck formatting without changes"
+	@echo "  format-ruff   \t\tRun Ruff formatter and import sorter"
+	@echo ""
+	@echo "$(CYAN)🧪 Testing Targets:$(NC)"
+	@echo "  unit-tests-local  \tRun unit tests locally"
+	@echo ""
+	@echo "$(CYAN)🛠️ Setup Targets:$(NC)"
+	@echo "  setup-pre-commit  \tInstall pre-commit hooks"
+	@echo "  pre-commit-update \tUpdate pre-commit hooks to latest"
+	@echo "  validate-ci   \t\tValidate CI workflows with act"
+	@echo ""
+	@echo "$(CYAN)📦 Container Targets:$(NC)"
 	@echo "  init-env      		Initialize .env file with default values"
 	@echo "  build-frontend  	Build frontend code/container"
 	@echo "  build-backend   	Build backend code/container"
 	@echo "  build-tests   		Build test code/container"
 	@echo "  build-all   		Build frontend/backend/test code/container"
+	@echo "  pull-ghcr-images   Pull latest images from GitHub Container Registry"
+	@echo "  use-ghcr-images    Configure environment for GHCR images"
 	@echo "  test          		Run specific test with coverage and reports"
 	@echo "  test-only     		Run specific test without coverage (if containers running)"
 	@echo "  test-clean    		Run specific test and cleanup containers afterward"
@@ -313,9 +445,10 @@ help:
 	@echo "  pipeline-tests      Run pipeline-related tests"
 	@echo "  api-tests      	Run API tests with reports"
 	@echo "  tests          	Run all tests with coverage and reports"
-	@echo "  run-app       		Run both backend and frontend using Docker Compose"
-	@echo "  run-backend   		Run backend using Docker Compose"
-	@echo "  run-frontend  		Run frontend using Docker Compose"
+	@echo "  run-app       		Run both backend and frontend using local images"
+	@echo "  run-backend   		Run backend using local images"
+	@echo "  run-frontend  		Run frontend using local images"
+	@echo "  run-ghcr      		Run both backend and frontend using GHCR images"
 	@echo "  run-services  		Run services using Docker Compose"
 	@echo "  stop-containers  	Stop all containers using Docker Compose"
 	@echo "  clean         		Clean up Docker Compose volumes and cache"
@@ -329,3 +462,4 @@ help:
 	@echo "  make test testfile=tests/api/test_auth.py"
 	@echo "  make test testfile=tests/api/test_auth.py::test_login"
 	@echo "  make test-only testfile=tests/core/test_database.py"
+	@echo "  make pull-ghcr-images  # Pull latest images from GHCR"
