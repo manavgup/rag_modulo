@@ -38,7 +38,8 @@ def test_file(test_file_content) -> str:
 @pytest.fixture
 def upload_file(test_file) -> UploadFile:
     """Create an UploadFile instance for testing."""
-    return UploadFile(filename="test.PDF", file=open(test_file, "rb"))
+    with open(test_file, "rb") as f:
+        return UploadFile(filename="test.PDF", file=f)
 
 
 # -------------------------------------------
@@ -92,7 +93,7 @@ def test_get_collection_not_found(collection_service):
 
 
 @pytest.mark.atomic
-def test_update_collection_success(collection_service, base_collection, base_user: UserOutput):
+def test_update_collection_success(collection_service, base_collection, base_user):
     """Test successful collection update."""
     update_input = CollectionInput(
         name="Updated Collection", is_private=True, users=[base_user.id], status=CollectionStatus.COMPLETED
@@ -151,7 +152,7 @@ async def test_create_collection_with_documents(collection_service, base_user: U
 
 @pytest.mark.atomic
 @pytest.mark.asyncio
-async def test_process_documents(collection_service, base_collection, base_user: UserOutput, test_file: str):
+async def test_process_documents(collection_service, base_collection, base_user, test_file: str):
     """Test document processing."""
     await collection_service.process_documents(
         file_paths=[test_file],

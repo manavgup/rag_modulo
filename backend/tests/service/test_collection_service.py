@@ -38,7 +38,8 @@ def test_file(test_file_content) -> str:
 @pytest.fixture
 def upload_file(test_file) -> UploadFile:
     """Create an UploadFile instance for testing."""
-    return UploadFile(filename="test.txt", file=open(test_file, "rb"))
+    with open(test_file, "rb") as f:
+        return UploadFile(filename="test.txt", file=f)
 
 
 @pytest.mark.atomic

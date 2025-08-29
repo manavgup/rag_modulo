@@ -201,9 +201,7 @@ async def test_delete_prompt_template(client: AsyncClient, mock_prompt_template_
 
 
 @pytest.mark.asyncio
-async def test_set_default_prompt_template(
-    client: AsyncClient, mock_prompt_template_service, mock_auth_user
-):
+async def test_set_default_prompt_template(client: AsyncClient, mock_prompt_template_service, mock_auth_user):
     """Test PUT /api/users/{user_id}/prompt-templates/{template_id}/default endpoint."""
     # Mock auth user
     mock_auth_user(TEST_USER_ID)
@@ -229,9 +227,7 @@ async def test_get_prompt_templates_unauthorized(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_get_prompt_templates_wrong_user(
-    client: AsyncClient, mock_auth_user
-):
+async def test_get_prompt_templates_wrong_user(client: AsyncClient, mock_auth_user):
     """Test accessing templates with wrong user ID."""
     # Mock auth user with different ID
     different_user_id = uuid4()
@@ -242,9 +238,7 @@ async def test_get_prompt_templates_wrong_user(
 
 
 @pytest.mark.asyncio
-async def test_create_prompt_template_invalid_data(
-    client: AsyncClient, mock_auth_user
-):
+async def test_create_prompt_template_invalid_data(client: AsyncClient, mock_auth_user):
     """Test creating template with invalid data."""
     # Mock auth user
     mock_auth_user(TEST_USER_ID)

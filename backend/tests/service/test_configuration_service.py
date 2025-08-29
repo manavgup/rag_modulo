@@ -126,7 +126,7 @@ def test_create_llm_parameters(db_session: Session, test_llm_parameters: LLMPara
 
 
 @pytest.mark.atomic
-def test_create_prompt_template(db_session: Session, base_user, test_prompt_template: PromptTemplateInput):
+def test_create_prompt_template(db_session: Session, base_user, test_prompt_template):
     """Test creating prompt template."""
     service = PromptTemplateService(db_session)
     template = service.create_or_update_template(base_user.id, test_prompt_template)
@@ -141,10 +141,10 @@ def test_create_prompt_template(db_session: Session, base_user, test_prompt_temp
 def test_configuration_flow(
     db_session: Session,
     base_user,
-    test_provider_input: LLMProviderInput,
-    test_model_input: LLMProviderModelInput,
-    test_llm_parameters: LLMParametersInput,
-    test_prompt_template: PromptTemplateInput,
+    test_provider_input,
+    test_model_input,
+    test_llm_parameters,
+    test_prompt_template,
 ):
     """Test complete configuration flow."""
     provider_service = LLMProviderService(db_session)
@@ -226,7 +226,7 @@ def test_model_validation_errors(
 
 
 @pytest.mark.atomic
-def test_not_found_errors(db_session: Session, base_user, test_llm_parameters: LLMParametersInput):
+def test_not_found_errors(db_session: Session, base_user, test_llm_parameters):
     """Test not found error handling."""
     parameters_service = LLMParametersService(db_session)
 

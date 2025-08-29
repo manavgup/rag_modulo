@@ -89,7 +89,7 @@ class LLMProviderFactory:
                 provider=provider_name,
                 error_type="initialization_failed",
                 message=f"Provider validation failed: {e!s}",
-            )
+            ) from e
 
     def get_provider(self, provider_name: str, model_id: str | None = None) -> LLMBase:
         """
@@ -158,7 +158,7 @@ class LLMProviderFactory:
         except Exception as e:
             raise LLMProviderError(
                 provider=provider_name, error_type="creation_failed", message=f"Failed to create provider: {e!s}"
-            )
+            ) from e
 
     def cleanup_provider(self, provider_name: str, model_id: str | None = None) -> None:
         """

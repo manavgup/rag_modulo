@@ -23,19 +23,23 @@ class PromptTemplateBase(BaseModel):
     template_type: PromptTemplateType = PromptTemplateType.CUSTOM
     system_prompt: str | None = None
     template_format: str = Field(..., min_length=1)
-    input_variables: dict[str, str] = Field(default_factory=dict)
-    example_inputs: dict[str, Any] | None = Field(default_factory=dict)
+    input_variables: dict[str, str] = Field(default_factory=lambda: {})
+    example_inputs: dict[str, Any] | None = Field(default_factory=lambda: {})
     context_strategy: dict[str, Any] | None = None
     max_context_length: int | None = Field(None, gt=0)
     stop_sequences: list[str] | None = None
     is_default: bool = False
     validation_schema: dict[str, Any] | None = None
+    id: UUID4 | None = None
+    context_prefix: str | None = None
+    query_prefix: str | None = None
+    answer_prefix: str | None = None
 
     model_config = ConfigDict(strict=True, extra="forbid", validate_assignment=True, populate_by_name=True)
 
     @field_validator("user_id", mode="before")
     @classmethod
-    def parse_user_id(cls, v):
+    def parse_user_id(cls, v: str | UUID4) -> UUID4:
         """Ensure user_id is a valid UUID, converting from string if needed."""
         if isinstance(v, str):
             return UUID4(v)
@@ -77,6 +81,16 @@ class PromptTemplateBase(BaseModel):
             return "You are a helpful AI assistant."  # Default prompt
         return v
 
+    def format_prompt(self, **kwargs: Any) -> str:
+        """Format the prompt template with the given variables."""
+        try:
+            return self.template_format.format(**kwargs)
+        except KeyError as e:
+            missing_var = str(e).strip("'")
+            raise ValueError(f"Missing required variable: {missing_var}")
+        except Exception as e:
+            raise ValueError(f"Error formatting prompt: {e}")
+
 
 class PromptTemplateInput(PromptTemplateBase):
     """Input schema for creating/updating prompt templates."""
@@ -85,11 +99,13 @@ class PromptTemplateInput(PromptTemplateBase):
 
     @field_validator("template_type", mode="before")
     @classmethod
-    def enforce_enum(cls, v):
+    def enforce_enum(cls, v: str | PromptTemplateType) -> PromptTemplateType:
         """Convert string to Enum if needed."""
         if isinstance(v, str):
             return PromptTemplateType(v)  # Convert string to Enum
-        return v
+        elif isinstance(v, PromptTemplateType):
+            return v
+        raise ValueError(f"Invalid template_type: {v}")
 
 
 class PromptTemplateOutput(PromptTemplateBase):
@@ -105,7 +121,7 @@ class PromptTemplateOutput(PromptTemplateBase):
 
     @field_validator("template_type", mode="before")
     @classmethod
-    def validate_template_type(cls, v):
+    def validate_template_type(cls, v: str | PromptTemplateType) -> PromptTemplateType:
         """Ensure template_type is an instance of the Enum."""
         if isinstance(v, str):
             return PromptTemplateType(v)  # Convert string to Enum

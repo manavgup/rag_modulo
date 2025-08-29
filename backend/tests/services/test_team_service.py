@@ -32,7 +32,7 @@ def test_create_team_success(team_service, test_team_input: TeamInput):
 
 
 @pytest.mark.atomic
-def test_create_team_duplicate_name(team_service, base_team, test_team_input: TeamInput):
+def test_create_team_duplicate_name(team_service, base_team, test_team_input):
     """Test team creation with duplicate name."""
     with pytest.raises(HTTPException) as exc_info:
         team_service.create_team(test_team_input)
@@ -112,7 +112,7 @@ def test_delete_team_not_found(team_service):
 # 🧪 Team Membership Tests
 # -------------------------------------------
 @pytest.mark.atomic
-def test_get_team_users(team_service, base_team, base_user: UserOutput):
+def test_get_team_users(team_service, base_team, base_user):
     """Test retrieving team users."""
     # Add user to team first
     team_service.add_user_to_team(base_user.id, base_team.id)
@@ -124,7 +124,7 @@ def test_get_team_users(team_service, base_team, base_user: UserOutput):
 
 
 @pytest.mark.atomic
-def test_add_user_to_team(team_service, base_team, base_user: UserOutput):
+def test_add_user_to_team(team_service, base_team, base_user):
     """Test adding user to team."""
     result = team_service.add_user_to_team(base_user.id, base_team.id)
 
@@ -136,7 +136,7 @@ def test_add_user_to_team(team_service, base_team, base_user: UserOutput):
 
 
 @pytest.mark.atomic
-def test_remove_user_from_team(team_service, base_team, base_user: UserOutput):
+def test_remove_user_from_team(team_service, base_team, base_user):
     """Test removing user from team."""
     # First add user to team
     team_service.add_user_to_team(base_user.id, base_team.id)

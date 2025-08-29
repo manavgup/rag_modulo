@@ -39,7 +39,7 @@ class AnthropicLLM(LLMBase):
                 provider="anthropic",
                 error_type="initialization_failed",
                 message=f"Failed to initialize client: {e!s}",
-            )
+            ) from e
 
     def _initialize_default_model(self) -> None:
         """Initialize default model for generation."""
@@ -95,11 +95,11 @@ class AnthropicLLM(LLMBase):
                 provider="anthropic",
                 error_type="invalid_template" if isinstance(e, ValidationError) else "template_not_found",
                 message=str(e),
-            )
+            ) from e
         except Exception as e:
             raise LLMProviderError(
                 provider="anthropic", error_type="generation_failed", message=f"Failed to generate text: {e!s}"
-            )
+            ) from e
 
     def _format_prompt(
         self, prompt: str, template: PromptTemplateBase | None = None, variables: dict[str, Any] | None = None
@@ -167,15 +167,15 @@ class AnthropicLLM(LLMBase):
                 provider="anthropic",
                 error_type="invalid_template" if isinstance(e, ValidationError) else "template_not_found",
                 message=str(e),
-            )
+            ) from e
         except Exception as e:
             raise LLMProviderError(
                 provider="anthropic",
                 error_type="streaming_failed",
                 message=f"Failed to generate streaming text: {e!s}",
-            )
+            ) from e
 
-    def get_embeddings(self, texts: str | list[str]) -> EmbeddingsList:
+    def get_embeddings(self, texts: str | list[str]) -> EmbeddingsList:  # noqa: ARG002
         """Generate embeddings for texts.
 
         Raises:

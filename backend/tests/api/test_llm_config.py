@@ -103,7 +103,7 @@ class TestLLMConfiguration(BaseTestRouter):
         assert cleanup_response.status_code == 200
 
     @pytest.mark.asyncio
-    async def test_get_templates_by_type(self, base_user, base_multiple_prompt_templates):
+    async def test_get_templates_by_type(self, base_user, base_multiple_prompt_templates):  # noqa: ARG002
         """Test getting templates by type."""
         response = self.get(f"/api/users/{base_user.id}/prompt-templates/type/RAG_QUERY")
         self.assert_success(response)

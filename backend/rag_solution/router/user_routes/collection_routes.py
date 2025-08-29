@@ -3,7 +3,7 @@
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from core.authorization import authorize_decorator
@@ -39,7 +39,7 @@ async def get_user_collections(
     try:
         return service.get_user_collections(user_id)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve collections: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve collections: {e!s}") from e
 
 
 @router.delete(
@@ -66,4 +66,4 @@ async def remove_user_collection(
     try:
         return service.remove_user_from_collection(user_id, collection_id)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to remove collection: {e!s}")
+        raise HTTPException(status_code=400, detail=f"Failed to remove collection: {e!s}") from e

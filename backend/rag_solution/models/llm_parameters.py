@@ -1,5 +1,10 @@
+from __future__ import annotations
+
 import uuid
-from datetime import datetime
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 from pydantic import field_validator
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
@@ -8,6 +13,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from rag_solution.file_management.database import Base
+
+if TYPE_CHECKING:
+    from rag_solution.models.user import User
 
 
 class LLMParameters(Base):
@@ -42,17 +50,17 @@ class LLMParameters(Base):
     )
 
     # 🔗 Relationships
-    user: Mapped["User"] = relationship("User", back_populates="llm_parameters", lazy="selectin")
+    user: Mapped[User] = relationship("User", back_populates="llm_parameters", lazy="selectin")
 
     @field_validator("user_id")
     @classmethod
-    def validate_uuid(cls, v):
-        if not isinstance(v, UUID):
+    def validate_uuid(cls, v: str | uuid.UUID) -> uuid.UUID:
+        if not isinstance(v, uuid.UUID):
             try:
-                return UUID(v)
-            except ValueError:
-                raise ValueError("Invalid UUID format")
+                return uuid.UUID(v)
+            except ValueError as e:
+                raise ValueError("Invalid UUID format") from e
         return v
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<LLMParameters(id={self.id}, name='{self.name}', is_default={self.is_default})>"

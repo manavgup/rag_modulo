@@ -34,7 +34,7 @@ def test_llm_parameters(base_user: UserOutput) -> LLMParametersInput:
 class TestLLMParametersSchema:
     """Test LLM parameters schema validation."""
 
-    def test_valid_parameters(self, base_user: UserOutput):
+    def test_valid_parameters(self, base_user: UserOutput):  # noqa: ARG002
         """Test valid parameter creation."""
         params = LLMParametersInput(
             name="test", max_new_tokens=100, temperature=0.7, top_k=50, top_p=1.0, repetition_penalty=1.1

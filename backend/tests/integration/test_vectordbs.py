@@ -61,7 +61,7 @@ class TestVectorStores:
         return request.param
 
     @pytest.fixture
-    def store(self, request, store_type, mock_vectordb_session):
+    def store(self, request, store_type, mock_vectordb_session):  # noqa: ARG002
         """Dynamic fixture that returns the appropriate store instance."""
         store_config = STORE_CONFIGS[store_type]
 

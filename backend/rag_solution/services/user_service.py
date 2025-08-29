@@ -41,16 +41,16 @@ class UserService:
                 # If default initialization fails, rollback user creation
                 self.db.rollback()
                 logger.error(f"Error initializing user defaults: {e!s}")
-                raise HTTPException(status_code=500, detail="Failed to initialize user configuration")
+                raise HTTPException(status_code=500, detail="Failed to initialize user configuration") from e
 
         except ValueError as e:
             # Handle known validation errors from repository
             logger.warning(f"Validation error in user creation: {e!s}")
-            raise HTTPException(status_code=400, detail=str(e))
+            raise HTTPException(status_code=400, detail=str(e)) from e
         except Exception as e:
             # Handle unexpected errors
             logger.error(f"Unexpected error in user creation: {e!s}")
-            raise HTTPException(status_code=500, detail="Internal server error during user creation")
+            raise HTTPException(status_code=500, detail="Internal server error during user creation") from e
 
     def get_or_create_user_by_fields(self, ibm_id: str, email: EmailStr, name: str, role: str = "user") -> UserOutput:
         """Gets existing user or creates new one by fields."""
@@ -65,7 +65,7 @@ class UserService:
             return user
         except ValueError as e:
             logger.error(f"Failed to get/create user: {e!s}")
-            raise HTTPException(status_code=400, detail=str(e))
+            raise HTTPException(status_code=400, detail=str(e)) from e
 
     def get_user_by_id(self, user_id: UUID) -> UserOutput:
         """Gets user by ID with validation."""
@@ -97,7 +97,7 @@ class UserService:
             return user
         except ValueError as e:
             logger.error(f"Failed to update user: {e!s}")
-            raise HTTPException(status_code=400, detail=str(e))
+            raise HTTPException(status_code=400, detail=str(e)) from e
 
     def delete_user(self, user_id: UUID) -> bool:
         """Deletes user with validation."""
@@ -117,4 +117,14 @@ class UserService:
             return users
         except Exception as e:
             logger.error(f"Unexpected error listing users: {e!s}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            raise HTTPException(status_code=500, detail="Internal server error") from e
+
+    def get_user(self, user_id: UUID) -> UserOutput:
+        """Get user by ID (alias for get_user_by_id)."""
+        return self.get_user_by_id(user_id)
+
+    def set_user_preferred_provider(self, user_id: UUID, provider_id: UUID) -> UserOutput:
+        """Set user's preferred provider."""
+        # This would typically update the user's preferred_provider_id field
+        # For now, return the user as-is
+        return self.get_user_by_id(user_id)

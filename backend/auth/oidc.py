@@ -29,7 +29,7 @@ oauth.register(
     leeway=50000
 )
 
-def verify_jwt_token(token: str):
+def verify_jwt_token(token: str) -> dict:
     """Verify JWT token and return payload."""
     try:
         # Special handling for test token
@@ -64,7 +64,7 @@ def verify_jwt_token(token: str):
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-async def get_current_user(request: Request):
+async def get_current_user(request: Request) -> dict:
     auth_header = request.headers.get('Authorization')
     if not auth_header or not auth_header.startswith('Bearer '):
         raise HTTPException(
@@ -79,7 +79,7 @@ async def get_current_user(request: Request):
     logger.info(f"Got User: {payload}")
     return payload
 
-async def authorize_redirect(request: Request, redirect_uri: str):
+async def authorize_redirect(request: Request, redirect_uri: str) -> Response:
     try:
         logger.debug(f"Initiating authorize_redirect with redirect_uri: {redirect_uri}")
         response = await oauth.ibm.authorize_redirect(request, redirect_uri)
@@ -92,7 +92,7 @@ async def authorize_redirect(request: Request, redirect_uri: str):
         logger.error(f"Unexpected error during authorize_redirect: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Authorization error: {str(e)}")
 
-async def authorize_access_token(request: Request):
+async def authorize_access_token(request: Request) -> dict:
     try:
         logger.debug("Initiating authorize_access_token")
         token = await oauth.ibm.authorize_access_token(request)

@@ -134,7 +134,7 @@ class TestTeamManagement:
         assert len(teams) > 0
         assert any(team["id"] == str(test_team.id) for team in teams)
 
-    def test_list_teams_pagination(self, client: TestClient, test_team: Team):
+    def test_list_teams_pagination(self, client: TestClient, test_team: Team):  # noqa: ARG002
         """Test teams listing with pagination."""
         # Create additional teams
         team_input = {"name": "Another Team", "description": "Another test team"}
@@ -152,7 +152,7 @@ class TestTeamManagement:
 
 
 class TestTeamUsers:
-    def test_get_team_users_success(self, client: TestClient, test_team: Team, test_user_team: UserTeam):
+    def test_get_team_users_success(self, client: TestClient, test_team: Team, test_user_team: UserTeam):  # noqa: ARG002
         """Test successful team users retrieval."""
         response = client.get(f"/api/teams/{test_team.id}/users")
         assert response.status_code == 200
@@ -160,7 +160,7 @@ class TestTeamUsers:
         assert len(users) > 0
         assert users[0]["role"] == "member"
 
-    def test_get_team_users_empty(self, client: TestClient, test_team: Team):
+    def test_get_team_users_empty(self, client: TestClient, test_team: Team):  # noqa: ARG002
         """Test team users retrieval when team has no users."""
         # Create a new team without users
         team_input = {"name": "Empty Team", "description": "Team with no users"}

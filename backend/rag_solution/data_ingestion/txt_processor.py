@@ -36,7 +36,7 @@ class TxtProcessor(BaseProcessor):
             DocumentProcessingError: If there is an error processing the text file.
         """
         try:
-            async with aiofiles.open(file_path, "r", encoding="utf-8") as f:
+            async with aiofiles.open(file_path, encoding="utf-8") as f:
                 text = await f.read()
                 chunks = self.chunking_method(text)
 

@@ -3,6 +3,7 @@ from uuid import UUID
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
+from core.custom_exceptions import RepositoryError
 from core.logging_utils import get_logger
 from rag_solution.models.user import User
 from rag_solution.schemas.user_schema import UserInput, UserOutput
@@ -27,14 +28,14 @@ class UserRepository:
         except IntegrityError as e:
             self.db.rollback()  # Only rollback in case of failure
             if "ix_users_ibm_id" in str(e):
-                raise ValueError("IBM ID already exists")
+                raise ValueError("IBM ID already exists") from e
             elif "ix_users_email" in str(e):
-                raise ValueError("Email already exists")
-            raise ValueError("An error occurred while creating the user")
+                raise ValueError("Email already exists") from e
+            raise ValueError("An error occurred while creating the user") from e
         except Exception as e:
             self.db.rollback()
             logger.error(f"Error creating user: {e!s}")
-            raise
+            raise RepositoryError(f"Failed to create user: {e!s}") from e
 
     def get_by_id(self, user_id: UUID) -> UserOutput | None:
         """Fetches user by ID with team relationships."""
@@ -43,7 +44,7 @@ class UserRepository:
             return UserOutput.model_validate(user, from_attributes=True) if user else None
         except Exception as e:
             logger.error(f"Error getting user {user_id}: {e!s}")
-            raise
+            raise RepositoryError(f"Failed to get user by ID: {e!s}") from e
 
     def get_by_ibm_id(self, ibm_id: str) -> UserOutput | None:
         """Fetches user by IBM ID."""
@@ -52,7 +53,7 @@ class UserRepository:
             return UserOutput.model_validate(user) if user else None
         except Exception as e:
             logger.error(f"Error getting user by IBM ID {ibm_id}: {e!s}")
-            raise
+            raise RepositoryError(f"Failed to get user by IBM ID: {e!s}") from e
 
     def update(self, user_id: UUID, user_update: UserInput) -> UserOutput | None:
         """Updates user data with validation."""
@@ -71,14 +72,14 @@ class UserRepository:
         except IntegrityError as e:
             self.db.rollback()
             if "ix_users_ibm_id" in str(e):
-                raise ValueError("IBM ID already exists")
+                raise ValueError("IBM ID already exists") from e
             elif "ix_users_email" in str(e):
-                raise ValueError("Email already exists")
-            raise ValueError("An error occurred while updating the user")
+                raise ValueError("Email already exists") from e
+            raise ValueError("An error occurred while updating the user") from e
         except Exception as e:
             logger.error(f"Error updating user {user_id}: {e!s}")
             self.db.rollback()
-            raise
+            raise RepositoryError(f"Failed to update user: {e!s}") from e
 
     def delete(self, user_id: UUID) -> bool:
         """Deletes a user and returns success status."""
@@ -89,7 +90,7 @@ class UserRepository:
         except Exception as e:
             logger.error(f"Error deleting user {user_id}: {e!s}")
             self.db.rollback()
-            raise
+            raise RepositoryError(f"Failed to delete user: {e!s}") from e
 
     def list_users(self, skip: int = 0, limit: int = 100) -> list[UserOutput]:
         """Lists users with pagination."""
@@ -98,4 +99,4 @@ class UserRepository:
             return [UserOutput.model_validate(user) for user in users]
         except Exception as e:
             logger.error(f"Error listing users: {e!s}")
-            raise
+            raise RepositoryError(f"Failed to list users: {e!s}") from e

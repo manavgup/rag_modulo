@@ -1,86 +1,82 @@
 """Configuration settings for the RAG Modulo application."""
 
 import tempfile
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Annotated
 import os
-from pydantic import Field, ConfigDict
+from pydantic.fields import Field
+from pydantic_settings import SettingsConfigDict
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
     """Application settings with environment variable loading."""
     
-    model_config = ConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
+    model_config = SettingsConfigDict(
         extra="allow",
-        validate_default=True,
-        case_sensitive=False,  # Make environment variable names case-insensitive
-        env_nested_delimiter='__',  # Allow nested config using double underscore
-        protected_namespaces=()  # Allow all names to be used as field names
+        validate_default=True
     )
 
     # Required settings
-    jwt_secret_key: str = Field(..., env='JWT_SECRET_KEY')
-    rag_llm: str = Field(..., env='RAG_LLM')
+    jwt_secret_key: str
+    rag_llm: str
 
     # Search settings
-    number_of_results: int = Field(default=5, env='NUMBER_OF_RESULTS')
-    runtime_eval: bool = Field(default=False, env='RUNTIME_EVAL')
+    number_of_results: Annotated[int, Field(default=5, env='NUMBER_OF_RESULTS')]
+    runtime_eval: Annotated[bool, Field(default=False, env='RUNTIME_EVAL')]
 
     # Core data settings
     data_dir: Optional[str] = None
-    vector_db: str = Field(default="milvus", env='VECTOR_DB')
+    vector_db: Annotated[str, Field(default="milvus", env='VECTOR_DB')]
     collection_name: Optional[str] = None
 
     # LLM Provider credentials
     wx_project_id: str = Field(alias='WATSONX_INSTANCE_ID')
     wx_api_key: str = Field(alias='WATSONX_APIKEY')
     wx_url: str = Field(alias='WATSONX_URL')
-    openai_api_key: Optional[str] = Field(default=None, env='OPENAI_API_KEY')
-    anthropic_api_key: Optional[str] = Field(default=None, env='ANTHROPIC_API_KEY')
+    openai_api_key: Annotated[Optional[str], Field(default=None, env='OPENAI_API_KEY')]
+    anthropic_api_key: Annotated[Optional[str], Field(default=None, env='ANTHROPIC_API_KEY')]
 
     # Chunking settings
-    chunking_strategy: str = Field(default="fixed", env='CHUNKING_STRATEGY')
-    min_chunk_size: int = Field(default=100, env='MIN_CHUNK_SIZE')
-    max_chunk_size: int = Field(default=400, env='MAX_CHUNK_SIZE')
-    chunk_overlap: int = Field(default=10, env='CHUNK_OVERLAP')
-    semantic_threshold: float = Field(default=0.5, env='SEMANTIC_THRESHOLD')
+    chunking_strategy: Annotated[str, Field(default="fixed", env='CHUNKING_STRATEGY')]
+    min_chunk_size: Annotated[int, Field(default=100, env='MIN_CHUNK_SIZE')]
+    max_chunk_size: Annotated[int, Field(default=400, env='MAX_CHUNK_SIZE')]
+    chunk_overlap: Annotated[int, Field(default=10, env='CHUNK_OVERLAP')]
+    semantic_threshold: Annotated[float, Field(default=0.5, env='SEMANTIC_THRESHOLD')]
 
     # Embedding settings
-    embedding_model: str = Field(default="sentence-transformers/all-minilm-l6-v2", env='EMBEDDING_MODEL')
-    embedding_dim: int = Field(default=384, env='EMBEDDING_DIM')
-    embedding_field: str = Field(default="embedding", env='EMBEDDING_FIELD')
-    upsert_batch_size: int = Field(default=100, env='UPSERT_BATCH_SIZE')
+    embedding_model: Annotated[str, Field(default="sentence-transformers/all-minilm-l6-v2", env='EMBEDDING_MODEL')]
+    embedding_dim: Annotated[int, Field(default=384, env='EMBEDDING_DIM')]
+    embedding_field: Annotated[str, Field(default="embedding", env='EMBEDDING_FIELD')]
+    upsert_batch_size: Annotated[int, Field(default=100, env='UPSERT_BATCH_SIZE')]
 
     # LLM settings
-    max_new_tokens: int = Field(default=500, env='MAX_NEW_TOKENS')
-    min_new_tokens: int = Field(default=200, env='MIN_NEW_TOKENS')
-    max_context_length: int = Field(default=2048, env='MAX_CONTEXT_LENGTH')  # Total context window
-    random_seed: int = Field(default=50, env='RANDOM_SEED')
-    top_k: int = Field(default=5, env='TOP_K')
-    top_p: float = Field(default=0.95, env='TOP_P')
-    temperature: float = Field(default=0.7, env='TEMPERATURE')
-    repetition_penalty: float = Field(default=1.1, env='REPETITION_PENALTY')
-    llm_concurrency: int = Field(default=10)
+    max_new_tokens: Annotated[int, Field(default=500, env='MAX_NEW_TOKENS')]
+    min_new_tokens: Annotated[int, Field(default=200, env='MIN_NEW_TOKENS')]
+    max_context_length: Annotated[int, Field(default=2048, env='MAX_CONTEXT_LENGTH')]  # Total context window
+    random_seed: Annotated[int, Field(default=50, env='RANDOM_SEED')]
+    top_k: Annotated[int, Field(default=5, env='TOP_K')]
+    top_p: Annotated[float, Field(default=0.95, env='TOP_P')]
+    temperature: Annotated[float, Field(default=0.7, env='TEMPERATURE')]
+    repetition_penalty: Annotated[float, Field(default=1.1, env='REPETITION_PENALTY')]
+    llm_concurrency: Annotated[int, Field(default=10, env='LLM_CONCURRENCY')]
 
     # Query Rewriting settings
-    use_simple_rewriter: bool = Field(default=True, env='USE_SIMPLE_REWRITER')
-    use_hyponym_rewriter: bool = Field(default=False, env='USE_HYPONYM_REWRITER')
-    rewriter_model: str = Field(default="ibm/granite-13b-chat-v2", env='REWRITER_MODEL')
-    rewriter_temperature: float = Field(default=0.7, env='REWRITER_TEMPERATURE')
+    use_simple_rewriter: bool = Field(default=True)
+    use_hyponym_rewriter: bool = Field(default=False)
+    rewriter_model: str = Field(default="ibm/granite-13b-chat-v2")
+    rewriter_temperature: float = Field(default=0.7)
 
     # Retrieval settings
-    retrieval_type: str = Field(default="vector", env='RETRIEVAL_TYPE')  # Options: vector, keyword, hybrid
-    vector_weight: float = Field(default=0.7, env='VECTOR_WEIGHT')
-    keyword_weight: float = Field(default=0.3, env='KEYWORD_WEIGHT')
-    hybrid_weight: float = Field(default=0.5, env='HYBRID_WEIGHT')
+    retrieval_type: str = Field(default="vector")  # Options: vector, keyword, hybrid
+    vector_weight: float = Field(default=0.7)
+    keyword_weight: float = Field(default=0.3)
+    hybrid_weight: float = Field(default=0.5)
 
     # Question suggestion settings
-    question_suggestion_num: int = Field(default=5, env='QUESTION_SUGGESTION_NUM')
-    question_min_length: int = Field(default=15, env='QUESTION_MIN_LENGTH')
-    question_max_length: int = Field(default=150, env='QUESTION_MAX_LENGTH')
-    question_temperature: float = Field(default=0.7, env='QUESTION_TEMPERATURE')
+    question_suggestion_num: int = Field(default=5)
+    question_min_length: int = Field(default=15)
+    question_max_length: int = Field(default=150)
+    question_temperature: float = Field(default=0.7)
     question_types: List[str] = Field(
         default=[
             "What is",
@@ -88,8 +84,7 @@ class Settings(BaseSettings):
             "Why is",
             "When should",
             "Which factors"
-        ],
-        env='QUESTION_TYPES'
+        ]
     )
     question_patterns: List[str] = Field(
         default=[
@@ -98,79 +93,77 @@ class Settings(BaseSettings):
             "^Why",
             "^When",
             "^Which"
-        ],
-        env='QUESTION_PATTERNS'
+        ]
     )
     question_required_terms: List[str] = Field(
-        default=[],
-        env='QUESTION_REQUIRED_TERMS'
+        default=[]
     )
 
     # Frontend settings
-    react_app_api_url: str = Field(default="/api", env='REACT_APP_API_URL')
-    frontend_url: str = Field(default="http://localhost:3000", env='FRONTEND_URL')
+    react_app_api_url: Annotated[str, Field(default="/api", env='REACT_APP_API_URL')]
+    frontend_url: Annotated[str, Field(default="http://localhost:3000", env='FRONTEND_URL')]
     frontend_callback: str = "/callback"
 
     # Logging settings
-    log_level: str = Field(default="INFO", env='LOG_LEVEL')
+    log_level: Annotated[str, Field(default="INFO", env='LOG_LEVEL')]
 
     # File storage path
-    file_storage_path: str = Field(default=tempfile.gettempdir(), env='FILE_STORAGE_PATH')
+    file_storage_path: Annotated[str, Field(default=tempfile.gettempdir(), env='FILE_STORAGE_PATH')]
 
     # Vector Database Credentials
     # ChromaDB
-    chromadb_host: Optional[str] = Field(default="localhost", env='CHROMADB_HOST')
-    chromadb_port: Optional[int] = Field(default=8000, env='CHROMADB_PORT')
+    chromadb_host: Annotated[Optional[str], Field(default="localhost", env='CHROMADB_HOST')]
+    chromadb_port: Annotated[Optional[int], Field(default=8000, env='CHROMADB_PORT')]
 
     # Milvus
-    milvus_host: Optional[str] = Field(default="localhost", env='MILVUS_HOST')
-    milvus_port: Optional[int] = Field(default=19530, env='MILVUS_PORT')
-    milvus_user: Optional[str] = Field(default="root", env='MILVUS_USER')
-    milvus_password: Optional[str] = Field(default="milvus", env='MILVUS_PASSWORD')
-    milvus_index_params: Optional[str] = Field(default=None, env='MILVUS_INDEX_PARAMS')
-    milvus_search_params: Optional[str] = Field(default=None, env='MILVUS_SEARCH_PARAMS')
+    milvus_host: Annotated[Optional[str], Field(default="localhost", env='MILVUS_HOST')]
+    milvus_port: Annotated[Optional[int], Field(default=19530, env='MILVUS_PORT')]
+    milvus_user: Annotated[Optional[str], Field(default="root", env='MILVUS_USER')]
+    milvus_password: Annotated[Optional[str], Field(default="milvus", env='MILVUS_PASSWORD')]
+    milvus_index_params: Annotated[Optional[str], Field(default=None, env='MILVUS_INDEX_PARAMS')]
+    milvus_search_params: Annotated[Optional[str], Field(default=None, env='MILVUS_SEARCH_PARAMS')]
 
     # Elasticsearch
-    elastic_host: Optional[str] = Field(default="localhost", env='ELASTIC_HOST')
-    elastic_port: Optional[int] = Field(default=9200, env='ELASTIC_PORT')
-    elastic_password: Optional[str] = Field(default=None, env='ELASTIC_PASSWORD')
-    elastic_cacert_path: Optional[str] = Field(default=None, env='ELASTIC_CACERT_PATH')
-    elastic_cloud_id: Optional[str] = Field(default=None, env='ELASTIC_CLOUD_ID')
-    elastic_api_key: Optional[str] = Field(default=None, env='ELASTIC_API_KEY')
+    elastic_host: Annotated[Optional[str], Field(default="localhost", env='ELASTIC_HOST')]
+    elastic_port: Annotated[Optional[int], Field(default=9200, env='ELASTIC_PORT')]
+    elastic_password: Annotated[Optional[str], Field(default=None, env='ELASTIC_PASSWORD')]
+    elastic_cacert_path: Annotated[Optional[str], Field(default=None, env='ELASTIC_CACERT_PATH')]
+    elastic_cloud_id: Annotated[Optional[str], Field(default=None, env='ELASTIC_CLOUD_ID')]
+    elastic_api_key: Annotated[Optional[str], Field(default=None, env='ELASTIC_API_KEY')]
 
     # Pinecone
-    pinecone_api_key: Optional[str] = Field(default=None, env='PINECONE_API_KEY')
-    pinecone_cloud: Optional[str] = Field(default="aws", env='PINECONE_CLOUD')
-    pinecone_region: Optional[str] = Field(default="us-east-1", env='PINECONE_REGION')
+    pinecone_api_key: Annotated[Optional[str], Field(default=None, env='PINECONE_API_KEY')]
+    pinecone_cloud: Annotated[Optional[str], Field(default="aws", env='PINECONE_CLOUD')]
+    pinecone_region: Annotated[Optional[str], Field(default="us-east-1", env='PINECONE_REGION')]
 
     # Weaviate
-    weaviate_host: Optional[str] = Field(default="localhost", env='WEAVIATE_HOST')
-    weaviate_port: Optional[int] = Field(default=8080, env='WEAVIATE_PORT')
-    weaviate_grpc_port: Optional[int] = Field(default=50051, env='WEAVIATE_GRPC_PORT')
-    weaviate_username: Optional[str] = Field(default=None, env='WEAVIATE_USERNAME')
-    weaviate_password: Optional[str] = Field(default=None, env='WEAVIATE_PASSWORD')
-    weaviate_index: Optional[str] = Field(default="default", env='WEAVIATE_INDEX')
-    weaviate_scopes: Optional[str] = Field(default=None, env='WEAVIATE_SCOPES')
+    weaviate_host: Annotated[Optional[str], Field(default="localhost", env='WEAVIATE_HOST')]
+    weaviate_port: Annotated[Optional[int], Field(default=8080, env='WEAVIATE_PORT')]
+    weaviate_grpc_port: Annotated[Optional[int], Field(default=50051, env='WEAVIATE_GRPC_PORT')]
+    weaviate_username: Annotated[Optional[str], Field(default=None, env='WEAVIATE_USERNAME')]
+    weaviate_password: Annotated[Optional[str], Field(default=None, env='WEAVIATE_PASSWORD')]
+    weaviate_index: Annotated[Optional[str], Field(default="default", env='WEAVIATE_INDEX')]
+    weaviate_scopes: Annotated[Optional[str], Field(default=None, env='WEAVIATE_SCOPES')]
 
     # Project settings
-    project_name: str = Field(default="rag_modulo", env='PROJECT_NAME')
-    python_version: str = Field(default="3.11", env='PYTHON_VERSION')
+    project_name: Annotated[str, Field(default="rag_modulo", env='PROJECT_NAME')]
+    python_version: Annotated[str, Field(default="3.11", env='PYTHON_VERSION')]
 
     # Collection database settings
-    collectiondb_user: str = Field(default="rag_modulo_user", env='COLLECTIONDB_USER')
-    collectiondb_pass: str = Field(default="rag_modulo_password", env='COLLECTIONDB_PASS')
-    collectiondb_host: str = Field(default="localhost", env='COLLECTIONDB_HOST')
-    collectiondb_port: int = Field(default=5432, env='COLLECTIONDB_PORT')
-    collectiondb_name: str = Field(default="rag_modulo", env='COLLECTIONDB_NAME')
+    collectiondb_user: Annotated[str, Field(default="rag_modulo_user", env='COLLECTIONDB_USER')]
+    collectiondb_pass: Annotated[str, Field(default="rag_modulo_password", env='COLLECTIONDB_PASS')]
+    collectiondb_host: Annotated[str, Field(default="localhost", env='COLLECTIONDB_HOST')]
+    collectiondb_port: Annotated[int, Field(default=5432, env='COLLECTIONDB_PORT')]
+    collectiondb_name: Annotated[str, Field(default="rag_modulo", env='COLLECTIONDB_NAME')]
 
     # IBM OIDC settings
-    ibm_client_id: Optional[str] = Field(default=None, env='IBM_CLIENT_ID')
-    ibm_client_secret: Optional[str] = Field(default=None, env='IBM_CLIENT_SECRET')
-    oidc_discovery_endpoint: Optional[str] = Field(default=None, env='OIDC_DISCOVERY_ENDPOINT')
-    oidc_auth_url: Optional[str] = Field(default=None, env='OIDC_AUTH_URL')
-    oidc_token_url: Optional[str] = Field(default=None, env='OIDC_TOKEN_URL')
-    oidc_userinfo_endpoint: Optional[str] = Field(default=None, env='OIDC_USERINFO_ENDPOINT')
-    oidc_introspection_endpoint: Optional[str] = Field(default=None, env='OIDC_INTROSPECTION_ENDPOINT')
+    ibm_client_id: Annotated[Optional[str], Field(default=None, env='IBM_CLIENT_ID')]
+    ibm_client_secret: Annotated[Optional[str], Field(default=None, env='IBM_CLIENT_SECRET')]
+    oidc_discovery_endpoint: Annotated[Optional[str], Field(default=None, env='OIDC_DISCOVERY_ENDPOINT')]
+    oidc_auth_url: Annotated[Optional[str], Field(default=None, env='OIDC_AUTH_URL')]
+    oidc_token_url: Annotated[Optional[str], Field(default=None, env='OIDC_TOKEN_URL')]
+    oidc_userinfo_endpoint: Annotated[Optional[str], Field(default=None, env='OIDC_USERINFO_ENDPOINT')]
+    oidc_introspection_endpoint: Annotated[Optional[str], Field(default=None, env='OIDC_INTROSPECTION_ENDPOINT')]
 
     # JWT settings
     jwt_algorithm: str = "HS256"

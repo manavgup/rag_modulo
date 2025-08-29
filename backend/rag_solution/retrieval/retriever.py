@@ -78,7 +78,7 @@ class KeywordRetriever(BaseRetriever):
         texts = [doc.content for doc in self.documents]
         self.tfidf_matrix = self.vectorizer.fit_transform(texts)
 
-    def retrieve(self, collection_name: str, query: VectorQuery) -> list[QueryResult]:
+    def retrieve(self, collection_name: str, query: VectorQuery) -> list[QueryResult]:  # noqa: ARG002
         """
         Retrieve relevant documents based on the query using keyword matching.
 
@@ -148,7 +148,7 @@ class HybridRetriever(BaseRetriever):
                 return []
 
             # Combine and re-rank results
-            combined_results = {}
+            combined_results: dict[str, QueryResult] = {}
             for result in vector_results + keyword_results:
                 if result.document.id in combined_results:
                     combined_results[result.document.id].score += self.vector_weight * result.score

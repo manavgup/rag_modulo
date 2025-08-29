@@ -133,7 +133,7 @@ def mock_ibm_oauth():
 
 
 class TestAuthentication:
-    def test_token_exchange(self, client, mock_auth_middleware):
+    def test_token_exchange(self, client, mock_auth_middleware):  # noqa: ARG002
         """Test POST /api/auth/token - exchanging auth code for token."""
         response_data = {
             "access_token": "test_access_token",
@@ -191,7 +191,7 @@ class TestAuthentication:
             assert data["expires_in"] == 3600
             assert data["id_token"] == "test_id_token"
 
-    def test_callback_success(self, client, mock_ibm_oauth):
+    def test_callback_success(self, client, mock_ibm_oauth):  # noqa: ARG002
         """Test successful callback flow."""
         # Disable redirect following
         client.follow_redirects = False

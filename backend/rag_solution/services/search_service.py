@@ -3,7 +3,7 @@
 import time
 from collections.abc import Callable
 from functools import wraps
-from typing import Any, ParamSpec, TypeVar
+from typing import ParamSpec, TypeVar
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -23,7 +23,7 @@ T = TypeVar("T")
 P = ParamSpec("P")
 
 
-def handle_search_errors(func: Callable[P, T]) -> Callable[P, T]:
+def handle_search_errors[P, T](func: Callable[P, T]) -> Callable[P, T]:
     """Decorator to handle common search errors and convert them to HTTPExceptions."""
 
     @wraps(func)
@@ -32,19 +32,19 @@ def handle_search_errors(func: Callable[P, T]) -> Callable[P, T]:
             return await func(*args, **kwargs)
         except NotFoundError as e:
             logger.error(f"Resource not found: {e!s}")
-            raise HTTPException(status_code=404, detail=str(e))
+            raise HTTPException(status_code=404, detail=str(e)) from e
         except ValidationError as e:
             logger.error(f"Validation error: {e!s}")
-            raise HTTPException(status_code=400, detail=str(e))
+            raise HTTPException(status_code=400, detail=str(e)) from e
         except LLMProviderError as e:
             logger.error(f"LLM provider error: {e!s}")
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=500, detail=str(e)) from e
         except ConfigurationError as e:
             logger.error(f"Configuration error: {e!s}")
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=500, detail=str(e)) from e
         except Exception as e:
             logger.error(f"Unexpected error during search: {e!s}")
-            raise HTTPException(status_code=500, detail=f"Error processing search: {e!s}")
+            raise HTTPException(status_code=500, detail=f"Error processing search: {e!s}") from e
 
     return wrapper
 
@@ -105,7 +105,7 @@ class SearchService:
             raise
         except Exception as e:
             logger.error(f"Error initializing pipeline: {e!s}")
-            raise ConfigurationError(f"Pipeline initialization failed: {e!s}")
+            raise ConfigurationError(f"Pipeline initialization failed: {e!s}") from e
 
     def _generate_document_metadata(
         self, query_results: list[QueryResult], collection_id: UUID
@@ -190,7 +190,9 @@ class SearchService:
         except HTTPException as e:
             # Convert HTTPException to NotFoundError to ensure consistent error handling
             if e.status_code == 404:
-                raise NotFoundError(resource_type="Collection", resource_id=str(collection_id), message=str(e.detail))
+                raise NotFoundError(
+                    resource_type="Collection", resource_id=str(collection_id), message=str(e.detail)
+                ) from e
             raise
 
     def _validate_pipeline(self, pipeline_id: UUID) -> None:
@@ -202,7 +204,7 @@ class SearchService:
             )
 
     @handle_search_errors
-    async def search(self, search_input: SearchInput, context: dict[str, Any] | None = None) -> SearchOutput:
+    async def search(self, search_input: SearchInput) -> SearchOutput:
         """Process a search query through the RAG pipeline."""
         start_time = time.time()
         logger.info("Starting search operation")

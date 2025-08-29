@@ -185,9 +185,7 @@ async def test_delete_llm_parameters(client: AsyncClient, mock_llm_parameters_se
 
 
 @pytest.mark.asyncio
-async def test_set_default_llm_parameters(
-    client: AsyncClient, mock_llm_parameters_service, mock_auth_user
-):
+async def test_set_default_llm_parameters(client: AsyncClient, mock_llm_parameters_service, mock_auth_user):
     """Test PUT /api/users/{user_id}/llm-parameters/{parameter_id}/default endpoint."""
     # Mock auth user
     mock_auth_user(TEST_USER_ID)
@@ -213,9 +211,7 @@ async def test_get_llm_parameters_unauthorized(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_get_llm_parameters_wrong_user(
-    client: AsyncClient, mock_auth_user
-):
+async def test_get_llm_parameters_wrong_user(client: AsyncClient, mock_auth_user):
     """Test accessing parameters with wrong user ID."""
     # Mock auth user with different ID
     different_user_id = uuid4()
@@ -226,9 +222,7 @@ async def test_get_llm_parameters_wrong_user(
 
 
 @pytest.mark.asyncio
-async def test_create_llm_parameters_invalid_data(
-    client: AsyncClient, mock_auth_user
-):
+async def test_create_llm_parameters_invalid_data(client: AsyncClient, mock_auth_user):
     """Test creating parameters with invalid data."""
     # Mock auth user
     mock_auth_user(TEST_USER_ID)

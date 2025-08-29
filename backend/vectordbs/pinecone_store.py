@@ -79,15 +79,11 @@ class PineconeStore(VectorStore):
             for chunk in document.chunks:
                 vector = {
                     "id": chunk.chunk_id,
-                    "values": chunk.vectors,
+                    "values": chunk.embeddings,
                     "metadata": {
                         "text": chunk.text,
                         "document_id": document.document_id if document.document_id is not None else "",
                         "source": chunk.metadata.source.value if chunk.metadata else "",
-                        "source_id": chunk.metadata.source_id if chunk.metadata else "",
-                        "url": chunk.metadata.url if chunk.metadata else "",
-                        "created_at": chunk.metadata.created_at if chunk.metadata else "",
-                        "author": chunk.metadata.author if chunk.metadata else "",
                     },
                 }
                 vectors.append(vector)
@@ -114,7 +110,7 @@ class PineconeStore(VectorStore):
         embeddings = get_embeddings(query)
         if not embeddings:
             raise VectorStoreError("Failed to generate embeddings for the query string.")
-        query_embeddings = QueryWithEmbedding(text=query, vectors=embeddings)
+        query_embeddings = QueryWithEmbedding(text=query, embeddings=embeddings)
 
         results = self.query(collection_name, query_embeddings, number_of_results=number_of_results)
         return results
@@ -134,8 +130,10 @@ class PineconeStore(VectorStore):
             List[QueryResult]: The list of query results.
         """
         try:
+            # Pinecone expects embeddings as list[float], not list[list[float]]
+            query_embeddings = query.embeddings[0] if isinstance(query.embeddings[0], list) else query.embeddings
             response = self.client.Index(collection_name).query(
-                vector=query.vectors,
+                vector=query_embeddings,
                 top_k=number_of_results,  # Pinecone API uses top_k, but we maintain our consistent interface
                 include_metadata=True,
                 include_values=True,
@@ -159,7 +157,7 @@ class PineconeStore(VectorStore):
         except Exception as e:
             logging.error(f"Failed to delete Pinecone index '{collection_name}': {e}")
 
-    def delete_documents(self, document_ids: List[str], collection_name: str) -> int:
+    def delete_documents(self, collection_name: str, document_ids: List[str]) -> None:
         """
         Delete documents from the specified Pinecone collection.
 
@@ -172,16 +170,16 @@ class PineconeStore(VectorStore):
         """
         if collection_name not in self.client.list_indexes():
             logging.error(f"Pinecone index '{collection_name}' does not exist")
-            return 0
+            return
 
         if not document_ids:
             logging.error("No document IDs provided for deletion")
-            return 0
+            return
 
         try:
             self.client.Index(collection_name).delete(ids=document_ids)
             logging.info(f"Deleted documents from index '{collection_name}'")
-            return len(document_ids)
+            return
         except Exception as e:
             logging.error(f"Failed to delete documents from Pinecone index '{collection_name}': {e}")
             raise CollectionError(f"Failed to delete documents from Pinecone index '{collection_name}': {e}")

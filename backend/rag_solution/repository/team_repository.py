@@ -3,6 +3,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from core.custom_exceptions import DuplicateEntryError, RepositoryError
 from rag_solution.models.team import Team
 from rag_solution.schemas.team_schema import TeamInput, TeamOutput
 from rag_solution.schemas.user_schema import UserOutput
@@ -58,7 +59,9 @@ class TeamRepository:
                     self.session.query(Team).filter(Team.name == team_update.name, Team.id != team_id).first()
                 )
                 if existing_team:
-                    raise ValueError(f"Team with name '{team_update.name}' already exists")
+                    raise DuplicateEntryError(
+                        param_name="Team", message=f"Team with name '{team_update.name}' already exists"
+                    )
 
                 for key, value in team_update.model_dump().items():
                     setattr(team, key, value)
@@ -69,7 +72,7 @@ class TeamRepository:
         except Exception as e:
             logger.error(f"Error updating team {team_id}: {e!s}")
             self.session.rollback()
-            raise
+            raise RepositoryError(f"Failed to update team: {e!s}") from e
 
     def delete(self, team_id: UUID) -> bool:
         try:
@@ -82,7 +85,7 @@ class TeamRepository:
         except Exception as e:
             logger.error(f"Error deleting team {team_id}: {e!s}")
             self.session.rollback()
-            raise
+            raise RepositoryError(f"Failed to delete team: {e!s}") from e
 
     @staticmethod
     def _team_to_output(team: Team) -> TeamOutput:

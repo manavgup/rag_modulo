@@ -31,5 +31,5 @@ class User(Base):
     llm_parameters = relationship("LLMParameters", back_populates="user", cascade="all, delete-orphan")
     prompt_templates = relationship("PromptTemplate", back_populates="user", cascade="all, delete-orphan")
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"User(id='{self.id}', ibm_id='{self.ibm_id}', email='{self.email}', name='{self.name}', role='{self.role}')"
