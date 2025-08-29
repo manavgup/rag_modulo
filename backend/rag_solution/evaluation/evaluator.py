@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 class RAGEvaluator:
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Initialize the RAG Evaluator.
         """
@@ -119,7 +119,7 @@ class RAGEvaluator:
                 "context_relevance": results[2] if not isinstance(results[2], Exception) else f"Error: {results[2]}",
             }
         except Exception as e:
-            raise RuntimeError(f"Failed to run evaluations: {e}")
+            raise RuntimeError(f"Failed to run evaluations: {e}") from e
         finally:
             await llm.aclose_persistent_connection()
 

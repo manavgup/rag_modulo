@@ -35,7 +35,7 @@ async def create_user(user_input: UserInput, db: Session = Depends(get_db)) -> U
     try:
         return service.create_user(user_input)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to create user: {e!s}")
+        raise HTTPException(status_code=400, detail=f"Failed to create user: {e!s}") from e
 
 
 @router.get(
@@ -97,7 +97,7 @@ async def update_user(
     try:
         return service.update_user(user_id, user_input)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to update user: {e!s}")
+        raise HTTPException(status_code=400, detail=f"Failed to update user: {e!s}") from e
 
 
 @router.delete(
@@ -122,4 +122,4 @@ async def delete_user(user_id: UUID, request: Request, db: Session = Depends(get
     try:
         return service.delete_user(user_id)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to delete user: {e!s}")
+        raise HTTPException(status_code=400, detail=f"Failed to delete user: {e!s}") from e

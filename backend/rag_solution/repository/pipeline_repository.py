@@ -55,7 +55,7 @@ class PipelineConfigRepository:
             )
             return PipelineConfigOutput.from_db_model(pipeline) if pipeline else None
         except Exception as e:
-            raise RepositoryError(f"Failed to get user default pipeline: {e!s}")
+            raise RepositoryError(f"Failed to get user default pipeline: {e!s}") from e
 
     def get_collection_default(self, collection_id: UUID) -> PipelineConfigOutput | None:
         """Get the default pipeline for a collection.
@@ -77,7 +77,7 @@ class PipelineConfigRepository:
             )
             return PipelineConfigOutput.from_db_model(pipeline) if pipeline else None
         except Exception as e:
-            raise RepositoryError(f"Failed to get collection default pipeline: {e!s}")
+            raise RepositoryError(f"Failed to get collection default pipeline: {e!s}") from e
 
     def create(self, config: PipelineConfigInput) -> PipelineConfigOutput:
         """Create a new pipeline configuration.
@@ -99,7 +99,7 @@ class PipelineConfigRepository:
             return PipelineConfigOutput.from_db_model(db_config)
         except Exception as e:
             self.db.rollback()
-            raise RepositoryError(f"Failed to create pipeline configuration: {e!s}")
+            raise RepositoryError(f"Failed to create pipeline configuration: {e!s}") from e
 
     def get_by_id(self, pipeline_id: UUID) -> PipelineConfigOutput | None:
         """Get pipeline configuration by ID.
@@ -117,7 +117,7 @@ class PipelineConfigRepository:
             pipeline = self.db.query(PipelineConfig).filter(PipelineConfig.id == pipeline_id).first()
             return PipelineConfigOutput.from_db_model(pipeline) if pipeline else None
         except Exception as e:
-            raise RepositoryError(f"Failed to get pipeline by ID: {e!s}")
+            raise RepositoryError(f"Failed to get pipeline by ID: {e!s}") from e
 
     def get_by_user(self, user_id: UUID) -> list[PipelineConfigOutput]:
         """Get all pipelines for a user with optional filtering.
@@ -141,7 +141,7 @@ class PipelineConfigRepository:
             pipelines = query.all()
             return [PipelineConfigOutput.from_db_model(p) for p in pipelines]
         except Exception as e:
-            raise RepositoryError(f"Failed to get pipelines for user: {e!s}")
+            raise RepositoryError(f"Failed to get pipelines for user: {e!s}") from e
 
     def update(self, id: UUID, config: PipelineConfigInput) -> PipelineConfigOutput | None:
         """Update an existing pipeline configuration.
@@ -179,7 +179,7 @@ class PipelineConfigRepository:
             return PipelineConfigOutput.from_db_model(pipeline)
         except Exception as e:
             self.db.rollback()
-            raise RepositoryError(f"Failed to update pipeline configuration: {e!s}")
+            raise RepositoryError(f"Failed to update pipeline configuration: {e!s}") from e
 
     def delete(self, id: UUID) -> bool:
         """Delete a pipeline configuration.
@@ -199,7 +199,7 @@ class PipelineConfigRepository:
             return result > 0
         except Exception as e:
             self.db.rollback()
-            raise RepositoryError(f"Failed to delete pipeline configuration: {e!s}")
+            raise RepositoryError(f"Failed to delete pipeline configuration: {e!s}") from e
 
     def clear_collection_defaults(self, collection_id: UUID) -> None:
         """Clear default flags for all pipelines in a collection.
@@ -217,7 +217,7 @@ class PipelineConfigRepository:
             self.db.commit()
         except Exception as e:
             self.db.rollback()
-            raise RepositoryError(f"Failed to clear collection defaults: {e!s}")
+            raise RepositoryError(f"Failed to clear collection defaults: {e!s}") from e
 
     def clear_user_defaults(self, user_id: UUID) -> None:
         """Clear default flags for all user's non-collection pipelines.
@@ -237,4 +237,4 @@ class PipelineConfigRepository:
             self.db.commit()
         except Exception as e:
             self.db.rollback()
-            raise RepositoryError(f"Failed to clear user defaults: {e!s}")
+            raise RepositoryError(f"Failed to clear user defaults: {e!s}") from e

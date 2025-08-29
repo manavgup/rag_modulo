@@ -60,14 +60,14 @@ class UserProviderService:
         except Exception as e:
             logger.error(f"Initialization error: {e!s}")
             self.db.rollback()
-            raise HTTPException(status_code=500, detail="Failed to initialize required user configuration")
+            raise HTTPException(status_code=500, detail="Failed to initialize required user configuration") from e
 
     def get_user_provider(self, user_id: UUID) -> LLMProviderOutput | None:
         """Get user's preferred provider or assign the default provider if missing."""
         try:
             logger.info(f"Fetching LLM provider for user {user_id}")
 
-            # Step 1: Try to get the user’s existing provider
+            # Step 1: Try to get the user existing provider
             provider = self.user_provider_repository.get_user_provider(user_id)
             if provider:
                 logger.info(f"User {user_id} has provider: {provider.name}")
@@ -88,7 +88,7 @@ class UserProviderService:
 
         except Exception as e:
             logger.error(f"Error getting provider for user {user_id}: {e!s}")
-            raise HTTPException(status_code=500, detail="Error fetching provider")
+            raise HTTPException(status_code=500, detail="Error fetching provider") from e
 
     def set_user_provider(self, user_id: UUID, provider_id: UUID) -> bool:
         """Set user's preferred provider."""
@@ -97,10 +97,10 @@ class UserProviderService:
                 raise NotFoundException(resource_id=str(user_id), resource_type="User", message="User not found")
             return True
         except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e))
+            raise HTTPException(status_code=400, detail=str(e)) from e
         except Exception as e:
             logger.error(f"Error setting provider: {e!s}")
-            raise HTTPException(status_code=500, detail="Error setting provider")
+            raise HTTPException(status_code=500, detail="Error setting provider") from e
 
     def _create_default_rag_template(self, user_id: UUID) -> PromptTemplateOutput:
         """Create default RAG template for user."""

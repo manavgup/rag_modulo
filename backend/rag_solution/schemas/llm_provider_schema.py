@@ -14,6 +14,7 @@ class LLMProviderInput(BaseModel):
     project_id: str | None = Field(None, description="Project ID, if applicable")
     is_active: bool = Field(True, description="Indicates if the provider is active")
     is_default: bool = Field(False, description="Indicates if this is the default provider")
+    user_id: UUID | None = Field(None, description="User ID who owns this provider")
 
 
 class LLMProviderOutput(BaseModel):

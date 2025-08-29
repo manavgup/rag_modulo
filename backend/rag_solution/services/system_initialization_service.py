@@ -30,7 +30,7 @@ class SystemInitializationService:
         except Exception as e:
             logger.error(f"Error getting existing providers: {e!s}")
             if raise_on_error:
-                raise LLMProviderError("unknown", "initialization", str(e))
+                raise LLMProviderError("unknown", "initialization", str(e)) from e
             return []
 
         default_configs = self._get_provider_configs()
@@ -48,7 +48,7 @@ class SystemInitializationService:
             except Exception as e:
                 logger.error(f"Error initializing provider {name}: {e!s}")
                 if raise_on_error:
-                    raise LLMProviderError(name, "initialization", str(e))
+                    raise LLMProviderError(name, "initialization", str(e)) from e
 
         logger.info(f"Completed provider initialization. Count: {len(initialized_providers)}")
         return initialized_providers
@@ -111,7 +111,7 @@ class SystemInitializationService:
                 raise
             return None
 
-    def _setup_watsonx_models(self, provider_id: UUID, raise_on_error: bool):
+    def _setup_watsonx_models(self, provider_id: UUID, raise_on_error: bool) -> None:
         try:
             generation_model = LLMModelInput.model_validate(
                 {

@@ -37,7 +37,7 @@ async def get_pipelines(user_id: UUID, request: Request, db: Session = Depends(g
     try:
         return service.get_user_pipelines(user_id)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve pipeline configurations: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve pipeline configurations: {e!s}") from e
 
 
 @router.post(
@@ -66,7 +66,7 @@ async def create_pipeline(
             pipeline_input.user_id = user_id
         return service.create_pipeline(pipeline_input)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to create pipeline configuration: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Failed to create pipeline configuration: {e!s}") from e
 
 
 @router.put(
@@ -99,7 +99,7 @@ async def update_pipeline(
         update_data = pipeline_input.model_dump(exclude_unset=True)
         return service.update_pipeline(pipeline_id, update_data)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to update pipeline configuration: {e!s}")
+        raise HTTPException(status_code=400, detail=f"Failed to update pipeline configuration: {e!s}") from e
 
 
 @router.delete(
@@ -124,7 +124,7 @@ async def delete_pipeline(user_id: UUID, pipeline_id: UUID, request: Request, db
     try:
         return service.delete_pipeline(pipeline_id)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to delete pipeline configuration: {e!s}")
+        raise HTTPException(status_code=400, detail=f"Failed to delete pipeline configuration: {e!s}") from e
 
 
 @router.put(
@@ -151,4 +151,4 @@ async def set_default_pipeline(
     try:
         return service.set_default_pipeline(pipeline_id)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to set default pipeline: {e!s}")
+        raise HTTPException(status_code=400, detail=f"Failed to set default pipeline: {e!s}") from e

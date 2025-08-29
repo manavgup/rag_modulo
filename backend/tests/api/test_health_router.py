@@ -111,7 +111,7 @@ def mock_health_checks():
 
 class TestHealthCheck:
     @pytest.mark.asyncio
-    async def test_health_check_success(self, async_client, mock_health_checks, auth_headers, mock_auth_middleware):
+    async def test_health_check_success(self, async_client, mock_health_checks, auth_headers, mock_auth_middleware):  # noqa: ARG002
         """Test GET /api/health when all components are healthy."""
         response = await async_client.get("/api/health", headers=auth_headers)
         assert response.status_code == 200
@@ -127,7 +127,7 @@ class TestHealthCheck:
         assert components["file_system"]["status"] == "healthy"
 
     @pytest.mark.asyncio
-    async def test_vectordb_failure(self, async_client, mock_health_checks, auth_headers, mock_auth_middleware):
+    async def test_vectordb_failure(self, async_client, mock_health_checks, auth_headers, mock_auth_middleware):  # noqa: ARG002
         """Test health check when vector DB fails."""
         mock_health_checks["vectordb"].return_value = {"status": "unhealthy", "message": "Connection failed"}
 
@@ -138,19 +138,19 @@ class TestHealthCheck:
         assert "unhealthy" in data["detail"]
 
     @pytest.mark.asyncio
-    async def test_unauthorized_access(self, async_client, mock_auth_middleware):
+    async def test_unauthorized_access(self, async_client, mock_auth_middleware):  # noqa: ARG002
         """Test health check endpoint without authentication."""
         response = await async_client.get("/api/health")
         assert response.status_code == 401
 
     @pytest.mark.asyncio
-    async def test_invalid_token(self, async_client, mock_auth_middleware):
+    async def test_invalid_token(self, async_client, mock_auth_middleware):  # noqa: ARG002
         """Test health check with invalid token."""
         response = await async_client.get("/api/health", headers={"Authorization": "Bearer invalid-token"})
         assert response.status_code == 401
 
     @pytest.mark.asyncio
-    async def test_watsonx_not_configured(self, async_client, mock_health_checks, auth_headers, mock_auth_middleware):
+    async def test_watsonx_not_configured(self, async_client, mock_health_checks, auth_headers, mock_auth_middleware):  # noqa: ARG002
         """Test health check when WatsonX is not configured."""
         mock_health_checks["watsonx"].return_value = {"status": "skipped", "message": "WatsonX not configured"}
 

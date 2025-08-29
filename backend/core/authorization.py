@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 open_paths = ['/api/auth/login', '/api/auth/callback', '/api/health', '/api/auth/oidc-config', '/api/auth/token', '/api/auth/userinfo']
 
-async def authorize_dependency(request: Request):
+async def authorize_dependency(request: Request) -> bool:
     """
     Dependency to check if the user is authorized to access the resource.
     """
@@ -63,7 +63,7 @@ async def authorize_dependency(request: Request):
             detail="Failed to authorize request"
         )
     
-def authorize_decorator(role: str):
+def authorize_decorator(role: str) -> callable:
     """
     Decorator to check if the user is authorized to access the resource.
 

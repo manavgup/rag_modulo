@@ -12,6 +12,7 @@ class UserTeamInput(BaseModel):
 class UserTeamOutput(BaseModel):
     user_id: UUID
     team_id: UUID
+    role: str = "member"  # Default role
     joined_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

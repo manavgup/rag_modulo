@@ -29,5 +29,5 @@ class File(Base):
     user = relationship("User", back_populates="files")
     collection = relationship("Collection", back_populates="files")
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"File(id='{self.id}', filename='{self.filename}', file_type='{self.file_type}', collection_id='{self.collection_id}')"

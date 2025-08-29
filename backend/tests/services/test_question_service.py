@@ -11,11 +11,11 @@ from rag_solution.schemas.user_schema import UserOutput
 async def test_suggest_questions_success(
     question_service,
     base_collection,
-    base_user: UserOutput,
+    base_user,
     base_prompt_template,
     test_documents: list[str],
     base_llm_parameters,
-    llm_provider: str,
+    llm_provider,
 ) -> None:
     """Test successful question generation."""
     questions = await question_service.suggest_questions(
@@ -25,7 +25,6 @@ async def test_suggest_questions_success(
         provider_name=llm_provider,
         template=base_prompt_template,
         parameters=base_llm_parameters,
-        num_questions=3,
     )
 
     assert len(questions) > 0
@@ -45,10 +44,10 @@ async def test_suggest_questions_success(
 async def test_suggest_questions_empty_texts(
     question_service,
     base_collection,
-    base_user: UserOutput,
+    base_user,
     base_prompt_template,
     base_llm_parameters,
-    llm_provider: str,
+    llm_provider,
 ) -> None:
     """Test question generation with empty texts."""
     questions = await question_service.suggest_questions(
@@ -67,10 +66,10 @@ async def test_suggest_questions_empty_texts(
 async def test_question_generation_with_technical_content(
     question_service,
     base_collection,
-    base_user: UserOutput,
+    base_user,
     base_prompt_template,
     base_llm_parameters,
-    llm_provider: str,
+    llm_provider,
 ):
     """Test question generation with technical documentation."""
     technical_texts = [
@@ -93,7 +92,6 @@ async def test_question_generation_with_technical_content(
         provider_name=llm_provider,
         template=base_prompt_template,
         parameters=base_llm_parameters,
-        num_questions=5,
     )
 
     assert len(questions) > 0
@@ -154,7 +152,7 @@ def test_question_ranking(question_service, base_user: UserOutput, base_llm_para
         "and data analysis."
     )
 
-    ranked = question_service._rank_questions(questions, context, base_user.id, "watsonx")
+    ranked = question_service._rank_questions(questions, context)
 
     # Verify ranking order
     assert len(ranked) > 0
@@ -187,10 +185,10 @@ def test_duplicate_question_filtering(question_service) -> None:
 async def test_question_storage_and_retrieval(
     question_service,
     base_collection,
-    base_user: UserOutput,
+    base_user,
     base_prompt_template,
     base_llm_parameters,
-    llm_provider: str,
+    llm_provider,
 ):
     """Test storing and retrieving generated questions."""
     # Generate initial questions

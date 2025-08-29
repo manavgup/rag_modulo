@@ -40,7 +40,7 @@ class OpenAILLM(LLMBase):
         except Exception as e:
             raise LLMProviderError(
                 provider="openai", error_type="initialization_failed", message=f"Failed to initialize client: {e!s}"
-            )
+            ) from e
 
     def _initialize_default_models(self) -> None:
         """Initialize default models for generation and embeddings."""
@@ -106,11 +106,11 @@ class OpenAILLM(LLMBase):
                 provider="openai",
                 error_type="invalid_template" if isinstance(e, ValidationError) else "template_not_found",
                 message=str(e),
-            )
+            ) from e
         except Exception as e:
             raise LLMProviderError(
                 provider="openai", error_type="generation_failed", message=f"Failed to generate text: {e!s}"
-            )
+            ) from e
 
     def _format_prompt(
         self, prompt: str, template: PromptTemplateBase | None = None, variables: dict[str, Any] | None = None
@@ -174,11 +174,11 @@ class OpenAILLM(LLMBase):
                 provider="openai",
                 error_type="invalid_template" if isinstance(e, ValidationError) else "template_not_found",
                 message=str(e),
-            )
+            ) from e
         except Exception as e:
             raise LLMProviderError(
                 provider="openai", error_type="streaming_failed", message=f"Failed to generate streaming text: {e!s}"
-            )
+            ) from e
 
     def get_embeddings(self, texts: str | list[str]) -> EmbeddingsList:
         """Generate embeddings for texts."""
@@ -197,7 +197,7 @@ class OpenAILLM(LLMBase):
         except Exception as e:
             raise LLMProviderError(
                 provider="openai", error_type="embeddings_failed", message=f"Failed to generate embeddings: {e!s}"
-            )
+            ) from e
 
     def close(self) -> None:
         """Clean up provider resources."""

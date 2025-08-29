@@ -17,9 +17,9 @@ from rag_solution.evaluation.prompts import (
     CONTEXT_RELEVANCY_PROMPT_LLAMA3,
     FAITHFULNESS_PROMPT_LLAMA3,
 )
+from vectordbs.utils.watsonx import generate_batch, generate_text, get_model
 
 logger = get_logger(__name__)
-from vectordbs.utils.watsonx import generate_batch, generate_text, get_model
 
 BASE_LLM_PARAMETERS = {
     GenParams.DECODING_METHOD: "greedy",
@@ -56,7 +56,7 @@ def get_schema(pydantic_object: pydantic.BaseModel, empty: bool = False, json_ou
 
 def init_llm(
     parameters: dict[str, str | int | float] = BASE_LLM_PARAMETERS,
-    MODEL_ID="meta-llama/llama-3-3-70b-instruct",
+    model_id="meta-llama/llama-3-3-70b-instruct",
 ) -> ModelInference:
     """
     Initializes a language model with the given parameters.
@@ -67,10 +67,10 @@ def init_llm(
     """
     try:
         _ = load_dotenv(find_dotenv())
-        return get_model(generate_params=parameters, model_id=MODEL_ID)
+        return get_model(generate_params=parameters, model_id=model_id)
     except Exception as e:
         logger.error(f"Failed to initialize LLM: {e}")
-        raise RuntimeError(f"Failed to initialize LLM: {e}")
+        raise RuntimeError(f"Failed to initialize LLM: {e}") from e
 
 
 def get_evaluator():
@@ -124,7 +124,7 @@ class BaseEvaluator:
             return json_repair.repair_json(json_str=generated_text, return_objects=True)
 
         except Exception as e:
-            raise RuntimeError(f"Failed to evaluate inputs: {e}")
+            raise RuntimeError(f"Failed to evaluate inputs: {e}") from e
 
     def batch_evaluate(self, inputs: list):
         all_outputs = []

@@ -111,7 +111,7 @@ class QuestionService:
 
         return relevance_score >= min_relevance, cleaned_question
 
-    def _rank_questions(self, questions: list[str], context: str, user_id: UUID, provider_name: str) -> list[str]:
+    def _rank_questions(self, questions: list[str], context: str) -> list[str]:
         """
         Rank questions by relevance and quality.
 
@@ -122,8 +122,6 @@ class QuestionService:
         Returns:
             List[str]: Ranked list of questions
         """
-        # Get provider from factory
-        self._provider_factory.get_provider(provider_name)
         scored_questions: list[tuple[str, float]] = []
 
         for question in questions:
@@ -284,9 +282,7 @@ class QuestionService:
 
             # Post-process questions
             unique_questions = self._filter_duplicate_questions(all_questions)
-            ranked_questions = self._rank_questions(
-                questions=unique_questions, context=" ".join(texts), user_id=user_id, provider_name=provider_name
-            )
+            ranked_questions = self._rank_questions(questions=unique_questions, context=" ".join(texts))
             final_questions = ranked_questions[:num_questions] if num_questions else ranked_questions
 
             # Create and store question models

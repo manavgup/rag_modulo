@@ -5,7 +5,6 @@ from sqlalchemy.orm import Session
 
 from rag_solution.models.collection import Collection
 from rag_solution.models.llm_parameters import LLMParameters
-from rag_solution.models.prompt_template import PromptTemplate
 from rag_solution.models.question import SuggestedQuestion
 from rag_solution.models.user import User
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
@@ -18,9 +17,9 @@ from rag_solution.services.question_service import QuestionService
 async def test_suggest_questions_success(
     question_service: QuestionService,
     base_collection: Collection,
-    base_user: User,
-    base_prompt_template: PromptTemplate,
-    test_documents: list[str],
+    base_user,
+    test_documents,
+    base_prompt_template,
     db_session: Session,
     base_llm_parameters: LLMParameters,
     llm_provider: str,
@@ -32,8 +31,7 @@ async def test_suggest_questions_success(
         user_id=base_user.id,
         provider_name=llm_provider,
         template=base_prompt_template,
-        parameters=base_llm_parameters,
-        num_questions=3,
+        parameters=base_llm_parameters,  # num_questions=3,
     )
 
     assert len(questions) > 0
@@ -54,9 +52,9 @@ async def test_suggest_questions_success(
 async def test_suggest_questions_empty_texts(
     question_service: QuestionService,
     base_collection: Collection,
-    base_user: User,
-    base_prompt_template: PromptTemplate,
-    base_llm_parameters: LLMParameters,
+    base_user,
+    base_prompt_template,
+    base_llm_parameters,
     llm_provider: str,
 ) -> None:
     """Test question generation with empty texts."""
@@ -76,9 +74,9 @@ async def test_suggest_questions_empty_texts(
 async def test_suggest_questions_validation(
     question_service: QuestionService,
     base_collection: Collection,
-    base_user: User,
-    base_prompt_template: PromptTemplate,
-    test_documents: list[str],
+    base_user,
+    test_documents,
+    base_prompt_template,
     base_llm_parameters: LLMParameters,
     llm_provider: str,
 ) -> None:
@@ -113,9 +111,9 @@ async def test_suggest_questions_validation(
 async def test_regenerate_questions(
     question_service: QuestionService,
     base_collection: Collection,
-    base_user: User,
-    base_prompt_template: PromptTemplate,
-    test_documents: list[str],
+    base_user,
+    test_documents,
+    base_prompt_template,
     base_llm_parameters: LLMParameters,
     llm_provider: str,
 ) -> None:
@@ -155,9 +153,9 @@ async def test_regenerate_questions(
 async def test_get_collection_questions(
     question_service: QuestionService,
     base_collection: Collection,
-    base_user: User,
-    base_prompt_template: PromptTemplate,
-    test_documents: list[str],
+    base_user,
+    test_documents,
+    base_prompt_template,
     base_llm_parameters: LLMParameters,
     llm_provider: str,
 ) -> None:
@@ -223,7 +221,7 @@ def test_question_ranking(
         "and data analysis."
     )
 
-    ranked = question_service._rank_questions(questions, context, base_user.id, llm_provider)
+    ranked = question_service._rank_questions(questions, context)
 
     # Verify ranking order
     assert len(ranked) > 0
@@ -256,9 +254,9 @@ def test_duplicate_question_filtering(question_service: QuestionService) -> None
 async def test_suggest_questions_empty_llm_response(
     question_service: QuestionService,
     base_collection: Collection,
-    base_user: User,
-    base_prompt_template: PromptTemplate,
-    test_documents: list[str],
+    base_user,
+    test_documents,
+    base_prompt_template,
     base_llm_parameters: LLMParameters,
     llm_provider: str,
 ) -> None:

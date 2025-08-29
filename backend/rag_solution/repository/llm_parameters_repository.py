@@ -43,8 +43,8 @@ class LLMParametersRepository:
                 raise RepositoryError(
                     message=f"Referenced user {parameters.user_id} does not exist",
                     details={"user_id": str(parameters.user_id), "constraint": "foreign_key", "table": "users"},
-                )
-            raise RepositoryError(message=f"Database constraint violation: {e!s}", details={"error": str(e)})
+                ) from e
+            raise RepositoryError(message=f"Database constraint violation: {e!s}", details={"error": str(e)}) from e
 
     def get_parameters(self, parameter_id: UUID) -> LLMParametersOutput | None:
         """Get LLM Parameters by ID.

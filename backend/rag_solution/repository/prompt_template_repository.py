@@ -30,3 +30,17 @@ class PromptTemplateRepository:
         deleted_count = self.db.query(PromptTemplate).filter_by(user_id=user_id, id=template_id).delete()
         self.db.commit()
         return deleted_count > 0
+
+    def update(self, template_id: UUID, updates: dict) -> PromptTemplate | None:
+        """Update a prompt template."""
+        template = self.get_by_id(template_id)
+        if not template:
+            return None
+
+        for key, value in updates.items():
+            if hasattr(template, key):
+                setattr(template, key, value)
+
+        self.db.commit()
+        self.db.refresh(template)
+        return template

@@ -1,15 +1,15 @@
 """Schema definitions for pipeline configuration."""
 
+# Type alias for the database model to avoid circular imports
+from contextlib import suppress
 from datetime import datetime
 from enum import Enum
 from typing import Any
 
 from pydantic import UUID4, BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from rag_solution.models.pipeline import PipelineConfig as PipelineModel
 from vectordbs.data_types import QueryResult
-
-# Type alias for the database model to avoid circular imports
-type PipelineModel = "PipelineConfig"
 
 
 class ChunkingStrategy(str, Enum):
@@ -65,7 +65,6 @@ class PipelineConfigBase(BaseModel):
         frozen=False,
         str_strip_whitespace=True,
         use_enum_values=True,
-        json_schema_serialization_defaults=True,
         json_encoders={UUID4: str},
     )
 
@@ -99,10 +98,8 @@ class PipelineConfigInput(PipelineConfigBase):
         if isinstance(data, dict):
             for field in ["user_id", "provider_id", "collection_id"]:
                 if field in data and isinstance(data[field], str):
-                    try:
+                    with suppress(ValueError, AttributeError):
                         data[field] = UUID4(data[field])
-                    except (ValueError, AttributeError):
-                        pass  # Let Pydantic's normal validation handle invalid values
         return data
 
 
@@ -175,7 +172,7 @@ class PipelineConfigOutput(PipelineConfigBase):
                 }
             )
         except Exception as e:
-            raise ValueError(f"Failed to convert database model: {e!s}")
+            raise ValueError(f"Failed to convert database model: {e!s}") from e
 
 
 class PipelineResult(BaseModel):

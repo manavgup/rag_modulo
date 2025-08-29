@@ -139,18 +139,6 @@ def session_user_service(session_db: Session):
 
 
 @pytest.fixture(scope="session")
-def session_llm_model_service(session_db: Session):
-    """Initialize session-scoped LLMModelService."""
-    return LLMModelService(session_db)
-
-
-@pytest.fixture(scope="session")
-def session_llm_provider_service(session_db: Session):
-    """Initialize session-scoped LLMProviderService."""
-    return LLMProviderService(session_db)
-
-
-@pytest.fixture(scope="session")
 def session_llm_parameters_service(session_db: Session):
     """Initialize session-scoped LLMParametersService."""
     return LLMParametersService(session_db)

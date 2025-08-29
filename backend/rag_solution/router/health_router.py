@@ -1,4 +1,5 @@
 import os
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from ibm_watsonx_ai import APIClient, Credentials
@@ -91,7 +92,7 @@ def check_system_health(components: dict[str, dict[str, str]]) -> bool:
         503: {"description": "One or more components are unhealthy"},
     },
 )
-def health_check(db: Session = Depends(get_db)):
+def health_check(db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     Perform a health check on all system components.
 

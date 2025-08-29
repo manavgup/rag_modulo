@@ -1,11 +1,17 @@
+from __future__ import annotations
+
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from rag_solution.file_management.database import Base
+
+if TYPE_CHECKING:
+    from rag_solution.models.llm_provider import LLMProvider
 
 
 class PipelineConfig(Base):
@@ -41,11 +47,11 @@ class PipelineConfig(Base):
     provider_id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("llm_providers.id", ondelete="CASCADE"), nullable=False
     )
-    provider: Mapped["LLMProvider"] = relationship("LLMProvider", lazy="selectin")
+    provider: Mapped[LLMProvider] = relationship("LLMProvider", lazy="selectin")
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<PipelineConfig(id={self.id}, name='{self.name}', collection_id={self.collection_id})>"

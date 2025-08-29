@@ -121,7 +121,7 @@ class PipelineService:
             logger.info(f"Pipeline initialized for collection: {collection_name}")
         except Exception as e:
             logger.error(f"Pipeline initialization failed: {e!s}")
-            raise ConfigurationError(f"Pipeline initialization failed: {e!s}")
+            raise ConfigurationError(f"Pipeline initialization failed: {e!s}") from e
 
     async def _load_documents(self) -> None:
         """Load and process documents from configured data sources."""
@@ -130,7 +130,7 @@ class PipelineService:
             logger.info(f"Loaded documents into collection: {self.document_store.collection_name}")
         except Exception as e:
             logger.error(f"Error loading documents: {e!s}")
-            raise ConfigurationError(f"Document loading failed: {e!s}")
+            raise ConfigurationError(f"Document loading failed: {e!s}") from e
 
     def get_user_pipelines(self, user_id: UUID) -> list[PipelineConfigOutput]:
         """Get all pipelines for a user."""
@@ -160,14 +160,16 @@ class PipelineService:
                     return [default_pipeline]
                 except Exception as init_error:
                     logger.error(f"Failed to create default pipeline: {init_error!s}")
-                    raise HTTPException(status_code=500, detail=f"Failed to create default pipeline: {init_error!s}")
+                    raise HTTPException(
+                        status_code=500, detail=f"Failed to create default pipeline: {init_error!s}"
+                    ) from init_error
 
             return pipelines  # Already PipelineConfigOutput objects from repository
         except HTTPException:
             raise  # Re-raise HTTP exceptions
         except Exception as e:
             logger.error(f"Failed to get user pipelines: {e!s}")
-            raise HTTPException(status_code=500, detail=f"Failed to retrieve pipeline configurations: {e!s}")
+            raise HTTPException(status_code=500, detail=f"Failed to retrieve pipeline configurations: {e!s}") from e
 
     def get_default_pipeline(self, user_id: UUID, collection_id: UUID | None = None) -> PipelineConfigOutput | None:
         """Get default pipeline for a user or collection.
@@ -219,7 +221,7 @@ class PipelineService:
             return self.create_pipeline(pipeline_input)
         except Exception as e:
             logger.error(f"Failed to initialize default pipeline: {e!s}")
-            raise HTTPException(status_code=500, detail=f"Failed to initialize default pipeline: {e!s}")
+            raise HTTPException(status_code=500, detail=f"Failed to initialize default pipeline: {e!s}") from e
 
     def get_pipeline_config(self, pipeline_id: UUID) -> PipelineConfigOutput | None:
         """Retrieve pipeline configuration by ID."""
@@ -237,6 +239,22 @@ class PipelineService:
             raise ValidationError("Invalid provider ID")
 
         return self.pipeline_repository.create(config_input)
+
+    def update_pipeline(self, pipeline_id: UUID, config_input: PipelineConfigInput) -> PipelineConfigOutput:
+        """Update an existing pipeline configuration."""
+        # Validate provider exists
+        if not self.llm_provider_service.get_provider_by_id(config_input.provider_id):
+            raise ValidationError("Invalid provider ID")
+
+        pipeline = self.pipeline_repository.get_by_id(pipeline_id)
+        if not pipeline:
+            raise NotFoundError(
+                resource_type="PipelineConfig", resource_id=str(pipeline_id), message="Pipeline configuration not found"
+            )
+
+        # Update the pipeline
+        updated_pipeline = self.pipeline_repository.update(pipeline_id, config_input)
+        return PipelineConfigOutput.model_validate(updated_pipeline)
 
     def delete_pipeline(self, pipeline_id: UUID) -> bool:
         """Delete a pipeline configuration by ID."""
@@ -257,7 +275,7 @@ class PipelineService:
             )
 
         errors = []
-        warnings = []
+        warnings: list[str] = []
 
         # Validate provider
         if not self.llm_provider_service.get_provider_by_id(pipeline.provider_id):
@@ -441,7 +459,7 @@ class PipelineService:
             return results
         except Exception as e:
             logger.error(f"Error retrieving documents: {e!s}")
-            raise ConfigurationError(f"Failed to retrieve documents: {e!s}")
+            raise ConfigurationError(f"Failed to retrieve documents: {e!s}") from e
 
     def _generate_answer(
         self,
@@ -488,7 +506,7 @@ class PipelineService:
                 provider=provider._provider_name,
                 error_type="generation_failed",
                 message=f"LLM provider error: {e!s}",
-            )
+            ) from e
 
     async def _evaluate_response(
         self, query: str, answer: str, context: str, template: PromptTemplate
@@ -586,16 +604,16 @@ class PipelineService:
 
         except ValidationError as e:
             logger.error(f"Validation error: {e!s}")
-            raise HTTPException(status_code=400, detail=str(e))
+            raise HTTPException(status_code=400, detail=str(e)) from e
         except NotFoundError as e:
             logger.error(f"Resource not found: {e!s}")
-            raise HTTPException(status_code=404, detail=str(e))
+            raise HTTPException(status_code=404, detail=str(e)) from e
         except ConfigurationError as e:
             logger.error(f"Configuration error: {e!s}")
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=500, detail=str(e)) from e
         except LLMProviderError as e:
             logger.error(f"LLM provider error: {e!s}")
-            raise HTTPException(status_code=500, detail=str(e))
+            raise HTTPException(status_code=500, detail=str(e)) from e
         except Exception as e:
             logger.error(f"Unexpected error: {e!s}")
-            raise HTTPException(status_code=500, detail=f"Pipeline execution failed: {e!s}")
+            raise HTTPException(status_code=500, detail=f"Pipeline execution failed: {e!s}") from e

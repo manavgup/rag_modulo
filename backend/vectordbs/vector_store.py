@@ -9,13 +9,17 @@ class VectorStore(ABC):
     """Abstract base class for vector stores."""
 
     @abstractmethod
-    def create_collection(self, collection_name: str, metadata: Optional[dict] = None):
+    def create_collection(self, collection_name: str, metadata: Optional[dict] = None) -> None:
         """Creates a collection in the vector store."""
         pass
 
     @abstractmethod
-    def add_documents(self, collection_name: str, documents: List[Document]):
-        """Adds documents to the vector store."""
+    def add_documents(self, collection_name: str, documents: List[Document]) -> List[str]:
+        """Adds documents to the vector store.
+        
+        Returns:
+            List[str]: List of document IDs that were added
+        """
         pass
 
     @abstractmethod
@@ -48,11 +52,11 @@ class VectorStore(ABC):
         pass
 
     @abstractmethod
-    def delete_collection(self, collection_name: str):
+    def delete_collection(self, collection_name: str) -> None:
         """Deletes a collection from the vector store."""
         pass
 
     @abstractmethod
-    def delete_documents(self, collection_name: str, document_ids: List[str]):
+    def delete_documents(self, collection_name: str, document_ids: List[str]) -> None:
         """Deletes documents by their IDs from the vector store."""
         pass

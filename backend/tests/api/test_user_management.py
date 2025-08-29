@@ -78,7 +78,7 @@ class TestUserManagement(BaseTestRouter):
 
     # Collection Tests
     @pytest.mark.asyncio
-    async def test_get_user_collections(self, base_user, base_collection):
+    async def test_get_user_collections(self, base_user, base_collection):  # noqa: ARG002
         """Test GET /api/users/{user_id}/collections"""
         response = self.get(f"/api/users/{base_user.id}/collections")
         self.assert_success(response)
@@ -112,7 +112,7 @@ class TestUserManagement(BaseTestRouter):
             self.assert_unauthorized(response)
 
     @pytest.mark.asyncio
-    async def test_access_other_user(self, base_user):
+    async def test_access_other_user(self, base_user):  # noqa: ARG002
         """Test accessing other user's data."""
         other_user_id = uuid4()
         response = self.get(f"/api/users/{other_user_id}")

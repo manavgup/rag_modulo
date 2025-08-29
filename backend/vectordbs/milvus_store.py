@@ -54,7 +54,7 @@ SCHEMA = [
 class MilvusStore(VectorStore):
     """Milvus vector store implementation."""
 
-    def __init__(self, host: str = MILVUS_HOST, port: str = MILVUS_PORT) -> None:
+    def __init__(self, host: str = MILVUS_HOST, port: int = MILVUS_PORT) -> None:
         """Initialize MilvusStore with connection parameters.
 
         Args:
@@ -63,7 +63,7 @@ class MilvusStore(VectorStore):
         """
         self._connect(host, port)
 
-    def _connect(self, host: str, port: str) -> None:
+    def _connect(self, host: str, port: int) -> None:
         """Connect to the Milvus server.
 
         Args:
@@ -313,7 +313,7 @@ class MilvusStore(VectorStore):
         else:
             logging.debug(f"Collection '{name}' does not exist.")
 
-    def delete_documents(self, document_ids: List[str], collection_name: str) -> int:
+    def delete_documents(self, collection_name: str, document_ids: List[str]) -> None:
         """Delete documents from the collection.
 
         Args:
@@ -331,7 +331,7 @@ class MilvusStore(VectorStore):
             expr = f"document_id in {tuple(document_ids)}"
             collection.delete(expr)
             logging.info(f"Deleted documents with IDs {document_ids} from collection '{collection_name}'")
-            return len(document_ids)
+            return
         except MilvusException as e:
             logging.error(f"Failed to delete documents from collection '{collection_name}': {e}")
             raise CollectionError(f"Failed to delete documents from collection '{collection_name}': {e}")
@@ -362,7 +362,7 @@ class MilvusStore(VectorStore):
         try:
             search_params = {"metric_type": "IP", "params": {"nprobe": 10}}
             result = collection.search(
-                data=[query.embedding],
+                data=[query.embeddings],
                 anns_field=EMBEDDING_FIELD,
                 param=search_params,
                 output_fields=[field.name for field in SCHEMA if field.name != "id"],

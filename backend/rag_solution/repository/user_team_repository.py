@@ -3,6 +3,7 @@ from uuid import UUID
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from core.custom_exceptions import RepositoryError
 from core.logging_utils import get_logger
 from rag_solution.models.user_team import UserTeam
 from rag_solution.schemas.user_team_schema import UserTeamOutput
@@ -33,11 +34,11 @@ class UserTeamRepository:
         except IntegrityError as e:
             self.db.rollback()
             logger.error(f"IntegrityError: {e}")
-            raise ValueError("User or team not found or duplicate entry")
+            raise ValueError("User or team not found or duplicate entry") from e
         except Exception as e:
             self.db.rollback()
             logger.error(f"Unexpected error creating team association: {e!s}")
-            raise RuntimeError("Failed to add user to team due to an internal error.")
+            raise RuntimeError("Failed to add user to team due to an internal error.") from e
 
     def remove_user_from_team(self, user_id: UUID, team_id: UUID) -> bool:
         try:
@@ -55,7 +56,7 @@ class UserTeamRepository:
             return [UserTeamOutput.model_validate(ut, from_attributes=True) for ut in user_teams]
         except Exception as e:
             logger.error(f"Error listing teams: {e!s}")
-            raise
+            raise RepositoryError(f"Failed to list teams: {e!s}") from e
 
     def get_team_users(self, team_id: UUID) -> list[UserTeamOutput]:
         try:
@@ -63,7 +64,7 @@ class UserTeamRepository:
             return [UserTeamOutput.model_validate(ut) for ut in user_teams]
         except Exception as e:
             logger.error(f"Error listing users: {e!s}")
-            raise
+            raise RepositoryError(f"Failed to list users: {e!s}") from e
 
     def get_user_team(self, user_id: UUID, team_id: UUID) -> UserTeamOutput | None:
         try:
@@ -71,4 +72,4 @@ class UserTeamRepository:
             return UserTeamOutput.model_validate(user_team) if user_team else None
         except Exception as e:
             logger.error(f"Error getting team association: {e!s}")
-            raise
+            raise RepositoryError(f"Failed to get team association: {e!s}") from e

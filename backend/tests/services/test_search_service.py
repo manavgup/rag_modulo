@@ -16,21 +16,16 @@ from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata,
 # 🧪 Basic Search Tests
 # -------------------------------------------
 @pytest.mark.asyncio
-async def test_search_basic(
-    search_service, base_collection, base_file, base_user: UserOutput, base_pipeline_config, indexed_documents
-):
+async def test_search_basic(search_service, base_collection, base_file, base_user, base_pipeline_config):
     """Test basic search functionality with pipeline service."""
     search_input = SearchInput(
         question="What is the capital of France?",
         collection_id=base_collection.id,
         pipeline_id=base_pipeline_config["pipeline"].id,
+        user_id=base_user.id,
     )
 
-    context = {
-        "user_preferences": {"language": "en"},
-        "session_data": {"previous_queries": ["What is France known for?"]},
-    }
-    result = await search_service.search(search_input, base_user.id, context=context)
+    result = await search_service.search(search_input)
 
     assert isinstance(result, SearchOutput)
     assert len(result.documents) > 0
@@ -40,22 +35,16 @@ async def test_search_basic(
 
 
 @pytest.mark.asyncio
-async def test_search_no_results(
-    search_service, base_collection, base_user: UserOutput, base_pipeline_config, base_file_with_content
-):
+async def test_search_no_results(search_service, base_collection, base_user, base_pipeline_config):
     """Test search with a query that has no matching documents."""
     search_input = SearchInput(
         question="What is the capital of Mars?",  # Query that won't match any documents
         collection_id=base_collection.id,
         pipeline_id=base_pipeline_config["pipeline"].id,
+        user_id=base_user.id,
     )
 
-    context = {
-        "user_preferences": {"language": "en"},
-        "session_data": {"previous_queries": ["What is France known for?"]},
-    }
-
-    result = await search_service.search(search_input, base_user.id, context=context)
+    result = await search_service.search(search_input)
 
     assert isinstance(result, SearchOutput)
     assert len(result.documents) == 0  # No matching documents found
@@ -73,10 +62,11 @@ async def test_search_invalid_collection(search_service, base_user: UserOutput, 
         question="Test question",
         collection_id=str(UUID(int=0)),  # Invalid UUID
         pipeline_id=base_pipeline_config["pipeline"].id,
+        user_id=base_user.id,
     )
 
     with pytest.raises(HTTPException) as exc_info:
-        await search_service.search(search_input, base_user.id)
+        await search_service.search(search_input)
     assert exc_info.value.status_code == 404
     assert "Collection with ID 00000000-0000-0000-0000-000000000000 not found" in str(exc_info.value.detail)
 
@@ -103,11 +93,14 @@ async def test_search_unauthorized_collection(search_service, user_service, coll
     )
 
     search_input = SearchInput(
-        question="Test question", collection_id=private_collection.id, pipeline_id=base_pipeline_config["pipeline"].id
+        question="Test question",
+        collection_id=private_collection.id,
+        pipeline_id=base_pipeline_config["pipeline"].id,
+        user_id=unauthorized_user.id,
     )
 
     with pytest.raises(HTTPException) as exc_info:
-        await search_service.search(search_input, unauthorized_user.id)
+        await search_service.search(search_input)
     assert exc_info.value.status_code == 404
     assert "Collection not found" in str(exc_info.value.detail)
 
@@ -157,9 +150,10 @@ async def test_search_multiple_documents(
         question="What are the capitals of European countries?",
         collection_id=base_collection.id,
         pipeline_id=base_pipeline_config["pipeline"].id,
+        user_id=base_user.id,
     )
 
-    result = await search_service.search(search_input, base_user.id)
+    result = await search_service.search(search_input)
 
     assert isinstance(result, SearchOutput)
     assert len(result.documents) == 2
@@ -170,46 +164,51 @@ async def test_search_multiple_documents(
 # 🧪 Error Handling Tests
 # -------------------------------------------
 @pytest.mark.asyncio
-async def test_search_invalid_pipeline(search_service, base_collection, base_user: UserOutput):
+async def test_search_invalid_pipeline(search_service, base_collection, base_user):
     """Test search with an invalid pipeline ID."""
     search_input = SearchInput(
         question="Test question",
         collection_id=base_collection.id,
         pipeline_id=str(UUID(int=0)),  # Invalid UUID
+        user_id=base_user.id,
     )
 
     with pytest.raises(HTTPException) as exc_info:
-        await search_service.search(search_input, base_user.id)
+        await search_service.search(search_input)
     assert exc_info.value.status_code == 404
     assert "Pipeline configuration not found" in str(exc_info.value.detail)
 
 
 @pytest.mark.asyncio
-async def test_search_empty_question(search_service, base_collection, base_user: UserOutput, base_pipeline_config):
+async def test_search_empty_question(search_service, base_collection, base_user, base_pipeline_config):
     """Test search with empty question string."""
     search_input = SearchInput(
-        question="", collection_id=base_collection.id, pipeline_id=base_pipeline_config["pipeline"].id
+        question="",
+        collection_id=base_collection.id,
+        pipeline_id=base_pipeline_config["pipeline"].id,
+        user_id=base_user.id,
     )
 
     with pytest.raises(HTTPException) as exc_info:
-        await search_service.search(search_input, base_user.id)
+        await search_service.search(search_input)
     assert exc_info.value.status_code == 400
     assert "Query cannot be empty" in str(exc_info.value.detail)
 
 
 @pytest.mark.asyncio
-async def test_search_vector_store_error(
-    search_service, base_collection, base_user: UserOutput, base_pipeline_config, mocker
-):
+async def test_search_vector_store_error(search_service, base_collection, base_user, base_pipeline_config, mocker):
     """Test search when vector store connection fails."""
     mocker.patch("vectordbs.milvus_store.MilvusStore._connect", side_effect=Exception("Connection failed"))
 
     search_input = SearchInput(
-        question="Test question", collection_id=base_collection.id, pipeline_id=base_pipeline_config["pipeline"].id
+        question="Test question",
+        collection_id=base_collection.id,
+        pipeline_id=base_pipeline_config["pipeline"].id,
+        user_id=base_user.id,
     )
 
     with pytest.raises(HTTPException) as exc_info:
-        await search_service.search(search_input, base_user.id)
+        await search_service.search(search_input)
     assert exc_info.value.status_code == 500
     assert "Connection failed" in str(exc_info.value.detail)
 
