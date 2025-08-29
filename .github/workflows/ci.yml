@@ -22,12 +22,25 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.12'
+          
+      - name: Cache Poetry dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pypoetry
+            backend/.venv
+          key: ${{ runner.os }}-poetry-${{ hashFiles('backend/poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-poetry-
           
       - name: Install dependencies
         run: |
           cd backend
           pip install poetry
+          poetry config virtualenvs.in-project true
+          # Regenerate lock file if needed
+          poetry lock --no-update
           poetry install --only main,dev
           
       - name: Run linting
