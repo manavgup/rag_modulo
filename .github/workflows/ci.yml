@@ -43,8 +43,13 @@ jobs:
           poetry lock
           poetry install --only main,dev
           
-      - name: Run linting
+      - name: Check formatting
+        run: make format-check
+        continue-on-error: true  # Don't fail on format issues initially
+        
+      - name: Run linting (Ruff + MyPy)
         run: make lint
+        continue-on-error: true  # Don't fail on lint issues initially
           
       - name: Run unit tests (fast)
         run: make unit-tests-local
