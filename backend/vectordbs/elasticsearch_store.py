@@ -86,17 +86,19 @@ class ElasticSearchStore(VectorStore):
         """
         try:
             for document in documents:
-                embeddings = get_embeddings(document.content, EMBEDDING_MODEL)
-                body = {
-                    "text": document.content,
-                    "embedding": embeddings,
-                    "source": document.metadata.source,
-                    "url": document.metadata.url,
-                    "created_at": document.metadata.created_at,
-                    "author": document.metadata.author,
-                    "document_id": document.document_id,
-                    "chunk_id": document.chunk_id,
-                }
+                # Get embeddings for the first chunk (assuming single chunk per document for now)
+                if document.chunks:
+                    chunk = document.chunks[0]
+                    embeddings = get_embeddings(chunk.text, EMBEDDING_MODEL)
+                    body = {
+                        "text": chunk.text,
+                        "embedding": embeddings,
+                        "source": chunk.metadata.source if chunk.metadata else "unknown",
+                        "document_id": document.document_id,
+                        "chunk_id": chunk.chunk_id,
+                    }
+                else:
+                    continue
                 self.client.index(index=collection_name, body=body)
             logging.info(f"Documents added to collection '{collection_name}' successfully")
         except Exception as e:
@@ -164,7 +166,7 @@ class ElasticSearchStore(VectorStore):
                         "must": {
                             "knn": {
                                 "field": "embedding",
-                                "query_vector": query.vectors,
+                                "query_vector": query.embeddings,
                                 "k": number_of_results,
                                 "num_candidates": 100,
                             }
@@ -195,7 +197,7 @@ class ElasticSearchStore(VectorStore):
             logging.error(f"Failed to delete collection '{collection_name}': {e}", exc_info=True)
             raise CollectionError(f"Failed to delete collection '{collection_name}': {e}")
 
-    def delete_documents(self, document_ids: List[str], collection_name: str) -> None:
+    def delete_documents(self, collection_name: str, document_ids: List[str]) -> None:
         """
         Delete documents from the specified Elasticsearch index.
 
@@ -228,3 +230,34 @@ class ElasticSearchStore(VectorStore):
             range_filter = {"range": {filter.field_name: {"lte": filter.value}}}
             filters.append(range_filter)
         return {"bool": {"filter": filters}}
+
+    def _process_search_results(self, response: Dict[str, Any]) -> List[QueryResult]:
+        """Process Elasticsearch search results into QueryResult objects."""
+        results = []
+        hits = response.get("hits", {}).get("hits", [])
+        
+        for hit in hits:
+            source = hit.get("_source", {})
+            score = hit.get("_score", 0.0)
+            
+            # Create DocumentChunk from source
+            chunk = DocumentChunk(
+                chunk_id=source.get("chunk_id", ""),
+                text=source.get("text", ""),
+                embeddings=source.get("embedding", []),
+                metadata=DocumentChunkMetadata(
+                    source=Source(source.get("source", "unknown")),
+                    document_id=source.get("document_id"),
+                ),
+                document_id=source.get("document_id"),
+            )
+            
+            # Create QueryResult
+            result = QueryResult(
+                chunk=chunk,
+                score=score,
+                embeddings=source.get("embedding", [])
+            )
+            results.append(result)
+        
+        return results

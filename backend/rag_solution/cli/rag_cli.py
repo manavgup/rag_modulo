@@ -6,7 +6,12 @@ this standalone utility. This module currently uses file-based configuration
 application.
 """
 
+import argparse
+import json
 import warnings
+from typing import Any
+
+from rag_solution.pipeline.pipeline import Pipeline
 
 warnings.warn(
     "The rag_cli.py module is deprecated and will be removed in a future version. "
@@ -14,12 +19,6 @@ warnings.warn(
     DeprecationWarning,
     stacklevel=2,
 )
-
-import argparse
-import json
-from typing import Any
-
-from rag_solution.pipeline.pipeline import Pipeline
 
 
 def load_config(config_path: str) -> dict[str, Any]:

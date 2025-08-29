@@ -126,7 +126,7 @@ def test_create_llm_parameters(llm_parameters_service, test_llm_parameters: LLMP
 # 🧪 Prompt Template Tests
 # -------------------------------------------
 @pytest.mark.atomic
-def test_create_prompt_template(prompt_template_service, base_user, test_prompt_template: PromptTemplateInput):
+def test_create_prompt_template(prompt_template_service, base_user, test_prompt_template):
     """Test creating prompt template."""
     template = prompt_template_service.create_or_update_template(base_user.id, test_prompt_template)
 
@@ -144,10 +144,10 @@ def test_configuration_flow(
     llm_parameters_service,
     prompt_template_service,
     base_user,
-    test_provider_input: LLMProviderInput,
-    test_model_input: LLMModelInput,
-    test_llm_parameters: LLMParametersInput,
-    test_prompt_template: PromptTemplateInput,
+    test_provider_input,
+    test_model_input,
+    test_llm_parameters,
+    test_prompt_template,
 ):
     """Test complete configuration flow."""
     # Create provider
@@ -226,7 +226,7 @@ def test_model_validation_errors(
 
 
 @pytest.mark.atomic
-def test_not_found_errors(llm_parameters_service, base_user, test_llm_parameters: LLMParametersInput):
+def test_not_found_errors(llm_parameters_service, base_user, test_llm_parameters):
     """Test not found error handling."""
     # Test non-existent user
     with pytest.raises(RepositoryError) as exc_info:

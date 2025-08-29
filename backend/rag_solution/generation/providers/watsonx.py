@@ -56,7 +56,7 @@ class WatsonXLLM(LLMBase):
                 provider=self._provider_name,
                 error_type="initialization_failed",
                 message=f"Failed to initialize client: {e!s}",
-            )
+            ) from e
 
     def _initialize_embeddings_client(self) -> None:
         """Initialize the embeddings client if an embedding model is available."""
@@ -203,7 +203,7 @@ class WatsonXLLM(LLMBase):
                 provider=self._provider_name,
                 error_type="invalid_template" if isinstance(e, ValidationError) else "template_not_found",
                 message=str(e),
-            )
+            ) from e
         except Exception as e:
             logger.error(f"Error in generate_text: {e!s}")
             logger.exception(e)
@@ -211,7 +211,7 @@ class WatsonXLLM(LLMBase):
                 provider=self._provider_name,
                 error_type="generation_failed",
                 message=f"Failed to generate text: {e!s}",
-            )
+            ) from e
 
     def generate_text_stream(
         self,
@@ -236,13 +236,13 @@ class WatsonXLLM(LLMBase):
                 provider=self._provider_name,
                 error_type="invalid_template" if isinstance(e, ValidationError) else "template_not_found",
                 message=str(e),
-            )
+            ) from e
         except Exception as e:
             raise LLMProviderError(
                 provider=self._provider_name,
                 error_type="streaming_failed",
                 message=f"Failed to generate streaming text: {e!s}",
-            )
+            ) from e
 
     def get_embeddings(self, texts: str | list[str]) -> EmbeddingsList:
         """Generate embeddings for texts."""
@@ -261,7 +261,7 @@ class WatsonXLLM(LLMBase):
                 provider=self._provider_name,
                 error_type="embeddings_failed",
                 message=f"Failed to generate embeddings: {e!s}",
-            )
+            ) from e
 
     def close(self) -> None:
         """Clean up provider resources."""

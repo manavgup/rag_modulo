@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 import jwt
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from main import app
@@ -22,9 +23,11 @@ def user_data():
 
 @pytest.fixture
 def mock_jwt_settings():
-    with patch("rag_solution.router.auth_router.JWT_SECRET_KEY", TEST_JWT_SECRET_KEY):
-        with patch("rag_solution.router.auth_router.JWT_ALGORITHM", TEST_JWT_ALGORITHM):
-            yield
+    with (
+        patch("rag_solution.router.auth_router.JWT_SECRET_KEY", TEST_JWT_SECRET_KEY),
+        patch("rag_solution.router.auth_router.JWT_ALGORITHM", TEST_JWT_ALGORITHM),
+    ):
+        yield
 
 
 @pytest.fixture

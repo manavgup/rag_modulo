@@ -90,7 +90,7 @@ class CollectionService:
             except CollectionError as delete_exception:
                 logger.error(f"Failed to delete collection from vector store: {delete_exception!s}")
             logger.error(f"Error creating collection: {e!s}")
-            raise HTTPException(status_code=400, detail=f"Failed to create collection: {e!s}")
+            raise HTTPException(status_code=400, detail=f"Failed to create collection: {e!s}") from e
 
     def get_collection(self, collection_id: UUID) -> CollectionOutput:
         """
@@ -100,10 +100,10 @@ class CollectionService:
             return self.collection_repository.get(collection_id)
         except NotFoundException as e:
             logger.error(f"Collection not found: {e}, status_code={e.status_code}, message={e.message}")
-            raise HTTPException(status_code=e.status_code, detail=e.message)
+            raise HTTPException(status_code=e.status_code, detail=e.message) from e
         except Exception as e:
             logger.error(f"Unexpected error in service layer: {e}", exc_info=True)
-            raise HTTPException(status_code=500, detail="Internal server error")
+            raise HTTPException(status_code=500, detail="Internal server error") from e
 
     def update_collection(self, collection_id: UUID, collection_update: CollectionInput) -> CollectionOutput | None:
         """
@@ -149,7 +149,7 @@ class CollectionService:
             return self.collection_repository.get(collection_id)
         except Exception as e:
             logger.error(f"Error updating collection: {e!s}")
-            raise HTTPException(status_code=400, detail=f"Failed to update collection: {e!s}")
+            raise HTTPException(status_code=400, detail=f"Failed to update collection: {e!s}") from e
 
     def delete_collection(self, collection_id: UUID) -> bool:
         """
@@ -176,7 +176,7 @@ class CollectionService:
             return True
         except Exception as e:
             logger.error(f"Error deleting collection: {e!s}")
-            raise HTTPException(status_code=400, detail=f"Failed to delete collection: {e!s}")
+            raise HTTPException(status_code=400, detail=f"Failed to delete collection: {e!s}") from e
 
     def get_user_collections(self, user_id: UUID) -> list[CollectionOutput]:
         """
@@ -234,7 +234,7 @@ class CollectionService:
                 except CollectionError as exc:
                     logger.error(f"Error deleting collection from vector store: {exc!s}")
             logger.error(f"Error in create_collection_with_documents: {e!s}")
-            raise HTTPException(status_code=400, detail=f"Failed to create collection with documents: {e!s}")
+            raise HTTPException(status_code=400, detail=f"Failed to create collection with documents: {e!s}") from e
 
     async def process_documents(
         self, file_paths: list[str], collection_id: UUID, vector_db_name: str, document_ids: list[str], user_id: UUID
@@ -274,7 +274,7 @@ class CollectionService:
             self.update_collection_status(collection_id, CollectionStatus.ERROR)
             raise CollectionProcessingError(
                 collection_id=str(collection_id), stage="ingestion", error_type="ingestion_failed", message=str(e)
-            )
+            ) from e
 
         # Extract text chunks from processed documents
         logger.info("Extracting document chunks for question generation")
@@ -387,12 +387,12 @@ class CollectionService:
                             logger.error(f"Failed to store document {document_id} in vector store: {e!s}")
                             raise DocumentIngestionError(
                                 doc_id=document_id, stage="vector_store", error_type="storage_failed", message=str(e)
-                            )
+                            ) from e
                 except (UnsupportedFileTypeError, DocumentProcessingError) as e:
                     logger.error(f"Error processing file {file_path}: {e!s}")
                     raise DocumentIngestionError(
                         doc_id=document_id, stage="processing", error_type="processing_failed", message=str(e)
-                    )
+                    ) from e
         logger.info("Document processing complete")
         return processed_documents
 
@@ -417,7 +417,7 @@ class CollectionService:
                 storage_path=collection_name,
                 error_type="vector_store_error",
                 message=str(e),
-            )
+            ) from e
         except Exception as e:
             logger.error(f"Unexpected error storing documents: {e!s}")
             raise DocumentStorageError(
@@ -425,7 +425,7 @@ class CollectionService:
                 storage_path=collection_name,
                 error_type="unexpected_error",
                 message=str(e),
-            )
+            ) from e
 
     def update_collection_status(self, collection_id: UUID, status: CollectionStatus):
         """Update the status of a collection."""

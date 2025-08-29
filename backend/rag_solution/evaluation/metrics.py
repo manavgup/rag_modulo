@@ -66,11 +66,12 @@ class HitRate(BaseRetrievalMetric):
 
     def compute(
         self,
+        query: str | None = None,  # Part of interface, not used in this implementation  # noqa: ARG002
         expected_ids: list[str] | None = None,
         retrieved_ids: list[str] | None = None,
-        expected_texts: list[str] | None = None,
-        retrieved_texts: list[str] | None = None,
-        **kwargs: Any,
+        expected_texts: list[str] | None = None,  # Part of interface, not used in this implementation  # noqa: ARG002
+        retrieved_texts: list[str] | None = None,  # Part of interface, not used in this implementation  # noqa: ARG002
+        **kwargs: Any,  # noqa: ARG002
     ) -> RetrievalMetricResult:
         """Compute metric."""
         if retrieved_ids is None or expected_ids is None:
@@ -88,11 +89,12 @@ class MRR(BaseRetrievalMetric):
 
     def compute(
         self,
+        query: str | None = None,  # Part of interface, not used in this implementation  # noqa: ARG002
         expected_ids: list[str] | None = None,
         retrieved_ids: list[str] | None = None,
-        expected_texts: list[str] | None = None,
-        retrieved_texts: list[str] | None = None,
-        **kwargs: Any,
+        expected_texts: list[str] | None = None,  # Part of interface, not used in this implementation  # noqa: ARG002
+        retrieved_texts: list[str] | None = None,  # Part of interface, not used in this implementation  # noqa: ARG002
+        **kwargs: Any,  # noqa: ARG002
     ) -> RetrievalMetricResult:
         """Compute metric."""
         if retrieved_ids is None or expected_ids is None:
@@ -114,14 +116,14 @@ METRIC_REGISTRY: dict[str, type[BaseRetrievalMetric]] = {
 }
 
 
-def extract_queries(dataset):
+def extract_queries(dataset: Any) -> list[Any]:
     values = []
     for value in dataset.queries.values():
         values.append(value)
     return values
 
 
-def extract_node_ids(documents):
+def extract_node_ids(documents: list[Any]) -> list[str]:
     # make sure order of node_ids matches the relevance rankings from the retriever
     node_ids = []
     # Assuming the structure has only one key in the outer dictionary

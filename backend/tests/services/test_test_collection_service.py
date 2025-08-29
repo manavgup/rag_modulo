@@ -88,7 +88,7 @@ def test_get_collection(
 
 def test_update_collection(
     collection_service: CollectionService,
-    collection_input: CollectionInput,
+    collection_input,
     user_service: UserService,
     user_input: UserInput,
 ):
@@ -105,7 +105,7 @@ def test_update_collection(
 
 def test_delete_collection(
     collection_service: CollectionService,
-    collection_input: CollectionInput,
+    collection_input,
     user_service: UserService,
     user_input: UserInput,
 ):
@@ -129,7 +129,7 @@ def test_delete_collection(
 
 def test_create_collection_with_documents(
     collection_service: CollectionService,
-    collection_input: CollectionInput,
+    collection_input,
     user_service: UserService,
     user_input: UserInput,
     file_management_service: FileManagementService,

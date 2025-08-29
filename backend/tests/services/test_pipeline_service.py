@@ -6,7 +6,6 @@ import pytest
 from fastapi import HTTPException
 
 from core.custom_exceptions import NotFoundError, ValidationError
-from rag_solution.schemas.llm_parameters_schema import LLMParametersOutput
 from rag_solution.schemas.pipeline_schema import PipelineConfigInput, PipelineResult
 from rag_solution.schemas.search_schema import SearchInput
 from rag_solution.schemas.user_schema import UserOutput
@@ -82,7 +81,7 @@ async def test_pipeline_with_content(
     indexed_large_document,
     ensure_watsonx_provider,
     default_pipeline_config,
-    base_llm_parameters: LLMParametersOutput,
+    base_llm_parameters,  # : LLMParametersOutput,
 ):
     """Test pipeline execution with comprehensive content."""
     # Initialize system

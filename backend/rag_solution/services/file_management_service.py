@@ -28,10 +28,10 @@ class FileManagementService:
             return file
         except ValueError as e:
             logger.error(f"Value error creating file: {e!s}")
-            raise HTTPException(status_code=400, detail=str(e))
+            raise HTTPException(status_code=400, detail=str(e)) from e
         except Exception as e:
             logger.error(f"Unexpected error creating file: {e!s}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            raise HTTPException(status_code=500, detail="Internal server error") from e
 
     def get_file_by_id(self, file_id: UUID) -> FileOutput:
         try:
@@ -43,7 +43,7 @@ class FileManagementService:
             raise  # Propagate the NotFoundError
         except Exception as e:
             logger.error(f"Unexpected error getting file {file_id}: {e!s}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            raise HTTPException(status_code=500, detail="Internal server error") from e
 
     def save_file(self, file: UploadFile, collection_id: UUID, user_id: UUID) -> str:
         file_path = self.upload_file(file, collection_id)
@@ -69,7 +69,7 @@ class FileManagementService:
             raise  # Propagate the NotFoundError
         except Exception as e:
             logger.error(f"Unexpected error getting file by name {filename} in collection {collection_id}: {e!s}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            raise HTTPException(status_code=500, detail="Internal server error") from e
 
     def update_file(self, file_id: UUID, file_update: FileInput) -> FileOutput:
         try:
@@ -84,7 +84,7 @@ class FileManagementService:
             raise
         except Exception as e:
             logger.error(f"Unexpected error updating file {file_id}: {e!s}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            raise HTTPException(status_code=500, detail="Internal server error") from e
 
     def delete_file(self, file_id: UUID) -> bool:
         try:
@@ -105,7 +105,7 @@ class FileManagementService:
             raise
         except Exception as e:
             logger.error(f"Unexpected error deleting file {file_id}: {e!s}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            raise HTTPException(status_code=500, detail="Internal server error") from e
 
     def delete_files(self, collection_id: UUID, filenames: list[str]) -> bool:
         try:
@@ -117,7 +117,7 @@ class FileManagementService:
             return True
         except Exception as e:
             logger.error(f"Unexpected error deleting files: {e!s}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            raise HTTPException(status_code=500, detail="Internal server error") from e
 
     def get_files_by_collection(self, collection_id: UUID) -> list[FileOutput]:
         try:
@@ -127,7 +127,7 @@ class FileManagementService:
             return files
         except Exception as e:
             logger.error(f"Unexpected error getting files for collection {collection_id}: {e!s}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            raise HTTPException(status_code=500, detail="Internal server error") from e
 
     def get_files(self, collection_id: UUID) -> list[str]:
         """
@@ -157,7 +157,7 @@ class FileManagementService:
             raise  # Propagate the NotFoundError
         except Exception as e:
             logger.error(f"Unexpected error getting files for collection {collection_id}: {e!s}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            raise HTTPException(status_code=500, detail="Internal server error") from e
 
     def upload_and_create_file_record(
         self,
@@ -189,7 +189,7 @@ class FileManagementService:
             return self.create_file(file_input, user_id)
         except Exception as e:
             logger.error(f"Unexpected error uploading and creating file record: {e!s}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            raise HTTPException(status_code=500, detail="Internal server error") from e
 
     def upload_file(self, user_id: UUID, collection_id: UUID, file_content: bytes, filename: str) -> Path:
         try:
@@ -204,7 +204,7 @@ class FileManagementService:
             return file_path
         except Exception as e:
             logger.error(f"Unexpected error uploading file: {e!s}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            raise HTTPException(status_code=500, detail="Internal server error") from e
 
     def update_file_metadata(self, collection_id: UUID, file_id: UUID, metadata: FileMetadata) -> FileOutput:
         try:
@@ -212,6 +212,10 @@ class FileManagementService:
             file = self.file_repository.get(file_id)
             if file is None:
                 logger.warning(f"File not found for metadata update: {file_id}")
+                raise HTTPException(status_code=404, detail="File not found")
+
+            if file.collection_id != collection_id:
+                logger.warning(f"File {file_id} does not belong to collection {collection_id}")
                 raise HTTPException(status_code=404, detail="File not found")
 
             file_update = FileInput(
@@ -228,7 +232,7 @@ class FileManagementService:
             raise
         except Exception as e:
             logger.error(f"Unexpected error updating metadata for file {file_id}: {e!s}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            raise HTTPException(status_code=500, detail="Internal server error") from e
 
     @staticmethod
     def determine_file_type(filename: str) -> str:
@@ -245,4 +249,4 @@ class FileManagementService:
             raise
         except Exception as e:
             logger.error(f"Unexpected error getting file path: {e!s}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            raise HTTPException(status_code=500, detail="Internal server error") from e

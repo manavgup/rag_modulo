@@ -128,7 +128,7 @@ class TestSearchAndCollections(BaseTestRouter):
 
     # Authorization Tests
     @pytest.mark.asyncio
-    async def test_unauthorized_access(self, test_search_input):
+    async def test_unauthorized_access(self, test_search_input):  # noqa: ARG002
         """Test endpoints without authentication."""
         test_id = uuid4()
         endpoints = [

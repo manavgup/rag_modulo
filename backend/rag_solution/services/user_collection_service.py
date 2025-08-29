@@ -25,27 +25,27 @@ class UserCollectionService:
             return [CollectionOutput.model_validate(c) for c in collections]
         except Exception as e:
             logger.error(f"Error fetching collections: {e!s}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            raise HTTPException(status_code=500, detail="Internal server error") from e
 
     def add_user_to_collection(self, user_id: UUID, collection_id: UUID) -> bool:
         try:
             return self.user_collection_repository.add_user_to_collection(user_id, collection_id)
         except NotFoundError as e:
-            raise HTTPException(status_code=e.status_code, detail=str(e))
+            raise HTTPException(status_code=e.status_code, detail=str(e)) from e
         except DuplicateEntryError as e:
-            raise HTTPException(status_code=e.status_code, detail=str(e))
+            raise HTTPException(status_code=e.status_code, detail=str(e)) from e
         except Exception as e:
             logger.error(f"Error adding user to collection: {e!s}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            raise HTTPException(status_code=500, detail="Internal server error") from e
 
     def remove_user_from_collection(self, user_id: UUID, collection_id: UUID) -> bool:
         try:
             return self.user_collection_repository.remove_user_from_collection(user_id, collection_id)
         except NotFoundError as e:
-            raise HTTPException(status_code=e.status_code, detail=str(e))
+            raise HTTPException(status_code=e.status_code, detail=str(e)) from e
         except Exception as e:
             logger.error(f"Error removing user: {e!s}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            raise HTTPException(status_code=500, detail="Internal server error") from e
 
     def get_collection_users(self, collection_id: UUID) -> list[UserCollectionOutput]:
         try:
@@ -60,10 +60,10 @@ class UserCollectionService:
 
             return self.user_collection_repository.get_collection_users(collection_id)
         except NotFoundError as e:
-            raise HTTPException(status_code=e.status_code, detail=str(e))
+            raise HTTPException(status_code=e.status_code, detail=str(e)) from e
         except Exception as e:
             logger.error(f"Error fetching users: {e!s}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            raise HTTPException(status_code=500, detail="Internal server error") from e
 
     def remove_all_users_from_collection(self, collection_id: UUID) -> bool:
         try:
@@ -74,4 +74,4 @@ class UserCollectionService:
             raise
         except Exception as e:
             logger.error(f"Error removing users: {e!s}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            raise HTTPException(status_code=500, detail="Internal server error") from e

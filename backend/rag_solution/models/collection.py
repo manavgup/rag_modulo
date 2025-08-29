@@ -14,6 +14,10 @@ from rag_solution.schemas.collection_schema import CollectionStatus
 if TYPE_CHECKING:
     from datetime import datetime
 
+    from rag_solution.models.file import File
+    from rag_solution.models.question import SuggestedQuestion
+    from rag_solution.models.user_collection import UserCollection
+
 
 class Collection(Base):
     """
@@ -48,5 +52,5 @@ class Collection(Base):
         "SuggestedQuestion", back_populates="collection", cascade="all, delete-orphan"
     )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"Collection(id='{self.id}', name='{self.name}', is_private={self.is_private})"

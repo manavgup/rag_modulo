@@ -63,7 +63,7 @@ class LLMBase(ABC, metaclass=LLMMeta):
         self.initialize_client()
 
     @classmethod
-    def register(cls):
+    def register(cls) -> None:
         """
         Automatically register the provider with the factory using the module name.
         """
@@ -112,7 +112,7 @@ class LLMBase(ABC, metaclass=LLMMeta):
         except Exception as e:
             raise LLMProviderError(
                 provider=self._provider_name, error_type="client_error", message=f"Client error: {e!s}"
-            )
+            ) from e
 
     def validate_client(self) -> None:
         """Validate OpenAI client state."""

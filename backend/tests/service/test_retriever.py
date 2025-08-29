@@ -78,14 +78,14 @@ class TestRetriever(unittest.TestCase):
         self.mock_vector_store.retrieve_documents.side_effect = Exception("Test error")
         retriever = VectorRetriever(self.mock_document_store)
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(RuntimeError, msg="Vector retriever should raise exception on error"):
             retriever.retrieve("test_collection", "test query")
 
         # Test keyword retriever error handling
         self.mock_document_store.get_documents.side_effect = Exception("Test error")
         retriever = KeywordRetriever(self.mock_document_store)
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(RuntimeError, msg="Keyword retriever should raise exception on error"):
             retriever.retrieve("test_collection", "test query")
 
 

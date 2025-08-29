@@ -29,7 +29,7 @@ class LLMProviderRepository:
             return provider
         except IntegrityError as e:
             self.session.rollback()
-            raise RepositoryError(f"Failed to create provider: {e!s}")
+            raise RepositoryError(f"Failed to create provider: {e!s}") from e
 
     def get_provider_by_id(self, provider_id: UUID) -> LLMProvider | None:
         """Fetches a provider by ID, returns None if not found."""
@@ -56,7 +56,7 @@ class LLMProviderRepository:
                 .first()
             )
         except Exception as e:
-            raise RepositoryError(f"Error fetching provider {name}: {e!s}")
+            raise RepositoryError(f"Error fetching provider {name}: {e!s}") from e
 
     def update_provider(self, provider_id: UUID, updates: dict) -> LLMProvider | None:
         """Updates provider details."""
@@ -80,18 +80,17 @@ class LLMProviderRepository:
 
         except IntegrityError as e:
             self.session.rollback()
-            raise RepositoryError(f"Failed to update provider: {e!s}")
+            raise RepositoryError(f"Failed to update provider: {e!s}") from e
 
     def delete_provider(self, provider_id: UUID) -> bool:
         """Soft deletes a provider by marking it inactive."""
-        provider = self.get_provider_by_id(provider_id)
-        if not provider:
-            return False
-
-        # Instead of deleting, mark as inactive for a soft delete.
-        provider.is_active = False
-        self.session.commit()
-        return True
+        try:
+            result = self.session.query(LLMProvider).filter_by(id=provider_id).update({"is_active": False})
+            self.session.commit()
+            return result > 0
+        except Exception as e:
+            self.session.rollback()
+            raise RepositoryError(f"Failed to delete provider: {e!s}") from e
 
     def get_default_provider(self) -> LLMProvider | None:
         """Get the system default provider."""
@@ -103,13 +102,13 @@ class LLMProviderRepository:
                 .first()
             )
         except Exception as e:
-            raise RepositoryError(f"Error fetching default provider: {e!s}")
+            raise RepositoryError(f"Error fetching default provider: {e!s}") from e
 
-    def clear_other_default_providers(self, provider_id: UUID):
+    def clear_other_default_providers(self, provider_id: UUID) -> None:
         """Clear default flag from other providers."""
         try:
             self.session.query(LLMProvider).filter(LLMProvider.id != provider_id).update({"is_default": False})
             self.session.commit()
         except Exception as e:
             self.session.rollback()
-            raise RepositoryError(f"Failed to clear default providers: {e!s}")
+            raise RepositoryError(f"Failed to clear default providers: {e!s}") from e

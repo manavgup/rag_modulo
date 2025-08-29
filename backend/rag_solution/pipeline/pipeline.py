@@ -6,13 +6,6 @@ New code should use rag_solution.services.pipeline_service.PipelineService inste
 
 import logging
 import warnings
-
-warnings.warn(
-    "The pipeline.py module is deprecated and will be removed in a future version. " "Use pipeline_service.py instead.",
-    DeprecationWarning,
-    stacklevel=2,
-)
-
 from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, ConfigDict
@@ -35,6 +28,12 @@ if TYPE_CHECKING:
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+warnings.warn(
+    "The pipeline.py module is deprecated and will be removed in a future version. " "Use pipeline_service.py instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 
 class PipelineResult(BaseModel):

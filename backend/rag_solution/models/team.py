@@ -19,5 +19,5 @@ class Team(Base):
 
     users = relationship("UserTeam", back_populates="team")
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"Team(id='{self.id}', name='{self.name}')"

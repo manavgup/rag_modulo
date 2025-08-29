@@ -127,9 +127,7 @@ def test_get_files(file_management_service, collection, mock_upload_file):
 
 
 def test_get_file_path(file_management_service, collection, mock_upload_file):
-    file_management_service.upload_and_create_file_record(
-        mock_upload_file, collection.user_ids[0], collection.id
-    )
+    file_management_service.upload_and_create_file_record(mock_upload_file, collection.user_ids[0], collection.id)
     file_path = file_management_service.get_file_path(collection.user_ids[0], collection.id, "test_file.txt")
     assert isinstance(file_path, Path)
     assert file_path.name == "test_file.txt"
@@ -194,7 +192,7 @@ def test_update_file_metadata(file_management_service, collection, mock_upload_f
         modDate="2023-08-19",
         total_pages=2,
     )
-    updated_file = file_management_service.update_file_metadata(file_record.id, updated_metadata)
+    updated_file = file_management_service.update_file_metadata(collection.id, file_record.id, updated_metadata)
     assert updated_file.metadata == updated_metadata
 
 

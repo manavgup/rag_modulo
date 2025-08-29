@@ -40,7 +40,7 @@ async def get_prompt_templates(
     try:
         return service.get_user_templates(user_id)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve prompt templates: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve prompt templates: {e!s}") from e
 
 
 @router.post(
@@ -69,7 +69,7 @@ async def create_prompt_template(
             template_input.user_id = user_id
         return service.create_template(template_input)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to create prompt template: {e!s}")
+        raise HTTPException(status_code=400, detail=f"Failed to create prompt template: {e!s}") from e
 
 
 @router.put(
@@ -104,7 +104,7 @@ async def update_prompt_template(
             template_input.user_id = user_id
         return service.update_template(template_id, template_input)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to update prompt template: {e!s}")
+        raise HTTPException(status_code=400, detail=f"Failed to update prompt template: {e!s}") from e
 
 
 @router.delete(
@@ -131,7 +131,7 @@ async def delete_prompt_template(
     try:
         return service.delete_template(user_id, template_id)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to delete prompt template: {e!s}")
+        raise HTTPException(status_code=400, detail=f"Failed to delete prompt template: {e!s}") from e
 
 
 @router.put(
@@ -158,7 +158,7 @@ async def set_default_prompt_template(
     try:
         return service.set_default_template(template_id)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to set default prompt template: {e!s}")
+        raise HTTPException(status_code=400, detail=f"Failed to set default prompt template: {e!s}") from e
 
 
 @router.get(
@@ -184,4 +184,4 @@ async def get_prompt_templates_by_type(
     try:
         return service.get_templates_by_type(user_id, template_type)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve prompt templates: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve prompt templates: {e!s}") from e

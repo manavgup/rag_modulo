@@ -42,9 +42,11 @@ async def upload_file(
 
     service = FileManagementService(db)
     try:
-        return await service.upload_file(user_id, file, collection_id)
+        # Read file content
+        file_content = await file.read()
+        return await service.upload_file(user_id, collection_id or user_id, file_content, file.filename)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to upload file: {e!s}")
+        raise HTTPException(status_code=400, detail=f"Failed to upload file: {e!s}") from e
 
 
 @router.delete(
@@ -69,4 +71,4 @@ async def delete_file(user_id: UUID, file_id: UUID, request: Request, db: Sessio
     try:
         return service.delete_file(file_id)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to delete file: {e!s}")
+        raise HTTPException(status_code=400, detail=f"Failed to delete file: {e!s}") from e
