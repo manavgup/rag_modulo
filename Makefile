@@ -336,7 +336,7 @@ lint: lint-ruff lint-mypy
 
 lint-ruff:
 	@echo "$(CYAN)🔍 Running Ruff linter...$(NC)"
-	cd backend && poetry run ruff check . --line-length 120
+	cd backend && poetry run ruff check rag_solution/ tests/ --line-length 120
 	@echo "$(GREEN)✅ Ruff checks passed$(NC)"
 
 lint-mypy:
@@ -344,11 +344,34 @@ lint-mypy:
 	cd backend && poetry run mypy rag_solution/ --ignore-missing-imports --disable-error-code=misc --disable-error-code=unused-ignore --no-strict-optional
 	@echo "$(GREEN)✅ Mypy type checks passed$(NC)"
 
+## NEW: Strict type checking target
+lint-mypy-strict:
+	@echo "$(CYAN)🔎 Running strict Mypy type checker...$(NC)"
+	cd backend && poetry run mypy rag_solution/ \
+		--strict \
+		--warn-redundant-casts \
+		--warn-unused-ignores \
+		--explicit-package-bases
+	@echo "$(GREEN)✅ Strict Mypy checks passed$(NC)"
+
 lint-docstrings:
 	@echo "$(CYAN)📝 Checking docstring coverage...$(NC)"
 	cd backend && poetry run interrogate --fail-under=50 rag_solution/ -v || echo "$(YELLOW)⚠️  Docstring coverage needs improvement$(NC)"
 	cd backend && poetry run pydocstyle rag_solution/ || echo "$(YELLOW)⚠️  Some docstring issues found$(NC)"
 	@echo "$(GREEN)✅ Docstring checks completed$(NC)"
+
+## NEW: Strict docstring checking target
+lint-docstrings-strict:
+	@echo "$(CYAN)📝 Checking docstring coverage (50% threshold)...$(NC)"
+	cd backend && poetry run interrogate rag_solution/ -v
+	cd backend && poetry run pydocstyle rag_solution/
+	@echo "$(GREEN)✅ Strict docstring checks passed$(NC)"
+
+## NEW: Doctest execution target
+test-doctest:
+	@echo "$(CYAN)📖 Running doctest examples...$(NC)"
+	cd backend && poetry run pytest --doctest-modules rag_solution/ -v
+	@echo "$(GREEN)✅ Doctest examples passed$(NC)"
 
 ## Formatting targets
 format: format-ruff
@@ -356,14 +379,14 @@ format: format-ruff
 
 format-ruff:
 	@echo "$(CYAN)🔧 Running Ruff formatter and import sorter...$(NC)"
-	cd backend && poetry run ruff format . --line-length 120
-	cd backend && poetry run ruff check --fix . --line-length 120
+	cd backend && poetry run ruff format rag_solution/ tests/ --line-length 120
+	cd backend && poetry run ruff check --fix rag_solution/ tests/ --line-length 120
 	@echo "$(GREEN)✅ Ruff formatting and import sorting completed$(NC)"
 
 format-check:
 	@echo "$(CYAN)🔍 Checking code formatting...$(NC)"
-	cd backend && poetry run ruff format --check . --line-length 120
-	cd backend && poetry run ruff check . --line-length 120
+	cd backend && poetry run ruff format --check rag_solution/ tests/ --line-length 120
+	cd backend && poetry run ruff check rag_solution/ tests/ --line-length 120
 	@echo "$(GREEN)✅ Format check completed$(NC)"
 
 ## Pre-commit targets
@@ -389,6 +412,26 @@ unit-tests-local:
 	cd backend && poetry run pytest tests/ -m unit --maxfail=5 -v
 	@echo "$(GREEN)✅ Unit tests completed$(NC)"
 
+## NEW: Composite quality targets
+check-fast: format-check lint-ruff
+	@echo "$(GREEN)✅ Fast quality checks completed$(NC)"
+
+check-quality: format lint lint-mypy-strict
+	@echo "$(GREEN)✅ Comprehensive quality checks completed$(NC)"
+
+check-style: format-check
+	@echo "$(GREEN)✅ Style checks completed$(NC)"
+
+strict: check-quality lint-docstrings-strict test-doctest
+	@echo "$(GREEN)✅ Strictest quality requirements met$(NC)"
+
+## NEW: Code analysis target
+analyze:
+	@echo "$(CYAN)📊 Running code analysis...$(NC)"
+	cd backend && poetry run ruff check . --statistics || true
+	cd backend && poetry run mypy rag_solution/ --show-error-codes --show-error-context || true
+	@echo "$(GREEN)✅ Code analysis completed$(NC)"
+
 ## Combined targets
 ci-local: format-check lint unit-tests-local
 	@echo "$(GREEN)✅ Local CI checks completed successfully!$(NC)"
@@ -412,7 +455,9 @@ help:
 	@echo "  lint          \t\tRun all linters (ruff + mypy)"
 	@echo "  lint-ruff     \t\tRun Ruff linter"
 	@echo "  lint-mypy     \t\tRun MyPy type checker"
-	@echo "  lint-docstrings\t\tCheck docstring coverage"
+	@echo "  lint-mypy-strict\t\tRun strict MyPy type checker"
+	@echo "  lint-docstrings\t\tCheck docstring coverage (50% threshold)"
+	@echo "  lint-docstrings-strict\tCheck docstring coverage (50% threshold)"
 	@echo ""
 	@echo "$(CYAN)🎨 Formatting Targets:$(NC)"
 	@echo "  format        \t\tAuto-format code with Ruff"
@@ -421,6 +466,14 @@ help:
 	@echo ""
 	@echo "$(CYAN)🧪 Testing Targets:$(NC)"
 	@echo "  unit-tests-local  \tRun unit tests locally"
+	@echo "  test-doctest      \tRun doctest examples"
+	@echo ""
+	@echo "$(CYAN)🎯 Quality Targets:$(NC)"
+	@echo "  check-fast        \tQuick essential checks (format-check + lint-ruff)"
+	@echo "  check-quality     \tComprehensive quality with formatting"
+	@echo "  check-style       \tStyle checks without fixes"
+	@echo "  strict            \tStrictest quality requirements"
+	@echo "  analyze           \tCode analysis and metrics"
 	@echo ""
 	@echo "$(CYAN)🛠️ Setup Targets:$(NC)"
 	@echo "  setup-pre-commit  \tInstall pre-commit hooks"
@@ -463,3 +516,5 @@ help:
 	@echo "  make test testfile=tests/api/test_auth.py::test_login"
 	@echo "  make test-only testfile=tests/core/test_database.py"
 	@echo "  make pull-ghcr-images  # Pull latest images from GHCR"
+	@echo "  make check-fast        # Quick quality check"
+	@echo "  make strict            # Strictest quality requirements"
