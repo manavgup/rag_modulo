@@ -4,27 +4,47 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code repository
         uses: actions/checkout@v4
-      - name: Build frontend
-        run: docker build -t rag-modulo/frontend:1.0.${{ github.run_number }} -f ./webui/Dockerfile.frontend ./webui
-      - name: Build backend
-        run: docker build -t rag-modulo/backend:1.0.${{ github.run_number }}  -f ./backend/Dockerfile.backend ./backend
-      - name: Set up IBMCloud cli
-        uses: IBM/actions-ibmcloud-cli@v1
+        
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+        
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          plugins: container-registry
-      - name: Login to IBM Cloud and Container registry
-        run: |
-          ibmcloud login -r ${{ vars.IBM_CLOUD_REGION }} --apikey ${{ secrets.IBM_CLOUD_API_KEY }}
-          ibmcloud cr login --client docker
-      - name: Publish built artifacts
-        run: |
-          docker tag rag-modulo/frontend:1.0.${{ github.run_number }} ${{ vars.REGISTRY_HOSTNAME }}/rag-modulo/frontend:1.0.${{ github.run_number }}
-          docker push ${{ vars.REGISTRY_HOSTNAME }}/rag-modulo/frontend:1.0.${{ github.run_number }} 
-          docker tag rag-modulo/backend:1.0.${{ github.run_number }} ${{ vars.REGISTRY_HOSTNAME }}/rag-modulo/backend:1.0.${{ github.run_number }}
-          docker push ${{ vars.REGISTRY_HOSTNAME }}/rag-modulo/backend:1.0.${{ github.run_number }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Build and push frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./webui
+          file: ./webui/Dockerfile.frontend
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/frontend:1.0.${{ github.run_number }}
+            ghcr.io/${{ github.repository }}/frontend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          
+      - name: Build and push backend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile.backend
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/backend:1.0.${{ github.run_number }}
+            ghcr.io/${{ github.repository }}/backend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
