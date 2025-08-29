@@ -44,14 +44,10 @@ jobs:
           poetry install --only main,dev
           
       - name: Run linting
-        run: |
-          cd backend  
-          poetry run ruff check . || echo "Linting issues found (non-blocking)"
+        run: make lint
           
       - name: Run unit tests (fast)
-        run: |
-          cd backend
-          poetry run pytest tests/ -m "unit" --maxfail=5 || echo "Unit tests need fixing"
+        run: make unit-tests-local
 
   # Build images once
   build:

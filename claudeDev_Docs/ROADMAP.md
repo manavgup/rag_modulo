@@ -267,14 +267,74 @@ Week 12: Go-live and support
 2. **Production Ready**: Deploy to production
 3. **User Adoption**: Begin user onboarding and support
 
+## Phase 5: Agentic AI Transformation (Week 13-24) 🤖
+
+### 5.1 Agent Foundation (Week 13-14)
+- **Priority**: HIGH - Next evolution of the system
+- **Effort**: 2 weeks
+- **Tasks**:
+  - Implement base agent framework
+  - Create planning and reasoning system
+  - Build memory management
+  - Develop tool integration framework
+
+### 5.2 Specialized Agents (Week 15-18)
+- **Priority**: HIGH - Core agent capabilities
+- **Effort**: 4 weeks
+- **Tasks**:
+  - Research agent development
+  - Data analysis agent
+  - Conversation agent
+  - Task automation agent
+  - Multi-agent collaboration
+
+### 5.3 Advanced Capabilities (Week 19-22)
+- **Priority**: MEDIUM - Intelligence enhancement
+- **Effort**: 4 weeks
+- **Tasks**:
+  - Self-reflection and learning
+  - Autonomous decision making
+  - Advanced reasoning capabilities
+  - Performance optimization
+
+### 5.4 Production Deployment (Week 23-24)
+- **Priority**: HIGH - Agentic system launch
+- **Effort**: 2 weeks
+- **Tasks**:
+  - Configuration and customization
+  - Security and compliance
+  - Performance testing
+  - Production deployment
+
+## Updated Timeline Summary
+
+### Current RAG System
+- **Phase 1-4**: 12 weeks (Current roadmap)
+- **Deliverable**: Production-ready RAG system
+
+### Agentic AI Enhancement
+- **Phase 5**: 12 weeks (Additional)
+- **Deliverable**: Autonomous Agentic AI RAG solution
+
+### Total Project Timeline
+- **Duration**: 24 weeks (6 months)
+- **Milestones**:
+  - Week 12: Basic RAG system in production
+  - Week 18: Agent capabilities deployed
+  - Week 24: Full Agentic AI system operational
+
 ## Conclusion
 
-The RAG Modulo project has excellent potential with a solid architectural foundation. The main challenge is the **authentication system blocking all testing**, which needs immediate attention. Once this is resolved, the project can progress through systematic testing and validation phases.
+The RAG Modulo project has excellent potential with a solid architectural foundation. The immediate priority is fixing the **authentication system blocking all testing**. Once resolved, the project progresses through systematic testing and validation phases to deliver a production-ready RAG solution.
+
+The Agentic AI transformation (Phase 5) elevates the system from a traditional RAG solution to an autonomous, intelligent agent capable of complex reasoning, planning, and task execution.
 
 **Key Success Factors**:
-1. **Fix authentication system first** - This is the critical blocker
+1. **Fix authentication system first** - Critical blocker
 2. **Test systematically** - Don't skip testing phases
-3. **Quality over speed** - Ensure functionality works before moving forward
-4. **Iterative approach** - Fix issues as they're discovered
+3. **Quality over speed** - Ensure functionality works
+4. **Iterative approach** - Fix issues as discovered
+5. **Agent architecture** - Build on solid RAG foundation
+6. **Incremental enhancement** - Deploy agents gradually
 
-With focused effort on the critical path, this project can be completed successfully within the 12-week timeline and deliver a production-ready RAG solution.
+With focused effort on the critical path and systematic enhancement, this project will deliver both a production-ready RAG solution (12 weeks) and an advanced Agentic AI system (24 weeks total).
