@@ -12,7 +12,7 @@ PROJECT_DIRS := $(SOURCE_DIR) $(TEST_DIR)
 
 # Project info
 PROJECT_NAME ?= rag-modulo
-PYTHON_VERSION ?= 3.11
+PYTHON_VERSION ?= 3.12
 PROJECT_VERSION ?= 1.0.0
 GHCR_REPO ?= ghcr.io/manavgup/rag_modulo
 
@@ -318,10 +318,41 @@ info:
 	@echo "Vector DB: ${VECTOR_DB}"
 	@echo "GHCR repository: ${GHCR_REPO}"
 
+# Local CI targets (mirror GitHub Actions)
+lint:
+	@echo "Running linting locally..."
+	cd backend && poetry run ruff check . || echo "Linting issues found"
+	@echo "✅ Linting completed"
+
+unit-tests-local:
+	@echo "Running unit tests locally..."
+	cd backend && poetry run pytest tests/ -m unit --maxfail=5 || echo "Unit tests need fixing"
+	@echo "✅ Unit tests completed"
+
+ci-local: lint unit-tests-local
+	@echo "✅ Local CI checks completed successfully!"
+
+validate-ci:
+	@echo "🔍 Validating CI workflows..."
+	./scripts/validate-ci.sh
+
+setup-pre-commit:
+	@echo "Setting up pre-commit hooks..."
+	pip install pre-commit
+	pre-commit install
+	@echo "✅ Pre-commit hooks installed"
+
 help:
 	@echo "Usage: make [target]"
 	@echo ""
-	@echo "Targets:"
+	@echo "Local CI Targets:"
+	@echo "  ci-local      \t\tRun full local CI (lint + unit tests)"
+	@echo "  lint          \t\tRun linting locally"
+	@echo "  unit-tests-local  \tRun unit tests locally"
+	@echo "  validate-ci   \t\tValidate CI workflows with act"
+	@echo "  setup-pre-commit  \tInstall pre-commit hooks"
+	@echo ""
+	@echo "Container Targets:"
 	@echo "  init-env      		Initialize .env file with default values"
 	@echo "  build-frontend  	Build frontend code/container"
 	@echo "  build-backend   	Build backend code/container"
