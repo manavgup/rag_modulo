@@ -1,6 +1,9 @@
-# Include environment variables from .env file
+# Include environment variables from .env file if it exists
 -include .env
+# Only export .env variables if the file exists
+ifneq (,$(wildcard .env))
 export $(shell sed 's/=.*//' .env)
+endif
 
 # Set PYTHONPATH
 export PYTHONPATH=$(pwd):$(pwd)/vectordbs:$(pwd)/rag_solution
