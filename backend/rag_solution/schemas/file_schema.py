@@ -1,9 +1,10 @@
 from datetime import datetime
-from typing import List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
-from vectordbs.data_types import FileMetadata 
+
+from vectordbs.data_types import FileMetadata
+
 
 class FileInDB(BaseModel):
     id: UUID
@@ -16,22 +17,25 @@ class FileInDB(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class FileInput(BaseModel):
     collection_id: UUID
     filename: str
     file_path: str
     file_type: str
-    metadata: Optional[FileMetadata] = None
-    document_id: Optional[str] = None
+    metadata: FileMetadata | None = None
+    document_id: str | None = None
+
 
 class FileOutput(BaseModel):
     id: UUID
     collection_id: UUID
-    filename: Optional[str] = None
-    file_path: Optional[str] = None
-    file_type: Optional[str] = None
-    metadata: Optional[FileMetadata] = None
-    document_id: Optional[str] = None 
+    filename: str | None = None
+    file_path: str | None = None
+    file_type: str | None = None
+    metadata: FileMetadata | None = None
+    document_id: str | None = None
 
-class DocumentDelete(BaseModel):    
-    filenames: List[str]
+
+class DocumentDelete(BaseModel):
+    filenames: list[str]

@@ -1,4 +1,3 @@
-from typing import List
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -6,11 +5,12 @@ from sqlalchemy.orm import Session
 
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.team_schema import TeamInput, TeamOutput
+from rag_solution.schemas.user_team_schema import UserTeamInput, UserTeamOutput
 from rag_solution.services.team_service import TeamService
 from rag_solution.services.user_team_service import UserTeamService
-from rag_solution.schemas.user_team_schema import UserTeamOutput, UserTeamInput
 
 router = APIRouter(prefix="/api/teams", tags=["teams"])
+
 
 def get_team_service(db: Session = Depends(get_db)) -> TeamService:
     """
@@ -24,6 +24,7 @@ def get_team_service(db: Session = Depends(get_db)) -> TeamService:
     """
     return TeamService(db)
 
+
 def get_user_team_service(db: Session = Depends(get_db)) -> UserTeamService:
     """
     Get an instance of the UserTeamService.
@@ -36,15 +37,17 @@ def get_user_team_service(db: Session = Depends(get_db)) -> UserTeamService:
     """
     return UserTeamService(db)
 
-@router.post("", 
+
+@router.post(
+    "",
     response_model=TeamOutput,
     summary="Create a new team",
     description="Create a new team with the provided input data",
     responses={
         201: {"description": "Team created successfully"},
         400: {"description": "Invalid input data"},
-        500: {"description": "Internal server error"}
-    }
+        500: {"description": "Internal server error"},
+    },
 )
 def create_team(team: TeamInput, db: Session = Depends(get_db)) -> TeamOutput:
     """
@@ -66,22 +69,19 @@ def create_team(team: TeamInput, db: Session = Depends(get_db)) -> TeamOutput:
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
-@router.put("/{team_id}/users/{user_id}/role", 
+
+@router.put(
+    "/{team_id}/users/{user_id}/role",
     response_model=UserTeamOutput,
     summary="Update a user's role in a team",
     description="Update the role of a user within a specific team",
     responses={
         200: {"description": "User role updated successfully"},
         404: {"description": "Team association not found"},
-        500: {"description": "Internal server error"}
-    }
+        500: {"description": "Internal server error"},
+    },
 )
-def update_user_role_in_team(
-    team_id: UUID,
-    user_id: UUID,
-    role: str,
-    db: Session = Depends(get_db)
-) -> UserTeamOutput:
+def update_user_role_in_team(team_id: UUID, user_id: UUID, role: str, db: Session = Depends(get_db)) -> UserTeamOutput:
     """
     Update a user's role in a team.
 
@@ -100,15 +100,17 @@ def update_user_role_in_team(
     user_team_service = get_user_team_service(db)
     return user_team_service.update_user_role_in_team(user_id, team_id, role)
 
-@router.get("/{team_id}", 
+
+@router.get(
+    "/{team_id}",
     response_model=TeamOutput,
     summary="Get a team by ID",
     description="Retrieve a team using its unique identifier",
     responses={
         200: {"description": "Team retrieved successfully"},
         404: {"description": "Team not found"},
-        500: {"description": "Internal server error"}
-    }
+        500: {"description": "Internal server error"},
+    },
 )
 def get_team(team_id: UUID, db: Session = Depends(get_db)) -> TeamOutput:
     """
@@ -130,7 +132,9 @@ def get_team(team_id: UUID, db: Session = Depends(get_db)) -> TeamOutput:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Team not found")
     return team
 
-@router.put("/{team_id}", 
+
+@router.put(
+    "/{team_id}",
     response_model=TeamOutput,
     summary="Update a team",
     description="Update an existing team with the provided input data",
@@ -138,8 +142,8 @@ def get_team(team_id: UUID, db: Session = Depends(get_db)) -> TeamOutput:
         200: {"description": "Team updated successfully"},
         404: {"description": "Team not found"},
         400: {"description": "Invalid input data"},
-        500: {"description": "Internal server error"}
-    }
+        500: {"description": "Internal server error"},
+    },
 )
 def update_team(team_id: UUID, team_update: TeamInput, db: Session = Depends(get_db)) -> TeamOutput:
     """
@@ -162,15 +166,17 @@ def update_team(team_id: UUID, team_update: TeamInput, db: Session = Depends(get
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Team not found")
     return team
 
-@router.delete("/{team_id}", 
+
+@router.delete(
+    "/{team_id}",
     response_model=bool,
     summary="Delete a team",
     description="Delete a team using its unique identifier",
     responses={
         200: {"description": "Team deleted successfully"},
         404: {"description": "Team not found"},
-        500: {"description": "Internal server error"}
-    }
+        500: {"description": "Internal server error"},
+    },
 )
 def delete_team(team_id: UUID, db: Session = Depends(get_db)) -> bool:
     """
@@ -186,16 +192,15 @@ def delete_team(team_id: UUID, db: Session = Depends(get_db)) -> bool:
     team_service = get_team_service(db)
     return team_service.delete_team(team_id)
 
-@router.get("", 
-    response_model=List[TeamOutput],
+
+@router.get(
+    "",
+    response_model=list[TeamOutput],
     summary="List all teams",
     description="Retrieve a list of all teams with pagination",
-    responses={
-        200: {"description": "Teams retrieved successfully"},
-        500: {"description": "Internal server error"}
-    }
+    responses={200: {"description": "Teams retrieved successfully"}, 500: {"description": "Internal server error"}},
 )
-def list_teams(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)) -> List[TeamOutput]:
+def list_teams(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)) -> list[TeamOutput]:
     """
     List teams with pagination.
 
@@ -210,21 +215,25 @@ def list_teams(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)) -
     team_service = get_team_service(db)
     return team_service.list_teams(skip, limit)
 
-@router.get("/{team_id}/users", 
-    response_model=List[UserTeamOutput],
+
+@router.get(
+    "/{team_id}/users",
+    response_model=list[UserTeamOutput],
     summary="Get team users",
     description="Get all users associated with a team",
     responses={
         200: {"description": "Successfully retrieved team users"},
         404: {"description": "Team not found"},
-        500: {"description": "Internal server error"}
-    }
+        500: {"description": "Internal server error"},
+    },
 )
 def get_team_users(team_id: UUID, db: Session = Depends(get_db)):
     service = UserTeamService(db)
     return service.get_team_users(team_id)
 
-@router.post("/{team_id}/users", 
+
+@router.post(
+    "/{team_id}/users",
     response_model=UserTeamOutput,
     summary="Add user to team",
     description="Add a user to a specific team",
@@ -232,8 +241,8 @@ def get_team_users(team_id: UUID, db: Session = Depends(get_db)):
         201: {"description": "User added to team successfully"},
         400: {"description": "Invalid input data"},
         404: {"description": "Team or user not found"},
-        500: {"description": "Internal server error"}
-    }
+        500: {"description": "Internal server error"},
+    },
 )
 def add_user_to_team(team_id: UUID, user_team_input: UserTeamInput, db: Session = Depends(get_db)) -> UserTeamOutput:
     """
@@ -252,7 +261,6 @@ def add_user_to_team(team_id: UUID, user_team_input: UserTeamInput, db: Session 
     """
     user_team_service = get_team_service(db)
     try:
-        return user_team_service.add_user_to_team(user_team_input.user_id,
-                                                  user_team_input.team_id)
+        return user_team_service.add_user_to_team(user_team_input.user_id, user_team_input.team_id)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

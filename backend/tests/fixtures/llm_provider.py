@@ -2,14 +2,13 @@
 
 import pytest
 from pydantic import SecretStr
-from core.config import settings
+
 from core.logging_utils import get_logger
-from rag_solution.schemas.llm_provider_schema import LLMProviderInput
-from rag_solution.schemas.user_schema import UserOutput
-from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.generation.providers.factory import LLMProviderFactory
+from rag_solution.schemas.llm_provider_schema import LLMProviderInput
 
 logger = get_logger("tests.fixtures.llm_provider")
+
 
 @pytest.fixture(scope="session")
 def base_provider_input() -> LLMProviderInput:
@@ -19,8 +18,9 @@ def base_provider_input() -> LLMProviderInput:
         base_url="https://api.test.com",
         api_key=SecretStr("test-key"),
         project_id="test-project",
-        is_default=True
+        is_default=True,
     )
+
 
 @pytest.fixture
 def get_watsonx(provider_factory: LLMProviderFactory):

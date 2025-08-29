@@ -1,16 +1,19 @@
-from fastapi import APIRouter, Depends
 from uuid import UUID
+
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from rag_solution.services.user_service import UserService
-from rag_solution.schemas.user_schema import UserOutput
 from rag_solution.file_management.database import get_db  # ✅ Import the session dependency
+from rag_solution.schemas.user_schema import UserOutput
+from rag_solution.services.user_service import UserService
 
 router = APIRouter()
+
 
 def get_user_service(db: Session = Depends(get_db)) -> UserService:
     """Provides an instance of UserService with a database session."""
     return UserService(db)
+
 
 @router.put("/{user_id}/preferred/{provider_id}", response_model=UserOutput)
 def set_user_preferred_provider(
@@ -20,6 +23,7 @@ def set_user_preferred_provider(
 ) -> UserOutput:
     """Sets the user's preferred LLM provider."""
     return service.set_user_preferred_provider(user_id, provider_id)
+
 
 @router.get("/{user_id}/preferred", response_model=UserOutput)
 def get_user_preferred_provider(

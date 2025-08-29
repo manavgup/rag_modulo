@@ -1,25 +1,27 @@
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import StreamingResponse
-from typing import Dict, Any, Optional
 from sqlalchemy.orm import Session
 
-from rag_solution.schemas.search_schema import SearchInput, SearchOutput
 from rag_solution.file_management.database import get_db
+from rag_solution.schemas.search_schema import SearchInput, SearchOutput
 from rag_solution.services.search_service import SearchService
 
 router = APIRouter(prefix="/api/search", tags=["search"])
 
+
 def get_search_service(db: Session = Depends(get_db)) -> SearchService:
     """
     Dependency to create a new SearchService instance with the database session.
-    
+
     Args:
         db (Session): Database session from dependency injection
-        
+
     Returns:
         SearchService: Initialized search service instance
     """
     return SearchService(db)
+
 
 @router.post(
     "",
@@ -30,25 +32,25 @@ def get_search_service(db: Session = Depends(get_db)) -> SearchService:
         200: {"description": "LLM response generated successfully"},
         400: {"description": "Invalid input data"},
         404: {"description": "Collection not found"},
-        500: {"description": "Internal server error"}
-    }
+        500: {"description": "Internal server error"},
+    },
 )
 async def search(
     search_input: SearchInput,
     search_service: SearchService = Depends(get_search_service),
-    context: Optional[Dict[str, Any]] = None
+    context: dict[str, Any] | None = None,
 ) -> SearchOutput:
     """
     Process a search query through the RAG pipeline.
-    
+
     Args:
         search_input (SearchInput): Input data containing question and collection ID
         search_service (SearchService): The search service instance from dependency injection
         context (Optional[Dict[str, Any]]): Additional context for query processing
-        
+
     Returns:
         SearchOutput: Contains the generated answer, source documents, and evaluation info
-        
+
     Raises:
         HTTPException: With appropriate status code and error detail
     """
@@ -57,10 +59,7 @@ async def search(
         return result
     except HTTPException as he:
         raise he
-    except ValueError as ve: 
+    except ValueError as ve:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error processing search: {str(e)}"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error processing search: {e!s}")

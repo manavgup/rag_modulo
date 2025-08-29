@@ -3,9 +3,9 @@ from contextlib import contextmanager
 import pytest
 
 from core.config import settings
-from vectordbs.elasticsearch_store import ElasticSearchStore
 
 ELASTIC_INDEX = settings.collection_name
+
 
 @pytest.mark.elasticsearch
 class TestElasticsearchStore:

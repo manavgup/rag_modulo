@@ -3,9 +3,9 @@ from contextlib import contextmanager
 import pytest
 
 from core.config import settings
-from vectordbs.weaviate_store import WeaviateDataStore
 
 WEAVIATE_COLLECTION = settings.collection_name
+
 
 @pytest.mark.weaviate
 class TestWeaviateStore:
