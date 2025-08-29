@@ -16,6 +16,13 @@ jobs:
   # Fast feedback - lint and unit tests without infrastructure  
   lint-and-unit:
     runs-on: ubuntu-latest
+    env:
+      # Required environment variables for tests
+      JWT_SECRET_KEY: test-secret-key-for-ci
+      RAG_LLM: openai
+      WATSONX_INSTANCE_ID: test-instance-id
+      WATSONX_APIKEY: test-api-key
+      WATSONX_URL: https://test.watsonx.com
     steps:
       - uses: actions/checkout@v4
       
@@ -37,6 +44,20 @@ jobs:
       - name: Install dependencies
         run: |
           cd backend
+          # Create .env file with test values for CI
+          cat > .env << EOF
+          JWT_SECRET_KEY=test-secret-key-for-ci
+          RAG_LLM=openai
+          WATSONX_INSTANCE_ID=test-instance-id
+          WATSONX_APIKEY=test-api-key
+          WATSONX_URL=https://test.watsonx.com
+          COLLECTIONDB_NAME=test_db
+          COLLECTIONDB_USER=test_user
+          COLLECTIONDB_PASS=test_pass
+          MINIO_ROOT_USER=minioadmin
+          MINIO_ROOT_PASSWORD=minioadmin
+          EOF
+          
           pip install poetry
           poetry config virtualenvs.in-project true
           # Regenerate lock file to ensure sync
