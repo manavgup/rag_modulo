@@ -1,9 +1,8 @@
 from datetime import datetime
 
 import pytest
-from vectordbs.data_types import (Document, DocumentChunk,
-                                  DocumentChunkMetadata, QueryWithEmbedding,
-                                  Source)
+
+from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, QueryWithEmbedding, Source
 from vectordbs.error_types import CollectionError
 from vectordbs.utils.watsonx import get_embeddings
 
@@ -101,9 +100,7 @@ class BaseStoreTest:
         with store as s:
             documents = self.create_test_documents()
             s.add_documents(s.collection_name, documents)
-            query_results = s.retrieve_documents(
-                "Hello world", s.collection_name
-            )
+            query_results = s.retrieve_documents("Hello world", s.collection_name)
             assert query_results is not None
             assert len(query_results) > 0
             for query_result in query_results:
@@ -115,9 +112,7 @@ class BaseStoreTest:
             documents = self.create_test_documents()
             s.add_documents(s.collection_name, documents)
             # Test with number_of_results=2
-            query_results = s.retrieve_documents(
-                "Hello", s.collection_name, number_of_results=2
-            )
+            query_results = s.retrieve_documents("Hello", s.collection_name, number_of_results=2)
             assert query_results is not None
             # Should return exactly 2 results
             assert len(query_results) == 1  # One QueryResult object
@@ -129,9 +124,7 @@ class BaseStoreTest:
             s.add_documents(s.collection_name, documents)
             s.delete_collection(s.collection_name)
             with pytest.raises(CollectionError):
-                s.retrieve_documents(
-                    "Hello world", collection_name=s.collection_name
-                )
+                s.retrieve_documents("Hello world", collection_name=s.collection_name)
 
     def test_aenter_aexit(self):
         with self.store_class() as store:

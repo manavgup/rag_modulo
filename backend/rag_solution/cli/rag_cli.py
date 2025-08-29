@@ -12,18 +12,20 @@ warnings.warn(
     "The rag_cli.py module is deprecated and will be removed in a future version. "
     "A new CLI tool using the service layer architecture will replace this utility.",
     DeprecationWarning,
-    stacklevel=2
+    stacklevel=2,
 )
 
 import argparse
 import json
-from typing import Dict, Any
-from rag_solution.pipeline.pipeline import Pipeline
-from core.config import settings
+from typing import Any
 
-def load_config(config_path: str) -> Dict[str, Any]:
-    with open(config_path, 'r') as f:
+from rag_solution.pipeline.pipeline import Pipeline
+
+
+def load_config(config_path: str) -> dict[str, Any]:
+    with open(config_path) as f:
         return json.load(f)
+
 
 def main():
     parser = argparse.ArgumentParser(description="RAG Pipeline CLI")
@@ -50,42 +52,45 @@ def main():
     else:
         process_non_streaming(pipeline, args.query, args.show_evaluation)
 
+
 def process_non_streaming(pipeline: Pipeline, query: str, show_evaluation: bool):
     result = pipeline.process(query)
 
-    if 'error' in result:
+    if "error" in result:
         print(f"Error: {result['error']}")
     else:
-        print("Original Query:", result['original_query'])
-        print("Rewritten Query:", result['rewritten_query'])
+        print("Original Query:", result["original_query"])
+        print("Rewritten Query:", result["rewritten_query"])
         print("\nRetrieved Documents:")
-        for i, doc in enumerate(result['retrieved_documents'], 1):
+        for i, doc in enumerate(result["retrieved_documents"], 1):
             print(f"{i}. ID: {doc['id']}, Score: {doc['score']}")
             print(f"   Content: {doc['content'][:100]}...")  # Print first 100 characters
-        print("\nGenerated Response:", result['response'])
-        
+        print("\nGenerated Response:", result["response"])
+
         if show_evaluation:
             print("\nEvaluation Metrics:")
-            print_evaluation_metrics(result['evaluation'])
+            print_evaluation_metrics(result["evaluation"])
+
 
 def process_streaming(pipeline: Pipeline, query: str, show_evaluation: bool):
     print("Streaming response:")
     for chunk in pipeline.process_stream(query):
-        if 'error' in chunk:
+        if "error" in chunk:
             print(f"Error: {chunk['error']}")
-        elif 'response_chunk' in chunk:
-            print(chunk['response_chunk'], end='', flush=True)
-        elif 'retrieved_documents' in chunk:
+        elif "response_chunk" in chunk:
+            print(chunk["response_chunk"], end="", flush=True)
+        elif "retrieved_documents" in chunk:
             print("\nRetrieved Documents:")
-            for i, doc in enumerate(chunk['retrieved_documents'], 1):
+            for i, doc in enumerate(chunk["retrieved_documents"], 1):
                 print(f"{i}. ID: {doc['id']}, Score: {doc['score']}")
                 print(f"   Content: {doc['content'][:100]}...")  # Print first 100 characters
-        elif 'evaluation' in chunk and show_evaluation:
+        elif "evaluation" in chunk and show_evaluation:
             print("\nEvaluation Metrics:")
-            print_evaluation_metrics(chunk['evaluation'])
+            print_evaluation_metrics(chunk["evaluation"])
     print()  # Print a newline after the streaming response
 
-def print_evaluation_metrics(evaluation: Dict[str, Any]):
+
+def print_evaluation_metrics(evaluation: dict[str, Any]):
     for metric, value in evaluation.items():
         if isinstance(value, dict):
             print(f"  {metric}:")
@@ -93,6 +98,7 @@ def print_evaluation_metrics(evaluation: Dict[str, Any]):
                 print(f"    {sub_metric}: {sub_value}")
         else:
             print(f"  {metric}: {value}")
+
 
 if __name__ == "__main__":
     main()

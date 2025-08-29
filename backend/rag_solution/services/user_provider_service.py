@@ -1,33 +1,32 @@
-from typing import Optional, Tuple, List
 from uuid import UUID
+
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from rag_solution.repository.user_provider_repository import UserProviderRepository
-from rag_solution.services.prompt_template_service import PromptTemplateService
-from rag_solution.services.pipeline_service import PipelineService
-from rag_solution.services.llm_parameters_service import LLMParametersService
-from rag_solution.services.llm_model_service import LLMModelService
-from rag_solution.schemas.llm_provider_schema import LLMProviderOutput
-from rag_solution.schemas.llm_parameters_schema import LLMParametersOutput
-from rag_solution.schemas.prompt_template_schema import (
-    PromptTemplateOutput, 
-    PromptTemplateInput,
-    PromptTemplateType
-)
-from core.logging_utils import get_logger
 from core.custom_exceptions import NotFoundException
+from core.logging_utils import get_logger
+from rag_solution.repository.user_provider_repository import UserProviderRepository
+from rag_solution.schemas.llm_parameters_schema import LLMParametersOutput
+from rag_solution.schemas.llm_provider_schema import LLMProviderOutput
+from rag_solution.schemas.prompt_template_schema import PromptTemplateInput, PromptTemplateOutput, PromptTemplateType
+from rag_solution.services.llm_model_service import LLMModelService
+from rag_solution.services.llm_parameters_service import LLMParametersService
+from rag_solution.services.pipeline_service import PipelineService
+from rag_solution.services.prompt_template_service import PromptTemplateService
 
 logger = get_logger(__name__)
+
 
 class UserProviderService:
     def __init__(self, db: Session):
         self.db = db
         self.user_provider_repository = UserProviderRepository(db)
         self.prompt_template_service = PromptTemplateService(db)
-        self.llm_model_service = LLMModelService(db) 
+        self.llm_model_service = LLMModelService(db)
 
-    def initialize_user_defaults(self, user_id: UUID) -> Tuple[Optional[LLMProviderOutput], List[PromptTemplateOutput], Optional[LLMParametersOutput]]:
+    def initialize_user_defaults(
+        self, user_id: UUID
+    ) -> tuple[LLMProviderOutput | None, list[PromptTemplateOutput], LLMParametersOutput | None]:
         try:
             # Existing provider initialization
             provider = self.get_user_provider(user_id)
@@ -39,10 +38,10 @@ class UserProviderService:
                     logger.error("❌ No default LLM provider found in the database!")
                     return None, [], None
 
-            # Existing template initialization  
+            # Existing template initialization
             rag_template = self._create_default_rag_template(user_id)
             question_template = self._create_default_question_template(user_id)
-            
+
             # Add parameters initialization
             parameters_service = LLMParametersService(self.db)
             default_parameters = parameters_service.initialize_default_parameters(user_id)
@@ -57,13 +56,13 @@ class UserProviderService:
 
             self.db.commit()
             return provider, [rag_template, question_template], default_parameters
-            
+
         except Exception as e:
-            logger.error(f"Initialization error: {str(e)}")
+            logger.error(f"Initialization error: {e!s}")
             self.db.rollback()
             raise HTTPException(status_code=500, detail="Failed to initialize required user configuration")
 
-    def get_user_provider(self, user_id: UUID) -> Optional[LLMProviderOutput]:
+    def get_user_provider(self, user_id: UUID) -> LLMProviderOutput | None:
         """Get user's preferred provider or assign the default provider if missing."""
         try:
             logger.info(f"Fetching LLM provider for user {user_id}")
@@ -88,24 +87,19 @@ class UserProviderService:
             return default_provider
 
         except Exception as e:
-            logger.error(f"Error getting provider for user {user_id}: {str(e)}")
+            logger.error(f"Error getting provider for user {user_id}: {e!s}")
             raise HTTPException(status_code=500, detail="Error fetching provider")
-
 
     def set_user_provider(self, user_id: UUID, provider_id: UUID) -> bool:
         """Set user's preferred provider."""
         try:
             if not self.user_provider_repository.set_user_provider(user_id, provider_id):
-                raise NotFoundException(
-                    resource_id=str(user_id),
-                    resource_type="User",
-                    message="User not found"
-                )
+                raise NotFoundException(resource_id=str(user_id), resource_type="User", message="User not found")
             return True
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
         except Exception as e:
-            logger.error(f"Error setting provider: {str(e)}")
+            logger.error(f"Error setting provider: {e!s}")
             raise HTTPException(status_code=500, detail="Error setting provider")
 
     def _create_default_rag_template(self, user_id: UUID) -> PromptTemplateOutput:
@@ -119,21 +113,21 @@ class UserProviderService:
                 template_format="{context}\n\n{question}",
                 input_variables={
                     "context": "Retrieved context for answering the question",
-                    "question": "User's question to answer"
+                    "question": "User's question to answer",
                 },
                 example_inputs={
                     "context": "Python was created by Guido van Rossum.",
-                    "question": "Who created Python?"
+                    "question": "Who created Python?",
                 },
                 is_default=True,
                 validation_schema={
                     "model": "PromptVariables",
                     "fields": {
                         "context": {"type": "str", "min_length": 1},
-                        "question": {"type": "str", "min_length": 1}
+                        "question": {"type": "str", "min_length": 1},
                     },
-                    "required": ["context", "question"]
-                }
+                    "required": ["context", "question"],
+                },
             )
         )
 
@@ -156,20 +150,14 @@ class UserProviderService:
                 ),
                 input_variables={
                     "context": "Retrieved passages from knowledge base",
-                    "num_questions": "Number of questions to generate"
+                    "num_questions": "Number of questions to generate",
                 },
-                example_inputs={
-                    "context": "Python supports multiple programming paradigms.",
-                    "num_questions": 3
-                },
+                example_inputs={"context": "Python supports multiple programming paradigms.", "num_questions": 3},
                 is_default=True,
                 validation_schema={
                     "model": "PromptVariables",
-                    "fields": {
-                        "context": {"type": "str", "min_length": 1},
-                        "num_questions": {"type": "int", "gt": 0}
-                    },
-                    "required": ["context", "num_questions"]
-                }
+                    "fields": {"context": {"type": "str", "min_length": 1}, "num_questions": {"type": "int", "gt": 0}},
+                    "required": ["context", "num_questions"],
+                },
             )
         )

@@ -1,7 +1,8 @@
 """Tests for prompt template functionality."""
+
 import pytest
-from uuid import uuid4
 from sqlalchemy.orm import Session
+
 from rag_solution.models.prompt_template import PromptTemplate
 from rag_solution.schemas.prompt_template_schema import PromptTemplateType
 
@@ -16,14 +17,11 @@ def test_create_prompt_template(db_session: Session, base_user):
         template_format="{context}\n\n{question}",
         input_variables={
             "context": "Retrieved context for answering the question",
-            "question": "User's question to answer"
+            "question": "User's question to answer",
         },
-        example_inputs={
-            "context": "Python was created by Guido van Rossum.",
-            "question": "Who created Python?"
-        },
+        example_inputs={"context": "Python was created by Guido van Rossum.", "question": "Who created Python?"},
         is_default=True,
-        user_id=base_user.id
+        user_id=base_user.id,
     )
     db_session.add(template)
     db_session.commit()
@@ -61,14 +59,11 @@ def test_create_question_generation_template(db_session: Session, base_user):
         ),
         input_variables={
             "context": "Retrieved passages from knowledge base",
-            "num_questions": "Number of questions to generate"
+            "num_questions": "Number of questions to generate",
         },
-        example_inputs={
-            "context": "Python supports multiple programming paradigms.",
-            "num_questions": 3
-        },
+        example_inputs={"context": "Python supports multiple programming paradigms.", "num_questions": 3},
         is_default=True,
-        user_id=base_user.id
+        user_id=base_user.id,
     )
     db_session.add(template)
     db_session.commit()
@@ -95,9 +90,9 @@ def test_invalid_provider(db_session: Session, base_user):
             template_format="{context}\n\n{question}",
             input_variables={
                 "context": "Retrieved context for answering the question",
-                "question": "User's question to answer"
+                "question": "User's question to answer",
             },
-            user_id=base_user.id
+            user_id=base_user.id,
         )
 
 
@@ -110,5 +105,5 @@ def test_missing_variables(db_session: Session, base_user):
             template_type=PromptTemplateType.RAG_QUERY,
             template_format="{context}\n\n{question}",
             input_variables={"context": "Retrieved context"},  # Missing question variable
-            user_id=base_user.id
+            user_id=base_user.id,
         )

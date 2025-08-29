@@ -1,16 +1,14 @@
 """Integration tests for pipeline workflow."""
-import pytest
+
 from sqlalchemy.orm import Session
-from rag_solution.services.pipeline_service import PipelineService
-from rag_solution.services.llm_provider_service import LLMProviderService
-from rag_solution.services.prompt_template_service import PromptTemplateService
+
+from rag_solution.schemas.llm_model_schema import LLMModelInput, ModelType
 from rag_solution.schemas.llm_provider_schema import LLMProviderInput
-from rag_solution.schemas.llm_model_schema import ModelType, LLMModelInput
-from rag_solution.schemas.prompt_template_schema import (
-    PromptTemplateType,
-    PromptTemplateInput
-)
 from rag_solution.schemas.pipeline_schema import PipelineConfigInput
+from rag_solution.schemas.prompt_template_schema import PromptTemplateInput, PromptTemplateType
+from rag_solution.services.llm_provider_service import LLMProviderService
+from rag_solution.services.pipeline_service import PipelineService
+from rag_solution.services.prompt_template_service import PromptTemplateService
 
 
 def test_complete_pipeline_flow(db_session: Session, base_user):
@@ -22,7 +20,7 @@ def test_complete_pipeline_flow(db_session: Session, base_user):
             name="watsonx",
             base_url="https://us-south.ml.cloud.ibm.com",
             api_key="test-api-key",
-            project_id="test-project-id"
+            project_id="test-project-id",
         )
     )
 
@@ -41,13 +39,13 @@ def test_complete_pipeline_flow(db_session: Session, base_user):
             stream=False,
             rate_limit=10,
             is_default=True,
-            is_active=True
+            is_active=True,
         )
     )
 
     # Set up templates
     template_service = PromptTemplateService(db_session)
-    
+
     # Create RAG query template
     rag_template = template_service.create_template(
         base_user.id,
@@ -59,14 +57,11 @@ def test_complete_pipeline_flow(db_session: Session, base_user):
             template_format="{context}\n\n{question}",
             input_variables={
                 "context": "Retrieved context for answering the question",
-                "question": "User's question to answer"
+                "question": "User's question to answer",
             },
-            example_inputs={
-                "context": "Python was created by Guido van Rossum.",
-                "question": "Who created Python?"
-            },
-            is_default=True
-        )
+            example_inputs={"context": "Python was created by Guido van Rossum.", "question": "Who created Python?"},
+            is_default=True,
+        ),
     )
 
     # Create question generation template
@@ -88,14 +83,11 @@ def test_complete_pipeline_flow(db_session: Session, base_user):
             ),
             input_variables={
                 "context": "Retrieved passages from knowledge base",
-                "num_questions": "Number of questions to generate"
+                "num_questions": "Number of questions to generate",
             },
-            example_inputs={
-                "context": "Python supports multiple programming paradigms.",
-                "num_questions": 3
-            },
-            is_default=True
-        )
+            example_inputs={"context": "Python supports multiple programming paradigms.", "num_questions": 3},
+            is_default=True,
+        ),
     )
 
     # Create pipeline
@@ -112,7 +104,7 @@ def test_complete_pipeline_flow(db_session: Session, base_user):
             enable_logging=True,
             max_context_length=2048,
             timeout=30.0,
-            is_default=True
+            is_default=True,
         )
     )
 
@@ -131,11 +123,7 @@ def test_complete_pipeline_flow(db_session: Session, base_user):
     )
     question = "Who created Python and what are its main features?"
 
-    response = pipeline_service.execute_pipeline(
-        pipeline.id,
-        context=context,
-        question=question
-    )
+    response = pipeline_service.execute_pipeline(pipeline.id, context=context, question=question)
 
     assert response is not None
     assert isinstance(response, str)
@@ -151,12 +139,12 @@ def test_pipeline_update_flow(db_session: Session, base_user):
             name="watsonx",
             base_url="https://us-south.ml.cloud.ibm.com",
             api_key="test-api-key",
-            project_id="test-project-id"
+            project_id="test-project-id",
         )
     )
 
     template_service = PromptTemplateService(db_session)
-    
+
     # Create templates
     rag_template = template_service.create_template(
         base_user.id,
@@ -166,16 +154,10 @@ def test_pipeline_update_flow(db_session: Session, base_user):
             template_type=PromptTemplateType.RAG_QUERY,
             system_prompt="Initial system prompt",
             template_format="{context}\n\n{question}",
-            input_variables={
-                "context": "Retrieved context",
-                "question": "User's question"
-            },
-            example_inputs={
-                "context": "Initial context",
-                "question": "Initial question"
-            },
-            is_default=True
-        )
+            input_variables={"context": "Retrieved context", "question": "User's question"},
+            example_inputs={"context": "Initial context", "question": "Initial question"},
+            is_default=True,
+        ),
     )
 
     # Create question generation template
@@ -187,16 +169,10 @@ def test_pipeline_update_flow(db_session: Session, base_user):
             template_type=PromptTemplateType.QUESTION_GENERATION,
             system_prompt="Initial question generation prompt",
             template_format="{context}\n\n{num_questions}",
-            input_variables={
-                "context": "Context",
-                "num_questions": "Number of questions"
-            },
-            example_inputs={
-                "context": "Initial context",
-                "num_questions": 3
-            },
-            is_default=True
-        )
+            input_variables={"context": "Context", "num_questions": "Number of questions"},
+            example_inputs={"context": "Initial context", "num_questions": 3},
+            is_default=True,
+        ),
     )
 
     # Create initial pipeline
@@ -213,7 +189,7 @@ def test_pipeline_update_flow(db_session: Session, base_user):
             enable_logging=True,
             max_context_length=2048,
             timeout=30.0,
-            is_default=True
+            is_default=True,
         )
     )
 
@@ -231,8 +207,8 @@ def test_pipeline_update_flow(db_session: Session, base_user):
             enable_logging=True,
             max_context_length=2048,
             timeout=30.0,
-            is_default=True
-        )
+            is_default=True,
+        ),
     )
 
     assert updated_pipeline.id == pipeline.id

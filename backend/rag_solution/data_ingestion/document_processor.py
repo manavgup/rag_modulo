@@ -1,10 +1,10 @@
 import logging
-import os
-from typing import Dict, AsyncIterable, Optional, Any
 import multiprocessing
+import os
+from collections.abc import AsyncIterable
 from multiprocessing.managers import SyncManager
-import asyncio
-from uuid import UUID
+from typing import Any
+
 from core.custom_exceptions import DocumentProcessingError
 from rag_solution.data_ingestion.base_processor import BaseProcessor
 from rag_solution.data_ingestion.excel_processor import ExcelProcessor
@@ -26,7 +26,7 @@ class DocumentProcessor:
         question_service (QuestionService): Service for generating suggested questions.
     """
 
-    def __init__(self, manager: Optional[SyncManager] = None):
+    def __init__(self, manager: SyncManager | None = None):
         """
         Initialize the document processor.
 
@@ -37,7 +37,7 @@ class DocumentProcessor:
         if manager is None:
             manager = multiprocessing.Manager()
         self.manager = manager
-        self.processors: Dict[str, BaseProcessor] = {
+        self.processors: dict[str, BaseProcessor] = {
             ".txt": TxtProcessor(),
             ".pdf": PdfProcessor(self.manager),
             ".docx": WordProcessor(),
@@ -47,11 +47,11 @@ class DocumentProcessor:
     async def _process_async(self, processor: BaseProcessor, file_path: str, document_id: str) -> list[Document]:
         """
         Process document asynchronously.
-        
+
         Args:
             processor: Document processor to use
             file_path: Path to the document
-            
+
         Returns:
             List of processed documents
         """
@@ -76,26 +76,27 @@ class DocumentProcessor:
         try:
             file_extension = os.path.splitext(file_path)[1].lower()
             processor = self.processors.get(file_extension)
-            
+
             if not processor:
                 logger.warning(f"No processor found for file extension: {file_extension}")
                 return
-            
+
             # Process the document asynchronously
             documents = await self._process_async(processor, file_path, document_id)
-                       
+
             # Yield documents
             for doc in documents:
                 yield doc
-            
+
         except Exception as e:
             logger.error(f"Error processing document {file_path}: {e}", exc_info=True)
-            raise DocumentProcessingError(doc_id=document_id,
-                                          error_type="DocumentProcessingError",
-                        message=f"Error processing document {file_path}") from e
+            raise DocumentProcessingError(
+                doc_id=document_id,
+                error_type="DocumentProcessingError",
+                message=f"Error processing document {file_path}",
+            ) from e
 
-    
-    def extract_metadata_from_processor(self, file_path: str) -> Dict[str, Any]:
+    def extract_metadata_from_processor(self, file_path: str) -> dict[str, Any]:
         """
         Extract metadata from a document using its processor.
 

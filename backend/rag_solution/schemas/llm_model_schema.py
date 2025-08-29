@@ -1,12 +1,14 @@
-from uuid import UUID
-from typing import Optional
-from pydantic import BaseModel, Field
 from datetime import datetime
 from enum import Enum
+from uuid import UUID
+
+from pydantic import BaseModel, Field
+
 
 class ModelType(str, Enum):
     GENERATION = "generation"
     EMBEDDING = "embedding"
+
 
 class LLMModelInput(BaseModel):
     provider_id: UUID
@@ -24,8 +26,9 @@ class LLMModelInput(BaseModel):
     is_active: bool = Field(True)
 
     model_config = {
-        'protected_namespaces': ()  # This removes the model_ namespace warnings
+        "protected_namespaces": ()  # This removes the model_ namespace warnings
     }
+
 
 class LLMModelOutput(BaseModel):
     id: UUID

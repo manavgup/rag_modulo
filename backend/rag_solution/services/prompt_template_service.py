@@ -1,14 +1,17 @@
-from typing import List, Dict, Any, Union, Optional
+from typing import Any
 from uuid import UUID
+
 from sqlalchemy.orm import Session
+
+from core.custom_exceptions import NotFoundError, PromptTemplateNotFoundError, ValidationError
 from rag_solution.repository.prompt_template_repository import PromptTemplateRepository
 from rag_solution.schemas.prompt_template_schema import (
+    PromptTemplateBase,
     PromptTemplateInput,
     PromptTemplateOutput,
     PromptTemplateType,
-    PromptTemplateBase
 )
-from core.custom_exceptions import ValidationError, NotFoundError, PromptTemplateNotFoundError
+
 
 class PromptTemplateService:
     def __init__(self, db: Session):
@@ -19,22 +22,22 @@ class PromptTemplateService:
             prompt_template = self.repository.create_template(template)
             return PromptTemplateOutput.model_validate(prompt_template)
         except Exception as e:
-            raise ValidationError(f"Failed to create template: {str(e)}")
+            raise ValidationError(f"Failed to create template: {e!s}")
 
-    def get_user_templates(self, user_id: UUID) -> List[PromptTemplateOutput]:
+    def get_user_templates(self, user_id: UUID) -> list[PromptTemplateOutput]:
         try:
             templates = self.repository.get_by_user_id(user_id)
             return [PromptTemplateOutput.model_validate(t) for t in templates]
         except Exception as e:
-            raise ValidationError(f"Failed to retrieve templates: {str(e)}")
-    
-    def get_by_type(self, user_id: UUID, template_type: PromptTemplateType) -> Optional[PromptTemplateOutput]:
+            raise ValidationError(f"Failed to retrieve templates: {e!s}")
+
+    def get_by_type(self, user_id: UUID, template_type: PromptTemplateType) -> PromptTemplateOutput | None:
         """Get single template by type and user ID.
-        
+
         Args:
             template_type: Type of template to retrieve
             user_id: User UUID
-            
+
         Returns:
             Optional[PromptTemplateOutput]: Template if found
         """
@@ -44,21 +47,19 @@ class PromptTemplateService:
                 return None
             # Return the default template if exists, otherwise latest by creation date
             default_template = next((t for t in templates if t.is_default), None)
-            return PromptTemplateOutput.model_validate(
-                default_template or max(templates, key=lambda t: t.created_at)
-            )
+            return PromptTemplateOutput.model_validate(default_template or max(templates, key=lambda t: t.created_at))
         except Exception as e:
-            raise ValidationError(f"Failed to retrieve template: {str(e)}")
+            raise ValidationError(f"Failed to retrieve template: {e!s}")
 
     def get_rag_template(self, user_id: UUID) -> PromptTemplateOutput:
         """Get RAG query template for user.
-        
+
         Args:
             user_id: User UUID
-            
+
         Returns:
             PromptTemplateOutput: RAG template
-            
+
         Raises:
             NotFoundError: If template not found
         """
@@ -67,19 +68,19 @@ class PromptTemplateService:
             raise NotFoundError(
                 resource_type="PromptTemplate",
                 resource_id=f"RAG_QUERY:{user_id}",
-                message="RAG query template not found"
+                message="RAG query template not found",
             )
         return template
 
     def get_question_template(self, user_id: UUID) -> PromptTemplateOutput:
         """Get question generation template for user.
-        
+
         Args:
             user_id: User UUID
-            
+
         Returns:
             PromptTemplateOutput: Question generation template
-            
+
         Raises:
             NotFoundError: If template not found
         """
@@ -88,35 +89,35 @@ class PromptTemplateService:
             raise NotFoundError(
                 resource_type="PromptTemplate",
                 resource_id=f"QUESTION_GENERATION:{user_id}",
-                message="Question generation template not found"
+                message="Question generation template not found",
             )
         return template
 
-    def get_evaluation_template(self, user_id: UUID) -> Optional[PromptTemplateOutput]:
+    def get_evaluation_template(self, user_id: UUID) -> PromptTemplateOutput | None:
         """Get evaluation template for user if it exists.
-        
+
         Args:
             user_id: User UUID
-            
+
         Returns:
             Optional[PromptTemplateOutput]: Evaluation template if found
         """
         return self.get_by_type(user_id, PromptTemplateType.RESPONSE_EVALUATION)
 
-    def get_templates_by_type(self, user_id: UUID, template_type: PromptTemplateType) -> List[PromptTemplateOutput]:
+    def get_templates_by_type(self, user_id: UUID, template_type: PromptTemplateType) -> list[PromptTemplateOutput]:
         try:
             templates = self.repository.get_by_user_id_and_type(user_id, template_type)
             return [PromptTemplateOutput.model_validate(t) for t in templates]
         except Exception as e:
-            raise ValidationError(f"Failed to retrieve templates by type: {str(e)}")
+            raise ValidationError(f"Failed to retrieve templates by type: {e!s}")
 
     def delete_template(self, user_id: UUID, template_id: UUID) -> bool:
         try:
             return self.repository.delete_user_template(user_id, template_id)
         except Exception as e:
-            raise ValidationError(f"Failed to delete template: {str(e)}")
+            raise ValidationError(f"Failed to delete template: {e!s}")
 
-    def format_prompt(self, template_or_id: Union[UUID, PromptTemplateBase], variables: Dict[str, Any]) -> str:
+    def format_prompt(self, template_or_id: UUID | PromptTemplateBase, variables: dict[str, Any]) -> str:
         try:
             if isinstance(template_or_id, UUID):
                 template = self.repository.get_by_id(template_or_id)
@@ -132,22 +133,18 @@ class PromptTemplateService:
             parts.append(template.template_format.format(**variables))
             return "\n\n".join(parts)
         except KeyError as e:
-            raise ValidationError(f"Missing required variable: {str(e)}")
+            raise ValidationError(f"Missing required variable: {e!s}")
         except Exception as e:
-            raise ValidationError(f"Failed to format prompt: {str(e)}")
-    
-    def apply_context_strategy(
-        self,
-        template_or_id: Union[UUID, PromptTemplateBase],
-        contexts: List[str]
-    ) -> str:
+            raise ValidationError(f"Failed to format prompt: {e!s}")
+
+    def apply_context_strategy(self, template_or_id: UUID | PromptTemplateBase, contexts: list[str]) -> str:
         if isinstance(template_or_id, UUID):
             template = self.repository.get_by_id(template_or_id)
             if not template:
                 raise NotFoundError(
                     resource_type="PromptTemplate",
                     resource_id=str(template_or_id),
-                    message=f"Template {template_or_id} not found"
+                    message=f"Template {template_or_id} not found",
                 )
         else:
             template = template_or_id
@@ -166,9 +163,9 @@ class PromptTemplateService:
         for chunk in selected_contexts:
             if template.max_context_length and len(chunk) > template.max_context_length:
                 if truncation == "end":
-                    chunk = chunk[:template.max_context_length]
+                    chunk = chunk[: template.max_context_length]
                 elif truncation == "start":
-                    chunk = chunk[-template.max_context_length:]
+                    chunk = chunk[-template.max_context_length :]
                 elif truncation == "middle":
                     half = template.max_context_length // 2
                     chunk = chunk[:half] + "..." + chunk[-half:]

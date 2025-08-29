@@ -1,13 +1,13 @@
 # test_search_collection.py
 
-import pytest
-import pytest_asyncio
 from uuid import uuid4
-from typing import Dict, Any
-import io
+
+import pytest
+
+from rag_solution.schemas.collection_schema import CollectionStatus
 
 from .base_test import BaseTestRouter
-from rag_solution.schemas.collection_schema import CollectionStatus
+
 
 class TestSearchAndCollections(BaseTestRouter):
     """Test search and collection-related endpoints."""
@@ -20,31 +20,24 @@ class TestSearchAndCollections(BaseTestRouter):
             "description": "A collection for testing",
             "is_private": False,
             "users": [str(base_user.id)],
-            "status": CollectionStatus.COMPLETED
+            "status": CollectionStatus.COMPLETED,
         }
 
     @pytest.fixture
     def test_search_input(self, base_collection):
         """Sample search input data."""
-        return {
-            "question": "What is this document about?",
-            "collection_id": str(base_collection.id)
-        }
+        return {"question": "What is this document about?", "collection_id": str(base_collection.id)}
 
     @pytest.fixture
     def test_search_context(self):
         """Sample search context data."""
-        return {
-            "user_role": "student",
-            "language": "en",
-            "detail_level": "high"
-        }
+        return {"user_role": "student", "language": "en", "detail_level": "high"}
 
     # Collection Management Tests
     @pytest.mark.asyncio
     async def test_create_collection(self, test_collection_data):
         """Test POST /api/collections"""
-        response =  self.post("/api/collections", json=test_collection_data)
+        response = self.post("/api/collections", json=test_collection_data)
         self.assert_success(response)
         data = response.json()
         assert data["name"] == test_collection_data["name"]
@@ -60,14 +53,10 @@ class TestSearchAndCollections(BaseTestRouter):
         form_data = {
             "collection_name": f"Test Collection {uuid4()}",
             "is_private": "false",
-            "user_id": str(base_user.id)
+            "user_id": str(base_user.id),
         }
-        
-        response = self.post(
-            "/api/collections/with-files",
-            data=form_data,
-            files=files
-        )
+
+        response = self.post("/api/collections/with-files", data=form_data, files=files)
         self.assert_success(response)
         data = response.json()
         assert "files" in data
@@ -77,7 +66,7 @@ class TestSearchAndCollections(BaseTestRouter):
     @pytest.mark.asyncio
     async def test_get_collection(self, base_collection):
         """Test GET /api/collections/{collection_id}"""
-        response =  self.get(f"/api/collections/{base_collection.id}")
+        response = self.get(f"/api/collections/{base_collection.id}")
         self.assert_success(response)
         data = response.json()
         assert data["id"] == str(base_collection.id)
@@ -88,22 +77,14 @@ class TestSearchAndCollections(BaseTestRouter):
     def test_upload_files(self, base_user, base_collection):
         """Test POST /api/collections/with-files instead."""
         files = [("files", ("test.txt", b"Test document content", "text/plain"))]
-        form_data = {
-            "collection_name": base_collection.name,
-            "is_private": False,
-            "user_id": str(base_user.id)
-        }
-        response = self.post(
-            "/api/collections/with-files",
-            data=form_data,
-            files=files
-        )
+        form_data = {"collection_name": base_collection.name, "is_private": False, "user_id": str(base_user.id)}
+        response = self.post("/api/collections/with-files", data=form_data, files=files)
         self.assert_success(response)
 
     @pytest.mark.asyncio
     async def test_get_files(self, base_collection, base_file):
         """Test GET /api/collections/{collection_id}/files"""
-        response =  self.get(f"/api/collections/{base_collection.id}/files")
+        response = self.get(f"/api/collections/{base_collection.id}/files")
         self.assert_success(response)
         files = response.json()
         assert len(files) >= 1
@@ -113,7 +94,7 @@ class TestSearchAndCollections(BaseTestRouter):
     @pytest.mark.asyncio
     async def test_search_success(self, test_search_input):
         """Test POST /api/search - successful search."""
-        response =  self.post("/api/search", json={"search_input": test_search_input})
+        response = self.post("/api/search", json={"search_input": test_search_input})
         self.assert_success(response)
         data = response.json()
         assert "answer" in data
@@ -123,11 +104,7 @@ class TestSearchAndCollections(BaseTestRouter):
     @pytest.mark.asyncio
     async def test_search_with_context(self, test_search_input, test_search_context):
         """Test search with additional context."""
-        response =  self.post(
-            "/api/search",
-            json=test_search_input,
-            params=test_search_context
-        )
+        response = self.post("/api/search", json=test_search_input, params=test_search_context)
         self.assert_success(response)
         data = response.json()
         assert data["rewritten_query"] != test_search_input["question"]
@@ -149,7 +126,6 @@ class TestSearchAndCollections(BaseTestRouter):
         response = self.post("/api/search", json={"search_input": test_search_input})
         assert response.status_code == 422
 
-
     # Authorization Tests
     @pytest.mark.asyncio
     async def test_unauthorized_access(self, test_search_input):
@@ -160,17 +136,14 @@ class TestSearchAndCollections(BaseTestRouter):
             ("post", "/api/collections"),
             ("post", "/api/search"),
         ]
-        
+
         for method, endpoint in endpoints:
-            response =  getattr(self, method)(endpoint, authenticated=False)
+            response = getattr(self, method)(endpoint, authenticated=False)
             assert response.status_code == 404
 
     @pytest.mark.asyncio
     async def test_access_unauthorized_collection(self, base_collection):
         """Test accessing collection without permission."""
         headers = {**self.auth_headers, "X-User-UUID": str(uuid4())}
-        response =  self.get(
-            f"/api/collections/{base_collection.id}",
-            headers=headers
-        )
+        response = self.get(f"/api/collections/{base_collection.id}", headers=headers)
         self.assert_forbidden(response)

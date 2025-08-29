@@ -1,7 +1,7 @@
 import logging
 import os
 import uuid
-from typing import AsyncIterable
+from collections.abc import AsyncIterable
 
 from docx import Document as DocxDocument
 

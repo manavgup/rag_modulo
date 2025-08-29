@@ -1,8 +1,7 @@
 from contextlib import contextmanager
-import pytest
-from vectordbs.chroma_store import ChromaDBStore
 
-from core.config import settings
+import pytest
+
 
 @pytest.mark.chromadb
 class TestChromaDBStore:

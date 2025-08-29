@@ -10,11 +10,11 @@ from rag_solution.file_management.database import Base
 
 class UserCollection(Base):
     """Association model representing the many-to-many relationship between users and collections.
-    
+
     This model uses composite primary keys (user_id, collection_id) and maintains the timestamp
     when a user joined a collection. It implements eager loading through selectin strategy
     for both user and collection relationships to optimize query performance.
-    
+
     Attributes:
         user_id (UUID): Foreign key to users table, part of composite primary key
         collection_id (UUID): Foreign key to collections table, part of composite primary key
@@ -22,6 +22,7 @@ class UserCollection(Base):
         user (User): Relationship to User model, eagerly loaded
         collection (Collection): Relationship to Collection model, eagerly loaded
     """
+
     __tablename__ = "user_collection"
 
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), primary_key=True)

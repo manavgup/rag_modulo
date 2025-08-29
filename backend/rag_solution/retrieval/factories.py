@@ -1,10 +1,13 @@
-from typing import Dict, Any
+from typing import Any
+
 from rag_solution.data_ingestion.ingestion import DocumentStore
-from .retriever import BaseRetriever, VectorRetriever, KeywordRetriever, HybridRetriever
+
+from .retriever import BaseRetriever, HybridRetriever, KeywordRetriever, VectorRetriever
+
 
 class RetrieverFactory:
     @staticmethod
-    def create_retriever(config: Dict[str, Any], document_store: DocumentStore) -> BaseRetriever:
+    def create_retriever(config: dict[str, Any], document_store: DocumentStore) -> BaseRetriever:
         """
         Create and return a retriever based on the given configuration.
 
@@ -18,16 +21,13 @@ class RetrieverFactory:
         Raises:
             ValueError: If an invalid retriever type is specified in the configuration.
         """
-        retriever_type = config.get('type', 'vector')
-        
-        if retriever_type == 'hybrid':
-            return HybridRetriever(
-                document_store, 
-                config.get('vector_weight', 0.7)
-            )
-        elif retriever_type == 'vector':
+        retriever_type = config.get("type", "vector")
+
+        if retriever_type == "hybrid":
+            return HybridRetriever(document_store, config.get("vector_weight", 0.7))
+        elif retriever_type == "vector":
             return VectorRetriever(document_store)
-        elif retriever_type == 'keyword':
+        elif retriever_type == "keyword":
             return KeywordRetriever(document_store)
         else:
             raise ValueError(f"Invalid retriever type: {retriever_type}")

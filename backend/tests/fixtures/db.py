@@ -1,16 +1,18 @@
 # db.py
 """Database fixtures for pytest."""
 
-from typing import Generator
+from collections.abc import Generator
+
 import pytest
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.engine import Engine
 from sqlalchemy import text
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import Session, sessionmaker
 
 from core.logging_utils import get_logger
 from rag_solution.file_management.database import Base, engine
 
 logger = get_logger("tests.fixtures.db")
+
 
 @pytest.fixture(scope="session")
 def db_engine() -> Generator[Engine, None, None]:
@@ -25,6 +27,7 @@ def db_engine() -> Generator[Engine, None, None]:
             raise
 
     yield engine
+
 
 @pytest.fixture(scope="function")
 def db_session(db_engine: Engine) -> Generator[Session, None, None]:
@@ -46,9 +49,9 @@ def db_session(db_engine: Engine) -> Generator[Session, None, None]:
         "DELETE FROM teams",
         # do not delete users here
     ]
-    
+
     for stmt in cleanup_statements:
         session.execute(text(stmt))
-        
+
     session.commit()
     session.close()

@@ -1,5 +1,7 @@
 import pytest
+
 from vectordbs.data_types import Document, QueryWithEmbedding
+
 
 class TestVectorStore:
     """
@@ -13,7 +15,7 @@ class TestVectorStore:
     def test_add_documents(self, store):
         documents = [
             Document(document_id="doc1", name="Document 1", chunks=[]),
-            Document(document_id="doc2", name="Document 2", chunks=[])
+            Document(document_id="doc2", name="Document 2", chunks=[]),
         ]
         result = store.add_documents("test_collection", documents)
         assert len(result) == len(documents)
@@ -38,7 +40,7 @@ class TestVectorStore:
     def test_delete_documents(self, store):
         documents = [
             Document(document_id="doc1", name="Document 1", chunks=[]),
-            Document(document_id="doc2", name="Document 2", chunks=[])
+            Document(document_id="doc2", name="Document 2", chunks=[]),
         ]
         store.add_documents("test_collection", documents)
         store.delete_documents("test_collection", ["doc1"])

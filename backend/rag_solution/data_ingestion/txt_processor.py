@@ -1,7 +1,8 @@
 import logging
 import os
 import uuid
-from typing import AsyncIterable
+from collections.abc import AsyncIterable
+
 import aiofiles
 
 from core.custom_exceptions import DocumentProcessingError
@@ -11,6 +12,7 @@ from vectordbs.data_types import Document
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
+
 
 class TxtProcessor(BaseProcessor):
     """
