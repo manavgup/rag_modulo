@@ -1,14 +1,12 @@
 """Integration tests for configuration workflow."""
-import pytest
+
 from sqlalchemy.orm import Session
+
+from rag_solution.schemas.llm_model_schema import LLMModelInput, ModelType
+from rag_solution.schemas.llm_provider_schema import LLMProviderInput
+from rag_solution.schemas.prompt_template_schema import PromptTemplateInput, PromptTemplateType
 from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.prompt_template_service import PromptTemplateService
-from rag_solution.schemas.llm_provider_schema import LLMProviderInput
-from rag_solution.schemas.llm_model_schema import ModelType, LLMModelInput
-from rag_solution.schemas.prompt_template_schema import (
-    PromptTemplateType,
-    PromptTemplateInput
-)
 
 
 def test_complete_configuration_flow(db_session: Session, base_user):
@@ -21,7 +19,7 @@ def test_complete_configuration_flow(db_session: Session, base_user):
         name="watsonx",
         base_url="https://us-south.ml.cloud.ibm.com",
         api_key="test-api-key",
-        project_id="test-project-id"
+        project_id="test-project-id",
     )
     provider = provider_service.create_provider(provider_input)
 
@@ -44,7 +42,7 @@ def test_complete_configuration_flow(db_session: Session, base_user):
         stream=False,
         rate_limit=10,
         is_default=True,
-        is_active=True
+        is_active=True,
     )
     model = provider_service.create_provider_model(model_input)
 
@@ -67,14 +65,11 @@ def test_complete_configuration_flow(db_session: Session, base_user):
             template_format="{context}\n\n{question}",
             input_variables={
                 "context": "Retrieved context for answering the question",
-                "question": "User's question to answer"
+                "question": "User's question to answer",
             },
-            example_inputs={
-                "context": "Python was created by Guido van Rossum.",
-                "question": "Who created Python?"
-            },
-            is_default=True
-        )
+            example_inputs={"context": "Python was created by Guido van Rossum.", "question": "Who created Python?"},
+            is_default=True,
+        ),
     )
 
     assert rag_template.name == "test-rag-template"
@@ -104,14 +99,11 @@ def test_complete_configuration_flow(db_session: Session, base_user):
             ),
             input_variables={
                 "context": "Retrieved passages from knowledge base",
-                "num_questions": "Number of questions to generate"
+                "num_questions": "Number of questions to generate",
             },
-            example_inputs={
-                "context": "Python supports multiple programming paradigms.",
-                "num_questions": 3
-            },
-            is_default=True
-        )
+            example_inputs={"context": "Python supports multiple programming paradigms.", "num_questions": 3},
+            is_default=True,
+        ),
     )
 
     assert question_template.name == "test-question-template"
@@ -133,7 +125,7 @@ def test_update_template_flow(db_session: Session, base_user):
         name="watsonx",
         base_url="https://us-south.ml.cloud.ibm.com",
         api_key="test-api-key",
-        project_id="test-project-id"
+        project_id="test-project-id",
     )
     provider = provider_service.create_provider(provider_input)
 
@@ -149,16 +141,10 @@ def test_update_template_flow(db_session: Session, base_user):
             template_type=PromptTemplateType.RAG_QUERY,
             system_prompt="Initial system prompt",
             template_format="{context}\n\n{question}",
-            input_variables={
-                "context": "Retrieved context",
-                "question": "User's question"
-            },
-            example_inputs={
-                "context": "Initial context",
-                "question": "Initial question"
-            },
-            is_default=True
-        )
+            input_variables={"context": "Retrieved context", "question": "User's question"},
+            example_inputs={"context": "Initial context", "question": "Initial question"},
+            is_default=True,
+        ),
     )
 
     # Update template
@@ -170,16 +156,10 @@ def test_update_template_flow(db_session: Session, base_user):
             template_type=PromptTemplateType.RAG_QUERY,
             system_prompt="Updated system prompt",
             template_format="{context}\n\n{question}",
-            input_variables={
-                "context": "Updated context description",
-                "question": "Updated question description"
-            },
-            example_inputs={
-                "context": "Updated context",
-                "question": "Updated question"
-            },
-            is_default=True
-        )
+            input_variables={"context": "Updated context description", "question": "Updated question description"},
+            example_inputs={"context": "Updated context", "question": "Updated question"},
+            is_default=True,
+        ),
     )
 
     assert updated_template.id == template.id  # Same ID means it was updated

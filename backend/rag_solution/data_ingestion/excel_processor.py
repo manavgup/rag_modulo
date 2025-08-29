@@ -1,7 +1,7 @@
 import logging
 import os
 import uuid
-from typing import AsyncIterable
+from collections.abc import AsyncIterable
 
 import pandas as pd
 
@@ -55,6 +55,4 @@ class ExcelProcessor(BaseProcessor):
                 )
         except Exception as e:
             logger.error(f"Error reading Excel file {file_path}: {e}", exc_info=True)
-            raise DocumentProcessingError(
-                f"Error processing Excel file {file_path}"
-            ) from e
+            raise DocumentProcessingError(f"Error processing Excel file {file_path}") from e

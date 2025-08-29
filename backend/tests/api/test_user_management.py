@@ -1,14 +1,11 @@
 # test_user_management.py
 
-import pytest
-import pytest_asyncio
-from httpx import AsyncClient
 from uuid import uuid4
-import io
-from typing import Dict, Any
+
+import pytest
 
 from .base_test import BaseTestRouter
-from rag_solution.schemas.collection_schema import CollectionStatus
+
 
 class TestUserManagement(BaseTestRouter):
     """Test user-related endpoints including teams."""
@@ -20,16 +17,13 @@ class TestUserManagement(BaseTestRouter):
             "ibm_id": f"test_user_{uuid4()}",
             "email": f"test_{uuid4()}@example.com",
             "name": "Test User",
-            "role": "user"
+            "role": "user",
         }
 
     @pytest.fixture
     def test_team_data(self):
         """Sample team data for testing."""
-        return {
-            "name": f"Test Team {uuid4()}",
-            "description": "A team for testing purposes"
-        }
+        return {"name": f"Test Team {uuid4()}", "description": "A team for testing purposes"}
 
     # User Management Tests
     @pytest.mark.asyncio
@@ -70,10 +64,7 @@ class TestUserManagement(BaseTestRouter):
     @pytest.mark.asyncio
     async def test_add_user_to_team(self, base_user, base_team):
         """Test adding user to team."""
-        response = self.post(
-            f"/api/teams/{base_team.id}/users",
-            json={"user_id": str(base_user.id)}
-        )
+        response = self.post(f"/api/teams/{base_team.id}/users", json={"user_id": str(base_user.id)})
         self.assert_success(response)
         assert response.json()["status"] == "success"
 
@@ -81,10 +72,7 @@ class TestUserManagement(BaseTestRouter):
     async def test_update_team_member_role(self, base_team, base_user_team):
         """Test updating team member role."""
         update_data = {"role": "admin"}
-        response = self.put(
-            f"/api/teams/{base_team.id}/users/{base_user_team.user_id}",
-            json=update_data
-        )
+        response = self.put(f"/api/teams/{base_team.id}/users/{base_user_team.user_id}", json=update_data)
         self.assert_success(response)
         assert response.json()["role"] == "admin"
 
@@ -95,16 +83,13 @@ class TestUserManagement(BaseTestRouter):
         response = self.get(f"/api/users/{base_user.id}/collections")
         self.assert_success(response)
         data = response.json()
-        assert len(data) > 0 
+        assert len(data) > 0
 
     @pytest.mark.asyncio
     async def test_upload_file_to_collection(self, base_user, base_collection):
         """Test file upload."""
         files = {"file": ("test.txt", b"Test content", "text/plain")}
-        response = self.post(
-            f"/api/users/{base_user.id}/collections/{base_collection.id}/files",
-            files=files
-        )
+        response = self.post(f"/api/users/{base_user.id}/collections/{base_collection.id}/files", files=files)
         self.assert_success(response)
         data = response.json()
         assert data["filename"] == "test.txt"
@@ -121,7 +106,7 @@ class TestUserManagement(BaseTestRouter):
             ("get", f"/api/teams/{test_id}"),
             ("post", "/api/teams"),
         ]
-        
+
         for method, endpoint in endpoints:
             response = getattr(self, method)(endpoint, authenticated=False)
             self.assert_unauthorized(response)

@@ -4,6 +4,7 @@ from uuid import UUID
 import pytest
 from fastapi import HTTPException
 from pydantic import ValidationError
+
 from rag_solution.repository.user_repository import UserRepository
 from rag_solution.repository.user_team_repository import UserTeamRepository
 from rag_solution.schemas.user_schema import UserInput, UserOutput
@@ -12,28 +13,31 @@ from rag_solution.services.user_team_service import UserTeamService
 
 logger = logging.getLogger(__name__)
 
+
 @pytest.fixture
 def user_input():
-    return UserInput(
-        ibm_id="test_ibm_id",
-        email="test@example.com",
-        name="Test User"
-    )
+    return UserInput(ibm_id="test_ibm_id", email="test@example.com", name="Test User")
+
+
 @pytest.fixture
 def user_team_repository(db_session):
     return UserTeamRepository(db_session)
+
 
 @pytest.fixture
 def user_repository(db_session):
     return UserRepository(db_session)
 
+
 @pytest.fixture
 def user_team_service(user_team_repository):
     return UserTeamService(user_team_repository)
 
+
 @pytest.fixture
 def user_service(db_session, user_team_service):
     return UserService(db_session, user_team_service)
+
 
 def test_create_user(user_service: UserService):
     user_input = UserInput(ibm_id="test_ibm_id", email="test@example.com", name="Test User")
@@ -53,7 +57,7 @@ def test_get_user(user_service, user_input):
 
 def test_get_non_existent_user(user_service):
     with pytest.raises(HTTPException) as exc_info:
-        user_service.get_user_by_id(UUID('00000000-0000-0000-0000-000000000000'))
+        user_service.get_user_by_id(UUID("00000000-0000-0000-0000-000000000000"))
     assert exc_info.value.status_code == 404
 
 
@@ -90,20 +94,24 @@ def test_get_non_existent_user_by_ibm_id(user_service):
 
 def test_update_non_existent_user(user_service, user_input):
     with pytest.raises(HTTPException) as exc_info:
-        user_service.update_user(UUID('00000000-0000-0000-0000-000000000000'), user_input)
+        user_service.update_user(UUID("00000000-0000-0000-0000-000000000000"), user_input)
     assert exc_info.value.status_code == 404
 
 
 def test_delete_non_existent_user(user_service):
     with pytest.raises(HTTPException) as exc_info:
-        user_service.delete_user(UUID('00000000-0000-0000-0000-000000000000'))
+        user_service.delete_user(UUID("00000000-0000-0000-0000-000000000000"))
     assert exc_info.value.status_code == 404
 
-@pytest.mark.parametrize("invalid_input, error_message", [
-    ({"ibm_id": "", "email": "test@example.com", "name": "Test User"}, "ibm_id"),
-    ({"ibm_id": "test_ibm_id", "email": "invalid_email", "name": "Test User"}, "email"),
-    ({"ibm_id": "test_ibm_id", "email": "test@example.com", "name": ""}, "name"),
-])
+
+@pytest.mark.parametrize(
+    "invalid_input, error_message",
+    [
+        ({"ibm_id": "", "email": "test@example.com", "name": "Test User"}, "ibm_id"),
+        ({"ibm_id": "test_ibm_id", "email": "invalid_email", "name": "Test User"}, "email"),
+        ({"ibm_id": "test_ibm_id", "email": "test@example.com", "name": ""}, "name"),
+    ],
+)
 def test_create_user_with_invalid_input(user_service, invalid_input, error_message):
     with pytest.raises(ValidationError) as exc_info:
         UserInput(**invalid_input)

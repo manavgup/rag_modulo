@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
@@ -16,14 +15,16 @@ class TeamInDB(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class TeamInput(BaseModel):
     name: str
     description: str | None = None
+
 
 class TeamOutput(BaseModel):
     id: UUID
     name: str
     description: str | None = None
-    users: Optional[List[UserOutput]] = None
+    users: list[UserOutput] | None = None
 
     model_config = ConfigDict(from_attributes=True)

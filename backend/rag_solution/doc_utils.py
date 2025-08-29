@@ -1,11 +1,10 @@
 import uuid
-from typing import Optional
 
 from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, Source
 from vectordbs.utils.watsonx import get_embeddings
 
 
-def get_document(name: str, document_id: str, text: str, metadata: Optional[dict] = None) -> Document:
+def get_document(name: str, document_id: str, text: str, metadata: dict | None = None) -> Document:
     """
     Create a Document object with embedded vectors.
 
@@ -17,11 +16,42 @@ def get_document(name: str, document_id: str, text: str, metadata: Optional[dict
 
     Returns:
         Document: A Document object with embedded vectors.
+
+    Examples:
+        >>> # Create a document without metadata
+        >>> doc = get_document("sample.pdf", "doc123", "This is sample text")
+        >>> doc.name
+        'sample.pdf'
+        >>> doc.document_id
+        'doc123'
+        >>> len(doc.chunks)
+        1
+        >>> doc.chunks[0].text
+        'This is sample text'
+        >>> doc.metadata is None
+        True
+
+        >>> # Create a document with custom metadata
+        >>> metadata = {"author": "John Doe", "title": "Sample Article"}
+        >>> doc = get_document("article.txt", "doc456", "Article content", metadata)
+        >>> doc.metadata.author
+        'John Doe'
+        >>> doc.metadata.title
+        'Sample Article'
+        >>> doc.chunks[0].metadata.source
+        <Source.OTHER: 'other'>
     """
+    # Create chunk metadata for source information
     chunk_metadata = DocumentChunkMetadata(
-        source=Source.PDF if name.lower().endswith('.pdf') else Source.OTHER,
-        **metadata
-    ) if metadata else None
+        source=Source.PDF if name.lower().endswith(".pdf") else Source.OTHER, document_id=document_id
+    )
+
+    # Create document metadata if provided
+    doc_metadata = None
+    if metadata:
+        from vectordbs.data_types import DocumentMetadata
+
+        doc_metadata = DocumentMetadata(**metadata)
 
     return Document(
         name=name,
@@ -32,13 +62,14 @@ def get_document(name: str, document_id: str, text: str, metadata: Optional[dict
                 text=text,
                 vectors=get_embeddings(text),
                 document_id=document_id,
+                metadata=chunk_metadata,
             )
         ],
-        metadata=chunk_metadata
+        metadata=doc_metadata,
     )
 
 
-def clean_text(text: Optional[str]) -> str:
+def clean_text(text: str | None) -> str:
     """
     Clean and normalize text by removing special characters and extra whitespace.
 
@@ -54,3 +85,88 @@ def clean_text(text: Optional[str]) -> str:
     cleaned_text = "".join(char for char in text if char.isalnum() or char.isspace())
     cleaned_text = " ".join(cleaned_text.split())
     return cleaned_text
+
+
+def extract_filename_from_path(file_path: str) -> str:
+    """
+    Extract the filename from a file path.
+
+    Args:
+        file_path (str): The full file path.
+
+    Returns:
+        str: The extracted filename without the path.
+
+    Examples:
+        >>> # Extract from simple filename
+        >>> extract_filename_from_path("document.pdf")
+        'document.pdf'
+
+        >>> # Extract from relative path
+        >>> extract_filename_from_path("folder/subfolder/file.txt")
+        'file.txt'
+
+        >>> # Extract from absolute path
+        >>> extract_filename_from_path("/home/user/documents/report.docx")
+        'report.docx'
+
+        >>> # Extract from Windows path (use forward slashes)
+        >>> extract_filename_from_path("C:/Users/User/Desktop/presentation.pptx")
+        'presentation.pptx'
+
+        >>> # Handle path with multiple dots
+        >>> extract_filename_from_path("archive.tar.gz")
+        'archive.tar.gz'
+    """
+    import os
+
+    return os.path.basename(file_path)
+
+
+def is_valid_document_type(filename: str, allowed_extensions: list[str]) -> bool:
+    """
+    Check if a filename has an allowed file extension.
+
+    Args:
+        filename (str): The filename to check.
+        allowed_extensions (list[str]): List of allowed file extensions.
+
+    Returns:
+        bool: True if the file extension is allowed, False otherwise.
+
+    Examples:
+        >>> # Check PDF files
+        >>> is_valid_document_type("document.pdf", [".pdf", ".txt"])
+        True
+
+        >>> # Check text files
+        >>> is_valid_document_type("notes.txt", [".pdf", ".txt"])
+        True
+
+        >>> # Check unsupported files
+        >>> is_valid_document_type("image.jpg", [".pdf", ".txt"])
+        False
+
+        >>> # Check case sensitivity (should be case-insensitive)
+        >>> is_valid_document_type("Document.PDF", [".pdf", ".txt"])
+        True
+
+        >>> # Check files without extensions
+        >>> is_valid_document_type("README", [".pdf", ".txt"])
+        False
+
+        >>> # Check empty allowed extensions
+        >>> is_valid_document_type("file.txt", [])
+        False
+    """
+    import os
+
+    _, ext = os.path.splitext(filename)
+    return ext.lower() in [ext.lower() for ext in allowed_extensions]
+
+
+if __name__ == "__main__":
+    # Run doctests when the module is executed directly
+    import doctest
+
+    doctest.testmod(verbose=True)

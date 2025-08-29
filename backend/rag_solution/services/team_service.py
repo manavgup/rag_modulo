@@ -1,7 +1,6 @@
 # team_service.py
 
 import logging
-from typing import List, Optional
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -11,9 +10,10 @@ from rag_solution.repository.team_repository import TeamRepository
 from rag_solution.repository.user_team_repository import UserTeamRepository
 from rag_solution.schemas.team_schema import TeamInput, TeamOutput
 from rag_solution.schemas.user_schema import UserOutput
-from rag_solution.services.user_team_service import UserTeamService, UserTeamInput
+from rag_solution.services.user_team_service import UserTeamService
 
 logger = logging.getLogger(__name__)
+
 
 class TeamService:
     def __init__(self, db: Session, user_team_service: UserTeamService = None):
@@ -27,13 +27,13 @@ class TeamService:
             logger.info(f"Team created successfully: {team.id}")
             return team
         except ValueError as e:
-            logger.error(f"Value error creating team: {str(e)}")
+            logger.error(f"Value error creating team: {e!s}")
             raise HTTPException(status_code=400, detail=str(e))
         except Exception as e:
-            logger.error(f"Unexpected error creating team: {str(e)}")
+            logger.error(f"Unexpected error creating team: {e!s}")
             raise HTTPException(status_code=500, detail="Internal server error")
 
-    def get_team_by_id(self, team_id: UUID) -> Optional[TeamOutput]:
+    def get_team_by_id(self, team_id: UUID) -> TeamOutput | None:
         try:
             logger.info(f"Fetching team with id: {team_id}")
             team = self.team_repository.get(team_id)
@@ -44,10 +44,10 @@ class TeamService:
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Unexpected error getting team {team_id}: {str(e)}")
+            logger.error(f"Unexpected error getting team {team_id}: {e!s}")
             raise HTTPException(status_code=500, detail="Internal server error")
 
-    def update_team(self, team_id: UUID, team_update: TeamInput) -> Optional[TeamOutput]:
+    def update_team(self, team_id: UUID, team_update: TeamInput) -> TeamOutput | None:
         try:
             logger.info(f"Updating team {team_id} with input: {team_update}")
             team = self.team_repository.update(team_id, team_update)
@@ -59,7 +59,7 @@ class TeamService:
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Unexpected error updating team {team_id}: {str(e)}")
+            logger.error(f"Unexpected error updating team {team_id}: {e!s}")
             raise HTTPException(status_code=500, detail="Internal server error")
 
     def delete_team(self, team_id: UUID) -> bool:
@@ -74,10 +74,10 @@ class TeamService:
         except HTTPException:
             raise
         except Exception as e:
-            logger.error(f"Unexpected error deleting team {team_id}: {str(e)}")
+            logger.error(f"Unexpected error deleting team {team_id}: {e!s}")
             raise HTTPException(status_code=500, detail="Internal server error")
 
-    def get_team_users(self, team_id: UUID) -> List[UserOutput]:
+    def get_team_users(self, team_id: UUID) -> list[UserOutput]:
         logger.info(f"Fetching users for team: {team_id}")
         return self.user_team_service.get_team_users(team_id)
 
@@ -89,12 +89,12 @@ class TeamService:
         logger.info(f"Removing user {user_id} from team {team_id}")
         return self.user_team_service.remove_user_from_team(user_id, team_id)
 
-    def list_teams(self, skip: int = 0, limit: int = 100) -> List[TeamOutput]:
+    def list_teams(self, skip: int = 0, limit: int = 100) -> list[TeamOutput]:
         logger.info(f"Listing teams with skip={skip} and limit={limit}")
         try:
             teams = self.team_repository.list(skip, limit)
             logger.info(f"Retrieved {len(teams)} teams")
             return teams
         except Exception as e:
-            logger.error(f"Unexpected error listing teams: {str(e)}")
+            logger.error(f"Unexpected error listing teams: {e!s}")
             raise HTTPException(status_code=500, detail="Internal server error")

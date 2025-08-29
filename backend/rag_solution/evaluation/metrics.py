@@ -1,11 +1,9 @@
-from typing import Any, Callable, Dict, List, Optional, Type
+from abc import ABC, abstractmethod
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
-
-from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
-
-from pydantic import BaseModel,Field
+from pydantic import BaseModel, Field
 
 
 class RetrievalMetricResult(BaseModel):
@@ -18,9 +16,7 @@ class RetrievalMetricResult(BaseModel):
     """
 
     score: float = Field(..., description="Score for the metric")
-    metadata: Dict[str, Any] = Field(
-        default_factory=dict, description="Metadata for the metric result"
-    )
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Metadata for the metric result")
 
     def __str__(self) -> str:
         """String representation."""
@@ -39,11 +35,11 @@ class BaseRetrievalMetric(BaseModel, ABC):
     @abstractmethod
     def compute(
         self,
-        query: Optional[str] = None,
-        expected_ids: Optional[List[str]] = None,
-        retrieved_ids: Optional[List[str]] = None,
-        expected_texts: Optional[List[str]] = None,
-        retrieved_texts: Optional[List[str]] = None,
+        query: str | None = None,
+        expected_ids: list[str] | None = None,
+        retrieved_ids: list[str] | None = None,
+        expected_texts: list[str] | None = None,
+        retrieved_texts: list[str] | None = None,
         **kwargs: Any,
     ) -> RetrievalMetricResult:
         """Compute metric.
@@ -60,7 +56,7 @@ class BaseRetrievalMetric(BaseModel, ABC):
         arbitrary_types_allowed = True
 
 
-_AGG_FUNC: Dict[str, Callable] = {"mean": np.mean, "median": np.median, "max": np.max}
+_AGG_FUNC: dict[str, Callable] = {"mean": np.mean, "median": np.median, "max": np.max}
 
 
 class HitRate(BaseRetrievalMetric):
@@ -70,11 +66,11 @@ class HitRate(BaseRetrievalMetric):
 
     def compute(
         self,
-        query: Optional[str] = None,
-        expected_ids: Optional[List[str]] = None,
-        retrieved_ids: Optional[List[str]] = None,
-        expected_texts: Optional[List[str]] = None,
-        retrieved_texts: Optional[List[str]] = None,
+        query: str | None = None,
+        expected_ids: list[str] | None = None,
+        retrieved_ids: list[str] | None = None,
+        expected_texts: list[str] | None = None,
+        retrieved_texts: list[str] | None = None,
         **kwargs: Any,
     ) -> RetrievalMetricResult:
         """Compute metric."""
@@ -93,11 +89,11 @@ class MRR(BaseRetrievalMetric):
 
     def compute(
         self,
-        query: Optional[str] = None,
-        expected_ids: Optional[List[str]] = None,
-        retrieved_ids: Optional[List[str]] = None,
-        expected_texts: Optional[List[str]] = None,
-        retrieved_texts: Optional[List[str]] = None,
+        query: str | None = None,
+        expected_ids: list[str] | None = None,
+        retrieved_ids: list[str] | None = None,
+        expected_texts: list[str] | None = None,
+        retrieved_texts: list[str] | None = None,
         **kwargs: Any,
     ) -> RetrievalMetricResult:
         """Compute metric."""
@@ -113,7 +109,7 @@ class MRR(BaseRetrievalMetric):
         )
 
 
-METRIC_REGISTRY: Dict[str, Type[BaseRetrievalMetric]] = {
+METRIC_REGISTRY: dict[str, type[BaseRetrievalMetric]] = {
     "hit_rate": HitRate,
     "mrr": MRR,
     # "cohere_rerank_relevancy": CohereRerankRelevancyMetric,
@@ -138,7 +134,7 @@ def extract_node_ids(documents):
     return node_ids
 
 
-def resolve_metrics(metrics: List[str]) -> List[Type[BaseRetrievalMetric]]:
+def resolve_metrics(metrics: list[str]) -> list[type[BaseRetrievalMetric]]:
     """Resolve metrics from list of metric names."""
     for metric in metrics:
         if metric not in METRIC_REGISTRY:
@@ -149,13 +145,13 @@ def resolve_metrics(metrics: List[str]) -> List[Type[BaseRetrievalMetric]]:
 
 class AnswerSimilarity(BaseModel):
     answer_similarity_rate: int = Field(description="numerical score of the answer quality")
-    reasoning: str = Field(
-        description="reasoning why the answer_quality score was given"
-    )
+    reasoning: str = Field(description="reasoning why the answer_quality score was given")
 
 
 class Faithfulness(BaseModel):
-    faithfulness_rate: str = Field(description="factual consistency of the answer can only take one of these values High,Medium,Low")
+    faithfulness_rate: str = Field(
+        description="factual consistency of the answer can only take one of these values High,Medium,Low"
+    )
     reasoning: str = Field(
         description="A clear explanation of the assessment, referencing specific discrepancies or alignments between the answer and the context."
     )
@@ -175,4 +171,3 @@ class ContextRelevance(BaseModel):
     reasoning: str = Field(
         description="reasoning why the relevancy_score score was given justify your rating for each document concisely but clearly."
     )
-

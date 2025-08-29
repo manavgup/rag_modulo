@@ -1,35 +1,38 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Optional
+from typing import Any
+
 from vectordbs.utils.watsonx import generate_text
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 class QueryRewriterError(Exception):
     """Base exception class for QueryRewriter errors"""
-    pass
+
 
 class InvalidQueryError(QueryRewriterError):
     """Exception raised for invalid queries"""
-    pass
+
 
 class ConfigurationError(QueryRewriterError):
     """Exception raised for invalid configuration"""
-    pass
+
 
 class RewriterError(QueryRewriterError):
     """Exception raised when a specific rewriter fails"""
-    pass
+
 
 class BaseQueryRewriter(ABC):
     @abstractmethod
-    def rewrite(self, query: str, context: Optional[Dict[str, Any]] = None) -> str:
+    def rewrite(self, query: str, context: dict[str, Any] | None = None) -> str:
         pass
 
+
 class SimpleQueryRewriter(BaseQueryRewriter):
-    def rewrite(self, query: str, context: Optional[Dict[str, Any]] = None) -> str:
+    def rewrite(self, query: str, context: dict[str, Any] | None = None) -> str:
         logger.info(f"Applying simple query expansion to: {query}")
         try:
             if "AND (relevant OR important OR key)" not in query:
@@ -38,8 +41,9 @@ class SimpleQueryRewriter(BaseQueryRewriter):
                 return expanded_query
             return query
         except Exception as e:
-            logger.error(f"Error in SimpleQueryRewriter: {str(e)}")
-            raise RewriterError(f"SimpleQueryRewriter failed: {str(e)}")
+            logger.error(f"Error in SimpleQueryRewriter: {e!s}")
+            raise RewriterError(f"SimpleQueryRewriter failed: {e!s}")
+
 
 class HypotheticalDocumentEmbedding(BaseQueryRewriter):
     def __init__(self, max_tokens: int = 100, timeout: int = 30, max_retries: int = 3):
@@ -47,12 +51,12 @@ class HypotheticalDocumentEmbedding(BaseQueryRewriter):
         self.timeout = timeout
         self.max_retries = max_retries
 
-    def rewrite(self, query: str, context: Optional[Dict[str, Any]] = None) -> str:
+    def rewrite(self, query: str, context: dict[str, Any] | None = None) -> str:
         logger.info(f"Applying Hypothetical Document Embedding to: {query}")
         prompt = f"Generate a concise hypothetical document (maximum {self.max_tokens} tokens) that would perfectly answer the query: {query}"
         if context:
             prompt += f"\nAdditional context: {context}"
-        
+
         try:
             hde = generate_text(prompt, max_tokens=self.max_tokens, timeout=self.timeout, max_retries=self.max_retries)
             if not hde:
@@ -62,22 +66,23 @@ class HypotheticalDocumentEmbedding(BaseQueryRewriter):
             logger.info(f"HDE rewritten query: {rewritten_query}")
             return rewritten_query
         except Exception as e:
-            logger.error(f"Error in HDE query rewriting: {str(e)}")
-            raise RewriterError(f"HypotheticalDocumentEmbedding failed: {str(e)}")
+            logger.error(f"Error in HDE query rewriting: {e!s}")
+            raise RewriterError(f"HypotheticalDocumentEmbedding failed: {e!s}")
+
 
 class QueryRewriter:
-    def __init__(self, config: Dict[str, Any]):
-        self.rewriters: List[BaseQueryRewriter] = []
+    def __init__(self, config: dict[str, Any]):
+        self.rewriters: list[BaseQueryRewriter] = []
         try:
             if not isinstance(config, dict):
                 raise ConfigurationError("Config must be a dictionary")
-            
-            if config.get('use_simple_rewriter', True):
+
+            if config.get("use_simple_rewriter", True):
                 self.rewriters.append(SimpleQueryRewriter())
-            if config.get('use_hde', False):
-                hde_max_tokens = config.get('hde_max_tokens', 100)
-                hde_timeout = config.get('hde_timeout', 30)
-                hde_max_retries = config.get('hde_max_retries', 3)
+            if config.get("use_hde", False):
+                hde_max_tokens = config.get("hde_max_tokens", 100)
+                hde_timeout = config.get("hde_timeout", 30)
+                hde_max_retries = config.get("hde_max_retries", 3)
                 if not isinstance(hde_max_tokens, int) or hde_max_tokens <= 0:
                     raise ConfigurationError("hde_max_tokens must be a positive integer")
                 if not isinstance(hde_timeout, int) or hde_timeout <= 0:
@@ -85,16 +90,16 @@ class QueryRewriter:
                 if not isinstance(hde_max_retries, int) or hde_max_retries < 0:
                     raise ConfigurationError("hde_max_retries must be a non-negative integer")
                 self.rewriters.append(HypotheticalDocumentEmbedding(hde_max_tokens, hde_timeout, hde_max_retries))
-            
+
             logger.info(f"Initialized QueryRewriter with {len(self.rewriters)} rewriters")
         except ConfigurationError as e:
-            logger.error(f"Configuration error: {str(e)}")
+            logger.error(f"Configuration error: {e!s}")
             raise
         except Exception as e:
-            logger.error(f"Unexpected error during QueryRewriter initialization: {str(e)}")
-            raise ConfigurationError(f"Failed to initialize QueryRewriter: {str(e)}")
+            logger.error(f"Unexpected error during QueryRewriter initialization: {e!s}")
+            raise ConfigurationError(f"Failed to initialize QueryRewriter: {e!s}")
 
-    def rewrite(self, query: str, context: Optional[Dict[str, Any]] = None) -> str:
+    def rewrite(self, query: str, context: dict[str, Any] | None = None) -> str:
         if not query or not query.strip():
             logger.error("Empty query provided")
             raise InvalidQueryError("Query cannot be empty")
@@ -105,9 +110,9 @@ class QueryRewriter:
             try:
                 query = rewriter.rewrite(query, context)
             except RewriterError as e:
-                logger.warning(f"Rewriter failed: {str(e)}. Continuing with next rewriter.")
+                logger.warning(f"Rewriter failed: {e!s}. Continuing with next rewriter.")
             except Exception as e:
-                logger.error(f"Unexpected error in rewriter: {str(e)}")
+                logger.error(f"Unexpected error in rewriter: {e!s}")
                 # Fall back to the previous query state
                 logger.info(f"Falling back to previous query state: {query}")
 
@@ -117,14 +122,15 @@ class QueryRewriter:
             logger.info(f"Final rewritten query: {query}")
         return query
 
+
 # Example usage
 if __name__ == "__main__":
     config = {
-        'use_simple_rewriter': True,
-        'use_hde': True,
-        'hde_max_tokens': 50,
-        'hde_timeout': 30,
-        'hde_max_retries': 3
+        "use_simple_rewriter": True,
+        "use_hde": True,
+        "hde_max_tokens": 50,
+        "hde_timeout": 30,
+        "hde_max_retries": 3,
     }
     try:
         rewriter = QueryRewriter(config)
@@ -133,6 +139,6 @@ if __name__ == "__main__":
         print(f"Original Query: {original_query}")
         print(f"Rewritten Query: {rewritten_query}")
     except QueryRewriterError as e:
-        print(f"Error occurred: {str(e)}")
+        print(f"Error occurred: {e!s}")
     except Exception as e:
-        print(f"Unexpected error: {str(e)}")
+        print(f"Unexpected error: {e!s}")

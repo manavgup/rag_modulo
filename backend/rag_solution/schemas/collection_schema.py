@@ -1,9 +1,9 @@
 from datetime import datetime
-from typing import List
+from enum import Enum
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
-from enum import Enum
+
 
 class CollectionStatus(str, Enum):
     CREATED = "created"
@@ -11,24 +11,27 @@ class CollectionStatus(str, Enum):
     COMPLETED = "completed"
     ERROR = "error"
 
+
 class FileInfo(BaseModel):
     id: UUID
     filename: str
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class CollectionInput(BaseModel):
     name: str
     is_private: bool
-    users: List[UUID] = []
+    users: list[UUID] = []
     status: CollectionStatus = CollectionStatus.CREATED
 
     model_config = ConfigDict(
         from_attributes=True,
         json_encoders={
             UUID: lambda v: str(v),  # Convert UUID to string during serialization
-        }
+        },
     )
+
 
 class CollectionOutput(BaseModel):
     id: UUID
@@ -37,11 +40,12 @@ class CollectionOutput(BaseModel):
     is_private: bool
     created_at: datetime
     updated_at: datetime
-    user_ids: List[UUID]
-    files: List[FileInfo]
+    user_ids: list[UUID]
+    files: list[FileInfo]
     status: CollectionStatus
 
     model_config = ConfigDict(from_attributes=True)
+
 
 class CollectionInDB(BaseModel):
     id: UUID

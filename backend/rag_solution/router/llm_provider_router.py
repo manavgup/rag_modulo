@@ -1,13 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from typing import List
 from uuid import UUID
 
-from rag_solution.file_management.database import get_db
-from rag_solution.services.llm_provider_service import LLMProviderService
-from rag_solution.schemas.llm_provider_schema import LLMProviderInput, LLMProviderOutput
-from rag_solution.schemas.llm_model_schema import LLMModelInput, LLMModelOutput, ModelType
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
 
+from rag_solution.file_management.database import get_db
+from rag_solution.schemas.llm_model_schema import LLMModelInput, LLMModelOutput, ModelType
+from rag_solution.schemas.llm_provider_schema import LLMProviderInput, LLMProviderOutput
+from rag_solution.services.llm_provider_service import LLMProviderService
 
 router = APIRouter(
     prefix="/api/llm-providers",
@@ -24,6 +23,7 @@ def get_service(db: Session = Depends(get_db)):
 # PROVIDER ROUTES
 # -------------------------------
 
+
 @router.post("/", response_model=LLMProviderOutput)
 def create_provider(provider_input: LLMProviderInput, service: LLMProviderService = Depends(get_service)):
     """
@@ -32,7 +32,7 @@ def create_provider(provider_input: LLMProviderInput, service: LLMProviderServic
     return service.create_provider(provider_input)
 
 
-@router.get("/", response_model=List[LLMProviderOutput])
+@router.get("/", response_model=list[LLMProviderOutput])
 def get_all_providers(is_active: bool = None, service: LLMProviderService = Depends(get_service)):
     """
     Retrieve all LLM Providers.
@@ -77,6 +77,7 @@ def delete_provider(provider_id: UUID, service: LLMProviderService = Depends(get
 # PROVIDER MODEL ROUTES
 # -------------------------------
 
+
 @router.post("/models/", response_model=LLMModelOutput)
 def create_provider_model(model_input: LLMModelInput, service: LLMProviderService = Depends(get_service)):
     """
@@ -85,7 +86,7 @@ def create_provider_model(model_input: LLMModelInput, service: LLMProviderServic
     return service.create_provider_model(model_input)
 
 
-@router.get("/models/provider/{provider_id}", response_model=List[LLMModelOutput])
+@router.get("/models/provider/{provider_id}", response_model=list[LLMModelOutput])
 def get_models_by_provider(provider_id: UUID, service: LLMProviderService = Depends(get_service)):
     """
     Get all Models associated with an LLM Provider.
@@ -93,7 +94,7 @@ def get_models_by_provider(provider_id: UUID, service: LLMProviderService = Depe
     return service.get_models_by_provider(provider_id)
 
 
-@router.get("/models/type/{model_type}", response_model=List[LLMModelOutput])
+@router.get("/models/type/{model_type}", response_model=list[LLMModelOutput])
 def get_models_by_type(model_type: ModelType, service: LLMProviderService = Depends(get_service)):
     """
     Get Models filtered by type (e.g., 'generation', 'embedding').
@@ -137,6 +138,7 @@ def delete_model(model_id: UUID, service: LLMProviderService = Depends(get_servi
 # -------------------------------
 # PROVIDER WITH MODELS
 # -------------------------------
+
 
 @router.get("/{provider_id}/with-models")
 def get_provider_with_models(provider_id: UUID, service: LLMProviderService = Depends(get_service)):
