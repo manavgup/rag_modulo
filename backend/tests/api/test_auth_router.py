@@ -1,15 +1,16 @@
 """Tests for AuthRouter API endpoints."""
 
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
-from datetime import datetime, timedelta
-from fastapi.testclient import TestClient
-from fastapi.responses import RedirectResponse, JSONResponse
 import json
-import jwt
+from datetime import datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from main import app
+import jwt
+import pytest
+from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.testclient import TestClient
+
 from core.config import settings
+from main import app
 
 # Test Data
 TEST_USER = {
@@ -17,72 +18,76 @@ TEST_USER = {
     "email": "test@example.com",
     "name": "Test User",
     "uuid": "test-uuid",
-    "role": "admin"  # Use admin role for broader access
+    "role": "admin",  # Use admin role for broader access
 }
 
 TEST_JWT = jwt.encode(TEST_USER, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+
 
 @pytest.fixture
 def client():
     """Create a test client for the FastAPI app."""
     return TestClient(app)
 
+
 @pytest.fixture(autouse=True)
 def mock_jwt_verification():
     """Mock JWT verification."""
+
     def mock_verify(token):
         if token == "mock_token_for_testing" or token == TEST_JWT:
             return TEST_USER
         raise jwt.InvalidTokenError("Invalid token")
 
-    with patch("auth.oidc.verify_jwt_token", side_effect=mock_verify), \
-         patch("core.authentication_middleware.verify_jwt_token", side_effect=mock_verify):
+    with (
+        patch("auth.oidc.verify_jwt_token", side_effect=mock_verify),
+        patch("core.authentication_middleware.verify_jwt_token", side_effect=mock_verify),
+    ):
         yield
+
 
 @pytest.fixture
 def mock_auth_middleware():
     """Mock authentication middleware."""
+
     async def mock_dispatch(request, call_next):
         # Define open paths that don't require auth
         open_paths = [
-            '/api/auth/login',
-            '/api/auth/callback',
-            '/api/auth/oidc-config',
-            '/api/auth/token',
-            '/api/auth/userinfo',
-            '/api/auth/session',
-            '/api/health'
+            "/api/auth/login",
+            "/api/auth/callback",
+            "/api/auth/oidc-config",
+            "/api/auth/token",
+            "/api/auth/userinfo",
+            "/api/auth/session",
+            "/api/health",
         ]
-        
+
         # Check if path is open
         if any(request.url.path.startswith(path) for path in open_paths):
             return await call_next(request)
-            
+
         # Handle authentication for protected paths
-        auth_header = request.headers.get('Authorization')
-        if not auth_header or not auth_header.startswith('Bearer '):
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
             return JSONResponse(status_code=401, content={"detail": "Not authenticated"})
-            
-        token = auth_header.split(' ')[1]
+
+        token = auth_header.split(" ")[1]
         if token in ["mock_token_for_testing", "test-id-token", "valid-test-token", TEST_JWT]:
             # Add user info to request state for authenticated requests
             request.state.user = TEST_USER.copy()
             return await call_next(request)
-        
+
         return JSONResponse(status_code=401, content={"detail": "Invalid token"})
 
-    with patch('core.authentication_middleware.AuthenticationMiddleware.dispatch', 
-              side_effect=mock_dispatch):
+    with patch("core.authentication_middleware.AuthenticationMiddleware.dispatch", side_effect=mock_dispatch):
         yield
+
 
 @pytest.fixture
 def auth_headers():
     """Create authentication headers."""
-    return {
-        "Authorization": f"Bearer {TEST_JWT}",
-        "X-User-UUID": TEST_USER["uuid"],
-        "X-User-Role": TEST_USER["role"]
-    }
+    return {"Authorization": f"Bearer {TEST_JWT}", "X-User-UUID": TEST_USER["uuid"], "X-User-Role": TEST_USER["role"]}
+
 
 @pytest.fixture
 def mock_ibm_oauth():
@@ -126,6 +131,7 @@ def mock_ibm_oauth():
     with patch("auth.oidc.oauth.ibm", oauth_mock):
         yield oauth_mock
 
+
 class TestAuthentication:
     def test_token_exchange(self, client, mock_auth_middleware):
         """Test POST /api/auth/token - exchanging auth code for token."""
@@ -133,7 +139,7 @@ class TestAuthentication:
             "access_token": "test_access_token",
             "token_type": "Bearer",
             "expires_in": 3600,
-            "id_token": "test_id_token"
+            "id_token": "test_id_token",
         }
 
         # Create a ResponseMock class to ensure all attributes are regular values
@@ -166,7 +172,7 @@ class TestAuthentication:
                 pass
 
         # Patch httpx.AsyncClient
-        with patch('httpx.AsyncClient', return_value=AsyncClientMock()):
+        with patch("httpx.AsyncClient", return_value=AsyncClientMock()):
             response = client.post(
                 "/api/auth/token",
                 data={
@@ -174,8 +180,8 @@ class TestAuthentication:
                     "grant_type": "authorization_code",
                     "redirect_uri": f"{settings.frontend_url}/api/auth/callback",
                     "client_id": settings.ibm_client_id,
-                    "client_secret": settings.ibm_client_secret
-                }
+                    "client_secret": settings.ibm_client_secret,
+                },
             )
 
             assert response.status_code == 200
@@ -189,18 +195,18 @@ class TestAuthentication:
         """Test successful callback flow."""
         # Disable redirect following
         client.follow_redirects = False
-        
+
         response = client.get("/api/auth/callback?code=test-code")
-        
+
         # Check status and location header
         assert response.status_code == 307
         assert "callback?token=" in response.headers["location"]
         assert "error=" not in response.headers["location"]
-        
+
         # Validate the token in the redirect URL
         token = response.headers["location"].split("token=")[1]
         assert token, "Token should be present in redirect URL"
-        
+
         # Decode and verify token contents
         decoded_token = jwt.decode(token, options={"verify_signature": False})
         assert decoded_token["sub"] == TEST_USER["sub"]
@@ -211,22 +217,25 @@ class TestAuthentication:
         """Test callback with missing userinfo."""
         # Disable redirect following
         client.follow_redirects = False
-        
+
         # Override mock to return token without userinfo
-        mock_ibm_oauth.authorize_access_token.side_effect = AsyncMock(return_value={
-            "access_token": "mock_access_token",
-            "id_token": TEST_JWT,
-            "token_type": "Bearer",
-            "expires_in": 3600
-            # Deliberately omit userinfo
-        })
-        
+        mock_ibm_oauth.authorize_access_token.side_effect = AsyncMock(
+            return_value={
+                "access_token": "mock_access_token",
+                "id_token": TEST_JWT,
+                "token_type": "Bearer",
+                "expires_in": 3600,
+                # Deliberately omit userinfo
+            }
+        )
+
         response = client.get("/api/auth/callback?code=test-code")
-        
+
         # Check status and error in location header
         assert response.status_code == 307
         assert "error=authentication_failed" in response.headers["location"]
         assert "signin" in response.headers["location"]
+
 
 class TestUserEndpoints:
     def test_get_userinfo(self, client, auth_headers):

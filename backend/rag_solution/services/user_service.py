@@ -1,17 +1,16 @@
-from typing import List, Optional
 from uuid import UUID
-from fastapi import HTTPException
-from sqlalchemy.orm import Session
-from pydantic import EmailStr
 
-from rag_solution.repository.user_repository import UserRepository
-from rag_solution.services.user_provider_service import UserProviderService
-from rag_solution.schemas.user_schema import UserInput, UserOutput
-from rag_solution.schemas.team_schema import TeamOutput
-from core.custom_exceptions import NotFoundException
+from fastapi import HTTPException
+from pydantic import EmailStr
+from sqlalchemy.orm import Session
+
 from core.logging_utils import get_logger
+from rag_solution.repository.user_repository import UserRepository
+from rag_solution.schemas.user_schema import UserInput, UserOutput
+from rag_solution.services.user_provider_service import UserProviderService
 
 logger = get_logger(__name__)
+
 
 class UserService:
     """Service for managing user-related operations."""
@@ -22,62 +21,40 @@ class UserService:
         self.user_repository = UserRepository(db)
         self.user_provider_service = UserProviderService(db)
 
-
     def create_user(self, user_input: UserInput) -> UserOutput:
         """Creates a new user with validation."""
         try:
             # First attempt to create the user
             user = self.user_repository.create(user_input)
-            
+
             # Then initialize user defaults
             try:
                 provider, templates, parameters = self.user_provider_service.initialize_user_defaults(user.id)
                 if not provider or not templates or len(templates) < 2 or not parameters:
                     self.db.rollback()
-                    raise HTTPException(
-                        status_code=500,
-                        detail="Failed to initialize required user configuration"
-                    )
-                
+                    raise HTTPException(status_code=500, detail="Failed to initialize required user configuration")
+
                 self.db.commit()
                 return user
-                
+
             except Exception as e:
                 # If default initialization fails, rollback user creation
                 self.db.rollback()
-                logger.error(f"Error initializing user defaults: {str(e)}")
-                raise HTTPException(
-                    status_code=500,
-                    detail="Failed to initialize user configuration"
-                )
-                
+                logger.error(f"Error initializing user defaults: {e!s}")
+                raise HTTPException(status_code=500, detail="Failed to initialize user configuration")
+
         except ValueError as e:
             # Handle known validation errors from repository
-            logger.warning(f"Validation error in user creation: {str(e)}")
-            raise HTTPException(
-                status_code=400,
-                detail=str(e)
-            )
+            logger.warning(f"Validation error in user creation: {e!s}")
+            raise HTTPException(status_code=400, detail=str(e))
         except Exception as e:
             # Handle unexpected errors
-            logger.error(f"Unexpected error in user creation: {str(e)}")
-            raise HTTPException(
-                status_code=500,
-                detail="Internal server error during user creation"
-            )
+            logger.error(f"Unexpected error in user creation: {e!s}")
+            raise HTTPException(status_code=500, detail="Internal server error during user creation")
 
-
-    def get_or_create_user_by_fields(
-        self, 
-        ibm_id: str, 
-        email: EmailStr, 
-        name: str, 
-        role: str = "user"
-    ) -> UserOutput:
+    def get_or_create_user_by_fields(self, ibm_id: str, email: EmailStr, name: str, role: str = "user") -> UserOutput:
         """Gets existing user or creates new one by fields."""
-        return self.get_or_create_user(
-            UserInput(ibm_id=ibm_id, email=email, name=name, role=role)
-        )
+        return self.get_or_create_user(UserInput(ibm_id=ibm_id, email=email, name=name, role=role))
 
     def get_or_create_user(self, user_input: UserInput) -> UserOutput:
         """Gets existing user or creates new one from input model."""
@@ -87,7 +64,7 @@ class UserService:
                 return self.create_user(user_input)
             return user
         except ValueError as e:
-            logger.error(f"Failed to get/create user: {str(e)}")
+            logger.error(f"Failed to get/create user: {e!s}")
             raise HTTPException(status_code=400, detail=str(e))
 
     def get_user_by_id(self, user_id: UUID) -> UserOutput:
@@ -119,7 +96,7 @@ class UserService:
             logger.info(f"User {user_id} updated successfully")
             return user
         except ValueError as e:
-            logger.error(f"Failed to update user: {str(e)}")
+            logger.error(f"Failed to update user: {e!s}")
             raise HTTPException(status_code=400, detail=str(e))
 
     def delete_user(self, user_id: UUID) -> bool:
@@ -131,7 +108,7 @@ class UserService:
         logger.info(f"User {user_id} deleted successfully")
         return True
 
-    def list_users(self, skip: int = 0, limit: int = 100) -> List[UserOutput]:
+    def list_users(self, skip: int = 0, limit: int = 100) -> list[UserOutput]:
         """Lists users with pagination."""
         logger.info(f"Listing users with skip={skip} and limit={limit}")
         try:
@@ -139,5 +116,5 @@ class UserService:
             logger.info(f"Retrieved {len(users)} users")
             return users
         except Exception as e:
-            logger.error(f"Unexpected error listing users: {str(e)}")
+            logger.error(f"Unexpected error listing users: {e!s}")
             raise HTTPException(status_code=500, detail="Internal server error")

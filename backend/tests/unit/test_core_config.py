@@ -15,6 +15,6 @@ def test_settings_loaded_from_env():
     assert settings.wx_project_id is not None
 
     # Test default values
-    assert settings.vector_db == 'milvus'
-    assert settings.milvus_host == 'milvus-standalone'
-    assert settings.project_name == 'rag_modulo'
+    assert settings.vector_db == "milvus"
+    assert settings.milvus_host == "milvus-standalone"
+    assert settings.project_name == "rag_modulo"

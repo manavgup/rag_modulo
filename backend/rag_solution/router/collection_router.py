@@ -1,39 +1,30 @@
 from uuid import UUID
-from typing import List
 
-from fastapi import APIRouter, BackgroundTasks, Body, Depends, UploadFile, Form, File, Request, HTTPException, Response
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, File, Form, HTTPException, Request, Response, UploadFile
 from sqlalchemy.orm import Session
 
+from core.custom_exceptions import NotFoundError, ValidationError
+from core.logging_utils import get_logger
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput
-from rag_solution.schemas.user_schema import UserInput
-from rag_solution.services.user_service import UserService
-from rag_solution.services.user_collection_service import UserCollectionService
+from rag_solution.schemas.file_schema import DocumentDelete, FileMetadata, FileOutput
+
+# New Imports for LLMParameters and PromptTemplates
+from rag_solution.schemas.question_schema import QuestionInput, QuestionOutput
 from rag_solution.schemas.user_collection_schema import UserCollectionOutput
 from rag_solution.services.collection_service import CollectionService
 from rag_solution.services.file_management_service import FileManagementService
-from rag_solution.schemas.file_schema import DocumentDelete, FileOutput, FileMetadata
 from rag_solution.services.question_service import QuestionService
-from rag_solution.generation.providers.factory import LLMProviderFactory
-from rag_solution.schemas.question_schema import QuestionInDB, QuestionInput, QuestionOutput
-from core.logging_utils import get_logger
-from core.custom_exceptions import ValidationError, NotFoundError
-
-# New Imports for LLMParameters and PromptTemplates
-from rag_solution.schemas.llm_parameters_schema import LLMParametersInput, LLMParametersOutput
-from rag_solution.schemas.prompt_template_schema import PromptTemplateInput, PromptTemplateOutput
-from rag_solution.services.llm_parameters_service import LLMParametersService
-from rag_solution.services.prompt_template_service import PromptTemplateService
+from rag_solution.services.user_collection_service import UserCollectionService
 
 logger = get_logger("router.collections")
 
-router = APIRouter(
-    prefix="/api/collections",
-    tags=["collections"]
-)
+router = APIRouter(prefix="/api/collections", tags=["collections"])
 
-@router.post("", 
-    summary="Create a new collection", 
+
+@router.post(
+    "",
+    summary="Create a new collection",
     response_model=CollectionOutput,
     description="Create a new collection with the provided input data.",
     responses={
@@ -41,8 +32,8 @@ router = APIRouter(
         400: {"description": "Business validation error"},
         404: {"description": "Collection not found"},
         422: {"description": "Request validation error"},
-        500: {"description": "Internal server error"}
-    }
+        500: {"description": "Internal server error"},
+    },
 )
 def create_collection(collection_input: CollectionInput, db: Session = Depends(get_db)):
     """
@@ -54,7 +45,7 @@ def create_collection(collection_input: CollectionInput, db: Session = Depends(g
 
     Returns:
         CollectionOutput: The created collection.
-        
+
     Raises:
         HTTPException: If validation fails, collection not found, or creation fails
     """
@@ -68,11 +59,13 @@ def create_collection(collection_input: CollectionInput, db: Session = Depends(g
         logger.error(f"Not found error creating collection: {e}")
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        logger.error(f"Error creating collection: {str(e)}")
+        logger.error(f"Error creating collection: {e!s}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/with-files", 
-    summary="Create a new collection with documents", 
+
+@router.post(
+    "/with-files",
+    summary="Create a new collection with documents",
     response_model=CollectionOutput,
     description="Create a new collection and upload documents to it.",
     responses={
@@ -81,15 +74,15 @@ def create_collection(collection_input: CollectionInput, db: Session = Depends(g
         403: {"description": "Not authorized to access this resource"},
         404: {"description": "Collection not found"},
         422: {"description": "Request validation error"},
-        500: {"description": "Internal server error"}
-    }
+        500: {"description": "Internal server error"},
+    },
 )
 async def create_collection_with_documents(
     request: Request,
     collection_name: str = Form(...),
     is_private: bool = Form(...),
     user_id: UUID = Form(...),
-    files: List[UploadFile] = File(...),
+    files: list[UploadFile] = File(...),
     background_tasks: BackgroundTasks = BackgroundTasks(),
     db: Session = Depends(get_db),
 ):
@@ -107,23 +100,19 @@ async def create_collection_with_documents(
 
     Returns:
         CollectionOutput: The created collection with documents.
-        
+
     Raises:
         HTTPException: If authorization fails, validation fails, or creation fails
     """
     # Check authorization
-    if not hasattr(request.state, 'user') or request.state.user['uuid'] != str(user_id):
+    if not hasattr(request.state, "user") or request.state.user["uuid"] != str(user_id):
         logger.error(f"Authorization failed for user {user_id}")
         raise HTTPException(status_code=403, detail="Not authorized to access this resource")
 
     try:
         collection_service = CollectionService(db)
         collection = collection_service.create_collection_with_documents(
-            collection_name,
-            is_private,
-            user_id,
-            files, 
-            background_tasks
+            collection_name, is_private, user_id, files, background_tasks
         )
         logger.info(f"Collection created successfully: {collection.id}")
         return collection
@@ -134,18 +123,20 @@ async def create_collection_with_documents(
         logger.error(f"Not found error creating collection with documents: {e}")
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        logger.error(f"Error creating collection with documents: {str(e)}")
+        logger.error(f"Error creating collection with documents: {e!s}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/{collection_id}", 
-    summary="Retrieve a collection by id.", 
+
+@router.get(
+    "/{collection_id}",
+    summary="Retrieve a collection by id.",
     response_model=CollectionOutput,
     description="Retrieve a collection by it's unique id.",
     responses={
         200: {"description": "Collection retrieved successfully"},
         404: {"description": "Collection not found"},
-        500: {"description": "Internal server error"}
-    }
+        500: {"description": "Internal server error"},
+    },
 )
 def get_collection(collection_id: UUID, db: Session = Depends(get_db)):
     """
@@ -157,7 +148,7 @@ def get_collection(collection_id: UUID, db: Session = Depends(get_db)):
 
     Returns:
         CollectionOutput: The retrieved collection.
-        
+
     Raises:
         HTTPException: If collection not found
     """
@@ -169,10 +160,12 @@ def get_collection(collection_id: UUID, db: Session = Depends(get_db)):
         # Propagate the HTTPException (e.g., 404 for not found)
         raise e
     except Exception as e:
-        logger.error(f"Error getting collection: {str(e)}")
+        logger.error(f"Error getting collection: {e!s}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.post("/{collection_id}/questions", 
+
+@router.post(
+    "/{collection_id}/questions",
     summary="Create a question for a collection",
     response_model=QuestionOutput,
     description="Create a new question for the specified collection",
@@ -181,24 +174,24 @@ def get_collection(collection_id: UUID, db: Session = Depends(get_db)):
         400: {"description": "Business validation error"},
         422: {"description": "Request validation error"},
         404: {"description": "Collection not found"},
-        500: {"description": "Internal server error"}
-    }
+        500: {"description": "Internal server error"},
+    },
 )
 def create_collection_question(
     collection_id: UUID,
     question_input: QuestionInput = Body(..., description="Question input data"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> QuestionOutput:
     """Create a new question for a collection.
-    
+
     Args:
         collection_id: ID of the collection
         question_input: Question input data
         db: Database session
-        
+
     Returns:
         QuestionOutput: Created question
-        
+
     Raises:
         HTTPException: If question creation fails
     """
@@ -216,18 +209,20 @@ def create_collection_question(
         logger.error(f"Error creating question for collection {collection_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/{collection_id}/questions",
+
+@router.get(
+    "/{collection_id}/questions",
     summary="Get questions for a collection",
-    response_model=List[QuestionOutput],
+    response_model=list[QuestionOutput],
     description="Get all questions for the specified collection",
     responses={
         200: {"description": "Questions retrieved successfully"},
         404: {"description": "Collection not found"},
         422: {"description": "Invalid UUID format"},
-        500: {"description": "Internal server error"}
-    }
+        500: {"description": "Internal server error"},
+    },
 )
-def get_collection_questions(collection_id: UUID, db: Session = Depends(get_db)) -> List[QuestionOutput]:
+def get_collection_questions(collection_id: UUID, db: Session = Depends(get_db)) -> list[QuestionOutput]:
     """
     Get all questions for a collection.
 
@@ -237,7 +232,7 @@ def get_collection_questions(collection_id: UUID, db: Session = Depends(get_db))
 
     Returns:
         List[QuestionOutput]: List of questions in the collection.
-        
+
     Raises:
         HTTPException: If collection not found or retrieval fails
     """
@@ -252,15 +247,17 @@ def get_collection_questions(collection_id: UUID, db: Session = Depends(get_db))
         logger.error(f"Error getting questions for collection {collection_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.delete("/{collection_id}/questions/{question_id}",
+
+@router.delete(
+    "/{collection_id}/questions/{question_id}",
     summary="Delete a specific question",
     description="Delete a specific question from a collection",
     responses={
         204: {"description": "Question deleted successfully"},
         404: {"description": "Question not found"},
         422: {"description": "Invalid UUID format"},
-        500: {"description": "Internal server error"}
-    }
+        500: {"description": "Internal server error"},
+    },
 )
 def delete_collection_question(collection_id: UUID, question_id: UUID, db: Session = Depends(get_db)) -> None:
     """
@@ -270,7 +267,7 @@ def delete_collection_question(collection_id: UUID, question_id: UUID, db: Sessi
         collection_id (UUID): The ID of the collection.
         question_id (UUID): The ID of the question.
         db (Session): The database session.
-        
+
     Raises:
         HTTPException: If question not found or deletion fails
     """
@@ -285,14 +282,16 @@ def delete_collection_question(collection_id: UUID, question_id: UUID, db: Sessi
         logger.error(f"Error deleting question {question_id} from collection {collection_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.delete("/{collection_id}/questions",
+
+@router.delete(
+    "/{collection_id}/questions",
     summary="Delete all questions for a collection",
     description="Delete all questions associated with the specified collection",
     responses={
         204: {"description": "All questions deleted successfully"},
         404: {"description": "Collection not found"},
-        500: {"description": "Internal server error"}
-    }
+        500: {"description": "Internal server error"},
+    },
 )
 def delete_collection_questions(collection_id: UUID, db: Session = Depends(get_db)) -> None:
     """
@@ -301,7 +300,7 @@ def delete_collection_questions(collection_id: UUID, db: Session = Depends(get_d
     Args:
         collection_id (UUID): The ID of the collection.
         db (Session): The database session.
-        
+
     Raises:
         HTTPException: If collection not found or deletion fails
     """
@@ -316,14 +315,16 @@ def delete_collection_questions(collection_id: UUID, db: Session = Depends(get_d
         logger.error(f"Error deleting questions for collection {collection_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.delete("/{collection_id}", 
-    summary="Delete a collection by id.", 
+
+@router.delete(
+    "/{collection_id}",
+    summary="Delete a collection by id.",
     description="Delete a collection by it's unique id.",
     responses={
         204: {"description": "No content on successful collection deletion"},
         404: {"description": "Collection not found"},
-        500: {"description": "Internal server error"}
-    }
+        500: {"description": "Internal server error"},
+    },
 )
 def delete_collection(collection_id: UUID, db: Session = Depends(get_db)):
     """
@@ -335,7 +336,7 @@ def delete_collection(collection_id: UUID, db: Session = Depends(get_db)):
 
     Returns:
         bool: True if the collection was successfully deleted, False otherwise.
-        
+
     Raises:
         HTTPException: If collection not found or deletion fails
     """
@@ -346,18 +347,20 @@ def delete_collection(collection_id: UUID, db: Session = Depends(get_db)):
         logger.error(f"Not found error deleting collection: {e}")
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        logger.error(f"Error deleting collection: {str(e)}")
+        logger.error(f"Error deleting collection: {e!s}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/{collection_id}/users", 
-    response_model=List[UserCollectionOutput],
+
+@router.get(
+    "/{collection_id}/users",
+    response_model=list[UserCollectionOutput],
     summary="Get collection users",
     description="Get all users associated with a collection",
     responses={
         200: {"description": "Successfully retrieved collection users"},
         404: {"description": "Collection not found"},
-        500: {"description": "Internal server error"}
-    }
+        500: {"description": "Internal server error"},
+    },
 )
 def get_collection_users(collection_id: UUID, db: Session = Depends(get_db)):
     """
@@ -369,7 +372,7 @@ def get_collection_users(collection_id: UUID, db: Session = Depends(get_db)):
 
     Returns:
         List[UserCollectionOutput]: List of users associated with the collection.
-        
+
     Raises:
         HTTPException: If collection not found
     """
@@ -380,17 +383,19 @@ def get_collection_users(collection_id: UUID, db: Session = Depends(get_db)):
         logger.error(f"Not found error getting collection users: {e}")
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        logger.error(f"Error getting collection users: {str(e)}")
+        logger.error(f"Error getting collection users: {e!s}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.delete("/{collection_id}/users", 
+
+@router.delete(
+    "/{collection_id}/users",
     summary="Remove all users from collection",
     description="Remove all users from a specific collection",
     responses={
         204: {"description": "No content in case all users successfully removed from collection"},
         404: {"description": "Collection not found"},
-        500: {"description": "Internal server error"}
-    }
+        500: {"description": "Internal server error"},
+    },
 )
 def remove_all_users_from_collection(collection_id: UUID, db: Session = Depends(get_db)):
     """
@@ -399,7 +404,7 @@ def remove_all_users_from_collection(collection_id: UUID, db: Session = Depends(
     Args:
         collection_id (UUID): The ID of the collection.
         db (Session): The database session.
-        
+
     Raises:
         HTTPException: If collection not found or removal fails
     """
@@ -410,18 +415,20 @@ def remove_all_users_from_collection(collection_id: UUID, db: Session = Depends(
         logger.error(f"Not found error removing users from collection: {e}")
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        logger.error(f"Error removing users from collection: {str(e)}")
+        logger.error(f"Error removing users from collection: {e!s}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/{collection_id}/files", 
-    response_model=List[str],
+
+@router.get(
+    "/{collection_id}/files",
+    response_model=list[str],
     summary="Get collection files",
     description="Get a list of files in a specific collection for a user",
     responses={
         200: {"description": "Files retrieved successfully"},
         404: {"description": "User or collection not found"},
-        500: {"description": "Internal server error"}
-    }
+        500: {"description": "Internal server error"},
+    },
 )
 def get_collection_files(collection_id: UUID, db: Session = Depends(get_db)):
     """
@@ -433,7 +440,7 @@ def get_collection_files(collection_id: UUID, db: Session = Depends(get_db)):
 
     Returns:
         List[str]: A list of filenames in the collection.
-        
+
     Raises:
         HTTPException: If collection not found
     """
@@ -444,17 +451,19 @@ def get_collection_files(collection_id: UUID, db: Session = Depends(get_db)):
         logger.error(f"Not found error getting collection files: {e}")
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        logger.error(f"Error getting collection files: {str(e)}")
+        logger.error(f"Error getting collection files: {e!s}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/{collection_id}/files/{filename}",
+
+@router.get(
+    "/{collection_id}/files/{filename}",
     summary="Get file path",
     description="Get the file path for a specific file in a collection",
     responses={
         200: {"description": "File path retrieved successfully"},
         404: {"description": "File not found"},
-        500: {"description": "Internal server error"}
-    }
+        500: {"description": "Internal server error"},
+    },
 )
 def get_file_path(collection_id: UUID, filename: str, db: Session = Depends(get_db)):
     """
@@ -482,10 +491,12 @@ def get_file_path(collection_id: UUID, filename: str, db: Session = Depends(get_
         logger.error(f"Not found error getting file path: {e}")
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        logger.error(f"Error getting file path: {str(e)}")
+        logger.error(f"Error getting file path: {e!s}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.delete("/{collection_id}/files", 
+
+@router.delete(
+    "/{collection_id}/files",
     summary="Delete files",
     description="Delete files from a collection",
     responses={
@@ -493,8 +504,8 @@ def get_file_path(collection_id: UUID, filename: str, db: Session = Depends(get_
         400: {"description": "Business validation error"},
         422: {"description": "Request validation error"},
         404: {"description": "Files not found"},
-        500: {"description": "Internal server error"}
-    }
+        500: {"description": "Internal server error"},
+    },
 )
 def delete_files(collection_id: UUID, doc_delete: DocumentDelete, db: Session = Depends(get_db)):
     """
@@ -504,7 +515,7 @@ def delete_files(collection_id: UUID, doc_delete: DocumentDelete, db: Session = 
         collection_id (UUID): The ID of the collection.
         doc_delete (DocumentDelete): The document delete request containing list of filenames.
         db (Session): The database session.
-        
+
     Raises:
         HTTPException: If files not found or deletion fails
     """
@@ -518,10 +529,12 @@ def delete_files(collection_id: UUID, doc_delete: DocumentDelete, db: Session = 
         logger.error(f"Not found error deleting files: {e}")
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        logger.error(f"Error deleting files: {str(e)}")
+        logger.error(f"Error deleting files: {e!s}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.put("/{collection_id}/files/{file_id}/metadata", 
+
+@router.put(
+    "/{collection_id}/files/{file_id}/metadata",
     response_model=FileOutput,
     summary="Update file metadata",
     description="Update the metadata of a specific file",
@@ -530,8 +543,8 @@ def delete_files(collection_id: UUID, doc_delete: DocumentDelete, db: Session = 
         400: {"description": "Business validation error"},
         422: {"description": "Request validation error"},
         404: {"description": "File not found"},
-        500: {"description": "Internal server error"}
-    }
+        500: {"description": "Internal server error"},
+    },
 )
 def update_file_metadata(collection_id: UUID, file_id: UUID, metadata: FileMetadata, db: Session = Depends(get_db)):
     """
@@ -545,7 +558,7 @@ def update_file_metadata(collection_id: UUID, file_id: UUID, metadata: FileMetad
 
     Returns:
         FileOutput: The updated file metadata.
-        
+
     Raises:
         HTTPException: If validation fails, file not found, or update fails
     """
@@ -559,5 +572,5 @@ def update_file_metadata(collection_id: UUID, file_id: UUID, metadata: FileMetad
         logger.error(f"Not found error updating file metadata: {e}")
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        logger.error(f"Error updating file metadata: {str(e)}")
+        logger.error(f"Error updating file metadata: {e!s}")
         raise HTTPException(status_code=500, detail=str(e))

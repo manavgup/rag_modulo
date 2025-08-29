@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Optional
-from sqlalchemy import DateTime, String, ForeignKey
+
+from sqlalchemy import DateTime, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -18,11 +18,9 @@ class User(Base):
     email: Mapped[str] = mapped_column(String, index=True)
     name: Mapped[str] = mapped_column(String)
     role: Mapped[str] = mapped_column(String, default="user")
-    preferred_provider_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), 
-        ForeignKey("llm_providers.id", ondelete="SET NULL"), 
-        nullable=True
-    )  
+    preferred_provider_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("llm_providers.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 

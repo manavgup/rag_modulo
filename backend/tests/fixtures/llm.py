@@ -1,26 +1,21 @@
 """LLM infrastructure fixtures for pytest."""
 
-import logging
-from typing import Optional
 import pytest
 
-from core.config import settings
 from core.logging_utils import get_logger
-from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
-from rag_solution.schemas.llm_provider_schema import LLMProviderInput
-from rag_solution.schemas.llm_model_schema import ModelType, LLMModelInput
 from rag_solution.generation.providers.factory import LLMProviderFactory
+from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
 from rag_solution.schemas.user_schema import UserOutput
 from rag_solution.services.llm_parameters_service import LLMParametersService
-from rag_solution.services.llm_provider_service import LLMProviderService
-from rag_solution.services.llm_model_service import LLMModelService
 
 logger = get_logger("tests.fixtures.llm")
+
 
 @pytest.fixture
 def provider_factory(db_session):
     """Create a provider factory for testing."""
     return LLMProviderFactory(db_session)
+
 
 @pytest.fixture(scope="session")
 def base_llm_parameters(llm_parameters_service: LLMParametersService, base_user: UserOutput):
@@ -33,9 +28,10 @@ def base_llm_parameters(llm_parameters_service: LLMParametersService, base_user:
         top_k=50,
         top_p=1.0,
         repetition_penalty=1.1,
-        is_default=True
+        is_default=True,
     )
     return llm_parameters_service.create_parameters(base_user.id, params)
+
 
 @pytest.fixture
 def get_watsonx(provider_factory: LLMProviderFactory):

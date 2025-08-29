@@ -1,9 +1,10 @@
 import unittest
-from unittest.mock import patch, MagicMock
-import numpy as np
-from rag_solution.retrieval.retriever import VectorRetriever, KeywordRetriever, HybridRetriever
+from unittest.mock import MagicMock
+
 from rag_solution.data_ingestion.ingestion import DocumentStore
+from rag_solution.retrieval.retriever import HybridRetriever, KeywordRetriever, VectorRetriever
 from vectordbs.data_types import Document, QueryResult
+
 
 class TestRetriever(unittest.TestCase):
     def setUp(self):
@@ -13,14 +14,8 @@ class TestRetriever(unittest.TestCase):
     def test_vector_retriever(self):
         # Setup mock return value for vector store
         mock_results = [
-            QueryResult(
-                document=Document(id="1", content="test content 1"),
-                score=0.9
-            ),
-            QueryResult(
-                document=Document(id="2", content="test content 2"),
-                score=0.8
-            )
+            QueryResult(document=Document(id="1", content="test content 1"), score=0.9),
+            QueryResult(document=Document(id="2", content="test content 2"), score=0.8),
         ]
         self.mock_vector_store.retrieve_documents.return_value = mock_results
 
@@ -43,7 +38,7 @@ class TestRetriever(unittest.TestCase):
         # Setup mock documents
         mock_docs = [
             Document(id="1", content="This is a test document"),
-            Document(id="2", content="Another test document with different content")
+            Document(id="2", content="Another test document with different content"),
         ]
         self.mock_document_store.get_documents = MagicMock(return_value=mock_docs)
 
@@ -59,22 +54,13 @@ class TestRetriever(unittest.TestCase):
     def test_hybrid_retriever(self):
         # Setup mock results for vector retriever
         vector_results = [
-            QueryResult(
-                document=Document(id="1", content="Vector content 1"),
-                score=0.9
-            ),
-            QueryResult(
-                document=Document(id="2", content="Vector content 2"),
-                score=0.8
-            )
+            QueryResult(document=Document(id="1", content="Vector content 1"), score=0.9),
+            QueryResult(document=Document(id="2", content="Vector content 2"), score=0.8),
         ]
         self.mock_vector_store.retrieve_documents.return_value = vector_results
 
         # Setup mock documents for keyword retriever
-        mock_docs = [
-            Document(id="2", content="Keyword content 2"),
-            Document(id="3", content="Keyword content 3")
-        ]
+        mock_docs = [Document(id="2", content="Keyword content 2"), Document(id="3", content="Keyword content 3")]
         self.mock_document_store.get_documents = MagicMock(return_value=mock_docs)
 
         # Create retriever and test
@@ -91,16 +77,17 @@ class TestRetriever(unittest.TestCase):
         # Test vector retriever error handling
         self.mock_vector_store.retrieve_documents.side_effect = Exception("Test error")
         retriever = VectorRetriever(self.mock_document_store)
-        
+
         with self.assertRaises(Exception):
             retriever.retrieve("test_collection", "test query")
 
         # Test keyword retriever error handling
         self.mock_document_store.get_documents.side_effect = Exception("Test error")
         retriever = KeywordRetriever(self.mock_document_store)
-        
+
         with self.assertRaises(Exception):
             retriever.retrieve("test_collection", "test query")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

@@ -1,14 +1,13 @@
 """Integration tests for configuration error handling."""
+
 import pytest
 from sqlalchemy.orm import Session
+
+from rag_solution.schemas.llm_model_schema import LLMModelInput, ModelType
+from rag_solution.schemas.llm_provider_schema import LLMProviderInput
+from rag_solution.schemas.prompt_template_schema import PromptTemplateInput, PromptTemplateType
 from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.prompt_template_service import PromptTemplateService
-from rag_solution.schemas.llm_provider_schema import LLMProviderInput
-from rag_solution.schemas.llm_model_schema import LLMModelInput, LLMModelOutput, ModelType
-from rag_solution.schemas.prompt_template_schema import (
-    PromptTemplateType,
-    PromptTemplateInput
-)
 
 
 def test_invalid_template_variables(db_session: Session, base_user):
@@ -21,7 +20,7 @@ def test_invalid_template_variables(db_session: Session, base_user):
         name="watsonx",
         base_url="https://us-south.ml.cloud.ibm.com",
         api_key="test-api-key",
-        project_id="test-project-id"
+        project_id="test-project-id",
     )
     provider = provider_service.create_provider(provider_input)
 
@@ -37,8 +36,8 @@ def test_invalid_template_variables(db_session: Session, base_user):
                 provider="watsonx",
                 template_type=PromptTemplateType.RAG_QUERY,
                 template_format="{context}\n\n{question}",
-                input_variables={"context": "Retrieved context"}  # Missing question
-            )
+                input_variables={"context": "Retrieved context"},  # Missing question
+            ),
         )
 
     # Test undefined variable in template
@@ -50,11 +49,8 @@ def test_invalid_template_variables(db_session: Session, base_user):
                 provider="watsonx",
                 template_type=PromptTemplateType.RAG_QUERY,
                 template_format="{context}\n\n{undefined_var}",  # Undefined variable
-                input_variables={
-                    "context": "Retrieved context",
-                    "question": "User's question"
-                }
-            )
+                input_variables={"context": "Retrieved context", "question": "User's question"},
+            ),
         )
 
 
@@ -65,10 +61,7 @@ def test_invalid_provider_configuration(db_session: Session, base_user):
 
     # Create provider with invalid URL
     provider_input = LLMProviderInput(
-        name="watsonx",
-        base_url="invalid-url",
-        api_key="test-api-key",
-        project_id="test-project-id"
+        name="watsonx", base_url="invalid-url", api_key="test-api-key", project_id="test-project-id"
     )
     provider = provider_service.create_provider(provider_input)
 
@@ -81,11 +74,8 @@ def test_invalid_provider_configuration(db_session: Session, base_user):
                 provider="invalid",  # Invalid provider name
                 template_type=PromptTemplateType.RAG_QUERY,
                 template_format="{context}\n\n{question}",
-                input_variables={
-                    "context": "Retrieved context",
-                    "question": "User's question"
-                }
-            )
+                input_variables={"context": "Retrieved context", "question": "User's question"},
+            ),
         )
 
 
@@ -98,7 +88,7 @@ def test_invalid_model_configuration(db_session: Session):
         name="watsonx",
         base_url="https://us-south.ml.cloud.ibm.com",
         api_key="test-api-key",
-        project_id="test-project-id"
+        project_id="test-project-id",
     )
     provider = provider_service.create_provider(provider_input)
 
@@ -118,7 +108,7 @@ def test_invalid_model_configuration(db_session: Session):
                 stream=False,
                 rate_limit=10,
                 is_default=True,
-                is_active=True
+                is_active=True,
             )
         )
 
@@ -138,6 +128,6 @@ def test_invalid_model_configuration(db_session: Session):
                 stream=False,
                 rate_limit=10,
                 is_default=True,
-                is_active=True
+                is_active=True,
             )
         )

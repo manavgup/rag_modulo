@@ -1,14 +1,21 @@
-from typing import List, Dict, Any
-from vectordbs.data_types import QueryResult
-from sklearn.metrics.pairwise import cosine_similarity
-from vectordbs.utils.watsonx import get_embeddings
-import logging
 import asyncio
+import logging
+from typing import Any
+
+from sklearn.metrics.pairwise import cosine_similarity
+
+from rag_solution.evaluation.llm_as_judge_evals import (
+    BASE_LLM_PARAMETERS,
+    AnswerRelevanceEvaluator,
+    ContextRelevanceEvaluator,
+    FaithfulnessEvaluator,
+    init_llm,
+)
+from vectordbs.data_types import QueryResult
 from vectordbs.utils.watsonx import get_embeddings
-from rag_solution.evaluation.llm_as_judge_evals import FaithfulnessEvaluator,AnswerRelevanceEvaluator,ContextRelevanceEvaluator
-from rag_solution.evaluation.llm_as_judge_evals import BASE_LLM_PARAMETERS, init_llm
 
 logger = logging.getLogger(__name__)
+
 
 class RAGEvaluator:
     def __init__(self):
@@ -19,7 +26,7 @@ class RAGEvaluator:
         self.answer_relevance_evaluator = AnswerRelevanceEvaluator()
         self.context_relevance_evaluator = ContextRelevanceEvaluator()
 
-    def evaluate_cosine(self, query: str, response: str, retrieved_documents: List[QueryResult]) -> Dict[str, float]:
+    def evaluate_cosine(self, query: str, response: str, retrieved_documents: list[QueryResult]) -> dict[str, float]:
         """
         Evaluate the RAG pipeline results.
 
@@ -39,10 +46,10 @@ class RAGEvaluator:
             "relevance": relevance_score,
             "coherence": coherence_score,
             "faithfulness": faithfulness_score,
-            "overall_score": (relevance_score + coherence_score + faithfulness_score) / 3
+            "overall_score": (relevance_score + coherence_score + faithfulness_score) / 3,
         }
 
-    def _calculate_relevance_score(self, query: str, retrieved_documents: List[QueryResult]) -> float:
+    def _calculate_relevance_score(self, query: str, retrieved_documents: list[QueryResult]) -> float:
         """
         Calculate the relevance score of retrieved documents to the query.
 
@@ -77,7 +84,7 @@ class RAGEvaluator:
         coherence = cosine_similarity(query_embedding, response_embedding)
         return float(coherence)
 
-    def _calculate_faithfulness_score(self, response: str, retrieved_documents: List[QueryResult]) -> float:
+    def _calculate_faithfulness_score(self, response: str, retrieved_documents: list[QueryResult]) -> float:
         """
         Calculate the faithfulness score of the response to the retrieved documents.
 
@@ -94,12 +101,7 @@ class RAGEvaluator:
         similarities = cosine_similarity(response_embedding, doc_embeddings)
         return float(similarities.mean())
 
-    async def evaluate(
-        self,
-        context: str,
-        answer: str,
-        question: str
-    ) -> Dict[str, Any]:
+    async def evaluate(self, context: str, answer: str, question: str) -> dict[str, Any]:
         """
         Run all evaluators concurrently and collect their results.
         """
@@ -107,9 +109,9 @@ class RAGEvaluator:
             llm = init_llm(parameters=BASE_LLM_PARAMETERS)
             results = await asyncio.gather(
                 self.faithfulness_evaluator.a_evaluate(context=context, answer=answer, llm=llm),
-                self.answer_relevance_evaluator.a_evaluate(question=question,answer=answer,llm=llm),
-                self.context_relevance_evaluator.a_evaluate(context=context, question=question,llm=llm),
-                return_exceptions=True
+                self.answer_relevance_evaluator.a_evaluate(question=question, answer=answer, llm=llm),
+                self.context_relevance_evaluator.a_evaluate(context=context, question=question, llm=llm),
+                return_exceptions=True,
             )
             return {
                 "faithfulness": results[0] if not isinstance(results[0], Exception) else f"Error: {results[0]}",
@@ -123,21 +125,38 @@ class RAGEvaluator:
 
         return results
 
+
 # Example usage
 if __name__ == "__main__":
-    from vectordbs.data_types import DocumentChunk
-    from rag_solution.file_management.database import get_db
     from backend.rag_solution.services.search_service import SearchService
-    from rag_solution.evaluation.qa import get_node_text
 
+    from rag_solution.evaluation.qa import get_node_text
+    from rag_solution.file_management.database import get_db
+    from vectordbs.data_types import DocumentChunk
 
     evaluator = RAGEvaluator()
     # INITIAL COSINE METRICS
     query = "What is the theory of relativity?"
     response = "The theory of relativity, proposed by Albert Einstein, describes how space and time are interconnected and how gravity affects the fabric of spacetime."
     retrieved_documents = [
-        QueryResult(data=[DocumentChunk(chunk_id='1',text="Albert Einstein's theory of relativity revolutionized our understanding of space, time, and gravity.", score=0.9)]),
-        QueryResult(data=[DocumentChunk(chunk_id='2',text="The theory of relativity consists of two parts: special relativity and general relativity.", score=0.8)]),
+        QueryResult(
+            data=[
+                DocumentChunk(
+                    chunk_id="1",
+                    text="Albert Einstein's theory of relativity revolutionized our understanding of space, time, and gravity.",
+                    score=0.9,
+                )
+            ]
+        ),
+        QueryResult(
+            data=[
+                DocumentChunk(
+                    chunk_id="2",
+                    text="The theory of relativity consists of two parts: special relativity and general relativity.",
+                    score=0.8,
+                )
+            ]
+        ),
     ]
 
     evaluation_results = evaluator.evaluate_cosine(query, response, retrieved_documents)
@@ -150,7 +169,7 @@ if __name__ == "__main__":
     from rag_solution.services.user_collection_service import UserCollectionService
 
     ucs = UserCollectionService(db=db_session)
-    vdb_name = 'collection_8b1d4bc0a11b4f7c929b83d37e7b91d6'
+    vdb_name = "collection_8b1d4bc0a11b4f7c929b83d37e7b91d6"
     search_service = SearchService(db=db_session)
     pipeline = search_service.pipeline
 
@@ -169,5 +188,5 @@ if __name__ == "__main__":
     all_texts = [text.text for text in ctx]
     contexts = "\n****\n\n****\n".join([get_node_text(node=doc) for doc in ctx])
 
-    evaluation_results = asyncio.run(evaluator.evaluate(context=contexts,answer=rag_response,question=question))
+    evaluation_results = asyncio.run(evaluator.evaluate(context=contexts, answer=rag_response, question=question))
     print(f"Evaluation Results: {evaluation_results}")

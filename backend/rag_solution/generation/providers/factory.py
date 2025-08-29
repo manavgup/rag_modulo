@@ -1,23 +1,26 @@
 """Factory for creating and managing LLM provider instances."""
 
-from typing import Dict, Type, Optional, Any, ClassVar
 from threading import Lock
+from typing import ClassVar
+
 from sqlalchemy.orm import Session
 
 from core.custom_exceptions import LLMProviderError
 from core.logging_utils import get_logger
-from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.llm_model_service import LLMModelService
 from rag_solution.services.llm_parameters_service import LLMParametersService
+from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.prompt_template_service import PromptTemplateService
+
 from .base import LLMBase
 
 logger = get_logger("llm.providers.factory")
 
+
 class LLMProviderFactory:
     """
     Factory for creating and managing LLM provider instances.
-    
+
     This factory implements the singleton pattern for provider instances to ensure
     resource efficiency and consistent state. It handles provider registration,
     instance caching, and cleanup.
@@ -34,7 +37,7 @@ class LLMProviderFactory:
         _prompt_template_service (PromptTemplateService): Service for prompt templates
     """
 
-    _providers: ClassVar[Dict[str, Type[LLMBase]]] = {}
+    _providers: ClassVar[dict[str, type[LLMBase]]] = {}
     _lock: ClassVar[Lock] = Lock()
 
     def __init__(self, db: Session) -> None:
@@ -45,15 +48,15 @@ class LLMProviderFactory:
             db: SQLAlchemy database session
         """
         self._db = db
-        self._instances: Dict[str, LLMBase] = {}
-        
+        self._instances: dict[str, LLMBase] = {}
+
         # Initialize required services
         self._llm_provider_service = LLMProviderService(db)
         self._llm_parameters_service = LLMParametersService(db)
         self._prompt_template_service = PromptTemplateService(db)
-        self._llm_model_service = LLMModelService(db) 
+        self._llm_model_service = LLMModelService(db)
 
-    def _get_cache_key(self, provider_name: str, model_id: Optional[str] = None) -> str:
+    def _get_cache_key(self, provider_name: str, model_id: str | None = None) -> str:
         """
         Generate cache key for provider instance.
 
@@ -85,10 +88,10 @@ class LLMProviderFactory:
             raise LLMProviderError(
                 provider=provider_name,
                 error_type="initialization_failed",
-                message=f"Provider validation failed: {str(e)}"
+                message=f"Provider validation failed: {e!s}",
             )
 
-    def get_provider(self, provider_name: str, model_id: Optional[str] = None) -> LLMBase:
+    def get_provider(self, provider_name: str, model_id: str | None = None) -> LLMBase:
         """
         Get a configured provider instance. Returns cached instance if available.
 
@@ -125,7 +128,7 @@ class LLMProviderFactory:
                 raise LLMProviderError(
                     provider=provider_name,
                     error_type="unknown_provider",
-                    message=f"Unknown provider type: {provider_name}"
+                    message=f"Unknown provider type: {provider_name}",
                 )
 
             # Create new provider instance
@@ -134,7 +137,7 @@ class LLMProviderFactory:
                 self._llm_provider_service,
                 self._llm_parameters_service,
                 self._prompt_template_service,
-                self._llm_model_service 
+                self._llm_model_service,
             )
 
             # Configure model if specified
@@ -154,12 +157,10 @@ class LLMProviderFactory:
             raise
         except Exception as e:
             raise LLMProviderError(
-                provider=provider_name,
-                error_type="creation_failed",
-                message=f"Failed to create provider: {str(e)}"
+                provider=provider_name, error_type="creation_failed", message=f"Failed to create provider: {e!s}"
             )
 
-    def cleanup_provider(self, provider_name: str, model_id: Optional[str] = None) -> None:
+    def cleanup_provider(self, provider_name: str, model_id: str | None = None) -> None:
         """
         Clean up provider instance and remove from cache.
 
@@ -182,7 +183,7 @@ class LLMProviderFactory:
         self._instances.clear()
 
     @classmethod
-    def register_provider(cls, name: str, provider_class: Type[LLMBase]) -> None:
+    def register_provider(cls, name: str, provider_class: type[LLMBase]) -> None:
         """
         Register a new provider implementation.
 
@@ -204,7 +205,7 @@ class LLMProviderFactory:
             logger.debug(f"Current providers: {cls._providers}")
 
     @classmethod
-    def list_providers(cls) -> Dict[str, Type[LLMBase]]:
+    def list_providers(cls) -> dict[str, type[LLMBase]]:
         """
         List all registered providers.
 

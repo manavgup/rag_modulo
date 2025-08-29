@@ -1,8 +1,7 @@
 import pytest
 
 from core.custom_exceptions import DocumentProcessingError
-from rag_solution.data_ingestion.document_processor import \
-    DocumentProcessor
+from rag_solution.data_ingestion.document_processor import DocumentProcessor
 
 
 @pytest.mark.asyncio

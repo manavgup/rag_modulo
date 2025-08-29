@@ -4,12 +4,12 @@ from fastapi import APIRouter
 
 from .user_routes import (
     base,
-    llm_routes,
-    prompt_routes,
-    pipeline_routes,
     collection_routes,
     file_routes,
-    provider_routes
+    llm_routes,
+    pipeline_routes,
+    prompt_routes,
+    provider_routes,
 )
 
 router = APIRouter(prefix="/api/users", tags=["users"])

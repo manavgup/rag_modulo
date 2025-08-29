@@ -1,39 +1,29 @@
 """Tests for LLM provider initialization."""
 
 import pytest
-from uuid import uuid4
-from typing import Dict, Any
 
-from rag_solution.generation.providers.watsonx import WatsonXLLM
-from rag_solution.generation.providers.openai import OpenAILLM
 from rag_solution.generation.providers.anthropic import AnthropicLLM
-from rag_solution.services.llm_provider_service import LLMProviderService
-from rag_solution.services.llm_parameters_service import LLMParametersService
-from rag_solution.services.prompt_template_service import PromptTemplateService
+from rag_solution.generation.providers.openai import OpenAILLM
+from rag_solution.generation.providers.watsonx import WatsonXLLM
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput, LLMParametersOutput
-from rag_solution.schemas.prompt_template_schema import PromptTemplateInput, PromptTemplateType, PromptTemplateOutput
-from rag_solution.schemas.llm_model_schema import ModelType
-from core.custom_exceptions import LLMProviderError
+from rag_solution.schemas.prompt_template_schema import PromptTemplateInput, PromptTemplateOutput, PromptTemplateType
+from rag_solution.services.llm_parameters_service import LLMParametersService
+from rag_solution.services.llm_provider_service import LLMProviderService
+from rag_solution.services.prompt_template_service import PromptTemplateService
 
 
 @pytest.fixture
-def test_parameters() -> Dict[str, LLMParametersInput]:
+def test_parameters() -> dict[str, LLMParametersInput]:
     """Test LLM parameters for each provider."""
     return {
-        "watsonx": LLMParametersInput(
-            name="watsonx-params", temperature=0.7, max_new_tokens=1000, is_default=True
-        ),
-        "openai": LLMParametersInput(
-            name="openai-params", temperature=0.7, max_new_tokens=1000, is_default=True
-        ),
-        "anthropic": LLMParametersInput(
-            name="anthropic-params", temperature=0.7, max_new_tokens=1000, is_default=True
-        ),
+        "watsonx": LLMParametersInput(name="watsonx-params", temperature=0.7, max_new_tokens=1000, is_default=True),
+        "openai": LLMParametersInput(name="openai-params", temperature=0.7, max_new_tokens=1000, is_default=True),
+        "anthropic": LLMParametersInput(name="anthropic-params", temperature=0.7, max_new_tokens=1000, is_default=True),
     }
 
 
 @pytest.fixture
-def test_templates(base_user) -> Dict[str, PromptTemplateInput]:
+def test_templates(base_user) -> dict[str, PromptTemplateInput]:
     """Test prompt templates for each provider."""
     return {
         "watsonx": PromptTemplateInput(
@@ -77,9 +67,7 @@ def test_templates(base_user) -> Dict[str, PromptTemplateInput]:
         (AnthropicLLM, "anthropic"),
     ],
 )
-def test_provider_initialization(
-    db_session, base_user, test_parameters, test_templates, provider_class, provider_key
-):
+def test_provider_initialization(db_session, base_user, test_parameters, test_templates, provider_class, provider_key):
     """Test provider initialization for all providers."""
     # Create service instances
     llm_provider_service = LLMProviderService(db_session)
@@ -102,4 +90,3 @@ def test_provider_initialization(
     # Verify provider state
     assert params is not None
     assert template is not None
-  
