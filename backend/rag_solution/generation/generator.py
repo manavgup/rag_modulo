@@ -122,8 +122,7 @@ class WatsonxGenerator(BaseGenerator):
         truncated_context = self.truncate_context(context, query)
         prompt = self.prompt_template.format(query=query, context=truncated_context)
         try:
-            for chunk in generate_text_stream(model_id=self.model_name, prompt=prompt, **kwargs):
-                yield chunk
+            yield from generate_text_stream(model_id=self.model_name, prompt=prompt, **kwargs)
         except Exception as e:
             logger.error(f"Error generating text stream: {e}")
             raise
@@ -186,13 +185,14 @@ class AnthropicGenerator(BaseGenerator):
         import anthropic
 
         self.client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+        self.anthropic = anthropic
 
     def generate(self, query: str, context: str, **kwargs) -> str:
         truncated_context = self.truncate_context(context, query)
         prompt = self.prompt_template.format(query=query, context=truncated_context)
         try:
             response = self.client.completions.create(
-                model=self.model_name, prompt=f"{anthropic.HUMAN_PROMPT} {prompt}{anthropic.AI_PROMPT}", **kwargs
+                model=self.model_name, prompt=f"{self.anthropic.HUMAN_PROMPT} {prompt}{self.anthropic.AI_PROMPT}", **kwargs
             )
             return response.completion
         except Exception as e:
@@ -205,7 +205,7 @@ class AnthropicGenerator(BaseGenerator):
         try:
             stream = self.client.completions.create(
                 model=self.model_name,
-                prompt=f"{anthropic.HUMAN_PROMPT} {prompt}{anthropic.AI_PROMPT}",
+                prompt=f"{self.anthropic.HUMAN_PROMPT} {prompt}{self.anthropic.AI_PROMPT}",
                 stream=True,
                 **kwargs,
             )

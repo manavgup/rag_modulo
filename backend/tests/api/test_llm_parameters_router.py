@@ -3,7 +3,6 @@
 from uuid import UUID, uuid4
 
 import pytest
-from fastapi import FastAPI
 from httpx import AsyncClient
 
 from rag_solution.models.llm_parameters import LLMParameters
@@ -99,7 +98,7 @@ def mock_llm_parameters_service(mocker):
 
 
 @pytest.mark.asyncio
-async def test_get_llm_parameters(app: FastAPI, client: AsyncClient, mock_llm_parameters_service, mock_auth_user):
+async def test_get_llm_parameters(client: AsyncClient, mock_llm_parameters_service, mock_auth_user):
     """Test GET /api/users/{user_id}/llm-parameters endpoint."""
     # Mock auth user
     mock_auth_user(TEST_USER_ID)
@@ -121,7 +120,7 @@ async def test_get_llm_parameters(app: FastAPI, client: AsyncClient, mock_llm_pa
 
 @pytest.mark.asyncio
 async def test_create_llm_parameters(
-    app: FastAPI, client: AsyncClient, mock_llm_parameters_service, mock_auth_user, test_parameter_data
+    client: AsyncClient, mock_llm_parameters_service, mock_auth_user, test_parameter_data
 ):
     """Test POST /api/users/{user_id}/llm-parameters endpoint."""
     # Mock auth user
@@ -142,7 +141,7 @@ async def test_create_llm_parameters(
 
 @pytest.mark.asyncio
 async def test_update_llm_parameters(
-    app: FastAPI, client: AsyncClient, mock_llm_parameters_service, mock_auth_user, test_parameter_data
+    client: AsyncClient, mock_llm_parameters_service, mock_auth_user, test_parameter_data
 ):
     """Test PUT /api/users/{user_id}/llm-parameters/{parameter_id} endpoint."""
     # Mock auth user
@@ -169,7 +168,7 @@ async def test_update_llm_parameters(
 
 
 @pytest.mark.asyncio
-async def test_delete_llm_parameters(app: FastAPI, client: AsyncClient, mock_llm_parameters_service, mock_auth_user):
+async def test_delete_llm_parameters(client: AsyncClient, mock_llm_parameters_service, mock_auth_user):
     """Test DELETE /api/users/{user_id}/llm-parameters/{parameter_id} endpoint."""
     # Mock auth user
     mock_auth_user(TEST_USER_ID)
@@ -187,7 +186,7 @@ async def test_delete_llm_parameters(app: FastAPI, client: AsyncClient, mock_llm
 
 @pytest.mark.asyncio
 async def test_set_default_llm_parameters(
-    app: FastAPI, client: AsyncClient, mock_llm_parameters_service, mock_auth_user
+    client: AsyncClient, mock_llm_parameters_service, mock_auth_user
 ):
     """Test PUT /api/users/{user_id}/llm-parameters/{parameter_id}/default endpoint."""
     # Mock auth user
@@ -207,7 +206,7 @@ async def test_set_default_llm_parameters(
 
 
 @pytest.mark.asyncio
-async def test_get_llm_parameters_unauthorized(app: FastAPI, client: AsyncClient, mock_llm_parameters_service):
+async def test_get_llm_parameters_unauthorized(client: AsyncClient):
     """Test unauthorized access to GET endpoint."""
     response = await client.get(f"/api/users/{TEST_USER_ID}/llm-parameters")
     assert response.status_code == 403
@@ -215,7 +214,7 @@ async def test_get_llm_parameters_unauthorized(app: FastAPI, client: AsyncClient
 
 @pytest.mark.asyncio
 async def test_get_llm_parameters_wrong_user(
-    app: FastAPI, client: AsyncClient, mock_llm_parameters_service, mock_auth_user
+    client: AsyncClient, mock_auth_user
 ):
     """Test accessing parameters with wrong user ID."""
     # Mock auth user with different ID
@@ -228,7 +227,7 @@ async def test_get_llm_parameters_wrong_user(
 
 @pytest.mark.asyncio
 async def test_create_llm_parameters_invalid_data(
-    app: FastAPI, client: AsyncClient, mock_llm_parameters_service, mock_auth_user
+    client: AsyncClient, mock_auth_user
 ):
     """Test creating parameters with invalid data."""
     # Mock auth user

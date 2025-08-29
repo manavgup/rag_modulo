@@ -114,7 +114,7 @@ def test_watsonx_provider_invalid_setup(db_session: Session, base_user):
     provider_input = LLMProviderInput(
         name="watsonx", base_url="invalid-url", api_key="test-api-key", project_id="test-project-id"
     )
-    provider = provider_service.create_provider(provider_input)
+    provider_service.create_provider(provider_input)
 
     # Test creating template with missing variables
     with pytest.raises(ValueError, match="Template variables missing"):

@@ -239,6 +239,6 @@ class SearchService:
             metadata={
                 "execution_time": time.time() - start_time,
                 "num_chunks": len(pipeline_result.query_results),
-                "unique_docs": len(set(r.document_id for r in pipeline_result.query_results if r.document_id)),
+                "unique_docs": len({r.document_id for r in pipeline_result.query_results if r.document_id}),
             },
         )

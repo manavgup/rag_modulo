@@ -102,7 +102,7 @@ async def update_prompt_template(
         # Ensure user_id is set in the input
         if not template_input.user_id:
             template_input.user_id = user_id
-        return service.create_template(template_input)
+        return service.update_template(template_id, template_input)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to update prompt template: {e!s}")
 

@@ -54,13 +54,13 @@ def create_collection(collection_input: CollectionInput, db: Session = Depends(g
         return service.create_collection(collection_input)
     except ValidationError as e:
         logger.error(f"Validation error creating collection: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except NotFoundError as e:
         logger.error(f"Not found error creating collection: {e}")
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         logger.error(f"Error creating collection: {e!s}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post(

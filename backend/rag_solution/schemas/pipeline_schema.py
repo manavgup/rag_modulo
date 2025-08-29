@@ -2,14 +2,14 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, TypeAlias
+from typing import Any
 
 from pydantic import UUID4, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from vectordbs.data_types import QueryResult
 
 # Type alias for the database model to avoid circular imports
-PipelineModel: TypeAlias = "PipelineConfig"
+type PipelineModel = "PipelineConfig"
 
 
 class ChunkingStrategy(str, Enum):

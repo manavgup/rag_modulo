@@ -34,7 +34,7 @@ Define the faithfulness score as:
 - Low: The answer contains major inaccuracies, unsupported claims, or substantial deviations from the supporting context.
 
 Provide your assessment as one unique valid JSON with output schema:
-{schema} 
+{schema}
 <|eot_id|><|start_header_id|>user<|end_header_id|>
 Supporting Context:
 \n ------- \n
@@ -63,14 +63,14 @@ Scoring Focus:
 - Consistency: Is the answer factually consistent with the given question?
 
 Provide your assessment as one unique valid JSON with output schema:
-{schema} 
+{schema}
 <|eot_id|><|start_header_id|>user<|end_header_id|>
 Here is the question:
 \n ------- \n
 {question}
 \n ------- \n
 Here is the answer provided to be evaluated:
-{answer} 
+{answer}
 <|eot_id|><|start_header_id|>assistant<|end_header_id|>"""
 
 
@@ -88,7 +88,7 @@ Your task:
    - Low: retrieved documents are irrelevant, provide information that does not pertain to the question or are unrelated to the user's intent.
 
 Provide your assessment as one unique valid JSON with output schema:
-{schema} 
+{schema}
 <|eot_id|><|start_header_id|>user<|end_header_id|>
 Here is the user's question:
 \n ------- \n

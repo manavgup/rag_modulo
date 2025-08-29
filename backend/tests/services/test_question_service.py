@@ -211,7 +211,7 @@ async def test_question_storage_and_retrieval(
     assert len(stored_questions) == len(initial_questions)
 
     # Create additional question
-    new_question = question_service.create_question(
+    question_service.create_question(
         QuestionInput(collection_id=base_collection.id, question="What are the main features of Python?", is_valid=True)
     )
 

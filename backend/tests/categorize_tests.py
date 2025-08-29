@@ -107,7 +107,7 @@ def categorize_tests():
             safe_move(src, dst)
 
     # Clean up empty directories after moving
-    for dirpath, dirnames, filenames in os.walk(base_dir, topdown=False):
+    for dirpath, _dirnames, _filenames in os.walk(base_dir, topdown=False):
         dir_path = Path(dirpath)
         if dir_path != base_dir and not any(dir_path.iterdir()):
             try:

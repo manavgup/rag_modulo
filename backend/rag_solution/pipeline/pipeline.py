@@ -13,7 +13,7 @@ warnings.warn(
     stacklevel=2,
 )
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
@@ -24,12 +24,14 @@ from rag_solution.evaluation.evaluator import RAGEvaluator
 from rag_solution.generation.providers.base import LLMBase
 from rag_solution.query_rewriting.query_rewriter import QueryRewriter
 from rag_solution.retrieval.factories import RetrieverFactory
-from rag_solution.retrieval.retriever import BaseRetriever
 from rag_solution.schemas.llm_parameters_schema import LLMParametersBase
 from rag_solution.schemas.prompt_template_schema import PromptTemplateBase
 from vectordbs.data_types import QueryResult, VectorQuery
 from vectordbs.factory import get_datastore
-from vectordbs.vector_store import VectorStore
+
+if TYPE_CHECKING:
+    from rag_solution.retrieval.retriever import BaseRetriever
+    from vectordbs.vector_store import VectorStore
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

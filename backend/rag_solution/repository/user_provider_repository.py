@@ -32,7 +32,7 @@ class UserProviderRepository:
             logger.error(f"Error setting provider: {e!s}")
             raise
 
-    def set_user_provider(self, user_id: UUID, provider_id: UUID) -> bool:
+    def set_user_provider_simple(self, user_id: UUID, provider_id: UUID) -> bool:
         try:
             user = self.db.query(User).filter(User.id == user_id).first()
             if not user:

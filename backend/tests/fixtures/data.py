@@ -65,28 +65,28 @@ def sample_content() -> str:
     return """
     Introduction to Python Programming
     ================================
-    Python has emerged as one of the most influential programming languages in the software development landscape. 
-    Created by Guido van Rossum in 1991, Python has grown from a scripting language to a comprehensive platform 
-    for everything from web development to artificial intelligence. Its philosophy emphasizes code readability with 
-    the use of significant whitespace, making it an excellent choice for beginners while remaining powerful enough 
+    Python has emerged as one of the most influential programming languages in the software development landscape.
+    Created by Guido van Rossum in 1991, Python has grown from a scripting language to a comprehensive platform
+    for everything from web development to artificial intelligence. Its philosophy emphasizes code readability with
+    the use of significant whitespace, making it an excellent choice for beginners while remaining powerful enough
     for advanced applications.
 
     Core Language Features
     =====================
-    Python's syntax is notably clean and readable, relying on indentation to define code blocks. The language 
+    Python's syntax is notably clean and readable, relying on indentation to define code blocks. The language
     supports multiple programming paradigms, including:
 
     Object-Oriented Programming
     --------------------------
-    Python implements object-oriented programming (OOP) principles through a class-based system. Classes serve as 
-    blueprints for objects, encapsulating data and behavior. Inheritance is supported, allowing for code reuse 
+    Python implements object-oriented programming (OOP) principles through a class-based system. Classes serve as
+    blueprints for objects, encapsulating data and behavior. Inheritance is supported, allowing for code reuse
     and hierarchical relationships between classes.
 
     Example:
     class Animal:
         def __init__(self, name):
             self.name = name
-        
+
         def speak(self):
             pass
 
@@ -96,13 +96,13 @@ def sample_content() -> str:
 
     Functional Programming
     ---------------------
-    While Python isn't a purely functional language, it supports many functional programming concepts. Functions 
-    are first-class objects, meaning they can be passed as arguments, returned from other functions, and assigned 
+    While Python isn't a purely functional language, it supports many functional programming concepts. Functions
+    are first-class objects, meaning they can be passed as arguments, returned from other functions, and assigned
     to variables.
 
     Standard Library and Package Management
     ====================================
-    Python's "batteries included" philosophy is evident in its extensive standard library. The standard library 
+    Python's "batteries included" philosophy is evident in its extensive standard library. The standard library
     provides modules for:
     - File I/O operations
     - System operations
@@ -111,7 +111,7 @@ def sample_content() -> str:
     - Database interfaces
     - Concurrent programming
 
-    The Python Package Index (PyPI) hosts over 300,000 third-party packages, making it easy to extend Python's 
+    The Python Package Index (PyPI) hosts over 300,000 third-party packages, making it easy to extend Python's
     capabilities for specific use cases."""
 
 

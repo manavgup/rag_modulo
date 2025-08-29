@@ -78,10 +78,7 @@ def check_system_health(components: dict[str, dict[str, str]]) -> bool:
     Returns:
         bool: True if system is healthy, False otherwise
     """
-    for name, status in components.items():
-        if status["status"] == "unhealthy":
-            return False
-    return True
+    return all(status["status"] != "unhealthy" for name, status in components.items())
 
 
 @router.get(

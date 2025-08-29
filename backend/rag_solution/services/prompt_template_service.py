@@ -119,10 +119,7 @@ class PromptTemplateService:
 
     def format_prompt(self, template_or_id: UUID | PromptTemplateBase, variables: dict[str, Any]) -> str:
         try:
-            if isinstance(template_or_id, UUID):
-                template = self.repository.get_by_id(template_or_id)
-            else:
-                template = template_or_id
+            template = self.repository.get_by_id(template_or_id) if isinstance(template_or_id, UUID) else template_or_id
 
             if not template:
                 raise PromptTemplateNotFoundError(template_id=str(template_or_id))
@@ -155,7 +152,7 @@ class PromptTemplateService:
         strategy = template.context_strategy
         max_chunks = strategy.get("max_chunks", len(contexts))
         separator = strategy.get("chunk_separator", "\n\n")
-        ordering = strategy.get("ordering", "relevance")
+        strategy.get("ordering", "relevance")
         truncation = strategy.get("truncation", "end")
 
         selected_contexts = contexts[:max_chunks]

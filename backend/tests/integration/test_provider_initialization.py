@@ -81,7 +81,7 @@ def test_provider_initialization(db_session, base_user, test_parameters, test_te
     assert len(initialized_providers) > 0
 
     # Initialize provider
-    provider = provider_class(llm_provider_service, llm_parameters_service, prompt_template_service)
+    provider_class(llm_provider_service, llm_parameters_service, prompt_template_service)
 
     # Simulate parameter and template creation
     params: LLMParametersOutput = llm_parameters_service.create_parameters(test_parameters[provider_key])

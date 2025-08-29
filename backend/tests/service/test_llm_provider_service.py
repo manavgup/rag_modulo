@@ -255,7 +255,7 @@ def test_initialize_providers_updates_existing_templates(provider_service, db_se
     assert initial_rag_template is not None
 
     # Second initialization
-    updated_providers = provider_service.initialize_providers()
+    provider_service.initialize_providers()
 
     # Get updated templates
     updated_question_template = provider_service.prompt_template_service.get_by_type(

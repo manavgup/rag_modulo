@@ -177,7 +177,7 @@ def test_list_teams_pagination(team_service, base_team):
 
     assert len(page1) == 3
     assert len(page2) > 0
-    assert set(t.id for t in page1).isdisjoint(set(t.id for t in page2))
+    assert {t.id for t in page1}.isdisjoint({t.id for t in page2})
 
 
 if __name__ == "__main__":

@@ -119,7 +119,7 @@ async def test_search_unauthorized_collection(search_service: SearchService, db_
 
     # Create LLM parameters
     llm_params_service = LLMParametersService(db_session)
-    llm_params = llm_params_service.create_or_update_parameters(
+    llm_params_service.create_or_update_parameters(
         unauthorized_user.id,
         LLMParametersInput(
             name="test-params", temperature=0.7, max_new_tokens=1000, top_k=50, top_p=0.95, is_default=True
@@ -172,7 +172,7 @@ async def test_search_multiple_documents(
             document_id=file_info["filename"].split(".")[0],
             metadata={"total_pages": 1, "total_chunks": 1, "keywords": {"test": True}},
         )
-        file = file_service.create_file(file_schema, base_user.id)
+        file_service.create_file(file_schema, base_user.id)
 
         embeddings = watsonx.get_embeddings(file_info["text"])
         chunk = DocumentChunk(

@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from rag_solution.models.pipeline import PipelineConfig  # For type hints only
+    from rag_solution.models.pipeline import PipelineConfig
 
 import re
 import time
@@ -21,7 +21,6 @@ from rag_solution.evaluation.evaluator import RAGEvaluator
 from rag_solution.generation.providers.base import LLMBase
 from rag_solution.generation.providers.factory import LLMProviderFactory
 from rag_solution.models.llm_provider import LLMProvider
-from rag_solution.models.pipeline import PipelineConfig
 from rag_solution.models.prompt_template import PromptTemplate
 from rag_solution.query_rewriting.query_rewriter import QueryRewriter
 from rag_solution.repository.pipeline_repository import PipelineConfigRepository
@@ -581,7 +580,7 @@ class PipelineService:
                 metadata={
                     "execution_time": execution_time,
                     "num_chunks": len(query_results),
-                    "unique_docs": len(set(r.document_id for r in query_results if r.document_id)),
+                    "unique_docs": len({r.document_id for r in query_results if r.document_id}),
                 },
             )
 

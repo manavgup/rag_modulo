@@ -52,7 +52,7 @@ class LLMProviderRepository:
             return (
                 self.session.query(LLMProvider)
                 .filter(LLMProvider.name.ilike(name))
-                .filter(LLMProvider.is_active == True)
+                .filter(LLMProvider.is_active is True)
                 .first()
             )
         except Exception as e:
@@ -98,8 +98,8 @@ class LLMProviderRepository:
         try:
             return (
                 self.session.query(LLMProvider)
-                .filter(LLMProvider.is_active == True)
-                .filter(LLMProvider.is_default == True)
+                .filter(LLMProvider.is_active is True)
+                .filter(LLMProvider.is_default is True)
                 .first()
             )
         except Exception as e:

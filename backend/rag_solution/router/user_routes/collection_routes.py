@@ -29,7 +29,7 @@ router = APIRouter()
 )
 @authorize_decorator(role="user")
 async def get_user_collections(
-    user_id: UUID, request: Request, db: Session = Depends(get_db), include_system: bool = Query(True)
+    user_id: UUID, request: Request, db: Session = Depends(get_db)
 ) -> list[CollectionOutput]:
     """Retrieve all collections for a user."""
     if not hasattr(request.state, "user") or request.state.user["uuid"] != str(user_id):
