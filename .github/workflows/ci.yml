@@ -41,7 +41,8 @@ jobs:
           poetry config virtualenvs.in-project true
           # Regenerate lock file to ensure sync
           poetry lock
-          poetry install --only main,dev
+          # Install main, dev, and test groups for CI
+          poetry install --with dev,test
           
       - name: Check formatting
         run: make format-check
