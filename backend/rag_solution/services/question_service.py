@@ -123,7 +123,7 @@ class QuestionService:
             List[str]: Ranked list of questions
         """
         # Get provider from factory
-        provider = self._provider_factory.get_provider(provider_name)
+        self._provider_factory.get_provider(provider_name)
         scored_questions: list[tuple[str, float]] = []
 
         for question in questions:

@@ -92,8 +92,8 @@ class LLMModelRepository:
                 self.session.query(LLMModel)
                 .filter(LLMModel.provider_id == provider_id)
                 .filter(LLMModel.model_type == model_type)
-                .filter(LLMModel.is_default == True)
-                .filter(LLMModel.is_active == True)
+                .filter(LLMModel.is_default is True)
+                .filter(LLMModel.is_active is True)
                 .first()
             )
             return LLMModelOutput.model_validate(model) if model else None

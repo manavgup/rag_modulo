@@ -261,6 +261,9 @@ def add_user_to_team(team_id: UUID, user_team_input: UserTeamInput, db: Session 
     """
     user_team_service = get_team_service(db)
     try:
+        # Validate that the team exists
+        team_service = TeamService(db)
+        team_service.get_team(team_id)
         return user_team_service.add_user_to_team(user_team_input.user_id, user_team_input.team_id)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

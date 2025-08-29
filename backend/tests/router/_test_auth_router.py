@@ -71,7 +71,7 @@ async def test_get_current_user(valid_token, mock_jwt_settings):
 
 @pytest.mark.asyncio
 async def test_get_current_user_invalid_token(mock_jwt_settings):
-    with pytest.raises(Exception):  # Expecting an HTTPException, but using a general Exception for simplicity
+    with pytest.raises(HTTPException):  # Expecting an HTTPException for invalid tokens
         await get_current_user("invalid.token.here")
 
 

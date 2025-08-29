@@ -113,7 +113,7 @@ def test_llm_parameters_crud(
     # First create a collection
     collection_data = test_collection.model_dump(mode="json")
     collection_data["users"] = [str(base_user.id)]
-    collection = collection_service.create_collection(CollectionInput(**collection_data))
+    collection_service.create_collection(CollectionInput(**collection_data))
 
     # Create LLM parameters
     params_input = LLMParametersInput(
@@ -164,7 +164,7 @@ def test_file_operations(test_client, collection_service, test_collection, base_
     # Create collection with user
     collection_data = test_collection.model_dump(mode="json")
     collection_data["users"] = [str(base_user.id)]
-    collection = collection_service.create_collection(CollectionInput(**collection_data))
+    collection_service.create_collection(CollectionInput(**collection_data))
 
     # Test file deletion
     # First create a file to delete
@@ -201,7 +201,7 @@ def test_question_operations(test_client, collection_service, test_collection, b
     assert (
         create_response.status_code == 200
     ), f"Expected 200, got {create_response.status_code}. Response: {create_response.json()}"
-    question_id = create_response.json()["id"]
+    create_response.json()["id"]
 
     # Get questions
     get_response = test_client.get(f"/api/collections/{collection.id}/questions", headers=auth_headers)

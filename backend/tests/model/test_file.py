@@ -127,7 +127,7 @@ def test_get_files(file_management_service, collection, mock_upload_file):
 
 
 def test_get_file_path(file_management_service, collection, mock_upload_file):
-    file_output = file_management_service.upload_and_create_file_record(
+    file_management_service.upload_and_create_file_record(
         mock_upload_file, collection.user_ids[0], collection.id
     )
     file_path = file_management_service.get_file_path(collection.user_ids[0], collection.id, "test_file.txt")

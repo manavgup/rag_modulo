@@ -128,7 +128,7 @@ def test_get_parameters(
     base_user: User, test_parameters_service: LLMParametersService, test_llm_parameters: LLMParametersInput
 ):
     """Test retrieving parameters through service."""
-    created = test_parameters_service.create_or_update_parameters(base_user.id, test_llm_parameters)
+    test_parameters_service.create_or_update_parameters(base_user.id, test_llm_parameters)
 
     retrieved = test_parameters_service.get_parameters(test_llm_parameters.user_id)
     assert len(retrieved) > 0

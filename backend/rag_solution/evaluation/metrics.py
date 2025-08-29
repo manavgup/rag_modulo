@@ -66,7 +66,6 @@ class HitRate(BaseRetrievalMetric):
 
     def compute(
         self,
-        query: str | None = None,
         expected_ids: list[str] | None = None,
         retrieved_ids: list[str] | None = None,
         expected_texts: list[str] | None = None,
@@ -89,7 +88,6 @@ class MRR(BaseRetrievalMetric):
 
     def compute(
         self,
-        query: str | None = None,
         expected_ids: list[str] | None = None,
         retrieved_ids: list[str] | None = None,
         expected_texts: list[str] | None = None,

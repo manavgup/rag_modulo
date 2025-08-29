@@ -29,7 +29,7 @@ router = APIRouter()
     },
 )
 @authorize_decorator(role="admin")
-async def create_user(user_input: UserInput, request: Request, db: Session = Depends(get_db)) -> UserOutput:
+async def create_user(user_input: UserInput, db: Session = Depends(get_db)) -> UserOutput:
     """Create a new user."""
     service = UserService(db)
     try:

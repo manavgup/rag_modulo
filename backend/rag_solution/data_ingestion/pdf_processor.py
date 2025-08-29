@@ -312,7 +312,7 @@ class PdfProcessor(BaseProcessor):
 
                     # Find or create appropriate column (with tolerance)
                     col_key = None
-                    for existing_x in grid[row_key].keys():
+                    for existing_x in grid[row_key]:
                         if abs(existing_x - x) < 5:  # 5 pixel tolerance for column alignment
                             col_key = existing_x
                             break

@@ -212,7 +212,7 @@ def test_list_users_pagination(db_session: Session, base_user: User):
 
     assert len(page1) == 3
     assert len(page2) > 0
-    assert set(u.id for u in page1).isdisjoint(set(u.id for u in page2))
+    assert {u.id for u in page1}.isdisjoint({u.id for u in page2})
 
 
 if __name__ == "__main__":

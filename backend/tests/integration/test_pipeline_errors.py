@@ -141,7 +141,7 @@ async def test_template_formatting_error(pipeline_setup):
         example_inputs={"missing": "Example value"},
         is_default=True,
     )
-    template = pipeline_setup["template_service"].create_or_update_template(pipeline_setup["user"].id, template_input)
+    pipeline_setup["template_service"].create_or_update_template(pipeline_setup["user"].id, template_input)
 
     search_input = SearchInput(
         question="Test query",

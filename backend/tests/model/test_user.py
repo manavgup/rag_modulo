@@ -120,7 +120,7 @@ def test_create_user_with_invalid_input(user_service, invalid_input, error_messa
 
 def test_create_duplicate_user(user_service, user_input):
     user_service.create_user(user_input)
-    with pytest.raises(Exception):  # Assuming your system doesn't allow duplicate IBM IDs
+    with pytest.raises(ValidationError):  # Assuming your system doesn't allow duplicate IBM IDs
         user_service.create_user(user_input)
 
 

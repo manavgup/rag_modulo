@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, Enum, String
 from sqlalchemy.dialects.postgresql import UUID
@@ -10,6 +10,9 @@ from sqlalchemy.sql import func
 
 from rag_solution.file_management.database import Base
 from rag_solution.schemas.collection_schema import CollectionStatus
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 
 class Collection(Base):

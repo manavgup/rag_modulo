@@ -25,7 +25,7 @@ def test_complete_pipeline_flow(db_session: Session, base_user):
     )
 
     # Set up model
-    model = provider_service.create_provider_model(
+    provider_service.create_provider_model(
         LLMModelInput(
             provider_id=provider.id,
             model_id="google/flan-ul2",
@@ -47,7 +47,7 @@ def test_complete_pipeline_flow(db_session: Session, base_user):
     template_service = PromptTemplateService(db_session)
 
     # Create RAG query template
-    rag_template = template_service.create_template(
+    template_service.create_template(
         base_user.id,
         PromptTemplateInput(
             name="test-rag-template",
@@ -65,7 +65,7 @@ def test_complete_pipeline_flow(db_session: Session, base_user):
     )
 
     # Create question generation template
-    question_template = template_service.create_template(
+    template_service.create_template(
         base_user.id,
         PromptTemplateInput(
             name="test-question-template",
@@ -146,7 +146,7 @@ def test_pipeline_update_flow(db_session: Session, base_user):
     template_service = PromptTemplateService(db_session)
 
     # Create templates
-    rag_template = template_service.create_template(
+    template_service.create_template(
         base_user.id,
         PromptTemplateInput(
             name="test-rag-template",
@@ -161,7 +161,7 @@ def test_pipeline_update_flow(db_session: Session, base_user):
     )
 
     # Create question generation template
-    question_template = template_service.create_template(
+    template_service.create_template(
         base_user.id,
         PromptTemplateInput(
             name="test-question-template",

@@ -33,7 +33,7 @@ def create_provider(provider_input: LLMProviderInput, service: LLMProviderServic
 
 
 @router.get("/", response_model=list[LLMProviderOutput])
-def get_all_providers(is_active: bool = None, service: LLMProviderService = Depends(get_service)):
+def get_all_providers(is_active: bool | None = None, service: LLMProviderService = Depends(get_service)):
     """
     Retrieve all LLM Providers.
     """

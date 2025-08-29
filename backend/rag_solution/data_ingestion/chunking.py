@@ -1,4 +1,6 @@
+import functools
 import logging
+import operator
 import re
 from collections.abc import Callable
 
@@ -86,13 +88,13 @@ def semantic_chunking(text: str, min_chunk_size: int = 1, max_chunk_size: int = 
 
     for index in indices_above_thresh:
         chunk = " ".join(sentences[start_index : index + 1])
-        if len(chunk) >= min_chunk_size:
+        if len(chunk) >= min_chunk_size and len(chunk) <= max_chunk_size:
             chunks.append(chunk)
         start_index = index + 1
 
     if start_index < len(sentences):
         chunk = " ".join(sentences[start_index:])
-        if len(chunk) >= min_chunk_size:
+        if len(chunk) >= min_chunk_size and len(chunk) <= max_chunk_size:
             chunks.append(chunk)
 
     return chunks
@@ -110,7 +112,7 @@ def token_based_chunking(text: str, max_tokens: int = 100, overlap: int = 20) ->
         if current_token_count + len(tokens) > max_tokens and current_chunk:
             chunks.append(" ".join(current_chunk))
             # Keep the last 'overlap' tokens for the next chunk
-            overlap_tokens = sum([get_tokenization([sent])[0] for sent in current_chunk[-2:]], [])[-overlap:]
+            overlap_tokens = functools.reduce(operator.iadd, [get_tokenization([sent])[0] for sent in current_chunk[-2:]], [])[-overlap:]
             current_chunk = [sentences[sentences.index(current_chunk[-1])]]
             current_token_count = len(overlap_tokens)
 

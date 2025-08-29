@@ -45,7 +45,7 @@ class UserInfo(BaseModel):
 
 
 @router.get("/oidc-config", response_model=OIDCConfig)
-async def get_oidc_config(request: Request):
+async def get_oidc_config():
     """
     Retrieve the OIDC configuration for the client.
     """

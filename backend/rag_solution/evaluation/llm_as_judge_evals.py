@@ -83,7 +83,7 @@ class BaseEvaluator:
     def __init__(
         self,
         llm: ModelInference | None = None,
-        prompt: str = None,
+        prompt: str | None = None,
         pydantic_model: BaseModel = None,
     ):
         self.llm = llm or get_evaluator()
@@ -144,7 +144,7 @@ class BaseEvaluator:
         for generated_text in result:
             try:
                 final_json = json_repair.repair_json(json_str=generated_text, return_objects=True)
-                if isinstance(final_json, list) or isinstance(final_json, str):
+                if isinstance(final_json, list | str):
                     logger.warning(f"Output Parser during batch processing  [{final_json}]")
                     final_json = get_schema(self.pydantic_model, json_output=True, empty=True)
             except Exception as ex:
@@ -211,7 +211,7 @@ class AnswerSimilarityEvaluator(BaseEvaluator):
     def __init__(self):
         super().__init__(prompt=ANSWER_SIMILARITY_EVALUATION_PROMPT_LLAMA3, pydantic_model=AnswerSimilarity)
 
-    def evaluate(self, question: str, answer: str, reference_answer: str, show_logs: bool = False):
+    def evaluate(self, question: str, answer: str, reference_answer: str):
         return super().evaluate(
             inputs={
                 "question": question,
