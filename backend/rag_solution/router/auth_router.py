@@ -2,7 +2,7 @@ import logging
 
 import httpx
 import jwt
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -25,7 +25,7 @@ class OIDCConfig(BaseModel):
     redirect_uri: str
     response_type: str
     scope: str
-    loadUserInfo: bool
+    load_user_info: bool
     metadata: dict
 
 
@@ -45,7 +45,7 @@ class UserInfo(BaseModel):
 
 
 @router.get("/oidc-config", response_model=OIDCConfig)
-async def get_oidc_config():
+async def get_oidc_config() -> JSONResponse:
     """
     Retrieve the OIDC configuration for the client.
     """
@@ -82,7 +82,7 @@ async def get_oidc_config():
 
 
 @router.post("/token", response_model=TokenResponse)
-async def token_exchange(request: Request):
+async def token_exchange(request: Request) -> JSONResponse:
     """
     Exchange an authorization code for an access token.
     """
@@ -108,22 +108,22 @@ async def token_exchange(request: Request):
             return JSONResponse(content=e.response.json(), status_code=e.response.status_code)
         except Exception as e:
             logger.error(f"An unexpected error occurred: {e!s}")
-            raise HTTPException(status_code=500, detail="Internal server error")
+            raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @router.get("/login")
-async def login(request: Request):
+async def login(request: Request) -> Response:
     try:
         callback_url = f"{settings.frontend_url}/api/auth/callback"
         logger.info(f"Initiating login with redirect_uri: {callback_url}")
         return await oauth.ibm.authorize_redirect(request, callback_url)
     except Exception as e:
         logger.error(f"Error in login process: {e!s}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error during login process")
+        raise HTTPException(status_code=500, detail="Internal server error during login process") from e
 
 
 @router.get("/callback")
-async def auth(request: Request, db: Session = Depends(get_db)):
+async def auth(request: Request, db: Session = Depends(get_db)) -> Response:
     try:
         logger.info("Received authentication callback")
         token = await oauth.ibm.authorize_access_token(request)
@@ -170,7 +170,7 @@ async def auth(request: Request, db: Session = Depends(get_db)):
 
 
 @router.post("/logout")
-async def logout(request: Request):
+async def logout(request: Request) -> JSONResponse:
     """
     Log out the current user.
     """
@@ -180,7 +180,7 @@ async def logout(request: Request):
 
 
 @router.get("/userinfo", response_model=UserInfo)
-async def get_userinfo(request: Request):
+async def get_userinfo(request: Request) -> JSONResponse:
     """
     Retrieve the user information from the JWT Token.
     """
@@ -211,11 +211,11 @@ async def get_userinfo(request: Request):
         return JSONResponse(content=user_info.model_dump())
     except jwt.PyJWTError as e:
         logger.error(f"Error decoding JWT: {e!s}")
-        raise HTTPException(status_code=401, detail="Invalid token")
+        raise HTTPException(status_code=401, detail="Invalid token") from e
 
 
 @router.get("/check-auth")
-async def check_auth(request: Request):
+async def check_auth(request: Request) -> JSONResponse:
     """
     Check if the user is authenticated.
     """
@@ -247,7 +247,7 @@ async def check_auth(request: Request):
 
 
 @router.get("/session")
-async def session_status(request: Request):
+async def session_status(request: Request) -> JSONResponse:
     """
     Check session status and retrieve user info if authenticated.
     """
