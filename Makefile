@@ -318,41 +318,113 @@ info:
 	@echo "Vector DB: ${VECTOR_DB}"
 	@echo "GHCR repository: ${GHCR_REPO}"
 
+# Colors for better output
+CYAN := \033[0;36m
+GREEN := \033[0;32m
+YELLOW := \033[0;33m
+RED := \033[0;31m
+NC := \033[0m # No Color
+
 # Local CI targets (mirror GitHub Actions)
-lint:
-	@echo "Running linting locally..."
-	cd backend && poetry run ruff check . || echo "Linting issues found"
-	@echo "✅ Linting completed"
 
-unit-tests-local:
-	@echo "Running unit tests locally..."
-	cd backend && poetry run pytest tests/ -m unit --maxfail=5 || echo "Unit tests need fixing"
-	@echo "✅ Unit tests completed"
+## Linting targets
+lint: lint-ruff lint-mypy
+	@echo "$(GREEN)✅ All linting checks completed$(NC)"
 
-ci-local: lint unit-tests-local
-	@echo "✅ Local CI checks completed successfully!"
+lint-ruff:
+	@echo "$(CYAN)🔍 Running Ruff linter...$(NC)"
+	cd backend && poetry run ruff check . --line-length 120
+	@echo "$(GREEN)✅ Ruff checks passed$(NC)"
 
-validate-ci:
-	@echo "🔍 Validating CI workflows..."
-	./scripts/validate-ci.sh
+lint-mypy:
+	@echo "$(CYAN)🔎 Running Mypy type checker...$(NC)"
+	cd backend && poetry run mypy rag_solution/ --ignore-missing-imports --disable-error-code=misc --disable-error-code=unused-ignore --no-strict-optional
+	@echo "$(GREEN)✅ Mypy type checks passed$(NC)"
+
+lint-docstrings:
+	@echo "$(CYAN)📝 Checking docstring coverage...$(NC)"
+	cd backend && poetry run interrogate --fail-under=50 rag_solution/ -v || echo "$(YELLOW)⚠️  Docstring coverage needs improvement$(NC)"
+	cd backend && poetry run pydocstyle rag_solution/ || echo "$(YELLOW)⚠️  Some docstring issues found$(NC)"
+	@echo "$(GREEN)✅ Docstring checks completed$(NC)"
+
+## Formatting targets
+format: format-ruff
+	@echo "$(GREEN)✅ All formatting completed$(NC)"
+
+format-ruff:
+	@echo "$(CYAN)🔧 Running Ruff formatter and import sorter...$(NC)"
+	cd backend && poetry run ruff format . --line-length 120
+	cd backend && poetry run ruff check --fix . --line-length 120
+	@echo "$(GREEN)✅ Ruff formatting and import sorting completed$(NC)"
+
+format-check:
+	@echo "$(CYAN)🔍 Checking code formatting...$(NC)"
+	cd backend && poetry run ruff format --check . --line-length 120
+	cd backend && poetry run ruff check . --line-length 120
+	@echo "$(GREEN)✅ Format check completed$(NC)"
+
+## Pre-commit targets
+pre-commit-run:
+	@echo "$(CYAN)🔧 Running pre-commit hooks on all files...$(NC)"
+	poetry run pre-commit run --all-files
+	@echo "$(GREEN)✅ Pre-commit run completed$(NC)"
+
+pre-commit-update:
+	@echo "$(CYAN)⬆️  Updating pre-commit hooks...$(NC)"
+	poetry run pre-commit autoupdate
+	@echo "$(GREEN)✅ Pre-commit hooks updated$(NC)"
 
 setup-pre-commit:
-	@echo "Setting up pre-commit hooks..."
+	@echo "$(CYAN)📦 Setting up pre-commit hooks...$(NC)"
 	pip install pre-commit
 	pre-commit install
-	@echo "✅ Pre-commit hooks installed"
+	@echo "$(GREEN)✅ Pre-commit hooks installed$(NC)"
+
+## Unit tests
+unit-tests-local:
+	@echo "$(CYAN)🧪 Running unit tests locally...$(NC)"
+	cd backend && poetry run pytest tests/ -m unit --maxfail=5 -v
+	@echo "$(GREEN)✅ Unit tests completed$(NC)"
+
+## Combined targets
+ci-local: format-check lint unit-tests-local
+	@echo "$(GREEN)✅ Local CI checks completed successfully!$(NC)"
+
+ci-fix: format lint
+	@echo "$(GREEN)✅ Code formatting and linting fixes applied!$(NC)"
+
+validate-ci:
+	@echo "$(CYAN)🔍 Validating CI workflows...$(NC)"
+	./scripts/validate-ci.sh
 
 help:
 	@echo "Usage: make [target]"
 	@echo ""
-	@echo "Local CI Targets:"
-	@echo "  ci-local      \t\tRun full local CI (lint + unit tests)"
-	@echo "  lint          \t\tRun linting locally"
-	@echo "  unit-tests-local  \tRun unit tests locally"
-	@echo "  validate-ci   \t\tValidate CI workflows with act"
-	@echo "  setup-pre-commit  \tInstall pre-commit hooks"
+	@echo "$(CYAN)🚀 Quick Commands:$(NC)"
+	@echo "  ci-local      \t\tRun full local CI (format-check + lint + tests)"
+	@echo "  ci-fix        \t\tAuto-fix formatting and linting issues"
+	@echo "  pre-commit-run\t\tRun all pre-commit hooks"
 	@echo ""
-	@echo "Container Targets:"
+	@echo "$(CYAN)🔍 Linting Targets:$(NC)"
+	@echo "  lint          \t\tRun all linters (ruff + mypy)"
+	@echo "  lint-ruff     \t\tRun Ruff linter"
+	@echo "  lint-mypy     \t\tRun MyPy type checker"
+	@echo "  lint-docstrings\t\tCheck docstring coverage"
+	@echo ""
+	@echo "$(CYAN)🎨 Formatting Targets:$(NC)"
+	@echo "  format        \t\tAuto-format code with Ruff"
+	@echo "  format-check  \t\tCheck formatting without changes"
+	@echo "  format-ruff   \t\tRun Ruff formatter and import sorter"
+	@echo ""
+	@echo "$(CYAN)🧪 Testing Targets:$(NC)"
+	@echo "  unit-tests-local  \tRun unit tests locally"
+	@echo ""
+	@echo "$(CYAN)🛠️ Setup Targets:$(NC)"
+	@echo "  setup-pre-commit  \tInstall pre-commit hooks"
+	@echo "  pre-commit-update \tUpdate pre-commit hooks to latest"
+	@echo "  validate-ci   \t\tValidate CI workflows with act"
+	@echo ""
+	@echo "$(CYAN)📦 Container Targets:$(NC)"
 	@echo "  init-env      		Initialize .env file with default values"
 	@echo "  build-frontend  	Build frontend code/container"
 	@echo "  build-backend   	Build backend code/container"
