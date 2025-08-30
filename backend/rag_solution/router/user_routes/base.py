@@ -10,6 +10,8 @@ from core.authorization import authorize_decorator
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.user_schema import UserInput, UserOutput
 from rag_solution.services.user_service import UserService
+from rag_solution.core.dependencies import verify_user_access, get_user_service, verify_admin_access
+from rag_solution.core.exceptions import NotFoundError, AlreadyExistsError, ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -29,13 +31,17 @@ router = APIRouter()
     },
 )
 @authorize_decorator(role="admin")
-async def create_user(user_input: UserInput, db: Session = Depends(get_db)) -> UserOutput:
+async def create_user(
+    user_input: UserInput,
+    service: UserService = Depends(get_user_service)
+) -> UserOutput:
     """Create a new user."""
-    service = UserService(db)
     try:
         return service.create_user(user_input)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to create user: {e!s}") from e
+    except AlreadyExistsError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except ValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @router.get(
@@ -51,25 +57,13 @@ async def create_user(user_input: UserInput, db: Session = Depends(get_db)) -> U
     },
 )
 @authorize_decorator(role="user")
-async def get_user(user_id: UUID, request: Request, db: Session = Depends(get_db)) -> UserOutput:
+async def get_user(
+    user_id: UUID,
+    user: UserOutput = Depends(verify_user_access)
+) -> UserOutput:
     """Retrieve details for a specific user."""
-    auth_header = request.headers.get("Authorization")
-    if auth_header and auth_header.startswith("Bearer "):
-        token = auth_header.split(" ")[1]
-        if token == "mock_token_for_testing":
-            service = UserService(db)
-            return service.get_user_by_id(user_id)
-
-    # Handle invalid token
-    if token == "invalid_token":
-        raise HTTPException(status_code=401, detail="Invalid authentication credentials")
-
-    # Handle expired token
-    if not hasattr(request.state, "user") or request.state.user["uuid"] != str(user_id):
-        raise HTTPException(status_code=403, detail="Not authorized to access user details")
-
-    service = UserService(db)
-    return service.get_user(user_id)
+    # User access is already verified by dependency
+    return user
 
 
 @router.put(
@@ -87,23 +81,26 @@ async def get_user(user_id: UUID, request: Request, db: Session = Depends(get_db
 )
 @authorize_decorator(role="user")
 async def update_user(
-    user_id: UUID, user_input: UserInput, request: Request, db: Session = Depends(get_db)
+    user_id: UUID,
+    user_input: UserInput,
+    user: UserOutput = Depends(verify_user_access),
+    service: UserService = Depends(get_user_service)
 ) -> UserOutput:
     """Update details for a specific user."""
-    if not hasattr(request.state, "user") or request.state.user["uuid"] != str(user_id):
-        raise HTTPException(status_code=403, detail="Not authorized to update user details")
-
-    service = UserService(db)
     try:
         return service.update_user(user_id, user_input)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to update user: {e!s}") from e
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except AlreadyExistsError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except ValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @router.delete(
     "/{user_id}",
-    response_model=bool,
-    summary="Delete user",
+    response_model=dict,
+    summary="Delete user", 
     description="Delete a specific user",
     responses={
         200: {"description": "User deleted successfully"},
@@ -113,13 +110,14 @@ async def update_user(
     },
 )
 @authorize_decorator(role="user")
-async def delete_user(user_id: UUID, request: Request, db: Session = Depends(get_db)) -> bool:
+async def delete_user(
+    user_id: UUID,
+    user: UserOutput = Depends(verify_user_access),
+    service: UserService = Depends(get_user_service)
+) -> dict:
     """Delete a specific user."""
-    if not hasattr(request.state, "user") or request.state.user["uuid"] != str(user_id):
-        raise HTTPException(status_code=403, detail="Not authorized to delete user")
-
-    service = UserService(db)
     try:
-        return service.delete_user(user_id)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to delete user: {e!s}") from e
+        service.delete_user(user_id)
+        return {"message": "User deleted successfully"}
+    except NotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
