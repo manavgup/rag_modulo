@@ -3,7 +3,7 @@
 import time
 from collections.abc import Callable
 from functools import wraps
-from typing import ParamSpec, TypeVar
+from typing import Any, ParamSpec, TypeVar
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -23,11 +23,11 @@ T = TypeVar("T")
 P = ParamSpec("P")
 
 
-def handle_search_errors[P, T](func: Callable[P, T]) -> Callable[P, T]:
+def handle_search_errors(func: Callable[..., Any]) -> Callable[..., Any]:
     """Decorator to handle common search errors and convert them to HTTPExceptions."""
 
     @wraps(func)
-    async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+    async def wrapper(*args: Any, **kwargs: Any) -> Any:
         try:
             return await func(*args, **kwargs)
         except NotFoundError as e:
@@ -226,9 +226,13 @@ class SearchService:
             raise ConfigurationError(pipeline_result.error or "Pipeline execution failed")
 
         # Generate metadata
+        if pipeline_result.query_results is None:
+            pipeline_result.query_results = []
         document_metadata = self._generate_document_metadata(pipeline_result.query_results, search_input.collection_id)
 
         # Clean answer
+        if pipeline_result.generated_answer is None:
+            pipeline_result.generated_answer = ""
         cleaned_answer = self._clean_generated_answer(pipeline_result.generated_answer)
 
         # Build response
@@ -238,9 +242,4 @@ class SearchService:
             query_results=pipeline_result.query_results,
             rewritten_query=pipeline_result.rewritten_query,
             evaluation=pipeline_result.evaluation,
-            metadata={
-                "execution_time": time.time() - start_time,
-                "num_chunks": len(pipeline_result.query_results),
-                "unique_docs": len({r.document_id for r in pipeline_result.query_results if r.document_id}),
-            },
         )

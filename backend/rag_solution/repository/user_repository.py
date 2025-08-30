@@ -7,6 +7,7 @@ from core.custom_exceptions import RepositoryError
 from core.logging_utils import get_logger
 from rag_solution.models.user import User
 from rag_solution.schemas.user_schema import UserInput, UserOutput
+from rag_solution.core.exceptions import NotFoundError, AlreadyExistsError, ValidationError
 
 logger = get_logger(__name__)
 
@@ -19,48 +20,78 @@ class UserRepository:
         self.db = db
 
     def create(self, user_input: UserInput) -> UserOutput:
+        """Create a new user.
+        
+        Raises:
+            AlreadyExistsError: If IBM ID or email already exists
+            RepositoryError: For other database errors
+        """
         try:
             user = User(**user_input.model_dump())
             self.db.add(user)
-            self.db.commit()  # Assume service manages rollback if needed
+            self.db.commit()
             self.db.refresh(user)
             return UserOutput.model_validate(user)
         except IntegrityError as e:
-            self.db.rollback()  # Only rollback in case of failure
+            self.db.rollback()
             if "ix_users_ibm_id" in str(e):
-                raise ValueError("IBM ID already exists") from e
+                raise AlreadyExistsError("User", "ibm_id", user_input.ibm_id) from e
             elif "ix_users_email" in str(e):
-                raise ValueError("Email already exists") from e
-            raise ValueError("An error occurred while creating the user") from e
+                raise AlreadyExistsError("User", "email", user_input.email) from e
+            raise ValidationError("An error occurred while creating the user") from e
         except Exception as e:
             self.db.rollback()
             logger.error(f"Error creating user: {e!s}")
             raise RepositoryError(f"Failed to create user: {e!s}") from e
 
-    def get_by_id(self, user_id: UUID) -> UserOutput | None:
-        """Fetches user by ID with team relationships."""
+    def get_by_id(self, user_id: UUID) -> UserOutput:
+        """Fetches user by ID with team relationships.
+        
+        Raises:
+            NotFoundError: If user not found
+            RepositoryError: For database errors
+        """
         try:
             user = self.db.query(User).filter(User.id == user_id).options(joinedload(User.teams)).first()
-            return UserOutput.model_validate(user, from_attributes=True) if user else None
+            if not user:
+                raise NotFoundError("User", resource_id=str(user_id))
+            return UserOutput.model_validate(user, from_attributes=True)
+        except NotFoundError:
+            raise  # Re-raise domain exceptions
         except Exception as e:
             logger.error(f"Error getting user {user_id}: {e!s}")
             raise RepositoryError(f"Failed to get user by ID: {e!s}") from e
 
-    def get_by_ibm_id(self, ibm_id: str) -> UserOutput | None:
-        """Fetches user by IBM ID."""
+    def get_by_ibm_id(self, ibm_id: str) -> UserOutput:
+        """Fetches user by IBM ID.
+        
+        Raises:
+            NotFoundError: If user not found
+            RepositoryError: For database errors
+        """
         try:
             user = self.db.query(User).filter(User.ibm_id == ibm_id).options(joinedload(User.teams)).first()
-            return UserOutput.model_validate(user) if user else None
+            if not user:
+                raise NotFoundError("User", identifier=f"ibm_id={ibm_id}")
+            return UserOutput.model_validate(user)
+        except NotFoundError:
+            raise
         except Exception as e:
             logger.error(f"Error getting user by IBM ID {ibm_id}: {e!s}")
             raise RepositoryError(f"Failed to get user by IBM ID: {e!s}") from e
 
-    def update(self, user_id: UUID, user_update: UserInput) -> UserOutput | None:
-        """Updates user data with validation."""
+    def update(self, user_id: UUID, user_update: UserInput) -> UserOutput:
+        """Updates user data with validation.
+        
+        Raises:
+            NotFoundError: If user not found
+            AlreadyExistsError: If IBM ID or email already exists
+            RepositoryError: For database errors
+        """
         try:
             user = self.db.query(User).filter(User.id == user_id).first()
             if not user:
-                return None
+                raise NotFoundError("User", resource_id=str(user_id))
 
             # Update fields
             for key, value in user_update.model_dump(exclude_unset=True).items():
@@ -69,13 +100,15 @@ class UserRepository:
             self.db.commit()
             self.db.refresh(user)
             return UserOutput.model_validate(user)
+        except NotFoundError:
+            raise
         except IntegrityError as e:
             self.db.rollback()
             if "ix_users_ibm_id" in str(e):
-                raise ValueError("IBM ID already exists") from e
+                raise AlreadyExistsError("User", "ibm_id", user_update.ibm_id) from e
             elif "ix_users_email" in str(e):
-                raise ValueError("Email already exists") from e
-            raise ValueError("An error occurred while updating the user") from e
+                raise AlreadyExistsError("User", "email", user_update.email) from e
+            raise ValidationError("An error occurred while updating the user") from e
         except Exception as e:
             logger.error(f"Error updating user {user_id}: {e!s}")
             self.db.rollback()

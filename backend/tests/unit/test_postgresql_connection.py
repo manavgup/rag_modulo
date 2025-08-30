@@ -4,7 +4,7 @@ import psycopg2
 import pytest
 
 
-def test_postgresql_connection():
+def test_postgresql_connection() -> None:
     try:
         conn = psycopg2.connect(
             dbname=os.getenv("COLLECTIONDB_NAME"),

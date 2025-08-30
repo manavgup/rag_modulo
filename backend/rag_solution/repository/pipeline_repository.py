@@ -7,10 +7,12 @@ strict type boundaries and clean separation of concerns.
 from uuid import UUID
 
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.exc import IntegrityError
 
-from core.custom_exceptions import RepositoryError
 from rag_solution.models.pipeline import PipelineConfig
 from rag_solution.schemas.pipeline_schema import PipelineConfigInput, PipelineConfigOutput
+from rag_solution.core.exceptions import NotFoundError, AlreadyExistsError, ValidationError
+from core.custom_exceptions import RepositoryError
 
 
 class PipelineConfigRepository:
@@ -101,23 +103,30 @@ class PipelineConfigRepository:
             self.db.rollback()
             raise RepositoryError(f"Failed to create pipeline configuration: {e!s}") from e
 
-    def get_by_id(self, pipeline_id: UUID) -> PipelineConfigOutput | None:
+    def get_by_id(self, pipeline_id: UUID) -> PipelineConfigOutput:
         """Get pipeline configuration by ID.
 
         Args:
             pipeline_id: UUID of the pipeline configuration
 
         Returns:
-            Optional[PipelineConfigOutput]: Pipeline configuration if found
+            PipelineConfigOutput: Pipeline configuration
 
         Raises:
-            RepositoryError: If database operation fails
+            NotFoundError: If pipeline not found
         """
         try:
             pipeline = self.db.query(PipelineConfig).filter(PipelineConfig.id == pipeline_id).first()
-            return PipelineConfigOutput.from_db_model(pipeline) if pipeline else None
+            if not pipeline:
+                raise NotFoundError(
+                    resource_type="PipelineConfig",
+                    resource_id=str(pipeline_id)
+                )
+            return PipelineConfigOutput.from_db_model(pipeline)
+        except NotFoundError:
+            raise
         except Exception as e:
-            raise RepositoryError(f"Failed to get pipeline by ID: {e!s}") from e
+            raise Exception(f"Failed to get pipeline by ID: {e!s}") from e
 
     def get_by_user(self, user_id: UUID) -> list[PipelineConfigOutput]:
         """Get all pipelines for a user with optional filtering.
@@ -143,7 +152,7 @@ class PipelineConfigRepository:
         except Exception as e:
             raise RepositoryError(f"Failed to get pipelines for user: {e!s}") from e
 
-    def update(self, id: UUID, config: PipelineConfigInput) -> PipelineConfigOutput | None:
+    def update(self, id: UUID, config: PipelineConfigInput) -> PipelineConfigOutput:
         """Update an existing pipeline configuration.
 
         Args:
@@ -151,16 +160,19 @@ class PipelineConfigRepository:
             config: Updated configuration input schema
 
         Returns:
-            Optional[PipelineConfigOutput]: Updated pipeline configuration if found
+            PipelineConfigOutput: Updated pipeline configuration
 
         Raises:
-            RepositoryError: If update fails
+            NotFoundError: If pipeline not found
         """
         try:
             pipeline = self.db.query(PipelineConfig).filter(PipelineConfig.id == id).first()
 
             if not pipeline:
-                return None
+                raise NotFoundError(
+                    resource_type="PipelineConfig",
+                    resource_id=str(id)
+                )
 
             # If setting as default, clear other defaults first
             if config.is_default:
@@ -177,9 +189,11 @@ class PipelineConfigRepository:
             self.db.commit()
             self.db.refresh(pipeline)
             return PipelineConfigOutput.from_db_model(pipeline)
+        except NotFoundError:
+            raise
         except Exception as e:
             self.db.rollback()
-            raise RepositoryError(f"Failed to update pipeline configuration: {e!s}") from e
+            raise Exception(f"Failed to update pipeline configuration: {e!s}") from e
 
     def delete(self, id: UUID) -> bool:
         """Delete a pipeline configuration.

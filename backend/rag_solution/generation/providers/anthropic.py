@@ -29,7 +29,7 @@ class AnthropicLLM(LLMBase):
             provider = self._get_provider_config("anthropic")
             self._provider = provider
 
-            self.client = anthropic.Anthropic(api_key=provider.api_key, base_url=provider.base_url)
+            self.client = anthropic.Anthropic(api_key=str(provider.api_key), base_url=provider.base_url)
 
             self._models = self.llm_model_service.get_models_by_provider(provider.id)
             self._initialize_default_model()
@@ -80,15 +80,23 @@ class AnthropicLLM(LLMBase):
 
             # Handle batch generation
             if isinstance(prompt, list):
-                formatted_prompts = [self._format_prompt(p, template, variables) for p in prompt]
+                formatted_prompts = [self._format_prompt(str(p), template, variables) for p in prompt]
                 # Use asyncio for concurrent processing
-                return asyncio.run(self._generate_batch(model_id, formatted_prompts, generation_params))
+                result = asyncio.run(self._generate_batch(model_id, formatted_prompts, generation_params))
+                return result
             else:
-                formatted_prompt = self._format_prompt(prompt, template, variables)
+                formatted_prompt = self._format_prompt(str(prompt), template, variables)
                 response = self.client.messages.create(
                     model=model_id, messages=[{"role": "user", "content": formatted_prompt}], **generation_params
                 )
-                return response.content[0].text.strip()
+                content: str | None = response.content[0].text
+                if content is None:
+                    raise LLMProviderError(
+                        provider="anthropic",
+                        error_type="generation_failed",
+                        message="Anthropic returned empty content"
+                    )
+                return content.strip()
 
         except (ValidationError, NotFoundError) as e:
             raise LLMProviderError(
@@ -108,7 +116,7 @@ class AnthropicLLM(LLMBase):
         if template:
             vars_dict = dict(variables or {})
             vars_dict["prompt"] = prompt
-            return self.prompt_template_service.format_prompt(template.id, vars_dict)
+            return self.prompt_template_service.format_prompt(template_or_id=template, variables=vars_dict)
         return prompt
 
     async def _generate_batch(self, model_id: str, prompts: list[str], generation_params: dict[str, Any]) -> list[str]:
@@ -117,12 +125,19 @@ class AnthropicLLM(LLMBase):
         async def generate_single(prompt: str) -> str:
             # Create a new client for each request to avoid session conflicts
             async with anthropic.AsyncAnthropic(
-                api_key=self._provider.api_key, base_url=self._provider.base_url
+                api_key=str(self._provider.api_key), base_url=self._provider.base_url
             ) as client:
                 response = await client.messages.create(
                     model=model_id, messages=[{"role": "user", "content": prompt}], **generation_params
                 )
-                return response.content[0].text.strip()
+                content: str | None = response.content[0].text
+                if content is None:
+                    raise LLMProviderError(
+                        provider="anthropic",
+                        error_type="generation_failed",
+                        message="Anthropic returned empty content"
+                    )
+                return content.strip()
 
         # Process prompts concurrently with a semaphore to limit concurrency
         semaphore = asyncio.Semaphore(10)  # Limit concurrent requests
@@ -132,7 +147,8 @@ class AnthropicLLM(LLMBase):
                 return await generate_single(prompt)
 
         tasks = [bounded_generate(prompt) for prompt in prompts]
-        return await asyncio.gather(*tasks)
+        result = await asyncio.gather(*tasks)
+        return result
 
     @retry(
         wait=wait_exponential(multiplier=1, min=1, max=30),
@@ -175,7 +191,7 @@ class AnthropicLLM(LLMBase):
                 message=f"Failed to generate streaming text: {e!s}",
             ) from e
 
-    def get_embeddings(self, texts: str | list[str]) -> EmbeddingsList:  # noqa: ARG002
+    def get_embeddings(self, texts: str | Sequence[str]) -> EmbeddingsList:  # noqa: ARG002
         """Generate embeddings for texts.
 
         Raises:

@@ -1,7 +1,7 @@
 import logging
 import multiprocessing
 import os
-from collections.abc import AsyncIterable
+from collections.abc import AsyncIterable, AsyncGenerator
 from multiprocessing.managers import SyncManager
 from typing import Any
 
@@ -11,7 +11,7 @@ from rag_solution.data_ingestion.excel_processor import ExcelProcessor
 from rag_solution.data_ingestion.pdf_processor import PdfProcessor
 from rag_solution.data_ingestion.txt_processor import TxtProcessor
 from rag_solution.data_ingestion.word_processor import WordProcessor
-from vectordbs.data_types import Document
+from vectordbs.data_types import Document, DocumentMetadata
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -51,6 +51,7 @@ class DocumentProcessor:
         Args:
             processor: Document processor to use
             file_path: Path to the document
+            document_id: ID of the document being processed
 
         Returns:
             List of processed documents
@@ -60,7 +61,7 @@ class DocumentProcessor:
             documents.append(doc)
         return documents
 
-    async def process_document(self, file_path: str, document_id: str) -> AsyncIterable[Document]:
+    async def process_document(self, file_path: str, document_id: str) -> AsyncGenerator[Document, None]:
         """
         Process a document based on its file extension and generate suggested questions.
 
@@ -96,7 +97,7 @@ class DocumentProcessor:
                 message=f"Error processing document {file_path}",
             ) from e
 
-    def extract_metadata_from_processor(self, file_path: str) -> dict[str, Any]:
+    def extract_metadata_from_processor(self, file_path: str) -> DocumentMetadata:
         """
         Extract metadata from a document using its processor.
 
@@ -104,7 +105,7 @@ class DocumentProcessor:
             file_path (str): Path to the document
 
         Returns:
-            Dict[str, Any]: Extracted metadata
+            DocumentMetadata: Extracted metadata
 
         Raises:
             ValueError: If file type is not supported

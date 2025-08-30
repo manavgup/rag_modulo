@@ -1,5 +1,6 @@
 """Integration tests for UserCollectionService."""
 
+from typing import Any
 from uuid import uuid4
 
 import pytest
@@ -8,13 +9,14 @@ from fastapi import HTTPException
 from rag_solution.schemas.collection_schema import CollectionOutput
 from rag_solution.schemas.user_collection_schema import UserCollectionOutput
 from rag_solution.schemas.user_schema import UserOutput
+from rag_solution.services.user_collection_service import UserCollectionService
 
 
 # -------------------------------------------
 # 🧪 Collection Access Tests
 # -------------------------------------------
 @pytest.mark.atomic
-def test_get_user_collections(user_collection_service, base_user: UserOutput, base_collection):
+def test_get_user_collections(user_collection_service: UserCollectionService, base_user: UserOutput, base_collection: CollectionOutput) -> None:
     """Test fetching user collections."""
     result = user_collection_service.get_user_collections(base_user.id)
 
@@ -25,7 +27,7 @@ def test_get_user_collections(user_collection_service, base_user: UserOutput, ba
 
 
 @pytest.mark.atomic
-def test_get_user_collections_empty(user_collection_service, base_user: UserOutput):
+def test_get_user_collections_empty(user_collection_service: UserCollectionService, base_user: UserOutput) -> None:
     """Test fetching collections for user with no collections."""
     # First remove user from any existing collections
     existing_collections = user_collection_service.get_user_collections(base_user.id)
@@ -40,7 +42,7 @@ def test_get_user_collections_empty(user_collection_service, base_user: UserOutp
 # 🧪 Collection Membership Tests
 # -------------------------------------------
 @pytest.mark.atomic
-def test_add_user_to_collection(user_collection_service, base_user: UserOutput, base_collection):
+def test_add_user_to_collection(user_collection_service: UserCollectionService, base_user: UserOutput, base_collection: CollectionOutput) -> None:
     """Test adding user to collection."""
     result = user_collection_service.add_user_to_collection(base_user.id, base_collection.id)
 
@@ -52,7 +54,7 @@ def test_add_user_to_collection(user_collection_service, base_user: UserOutput, 
 
 
 @pytest.mark.atomic
-def test_add_user_to_collection_duplicate(user_collection_service, base_user: UserOutput, base_collection):
+def test_add_user_to_collection_duplicate(user_collection_service: UserCollectionService, base_user: UserOutput, base_collection: CollectionOutput) -> None:
     """Test adding user to collection when already added."""
     # First addition should succeed
     user_collection_service.add_user_to_collection(base_user.id, base_collection.id)
@@ -65,7 +67,7 @@ def test_add_user_to_collection_duplicate(user_collection_service, base_user: Us
 
 
 @pytest.mark.atomic
-def test_add_user_to_nonexistent_collection(user_collection_service, base_user: UserOutput):
+def test_add_user_to_nonexistent_collection(user_collection_service: UserCollectionService, base_user: UserOutput) -> None:
     """Test adding user to nonexistent collection."""
     with pytest.raises(HTTPException) as exc_info:
         user_collection_service.add_user_to_collection(base_user.id, uuid4())
@@ -74,7 +76,7 @@ def test_add_user_to_nonexistent_collection(user_collection_service, base_user: 
 
 
 @pytest.mark.atomic
-def test_remove_user_from_collection(user_collection_service, base_user: UserOutput, base_collection):
+def test_remove_user_from_collection(user_collection_service: UserCollectionService, base_user: UserOutput, base_collection: CollectionOutput) -> None:
     """Test removing user from collection."""
     # First add user to collection
     user_collection_service.add_user_to_collection(base_user.id, base_collection.id)
@@ -89,7 +91,7 @@ def test_remove_user_from_collection(user_collection_service, base_user: UserOut
 
 
 @pytest.mark.atomic
-def test_remove_user_not_in_collection(user_collection_service, base_user: UserOutput, base_collection):
+def test_remove_user_not_in_collection(user_collection_service: UserCollectionService, base_user: UserOutput, base_collection: CollectionOutput) -> None:
     """Test removing user that's not in collection."""
     with pytest.raises(HTTPException) as exc_info:
         user_collection_service.remove_user_from_collection(base_user.id, base_collection.id)
@@ -101,7 +103,7 @@ def test_remove_user_not_in_collection(user_collection_service, base_user: UserO
 # 🧪 Collection Users Tests
 # -------------------------------------------
 @pytest.mark.atomic
-def test_get_collection_users(user_collection_service, base_user: UserOutput, base_collection):
+def test_get_collection_users(user_collection_service: UserCollectionService, base_user: UserOutput, base_collection: CollectionOutput) -> None:
     """Test fetching users for a collection."""
     # Add user to collection
     user_collection_service.add_user_to_collection(base_user.id, base_collection.id)
@@ -114,7 +116,7 @@ def test_get_collection_users(user_collection_service, base_user: UserOutput, ba
 
 
 @pytest.mark.atomic
-def test_get_users_nonexistent_collection(user_collection_service):
+def test_get_users_nonexistent_collection(user_collection_service: UserCollectionService) -> None:
     """Test fetching users for nonexistent collection."""
     with pytest.raises(HTTPException) as exc_info:
         user_collection_service.get_collection_users(uuid4())
@@ -124,8 +126,8 @@ def test_get_users_nonexistent_collection(user_collection_service):
 
 @pytest.mark.atomic
 def test_remove_all_users_from_collection(
-    user_collection_service, user_service, base_user: UserOutput, base_collection
-):
+    user_collection_service: UserCollectionService, user_service: Any, base_user: UserOutput, base_collection: CollectionOutput
+) -> None:
     """Test removing all users from a collection."""
     # Add multiple users
     users = [base_user]
@@ -147,7 +149,7 @@ def test_remove_all_users_from_collection(
 
 
 @pytest.mark.atomic
-def test_remove_all_users_nonexistent_collection(user_collection_service):
+def test_remove_all_users_nonexistent_collection(user_collection_service: UserCollectionService) -> None:
     """Test removing all users from nonexistent collection."""
     with pytest.raises(HTTPException) as exc_info:
         user_collection_service.remove_all_users_from_collection(uuid4())

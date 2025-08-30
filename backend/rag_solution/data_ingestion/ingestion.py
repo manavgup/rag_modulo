@@ -25,7 +25,7 @@ class DocumentStore:
         """Initialize document store."""
         self.vector_store = vector_store
         self.collection_name = collection_name
-        self.documents = []
+        self.documents: list[Document] = []
 
     async def load_documents(self, data_source: list[str]) -> list[Document]:
         """Load documents from the specified data source and ingest them into the vector store."""
@@ -50,10 +50,8 @@ class DocumentStore:
                 logger.info(f"Processing file: {file_path}")
                 try:
                     # Process the document
-                    documents_iterator = processor.process_document(file_path)
+                    documents_iterator = processor.process_document(file_path, str(uuid.uuid4()))
                     async for document in documents_iterator:
-                        document_id = str(uuid.uuid4())
-                        document.document_id = document_id
                         processed_documents.append(document)
                         # Store document in vector store
                         self.store_documents_in_vector_store([document])
@@ -62,7 +60,7 @@ class DocumentStore:
                     raise e
         return processed_documents
 
-    def store_documents_in_vector_store(self, documents: list[Document]):
+    def store_documents_in_vector_store(self, documents: list[Document]) -> None:
         """Store documents in the vector store."""
         try:
             logger.info(f"Storing documents in collection {self.collection_name}")
@@ -70,13 +68,15 @@ class DocumentStore:
             logger.info(f"Successfully stored documents in collection {self.collection_name}")
         except Exception as e:
             logger.error(f"Error storing documents: {e}", exc_info=True)
-            raise DocumentStorageError(f"Error: {e}") from e
+            raise DocumentStorageError(
+                doc_id="", storage_path="", error_type="storage_failed", message=f"Error: {e}"
+            ) from e
 
     def get_documents(self) -> list[Document]:
         """Get all documents in the document store."""
         return self.documents
 
-    async def clear(self):
+    async def clear(self) -> None:
         """Clear all documents from the document store and vector store."""
         try:
             self.vector_store.delete_collection(self.collection_name)

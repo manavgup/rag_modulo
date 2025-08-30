@@ -87,9 +87,9 @@ class PromptTemplateBase(BaseModel):
             return self.template_format.format(**kwargs)
         except KeyError as e:
             missing_var = str(e).strip("'")
-            raise ValueError(f"Missing required variable: {missing_var}")
+            raise ValueError(f"Missing required variable: {missing_var}") from e
         except Exception as e:
-            raise ValueError(f"Error formatting prompt: {e}")
+            raise ValueError(f"Error formatting prompt: {e}") from e
 
 
 class PromptTemplateInput(PromptTemplateBase):
@@ -103,9 +103,7 @@ class PromptTemplateInput(PromptTemplateBase):
         """Convert string to Enum if needed."""
         if isinstance(v, str):
             return PromptTemplateType(v)  # Convert string to Enum
-        elif isinstance(v, PromptTemplateType):
-            return v
-        raise ValueError(f"Invalid template_type: {v}")
+        return v  # type: ignore[unreachable]
 
 
 class PromptTemplateOutput(PromptTemplateBase):
@@ -125,9 +123,7 @@ class PromptTemplateOutput(PromptTemplateBase):
         """Ensure template_type is an instance of the Enum."""
         if isinstance(v, str):
             return PromptTemplateType(v)  # Convert string to Enum
-        elif isinstance(v, PromptTemplateType):
-            return v
-        raise ValueError(f"Invalid template_type: {v}")
+        return v  # type: ignore[unreachable]
 
 
 class PromptTemplateInDB(PromptTemplateOutput):

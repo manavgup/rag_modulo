@@ -87,29 +87,29 @@ class QuestionService:
         if cleaned_question.count("?") > 1:
             return False, cleaned_question
 
-        # Check for proper spacing between words
-        if not re.search(r"\w+\s+\w+", cleaned_question):
-            return False, cleaned_question
-
-        # Basic word count check for very short questions
+        # Extract words and get count
         question_words = set(re.findall(r"\b\w+\b", cleaned_question.lower()))
-        if len(question_words) < 2:  # Allow shorter but valid questions
+        word_count = len(question_words)
+
+        # Check for minimum word count
+        if word_count < 2:
             return False, cleaned_question
 
+        # Handle questions based on word count
         # Calculate relevance with more lenient threshold
         context_words = set(re.findall(r"\b\w+\b", context.lower()))
 
-        # Special handling for short questions (2-3 words)
-        if len(question_words) <= 3:
+        if word_count <= 3:
             # For short questions, require at least one content word match
             content_words = question_words - {"what", "who", "when", "where", "why", "how", "is", "are", "do", "does"}
-            return bool(content_words.intersection(context_words)), cleaned_question
+            is_valid = bool(content_words.intersection(context_words))
+        else:  # word_count > 3
+            # Handle questions with more than 3 words (longer questions)
+            relevance_score = len(question_words.intersection(context_words)) / word_count
+            min_relevance = 0.25  # Stricter threshold for relevance
+            is_valid = relevance_score >= min_relevance
 
-        # For longer questions, calculate relevance score
-        relevance_score = len(question_words.intersection(context_words)) / len(question_words)
-        min_relevance = 0.25  # Stricter threshold for relevance
-
-        return relevance_score >= min_relevance, cleaned_question
+        return is_valid, cleaned_question
 
     def _rank_questions(self, questions: list[str], context: str) -> list[str]:
         """
@@ -260,13 +260,13 @@ class QuestionService:
 
                     if isinstance(responses, list):
                         for response in responses:
-                            questions = [q.strip() for q in response.split("\n") if q.strip().endswith("?")]
-                            filtered = [q for q in questions if self._validate_question(q, " ".join(texts))[0]]
+                            response_questions = [q.strip() for q in response.split("\n") if q.strip().endswith("?")]
+                            filtered = [q for q in response_questions if self._validate_question(q, " ".join(texts))[0]]
                             all_questions.extend(filtered)
                             stats["successful_generations"] += 1
                     else:
-                        questions = [q.strip() for q in responses.split("\n") if q.strip().endswith("?")]
-                        filtered = [q for q in questions if self._validate_question(q, " ".join(texts))[0]]
+                        response_questions = [q.strip() for q in responses.split("\n") if q.strip().endswith("?")]
+                        filtered = [q for q in response_questions if self._validate_question(q, " ".join(texts))[0]]
                         all_questions.extend(filtered)
                         stats["successful_generations"] += 1
 
@@ -288,7 +288,7 @@ class QuestionService:
             # Create and store question models
             stored_questions: list[SuggestedQuestion] = []
             if final_questions:
-                questions = [
+                questions: list[SuggestedQuestion] = [
                     SuggestedQuestion(collection_id=collection_id, question=question) for question in final_questions
                 ]
 

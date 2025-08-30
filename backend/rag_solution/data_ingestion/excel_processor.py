@@ -1,7 +1,7 @@
 import logging
 import os
 import uuid
-from collections.abc import AsyncIterable
+from collections.abc import AsyncIterator
 
 import pandas as pd
 
@@ -22,12 +22,13 @@ class ExcelProcessor(BaseProcessor):
         process(file_path: str) -> AsyncIterable[Document]: Process the Excel file and yield Document instances.
     """
 
-    async def process(self, file_path: str) -> AsyncIterable[Document]:
+    async def process(self, file_path: str, document_id: str) -> AsyncIterator[Document]:
         """
         Process the Excel file and yield Document instances.
 
         Args:
             file_path (str): The path to the Excel file to be processed.
+            document_id (str): The ID of the document being processed.
 
         Yields:
             Document: An instance of Document containing the processed data.
@@ -55,4 +56,9 @@ class ExcelProcessor(BaseProcessor):
                 )
         except Exception as e:
             logger.error(f"Error reading Excel file {file_path}: {e}", exc_info=True)
-            raise DocumentProcessingError(f"Error processing Excel file {file_path}") from e
+            raise DocumentProcessingError(
+                doc_id=file_path,
+                error_type="processing_failed",
+                message=f"Error processing Excel file {file_path}",
+                details={"error": str(e)}
+            ) from e

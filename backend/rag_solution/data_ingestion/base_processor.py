@@ -1,7 +1,7 @@
 import logging
 import os
 from abc import ABC, abstractmethod
-from collections.abc import AsyncIterable
+from collections.abc import AsyncIterable, AsyncIterator
 from datetime import datetime
 
 from core.config import settings
@@ -63,7 +63,7 @@ class BaseProcessor(ABC):
         )
 
     @abstractmethod
-    async def process(self, file_path: str, document_id: str) -> AsyncIterable[Document]:
+    def process(self, file_path: str, document_id: str) -> AsyncIterator[Document]:
         """
         Process a document file and generate Document objects.
 
@@ -73,6 +73,7 @@ class BaseProcessor(ABC):
 
         Args:
             file_path: Path to the document file.
+            document_id: ID of the document being processed.
 
         Yields:
             Document: Processed document objects containing chunks and metadata.

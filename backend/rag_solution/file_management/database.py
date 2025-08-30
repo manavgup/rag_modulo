@@ -4,7 +4,8 @@ import os
 
 from sqlalchemy import URL, create_engine
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.orm import declarative_base, sessionmaker, Session
+from typing import Generator
 
 from core.config import settings
 
@@ -43,7 +44,7 @@ if not os.environ.get("PYTEST_CURRENT_TEST"):
     logger.info("Base has been created")
 
 
-def get_db():
+def get_db() -> Generator[Session, None, None]:
     """
     Create a synchronous database session.
 

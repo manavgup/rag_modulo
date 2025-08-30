@@ -109,7 +109,7 @@ def _get_embeddings_client(embed_params: Optional[Dict] = None) -> wx_Embeddings
     return embeddings_client
 
 
-def get_embeddings(texts: Union[str | List[str]],embed_client: Optional[wx_Embeddings]=None) -> EmbeddingsList:
+def get_embeddings(texts: Union[str, List[str]], embed_client: Optional[wx_Embeddings] = None) -> EmbeddingsList:
     """
     Get embeddings for a given text or a list of texts.
 
@@ -167,6 +167,10 @@ def extract_entities(text: str, wx_model: Optional[ModelInference] = None) -> Li
     try:
         response = generate_text(prompt, wx_model)
         
+        # Ensure response is a string for processing
+        if isinstance(response, list):
+            response = response[0] if response else ""
+        
         # Find the start and end of the JSON list
         start = response.find('[')
         end = response.rfind(']')
@@ -196,7 +200,7 @@ def clean_entities(entities: List[Dict]) -> List[Dict]:
 
 def get_tokenization_and_embeddings(
     texts: Union[str, List[str]]
-) -> Tuple[List[List[str]], Embeddings]:
+) -> Tuple[List[List[str]], EmbeddingsList]:
     """
     Get both tokenization and embeddings for a given text or a list of texts.
 
@@ -209,7 +213,7 @@ def get_tokenization_and_embeddings(
 
 
 def save_embeddings_to_file(
-    embeddings: Embeddings, file_path: str, file_format: str = "json"
+    embeddings: EmbeddingsList, file_path: str, file_format: str = "json"
 ) -> None:
     """
     Save embeddings to a file.
@@ -252,7 +256,7 @@ class ChromaEmbeddingFunction(EmbeddingFunction):
         self._parameters = parameters
         self._client = _get_client()
 
-    def __call__(self, inputs: Documents) -> Embeddings:
+    def __call__(self, inputs: Documents) -> EmbeddingsList:
         return get_embeddings(texts=inputs)
 
 

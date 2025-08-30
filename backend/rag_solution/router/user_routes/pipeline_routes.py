@@ -96,8 +96,7 @@ async def update_pipeline(
 
     service = PipelineService(db)
     try:
-        update_data = pipeline_input.model_dump(exclude_unset=True)
-        return service.update_pipeline(pipeline_id, update_data)
+        return service.update_pipeline(pipeline_id, pipeline_input)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to update pipeline configuration: {e!s}") from e
 

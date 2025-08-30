@@ -92,7 +92,10 @@ def create_provider_model(
     """
     Create a new Model for an LLM Provider.
     """
-    return service.create_provider_model(model_input)
+    # Extract provider_id from model_input and pass model_data as dict
+    provider_id = model_input.provider_id
+    model_data = model_input.model_dump(exclude={"provider_id"})
+    return service.create_provider_model(provider_id, model_data)
 
 
 @router.get("/models/provider/{provider_id}", response_model=list[LLMModelOutput])

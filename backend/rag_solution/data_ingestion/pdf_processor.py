@@ -5,7 +5,7 @@ import multiprocessing
 import os
 import re
 import uuid
-from collections.abc import AsyncIterable
+from collections.abc import AsyncIterable, AsyncIterator
 from datetime import datetime
 from multiprocessing.managers import SyncManager
 from typing import Any
@@ -29,7 +29,7 @@ class PdfProcessor(BaseProcessor):
             manager = multiprocessing.Manager()
         self.saved_image_hashes = set(manager.list())
 
-    async def process(self, file_path: str, document_id: str) -> AsyncIterable[Document]:
+    async def process(self, file_path: str, document_id: str) -> AsyncIterator[Document]:
         logger.info(f"PdfProcessor: Attempting to process file: {file_path}")
         logger.info(f"File exists: {os.path.exists(file_path)}")
         # logger.info(f"Current working directory: {os.getcwd()}")
@@ -41,7 +41,7 @@ class PdfProcessor(BaseProcessor):
 
         try:
             with pymupdf.open(file_path) as doc:
-                metadata: DocumentMetadata = await self.extract_metadata(doc)
+                metadata: DocumentMetadata = self.extract_metadata(file_path)
                 logger.info(f"Extracted metadata from {file_path}: {metadata}")
 
                 total_chunks = 0
@@ -264,10 +264,19 @@ class PdfProcessor(BaseProcessor):
                         block_y = block["bbox"][1]  # y-coordinate of top of block
 
                         # If this is a new row (y-position differs significantly from previous)
-                        if current_y_position is None or abs(block_y - current_y_position) > tolerance:
+                        if current_y_position is None:
+                            # Start a new row
+                            cells = [cell.strip() for cell in re.split(r"\s{3,}", block["content"].strip())]
+                            if len(cells) > 1:
+                                potential_table.append(cells)
+                                current_y_position = block_y
+                        
+                        # Check if we need to start a new row due to position difference
+                        if current_y_position is not None and abs(block_y - current_y_position) > tolerance:
                             if potential_table:  # Save the previous row if it exists
                                 if len(potential_table[-1]) > 1:  # Only if it has multiple cells
-                                    current_y_position = block_y
+                                    # Keep the row, position will be updated below
+                                    pass
                                 else:
                                     potential_table.pop()  # Remove single-cell rows
 
@@ -276,7 +285,9 @@ class PdfProcessor(BaseProcessor):
                             if len(cells) > 1:
                                 potential_table.append(cells)
                                 current_y_position = block_y
-                        else:
+                        
+                        # If we haven't started a new row, add to the current row
+                        if current_y_position is not None and abs(block_y - current_y_position) <= tolerance:
                             # Add to the current row
                             if potential_table:
                                 potential_table[-1].extend(
@@ -284,10 +295,11 @@ class PdfProcessor(BaseProcessor):
                                 )
 
                 # Add the last table if it meets our criteria
-                if len(potential_table) > 1 and all(len(row) > 1 for row in potential_table):
-                    tables.append(potential_table)
-                    logger.info("Successfully extracted table using text block analysis")
-                    return tables
+                if len(potential_table) > 1:
+                    if all(len(row) > 1 for row in potential_table):
+                        tables.append(potential_table)
+                        logger.info("Successfully extracted table using text block analysis")
+                        return tables
             except Exception as e:
                 logger.warning(f"Error during text block table extraction on page {page.number + 1}: {e}")
 
@@ -324,16 +336,18 @@ class PdfProcessor(BaseProcessor):
 
                 # Convert grid to table format
                 if len(grid) > 1:
-                    table: list[list[str]] = []
+                    grid_table: list[list[str]] = []
                     for y in sorted(grid.keys()):
                         row: list[str] = [" ".join(grid[y][x]).strip() for x in sorted(grid[y].keys())]
-                        if len(row) > 1 and any(cell.strip() for cell in row):  # Only add non-empty rows
-                            table.append(row)
+                        if len(row) > 1:
+                            if any(cell.strip() for cell in row):  # Only add non-empty rows
+                                grid_table.append(row)
 
-                    if len(table) > 1 and self._is_likely_table(table):
-                        tables.append(table)
-                        logger.info("Successfully extracted table using grid analysis")
-                        return tables
+                    if len(grid_table) > 1:
+                        if self._is_likely_table(grid_table):
+                            tables.append(grid_table)
+                            logger.info("Successfully extracted table using grid analysis")
+                            return tables
             except Exception as e:
                 logger.warning(f"Error during grid-based table extraction on page {page.number + 1}: {e}")
 
@@ -409,57 +423,60 @@ class PdfProcessor(BaseProcessor):
 
         return images
 
-    async def extract_metadata(self, doc: pymupdf.Document) -> DocumentMetadata:
+    def extract_metadata(self, file_path: str) -> DocumentMetadata:
         """
         Extract metadata from a PDF document.
 
         Args:
-            doc: PyMuPDF document object
+            file_path: Path to the PDF file
 
         Returns:
             DocumentMetadata: Structured metadata from the PDF
         """
         try:
             # Get base metadata from parent class
-            base_metadata = super().extract_metadata(doc.name)
-            pdf_metadata = doc.metadata
-            # Parse creation and modification dates
-            creation_date = None
-            mod_date = None
-            if pdf_metadata.get("creationDate"):
-                try:
-                    # PDF dates are in format "D:YYYYMMDDHHmmSS"
-                    creation_str = pdf_metadata["creationDate"].replace("D:", "")
-                    creation_date = datetime.strptime(creation_str[:14], "%Y%m%d%H%M%S")
-                except ValueError:
-                    creation_date = base_metadata.creation_date
+            base_metadata = super().extract_metadata(file_path)
+            
+            # Open the PDF to extract metadata
+            with pymupdf.open(file_path) as doc:
+                pdf_metadata = doc.metadata
+                # Parse creation and modification dates
+                creation_date = None
+                mod_date = None
+                if pdf_metadata.get("creationDate"):
+                    try:
+                        # PDF dates are in format "D:YYYYMMDDHHmmSS"
+                        creation_str = pdf_metadata["creationDate"].replace("D:", "")
+                        creation_date = datetime.strptime(creation_str[:14], "%Y%m%d%H%M%S")
+                    except ValueError:
+                        creation_date = base_metadata.creation_date
 
-            if pdf_metadata.get("modDate"):
-                try:
-                    mod_str = pdf_metadata["modDate"].replace("D:", "")
-                    mod_date = datetime.strptime(mod_str[:14], "%Y%m%d%H%M%S")
-                except ValueError:
-                    mod_date = base_metadata.mod_date
+                if pdf_metadata.get("modDate"):
+                    try:
+                        mod_str = pdf_metadata["modDate"].replace("D:", "")
+                        mod_date = datetime.strptime(mod_str[:14], "%Y%m%d%H%M%S")
+                    except ValueError:
+                        mod_date = base_metadata.mod_date
 
-            # Parse keywords into structured format
-            keywords = {}
-            if pdf_metadata.get("keywords"):
-                keyword_list = [k.strip() for k in pdf_metadata["keywords"].replace(";", ",").split(",")]
-                keywords = {f"keyword_{i}": k for i, k in enumerate(keyword_list) if k}
+                # Parse keywords into structured format
+                keywords = {}
+                if pdf_metadata.get("keywords"):
+                    keyword_list = [k.strip() for k in pdf_metadata["keywords"].replace(";", ",").split(",")]
+                    keywords = {f"keyword_{i}": k for i, k in enumerate(keyword_list) if k}
 
-            return DocumentMetadata(
-                document_name=base_metadata.document_name,
-                title=pdf_metadata.get("title") or base_metadata.document_name,
-                author=pdf_metadata.get("author"),
-                subject=pdf_metadata.get("subject"),
-                keywords=keywords,
-                creator=pdf_metadata.get("creator"),
-                producer=pdf_metadata.get("producer"),
-                creation_date=creation_date or base_metadata.creation_date,
-                mod_date=mod_date or base_metadata.mod_date,
-                total_pages=len(doc),
-                total_chunks=None,  # Will be set during processing
-            )
+                return DocumentMetadata(
+                    document_name=base_metadata.document_name,
+                    title=pdf_metadata.get("title") or base_metadata.document_name,
+                    author=pdf_metadata.get("author"),
+                    subject=pdf_metadata.get("subject"),
+                    keywords=keywords,
+                    creator=pdf_metadata.get("creator"),
+                    producer=pdf_metadata.get("producer"),
+                    creation_date=creation_date or base_metadata.creation_date,
+                    mod_date=mod_date or base_metadata.mod_date,
+                    total_pages=len(doc),
+                    total_chunks=None,  # Will be set during processing
+                )
         except Exception as e:
             logger.error(f"Error extracting PDF metadata: {e}", exc_info=True)
-            return super().extract_metadata(doc.name)
+            return super().extract_metadata(file_path)

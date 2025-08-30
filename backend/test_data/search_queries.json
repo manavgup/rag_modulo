@@ -1,0 +1,64 @@
+{
+  "test_queries": [
+    {
+      "query": "What is machine learning?",
+      "category": "definition",
+      "expected_keywords": ["algorithm", "data", "prediction", "learning", "model"],
+      "complexity": "low"
+    },
+    {
+      "query": "How do neural networks work?",
+      "category": "explanation",
+      "expected_keywords": ["layers", "neurons", "weights", "activation", "backpropagation"],
+      "complexity": "high"
+    },
+    {
+      "query": "What are the benefits of cloud computing?",
+      "category": "benefits",
+      "expected_keywords": ["scalability", "cost", "flexibility", "availability", "maintenance"],
+      "complexity": "medium"
+    },
+    {
+      "query": "Explain the difference between supervised and unsupervised learning",
+      "category": "comparison",
+      "expected_keywords": ["labeled", "unlabeled", "classification", "clustering", "training"],
+      "complexity": "medium"
+    },
+    {
+      "query": "What is deep learning and how is it different from machine learning?",
+      "category": "comparison",
+      "expected_keywords": ["neural networks", "layers", "feature extraction", "representation", "complexity"],
+      "complexity": "high"
+    },
+    {
+      "query": "List the main components of a data pipeline",
+      "category": "list",
+      "expected_keywords": ["ingestion", "processing", "storage", "transformation", "delivery"],
+      "complexity": "medium"
+    },
+    {
+      "query": "What is natural language processing?",
+      "category": "definition",
+      "expected_keywords": ["language", "text", "understanding", "generation", "analysis"],
+      "complexity": "low"
+    },
+    {
+      "query": "How does gradient descent optimization work?",
+      "category": "explanation",
+      "expected_keywords": ["gradient", "minimum", "loss", "learning rate", "iteration"],
+      "complexity": "high"
+    },
+    {
+      "query": "What are the key principles of DevOps?",
+      "category": "principles",
+      "expected_keywords": ["automation", "collaboration", "continuous", "integration", "delivery"],
+      "complexity": "medium"
+    },
+    {
+      "query": "Describe the architecture of a microservices application",
+      "category": "architecture",
+      "expected_keywords": ["services", "independent", "API", "scalability", "deployment"],
+      "complexity": "high"
+    }
+  ]
+}

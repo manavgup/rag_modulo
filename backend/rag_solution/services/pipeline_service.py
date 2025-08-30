@@ -27,8 +27,15 @@ from rag_solution.repository.pipeline_repository import PipelineConfigRepository
 from rag_solution.retrieval.factories import RetrieverFactory
 from rag_solution.retrieval.retriever import BaseRetriever
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
-from rag_solution.schemas.pipeline_schema import PipelineConfigInput, PipelineConfigOutput, PipelineResult
-from rag_solution.schemas.prompt_template_schema import PromptTemplateType
+from rag_solution.schemas.pipeline_schema import (
+    ChunkingStrategy,
+    ContextStrategy,
+    PipelineConfigInput,
+    PipelineConfigOutput,
+    PipelineResult,
+    RetrieverType,
+)
+from rag_solution.schemas.prompt_template_schema import PromptTemplateType, PromptTemplateOutput
 from rag_solution.schemas.search_schema import SearchInput
 from rag_solution.services.file_management_service import FileManagementService
 from rag_solution.services.llm_parameters_service import LLMParametersService
@@ -208,11 +215,12 @@ class PipelineService:
                 name="Default Pipeline",
                 description="Default RAG pipeline configuration",
                 user_id=user_id,
+                collection_id=None,  # Default pipeline doesn't belong to a specific collection
                 provider_id=provider_id,
-                chunking_strategy=settings.chunking_strategy,
+                chunking_strategy=ChunkingStrategy(settings.chunking_strategy),
                 embedding_model=settings.embedding_model,
-                retriever=settings.retrieval_type,
-                context_strategy="priority",
+                retriever=RetrieverType(settings.retrieval_type),
+                context_strategy=ContextStrategy.PRIORITY,
                 enable_logging=True,
                 max_context_length=settings.max_context_length,
                 timeout=30.0,
@@ -268,7 +276,7 @@ class PipelineService:
 
     def validate_pipeline(self, pipeline_id: UUID) -> PipelineResult:
         """Validate pipeline configuration."""
-        pipeline: PipelineConfig = self.pipeline_repository.get_by_id(pipeline_id)
+        pipeline = self.pipeline_repository.get_by_id(pipeline_id)
         if not pipeline:
             raise NotFoundError(
                 resource_type="PipelineConfig", resource_id=str(pipeline_id), message="Pipeline not found"
@@ -278,14 +286,20 @@ class PipelineService:
         warnings: list[str] = []
 
         # Validate provider
-        if not self.llm_provider_service.get_provider_by_id(pipeline.provider_id):
+        if not self.llm_provider_service.get_provider_by_id(UUID(str(pipeline.provider_id))):
             errors.append("Invalid provider ID")
 
             # Basic validation using settings
             if pipeline.retriever not in ["vector", "keyword", "hybrid"]:
                 errors.append("Invalid retriever type")
 
-        return PipelineResult(success=len(errors) == 0, error=errors[0] if errors else None, warnings=warnings)
+        return PipelineResult(
+            success=len(errors) == 0,
+            error=errors[0] if errors else None,
+            warnings=warnings,
+            rewritten_query=None,
+            generated_answer=None
+        )
 
     def test_pipeline(self, pipeline_id: UUID, query: str) -> PipelineResult:
         """Test pipeline with a sample query."""
@@ -308,11 +322,22 @@ class PipelineService:
             vector_query = VectorQuery(text=query, number_of_results=settings.number_of_results)
             results = self.retriever.retrieve("test_collection", vector_query)
             logger.info(f"**** Results: {results}")
-            return PipelineResult(success=True, rewritten_query=rewritten_query, query_results=results[:3])
+            return PipelineResult(
+                success=True,
+                error=None,
+                rewritten_query=rewritten_query,
+                query_results=results[:3],
+                generated_answer=None
+            )
 
         except Exception as e:
             logger.error(f"Pipeline test failed: {e!s}")
-            return PipelineResult(success=False, error=str(e))
+            return PipelineResult(
+                success=False,
+                error=str(e),
+                rewritten_query=None,
+                generated_answer=None
+            )
 
     def set_default_pipeline(self, pipeline_id: UUID) -> PipelineConfigOutput:
         """
@@ -362,7 +387,7 @@ class PipelineService:
 
     def _validate_configuration(
         self, pipeline_id: UUID, user_id: UUID
-    ) -> tuple[PipelineConfigOutput, LLMParametersInput, LLMProvider]:
+    ) -> tuple[PipelineConfigOutput, LLMParametersInput, LLMBase]:
         """
         Validate pipeline configuration and return required components.
 
@@ -403,7 +428,7 @@ class PipelineService:
 
         return (pipeline_config, llm_parameters.to_input(), provider)
 
-    def _get_templates(self, user_id: UUID) -> tuple[PromptTemplate, PromptTemplate | None]:
+    def _get_templates(self, user_id: UUID) -> tuple[PromptTemplateOutput, PromptTemplateOutput | None]:
         """
         Get required templates for the pipeline.
 
@@ -468,7 +493,7 @@ class PipelineService:
         context: str,
         provider: LLMBase,
         llm_params: LLMParametersInput,
-        template: PromptTemplate,
+        template: PromptTemplateOutput,
     ) -> str:
         """
         Generate answer using the LLM.
@@ -509,7 +534,7 @@ class PipelineService:
             ) from e
 
     async def _evaluate_response(
-        self, query: str, answer: str, context: str, template: PromptTemplate
+        self, query: str, answer: str, context: str, template: PromptTemplateOutput
     ) -> dict[str, Any] | None:
         """
         Evaluate generated response if enabled.
@@ -528,7 +553,7 @@ class PipelineService:
                 template.id, {"context": context, "question": query, "answer": answer}
             )
             return await self.evaluator.evaluate(
-                question=query, answer=answer, context=context, eval_prompt=eval_prompt
+                context=context, answer=answer, question=query
             )
         except Exception as e:
             logger.error(f"Evaluation failed: {e!s}")
@@ -591,15 +616,11 @@ class PipelineService:
 
             return PipelineResult(
                 success=True,
+                error=None,
                 rewritten_query=rewritten_query,
                 query_results=query_results,
                 generated_answer=generated_answer,
                 evaluation=evaluation_result,
-                metadata={
-                    "execution_time": execution_time,
-                    "num_chunks": len(query_results),
-                    "unique_docs": len({r.document_id for r in query_results if r.document_id}),
-                },
             )
 
         except ValidationError as e:
