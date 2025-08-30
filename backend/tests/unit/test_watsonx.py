@@ -4,7 +4,7 @@ from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
 from rag_solution.schemas.prompt_template_schema import PromptTemplateInput, PromptTemplateType
 
 
-def test_provider_initialization(provider, db_session):
+def test_provider_initialization(provider, db_session) -> None:
     """Test provider initialization with config."""
     # Provider should be automatically initialized by base class
     assert provider._provider_name == "watsonx"
@@ -19,10 +19,11 @@ def test_provider_initialization(provider, db_session):
     assert provider.client is not None
 
 
-def test_generate_text(provider, base_user, base_llm_parameters):
+def test_generate_text(provider, base_user, base_llm_parameters) -> None:
     """Test text generation."""
     # Convert SQLAlchemy model to Pydantic input model
     params_input = LLMParametersInput(
+        user_id=base_user.id,
         name=base_llm_parameters.name,
         description=base_llm_parameters.description,
         max_new_tokens=base_llm_parameters.max_new_tokens,
@@ -40,10 +41,11 @@ def test_generate_text(provider, base_user, base_llm_parameters):
     assert len(response) > 0
 
 
-def test_generate_text_stream(provider, base_user, base_llm_parameters):
+def test_generate_text_stream(provider, base_user, base_llm_parameters) -> None:
     """Test streaming text generation."""
     # Convert SQLAlchemy model to Pydantic input model
     params_input = LLMParametersInput(
+        user_id=base_user.id,
         name=base_llm_parameters.name,
         description=base_llm_parameters.description,
         max_new_tokens=base_llm_parameters.max_new_tokens,
@@ -62,7 +64,7 @@ def test_generate_text_stream(provider, base_user, base_llm_parameters):
     assert all(isinstance(chunk, str) for chunk in chunks)
 
 
-def test_get_embeddings(provider):
+def test_get_embeddings(provider) -> None:
     """Test embedding generation."""
     texts = ["This is a test sentence.", "Another test sentence."]
     embeddings = provider.get_embeddings(texts=texts)
@@ -71,10 +73,11 @@ def test_get_embeddings(provider):
     assert all(len(emb) > 0 for emb in embeddings)
 
 
-def test_template_formatting(provider, base_user, base_llm_parameters, prompt_template_service):
+def test_template_formatting(provider, base_user, base_llm_parameters, prompt_template_service) -> None:
     """Test prompt template formatting."""
     # Convert SQLAlchemy model to Pydantic input model
     params_input = LLMParametersInput(
+        user_id=base_user.id,
         name=base_llm_parameters.name,
         description=base_llm_parameters.description,
         max_new_tokens=base_llm_parameters.max_new_tokens,
@@ -110,10 +113,11 @@ def test_template_formatting(provider, base_user, base_llm_parameters, prompt_te
     assert len(response) > 0
 
 
-def test_batch_generation(provider, base_user, base_llm_parameters):
+def test_batch_generation(provider, base_user, base_llm_parameters) -> None:
     """Test batch text generation."""
     # Convert SQLAlchemy model to Pydantic input model
     params_input = LLMParametersInput(
+        user_id=base_user.id,
         name=base_llm_parameters.name,
         description=base_llm_parameters.description,
         max_new_tokens=base_llm_parameters.max_new_tokens,

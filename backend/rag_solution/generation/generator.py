@@ -6,19 +6,11 @@ this standalone utility. This module currently uses file-based configuration
 application.
 """
 
-import warnings
-
-warnings.warn(
-    "The generator.py module is deprecated and will be removed in a future version. "
-    "A new CLI tool using the service layer architecture will replace this utility.",
-    DeprecationWarning,
-    stacklevel=2,
-)
-
 import json
 import logging
 import os
 import re
+import warnings
 from collections.abc import Generator as TypeGenerator
 from os.path import abspath, dirname
 from typing import Any
@@ -27,6 +19,13 @@ from core.config import settings
 from vectordbs.utils.watsonx import generate_text, generate_text_stream
 
 logger = logging.getLogger(__name__)
+
+warnings.warn(
+    "The generator.py module is deprecated and will be removed in a future version. "
+    "A new CLI tool using the service layer architecture will replace this utility.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 
 class PromptTemplate:
@@ -62,7 +61,7 @@ class BaseGenerator:
             return PromptTemplate(prompt_config[self.config["type"]])
         except (FileNotFoundError, KeyError) as e:
             logger.error(f"Error loading prompt template: {e}")
-            raise ValueError(f"Error loading prompt template: {e}")
+            raise ValueError(f"Error loading prompt template: {e}") from e
 
     def approximate_token_count(self, text: str) -> int:
         # This is a simple approximation. Adjust as needed for your specific use case.
@@ -82,10 +81,10 @@ class BaseGenerator:
             return truncated_context
         return context
 
-    def generate(self, prompt: str | list[str], context: str | None = None, **kwargs) -> str | list[str]:
+    def generate(self, prompt: str | list[str], context: str | None = None, **kwargs: Any) -> str | list[str]:
         raise NotImplementedError
 
-    def generate_stream(self, prompt: str | list[str], context: str | None = None, **kwargs) -> str | list[str]:
+    def generate_stream(self, prompt: str | list[str], context: str | None = None, **kwargs: Any) -> str | list[str]:
         raise NotImplementedError
 
 
@@ -97,7 +96,7 @@ class WatsonxGenerator(BaseGenerator):
         super().__init__(config)
         self.model_name = config.get("model_name", settings.rag_llm)
 
-    def generate(self, prompt: str | list[str], context: str | None = None, **kwargs) -> str | list[str]:
+    def generate(self, prompt: str | list[str], context: str | None = None, **kwargs: Any) -> str | list[str]:  # noqa: ARG002
         """Generate text using the language model.
 
         Args:
@@ -118,11 +117,21 @@ class WatsonxGenerator(BaseGenerator):
             logger.error("Error generating: %s", str(e))
             raise
 
-    def generate_stream(self, query: str, context: str, **kwargs) -> TypeGenerator[str, None, None]:
-        truncated_context = self.truncate_context(context, query)
-        prompt = self.prompt_template.format(query=query, context=truncated_context)
+    def generate_stream(self, prompt: str | list[str], context: str | None = None, **kwargs: Any) -> str | list[str]:
+        """Generate text stream using the language model.
+        
+        Note: This method is deprecated and will be removed in a future version.
+        The streaming functionality has been moved to the service layer.
+        """
+        # For backward compatibility, return the first result as a string
+        if isinstance(prompt, list):
+            prompt = prompt[0] if prompt else ""
+        
+        truncated_context = self.truncate_context(context or "", prompt)
+        formatted_prompt = self.prompt_template.format(query=prompt, context=truncated_context)
         try:
-            yield from generate_text_stream(model_id=self.model_name, prompt=prompt, **kwargs)
+            result = generate_text(formatted_prompt, **kwargs)
+            return result
         except Exception as e:
             logger.error(f"Error generating text stream: {e}")
             raise
@@ -136,43 +145,61 @@ class OpenAIGenerator(BaseGenerator):
 
         openai.api_key = os.getenv("OPENAI_API_KEY")
 
-    def generate(self, query: str, context: str, **kwargs) -> str:
+    def generate(self, prompt: str | list[str], context: str | None = None, **kwargs: Any) -> str | list[str]:
+        """Generate text using OpenAI.
+        
+        Note: This method is deprecated and will be removed in a future version.
+        """
         import openai
 
-        truncated_context = self.truncate_context(context, query)
-        prompt = self.prompt_template.format(query=query, context=truncated_context)
+        if isinstance(prompt, list):
+            prompt = prompt[0] if prompt else ""
+        
+        truncated_context = self.truncate_context(context or "", prompt)
+        formatted_prompt = self.prompt_template.format(query=prompt, context=truncated_context)
         try:
-            response = openai.ChatCompletion.create(
+            # Use the correct OpenAI client API
+            from openai import OpenAI
+            client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+            response = client.chat.completions.create(
                 model=self.model_name,
                 messages=[
                     {"role": "system", "content": self.prompt_template.system_prompt},
-                    {"role": "user", "content": prompt},
+                    {"role": "user", "content": formatted_prompt},
                 ],
                 **kwargs,
             )
-            return response.choices[0].message["content"].strip()
+            return response.choices[0].message.content or ""
         except Exception as e:
             logger.error(f"Error generating text with OpenAI: {e}")
             raise
 
-    def generate_stream(self, query: str, context: str, **kwargs) -> TypeGenerator[str, None, None]:
+    def generate_stream(self, prompt: str | list[str], context: str | None = None, **kwargs: Any) -> str | list[str]:
+        """Generate text stream using OpenAI.
+        
+        Note: This method is deprecated and will be removed in a future version.
+        The streaming functionality has been moved to the service layer.
+        """
         import openai
 
-        truncated_context = self.truncate_context(context, query)
-        prompt = self.prompt_template.format(query=query, context=truncated_context)
+        if isinstance(prompt, list):
+            prompt = prompt[0] if prompt else ""
+        
+        truncated_context = self.truncate_context(context or "", prompt)
+        formatted_prompt = self.prompt_template.format(query=prompt, context=truncated_context)
         try:
-            stream = openai.ChatCompletion.create(
+            # Use the correct OpenAI client API
+            from openai import OpenAI
+            client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+            response = client.chat.completions.create(
                 model=self.model_name,
                 messages=[
                     {"role": "system", "content": self.prompt_template.system_prompt},
-                    {"role": "user", "content": prompt},
+                    {"role": "user", "content": formatted_prompt},
                 ],
-                stream=True,
                 **kwargs,
             )
-            for chunk in stream:
-                if chunk.choices[0].delta.get("content"):
-                    yield chunk.choices[0].delta.content
+            return response.choices[0].message.content or ""
         except Exception as e:
             logger.error(f"Error generating text stream with OpenAI: {e}")
             raise
@@ -187,30 +214,45 @@ class AnthropicGenerator(BaseGenerator):
         self.client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
         self.anthropic = anthropic
 
-    def generate(self, query: str, context: str, **kwargs) -> str:
-        truncated_context = self.truncate_context(context, query)
-        prompt = self.prompt_template.format(query=query, context=truncated_context)
+    def generate(self, prompt: str | list[str], context: str | None = None, **kwargs: Any) -> str | list[str]:
+        """Generate text using Anthropic.
+        
+        Note: This method is deprecated and will be removed in a future version.
+        """
+        if isinstance(prompt, list):
+            prompt = prompt[0] if prompt else ""
+        
+        truncated_context = self.truncate_context(context or "", prompt)
+        formatted_prompt = self.prompt_template.format(query=prompt, context=truncated_context)
         try:
             response = self.client.completions.create(
-                model=self.model_name, prompt=f"{self.anthropic.HUMAN_PROMPT} {prompt}{self.anthropic.AI_PROMPT}", **kwargs
+                model=self.model_name,
+                prompt=f"{self.anthropic.HUMAN_PROMPT} {formatted_prompt}{self.anthropic.AI_PROMPT}",
+                **kwargs,
             )
-            return response.completion
+            return response.completion or ""
         except Exception as e:
             logger.error(f"Error generating text with Anthropic: {e}")
             raise
 
-    def generate_stream(self, query: str, context: str, **kwargs) -> TypeGenerator[str, None, None]:
-        truncated_context = self.truncate_context(context, query)
-        prompt = self.prompt_template.format(query=query, context=truncated_context)
+    def generate_stream(self, prompt: str | list[str], context: str | None = None, **kwargs: Any) -> str | list[str]:
+        """Generate text stream using Anthropic.
+        
+        Note: This method is deprecated and will be removed in a future version.
+        The streaming functionality has been moved to the service layer.
+        """
+        if isinstance(prompt, list):
+            prompt = prompt[0] if prompt else ""
+        
+        truncated_context = self.truncate_context(context or "", prompt)
+        formatted_prompt = self.prompt_template.format(query=prompt, context=truncated_context)
         try:
-            stream = self.client.completions.create(
+            response = self.client.completions.create(
                 model=self.model_name,
-                prompt=f"{self.anthropic.HUMAN_PROMPT} {prompt}{self.anthropic.AI_PROMPT}",
-                stream=True,
+                prompt=f"{self.anthropic.HUMAN_PROMPT} {formatted_prompt}{self.anthropic.AI_PROMPT}",
                 **kwargs,
             )
-            for completion in stream:
-                yield completion.completion
+            return response.completion or ""
         except Exception as e:
             logger.error(f"Error generating text stream with Anthropic: {e}")
             raise

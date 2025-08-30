@@ -102,4 +102,9 @@ class LLMModelService:
 
     def delete_model(self, model_id: UUID) -> bool:
         """Soft delete a model."""
-        return self.repository.delete_model(model_id)
+        try:
+            self.repository.delete_model(model_id)
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting model {model_id}: {e}")
+            return False

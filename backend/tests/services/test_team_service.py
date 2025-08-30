@@ -7,6 +7,7 @@ from fastapi import HTTPException
 
 from rag_solution.schemas.team_schema import TeamInput, TeamOutput
 from rag_solution.schemas.user_schema import UserOutput
+from rag_solution.services.team_service import TeamService
 
 
 # -------------------------------------------
@@ -15,14 +16,14 @@ from rag_solution.schemas.user_schema import UserOutput
 @pytest.fixture
 def test_team_input() -> TeamInput:
     """Create a sample team input."""
-    return TeamInput(name="Test Team", description="This is a test team", is_private=False)
+    return TeamInput(name="Test Team", description="This is a test team")
 
 
 # -------------------------------------------
 # 🧪 Team Creation Tests
 # -------------------------------------------
 @pytest.mark.atomic
-def test_create_team_success(team_service, test_team_input: TeamInput):
+def test_create_team_success(team_service: TeamService, test_team_input: TeamInput) -> None:
     """Test successful team creation."""
     result = team_service.create_team(test_team_input)
 
@@ -32,7 +33,7 @@ def test_create_team_success(team_service, test_team_input: TeamInput):
 
 
 @pytest.mark.atomic
-def test_create_team_duplicate_name(team_service, base_team, test_team_input):
+def test_create_team_duplicate_name(team_service: TeamService, base_team: TeamOutput, test_team_input: TeamInput) -> None:
     """Test team creation with duplicate name."""
     with pytest.raises(HTTPException) as exc_info:
         team_service.create_team(test_team_input)
@@ -44,7 +45,7 @@ def test_create_team_duplicate_name(team_service, base_team, test_team_input):
 # 🧪 Team Retrieval Tests
 # -------------------------------------------
 @pytest.mark.atomic
-def test_get_team_by_id_success(team_service, base_team):
+def test_get_team_by_id_success(team_service: TeamService, base_team: TeamOutput) -> None:
     """Test successful team retrieval."""
     result = team_service.get_team_by_id(base_team.id)
 
@@ -54,7 +55,7 @@ def test_get_team_by_id_success(team_service, base_team):
 
 
 @pytest.mark.atomic
-def test_get_team_by_id_not_found(team_service):
+def test_get_team_by_id_not_found(team_service: TeamService) -> None:
     """Test team retrieval when not found."""
     with pytest.raises(HTTPException) as exc_info:
         team_service.get_team_by_id(uuid4())
@@ -66,20 +67,19 @@ def test_get_team_by_id_not_found(team_service):
 # 🧪 Team Update Tests
 # -------------------------------------------
 @pytest.mark.atomic
-def test_update_team_success(team_service, base_team):
+def test_update_team_success(team_service: TeamService, base_team: TeamOutput) -> None:
     """Test successful team update."""
-    update_input = TeamInput(name="Updated Team", description="Updated description", is_private=True)
+    update_input = TeamInput(name="Updated Team", description="Updated description")
 
     result = team_service.update_team(base_team.id, update_input)
 
     assert isinstance(result, TeamOutput)
     assert result.name == update_input.name
     assert result.description == update_input.description
-    assert result.is_private == update_input.is_private
 
 
 @pytest.mark.atomic
-def test_update_team_not_found(team_service, test_team_input: TeamInput):
+def test_update_team_not_found(team_service: TeamService, test_team_input: TeamInput) -> None:
     """Test team update when not found."""
     with pytest.raises(HTTPException) as exc_info:
         team_service.update_team(uuid4(), test_team_input)
@@ -91,7 +91,7 @@ def test_update_team_not_found(team_service, test_team_input: TeamInput):
 # 🧪 Team Deletion Tests
 # -------------------------------------------
 @pytest.mark.atomic
-def test_delete_team_success(team_service, base_team):
+def test_delete_team_success(team_service: TeamService, base_team: TeamOutput) -> None:
     """Test successful team deletion."""
     result = team_service.delete_team(base_team.id)
 
@@ -102,7 +102,7 @@ def test_delete_team_success(team_service, base_team):
 
 
 @pytest.mark.atomic
-def test_delete_team_not_found(team_service):
+def test_delete_team_not_found(team_service: TeamService) -> None:
     """Test team deletion when not found."""
     result = team_service.delete_team(uuid4())
     assert result is False
@@ -112,7 +112,7 @@ def test_delete_team_not_found(team_service):
 # 🧪 Team Membership Tests
 # -------------------------------------------
 @pytest.mark.atomic
-def test_get_team_users(team_service, base_team, base_user):
+def test_get_team_users(team_service: TeamService, base_team: TeamOutput, base_user: UserOutput) -> None:
     """Test retrieving team users."""
     # Add user to team first
     team_service.add_user_to_team(base_user.id, base_team.id)
@@ -124,7 +124,7 @@ def test_get_team_users(team_service, base_team, base_user):
 
 
 @pytest.mark.atomic
-def test_add_user_to_team(team_service, base_team, base_user):
+def test_add_user_to_team(team_service: TeamService, base_team: TeamOutput, base_user: UserOutput) -> None:
     """Test adding user to team."""
     result = team_service.add_user_to_team(base_user.id, base_team.id)
 
@@ -136,7 +136,7 @@ def test_add_user_to_team(team_service, base_team, base_user):
 
 
 @pytest.mark.atomic
-def test_remove_user_from_team(team_service, base_team, base_user):
+def test_remove_user_from_team(team_service: TeamService, base_team: TeamOutput, base_user: UserOutput) -> None:
     """Test removing user from team."""
     # First add user to team
     team_service.add_user_to_team(base_user.id, base_team.id)
@@ -155,7 +155,7 @@ def test_remove_user_from_team(team_service, base_team, base_user):
 # 🧪 Team Listing Tests
 # -------------------------------------------
 @pytest.mark.atomic
-def test_list_teams(team_service, base_team):
+def test_list_teams(team_service: TeamService, base_team: TeamOutput) -> None:
     """Test listing teams."""
     result = team_service.list_teams(skip=0, limit=10)
 
@@ -165,11 +165,11 @@ def test_list_teams(team_service, base_team):
 
 
 @pytest.mark.atomic
-def test_list_teams_pagination(team_service, base_team):
+def test_list_teams_pagination(team_service: TeamService, base_team: TeamOutput) -> None:
     """Test teams listing with pagination."""
     # Create additional teams
     for i in range(5):
-        team_service.create_team(TeamInput(name=f"Test Team {i}", description=f"Description {i}", is_private=False))
+        team_service.create_team(TeamInput(name=f"Test Team {i}", description=f"Description {i}"))
 
     # Test pagination
     page1 = team_service.list_teams(skip=0, limit=3)

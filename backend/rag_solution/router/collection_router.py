@@ -293,7 +293,7 @@ def delete_collection_question(collection_id: UUID, question_id: UUID, db: Sessi
         500: {"description": "Internal server error"},
     },
 )
-def delete_collection_questions(collection_id: UUID, db: Session = Depends(get_db)) -> None:
+def delete_collection_questions(collection_id: UUID, db: Session = Depends(get_db)) -> Response:
     """
     Delete all questions for a collection.
 
@@ -326,7 +326,7 @@ def delete_collection_questions(collection_id: UUID, db: Session = Depends(get_d
         500: {"description": "Internal server error"},
     },
 )
-def delete_collection(collection_id: UUID, db: Session = Depends(get_db)) -> None:
+def delete_collection(collection_id: UUID, db: Session = Depends(get_db)) -> Response:
     """
     Delete a collection by id.
 
@@ -343,6 +343,7 @@ def delete_collection(collection_id: UUID, db: Session = Depends(get_db)) -> Non
     try:
         service = CollectionService(db)
         service.delete_collection(collection_id)
+        return Response(status_code=204)
     except NotFoundError as e:
         logger.error(f"Not found error deleting collection: {e}")
         raise HTTPException(status_code=404, detail=str(e)) from e
@@ -397,7 +398,7 @@ def get_collection_users(collection_id: UUID, db: Session = Depends(get_db)) -> 
         500: {"description": "Internal server error"},
     },
 )
-def remove_all_users_from_collection(collection_id: UUID, db: Session = Depends(get_db)) -> None:
+def remove_all_users_from_collection(collection_id: UUID, db: Session = Depends(get_db)) -> Response:
     """
     Remove all users from a collection.
 
@@ -411,6 +412,7 @@ def remove_all_users_from_collection(collection_id: UUID, db: Session = Depends(
     try:
         service = UserCollectionService(db)
         service.remove_all_users_from_collection(collection_id)
+        return Response(status_code=204)
     except NotFoundError as e:
         logger.error(f"Not found error removing users from collection: {e}")
         raise HTTPException(status_code=404, detail=str(e)) from e

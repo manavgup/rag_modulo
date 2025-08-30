@@ -1,7 +1,7 @@
 import sys
 import http.client
 
-def check_health():
+def check_health() -> None:
     try:
         conn = http.client.HTTPConnection('localhost', 8000)  # Port needs to be aligned with one application uses
         conn.request('GET', '/api/health')

@@ -46,7 +46,8 @@ class FileManagementService:
             raise HTTPException(status_code=500, detail="Internal server error") from e
 
     def save_file(self, file: UploadFile, collection_id: UUID, user_id: UUID) -> str:
-        file_path = self.upload_file(file, collection_id)
+        file_content = file.file.read()
+        file_path = self.upload_file(user_id, collection_id, file_content, file.filename or "unknown")
 
         file_input = FileInput(
             collection_id=collection_id,
@@ -57,7 +58,7 @@ class FileManagementService:
         )
         self.create_file(file_input, user_id)
 
-        return file_path
+        return str(file_path)
 
     def get_file_by_name(self, collection_id: UUID, filename: str) -> FileOutput:
         try:
@@ -183,7 +184,7 @@ class FileManagementService:
                 filename=file.filename,
                 file_path=str(file_path),
                 file_type=file_type,
-                metadata=FileMetadata(**(metadata or {})),  # Use empty dict if metadata is None
+                metadata=metadata or FileMetadata(),
                 document_id=document_id,
             )
             return self.create_file(file_input, user_id)

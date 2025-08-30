@@ -141,6 +141,7 @@ class PipelineConfigOutput(PipelineConfigBase):
         try:
             provider_info = None
             if model.provider:
+                # The provider relationship should be loaded with lazy="selectin"
                 provider_info = LLMProviderInfo(
                     id=model.provider.id,
                     name=model.provider.name,

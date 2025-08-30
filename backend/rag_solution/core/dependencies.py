@@ -4,7 +4,7 @@ This module provides reusable dependencies for authentication, authorization,
 and service injection that can be used across all routers.
 """
 
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from uuid import UUID
 
 from fastapi import Depends, Request, HTTPException
@@ -15,16 +15,24 @@ from rag_solution.services.user_service import UserService
 from rag_solution.schemas.user_schema import UserOutput
 from rag_solution.core.exceptions import NotFoundError, InsufficientPermissionsError
 
+if TYPE_CHECKING:
+    from rag_solution.services.collection_service import CollectionService
+    from rag_solution.services.file_management_service import FileManagementService
+    from rag_solution.services.team_service import TeamService
+    from rag_solution.services.pipeline_service import PipelineService
+    from rag_solution.services.llm_provider_service import LLMProviderService
 
-def get_current_user(request: Request) -> dict:
+
+def get_current_user(request: Request) -> UserOutput:
     """Extract current user from request state.
     
     This assumes authentication middleware has already validated the user
     and added user info to request.state.
     """
     if not hasattr(request.state, "user"):
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    return request.state.user
+        raise HTTPException(status_code=403, detail="Not authenticated")
+    from typing import cast
+    return cast(UserOutput, request.state.user)
 
 
 def verify_user_access(
@@ -37,7 +45,7 @@ def verify_user_access(
     Args:
         user_id: The user ID being accessed
         request: The FastAPI request object
-        db: Database session
+        db: Session
         
     Returns:
         UserOutput object if access is granted
@@ -48,7 +56,7 @@ def verify_user_access(
     current_user = get_current_user(request)
     
     # Check if user is accessing their own resources
-    if current_user["uuid"] != str(user_id):
+    if current_user.id != user_id:
         # Could add admin check here if needed
         raise HTTPException(status_code=403, detail="Not authorized to access this user's resources")
     
@@ -60,22 +68,22 @@ def verify_user_access(
         raise HTTPException(status_code=404, detail=str(e))
 
 
-def verify_admin_access(request: Request) -> dict:
+def verify_admin_access(request: Request) -> UserOutput:
     """Verify that the current user has admin privileges.
     
     Args:
         request: The FastAPI request object
         
     Returns:
-        Current user dict if admin
+        Current user if admin
         
     Raises:
         HTTPException: 401 if not authenticated, 403 if not admin
     """
     current_user = get_current_user(request)
     
-    # Check for admin role (adjust based on your auth system)
-    if not current_user.get("is_admin", False):
+    # Check for admin role
+    if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     
     return current_user
@@ -104,7 +112,7 @@ def verify_collection_access(
     current_user = get_current_user(request)
     
     # Verify user is accessing their own resources
-    if current_user["uuid"] != str(user_id):
+    if current_user.id != user_id:
         raise HTTPException(status_code=403, detail="Not authorized")
     
     # Check collection ownership (implement based on your business logic)
@@ -113,7 +121,7 @@ def verify_collection_access(
     
     try:
         user_collections = user_collection_service.get_user_collections(user_id)
-        if not any(uc.collection_id == collection_id for uc in user_collections):
+        if not any(uc.id == collection_id for uc in user_collections):
             raise HTTPException(
                 status_code=403,
                 detail="You don't have access to this collection"
@@ -147,7 +155,7 @@ def verify_team_access(
     current_user = get_current_user(request)
     
     # Verify user is accessing their own resources
-    if current_user["uuid"] != str(user_id):
+    if current_user.id != user_id:
         raise HTTPException(status_code=403, detail="Not authorized")
     
     # Check team membership
@@ -173,31 +181,31 @@ def get_user_service(db: Session = Depends(get_db)) -> UserService:
     return UserService(db)
 
 
-def get_collection_service(db: Session = Depends(get_db)):
+def get_collection_service(db: Session = Depends(get_db)) -> CollectionService:
     """Get CollectionService instance."""
     from rag_solution.services.collection_service import CollectionService
     return CollectionService(db)
 
 
-def get_file_service(db: Session = Depends(get_db)):
+def get_file_service(db: Session = Depends(get_db)) -> FileManagementService:
     """Get FileManagementService instance."""
     from rag_solution.services.file_management_service import FileManagementService
     return FileManagementService(db)
 
 
-def get_team_service(db: Session = Depends(get_db)):
+def get_team_service(db: Session = Depends(get_db)) -> TeamService:
     """Get TeamService instance."""
     from rag_solution.services.team_service import TeamService
     return TeamService(db)
 
 
-def get_pipeline_service(db: Session = Depends(get_db)):
+def get_pipeline_service(db: Session = Depends(get_db)) -> PipelineService:
     """Get PipelineService instance."""
     from rag_solution.services.pipeline_service import PipelineService
     return PipelineService(db)
 
 
-def get_llm_provider_service(db: Session = Depends(get_db)):
+def get_llm_provider_service(db: Session = Depends(get_db)) -> LLMProviderService:
     """Get LLMProviderService instance."""
     from rag_solution.services.llm_provider_service import LLMProviderService
     return LLMProviderService(db)

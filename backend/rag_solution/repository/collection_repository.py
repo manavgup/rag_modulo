@@ -4,7 +4,7 @@ from uuid import UUID
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
 
-from core.custom_exceptions import NotFoundError
+from rag_solution.core.exceptions import NotFoundError, AlreadyExistsError, ValidationError
 from rag_solution.models.collection import Collection
 from rag_solution.models.user_collection import UserCollection
 from rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput, FileInfo
@@ -64,12 +64,14 @@ class CollectionRepository:
                 .first()
             )
             return self._collection_to_output(db_collection)
+        except (NotFoundError, AlreadyExistsError, ValidationError):
+            raise
         except SQLAlchemyError as e:
             self.db.rollback()
             logger.error(f"Error creating collection: {e!s}")
             raise
 
-    def get(self, collection_id: UUID) -> CollectionOutput | None:
+    def get(self, collection_id: UUID) -> CollectionOutput:
         """
         Retrieve a collection by its ID.
 
@@ -77,7 +79,7 @@ class CollectionRepository:
             collection_id (UUID): The ID of the collection to retrieve.
 
         Returns:
-            CollectionOutput: The collection if found.
+            CollectionOutput: The collection.
 
         Raises:
             NotFoundError: If the collection does not exist.
@@ -93,10 +95,11 @@ class CollectionRepository:
             if not collection:
                 raise NotFoundError(
                     resource_type="Collection",
-                    resource_id=str(collection_id),
-                    message=f"Collection with ID {collection_id} not found.",
+                    resource_id=str(collection_id)
                 )
-            return self._collection_to_output(collection) if collection else None
+            return self._collection_to_output(collection)
+        except (NotFoundError, AlreadyExistsError, ValidationError):
+            raise
         except SQLAlchemyError as e:
             logger.error(f"Error getting collection {collection_id}: {e!s}")
             raise
@@ -111,18 +114,23 @@ class CollectionRepository:
                 .all()
             )
             return [self._collection_to_output(collection) for collection in collections]
+        except (NotFoundError, AlreadyExistsError, ValidationError):
+            raise
         except SQLAlchemyError as e:
             logger.error(f"Error getting collections for user {user_id}: {e!s}")
             raise
 
-    def get_by_name(self, name: str) -> CollectionOutput | None:
+    def get_by_name(self, name: str) -> CollectionOutput:
         """Get a collection by name.
 
         Args:
             name: Collection name to search for
 
         Returns:
-            CollectionOutput if found, None otherwise
+            CollectionOutput if found
+            
+        Raises:
+            NotFoundError: If collection not found
         """
         try:
             collection = (
@@ -131,12 +139,18 @@ class CollectionRepository:
                 .filter(Collection.name == name)
                 .first()
             )
-            return self._collection_to_output(collection) if collection else None
+            if not collection:
+                raise NotFoundError(
+                    resource_type="Collection", identifier=name
+                )
+            return self._collection_to_output(collection)
+        except (NotFoundError, AlreadyExistsError, ValidationError):
+            raise
         except SQLAlchemyError as e:
             logger.error(f"Error getting collection by name {name}: {e!s}")
             raise
 
-    def update(self, collection_id: UUID, collection_update: dict) -> CollectionOutput | None:
+    def update(self, collection_id: UUID, collection_update: dict) -> CollectionOutput:
         """
         Update an existing collection.
 
@@ -145,9 +159,10 @@ class CollectionRepository:
             collection_update (dict): The updated collection data.
 
         Returns:
-            Optional[CollectionInDB]: The updated collection if found, None otherwise.
-
+            CollectionOutput: The updated collection.
+            
         Raises:
+            NotFoundError: If collection not found
             SQLAlchemyError: If there's an error during database operations.
         """
         try:
@@ -157,19 +172,23 @@ class CollectionRepository:
                 .filter(Collection.id == collection_id)
                 .first()
             )
-            if collection:
-                for key, value in collection_update.items():
-                    setattr(collection, key, value)
-                self.db.commit()
-                # Refresh with relationships loaded
-                collection = (
-                    self.db.query(Collection)
-                    .options(joinedload(Collection.users), joinedload(Collection.files))
-                    .filter(Collection.id == collection_id)
-                    .first()
+            if not collection:
+                raise NotFoundError(
+                    resource_type="Collection", resource_id=str(collection_id)
                 )
-                return self._collection_to_output(collection)
-            return None
+            for key, value in collection_update.items():
+                setattr(collection, key, value)
+            self.db.commit()
+            # Refresh with relationships loaded
+            collection = (
+                self.db.query(Collection)
+                .options(joinedload(Collection.users), joinedload(Collection.files))
+                .filter(Collection.id == collection_id)
+                .first()
+            )
+            return self._collection_to_output(collection)
+        except (NotFoundError, AlreadyExistsError, ValidationError):
+            raise
         except SQLAlchemyError as e:
             logger.error(f"Error updating collection {collection_id}: {e!s}")
             self.db.rollback()
@@ -195,6 +214,8 @@ class CollectionRepository:
                 self.db.commit()
                 return True
             return False
+        except (NotFoundError, AlreadyExistsError, ValidationError):
+            raise
         except SQLAlchemyError as e:
             logger.error(f"Error deleting collection {collection_id}: {e!s}")
             self.db.rollback()
@@ -210,6 +231,8 @@ class CollectionRepository:
                 .all()
             )
             return [self._collection_to_output(collection) for collection in collections]
+        except (NotFoundError, AlreadyExistsError, ValidationError):
+            raise
         except SQLAlchemyError as e:
             logger.error(f"Error listing collections: {e!s}")
             raise

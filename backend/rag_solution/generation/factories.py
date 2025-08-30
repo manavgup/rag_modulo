@@ -25,6 +25,6 @@ class GeneratorFactory:
 
 class EvaluatorFactory:
     @staticmethod
-    def create_evaluator(config: dict[str, Any]) -> RAGEvaluator:
+    def create_evaluator(config: dict[str, Any]) -> RAGEvaluator:  # noqa: ARG004
         # Currently, we only have one evaluator type, but we can extend this in the future
         return RAGEvaluator()

@@ -1,5 +1,13 @@
 """Integration tests for QuestionService."""
 
+from typing import Any
+
+from rag_solution.schemas.collection_schema import CollectionOutput
+from rag_solution.schemas.llm_parameters_schema import LLMParametersOutput
+from rag_solution.schemas.prompt_template_schema import PromptTemplateOutput
+from rag_solution.schemas.user_schema import UserOutput
+from rag_solution.services.question_service import QuestionService
+
 import pytest
 
 from rag_solution.schemas.question_schema import QuestionInput
@@ -9,13 +17,13 @@ from rag_solution.schemas.user_schema import UserOutput
 @pytest.mark.atomic
 @pytest.mark.asyncio
 async def test_suggest_questions_success(
-    question_service,
-    base_collection,
-    base_user,
-    base_prompt_template,
+    question_service: QuestionService,
+    base_collection: CollectionOutput,
+    base_user: UserOutput,
+    base_prompt_template: PromptTemplateOutput,
     test_documents: list[str],
-    base_llm_parameters,
-    llm_provider,
+    base_llm_parameters: LLMParametersOutput,
+    llm_provider: str,
 ) -> None:
     """Test successful question generation."""
     questions = await question_service.suggest_questions(
@@ -24,7 +32,7 @@ async def test_suggest_questions_success(
         user_id=base_user.id,
         provider_name=llm_provider,
         template=base_prompt_template,
-        parameters=base_llm_parameters,
+        parameters=base_llm_parameters.to_input(),
     )
 
     assert len(questions) > 0
@@ -42,12 +50,12 @@ async def test_suggest_questions_success(
 @pytest.mark.atomic
 @pytest.mark.asyncio
 async def test_suggest_questions_empty_texts(
-    question_service,
-    base_collection,
-    base_user,
-    base_prompt_template,
-    base_llm_parameters,
-    llm_provider,
+    question_service: QuestionService,
+    base_collection: CollectionOutput,
+    base_user: UserOutput,
+    base_prompt_template: PromptTemplateOutput,
+    base_llm_parameters: LLMParametersOutput,
+    llm_provider: str,
 ) -> None:
     """Test question generation with empty texts."""
     questions = await question_service.suggest_questions(
@@ -56,7 +64,7 @@ async def test_suggest_questions_empty_texts(
         user_id=base_user.id,
         provider_name=llm_provider,
         template=base_prompt_template,
-        parameters=base_llm_parameters,
+        parameters=base_llm_parameters.to_input(),
     )
     assert len(questions) == 0
 
@@ -64,13 +72,13 @@ async def test_suggest_questions_empty_texts(
 @pytest.mark.atomic
 @pytest.mark.asyncio
 async def test_question_generation_with_technical_content(
-    question_service,
-    base_collection,
-    base_user,
-    base_prompt_template,
-    base_llm_parameters,
-    llm_provider,
-):
+    question_service: QuestionService,
+    base_collection: CollectionOutput,
+    base_user: UserOutput,
+    base_prompt_template: PromptTemplateOutput,
+    base_llm_parameters: LLMParametersOutput,
+    llm_provider: str,
+) -> None:
     """Test question generation with technical documentation."""
     technical_texts = [
         "Docker containers are lightweight, standalone executable packages that include "
@@ -91,7 +99,7 @@ async def test_question_generation_with_technical_content(
         user_id=base_user.id,
         provider_name=llm_provider,
         template=base_prompt_template,
-        parameters=base_llm_parameters,
+        parameters=base_llm_parameters.to_input(),
     )
 
     assert len(questions) > 0
@@ -112,7 +120,7 @@ async def test_question_generation_with_technical_content(
 
 
 @pytest.mark.atomic
-def test_question_filtering(question_service, base_user: UserOutput, base_llm_parameters) -> None:
+def test_question_filtering(question_service: QuestionService, base_user: UserOutput, base_llm_parameters: LLMParametersOutput) -> None:
     """Test internal question filtering logic."""
     questions = [
         "What is Python?",  # Valid
@@ -137,7 +145,7 @@ def test_question_filtering(question_service, base_user: UserOutput, base_llm_pa
 
 
 @pytest.mark.atomic
-def test_question_ranking(question_service, base_user: UserOutput, base_llm_parameters) -> None:
+def test_question_ranking(question_service: QuestionService, base_user: UserOutput, base_llm_parameters: LLMParametersOutput) -> None:
     """Test ranking of questions by relevance."""
     questions = [
         "What is machine learning?",  # Less relevant
@@ -164,7 +172,7 @@ def test_question_ranking(question_service, base_user: UserOutput, base_llm_para
 
 
 @pytest.mark.atomic
-def test_duplicate_question_filtering(question_service) -> None:
+def test_duplicate_question_filtering(question_service: QuestionService) -> None:
     """Test deduplication of similar questions."""
     questions = [
         "What is Python?",
@@ -183,13 +191,13 @@ def test_duplicate_question_filtering(question_service) -> None:
 
 @pytest.mark.atomic
 async def test_question_storage_and_retrieval(
-    question_service,
-    base_collection,
-    base_user,
-    base_prompt_template,
-    base_llm_parameters,
-    llm_provider,
-):
+    question_service: QuestionService,
+    base_collection: CollectionOutput,
+    base_user: UserOutput,
+    base_prompt_template: PromptTemplateOutput,
+    base_llm_parameters: LLMParametersOutput,
+    llm_provider: str,
+) -> None:
     """Test storing and retrieving generated questions."""
     # Generate initial questions
     texts = ["Python is a programming language used for software development."]
@@ -199,7 +207,7 @@ async def test_question_storage_and_retrieval(
         user_id=base_user.id,
         provider_name=llm_provider,
         template=base_prompt_template,
-        parameters=base_llm_parameters,
+        parameters=base_llm_parameters.to_input(),
     )
 
     assert len(initial_questions) > 0
@@ -210,7 +218,7 @@ async def test_question_storage_and_retrieval(
 
     # Create additional question
     question_service.create_question(
-        QuestionInput(collection_id=base_collection.id, question="What are the main features of Python?", is_valid=True)
+        QuestionInput(collection_id=base_collection.id, question="What are the main features of Python?")
     )
 
     # Verify question was added

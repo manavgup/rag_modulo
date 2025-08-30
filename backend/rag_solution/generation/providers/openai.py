@@ -29,9 +29,9 @@ class OpenAILLM(LLMBase):
             provider = self._get_provider_config("openai")
             self._provider = provider
 
-            self.client = OpenAI(api_key=provider.api_key, organization=provider.org_id, base_url=provider.base_url)
+            self.client = OpenAI(api_key=str(provider.api_key), organization=provider.org_id, base_url=provider.base_url)
             self.async_client = AsyncOpenAI(
-                api_key=provider.api_key, organization=provider.org_id, base_url=provider.base_url
+                api_key=str(provider.api_key), organization=provider.org_id, base_url=provider.base_url
             )
 
             self._models = self.llm_model_service.get_models_by_provider(provider.id)
@@ -91,15 +91,23 @@ class OpenAILLM(LLMBase):
 
             # Handle batch generation
             if isinstance(prompt, list):
-                formatted_prompts = [self._format_prompt(p, template, variables) for p in prompt]
+                formatted_prompts = [self._format_prompt(str(p), template, variables) for p in prompt]
                 # Use asyncio for concurrent processing
-                return asyncio.run(self._generate_batch(model_id, formatted_prompts, generation_params))
+                result = asyncio.run(self._generate_batch(model_id, formatted_prompts, generation_params))
+                return result
             else:
-                formatted_prompt = self._format_prompt(prompt, template, variables)
+                formatted_prompt = self._format_prompt(str(prompt), template, variables)
                 response = self.client.chat.completions.create(
                     model=model_id, messages=[{"role": "user", "content": formatted_prompt}], **generation_params
                 )
-                return response.choices[0].message.content.strip()
+                content: str | None = response.choices[0].message.content
+                if content is None:
+                    raise LLMProviderError(
+                        provider="openai",
+                        error_type="generation_failed",
+                        message="OpenAI returned empty content"
+                    )
+                return content.strip()
 
         except (ValidationError, NotFoundError) as e:
             raise LLMProviderError(
@@ -119,7 +127,7 @@ class OpenAILLM(LLMBase):
         if template:
             vars_dict = dict(variables or {})
             vars_dict["prompt"] = prompt
-            return self.prompt_template_service.format_prompt(template.id, vars_dict)
+            return self.prompt_template_service.format_prompt(template_or_id=template, variables=vars_dict)
         return prompt
 
     async def _generate_batch(self, model_id: str, prompts: list[str], generation_params: dict[str, Any]) -> list[str]:
@@ -129,7 +137,14 @@ class OpenAILLM(LLMBase):
             response = await self.async_client.chat.completions.create(
                 model=model_id, messages=[{"role": "user", "content": prompt}], **generation_params
             )
-            return response.choices[0].message.content.strip()
+            content: str | None = response.choices[0].message.content
+            if content is None:
+                raise LLMProviderError(
+                    provider="openai",
+                    error_type="generation_failed",
+                    message="OpenAI returned empty content"
+                )
+            return content.strip()
 
         # Process prompts concurrently with a semaphore to limit concurrency
         semaphore = asyncio.Semaphore(10)  # Limit concurrent requests
@@ -139,7 +154,8 @@ class OpenAILLM(LLMBase):
                 return await generate_single(prompt)
 
         tasks = [bounded_generate(prompt) for prompt in prompts]
-        return await asyncio.gather(*tasks)
+        result = await asyncio.gather(*tasks)
+        return result
 
     @retry(
         wait=wait_exponential(multiplier=1, min=1, max=30),
@@ -180,7 +196,7 @@ class OpenAILLM(LLMBase):
                 provider="openai", error_type="streaming_failed", message=f"Failed to generate streaming text: {e!s}"
             ) from e
 
-    def get_embeddings(self, texts: str | list[str]) -> EmbeddingsList:
+    def get_embeddings(self, texts: str | Sequence[str]) -> EmbeddingsList:
         """Generate embeddings for texts."""
         try:
             self._ensure_client()
@@ -190,7 +206,8 @@ class OpenAILLM(LLMBase):
 
             # OpenAI embeddings API already handles batching efficiently
             response = self.client.embeddings.create(model=self._default_embedding_model_id, input=texts)
-            return [data.embedding for data in response.data]
+            result = [data.embedding for data in response.data]
+            return result
 
         except LLMProviderError:
             raise
@@ -204,5 +221,7 @@ class OpenAILLM(LLMBase):
         if hasattr(self, "client") and self.client:
             self.client.close()
         if hasattr(self, "async_client") and self.async_client:
-            self.async_client.close()
+            # Note: async_client.close() returns a coroutine, but we can't await in sync method
+            # The async client will be cleaned up when the event loop is closed
+            pass
         super().close()
