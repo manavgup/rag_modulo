@@ -34,7 +34,7 @@ VECTOR_DB ?= milvus
 
 .DEFAULT_GOAL := help
 
-.PHONY: init-env sync-frontend-deps build-frontend build-backend build-tests build-all test tests api-tests unit-tests integration-tests performance-tests service-tests pipeline-tests all-tests run-app run-backend run-frontend run-services stop-containers clean create-volumes logs info help pull-ghcr-images venv clean-venv format-imports check-imports quick-check security-check coverage coverage-report quality fix-all check-deps check-deps-tree export-requirements docs-generate docs-serve uv-install uv-sync uv-export
+.PHONY: init-env sync-frontend-deps build-frontend build-backend build-tests build-all test tests api-tests unit-tests integration-tests performance-tests service-tests pipeline-tests all-tests run-app run-backend run-frontend run-services stop-containers clean create-volumes logs info help pull-ghcr-images venv clean-venv format-imports check-imports quick-check security-check coverage coverage-report quality fix-all check-deps check-deps-tree export-requirements docs-generate docs-serve search-test search-batch search-components uv-install uv-sync uv-export
 
 # Init
 init-env:
@@ -531,6 +531,64 @@ docs-serve: venv
 	@cd backend && $(POETRY) run python -m http.server 8080 || echo "$(YELLOW)⚠️ Documentation server stopped$(NC)"
 	@echo "$(GREEN)✅ Documentation served at http://localhost:8080$(NC)"
 
+## RAG Search Testing
+search-test: venv
+	@echo "$(CYAN)🔍 Testing RAG search functionality...$(NC)"
+	@if [ -z "$(QUERY)" ]; then \
+		echo "$(RED)Error: QUERY parameter required. Usage: make search-test QUERY='your question'$(NC)"; \
+		exit 1; \
+	fi
+	@if [ -z "$(COLLECTION_ID)" ]; then \
+		echo "$(RED)Error: COLLECTION_ID parameter required$(NC)"; \
+		exit 1; \
+	fi
+	@if [ -z "$(USER_ID)" ]; then \
+		echo "$(RED)Error: USER_ID parameter required$(NC)"; \
+		exit 1; \
+	fi
+	@cd backend && $(POETRY) run python -m cli.search_test test \
+		--query "$(QUERY)" \
+		--collection-id "$(COLLECTION_ID)" \
+		--user-id "$(USER_ID)" \
+		$(if $(PIPELINE_ID),--pipeline-id "$(PIPELINE_ID)") \
+		$(if $(VERBOSE),--verbose) \
+		$(if $(OUTPUT),--output "$(OUTPUT)")
+	@echo "$(GREEN)✅ Search test completed$(NC)"
+
+search-batch: venv
+	@echo "$(CYAN)📊 Running batch search quality tests...$(NC)"
+	@if [ -z "$(COLLECTION_ID)" ]; then \
+		echo "$(RED)Error: COLLECTION_ID parameter required$(NC)"; \
+		exit 1; \
+	fi
+	@if [ -z "$(USER_ID)" ]; then \
+		echo "$(RED)Error: USER_ID parameter required$(NC)"; \
+		exit 1; \
+	fi
+	@cd backend && $(POETRY) run python -m cli.search_test batch-test \
+		--queries-file "${QUERIES_FILE:-test_data/search_queries.json}" \
+		--collection-id "$(COLLECTION_ID)" \
+		--user-id "$(USER_ID)" \
+		$(if $(PIPELINE_ID),--pipeline-id "$(PIPELINE_ID)") \
+		$(if $(OUTPUT),--output "$(OUTPUT)")
+	@echo "$(GREEN)✅ Batch testing completed$(NC)"
+
+search-components: venv
+	@echo "$(CYAN)🔧 Testing individual RAG components...$(NC)"
+	@if [ -z "$(QUERY)" ]; then \
+		echo "$(RED)Error: QUERY parameter required. Usage: make search-components QUERY='your question'$(NC)"; \
+		exit 1; \
+	fi
+	@if [ -z "$(COLLECTION_ID)" ]; then \
+		echo "$(RED)Error: COLLECTION_ID parameter required$(NC)"; \
+		exit 1; \
+	fi
+	@cd backend && $(POETRY) run python -m cli.search_test test-components \
+		--query "$(QUERY)" \
+		--collection-id "$(COLLECTION_ID)" \
+		--strategy "${STRATEGY:-simple}"
+	@echo "$(GREEN)✅ Component testing completed$(NC)"
+
 ## UV alternative support (experimental)
 uv-install:
 	@echo "$(CYAN)⚡ Installing UV (experimental)...$(NC)"
@@ -619,6 +677,11 @@ help:
 	@echo "  uv-install        \tInstall UV package manager"
 	@echo "  uv-sync           \tSync dependencies with UV"
 	@echo "  uv-export         \tExport requirements with UV"
+	@echo ""
+	@echo "$(CYAN)🔍 RAG Search Testing:$(NC)"
+	@echo "  search-test       \tTest single search query (QUERY, COLLECTION_ID, USER_ID required)"
+	@echo "  search-batch      \tRun batch search quality tests"
+	@echo "  search-components \tTest individual RAG pipeline components"
 	@echo ""
 	@echo "$(CYAN)🛠️ Setup Targets:$(NC)"
 	@echo "  venv              \tSet up Python virtual environment"
