@@ -3,7 +3,7 @@ import multiprocessing
 import re
 from uuid import UUID, uuid4
 
-from fastapi import BackgroundTasks, HTTPException, UploadFile
+from fastapi import BackgroundTasks, UploadFile
 from sqlalchemy.orm import Session
 
 from core.config import settings
@@ -28,6 +28,7 @@ from rag_solution.schemas.prompt_template_schema import PromptTemplateType
 from rag_solution.services.file_management_service import FileManagementService
 from rag_solution.services.llm_model_service import LLMModelService
 from rag_solution.services.llm_parameters_service import LLMParametersService
+from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
 from rag_solution.services.prompt_template_service import PromptTemplateService
 from rag_solution.services.question_service import QuestionService
 from rag_solution.services.user_collection_service import UserCollectionService
@@ -70,9 +71,15 @@ class CollectionService:
 
     def create_collection(self, collection: CollectionInput) -> CollectionOutput:
         """Create a new collection in the database and vectordb"""
-        # Check if collection with same name exists
-        if self.collection_repository.get_by_name(collection.name):
-            raise HTTPException(status_code=400, detail="Collection name already exists")
+        # Check if collection with same name exists - let repository handle NotFoundError
+        try:
+            self.collection_repository.get_by_name(collection.name)
+            # If we get here, collection exists
+            from rag_solution.core.exceptions import AlreadyExistsError
+            raise AlreadyExistsError(resource_type="Collection", field="name", value=collection.name)
+        except NotFoundError:
+            # This is what we want - collection doesn't exist, so we can create it
+            pass
 
         vector_db_name = self._generate_valid_collection_name()
         try:
@@ -90,30 +97,21 @@ class CollectionService:
             except CollectionError as delete_exception:
                 logger.error(f"Failed to delete collection from vector store: {delete_exception!s}")
             logger.error(f"Error creating collection: {e!s}")
-            raise HTTPException(status_code=400, detail=f"Failed to create collection: {e!s}") from e
+            raise
 
     def get_collection(self, collection_id: UUID) -> CollectionOutput:
         """
         Get a collection by its ID.
         """
-        try:
-            return self.collection_repository.get(collection_id)
-        except NotFoundException as e:
-            logger.error(f"Collection not found: {e}, status_code={e.status_code}, message={e.message}")
-            raise HTTPException(status_code=e.status_code, detail=e.message) from e
-        except Exception as e:
-            logger.error(f"Unexpected error in service layer: {e}", exc_info=True)
-            raise HTTPException(status_code=500, detail="Internal server error") from e
+        return self.collection_repository.get(collection_id)
 
-    def update_collection(self, collection_id: UUID, collection_update: CollectionInput) -> CollectionOutput | None:
+    def update_collection(self, collection_id: UUID, collection_update: CollectionInput) -> CollectionOutput:
         """
         Update an existing collection.
         """
         try:
+            # This will raise NotFoundError if not found - no need to check
             existing_collection = self.collection_repository.get(collection_id)
-            if not existing_collection:
-                logger.warning(f"Collection not found for update: {collection_id}")
-                raise HTTPException(status_code=404, detail="Collection not found")
 
             # Fetch User instances corresponding to the UUIDs in collection_update.users
             logger.info(f"Fetching users for collection: {collection_id}")
@@ -149,7 +147,7 @@ class CollectionService:
             return self.collection_repository.get(collection_id)
         except Exception as e:
             logger.error(f"Error updating collection: {e!s}")
-            raise HTTPException(status_code=400, detail=f"Failed to update collection: {e!s}") from e
+            raise
 
     def delete_collection(self, collection_id: UUID) -> bool:
         """
@@ -157,10 +155,8 @@ class CollectionService:
         """
         try:
             logger.info(f"Deleting collection: {collection_id}")
+            # This will raise NotFoundError if not found - no need to check
             collection = self.collection_repository.get(collection_id)
-            if not collection:
-                logger.warning(f"Collection not found for deletion: {collection_id}")
-                return False
 
             # Remove all users from the collection
             self.user_collection_service.remove_all_users_from_collection(collection_id)
@@ -176,7 +172,7 @@ class CollectionService:
             return True
         except Exception as e:
             logger.error(f"Error deleting collection: {e!s}")
-            raise HTTPException(status_code=400, detail=f"Failed to delete collection: {e!s}") from e
+            raise
 
     def get_user_collections(self, user_id: UUID) -> list[CollectionOutput]:
         """
@@ -234,11 +230,11 @@ class CollectionService:
                 except CollectionError as exc:
                     logger.error(f"Error deleting collection from vector store: {exc!s}")
             logger.error(f"Error in create_collection_with_documents: {e!s}")
-            raise HTTPException(status_code=400, detail=f"Failed to create collection with documents: {e!s}") from e
+            raise
 
     async def process_documents(
         self, file_paths: list[str], collection_id: UUID, vector_db_name: str, document_ids: list[str], user_id: UUID
-    ):
+    ) -> None:
         """Process documents and generate questions for a collection.
 
         Args:
@@ -255,16 +251,8 @@ class CollectionService:
             QuestionGenerationError: If question generation fails
             CollectionProcessingError: For other processing errors
         """
-        # Get appropriate provider for user
+        # Get appropriate provider for user - service will raise NotFoundError if not found
         provider = self.user_provider_service.get_user_provider(user_id)
-        if not provider:
-            logger.error(f"No available LLM provider found for user {user_id}")
-            self.update_collection_status(collection_id, CollectionStatus.ERROR)
-            raise LLMProviderError(
-                provider="unknown",
-                error_type="provider_not_found",
-                message=f"No available LLM provider found for user {user_id}",
-            )
 
         # Process documents and get the processed data
         try:
@@ -290,35 +278,35 @@ class CollectionService:
             raise EmptyDocumentError(collection_id=str(collection_id))
 
         logger.info("Fetching Template")
-        # Get question generation template
+        # Get question generation template - service will raise NotFoundError if not found
         template = self.prompt_template_service.get_by_type(user_id, PromptTemplateType.QUESTION_GENERATION)
-        if not template:
-            logger.error(f"Question generation template not found for user {user_id}")
-            self.update_collection_status(collection_id, CollectionStatus.ERROR)
-            raise NotFoundError(
-                resource_type="PromptTemplate",
-                resource_id=f"type:{PromptTemplateType.QUESTION_GENERATION}",
-                message="Question generation template not found. This template should have been created during user initialization. Please try logging out and logging back in to reinitialize your account.",
-            )
 
-        # Get LLM parameters
+        # Get LLM parameters - service will raise NotFoundError if not found
         logger.info("Attempting to get parameters")
         parameters = self.llm_parameters_service.get_latest_or_default_parameters(user_id)
-        if not parameters:
-            logger.error(f"No LLM parameters found for user {user_id}")
-            self.update_collection_status(collection_id, CollectionStatus.ERROR)
-            raise ValidationError("No default LLM parameters found")
         logger.info(f"got parameters: {parameters}")
         # Generate questions
         try:
             logger.info("Attempting to generate questions")
+            # Convert LLMParametersOutput to LLMParametersInput
+            parameters_input = LLMParametersInput(
+                name=parameters.name,
+                description=parameters.description,
+                user_id=parameters.user_id,
+                temperature=parameters.temperature,
+                max_new_tokens=parameters.max_new_tokens,
+                top_p=parameters.top_p,
+                top_k=parameters.top_k,
+                repetition_penalty=parameters.repetition_penalty,
+            )
+            
             questions = await self.question_service.suggest_questions(
                 texts=document_texts,
                 collection_id=collection_id,
                 user_id=user_id,
                 provider_name=provider.name,
                 template=template,
-                parameters=parameters,
+                parameters=parameters_input,
             )
 
             if not questions:
@@ -396,7 +384,7 @@ class CollectionService:
         logger.info("Document processing complete")
         return processed_documents
 
-    def store_documents_in_vector_store(self, documents: list[Document], collection_name: str):
+    def store_documents_in_vector_store(self, documents: list[Document], collection_name: str) -> None:
         """Store documents in the vector store.
 
         Args:
@@ -427,7 +415,7 @@ class CollectionService:
                 message=str(e),
             ) from e
 
-    def update_collection_status(self, collection_id: UUID, status: CollectionStatus):
+    def update_collection_status(self, collection_id: UUID, status: CollectionStatus) -> None:
         """Update the status of a collection."""
         try:
             self.collection_repository.update(collection_id, {"status": status})

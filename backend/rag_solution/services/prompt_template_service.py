@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -47,7 +48,11 @@ class PromptTemplateService:
                 return None
             # Return the default template if exists, otherwise latest by creation date
             default_template = next((t for t in templates if t.is_default), None)
-            return PromptTemplateOutput.model_validate(default_template or max(templates, key=lambda t: t.created_at))
+            if default_template:
+                return PromptTemplateOutput.model_validate(default_template)
+            # Get the latest template by creation date
+            latest_template = max(templates, key=lambda t: t.created_at if t.created_at is not None else datetime.min)
+            return PromptTemplateOutput.model_validate(latest_template)
         except Exception as e:
             raise ValidationError(f"Failed to retrieve template: {e!s}") from e
 
@@ -113,7 +118,8 @@ class PromptTemplateService:
 
     def delete_template(self, user_id: UUID, template_id: UUID) -> bool:
         try:
-            return self.repository.delete_user_template(user_id, template_id)
+            self.repository.delete_user_template(user_id, template_id)
+            return True
         except Exception as e:
             raise ValidationError(f"Failed to delete template: {e!s}") from e
 
@@ -131,7 +137,7 @@ class PromptTemplateService:
             ValidationError: If update fails
         """
         try:
-            updated_template = self.repository.update(template_id, template_input)
+            updated_template = self.repository.update(template_id, template_input.model_dump(exclude_unset=True))
             return PromptTemplateOutput.model_validate(updated_template)
         except Exception as e:
             raise ValidationError(f"Failed to update template: {e!s}") from e
@@ -153,8 +159,7 @@ class PromptTemplateService:
             if not template:
                 raise NotFoundError(
                     resource_type="PromptTemplate",
-                    resource_id=str(template_id),
-                    message="Template not found",
+                    resource_id=str(template_id)
                 )
 
             # Clear other defaults of the same type for this user
@@ -178,7 +183,7 @@ class PromptTemplateService:
 
             parts = []
             if template.system_prompt:
-                parts.append(template.system_prompt)
+                parts.append(str(template.system_prompt))
             parts.append(template.template_format.format(**variables))
             return "\n\n".join(parts)
         except KeyError as e:
@@ -186,27 +191,24 @@ class PromptTemplateService:
         except Exception as e:
             raise ValidationError(f"Failed to format prompt: {e!s}") from e
 
-    def apply_context_strategy(self, template_or_id: UUID | PromptTemplateBase, contexts: list[str]) -> str:
-        if isinstance(template_or_id, UUID):
-            template = self.repository.get_by_id(template_or_id)
-            if not template:
-                raise NotFoundError(
-                    resource_type="PromptTemplate",
-                    resource_id=str(template_or_id),
-                    message=f"Template {template_or_id} not found",
-                )
-        else:
-            template = template_or_id
-
+    def apply_context_strategy(self, template_id: UUID, contexts: list[str]) -> str:
+        """Apply context strategy to format contexts based on template settings."""
+        template = self.repository.get_by_id(template_id)
+        if not template:
+            raise NotFoundError(
+                resource_type="PromptTemplate",
+                resource_id=str(template_id)
+            )
+        
         if not template.context_strategy:
             return "\n\n".join(contexts)
-
+        
         strategy = template.context_strategy
         max_chunks = strategy.get("max_chunks", len(contexts))
-        separator = strategy.get("chunk_separator", "\n\n")
+        separator: str = strategy.get("chunk_separator", "\n\n")
         strategy.get("ordering", "relevance")
-        truncation = strategy.get("truncation", "end")
-
+        truncation: str = strategy.get("truncation", "end")
+        
         selected_contexts = contexts[:max_chunks]
         formatted_contexts = []
         for chunk in selected_contexts:
@@ -219,5 +221,5 @@ class PromptTemplateService:
                     half = template.max_context_length // 2
                     chunk = chunk[:half] + "..." + chunk[-half:]
             formatted_contexts.append(chunk)
-
+        
         return separator.join(formatted_contexts)

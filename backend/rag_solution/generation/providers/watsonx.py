@@ -186,17 +186,18 @@ class WatsonXLLM(LLMBase):
                 response = model.generate_text(prompt=formatted_prompt)
                 logger.debug(f"Response from model: {response}")
 
+                result: str
                 if isinstance(response, dict) and "results" in response:
-                    return response["results"][0]["generated_text"].strip()
+                    result = response["results"][0]["generated_text"].strip()
                 elif isinstance(response, list):
                     first_result = response[0]
-                    return (
-                        first_result["generated_text"].strip()
-                        if isinstance(first_result, dict)
-                        else first_result.strip()
-                    )
+                    if isinstance(first_result, dict):
+                        result = first_result["generated_text"].strip()
+                    else:
+                        result = first_result.strip()
                 else:
-                    return str(response).strip()
+                    result = str(response).strip()
+                return result
 
         except (ValidationError, NotFoundError) as e:
             raise LLMProviderError(
@@ -244,7 +245,7 @@ class WatsonXLLM(LLMBase):
                 message=f"Failed to generate streaming text: {e!s}",
             ) from e
 
-    def get_embeddings(self, texts: str | list[str]) -> EmbeddingsList:
+    def get_embeddings(self, texts: str | Sequence[str]) -> EmbeddingsList:
         """Generate embeddings for texts."""
         try:
             self._ensure_client()
@@ -252,7 +253,13 @@ class WatsonXLLM(LLMBase):
             if isinstance(texts, str):
                 texts = [texts]
 
-            return self.embeddings_client.embed_documents(texts=texts)
+            embeddings = self.embeddings_client.embed_documents(texts=texts)
+            # Ensure we return the correct type
+            if isinstance(embeddings, list):
+                return embeddings
+            else:
+                # If it's not a list, convert it to the expected format
+                return [embeddings] if embeddings else []
 
         except LLMProviderError:
             raise

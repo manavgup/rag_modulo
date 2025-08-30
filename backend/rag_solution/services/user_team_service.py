@@ -15,10 +15,15 @@ class UserTeamService:
         self.db = db
         self.user_team_repository = UserTeamRepository(db)
 
-    def add_user_to_team(self, user_id: UUID, team_id: UUID) -> bool:
+    def add_user_to_team(self, user_id: UUID, team_id: UUID) -> UserTeamOutput:
         try:
             logger.info(f"Adding user {user_id} to team {team_id}")
-            return self.user_team_repository.add_user_to_team(UserTeamInput(user_id=user_id, team_id=team_id))
+            success = self.user_team_repository.add_user_to_team(user_id, team_id)
+            if success:
+                # Return the created user-team association
+                return self.get_user_team(user_id, team_id)
+            else:
+                raise HTTPException(status_code=500, detail="Failed to add user to team")
         except ValueError as e:
             raise HTTPException(status_code=404, detail=str(e)) from e
         except Exception as e:
@@ -27,9 +32,12 @@ class UserTeamService:
 
     def remove_user_from_team(self, user_id: UUID, team_id: UUID) -> bool:
         logger.info(f"Removing user {user_id} from team {team_id}")
-        if not self.user_team_repository.remove_user_from_team(user_id, team_id):
-            raise HTTPException(status_code=404, detail="User or team not found")
-        return True
+        try:
+            self.user_team_repository.remove_user_from_team(user_id, team_id)
+            return True
+        except Exception as e:
+            logger.error(f"Error removing user from team: {e}")
+            raise HTTPException(status_code=404, detail="User or team not found") from e
 
     def get_user_teams(self, user_id: UUID) -> list[UserTeamOutput]:
         try:
@@ -50,7 +58,7 @@ class UserTeamService:
     def get_user_team(self, user_id: UUID, team_id: UUID) -> UserTeamOutput:
         try:
             user_team = self.user_team_repository.get_user_team(user_id, team_id)
-            if not user_team:
+            if user_team is None:
                 raise HTTPException(status_code=404, detail="Team association not found")
             return user_team
         except HTTPException:

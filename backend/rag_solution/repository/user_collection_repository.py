@@ -4,6 +4,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from rag_solution.core.exceptions import NotFoundError, AlreadyExistsError
+from core.custom_exceptions import RepositoryError
 from core.logging_utils import get_logger
 from rag_solution.models.collection import Collection
 from rag_solution.models.user import User
@@ -115,13 +116,12 @@ class UserCollectionRepository:
             if not user_collection:
                 raise NotFoundError(
                     resource_type="UserCollection",
-                    resource_id=f"{user_id}:{collection_id}",
-                    message=f"User {user_id} is not in collection {collection_id}",
+                    resource_id=f"{user_id}:{collection_id}"
                 )
             return self._to_output(user_collection)
         except Exception as e:
             logger.error(f"Database error: {e!s}")
-            raise Exception(f"Failed to get user collection: {e!s}") from e
+            raise RepositoryError(f"Failed to get user collection: {e!s}") from e
 
     def _to_output(self, user_collection: UserCollection) -> UserCollectionOutput:
         collection = user_collection.collection

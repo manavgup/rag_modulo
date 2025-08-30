@@ -120,6 +120,7 @@ class UserProviderService:
                     "question": "Who created Python?",
                 },
                 is_default=True,
+                max_context_length=2048,  # Default context length
                 validation_schema={
                     "model": "PromptVariables",
                     "fields": {
@@ -154,6 +155,7 @@ class UserProviderService:
                 },
                 example_inputs={"context": "Python supports multiple programming paradigms.", "num_questions": 3},
                 is_default=True,
+                max_context_length=2048,  # Default context length
                 validation_schema={
                     "model": "PromptVariables",
                     "fields": {"context": {"type": "str", "min_length": 1}, "num_questions": {"type": "int", "gt": 0}},

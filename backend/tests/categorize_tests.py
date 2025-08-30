@@ -8,7 +8,7 @@ import shutil
 from pathlib import Path
 
 
-def categorize_tests():
+def categorize_tests() -> None:
     # Base test directory
     base_dir = Path("backend/tests")
 
