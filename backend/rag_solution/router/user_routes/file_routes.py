@@ -42,9 +42,10 @@ async def upload_file(
 
     service = FileManagementService(db)
     try:
-        # Read file content
-        file_content = await file.read()
-        return await service.upload_file(user_id, collection_id or user_id, file_content, file.filename)
+        # Upload file and create file record
+        return service.upload_and_create_file_record(
+            file, user_id, collection_id or user_id, str(user_id)
+        )
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to upload file: {e!s}") from e
 

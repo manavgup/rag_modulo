@@ -108,9 +108,9 @@ class RAGEvaluator:
         try:
             llm = init_llm(parameters=BASE_LLM_PARAMETERS)
             results = await asyncio.gather(
-                self.faithfulness_evaluator.a_evaluate(context=context, answer=answer, llm=llm),
-                self.answer_relevance_evaluator.a_evaluate(question=question, answer=answer, llm=llm),
-                self.context_relevance_evaluator.a_evaluate(context=context, question=question, llm=llm),
+                self.faithfulness_evaluator.a_evaluate_faithfulness(context=context, answer=answer, llm=llm),
+                self.answer_relevance_evaluator.a_evaluate_answer_relevance(question=question, answer=answer, llm=llm),
+                self.context_relevance_evaluator.a_evaluate_context_relevance(context=context, question=question, llm=llm),
                 return_exceptions=True,
             )
             return {
@@ -119,11 +119,10 @@ class RAGEvaluator:
                 "context_relevance": results[2] if not isinstance(results[2], Exception) else f"Error: {results[2]}",
             }
         except Exception as e:
+            await llm.aclose_persistent_connection()
             raise RuntimeError(f"Failed to run evaluations: {e}") from e
         finally:
             await llm.aclose_persistent_connection()
-
-        return results
 
 
 # Example usage
@@ -140,22 +139,20 @@ if __name__ == "__main__":
     response = "The theory of relativity, proposed by Albert Einstein, describes how space and time are interconnected and how gravity affects the fabric of spacetime."
     retrieved_documents = [
         QueryResult(
-            data=[
-                DocumentChunk(
-                    chunk_id="1",
-                    text="Albert Einstein's theory of relativity revolutionized our understanding of space, time, and gravity.",
-                    score=0.9,
-                )
-            ]
+            chunk=DocumentChunk(
+                chunk_id="1",
+                text="Albert Einstein's theory of relativity revolutionized our understanding of space, time, and gravity.",
+            ),
+            score=0.9,
+            embeddings=[0.1, 0.2, 0.3]  # Mock embeddings
         ),
         QueryResult(
-            data=[
-                DocumentChunk(
-                    chunk_id="2",
-                    text="The theory of relativity consists of two parts: special relativity and general relativity.",
-                    score=0.8,
-                )
-            ]
+            chunk=DocumentChunk(
+                chunk_id="2",
+                text="The theory of relativity consists of two parts: special relativity and general relativity.",
+            ),
+            score=0.8,
+            embeddings=[0.4, 0.5, 0.6]  # Mock embeddings
         ),
     ]
 

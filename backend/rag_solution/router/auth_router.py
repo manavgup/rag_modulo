@@ -116,7 +116,9 @@ async def login(request: Request) -> Response:
     try:
         callback_url = f"{settings.frontend_url}/api/auth/callback"
         logger.info(f"Initiating login with redirect_uri: {callback_url}")
-        return await oauth.ibm.authorize_redirect(request, callback_url)
+        result = await oauth.ibm.authorize_redirect(request, callback_url)
+        # The OAuth library returns Any, so we need to cast it to Response
+        return result  # type: ignore
     except Exception as e:
         logger.error(f"Error in login process: {e!s}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error during login process") from e

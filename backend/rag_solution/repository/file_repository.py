@@ -5,7 +5,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from core.custom_exceptions import NotFoundError
+from rag_solution.core.exceptions import NotFoundError, AlreadyExistsError, ValidationError
 from rag_solution.models.file import File
 from rag_solution.schemas.file_schema import FileInput, FileMetadata, FileOutput
 
@@ -31,27 +31,37 @@ class FileRepository:
             self.db.commit()
             self.db.refresh(db_file)
             return self._file_to_output(db_file)
+        except (NotFoundError, AlreadyExistsError, ValidationError):
+            raise
         except Exception as e:
             logger.error(f"Error creating file record: {e!s}")
             self.db.rollback()
             raise
 
-    def get(self, file_id: UUID) -> FileOutput | None:
+    def get(self, file_id: UUID) -> FileOutput:
         try:
             file = self.db.query(File).filter(File.id == file_id).first()
             if not file:
                 raise NotFoundError(
-                    resource_type="File", resource_id=str(file_id), message=f"File with ID {file_id} not found"
+                    resource_type="File", resource_id=str(file_id)
                 )
             return self._file_to_output(file)
+        except (NotFoundError, AlreadyExistsError, ValidationError):
+            raise
         except Exception as e:
             logger.error(f"Error getting file record {file_id}: {e!s}")
             raise
 
-    def get_file(self, collection_id: UUID, filename: str) -> FileOutput | None:
+    def get_file(self, collection_id: UUID, filename: str) -> FileOutput:
         try:
             file = self.db.query(File).filter(File.collection_id == collection_id, File.filename == filename).first()
-            return self._file_to_output(file) if file else None
+            if not file:
+                raise NotFoundError(
+                    resource_type="File", identifier=f"{filename} in collection {collection_id}"
+                )
+            return self._file_to_output(file)
+        except (NotFoundError, AlreadyExistsError, ValidationError):
+            raise
         except Exception as e:
             logger.error(f"Error getting file {filename} from collection {collection_id}: {e!s}")
             raise
@@ -60,37 +70,46 @@ class FileRepository:
         try:
             files = self.db.query(File).filter(File.collection_id == collection_id).all()
             return [self._file_to_output(file) for file in files]
+        except (NotFoundError, AlreadyExistsError, ValidationError):
+            raise
         except Exception as e:
             logger.error(f"Error getting files for collection {collection_id}: {e!s}")
             raise
 
-    def update(self, file_id: UUID, file_update: FileInput) -> FileOutput | None:
+    def update(self, file_id: UUID, file_update: FileInput) -> FileOutput:
         try:
             file = self.db.query(File).filter(File.id == file_id).first()
-            if file:
-                update_data = file_update.model_dump(exclude_unset=True)
-                if "metadata" in update_data and update_data["metadata"] is not None:
-                    file.file_metadata = update_data["metadata"].model_dump()
-                    del update_data["metadata"]
-                for key, value in update_data.items():
-                    setattr(file, key, value)
-                self.db.commit()
-                self.db.refresh(file)
-                return self._file_to_output(file)
-            return None
+            if not file:
+                raise NotFoundError(
+                    resource_type="File", resource_id=str(file_id)
+                )
+            update_data = file_update.model_dump(exclude_unset=True)
+            if "metadata" in update_data and update_data["metadata"] is not None:
+                file.file_metadata = update_data["metadata"].model_dump()
+                del update_data["metadata"]
+            for key, value in update_data.items():
+                setattr(file, key, value)
+            self.db.commit()
+            self.db.refresh(file)
+            return self._file_to_output(file)
+        except (NotFoundError, AlreadyExistsError, ValidationError):
+            raise
         except Exception as e:
             logger.error(f"Error updating file record {file_id}: {e!s}")
             self.db.rollback()
             raise
 
-    def delete(self, file_id: UUID) -> bool:
+    def delete(self, file_id: UUID) -> None:
         try:
             file = self.db.query(File).filter(File.id == file_id).first()
-            if file:
-                self.db.delete(file)
-                self.db.commit()
-                return True
-            return False
+            if not file:
+                raise NotFoundError(
+                    resource_type="File", resource_id=str(file_id)
+                )
+            self.db.delete(file)
+            self.db.commit()
+        except (NotFoundError, AlreadyExistsError, ValidationError):
+            raise
         except Exception as e:
             logger.error(f"Error deleting file record {file_id}: {e!s}")
             self.db.rollback()
@@ -100,6 +119,8 @@ class FileRepository:
         try:
             files = self.db.query(File).filter(File.collection_id == collection_id).all()
             return [self._file_to_output(file) for file in files]
+        except (NotFoundError, AlreadyExistsError, ValidationError):
+            raise
         except Exception as e:
             logger.error(f"Error getting files for collection {collection_id}: {e!s}")
             raise
@@ -108,14 +129,22 @@ class FileRepository:
         try:
             files = self.db.query(File).filter(File.user_id == user_id).all()
             return [self._file_to_output(file) for file in files]
+        except (NotFoundError, AlreadyExistsError, ValidationError):
+            raise
         except Exception as e:
             logger.error(f"Error getting files for user {user_id}: {e!s}")
             raise
 
-    def get_file_by_name(self, collection_id: UUID, filename: str) -> FileOutput | None:
+    def get_file_by_name(self, collection_id: UUID, filename: str) -> FileOutput:
         try:
             file = self.db.query(File).filter(File.collection_id == collection_id, File.filename == filename).first()
-            return self._file_to_output(file) if file else None
+            if not file:
+                raise NotFoundError(
+                    resource_type="File", identifier=f"{filename} in collection {collection_id}"
+                )
+            return self._file_to_output(file)
+        except (NotFoundError, AlreadyExistsError, ValidationError):
+            raise
         except Exception as e:
             logger.error(f"Error getting file record for {filename} in collection {collection_id}: {e!s}")
             raise
@@ -126,6 +155,8 @@ class FileRepository:
                 self.db.query(File).filter(File.collection_id == collection_id, File.filename == filename).first()
                 is not None
             )
+        except (NotFoundError, AlreadyExistsError, ValidationError):
+            raise
         except Exception as e:
             logger.error(f"Error checking existence of file {filename} in collection {collection_id}: {e!s}")
             raise
@@ -138,6 +169,6 @@ class FileRepository:
             filename=file.filename,
             file_type=file.file_type,
             file_path=file.file_path,
-            metadata=FileMetadata(**file.file_metadata) if file.file_metadata else None,
+            metadata=FileMetadata(**file.file_metadata) if file.file_metadata else None,  # type: ignore[arg-type]
             document_id=file.document_id,
         )

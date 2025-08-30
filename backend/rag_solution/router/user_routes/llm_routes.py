@@ -87,8 +87,7 @@ async def update_llm_parameters(
 
     service = LLMParametersService(db)
     try:
-        update_data = parameters_input.model_dump(exclude_unset=True)
-        return service.update_parameters(parameter_id, update_data)
+        return service.update_parameters(parameter_id, parameters_input)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to update LLM parameters: {e!s}") from e
 

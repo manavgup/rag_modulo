@@ -7,12 +7,13 @@ from pydantic import SecretStr
 
 from core.custom_exceptions import ProviderValidationError
 from rag_solution.schemas.llm_provider_schema import LLMProviderInput, LLMProviderOutput
+from rag_solution.services.llm_provider_service import LLMProviderService
 
 
 # -------------------------------------------
 # 🧪 Provider Creation Tests
 # -------------------------------------------
-def test_create_provider(llm_provider_service, base_provider_input):
+def test_create_provider(llm_provider_service: LLMProviderService, base_provider_input: LLMProviderInput) -> None:
     """Test provider creation."""
     provider = llm_provider_service.create_provider(base_provider_input)
 
@@ -24,7 +25,7 @@ def test_create_provider(llm_provider_service, base_provider_input):
     assert isinstance(provider.id, UUID)
 
 
-def test_create_provider_validation_errors(llm_provider_service):
+def test_create_provider_validation_errors(llm_provider_service: LLMProviderService) -> None:
     """Test provider creation with invalid inputs."""
     # Test invalid name
     with pytest.raises(ProviderValidationError) as exc_info:
@@ -32,6 +33,11 @@ def test_create_provider_validation_errors(llm_provider_service):
             name="test@invalid",  # Invalid characters
             base_url="https://test.com",
             api_key=SecretStr("test-key"),
+            org_id=None,
+            project_id=None,
+            is_active=True,
+            is_default=False,
+            user_id=None,
         )
         llm_provider_service.create_provider(invalid_input)
     assert "name" in str(exc_info.value)
@@ -42,6 +48,11 @@ def test_create_provider_validation_errors(llm_provider_service):
             name="test-provider",
             base_url="not-a-url",  # Invalid URL
             api_key=SecretStr("test-key"),
+            org_id=None,
+            project_id=None,
+            is_active=True,
+            is_default=False,
+            user_id=None,
         )
         llm_provider_service.create_provider(invalid_input)
     assert "base_url" in str(exc_info.value)
@@ -50,7 +61,7 @@ def test_create_provider_validation_errors(llm_provider_service):
 # -------------------------------------------
 # 🧪 Provider Retrieval Tests
 # -------------------------------------------
-def test_get_provider_by_name(llm_provider_service, base_provider_input):
+def test_get_provider_by_name(llm_provider_service: LLMProviderService, base_provider_input: LLMProviderInput) -> None:
     """Test getting provider by name."""
     created = llm_provider_service.create_provider(base_provider_input)
 
@@ -65,7 +76,7 @@ def test_get_provider_by_name(llm_provider_service, base_provider_input):
     assert provider.id == created.id
 
 
-def test_get_provider_by_id(llm_provider_service, base_provider_input):
+def test_get_provider_by_id(llm_provider_service: LLMProviderService, base_provider_input: LLMProviderInput) -> None:
     """Test getting provider by ID."""
     created = llm_provider_service.create_provider(base_provider_input)
 
@@ -75,7 +86,7 @@ def test_get_provider_by_id(llm_provider_service, base_provider_input):
     assert provider.name == created.name
 
 
-def test_get_nonexistent_provider(llm_provider_service):
+def test_get_nonexistent_provider(llm_provider_service: LLMProviderService) -> None:
     """Test getting non-existent provider."""
     result = llm_provider_service.get_provider_by_id(uuid4())
     assert result is None
@@ -87,7 +98,7 @@ def test_get_nonexistent_provider(llm_provider_service):
 # -------------------------------------------
 # 🧪 Provider Update Tests
 # -------------------------------------------
-def test_update_provider(llm_provider_service, base_provider_input):
+def test_update_provider(llm_provider_service: LLMProviderService, base_provider_input: LLMProviderInput) -> None:
     """Test updating provider details."""
     created = llm_provider_service.create_provider(base_provider_input)
 
@@ -99,7 +110,7 @@ def test_update_provider(llm_provider_service, base_provider_input):
     assert not updated.is_active
 
 
-def test_update_nonexistent_provider(llm_provider_service):
+def test_update_nonexistent_provider(llm_provider_service: LLMProviderService) -> None:
     """Test updating non-existent provider."""
     updates = {"base_url": "https://new-url.com"}
     result = llm_provider_service.update_provider(uuid4(), updates)
@@ -109,7 +120,7 @@ def test_update_nonexistent_provider(llm_provider_service):
 # -------------------------------------------
 # 🧪 Provider Listing Tests
 # -------------------------------------------
-def test_get_all_providers(llm_provider_service, base_provider_input):
+def test_get_all_providers(llm_provider_service: LLMProviderService, base_provider_input: LLMProviderInput) -> None:
     """Test getting all providers."""
     provider1 = llm_provider_service.create_provider(base_provider_input)
 
@@ -131,7 +142,7 @@ def test_get_all_providers(llm_provider_service, base_provider_input):
 # -------------------------------------------
 # 🧪 Provider Deletion Tests
 # -------------------------------------------
-def test_delete_provider(llm_provider_service, base_provider_input):
+def test_delete_provider(llm_provider_service: LLMProviderService, base_provider_input: LLMProviderInput) -> None:
     """Test provider deletion."""
     created = llm_provider_service.create_provider(base_provider_input)
 
@@ -144,7 +155,7 @@ def test_delete_provider(llm_provider_service, base_provider_input):
     assert provider is None
 
 
-def test_delete_nonexistent_provider(llm_provider_service):
+def test_delete_nonexistent_provider(llm_provider_service: LLMProviderService) -> None:
     """Test deleting non-existent provider."""
     result = llm_provider_service.delete_provider(uuid4())
     assert result is False

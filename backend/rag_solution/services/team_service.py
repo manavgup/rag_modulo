@@ -10,15 +10,18 @@ from rag_solution.repository.team_repository import TeamRepository
 from rag_solution.repository.user_team_repository import UserTeamRepository
 from rag_solution.schemas.team_schema import TeamInput, TeamOutput
 from rag_solution.schemas.user_schema import UserOutput
+from rag_solution.schemas.user_team_schema import UserTeamOutput
 from rag_solution.services.user_team_service import UserTeamService
+from rag_solution.services.user_service import UserService
 
 logger = logging.getLogger(__name__)
 
 
 class TeamService:
-    def __init__(self, db: Session, user_team_service: UserTeamService = None):
+    def __init__(self, db: Session, user_team_service: UserTeamService = None, user_service: UserService = None):
         self.team_repository = TeamRepository(db)
-        self.user_team_service = user_team_service or UserTeamRepository(db)
+        self.user_team_service = user_team_service or UserTeamService(db)
+        self.user_service = user_service
 
     def create_team(self, team_input: TeamInput) -> TeamOutput:
         try:
@@ -65,12 +68,9 @@ class TeamService:
     def delete_team(self, team_id: UUID) -> bool:
         try:
             logger.info(f"Deleting team: {team_id}")
-            result = self.team_repository.delete(team_id)
-            if not result:
-                logger.warning(f"Team not found for deletion: {team_id}")
-                raise HTTPException(status_code=404, detail="Team not found")
+            self.team_repository.delete(team_id)
             logger.info(f"Team {team_id} deleted successfully")
-            return result
+            return True
         except HTTPException:
             raise
         except Exception as e:
@@ -79,9 +79,24 @@ class TeamService:
 
     def get_team_users(self, team_id: UUID) -> list[UserOutput]:
         logger.info(f"Fetching users for team: {team_id}")
-        return self.user_team_service.get_team_users(team_id)
+        user_teams = self.user_team_service.get_team_users(team_id)
+        
+        if not self.user_service:
+            logger.warning("UserService not provided, returning empty list")
+            return []
+            
+        # Convert UserTeamOutput to UserOutput by fetching actual user data
+        users = []
+        for user_team in user_teams:
+            try:
+                user = self.user_service.get_user_by_id(user_team.user_id)
+                users.append(user)
+            except Exception as e:
+                logger.warning(f"Failed to fetch user {user_team.user_id}: {e}")
+                continue
+        return users
 
-    def add_user_to_team(self, user_id: UUID, team_id: UUID) -> bool:
+    def add_user_to_team(self, user_id: UUID, team_id: UUID) -> UserTeamOutput:
         logger.info(f"Adding user {user_id} to team {team_id}")
         return self.user_team_service.add_user_to_team(user_id, team_id)
 

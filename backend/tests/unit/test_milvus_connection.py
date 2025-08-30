@@ -3,7 +3,7 @@ import os
 from pymilvus import connections, utility
 
 
-def test_milvus_connection():
+def test_milvus_connection() -> None:
     try:
         connections.connect(
             alias="default", host=os.getenv("MILVUS_HOST", "milvus-standalone"), port=os.getenv("MILVUS_PORT", "19530")

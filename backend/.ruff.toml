@@ -11,7 +11,7 @@ target-version = "py312"
 [lint]
 # Enable pycodestyle (`E`), Pyflakes (`F`), and isort (`I`) codes by default.
 select = ["E", "F", "I", "W", "B", "C4", "UP", "N", "Q", "SIM", "ARG", "PIE", "TCH", "TID", "RUF"]
-ignore = ["E501", "E203"]
+ignore = ["E501", "E203", "B008", "ARG001"]
 
 # Allow fix for all enabled rules (when `--fix`) is provided.
 fixable = ["ALL"]

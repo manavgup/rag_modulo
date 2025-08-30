@@ -19,20 +19,7 @@ setup_logging(Path("logs"))
 logger = get_logger("llm.providers")
 
 
-class LLMMeta(ABCMeta):
-    """
-    Metaclass for automatically registering provider classes with the factory.
-    """
-
-    def __init__(cls, name, bases, dct):
-        super().__init__(name, bases, dct)
-        # Automatically register the provider class if it's not the base class
-        if name != "LLMBase" and not cls.__module__.startswith("abc"):
-            logger.debug(f"Registering provider class: {name}")
-            cls.register()
-
-
-class LLMBase(ABC, metaclass=LLMMeta):
+class LLMBase(ABC):
     """
     Base class for language model integrations.
 

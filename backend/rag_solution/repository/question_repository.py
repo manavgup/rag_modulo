@@ -5,7 +5,7 @@ from uuid import UUID
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from core.custom_exceptions import NotFoundError
+from rag_solution.core.exceptions import NotFoundError
 from core.logging_utils import get_logger
 from rag_solution.models.collection import Collection
 from rag_solution.models.question import SuggestedQuestion
@@ -105,8 +105,7 @@ class QuestionRepository:
             if not exists:
                 raise NotFoundError(
                     resource_type="Collection",
-                    resource_id=str(collection_id),
-                    message=f"Collection with ID {collection_id} not found.",
+                    resource_id=str(collection_id)
                 )
 
             # Fetch questions for the collection
@@ -148,29 +147,30 @@ class QuestionRepository:
             self.session.rollback()
             raise
 
-    def delete_question(self, question_id: UUID) -> bool:
+    def delete_question(self, question_id: UUID) -> None:
         """
         Delete a specific suggested question.
 
         Args:
             question_id: ID of the question to delete
 
-        Returns:
-            bool: True if question was deleted, False if not found
-
         Raises:
+            NotFoundError: If question not found
             SQLAlchemyError: If there's a database error
         """
         try:
             question = self.session.query(SuggestedQuestion).filter(SuggestedQuestion.id == question_id).first()
-            if question:
-                self.session.delete(question)
-                self.session.commit()
-                logger.info(f"Deleted question {question_id}")
-                return True
-            else:
-                logger.warning(f"Question {question_id} not found for deletion")
-                return False
+            if not question:
+                raise NotFoundError(
+                    resource_type="SuggestedQuestion",
+                    resource_id=str(question_id)
+                )
+                
+            self.session.delete(question)
+            self.session.commit()
+            logger.info(f"Deleted question {question_id}")
+        except NotFoundError:
+            raise
         except SQLAlchemyError as e:
             logger.error(f"Error deleting question {question_id}: {e}", exc_info=True)
             self.session.rollback()

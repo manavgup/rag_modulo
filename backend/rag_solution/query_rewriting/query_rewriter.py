@@ -32,7 +32,7 @@ class BaseQueryRewriter(ABC):
 
 
 class SimpleQueryRewriter(BaseQueryRewriter):
-    def rewrite(self, query: str, context: dict[str, Any] | None = None) -> str:
+    def rewrite(self, query: str, context: dict[str, Any] | None = None) -> str:  # noqa: ARG002
         logger.info(f"Applying simple query expansion to: {query}")
         try:
             if "AND (relevant OR important OR key)" not in query:
@@ -42,7 +42,7 @@ class SimpleQueryRewriter(BaseQueryRewriter):
             return query
         except Exception as e:
             logger.error(f"Error in SimpleQueryRewriter: {e!s}")
-            raise RewriterError(f"SimpleQueryRewriter failed: {e!s}")
+            raise RewriterError(f"SimpleQueryRewriter failed: {e!s}") from e
 
 
 class HypotheticalDocumentEmbedding(BaseQueryRewriter):
@@ -58,7 +58,9 @@ class HypotheticalDocumentEmbedding(BaseQueryRewriter):
             prompt += f"\nAdditional context: {context}"
 
         try:
-            hde = generate_text(prompt, max_tokens=self.max_tokens, timeout=self.timeout, max_retries=self.max_retries)
+            # Pass parameters through the params dict
+            params = {"max_tokens": self.max_tokens, "timeout": self.timeout, "max_retries": self.max_retries}
+            hde = generate_text(prompt, params=params)
             if not hde:
                 logger.warning("Failed to generate HDE, returning original query")
                 return query
@@ -67,7 +69,7 @@ class HypotheticalDocumentEmbedding(BaseQueryRewriter):
             return rewritten_query
         except Exception as e:
             logger.error(f"Error in HDE query rewriting: {e!s}")
-            raise RewriterError(f"HypotheticalDocumentEmbedding failed: {e!s}")
+            raise RewriterError(f"HypotheticalDocumentEmbedding failed: {e!s}") from e
 
 
 class QueryRewriter:
@@ -97,7 +99,7 @@ class QueryRewriter:
             raise
         except Exception as e:
             logger.error(f"Unexpected error during QueryRewriter initialization: {e!s}")
-            raise ConfigurationError(f"Failed to initialize QueryRewriter: {e!s}")
+            raise ConfigurationError(f"Failed to initialize QueryRewriter: {e!s}") from e
 
     def rewrite(self, query: str, context: dict[str, Any] | None = None) -> str:
         if not query or not query.strip():

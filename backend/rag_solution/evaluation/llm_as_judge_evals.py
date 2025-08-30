@@ -31,13 +31,26 @@ BASE_LLM_PARAMETERS = {
 }
 
 
-def get_schema(pydantic_object: pydantic.BaseModel, empty: bool = False, json_output: bool = False) -> str | dict:
-    if issubclass(pydantic_object, pydantic.BaseModel):
-        pydantic_model = pydantic_object.model_json_schema()
-    elif issubclass(pydantic_object, pydantic.v1.BaseModel):
-        pydantic_model = pydantic_object.schema()
+def get_schema(pydantic_object: pydantic.BaseModel | type[pydantic.BaseModel], empty: bool = False, json_output: bool = False) -> str | dict:
+    """Returns schema of the BaseModel"""
+    if isinstance(pydantic_object, type):
+        # Handle class type by getting schema directly
+        # Check for v2 BaseModel first (has model_json_schema method)
+        if hasattr(pydantic_object, 'model_json_schema'):
+            pydantic_model = pydantic_object.model_json_schema()
+        # Check for v1 BaseModel (has schema method)
+        elif hasattr(pydantic_object, 'schema'):
+            pydantic_model = pydantic_object.schema()
+        else:
+            raise ValueError("should be a valid pydantic_model class")
     else:
-        raise ValueError("should be a valid pydantic_model schema")
+        # Handle instance types - check for available methods
+        if hasattr(pydantic_object, 'model_json_schema'):
+            pydantic_model = pydantic_object.model_json_schema()
+        elif hasattr(pydantic_object, 'schema'):
+            pydantic_model = pydantic_object.schema()
+        else:
+            raise ValueError("should be a valid pydantic_model instance")
 
     schema = dict(pydantic_model.items())
     reduced_schema = schema
@@ -47,16 +60,16 @@ def get_schema(pydantic_object: pydantic.BaseModel, empty: bool = False, json_ou
         del reduced_schema["type"]
 
     if empty:
-        expected_schema = {key: None for key, value in reduced_schema.get("properties").items()}
+        expected_schema = {key: None for key, value in reduced_schema.get("properties", {}).items()}
     else:
-        expected_schema = {key: f"<{value['description']}>" for key, value in reduced_schema.get("properties").items()}
+        expected_schema = {key: f"<{value.get('description', '')}>" for key, value in reduced_schema.get("properties", {}).items()}
 
     return expected_schema if json_output else json.dumps(expected_schema)
 
 
 def init_llm(
-    parameters: dict[str, str | int | float] = BASE_LLM_PARAMETERS,
-    model_id="meta-llama/llama-3-3-70b-instruct",
+    parameters: dict = BASE_LLM_PARAMETERS,
+    model_id: str = "meta-llama/llama-3-3-70b-instruct",
 ) -> ModelInference:
     """
     Initializes a language model with the given parameters.
@@ -73,7 +86,7 @@ def init_llm(
         raise RuntimeError(f"Failed to initialize LLM: {e}") from e
 
 
-def get_evaluator():
+def get_evaluator() -> ModelInference:
     """Get or create the evaluator instance."""
     return init_llm(parameters=BASE_LLM_PARAMETERS)
 
@@ -84,17 +97,20 @@ class BaseEvaluator:
         self,
         llm: ModelInference | None = None,
         prompt: str | None = None,
-        pydantic_model: BaseModel = None,
+        pydantic_model: BaseModel | type[BaseModel] | None = None,
     ):
         self.llm = llm or get_evaluator()
         self.prompt = prompt
         self.pydantic_model = pydantic_model
 
-    def evaluate(self, inputs: dict):
+    def evaluate(self, inputs: dict) -> Any:
         schema = get_schema(self.pydantic_model)
         inputs = inputs | {"schema": schema}
         prompt = self.prompt.format(**inputs)
         generated_text = generate_text(prompt=prompt, wx_model=self.llm)
+        # Ensure we have a string for json_repair
+        if isinstance(generated_text, list):
+            generated_text = generated_text[0] if generated_text else ""
         return json_repair.repair_json(json_str=generated_text, return_objects=True)
 
     async def a_evaluate(self, inputs: dict[str, Any], llm: ModelInference) -> Any:
@@ -126,7 +142,7 @@ class BaseEvaluator:
         except Exception as e:
             raise RuntimeError(f"Failed to evaluate inputs: {e}") from e
 
-    def batch_evaluate(self, inputs: list):
+    def batch_evaluate(self, inputs: list) -> list[Any]:
         all_outputs = []
         prompts = [
             self.prompt.format(**{**prompt_inputs, "schema": get_schema(self.pydantic_model)})
@@ -136,7 +152,7 @@ class BaseEvaluator:
         asyncio.set_event_loop(loop)
         llm = init_llm(parameters=BASE_LLM_PARAMETERS)
         try:
-            result = generate_batch(prompts=prompts, wx_model=llm, loop=loop, concurrency_level=10)
+            result = generate_batch(prompts=prompts, wx_model=llm, concurrency_level=10)
         finally:
             loop.close()
             llm.close_persistent_connection()
@@ -158,61 +174,74 @@ class BaseEvaluator:
 
 # Specific evaluator for Faithfulness
 class FaithfulnessEvaluator(BaseEvaluator):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(prompt=FAITHFULNESS_PROMPT_LLAMA3, pydantic_model=Faithfulness)
         self.scores = {"High": 1, "Medium": 0.5, "Low": 0}
 
-    def evaluate(self, context: str, answer: str) -> dict:
-        result = super().evaluate(inputs={"context": context, "answer": answer})
-        result["score"] = self.scores.get(result.get("faithfulness_rate"))
+    def evaluate_faithfulness(self, context: str, answer: str) -> Any:
+        """Evaluate faithfulness with convenient parameter names."""
+        result = self.evaluate(inputs={"context": context, "answer": answer})
+        if isinstance(result, dict):
+            result["score"] = self.scores.get(result.get("faithfulness_rate", ""), 0)
         return result
 
-    async def a_evaluate(self, context: str, answer: str, llm: ModelInference):
-        result = await super().a_evaluate(inputs={"context": context, "answer": answer}, llm=llm)
-        result["score"] = self.scores.get(result.get("faithfulness_rate"))
+    async def a_evaluate_faithfulness(self, context: str, answer: str, llm: ModelInference) -> Any:
+        """Evaluate faithfulness asynchronously with convenient parameter names."""
+        result = await self.a_evaluate(inputs={"context": context, "answer": answer}, llm=llm)
+        if isinstance(result, dict):
+            result["score"] = self.scores.get(result.get("faithfulness_rate", ""), 0)
         return result
 
-    def batch_evaluate(self, inputs: list):
-        result = super().batch_evaluate(inputs)
+    def batch_evaluate_faithfulness(self, inputs: list[dict[str, str]]) -> list[Any]:
+        """Batch evaluate faithfulness with convenient input format."""
+        # Convert list of dicts to the format expected by base class
+        base_inputs = [{"context": item["context"], "answer": item["answer"]} for item in inputs]
+        result = self.batch_evaluate(base_inputs)
         for item in result:
-            if isinstance(item, list):
-                print("list")
-            if isinstance(item, str):
-                print("str")
-            item["score"] = self.scores.get(item.get("faithfulness_rate", 0))
+            if isinstance(item, dict):
+                item["score"] = self.scores.get(item.get("faithfulness_rate", ""), 0)
         return result
 
 
 # Specific evaluator for answer relevance
 class AnswerRelevanceEvaluator(BaseEvaluator):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(prompt=ANSWER_RELEVANCE_PROMPT_LLAMA3, pydantic_model=AnswerRelevance)
         self.scores = {"High": 1, "Medium": 0.5, "Low": 0}
 
-    def evaluate(self, question: str, answer: str):
-        result = super().evaluate(inputs={"question": question, "answer": answer})
-        result["answer_relevance_score"] = self.scores.get(result.get("answer_relevance_rate"))
+    def evaluate_answer_relevance(self, question: str, answer: str) -> Any:
+        """Evaluate answer relevance with convenient parameter names."""
+        result = self.evaluate(inputs={"question": question, "answer": answer})
+        if isinstance(result, dict):
+            result["answer_relevance_score"] = self.scores.get(result.get("answer_relevance_rate", ""), 0)
         return result
 
-    async def a_evaluate(self, question: str, answer: str, llm: ModelInference):
-        result = await super().a_evaluate(inputs={"question": question, "answer": answer}, llm=llm)
-        result["answer_relevance_score"] = self.scores.get(result.get("answer_relevance_rate"))
+    async def a_evaluate_answer_relevance(self, question: str, answer: str, llm: ModelInference) -> Any:
+        """Evaluate answer relevance asynchronously with convenient parameter names."""
+        result = await self.a_evaluate(inputs={"question": question, "answer": answer}, llm=llm)
+        if isinstance(result, dict):
+            result["answer_relevance_score"] = self.scores.get(result.get("answer_relevance_rate", ""), 0)
         return result
 
-    def batch_evaluate(self, inputs: list):
-        result = super().batch_evaluate(inputs)
+    def batch_evaluate_answer_relevance(self, inputs: list[dict[str, str]]) -> list[Any]:
+        """Batch evaluate answer relevance with convenient input format."""
+        # Convert list of dicts to the format expected by base class
+        base_inputs = [{"question": item["question"], "answer": item["answer"]} for item in inputs]
+        result = self.batch_evaluate(base_inputs)
         for item in result:
-            item["answer_relevance_score"] = self.scores.get(item.get("answer_relevance_rate", 0))
+            if isinstance(item, dict):
+                item["answer_relevance_score"] = self.scores.get(item.get("answer_relevance_rate", ""), 0)
         return result
 
 
 # Specific evaluator for answer similarity, reference answer is needed
 class AnswerSimilarityEvaluator(BaseEvaluator):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(prompt=ANSWER_SIMILARITY_EVALUATION_PROMPT_LLAMA3, pydantic_model=AnswerSimilarity)
 
-    def evaluate(self, question: str, answer: str, reference_answer: str):
-        return super().evaluate(
+    def evaluate_answer_similarity(self, question: str, answer: str, reference_answer: str) -> Any:
+        """Evaluate answer similarity with convenient parameter names."""
+        return self.evaluate(
             inputs={
                 "question": question,
                 "answer": answer,
@@ -220,28 +249,39 @@ class AnswerSimilarityEvaluator(BaseEvaluator):
             }
         )
 
-    def batch_evaluate(self, inputs: list):
-        return super().batch_evaluate(inputs)
+    def batch_evaluate_answer_similarity(self, inputs: list[dict[str, str]]) -> list[Any]:
+        """Batch evaluate answer similarity with convenient input format."""
+        # Convert list of dicts to the format expected by base class
+        base_inputs = [{"question": item["question"], "answer": item["answer"], "reference_answer": item["reference_answer"]} for item in inputs]
+        return self.batch_evaluate(base_inputs)
 
 
 # Specific evaluator for context relevancy, context and question is needed
 class ContextRelevanceEvaluator(BaseEvaluator):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(prompt=CONTEXT_RELEVANCY_PROMPT_LLAMA3, pydantic_model=ContextRelevance)
         self.scores = {"High": 1, "Medium": 0.5, "Low": 0}
 
-    def evaluate(self, context: str, question: str):
-        result = super().evaluate(inputs={"context": context, "question": question})
-        result["context_relevance_score"] = self.scores.get(result.get("context_relevance_rate"))
+    def evaluate_context_relevance(self, context: str, question: str) -> Any:
+        """Evaluate context relevance with convenient parameter names."""
+        result = self.evaluate(inputs={"context": context, "question": question})
+        if isinstance(result, dict):
+            result["context_relevance_score"] = self.scores.get(result.get("context_relevance_rate", ""), 0)
         return result
 
-    async def a_evaluate(self, context: str, question: str, llm: ModelInference):
-        result = await super().a_evaluate(inputs={"context": context, "question": question}, llm=llm)
-        result["context_relevance_score"] = self.scores.get(result.get("context_relevance_rate"))
+    async def a_evaluate_context_relevance(self, context: str, question: str, llm: ModelInference) -> Any:
+        """Evaluate context relevance asynchronously with convenient parameter names."""
+        result = await self.a_evaluate(inputs={"context": context, "question": question}, llm=llm)
+        if isinstance(result, dict):
+            result["context_relevance_score"] = self.scores.get(result.get("context_relevance_rate", ""), 0)
         return result
 
-    def batch_evaluate(self, inputs: list):
-        result = super().batch_evaluate(inputs)
+    def batch_evaluate_context_relevance(self, inputs: list[dict[str, str]]) -> list[Any]:
+        """Batch evaluate context relevance with convenient input format."""
+        # Convert list of dicts to the format expected by base class
+        base_inputs = [{"context": item["context"], "question": item["question"]} for item in inputs]
+        result = self.batch_evaluate(base_inputs)
         for item in result:
-            item["context_relevance_score"] = self.scores.get(item.get("context_relevance_rate", 0))
+            if isinstance(item, dict):
+                item["context_relevance_score"] = self.scores.get(item.get("context_relevance_rate", ""), 0)
         return result

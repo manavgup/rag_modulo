@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from core.custom_exceptions import LLMProviderError, ProviderValidationError
 from rag_solution.repository.llm_provider_repository import LLMProviderRepository
 from rag_solution.schemas.llm_provider_schema import LLMProviderConfig, LLMProviderInput, LLMProviderOutput
+from rag_solution.schemas.llm_model_schema import LLMModelOutput, ModelType
 
 logger = logging.getLogger("services.llm_provider")
 
@@ -24,11 +25,17 @@ class LLMProviderService:
         """Validate provider input."""
         if not re.match(r"^[a-zA-Z0-9-_]+$", provider_input.name):
             raise ProviderValidationError(
-                field="name", message="Provider name can only contain alphanumeric characters, hyphens, and underscores"
+                provider_name=provider_input.name,
+                validation_error="Provider name can only contain alphanumeric characters, hyphens, and underscores",
+                field="name"
             )
 
         if not validators.url(provider_input.base_url):
-            raise ProviderValidationError(field="base_url", message="Invalid base URL format")
+            raise ProviderValidationError(
+                provider_name=provider_input.name,
+                validation_error="Invalid base URL format",
+                field="base_url"
+            )
 
     def create_provider(self, provider_input: LLMProviderInput) -> LLMProviderOutput:
         """Create a new provider."""
@@ -67,7 +74,12 @@ class LLMProviderService:
 
     def delete_provider(self, provider_id: UUID) -> bool:
         """Soft delete a provider."""
-        return self.repository.delete_provider(provider_id)
+        try:
+            self.repository.delete_provider(provider_id)
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting provider {provider_id}: {e}")
+            return False
 
     def get_user_provider(self, user_id: UUID) -> LLMProviderOutput | None:
         """Get user's preferred provider or default provider.
@@ -103,7 +115,7 @@ class LLMProviderService:
             logger.error(f"Error getting user provider: {e!s}")
             return None
 
-    def get_provider_models(self, provider_id: UUID) -> list[dict[str, Any]]:
+    def get_provider_models(self, provider_id: UUID) -> list[LLMModelOutput]:
         """Get available models for a specific provider."""
         # For now, return predefined models based on provider
         # In a real implementation, this would query the provider's API
@@ -112,59 +124,93 @@ class LLMProviderService:
             return []
 
         # Return IBM Watson models as default
+        from datetime import datetime
         return [
-            {
-                "id": str(UUID("11111111-1111-1111-1111-111111111111")),
-                "provider_id": str(provider_id),
-                "model_id": "meta-llama/llama-3-3-70b-instruct",
-                "default_model_id": "meta-llama/llama-3-3-70b-instruct",
-                "model_type": "generation",
-                "timeout": 30,
-                "max_retries": 3,
-                "batch_size": 10,
-                "retry_delay": 1.0,
-                "concurrency_limit": 10,
-                "stream": False,
-                "rate_limit": 10,
-                "is_default": True,
-                "is_active": True,
-                "created_at": "2024-01-01T00:00:00Z",
-                "updated_at": "2024-01-01T00:00:00Z",
-            }
+            LLMModelOutput(
+                id=UUID("11111111-1111-1111-1111-111111111111"),
+                provider_id=provider_id,
+                model_id="meta-llama/llama-3-3-70b-instruct",
+                default_model_id="meta-llama/llama-3-3-70b-instruct",
+                model_type=ModelType.GENERATION,
+                timeout=30,
+                max_retries=3,
+                batch_size=10,
+                retry_delay=1.0,
+                concurrency_limit=10,
+                stream=False,
+                rate_limit=10,
+                is_default=True,
+                is_active=True,
+                created_at=datetime.fromisoformat("2024-01-01T00:00:00"),
+                updated_at=datetime.fromisoformat("2024-01-01T00:00:00"),
+            )
         ]
 
-    def create_provider_model(self, provider_id: UUID, model_data: dict[str, Any]) -> dict[str, Any]:
+    def create_provider_model(self, provider_id: UUID, model_data: dict[str, Any]) -> LLMModelOutput:
         """Create a new model for a provider."""
         # This would typically create a model record in the database
         # For now, return the model data with an ID
-        model_data["id"] = str(UUID("22222222-2222-2222-2222-222222222222"))
-        model_data["provider_id"] = str(provider_id)
-        return model_data
+        from datetime import datetime
+        return LLMModelOutput(
+            id=UUID("22222222-2222-2222-2222-222222222222"),
+            provider_id=provider_id,
+            model_id=model_data.get("model_id", "default-model"),
+            default_model_id=model_data.get("default_model_id", "default-model"),
+            model_type=ModelType(model_data.get("model_type", "generation")),
+            timeout=model_data.get("timeout", 30),
+            max_retries=model_data.get("max_retries", 3),
+            batch_size=model_data.get("batch_size", 10),
+            retry_delay=model_data.get("retry_delay", 1.0),
+            concurrency_limit=model_data.get("concurrency_limit", 10),
+            stream=model_data.get("stream", False),
+            rate_limit=model_data.get("rate_limit", 10),
+            is_default=model_data.get("is_default", False),
+            is_active=model_data.get("is_active", True),
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+        )
 
-    def get_models_by_provider(self, provider_id: UUID) -> list[dict[str, Any]]:
+    def get_models_by_provider(self, provider_id: UUID) -> list[LLMModelOutput]:
         """Get all models for a specific provider."""
         return self.get_provider_models(provider_id)
 
-    def get_models_by_type(self, model_type: str) -> list[dict[str, Any]]:
+    def get_models_by_type(self, _model_type: str) -> list[LLMModelOutput]:
         """Get all models of a specific type."""
         # This would typically query the database for models by type
         # For now, return an empty list
         return []
 
-    def get_model_by_id(self, model_id: UUID) -> dict[str, Any] | None:
+    def get_model_by_id(self, _model_id: UUID) -> LLMModelOutput | None:
         """Get a specific model by ID."""
         # This would typically query the database for a model by ID
         # For now, return None
         return None
 
-    def update_model(self, model_id: UUID, updates: dict[str, Any]) -> dict[str, Any] | None:
+    def update_model(self, model_id: UUID, updates: dict[str, Any]) -> LLMModelOutput | None:
         """Update a model."""
         # This would typically update the model in the database
-        # For now, return the updates with the model ID
-        updates["id"] = str(model_id)
-        return updates
+        # For now, return a mock updated model
+        from datetime import datetime
+        return LLMModelOutput(
+            id=model_id,
+            provider_id=UUID("11111111-1111-1111-1111-111111111111"),  # Mock provider_id
+            model_id=updates.get("model_id", "default-model"),
+            default_model_id=updates.get("default_model_id", "default-model"),
+            model_type=ModelType(updates.get("model_type", "generation")),
+            timeout=updates.get("timeout", 30),
+            max_retries=updates.get("max_retries", 3),
+            batch_size=updates.get("batch_size", 10),
+            retry_delay=updates.get("retry_delay", 1.0),
+            concurrency_limit=updates.get("concurrency_limit", 10),
+            stream=updates.get("stream", False),
+            rate_limit=updates.get("rate_limit", 10),
+            is_default=updates.get("is_default", False),
+            is_active=updates.get("is_active", True),
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+        )
 
-    def delete_model(self, model_id: UUID) -> bool:
+    def delete_model(self, _model_id: UUID) -> bool:
         """Delete a model."""
         # This would typically delete the model from the database
         # For now, return True to indicate success
@@ -175,7 +221,7 @@ class LLMProviderService:
         provider = self.repository.get_provider_by_id(provider_id)
         if not provider:
             return None
-        
+
         provider_data = LLMProviderOutput.model_validate(provider).model_dump()
         provider_data["models"] = self.get_provider_models(provider_id)
         return provider_data
