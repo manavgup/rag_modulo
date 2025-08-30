@@ -3,7 +3,7 @@ from uuid import UUID
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from core.custom_exceptions import RepositoryError
+from rag_solution.core.exceptions import NotFoundError, AlreadyExistsError, ValidationError
 from core.logging_utils import get_logger
 from rag_solution.models.user_team import UserTeam
 from rag_solution.schemas.user_team_schema import UserTeamOutput
@@ -40,15 +40,23 @@ class UserTeamRepository:
             logger.error(f"Unexpected error creating team association: {e!s}")
             raise RuntimeError("Failed to add user to team due to an internal error.") from e
 
-    def remove_user_from_team(self, user_id: UUID, team_id: UUID) -> bool:
+    def remove_user_from_team(self, user_id: UUID, team_id: UUID) -> None:
         try:
-            result = self.db.query(UserTeam).filter(UserTeam.user_id == user_id, UserTeam.team_id == team_id).delete()
+            user_team = self.db.query(UserTeam).filter(UserTeam.user_id == user_id, UserTeam.team_id == team_id).first()
+            if not user_team:
+                raise NotFoundError(
+                    resource_type="UserTeam",
+                    identifier=f"user {user_id} in team {team_id}"
+                )
+            
+            self.db.delete(user_team)
             self.db.commit()
-            return result > 0
+        except NotFoundError:
+            raise
         except Exception as e:
             logger.error(f"Error removing team association: {e!s}")
             self.db.rollback()
-            raise
+            raise Exception(f"Failed to remove user from team: {e!s}") from e
 
     def get_user_teams(self, user_id: UUID) -> list[UserTeamOutput]:
         try:
@@ -56,7 +64,7 @@ class UserTeamRepository:
             return [UserTeamOutput.model_validate(ut, from_attributes=True) for ut in user_teams]
         except Exception as e:
             logger.error(f"Error listing teams: {e!s}")
-            raise RepositoryError(f"Failed to list teams: {e!s}") from e
+            raise Exception(f"Failed to list teams: {e!s}") from e
 
     def get_team_users(self, team_id: UUID) -> list[UserTeamOutput]:
         try:
@@ -64,7 +72,7 @@ class UserTeamRepository:
             return [UserTeamOutput.model_validate(ut) for ut in user_teams]
         except Exception as e:
             logger.error(f"Error listing users: {e!s}")
-            raise RepositoryError(f"Failed to list users: {e!s}") from e
+            raise Exception(f"Failed to list users: {e!s}") from e
 
     def get_user_team(self, user_id: UUID, team_id: UUID) -> UserTeamOutput | None:
         try:
@@ -72,4 +80,4 @@ class UserTeamRepository:
             return UserTeamOutput.model_validate(user_team) if user_team else None
         except Exception as e:
             logger.error(f"Error getting team association: {e!s}")
-            raise RepositoryError(f"Failed to get team association: {e!s}") from e
+            raise Exception(f"Failed to get team association: {e!s}") from e

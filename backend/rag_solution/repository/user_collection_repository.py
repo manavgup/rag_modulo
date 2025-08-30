@@ -3,7 +3,7 @@ from uuid import UUID
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from core.custom_exceptions import DuplicateEntryError, NotFoundError, RepositoryError
+from rag_solution.core.exceptions import NotFoundError, AlreadyExistsError
 from core.logging_utils import get_logger
 from rag_solution.models.collection import Collection
 from rag_solution.models.user import User
@@ -22,16 +22,16 @@ class UserCollectionRepository:
         collection = self.db.query(Collection).filter(Collection.id == collection_id).first()
         if not collection:
             raise NotFoundError(
-                resource_id=str(collection_id),
                 resource_type="Collection",
-                message=f"Collection with id {collection_id} not found.",
+                resource_id=str(collection_id)
             )
 
         # Check if user exists (assuming you have a User model)
         user = self.db.query(User).filter(User.id == user_id).first()
         if not user:
             raise NotFoundError(
-                resource_id=str(user_id), resource_type="User", message=f"User with id {user_id} not found."
+                resource_type="User",
+                resource_id=str(user_id)
             )
 
         existing_entry = (
@@ -52,8 +52,8 @@ class UserCollectionRepository:
         except IntegrityError as e:
             self.db.rollback()
             logger.error(f"IntegrityError: {e!s}")
-            raise DuplicateEntryError(
-                param_name="UserCollection", message=f"User {user_id} is already in collection {collection_id}"
+            raise AlreadyExistsError(
+                resource_type="UserCollection", field="user_id:collection_id", value=f"{user_id}:{collection_id}"
             ) from e
 
     def remove_user_from_collection(self, user_id: UUID, collection_id: UUID) -> bool:
@@ -66,9 +66,8 @@ class UserCollectionRepository:
 
         if not user_collection:
             raise NotFoundError(
-                resource_id=str(user_id),
                 resource_type="UserCollection",
-                message=f"User {user_id} is not in collection {collection_id}",
+                resource_id=f"{user_id}:{collection_id}"
             )
 
         try:
@@ -106,17 +105,23 @@ class UserCollectionRepository:
             self.db.rollback()
             raise RepositoryError(f"Failed to remove all users from collection: {e!s}") from e
 
-    def get_user_collection(self, user_id: UUID, collection_id: UUID) -> UserCollectionOutput | None:
+    def get_user_collection(self, user_id: UUID, collection_id: UUID) -> UserCollectionOutput:
         try:
             user_collection = (
                 self.db.query(UserCollection)
                 .filter(UserCollection.user_id == user_id, UserCollection.collection_id == collection_id)
                 .first()
             )
-            return self._to_output(user_collection) if user_collection else None
+            if not user_collection:
+                raise NotFoundError(
+                    resource_type="UserCollection",
+                    resource_id=f"{user_id}:{collection_id}",
+                    message=f"User {user_id} is not in collection {collection_id}",
+                )
+            return self._to_output(user_collection)
         except Exception as e:
             logger.error(f"Database error: {e!s}")
-            raise RepositoryError(f"Failed to get user collection: {e!s}") from e
+            raise Exception(f"Failed to get user collection: {e!s}") from e
 
     def _to_output(self, user_collection: UserCollection) -> UserCollectionOutput:
         collection = user_collection.collection
