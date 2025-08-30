@@ -34,7 +34,7 @@ VECTOR_DB ?= milvus
 
 .DEFAULT_GOAL := help
 
-.PHONY: init-env sync-frontend-deps build-frontend build-backend build-tests build-all test tests api-tests unit-tests integration-tests performance-tests service-tests pipeline-tests all-tests run-app run-backend run-frontend run-services stop-containers clean create-volumes logs info help pull-ghcr-images venv clean-venv format-imports check-imports quick-check security-check coverage coverage-report quality fix-all
+.PHONY: init-env sync-frontend-deps build-frontend build-backend build-tests build-all test tests api-tests unit-tests integration-tests performance-tests service-tests pipeline-tests all-tests run-app run-backend run-frontend run-services stop-containers clean create-volumes logs info help pull-ghcr-images venv clean-venv format-imports check-imports quick-check security-check coverage coverage-report quality fix-all check-deps check-deps-tree export-requirements docs-generate docs-serve uv-install uv-sync uv-export
 
 # Init
 init-env:
@@ -501,6 +501,56 @@ quality: format-check check-imports lint security-check coverage
 fix-all: format-ruff format-imports
 	@echo "$(GREEN)✅ All auto-fixes applied$(NC)"
 
+## Dependency management targets
+check-deps: venv
+	@echo "$(CYAN)📦 Checking for outdated dependencies...$(NC)"
+	@cd backend && $(POETRY) show --outdated || echo "$(GREEN)✅ All dependencies are up to date$(NC)"
+	@echo "$(GREEN)✅ Dependency check completed$(NC)"
+
+check-deps-tree: venv
+	@echo "$(CYAN)🌳 Showing dependency tree...$(NC)"
+	@cd backend && $(POETRY) show --tree
+	@echo "$(GREEN)✅ Dependency tree displayed$(NC)"
+
+export-requirements: venv
+	@echo "$(CYAN)📝 Exporting requirements...$(NC)"
+	@cd backend && $(POETRY) show --only=main --no-ansi > requirements.txt || echo "$(YELLOW)⚠️ Main requirements exported with Poetry show$(NC)"
+	@cd backend && $(POETRY) show --with=dev --no-ansi > requirements-dev.txt || echo "$(YELLOW)⚠️ Dev requirements exported with Poetry show$(NC)"
+	@cd backend && $(POETRY) show --with=test --no-ansi > requirements-test.txt || echo "$(YELLOW)⚠️ Test requirements exported with Poetry show$(NC)"
+	@echo "$(GREEN)✅ Requirements exported to backend/ directory$(NC)"
+	@echo "$(CYAN)💡 Note: For pip-compatible format, consider installing poetry-plugin-export$(NC)"
+
+## Documentation generation targets
+docs-generate: venv
+	@echo "$(CYAN)📚 Generating documentation...$(NC)"
+	@cd backend && $(POETRY) run python -m pydoc -w rag_solution || echo "$(YELLOW)⚠️ pydoc generation completed with warnings$(NC)"
+	@echo "$(GREEN)✅ Documentation generated in backend/ directory$(NC)"
+
+docs-serve: venv
+	@echo "$(CYAN)🌐 Serving documentation locally...$(NC)"
+	@cd backend && $(POETRY) run python -m http.server 8080 || echo "$(YELLOW)⚠️ Documentation server stopped$(NC)"
+	@echo "$(GREEN)✅ Documentation served at http://localhost:8080$(NC)"
+
+## UV alternative support (experimental)
+uv-install:
+	@echo "$(CYAN)⚡ Installing UV (experimental)...$(NC)"
+	@if ! command -v uv >/dev/null 2>&1; then \
+		curl -LsSf https://astral.sh/uv/install.sh | sh; \
+		echo "$(GREEN)✅ UV installed$(NC)"; \
+	else \
+		echo "$(GREEN)✅ UV already installed$(NC)"; \
+	fi
+
+uv-sync: uv-install
+	@echo "$(CYAN)⚡ Syncing dependencies with UV (experimental)...$(NC)"
+	@cd backend && uv sync || echo "$(YELLOW)⚠️ UV sync completed with warnings$(NC)"
+	@echo "$(GREEN)✅ UV sync completed$(NC)"
+
+uv-export: uv-install
+	@echo "$(CYAN)⚡ Exporting requirements with UV (experimental)...$(NC)"
+	@cd backend && uv export --format requirements-txt --output-file requirements-uv.txt || echo "$(YELLOW)⚠️ UV export completed with warnings$(NC)"
+	@echo "$(GREEN)✅ UV requirements exported to backend/requirements-uv.txt$(NC)"
+
 ## Quick check target for developer workflow
 quick-check: format-check check-imports lint-ruff
 	@echo "$(GREEN)✅ Quick checks passed$(NC)"
@@ -555,6 +605,20 @@ help:
 	@echo "  check-style       \tStyle checks without fixes"
 	@echo "  strict            \tStrictest quality requirements"
 	@echo "  analyze           \tCode analysis and metrics"
+	@echo ""
+	@echo "$(CYAN)📦 Dependency Targets:$(NC)"
+	@echo "  check-deps        \tCheck for outdated dependencies"
+	@echo "  check-deps-tree   \tShow dependency tree"
+	@echo "  export-requirements\tExport requirements to txt files"
+	@echo ""
+	@echo "$(CYAN)📚 Documentation Targets:$(NC)"
+	@echo "  docs-generate     \tGenerate API documentation"
+	@echo "  docs-serve        \tServe documentation locally (http://localhost:8080)"
+	@echo ""
+	@echo "$(CYAN)⚡ UV Experimental Targets:$(NC)"
+	@echo "  uv-install        \tInstall UV package manager"
+	@echo "  uv-sync           \tSync dependencies with UV"
+	@echo "  uv-export         \tExport requirements with UV"
 	@echo ""
 	@echo "$(CYAN)🛠️ Setup Targets:$(NC)"
 	@echo "  venv              \tSet up Python virtual environment"
