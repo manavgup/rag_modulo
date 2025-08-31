@@ -1,16 +1,12 @@
 """Integration tests for CollectionService."""
 
 import pytest
-import asyncio
 import tempfile
-from pathlib import Path
-from uuid import UUID, uuid4
+from uuid import uuid4
 from fastapi import BackgroundTasks, UploadFile, HTTPException
 
 from rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput, CollectionStatus
 from rag_solution.schemas.user_schema import UserOutput
-from core.custom_exceptions import DocumentStorageError, LLMProviderError
-from vectordbs.error_types import CollectionError
 from vectordbs.data_types import Document, DocumentChunk
 
 # -------------------------------------------

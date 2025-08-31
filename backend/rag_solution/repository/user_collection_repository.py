@@ -3,9 +3,9 @@ from uuid import UUID
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from rag_solution.core.exceptions import NotFoundError, AlreadyExistsError
 from core.custom_exceptions import RepositoryError
 from core.logging_utils import get_logger
+from rag_solution.core.exceptions import AlreadyExistsError, NotFoundError
 from rag_solution.models.collection import Collection
 from rag_solution.models.user import User
 from rag_solution.models.user_collection import UserCollection

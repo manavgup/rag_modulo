@@ -5,7 +5,6 @@ from uuid import uuid4
 from fastapi import HTTPException
 
 from rag_solution.schemas.user_schema import UserInput, UserOutput
-from rag_solution.schemas.team_schema import TeamOutput
 from rag_solution.schemas.user_team_schema import UserTeamOutput
 
 # -------------------------------------------

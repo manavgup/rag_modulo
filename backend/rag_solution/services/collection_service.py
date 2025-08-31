@@ -15,7 +15,6 @@ from core.custom_exceptions import (
     EmptyDocumentError,
     LLMProviderError,
     NotFoundError,
-    NotFoundException,
     QuestionGenerationError,
     UnsupportedFileTypeError,
     ValidationError,
@@ -24,11 +23,11 @@ from core.logging_utils import get_logger
 from rag_solution.data_ingestion.document_processor import DocumentProcessor
 from rag_solution.repository.collection_repository import CollectionRepository
 from rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput, CollectionStatus
+from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
 from rag_solution.schemas.prompt_template_schema import PromptTemplateType
 from rag_solution.services.file_management_service import FileManagementService
 from rag_solution.services.llm_model_service import LLMModelService
 from rag_solution.services.llm_parameters_service import LLMParametersService
-from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
 from rag_solution.services.prompt_template_service import PromptTemplateService
 from rag_solution.services.question_service import QuestionService
 from rag_solution.services.user_collection_service import UserCollectionService
@@ -111,7 +110,7 @@ class CollectionService:
         """
         try:
             # This will raise NotFoundError if not found - no need to check
-            existing_collection = self.collection_repository.get(collection_id)
+            self.collection_repository.get(collection_id)
 
             # Fetch User instances corresponding to the UUIDs in collection_update.users
             logger.info(f"Fetching users for collection: {collection_id}")
@@ -299,7 +298,7 @@ class CollectionService:
                 top_k=parameters.top_k,
                 repetition_penalty=parameters.repetition_penalty,
             )
-            
+
             questions = await self.question_service.suggest_questions(
                 texts=document_texts,
                 collection_id=collection_id,

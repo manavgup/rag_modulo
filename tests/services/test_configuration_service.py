@@ -1,9 +1,8 @@
 """Integration tests for configuration-related services."""
 
 import pytest
-from uuid import UUID, uuid4
+from uuid import UUID
 from pydantic import SecretStr
-from sqlalchemy.exc import IntegrityError
 from core.custom_exceptions import (
     ProviderValidationError,
     ProviderConfigError,

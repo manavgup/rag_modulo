@@ -1,10 +1,7 @@
 # test_search_collection.py
 
 import pytest
-import pytest_asyncio
 from uuid import uuid4
-from typing import Dict, Any
-import io
 
 from .base_test import BaseTestRouter
 from rag_solution.schemas.collection_schema import CollectionStatus

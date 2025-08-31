@@ -1,8 +1,9 @@
-from fastapi import HTTPException, status, Request
-import jwt
 import logging
 
+import jwt
 from authlib.integrations.starlette_client import OAuth, OAuthError
+from fastapi import HTTPException, Request, Response, status
+
 from core.config import settings
 
 logging.basicConfig(level=logging.DEBUG)
@@ -11,16 +12,16 @@ logger = logging.getLogger(__name__)
 oauth = OAuth()
 
 oauth.register(
-    name='ibm',
+    name="ibm",
     server_metadata_url=settings.oidc_discovery_endpoint,
     client_id=settings.ibm_client_id,
     client_secret=settings.ibm_client_secret,
     client_kwargs={
-        'scope': 'openid email profile',
-        'token_endpoint_auth_method': 'client_secret_post'
+        "scope": "openid email profile",
+        "token_endpoint_auth_method": "client_secret_post"
     },
     # Add leeway for token validation
-    jwks_uri=settings.oidc_discovery_endpoint + '/jwks',
+    jwks_uri=settings.oidc_discovery_endpoint + "/jwks",
     validate_iss=True,
     validate_aud=True,
     validate_exp=True,
@@ -40,7 +41,7 @@ def verify_jwt_token(token: str) -> dict:
                 "name": "Test User",
                 # UUID and role will be added by middleware from headers
             }
-            
+
         # Normal token verification
         payload = jwt.decode(
             token,
@@ -56,26 +57,26 @@ def verify_jwt_token(token: str) -> dict:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token has expired",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from None
     except jwt.InvalidTokenError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from None
 
 async def get_current_user(request: Request) -> dict:
-    auth_header = request.headers.get('Authorization')
-    if not auth_header or not auth_header.startswith('Bearer '):
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
-    token = auth_header.split(' ')[1]
+
+    token = auth_header.split(" ")[1]
     payload = verify_jwt_token(token)
-    
+
     logger.info(f"Got User: {payload}")
     return payload
 
@@ -86,11 +87,11 @@ async def authorize_redirect(request: Request, redirect_uri: str) -> Response:
         logger.debug(f"authorize_redirect response: {response}")
         return response
     except OAuthError as error:
-        logger.error(f"OAuth error during authorize_redirect: {str(error)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"OAuth authorization error: {str(error)}")
+        logger.error(f"OAuth error during authorize_redirect: {error!s}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"OAuth authorization error: {error!s}") from error
     except Exception as e:
-        logger.error(f"Unexpected error during authorize_redirect: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Authorization error: {str(e)}")
+        logger.error(f"Unexpected error during authorize_redirect: {e!s}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Authorization error: {e!s}") from e
 
 async def authorize_access_token(request: Request) -> dict:
     try:
@@ -99,8 +100,8 @@ async def authorize_access_token(request: Request) -> dict:
         logger.debug(f"Token received: {token}")
         return token
     except OAuthError as error:
-        logger.error(f"OAuth error during authorize_access_token: {str(error)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"OAuth token authorization error: {str(error)}")
+        logger.error(f"OAuth error during authorize_access_token: {error!s}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"OAuth token authorization error: {error!s}") from error
     except Exception as e:
-        logger.error(f"Unexpected error during authorize_access_token: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Token authorization error: {str(e)}")
+        logger.error(f"Unexpected error during authorize_access_token: {e!s}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Token authorization error: {e!s}") from e

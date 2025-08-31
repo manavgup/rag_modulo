@@ -1,9 +1,7 @@
 import pytest
 import pandas as pd
 import os
-from pathlib import Path
-import uuid
-from unittest.mock import patch, Mock
+from unittest.mock import patch
 from rag_solution.data_ingestion.excel_processor import ExcelProcessor
 from core.custom_exceptions import DocumentProcessingError
 from vectordbs.data_types import Document

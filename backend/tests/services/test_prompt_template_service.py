@@ -2,7 +2,7 @@
 
 import pytest
 
-from core.custom_exceptions import NotFoundError, ValidationError
+from core.custom_exceptions import ValidationError
 from rag_solution.schemas.prompt_template_schema import PromptTemplateInput, PromptTemplateType
 from rag_solution.schemas.user_schema import UserOutput
 from rag_solution.services.prompt_template_service import PromptTemplateService

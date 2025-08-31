@@ -1,19 +1,12 @@
 """LLM infrastructure fixtures for pytest."""
 
-import logging
-from typing import Optional
 import pytest
 
-from core.config import settings
 from core.logging_utils import get_logger
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
-from rag_solution.schemas.llm_provider_schema import LLMProviderInput
-from rag_solution.schemas.llm_model_schema import ModelType, LLMModelInput
 from rag_solution.generation.providers.factory import LLMProviderFactory
 from rag_solution.schemas.user_schema import UserOutput
 from rag_solution.services.llm_parameters_service import LLMParametersService
-from rag_solution.services.llm_provider_service import LLMProviderService
-from rag_solution.services.llm_model_service import LLMModelService
 
 logger = get_logger("tests.fixtures.llm")
 

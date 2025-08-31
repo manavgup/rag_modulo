@@ -1,5 +1,4 @@
 import requests
-import json
 import uuid
 
 BASE_URL = "http://localhost:8000"
@@ -47,7 +46,7 @@ def run_tests():
     test_health_check()
     user_id = test_create_user()
     collection_id = test_create_collection(user_id)
-    file_id = test_upload_file(user_id, collection_id)
+    test_upload_file(user_id, collection_id)
     print("All tests passed successfully")
 
 if __name__ == "__main__":

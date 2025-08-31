@@ -1,7 +1,6 @@
 """Model fixtures for pytest."""
 
 import pytest
-from uuid import uuid4
 from core.logging_utils import get_logger
 from rag_solution.schemas.llm_model_schema import LLMModelInput, ModelType
 from rag_solution.services.llm_model_service import LLMModelService

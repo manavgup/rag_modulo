@@ -7,12 +7,11 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from rag_solution.repository.team_repository import TeamRepository
-from rag_solution.repository.user_team_repository import UserTeamRepository
 from rag_solution.schemas.team_schema import TeamInput, TeamOutput
 from rag_solution.schemas.user_schema import UserOutput
 from rag_solution.schemas.user_team_schema import UserTeamOutput
-from rag_solution.services.user_team_service import UserTeamService
 from rag_solution.services.user_service import UserService
+from rag_solution.services.user_team_service import UserTeamService
 
 logger = logging.getLogger(__name__)
 
@@ -80,11 +79,11 @@ class TeamService:
     def get_team_users(self, team_id: UUID) -> list[UserOutput]:
         logger.info(f"Fetching users for team: {team_id}")
         user_teams = self.user_team_service.get_team_users(team_id)
-        
+
         if not self.user_service:
             logger.warning("UserService not provided, returning empty list")
             return []
-            
+
         # Convert UserTeamOutput to UserOutput by fetching actual user data
         users = []
         for user_team in user_teams:

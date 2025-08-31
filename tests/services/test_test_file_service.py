@@ -1,6 +1,5 @@
 from io import BytesIO
 from pathlib import Path
-from uuid import UUID
 
 import pytest
 from fastapi import HTTPException, UploadFile
@@ -119,7 +118,7 @@ def test_get_files(file_management_service, collection, mock_upload_file):
     assert files[0] == "test_file.txt"
 
 def test_get_file_path(file_management_service, collection, mock_upload_file):
-    file_output = file_management_service.upload_and_create_file_record(mock_upload_file, collection.user_ids[0], collection.id)
+    file_management_service.upload_and_create_file_record(mock_upload_file, collection.user_ids[0], collection.id)
     file_path = file_management_service.get_file_path(collection.user_ids[0], collection.id, "test_file.txt")
     assert isinstance(file_path, Path)
     assert file_path.name == "test_file.txt"

@@ -1,10 +1,9 @@
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
-from rag_solution.router.auth_router import router, create_jwt, decode_jwt, get_current_user
+from unittest.mock import patch
+from rag_solution.router.auth_router import create_jwt, decode_jwt, get_current_user
 from main import app
 import jwt
-from datetime import datetime, timedelta, timezone
 
 # Create a test client
 client = TestClient(app)

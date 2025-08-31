@@ -1,8 +1,6 @@
 """Core service fixtures for pytest."""
 
-from uuid import uuid4
 import pytest
-from fastapi import HTTPException
 from sqlalchemy import Engine, text
 from sqlalchemy.orm import Session, sessionmaker
 from pydantic import SecretStr
@@ -13,7 +11,7 @@ from rag_solution.services.user_service import UserService
 from rag_solution.services.llm_provider_service import LLMProviderService, LLMProviderInput
 from rag_solution.services.llm_model_service import LLMModelService, LLMModelInput, ModelType
 from rag_solution.services.llm_parameters_service import LLMParametersService
-from rag_solution.services.prompt_template_service import PromptTemplateService, PromptTemplateInput, PromptTemplateType
+from rag_solution.services.prompt_template_service import PromptTemplateService
 from rag_solution.services.collection_service import CollectionService
 from rag_solution.services.file_management_service import FileManagementService
 from rag_solution.services.pipeline_service import PipelineService
@@ -264,7 +262,7 @@ def base_user(db_engine: Engine, ensure_watsonx_provider) -> UserOutput:
         session.commit()
         return user
         
-    except Exception as e:
+    except Exception:
         session.rollback()
         raise
     finally:

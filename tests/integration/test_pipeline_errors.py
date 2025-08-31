@@ -4,7 +4,7 @@ import pytest
 import asyncio
 from sqlalchemy.orm import Session
 from uuid import UUID
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 from rag_solution.services.pipeline_service import PipelineService
 from rag_solution.services.search_service import SearchService
@@ -159,7 +159,7 @@ async def test_template_formatting_error(pipeline_setup):
         },
         is_default=True
     )
-    template = pipeline_setup['template_service'].create_or_update_template(
+    pipeline_setup['template_service'].create_or_update_template(
         pipeline_setup['user'].id,
         template_input
     )

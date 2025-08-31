@@ -23,8 +23,8 @@ class PromptTemplateBase(BaseModel):
     template_type: PromptTemplateType = PromptTemplateType.CUSTOM
     system_prompt: str | None = None
     template_format: str = Field(..., min_length=1)
-    input_variables: dict[str, str] = Field(default_factory=lambda: {})
-    example_inputs: dict[str, Any] | None = Field(default_factory=lambda: {})
+    input_variables: dict[str, str] = Field(default={})
+    example_inputs: dict[str, Any] | None = Field(default=None)
     context_strategy: dict[str, Any] | None = None
     max_context_length: int | None = Field(None, gt=0)
     stop_sequences: list[str] | None = None

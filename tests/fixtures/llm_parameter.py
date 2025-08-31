@@ -1,7 +1,6 @@
 """Test fixtures for LLM Parameters."""
 
 import pytest
-from uuid import UUID
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput, LLMParametersOutput
 from rag_solution.services.llm_parameters_service import LLMParametersService
 

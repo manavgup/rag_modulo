@@ -5,8 +5,8 @@ from uuid import UUID
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from rag_solution.core.exceptions import NotFoundError
 from core.logging_utils import get_logger
+from rag_solution.core.exceptions import NotFoundError
 from rag_solution.models.collection import Collection
 from rag_solution.models.question import SuggestedQuestion
 from rag_solution.schemas.question_schema import QuestionInput
@@ -165,7 +165,7 @@ class QuestionRepository:
                     resource_type="SuggestedQuestion",
                     resource_id=str(question_id)
                 )
-                
+
             self.session.delete(question)
             self.session.commit()
             logger.info(f"Deleted question {question_id}")

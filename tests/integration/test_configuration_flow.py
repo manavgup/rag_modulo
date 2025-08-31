@@ -1,5 +1,4 @@
 """Integration tests for configuration workflow."""
-import pytest
 from sqlalchemy.orm import Session
 from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.prompt_template_service import PromptTemplateService
@@ -135,7 +134,7 @@ def test_update_template_flow(db_session: Session, base_user):
         api_key="test-api-key",
         project_id="test-project-id"
     )
-    provider = provider_service.create_provider(provider_input)
+    provider_service.create_provider(provider_input)
 
     # Create template service
     template_service = PromptTemplateService(db_session)

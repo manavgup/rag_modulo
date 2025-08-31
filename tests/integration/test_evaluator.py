@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-from unittest.mock import patch, AsyncMock, MagicMock
+from unittest.mock import patch, AsyncMock
 from rag_solution.evaluation.evaluator import RAGEvaluator
 from vectordbs.data_types import QueryResult, DocumentChunk
 from rag_solution.evaluation.llm_as_judge_evals import (

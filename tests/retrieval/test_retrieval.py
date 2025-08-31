@@ -2,10 +2,9 @@
 
 import pytest
 from unittest.mock import Mock
-from sqlalchemy.orm import Session
 
 from rag_solution.retrieval.factories import RetrieverFactory
-from rag_solution.retrieval.retriever import BaseRetriever, VectorRetriever, KeywordRetriever, HybridRetriever
+from rag_solution.retrieval.retriever import VectorRetriever, KeywordRetriever, HybridRetriever
 from vectordbs.data_types import VectorQuery
 
 

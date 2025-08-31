@@ -1,20 +1,21 @@
 """Custom exceptions for the application with strong typing."""
 
-from typing import Optional, Any, Dict, Union
+from typing import Any
+
 from pydantic import ValidationError as PydanticValidationError
 
 
 class BaseCustomException(Exception):
     """Base class for custom exceptions."""
-    
+
     def __init__(
-        self, 
+        self,
         message: str,
         status_code: int = 500,
-        details: Optional[Dict[str, Any]] = None
+        details: dict[str, Any] | None = None
     ) -> None:
         """Initialize base custom exception.
-        
+
         Args:
             message: Error message
             status_code: HTTP status code
@@ -25,7 +26,7 @@ class BaseCustomException(Exception):
         self.details = details or {}
         super().__init__(self.message)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert exception to dictionary representation."""
         return {
             "error": self.__class__.__name__,
@@ -37,15 +38,15 @@ class BaseCustomException(Exception):
 
 class UnsupportedFileTypeError(BaseCustomException):
     """Exception raised for unsupported file types."""
-    
+
     def __init__(
         self,
         file_type: str,
         supported_types: list[str],
-        message: Optional[str] = None
+        message: str | None = None
     ) -> None:
         """Initialize unsupported file type error.
-        
+
         Args:
             file_type: The unsupported file type
             supported_types: List of supported file types
@@ -63,16 +64,16 @@ class UnsupportedFileTypeError(BaseCustomException):
 
 class DocumentProcessingError(BaseCustomException):
     """Exception raised for errors during document processing."""
-    
+
     def __init__(
         self,
         doc_id: str,
         error_type: str,
         message: str,
-        details: Optional[Dict[str, Any]] = None
+        details: dict[str, Any] | None = None
     ) -> None:
         """Initialize document processing error.
-        
+
         Args:
             doc_id: Document identifier
             error_type: Type of processing error
@@ -92,7 +93,7 @@ class DocumentProcessingError(BaseCustomException):
 
 class DocumentStorageError(BaseCustomException):
     """Exception raised for errors during document storage."""
-    
+
     def __init__(
         self,
         doc_id: str,
@@ -101,7 +102,7 @@ class DocumentStorageError(BaseCustomException):
         message: str
     ) -> None:
         """Initialize document storage error.
-        
+
         Args:
             doc_id: Document identifier
             storage_path: Attempted storage path
@@ -121,17 +122,17 @@ class DocumentStorageError(BaseCustomException):
 
 class DocumentIngestionError(BaseCustomException):
     """Exception raised for errors during document ingestion."""
-    
+
     def __init__(
         self,
         doc_id: str,
         stage: str,
         error_type: str,
         message: str,
-        details: Optional[Dict[str, Any]] = None
+        details: dict[str, Any] | None = None
     ) -> None:
         """Initialize document ingestion error.
-        
+
         Args:
             doc_id: Document identifier
             stage: Ingestion stage where error occurred
@@ -153,15 +154,15 @@ class DocumentIngestionError(BaseCustomException):
 
 class NotFoundException(BaseCustomException):
     """Exception raised when a requested resource is not found."""
-    
+
     def __init__(
         self,
         resource_type: str,
         resource_id: Any,
-        message: Optional[str] = None
+        message: str | None = None
     ) -> None:
         """Initialize not found error.
-        
+
         Args:
             resource_type: Type of resource not found
             resource_id: Identifier of resource
@@ -183,16 +184,16 @@ NotFoundError = NotFoundException
 
 class ValidationError(BaseCustomException):
     """Exception raised when data validation fails."""
-    
+
     def __init__(
         self,
         message: str,
-        field: Optional[str] = None,
-        value: Optional[Any] = None,
-        details: Optional[Dict[str, Any]] = None
+        field: str | None = None,
+        value: Any | None = None,
+        details: dict[str, Any] | None = None
     ) -> None:
         """Initialize validation error.
-        
+
         Args:
             message: Error message
             field: Field that failed validation
@@ -212,21 +213,21 @@ class ValidationError(BaseCustomException):
 
 class ProviderValidationError(ValidationError):
     """Exception raised when LLM provider validation fails.
-    
+
     This exception handles validation errors specific to LLM providers,
     including Pydantic validation failures for provider schemas.
     """
-    
+
     def __init__(
         self,
         provider_name: str,
-        validation_error: Union[PydanticValidationError, str],
-        field: Optional[str] = None,
-        value: Optional[Any] = None,
-        details: Optional[Dict[str, Any]] = None
+        validation_error: PydanticValidationError | str,
+        field: str | None = None,
+        value: Any | None = None,
+        details: dict[str, Any] | None = None
     ) -> None:
         """Initialize provider validation error.
-        
+
         Args:
             provider_name: Name of the provider
             validation_error: Pydantic validation error or error message
@@ -264,16 +265,16 @@ class ProviderValidationError(ValidationError):
 
 class LLMParameterError(BaseCustomException):
     """Exception raised for errors related to LLM parameters."""
-    
+
     def __init__(
         self,
         param_name: str,
         error_type: str,
         message: str,
-        details: Optional[Dict[str, Any]] = None
+        details: dict[str, Any] | None = None
     ) -> None:
         """Initialize LLM parameter error.
-        
+
         Args:
             param_name: Name of the parameter
             error_type: Type of parameter error
@@ -293,14 +294,14 @@ class LLMParameterError(BaseCustomException):
 
 class DuplicateEntryError(ValidationError):
     """Exception raised when attempting to create duplicate LLM parameters."""
-    
+
     def __init__(
         self,
         param_name: str,
-        message: Optional[str] = None
+        message: str | None = None
     ) -> None:
         """Initialize duplicate parameter error.
-        
+
         Args:
             param_name: Name of duplicate parameter
             message: Optional custom error message
@@ -315,15 +316,15 @@ class DuplicateEntryError(ValidationError):
 
 class DefaultParameterError(ValidationError):
     """Exception raised for errors related to default parameter operations."""
-    
+
     def __init__(
         self,
         operation: str,
         param_name: str,
-        message: Optional[str] = None
+        message: str | None = None
     ) -> None:
         """Initialize default parameter error.
-        
+
         Args:
             operation: Operation that caused the error
             param_name: Name of parameter set
@@ -342,14 +343,14 @@ class DefaultParameterError(ValidationError):
 
 class PromptTemplateNotFoundError(NotFoundException):
     """Exception raised when a prompt template is not found."""
-    
+
     def __init__(
         self,
         template_id: str,
-        message: Optional[str] = None
+        message: str | None = None
     ) -> None:
         """Initialize prompt template not found error.
-        
+
         Args:
             template_id: ID of the template
             message: Optional custom error message
@@ -372,15 +373,15 @@ class PromptTemplateConflictError(ValidationError):
 
 class InvalidPromptTemplateError(ValidationError):
     """Exception raised when prompt template validation fails."""
-    
+
     def __init__(
         self,
         template_id: str,
         reason: str,
-        message: Optional[str] = None
+        message: str | None = None
     ) -> None:
         """Initialize invalid prompt template error.
-        
+
         Args:
             template_id: ID of the template
             reason: Reason for validation failure
@@ -399,7 +400,7 @@ class InvalidPromptTemplateError(ValidationError):
 
 class LLMProviderError(BaseCustomException):
     """Exception raised for errors during LLM provider operations.
-    
+
     This exception handles errors that occur during:
     - Provider initialization
     - Text generation
@@ -407,17 +408,17 @@ class LLMProviderError(BaseCustomException):
     - Embedding generation
     - Client operations
     """
-    
+
     def __init__(
         self,
         provider: str,
         error_type: str,
         message: str,
-        operation: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None
+        operation: str | None = None,
+        details: dict[str, Any] | None = None
     ) -> None:
         """Initialize LLM provider error.
-        
+
         Args:
             provider: Name of the LLM provider (e.g., watsonx, openai, anthropic)
             error_type: Type of error (e.g., initialization, authentication, rate_limit)
@@ -439,14 +440,14 @@ class LLMProviderError(BaseCustomException):
 
 class ConfigurationError(BaseCustomException):
     """Exception raised for general configuration errors."""
-    
+
     def __init__(
         self,
         message: str,
-        details: Optional[Dict[str, Any]] = None
+        details: dict[str, Any] | None = None
     ) -> None:
         """Initialize configuration error.
-        
+
         Args:
             message: Error message describing the configuration issue
             details: Additional error details
@@ -460,17 +461,17 @@ class ConfigurationError(BaseCustomException):
 
 class ProviderConfigError(BaseCustomException):
     """Exception raised for errors related to provider configuration."""
-    
+
     def __init__(
         self,
         provider: str,
         model_id: str,
         error_type: str,
         message: str,
-        details: Optional[Dict[str, Any]] = None
+        details: dict[str, Any] | None = None
     ) -> None:
         """Initialize provider configuration error.
-        
+
         Args:
             provider: Name of the provider
             model_id: Model identifier
@@ -492,16 +493,16 @@ class ProviderConfigError(BaseCustomException):
 
 class QuestionGenerationError(BaseCustomException):
     """Exception raised for failures in the question generation process."""
-    
+
     def __init__(
         self,
         collection_id: str,
         error_type: str,
         message: str,
-        details: Optional[Dict[str, Any]] = None
+        details: dict[str, Any] | None = None
     ) -> None:
         """Initialize question generation error.
-        
+
         Args:
             collection_id: Collection identifier
             error_type: Type of generation error
@@ -521,14 +522,14 @@ class QuestionGenerationError(BaseCustomException):
 
 class EmptyDocumentError(BaseCustomException):
     """Exception raised when no valid text chunks are found."""
-    
+
     def __init__(
         self,
         collection_id: str,
-        message: Optional[str] = None
+        message: str | None = None
     ) -> None:
         """Initialize empty document error.
-        
+
         Args:
             collection_id: Collection identifier
             message: Optional custom error message
@@ -542,17 +543,17 @@ class EmptyDocumentError(BaseCustomException):
 
 class CollectionProcessingError(BaseCustomException):
     """Exception raised for general collection processing failures."""
-    
+
     def __init__(
         self,
         collection_id: str,
         stage: str,
         error_type: str,
         message: str,
-        details: Optional[Dict[str, Any]] = None
+        details: dict[str, Any] | None = None
     ) -> None:
         """Initialize collection processing error.
-        
+
         Args:
             collection_id: Collection identifier
             stage: Processing stage where error occurred
@@ -577,10 +578,10 @@ class RepositoryError(BaseCustomException):
     def __init__(
         self,
         message: str,
-        details: Optional[dict] = None
+        details: dict | None = None
     ) -> None:
         """Initialize repository error.
-        
+
         Args:
             message: Description of the error.
             details: Optional dictionary with additional error details.
@@ -593,20 +594,20 @@ class RepositoryError(BaseCustomException):
 
 class ModelValidationError(ValidationError):
     """Exception raised when LLM model validation fails.
-    
+
     This exception handles validation errors specific to LLM models,
     including Pydantic validation failures for model schemas.
     """
-    
+
     def __init__(
         self,
         field: str,
         message: str,
-        value: Optional[Any] = None,
-        details: Optional[Dict[str, Any]] = None
+        value: Any | None = None,
+        details: dict[str, Any] | None = None
     ) -> None:
         """Initialize model validation error.
-        
+
         Args:
             field: Field that failed validation
             message: Error message describing the validation failure
@@ -626,22 +627,22 @@ class ModelValidationError(ValidationError):
 
 class ModelConfigError(BaseCustomException):
     """Exception raised for errors related to model configuration.
-    
+
     This exception handles configuration errors specific to LLM models,
     such as invalid model settings, missing required configurations,
     or incompatible model configurations.
     """
-    
+
     def __init__(
         self,
         field: str,
         message: str,
-        model_id: Optional[str] = None,
-        provider_id: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None
+        model_id: str | None = None,
+        provider_id: str | None = None,
+        details: dict[str, Any] | None = None
     ) -> None:
         """Initialize model configuration error.
-        
+
         Args:
             field: Configuration field that caused the error
             message: Error message describing the configuration issue
@@ -653,7 +654,7 @@ class ModelConfigError(BaseCustomException):
             "field": field,
             "config_type": "model"
         }
-        
+
         if model_id:
             error_details["model_id"] = model_id
         if provider_id:

@@ -1,11 +1,11 @@
 # backend/rag_solution/file_management/database.py
 import logging
 import os
+from collections.abc import Generator
 
 from sqlalchemy import URL, create_engine
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import declarative_base, sessionmaker, Session
-from typing import Generator
+from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 from core.config import settings
 

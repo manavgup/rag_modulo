@@ -7,12 +7,11 @@ strict type boundaries and clean separation of concerns.
 from uuid import UUID
 
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy.exc import IntegrityError
 
+from core.custom_exceptions import RepositoryError
+from rag_solution.core.exceptions import NotFoundError
 from rag_solution.models.pipeline import PipelineConfig
 from rag_solution.schemas.pipeline_schema import PipelineConfigInput, PipelineConfigOutput
-from rag_solution.core.exceptions import NotFoundError, AlreadyExistsError, ValidationError
-from core.custom_exceptions import RepositoryError
 
 
 class PipelineConfigRepository:

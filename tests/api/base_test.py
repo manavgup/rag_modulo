@@ -2,13 +2,11 @@
 
 import pytest
 import jwt
-from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from unittest.mock import patch
 from typing import Dict, Any
 
 from core.config import settings
-from main import app
 
 class BaseTestRouter:
     """Base class for all router tests."""

@@ -1,12 +1,11 @@
 """Integration tests for TeamService."""
 
 import pytest
-from uuid import UUID, uuid4
+from uuid import uuid4
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 
 from rag_solution.services.team_service import TeamService
-from rag_solution.services.user_team_service import UserTeamService
 from rag_solution.schemas.team_schema import TeamInput, TeamOutput
 from rag_solution.schemas.user_schema import UserOutput
 from rag_solution.models.team import Team

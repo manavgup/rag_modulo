@@ -4,15 +4,11 @@ import pytest
 from unittest.mock import Mock
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-from uuid import uuid4, UUID
+from uuid import uuid4
 
 from main import app
 from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.schemas.llm_provider_schema import (
-    LLMProviderInput,
-    LLMProviderOutput,
-    LLMProviderModelInput,
-    LLMProviderModelOutput,
     ModelType
 )
 
