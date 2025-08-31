@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, Enum, String
@@ -12,8 +13,6 @@ from rag_solution.file_management.database import Base
 from rag_solution.schemas.collection_schema import CollectionStatus
 
 if TYPE_CHECKING:
-    from datetime import datetime
-
     from rag_solution.models.file import File
     from rag_solution.models.question import SuggestedQuestion
     from rag_solution.models.user_collection import UserCollection
