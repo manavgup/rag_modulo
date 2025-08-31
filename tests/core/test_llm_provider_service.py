@@ -1,15 +1,12 @@
 """Tests for LLMProviderService with real database interactions."""
 
 import pytest
-from uuid import UUID, uuid4
+from uuid import uuid4
 from pydantic import SecretStr
-from unittest.mock import Mock
 
 from core.custom_exceptions import (
     ProviderValidationError,
-    ProviderConfigError,
-    LLMProviderError,
-    NotFoundException
+    ProviderConfigError
 )
 from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.schemas.llm_provider_schema import (
@@ -272,7 +269,7 @@ def test_initialize_providers_updates_existing_templates(
     assert initial_rag_template is not None
 
     # Second initialization
-    updated_providers = provider_service.initialize_providers()
+    provider_service.initialize_providers()
     
     # Get updated templates
     updated_question_template = provider_service.prompt_template_service.get_by_type(

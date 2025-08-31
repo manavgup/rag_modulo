@@ -1,6 +1,5 @@
 """Tests for prompt template functionality."""
 import pytest
-from uuid import uuid4
 from sqlalchemy.orm import Session
 from rag_solution.models.prompt_template import PromptTemplate
 from rag_solution.schemas.prompt_template_schema import PromptTemplateType

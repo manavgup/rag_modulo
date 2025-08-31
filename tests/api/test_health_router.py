@@ -3,7 +3,7 @@
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 import jwt
 from fastapi.responses import JSONResponse
 

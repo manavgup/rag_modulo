@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.prompt_template_service import PromptTemplateService
 from rag_solution.schemas.llm_provider_schema import LLMProviderInput
-from rag_solution.schemas.llm_model_schema import LLMModelInput, LLMModelOutput, ModelType
+from rag_solution.schemas.llm_model_schema import LLMModelInput, ModelType
 from rag_solution.schemas.prompt_template_schema import (
     PromptTemplateType,
     PromptTemplateInput
@@ -23,7 +23,7 @@ def test_invalid_template_variables(db_session: Session, base_user):
         api_key="test-api-key",
         project_id="test-project-id"
     )
-    provider = provider_service.create_provider(provider_input)
+    provider_service.create_provider(provider_input)
 
     # Create template service
     template_service = PromptTemplateService(db_session)
@@ -70,7 +70,7 @@ def test_invalid_provider_configuration(db_session: Session, base_user):
         api_key="test-api-key",
         project_id="test-project-id"
     )
-    provider = provider_service.create_provider(provider_input)
+    provider_service.create_provider(provider_input)
 
     # Test invalid provider name
     with pytest.raises(ValueError, match="Invalid provider"):

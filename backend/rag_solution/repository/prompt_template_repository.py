@@ -2,7 +2,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from rag_solution.core.exceptions import NotFoundError, AlreadyExistsError, ValidationError
+from rag_solution.core.exceptions import NotFoundError
 from rag_solution.models.prompt_template import PromptTemplate
 from rag_solution.schemas.prompt_template_schema import PromptTemplateInput, PromptTemplateType
 
@@ -40,7 +40,7 @@ class PromptTemplateRepository:
 
     def delete_user_template(self, user_id: UUID, template_id: UUID) -> None:
         """Delete a user's template.
-        
+
         Raises:
             NotFoundError: If template not found or doesn't belong to user
         """
@@ -51,7 +51,7 @@ class PromptTemplateRepository:
                     resource_type="PromptTemplate",
                     identifier=f"template {template_id} for user {user_id}"
                 )
-            
+
             self.db.delete(template)
             self.db.commit()
         except NotFoundError:
@@ -62,7 +62,7 @@ class PromptTemplateRepository:
 
     def update(self, template_id: UUID, updates: dict) -> PromptTemplate:
         """Update a prompt template.
-        
+
         Raises:
             NotFoundError: If template not found
         """

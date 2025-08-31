@@ -1,9 +1,6 @@
 """Service layer for RAG pipeline execution and management."""
 
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from rag_solution.models.pipeline import PipelineConfig
 
 import re
 import time
@@ -20,8 +17,6 @@ from rag_solution.data_ingestion.ingestion import DocumentStore
 from rag_solution.evaluation.evaluator import RAGEvaluator
 from rag_solution.generation.providers.base import LLMBase
 from rag_solution.generation.providers.factory import LLMProviderFactory
-from rag_solution.models.llm_provider import LLMProvider
-from rag_solution.models.prompt_template import PromptTemplate
 from rag_solution.query_rewriting.query_rewriter import QueryRewriter
 from rag_solution.repository.pipeline_repository import PipelineConfigRepository
 from rag_solution.retrieval.factories import RetrieverFactory
@@ -35,7 +30,7 @@ from rag_solution.schemas.pipeline_schema import (
     PipelineResult,
     RetrieverType,
 )
-from rag_solution.schemas.prompt_template_schema import PromptTemplateType, PromptTemplateOutput
+from rag_solution.schemas.prompt_template_schema import PromptTemplateOutput, PromptTemplateType
 from rag_solution.schemas.search_schema import SearchInput
 from rag_solution.services.file_management_service import FileManagementService
 from rag_solution.services.llm_parameters_service import LLMParametersService
@@ -549,7 +544,7 @@ class PipelineService:
             Optional evaluation results
         """
         try:
-            eval_prompt = self.prompt_template_service.format_prompt(
+            self.prompt_template_service.format_prompt(
                 template.id, {"context": context, "question": query, "answer": answer}
             )
             return await self.evaluator.evaluate(

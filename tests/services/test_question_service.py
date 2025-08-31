@@ -1,12 +1,8 @@
 """Integration tests for QuestionService."""
 import pytest
-from uuid import uuid4
 from typing import List
-from sqlalchemy.orm import Session
 
-from core.custom_exceptions import NotFoundError, ValidationError, NotFoundException
 from rag_solution.schemas.question_schema import QuestionInput
-from rag_solution.schemas.prompt_template_schema import PromptTemplateType, PromptTemplateInput
 from rag_solution.schemas.user_schema import UserOutput
 
 @pytest.mark.atomic
@@ -218,7 +214,7 @@ async def test_question_storage_and_retrieval(
     assert len(stored_questions) == len(initial_questions)
     
     # Create additional question
-    new_question = question_service.create_question(
+    question_service.create_question(
         QuestionInput(
             collection_id=base_collection.id,
             question="What are the main features of Python?",

@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import weaviate
 import weaviate.classes as wvc
@@ -11,9 +11,15 @@ from weaviate.util import generate_uuid5
 from core.config import settings
 from vectordbs.utils.watsonx import get_embeddings
 
-from .data_types import (Document, DocumentChunk, DocumentChunkMetadata,
-                         DocumentMetadataFilter,
-                         QueryResult, QueryWithEmbedding, Source)
+from .data_types import (
+    Document,
+    DocumentChunk,
+    DocumentChunkMetadata,
+    DocumentMetadataFilter,
+    QueryResult,
+    QueryWithEmbedding,
+    Source,
+)
 from .error_types import CollectionError
 from .vector_store import VectorStore  # Ensure this import is correct
 
@@ -38,7 +44,7 @@ class WeaviateDataStore(VectorStore):
             logging.error(f"Failed to connect to Weaviate: {e}")
             raise CollectionError(f"Failed to connect to Weaviate: {e}")
 
-    def handle_errors(self, results: Optional[List[Dict[str, Any]]]) -> List[str]:
+    def handle_errors(self, results: list[dict[str, Any]] | None) -> list[str]:
         if not self or not results:
             return []
 
@@ -53,7 +59,7 @@ class WeaviateDataStore(VectorStore):
         return error_messages
 
     @staticmethod
-    def _build_auth_credentials() -> Optional[weaviate.auth.AuthCredentials]:
+    def _build_auth_credentials() -> weaviate.auth.AuthCredentials | None:
         if settings.weaviate_username and settings.weaviate_password:
             return weaviate.auth.AuthClientPassword(
                 settings.weaviate_username, settings.weaviate_password, settings.weaviate_scopes
@@ -61,8 +67,8 @@ class WeaviateDataStore(VectorStore):
         else:
             return None
 
-    def add_documents(self, collection_name: str, documents: List[Document]) -> List[str]:
-        chunks: Dict[str, List[DocumentChunk]] = {}
+    def add_documents(self, collection_name: str, documents: list[Document]) -> list[str]:
+        chunks: dict[str, list[DocumentChunk]] = {}
         for document in documents:
             if document.document_id is None:
                 raise ValueError("Document ID cannot be none")
@@ -75,13 +81,13 @@ class WeaviateDataStore(VectorStore):
         doc_ids = self._upsert(collection_name, chunks)
         return doc_ids
 
-    def _upsert(self, collection_name: str, chunks: Dict[str, List[DocumentChunk]]) -> List[str]:
+    def _upsert(self, collection_name: str, chunks: dict[str, list[DocumentChunk]]) -> list[str]:
         """
         Takes in a list of list of document chunks and inserts them into the database.
         Return a list of document ids.
         """
         doc_ids = []
-        question_objs = list()
+        question_objs = []
         collection = self.get_collection(collection_name)
 
         with collection.batch.dynamic():
@@ -116,7 +122,7 @@ class WeaviateDataStore(VectorStore):
             return self.client.collections.get(name)
         raise ValueError(f"Collection {name} does not exist")
 
-    def create_collection(self, collection_name: str, metadata: Optional[dict] = None) -> None:
+    def create_collection(self, collection_name: str, metadata: dict | None = None) -> None:
         if self.client and self.client.collections.exists(collection_name):
             logging.debug(f"Index {collection_name} already exists")
         else:
@@ -149,12 +155,12 @@ class WeaviateDataStore(VectorStore):
             logging.error(f"Collection {collection_name} does not exist")
 
     def query(self, collection_name: str, query: QueryWithEmbedding, number_of_results: int = 10,
-              filter: Optional[DocumentMetadataFilter] = None) -> List[QueryResult]:
+              filter: DocumentMetadataFilter | None = None) -> list[QueryResult]:
 
         result = self.client.collections.get(collection_name).query.near_vector(
             near_vector=query.vectors, number_of_results=number_of_results)
 
-        query_results: List[QueryResult] = []
+        query_results: list[QueryResult] = []
         response_objects = result.objects
 
         for obj in response_objects:
@@ -164,10 +170,10 @@ class WeaviateDataStore(VectorStore):
                 text=properties["text"],
                 metadata=DocumentChunkMetadata(
                     source=Source(properties["source"]),
-                    source_id=(properties["source_id"] if "source_id" in properties else ""),
-                    url=properties["url"] if "url" in properties else "",
-                    created_at=(properties["created_at"] if "created_at" in properties else ""),
-                    author=properties["author"] if "author" in properties else "",
+                    source_id=(properties.get("source_id", "")),
+                    url=properties.get("url", ""),
+                    created_at=(properties.get("created_at", "")),
+                    author=properties.get("author", ""),
                 ),
             )
 
@@ -181,7 +187,7 @@ class WeaviateDataStore(VectorStore):
 
         return query_results
 
-    def delete_documents(self, collection_name: str, document_ids: List[str]):
+    def delete_documents(self, collection_name: str, document_ids: list[str]):
         """
         Removes vectors by ids, filter, or everything in the datastore.
         Returns whether the operation was successful.
@@ -202,7 +208,7 @@ class WeaviateDataStore(VectorStore):
             logging.error(f"Failed to delete documents from Weaviate index '{collection_name}': {e}")
             raise CollectionError(f"Failed to delete documents from Weaviate index '{collection_name}': {e}")
 
-    def retrieve_documents(self, query: str, collection_name: str, number_of_results: int = 10) -> List[QueryResult]:
+    def retrieve_documents(self, query: str, collection_name: str, number_of_results: int = 10) -> list[QueryResult]:
         if not self.client.collections.exists(collection_name):
             raise CollectionError(f"Collection '{collection_name}' does not exist")
 

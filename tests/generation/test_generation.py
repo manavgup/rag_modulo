@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from uuid import uuid4
 
 from rag_solution.generation.factories import GeneratorFactory
-from rag_solution.generation.generator import BaseGenerator, WatsonxGenerator, OpenAIGenerator, AnthropicGenerator
+from rag_solution.generation.generator import WatsonxGenerator, OpenAIGenerator, AnthropicGenerator
 from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.llm_parameters_service import LLMParametersService
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput, LLMParametersOutput

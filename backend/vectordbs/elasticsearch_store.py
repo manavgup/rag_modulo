@@ -1,14 +1,20 @@
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from elasticsearch import Elasticsearch, NotFoundError
 
 from core.config import settings
 from vectordbs.utils.watsonx import get_embeddings
 
-from .data_types import (Document, DocumentChunk, DocumentChunkMetadata,
-                         DocumentMetadataFilter, QueryResult,
-                         QueryWithEmbedding, Source)
+from .data_types import (
+    Document,
+    DocumentChunk,
+    DocumentChunkMetadata,
+    DocumentMetadataFilter,
+    QueryResult,
+    QueryWithEmbedding,
+    Source,
+)
 from .error_types import CollectionError, DocumentError
 from .vector_store import VectorStore
 
@@ -38,7 +44,7 @@ class ElasticSearchStore(VectorStore):
                 verify_certs=False  # Disable SSL verification
             )
 
-    def create_collection(self, collection_name: str, metadata: Optional[dict] = None) -> None:
+    def create_collection(self, collection_name: str, metadata: dict | None = None) -> None:
         """
         Create a new Elasticsearch index.
 
@@ -76,7 +82,7 @@ class ElasticSearchStore(VectorStore):
             logging.error(f"Failed to create collection '{collection_name}': {e}", exc_info=True)
             raise CollectionError(f"Failed to create collection '{collection_name}': {e}")
 
-    def add_documents(self, collection_name: str, documents: List[Document]) -> None:
+    def add_documents(self, collection_name: str, documents: list[Document]) -> None:
         """
         Add documents to the specified Elasticsearch index.
 
@@ -110,7 +116,7 @@ class ElasticSearchStore(VectorStore):
         query: str,
         collection_name: str,
         limit: int = 10,
-    ) -> List[QueryResult]:
+    ) -> list[QueryResult]:
         """
         Retrieve documents from the specified Elasticsearch index based on a query.
 
@@ -144,8 +150,8 @@ class ElasticSearchStore(VectorStore):
         collection_name: str,
         query: QueryWithEmbedding,
         number_of_results: int = 10,
-        filter: Optional[DocumentMetadataFilter] = None,
-    ) -> List[QueryResult]:
+        filter: DocumentMetadataFilter | None = None,
+    ) -> list[QueryResult]:
         """
         Query the specified Elasticsearch index using KNN.
 
@@ -197,7 +203,7 @@ class ElasticSearchStore(VectorStore):
             logging.error(f"Failed to delete collection '{collection_name}': {e}", exc_info=True)
             raise CollectionError(f"Failed to delete collection '{collection_name}': {e}")
 
-    def delete_documents(self, collection_name: str, document_ids: List[str]) -> None:
+    def delete_documents(self, collection_name: str, document_ids: list[str]) -> None:
         """
         Delete documents from the specified Elasticsearch index.
 
@@ -214,8 +220,8 @@ class ElasticSearchStore(VectorStore):
             raise DocumentError(f"Failed to delete documents from collection '{collection_name}': {e}")
 
     def _build_filters(
-        self, filter: Optional[DocumentMetadataFilter]
-    ) -> Dict[str, Any]:
+        self, filter: DocumentMetadataFilter | None
+    ) -> dict[str, Any]:
         """Build Elasticsearch filters from a DocumentMetadataFilter."""
         if not filter:
             return {}
@@ -231,15 +237,15 @@ class ElasticSearchStore(VectorStore):
             filters.append(range_filter)
         return {"bool": {"filter": filters}}
 
-    def _process_search_results(self, response: Dict[str, Any]) -> List[QueryResult]:
+    def _process_search_results(self, response: dict[str, Any]) -> list[QueryResult]:
         """Process Elasticsearch search results into QueryResult objects."""
         results = []
         hits = response.get("hits", {}).get("hits", [])
-        
+
         for hit in hits:
             source = hit.get("_source", {})
             score = hit.get("_score", 0.0)
-            
+
             # Create DocumentChunk from source
             chunk = DocumentChunk(
                 chunk_id=source.get("chunk_id", ""),
@@ -251,7 +257,7 @@ class ElasticSearchStore(VectorStore):
                 ),
                 document_id=source.get("document_id"),
             )
-            
+
             # Create QueryResult
             result = QueryResult(
                 chunk=chunk,
@@ -259,5 +265,5 @@ class ElasticSearchStore(VectorStore):
                 embeddings=source.get("embedding", [])
             )
             results.append(result)
-        
+
         return results

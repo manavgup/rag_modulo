@@ -2,7 +2,6 @@
 
 import pytest
 from uuid import uuid4
-from fastapi import HTTPException
 
 from rag_solution.schemas.llm_parameters_schema import (
     LLMParametersInput,
@@ -10,7 +9,7 @@ from rag_solution.schemas.llm_parameters_schema import (
 )
 from rag_solution.schemas.user_schema import UserInput, UserOutput
 from rag_solution.services.llm_parameters_service import LLMParametersService
-from core.custom_exceptions import NotFoundException, ValidationError
+from core.custom_exceptions import NotFoundException
 
 
 # -------------------------------------------
@@ -133,7 +132,7 @@ def test_get_parameters(
     test_llm_parameters: LLMParametersInput
 ):
     """Test retrieving parameters through service."""
-    created = llm_parameters_service.create_parameters(
+    llm_parameters_service.create_parameters(
         test_llm_parameters
     )
     

@@ -1,8 +1,7 @@
 """Tests for LLM provider initialization."""
 
 import pytest
-from uuid import uuid4
-from typing import Dict, Any
+from typing import Dict
 
 from rag_solution.generation.providers.watsonx import WatsonXLLM
 from rag_solution.generation.providers.openai import OpenAILLM
@@ -12,8 +11,6 @@ from rag_solution.services.llm_parameters_service import LLMParametersService
 from rag_solution.services.prompt_template_service import PromptTemplateService
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput, LLMParametersOutput
 from rag_solution.schemas.prompt_template_schema import PromptTemplateInput, PromptTemplateType, PromptTemplateOutput
-from rag_solution.schemas.llm_model_schema import ModelType
-from core.custom_exceptions import LLMProviderError
 
 
 @pytest.fixture
@@ -93,7 +90,7 @@ def test_provider_initialization(
     assert len(initialized_providers) > 0
 
     # Initialize provider
-    provider = provider_class(llm_provider_service, llm_parameters_service, prompt_template_service)
+    provider_class(llm_provider_service, llm_parameters_service, prompt_template_service)
 
     # Simulate parameter and template creation
     params: LLMParametersOutput = llm_parameters_service.create_parameters(test_parameters[provider_key])

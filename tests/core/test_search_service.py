@@ -1,17 +1,14 @@
 """Tests for SearchService with PipelineService integration."""
 
 import pytest
-import asyncio
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
-from unittest.mock import patch
 import uuid
 
 from rag_solution.services.search_service import SearchService
 from rag_solution.services.user_service import UserService
 from rag_solution.services.collection_service import CollectionService
 from rag_solution.services.file_management_service import FileManagementService
-from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.llm_parameters_service import LLMParametersService
 from rag_solution.services.prompt_template_service import PromptTemplateService
 from rag_solution.schemas.search_schema import SearchInput, SearchOutput
@@ -19,13 +16,9 @@ from rag_solution.schemas.collection_schema import CollectionInput
 from rag_solution.schemas.file_schema import FileInput
 from rag_solution.schemas.user_schema import UserInput
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
-from rag_solution.schemas.prompt_template_schema import PromptTemplateInput, PromptTemplateType
 from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, Source
-from rag_solution.generation.providers.factory import LLMProviderFactory
-from rag_solution.generation.providers.watsonx import WatsonXLLM
-from rag_solution.schemas.pipeline_schema import PipelineResult 
 from vectordbs.milvus_store import MilvusStore
-from core.custom_exceptions import ConfigurationError, NotFoundError, LLMProviderError
+from core.custom_exceptions import ConfigurationError, LLMProviderError
 from core.config import settings
 from vectordbs.data_types import QueryResult
 from core.logging_utils import get_logger
@@ -133,7 +126,7 @@ async def test_search_unauthorized_collection(
 
     # Create LLM parameters
     llm_params_service = LLMParametersService(db_session)
-    llm_params = llm_params_service.create_or_update_parameters(
+    llm_params_service.create_or_update_parameters(
         unauthorized_user.id,
         LLMParametersInput(
             name="test-params",
@@ -205,7 +198,7 @@ async def test_search_multiple_documents(
                 "keywords": {"test": True}
             }
         )
-        file = file_service.create_file(file_schema, base_user.id)
+        file_service.create_file(file_schema, base_user.id)
 
         embeddings = watsonx.get_embeddings(file_info["text"])
         chunk = DocumentChunk(

@@ -2,11 +2,8 @@
 
 import pytest
 from pydantic import SecretStr
-from core.config import settings
 from core.logging_utils import get_logger
 from rag_solution.schemas.llm_provider_schema import LLMProviderInput
-from rag_solution.schemas.user_schema import UserOutput
-from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.generation.providers.factory import LLMProviderFactory
 
 logger = get_logger("tests.fixtures.llm_provider")

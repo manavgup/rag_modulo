@@ -1,10 +1,10 @@
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from io import StringIO
 import logging
 from rag_solution.query_rewriting.query_rewriter import (
     QueryRewriter, SimpleQueryRewriter, HypotheticalDocumentEmbedding,
-    QueryRewriterError, InvalidQueryError, ConfigurationError, RewriterError
+    InvalidQueryError, ConfigurationError, RewriterError
 )
 
 class TestQueryRewriter(unittest.TestCase):

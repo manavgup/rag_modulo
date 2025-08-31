@@ -11,12 +11,11 @@ import logging
 import os
 import re
 import warnings
-from collections.abc import Generator as TypeGenerator
 from os.path import abspath, dirname
 from typing import Any
 
 from core.config import settings
-from vectordbs.utils.watsonx import generate_text, generate_text_stream
+from vectordbs.utils.watsonx import generate_text
 
 logger = logging.getLogger(__name__)
 
@@ -119,14 +118,14 @@ class WatsonxGenerator(BaseGenerator):
 
     def generate_stream(self, prompt: str | list[str], context: str | None = None, **kwargs: Any) -> str | list[str]:
         """Generate text stream using the language model.
-        
+
         Note: This method is deprecated and will be removed in a future version.
         The streaming functionality has been moved to the service layer.
         """
         # For backward compatibility, return the first result as a string
         if isinstance(prompt, list):
             prompt = prompt[0] if prompt else ""
-        
+
         truncated_context = self.truncate_context(context or "", prompt)
         formatted_prompt = self.prompt_template.format(query=prompt, context=truncated_context)
         try:
@@ -147,14 +146,13 @@ class OpenAIGenerator(BaseGenerator):
 
     def generate(self, prompt: str | list[str], context: str | None = None, **kwargs: Any) -> str | list[str]:
         """Generate text using OpenAI.
-        
+
         Note: This method is deprecated and will be removed in a future version.
         """
-        import openai
 
         if isinstance(prompt, list):
             prompt = prompt[0] if prompt else ""
-        
+
         truncated_context = self.truncate_context(context or "", prompt)
         formatted_prompt = self.prompt_template.format(query=prompt, context=truncated_context)
         try:
@@ -176,15 +174,14 @@ class OpenAIGenerator(BaseGenerator):
 
     def generate_stream(self, prompt: str | list[str], context: str | None = None, **kwargs: Any) -> str | list[str]:
         """Generate text stream using OpenAI.
-        
+
         Note: This method is deprecated and will be removed in a future version.
         The streaming functionality has been moved to the service layer.
         """
-        import openai
 
         if isinstance(prompt, list):
             prompt = prompt[0] if prompt else ""
-        
+
         truncated_context = self.truncate_context(context or "", prompt)
         formatted_prompt = self.prompt_template.format(query=prompt, context=truncated_context)
         try:
@@ -216,12 +213,12 @@ class AnthropicGenerator(BaseGenerator):
 
     def generate(self, prompt: str | list[str], context: str | None = None, **kwargs: Any) -> str | list[str]:
         """Generate text using Anthropic.
-        
+
         Note: This method is deprecated and will be removed in a future version.
         """
         if isinstance(prompt, list):
             prompt = prompt[0] if prompt else ""
-        
+
         truncated_context = self.truncate_context(context or "", prompt)
         formatted_prompt = self.prompt_template.format(query=prompt, context=truncated_context)
         try:
@@ -237,13 +234,13 @@ class AnthropicGenerator(BaseGenerator):
 
     def generate_stream(self, prompt: str | list[str], context: str | None = None, **kwargs: Any) -> str | list[str]:
         """Generate text stream using Anthropic.
-        
+
         Note: This method is deprecated and will be removed in a future version.
         The streaming functionality has been moved to the service layer.
         """
         if isinstance(prompt, list):
             prompt = prompt[0] if prompt else ""
-        
+
         truncated_context = self.truncate_context(context or "", prompt)
         formatted_prompt = self.prompt_template.format(query=prompt, context=truncated_context)
         try:

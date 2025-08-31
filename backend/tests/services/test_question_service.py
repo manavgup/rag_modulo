@@ -1,17 +1,14 @@
 """Integration tests for QuestionService."""
 
-from typing import Any
+
+import pytest
 
 from rag_solution.schemas.collection_schema import CollectionOutput
 from rag_solution.schemas.llm_parameters_schema import LLMParametersOutput
 from rag_solution.schemas.prompt_template_schema import PromptTemplateOutput
-from rag_solution.schemas.user_schema import UserOutput
-from rag_solution.services.question_service import QuestionService
-
-import pytest
-
 from rag_solution.schemas.question_schema import QuestionInput
 from rag_solution.schemas.user_schema import UserOutput
+from rag_solution.services.question_service import QuestionService
 
 
 @pytest.mark.atomic

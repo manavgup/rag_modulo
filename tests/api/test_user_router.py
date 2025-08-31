@@ -3,7 +3,6 @@
 import pytest
 from uuid import uuid4
 import io
-from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -13,10 +12,7 @@ from rag_solution.models.team import Team
 from rag_solution.models.collection import Collection
 from rag_solution.models.user_team import UserTeam
 from rag_solution.models.user_collection import UserCollection
-from rag_solution.models.file import File
-from vectordbs.data_types import FileMetadata
 from rag_solution.models.pipeline import PipelineConfig
-from rag_solution.schemas.user_schema import UserInput
 from rag_solution.file_management.database import get_db
 
 @pytest.fixture

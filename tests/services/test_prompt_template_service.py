@@ -1,12 +1,9 @@
 """Tests for PromptTemplateService."""
 
 import pytest
-from uuid import uuid4
-from datetime import datetime
 
 from rag_solution.schemas.prompt_template_schema import (
     PromptTemplateInput,
-    PromptTemplateOutput,
     PromptTemplateType
 )
 from rag_solution.schemas.user_schema import UserOutput

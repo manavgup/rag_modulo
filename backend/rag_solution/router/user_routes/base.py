@@ -3,15 +3,13 @@
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException
 
 from core.authorization import authorize_decorator
-from rag_solution.file_management.database import get_db
+from rag_solution.core.dependencies import get_user_service, verify_user_access
+from rag_solution.core.exceptions import AlreadyExistsError, NotFoundError, ValidationError
 from rag_solution.schemas.user_schema import UserInput, UserOutput
 from rag_solution.services.user_service import UserService
-from rag_solution.core.dependencies import verify_user_access, get_user_service, verify_admin_access
-from rag_solution.core.exceptions import NotFoundError, AlreadyExistsError, ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +98,7 @@ async def update_user(
 @router.delete(
     "/{user_id}",
     response_model=dict,
-    summary="Delete user", 
+    summary="Delete user",
     description="Delete a specific user",
     responses={
         200: {"description": "User deleted successfully"},

@@ -1,14 +1,11 @@
 """Tests for CollectionRouter."""
 
 import pytest
-from uuid import UUID, uuid4
+from uuid import UUID
 from fastapi.testclient import TestClient
 
-from main import app
-from rag_solution.schemas.collection_schema import CollectionInput, CollectionStatus
-from rag_solution.schemas.question_schema import QuestionInput
-from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
-from rag_solution.schemas.prompt_template_schema import PromptTemplateInput, PromptTemplateType
+from rag_solution.schemas.collection_schema import CollectionInput
+from rag_solution.schemas.prompt_template_schema import PromptTemplateType
 
 
 def test_create_collection(client, collection_service, base_user, auth_headers):

@@ -1,12 +1,9 @@
 import pytest
 from unittest.mock import Mock, patch
 from sqlalchemy.orm import Session
-from uuid import uuid4
 from rag_solution.evaluation.evaluator import RAGEvaluator
-from rag_solution.evaluation.llm_as_judge_evals import FaithfulnessEvaluator, AnswerRelevanceEvaluator, ContextRelevanceEvaluator
 from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.question_service import QuestionService
-from rag_solution.schemas.question_schema import QuestionInput, QuestionOutput
 from vectordbs.data_types import QueryResult, DocumentChunk
 
 @pytest.fixture

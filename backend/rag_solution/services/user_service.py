@@ -4,10 +4,10 @@ from pydantic import EmailStr
 from sqlalchemy.orm import Session
 
 from core.logging_utils import get_logger
+from rag_solution.core.exceptions import NotFoundError, ValidationError
 from rag_solution.repository.user_repository import UserRepository
 from rag_solution.schemas.user_schema import UserInput, UserOutput
 from rag_solution.services.user_provider_service import UserProviderService
-from rag_solution.core.exceptions import NotFoundError, AlreadyExistsError, ValidationError
 
 logger = get_logger(__name__)
 
@@ -23,7 +23,7 @@ class UserService:
 
     def create_user(self, user_input: UserInput) -> UserOutput:
         """Creates a new user with validation.
-        
+
         Raises:
             AlreadyExistsError: If user with IBM ID or email already exists
             ValidationError: If user data is invalid
@@ -33,7 +33,7 @@ class UserService:
 
         # Initialize user defaults
         provider, templates, parameters = self.user_provider_service.initialize_user_defaults(user.id)
-        
+
         # Validate that all required defaults were created
         if not provider or not templates or len(templates) < 2 or not parameters:
             self.db.rollback()
@@ -56,7 +56,7 @@ class UserService:
 
     def get_user_by_id(self, user_id: UUID) -> UserOutput:
         """Gets user by ID.
-        
+
         Raises:
             NotFoundError: If user not found
         """
@@ -65,7 +65,7 @@ class UserService:
 
     def get_user_by_ibm_id(self, ibm_id: str) -> UserOutput:
         """Gets user by IBM ID.
-        
+
         Raises:
             NotFoundError: If user not found
         """
@@ -74,7 +74,7 @@ class UserService:
 
     def update_user(self, user_id: UUID, user_update: UserInput) -> UserOutput:
         """Updates user.
-        
+
         Raises:
             NotFoundError: If user not found
             AlreadyExistsError: If new IBM ID or email already exists
@@ -87,7 +87,7 @@ class UserService:
 
     def delete_user(self, user_id: UUID) -> None:
         """Deletes user.
-        
+
         Raises:
             NotFoundError: If user not found
         """

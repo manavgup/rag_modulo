@@ -4,7 +4,7 @@ from uuid import UUID
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
 
-from rag_solution.core.exceptions import NotFoundError, AlreadyExistsError, ValidationError
+from rag_solution.core.exceptions import AlreadyExistsError, NotFoundError, ValidationError
 from rag_solution.models.collection import Collection
 from rag_solution.models.user_collection import UserCollection
 from rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput, FileInfo
@@ -128,7 +128,7 @@ class CollectionRepository:
 
         Returns:
             CollectionOutput if found
-            
+
         Raises:
             NotFoundError: If collection not found
         """
@@ -160,7 +160,7 @@ class CollectionRepository:
 
         Returns:
             CollectionOutput: The updated collection.
-            
+
         Raises:
             NotFoundError: If collection not found
             SQLAlchemyError: If there's an error during database operations.

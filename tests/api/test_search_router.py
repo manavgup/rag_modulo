@@ -13,7 +13,6 @@ from vectordbs.data_types import FileMetadata
 from rag_solution.models.llm_provider import LLMProviderModel, LLMProvider
 from rag_solution.models.llm_parameters import LLMParameters
 from rag_solution.models.prompt_template import PromptTemplate
-from rag_solution.schemas.search_schema import SearchInput
 from rag_solution.file_management.database import get_db
 
 # Create test app
