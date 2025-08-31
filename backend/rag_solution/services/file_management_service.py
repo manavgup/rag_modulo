@@ -108,7 +108,7 @@ class FileManagementService:
 
         Raises:
             NotFoundError: If the collection or files are not found.
-            HTTPException: If an unexpected error occurs.
+            Domain exceptions: NotFoundError if files are not found.
         """
         try:
             files = self.get_files_by_collection(collection_id)
