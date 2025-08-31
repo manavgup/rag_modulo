@@ -7,11 +7,11 @@ import time
 from typing import Any
 from uuid import UUID
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from core.config import settings
-from core.custom_exceptions import ConfigurationError, LLMProviderError, NotFoundError, ValidationError
+from rag_solution.core.exceptions import NotFoundError, ValidationError, ConfigurationError
+from core.custom_exceptions import LLMProviderError
 from core.logging_utils import get_logger
 from rag_solution.data_ingestion.ingestion import DocumentStore
 from rag_solution.evaluation.evaluator import RAGEvaluator
@@ -171,7 +171,7 @@ class PipelineService:
             raise  # Re-raise HTTP exceptions
         except Exception as e:
             logger.error(f"Failed to get user pipelines: {e!s}")
-            raise HTTPException(status_code=500, detail=f"Failed to retrieve pipeline configurations: {e!s}") from e
+            raise Exception(f"Failed to retrieve pipeline configurations: {e!s}") from e
 
     def get_default_pipeline(self, user_id: UUID, collection_id: UUID | None = None) -> PipelineConfigOutput | None:
         """Get default pipeline for a user or collection.
@@ -224,7 +224,7 @@ class PipelineService:
             return self.create_pipeline(pipeline_input)
         except Exception as e:
             logger.error(f"Failed to initialize default pipeline: {e!s}")
-            raise HTTPException(status_code=500, detail=f"Failed to initialize default pipeline: {e!s}") from e
+            raise Exception(f"Failed to initialize default pipeline: {e!s}") from e
 
     def get_pipeline_config(self, pipeline_id: UUID) -> PipelineConfigOutput | None:
         """Retrieve pipeline configuration by ID."""
@@ -620,16 +620,16 @@ class PipelineService:
 
         except ValidationError as e:
             logger.error(f"Validation error: {e!s}")
-            raise HTTPException(status_code=400, detail=str(e)) from e
+            raise
         except NotFoundError as e:
             logger.error(f"Resource not found: {e!s}")
-            raise HTTPException(status_code=404, detail=str(e)) from e
+            raise
         except ConfigurationError as e:
             logger.error(f"Configuration error: {e!s}")
-            raise HTTPException(status_code=500, detail=str(e)) from e
+            raise Exception(str(e)) from e
         except LLMProviderError as e:
             logger.error(f"LLM provider error: {e!s}")
-            raise HTTPException(status_code=500, detail=str(e)) from e
+            raise Exception(str(e)) from e
         except Exception as e:
             logger.error(f"Unexpected error: {e!s}")
-            raise HTTPException(status_code=500, detail=f"Pipeline execution failed: {e!s}") from e
+            raise Exception(f"Pipeline execution failed: {e!s}") from e

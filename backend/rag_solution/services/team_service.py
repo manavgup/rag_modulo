@@ -3,7 +3,6 @@
 import logging
 from uuid import UUID
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from rag_solution.repository.team_repository import TeamRepository
@@ -23,46 +22,20 @@ class TeamService:
         self.user_service = user_service
 
     def create_team(self, team_input: TeamInput) -> TeamOutput:
-        try:
-            logger.info(f"Creating team with input: {team_input}")
-            team = self.team_repository.create(team_input)
-            logger.info(f"Team created successfully: {team.id}")
-            return team
-        except ValueError as e:
-            logger.error(f"Value error creating team: {e!s}")
-            raise HTTPException(status_code=400, detail=str(e)) from e
-        except Exception as e:
-            logger.error(f"Unexpected error creating team: {e!s}")
-            raise HTTPException(status_code=500, detail="Internal server error") from e
+        logger.info(f"Creating team with input: {team_input}")
+        team = self.team_repository.create(team_input)
+        logger.info(f"Team created successfully: {team.id}")
+        return team
 
-    def get_team_by_id(self, team_id: UUID) -> TeamOutput | None:
-        try:
-            logger.info(f"Fetching team with id: {team_id}")
-            team = self.team_repository.get(team_id)
-            if team is None:
-                logger.warning(f"Team not found: {team_id}")
-                raise HTTPException(status_code=404, detail="Team not found")
-            return team
-        except HTTPException:
-            raise
-        except Exception as e:
-            logger.error(f"Unexpected error getting team {team_id}: {e!s}")
-            raise HTTPException(status_code=500, detail="Internal server error") from e
+    def get_team_by_id(self, team_id: UUID) -> TeamOutput:
+        logger.info(f"Fetching team with id: {team_id}")
+        return self.team_repository.get(team_id)  # Will raise NotFoundError if not found
 
-    def update_team(self, team_id: UUID, team_update: TeamInput) -> TeamOutput | None:
-        try:
-            logger.info(f"Updating team {team_id} with input: {team_update}")
-            team = self.team_repository.update(team_id, team_update)
-            if team is None:
-                logger.warning(f"Team not found for update: {team_id}")
-                raise HTTPException(status_code=404, detail="Team not found")
-            logger.info(f"Team {team_id} updated successfully")
-            return team
-        except HTTPException:
-            raise
-        except Exception as e:
-            logger.error(f"Unexpected error updating team {team_id}: {e!s}")
-            raise HTTPException(status_code=500, detail="Internal server error") from e
+    def update_team(self, team_id: UUID, team_update: TeamInput) -> TeamOutput:
+        logger.info(f"Updating team {team_id} with input: {team_update}")
+        team = self.team_repository.update(team_id, team_update)  # Will raise NotFoundError if not found
+        logger.info(f"Team {team_id} updated successfully")
+        return team
 
     def delete_team(self, team_id: UUID) -> bool:
         try:
@@ -70,11 +43,9 @@ class TeamService:
             self.team_repository.delete(team_id)
             logger.info(f"Team {team_id} deleted successfully")
             return True
-        except HTTPException:
-            raise
         except Exception as e:
             logger.error(f"Unexpected error deleting team {team_id}: {e!s}")
-            raise HTTPException(status_code=500, detail="Internal server error") from e
+            raise
 
     def get_team_users(self, team_id: UUID) -> list[UserOutput]:
         logger.info(f"Fetching users for team: {team_id}")
@@ -111,4 +82,4 @@ class TeamService:
             return teams
         except Exception as e:
             logger.error(f"Unexpected error listing teams: {e!s}")
-            raise HTTPException(status_code=500, detail="Internal server error") from e
+            raise
