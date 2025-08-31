@@ -3,7 +3,7 @@ from uuid import UUID
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from rag_solution.core.exceptions import NotFoundError, AlreadyExistsError, ValidationError
+from rag_solution.core.exceptions import AlreadyExistsError, NotFoundError, ValidationError
 from rag_solution.models.llm_model import LLMModel
 from rag_solution.schemas.llm_model_schema import LLMModelInput, LLMModelOutput, ModelType
 
@@ -27,13 +27,13 @@ class LLMModelRepository:
             ) from e
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise
-        except Exception as e:
+        except Exception:
             self.session.rollback()
             raise
 
     def get_model_by_id(self, model_id: UUID) -> LLMModelOutput:
         """Fetches a specific model by ID.
-        
+
         Raises:
             NotFoundError: If model not found
         """
@@ -46,7 +46,7 @@ class LLMModelRepository:
             return LLMModelOutput.model_validate(model)
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise
-        except Exception as e:
+        except Exception:
             raise
 
     def get_models_by_provider(self, provider_id: UUID) -> list[LLMModelOutput]:
@@ -56,7 +56,7 @@ class LLMModelRepository:
             return [LLMModelOutput.model_validate(m) for m in models]
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise
-        except Exception as e:
+        except Exception:
             raise
 
     def get_models_by_type(self, model_type: ModelType) -> list[LLMModelOutput]:
@@ -66,12 +66,12 @@ class LLMModelRepository:
             return [LLMModelOutput.model_validate(m) for m in models]
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise
-        except Exception as e:
+        except Exception:
             raise
 
     def update_model(self, model_id: UUID, updates: dict) -> LLMModelOutput:
         """Updates model details.
-        
+
         Raises:
             NotFoundError: If model not found
         """
@@ -97,20 +97,20 @@ class LLMModelRepository:
             ) from e
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise
-        except Exception as e:
+        except Exception:
             self.session.rollback()
             raise
 
     def delete_model(self, model_id: UUID) -> None:
         """Soft deletes a model by marking it inactive.
-        
+
         Raises:
             NotFoundError: If model not found
         """
         try:
             # First check if model exists - this will raise NotFoundError if not found
             self.get_model_by_id(model_id)
-            
+
             # Mark as inactive
             self.session.query(LLMModel).filter_by(id=model_id).update({"is_active": False})
             self.session.commit()
@@ -127,19 +127,19 @@ class LLMModelRepository:
                 self.session.query(LLMModel)
                 .filter(LLMModel.provider_id == provider_id)
                 .filter(LLMModel.model_type == model_type)
-                .filter(LLMModel.is_default == True)
+                .filter(LLMModel.is_default)
                 .update({"is_default": False})
             )
             self.session.commit()
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise
-        except Exception as e:
+        except Exception:
             self.session.rollback()
             raise
 
     def get_default_model(self, provider_id: UUID, model_type: ModelType) -> LLMModelOutput:
         """Get the default model for a provider and type.
-        
+
         Raises:
             NotFoundError: If no default model found
         """
@@ -148,8 +148,8 @@ class LLMModelRepository:
                 self.session.query(LLMModel)
                 .filter(LLMModel.provider_id == provider_id)
                 .filter(LLMModel.model_type == model_type)
-                .filter(LLMModel.is_default == True)
-                .filter(LLMModel.is_active == True)
+                .filter(LLMModel.is_default)
+                .filter(LLMModel.is_active)
                 .first()
             )
             if not model:
@@ -159,5 +159,5 @@ class LLMModelRepository:
             return LLMModelOutput.model_validate(model)
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise
-        except Exception as e:
+        except Exception:
             raise

@@ -5,9 +5,9 @@ from sqlalchemy.orm import Session, joinedload
 
 from core.custom_exceptions import RepositoryError
 from core.logging_utils import get_logger
+from rag_solution.core.exceptions import AlreadyExistsError, NotFoundError, ValidationError
 from rag_solution.models.user import User
 from rag_solution.schemas.user_schema import UserInput, UserOutput
-from rag_solution.core.exceptions import NotFoundError, AlreadyExistsError, ValidationError
 
 logger = get_logger(__name__)
 
@@ -21,7 +21,7 @@ class UserRepository:
 
     def create(self, user_input: UserInput) -> UserOutput:
         """Create a new user.
-        
+
         Raises:
             AlreadyExistsError: If IBM ID or email already exists
             RepositoryError: For other database errors
@@ -46,7 +46,7 @@ class UserRepository:
 
     def get_by_id(self, user_id: UUID) -> UserOutput:
         """Fetches user by ID with team relationships.
-        
+
         Raises:
             NotFoundError: If user not found
             RepositoryError: For database errors
@@ -64,7 +64,7 @@ class UserRepository:
 
     def get_by_ibm_id(self, ibm_id: str) -> UserOutput:
         """Fetches user by IBM ID.
-        
+
         Raises:
             NotFoundError: If user not found
             RepositoryError: For database errors
@@ -82,7 +82,7 @@ class UserRepository:
 
     def update(self, user_id: UUID, user_update: UserInput) -> UserOutput:
         """Updates user data with validation.
-        
+
         Raises:
             NotFoundError: If user not found
             AlreadyExistsError: If IBM ID or email already exists

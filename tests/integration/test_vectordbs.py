@@ -2,7 +2,6 @@
 
 import pytest
 from datetime import datetime
-from contextlib import contextmanager
 from unittest.mock import Mock, patch
 from uuid import uuid4
 
@@ -17,12 +16,10 @@ from vectordbs.data_types import (
     DocumentChunk,
     DocumentChunkMetadata,
     QueryWithEmbedding,
-    Source,
-    VectorQuery
+    Source
 )
 from vectordbs.error_types import CollectionError
 from vectordbs.utils.watsonx import get_embeddings
-from core.config import settings
 
 # Mapping of store types to their respective classes and pytest marks
 STORE_CONFIGS = {

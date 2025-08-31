@@ -194,7 +194,7 @@ if __name__ == "__main__":
         ),
         Document(
             name="quantum",
-            document_id="2", 
+            document_id="2",
             chunks=[DocumentChunk(chunk_id="2_1", text="Quantum mechanics describes the behavior of matter and energy at the atomic scale.")]
         ),
         Document(

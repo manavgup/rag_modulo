@@ -1,44 +1,31 @@
 import os
-import sys
-from pathlib import Path
 from contextlib import asynccontextmanager
-from typing import Annotated
+from pathlib import Path
 
 from fastapi import FastAPI
 from sqlalchemy import inspect, text
 from starlette.middleware.sessions import SessionMiddleware
 
-# Logging
-from core.logging_utils import setup_logging, get_logger
-
 # Middleware & Config
 from core.authentication_middleware import AuthenticationMiddleware
-from core.loggingcors_middleware import LoggingCORSMiddleware
-from core.authorization import authorize_dependency
 from core.config import settings
+
+# Logging
+from core.logging_utils import get_logger, setup_logging
+from core.loggingcors_middleware import LoggingCORSMiddleware
 
 # Database
 from rag_solution.file_management.database import Base, engine, get_db
 
 # Models
-from rag_solution.models.user import User
-from rag_solution.models.collection import Collection
-from rag_solution.models.file import File
-from rag_solution.models.user_collection import UserCollection
-from rag_solution.models.user_team import UserTeam
-from rag_solution.models.team import Team
-from rag_solution.models.llm_parameters import LLMParameters
-from rag_solution.models.prompt_template import PromptTemplate
-from rag_solution.models.llm_provider import LLMProvider
-from rag_solution.models.llm_model import LLMModel
-from rag_solution.models.pipeline import PipelineConfig
+from rag_solution.router.auth_router import router as auth_router
+
 # Routers
 from rag_solution.router.collection_router import router as collection_router
+from rag_solution.router.health_router import router as health_router
+from rag_solution.router.search_router import router as search_router
 from rag_solution.router.team_router import router as team_router
 from rag_solution.router.user_router import router as user_router
-from rag_solution.router.health_router import router as health_router
-from rag_solution.router.auth_router import router as auth_router
-from rag_solution.router.search_router import router as search_router
 
 # Services
 from rag_solution.services.system_initialization_service import SystemInitializationService

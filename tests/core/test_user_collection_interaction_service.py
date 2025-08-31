@@ -3,7 +3,6 @@
 import pytest
 from uuid import uuid4
 from sqlalchemy.orm import Session
-from fastapi import HTTPException
 
 from rag_solution.services.user_collection_interaction_service import UserCollectionInteractionService
 from rag_solution.schemas.user_collection_schema import UserCollectionsOutput, UserCollectionDetailOutput

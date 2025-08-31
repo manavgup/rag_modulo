@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from core.logging_utils import get_logger
 from rag_solution.repository.user_team_repository import UserTeamRepository
-from rag_solution.schemas.user_team_schema import UserTeamInput, UserTeamOutput
+from rag_solution.schemas.user_team_schema import UserTeamOutput
 
 logger = get_logger(__name__)
 

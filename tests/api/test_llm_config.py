@@ -1,8 +1,6 @@
 # test_llm_config.py
 
 import pytest
-import pytest_asyncio
-from httpx import AsyncClient
 from uuid import uuid4
 from .base_test import BaseTestRouter
 from rag_solution.schemas.prompt_template_schema import PromptTemplateType

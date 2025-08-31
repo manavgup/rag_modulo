@@ -1,11 +1,8 @@
 """Integration tests for CollectionService."""
 
 import pytest
-import asyncio
 import tempfile
-import os
-from pathlib import Path
-from uuid import UUID, uuid4
+from uuid import uuid4
 from fastapi import BackgroundTasks, UploadFile, HTTPException
 from sqlalchemy.orm import Session
 
@@ -13,9 +10,6 @@ from rag_solution.services.collection_service import CollectionService
 from rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput, CollectionStatus
 from rag_solution.models.collection import Collection
 from rag_solution.models.user import User
-from rag_solution.models.file import File
-from core.custom_exceptions import DocumentStorageError, LLMProviderError
-from vectordbs.error_types import CollectionError
 from vectordbs.data_types import Document, DocumentChunk
 
 @pytest.fixture

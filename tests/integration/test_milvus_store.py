@@ -1,9 +1,7 @@
 from contextlib import contextmanager
 
 import pytest
-from vectordbs.milvus_store import MilvusStore
 
-from core.config import settings
 
 @pytest.mark.milvus
 class TestMilvusStore:

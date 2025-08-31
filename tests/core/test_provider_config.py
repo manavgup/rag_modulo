@@ -2,8 +2,7 @@
 
 import pytest
 from uuid import UUID, uuid4
-from datetime import datetime
-from pydantic import SecretStr, ValidationError as PydanticValidationError, Field
+from pydantic import SecretStr, ValidationError as PydanticValidationError
 
 from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.llm_parameters_service import LLMParametersService
@@ -17,8 +16,7 @@ from rag_solution.schemas.llm_provider_schema import (
 from core.custom_exceptions import (
     ProviderValidationError,
     ProviderConfigError,
-    LLMProviderError,
-    NotFoundException
+    LLMProviderError
 )
 
 

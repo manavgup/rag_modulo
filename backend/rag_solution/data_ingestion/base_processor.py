@@ -1,7 +1,7 @@
 import logging
 import os
 from abc import ABC, abstractmethod
-from collections.abc import AsyncIterable, AsyncIterator
+from collections.abc import AsyncIterator
 from datetime import datetime
 
 from core.config import settings

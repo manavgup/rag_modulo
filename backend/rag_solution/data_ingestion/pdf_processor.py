@@ -5,7 +5,7 @@ import multiprocessing
 import os
 import re
 import uuid
-from collections.abc import AsyncIterable, AsyncIterator
+from collections.abc import AsyncIterator
 from datetime import datetime
 from multiprocessing.managers import SyncManager
 from typing import Any
@@ -270,7 +270,7 @@ class PdfProcessor(BaseProcessor):
                             if len(cells) > 1:
                                 potential_table.append(cells)
                                 current_y_position = block_y
-                        
+
                         # Check if we need to start a new row due to position difference
                         if current_y_position is not None and abs(block_y - current_y_position) > tolerance:
                             if potential_table:  # Save the previous row if it exists
@@ -285,21 +285,20 @@ class PdfProcessor(BaseProcessor):
                             if len(cells) > 1:
                                 potential_table.append(cells)
                                 current_y_position = block_y
-                        
+
                         # If we haven't started a new row, add to the current row
-                        if current_y_position is not None and abs(block_y - current_y_position) <= tolerance:
-                            # Add to the current row
-                            if potential_table:
-                                potential_table[-1].extend(
-                                    cell.strip() for cell in re.split(r"\s{3,}", block["content"].strip())
-                                )
+                        if (current_y_position is not None and
+                            abs(block_y - current_y_position) <= tolerance and
+                            potential_table):
+                            potential_table[-1].extend(
+                                cell.strip() for cell in re.split(r"\s{3,}", block["content"].strip())
+                            )
 
                 # Add the last table if it meets our criteria
-                if len(potential_table) > 1:
-                    if all(len(row) > 1 for row in potential_table):
-                        tables.append(potential_table)
-                        logger.info("Successfully extracted table using text block analysis")
-                        return tables
+                if len(potential_table) > 1 and all(len(row) > 1 for row in potential_table):
+                    tables.append(potential_table)
+                    logger.info("Successfully extracted table using text block analysis")
+                    return tables
             except Exception as e:
                 logger.warning(f"Error during text block table extraction on page {page.number + 1}: {e}")
 
@@ -339,15 +338,13 @@ class PdfProcessor(BaseProcessor):
                     grid_table: list[list[str]] = []
                     for y in sorted(grid.keys()):
                         row: list[str] = [" ".join(grid[y][x]).strip() for x in sorted(grid[y].keys())]
-                        if len(row) > 1:
-                            if any(cell.strip() for cell in row):  # Only add non-empty rows
-                                grid_table.append(row)
+                        if len(row) > 1 and any(cell.strip() for cell in row):  # Only add non-empty rows
+                            grid_table.append(row)
 
-                    if len(grid_table) > 1:
-                        if self._is_likely_table(grid_table):
-                            tables.append(grid_table)
-                            logger.info("Successfully extracted table using grid analysis")
-                            return tables
+                    if len(grid_table) > 1 and self._is_likely_table(grid_table):
+                        tables.append(grid_table)
+                        logger.info("Successfully extracted table using grid analysis")
+                        return tables
             except Exception as e:
                 logger.warning(f"Error during grid-based table extraction on page {page.number + 1}: {e}")
 
@@ -436,7 +433,7 @@ class PdfProcessor(BaseProcessor):
         try:
             # Get base metadata from parent class
             base_metadata = super().extract_metadata(file_path)
-            
+
             # Open the PDF to extract metadata
             with pymupdf.open(file_path) as doc:
                 pdf_metadata = doc.metadata

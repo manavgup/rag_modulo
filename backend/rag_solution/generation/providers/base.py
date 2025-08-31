@@ -1,4 +1,4 @@
-from abc import ABC, ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 from collections.abc import Generator, Sequence
 from pathlib import Path
 from typing import Any

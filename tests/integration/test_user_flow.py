@@ -1,6 +1,5 @@
 import pytest
 from fastapi.testclient import TestClient
-from rag_solution.router.auth_router import router as auth_router
 from core.config import settings
 from unittest.mock import patch, MagicMock
 

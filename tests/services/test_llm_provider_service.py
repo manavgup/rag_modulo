@@ -3,7 +3,7 @@
 import pytest
 from uuid import UUID, uuid4
 from pydantic import SecretStr
-from core.custom_exceptions import ProviderValidationError, ProviderConfigError, LLMProviderError
+from core.custom_exceptions import ProviderValidationError
 from rag_solution.schemas.llm_provider_schema import LLMProviderInput, LLMProviderOutput
 
 # -------------------------------------------

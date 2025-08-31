@@ -206,7 +206,7 @@ class SearchService:
     @handle_search_errors
     async def search(self, search_input: SearchInput) -> SearchOutput:
         """Process a search query through the RAG pipeline."""
-        start_time = time.time()
+        time.time()
         logger.info("Starting search operation")
 
         # Validate inputs

@@ -8,7 +8,7 @@ from collections import Counter
 import os
 from core.custom_exceptions import DocumentProcessingError
 from datetime import datetime
-from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, Source
+from vectordbs.data_types import DocumentChunk, DocumentChunkMetadata, Source
 
 @pytest.fixture(scope="function")
 def complex_test_pdf_path():

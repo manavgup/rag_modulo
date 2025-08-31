@@ -1,14 +1,14 @@
 import logging
 from uuid import UUID
 
-from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
-from core.custom_exceptions import DuplicateEntryError, RepositoryError
+from core.custom_exceptions import RepositoryError
+from rag_solution.core.exceptions import AlreadyExistsError, NotFoundError, ValidationError
 from rag_solution.models.team import Team
 from rag_solution.schemas.team_schema import TeamInput, TeamOutput
 from rag_solution.schemas.user_schema import UserOutput
-from rag_solution.core.exceptions import NotFoundError, AlreadyExistsError, ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ class TeamRepository:
 
     def create(self, team: TeamInput) -> TeamOutput:
         """Create a new team.
-        
+
         Raises:
             AlreadyExistsError: If team name already exists
             RepositoryError: For database errors
@@ -50,7 +50,7 @@ class TeamRepository:
 
     def get(self, team_id: UUID) -> TeamOutput:
         """Get team by ID.
-        
+
         Raises:
             NotFoundError: If team not found
             RepositoryError: For database errors
@@ -78,7 +78,7 @@ class TeamRepository:
 
     def update(self, team_id: UUID, team_update: TeamInput) -> TeamOutput:
         """Update team.
-        
+
         Raises:
             NotFoundError: If team not found
             AlreadyExistsError: If new name already exists
@@ -88,7 +88,7 @@ class TeamRepository:
             team = self.session.query(Team).filter(Team.id == team_id).first()
             if not team:
                 raise NotFoundError("Team", resource_id=str(team_id))
-                
+
             # Check for duplicate name, excluding current team
             existing_team = (
                 self.session.query(Team).filter(Team.name == team_update.name, Team.id != team_id).first()
@@ -116,7 +116,7 @@ class TeamRepository:
 
     def delete(self, team_id: UUID) -> None:
         """Delete team.
-        
+
         Raises:
             NotFoundError: If team not found
             RepositoryError: For database errors

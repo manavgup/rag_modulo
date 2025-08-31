@@ -1,8 +1,6 @@
 # test_collection.py
 
-import pytest
 from uuid import uuid4
-from typing import Dict, Any
 from .base_test import BaseTestRouter
 
 class TestCollectionEndpoints(BaseTestRouter):
