@@ -152,26 +152,16 @@ class PipelineService:
                         provider = providers[0]  # Use first available provider
                     else:
                         logger.error("No LLM providers available in the system")
-                        raise HTTPException(
-                            status_code=500, detail="No LLM providers available. Please contact administrator."
-                        )
+                        raise ConfigurationError("No LLM providers available. Please contact administrator.")
 
                 # Create default pipeline for existing user
-                try:
-                    default_pipeline = self.initialize_user_pipeline(user_id, provider.id)
-                    return [default_pipeline]
-                except Exception as init_error:
-                    logger.error(f"Failed to create default pipeline: {init_error!s}")
-                    raise HTTPException(
-                        status_code=500, detail=f"Failed to create default pipeline: {init_error!s}"
-                    ) from init_error
+                default_pipeline = self.initialize_user_pipeline(user_id, provider.id)
+                return [default_pipeline]
 
             return pipelines  # Already PipelineConfigOutput objects from repository
-        except HTTPException:
-            raise  # Re-raise HTTP exceptions
         except Exception as e:
             logger.error(f"Failed to get user pipelines: {e!s}")
-            raise Exception(f"Failed to retrieve pipeline configurations: {e!s}") from e
+            raise ConfigurationError(f"Failed to retrieve pipeline configurations: {e!s}") from e
 
     def get_default_pipeline(self, user_id: UUID, collection_id: UUID | None = None) -> PipelineConfigOutput | None:
         """Get default pipeline for a user or collection.
@@ -567,7 +557,7 @@ class PipelineService:
             PipelineResult containing generated answer and metadata.
 
         Raises:
-            HTTPException: With appropriate status codes for different error types.
+            Domain exceptions (NotFoundError, ValidationError, ConfigurationError, LLMProviderError) for different error types.
         """
         start_time = time.time()
         logger.info("Starting RAG pipeline execution")

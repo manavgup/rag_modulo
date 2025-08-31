@@ -1,10 +1,9 @@
 from uuid import UUID
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from core.custom_exceptions import NotFoundException
 from core.logging_utils import get_logger
+from rag_solution.core.exceptions import ValidationError
 from rag_solution.repository.user_provider_repository import UserProviderRepository
 from rag_solution.schemas.llm_parameters_schema import LLMParametersOutput
 from rag_solution.schemas.llm_provider_schema import LLMProviderOutput
@@ -60,7 +59,7 @@ class UserProviderService:
         except Exception as e:
             logger.error(f"Initialization error: {e!s}")
             self.db.rollback()
-            raise HTTPException(status_code=500, detail="Failed to initialize required user configuration") from e
+            raise ValidationError(f"Failed to initialize required user configuration: {e}", field="user_initialization") from e
 
     def get_user_provider(self, user_id: UUID) -> LLMProviderOutput | None:
         """Get user's preferred provider or assign the default provider if missing."""
@@ -88,19 +87,14 @@ class UserProviderService:
 
         except Exception as e:
             logger.error(f"Error getting provider for user {user_id}: {e!s}")
-            raise HTTPException(status_code=500, detail="Error fetching provider") from e
+            raise ValidationError(f"Error fetching provider: {e}", field="provider_retrieval") from e
 
     def set_user_provider(self, user_id: UUID, provider_id: UUID) -> bool:
         """Set user's preferred provider."""
-        try:
-            if not self.user_provider_repository.set_user_provider(user_id, provider_id):
-                raise NotFoundException(resource_id=str(user_id), resource_type="User", message="User not found")
-            return True
-        except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e)) from e
-        except Exception as e:
-            logger.error(f"Error setting provider: {e!s}")
-            raise HTTPException(status_code=500, detail="Error setting provider") from e
+        result = self.user_provider_repository.set_user_provider(user_id, provider_id)
+        if not result:
+            raise ValidationError(f"User not found: {user_id}", field="user_id")
+        return True
 
     def _create_default_rag_template(self, user_id: UUID) -> PromptTemplateOutput:
         """Create default RAG template for user."""
