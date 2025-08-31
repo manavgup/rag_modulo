@@ -252,7 +252,7 @@ api-tests: run-backend create-test-dirs
 		--junitxml=/app/test-reports/api/junit.xml \
 		|| { echo "API Tests failed"; $(MAKE) stop-containers; exit 1; }
 
-tests: run-backend create-test-dirs
+tests: validate-env run-backend create-test-dirs
 	$(DOCKER_COMPOSE) run --rm \
 		-v $$(pwd)/backend:/app/backend:ro \
 		-v $$(pwd)/tests:/app/tests:ro \
@@ -624,6 +624,46 @@ validate-ci:
 	@echo "$(CYAN)🔍 Validating CI workflows...$(NC)"
 	./scripts/validate-ci.sh
 
+## Environment Setup
+setup-env:
+	@echo "$(CYAN)🚀 Setting up RAG Modulo environment...$(NC)"
+	@if [ ! -f scripts/setup_env.py ]; then \
+		echo "❌ Setup script not found. Make sure you're in the project root."; \
+		exit 1; \
+	fi
+	@python scripts/setup_env.py
+
+validate-env:
+	@echo "$(CYAN)🔍 Validating environment configuration...$(NC)"
+	@if [ ! -f .env ]; then \
+		echo "❌ .env file not found. Run 'make setup-env' first."; \
+		exit 1; \
+	fi
+	@if [ ! -f scripts/validate_env.py ]; then \
+		echo "❌ Validation script not found."; \
+		exit 1; \
+	fi
+	@python scripts/validate_env.py
+
+env-help:
+	@echo "$(CYAN)🔐 Environment Setup Help$(NC)"
+	@echo ""
+	@echo "Quick Start:"
+	@echo "  1. make setup-env     # Interactive setup"
+	@echo "  2. Edit .env file     # Fill in your API keys"
+	@echo "  3. make validate-env  # Verify setup"
+	@echo "  4. make tests         # Test everything works"
+	@echo ""
+	@echo "Required Credentials:"
+	@echo "  🔑 WATSONX_APIKEY     - Get from IBM Cloud > Watson AI"
+	@echo "  🔑 OPENAI_API_KEY     - Get from https://platform.openai.com/api-keys"
+	@echo "  🔑 ANTHROPIC_API_KEY  - Get from https://console.anthropic.com/settings/keys"
+	@echo ""
+	@echo "Troubleshooting:"
+	@echo "  - Container failures? Check MinIO credentials (MINIO_ROOT_USER/PASSWORD)"
+	@echo "  - Missing .env? Run 'make setup-env'"
+	@echo "  - Wrong values? Compare with .env.example"
+
 help:
 	@echo "Usage: make [target]"
 	@echo ""
@@ -728,3 +768,8 @@ help:
 	@echo "  make pull-ghcr-images  # Pull latest images from GHCR"
 	@echo "  make check-fast        # Quick quality check"
 	@echo "  make strict            # Strictest quality requirements"
+	@echo ""
+	@echo "$(CYAN)🔐 Environment Setup:$(NC)"
+	@echo "  setup-env     	Interactive environment setup"
+	@echo "  validate-env  	Validate environment configuration"
+	@echo "  env-help      	Show environment setup help"
