@@ -127,6 +127,8 @@ build-optimize:
 	@echo "Checking .dockerignore files..."
 	@[ -f "webui/.dockerignore" ] && echo "✓ Frontend .dockerignore exists" || echo "✗ Frontend .dockerignore missing"
 	@[ -f "backend/.dockerignore" ] && echo "✓ Backend .dockerignore exists" || echo "✗ Backend .dockerignore missing"
+	@echo ""
+	@echo "Testing guide available at: docs/TESTING_PHASES.md"
 
 # Performance testing
 build-performance:
