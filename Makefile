@@ -29,12 +29,16 @@ GHCR_REPO ?= ghcr.io/manavgup/rag_modulo
 CONTAINER_CLI := docker
 DOCKER_COMPOSE := docker compose
 
+# Enable Docker BuildKit for better build performance and caching
+export DOCKER_BUILDKIT=1
+export COMPOSE_DOCKER_CLI_BUILD=1
+
 # Set a default value for VECTOR_DB if not already set
 VECTOR_DB ?= milvus
 
 .DEFAULT_GOAL := help
 
-.PHONY: init-env sync-frontend-deps build-frontend build-backend build-tests build-all test tests api-tests unit-tests integration-tests performance-tests service-tests pipeline-tests all-tests run-app run-backend run-frontend run-services stop-containers clean create-volumes logs info help pull-ghcr-images venv clean-venv format-imports check-imports quick-check security-check coverage coverage-report quality fix-all check-deps check-deps-tree export-requirements docs-generate docs-serve search-test search-batch search-components uv-install uv-sync uv-export
+.PHONY: init-env sync-frontend-deps build-frontend build-backend build-tests build-all test tests api-tests unit-tests integration-tests performance-tests service-tests pipeline-tests all-tests run-app run-backend run-frontend run-services stop-containers clean create-volumes logs info help pull-ghcr-images venv clean-venv format-imports check-imports quick-check security-check coverage coverage-report quality fix-all check-deps check-deps-tree export-requirements docs-generate docs-serve search-test search-batch search-components uv-install uv-sync uv-export validate-env health-check build-optimize build-performance
 
 # Init
 init-env:
@@ -98,6 +102,36 @@ use-ghcr-images:
 	@echo "GHCR image configuration saved to .env.local"
 
 # Helper function to check if containers are healthy
+
+# Environment and health validation
+validate-env:
+	@echo "Validating environment configuration..."
+	@./scripts/validate-env.sh
+
+health-check:
+	@echo "Running comprehensive health check..."
+	@./scripts/health-check.sh
+
+# Build optimization and testing
+build-optimize:
+	@echo "Running build optimization tests..."
+	@echo "Checking build context sizes..."
+	@echo "Frontend build context:"
+	@cd webui && du -sh . 2>/dev/null | head -1 || echo "Could not determine size"
+	@echo "Backend build context:"
+	@cd backend && du -sh . 2>/dev/null | head -1 || echo "Could not determine size"
+	@echo ""
+	@echo "Testing Docker BuildKit..."
+	@docker buildx version 2>/dev/null && echo "✓ BuildKit available" || echo "⚠ BuildKit not available"
+	@echo ""
+	@echo "Checking .dockerignore files..."
+	@[ -f "webui/.dockerignore" ] && echo "✓ Frontend .dockerignore exists" || echo "✗ Frontend .dockerignore missing"
+	@[ -f "backend/.dockerignore" ] && echo "✓ Backend .dockerignore exists" || echo "✗ Backend .dockerignore missing"
+
+# Performance testing
+build-performance:
+	@echo "Running comprehensive build performance tests..."
+	@./scripts/build-performance.sh
 check_containers:
 	@echo "Checking if required containers are running and healthy..."
 	@if [ -z "$$(docker compose ps -q backend)" ] || \
