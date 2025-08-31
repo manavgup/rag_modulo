@@ -1,9 +1,8 @@
 """Integration tests for LLMParametersService."""
 
 import pytest
-from uuid import UUID, uuid4
+from uuid import uuid4
 from sqlalchemy.orm import Session
-from fastapi import HTTPException
 
 from rag_solution.services.llm_parameters_service import LLMParametersService
 from rag_solution.services.user_service import UserService
@@ -12,9 +11,8 @@ from rag_solution.schemas.llm_parameters_schema import (
     LLMParametersOutput
 )
 from rag_solution.schemas.user_schema import UserInput
-from rag_solution.models.llm_parameters import LLMParameters
 from rag_solution.models.user import User
-from core.custom_exceptions import NotFoundException, ValidationError
+from core.custom_exceptions import NotFoundException
 
 
 # -------------------------------------------
@@ -147,7 +145,7 @@ def test_get_parameters(
     test_llm_parameters: LLMParametersInput
 ):
     """Test retrieving parameters through service."""
-    created = test_parameters_service.create_or_update_parameters(
+    test_parameters_service.create_or_update_parameters(
         base_user.id,
         test_llm_parameters
     )

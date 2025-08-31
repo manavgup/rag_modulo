@@ -3,8 +3,8 @@ from uuid import UUID
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from rag_solution.core.exceptions import NotFoundError, AlreadyExistsError, ValidationError
 from core.logging_utils import get_logger
+from rag_solution.core.exceptions import AlreadyExistsError, NotFoundError, ValidationError
 from rag_solution.models.llm_parameters import LLMParameters
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput, LLMParametersOutput
 
@@ -48,7 +48,7 @@ class LLMParametersRepository:
             ) from e
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise
-        except Exception as e:
+        except Exception:
             self.db.rollback()
             raise
 
@@ -60,7 +60,7 @@ class LLMParametersRepository:
 
         Returns:
             LLMParametersOutput: Parameters
-            
+
         Raises:
             NotFoundError: If parameters not found
         """

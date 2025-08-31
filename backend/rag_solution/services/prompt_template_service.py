@@ -199,16 +199,16 @@ class PromptTemplateService:
                 resource_type="PromptTemplate",
                 resource_id=str(template_id)
             )
-        
+
         if not template.context_strategy:
             return "\n\n".join(contexts)
-        
+
         strategy = template.context_strategy
         max_chunks = strategy.get("max_chunks", len(contexts))
         separator: str = strategy.get("chunk_separator", "\n\n")
         strategy.get("ordering", "relevance")
         truncation: str = strategy.get("truncation", "end")
-        
+
         selected_contexts = contexts[:max_chunks]
         formatted_contexts = []
         for chunk in selected_contexts:
@@ -221,5 +221,5 @@ class PromptTemplateService:
                     half = template.max_context_length // 2
                     chunk = chunk[:half] + "..." + chunk[-half:]
             formatted_contexts.append(chunk)
-        
+
         return separator.join(formatted_contexts)

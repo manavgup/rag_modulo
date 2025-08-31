@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from rag_solution.repository.collection_repository import CollectionRepository
 from rag_solution.repository.user_collection_repository import UserCollectionRepository
-from rag_solution.schemas.user_collection_schema import UserCollectionDetailOutput, UserCollectionsOutput, FileInfo
+from rag_solution.schemas.user_collection_schema import FileInfo, UserCollectionDetailOutput, UserCollectionsOutput
 
 logger = logging.getLogger(__name__)
 

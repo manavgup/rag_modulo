@@ -1,11 +1,9 @@
 """Integration tests for question service without mocks."""
 
 import pytest
-from uuid import uuid4
 from typing import List
 from sqlalchemy.orm import Session
 
-from core.custom_exceptions import NotFoundError, ValidationError, NotFoundException
 from rag_solution.models.question import SuggestedQuestion
 from rag_solution.models.collection import Collection
 from rag_solution.models.user import User

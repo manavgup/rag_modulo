@@ -1,9 +1,9 @@
 """Integration tests for LLMModelService."""
 
 import pytest
-from uuid import UUID, uuid4
-from core.custom_exceptions import ModelValidationError, ModelConfigError, LLMProviderError
-from rag_solution.schemas.llm_model_schema import LLMModelInput, LLMModelOutput, ModelType
+from uuid import uuid4
+from core.custom_exceptions import ModelValidationError, ModelConfigError
+from rag_solution.schemas.llm_model_schema import LLMModelOutput, ModelType
 
 # -------------------------------------------
 # 🧪 Model Creation Tests

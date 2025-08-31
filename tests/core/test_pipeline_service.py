@@ -3,12 +3,10 @@
 import pytest
 from sqlalchemy.orm import Session
 from uuid import UUID, uuid4
-from typing import Optional, Dict, Any
-from datetime import datetime
+from typing import Dict
 
 from rag_solution.services.pipeline_service import PipelineService, PipelineResult
 from rag_solution.services.llm_provider_service import LLMProviderService
-from rag_solution.services.llm_parameters_service import LLMParametersService
 from rag_solution.services.prompt_template_service import PromptTemplateService
 from rag_solution.models.user import User
 from rag_solution.models.llm_parameters import LLMParameters
@@ -16,9 +14,8 @@ from rag_solution.models.prompt_template import PromptTemplate
 from rag_solution.schemas.pipeline_schema import PipelineConfigInput
 from rag_solution.schemas.search_schema import SearchInput
 from rag_solution.schemas.prompt_template_schema import PromptTemplateType
-from vectordbs.data_types import QueryResult, DocumentChunk, DocumentChunkMetadata, VectorQuery, Source
-from core.custom_exceptions import ConfigurationError, ValidationError, NotFoundError
-from core.config import settings
+from vectordbs.data_types import QueryResult, DocumentChunk, DocumentChunkMetadata, Source
+from core.custom_exceptions import ConfigurationError, ValidationError
 
 @pytest.fixture
 def test_user(db_session: Session) -> User:

@@ -1,14 +1,20 @@
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pinecone import Pinecone, ServerlessSpec
 
 from core.config import settings
 from vectordbs.utils.watsonx import get_embeddings
 
-from .data_types import (Document, DocumentChunk, DocumentChunkMetadata,
-                         DocumentMetadataFilter, QueryResult,
-                         QueryWithEmbedding, Source)
+from .data_types import (
+    Document,
+    DocumentChunk,
+    DocumentChunkMetadata,
+    DocumentMetadataFilter,
+    QueryResult,
+    QueryWithEmbedding,
+    Source,
+)
 from .error_types import CollectionError, VectorStoreError
 from .vector_store import VectorStore
 
@@ -28,9 +34,9 @@ class PineconeStore(VectorStore):
         except Exception as e:
             logging.error(f"Failed to initialize Pinecone client: {e}")
             self.client = None
-        self.index: Optional[Any] = None
+        self.index: Any | None = None
 
-    def create_collection(self, collection_name: str, metadata: Optional[dict] = None) -> None:
+    def create_collection(self, collection_name: str, metadata: dict | None = None) -> None:
         """
         Create a new Pinecone collection.
 
@@ -55,7 +61,7 @@ class PineconeStore(VectorStore):
             logging.error(f"Failed to create Pinecone index: {e}")
             self.index = None
 
-    def add_documents(self, collection_name: str, documents: List[Document]) -> List[str]:
+    def add_documents(self, collection_name: str, documents: list[Document]) -> list[str]:
         """
         Add documents to the specified Pinecone collection.
 
@@ -92,7 +98,7 @@ class PineconeStore(VectorStore):
         logging.info(f"Successfully added documents to index '{collection_name}'")
         return document_ids
 
-    def retrieve_documents(self, query: str, collection_name: str, number_of_results: int = 10) -> List[QueryResult]:
+    def retrieve_documents(self, query: str, collection_name: str, number_of_results: int = 10) -> list[QueryResult]:
         """
         Retrieve documents from the specified Pinecone collection.
 
@@ -116,7 +122,7 @@ class PineconeStore(VectorStore):
         return results
 
     def query(self, collection_name: str, query: QueryWithEmbedding, number_of_results: int = 10,
-              filter: Optional[DocumentMetadataFilter] = None) -> List[QueryResult]:
+              filter: DocumentMetadataFilter | None = None) -> list[QueryResult]:
         """
         Query the specified Pinecone collection using an embedding.
 
@@ -157,7 +163,7 @@ class PineconeStore(VectorStore):
         except Exception as e:
             logging.error(f"Failed to delete Pinecone index '{collection_name}': {e}")
 
-    def delete_documents(self, collection_name: str, document_ids: List[str]) -> None:
+    def delete_documents(self, collection_name: str, document_ids: list[str]) -> None:
         """
         Delete documents from the specified Pinecone collection.
 
@@ -184,7 +190,7 @@ class PineconeStore(VectorStore):
             logging.error(f"Failed to delete documents from Pinecone index '{collection_name}': {e}")
             raise CollectionError(f"Failed to delete documents from Pinecone index '{collection_name}': {e}")
 
-    def _convert_to_chunk(self, data: Dict) -> DocumentChunk:
+    def _convert_to_chunk(self, data: dict) -> DocumentChunk:
         """
         Convert data to a DocumentChunk.
 
@@ -208,7 +214,7 @@ class PineconeStore(VectorStore):
             document_id=data["metadata"]["document_id"],
         )
 
-    def _process_search_results(self, response: Dict) -> List[QueryResult]:
+    def _process_search_results(self, response: dict) -> list[QueryResult]:
         """
         Process search results from Pinecone.
 
@@ -228,7 +234,7 @@ class PineconeStore(VectorStore):
             )
         return results
 
-    def _build_filters(self, filter: Optional[DocumentMetadataFilter]) -> Dict[str, Any]:
+    def _build_filters(self, filter: DocumentMetadataFilter | None) -> dict[str, Any]:
         """
         Build filters for Pinecone queries.
 

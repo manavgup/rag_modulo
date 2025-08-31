@@ -1,14 +1,9 @@
 # test_user_management.py
 
 import pytest
-import pytest_asyncio
-from httpx import AsyncClient
 from uuid import uuid4
-import io
-from typing import Dict, Any
 
 from .base_test import BaseTestRouter
-from rag_solution.schemas.collection_schema import CollectionStatus
 
 class TestUserManagement(BaseTestRouter):
     """Test user-related endpoints including teams."""

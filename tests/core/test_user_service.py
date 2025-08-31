@@ -1,7 +1,7 @@
 """Integration tests for UserService."""
 
 import pytest
-from uuid import UUID, uuid4
+from uuid import uuid4
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 

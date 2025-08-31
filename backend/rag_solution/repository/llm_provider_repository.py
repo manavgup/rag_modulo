@@ -3,7 +3,7 @@ from uuid import UUID
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from rag_solution.core.exceptions import NotFoundError, AlreadyExistsError, ValidationError
+from rag_solution.core.exceptions import AlreadyExistsError, NotFoundError, ValidationError
 from rag_solution.models.llm_provider import LLMProvider
 from rag_solution.schemas.llm_provider_schema import LLMProviderInput
 
@@ -34,13 +34,13 @@ class LLMProviderRepository:
             ) from e
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise
-        except Exception as e:
+        except Exception:
             self.session.rollback()
             raise
 
     def get_provider_by_id(self, provider_id: UUID) -> LLMProvider:
         """Fetches a provider by ID.
-        
+
         Raises:
             NotFoundError: If provider not found
         """
@@ -53,12 +53,12 @@ class LLMProviderRepository:
             return provider
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise
-        except Exception as e:
+        except Exception:
             raise
 
     def get_provider_by_name(self, name: str) -> LLMProvider:
         """Fetches a provider by name, case-insensitive.
-        
+
         Raises:
             NotFoundError: If provider not found
         """
@@ -71,7 +71,7 @@ class LLMProviderRepository:
             return provider
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise
-        except Exception as e:
+        except Exception:
             raise
 
     def get_all_providers(self, is_active: bool | None = None) -> list[LLMProvider]:
@@ -83,12 +83,12 @@ class LLMProviderRepository:
             return query.all()
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise
-        except Exception as e:
+        except Exception:
             raise
 
     def get_provider_by_name_with_credentials(self, name: str) -> LLMProvider:
         """Fetch provider including credentials by name.
-        
+
         Raises:
             NotFoundError: If provider not found
         """
@@ -96,7 +96,7 @@ class LLMProviderRepository:
             provider = (
                 self.session.query(LLMProvider)
                 .filter(LLMProvider.name.ilike(name))
-                .filter(LLMProvider.is_active == True)
+                .filter(LLMProvider.is_active)
                 .first()
             )
             if not provider:
@@ -106,12 +106,12 @@ class LLMProviderRepository:
             return provider
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise
-        except Exception as e:
+        except Exception:
             raise
 
     def update_provider(self, provider_id: UUID, updates: dict) -> LLMProvider:
         """Updates provider details.
-        
+
         Raises:
             NotFoundError: If provider not found
         """
@@ -138,20 +138,20 @@ class LLMProviderRepository:
             ) from e
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise
-        except Exception as e:
+        except Exception:
             self.session.rollback()
             raise
 
     def delete_provider(self, provider_id: UUID) -> None:
         """Soft deletes a provider by marking it inactive.
-        
+
         Raises:
             NotFoundError: If provider not found
         """
         try:
             # First check if provider exists - this will raise NotFoundError if not found
             self.get_provider_by_id(provider_id)
-            
+
             # Mark as inactive
             self.session.query(LLMProvider).filter_by(id=provider_id).update({"is_active": False})
             self.session.commit()
@@ -163,15 +163,15 @@ class LLMProviderRepository:
 
     def get_default_provider(self) -> LLMProvider:
         """Get the system default provider.
-        
+
         Raises:
             NotFoundError: If no default provider found
         """
         try:
             provider = (
                 self.session.query(LLMProvider)
-                .filter(LLMProvider.is_active == True)
-                .filter(LLMProvider.is_default == True)
+                .filter(LLMProvider.is_active)
+                .filter(LLMProvider.is_default)
                 .first()
             )
             if not provider:
@@ -181,7 +181,7 @@ class LLMProviderRepository:
             return provider
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise
-        except Exception as e:
+        except Exception:
             raise
 
     def clear_other_default_providers(self, provider_id: UUID) -> None:
@@ -191,6 +191,6 @@ class LLMProviderRepository:
             self.session.commit()
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise
-        except Exception as e:
+        except Exception:
             self.session.rollback()
             raise

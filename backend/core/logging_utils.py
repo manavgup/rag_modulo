@@ -1,16 +1,16 @@
 import logging
-import os
-from typing import Optional
-from pathlib import Path
 import logging.handlers
+from pathlib import Path
+
 from core.config import settings
 
-def setup_logging(log_dir: Optional[Path] = None) -> None:
+
+def setup_logging(log_dir: Path | None = None) -> None:
     """Configure logging for the entire application."""
-    
+
     # Create formatter
     formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
 
     # Configure root logger
@@ -38,23 +38,23 @@ def setup_logging(log_dir: Optional[Path] = None) -> None:
         root_logger.addHandler(file_handler)
 
     # Configure third-party loggers
-    logging.getLogger('ibm-watson-machine-learning').setLevel(logging.ERROR)
-    logging.getLogger('ibm-watsonx-ai').setLevel(logging.ERROR)
-    logging.getLogger('ibm_watsonx_ai').setLevel(logging.ERROR)
-    logging.getLogger('ibm_watsonx_ai.wml_resource').setLevel(logging.ERROR)
-    logging.getLogger('urllib3').setLevel(logging.WARNING)
-    logging.getLogger('asyncio').setLevel(logging.WARNING)
+    logging.getLogger("ibm-watson-machine-learning").setLevel(logging.ERROR)
+    logging.getLogger("ibm-watsonx-ai").setLevel(logging.ERROR)
+    logging.getLogger("ibm_watsonx_ai").setLevel(logging.ERROR)
+    logging.getLogger("ibm_watsonx_ai.wml_resource").setLevel(logging.ERROR)
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
+    logging.getLogger("asyncio").setLevel(logging.WARNING)
 
     # Suppress SQLAlchemy logging
     sql_level = logging.CRITICAL
-    logging.getLogger('sqlalchemy').setLevel(sql_level)
-    logging.getLogger('sqlalchemy.engine').setLevel(sql_level)
-    logging.getLogger('sqlalchemy.engine.base.Engine').setLevel(sql_level)
-    logging.getLogger('sqlalchemy.dialects').setLevel(sql_level)
-    logging.getLogger('sqlalchemy.pool').setLevel(sql_level)
-    logging.getLogger('sqlalchemy.orm').setLevel(sql_level)
+    logging.getLogger("sqlalchemy").setLevel(sql_level)
+    logging.getLogger("sqlalchemy.engine").setLevel(sql_level)
+    logging.getLogger("sqlalchemy.engine.base.Engine").setLevel(sql_level)
+    logging.getLogger("sqlalchemy.dialects").setLevel(sql_level)
+    logging.getLogger("sqlalchemy.pool").setLevel(sql_level)
+    logging.getLogger("sqlalchemy.orm").setLevel(sql_level)
 
-    
+
 
 def get_logger(name: str) -> logging.Logger:
     """Get a logger with the given name."""

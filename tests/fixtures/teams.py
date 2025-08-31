@@ -1,6 +1,5 @@
 """Team management fixtures for pytest."""
 
-from uuid import uuid4
 import pytest
 from rag_solution.schemas.team_schema import TeamInput
 from rag_solution.schemas.user_schema import UserOutput

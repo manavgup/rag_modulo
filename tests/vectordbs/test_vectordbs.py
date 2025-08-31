@@ -10,7 +10,7 @@ from vectordbs.elasticsearch_store import ElasticSearchStore
 from vectordbs.milvus_store import MilvusStore
 from vectordbs.pinecone_store import PineconeStore
 from vectordbs.weaviate_store import WeaviateDataStore
-from vectordbs.data_types import DocumentChunk, VectorQuery
+from vectordbs.data_types import DocumentChunk
 from vectordbs.utils.watsonx import get_embeddings
 
 @pytest.fixture

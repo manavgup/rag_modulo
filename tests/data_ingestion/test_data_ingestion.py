@@ -1,4 +1,3 @@
-import pytest
 from rag_solution.data_ingestion.chunking import get_chunking_method
 
 def test_chunk_text():

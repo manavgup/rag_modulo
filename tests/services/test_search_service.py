@@ -1,18 +1,13 @@
 """Tests for SearchService with PipelineService integration."""
 
 import pytest
-import asyncio
 from uuid import UUID, uuid4
 from fastapi import HTTPException
 
 from rag_solution.schemas.search_schema import SearchInput, SearchOutput
 from rag_solution.schemas.collection_schema import CollectionInput
 from rag_solution.schemas.user_schema import UserInput, UserOutput
-from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
-from rag_solution.schemas.prompt_template_schema import PromptTemplateInput, PromptTemplateType
-from rag_solution.schemas.pipeline_schema import PipelineResult
-from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, Source, QueryResult
-from core.custom_exceptions import ConfigurationError, NotFoundError, LLMProviderError
+from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, Source
 from core.config import settings
 
 # -------------------------------------------

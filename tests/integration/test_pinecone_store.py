@@ -3,7 +3,6 @@ from contextlib import contextmanager
 import pytest
 
 from core.config import settings
-from vectordbs.pinecone_store import PineconeStore
 
 PINECONE_INDEX = settings.collection_name
 

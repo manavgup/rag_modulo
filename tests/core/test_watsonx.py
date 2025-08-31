@@ -1,9 +1,7 @@
 """Tests for WatsonX provider implementation."""
 
-import pytest
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
 from rag_solution.schemas.prompt_template_schema import PromptTemplateInput, PromptTemplateType
-from core.custom_exceptions import LLMProviderError
 
 def test_provider_initialization(provider, db_session):
     """Test provider initialization with config."""

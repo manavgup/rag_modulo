@@ -1,7 +1,7 @@
 """Tests for UserRouter."""
 
 import pytest
-from uuid import UUID, uuid4
+from uuid import uuid4
 from unittest.mock import Mock
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session

@@ -2,7 +2,6 @@
 """Test fixtures for Prompt Templates."""
 
 import pytest
-from uuid import UUID, uuid4
 from rag_solution.schemas.prompt_template_schema import (
     PromptTemplateInput,
     PromptTemplateOutput,

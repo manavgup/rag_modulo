@@ -7,10 +7,10 @@ from vectordbs.vector_store import VectorStore
 from vectordbs.weaviate_store import WeaviateDataStore
 
 __all__ = [
-    "VectorStore",
-    "WeaviateDataStore",
-    "MilvusStore",
     "ChromaStore",
     "ElasticsearchStore",
+    "MilvusStore",
     "PineconeStore",
+    "VectorStore",
+    "WeaviateDataStore",
 ]

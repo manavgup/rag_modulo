@@ -4,35 +4,32 @@ This module provides reusable dependencies for authentication, authorization,
 and service injection that can be used across all routers.
 """
 
-from typing import Optional, TYPE_CHECKING
 from uuid import UUID
 
-from fastapi import Depends, Request, HTTPException
+from fastapi import Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
+from rag_solution.core.exceptions import NotFoundError
 from rag_solution.file_management.database import get_db
-from rag_solution.services.user_service import UserService
 from rag_solution.schemas.user_schema import UserOutput
-from rag_solution.core.exceptions import NotFoundError, InsufficientPermissionsError
-
-if TYPE_CHECKING:
-    from rag_solution.services.collection_service import CollectionService
-    from rag_solution.services.file_management_service import FileManagementService
-    from rag_solution.services.team_service import TeamService
-    from rag_solution.services.pipeline_service import PipelineService
-    from rag_solution.services.llm_provider_service import LLMProviderService
+from rag_solution.services.collection_service import CollectionService
+from rag_solution.services.file_management_service import FileManagementService
+from rag_solution.services.llm_provider_service import LLMProviderService
+from rag_solution.services.pipeline_service import PipelineService
+from rag_solution.services.team_service import TeamService
+from rag_solution.services.user_service import UserService
 
 
 def get_current_user(request: Request) -> UserOutput:
     """Extract current user from request state.
-    
+
     This assumes authentication middleware has already validated the user
     and added user info to request.state.
     """
     if not hasattr(request.state, "user"):
         raise HTTPException(status_code=403, detail="Not authenticated")
     from typing import cast
-    return cast(UserOutput, request.state.user)
+    return cast("UserOutput", request.state.user)
 
 
 def verify_user_access(
@@ -41,51 +38,51 @@ def verify_user_access(
     db: Session = Depends(get_db)
 ) -> UserOutput:
     """Verify that the current user has access to the requested user resource.
-    
+
     Args:
         user_id: The user ID being accessed
         request: The FastAPI request object
         db: Session
-        
+
     Returns:
         UserOutput object if access is granted
-        
+
     Raises:
         HTTPException: 401 if not authenticated, 403 if not authorized
     """
     current_user = get_current_user(request)
-    
+
     # Check if user is accessing their own resources
     if current_user.id != user_id:
         # Could add admin check here if needed
         raise HTTPException(status_code=403, detail="Not authorized to access this user's resources")
-    
+
     # Get and return the user object
     try:
         user_service = UserService(db)
         return user_service.get_user_by_id(user_id)
     except NotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
 
 
 def verify_admin_access(request: Request) -> UserOutput:
     """Verify that the current user has admin privileges.
-    
+
     Args:
         request: The FastAPI request object
-        
+
     Returns:
         Current user if admin
-        
+
     Raises:
         HTTPException: 401 if not authenticated, 403 if not admin
     """
     current_user = get_current_user(request)
-    
+
     # Check for admin role
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
-    
+
     return current_user
 
 
@@ -96,29 +93,29 @@ def verify_collection_access(
     db: Session = Depends(get_db)
 ) -> bool:
     """Verify that a user has access to a specific collection.
-    
+
     Args:
         collection_id: The collection ID to check
         user_id: The user ID requesting access
         request: The FastAPI request object
         db: Database session
-        
+
     Returns:
         True if access is granted
-        
+
     Raises:
         HTTPException: 401 if not authenticated, 403 if not authorized
     """
     current_user = get_current_user(request)
-    
+
     # Verify user is accessing their own resources
     if current_user.id != user_id:
         raise HTTPException(status_code=403, detail="Not authorized")
-    
+
     # Check collection ownership (implement based on your business logic)
     from rag_solution.services.user_collection_service import UserCollectionService
     user_collection_service = UserCollectionService(db)
-    
+
     try:
         user_collections = user_collection_service.get_user_collections(user_id)
         if not any(uc.id == collection_id for uc in user_collections):
@@ -127,8 +124,8 @@ def verify_collection_access(
                 detail="You don't have access to this collection"
             )
     except NotFoundError:
-        raise HTTPException(status_code=404, detail="Collection not found")
-    
+        raise HTTPException(status_code=404, detail="Collection not found") from None
+
     return True
 
 
@@ -139,29 +136,29 @@ def verify_team_access(
     db: Session = Depends(get_db)
 ) -> bool:
     """Verify that a user has access to a specific team.
-    
+
     Args:
         team_id: The team ID to check
         user_id: The user ID requesting access
         request: The FastAPI request object
         db: Database session
-        
+
     Returns:
         True if access is granted
-        
+
     Raises:
         HTTPException: 401 if not authenticated, 403 if not authorized
     """
     current_user = get_current_user(request)
-    
+
     # Verify user is accessing their own resources
     if current_user.id != user_id:
         raise HTTPException(status_code=403, detail="Not authorized")
-    
+
     # Check team membership
     from rag_solution.services.user_team_service import UserTeamService
     user_team_service = UserTeamService(db)
-    
+
     try:
         user_teams = user_team_service.get_user_teams(user_id)
         if not any(ut.team_id == team_id for ut in user_teams):
@@ -170,8 +167,8 @@ def verify_team_access(
                 detail="You are not a member of this team"
             )
     except NotFoundError:
-        raise HTTPException(status_code=404, detail="Team not found")
-    
+        raise HTTPException(status_code=404, detail="Team not found") from None
+
     return True
 
 

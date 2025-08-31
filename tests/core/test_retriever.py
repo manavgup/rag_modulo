@@ -1,6 +1,5 @@
 import unittest
-from unittest.mock import patch, MagicMock
-import numpy as np
+from unittest.mock import MagicMock
 from rag_solution.retrieval.retriever import VectorRetriever, KeywordRetriever, HybridRetriever
 from rag_solution.data_ingestion.ingestion import DocumentStore
 from vectordbs.data_types import Document, QueryResult

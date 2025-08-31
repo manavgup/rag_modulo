@@ -1,19 +1,14 @@
 """Integration tests for PipelineService."""
 
 import pytest
-import tempfile
-from pathlib import Path
 from uuid import UUID
-from typing import Dict, Any
 from fastapi import HTTPException
 
-from rag_solution.schemas.search_schema import SearchInput, SearchOutput
-from rag_solution.schemas.collection_schema import CollectionInput, CollectionStatus
+from rag_solution.schemas.search_schema import SearchInput
 from rag_solution.schemas.llm_parameters_schema import LLMParametersOutput
 from rag_solution.schemas.user_schema import UserOutput
 from rag_solution.schemas.pipeline_schema import PipelineResult, PipelineConfigInput
-from rag_solution.schemas.prompt_template_schema import PromptTemplateType
-from core.custom_exceptions import ConfigurationError, ValidationError, NotFoundError
+from core.custom_exceptions import ValidationError, NotFoundError
 
 # -------------------------------------------
 # 🔧 Test Fixtures

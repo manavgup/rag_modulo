@@ -1,24 +1,26 @@
+import asyncio
 import json
 import logging
-import asyncio
-from typing import List, Optional, Union, Tuple, Generator, Dict
-from tenacity import (
-    retry,
-    stop_after_attempt,
-    wait_exponential,
-    retry_if_exception_type,
-)
+from collections.abc import Generator
 from functools import lru_cache
+from typing import Any
+
 from chromadb.api.types import Documents, EmbeddingFunction
 from dotenv import load_dotenv
-from ibm_watsonx_ai import APIClient,Credentials
+from ibm_watsonx_ai import APIClient, Credentials
+from ibm_watsonx_ai.foundation_models import Embeddings as wx_Embeddings
+from ibm_watsonx_ai.foundation_models import ModelInference
 from ibm_watsonx_ai.metanames import EmbedTextParamsMetaNames as EmbedParams
 from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams
-from ibm_watsonx_ai.foundation_models import ModelInference, Embeddings as wx_Embeddings
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from core.config import settings
-from ..data_types import Embeddings, EmbeddingsList
-
+from vectordbs.data_types import EmbeddingsList
 
 WATSONX_INSTANCE_ID = settings.wx_project_id
 EMBEDDING_MODEL = settings.embedding_model
@@ -40,7 +42,7 @@ RATE_LIMIT_PERIOD = 60  # in seconds
 last_api_call = 0
 
 
-def sublist(inputs: List, n: int) -> Generator[List, None, None]:
+def sublist(inputs: list, n: int) -> Generator[list, None, None]:
     """
     returns a generator object that yields successive n-sized lists from the main list.
 
@@ -66,7 +68,7 @@ def _get_client() -> APIClient:
 
 
 def get_model(
-    generate_params: Optional[Dict] = None, model_id: str = settings.rag_llm
+    generate_params: dict | None = None, model_id: str = settings.rag_llm
 ) -> ModelInference:
     api_client = _get_client()
 
@@ -90,7 +92,7 @@ def get_model(
     return model_inference
 
 
-def _get_embeddings_client(embed_params: Optional[Dict] = None) -> wx_Embeddings:
+def _get_embeddings_client(embed_params: dict | None = None) -> wx_Embeddings:
     global embeddings_client
     if embeddings_client is None:
         embed_params = {
@@ -109,7 +111,7 @@ def _get_embeddings_client(embed_params: Optional[Dict] = None) -> wx_Embeddings
     return embeddings_client
 
 
-def get_embeddings(texts: Union[str, List[str]], embed_client: Optional[wx_Embeddings] = None) -> EmbeddingsList:
+def get_embeddings(texts: str | list[str], embed_client: wx_Embeddings | None = None) -> EmbeddingsList:
     """
     Get embeddings for a given text or a list of texts.
 
@@ -129,7 +131,7 @@ def get_embeddings(texts: Union[str, List[str]], embed_client: Optional[wx_Embed
         logging.error(f"get_embeddings failed {e}")
         raise e
 
-def get_tokenization(texts: Union[str, List[str]]) -> List[List[str]]:
+def get_tokenization(texts: str | list[str]) -> list[list[str]]:
     """
     Get tokenization for a given text or a list of texts.
 
@@ -154,26 +156,26 @@ def get_tokenization(texts: Union[str, List[str]]) -> List[List[str]]:
     return all_tokens
 
 @lru_cache(maxsize=128)
-def extract_entities(text: str, wx_model: Optional[ModelInference] = None) -> List[Dict]:
+def extract_entities(text: str, wx_model: ModelInference | None = None) -> list[dict]:
     if wx_model is None:
         wx_model = get_model()
-    
+
     prompt = (
         "Extract the named entities from the following text and respond ONLY with a JSON list of dictionaries. Each dictionary should have 'entity' and 'type' keys, and nothing else.\n"
         "Example: [{'entity': 'New York', 'type': 'location'}, {'entity': 'IBM', 'type': 'organization'}]\n"
         f"Text: {text}"
     )
-    
+
     try:
         response = generate_text(prompt, wx_model)
-        
+
         # Ensure response is a string for processing
         if isinstance(response, list):
             response = response[0] if response else ""
-        
+
         # Find the start and end of the JSON list
-        start = response.find('[')
-        end = response.rfind(']')
+        start = response.find("[")
+        end = response.rfind("]")
         if start != -1 and end != -1 and start < end:
             json_str = response[start:end+1]
             logger.debug(f"Parsing JSON: {json_str}")
@@ -190,17 +192,17 @@ def extract_entities(text: str, wx_model: Optional[ModelInference] = None) -> Li
         logger.error(f"Error extracting entities: {e}")
         return []
 
-def clean_entities(entities: List[Dict]) -> List[Dict]:
+def clean_entities(entities: list[dict]) -> list[dict]:
     cleaned = []
     for entity in entities:
-        if isinstance(entity, dict) and 'entity' in entity and 'type' in entity:
+        if isinstance(entity, dict) and "entity" in entity and "type" in entity:
             cleaned.append(entity)
     return cleaned
 
 
 def get_tokenization_and_embeddings(
-    texts: Union[str, List[str]]
-) -> Tuple[List[List[str]], EmbeddingsList]:
+    texts: str | list[str]
+) -> tuple[list[list[str]], EmbeddingsList]:
     """
     Get both tokenization and embeddings for a given text or a list of texts.
 
@@ -249,8 +251,8 @@ class ChromaEmbeddingFunction(EmbeddingFunction):
     def __init__(
         self,
         *,
-        parameters: Dict,
-        model_id: Optional[str] = settings.rag_llm,
+        parameters: dict,
+        model_id: str | None = settings.rag_llm,
     ):
         self._model_id = model_id
         self._parameters = parameters
@@ -260,8 +262,8 @@ class ChromaEmbeddingFunction(EmbeddingFunction):
         return get_embeddings(texts=inputs)
 
 
-def generate_text(prompt: Union[str, List[str]], wx_model: Optional[ModelInference] = None,
-                  concurrency_limit: int = 10, params: Optional[Dict] = None) -> Union[str, List[str]]:
+def generate_text(prompt: str | list[str], wx_model: ModelInference | None = None,
+                  concurrency_limit: int = 10, params: dict | None = None) -> str | list[str]:
     """Generate text using the WatsonX model.
 
     Args:
@@ -277,38 +279,38 @@ def generate_text(prompt: Union[str, List[str]], wx_model: Optional[ModelInferen
         logging.info("Making API call to text generation service")
         if wx_model is None:
             wx_model = get_model()
-        
+
         response = wx_model.generate_text(prompt=prompt, concurrency_limit=concurrency_limit)
 
          # Handle batch responses
         if isinstance(prompt, list):
-            if isinstance(response, dict) and 'results' in response:
-                return [r['generated_text'].strip() for r in response['results']]
+            if isinstance(response, dict) and "results" in response:
+                return [r["generated_text"].strip() for r in response["results"]]
             elif isinstance(response, list):
-                return [r.strip() if isinstance(r, str) else r['generated_text'].strip() for r in response]
+                return [r.strip() if isinstance(r, str) else r["generated_text"].strip() for r in response]
             else:
                 logger.error(f"Unexpected response type: {type(response)}")
                 raise ValueError(f"Unexpected response type: {type(response)}")
-        
+
         # Handle single response
         if isinstance(response, dict):
-            if 'results' in response:
-                return response['results'][0]['generated_text'].strip()
-            elif 'generated_text' in response:
-                return response['generated_text'].strip()
-            
-        return response.strip() if isinstance(response, str) else response['generated_text'].strip()
-    
+            if "results" in response:
+                return response["results"][0]["generated_text"].strip()
+            elif "generated_text" in response:
+                return response["generated_text"].strip()
+
+        return response.strip() if isinstance(response, str) else response["generated_text"].strip()
+
     except Exception as e:
         logger.error("Error generating text: %s", str(e))
         raise
 
 
 async def agenerate_responses(
-    prompts: List[str],
+    prompts: list[str],
     concurrency_level: int,
-    wx_model: Optional[ModelInference] = None,
-) -> List[str]:
+    wx_model: ModelInference | None = None,
+) -> list[str]:
 
     if wx_model is None:
         wx_model = get_model()
@@ -328,20 +330,20 @@ async def agenerate_responses(
 
 
 async def generate_all_responses(
-    prompts: List[str],
+    prompts: list[str],
     wx_model: ModelInference,
     concurrency_level: int = 5,
-) -> List[str]:
+) -> list[str]:
     return await agenerate_responses(
         prompts, concurrency_level=concurrency_level, wx_model=wx_model
     )
 
 
 def generate_batch(
-    prompts: List[str],
-    wx_model: Optional[ModelInference] = None,
+    prompts: list[str],
+    wx_model: ModelInference | None = None,
     concurrency_level: int = 5,
-) -> List[str]:
+) -> list[str]:
     if wx_model is None:
         wx_model = get_model()
     return asyncio.run(generate_all_responses(prompts, wx_model, concurrency_level))

@@ -36,18 +36,18 @@ def get_schema(pydantic_object: pydantic.BaseModel | type[pydantic.BaseModel], e
     if isinstance(pydantic_object, type):
         # Handle class type by getting schema directly
         # Check for v2 BaseModel first (has model_json_schema method)
-        if hasattr(pydantic_object, 'model_json_schema'):
+        if hasattr(pydantic_object, "model_json_schema"):
             pydantic_model = pydantic_object.model_json_schema()
         # Check for v1 BaseModel (has schema method)
-        elif hasattr(pydantic_object, 'schema'):
+        elif hasattr(pydantic_object, "schema"):
             pydantic_model = pydantic_object.schema()
         else:
             raise ValueError("should be a valid pydantic_model class")
     else:
         # Handle instance types - check for available methods
-        if hasattr(pydantic_object, 'model_json_schema'):
+        if hasattr(pydantic_object, "model_json_schema"):
             pydantic_model = pydantic_object.model_json_schema()
-        elif hasattr(pydantic_object, 'schema'):
+        elif hasattr(pydantic_object, "schema"):
             pydantic_model = pydantic_object.schema()
         else:
             raise ValueError("should be a valid pydantic_model instance")
