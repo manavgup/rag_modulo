@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from datetime import datetime
 
 from pydantic import field_validator
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
