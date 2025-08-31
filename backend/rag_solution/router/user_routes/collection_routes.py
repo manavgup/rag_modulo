@@ -3,12 +3,13 @@
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from core.authorization import authorize_decorator
+from rag_solution.core.dependencies import verify_user_access
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.collection_schema import CollectionOutput
+from rag_solution.schemas.user_schema import UserOutput
 from rag_solution.services.user_collection_service import UserCollectionService
 
 logger = logging.getLogger(__name__)
@@ -27,14 +28,10 @@ router = APIRouter()
         500: {"description": "Internal server error"},
     },
 )
-@authorize_decorator(role="user")
 async def get_user_collections(
-    user_id: UUID, request: Request, db: Session = Depends(get_db)
+    user_id: UUID, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)
 ) -> list[CollectionOutput]:
     """Retrieve all collections for a user."""
-    if not hasattr(request.state, "user") or request.state.user["uuid"] != str(user_id):
-        raise HTTPException(status_code=403, detail="Not authorized to access collections")
-
     service = UserCollectionService(db)
     try:
         return service.get_user_collections(user_id)
@@ -54,14 +51,10 @@ async def get_user_collections(
         500: {"description": "Internal server error"},
     },
 )
-@authorize_decorator(role="user")
 async def remove_user_collection(
-    user_id: UUID, collection_id: UUID, request: Request, db: Session = Depends(get_db)
+    user_id: UUID, collection_id: UUID, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)
 ) -> bool:
     """Remove a collection from a user's access."""
-    if not hasattr(request.state, "user") or request.state.user["uuid"] != str(user_id):
-        raise HTTPException(status_code=403, detail="Not authorized to remove collection")
-
     service = UserCollectionService(db)
     try:
         return service.remove_user_from_collection(user_id, collection_id)

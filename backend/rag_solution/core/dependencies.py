@@ -20,16 +20,15 @@ from rag_solution.services.team_service import TeamService
 from rag_solution.services.user_service import UserService
 
 
-def get_current_user(request: Request) -> UserOutput:
+def get_current_user(request: Request) -> dict:
     """Extract current user from request state.
 
     This assumes authentication middleware has already validated the user
     and added user info to request.state.
     """
     if not hasattr(request.state, "user"):
-        raise HTTPException(status_code=403, detail="Not authenticated")
-    from typing import cast
-    return cast("UserOutput", request.state.user)
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return request.state.user
 
 
 def verify_user_access(
@@ -53,7 +52,8 @@ def verify_user_access(
     current_user = get_current_user(request)
 
     # Check if user is accessing their own resources
-    if current_user.id != user_id:
+    current_user_id = current_user.get("uuid")
+    if current_user_id != str(user_id):
         # Could add admin check here if needed
         raise HTTPException(status_code=403, detail="Not authorized to access this user's resources")
 
@@ -65,11 +65,12 @@ def verify_user_access(
         raise HTTPException(status_code=404, detail=str(e)) from e
 
 
-def verify_admin_access(request: Request) -> UserOutput:
+def verify_admin_access(request: Request, db: Session = Depends(get_db)) -> UserOutput:
     """Verify that the current user has admin privileges.
 
     Args:
         request: The FastAPI request object
+        db: Database session
 
     Returns:
         Current user if admin
@@ -77,7 +78,15 @@ def verify_admin_access(request: Request) -> UserOutput:
     Raises:
         HTTPException: 401 if not authenticated, 403 if not admin
     """
-    current_user = get_current_user(request)
+    current_user_data = get_current_user(request)
+    
+    # Get the full user object to check role
+    try:
+        user_service = UserService(db)
+        user_id = UUID(current_user_data.get("uuid"))
+        current_user = user_service.get_user_by_id(user_id)
+    except (ValueError, NotFoundError) as e:
+        raise HTTPException(status_code=401, detail="Invalid user") from e
 
     # Check for admin role
     if current_user.role != "admin":
@@ -109,7 +118,8 @@ def verify_collection_access(
     current_user = get_current_user(request)
 
     # Verify user is accessing their own resources
-    if current_user.id != user_id:
+    current_user_id = current_user.get("uuid")
+    if current_user_id != str(user_id):
         raise HTTPException(status_code=403, detail="Not authorized")
 
     # Check collection ownership (implement based on your business logic)
@@ -152,7 +162,8 @@ def verify_team_access(
     current_user = get_current_user(request)
 
     # Verify user is accessing their own resources
-    if current_user.id != user_id:
+    current_user_id = current_user.get("uuid")
+    if current_user_id != str(user_id):
         raise HTTPException(status_code=403, detail="Not authorized")
 
     # Check team membership

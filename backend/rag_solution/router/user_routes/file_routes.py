@@ -3,12 +3,13 @@
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
-from core.authorization import authorize_decorator
+from rag_solution.core.dependencies import verify_user_access
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.file_schema import FileOutput
+from rag_solution.schemas.user_schema import UserOutput
 from rag_solution.services.file_management_service import FileManagementService
 
 logger = logging.getLogger(__name__)
@@ -28,18 +29,14 @@ router = APIRouter()
         500: {"description": "Internal server error"},
     },
 )
-@authorize_decorator(role="user")
 async def upload_file(
     user_id: UUID,
     file: UploadFile,
-    request: Request,
     db: Session = Depends(get_db),
     collection_id: UUID | None = None,
+    user: UserOutput = Depends(verify_user_access),
 ) -> FileOutput:
     """Upload a file to a user's collection."""
-    if not hasattr(request.state, "user") or request.state.user["uuid"] != str(user_id):
-        raise HTTPException(status_code=403, detail="Not authorized to upload file")
-
     service = FileManagementService(db)
     try:
         # Upload file and create file record
@@ -62,12 +59,8 @@ async def upload_file(
         500: {"description": "Internal server error"},
     },
 )
-@authorize_decorator(role="user")
-async def delete_file(user_id: UUID, file_id: UUID, request: Request, db: Session = Depends(get_db)) -> bool:
+async def delete_file(user_id: UUID, file_id: UUID, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)) -> bool:
     """Delete a file from a user's collection."""
-    if not hasattr(request.state, "user") or request.state.user["uuid"] != str(user_id):
-        raise HTTPException(status_code=403, detail="Not authorized to delete file")
-
     service = FileManagementService(db)
     try:
         return service.delete_file(file_id)
