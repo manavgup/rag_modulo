@@ -1,7 +1,6 @@
 import logging
 from uuid import UUID
 
-from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from rag_solution.repository.collection_repository import CollectionRepository
@@ -51,10 +50,7 @@ class UserCollectionInteractionService:
             return UserCollectionsOutput(user_id=user_id, collections=detailed_collections)
         except Exception as e:
             logger.error(f"Error fetching collections with files for user {user_id}: {e!s}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to fetch collections with files: {e!s}",
-            ) from e
+            raise
 
     def get_user_collections(self, user_id: UUID) -> UserCollectionsOutput:
         """
@@ -82,61 +78,37 @@ class UserCollectionInteractionService:
             return UserCollectionsOutput(user_id=user_id, collections=collections)
         except Exception as e:
             logger.error(f"Error fetching collections for user {user_id}: {e!s}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to fetch collections: {e!s}",
-            ) from e
+            raise
 
     def add_user_to_collection(self, user_id: UUID, collection_id: UUID) -> bool:
         """
         Add a user to a collection.
         """
         logger.info(f"Adding user {user_id} to collection {collection_id}")
-        try:
-            return self.user_collection_repository.add_user_to_collection(user_id, collection_id)
-        except Exception as e:
-            logger.error(f"Error adding user to collection: {e!s}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to add user to collection: {e!s}",
-            ) from e
+        return self.user_collection_repository.add_user_to_collection(user_id, collection_id)
 
     def remove_user_from_collection(self, user_id: UUID, collection_id: UUID) -> bool:
         """
         Remove a user from a collection.
         """
         logger.info(f"Removing user {user_id} from collection {collection_id}")
-        try:
-            return self.user_collection_repository.remove_user_from_collection(user_id, collection_id)
-        except Exception as e:
-            logger.error(f"Error removing user from collection: {e!s}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to remove user from collection: {e!s}",
-            ) from e
+        return self.user_collection_repository.remove_user_from_collection(user_id, collection_id)
 
     def get_collection_users(self, collection_id: UUID) -> list[UserCollectionDetailOutput]:
         """
         Get all users associated with a collection.
         """
         logger.info(f"Fetching users for collection: {collection_id}")
-        try:
-            user_collections = self.user_collection_repository.get_collection_users(collection_id)
-            return [
-                UserCollectionDetailOutput(
-                    collection_id=uc.collection_id,
-                    name=uc.name,
-                    is_private=uc.is_private,
-                    created_at=uc.created_at,
-                    updated_at=uc.updated_at,
-                    files=uc.files,
-                    status=uc.status,
-                )
-                for uc in user_collections
-            ]
-        except Exception as e:
-            logger.error(f"Error fetching collection users: {e!s}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to fetch collection users: {e!s}",
-            ) from e
+        user_collections = self.user_collection_repository.get_collection_users(collection_id)
+        return [
+            UserCollectionDetailOutput(
+                collection_id=uc.collection_id,
+                name=uc.name,
+                is_private=uc.is_private,
+                created_at=uc.created_at,
+                updated_at=uc.updated_at,
+                files=uc.files,
+                status=uc.status,
+            )
+            for uc in user_collections
+        ]
