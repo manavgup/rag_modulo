@@ -1,10 +1,11 @@
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Body, Depends, File, Form, HTTPException, Request, Response, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, File, Form, HTTPException, Response, UploadFile
 from sqlalchemy.orm import Session
 
 from core.custom_exceptions import NotFoundError, ValidationError
 from core.logging_utils import get_logger
+from rag_solution.core.dependencies import verify_user_access
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput
 from rag_solution.schemas.file_schema import DocumentDelete, FileMetadata, FileOutput
@@ -12,6 +13,7 @@ from rag_solution.schemas.file_schema import DocumentDelete, FileMetadata, FileO
 # New Imports for LLMParameters and PromptTemplates
 from rag_solution.schemas.question_schema import QuestionInput, QuestionOutput
 from rag_solution.schemas.user_collection_schema import UserCollectionOutput
+from rag_solution.schemas.user_schema import UserOutput
 from rag_solution.services.collection_service import CollectionService
 from rag_solution.services.file_management_service import FileManagementService
 from rag_solution.services.question_service import QuestionService
@@ -78,37 +80,32 @@ def create_collection(collection_input: CollectionInput, db: Session = Depends(g
     },
 )
 async def create_collection_with_documents(
-    request: Request,
     collection_name: str = Form(...),
     is_private: bool = Form(...),
     user_id: UUID = Form(...),
     files: list[UploadFile] = File(...),
     background_tasks: BackgroundTasks = BackgroundTasks(),
+    user: UserOutput = Depends(verify_user_access),
     db: Session = Depends(get_db),
 ) -> CollectionOutput:
     """
     Create a new collection with documents.
 
     Args:
-        request (Request): The FastAPI request object.
         collection_name (str): The name of the collection.
         is_private (bool): Whether the collection is private.
         user_id (uuid.UUID): The ID of the user creating the collection.
         files (List[UploadFile]): The list of files to be added to the collection.
         background_tasks (BackgroundTasks): Background tasks for processing.
+        user (UserOutput): The authenticated user.
         db (Session): The database session.
 
     Returns:
         CollectionOutput: The created collection with documents.
 
     Raises:
-        HTTPException: If authorization fails, validation fails, or creation fails
+        HTTPException: If validation fails or creation fails
     """
-    # Check authorization
-    if not hasattr(request.state, "user") or request.state.user["uuid"] != str(user_id):
-        logger.error(f"Authorization failed for user {user_id}")
-        raise HTTPException(status_code=403, detail="Not authorized to access this resource")
-
     try:
         collection_service = CollectionService(db)
         collection = collection_service.create_collection_with_documents(
