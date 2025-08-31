@@ -3,12 +3,13 @@
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from core.authorization import authorize_decorator
+from rag_solution.core.dependencies import verify_user_access
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.pipeline_schema import PipelineConfigInput, PipelineConfigOutput
+from rag_solution.schemas.user_schema import UserOutput
 from rag_solution.services.pipeline_service import PipelineService
 
 logger = logging.getLogger(__name__)
@@ -27,12 +28,8 @@ router = APIRouter()
         500: {"description": "Internal server error"},
     },
 )
-@authorize_decorator(role="user")
-async def get_pipelines(user_id: UUID, request: Request, db: Session = Depends(get_db)) -> list[PipelineConfigOutput]:
+async def get_pipelines(user_id: UUID, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)) -> list[PipelineConfigOutput]:
     """Retrieve all pipeline configurations for a user."""
-    if not hasattr(request.state, "user") or request.state.user["uuid"] != str(user_id):
-        raise HTTPException(status_code=403, detail="Not authorized to access pipelines")
-
     service = PipelineService(db)
     try:
         return service.get_user_pipelines(user_id)
@@ -52,14 +49,10 @@ async def get_pipelines(user_id: UUID, request: Request, db: Session = Depends(g
         500: {"description": "Internal server error"},
     },
 )
-@authorize_decorator(role="user")
 async def create_pipeline(
-    user_id: UUID, pipeline_input: PipelineConfigInput, request: Request, db: Session = Depends(get_db)
+    user_id: UUID, pipeline_input: PipelineConfigInput, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)
 ) -> PipelineConfigOutput:
     """Create a new pipeline configuration for a user."""
-    if not hasattr(request.state, "user") or request.state.user["uuid"] != str(user_id):
-        raise HTTPException(status_code=403, detail="Not authorized to create pipeline")
-
     service = PipelineService(db)
     try:
         if not pipeline_input.user_id:
@@ -82,18 +75,14 @@ async def create_pipeline(
         500: {"description": "Internal server error"},
     },
 )
-@authorize_decorator(role="user")
 async def update_pipeline(
     user_id: UUID,
     pipeline_id: UUID,
     pipeline_input: PipelineConfigInput,
-    request: Request,
     db: Session = Depends(get_db),
+    user: UserOutput = Depends(verify_user_access),
 ) -> PipelineConfigOutput:
     """Update an existing pipeline configuration."""
-    if not hasattr(request.state, "user") or request.state.user["uuid"] != str(user_id):
-        raise HTTPException(status_code=403, detail="Not authorized to update pipeline")
-
     service = PipelineService(db)
     try:
         return service.update_pipeline(pipeline_id, pipeline_input)
@@ -113,12 +102,8 @@ async def update_pipeline(
         500: {"description": "Internal server error"},
     },
 )
-@authorize_decorator(role="user")
-async def delete_pipeline(user_id: UUID, pipeline_id: UUID, request: Request, db: Session = Depends(get_db)) -> bool:
+async def delete_pipeline(user_id: UUID, pipeline_id: UUID, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)) -> bool:
     """Delete an existing pipeline configuration."""
-    if not hasattr(request.state, "user") or request.state.user["uuid"] != str(user_id):
-        raise HTTPException(status_code=403, detail="Not authorized to delete pipeline")
-
     service = PipelineService(db)
     try:
         return service.delete_pipeline(pipeline_id)
@@ -138,14 +123,10 @@ async def delete_pipeline(user_id: UUID, pipeline_id: UUID, request: Request, db
         500: {"description": "Internal server error"},
     },
 )
-@authorize_decorator(role="user")
 async def set_default_pipeline(
-    user_id: UUID, pipeline_id: UUID, request: Request, db: Session = Depends(get_db)
+    user_id: UUID, pipeline_id: UUID, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)
 ) -> PipelineConfigOutput:
     """Set a specific pipeline configuration as default."""
-    if not hasattr(request.state, "user") or request.state.user["uuid"] != str(user_id):
-        raise HTTPException(status_code=403, detail="Not authorized to set default pipeline")
-
     service = PipelineService(db)
     try:
         return service.set_default_pipeline(pipeline_id)

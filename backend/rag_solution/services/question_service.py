@@ -223,81 +223,34 @@ class QuestionService:
             QuestionGenerationError: If question generation fails
         """
         start_time = time.time()
-        stats = {"total_chunks": len(texts), "successful_generations": 0, "failed_generations": 0}
-
+        
         try:
             if not texts:
                 return []
 
-            logger.info(f"Using template: {template}")
-            logger.info(f"Using parameters: {parameters}")
+            # Setup generation components
+            provider, combined_texts, generation_stats = self._setup_question_generation(
+                texts, provider_name, template, parameters
+            )
 
-            # Get provider from factory
-            provider = self._provider_factory.get_provider(provider_name)
-            logger.debug(f"Provider: {provider}")
-
-            # Combine texts respecting context length
-            available_context_length = settings.max_context_length - settings.max_new_tokens
-            combined_texts = self._combine_text_chunks(texts, available_context_length)
-
-            all_questions = []
-
-            # Process in batches respecting concurrency limit
-            for i in range(0, len(combined_texts), settings.llm_concurrency):
-                batch = combined_texts[i : i + settings.llm_concurrency]
-
-                try:
-                    # Generate questions for batch - let generate_text handle the formatting
-                    variables = {"num_questions": str(num_questions if num_questions else 3)}
-
-                    responses = provider.generate_text(
-                        user_id=user_id,
-                        prompt=batch,  # Pass raw texts
-                        model_parameters=parameters,
-                        template=template,
-                        variables=variables,  # Pass variables needed for formatting
-                    )
-
-                    if isinstance(responses, list):
-                        for response in responses:
-                            response_questions = [q.strip() for q in response.split("\n") if q.strip().endswith("?")]
-                            filtered = [q for q in response_questions if self._validate_question(q, " ".join(texts))[0]]
-                            all_questions.extend(filtered)
-                            stats["successful_generations"] += 1
-                    else:
-                        response_questions = [q.strip() for q in responses.split("\n") if q.strip().endswith("?")]
-                        filtered = [q for q in response_questions if self._validate_question(q, " ".join(texts))[0]]
-                        all_questions.extend(filtered)
-                        stats["successful_generations"] += 1
-
-                except Exception as e:
-                    logger.error(f"Batch generation failed: {e!s}")
-                    logger.exception(e)
-                    stats["failed_generations"] += 1
-                    continue  # Continue with next batch
+            # Generate questions from text chunks
+            all_questions = await self._generate_questions_from_texts(
+                combined_texts, provider, user_id, template, parameters, num_questions, generation_stats
+            )
 
             if not all_questions:
                 logger.warning("No valid questions were generated")
                 return []
 
-            # Post-process questions
-            unique_questions = self._filter_duplicate_questions(all_questions)
-            ranked_questions = self._rank_questions(questions=unique_questions, context=" ".join(texts))
-            final_questions = ranked_questions[:num_questions] if num_questions else ranked_questions
-
-            # Create and store question models
-            stored_questions: list[SuggestedQuestion] = []
-            if final_questions:
-                questions: list[SuggestedQuestion] = [
-                    SuggestedQuestion(collection_id=collection_id, question=question) for question in final_questions
-                ]
-
-                stored_questions = await asyncio.to_thread(
-                    self.question_repository.create_questions, collection_id, questions
-                )
+            # Process and finalize questions
+            final_questions = self._process_generated_questions(all_questions, texts, num_questions)
+            
+            # Store questions in database
+            stored_questions = await self._store_questions(collection_id, final_questions)
 
             logger.info(
-                f"Generated {len(final_questions)} questions in {time.time() - start_time:.2f}s. " f"Stats: {stats}"
+                f"Generated {len(final_questions)} questions in {time.time() - start_time:.2f}s. "
+                f"Stats: {generation_stats}"
             )
             return stored_questions
 
@@ -309,6 +262,106 @@ class QuestionService:
             logger.error(f"Error suggesting questions: {e}")
             logger.exception(e)
             raise
+
+    def _setup_question_generation(
+        self, texts: list[str], provider_name: str, template: PromptTemplateBase, parameters: LLMParametersInput
+    ) -> tuple[object, list[str], dict]:
+        """Setup components for question generation."""
+        logger.info(f"Using template: {template}")
+        logger.info(f"Using parameters: {parameters}")
+        
+        # Get provider from factory
+        provider = self._provider_factory.get_provider(provider_name)
+        logger.debug(f"Provider: {provider}")
+        
+        # Combine texts respecting context length
+        available_context_length = settings.max_context_length - settings.max_new_tokens
+        combined_texts = self._combine_text_chunks(texts, available_context_length)
+        
+        generation_stats = {"total_chunks": len(texts), "successful_generations": 0, "failed_generations": 0}
+        
+        return provider, combined_texts, generation_stats
+
+    async def _generate_questions_from_texts(
+        self,
+        combined_texts: list[str],
+        provider: object,
+        user_id: UUID,
+        template: PromptTemplateBase,
+        parameters: LLMParametersInput,
+        num_questions: int | None,
+        stats: dict
+    ) -> list[str]:
+        """Generate questions from combined text chunks using LLM."""
+        all_questions = []
+        
+        # Process in batches respecting concurrency limit
+        for i in range(0, len(combined_texts), settings.llm_concurrency):
+            batch = combined_texts[i : i + settings.llm_concurrency]
+            
+            try:
+                # Generate questions for batch
+                variables = {"num_questions": str(num_questions if num_questions else 3)}
+                
+                responses = provider.generate_text(
+                    user_id=user_id,
+                    prompt=batch,
+                    model_parameters=parameters,
+                    template=template,
+                    variables=variables,
+                )
+                
+                batch_questions = self._extract_questions_from_responses(responses)
+                all_questions.extend(batch_questions)
+                stats["successful_generations"] += 1
+                
+            except Exception as e:
+                logger.error(f"Batch generation failed: {e!s}")
+                logger.exception(e)
+                stats["failed_generations"] += 1
+                continue
+        
+        return all_questions
+
+    def _extract_questions_from_responses(self, responses) -> list[str]:
+        """Extract valid questions from LLM responses."""
+        questions = []
+        
+        if isinstance(responses, list):
+            for response in responses:
+                response_questions = [q.strip() for q in response.split("\n") if q.strip().endswith("?")]
+                questions.extend(response_questions)
+        else:
+            response_questions = [q.strip() for q in responses.split("\n") if q.strip().endswith("?")]
+            questions.extend(response_questions)
+            
+        return questions
+
+    def _process_generated_questions(self, all_questions: list[str], texts: list[str], num_questions: int | None) -> list[str]:
+        """Process, filter, and rank generated questions."""
+        # Filter valid questions
+        valid_questions = [q for q in all_questions if self._validate_question(q, " ".join(texts))[0]]
+        
+        # Remove duplicates and rank
+        unique_questions = self._filter_duplicate_questions(valid_questions)
+        ranked_questions = self._rank_questions(questions=unique_questions, context=" ".join(texts))
+        
+        # Limit to requested number
+        return ranked_questions[:num_questions] if num_questions else ranked_questions
+
+    async def _store_questions(self, collection_id: UUID, final_questions: list[str]) -> list[SuggestedQuestion]:
+        """Store questions in the database."""
+        if not final_questions:
+            return []
+            
+        questions = [
+            SuggestedQuestion(collection_id=collection_id, question=question) 
+            for question in final_questions
+        ]
+        
+        return await asyncio.to_thread(
+            self.question_repository.create_questions, collection_id, questions
+        )
 
     def create_question(self, question_input: QuestionInput) -> SuggestedQuestion:
         """

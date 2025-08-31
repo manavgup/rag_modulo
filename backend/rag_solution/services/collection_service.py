@@ -250,12 +250,36 @@ class CollectionService:
             QuestionGenerationError: If question generation fails
             CollectionProcessingError: For other processing errors
         """
-        # Get appropriate provider for user - service will raise NotFoundError if not found
-        provider = self.user_provider_service.get_user_provider(user_id)
-
-        # Process documents and get the processed data
         try:
-            processed_documents = await self.ingest_documents(file_paths, vector_db_name, document_ids)
+            # Process documents into vector store
+            processed_documents = await self._process_and_ingest_documents(
+                file_paths, vector_db_name, document_ids, collection_id
+            )
+            
+            # Extract document texts for question generation
+            document_texts = self._extract_document_texts(processed_documents, collection_id)
+            
+            # Generate questions from processed documents
+            await self._generate_collection_questions(
+                document_texts, collection_id, user_id
+            )
+            
+        except (DocumentIngestionError, EmptyDocumentError, QuestionGenerationError):
+            # These exceptions already have proper collection status updates
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error processing documents for collection {collection_id}: {e!s}")
+            self.update_collection_status(collection_id, CollectionStatus.ERROR)
+            raise CollectionProcessingError(
+                collection_id=str(collection_id), stage="processing", error_type="unexpected_error", message=str(e)
+            ) from e
+
+    async def _process_and_ingest_documents(
+        self, file_paths: list[str], vector_db_name: str, document_ids: list[str], collection_id: UUID
+    ) -> list[Document]:
+        """Process and ingest documents into vector store."""
+        try:
+            return await self.ingest_documents(file_paths, vector_db_name, document_ids)
         except DocumentIngestionError as e:
             logger.error(f"Document ingestion failed: {e!s}")
             self.update_collection_status(collection_id, CollectionStatus.ERROR)
@@ -263,7 +287,8 @@ class CollectionService:
                 collection_id=str(collection_id), stage="ingestion", error_type="ingestion_failed", message=str(e)
             ) from e
 
-        # Extract text chunks from processed documents
+    def _extract_document_texts(self, processed_documents: list[Document], collection_id: UUID) -> list[str]:
+        """Extract text chunks from processed documents."""
         logger.info("Extracting document chunks for question generation")
         document_texts = []
         for doc in processed_documents:
@@ -275,30 +300,21 @@ class CollectionService:
             logger.error(f"No valid text chunks found in documents for collection {collection_id}")
             self.update_collection_status(collection_id, CollectionStatus.ERROR)
             raise EmptyDocumentError(collection_id=str(collection_id))
+            
+        return document_texts
 
-        logger.info("Fetching Template")
-        # Get question generation template - service will raise NotFoundError if not found
-        template = self.prompt_template_service.get_by_type(user_id, PromptTemplateType.QUESTION_GENERATION)
-
-        # Get LLM parameters - service will raise NotFoundError if not found
-        logger.info("Attempting to get parameters")
-        parameters = self.llm_parameters_service.get_latest_or_default_parameters(user_id)
-        logger.info(f"got parameters: {parameters}")
+    async def _generate_collection_questions(
+        self, document_texts: list[str], collection_id: UUID, user_id: UUID
+    ) -> None:
+        """Generate questions for collection from document texts."""
+        # Get provider and generation parameters
+        provider = self.user_provider_service.get_user_provider(user_id)
+        template = self._get_question_generation_template(user_id)
+        parameters_input = self._get_llm_parameters_input(user_id)
+        
         # Generate questions
         try:
             logger.info("Attempting to generate questions")
-            # Convert LLMParametersOutput to LLMParametersInput
-            parameters_input = LLMParametersInput(
-                name=parameters.name,
-                description=parameters.description,
-                user_id=parameters.user_id,
-                temperature=parameters.temperature,
-                max_new_tokens=parameters.max_new_tokens,
-                top_p=parameters.top_p,
-                top_k=parameters.top_k,
-                repetition_penalty=parameters.repetition_penalty,
-            )
-
             questions = await self.question_service.suggest_questions(
                 texts=document_texts,
                 collection_id=collection_id,
@@ -337,6 +353,28 @@ class CollectionService:
             raise QuestionGenerationError(
                 collection_id=str(collection_id), error_type="unexpected_error", message=str(e)
             ) from e
+
+    def _get_question_generation_template(self, user_id: UUID):
+        """Get question generation template for user."""
+        logger.info("Fetching Template")
+        return self.prompt_template_service.get_by_type(user_id, PromptTemplateType.QUESTION_GENERATION)
+
+    def _get_llm_parameters_input(self, user_id: UUID) -> LLMParametersInput:
+        """Get LLM parameters converted to input format."""
+        logger.info("Attempting to get parameters")
+        parameters = self.llm_parameters_service.get_latest_or_default_parameters(user_id)
+        logger.info(f"got parameters: {parameters}")
+        
+        return LLMParametersInput(
+            name=parameters.name,
+            description=parameters.description,
+            user_id=parameters.user_id,
+            temperature=parameters.temperature,
+            max_new_tokens=parameters.max_new_tokens,
+            top_p=parameters.top_p,
+            top_k=parameters.top_k,
+            repetition_penalty=parameters.repetition_penalty,
+        )
 
     async def ingest_documents(
         self, file_paths: list[str], vector_db_name: str, document_ids: list[str]

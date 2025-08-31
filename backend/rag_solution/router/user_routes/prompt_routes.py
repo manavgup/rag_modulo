@@ -3,13 +3,14 @@
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from core.authorization import authorize_decorator
+from rag_solution.core.dependencies import verify_user_access
 from rag_solution.file_management.database import get_db
 from rag_solution.models.prompt_template import PromptTemplateType
 from rag_solution.schemas.prompt_template_schema import PromptTemplateInput, PromptTemplateOutput
+from rag_solution.schemas.user_schema import UserOutput
 from rag_solution.services.prompt_template_service import PromptTemplateService
 
 logger = logging.getLogger(__name__)
@@ -28,14 +29,10 @@ router = APIRouter()
         500: {"description": "Internal server error"},
     },
 )
-@authorize_decorator(role="user")
 async def get_prompt_templates(
-    user_id: UUID, request: Request, db: Session = Depends(get_db)
+    user_id: UUID, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)
 ) -> list[PromptTemplateOutput]:
     """Retrieve all prompt templates for a user."""
-    if not hasattr(request.state, "user") or request.state.user["uuid"] != str(user_id):
-        raise HTTPException(status_code=403, detail="Not authorized to access templates")
-
     service = PromptTemplateService(db)
     try:
         return service.get_user_templates(user_id)
@@ -55,14 +52,10 @@ async def get_prompt_templates(
         500: {"description": "Internal server error"},
     },
 )
-@authorize_decorator(role="user")
 async def create_prompt_template(
-    user_id: UUID, template_input: PromptTemplateInput, request: Request, db: Session = Depends(get_db)
+    user_id: UUID, template_input: PromptTemplateInput, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)
 ) -> PromptTemplateOutput:
     """Create a new prompt template for a user."""
-    if not hasattr(request.state, "user") or request.state.user["uuid"] != str(user_id):
-        raise HTTPException(status_code=403, detail="Not authorized to create template")
-
     service = PromptTemplateService(db)
     try:
         if not template_input.user_id:
@@ -85,18 +78,14 @@ async def create_prompt_template(
         500: {"description": "Internal server error"},
     },
 )
-@authorize_decorator(role="user")
 async def update_prompt_template(
     user_id: UUID,
     template_id: UUID,
     template_input: PromptTemplateInput,
-    request: Request,
     db: Session = Depends(get_db),
+    user: UserOutput = Depends(verify_user_access),
 ) -> PromptTemplateOutput:
     """Update an existing prompt template."""
-    if not hasattr(request.state, "user") or request.state.user["uuid"] != str(user_id):
-        raise HTTPException(status_code=403, detail="Not authorized to update template")
-
     service = PromptTemplateService(db)
     try:
         # Ensure user_id is set in the input
@@ -119,14 +108,10 @@ async def update_prompt_template(
         500: {"description": "Internal server error"},
     },
 )
-@authorize_decorator(role="user")
 async def delete_prompt_template(
-    user_id: UUID, template_id: UUID, request: Request, db: Session = Depends(get_db)
+    user_id: UUID, template_id: UUID, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)
 ) -> bool:
     """Delete an existing prompt template."""
-    if not hasattr(request.state, "user") or request.state.user["uuid"] != str(user_id):
-        raise HTTPException(status_code=403, detail="Not authorized to delete template")
-
     service = PromptTemplateService(db)
     try:
         return service.delete_template(user_id, template_id)
@@ -146,14 +131,10 @@ async def delete_prompt_template(
         500: {"description": "Internal server error"},
     },
 )
-@authorize_decorator(role="user")
 async def set_default_prompt_template(
-    user_id: UUID, template_id: UUID, request: Request, db: Session = Depends(get_db)
+    user_id: UUID, template_id: UUID, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)
 ) -> PromptTemplateOutput:
     """Set a specific prompt template as default."""
-    if not hasattr(request.state, "user") or request.state.user["uuid"] != str(user_id):
-        raise HTTPException(status_code=403, detail="Not authorized to set default template")
-
     service = PromptTemplateService(db)
     try:
         return service.set_default_template(template_id)
@@ -172,14 +153,10 @@ async def set_default_prompt_template(
         500: {"description": "Internal server error"},
     },
 )
-@authorize_decorator(role="user")
 async def get_prompt_templates_by_type(
-    user_id: UUID, template_type: PromptTemplateType, request: Request, db: Session = Depends(get_db)
+    user_id: UUID, template_type: PromptTemplateType, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)
 ) -> list[PromptTemplateOutput]:
     """Retrieve prompt templates for a user by their type."""
-    if not hasattr(request.state, "user") or request.state.user["uuid"] != str(user_id):
-        raise HTTPException(status_code=403, detail="Not authorized to access templates")
-
     service = PromptTemplateService(db)
     try:
         return service.get_templates_by_type(user_id, template_type)
