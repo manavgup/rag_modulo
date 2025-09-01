@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING
-from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, UUID4
 
 
 class UserInDB(BaseModel):
-    id: UUID
+    id: UUID4
     ibm_id: str
     email: EmailStr
     name: str
@@ -20,21 +18,21 @@ class UserInDB(BaseModel):
 
 
 class UserInput(BaseModel):
-    id: UUID | None = None
+    id: UUID4 | None = None
     ibm_id: str = Field(..., min_length=1)
     email: EmailStr
     name: str = Field(..., min_length=1)
     role: str = Field(default="user")
-    preferred_provider_id: UUID | None = Field(None, description="User's preferred LLM provider")  # 👈 Add this
+    preferred_provider_id: UUID4 | None = Field(None, description="User's preferred LLM provider")  # 👈 Add this
 
 
 class UserOutput(BaseModel):
-    id: UUID
+    id: UUID4
     ibm_id: str
     email: EmailStr
     name: str
     role: str
-    preferred_provider_id: UUID | None
+    preferred_provider_id: UUID4 | None
     created_at: datetime
     updated_at: datetime
 

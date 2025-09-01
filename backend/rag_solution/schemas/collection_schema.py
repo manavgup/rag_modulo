@@ -1,8 +1,7 @@
 from datetime import datetime
 from enum import Enum
-from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, UUID4
 
 
 class CollectionStatus(str, Enum):
@@ -13,7 +12,7 @@ class CollectionStatus(str, Enum):
 
 
 class FileInfo(BaseModel):
-    id: UUID
+    id: UUID4
     filename: str
 
     model_config = ConfigDict(from_attributes=True)
@@ -22,25 +21,25 @@ class FileInfo(BaseModel):
 class CollectionInput(BaseModel):
     name: str
     is_private: bool
-    users: list[UUID] = []
+    users: list[UUID4] = []
     status: CollectionStatus = CollectionStatus.CREATED
 
     model_config = ConfigDict(
         from_attributes=True,
         json_encoders={
-            UUID: lambda v: str(v),  # Convert UUID to string during serialization
+            UUID4: lambda v: str(v),  # Convert UUID to string during serialization
         },
     )
 
 
 class CollectionOutput(BaseModel):
-    id: UUID
+    id: UUID4
     name: str
     vector_db_name: str
     is_private: bool
     created_at: datetime
     updated_at: datetime
-    user_ids: list[UUID]
+    user_ids: list[UUID4]
     files: list[FileInfo]
     status: CollectionStatus
 
@@ -48,7 +47,7 @@ class CollectionOutput(BaseModel):
 
 
 class CollectionInDB(BaseModel):
-    id: UUID
+    id: UUID4
     name: str
     is_private: bool
     created_at: datetime
