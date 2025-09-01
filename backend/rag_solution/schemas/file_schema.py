@@ -1,14 +1,13 @@
 from datetime import datetime
-from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, UUID4
 
 from vectordbs.data_types import FileMetadata
 
 
 class FileInDB(BaseModel):
-    id: UUID
-    collection_id: UUID
+    id: UUID4
+    collection_id: UUID4
     filename: str
     file_path: str
     file_type: str
@@ -19,7 +18,7 @@ class FileInDB(BaseModel):
 
 
 class FileInput(BaseModel):
-    collection_id: UUID
+    collection_id: UUID4
     filename: str
     file_path: str
     file_type: str
@@ -28,8 +27,8 @@ class FileInput(BaseModel):
 
 
 class FileOutput(BaseModel):
-    id: UUID
-    collection_id: UUID
+    id: UUID4
+    collection_id: UUID4
     filename: str | None = None
     file_path: str | None = None
     file_type: str | None = None
