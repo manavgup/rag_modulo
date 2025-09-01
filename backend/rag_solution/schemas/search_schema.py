@@ -1,10 +1,8 @@
 """API schemas for search functionality."""
 
 from typing import Any
-from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
-
+from pydantic import BaseModel, ConfigDict, UUID4
 from vectordbs.data_types import DocumentMetadata, QueryResult
 
 
@@ -19,9 +17,9 @@ class SearchInput(BaseModel):
     """
 
     question: str
-    collection_id: UUID
-    pipeline_id: UUID
-    user_id: UUID
+    collection_id: UUID4
+    pipeline_id: UUID4
+    user_id: UUID4
     config_metadata: dict[str, Any] | None = None
 
     model_config = ConfigDict(from_attributes=True)
