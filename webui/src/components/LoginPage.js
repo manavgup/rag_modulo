@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Button, Loading } from 'carbon-components-react';
+import { Button, Loading } from '@carbon/react';
 import  { getFullApiUrl, API_ROUTES } from '../config/config';
 import './LoginPage.css';
 

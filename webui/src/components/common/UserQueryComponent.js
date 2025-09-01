@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TextInput, Button } from 'carbon-components-react';
+import { TextInput, Button } from '@carbon/react';
 
 const UserQueryComponent = () => {
   const [query, setQuery] = useState('');

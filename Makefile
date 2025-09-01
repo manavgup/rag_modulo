@@ -29,9 +29,14 @@ GHCR_REPO ?= ghcr.io/manavgup/rag_modulo
 CONTAINER_CLI := docker
 DOCKER_COMPOSE := docker compose
 
-# Enable Docker BuildKit for better build performance and caching
-export DOCKER_BUILDKIT=1
-export COMPOSE_DOCKER_CLI_BUILD=1
+# Check Docker version and available build methods
+DOCKER_VERSION := $(shell docker version --format '{{.Client.Version}}' 2>/dev/null)
+BUILDX_AVAILABLE := $(shell docker buildx version >/dev/null 2>&1 && echo "yes" || echo "no")
+
+# Docker 27+ uses BuildKit by default, but we need to handle the case where buildx is not installed
+# We'll use the legacy builder to avoid the buildx requirement
+# Note: This will show a deprecation warning but will still work
+# To fix this permanently, run: docker buildx install
 
 # Set a default value for VECTOR_DB if not already set
 VECTOR_DB ?= milvus
@@ -66,23 +71,39 @@ sync-frontend-deps:
 	@cd webui && npm install
 	@echo "Frontend dependencies synced."
 
+# Install Docker buildx to eliminate deprecation warnings
+install-buildx:
+	@echo "Installing Docker buildx plugin..."
+	@if command -v brew >/dev/null 2>&1; then \
+		echo "Installing via Homebrew..."; \
+		brew install docker-buildx; \
+	else \
+		echo "Please install Docker Desktop or Docker buildx manually:"; \
+		echo "  - Docker Desktop: https://www.docker.com/products/docker-desktop"; \
+		echo "  - Or manual install: https://github.com/docker/buildx#installing"; \
+	fi
+	@echo "After installation, buildx will be available and deprecation warnings will disappear."
+
 # Build and Push - GHCR-first strategy
 build-frontend:
 	@echo "Building and pushing frontend image..."
-	$(CONTAINER_CLI) build -t ${GHCR_REPO}/frontend:${PROJECT_VERSION} -t ${GHCR_REPO}/frontend:latest -f ./webui/Dockerfile.frontend ./webui
-	$(CONTAINER_CLI) push ${GHCR_REPO}/frontend:${PROJECT_VERSION}
-	$(CONTAINER_CLI) push ${GHCR_REPO}/frontend:latest
+	@echo "Using Docker $(DOCKER_VERSION) (legacy builder - install buildx to remove deprecation warning)..."
+	@cd webui && $(CONTAINER_CLI) build -t ${GHCR_REPO}/frontend:${PROJECT_VERSION} -t ${GHCR_REPO}/frontend:latest -f Dockerfile.frontend .
+	@$(CONTAINER_CLI) push ${GHCR_REPO}/frontend:${PROJECT_VERSION}
+	@$(CONTAINER_CLI) push ${GHCR_REPO}/frontend:latest
 
 build-backend:
 	@echo "Building and pushing backend image..."
-	$(CONTAINER_CLI) build -t ${GHCR_REPO}/backend:${PROJECT_VERSION} -t ${GHCR_REPO}/backend:latest -f ./backend/Dockerfile.backend ./backend
-	$(CONTAINER_CLI) push ${GHCR_REPO}/backend:${PROJECT_VERSION}
-	$(CONTAINER_CLI) push ${GHCR_REPO}/backend:latest
+	@echo "Using Docker $(DOCKER_VERSION) (legacy builder - install buildx to remove deprecation warning)..."
+	@cd backend && $(CONTAINER_CLI) build -t ${GHCR_REPO}/backend:${PROJECT_VERSION} -t ${GHCR_REPO}/backend:latest -f Dockerfile.backend .
+	@$(CONTAINER_CLI) push ${GHCR_REPO}/backend:${PROJECT_VERSION}
+	@$(CONTAINER_CLI) push ${GHCR_REPO}/backend:latest
 
 build-tests:
 	@echo "Building test image..."
-	$(CONTAINER_CLI) build -t ${GHCR_REPO}/backend:test-${PROJECT_VERSION} -f ./backend/Dockerfile.test ./backend
-	$(CONTAINER_CLI) push ${GHCR_REPO}/backend:test-${PROJECT_VERSION}
+	@echo "Using Docker $(DOCKER_VERSION) (legacy builder - install buildx to remove deprecation warning)..."
+	@cd backend && $(CONTAINER_CLI) build -t ${GHCR_REPO}/backend:test-${PROJECT_VERSION} -f Dockerfile.test .
+	@$(CONTAINER_CLI) push ${GHCR_REPO}/backend:test-${PROJECT_VERSION}
 
 build-all: build-frontend build-backend build-tests
 
