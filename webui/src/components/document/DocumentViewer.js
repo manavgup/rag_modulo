@@ -16,7 +16,7 @@ import {
   StructuredListBody,
   StructuredListRow,
   StructuredListCell
-} from 'carbon-components-react';
+} from '@carbon/react';
 import { Document, Page } from 'react-pdf';
 import { Download, Edit } from '@carbon/icons-react';
 import { getDocument } from 'src/api/api';  // Removed updateDocumentMetadata import

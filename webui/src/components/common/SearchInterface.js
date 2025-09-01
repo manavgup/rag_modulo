@@ -13,7 +13,7 @@ import {
   InlineLoading,
   AccordionItem,
   Accordion
-} from 'carbon-components-react';
+} from '@carbon/react';
 import { Search, Filter, Document } from '@carbon/icons-react';
 import { getUserCollections, searchDocuments } from '../../api/api';
 import { useNotification } from '../../contexts/NotificationContext';

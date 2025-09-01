@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
+    "@babel/plugin-proposal-private-property-in-object": "^7.18.6",
     "@carbon/icons-react": "^11.50.0",
     "@carbon/react": "^1.65.0",
     "@carbon/styles": "^1.64.0",
@@ -17,7 +18,6 @@
     "react-pdf": "^5.7.2",
     "react-router-dom": "^6.24.0",
     "react-scripts": "^5.0.1",
-    "@babel/plugin-proposal-private-property-in-object": "^7.18.6",
     "web-vitals": "^2.1.4"
   },
   "scripts": {
