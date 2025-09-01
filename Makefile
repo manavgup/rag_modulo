@@ -29,12 +29,24 @@ GHCR_REPO ?= ghcr.io/manavgup/rag_modulo
 CONTAINER_CLI := docker
 DOCKER_COMPOSE := docker compose
 
+# Check if buildx is available and use it if possible
+BUILDX_AVAILABLE := $(shell docker buildx version >/dev/null 2>&1 && echo "yes" || echo "no")
+
+# Only enable BuildKit if buildx is available
+ifeq ($(BUILDX_AVAILABLE),yes)
+export DOCKER_BUILDKIT=1
+export COMPOSE_DOCKER_CLI_BUILD=1
+else
+export DOCKER_BUILDKIT=0
+export COMPOSE_DOCKER_CLI_BUILD=0
+endif
+
 # Set a default value for VECTOR_DB if not already set
 VECTOR_DB ?= milvus
 
 .DEFAULT_GOAL := help
 
-.PHONY: init-env sync-frontend-deps build-frontend build-backend build-tests build-all test tests api-tests unit-tests integration-tests performance-tests service-tests pipeline-tests all-tests run-app run-backend run-frontend run-services stop-containers clean create-volumes logs info help pull-ghcr-images venv clean-venv format-imports check-imports quick-check security-check coverage coverage-report quality fix-all check-deps check-deps-tree export-requirements docs-generate docs-serve search-test search-batch search-components uv-install uv-sync uv-export
+.PHONY: init-env sync-frontend-deps build-frontend build-backend build-tests build-all test tests api-tests unit-tests integration-tests performance-tests service-tests pipeline-tests all-tests run-app run-backend run-frontend run-services stop-containers clean create-volumes logs info help pull-ghcr-images venv clean-venv format-imports check-imports quick-check security-check coverage coverage-report quality fix-all check-deps check-deps-tree export-requirements docs-generate docs-serve search-test search-batch search-components uv-install uv-sync uv-export validate-env health-check build-optimize build-performance
 
 # Init
 init-env:
@@ -65,20 +77,38 @@ sync-frontend-deps:
 # Build and Push - GHCR-first strategy
 build-frontend:
 	@echo "Building and pushing frontend image..."
-	$(CONTAINER_CLI) build -t ${GHCR_REPO}/frontend:${PROJECT_VERSION} -t ${GHCR_REPO}/frontend:latest -f ./webui/Dockerfile.frontend ./webui
-	$(CONTAINER_CLI) push ${GHCR_REPO}/frontend:${PROJECT_VERSION}
-	$(CONTAINER_CLI) push ${GHCR_REPO}/frontend:latest
+	@if [ "$(BUILDX_AVAILABLE)" = "yes" ]; then \
+		echo "Using Docker BuildKit with buildx..."; \
+		$(CONTAINER_CLI) buildx build --platform linux/amd64 -t ${GHCR_REPO}/frontend:${PROJECT_VERSION} -t ${GHCR_REPO}/frontend:latest -f ./webui/Dockerfile.frontend ./webui --push; \
+	else \
+		echo "Using standard Docker build (buildx not available)..."; \
+		$(CONTAINER_CLI) build -t ${GHCR_REPO}/frontend:${PROJECT_VERSION} -t ${GHCR_REPO}/frontend:latest -f ./webui/Dockerfile.frontend ./webui; \
+		$(CONTAINER_CLI) push ${GHCR_REPO}/frontend:${PROJECT_VERSION}; \
+		$(CONTAINER_CLI) push ${GHCR_REPO}/frontend:latest; \
+	fi
 
 build-backend:
 	@echo "Building and pushing backend image..."
-	$(CONTAINER_CLI) build -t ${GHCR_REPO}/backend:${PROJECT_VERSION} -t ${GHCR_REPO}/backend:latest -f ./backend/Dockerfile.backend ./backend
-	$(CONTAINER_CLI) push ${GHCR_REPO}/backend:${PROJECT_VERSION}
-	$(CONTAINER_CLI) push ${GHCR_REPO}/backend:latest
+	@if [ "$(BUILDX_AVAILABLE)" = "yes" ]; then \
+		echo "Using Docker BuildKit with buildx..."; \
+		$(CONTAINER_CLI) buildx build --platform linux/amd64 -t ${GHCR_REPO}/backend:${PROJECT_VERSION} -t ${GHCR_REPO}/backend:latest -f ./backend/Dockerfile.backend ./backend --push; \
+	else \
+		echo "Using standard Docker build (buildx not available)..."; \
+		$(CONTAINER_CLI) build -t ${GHCR_REPO}/backend:${PROJECT_VERSION} -t ${GHCR_REPO}/backend:latest -f ./backend/Dockerfile.backend ./backend; \
+		$(CONTAINER_CLI) push ${GHCR_REPO}/backend:${PROJECT_VERSION}; \
+		$(CONTAINER_CLI) push ${GHCR_REPO}/backend:latest; \
+	fi
 
 build-tests:
 	@echo "Building test image..."
-	$(CONTAINER_CLI) build -t ${GHCR_REPO}/backend:test-${PROJECT_VERSION} -f ./backend/Dockerfile.test ./backend
-	$(CONTAINER_CLI) push ${GHCR_REPO}/backend:test-${PROJECT_VERSION}
+	@if [ "$(BUILDX_AVAILABLE)" = "yes" ]; then \
+		echo "Using Docker BuildKit with buildx..."; \
+		$(CONTAINER_CLI) buildx build --platform linux/amd64 -t ${GHCR_REPO}/backend:test-${PROJECT_VERSION} -f ./backend/Dockerfile.test ./backend --push; \
+	else \
+		echo "Using standard Docker build (buildx not available)..."; \
+		$(CONTAINER_CLI) build -t ${GHCR_REPO}/backend:test-${PROJECT_VERSION} -f ./backend/Dockerfile.test ./backend; \
+		$(CONTAINER_CLI) push ${GHCR_REPO}/backend:test-${PROJECT_VERSION}; \
+	fi
 
 build-all: build-frontend build-backend build-tests
 
@@ -98,6 +128,42 @@ use-ghcr-images:
 	@echo "GHCR image configuration saved to .env.local"
 
 # Helper function to check if containers are healthy
+
+# Environment and health validation
+validate-env:
+	@echo "Validating environment configuration..."
+	@./scripts/validate-env.sh
+
+health-check:
+	@echo "Running comprehensive health check..."
+	@./scripts/health-check.sh
+
+# Build optimization and testing
+build-optimize:
+	@echo "Running build optimization tests..."
+	@echo "Checking build context sizes..."
+	@echo "Frontend build context:"
+	@cd webui && du -sh . 2>/dev/null | head -1 || echo "Could not determine size"
+	@echo "Backend build context:"
+	@cd backend && du -sh . 2>/dev/null | head -1 || echo "Could not determine size"
+	@echo ""
+	@echo "Testing Docker BuildKit..."
+	@if [ "$(BUILDX_AVAILABLE)" = "yes" ]; then \
+		echo "✓ BuildKit available with buildx"; \
+	else \
+		echo "⚠ BuildKit disabled - buildx not available, using standard builds"; \
+	fi
+	@echo ""
+	@echo "Checking .dockerignore files..."
+	@[ -f "webui/.dockerignore" ] && echo "✓ Frontend .dockerignore exists" || echo "✗ Frontend .dockerignore missing"
+	@[ -f "backend/.dockerignore" ] && echo "✓ Backend .dockerignore exists" || echo "✗ Backend .dockerignore missing"
+	@echo ""
+	@echo "Testing guide available at: docs/TESTING_PHASES.md"
+
+# Performance testing
+build-performance:
+	@echo "Running comprehensive build performance tests..."
+	@./scripts/build-performance.sh
 check_containers:
 	@echo "Checking if required containers are running and healthy..."
 	@if [ -z "$$(docker compose ps -q backend)" ] || \
@@ -632,18 +698,6 @@ setup-env:
 		exit 1; \
 	fi
 	@python scripts/setup_env.py
-
-validate-env:
-	@echo "$(CYAN)🔍 Validating environment configuration...$(NC)"
-	@if [ ! -f .env ]; then \
-		echo "❌ .env file not found. Run 'make setup-env' first."; \
-		exit 1; \
-	fi
-	@if [ ! -f scripts/validate_env.py ]; then \
-		echo "❌ Validation script not found."; \
-		exit 1; \
-	fi
-	@python scripts/validate_env.py
 
 env-help:
 	@echo "$(CYAN)🔐 Environment Setup Help$(NC)"

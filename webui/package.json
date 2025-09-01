@@ -10,15 +10,14 @@
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
     "axios": "^1.7.2",
-    "carbon-components-react": "^8.67.0",
     "jwt-decode": "^3.1.2",
     "oidc-client": "^1.11.5",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-pdf": "^5.7.2",
     "react-router-dom": "^6.24.0",
-    "react-scripts": "5.0.1",
-    "@babel/plugin-proposal-private-property-in-object": "^7.14.5",
+    "react-scripts": "^5.0.1",
+    "@babel/plugin-proposal-private-property-in-object": "^7.18.6",
     "web-vitals": "^2.1.4"
   },
   "scripts": {
@@ -26,7 +25,13 @@
     "build": "DISABLE_ESLINT_PLUGIN=true react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "dev": "WDS_SOCKET_PORT=3000 CHOKIDAR_USEPOLLING=true WATCHPACK_POLLING=true FAST_REFRESH=false react-scripts start"
+    "dev": "WDS_SOCKET_PORT=3000 CHOKIDAR_USEPOLLING=true WATCHPACK_POLLING=true FAST_REFRESH=false react-scripts start",
+    "audit": "npm audit",
+    "audit:fix": "npm audit fix",
+    "audit:fix-force": "npm audit fix --force",
+    "outdated": "npm outdated",
+    "update": "npm update",
+    "clean": "rm -rf node_modules package-lock.json && npm install"
   },
   "proxy": "http://localhost:8000",
   "eslintConfig": {
