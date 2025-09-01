@@ -7,7 +7,7 @@ import {
   useNavigate,
   useLocation,
 } from "react-router-dom";
-import { Content } from "carbon-components-react";
+import { Content } from "@carbon/react";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
 import Header from "./components/layout/Header";

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
-import { ToastNotification } from 'carbon-components-react';
+import { ToastNotification } from '@carbon/react';
 
 const NotificationContext = createContext();
 

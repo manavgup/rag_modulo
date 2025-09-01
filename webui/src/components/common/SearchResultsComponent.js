@@ -1,5 +1,5 @@
 import React from 'react';
-import { Accordion, AccordionItem } from 'carbon-components-react';
+import { Accordion, AccordionItem } from '@carbon/react';
 
 const SearchResultsComponent = ({ results }) => {
   return (
