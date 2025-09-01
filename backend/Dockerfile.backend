@@ -1,12 +1,13 @@
 # Build stage: build rust, install poetry and python dependencies
 FROM python:3.12-slim AS builder
 
-# Pre-configure poetry
+# Pre-configure poetry to install to system Python
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     POETRY_VERSION=1.8.3 \
     POETRY_HOME="/opt/poetry" \
-    POETRY_VIRTUALENVS_IN_PROJECT=true \
+    POETRY_VIRTUALENVS_IN_PROJECT=false \
+    POETRY_VIRTUALENVS_CREATE=false \
     POETRY_NO_INTERACTION=1 \
     POETRY_CACHE_DIR="/opt/poetry/cache"
 
@@ -25,30 +26,39 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && .
 # Add Rust to PATH
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-# Verify Rust installation
-RUN rustc --version && cargo --version
-
 WORKDIR /app
 
 # Copy dependency files first for better layer caching
 COPY pyproject.toml poetry.lock ./
 
-# Install python dependencies using poetry with caching
+# Install python dependencies directly to system Python (no virtual environment)
 RUN poetry lock --no-update && \
     poetry install --only main --no-root --no-cache && \
-    poetry cache clear --all pypi
+    poetry cache clear --all pypi && \
+    pip cache purge
 
-# Final stage
+# Clean up system Python installation
+RUN find /usr/local -name "*.pyc" -delete && \
+    find /usr/local -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true && \
+    find /usr/local -name "tests" -type d -exec rm -rf {} + 2>/dev/null || true && \
+    find /usr/local -name "*.egg-info" -type d -exec rm -rf {} + 2>/dev/null || true
+
+# Final stage - clean runtime
 FROM python:3.12-slim
 
 WORKDIR /app
 
-# Copy installed python dependencies and binaries
-COPY --from=builder /app/.venv /app/.venv
+# Copy system Python packages from builder
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
 
-ENV PATH="/app/.venv/bin:$PATH"
-
-COPY . /app
+# Copy only essential application files
+COPY main.py healthcheck.py ./
+COPY rag_solution/ ./rag_solution/
+COPY auth/ ./auth/
+COPY core/ ./core/
+COPY cli/ ./cli/
+COPY pyproject.toml ./
 
 # Create a non-root user and group
 RUN groupadd --gid 10001 backend && \
@@ -58,10 +68,10 @@ RUN groupadd --gid 10001 backend && \
     chmod -R 755 /app && \
     chmod 777 /app/logs
 
-# Set environment variable to indicate container environment
+# Set environment variables
+ENV PYTHONPATH=/app
 ENV CONTAINER_ENV=1
 
-# Switch to non-root user
 USER backend
 
 EXPOSE 8000

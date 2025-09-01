@@ -10,7 +10,7 @@ import {
   StructuredListRow,
   StructuredListCell,
   Button,
-} from "carbon-components-react";
+} from "@carbon/react";
 import { Add, Search, Document } from "@carbon/icons-react";
 import { getUserCollections } from "src/api/api";
 import { useNotification } from "src/contexts/NotificationContext";

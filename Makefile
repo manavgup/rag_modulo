@@ -29,7 +29,8 @@ GHCR_REPO ?= ghcr.io/manavgup/rag_modulo
 CONTAINER_CLI := docker
 DOCKER_COMPOSE := docker compose
 
-# Check if buildx is available and use it if possible
+# Check Docker version and available build methods
+DOCKER_VERSION := $(shell docker version --format '{{.Client.Version}}' 2>/dev/null)
 BUILDX_AVAILABLE := $(shell docker buildx version >/dev/null 2>&1 && echo "yes" || echo "no")
 
 # Only enable BuildKit if buildx is available
@@ -74,15 +75,28 @@ sync-frontend-deps:
 	@cd webui && npm install
 	@echo "Frontend dependencies synced."
 
+# Install Docker buildx to eliminate deprecation warnings
+install-buildx:
+	@echo "Installing Docker buildx plugin..."
+	@if command -v brew >/dev/null 2>&1; then \
+		echo "Installing via Homebrew..."; \
+		brew install docker-buildx; \
+	else \
+		echo "Please install Docker Desktop or Docker buildx manually:"; \
+		echo "  - Docker Desktop: https://www.docker.com/products/docker-desktop"; \
+		echo "  - Or manual install: https://github.com/docker/buildx#installing"; \
+	fi
+	@echo "After installation, buildx will be available and deprecation warnings will disappear."
+
 # Build and Push - GHCR-first strategy
 build-frontend:
 	@echo "Building and pushing frontend image..."
 	@if [ "$(BUILDX_AVAILABLE)" = "yes" ]; then \
 		echo "Using Docker BuildKit with buildx..."; \
-		$(CONTAINER_CLI) buildx build --platform linux/amd64 -t ${GHCR_REPO}/frontend:${PROJECT_VERSION} -t ${GHCR_REPO}/frontend:latest -f ./webui/Dockerfile.frontend ./webui --push; \
+		cd webui && $(CONTAINER_CLI) buildx build --platform linux/amd64 -t ${GHCR_REPO}/frontend:${PROJECT_VERSION} -t ${GHCR_REPO}/frontend:latest -f Dockerfile.frontend . --push; \
 	else \
 		echo "Using standard Docker build (buildx not available)..."; \
-		$(CONTAINER_CLI) build -t ${GHCR_REPO}/frontend:${PROJECT_VERSION} -t ${GHCR_REPO}/frontend:latest -f ./webui/Dockerfile.frontend ./webui; \
+		cd webui && $(CONTAINER_CLI) build -t ${GHCR_REPO}/frontend:${PROJECT_VERSION} -t ${GHCR_REPO}/frontend:latest -f Dockerfile.frontend .; \
 		$(CONTAINER_CLI) push ${GHCR_REPO}/frontend:${PROJECT_VERSION}; \
 		$(CONTAINER_CLI) push ${GHCR_REPO}/frontend:latest; \
 	fi
@@ -91,10 +105,10 @@ build-backend:
 	@echo "Building and pushing backend image..."
 	@if [ "$(BUILDX_AVAILABLE)" = "yes" ]; then \
 		echo "Using Docker BuildKit with buildx..."; \
-		$(CONTAINER_CLI) buildx build --platform linux/amd64 -t ${GHCR_REPO}/backend:${PROJECT_VERSION} -t ${GHCR_REPO}/backend:latest -f ./backend/Dockerfile.backend ./backend --push; \
+		cd backend && $(CONTAINER_CLI) buildx build --platform linux/amd64 -t ${GHCR_REPO}/backend:${PROJECT_VERSION} -t ${GHCR_REPO}/backend:latest -f Dockerfile.backend . --push; \
 	else \
 		echo "Using standard Docker build (buildx not available)..."; \
-		$(CONTAINER_CLI) build -t ${GHCR_REPO}/backend:${PROJECT_VERSION} -t ${GHCR_REPO}/backend:latest -f ./backend/Dockerfile.backend ./backend; \
+		cd backend && $(CONTAINER_CLI) build -t ${GHCR_REPO}/backend:${PROJECT_VERSION} -t ${GHCR_REPO}/backend:latest -f Dockerfile.backend .; \
 		$(CONTAINER_CLI) push ${GHCR_REPO}/backend:${PROJECT_VERSION}; \
 		$(CONTAINER_CLI) push ${GHCR_REPO}/backend:latest; \
 	fi
@@ -103,10 +117,10 @@ build-tests:
 	@echo "Building test image..."
 	@if [ "$(BUILDX_AVAILABLE)" = "yes" ]; then \
 		echo "Using Docker BuildKit with buildx..."; \
-		$(CONTAINER_CLI) buildx build --platform linux/amd64 -t ${GHCR_REPO}/backend:test-${PROJECT_VERSION} -f ./backend/Dockerfile.test ./backend --push; \
+		cd backend && $(CONTAINER_CLI) buildx build --platform linux/amd64 -t ${GHCR_REPO}/backend:test-${PROJECT_VERSION} -f Dockerfile.test . --push; \
 	else \
 		echo "Using standard Docker build (buildx not available)..."; \
-		$(CONTAINER_CLI) build -t ${GHCR_REPO}/backend:test-${PROJECT_VERSION} -f ./backend/Dockerfile.test ./backend; \
+		cd backend && $(CONTAINER_CLI) build -t ${GHCR_REPO}/backend:test-${PROJECT_VERSION} -f Dockerfile.test .; \
 		$(CONTAINER_CLI) push ${GHCR_REPO}/backend:test-${PROJECT_VERSION}; \
 	fi
 

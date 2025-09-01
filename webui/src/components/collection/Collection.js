@@ -53,7 +53,7 @@ import {
 
 import "./Collection.css";
 import "src/styles/view-ui.css";
-import { Modal } from "carbon-components-react";
+import { Modal } from "@carbon/react";
 import { useAuth } from "src/contexts/AuthContext";
 
 const Collections = () => {
