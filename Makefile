@@ -33,10 +33,14 @@ DOCKER_COMPOSE := docker compose
 DOCKER_VERSION := $(shell docker version --format '{{.Client.Version}}' 2>/dev/null)
 BUILDX_AVAILABLE := $(shell docker buildx version >/dev/null 2>&1 && echo "yes" || echo "no")
 
-# Docker 27+ uses BuildKit by default, but we need to handle the case where buildx is not installed
-# We'll use the legacy builder to avoid the buildx requirement
-# Note: This will show a deprecation warning but will still work
-# To fix this permanently, run: docker buildx install
+# Only enable BuildKit if buildx is available
+ifeq ($(BUILDX_AVAILABLE),yes)
+export DOCKER_BUILDKIT=1
+export COMPOSE_DOCKER_CLI_BUILD=1
+else
+export DOCKER_BUILDKIT=0
+export COMPOSE_DOCKER_CLI_BUILD=0
+endif
 
 # Set a default value for VECTOR_DB if not already set
 VECTOR_DB ?= milvus
@@ -87,23 +91,38 @@ install-buildx:
 # Build and Push - GHCR-first strategy
 build-frontend:
 	@echo "Building and pushing frontend image..."
-	@echo "Using Docker $(DOCKER_VERSION) (legacy builder - install buildx to remove deprecation warning)..."
-	@cd webui && $(CONTAINER_CLI) build -t ${GHCR_REPO}/frontend:${PROJECT_VERSION} -t ${GHCR_REPO}/frontend:latest -f Dockerfile.frontend .
-	@$(CONTAINER_CLI) push ${GHCR_REPO}/frontend:${PROJECT_VERSION}
-	@$(CONTAINER_CLI) push ${GHCR_REPO}/frontend:latest
+	@if [ "$(BUILDX_AVAILABLE)" = "yes" ]; then \
+		echo "Using Docker BuildKit with buildx..."; \
+		cd webui && $(CONTAINER_CLI) buildx build --platform linux/amd64 -t ${GHCR_REPO}/frontend:${PROJECT_VERSION} -t ${GHCR_REPO}/frontend:latest -f Dockerfile.frontend . --push; \
+	else \
+		echo "Using standard Docker build (buildx not available)..."; \
+		cd webui && $(CONTAINER_CLI) build -t ${GHCR_REPO}/frontend:${PROJECT_VERSION} -t ${GHCR_REPO}/frontend:latest -f Dockerfile.frontend .; \
+		$(CONTAINER_CLI) push ${GHCR_REPO}/frontend:${PROJECT_VERSION}; \
+		$(CONTAINER_CLI) push ${GHCR_REPO}/frontend:latest; \
+	fi
 
 build-backend:
 	@echo "Building and pushing backend image..."
-	@echo "Using Docker $(DOCKER_VERSION) (legacy builder - install buildx to remove deprecation warning)..."
-	@cd backend && $(CONTAINER_CLI) build -t ${GHCR_REPO}/backend:${PROJECT_VERSION} -t ${GHCR_REPO}/backend:latest -f Dockerfile.backend .
-	@$(CONTAINER_CLI) push ${GHCR_REPO}/backend:${PROJECT_VERSION}
-	@$(CONTAINER_CLI) push ${GHCR_REPO}/backend:latest
+	@if [ "$(BUILDX_AVAILABLE)" = "yes" ]; then \
+		echo "Using Docker BuildKit with buildx..."; \
+		cd backend && $(CONTAINER_CLI) buildx build --platform linux/amd64 -t ${GHCR_REPO}/backend:${PROJECT_VERSION} -t ${GHCR_REPO}/backend:latest -f Dockerfile.backend . --push; \
+	else \
+		echo "Using standard Docker build (buildx not available)..."; \
+		cd backend && $(CONTAINER_CLI) build -t ${GHCR_REPO}/backend:${PROJECT_VERSION} -t ${GHCR_REPO}/backend:latest -f Dockerfile.backend .; \
+		$(CONTAINER_CLI) push ${GHCR_REPO}/backend:${PROJECT_VERSION}; \
+		$(CONTAINER_CLI) push ${GHCR_REPO}/backend:latest; \
+	fi
 
 build-tests:
 	@echo "Building test image..."
-	@echo "Using Docker $(DOCKER_VERSION) (legacy builder - install buildx to remove deprecation warning)..."
-	@cd backend && $(CONTAINER_CLI) build -t ${GHCR_REPO}/backend:test-${PROJECT_VERSION} -f Dockerfile.test .
-	@$(CONTAINER_CLI) push ${GHCR_REPO}/backend:test-${PROJECT_VERSION}
+	@if [ "$(BUILDX_AVAILABLE)" = "yes" ]; then \
+		echo "Using Docker BuildKit with buildx..."; \
+		cd backend && $(CONTAINER_CLI) buildx build --platform linux/amd64 -t ${GHCR_REPO}/backend:test-${PROJECT_VERSION} -f Dockerfile.test . --push; \
+	else \
+		echo "Using standard Docker build (buildx not available)..."; \
+		cd backend && $(CONTAINER_CLI) build -t ${GHCR_REPO}/backend:test-${PROJECT_VERSION} -f Dockerfile.test .; \
+		$(CONTAINER_CLI) push ${GHCR_REPO}/backend:test-${PROJECT_VERSION}; \
+	fi
 
 build-all: build-frontend build-backend build-tests
 
@@ -143,7 +162,11 @@ build-optimize:
 	@cd backend && du -sh . 2>/dev/null | head -1 || echo "Could not determine size"
 	@echo ""
 	@echo "Testing Docker BuildKit..."
-	@docker buildx version 2>/dev/null && echo "✓ BuildKit available" || echo "⚠ BuildKit not available"
+	@if [ "$(BUILDX_AVAILABLE)" = "yes" ]; then \
+		echo "✓ BuildKit available with buildx"; \
+	else \
+		echo "⚠ BuildKit disabled - buildx not available, using standard builds"; \
+	fi
 	@echo ""
 	@echo "Checking .dockerignore files..."
 	@[ -f "webui/.dockerignore" ] && echo "✓ Frontend .dockerignore exists" || echo "✗ Frontend .dockerignore missing"
@@ -689,18 +712,6 @@ setup-env:
 		exit 1; \
 	fi
 	@python scripts/setup_env.py
-
-validate-env:
-	@echo "$(CYAN)🔍 Validating environment configuration...$(NC)"
-	@if [ ! -f .env ]; then \
-		echo "❌ .env file not found. Run 'make setup-env' first."; \
-		exit 1; \
-	fi
-	@if [ ! -f scripts/validate_env.py ]; then \
-		echo "❌ Validation script not found."; \
-		exit 1; \
-	fi
-	@python scripts/validate_env.py
 
 env-help:
 	@echo "$(CYAN)🔐 Environment Setup Help$(NC)"
