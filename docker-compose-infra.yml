@@ -48,19 +48,21 @@ services:
   # etcd for milvus standalone deployment
   milvus-etcd:
     container_name: milvus-etcd
-    image: quay.io/coreos/etcd:v3.5.9
+    image: bitnami/etcd:3.5.10
     environment:
-      - ETCD_NAME=etcd
-      - ETCD_DATA_DIR=/etcd-data
-      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
+      - ETCD_ENABLE_V2=true
       - ETCD_ADVERTISE_CLIENT_URLS=http://milvus-etcd:2379
-      - ETCD_LISTEN_PEER_URLS=http://0.0.0.0:2380
+      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
       - ETCD_INITIAL_ADVERTISE_PEER_URLS=http://milvus-etcd:2380
+      - ETCD_LISTEN_PEER_URLS=http://0.0.0.0:2380
       - ETCD_INITIAL_CLUSTER=etcd=http://milvus-etcd:2380
       - ETCD_INITIAL_CLUSTER_TOKEN=etcd-cluster
       - ETCD_INITIAL_CLUSTER_STATE=new
+      - ETCD_AUTO_COMPACTION_RETENTION=0
+      - ETCD_QUOTA_BACKEND_BYTES=0
+      - ETCD_SNAPSHOT_COUNT=10000
     volumes:
-      - etcd_data:/etcd-data
+      - etcd_data:/bitnami/etcd
     networks:
       - app-network
     healthcheck:
@@ -79,14 +81,17 @@ services:
       MINIO_ADDRESS: minio:9000
       MINIO_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      COMMON_STORAGETYPE: minio
+      MINIO_USE_SSL: false
+      ETCD_USE_SSL: false
     volumes:
       - milvus_data:/var/lib/milvus
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 40s
+      retries: 5
+      start_period: 60s
     depends_on:
       milvus-etcd:
         condition: service_healthy
