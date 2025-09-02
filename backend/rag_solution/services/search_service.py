@@ -4,7 +4,7 @@ import time
 from collections.abc import Callable
 from functools import wraps
 from typing import Any, ParamSpec, TypeVar
-from uuid import UUID
+from pydantic import UUID4
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -85,7 +85,7 @@ class SearchService:
         return self._pipeline_service
 
     @handle_search_errors
-    async def _initialize_pipeline(self, collection_id: UUID) -> str:
+    async def _initialize_pipeline(self, collection_id: UUID4) -> str:
         """Initialize pipeline with collection."""
         try:
             # Get collection
@@ -108,7 +108,7 @@ class SearchService:
             raise ConfigurationError(f"Pipeline initialization failed: {e!s}") from e
 
     def _generate_document_metadata(
-        self, query_results: list[QueryResult], collection_id: UUID
+        self, query_results: list[QueryResult], collection_id: UUID4
     ) -> list[DocumentMetadata]:
         """Generate metadata from retrieved query results."""
         logger.debug("Generating document metadata")
@@ -168,7 +168,7 @@ class SearchService:
         if not search_input.question or not search_input.question.strip():
             raise ValidationError("Query cannot be empty")
 
-    def _validate_collection_access(self, collection_id: UUID, user_id: UUID | None) -> None:
+    def _validate_collection_access(self, collection_id: UUID4, user_id: UUID4 | None) -> None:
         """Validate collection access."""
         try:
             collection = self.collection_service.get_collection(collection_id)
@@ -195,7 +195,7 @@ class SearchService:
                 ) from e
             raise
 
-    def _validate_pipeline(self, pipeline_id: UUID) -> None:
+    def _validate_pipeline(self, pipeline_id: UUID4) -> None:
         """Validate pipeline configuration."""
         pipeline_config = self.pipeline_service.get_pipeline_config(pipeline_id)
         if not pipeline_config:

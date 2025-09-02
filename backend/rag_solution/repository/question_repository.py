@@ -1,6 +1,6 @@
 """Repository for managing suggested questions."""
 
-from uuid import UUID
+from pydantic import UUID4
 
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -53,7 +53,7 @@ class QuestionRepository:
             self.session.rollback()
             raise
 
-    def create_questions(self, collection_id: UUID, questions: list[SuggestedQuestion]) -> list[SuggestedQuestion]:
+    def create_questions(self, collection_id: UUID4, questions: list[SuggestedQuestion]) -> list[SuggestedQuestion]:
         """
         Create multiple suggested questions.
 
@@ -84,7 +84,7 @@ class QuestionRepository:
             self.session.rollback()
             raise
 
-    def get_questions_by_collection(self, collection_id: UUID) -> list[SuggestedQuestion]:
+    def get_questions_by_collection(self, collection_id: UUID4) -> list[SuggestedQuestion]:
         """
         Get all suggested questions for a collection.
 
@@ -122,7 +122,7 @@ class QuestionRepository:
             logger.error(f"Error getting questions for collection {collection_id}: {e}", exc_info=True)
             raise
 
-    def delete_questions_by_collection(self, collection_id: UUID) -> int:
+    def delete_questions_by_collection(self, collection_id: UUID4) -> int:
         """
         Delete all suggested questions for a collection.
 
@@ -147,7 +147,7 @@ class QuestionRepository:
             self.session.rollback()
             raise
 
-    def delete_question(self, question_id: UUID) -> None:
+    def delete_question(self, question_id: UUID4) -> None:
         """
         Delete a specific suggested question.
 

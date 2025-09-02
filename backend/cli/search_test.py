@@ -3,8 +3,9 @@
 import asyncio
 import json
 import time
+import uuid
 from typing import Any
-from uuid import UUID
+from pydantic import UUID4
 
 import click
 from rich.console import Console
@@ -90,9 +91,9 @@ async def _test_search(query: str, collection_id: str, pipeline_id: str | None, 
         # Create search input
         search_input = services["SearchInput"](
             question=query,
-            collection_id=UUID(collection_id),
-            pipeline_id=UUID(pipeline_id) if pipeline_id else None,
-            user_id=UUID(user_id)
+            collection_id=uuid.UUID(collection_id),
+            pipeline_id=uuid.UUID(pipeline_id) if pipeline_id else None,
+            user_id=uuid.UUID(user_id)
         )
 
         # Execute search with progress indicator
@@ -240,7 +241,7 @@ async def _test_components(query: str, collection_id: str, strategy: str):
 
         # Initialize vector store
         collection_service = services["CollectionService"](db)
-        collection = collection_service.get_collection_by_id(UUID(collection_id))
+        collection = collection_service.get_collection_by_id(uuid.UUID(collection_id))
 
         if not collection:
             console.print("[red]Collection not found![/red]")

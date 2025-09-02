@@ -1,7 +1,7 @@
 """Pipeline configuration routes."""
 
 import logging
-from uuid import UUID
+from pydantic import UUID4
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -28,7 +28,7 @@ router = APIRouter()
         500: {"description": "Internal server error"},
     },
 )
-async def get_pipelines(user_id: UUID, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)) -> list[PipelineConfigOutput]:
+async def get_pipelines(user_id: UUID4, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)) -> list[PipelineConfigOutput]:
     """Retrieve all pipeline configurations for a user."""
     service = PipelineService(db)
     try:
@@ -50,7 +50,7 @@ async def get_pipelines(user_id: UUID, db: Session = Depends(get_db), user: User
     },
 )
 async def create_pipeline(
-    user_id: UUID, pipeline_input: PipelineConfigInput, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)
+    user_id: UUID4, pipeline_input: PipelineConfigInput, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)
 ) -> PipelineConfigOutput:
     """Create a new pipeline configuration for a user."""
     service = PipelineService(db)
@@ -76,8 +76,8 @@ async def create_pipeline(
     },
 )
 async def update_pipeline(
-    user_id: UUID,
-    pipeline_id: UUID,
+    user_id: UUID4,
+    pipeline_id: UUID4,
     pipeline_input: PipelineConfigInput,
     db: Session = Depends(get_db),
     user: UserOutput = Depends(verify_user_access),
@@ -102,7 +102,7 @@ async def update_pipeline(
         500: {"description": "Internal server error"},
     },
 )
-async def delete_pipeline(user_id: UUID, pipeline_id: UUID, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)) -> bool:
+async def delete_pipeline(user_id: UUID4, pipeline_id: UUID4, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)) -> bool:
     """Delete an existing pipeline configuration."""
     service = PipelineService(db)
     try:
@@ -124,7 +124,7 @@ async def delete_pipeline(user_id: UUID, pipeline_id: UUID, db: Session = Depend
     },
 )
 async def set_default_pipeline(
-    user_id: UUID, pipeline_id: UUID, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)
+    user_id: UUID4, pipeline_id: UUID4, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)
 ) -> PipelineConfigOutput:
     """Set a specific pipeline configuration as default."""
     service = PipelineService(db)

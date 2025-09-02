@@ -1,5 +1,3 @@
-from typing import Any
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -38,7 +36,6 @@ def get_search_service(db: Session = Depends(get_db)) -> SearchService:
 async def search(
     search_input: SearchInput,
     search_service: SearchService = Depends(get_search_service),
-    context: dict[str, Any] | None = None,
 ) -> SearchOutput:
     """
     Process a search query through the RAG pipeline.
@@ -46,7 +43,6 @@ async def search(
     Args:
         search_input (SearchInput): Input data containing question and collection ID
         search_service (SearchService): The search service instance from dependency injection
-        context (Optional[Dict[str, Any]]): Additional context for query processing
 
     Returns:
         SearchOutput: Contains the generated answer, source documents, and evaluation info
@@ -55,7 +51,7 @@ async def search(
         HTTPException: With appropriate status code and error detail
     """
     try:
-        result: SearchOutput = await search_service.search(search_input, context)
+        result: SearchOutput = await search_service.search(search_input)
         return result
     except HTTPException as he:
         raise he

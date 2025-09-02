@@ -1,4 +1,4 @@
-from uuid import UUID
+from pydantic import UUID4
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -31,7 +31,7 @@ class LLMModelRepository:
             self.session.rollback()
             raise
 
-    def get_model_by_id(self, model_id: UUID) -> LLMModelOutput:
+    def get_model_by_id(self, model_id: UUID4) -> LLMModelOutput:
         """Fetches a specific model by ID.
 
         Raises:
@@ -49,7 +49,7 @@ class LLMModelRepository:
         except Exception:
             raise
 
-    def get_models_by_provider(self, provider_id: UUID) -> list[LLMModelOutput]:
+    def get_models_by_provider(self, provider_id: UUID4) -> list[LLMModelOutput]:
         """Fetches all models associated with a specific provider."""
         try:
             models = self.session.query(LLMModel).filter_by(provider_id=provider_id).all()
@@ -69,7 +69,7 @@ class LLMModelRepository:
         except Exception:
             raise
 
-    def update_model(self, model_id: UUID, updates: dict) -> LLMModelOutput:
+    def update_model(self, model_id: UUID4, updates: dict) -> LLMModelOutput:
         """Updates model details.
 
         Raises:
@@ -101,7 +101,7 @@ class LLMModelRepository:
             self.session.rollback()
             raise
 
-    def delete_model(self, model_id: UUID) -> None:
+    def delete_model(self, model_id: UUID4) -> None:
         """Soft deletes a model by marking it inactive.
 
         Raises:
@@ -120,7 +120,7 @@ class LLMModelRepository:
             self.session.rollback()
             raise Exception(f"Failed to delete model: {e!s}") from e
 
-    def clear_other_defaults(self, provider_id: UUID, model_type: ModelType) -> None:
+    def clear_other_defaults(self, provider_id: UUID4, model_type: ModelType) -> None:
         """Clear default flag from other models of the same type and provider."""
         try:
             (
@@ -137,7 +137,7 @@ class LLMModelRepository:
             self.session.rollback()
             raise
 
-    def get_default_model(self, provider_id: UUID, model_type: ModelType) -> LLMModelOutput:
+    def get_default_model(self, provider_id: UUID4, model_type: ModelType) -> LLMModelOutput:
         """Get the default model for a provider and type.
 
         Raises:

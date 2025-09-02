@@ -51,6 +51,11 @@ def get_db() -> Generator[Session, None, None]:
     Yields:
         Session: The database session.
     """
+    if not os.environ.get("PYTEST_CURRENT_TEST"):
+        logger.info("=== DATABASE DEPENDENCY DEBUG ===")
+        logger.info("get_db() called - creating database session")
+        logger.info("=== END DATABASE DEPENDENCY DEBUG ===")
+    
     db = SessionLocal()
     try:
         if not os.environ.get("PYTEST_CURRENT_TEST"):

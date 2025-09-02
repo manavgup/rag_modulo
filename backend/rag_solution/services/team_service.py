@@ -1,7 +1,7 @@
 # team_service.py
 
 import logging
-from uuid import UUID
+from pydantic import UUID4
 
 from sqlalchemy.orm import Session
 
@@ -27,17 +27,17 @@ class TeamService:
         logger.info(f"Team created successfully: {team.id}")
         return team
 
-    def get_team_by_id(self, team_id: UUID) -> TeamOutput:
+    def get_team_by_id(self, team_id: UUID4) -> TeamOutput:
         logger.info(f"Fetching team with id: {team_id}")
         return self.team_repository.get(team_id)  # Will raise NotFoundError if not found
 
-    def update_team(self, team_id: UUID, team_update: TeamInput) -> TeamOutput:
+    def update_team(self, team_id: UUID4, team_update: TeamInput) -> TeamOutput:
         logger.info(f"Updating team {team_id} with input: {team_update}")
         team = self.team_repository.update(team_id, team_update)  # Will raise NotFoundError if not found
         logger.info(f"Team {team_id} updated successfully")
         return team
 
-    def delete_team(self, team_id: UUID) -> bool:
+    def delete_team(self, team_id: UUID4) -> bool:
         try:
             logger.info(f"Deleting team: {team_id}")
             self.team_repository.delete(team_id)
@@ -47,7 +47,7 @@ class TeamService:
             logger.error(f"Unexpected error deleting team {team_id}: {e!s}")
             raise
 
-    def get_team_users(self, team_id: UUID) -> list[UserOutput]:
+    def get_team_users(self, team_id: UUID4) -> list[UserOutput]:
         logger.info(f"Fetching users for team: {team_id}")
         user_teams = self.user_team_service.get_team_users(team_id)
 
@@ -66,11 +66,11 @@ class TeamService:
                 continue
         return users
 
-    def add_user_to_team(self, user_id: UUID, team_id: UUID) -> UserTeamOutput:
+    def add_user_to_team(self, user_id: UUID4, team_id: UUID4) -> UserTeamOutput:
         logger.info(f"Adding user {user_id} to team {team_id}")
         return self.user_team_service.add_user_to_team(user_id, team_id)
 
-    def remove_user_from_team(self, user_id: UUID, team_id: UUID) -> bool:
+    def remove_user_from_team(self, user_id: UUID4, team_id: UUID4) -> bool:
         logger.info(f"Removing user {user_id} from team {team_id}")
         return self.user_team_service.remove_user_from_team(user_id, team_id)
 

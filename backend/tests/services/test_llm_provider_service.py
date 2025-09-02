@@ -1,6 +1,6 @@
 """Integration tests for LLMProviderService."""
 
-from uuid import UUID, uuid4
+from pydantic import UUID4, uuid4
 
 import pytest
 from pydantic import SecretStr
@@ -22,7 +22,7 @@ def test_create_provider(llm_provider_service: LLMProviderService, base_provider
     assert provider.base_url == base_provider_input.base_url
     assert provider.project_id == base_provider_input.project_id
     assert provider.is_active
-    assert isinstance(provider.id, UUID)
+    assert isinstance(provider.id, UUID4)
 
 
 def test_create_provider_validation_errors(llm_provider_service: LLMProviderService) -> None:

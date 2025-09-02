@@ -1,4 +1,4 @@
-from uuid import UUID
+from pydantic import UUID4
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -81,7 +81,7 @@ def create_team(team: TeamInput, db: Session = Depends(get_db)) -> TeamOutput:
         500: {"description": "Internal server error"},
     },
 )
-def update_user_role_in_team(team_id: UUID, user_id: UUID, role: str, db: Session = Depends(get_db)) -> UserTeamOutput:
+def update_user_role_in_team(team_id: UUID4, user_id: UUID4, role: str, db: Session = Depends(get_db)) -> UserTeamOutput:
     """
     Update a user's role in a team.
 
@@ -112,7 +112,7 @@ def update_user_role_in_team(team_id: UUID, user_id: UUID, role: str, db: Sessio
         500: {"description": "Internal server error"},
     },
 )
-def get_team(team_id: UUID, db: Session = Depends(get_db)) -> TeamOutput:
+def get_team(team_id: UUID4, db: Session = Depends(get_db)) -> TeamOutput:
     """
     Get a team by its ID.
 
@@ -145,7 +145,7 @@ def get_team(team_id: UUID, db: Session = Depends(get_db)) -> TeamOutput:
         500: {"description": "Internal server error"},
     },
 )
-def update_team(team_id: UUID, team_update: TeamInput, db: Session = Depends(get_db)) -> TeamOutput:
+def update_team(team_id: UUID4, team_update: TeamInput, db: Session = Depends(get_db)) -> TeamOutput:
     """
     Update a team.
 
@@ -178,7 +178,7 @@ def update_team(team_id: UUID, team_update: TeamInput, db: Session = Depends(get
         500: {"description": "Internal server error"},
     },
 )
-def delete_team(team_id: UUID, db: Session = Depends(get_db)) -> bool:
+def delete_team(team_id: UUID4, db: Session = Depends(get_db)) -> bool:
     """
     Delete a team.
 
@@ -227,7 +227,7 @@ def list_teams(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)) -
         500: {"description": "Internal server error"},
     },
 )
-def get_team_users(team_id: UUID, db: Session = Depends(get_db)) -> list[UserTeamOutput]:
+def get_team_users(team_id: UUID4, db: Session = Depends(get_db)) -> list[UserTeamOutput]:
     service = UserTeamService(db)
     return service.get_team_users(team_id)
 
@@ -244,7 +244,7 @@ def get_team_users(team_id: UUID, db: Session = Depends(get_db)) -> list[UserTea
         500: {"description": "Internal server error"},
     },
 )
-def add_user_to_team(team_id: UUID, user_team_input: UserTeamInput, db: Session = Depends(get_db)) -> UserTeamOutput:
+def add_user_to_team(team_id: UUID4, user_team_input: UserTeamInput, db: Session = Depends(get_db)) -> UserTeamOutput:
     """
     Add a user to a team.
 

@@ -3,7 +3,7 @@
 import logging
 from mimetypes import guess_type
 from pathlib import Path
-from uuid import UUID
+from pydantic import UUID4
 
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
@@ -20,17 +20,17 @@ class FileManagementService:
     def __init__(self, db: Session):
         self.file_repository = FileRepository(db)
 
-    def create_file(self, file_input: FileInput, user_id: UUID) -> FileOutput:
+    def create_file(self, file_input: FileInput, user_id: UUID4) -> FileOutput:
         logger.info(f"Creating file record: {file_input.filename}")
         file = self.file_repository.create(file_input, user_id)
         logger.info(f"File record created successfully: {file.file_path}")
         return file
 
-    def get_file_by_id(self, file_id: UUID) -> FileOutput:
+    def get_file_by_id(self, file_id: UUID4) -> FileOutput:
         logger.info(f"Fetching file with id: {file_id}")
         return self.file_repository.get(file_id)
 
-    def save_file(self, file: UploadFile, collection_id: UUID, user_id: UUID) -> str:
+    def save_file(self, file: UploadFile, collection_id: UUID4, user_id: UUID4) -> str:
         file_content = file.file.read()
         file_path = self.upload_file(user_id, collection_id, file_content, file.filename or "unknown")
 
@@ -45,7 +45,7 @@ class FileManagementService:
 
         return str(file_path)
 
-    def get_file_by_name(self, collection_id: UUID, filename: str) -> FileOutput:
+    def get_file_by_name(self, collection_id: UUID4, filename: str) -> FileOutput:
         try:
             logger.info(f"Fetching file {filename} from collection {collection_id}")
             file = self.file_repository.get_file_by_name(collection_id, filename)
@@ -57,13 +57,13 @@ class FileManagementService:
             logger.error(f"Unexpected error getting file by name {filename} in collection {collection_id}: {e!s}")
             raise
 
-    def update_file(self, file_id: UUID, file_update: FileInput) -> FileOutput:
+    def update_file(self, file_id: UUID4, file_update: FileInput) -> FileOutput:
         logger.info(f"Updating file {file_id}")
         updated_file = self.file_repository.update(file_id, file_update)  # Will raise NotFoundError if not found
         logger.info(f"File {file_id} updated successfully")
         return updated_file
 
-    def delete_file(self, file_id: UUID) -> None:
+    def delete_file(self, file_id: UUID4) -> None:
         logger.info(f"Deleting file: {file_id}")
         file = self.file_repository.get(file_id)  # Will raise NotFoundError if not found
         
@@ -74,7 +74,7 @@ class FileManagementService:
 
         logger.info(f"File {file_id} deleted successfully")
 
-    def delete_files(self, collection_id: UUID, filenames: list[str]) -> bool:
+    def delete_files(self, collection_id: UUID4, filenames: list[str]) -> bool:
         try:
             logger.info(f"Deleting files {filenames} from collection {collection_id}")
             for filename in filenames:
@@ -86,7 +86,7 @@ class FileManagementService:
             logger.error(f"Unexpected error deleting files: {e!s}")
             raise
 
-    def get_files_by_collection(self, collection_id: UUID) -> list[FileOutput]:
+    def get_files_by_collection(self, collection_id: UUID4) -> list[FileOutput]:
         try:
             logger.info(f"Fetching files for collection: {collection_id}")
             files = self.file_repository.get_files(collection_id)
@@ -96,7 +96,7 @@ class FileManagementService:
             logger.error(f"Unexpected error getting files for collection {collection_id}: {e!s}")
             raise
 
-    def get_files(self, collection_id: UUID) -> list[str]:
+    def get_files(self, collection_id: UUID4) -> list[str]:
         """
         Get a list of files in a specific collection.
 
@@ -129,8 +129,8 @@ class FileManagementService:
     def upload_and_create_file_record(
         self,
         file: UploadFile,
-        user_id: UUID,
-        collection_id: UUID,
+        user_id: UUID4,
+        collection_id: UUID4,
         document_id: str,
         metadata: FileMetadata | None = None,
     ) -> FileOutput:
@@ -158,7 +158,7 @@ class FileManagementService:
             logger.error(f"Unexpected error uploading and creating file record: {e!s}")
             raise
 
-    def upload_file(self, user_id: UUID, collection_id: UUID, file_content: bytes, filename: str) -> Path:
+    def upload_file(self, user_id: UUID4, collection_id: UUID4, file_content: bytes, filename: str) -> Path:
         try:
             user_folder = Path(f"{settings.file_storage_path}/{user_id}")
             collection_folder = user_folder / str(collection_id)
@@ -173,7 +173,7 @@ class FileManagementService:
             logger.error(f"Unexpected error uploading file: {e!s}")
             raise
 
-    def update_file_metadata(self, collection_id: UUID, file_id: UUID, metadata: FileMetadata) -> FileOutput:
+    def update_file_metadata(self, collection_id: UUID4, file_id: UUID4, metadata: FileMetadata) -> FileOutput:
         logger.info(f"Updating metadata for file {file_id}")
         file = self.file_repository.get(file_id)  # Will raise NotFoundError if not found
 
@@ -197,7 +197,7 @@ class FileManagementService:
         file_type, _ = guess_type(filename)
         return file_type or "application/octet-stream"
 
-    def get_file_path(self, collection_id: UUID, filename: str) -> Path:
+    def get_file_path(self, collection_id: UUID4, filename: str) -> Path:
         try:
             logger.info(f"Getting file path for {filename} in collection {collection_id}")
             file = self.get_file_by_name(collection_id, filename)

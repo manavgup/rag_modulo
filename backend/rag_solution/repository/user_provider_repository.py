@@ -1,9 +1,10 @@
-from uuid import UUID
+from pydantic import UUID4
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from rag_solution.core.exceptions import NotFoundError, AlreadyExistsError, ValidationError
+from core.custom_exceptions import RepositoryError
 from core.logging_utils import get_logger
 from rag_solution.models.llm_provider import LLMProvider
 from rag_solution.models.user import User
@@ -16,7 +17,7 @@ class UserProviderRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def set_user_provider(self, user_id: UUID, provider_id: UUID, outer_transaction: Session | None = None) -> bool:
+    def set_user_provider(self, user_id: UUID4, provider_id: UUID4, outer_transaction: Session | None = None) -> bool:
         transaction = outer_transaction or self.db.begin_nested()
         try:
             user = self.db.query(User).filter(User.id == user_id).with_for_update().first()
@@ -33,7 +34,7 @@ class UserProviderRepository:
             logger.error(f"Error setting provider: {e!s}")
             raise RepositoryError(f"Failed to set user provider: {e!s}") from e
 
-    def set_user_provider_simple(self, user_id: UUID, provider_id: UUID) -> None:
+    def set_user_provider_simple(self, user_id: UUID4, provider_id: UUID4) -> None:
         try:
             user = self.db.query(User).filter(User.id == user_id).first()
             if not user:
@@ -57,7 +58,7 @@ class UserProviderRepository:
             self.db.rollback()
             raise Exception(f"Failed to set user provider simple: {e!s}") from e
 
-    def get_user_provider(self, user_id: UUID) -> LLMProviderOutput | None:
+    def get_user_provider(self, user_id: UUID4) -> LLMProviderOutput | None:
         try:
             # First check if user has a preferred provider
             user = self.db.query(User).filter(User.id == user_id).first()

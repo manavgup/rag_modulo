@@ -1,7 +1,6 @@
 from datetime import datetime
-from uuid import UUID
 
-from pydantic import BaseModel, Field, SecretStr
+from pydantic import BaseModel, Field, SecretStr, UUID4
 
 
 class LLMProviderInput(BaseModel):
@@ -14,13 +13,13 @@ class LLMProviderInput(BaseModel):
     project_id: str | None = Field(None, description="Project ID, if applicable")
     is_active: bool = Field(True, description="Indicates if the provider is active")
     is_default: bool = Field(False, description="Indicates if this is the default provider")
-    user_id: UUID | None = Field(None, description="User ID who owns this provider")
+    user_id: UUID4 | None = Field(None, description="User ID who owns this provider")
 
 
 class LLMProviderOutput(BaseModel):
     """Schema for returning an LLM Provider."""
 
-    id: UUID = Field(..., description="Unique identifier of the provider")
+    id: UUID4 = Field(..., description="Unique identifier of the provider")
     name: str = Field(..., description="Name of the provider")
     base_url: str = Field(..., description="Base URL of the provider's API")
     org_id: str | None = Field(None, description="Organization ID")
@@ -37,7 +36,7 @@ class LLMProviderOutput(BaseModel):
 class LLMProviderConfig(BaseModel):
     """Internal configuration model that includes credentials."""
 
-    id: UUID
+    id: UUID4
     name: str
     base_url: str
     api_key: SecretStr

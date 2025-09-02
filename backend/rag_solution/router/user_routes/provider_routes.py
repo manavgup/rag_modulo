@@ -1,4 +1,4 @@
-from uuid import UUID
+from pydantic import UUID4
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
@@ -17,8 +17,8 @@ def get_user_service(db: Session = Depends(get_db)) -> UserService:
 
 @router.put("/{user_id}/preferred/{provider_id}", response_model=UserOutput)
 def set_user_preferred_provider(
-    user_id: UUID,
-    provider_id: UUID,
+    user_id: UUID4,
+    provider_id: UUID4,
     service: UserService = Depends(get_user_service),  # ✅ Provide the session via dependency injection
 ) -> UserOutput:
     """Sets the user's preferred LLM provider."""
@@ -27,7 +27,7 @@ def set_user_preferred_provider(
 
 @router.get("/{user_id}/preferred", response_model=UserOutput)
 def get_user_preferred_provider(
-    user_id: UUID,
+    user_id: UUID4,
     service: UserService = Depends(get_user_service),  # ✅ Provide the session via dependency injection
 ) -> UserOutput:
     """Retrieves the user's preferred LLM provider."""

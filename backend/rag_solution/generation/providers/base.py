@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Generator, Sequence
 from pathlib import Path
 from typing import Any
-from uuid import UUID
+from pydantic import UUID4
 
 from core.custom_exceptions import LLMProviderError
 from core.logging_utils import get_logger, setup_logging
@@ -112,12 +112,12 @@ class LLMBase(ABC):
         """Format prompt using template service."""
         if not template:
             return prompt
-        return self.prompt_template_service.format_prompt(template_or_id=template, variables=variables or {})
+        return self.prompt_template_service.format_prompt_with_template(template, variables or {})
 
     @abstractmethod
     def generate_text(
         self,
-        user_id: UUID,
+        user_id: UUID4,
         prompt: str | Sequence[str],
         model_parameters: LLMParametersInput | None = None,
         template: PromptTemplateBase | None = None,
@@ -128,7 +128,7 @@ class LLMBase(ABC):
     @abstractmethod
     def generate_text_stream(
         self,
-        user_id: UUID,
+        user_id: UUID4,
         prompt: str,
         model_parameters: LLMParametersInput | None = None,
         template: PromptTemplateBase | None = None,

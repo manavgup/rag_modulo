@@ -1,4 +1,4 @@
-from uuid import UUID
+from pydantic import UUID4
 
 from sqlalchemy.orm import Session
 
@@ -30,7 +30,7 @@ class LLMParametersService:
         """
         return self.repository.create(parameters)
 
-    def get_parameters(self, parameter_id: UUID) -> LLMParametersOutput | None:
+    def get_parameters(self, parameter_id: UUID4) -> LLMParametersOutput | None:
         """Retrieve specific LLM parameters.
 
         Args:
@@ -41,11 +41,11 @@ class LLMParametersService:
         """
         return self.repository.get_parameters(parameter_id)
 
-    def get_user_parameters(self, user_id: UUID) -> list[LLMParametersOutput]:
+    def get_user_parameters(self, user_id: UUID4) -> list[LLMParametersOutput]:
         """Retrieve all parameters for a user.
 
         Args:
-            user_id: UUID of the user
+            user_id: UUID4 of the user
 
         Returns:
             List[LLMParametersOutput]: List of user's parameters
@@ -64,7 +64,7 @@ class LLMParametersService:
 
         return params if params else []
 
-    def update_parameters(self, parameter_id: UUID, parameters: LLMParametersInput) -> LLMParametersOutput:
+    def update_parameters(self, parameter_id: UUID4, parameters: LLMParametersInput) -> LLMParametersOutput:
         """Update existing LLM parameters.
 
         Args:
@@ -79,7 +79,7 @@ class LLMParametersService:
         """
         return self.repository.update(parameter_id, parameters)
 
-    def delete_parameters(self, parameter_id: UUID) -> None:
+    def delete_parameters(self, parameter_id: UUID4) -> None:
         """Delete specific LLM parameters.
 
         Args:
@@ -90,7 +90,7 @@ class LLMParametersService:
         """
         self.repository.delete(parameter_id)
 
-    def set_default_parameters(self, parameter_id: UUID) -> LLMParametersOutput:
+    def set_default_parameters(self, parameter_id: UUID4) -> LLMParametersOutput:
         """Set specific parameters as default for the user.
 
         Args:
@@ -119,11 +119,11 @@ class LLMParametersService:
 
         return self.repository.update(parameter_id, update_params)
 
-    def initialize_default_parameters(self, user_id: UUID) -> LLMParametersOutput:
+    def initialize_default_parameters(self, user_id: UUID4) -> LLMParametersOutput:
         """Initialize default parameters for a user if none exist.
 
         Args:
-            user_id: UUID of the user
+            user_id: UUID4 of the user
 
         Returns:
             LLMParametersOutput: Default parameters (existing or newly created)
@@ -146,11 +146,11 @@ class LLMParametersService:
 
         return self.create_parameters(default_params)
 
-    def get_latest_or_default_parameters(self, user_id: UUID) -> LLMParametersOutput | None:
+    def get_latest_or_default_parameters(self, user_id: UUID4) -> LLMParametersOutput | None:
         """Get default parameters or latest parameters if no default exists.
 
         Args:
-            user_id: UUID of the user
+            user_id: UUID4 of the user
 
         Returns:
             Optional[LLMParametersOutput]: Default or latest parameters, or None if creation fails

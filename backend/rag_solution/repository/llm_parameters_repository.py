@@ -1,4 +1,4 @@
-from uuid import UUID
+from pydantic import UUID4
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -52,7 +52,7 @@ class LLMParametersRepository:
             self.db.rollback()
             raise
 
-    def get_parameters(self, parameter_id: UUID) -> LLMParametersOutput:
+    def get_parameters(self, parameter_id: UUID4) -> LLMParametersOutput:
         """Get LLM Parameters by ID.
 
         Args:
@@ -76,7 +76,7 @@ class LLMParametersRepository:
         except Exception as e:
             raise Exception(f"Failed to get LLM parameters: {e!s}") from e
 
-    def update(self, parameter_id: UUID, parameters: LLMParametersInput) -> LLMParametersOutput:
+    def update(self, parameter_id: UUID4, parameters: LLMParametersInput) -> LLMParametersOutput:
         """Update existing LLM Parameters.
 
         Args:
@@ -118,7 +118,7 @@ class LLMParametersRepository:
             self.db.rollback()
             raise Exception(f"Failed to update LLM parameters: {e!s}") from e
 
-    def delete(self, parameter_id: UUID) -> None:
+    def delete(self, parameter_id: UUID4) -> None:
         """Delete LLM Parameters.
 
         Args:
@@ -137,11 +137,11 @@ class LLMParametersRepository:
         self.db.delete(db_params)
         self.db.commit()
 
-    def delete_by_user_id(self, user_id: UUID) -> int:
+    def delete_by_user_id(self, user_id: UUID4) -> int:
         """Delete all LLM Parameters for a user.
 
         Args:
-            user_id: UUID of the user whose parameters should be deleted
+            user_id: UUID4 of the user whose parameters should be deleted
 
         Returns:
             int: Number of parameters deleted
@@ -150,11 +150,11 @@ class LLMParametersRepository:
         self.db.commit()
         return deleted_count
 
-    def get_parameters_by_user_id(self, user_id: UUID) -> list[LLMParametersOutput]:
+    def get_parameters_by_user_id(self, user_id: UUID4) -> list[LLMParametersOutput]:
         """Get all LLM Parameters for a user.
 
         Args:
-            user_id: UUID of the user
+            user_id: UUID4 of the user
 
         Returns:
             List[LLMParametersOutput]: List of all parameters for the user
@@ -162,11 +162,11 @@ class LLMParametersRepository:
         db_params = self.db.query(LLMParameters).filter(LLMParameters.user_id == user_id).all()
         return [LLMParametersOutput.model_validate(p) for p in db_params]
 
-    def get_default_parameters(self, user_id: UUID) -> LLMParametersOutput | None:
+    def get_default_parameters(self, user_id: UUID4) -> LLMParametersOutput | None:
         """Get default LLM Parameters for a user.
 
         Args:
-            user_id: UUID of the user
+            user_id: UUID4 of the user
 
         Returns:
             Optional[LLMParametersOutput]: Default parameters if they exist, None otherwise
@@ -178,11 +178,11 @@ class LLMParametersRepository:
         )
         return LLMParametersOutput.model_validate(db_params) if db_params else None
 
-    def reset_default_parameters(self, user_id: UUID) -> int:
+    def reset_default_parameters(self, user_id: UUID4) -> int:
         """Reset default flag for all of a user's parameters.
 
         Args:
-            user_id: UUID of the user
+            user_id: UUID4 of the user
 
         Returns:
             int: Number of parameters updated

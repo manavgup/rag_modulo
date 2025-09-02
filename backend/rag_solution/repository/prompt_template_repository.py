@@ -1,4 +1,4 @@
-from uuid import UUID
+from pydantic import UUID4
 
 from sqlalchemy.orm import Session
 
@@ -18,7 +18,7 @@ class PromptTemplateRepository:
         self.db.refresh(db_template)
         return db_template
 
-    def get_by_id(self, id: UUID) -> PromptTemplate:
+    def get_by_id(self, id: UUID4) -> PromptTemplate:
         try:
             template = self.db.query(PromptTemplate).filter_by(id=id).first()
             if not template:
@@ -32,13 +32,13 @@ class PromptTemplateRepository:
         except Exception as e:
             raise Exception(f"Failed to get template: {e!s}") from e
 
-    def get_by_user_id(self, user_id: UUID) -> list[PromptTemplate]:
+    def get_by_user_id(self, user_id: UUID4) -> list[PromptTemplate]:
         return self.db.query(PromptTemplate).filter_by(user_id=user_id).all()
 
-    def get_by_user_id_and_type(self, user_id: UUID, template_type: PromptTemplateType) -> list[PromptTemplate]:
+    def get_by_user_id_and_type(self, user_id: UUID4, template_type: PromptTemplateType) -> list[PromptTemplate]:
         return self.db.query(PromptTemplate).filter_by(user_id=user_id, template_type=template_type).all()
 
-    def delete_user_template(self, user_id: UUID, template_id: UUID) -> None:
+    def delete_user_template(self, user_id: UUID4, template_id: UUID4) -> None:
         """Delete a user's template.
 
         Raises:
@@ -60,7 +60,7 @@ class PromptTemplateRepository:
             self.db.rollback()
             raise Exception(f"Failed to delete template: {e!s}") from e
 
-    def update(self, template_id: UUID, updates: dict) -> PromptTemplate:
+    def update(self, template_id: UUID4, updates: dict) -> PromptTemplate:
         """Update a prompt template.
 
         Raises:

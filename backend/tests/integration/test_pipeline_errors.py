@@ -2,7 +2,7 @@
 
 import asyncio
 from unittest.mock import patch
-from uuid import UUID
+from pydantic import UUID4
 
 import pytest
 from sqlalchemy.orm import Session
@@ -113,7 +113,7 @@ async def test_provider_authentication_error(pipeline_setup):
         search_input = SearchInput(
             question="Test query",
             collection_id=pipeline_setup["collection"].id,
-            pipeline_id=UUID("87654321-4321-8765-4321-876543210987"),
+            pipeline_id=UUID4("87654321-4321-8765-4321-876543210987"),
         )
 
         # Execute pipeline
@@ -146,7 +146,7 @@ async def test_template_formatting_error(pipeline_setup):
     search_input = SearchInput(
         question="Test query",
         collection_id=pipeline_setup["collection"].id,
-        pipeline_id=UUID("87654321-4321-8765-4321-876543210987"),
+        pipeline_id=UUID4("87654321-4321-8765-4321-876543210987"),
     )
 
     # Execute pipeline
@@ -165,7 +165,7 @@ async def test_retrieval_error(pipeline_setup):
         search_input = SearchInput(
             question="Test query",
             collection_id=pipeline_setup["collection"].id,
-            pipeline_id=UUID("87654321-4321-8765-4321-876543210987"),
+            pipeline_id=UUID4("87654321-4321-8765-4321-876543210987"),
         )
 
         # Execute pipeline
@@ -183,7 +183,7 @@ async def test_generation_error(pipeline_setup):
         search_input = SearchInput(
             question="Test query",
             collection_id=pipeline_setup["collection"].id,
-            pipeline_id=UUID("87654321-4321-8765-4321-876543210987"),
+            pipeline_id=UUID4("87654321-4321-8765-4321-876543210987"),
         )
 
         # Execute pipeline
@@ -203,7 +203,7 @@ async def test_evaluation_error(pipeline_setup):
         search_input = SearchInput(
             question="Test query",
             collection_id=pipeline_setup["collection"].id,
-            pipeline_id=UUID("87654321-4321-8765-4321-876543210987"),
+            pipeline_id=UUID4("87654321-4321-8765-4321-876543210987"),
         )
 
         # Execute pipeline
@@ -235,7 +235,7 @@ async def test_missing_configuration(pipeline_setup):
     search_input = SearchInput(
         question="Test query",
         collection_id=pipeline_setup["collection"].id,
-        pipeline_id=UUID("87654321-4321-8765-4321-876543210987"),
+        pipeline_id=UUID4("87654321-4321-8765-4321-876543210987"),
     )
 
     with pytest.raises(ConfigurationError):
@@ -262,7 +262,7 @@ async def test_concurrent_error_handling(pipeline_setup):
             SearchInput(
                 question=f"Question {i}",
                 collection_id=pipeline_setup["collection"].id,
-                pipeline_id=UUID("87654321-4321-8765-4321-876543210987"),
+                pipeline_id=UUID4("87654321-4321-8765-4321-876543210987"),
             )
             for i in range(5)
         ]
@@ -294,7 +294,7 @@ async def test_missing_user_defaults(pipeline_setup):
     search_input = SearchInput(
         question="Test query",
         collection_id=pipeline_setup["collection"].id,
-        pipeline_id=UUID("87654321-4321-8765-4321-876543210987"),
+        pipeline_id=UUID4("87654321-4321-8765-4321-876543210987"),
     )
 
     # Execute pipeline - should fail gracefully

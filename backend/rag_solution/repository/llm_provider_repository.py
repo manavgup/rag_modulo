@@ -1,4 +1,4 @@
-from uuid import UUID
+from pydantic import UUID4
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -38,7 +38,7 @@ class LLMProviderRepository:
             self.session.rollback()
             raise
 
-    def get_provider_by_id(self, provider_id: UUID) -> LLMProvider:
+    def get_provider_by_id(self, provider_id: UUID4) -> LLMProvider:
         """Fetches a provider by ID.
 
         Raises:
@@ -109,7 +109,7 @@ class LLMProviderRepository:
         except Exception:
             raise
 
-    def update_provider(self, provider_id: UUID, updates: dict) -> LLMProvider:
+    def update_provider(self, provider_id: UUID4, updates: dict) -> LLMProvider:
         """Updates provider details.
 
         Raises:
@@ -142,7 +142,7 @@ class LLMProviderRepository:
             self.session.rollback()
             raise
 
-    def delete_provider(self, provider_id: UUID) -> None:
+    def delete_provider(self, provider_id: UUID4) -> None:
         """Soft deletes a provider by marking it inactive.
 
         Raises:
@@ -184,7 +184,7 @@ class LLMProviderRepository:
         except Exception:
             raise
 
-    def clear_other_default_providers(self, provider_id: UUID) -> None:
+    def clear_other_default_providers(self, provider_id: UUID4) -> None:
         """Clear default flag from other providers."""
         try:
             self.session.query(LLMProvider).filter(LLMProvider.id != provider_id).update({"is_default": False})

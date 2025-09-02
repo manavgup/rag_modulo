@@ -1,5 +1,5 @@
 import logging
-from uuid import UUID
+from pydantic import UUID4
 
 from sqlalchemy.orm import Session
 
@@ -16,7 +16,7 @@ class UserCollectionInteractionService:
         self.user_collection_repository = UserCollectionRepository(db)
         self.collection_repository = CollectionRepository(db)
 
-    def get_user_collections_with_files(self, user_id: UUID) -> UserCollectionsOutput:
+    def get_user_collections_with_files(self, user_id: UUID4) -> UserCollectionsOutput:
         """
         Get all collections associated with a user, including file information.
         """
@@ -52,7 +52,7 @@ class UserCollectionInteractionService:
             logger.error(f"Error fetching collections with files for user {user_id}: {e!s}")
             raise
 
-    def get_user_collections(self, user_id: UUID) -> UserCollectionsOutput:
+    def get_user_collections(self, user_id: UUID4) -> UserCollectionsOutput:
         """
         Get all collections associated with a user (without detailed file information).
         """
@@ -80,21 +80,21 @@ class UserCollectionInteractionService:
             logger.error(f"Error fetching collections for user {user_id}: {e!s}")
             raise
 
-    def add_user_to_collection(self, user_id: UUID, collection_id: UUID) -> bool:
+    def add_user_to_collection(self, user_id: UUID4, collection_id: UUID4) -> bool:
         """
         Add a user to a collection.
         """
         logger.info(f"Adding user {user_id} to collection {collection_id}")
         return self.user_collection_repository.add_user_to_collection(user_id, collection_id)
 
-    def remove_user_from_collection(self, user_id: UUID, collection_id: UUID) -> bool:
+    def remove_user_from_collection(self, user_id: UUID4, collection_id: UUID4) -> bool:
         """
         Remove a user from a collection.
         """
         logger.info(f"Removing user {user_id} from collection {collection_id}")
         return self.user_collection_repository.remove_user_from_collection(user_id, collection_id)
 
-    def get_collection_users(self, collection_id: UUID) -> list[UserCollectionDetailOutput]:
+    def get_collection_users(self, collection_id: UUID4) -> list[UserCollectionDetailOutput]:
         """
         Get all users associated with a collection.
         """

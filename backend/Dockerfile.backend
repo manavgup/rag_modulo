@@ -58,6 +58,7 @@ COPY rag_solution/ ./rag_solution/
 COPY auth/ ./auth/
 COPY core/ ./core/
 COPY cli/ ./cli/
+COPY vectordbs/ ./vectordbs/
 COPY pyproject.toml ./
 
 # Create a non-root user and group
@@ -69,7 +70,7 @@ RUN groupadd --gid 10001 backend && \
     chmod 777 /app/logs
 
 # Set environment variables
-ENV PYTHONPATH=/app
+ENV PYTHONPATH=/app:/app/vectordbs:/app/rag_solution:/app/core
 ENV CONTAINER_ENV=1
 
 USER backend
