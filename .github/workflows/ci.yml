@@ -101,7 +101,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildx-
             
-      - name: Build images
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Build and push images
         id: build
         run: |
           # Build with commit SHA for uniqueness
@@ -114,6 +121,12 @@ jobs:
           # Also tag as latest for compose compatibility
           docker tag $BACKEND_TAG ghcr.io/manavgup/rag_modulo/backend:latest
           docker tag $FRONTEND_TAG ghcr.io/manavgup/rag_modulo/frontend:latest
+          
+          # Push images to GHCR
+          docker push $BACKEND_TAG
+          docker push $FRONTEND_TAG
+          docker push ghcr.io/manavgup/rag_modulo/backend:latest
+          docker push ghcr.io/manavgup/rag_modulo/frontend:latest
           
           echo "backend-image=$BACKEND_TAG" >> $GITHUB_OUTPUT
           echo "frontend-image=$FRONTEND_TAG" >> $GITHUB_OUTPUT
