@@ -1,4 +1,4 @@
-from uuid import UUID
+from pydantic import UUID4
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -15,7 +15,7 @@ class UserTeamRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def add_user_to_team(self, user_id: UUID, team_id: UUID) -> bool:
+    def add_user_to_team(self, user_id: UUID4, team_id: UUID4) -> bool:
         """Adds a user to a team if not already present. Returns True if successful or if the user is already in the team."""
 
         existing_entry = (
@@ -40,7 +40,7 @@ class UserTeamRepository:
             logger.error(f"Unexpected error creating team association: {e!s}")
             raise RuntimeError("Failed to add user to team due to an internal error.") from e
 
-    def remove_user_from_team(self, user_id: UUID, team_id: UUID) -> None:
+    def remove_user_from_team(self, user_id: UUID4, team_id: UUID4) -> None:
         try:
             user_team = self.db.query(UserTeam).filter(UserTeam.user_id == user_id, UserTeam.team_id == team_id).first()
             if not user_team:
@@ -58,7 +58,7 @@ class UserTeamRepository:
             self.db.rollback()
             raise Exception(f"Failed to remove user from team: {e!s}") from e
 
-    def get_user_teams(self, user_id: UUID) -> list[UserTeamOutput]:
+    def get_user_teams(self, user_id: UUID4) -> list[UserTeamOutput]:
         try:
             user_teams = self.db.query(UserTeam).filter(UserTeam.user_id == user_id).all()
             return [UserTeamOutput.model_validate(ut, from_attributes=True) for ut in user_teams]
@@ -66,7 +66,7 @@ class UserTeamRepository:
             logger.error(f"Error listing teams: {e!s}")
             raise Exception(f"Failed to list teams: {e!s}") from e
 
-    def get_team_users(self, team_id: UUID) -> list[UserTeamOutput]:
+    def get_team_users(self, team_id: UUID4) -> list[UserTeamOutput]:
         try:
             user_teams = self.db.query(UserTeam).filter(UserTeam.team_id == team_id).all()
             return [UserTeamOutput.model_validate(ut) for ut in user_teams]
@@ -74,7 +74,7 @@ class UserTeamRepository:
             logger.error(f"Error listing users: {e!s}")
             raise Exception(f"Failed to list users: {e!s}") from e
 
-    def get_user_team(self, user_id: UUID, team_id: UUID) -> UserTeamOutput | None:
+    def get_user_team(self, user_id: UUID4, team_id: UUID4) -> UserTeamOutput | None:
         try:
             user_team = self.db.query(UserTeam).filter(UserTeam.user_id == user_id, UserTeam.team_id == team_id).first()
             return UserTeamOutput.model_validate(user_team) if user_team else None

@@ -1,7 +1,7 @@
 """File management routes."""
 
 import logging
-from uuid import UUID
+from pydantic import UUID4
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from sqlalchemy.orm import Session
@@ -30,10 +30,10 @@ router = APIRouter()
     },
 )
 async def upload_file(
-    user_id: UUID,
+    user_id: UUID4,
     file: UploadFile,
     db: Session = Depends(get_db),
-    collection_id: UUID | None = None,
+    collection_id: UUID4 | None = None,
     user: UserOutput = Depends(verify_user_access),
 ) -> FileOutput:
     """Upload a file to a user's collection."""
@@ -59,7 +59,7 @@ async def upload_file(
         500: {"description": "Internal server error"},
     },
 )
-async def delete_file(user_id: UUID, file_id: UUID, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)) -> bool:
+async def delete_file(user_id: UUID4, file_id: UUID4, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)) -> bool:
     """Delete a file from a user's collection."""
     service = FileManagementService(db)
     try:

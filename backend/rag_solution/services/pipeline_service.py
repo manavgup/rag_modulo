@@ -4,8 +4,9 @@
 
 import re
 import time
+import uuid
 from typing import Any
-from uuid import UUID
+from pydantic import UUID4
 
 from sqlalchemy.orm import Session
 
@@ -134,7 +135,7 @@ class PipelineService:
             logger.error(f"Error loading documents: {e!s}")
             raise ConfigurationError(f"Document loading failed: {e!s}") from e
 
-    def get_user_pipelines(self, user_id: UUID) -> list[PipelineConfigOutput]:
+    def get_user_pipelines(self, user_id: UUID4) -> list[PipelineConfigOutput]:
         """Get all pipelines for a user."""
         try:
             pipelines = self.pipeline_repository.get_by_user(user_id)
@@ -163,7 +164,7 @@ class PipelineService:
             logger.error(f"Failed to get user pipelines: {e!s}")
             raise ConfigurationError(f"Failed to retrieve pipeline configurations: {e!s}") from e
 
-    def get_default_pipeline(self, user_id: UUID, collection_id: UUID | None = None) -> PipelineConfigOutput | None:
+    def get_default_pipeline(self, user_id: UUID4, collection_id: UUID4 | None = None) -> PipelineConfigOutput | None:
         """Get default pipeline for a user or collection.
 
         Args:
@@ -185,7 +186,7 @@ class PipelineService:
             logger.error(f"Failed to get default pipeline: {e!s}")
             return None
 
-    def initialize_user_pipeline(self, user_id: UUID, provider_id: UUID) -> PipelineConfigOutput:
+    def initialize_user_pipeline(self, user_id: UUID4, provider_id: UUID4) -> PipelineConfigOutput:
         """Initialize default pipeline for a new user.
 
         Args:
@@ -216,7 +217,7 @@ class PipelineService:
             logger.error(f"Failed to initialize default pipeline: {e!s}")
             raise Exception(f"Failed to initialize default pipeline: {e!s}") from e
 
-    def get_pipeline_config(self, pipeline_id: UUID) -> PipelineConfigOutput | None:
+    def get_pipeline_config(self, pipeline_id: UUID4) -> PipelineConfigOutput | None:
         """Retrieve pipeline configuration by ID."""
         pipeline = self.pipeline_repository.get_by_id(pipeline_id)
         if not pipeline:
@@ -233,7 +234,7 @@ class PipelineService:
 
         return self.pipeline_repository.create(config_input)
 
-    def update_pipeline(self, pipeline_id: UUID, config_input: PipelineConfigInput) -> PipelineConfigOutput:
+    def update_pipeline(self, pipeline_id: UUID4, config_input: PipelineConfigInput) -> PipelineConfigOutput:
         """Update an existing pipeline configuration."""
         # Validate provider exists
         if not self.llm_provider_service.get_provider_by_id(config_input.provider_id):
@@ -249,7 +250,7 @@ class PipelineService:
         updated_pipeline = self.pipeline_repository.update(pipeline_id, config_input)
         return PipelineConfigOutput.model_validate(updated_pipeline)
 
-    def delete_pipeline(self, pipeline_id: UUID) -> bool:
+    def delete_pipeline(self, pipeline_id: UUID4) -> bool:
         """Delete a pipeline configuration by ID."""
         pipeline = self.pipeline_repository.get_by_id(pipeline_id)
         if not pipeline:
@@ -259,7 +260,7 @@ class PipelineService:
 
         return self.pipeline_repository.delete(pipeline_id)
 
-    def validate_pipeline(self, pipeline_id: UUID) -> PipelineResult:
+    def validate_pipeline(self, pipeline_id: UUID4) -> PipelineResult:
         """Validate pipeline configuration."""
         pipeline = self.pipeline_repository.get_by_id(pipeline_id)
         if not pipeline:
@@ -271,7 +272,7 @@ class PipelineService:
         warnings: list[str] = []
 
         # Validate provider
-        if not self.llm_provider_service.get_provider_by_id(UUID(str(pipeline.provider_id))):
+        if not self.llm_provider_service.get_provider_by_id(uuid.UUID(str(pipeline.provider_id))):
             errors.append("Invalid provider ID")
 
             # Basic validation using settings
@@ -286,7 +287,7 @@ class PipelineService:
             generated_answer=None
         )
 
-    def test_pipeline(self, pipeline_id: UUID, query: str) -> PipelineResult:
+    def test_pipeline(self, pipeline_id: UUID4, query: str) -> PipelineResult:
         """Test pipeline with a sample query."""
         pipeline = self.pipeline_repository.get_by_id(pipeline_id)
         if not pipeline:
@@ -324,7 +325,7 @@ class PipelineService:
                 generated_answer=None
             )
 
-    def set_default_pipeline(self, pipeline_id: UUID) -> PipelineConfigOutput:
+    def set_default_pipeline(self, pipeline_id: UUID4) -> PipelineConfigOutput:
         """
         Set a pipeline as the default.
 
@@ -361,7 +362,7 @@ class PipelineService:
         clean_query = re.sub(r"[\(\)]", "", clean_query)
         return clean_query.strip()
 
-    def _format_context(self, template_id: UUID, query_results: list[QueryResult]) -> str:
+    def _format_context(self, template_id: UUID4, query_results: list[QueryResult]) -> str:
         """Format retrieved contexts using template's context strategy."""
         try:
             texts = [result.chunk.text for result in query_results]
@@ -371,7 +372,7 @@ class PipelineService:
             return "\n\n".join(texts)
 
     def _validate_configuration(
-        self, pipeline_id: UUID, user_id: UUID
+        self, pipeline_id: UUID4, user_id: UUID4
     ) -> tuple[PipelineConfigOutput, LLMParametersInput, LLMBase]:
         """
         Validate pipeline configuration and return required components.
@@ -413,7 +414,7 @@ class PipelineService:
 
         return (pipeline_config, llm_parameters.to_input(), provider)
 
-    def _get_templates(self, user_id: UUID) -> tuple[PromptTemplateOutput, PromptTemplateOutput | None]:
+    def _get_templates(self, user_id: UUID4) -> tuple[PromptTemplateOutput, PromptTemplateOutput | None]:
         """
         Get required templates for the pipeline.
 
@@ -473,7 +474,7 @@ class PipelineService:
 
     def _generate_answer(
         self,
-        user_id: UUID,
+        user_id: UUID4,
         query: str,
         context: str,
         provider: LLMBase,

@@ -14,7 +14,10 @@ logger = logging.getLogger(__name__)
 class AuthenticationMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         logger.info(f"AuthMiddleware: Processing request to {request.url.path}")
-        logger.debug(f"AuthMiddleware: Request headers: {request.headers}")
+        logger.info(f"AuthMiddleware: Request method: {request.method}")
+        logger.info(f"AuthMiddleware: Request query params: {dict(request.query_params)}")
+        logger.info(f"AuthMiddleware: Request headers: {dict(request.headers)}")
+        logger.info(f"AuthMiddleware: Request URL: {request.url}")
 
         open_paths = [
             "/api/",
@@ -82,7 +85,12 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             return JSONResponse(status_code=401, content={"detail": "Authentication required"})
 
         logger.info("AuthMiddleware: Passing request to next middleware/handler")
-        response = await call_next(request)
-        logger.info(f"AuthMiddleware: Response status code: {response.status_code}")
-
-        return response
+        logger.info(f"AuthMiddleware: About to call next handler for {request.url.path}")
+        
+        try:
+            response = await call_next(request)
+            logger.info(f"AuthMiddleware: Response status code: {response.status_code}")
+            return response
+        except Exception as e:
+            logger.error(f"AuthMiddleware: Exception in call_next: {e}", exc_info=True)
+            raise

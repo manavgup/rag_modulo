@@ -3,7 +3,7 @@
 import asyncio
 from collections.abc import Generator, Sequence
 from typing import Any
-from uuid import UUID
+from pydantic import UUID4
 
 import anthropic
 from tenacity import retry, stop_after_attempt, wait_exponential
@@ -54,7 +54,7 @@ class AnthropicLLM(LLMBase):
             self._default_model_id = self._default_model.model_id
 
     def _get_generation_params(
-        self, user_id: UUID, model_parameters: LLMParametersInput | None = None
+        self, user_id: UUID4, model_parameters: LLMParametersInput | None = None
     ) -> dict[str, Any]:
         """Get validated generation parameters."""
         params = model_parameters or self.llm_parameters_service.get_latest_or_default_parameters(user_id)
@@ -66,7 +66,7 @@ class AnthropicLLM(LLMBase):
 
     def generate_text(
         self,
-        user_id: UUID,
+        user_id: UUID4,
         prompt: str | Sequence[str],
         model_parameters: LLMParametersInput | None = None,
         template: PromptTemplateBase | None = None,
@@ -116,7 +116,7 @@ class AnthropicLLM(LLMBase):
         if template:
             vars_dict = dict(variables or {})
             vars_dict["prompt"] = prompt
-            return self.prompt_template_service.format_prompt(template_or_id=template, variables=vars_dict)
+            return self.prompt_template_service.format_prompt_with_template(template, vars_dict)
         return prompt
 
     async def _generate_batch(self, model_id: str, prompts: list[str], generation_params: dict[str, Any]) -> list[str]:
@@ -156,7 +156,7 @@ class AnthropicLLM(LLMBase):
     )
     def generate_text_stream(
         self,
-        user_id: UUID,
+        user_id: UUID4,
         prompt: str,
         model_parameters: LLMParametersInput | None = None,
         template: PromptTemplateBase | None = None,

@@ -1,4 +1,4 @@
-from uuid import UUID
+from pydantic import UUID4
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -17,7 +17,7 @@ class UserCollectionRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def add_user_to_collection(self, user_id: UUID, collection_id: UUID) -> bool:
+    def add_user_to_collection(self, user_id: UUID4, collection_id: UUID4) -> bool:
         # First check if collection exists
         collection = self.db.query(Collection).filter(Collection.id == collection_id).first()
         if not collection:
@@ -56,7 +56,7 @@ class UserCollectionRepository:
                 resource_type="UserCollection", field="user_id:collection_id", value=f"{user_id}:{collection_id}"
             ) from e
 
-    def remove_user_from_collection(self, user_id: UUID, collection_id: UUID) -> bool:
+    def remove_user_from_collection(self, user_id: UUID4, collection_id: UUID4) -> bool:
         # First check if the relationship exists
         user_collection = (
             self.db.query(UserCollection)
@@ -79,7 +79,7 @@ class UserCollectionRepository:
             logger.error(f"Database error: {e!s}")
             raise RepositoryError(f"Failed to remove user from collection: {e!s}") from e
 
-    def get_user_collections(self, user_id: UUID) -> list[UserCollectionOutput]:
+    def get_user_collections(self, user_id: UUID4) -> list[UserCollectionOutput]:
         try:
             user_collections = self.db.query(UserCollection).filter(UserCollection.user_id == user_id).all()
             return [self._to_output(uc) for uc in user_collections]
@@ -87,7 +87,7 @@ class UserCollectionRepository:
             logger.error(f"Database error: {e!s}")
             raise RepositoryError(f"Failed to get user collections: {e!s}") from e
 
-    def get_collection_users(self, collection_id: UUID) -> list[UserCollectionOutput]:
+    def get_collection_users(self, collection_id: UUID4) -> list[UserCollectionOutput]:
         try:
             user_collections = self.db.query(UserCollection).filter(UserCollection.collection_id == collection_id).all()
             return [self._to_output(uc) for uc in user_collections]
@@ -95,7 +95,7 @@ class UserCollectionRepository:
             logger.error(f"Database error: {e!s}")
             raise RepositoryError(f"Failed to get collection users: {e!s}") from e
 
-    def remove_all_users_from_collection(self, collection_id: UUID) -> bool:
+    def remove_all_users_from_collection(self, collection_id: UUID4) -> bool:
         try:
             result = self.db.query(UserCollection).filter(UserCollection.collection_id == collection_id).delete()
             self.db.commit()
@@ -105,7 +105,7 @@ class UserCollectionRepository:
             self.db.rollback()
             raise RepositoryError(f"Failed to remove all users from collection: {e!s}") from e
 
-    def get_user_collection(self, user_id: UUID, collection_id: UUID) -> UserCollectionOutput:
+    def get_user_collection(self, user_id: UUID4, collection_id: UUID4) -> UserCollectionOutput:
         try:
             user_collection = (
                 self.db.query(UserCollection)

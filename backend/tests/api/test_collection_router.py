@@ -1,6 +1,6 @@
 """Tests for CollectionRouter."""
 
-from uuid import UUID
+from pydantic import UUID4
 
 import pytest
 from fastapi.testclient import TestClient
@@ -42,7 +42,7 @@ def test_create_collection_with_documents(test_client: TestClient, auth_headers:
     assert response.status_code == 200
     data = response.json()
     assert data["name"] == "Test Collection with Files"
-    assert UUID(data["id"]) is not None
+    assert UUID4(data["id"]) is not None
 
 
 def test_get_collection(test_client, collection_service, test_collection, auth_headers):
@@ -80,7 +80,7 @@ def test_create_collection_question(test_client: TestClient, auth_headers: dict,
     assert response.status_code == 200
     data = response.json()
     assert data["question"] == question_input["question"]
-    assert UUID(data["id"]) is not None
+    assert UUID4(data["id"]) is not None
 
 
 def test_get_collection_questions(
@@ -142,7 +142,7 @@ def test_get_llm_parameters(test_client: TestClient, auth_headers: dict, base_co
 
     assert response.status_code == 200
     data = response.json()
-    assert UUID(data["id"]) is not None
+    assert UUID4(data["id"]) is not None
     assert data["max_new_tokens"] == base_llm_parameters.max_new_tokens
     assert data["temperature"] == base_llm_parameters.temperature
 
@@ -183,7 +183,7 @@ def test_get_prompt_template(test_client: TestClient, auth_headers: dict, base_c
 
     assert response.status_code == 200
     data = response.json()
-    assert UUID(data["id"]) is not None
+    assert UUID4(data["id"]) is not None
     assert data["name"] == base_prompt_template.name
     assert data["template_type"] == base_prompt_template.template_type
 

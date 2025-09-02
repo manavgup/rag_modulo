@@ -1,6 +1,6 @@
 """Tests for SearchService with PipelineService integration."""
 
-from uuid import UUID, uuid4
+from pydantic import UUID4, uuid4
 
 import pytest
 from fastapi import HTTPException
@@ -60,7 +60,7 @@ async def test_search_invalid_collection(search_service, base_user: UserOutput, 
     """Test search with an invalid collection ID."""
     search_input = SearchInput(
         question="Test question",
-        collection_id=str(UUID(int=0)),  # Invalid UUID
+        collection_id=str(UUID4(int=0)),  # Invalid UUID
         pipeline_id=base_pipeline_config["pipeline"].id,
         user_id=base_user.id,
     )
@@ -169,7 +169,7 @@ async def test_search_invalid_pipeline(search_service, base_collection, base_use
     search_input = SearchInput(
         question="Test question",
         collection_id=base_collection.id,
-        pipeline_id=str(UUID(int=0)),  # Invalid UUID
+        pipeline_id=str(UUID4(int=0)),  # Invalid UUID
         user_id=base_user.id,
     )
 

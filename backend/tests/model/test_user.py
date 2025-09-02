@@ -1,5 +1,5 @@
 import logging
-from uuid import UUID
+from pydantic import UUID4
 
 import pytest
 from fastapi import HTTPException
@@ -57,7 +57,7 @@ def test_get_user(user_service, user_input) -> None:
 
 def test_get_non_existent_user(user_service) -> None:
     with pytest.raises(HTTPException) as exc_info:
-        user_service.get_user_by_id(UUID("00000000-0000-0000-0000-000000000000"))
+        user_service.get_user_by_id(UUID4("00000000-0000-0000-0000-000000000000"))
     assert exc_info.value.status_code == 404
 
 
@@ -94,13 +94,13 @@ def test_get_non_existent_user_by_ibm_id(user_service) -> None:
 
 def test_update_non_existent_user(user_service, user_input) -> None:
     with pytest.raises(HTTPException) as exc_info:
-        user_service.update_user(UUID("00000000-0000-0000-0000-000000000000"), user_input)
+        user_service.update_user(UUID4("00000000-0000-0000-0000-000000000000"), user_input)
     assert exc_info.value.status_code == 404
 
 
 def test_delete_non_existent_user(user_service) -> None:
     with pytest.raises(HTTPException) as exc_info:
-        user_service.delete_user(UUID("00000000-0000-0000-0000-000000000000"))
+        user_service.delete_user(UUID4("00000000-0000-0000-0000-000000000000"))
     assert exc_info.value.status_code == 404
 
 

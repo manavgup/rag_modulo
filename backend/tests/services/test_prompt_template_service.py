@@ -121,7 +121,7 @@ def test_format_prompt(prompt_template_service: PromptTemplateService, base_user
 
     variables = {"context": "Test context", "question": "Test question"}
 
-    result = prompt_template_service.format_prompt(template.id, variables)
+    result = prompt_template_service.format_prompt_by_id(template.id, variables)
 
     assert isinstance(result, str)
     assert variables["context"] in result
@@ -138,7 +138,7 @@ def test_format_prompt_missing_variables(
     template = prompt_template_service.create_template(test_prompt_template)
 
     with pytest.raises(ValidationError):
-        prompt_template_service.format_prompt(
+        prompt_template_service.format_prompt_by_id(
             template.id,
             {"context": "Test context"},  # Missing question
         )

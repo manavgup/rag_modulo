@@ -1,4 +1,4 @@
-from uuid import UUID
+from pydantic import UUID4
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
@@ -44,7 +44,7 @@ class UserRepository:
             logger.error(f"Error creating user: {e!s}")
             raise RepositoryError(f"Failed to create user: {e!s}") from e
 
-    def get_by_id(self, user_id: UUID) -> UserOutput:
+    def get_by_id(self, user_id: UUID4) -> UserOutput:
         """Fetches user by ID with team relationships.
 
         Raises:
@@ -80,7 +80,7 @@ class UserRepository:
             logger.error(f"Error getting user by IBM ID {ibm_id}: {e!s}")
             raise RepositoryError(f"Failed to get user by IBM ID: {e!s}") from e
 
-    def update(self, user_id: UUID, user_update: UserInput) -> UserOutput:
+    def update(self, user_id: UUID4, user_update: UserInput) -> UserOutput:
         """Updates user data with validation.
 
         Raises:
@@ -114,7 +114,7 @@ class UserRepository:
             self.db.rollback()
             raise RepositoryError(f"Failed to update user: {e!s}") from e
 
-    def delete(self, user_id: UUID) -> bool:
+    def delete(self, user_id: UUID4) -> bool:
         """Deletes a user and returns success status."""
         try:
             result = self.db.query(User).filter(User.id == user_id).delete()

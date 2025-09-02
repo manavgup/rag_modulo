@@ -1,6 +1,6 @@
 """Tests for LLM Parameters router endpoints."""
 
-from uuid import UUID, uuid4
+from pydantic import UUID4, uuid4
 
 import pytest
 from httpx import AsyncClient
@@ -9,8 +9,8 @@ from rag_solution.models.llm_parameters import LLMParameters
 from rag_solution.services.llm_parameters_service import LLMParametersService
 
 # Test data
-TEST_USER_ID = UUID("12345678-1234-5678-1234-567812345678")
-TEST_PARAMETER_ID = UUID("87654321-4321-8765-4321-876543210987")
+TEST_USER_ID = UUID4("12345678-1234-5678-1234-567812345678")
+TEST_PARAMETER_ID = UUID4("87654321-4321-8765-4321-876543210987")
 
 
 @pytest.fixture

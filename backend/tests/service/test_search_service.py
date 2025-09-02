@@ -86,7 +86,7 @@ async def test_search_invalid_collection(search_service: SearchService, base_use
     """Test search with an invalid collection ID."""
     search_input = SearchInput(
         question="Test question",
-        collection_id=str(uuid.UUID(int=0)),  # Invalid UUID
+        collection_id=str(UUID4(int=0)),  # Invalid UUID
         pipeline_id=base_pipeline_config["pipeline"].id,
     )
 
@@ -215,7 +215,7 @@ async def test_search_invalid_pipeline(search_service: SearchService, base_colle
     search_input = SearchInput(
         question="Test question",
         collection_id=base_collection.id,
-        pipeline_id=str(uuid.UUID(int=0)),  # Invalid UUID
+        pipeline_id=str(UUID4(int=0)),  # Invalid UUID
     )
 
     with pytest.raises(HTTPException) as exc_info:

@@ -1,7 +1,8 @@
 # collection_service.py
 import multiprocessing
 import re
-from uuid import UUID, uuid4
+from uuid import uuid4
+from pydantic import UUID4
 
 from fastapi import BackgroundTasks, UploadFile
 from sqlalchemy.orm import Session
@@ -70,15 +71,12 @@ class CollectionService:
 
     def create_collection(self, collection: CollectionInput) -> CollectionOutput:
         """Create a new collection in the database and vectordb"""
-        # Check if collection with same name exists - let repository handle NotFoundError
-        try:
-            self.collection_repository.get_by_name(collection.name)
-            # If we get here, collection exists
+        # Check if collection with same name exists
+        existing_collection = self.collection_repository.get_by_name(collection.name)
+        if existing_collection:
+            # Collection exists, raise error
             from rag_solution.core.exceptions import AlreadyExistsError
             raise AlreadyExistsError(resource_type="Collection", field="name", value=collection.name)
-        except NotFoundError:
-            # This is what we want - collection doesn't exist, so we can create it
-            pass
 
         vector_db_name = self._generate_valid_collection_name()
         try:
@@ -98,13 +96,13 @@ class CollectionService:
             logger.error(f"Error creating collection: {e!s}")
             raise
 
-    def get_collection(self, collection_id: UUID) -> CollectionOutput:
+    def get_collection(self, collection_id: UUID4) -> CollectionOutput:
         """
         Get a collection by its ID.
         """
         return self.collection_repository.get(collection_id)
 
-    def update_collection(self, collection_id: UUID, collection_update: CollectionInput) -> CollectionOutput:
+    def update_collection(self, collection_id: UUID4, collection_update: CollectionInput) -> CollectionOutput:
         """
         Update an existing collection.
         """
@@ -148,7 +146,7 @@ class CollectionService:
             logger.error(f"Error updating collection: {e!s}")
             raise
 
-    def delete_collection(self, collection_id: UUID) -> bool:
+    def delete_collection(self, collection_id: UUID4) -> bool:
         """
         Delete a collection by its ID.
         """
@@ -173,7 +171,7 @@ class CollectionService:
             logger.error(f"Error deleting collection: {e!s}")
             raise
 
-    def get_user_collections(self, user_id: UUID) -> list[CollectionOutput]:
+    def get_user_collections(self, user_id: UUID4) -> list[CollectionOutput]:
         """
         Get all collections belonging to a user.
         """
@@ -184,7 +182,7 @@ class CollectionService:
         self,
         collection_name: str,
         is_private: bool,
-        user_id: UUID,
+        user_id: UUID4,
         files: list[UploadFile],
         background_tasks: BackgroundTasks,
     ) -> CollectionOutput:
@@ -232,7 +230,7 @@ class CollectionService:
             raise
 
     async def process_documents(
-        self, file_paths: list[str], collection_id: UUID, vector_db_name: str, document_ids: list[str], user_id: UUID
+        self, file_paths: list[str], collection_id: UUID4, vector_db_name: str, document_ids: list[str], user_id: UUID4
     ) -> None:
         """Process documents and generate questions for a collection.
 
@@ -275,7 +273,7 @@ class CollectionService:
             ) from e
 
     async def _process_and_ingest_documents(
-        self, file_paths: list[str], vector_db_name: str, document_ids: list[str], collection_id: UUID
+        self, file_paths: list[str], vector_db_name: str, document_ids: list[str], collection_id: UUID4
     ) -> list[Document]:
         """Process and ingest documents into vector store."""
         try:
@@ -287,7 +285,7 @@ class CollectionService:
                 collection_id=str(collection_id), stage="ingestion", error_type="ingestion_failed", message=str(e)
             ) from e
 
-    def _extract_document_texts(self, processed_documents: list[Document], collection_id: UUID) -> list[str]:
+    def _extract_document_texts(self, processed_documents: list[Document], collection_id: UUID4) -> list[str]:
         """Extract text chunks from processed documents."""
         logger.info("Extracting document chunks for question generation")
         document_texts = []
@@ -304,7 +302,7 @@ class CollectionService:
         return document_texts
 
     async def _generate_collection_questions(
-        self, document_texts: list[str], collection_id: UUID, user_id: UUID
+        self, document_texts: list[str], collection_id: UUID4, user_id: UUID4
     ) -> None:
         """Generate questions for collection from document texts."""
         # Get provider and generation parameters
@@ -354,12 +352,12 @@ class CollectionService:
                 collection_id=str(collection_id), error_type="unexpected_error", message=str(e)
             ) from e
 
-    def _get_question_generation_template(self, user_id: UUID):
+    def _get_question_generation_template(self, user_id: UUID4):
         """Get question generation template for user."""
         logger.info("Fetching Template")
         return self.prompt_template_service.get_by_type(user_id, PromptTemplateType.QUESTION_GENERATION)
 
-    def _get_llm_parameters_input(self, user_id: UUID) -> LLMParametersInput:
+    def _get_llm_parameters_input(self, user_id: UUID4) -> LLMParametersInput:
         """Get LLM parameters converted to input format."""
         logger.info("Attempting to get parameters")
         parameters = self.llm_parameters_service.get_latest_or_default_parameters(user_id)
@@ -452,7 +450,7 @@ class CollectionService:
                 message=str(e),
             ) from e
 
-    def update_collection_status(self, collection_id: UUID, status: CollectionStatus) -> None:
+    def update_collection_status(self, collection_id: UUID4, status: CollectionStatus) -> None:
         """Update the status of a collection."""
         try:
             self.collection_repository.update(collection_id, {"status": status})

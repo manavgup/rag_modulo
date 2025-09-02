@@ -1,4 +1,4 @@
-from uuid import UUID
+from pydantic import UUID4
 
 from sqlalchemy.orm import Session
 
@@ -24,7 +24,7 @@ class UserProviderService:
         self.llm_model_service = LLMModelService(db)
 
     def initialize_user_defaults(
-        self, user_id: UUID
+        self, user_id: UUID4
     ) -> tuple[LLMProviderOutput | None, list[PromptTemplateOutput], LLMParametersOutput | None]:
         try:
             # Existing provider initialization
@@ -61,7 +61,7 @@ class UserProviderService:
             self.db.rollback()
             raise ValidationError(f"Failed to initialize required user configuration: {e}", field="user_initialization") from e
 
-    def get_user_provider(self, user_id: UUID) -> LLMProviderOutput | None:
+    def get_user_provider(self, user_id: UUID4) -> LLMProviderOutput | None:
         """Get user's preferred provider or assign the default provider if missing."""
         try:
             logger.info(f"Fetching LLM provider for user {user_id}")
@@ -89,14 +89,14 @@ class UserProviderService:
             logger.error(f"Error getting provider for user {user_id}: {e!s}")
             raise ValidationError(f"Error fetching provider: {e}", field="provider_retrieval") from e
 
-    def set_user_provider(self, user_id: UUID, provider_id: UUID) -> bool:
+    def set_user_provider(self, user_id: UUID4, provider_id: UUID4) -> bool:
         """Set user's preferred provider."""
         result = self.user_provider_repository.set_user_provider(user_id, provider_id)
         if not result:
             raise ValidationError(f"User not found: {user_id}", field="user_id")
         return True
 
-    def _create_default_rag_template(self, user_id: UUID) -> PromptTemplateOutput:
+    def _create_default_rag_template(self, user_id: UUID4) -> PromptTemplateOutput:
         """Create default RAG template for user."""
         return self.prompt_template_service.create_template(
             PromptTemplateInput(
@@ -126,7 +126,7 @@ class UserProviderService:
             )
         )
 
-    def _create_default_question_template(self, user_id: UUID) -> PromptTemplateOutput:
+    def _create_default_question_template(self, user_id: UUID4) -> PromptTemplateOutput:
         """Create default question generation template for user."""
         return self.prompt_template_service.create_template(
             PromptTemplateInput(
