@@ -48,25 +48,23 @@ services:
   # etcd for milvus standalone deployment
   milvus-etcd:
     container_name: milvus-etcd
-    image: bitnami/etcd:3.5.10
+    image: quay.io/coreos/etcd:v3.5.9
     environment:
-      - ETCD_ENABLE_V2=true
-      - ETCD_ADVERTISE_CLIENT_URLS=http://milvus-etcd:2379
+      - ETCD_NAME=etcd
+      - ETCD_DATA_DIR=/etcd-data
       - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
-      - ETCD_INITIAL_ADVERTISE_PEER_URLS=http://milvus-etcd:2380
+      - ETCD_ADVERTISE_CLIENT_URLS=http://milvus-etcd:2379
       - ETCD_LISTEN_PEER_URLS=http://0.0.0.0:2380
+      - ETCD_INITIAL_ADVERTISE_PEER_URLS=http://milvus-etcd:2380
       - ETCD_INITIAL_CLUSTER=etcd=http://milvus-etcd:2380
       - ETCD_INITIAL_CLUSTER_TOKEN=etcd-cluster
       - ETCD_INITIAL_CLUSTER_STATE=new
-      - ETCD_AUTO_COMPACTION_RETENTION=0
-      - ETCD_QUOTA_BACKEND_BYTES=0
-      - ETCD_SNAPSHOT_COUNT=10000
     volumes:
-      - etcd_data:/bitnami/etcd
+      - etcd_data:/etcd-data
     networks:
       - app-network
     healthcheck:
-      test: ["CMD", "etcdctl", "endpoint", "health"]
+      test: ["CMD", "etcdctl", "--endpoints=http://localhost:2379", "endpoint", "health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -80,7 +78,7 @@ services:
       ETCD_ENDPOINTS: milvus-etcd:2379
       MINIO_ADDRESS: minio:9000
       MINIO_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+      MINIO_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
       COMMON_STORAGETYPE: minio
       MINIO_USE_SSL: false
       ETCD_USE_SSL: false
