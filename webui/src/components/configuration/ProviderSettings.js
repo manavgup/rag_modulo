@@ -194,7 +194,7 @@ const ProviderSettings = () => {
         <Link href="#" onClick={(e) => {
           e.preventDefault();
           // TODO: Add model details view
-          console.log('View models for:', provider.name);
+
         }}>
           {provider.models?.length || 0} models <View size={16} style={{ verticalAlign: 'middle' }} />
         </Link>

@@ -39,7 +39,7 @@ const HomePage = () => {
   };
 
   const handleSearch = async () => {
-    console.log('Searching:', query);
+
     setResults([
       { id: 1, title: "Result 1", snippet: "This is the first result" },
       { id: 2, title: "Result 2", snippet: "This is the second result" },
@@ -68,7 +68,7 @@ const HomePage = () => {
 
   const handleNavigation = (e, page) => {
     e.preventDefault();
-    console.log(`Navigating to: ${page}`);
+
     setCurrentPage(page);
     setIsDashboardSettingsModalOpen(false);
     setIsIngestionSettingsModalOpen(false);
@@ -82,7 +82,7 @@ const HomePage = () => {
   ];
 
   const handleFormSubmit = (data) => {
-    console.log('Form data submitted:', data);
+
   };
 
   return (

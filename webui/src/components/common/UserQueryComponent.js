@@ -6,7 +6,7 @@ const UserQueryComponent = () => {
 
   const handleSearch = async () => {
     // Call the search API and handle the response
-    console.log('Searching for:', query);
+
   };
 
   return (
