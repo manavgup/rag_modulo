@@ -137,22 +137,8 @@ jobs:
       
       - name: Create environment and volume directories
         run: |
-          # Create comprehensive .env file for CI
-          cat > .env << EOF
-          PROJECT_NAME=rag-modulo
-          PYTHON_VERSION=3.11
-          VECTOR_DB=milvus
-          COLLECTIONDB_NAME=rag_db
-          COLLECTIONDB_USER=rag_user
-          COLLECTIONDB_PASS=rag_password
-          MINIO_ROOT_USER=minioadmin
-          MINIO_ROOT_PASSWORD=minioadmin
-          MLFLOW_TRACKING_USERNAME=admin
-          MLFLOW_TRACKING_PASSWORD=admin
-          RUNTIME_EVAL=false
-          MILVUS_PORT=19530
-          FRONTEND_URL=http://localhost:3000
-          EOF
+          # Use the .env.ci file for CI testing
+          cp .env.ci .env
           
           make create-volumes
           
