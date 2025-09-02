@@ -12,9 +12,9 @@ permissions:
 
 env:
   # Use GHCR images by default
-  BACKEND_IMAGE: ghcr.io/manavgup/rag_modulo/backend:latest
-  FRONTEND_IMAGE: ghcr.io/manavgup/rag_modulo/frontend:latest
-  TEST_IMAGE: ghcr.io/manavgup/rag_modulo/backend:latest
+  BACKEND_IMAGE: ghcr.io/manavgup/rag-modulo/backend:latest
+  FRONTEND_IMAGE: ghcr.io/manavgup/rag-modulo/frontend:latest
+  TEST_IMAGE: ghcr.io/manavgup/rag-modulo/backend:latest
 
 jobs:
   # Fast feedback - lint and unit tests without infrastructure  
@@ -123,21 +123,25 @@ jobs:
         id: build
         run: |
           # Build with commit SHA for uniqueness
-          BACKEND_TAG="ghcr.io/manavgup/rag_modulo/backend:${{ github.sha }}"
-          FRONTEND_TAG="ghcr.io/manavgup/rag_modulo/frontend:${{ github.sha }}"
+          BACKEND_TAG="ghcr.io/manavgup/rag-modulo/backend:${{ github.sha }}"
+          FRONTEND_TAG="ghcr.io/manavgup/rag-modulo/frontend:${{ github.sha }}"
           
+          echo "Building backend image..."
           docker build -t $BACKEND_TAG -f ./backend/Dockerfile.backend ./backend
+          
+          echo "Building frontend image..."
           docker build -t $FRONTEND_TAG -f ./webui/Dockerfile.frontend ./webui
           
           # Also tag as latest for compose compatibility
-          docker tag $BACKEND_TAG ghcr.io/manavgup/rag_modulo/backend:latest
-          docker tag $FRONTEND_TAG ghcr.io/manavgup/rag_modulo/frontend:latest
+          docker tag $BACKEND_TAG ghcr.io/manavgup/rag-modulo/backend:latest
+          docker tag $FRONTEND_TAG ghcr.io/manavgup/rag-modulo/frontend:latest
           
+          echo "Pushing images to GHCR..."
           # Push images to GHCR
           docker push $BACKEND_TAG
           docker push $FRONTEND_TAG
-          docker push ghcr.io/manavgup/rag_modulo/backend:latest
-          docker push ghcr.io/manavgup/rag_modulo/frontend:latest
+          docker push ghcr.io/manavgup/rag-modulo/backend:latest
+          docker push ghcr.io/manavgup/rag-modulo/frontend:latest
           
           echo "backend-image=$BACKEND_TAG" >> $GITHUB_OUTPUT
           echo "frontend-image=$FRONTEND_TAG" >> $GITHUB_OUTPUT
