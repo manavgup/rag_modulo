@@ -78,7 +78,14 @@ jobs:
         continue-on-error: true  # Don't fail on security issues initially
           
       - name: Run unit tests with coverage
-        run: make coverage
+        run: |
+          cd backend && poetry run pytest tests/ \
+            -m "unit" \
+            --cov=rag_solution \
+            --cov-report=term-missing \
+            --cov-fail-under=60 \
+            --maxfail=5 \
+            --tb=short
         continue-on-error: true  # Don't fail on coverage threshold initially
 
   # Build images once
@@ -131,9 +138,41 @@ jobs:
           echo "backend-image=$BACKEND_TAG" >> $GITHUB_OUTPUT
           echo "frontend-image=$FRONTEND_TAG" >> $GITHUB_OUTPUT
 
+  # API tests (fast, no external dependencies)
+  api-tests:
+    needs: [lint-and-unit]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+          
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+          
+      - name: Install dependencies
+        run: |
+          cd backend && poetry install --with dev,test
+          
+      - name: Run API tests
+        run: |
+          cd backend && poetry run pytest tests/ \
+            -m "api" \
+            --maxfail=5 \
+            --tb=short \
+            -v
+        continue-on-error: true
+
   # Integration tests (only when needed)
   integration-test:
-    needs: [build, lint-and-unit]
+    needs: [build, lint-and-unit, api-tests]
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -196,7 +235,7 @@ jobs:
 
   # Simple reporting without complex XML parsing
   report:
-    needs: [lint-and-unit, build, integration-test]
+    needs: [lint-and-unit, build, api-tests, integration-test]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -205,6 +244,7 @@ jobs:
           echo "## CI/CD Results" 
           echo "- Lint and Unit Tests: ${{ needs.lint-and-unit.result }}"
           echo "- Build: ${{ needs.build.result }}"
+          echo "- API Tests: ${{ needs.api-tests.result }}"
           echo "- Integration Tests: ${{ needs.integration-test.result }}"
           
           if [[ "${{ needs.lint-and-unit.result }}" == "failure" || "${{ needs.build.result }}" == "failure" ]]; then
