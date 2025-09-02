@@ -2,7 +2,7 @@ import axios from 'axios';
 import config, { API_ROUTES, getFullApiUrl } from '../config/config';
 import { getStoredUserData } from '../services/authService';
 
-console.log('API configuration:', config);
+
 
 const api = axios.create({
   baseURL: getFullApiUrl(''),
@@ -11,19 +11,14 @@ const api = axios.create({
   },
 });
 
-console.log('Axios instance created with baseURL:', api.defaults.baseURL);
+
 
 // Add an interceptor to include the JWT in the Authorization header for all requests
 api.interceptors.request.use(async function (config) {
-  console.log('Request interceptor - URL:', config.url, 'Method:', config.method);
   const token = localStorage.getItem('jwt_token');
   if (token) {
     config.headers['Authorization'] = `Bearer ${token}`;
-    console.log('Axios interceptor: Adding token to request headers', config.url);
-  } else {
-    console.log('Axios interceptor: No token found in localStorage');
   }
-  console.log('Final request config:', config);
   return config;
 }, function (error) {
   console.error('Axios interceptor: Error in request interceptor', error);
@@ -33,7 +28,6 @@ api.interceptors.request.use(async function (config) {
 // Add an interceptor to handle token expiration
 api.interceptors.response.use(
   (response) => {
-    console.log('Response interceptor - URL:', response.config.url, 'Status:', response.status);
     return response;
   },
   async (error) => {
@@ -75,7 +69,7 @@ const handleApiError = (error, customErrorMessage) => {
 export const searchDocuments = async (query, collectionId) => {
   try {
     const url = API_ROUTES.SEARCH;
-    console.log('Searching documents:', getFullApiUrl(url));
+
     
     if (collectionId === 'all') {
       throw new Error('Please select a specific collection to search');
@@ -97,15 +91,13 @@ export const searchDocuments = async (query, collectionId) => {
     const defaultPipelineId = pipelinesResponse.data[0].id;
 
     const response = await api.post(url, {
-      search_input: {  // Wrap the parameters in search_input
-        question: query,
-        collection_id: collectionId,
-        pipeline_id: defaultPipelineId,
-        user_id: userData.uuid
-      }
+      question: query,
+      collection_id: collectionId,
+      pipeline_id: defaultPipelineId,
+      user_id: userData.uuid
     });
     
-    console.log('Full search response:', response.data);
+
     
     return {
       answer: response.data.answer,
@@ -130,7 +122,7 @@ export const searchDocuments = async (query, collectionId) => {
 export const searchDocumentsStream = async (query, collectionId) => {
   try {
     const url = API_ROUTES.SEARCH_STREAM;
-    console.log('Streaming search:', getFullApiUrl(url));
+
     
     // Skip if 'all' is selected
     if (collectionId === 'all') {
@@ -153,15 +145,19 @@ export const searchDocumentsStream = async (query, collectionId) => {
 export const createCollectionWithDocuments = async (formData, onUploadProgress) => {
   try {
     const url = API_ROUTES.CREATE_COLLECTION_WITH_FILES;
-    console.log('Creating collection with documents:', getFullApiUrl(url));
+
+    
     const response = await api.post(url, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
       onUploadProgress,
     });
+
+    
     return response.data;
   } catch (error) {
+
     throw handleApiError(error, 'Error creating collection with documents');
   }
 };
@@ -174,7 +170,7 @@ export const getUserCollections = async () => {
     }
 
     const url = `${API_ROUTES.USERS_ENDPOINT}/${userData.uuid}/collections`;
-    console.log('Fetching user collections:', getFullApiUrl(url));
+
     const response = await api.get(url);
     
     // Transform the data structure
@@ -194,9 +190,7 @@ export const getUserCollections = async () => {
 export const updateCollection = async (collectionId, data) => {
   try {
     const url = `${API_ROUTES.COLLECTIONS_ENDPOINT}/${collectionId}`;
-    console.log('Updating collection:', getFullApiUrl(url));
     const response = await api.put(url, data);
-    console.log('Collection updated successfully:', response.data);
     return response.data;
   } catch (error) {
     console.error('Error in updateCollection:', error);
@@ -207,9 +201,7 @@ export const updateCollection = async (collectionId, data) => {
 export const deleteCollection = async (collectionId) => {
   try {
     const url = `${API_ROUTES.COLLECTIONS_ENDPOINT}/${collectionId}`;
-    console.log('Deleting collection:', getFullApiUrl(url));
     const response = await api.delete(url);
-    console.log('Collection deleted successfully:', response.data);
     return response.data;
   } catch (error) {
     console.error('Error in deleteCollection:', error);

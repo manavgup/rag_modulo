@@ -84,7 +84,7 @@ const DocumentViewer = () => {
 
   const handleDownload = () => {
     // Implement download functionality
-    console.log('Downloading document:', document.id);
+
     addNotification('info', 'Download Started', 'Your document download has begun.');
   };
 

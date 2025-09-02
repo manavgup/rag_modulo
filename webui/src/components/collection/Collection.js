@@ -115,7 +115,6 @@ const Collections = () => {
 
   const openDeleteModal = (item, type) => {
     setItemToDelete({ ...item, type });
-    console.log(itemToDelete);
     setIsDeleteModalOpen(true);
   };
 
@@ -139,7 +138,6 @@ const Collections = () => {
     setIsLoadingCollections(true);
     try {
       const collections = (await getUserCollections())?.collections;
-      console.log(collections);
 
       if (collections && collections.length > 0) {
         // data table requires a field called id
@@ -167,7 +165,6 @@ const Collections = () => {
   };
 
   const createNewCollection = () => {
-    console.log(collectionData)
     setModalMode("create");
     setIsModalOpen(true);
   };
@@ -175,7 +172,7 @@ const Collections = () => {
   const handleCreateCollection = async () => {
     try {
       const formData = new FormData();
-      console.log(collectionData);
+      
       formData.append("collection_name", collectionData.name);
       formData.append("description", collectionData.description);
       formData.append("is_private", collectionData.is_private);
@@ -183,7 +180,6 @@ const Collections = () => {
         formData.append("files", file);
       });
       formData.append("user_id", user.uuid);
-
       try {
         setIsUploading(true);
         const response = await createCollectionWithDocuments(
@@ -508,11 +504,13 @@ const Collections = () => {
         }
         primaryButtonText={modalMode === "create" ? "Create" : "Update"}
         secondaryButtonText="Cancel"
-        onRequestSubmit={
-          modalMode === "create"
-            ? handleCreateCollection
-            : handleUpdateCollection
-        }
+        onRequestSubmit={() => {
+          if (modalMode === "create") {
+            handleCreateCollection();
+          } else {
+            handleUpdateCollection();
+          }
+        }}
       >
         <TextInput
           id="collection-name"
