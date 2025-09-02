@@ -6,6 +6,10 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+  packages: write
+
 env:
   # Use GHCR images by default
   BACKEND_IMAGE: ghcr.io/manavgup/rag_modulo/backend:latest
