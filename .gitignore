@@ -4,9 +4,10 @@ __pycache__/
 *.pyo
 *.pyd
 
-# Ignore .env files
+# Ignore .env files (but allow .env.ci for CI)
 .env
 .env.local
+!.env.ci
 
 # Ignore virtual environments
 venv/
