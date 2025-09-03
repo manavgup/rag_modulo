@@ -18,22 +18,40 @@ router = APIRouter(prefix="/api", tags=["health"])
 
 def check_vectordb() -> dict[str, str]:
     """Check the health of the vector database."""
-    try:
-        get_datastore(settings.vector_db)
-        return {"status": "healthy", "message": "Vector DB is connected and operational"}
-    except Exception as e:
-        logger.error(f"Vector DB health check failed: {e!s}")
-        return {"status": "unhealthy", "message": f"Vector DB health check failed: {e!s}"}
+    import time
+    max_retries = 3
+    retry_delay = 2
+    
+    for attempt in range(max_retries):
+        try:
+            get_datastore(settings.vector_db)
+            return {"status": "healthy", "message": "Vector DB is connected and operational"}
+        except Exception as e:
+            logger.warning(f"Vector DB health check attempt {attempt + 1} failed: {e!s}")
+            if attempt < max_retries - 1:
+                time.sleep(retry_delay)
+            else:
+                logger.error(f"Vector DB health check failed after {max_retries} attempts: {e!s}")
+                return {"status": "unhealthy", "message": f"Vector DB health check failed: {e!s}"}
 
 
 def check_datastore(db: Session = Depends(get_db)) -> dict[str, str]:
     """Check the health of the relational database."""
-    try:
-        db.execute(text("Select 1"))
-        return {"status": "healthy", "message": "Relational DB is connected and operational"}
-    except Exception as e:
-        logger.error(f"Relational DB health check failed: {e!s}")
-        return {"status": "unhealthy", "message": f"Relational DB health check failed: {e!s}"}
+    import time
+    max_retries = 3
+    retry_delay = 2
+    
+    for attempt in range(max_retries):
+        try:
+            db.execute(text("Select 1"))
+            return {"status": "healthy", "message": "Relational DB is connected and operational"}
+        except Exception as e:
+            logger.warning(f"Relational DB health check attempt {attempt + 1} failed: {e!s}")
+            if attempt < max_retries - 1:
+                time.sleep(retry_delay)
+            else:
+                logger.error(f"Relational DB health check failed after {max_retries} attempts: {e!s}")
+                return {"status": "unhealthy", "message": f"Relational DB health check failed: {e!s}"}
 
 
 def check_watsonx() -> dict[str, str]:
