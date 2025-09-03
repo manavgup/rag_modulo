@@ -34,8 +34,8 @@ services:
       test: ["CMD", "python", "healthcheck.py"]
       interval: 30s
       timeout: 10s
-      start_period: 5s
-      retries: 3
+      start_period: 60s
+      retries: 5
 
   frontend:
     image: ${FRONTEND_IMAGE:-ghcr.io/manavgup/rag_modulo/frontend:latest}
