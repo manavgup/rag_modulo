@@ -84,7 +84,7 @@ jobs:
       - name: Run unit tests with coverage
         run: |
           cd backend && poetry run pytest tests/ \
-            -m "unit" \
+            -m "atomic" \
             --cov=rag_solution \
             --cov-report=term-missing \
             --cov-fail-under=60 \
@@ -172,7 +172,7 @@ jobs:
       - name: Run API tests
         run: |
           cd backend && poetry run pytest tests/ \
-            -m "api" \
+            -m "asyncio" \
             --maxfail=5 \
             --tb=short \
             -v
