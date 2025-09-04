@@ -9,6 +9,7 @@ from rag_solution.data_ingestion.document_processor import DocumentProcessor
     "fixture_name",
     ["test_txt_path", "test_pdf_path", "test_word_path", "test_excel_path"],
 )
+@pytest.mark.atomic
 async def test_process_document(request, fixture_name):
     test_file = request.getfixturevalue(fixture_name)
     print("*** Fixture name: ", fixture_name)

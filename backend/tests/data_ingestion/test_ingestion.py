@@ -42,6 +42,7 @@ def vector_store_with_collection():
 
 
 @pytest.mark.asyncio
+@pytest.mark.atomic
 async def test_document_store(vector_store_with_collection):
     """Test the DocumentStore class."""
     # Create document store

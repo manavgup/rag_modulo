@@ -8,6 +8,7 @@ WEAVIATE_COLLECTION = settings.collection_name
 
 
 @pytest.mark.weaviate
+@pytest.mark.integration
 class TestWeaviateStore:
     @pytest.fixture
     @contextmanager

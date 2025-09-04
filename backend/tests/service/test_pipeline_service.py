@@ -19,6 +19,7 @@ from vectordbs.data_types import DocumentChunk, DocumentChunkMetadata, QueryResu
 
 
 @pytest.fixture
+@pytest.mark.atomic
 def test_user(db_session: Session) -> User:
     """Create test user."""
     user = User(id=uuid4(), ibm_id="test_user", email="test@example.com", name="Test User")

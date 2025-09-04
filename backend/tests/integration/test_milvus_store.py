@@ -5,6 +5,7 @@ import pytest
 
 
 @pytest.mark.milvus
+@pytest.mark.integration
 class TestMilvusStore:
     @pytest.fixture
     @contextmanager

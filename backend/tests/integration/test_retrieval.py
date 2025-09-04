@@ -18,6 +18,7 @@ def document_store():
     return store
 
 
+@pytest.mark.integration
 class TestRetrievers:
     def test_vector_retriever_success(self, document_store):
         """Test successful vector retrieval."""

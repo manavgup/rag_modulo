@@ -38,6 +38,7 @@ def sample_excel_path():
 
 
 @pytest.mark.asyncio
+@pytest.mark.atomic
 async def test_process_excel_file(excel_processor, sample_excel_path):
     """Test processing a valid Excel file."""
     documents = []

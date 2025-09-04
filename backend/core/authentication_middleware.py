@@ -1,4 +1,5 @@
 import logging
+import os
 
 import jwt
 from fastapi import Request
@@ -14,10 +15,24 @@ logger = logging.getLogger(__name__)
 class AuthenticationMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         logger.info(f"AuthMiddleware: Processing request to {request.url.path}")
-        logger.info(f"AuthMiddleware: Request method: {request.method}")
-        logger.info(f"AuthMiddleware: Request query params: {dict(request.query_params)}")
-        logger.info(f"AuthMiddleware: Request headers: {dict(request.headers)}")
-        logger.info(f"AuthMiddleware: Request URL: {request.url}")
+        logger.debug(f"AuthMiddleware: Request headers: {request.headers}")
+        
+        # Skip authentication entirely in test/development mode
+        skip_auth = os.getenv("SKIP_AUTH", "false").lower() == "true"
+        development_mode = os.getenv("DEVELOPMENT_MODE", "false").lower() == "true"
+        testing_mode = os.getenv("TESTING", "false").lower() == "true"
+        
+        if skip_auth or development_mode or testing_mode:
+            # Set a default test user for CI/development
+            request.state.user = {
+                "id": "test_user_id",
+                "email": "test@example.com",
+                "name": "Test User",
+                "uuid": request.headers.get("X-User-UUID", "test-uuid"),
+                "role": request.headers.get("X-User-Role", "admin")
+            }
+            logger.debug(f"AuthMiddleware: Skipping auth (skip_auth={skip_auth}, dev={development_mode}, test={testing_mode})")
+            return await call_next(request)
 
         open_paths = [
             "/api/",

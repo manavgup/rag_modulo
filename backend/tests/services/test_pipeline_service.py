@@ -28,6 +28,7 @@ def search_input(base_collection) -> SearchInput:
 # -------------------------------------------
 # 🧪 Pipeline Service Tests
 # -------------------------------------------
+@pytest.mark.atomic
 def test_service_initialization(pipeline_service, base_user: UserOutput, ensure_watsonx_provider):
     """Test service initialization."""
     assert base_user is not None

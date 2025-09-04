@@ -6,6 +6,7 @@ from vectordbs.data_types import Document
 
 
 @pytest.mark.asyncio
+@pytest.mark.atomic
 async def test_process_txt(test_txt_path):
     processor = TxtProcessor()
     docs = []

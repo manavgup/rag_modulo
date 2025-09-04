@@ -132,6 +132,7 @@ def mock_ibm_oauth():
         yield oauth_mock
 
 
+@pytest.mark.api
 class TestAuthentication:
     def test_token_exchange(self, client, mock_auth_middleware):  # noqa: ARG002
         """Test POST /api/auth/token - exchanging auth code for token."""
