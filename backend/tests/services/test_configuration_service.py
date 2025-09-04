@@ -1,6 +1,6 @@
 """Integration tests for configuration-related services."""
 
-from uuid import UUID
+from pydantic import UUID4
 
 import pytest
 from pydantic import SecretStr
@@ -30,7 +30,7 @@ def test_provider_input() -> LLMProviderInput:
 def test_model_input() -> LLMModelInput:
     """Create test model input fixture."""
     return LLMModelInput(
-        provider_id=UUID("00000000-0000-0000-0000-000000000000"),  # Will be replaced in tests
+        provider_id=UUID4("00000000-0000-0000-0000-000000000000"),  # Will be replaced in tests
         model_id="granite-13b",
         default_model_id="granite-13b",
         model_type=ModelType.GENERATION,
@@ -89,7 +89,7 @@ def test_create_provider(llm_provider_service, test_provider_input: LLMProviderI
     assert str(provider.base_url) == str(test_provider_input.base_url)
     assert provider.project_id == test_provider_input.project_id
     assert provider.is_active
-    assert isinstance(provider.id, UUID)
+    assert isinstance(provider.id, UUID4)
 
 
 @pytest.mark.atomic
@@ -230,13 +230,13 @@ def test_not_found_errors(llm_parameters_service, base_user, test_llm_parameters
     """Test not found error handling."""
     # Test non-existent user
     with pytest.raises(RepositoryError) as exc_info:
-        llm_parameters_service.create_parameters(UUID("00000000-0000-0000-0000-000000000000"), test_llm_parameters)
+        llm_parameters_service.create_parameters(UUID4("00000000-0000-0000-0000-000000000000"), test_llm_parameters)
     assert "Referenced user" in str(exc_info.value.message)
     assert exc_info.value.details["constraint"] == "foreign_key"
 
     # Test non-existent parameter ID
     with pytest.raises(NotFoundException):
-        llm_parameters_service.update_parameters(UUID("00000000-0000-0000-0000-000000000000"), test_llm_parameters)
+        llm_parameters_service.update_parameters(UUID4("00000000-0000-0000-0000-000000000000"), test_llm_parameters)
 
 
 if __name__ == "__main__":

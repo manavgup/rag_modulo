@@ -1,7 +1,8 @@
 import logging
 import re
+import uuid
 from typing import Any
-from uuid import UUID
+from pydantic import UUID4
 
 import validators
 from sqlalchemy.orm import Session
@@ -54,7 +55,7 @@ class LLMProviderService:
         except Exception as e:
             raise LLMProviderError(provider=name, error_type="retrieval", message=str(e)) from e
 
-    def get_provider_by_id(self, provider_id: UUID) -> LLMProviderOutput | None:
+    def get_provider_by_id(self, provider_id: UUID4) -> LLMProviderOutput | None:
         """Get provider by ID."""
         provider = self.repository.get_provider_by_id(provider_id)
         return LLMProviderOutput.model_validate(provider) if provider else None
@@ -64,7 +65,7 @@ class LLMProviderService:
         providers = self.repository.get_all_providers(is_active)
         return [LLMProviderOutput.model_validate(p) for p in providers]
 
-    def update_provider(self, provider_id: UUID, updates: dict[str, Any]) -> LLMProviderOutput | None:
+    def update_provider(self, provider_id: UUID4, updates: dict[str, Any]) -> LLMProviderOutput | None:
         """Update provider details."""
         try:
             provider = self.repository.update_provider(provider_id, updates)
@@ -72,7 +73,7 @@ class LLMProviderService:
         except Exception as e:
             raise LLMProviderError(provider=str(provider_id), error_type="update", message=str(e)) from e
 
-    def delete_provider(self, provider_id: UUID) -> bool:
+    def delete_provider(self, provider_id: UUID4) -> bool:
         """Soft delete a provider."""
         try:
             self.repository.delete_provider(provider_id)
@@ -81,7 +82,7 @@ class LLMProviderService:
             logger.error(f"Error deleting provider {provider_id}: {e}")
             return False
 
-    def get_user_provider(self, user_id: UUID) -> LLMProviderOutput | None:
+    def get_user_provider(self, user_id: UUID4) -> LLMProviderOutput | None:
         """Get user's preferred provider or default provider.
 
         Args:
@@ -115,7 +116,7 @@ class LLMProviderService:
             logger.error(f"Error getting user provider: {e!s}")
             return None
 
-    def get_provider_models(self, provider_id: UUID) -> list[LLMModelOutput]:
+    def get_provider_models(self, provider_id: UUID4) -> list[LLMModelOutput]:
         """Get available models for a specific provider."""
         # For now, return predefined models based on provider
         # In a real implementation, this would query the provider's API
@@ -127,7 +128,7 @@ class LLMProviderService:
         from datetime import datetime
         return [
             LLMModelOutput(
-                id=UUID("11111111-1111-1111-1111-111111111111"),
+                id=uuid.UUID("11111111-1111-1111-1111-111111111111"),
                 provider_id=provider_id,
                 model_id="meta-llama/llama-3-3-70b-instruct",
                 default_model_id="meta-llama/llama-3-3-70b-instruct",
@@ -146,13 +147,13 @@ class LLMProviderService:
             )
         ]
 
-    def create_provider_model(self, provider_id: UUID, model_data: dict[str, Any]) -> LLMModelOutput:
+    def create_provider_model(self, provider_id: UUID4, model_data: dict[str, Any]) -> LLMModelOutput:
         """Create a new model for a provider."""
         # This would typically create a model record in the database
         # For now, return the model data with an ID
         from datetime import datetime
         return LLMModelOutput(
-            id=UUID("22222222-2222-2222-2222-222222222222"),
+            id=uuid.UUID("22222222-2222-2222-2222-222222222222"),
             provider_id=provider_id,
             model_id=model_data.get("model_id", "default-model"),
             default_model_id=model_data.get("default_model_id", "default-model"),
@@ -170,7 +171,7 @@ class LLMProviderService:
             updated_at=datetime.now(),
         )
 
-    def get_models_by_provider(self, provider_id: UUID) -> list[LLMModelOutput]:
+    def get_models_by_provider(self, provider_id: UUID4) -> list[LLMModelOutput]:
         """Get all models for a specific provider."""
         return self.get_provider_models(provider_id)
 
@@ -180,20 +181,20 @@ class LLMProviderService:
         # For now, return an empty list
         return []
 
-    def get_model_by_id(self, _model_id: UUID) -> LLMModelOutput | None:
+    def get_model_by_id(self, _model_id: UUID4) -> LLMModelOutput | None:
         """Get a specific model by ID."""
         # This would typically query the database for a model by ID
         # For now, return None
         return None
 
-    def update_model(self, model_id: UUID, updates: dict[str, Any]) -> LLMModelOutput | None:
+    def update_model(self, model_id: UUID4, updates: dict[str, Any]) -> LLMModelOutput | None:
         """Update a model."""
         # This would typically update the model in the database
         # For now, return a mock updated model
         from datetime import datetime
         return LLMModelOutput(
             id=model_id,
-            provider_id=UUID("11111111-1111-1111-1111-111111111111"),  # Mock provider_id
+            provider_id=uuid.UUID("11111111-1111-1111-1111-111111111111"),  # Mock provider_id
             model_id=updates.get("model_id", "default-model"),
             default_model_id=updates.get("default_model_id", "default-model"),
             model_type=ModelType(updates.get("model_type", "generation")),
@@ -210,13 +211,13 @@ class LLMProviderService:
             updated_at=datetime.now(),
         )
 
-    def delete_model(self, _model_id: UUID) -> bool:
+    def delete_model(self, _model_id: UUID4) -> bool:
         """Delete a model."""
         # This would typically delete the model from the database
         # For now, return True to indicate success
         return True
 
-    def get_provider_with_models(self, provider_id: UUID) -> dict[str, Any] | None:
+    def get_provider_with_models(self, provider_id: UUID4) -> dict[str, Any] | None:
         """Get a provider with all its models."""
         provider = self.repository.get_provider_by_id(provider_id)
         if not provider:

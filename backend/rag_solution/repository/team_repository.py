@@ -1,5 +1,5 @@
 import logging
-from uuid import UUID
+from pydantic import UUID4
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -48,7 +48,7 @@ class TeamRepository:
             self.session.rollback()
             raise RepositoryError(f"Failed to create team: {e!s}") from e
 
-    def get(self, team_id: UUID) -> TeamOutput:
+    def get(self, team_id: UUID4) -> TeamOutput:
         """Get team by ID.
 
         Raises:
@@ -76,7 +76,7 @@ class TeamRepository:
             logger.error(f"Error listing teams: {e!s}")
             raise
 
-    def update(self, team_id: UUID, team_update: TeamInput) -> TeamOutput:
+    def update(self, team_id: UUID4, team_update: TeamInput) -> TeamOutput:
         """Update team.
 
         Raises:
@@ -114,7 +114,7 @@ class TeamRepository:
             self.session.rollback()
             raise RepositoryError(f"Failed to update team: {e!s}") from e
 
-    def delete(self, team_id: UUID) -> None:
+    def delete(self, team_id: UUID4) -> None:
         """Delete team.
 
         Raises:

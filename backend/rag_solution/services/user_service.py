@@ -1,6 +1,4 @@
-from uuid import UUID
-
-from pydantic import EmailStr
+from pydantic import EmailStr, UUID4
 from sqlalchemy.orm import Session
 
 from core.logging_utils import get_logger
@@ -54,7 +52,7 @@ class UserService:
             # User doesn't exist, create a new one
             return self.create_user(user_input)
 
-    def get_user_by_id(self, user_id: UUID) -> UserOutput:
+    def get_user_by_id(self, user_id: UUID4) -> UserOutput:
         """Gets user by ID.
 
         Raises:
@@ -72,7 +70,7 @@ class UserService:
         logger.info(f"Fetching user with IBM ID: {ibm_id}")
         return self.user_repository.get_by_ibm_id(ibm_id)
 
-    def update_user(self, user_id: UUID, user_update: UserInput) -> UserOutput:
+    def update_user(self, user_id: UUID4, user_update: UserInput) -> UserOutput:
         """Updates user.
 
         Raises:
@@ -85,7 +83,7 @@ class UserService:
         logger.info(f"User {user_id} updated successfully")
         return user
 
-    def delete_user(self, user_id: UUID) -> None:
+    def delete_user(self, user_id: UUID4) -> None:
         """Deletes user.
 
         Raises:
@@ -102,11 +100,11 @@ class UserService:
         logger.info(f"Retrieved {len(users)} users")
         return users
 
-    def get_user(self, user_id: UUID) -> UserOutput:
+    def get_user(self, user_id: UUID4) -> UserOutput:
         """Get user by ID (alias for get_user_by_id)."""
         return self.get_user_by_id(user_id)
 
-    def set_user_preferred_provider(self, user_id: UUID, _provider_id: UUID) -> UserOutput:
+    def set_user_preferred_provider(self, user_id: UUID4, _provider_id: UUID4) -> UserOutput:
         """Set user's preferred provider."""
         # This would typically update the user's preferred_provider_id field
         # For now, return the user as-is

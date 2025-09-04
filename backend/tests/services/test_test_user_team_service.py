@@ -1,4 +1,4 @@
-from uuid import UUID
+from pydantic import UUID4
 
 import pytest
 from fastapi import HTTPException
@@ -85,22 +85,22 @@ def test_get_team_users(user_team_service, user_service, team_service):
 def test_add_user_to_nonexistent_team(user_team_service, user_service):
     user = user_service.create_user(UserInput(ibm_id="test_ibm_id", email="test@example.com", name="Test User"))
     with pytest.raises(HTTPException) as exc_info:
-        user_team_service.add_user_to_team(user.id, UUID("00000000-0000-0000-0000-000000000000"))
+        user_team_service.add_user_to_team(user.id, UUID4("00000000-0000-0000-0000-000000000000"))
     assert exc_info.value.status_code == 404
 
 
 def test_remove_user_from_nonexistent_team(user_team_service, user_service):
     user = user_service.create_user(UserInput(ibm_id="test_ibm_id", email="test@example.com", name="Test User"))
     with pytest.raises(HTTPException) as exc_info:
-        user_team_service.remove_user_from_team(user.id, UUID("00000000-0000-0000-0000-000000000000"))
+        user_team_service.remove_user_from_team(user.id, UUID4("00000000-0000-0000-0000-000000000000"))
     assert exc_info.value.status_code == 404
 
 
 def test_get_teams_for_nonexistent_user(user_team_service):
-    teams = user_team_service.get_user_teams(UUID("00000000-0000-0000-0000-000000000000"))
+    teams = user_team_service.get_user_teams(UUID4("00000000-0000-0000-0000-000000000000"))
     assert len(teams) == 0
 
 
 def test_get_users_for_nonexistent_team(user_team_service):
-    users = user_team_service.get_team_users(UUID("00000000-0000-0000-0000-000000000000"))
+    users = user_team_service.get_team_users(UUID4("00000000-0000-0000-0000-000000000000"))
     assert len(users) == 0

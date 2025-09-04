@@ -1,5 +1,5 @@
 import logging
-from uuid import UUID
+from pydantic import UUID4
 
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
@@ -71,7 +71,7 @@ class CollectionRepository:
             logger.error(f"Error creating collection: {e!s}")
             raise
 
-    def get(self, collection_id: UUID) -> CollectionOutput:
+    def get(self, collection_id: UUID4) -> CollectionOutput:
         """
         Retrieve a collection by its ID.
 
@@ -104,7 +104,7 @@ class CollectionRepository:
             logger.error(f"Error getting collection {collection_id}: {e!s}")
             raise
 
-    def get_user_collections(self, user_id: UUID) -> list[CollectionOutput]:
+    def get_user_collections(self, user_id: UUID4) -> list[CollectionOutput]:
         try:
             collections = (
                 self.db.query(Collection)
@@ -120,17 +120,14 @@ class CollectionRepository:
             logger.error(f"Error getting collections for user {user_id}: {e!s}")
             raise
 
-    def get_by_name(self, name: str) -> CollectionOutput:
+    def get_by_name(self, name: str) -> CollectionOutput | None:
         """Get a collection by name.
 
         Args:
             name: Collection name to search for
 
         Returns:
-            CollectionOutput if found
-
-        Raises:
-            NotFoundError: If collection not found
+            CollectionOutput if found, None if not found
         """
         try:
             collection = (
@@ -140,17 +137,13 @@ class CollectionRepository:
                 .first()
             )
             if not collection:
-                raise NotFoundError(
-                    resource_type="Collection", identifier=name
-                )
+                return None
             return self._collection_to_output(collection)
-        except (NotFoundError, AlreadyExistsError, ValidationError):
-            raise
         except SQLAlchemyError as e:
             logger.error(f"Error getting collection by name {name}: {e!s}")
             raise
 
-    def update(self, collection_id: UUID, collection_update: dict) -> CollectionOutput:
+    def update(self, collection_id: UUID4, collection_update: dict) -> CollectionOutput:
         """
         Update an existing collection.
 
@@ -194,7 +187,7 @@ class CollectionRepository:
             self.db.rollback()
             raise
 
-    def delete(self, collection_id: UUID) -> bool:
+    def delete(self, collection_id: UUID4) -> bool:
         """
         Delete a collection by its ID.
 

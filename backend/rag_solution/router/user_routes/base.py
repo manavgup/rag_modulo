@@ -1,7 +1,7 @@
 """Core user routes."""
 
 import logging
-from uuid import UUID
+from pydantic import UUID4
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -56,7 +56,7 @@ async def create_user(
 )
 @authorize_decorator(role="user")
 async def get_user(
-    user_id: UUID,
+    user_id: UUID4,
     user: UserOutput = Depends(verify_user_access)
 ) -> UserOutput:
     """Retrieve details for a specific user."""
@@ -79,7 +79,7 @@ async def get_user(
 )
 @authorize_decorator(role="user")
 async def update_user(
-    user_id: UUID,
+    user_id: UUID4,
     user_input: UserInput,
     user: UserOutput = Depends(verify_user_access),
     service: UserService = Depends(get_user_service)
@@ -109,7 +109,7 @@ async def update_user(
 )
 @authorize_decorator(role="user")
 async def delete_user(
-    user_id: UUID,
+    user_id: UUID4,
     user: UserOutput = Depends(verify_user_access),
     service: UserService = Depends(get_user_service)
 ) -> dict:

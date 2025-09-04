@@ -2,7 +2,7 @@
 
 from collections.abc import Generator, Sequence
 from typing import Any
-from uuid import UUID
+from pydantic import UUID4
 
 from ibm_watsonx_ai import APIClient, Credentials
 from ibm_watsonx_ai.foundation_models import Embeddings as wx_Embeddings
@@ -74,7 +74,7 @@ class WatsonXLLM(LLMBase):
             )
             logger.debug(f"Embeddings client: {self.embeddings_client}")
 
-    def _get_model(self, user_id: UUID, model_parameters: LLMParametersInput | None = None) -> ModelInference:
+    def _get_model(self, user_id: UUID4, model_parameters: LLMParametersInput | None = None) -> ModelInference:
         """Get a configured model instance."""
         model_id = self._model_id or self._get_default_model_id()
         model = ModelInference(
@@ -106,12 +106,12 @@ class WatsonXLLM(LLMBase):
         return default_model.model_id
 
     def _get_generation_params(
-        self, user_id: UUID, model_parameters: LLMParametersInput | None = None
+        self, user_id: UUID4, model_parameters: LLMParametersInput | None = None
     ) -> dict[str, Any]:
         """Get generation parameters for WatsonX.
 
         Args:
-            user_id: User UUID
+            user_id: User UUID4
             model_parameters: Optional parameters to use directly
 
         Returns:
@@ -131,7 +131,7 @@ class WatsonXLLM(LLMBase):
 
     def generate_text(
         self,
-        user_id: UUID,
+        user_id: UUID4,
         prompt: str | Sequence[str],
         model_parameters: LLMParametersInput | None = None,
         template: PromptTemplateBase | None = None,
@@ -154,8 +154,8 @@ class WatsonXLLM(LLMBase):
                     if variables:
                         prompt_variables.update(variables)
 
-                    formatted = self.prompt_template_service.format_prompt(
-                        template_or_id=template, variables=prompt_variables
+                    formatted = self.prompt_template_service.format_prompt_with_template(
+                        template, prompt_variables
                     )
                     formatted_prompts.append(formatted)
                     logger.debug(f"Formatted prompt*******: {formatted}")  # Log first 200 chars
@@ -178,8 +178,8 @@ class WatsonXLLM(LLMBase):
                 if variables:
                     prompt_variables.update(variables)
 
-                formatted_prompt = self.prompt_template_service.format_prompt(
-                    template_or_id=template, variables=prompt_variables
+                formatted_prompt = self.prompt_template_service.format_prompt_with_template(
+                    template, prompt_variables
                 )
                 logger.debug(f"Formatted single prompt: {formatted_prompt}...")
 
@@ -216,7 +216,7 @@ class WatsonXLLM(LLMBase):
 
     def generate_text_stream(
         self,
-        user_id: UUID,
+        user_id: UUID4,
         prompt: str,
         model_parameters: LLMParametersInput | None = None,
         template: PromptTemplateBase | None = None,

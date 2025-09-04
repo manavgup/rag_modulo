@@ -13,7 +13,7 @@ class SearchInput(BaseModel):
 
     Attributes:
         question: The user's query text
-        collection_id: UUID of the collection to search in
+        collection_id: UUID4 of the collection to search in
     """
 
     question: str

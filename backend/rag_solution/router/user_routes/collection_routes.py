@@ -1,7 +1,7 @@
 """Collection routes for user-specific operations."""
 
 import logging
-from uuid import UUID
+from pydantic import UUID4
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -29,7 +29,7 @@ router = APIRouter()
     },
 )
 async def get_user_collections(
-    user_id: UUID, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)
+    user_id: UUID4, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)
 ) -> list[CollectionOutput]:
     """Retrieve all collections for a user."""
     service = UserCollectionService(db)
@@ -52,7 +52,7 @@ async def get_user_collections(
     },
 )
 async def remove_user_collection(
-    user_id: UUID, collection_id: UUID, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)
+    user_id: UUID4, collection_id: UUID4, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)
 ) -> bool:
     """Remove a collection from a user's access."""
     service = UserCollectionService(db)

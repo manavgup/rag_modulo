@@ -1,4 +1,4 @@
-from uuid import UUID
+from pydantic import UUID4
 
 import pytest
 from fastapi import HTTPException
@@ -106,22 +106,22 @@ def test_get_collection_users(user_collection_service, user_service, collection_
 def test_add_user_to_nonexistent_collection(user_collection_service, user_service):
     user = user_service.create_user(UserInput(ibm_id="test_ibm_id", email="test@example.com", name="Test User"))
     with pytest.raises(HTTPException) as exc_info:
-        user_collection_service.add_user_to_collection(user.id, UUID("00000000-0000-0000-0000-000000000000"))
+        user_collection_service.add_user_to_collection(user.id, UUID4("00000000-0000-0000-0000-000000000000"))
     assert exc_info.value.status_code == 404
 
 
 def test_remove_user_from_nonexistent_collection(user_collection_service, user_service):
     user = user_service.create_user(UserInput(ibm_id="test_ibm_id", email="test@example.com", name="Test User"))
     with pytest.raises(HTTPException) as exc_info:
-        user_collection_service.remove_user_from_collection(user.id, UUID("00000000-0000-0000-0000-000000000000"))
+        user_collection_service.remove_user_from_collection(user.id, UUID4("00000000-0000-0000-0000-000000000000"))
     assert exc_info.value.status_code == 404
 
 
 def test_get_collections_for_nonexistent_user(user_collection_service):
-    collections = user_collection_service.get_user_collections(UUID("00000000-0000-0000-0000-000000000000"))
+    collections = user_collection_service.get_user_collections(UUID4("00000000-0000-0000-0000-000000000000"))
     assert len(collections) == 0
 
 
 def test_get_users_for_nonexistent_collection(user_collection_service):
-    users = user_collection_service.get_collection_users(UUID("00000000-0000-0000-0000-000000000000"))
+    users = user_collection_service.get_collection_users(UUID4("00000000-0000-0000-0000-000000000000"))
     assert len(users) == 0

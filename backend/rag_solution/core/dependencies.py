@@ -4,7 +4,7 @@ This module provides reusable dependencies for authentication, authorization,
 and service injection that can be used across all routers.
 """
 
-from uuid import UUID
+from pydantic import UUID4
 
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy.orm import Session
@@ -32,7 +32,7 @@ def get_current_user(request: Request) -> dict:
 
 
 def verify_user_access(
-    user_id: UUID,
+    user_id: UUID4,
     request: Request,
     db: Session = Depends(get_db)
 ) -> UserOutput:
@@ -83,7 +83,7 @@ def verify_admin_access(request: Request, db: Session = Depends(get_db)) -> User
     # Get the full user object to check role
     try:
         user_service = UserService(db)
-        user_id = UUID(current_user_data.get("uuid"))
+        user_id = UUID4(current_user_data.get("uuid"))
         current_user = user_service.get_user_by_id(user_id)
     except (ValueError, NotFoundError) as e:
         raise HTTPException(status_code=401, detail="Invalid user") from e
@@ -96,8 +96,8 @@ def verify_admin_access(request: Request, db: Session = Depends(get_db)) -> User
 
 
 def verify_collection_access(
-    collection_id: UUID,
-    user_id: UUID,
+    collection_id: UUID4,
+    user_id: UUID4,
     request: Request,
     db: Session = Depends(get_db)
 ) -> bool:
@@ -140,8 +140,8 @@ def verify_collection_access(
 
 
 def verify_team_access(
-    team_id: UUID,
-    user_id: UUID,
+    team_id: UUID4,
+    user_id: UUID4,
     request: Request,
     db: Session = Depends(get_db)
 ) -> bool:

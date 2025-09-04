@@ -3,7 +3,7 @@
 import asyncio
 import re
 import time
-from uuid import UUID
+from pydantic import UUID4
 
 from sqlalchemy.orm import Session
 
@@ -196,8 +196,8 @@ class QuestionService:
     async def suggest_questions(
         self,
         texts: list[str],
-        collection_id: UUID,
-        user_id: UUID,
+        collection_id: UUID4,
+        user_id: UUID4,
         provider_name: str,
         template: PromptTemplateBase,
         parameters: LLMParametersInput,
@@ -286,7 +286,7 @@ class QuestionService:
         self,
         combined_texts: list[str],
         provider: object,
-        user_id: UUID,
+        user_id: UUID4,
         template: PromptTemplateBase,
         parameters: LLMParametersInput,
         num_questions: int | None,
@@ -349,7 +349,7 @@ class QuestionService:
         # Limit to requested number
         return ranked_questions[:num_questions] if num_questions else ranked_questions
 
-    async def _store_questions(self, collection_id: UUID, final_questions: list[str]) -> list[SuggestedQuestion]:
+    async def _store_questions(self, collection_id: UUID4, final_questions: list[str]) -> list[SuggestedQuestion]:
         """Store questions in the database."""
         if not final_questions:
             return []
@@ -383,7 +383,7 @@ class QuestionService:
             logger.error(f"Error creating question: {e}")
             raise
 
-    def delete_question(self, question_id: UUID) -> None:
+    def delete_question(self, question_id: UUID4) -> None:
         """
         Delete a specific question.
 
@@ -401,7 +401,7 @@ class QuestionService:
             logger.error(f"Error deleting question {question_id}: {e}")
             raise
 
-    def delete_questions_by_collection(self, collection_id: UUID) -> None:
+    def delete_questions_by_collection(self, collection_id: UUID4) -> None:
         """
         Delete all questions for a specific collection.
 
@@ -419,7 +419,7 @@ class QuestionService:
             logger.error(f"Error deleting questions for collection {collection_id}: {e}")
             raise
 
-    def get_collection_questions(self, collection_id: UUID) -> list[SuggestedQuestion]:
+    def get_collection_questions(self, collection_id: UUID4) -> list[SuggestedQuestion]:
         """
         Get stored questions for a collection.
 
@@ -440,8 +440,8 @@ class QuestionService:
 
     async def regenerate_questions(
         self,
-        collection_id: UUID,
-        user_id: UUID,
+        collection_id: UUID4,
+        user_id: UUID4,
         texts: list[str],
         provider_name: str,
         template: PromptTemplateBase,

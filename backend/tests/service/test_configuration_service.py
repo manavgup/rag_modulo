@@ -1,6 +1,6 @@
 """Integration tests for configuration-related services."""
 
-from uuid import UUID
+from pydantic import UUID4
 
 import pytest
 from pydantic import SecretStr
@@ -35,7 +35,7 @@ def test_provider_input() -> LLMProviderInput:
 def test_model_input() -> LLMProviderModelInput:
     """Create test model input fixture."""
     return LLMProviderModelInput(
-        provider_id=UUID("00000000-0000-0000-0000-000000000000"),  # Will be replaced in tests
+        provider_id=UUID4("00000000-0000-0000-0000-000000000000"),  # Will be replaced in tests
         model_id="granite-13b",
         default_model_id="granite-13b",
         model_type=ModelType.GENERATION,
@@ -93,7 +93,7 @@ def test_create_provider(db_session: Session, test_provider_input: LLMProviderIn
     assert str(provider.base_url) == str(test_provider_input.base_url)
     assert provider.project_id == test_provider_input.project_id
     assert provider.is_active
-    assert isinstance(provider.id, UUID)
+    assert isinstance(provider.id, UUID4)
 
 
 @pytest.mark.atomic
@@ -232,11 +232,11 @@ def test_not_found_errors(db_session: Session, base_user, test_llm_parameters):
 
     # Test non-existent user
     with pytest.raises(NotFoundException):
-        parameters_service.create_parameters(UUID("00000000-0000-0000-0000-000000000000"), test_llm_parameters)
+        parameters_service.create_parameters(UUID4("00000000-0000-0000-0000-000000000000"), test_llm_parameters)
 
     # Test non-existent parameter ID
     with pytest.raises(NotFoundException):
-        parameters_service.update_parameters(UUID("00000000-0000-0000-0000-000000000000"), test_llm_parameters)
+        parameters_service.update_parameters(UUID4("00000000-0000-0000-0000-000000000000"), test_llm_parameters)
 
 
 if __name__ == "__main__":

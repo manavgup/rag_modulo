@@ -1,6 +1,7 @@
+import uuid
 from datetime import datetime
 from typing import Any
-from uuid import UUID
+from pydantic import UUID4
 
 from sqlalchemy.orm import Session
 
@@ -25,14 +26,14 @@ class PromptTemplateService:
         except Exception as e:
             raise ValidationError(f"Failed to create template: {e!s}") from e
 
-    def get_user_templates(self, user_id: UUID) -> list[PromptTemplateOutput]:
+    def get_user_templates(self, user_id: UUID4) -> list[PromptTemplateOutput]:
         try:
             templates = self.repository.get_by_user_id(user_id)
             return [PromptTemplateOutput.model_validate(t) for t in templates]
         except Exception as e:
             raise ValidationError(f"Failed to retrieve templates: {e!s}") from e
 
-    def get_by_type(self, user_id: UUID, template_type: PromptTemplateType) -> PromptTemplateOutput | None:
+    def get_by_type(self, user_id: UUID4, template_type: PromptTemplateType) -> PromptTemplateOutput | None:
         """Get single template by type and user ID.
 
         Args:
@@ -56,7 +57,7 @@ class PromptTemplateService:
         except Exception as e:
             raise ValidationError(f"Failed to retrieve template: {e!s}") from e
 
-    def get_rag_template(self, user_id: UUID) -> PromptTemplateOutput:
+    def get_rag_template(self, user_id: UUID4) -> PromptTemplateOutput:
         """Get RAG query template for user.
 
         Args:
@@ -77,7 +78,7 @@ class PromptTemplateService:
             )
         return template
 
-    def get_question_template(self, user_id: UUID) -> PromptTemplateOutput:
+    def get_question_template(self, user_id: UUID4) -> PromptTemplateOutput:
         """Get question generation template for user.
 
         Args:
@@ -98,7 +99,7 @@ class PromptTemplateService:
             )
         return template
 
-    def get_evaluation_template(self, user_id: UUID) -> PromptTemplateOutput | None:
+    def get_evaluation_template(self, user_id: UUID4) -> PromptTemplateOutput | None:
         """Get evaluation template for user if it exists.
 
         Args:
@@ -109,21 +110,21 @@ class PromptTemplateService:
         """
         return self.get_by_type(user_id, PromptTemplateType.RESPONSE_EVALUATION)
 
-    def get_templates_by_type(self, user_id: UUID, template_type: PromptTemplateType) -> list[PromptTemplateOutput]:
+    def get_templates_by_type(self, user_id: UUID4, template_type: PromptTemplateType) -> list[PromptTemplateOutput]:
         try:
             templates = self.repository.get_by_user_id_and_type(user_id, template_type)
             return [PromptTemplateOutput.model_validate(t) for t in templates]
         except Exception as e:
             raise ValidationError(f"Failed to retrieve templates by type: {e!s}") from e
 
-    def delete_template(self, user_id: UUID, template_id: UUID) -> bool:
+    def delete_template(self, user_id: UUID4, template_id: UUID4) -> bool:
         try:
             self.repository.delete_user_template(user_id, template_id)
             return True
         except Exception as e:
             raise ValidationError(f"Failed to delete template: {e!s}") from e
 
-    def update_template(self, template_id: UUID, template_input: PromptTemplateInput) -> PromptTemplateOutput:
+    def update_template(self, template_id: UUID4, template_input: PromptTemplateInput) -> PromptTemplateOutput:
         """Update an existing prompt template.
 
         Args:
@@ -142,7 +143,7 @@ class PromptTemplateService:
         except Exception as e:
             raise ValidationError(f"Failed to update template: {e!s}") from e
 
-    def set_default_template(self, template_id: UUID) -> PromptTemplateOutput:
+    def set_default_template(self, template_id: UUID4) -> PromptTemplateOutput:
         """Set a template as the default for its type.
 
         Args:
@@ -174,24 +175,71 @@ class PromptTemplateService:
         except Exception as e:
             raise ValidationError(f"Failed to set default template: {e!s}") from e
 
-    def format_prompt(self, template_or_id: UUID | PromptTemplateBase, variables: dict[str, Any]) -> str:
+    def format_prompt_by_id(self, template_id: UUID4, variables: dict[str, Any]) -> str:
+        """Format a prompt using a template ID.
+        
+        Args:
+            template_id: UUID4 of the template to use
+            variables: Variables to substitute in the template
+            
+        Returns:
+            Formatted prompt string
+            
+        Raises:
+            PromptTemplateNotFoundError: If template not found
+            ValidationError: If formatting fails
+        """
         try:
-            template = self.repository.get_by_id(template_or_id) if isinstance(template_or_id, UUID) else template_or_id
-
+            template = self.repository.get_by_id(template_id)
             if not template:
-                raise PromptTemplateNotFoundError(template_id=str(template_or_id))
-
-            parts = []
-            if template.system_prompt:
-                parts.append(str(template.system_prompt))
-            parts.append(template.template_format.format(**variables))
-            return "\n\n".join(parts)
+                raise PromptTemplateNotFoundError(template_id=str(template_id))
+            
+            return self._format_prompt_with_template(template, variables)
         except KeyError as e:
             raise ValidationError(f"Missing required variable: {e!s}") from e
         except Exception as e:
             raise ValidationError(f"Failed to format prompt: {e!s}") from e
 
-    def apply_context_strategy(self, template_id: UUID, contexts: list[str]) -> str:
+    def format_prompt_with_template(self, template: PromptTemplateBase, variables: dict[str, Any]) -> str:
+        """Format a prompt using a template object.
+        
+        Args:
+            template: PromptTemplateBase object to use
+            variables: Variables to substitute in the template
+            
+        Returns:
+            Formatted prompt string
+            
+        Raises:
+            ValidationError: If formatting fails
+        """
+        try:
+            return self._format_prompt_with_template(template, variables)
+        except KeyError as e:
+            raise ValidationError(f"Missing required variable: {e!s}") from e
+        except Exception as e:
+            raise ValidationError(f"Failed to format prompt: {e!s}") from e
+
+    def _format_prompt_with_template(self, template: PromptTemplateBase, variables: dict[str, Any]) -> str:
+        """Internal method to format prompt with a template object."""
+        parts = []
+        if template.system_prompt:
+            parts.append(str(template.system_prompt))
+        parts.append(template.template_format.format(**variables))
+        return "\n\n".join(parts)
+
+    # Legacy method for backward compatibility - will be deprecated
+    def format_prompt(self, template_or_id: UUID4 | PromptTemplateBase, variables: dict[str, Any]) -> str:
+        """Legacy method - use format_prompt_by_id or format_prompt_with_template instead."""
+        try:
+            if isinstance(template_or_id, uuid.UUID):
+                return self.format_prompt_by_id(template_or_id, variables)
+            else:
+                return self.format_prompt_with_template(template_or_id, variables)
+        except Exception as e:
+            raise ValidationError(f"Failed to format prompt: {e!s}") from e
+
+    def apply_context_strategy(self, template_id: UUID4, contexts: list[str]) -> str:
         """Apply context strategy to format contexts based on template settings."""
         template = self.repository.get_by_id(template_id)
         if not template:

@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 @pytest.fixture
 def collection_input(user_input):
-    return CollectionInput(name="Test_Collection", is_private=True, users=[uuid.UUID(user_input.ibm_id)])
+    return CollectionInput(name="Test_Collection", is_private=True, users=[UUID4(user_input.ibm_id)])
 
 
 @pytest.fixture
