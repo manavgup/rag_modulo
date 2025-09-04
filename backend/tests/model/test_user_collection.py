@@ -43,6 +43,7 @@ def collection_service(db_session, file_management_service, user_collection_serv
     return CollectionService(db_session, file_management_service, user_collection_service)
 
 
+@pytest.mark.atomic
 def test_add_user_to_collection(user_collection_service, user_service, collection_service, db_session):
     user = user_service.create_user(UserInput(ibm_id="test_ibm_id", email="test@example.com", name="Test User"))
     collection = collection_service.create_collection(

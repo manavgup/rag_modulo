@@ -4,6 +4,7 @@ import psycopg2
 import pytest
 
 
+@pytest.mark.atomic
 def test_postgresql_connection() -> None:
     try:
         conn = psycopg2.connect(

@@ -35,6 +35,7 @@ def team_service(db_session, user_team_service):
     return TeamService(db_session, user_team_service)
 
 
+@pytest.mark.atomic
 def test_create_team(team_service, team_input):
     created_team = team_service.create_team(team_input)
     assert isinstance(created_team, TeamOutput)

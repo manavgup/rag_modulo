@@ -5,6 +5,7 @@ from uuid import uuid4
 from .base_test import BaseTestRouter
 
 
+@pytest.mark.api
 class TestCollectionEndpoints(BaseTestRouter):
     """Test collection-related endpoints."""
 

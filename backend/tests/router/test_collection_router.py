@@ -17,6 +17,7 @@ from rag_solution.services.file_management_service import FileManagementService
 
 
 @pytest.fixture
+@pytest.mark.api
 def test_client(test_client):
     """Use the test client fixture that includes auth mocking."""
     return test_client

@@ -11,6 +11,7 @@ from rag_solution.schemas.llm_model_schema import LLMModelOutput, ModelType
 # -------------------------------------------
 # 🧪 Model Creation Tests
 # -------------------------------------------
+@pytest.mark.atomic
 def test_create_model(llm_model_service, base_provider_input, base_model_input, ensure_watsonx_provider):
     """Test model creation."""
     provider = ensure_watsonx_provider
