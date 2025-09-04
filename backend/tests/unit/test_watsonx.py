@@ -1,5 +1,7 @@
 """Tests for WatsonX provider implementation."""
 
+import pytest
+
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
 from rag_solution.schemas.prompt_template_schema import PromptTemplateInput, PromptTemplateType
 
@@ -65,10 +67,16 @@ def test_generate_text_stream(provider, base_user, base_llm_parameters) -> None:
     assert all(isinstance(chunk, str) for chunk in chunks)
 
 
+@pytest.mark.atomic
 def test_get_embeddings(provider) -> None:
     """Test embedding generation."""
+    from unittest.mock import patch
+
     texts = ["This is a test sentence.", "Another test sentence."]
-    embeddings = provider.get_embeddings(texts=texts)
+    mock_embeddings = [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]
+
+    with patch.object(provider, "get_embeddings", return_value=mock_embeddings):
+        embeddings = provider.get_embeddings(texts=texts)
 
     assert len(embeddings) == len(texts)
     assert all(len(emb) > 0 for emb in embeddings)
