@@ -47,7 +47,7 @@ VECTOR_DB ?= milvus
 
 .DEFAULT_GOAL := help
 
-.PHONY: init-env sync-frontend-deps build-frontend build-backend build-tests build-all test tests api-tests unit-tests integration-tests performance-tests service-tests pipeline-tests all-tests run-app run-backend run-frontend run-services stop-containers clean create-volumes logs info help pull-ghcr-images venv clean-venv format-imports check-imports quick-check security-check coverage coverage-report quality fix-all check-deps check-deps-tree export-requirements docs-generate docs-serve search-test search-batch search-components uv-install uv-sync uv-export validate-env health-check build-optimize build-performance
+.PHONY: init-env sync-frontend-deps build-frontend build-backend build-tests build-all build-frontend-local build-backend-local build-tests-local build-all-local test tests api-tests unit-tests integration-tests performance-tests service-tests pipeline-tests all-tests run-app run-backend run-frontend run-services stop-containers restart-backend restart-frontend restart-app restart-backend-safe clean create-volumes logs info help pull-ghcr-images venv clean-venv format-imports check-imports quick-check security-check coverage coverage-report quality fix-all check-deps check-deps-tree export-requirements docs-generate docs-serve search-test search-batch search-components uv-install uv-sync uv-export validate-env health-check build-optimize build-performance
 
 # Init
 init-env:
@@ -125,6 +125,39 @@ build-tests:
 	fi
 
 build-all: build-frontend build-backend build-tests
+
+# Local build targets (without push to GHCR)
+build-frontend-local:
+	@echo "Building frontend image locally..."
+	@if [ "$(BUILDX_AVAILABLE)" = "yes" ]; then \
+		echo "Using Docker BuildKit with buildx..."; \
+		cd webui && $(CONTAINER_CLI) buildx build --load -t ${GHCR_REPO}/frontend:${PROJECT_VERSION} -t ${GHCR_REPO}/frontend:latest -f Dockerfile.frontend .; \
+	else \
+		echo "Using standard Docker build (buildx not available)..."; \
+		cd webui && $(CONTAINER_CLI) build -t ${GHCR_REPO}/frontend:${PROJECT_VERSION} -t ${GHCR_REPO}/frontend:latest -f Dockerfile.frontend .; \
+	fi
+
+build-backend-local:
+	@echo "Building backend image locally..."
+	@if [ "$(BUILDX_AVAILABLE)" = "yes" ]; then \
+		echo "Using Docker BuildKit with buildx..."; \
+		cd backend && $(CONTAINER_CLI) buildx build --load -t ${GHCR_REPO}/backend:${PROJECT_VERSION} -t ${GHCR_REPO}/backend:latest -f Dockerfile.backend .; \
+	else \
+		echo "Using standard Docker build (buildx not available)..."; \
+		cd backend && $(CONTAINER_CLI) build -t ${GHCR_REPO}/backend:${PROJECT_VERSION} -t ${GHCR_REPO}/backend:latest -f Dockerfile.backend .; \
+	fi
+
+build-tests-local:
+	@echo "Building test image locally..."
+	@if [ "$(BUILDX_AVAILABLE)" = "yes" ]; then \
+		echo "Using Docker BuildKit with buildx..."; \
+		cd backend && $(CONTAINER_CLI) buildx build --load -t ${GHCR_REPO}/backend:test-${PROJECT_VERSION} -f Dockerfile.test .; \
+	else \
+		echo "Using standard Docker build (buildx not available)..."; \
+		cd backend && $(CONTAINER_CLI) build -t ${GHCR_REPO}/backend:test-${PROJECT_VERSION} -f Dockerfile.test .; \
+	fi
+
+build-all-local: build-frontend-local build-backend-local build-tests-local
 
 # Pull latest images from GHCR
 pull-ghcr-images:
@@ -349,7 +382,7 @@ tests: validate-env run-backend create-test-dirs
 		|| { echo "Tests failed"; $(MAKE) stop-containers; exit 1; }
 
 # Run - Local Development (default - uses local builds)
-run-app: build-all run-backend run-frontend
+run-app: build-all-local run-backend run-frontend
 	@echo "All application containers are now running with local images."
 
 run-backend: run-services
@@ -395,6 +428,34 @@ run-services: create-volumes
 stop-containers:
 	@echo "Stopping containers..."
 	$(DOCKER_COMPOSE) down -v
+
+# Restart services with proper dependency handling
+restart-backend:
+	@echo "Restarting backend service..."
+	$(DOCKER_COMPOSE) restart backend
+	@echo "Waiting for backend to be healthy..."
+	@docker-compose exec -T backend python healthcheck.py 2>/dev/null || (echo "Waiting for backend to be ready..." && sleep 10)
+	@echo "Backend restarted successfully!"
+
+restart-frontend: 
+	@echo "Restarting frontend service..."
+	$(DOCKER_COMPOSE) restart frontend
+	@echo "Waiting for frontend to be ready..."
+	@sleep 5
+	@echo "Frontend restarted successfully!"
+
+restart-app: restart-backend restart-frontend
+	@echo "Application restarted successfully!"
+
+# Restart only backend but also reload frontend nginx to reconnect
+restart-backend-safe:
+	@echo "Restarting backend service with frontend reload..."
+	$(DOCKER_COMPOSE) restart backend
+	@echo "Waiting for backend to be healthy..."
+	@docker-compose exec -T backend python healthcheck.py 2>/dev/null || (echo "Waiting for backend to be ready..." && sleep 10)
+	@echo "Reloading frontend nginx configuration..."
+	@docker-compose exec -T frontend nginx -s reload 2>/dev/null || echo "Frontend reload not needed"
+	@echo "Backend restarted and frontend reconnected successfully!"
 
 clean: stop-containers
 	@echo "Cleaning up existing containers and volumes..."
@@ -822,6 +883,10 @@ help:
 	@echo "  run-ghcr      		Run both backend and frontend using GHCR images"
 	@echo "  run-services  		Run services using Docker Compose"
 	@echo "  stop-containers  	Stop all containers using Docker Compose"
+	@echo "  restart-backend  	Restart backend service with health check"
+	@echo "  restart-frontend 	Restart frontend service with wait"  
+	@echo "  restart-app      	Restart both backend and frontend services"
+	@echo "  restart-backend-safe Restart backend and reload frontend nginx"
 	@echo "  clean         		Clean up Docker Compose volumes and cache"
 	@echo "  create-volumes     Create folders for container volumes"
 	@echo "  create-test-dirs   Create test report directories"
