@@ -2,9 +2,7 @@ const config = {
     apiUrl: '/api'
 };
 
-console.log("Config initialized:", config);
-console.log("Window location origin:", window.location.origin);
-console.log("Final apiUrl:", config.apiUrl);
+
 
 const API_ROUTES = {
     // Core endpoints
@@ -51,7 +49,7 @@ const API_ROUTES = {
     TEMPLATE_VALIDATE: '/users/{userId}/prompt-templates/{templateId}/validate'
 };
 
-console.log("API_ROUTES:", API_ROUTES);
+
 
 // Define the function
 const getFullApiUrl = (route) => {
@@ -65,7 +63,7 @@ const authConfig = {
     post_logout_redirect_uri: window.location.origin,
 };
 
-console.log("authConfig:", authConfig);
+
 
 // Export it in a consolidated manner
 export default config;

@@ -34,6 +34,7 @@ import {
   moveDocument,
 } from "../../api/api";
 import { useNotification } from "src/contexts/NotificationContext";
+import { useAuth } from "src/contexts/AuthContext";
 
 import "./CollectionViewer.css";
 
@@ -83,6 +84,7 @@ const ProcessingStatus = ({ document }) => {
 };
 
 const CollectionBrowser = () => {
+  const { user } = useAuth();
   const [collections, setCollections] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [totalItems, setTotalItems] = useState(0);
@@ -159,11 +161,15 @@ const CollectionBrowser = () => {
   const handleCreateCollection = async () => {
     try {
       const formData = new FormData();
-      formData.append("name", collectionName);
+      
+      formData.append("collection_name", collectionName);
       formData.append("description", collectionDescription);
+      formData.append("is_private", false);
       uploadedFiles.forEach((file) => {
-        formData.append("documents", file);
+        formData.append("files", file);
       });
+      formData.append("user_id", user?.uuid);
+      
       await createCollectionWithDocuments(formData);
       addNotification("success", "Success", "Collection created successfully.");
       fetchCollections();
@@ -256,6 +262,7 @@ const CollectionBrowser = () => {
   };
 
   const openCreateModal = () => {
+    resetModalFields();
     setModalMode("create");
     setIsModalOpen(true);
   };
@@ -550,6 +557,7 @@ const CollectionBrowser = () => {
             filenameStatus="edit"
             accept={[".pdf", ".doc", ".docx", ".txt"]}
             multiple
+            value={uploadedFiles}
             onChange={(e) => setUploadedFiles(e.target.files)}
           />
         )}
