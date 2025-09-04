@@ -12,8 +12,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from core.logging_utils import get_logger, setup_logging
 from core.config import Settings
+from core.logging_utils import get_logger, setup_logging
 
 logger = get_logger("tests.conftest")
 

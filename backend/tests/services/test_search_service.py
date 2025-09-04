@@ -125,7 +125,10 @@ async def test_search_multiple_documents(
 
     documents = []
     for data in files_data:
-        embeddings = watsonx.get_embeddings([data["text"]])
+        # Mock the embeddings call for atomic test
+        mock_embeddings = [[0.1, 0.2, 0.3, 0.4, 0.5]]  # Mock embedding vector
+        with patch.object(watsonx, "get_embeddings", return_value=mock_embeddings):
+            embeddings = watsonx.get_embeddings([data["text"]])
         document = Document(
             document_id=data["doc_id"],
             name=f"{data['doc_id']}.txt",

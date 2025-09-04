@@ -44,29 +44,35 @@ def vector_store():
 @pytest.fixture(scope="session")
 def indexed_documents(vector_store, base_collection, base_file, get_watsonx):
     """Add documents to vector store and return collection name."""
+    from unittest.mock import patch
+
     from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, Source
 
     # Create document from base_file
     text = "Sample text from the file."
-    document = Document(
-        document_id=base_file.document_id or str(uuid4()),
-        name=base_file.filename,
-        chunks=[
-            DocumentChunk(
-                chunk_id=f"chunk_{base_file.filename}",
-                text=text,
-                embeddings=get_watsonx.get_embeddings([text])[0],
-                metadata=DocumentChunkMetadata(
-                    source=Source.OTHER,
-                    document_id=base_file.document_id or str(uuid4()),
-                    page_number=1,
-                    chunk_number=1,
-                    start_index=0,
-                    end_index=len(text),
-                ),
-            )
-        ],
-    )
+
+    # Mock the embeddings call for atomic tests
+    mock_embeddings = [[0.1, 0.2, 0.3, 0.4, 0.5]]  # Mock embedding vector
+    with patch.object(get_watsonx, "get_embeddings", return_value=mock_embeddings):
+        document = Document(
+            document_id=base_file.document_id or str(uuid4()),
+            name=base_file.filename,
+            chunks=[
+                DocumentChunk(
+                    chunk_id=f"chunk_{base_file.filename}",
+                    text=text,
+                    embeddings=get_watsonx.get_embeddings([text])[0],
+                    metadata=DocumentChunkMetadata(
+                        source=Source.OTHER,
+                        document_id=base_file.document_id or str(uuid4()),
+                        page_number=1,
+                        chunk_number=1,
+                        start_index=0,
+                        end_index=len(text),
+                    ),
+                )
+            ],
+        )
 
     # Set up vector store
     vector_store.delete_collection(base_collection.vector_db_name)

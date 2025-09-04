@@ -177,7 +177,10 @@ async def test_search_multiple_documents(
         )
         file_service.create_file(file_schema, base_user.id)
 
-        embeddings = watsonx.get_embeddings(file_info["text"])
+        # Mock the embeddings call for atomic test
+        mock_embeddings = [[0.1, 0.2, 0.3, 0.4, 0.5]]  # Mock embedding vector
+        with patch.object(watsonx, "get_embeddings", return_value=mock_embeddings):
+            embeddings = watsonx.get_embeddings(file_info["text"])
         chunk = DocumentChunk(
             chunk_id=f"chunk_{file_info['filename']}",
             text=file_info["text"],
