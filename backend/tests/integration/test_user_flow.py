@@ -15,6 +15,7 @@ def mock_oauth_client():
 
 
 @pytest.fixture
+@pytest.mark.integration
 def test_client():
     from main import app
 

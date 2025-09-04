@@ -14,6 +14,7 @@ from rag_solution.services.question_service import QuestionService
     reason="WatsonX credentials not configured",
 )
 @pytest.mark.asyncio
+@pytest.mark.atomic
 async def test_question_generation_with_watsonx(db_session: Session, base_user, base_collection):
     """Test question generation using WatsonX provider."""
     # Create template

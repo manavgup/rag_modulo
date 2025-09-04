@@ -13,6 +13,7 @@ from rag_solution.services.llm_provider_service import LLMProviderService
 # -------------------------------------------
 # 🧪 Provider Creation Tests
 # -------------------------------------------
+@pytest.mark.atomic
 def test_create_provider(llm_provider_service: LLMProviderService, base_provider_input: LLMProviderInput) -> None:
     """Test provider creation."""
     provider = llm_provider_service.create_provider(base_provider_input)

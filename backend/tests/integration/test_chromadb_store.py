@@ -5,6 +5,7 @@ import pytest
 
 
 @pytest.mark.chromadb
+@pytest.mark.integration
 class TestChromaDBStore:
     @pytest.fixture
     @contextmanager

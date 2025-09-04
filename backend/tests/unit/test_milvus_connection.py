@@ -3,6 +3,7 @@ import os
 from pymilvus import connections, utility
 
 
+@pytest.mark.atomic
 def test_milvus_connection() -> None:
     try:
         connections.connect(

@@ -26,6 +26,9 @@ services:
       - MLFLOW_TRACKING_USERNAME=${MLFLOW_TRACKING_USERNAME}
       - MLFLOW_TRACKING_PASSWORD=${MLFLOW_TRACKING_PASSWORD}
       - RUNTIME_EVAL=${RUNTIME_EVAL:-false}
+      - SKIP_AUTH=${SKIP_AUTH:-false}
+      - DEVELOPMENT_MODE=${DEVELOPMENT_MODE:-false}
+      - TESTING=${TESTING:-false}
     env_file:
       - .env
     volumes:

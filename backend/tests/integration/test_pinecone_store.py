@@ -8,6 +8,7 @@ PINECONE_INDEX = settings.collection_name
 
 
 @pytest.mark.pinecone
+@pytest.mark.integration
 class TestPineconeStore:
     @pytest.fixture
     @contextmanager
