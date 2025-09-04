@@ -44,6 +44,7 @@ def sample_model_input(sample_provider_input):
     )
 
 
+@pytest.mark.atomic
 def test_create_provider(provider_service, sample_provider_input):
     """Test provider creation."""
     provider = provider_service.create_provider(sample_provider_input)

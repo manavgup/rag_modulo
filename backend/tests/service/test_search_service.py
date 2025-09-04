@@ -32,6 +32,7 @@ logger = get_logger("tests.rag_solution.services.test_search_service")
 
 
 @pytest.mark.asyncio
+@pytest.mark.atomic
 async def test_search_basic(search_service: SearchService, base_collection, base_file, base_user, base_pipeline_config):
     """Test basic search functionality with pipeline service."""
     search_input = SearchInput(

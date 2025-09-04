@@ -25,6 +25,7 @@ def db_session():
     return Mock(spec=Session)
 
 
+@pytest.mark.integration
 def test_base_processor():
     """Test the BaseProcessor."""
     processor = BaseProcessor()

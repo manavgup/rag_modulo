@@ -9,6 +9,7 @@ from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.prompt_template_service import PromptTemplateService
 
 
+@pytest.mark.integration
 def test_complete_configuration_flow(db_session: Session, base_user):
     """Test complete configuration workflow."""
     # Create provider service

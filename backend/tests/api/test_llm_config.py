@@ -9,6 +9,7 @@ from rag_solution.schemas.prompt_template_schema import PromptTemplateType
 from .base_test import BaseTestRouter
 
 
+@pytest.mark.api
 class TestLLMConfiguration(BaseTestRouter):
     """Test LLM-related configuration endpoints."""
 

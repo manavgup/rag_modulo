@@ -58,6 +58,7 @@ def sample_model():
     }
 
 
+@pytest.mark.api
 class TestProviderRoutes:
     def test_create_provider_success(self, client, service, sample_provider):
         """Test successful provider creation."""

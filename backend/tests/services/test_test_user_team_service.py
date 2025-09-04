@@ -31,6 +31,7 @@ def team_service(db_session):
     return TeamService(db_session, user_team_service)
 
 
+@pytest.mark.atomic
 def test_add_user_to_team(user_team_service, user_service, team_service):
     user = user_service.create_user(UserInput(ibm_id="test_ibm_id", email="test@example.com", name="Test User"))
     team = team_service.create_team(TeamInput(name="Test Team"))

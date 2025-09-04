@@ -14,6 +14,7 @@ from rag_solution.models.user_team import UserTeam
 
 
 @pytest.fixture
+@pytest.mark.api
 def test_db(db: Session):
     """Get test database session."""
     return db

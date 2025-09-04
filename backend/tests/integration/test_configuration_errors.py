@@ -10,6 +10,7 @@ from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.prompt_template_service import PromptTemplateService
 
 
+@pytest.mark.integration
 def test_invalid_template_variables(db_session: Session, base_user):
     """Test error handling for invalid template variables."""
     # Create provider service

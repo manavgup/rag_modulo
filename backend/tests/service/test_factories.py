@@ -6,6 +6,7 @@ from rag_solution.retrieval.factories import RetrieverFactory
 from rag_solution.retrieval.retriever import HybridRetriever, KeywordRetriever, VectorRetriever
 
 
+@pytest.mark.atomic
 class TestRetrieverFactory(unittest.TestCase):
     def setUp(self):
         self.mock_vector_store = MagicMock()
