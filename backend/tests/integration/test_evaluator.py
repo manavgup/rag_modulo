@@ -38,6 +38,7 @@ def sample_query_result():
     ]
 
 
+@pytest.mark.integration
 def test_evaluator_initialization(evaluator):
     """Test RAGEvaluator initialization."""
     assert isinstance(evaluator.faithfulness_evaluator, FaithfulnessEvaluator)

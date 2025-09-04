@@ -13,6 +13,7 @@ from rag_solution.query_rewriting.query_rewriter import (
 )
 
 
+@pytest.mark.atomic
 class TestQueryRewriter(unittest.TestCase):
     def test_simple_query_rewriter(self):
         rewriter = SimpleQueryRewriter()

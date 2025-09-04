@@ -71,6 +71,7 @@ def sample_template_model(sample_user_id, sample_template_input):
     )
 
 
+@pytest.mark.atomic
 def test_initialize_default_templates(template_service, sample_user_id):
     """Test initialization of default templates."""
     # Mock repository responses

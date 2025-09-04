@@ -31,6 +31,7 @@ def mock_vectordb_session():
     return mock_session
 
 
+@pytest.mark.integration
 def test_vector_db_factory():
     """Test the VectorDBFactory."""
     # Test creating Pinecone store

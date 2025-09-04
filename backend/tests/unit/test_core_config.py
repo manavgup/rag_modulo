@@ -3,6 +3,7 @@
 from core.config import settings
 
 
+@pytest.mark.atomic
 def test_settings_loaded_from_env():
     """Test that settings are loaded from .env file."""
     # Test required settings

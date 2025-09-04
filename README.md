@@ -1,6 +1,31 @@
 # RAG Modulo
 
-RAG Modulo is a Retrieval-Augmented Generation (RAG) solution that integrates various vector databases for efficient information retrieval and generation.
+RAG Modulo is a robust, customizable Retrieval-Augmented Generation (RAG) solution that supports a wide variety of vector databases, embedding models, and document formats. The solution is designed to be flexible and not dependent on popular RAG frameworks like LangChain or LlamaIndex, allowing for greater customization and control.
+
+## 🚨 Current Project Status: WORK IN PROGRESS
+
+**Status**: The project has a solid architectural foundation with comprehensive implementation, but core functionality is untested due to authentication issues. This is a **work-in-progress** project that needs systematic testing and validation before production readiness.
+
+### ✅ What's Working
+- **Infrastructure**: All Docker containers running (PostgreSQL, Milvus, MLFlow, MinIO)
+- **Basic Health**: Backend health endpoint responding
+- **Architecture**: Solid, production-ready architecture implemented
+- **Code Structure**: Comprehensive implementation across all components
+- **Container Setup**: Full Docker Compose infrastructure with GHCR images
+
+### ❌ What's NOT Working
+- **Authentication System**: OIDC authentication broken - blocks all testing
+- **Functionality Testing**: Cannot verify any features actually work
+- **Local Development**: Local environment has dependency issues
+- **Testing Framework**: pytest not available for testing
+
+### 📊 Realistic Assessment
+- **Infrastructure**: 90% complete
+- **Backend Structure**: 70% complete
+- **Backend Functionality**: 30% complete (untested)
+- **Frontend**: 40% complete (structure only)
+- **Testing**: 10% complete (framework missing)
+- **Integration**: 20% complete (untested)
 
 ## Table of Contents
 
@@ -99,30 +124,104 @@ This architecture allows for flexibility in choosing vector databases and ensure
 
 ## Prerequisites
 
-- Python 3.11+
+- Python 3.12+ (required for backend)
+- Node.js 18+ (required for frontend)
 - Docker and Docker Compose
+- Poetry (for Python dependency management)
+- npm (for frontend dependency management)
 
 ## Installation
+
+### Quick Start (Recommended)
 
 1. Clone the repository:
    ```sh
    git clone https://github.com/manavgup/rag-modulo.git
    cd rag-modulo
    ```
-2. Set up your environment variables by copying the `.env.example` file:
+
+2. Set up your environment variables:
    ```sh
    cp env.example .env
+   # Edit .env with your specific configuration
    ```
-   Then, edit the `.env` file with your specific configuration.
-3. Make sure you have container runtime installed (e.g., podman)
+
+3. Start the application with pre-built images:
+   ```sh
+   make run-ghcr
+   ```
+
+### Development Setup
+
+1. **Backend Setup**:
+   ```sh
+   cd backend
+   poetry install --with dev
+   poetry shell
+   ```
+
+2. **Frontend Setup**:
+   ```sh
+   cd webui
+   npm install
+   ```
+
+3. **Build and Run Locally**:
+   ```sh
+   make build-all
+   make run-app
+   ```
+
+### Environment Configuration
+
+The system requires several environment variables. See `env.example` for the complete list. Key variables include:
+
+- **Database**: `COLLECTIONDB_*` variables for PostgreSQL
+- **Vector DB**: `VECTOR_DB`, `MILVUS_*` variables
+- **LLM Providers**: `WATSONX_*`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`
+- **Authentication**: `IBM_CLIENT_ID`, `IBM_CLIENT_SECRET`, `OIDC_*` variables
 
 ## Usage
 
-1. Build app, start infra services (DBs, etc) and application containers (frontend, backend):
+### Running the Application
+
+1. **Using Pre-built Images (Recommended)**:
+   ```sh
+   make run-ghcr
+   ```
+
+2. **Building and Running Locally**:
    ```sh
    make run-app
    ```
-2. Access the API at `http://localhost:8000` and the frontend at `http://localhost:3000`.
+
+3. **Access Points**:
+   - **Frontend**: http://localhost:3000
+   - **Backend API**: http://localhost:8000
+   - **MLFlow**: http://localhost:5001
+   - **MinIO Console**: http://localhost:9001
+
+### Available Make Commands
+
+- `make run-ghcr` - Run with pre-built GitHub Container Registry images
+- `make run-app` - Build and run with local images
+- `make run-services` - Start only infrastructure services
+- `make stop-containers` - Stop all containers
+- `make logs` - View container logs
+- `make clean` - Clean up containers and volumes
+
+### Development Commands
+
+- `make lint` - Run code quality checks
+- `make test` - Run tests (requires testfile parameter)
+- `make build-all` - Build all container images
+- `make pull-ghcr-images` - Pull latest images from GHCR
+
+### CI/Development Debugging Scripts
+
+- `scripts/test_ci_quick.sh` - Quick CI environment validation
+- `scripts/test_ci_environment.sh` - Comprehensive CI simulation
+- `scripts/validate_ci_fixes.py` - Validate CI-related code changes
 
 ## Project Structure
 
@@ -157,7 +256,14 @@ rag_modulo/
 │   │   ├── components/      # React components
 │   │   ├── services/        # Frontend services
 │   │   └── config/         # Frontend configuration
+├── scripts/                 # Development and debugging scripts
+│   ├── test_ci_quick.sh     # Quick CI environment test
+│   ├── test_ci_environment.sh # Full CI simulation
+│   └── validate_ci_fixes.py # Code validation script
+├── docs/                    # Documentation
+│   └── fixes/              # Fix documentation
 ├── .env                     # Environment variables
+├── .env.ci                  # CI environment configuration
 ├── docker-compose-infra.yml # Infrastructure services configuration
 ├── docker-compose.yml       # Application services configuration
 ├── Makefile                # Project management commands
@@ -246,6 +352,42 @@ EMBEDDING_MODEL=all-minilm-l6-v2  # Default embedding model
 DATA_DIR=/path/to/data           # Data directory
 ```
 
+### Environment Modes
+
+The application supports different operating modes controlled by environment variables:
+
+#### Production Mode (default)
+```bash
+# All flags false or unset (default)
+TESTING=false
+SKIP_AUTH=false  
+DEVELOPMENT_MODE=false
+```
+- Full authentication required
+- OIDC provider registration enabled
+- Production security measures enforced
+
+#### Development/CI Mode
+```bash
+# Any of these set to true activates development mode
+TESTING=true              # Set in CI environments
+SKIP_AUTH=true           # Skip authentication entirely
+DEVELOPMENT_MODE=true    # Local development without auth
+```
+- Authentication bypassed (test user automatically set)
+- OIDC registration skipped (no external connections)
+- All endpoints accessible without credentials
+- Ideal for testing and local development
+
+#### Testing with Authentication
+For testing scenarios that need partial authentication:
+```bash
+# Use mock token for testing
+Authorization: Bearer mock_token_for_testing
+```
+
+**Environment Priority**: Any of `TESTING`, `SKIP_AUTH`, or `DEVELOPMENT_MODE` being `true` will activate development mode.
+
 ### Service Configuration
 
 Runtime configuration through services:
@@ -301,52 +443,72 @@ For detailed configuration options and examples, see:
 
 ## Testing
 
-The project includes a comprehensive test suite with unit tests, integration tests, and performance tests. For detailed information about testing, see [Testing Documentation](backend/tests/README.md).
+⚠️ **Testing Status**: The project has a comprehensive test suite implemented, but testing is currently blocked by authentication issues. The testing framework needs to be set up and authentication fixed before tests can be run.
 
-### Quick Start
+### Test Framework Status
 
-Run all tests:
+- **Test Structure**: ✅ Comprehensive test suite implemented
+- **Test Categories**: ✅ Unit, integration, performance, and service tests
+- **Test Infrastructure**: ❌ pytest not available due to dependency issues
+- **Authentication**: ❌ OIDC authentication broken - blocks all API testing
+
+### Available Test Commands (When Fixed)
+
 ```bash
-make test
+# Run specific test file
+make test testfile=tests/api/test_auth.py
+
+# Run test categories
+make unit-tests
+make integration-tests
+make performance-tests
+make api-tests
+
+# Run with coverage
+make tests
 ```
 
-### Test Types
+### Test Types (Implemented but Untested)
 
-1. Unit Tests:
-   ```bash
-   pytest backend/tests/
-   ```
+1. **Unit Tests**: Component-level testing
+2. **Integration Tests**: End-to-end flow testing
+3. **Performance Tests**: Scalability and performance testing
+4. **Service Tests**: Service layer functionality testing
+5. **API Tests**: REST API endpoint testing
 
-2. Integration Tests:
-   ```bash
-   pytest backend/tests/integration/
-   ```
+### Testing Requirements
 
-3. Performance Tests:
-   ```bash
-   pytest backend/tests/performance/
-   ```
+Before testing can begin:
+1. **Fix Authentication System** - Critical blocker
+2. **Set Up Local Environment** - Install dependencies
+3. **Configure Test Environment** - Set up pytest and test data
+4. **Validate Test Framework** - Ensure tests can run
 
-### Test Coverage
-
-Generate coverage report:
-```bash
-pytest --cov=backend/rag_solution --cov-report=html
-```
-
-### Performance Testing
-
-The performance test suite includes:
-- Throughput testing
-- Latency testing
-- Resource usage monitoring
-- Stability testing
-
-For detailed performance test configuration and execution, refer to the [Testing Documentation](backend/tests/README.md#performance-tests).
+For detailed testing information, see [Testing Documentation](backend/tests/README.md).
 
 ## CI/CD
 
-The project uses GitHub Actions for continuous integration and deployment, with a focus on maintaining service quality and performance.
+The project uses GitHub Actions for continuous integration and deployment, with automated builds and testing. Images are published to GitHub Container Registry (GHCR).
+
+### Current CI/CD Status
+
+- **Build Pipeline**: ✅ Automated builds for backend and frontend
+- **Image Publishing**: ✅ Images published to `ghcr.io/manavgup/rag_modulo/*`
+- **Test Execution**: ⚠️ Tests implemented but blocked by authentication issues
+- **Quality Checks**: ✅ Code formatting and linting automated
+
+### CI/CD Pipeline
+
+1. **Code Quality**: Automated linting with Ruff and MyPy
+2. **Build**: Docker image builds for backend and frontend
+3. **Publish**: Images pushed to GHCR with version tags
+4. **Testing**: Comprehensive test suite (when authentication is fixed)
+
+### Available Images
+
+- `ghcr.io/manavgup/rag_modulo/backend:latest`
+- `ghcr.io/manavgup/rag_modulo/frontend:latest`
+- `ghcr.io/manavgup/rag_modulo/backend:test-latest`
 
 ### Pipeline Stages
 
@@ -531,34 +693,137 @@ For detailed development guidelines, see:
 - [Testing Guide](backend/tests/README.md)
 - [Configuration Guide](backend/rag_solution/docs/configuration.md)
 
+## 🗺️ Project Roadmap
+
+### Current Phase: Critical Blockers (Weeks 1-2)
+
+**Priority**: Fix authentication system and set up testing framework
+
+1. **Fix Authentication System** (CRITICAL)
+   - Debug OIDC authentication middleware
+   - Fix JWT token validation
+   - Test authentication endpoints
+   - Verify user login/logout flows
+
+2. **Fix Local Development Environment**
+   - Install missing Python dependencies
+   - Configure local environment variables
+   - Set up local testing framework
+   - Verify local development workflow
+
+3. **Install Testing Framework**
+   - Install pytest and testing tools
+   - Configure test environment
+   - Verify test framework works
+   - Set up basic test structure
+
+### Next Phase: Core Functionality Testing (Weeks 3-6)
+
+1. **Test Backend Core** - API endpoints, database operations, service layer
+2. **Test Frontend Components** - React components, routing, state management
+3. **Test Core RAG Functionality** - Document processing, vector search, question generation
+4. **Test Data Integration** - Vector database operations, data synchronization
+
+### Future Phases: Refinement and Production (Weeks 7-12)
+
+1. **User Experience Refinement** - Polish UI, optimize performance
+2. **Production Deployment** - Set up production infrastructure, monitoring
+3. **Agentic AI Enhancement** - Transform into autonomous AI system (Weeks 13-24)
+
+## 🚨 Known Issues
+
+### Critical Issues
+- **Authentication System**: OIDC authentication broken - blocks all testing
+- **Local Development**: Dependency issues preventing local development
+- **Testing Framework**: pytest not available for testing
+
+### Medium Priority Issues
+- **Functionality Testing**: All RAG features exist but are untested
+- **Integration Testing**: Frontend-backend integration not verified
+- **Performance Testing**: Cannot measure actual performance metrics
+
+### Low Priority Issues
+- **Documentation**: Some API documentation may be outdated
+- **Error Handling**: Error recovery mechanisms not tested
+
+## 🤝 Contributing
+
+**⚠️ Important**: Before contributing, please note that the project is currently in a work-in-progress state with critical authentication issues. We recommend waiting until the authentication system is fixed before making significant contributions.
+
+### Development Guidelines
+
+1. **Service Layer Architecture**
+   - Follow the service-based architecture pattern
+   - Implement new features as services
+   - Use dependency injection
+   - Follow repository pattern for data access
+
+2. **Code Style**
+   - Use type hints throughout
+   - Write comprehensive docstrings
+   - Follow PEP 8 guidelines
+   - Use async/await where appropriate
+
+3. **Testing Requirements**
+   - Write unit tests for services
+   - Add integration tests for flows
+   - Include performance tests for critical paths
+   - Maintain test coverage above 80%
+
+### Contribution Process
+
+1. **Fork and Clone**
+2. **Set Up Development Environment** (when authentication is fixed)
+3. **Create Feature Branch**
+4. **Development Workflow** - Write tests first (TDD)
+5. **Testing** - Run test suite
+6. **Submit Changes** - Create pull request
+
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## Troubleshooting
 
-### Test Import Issues
+### Critical Issues (Current Blockers)
 
-If you encounter import errors when running tests, it's likely due to the test files being moved outside the backend folder. The tests expect certain import paths that may need updating.
+#### Authentication System Not Working
 
-Common import errors:
+**Problem**: OIDC authentication is broken, blocking all API testing and functionality verification.
+
+**Symptoms**:
+- Login attempts fail
+- API endpoints return authentication errors
+- Cannot test any RAG functionality
+
+**Status**: This is the #1 priority issue that needs to be resolved before any other development can proceed.
+
+#### Local Development Environment Issues
+
+**Problem**: Dependency issues preventing local development setup.
+
+**Symptoms**:
+- Poetry installation fails
+- pytest not available
+- Import errors in local environment
+
+**Temporary Workaround**: Use Docker containers for development:
+```bash
+make run-ghcr  # Use pre-built images
 ```
-ImportError: cannot import name 'LLMProviderModelInput' from 'rag_solution.schemas.llm_provider_schema'
-ImportError: cannot import name 'LLMProviderModel' from 'rag_solution.models.llm_provider'
-```
 
-**Solution**: Update the test files to use the correct import paths and class names that match your current schema definitions.
+#### Testing Framework Not Available
+
+**Problem**: pytest and testing tools not properly installed.
+
+**Symptoms**:
+- `make test` commands fail
+- Cannot run any tests
+- Test coverage reports unavailable
+
+**Status**: Depends on fixing local development environment.
 
 ### Container Issues
-
-#### IBM Cloud Registry Authorization Errors
-
-If you see errors like:
-```
-denied: You are not authorized to access the specified resource
-```
-
-**Solution**: We now use GitHub Container Registry (GHCR) by default. The images are automatically published to `ghcr.io/manavgup/rag_modulo/*` and don't require external API keys.
 
 #### Service Health Check Failures
 
@@ -575,9 +840,33 @@ make run-services
 docker compose ps
 ```
 
+#### GHCR Image Pull Issues
+
+If you have issues pulling images from GitHub Container Registry:
+```bash
+# Login to GHCR (if needed)
+docker login ghcr.io
+
+# Pull latest images
+make pull-ghcr-images
+```
+
 ### Performance Issues
 
 For large datasets or high concurrency:
 - Increase memory limits in docker-compose files
 - Adjust vector database configuration
 - Monitor resource usage with `docker stats`
+
+### Getting Help
+
+1. **Check the logs**: `make logs` to see container logs
+2. **Verify environment**: Ensure all required environment variables are set
+3. **Check container health**: `docker compose ps` to see service status
+4. **Review documentation**: Check the detailed documentation in `claudeDev_Docs/`
+
+### Known Workarounds
+
+- **For Development**: Use `make run-ghcr` instead of local builds
+- **For Testing**: Wait for authentication system to be fixed
+- **For Local Setup**: Use Docker containers until local environment is fixed

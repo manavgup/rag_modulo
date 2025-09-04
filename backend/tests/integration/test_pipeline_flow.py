@@ -11,6 +11,7 @@ from rag_solution.services.pipeline_service import PipelineService
 from rag_solution.services.prompt_template_service import PromptTemplateService
 
 
+@pytest.mark.integration
 def test_complete_pipeline_flow(db_session: Session, base_user):
     """Test complete pipeline workflow."""
     # Set up provider

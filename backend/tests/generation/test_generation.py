@@ -67,6 +67,7 @@ def sample_llm_parameters_output(sample_llm_parameters_input):
     )
 
 
+@pytest.mark.atomic
 def test_generator_factory_watsonx():
     """Test creating a WatsonX generator."""
     config = {"type": "watsonx", "model_id": "test-model", "api_key": "test-key", "project_id": "test-project"}

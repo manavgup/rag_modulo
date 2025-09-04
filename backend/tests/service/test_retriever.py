@@ -6,6 +6,7 @@ from rag_solution.retrieval.retriever import HybridRetriever, KeywordRetriever, 
 from vectordbs.data_types import Document, QueryResult
 
 
+@pytest.mark.atomic
 class TestRetriever(unittest.TestCase):
     def setUp(self):
         self.mock_vector_store = MagicMock()

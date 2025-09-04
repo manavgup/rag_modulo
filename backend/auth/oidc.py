@@ -1,4 +1,5 @@
 import logging
+import os
 
 import jwt
 from authlib.integrations.starlette_client import OAuth, OAuthError
@@ -11,24 +12,36 @@ logger = logging.getLogger(__name__)
 
 oauth = OAuth()
 
-oauth.register(
-    name="ibm",
-    server_metadata_url=settings.oidc_discovery_endpoint,
-    client_id=settings.ibm_client_id,
-    client_secret=settings.ibm_client_secret,
-    client_kwargs={
-        "scope": "openid email profile",
-        "token_endpoint_auth_method": "client_secret_post"
-    },
-    # Add leeway for token validation
-    jwks_uri=settings.oidc_discovery_endpoint + "/jwks",
-    validate_iss=True,
-    validate_aud=True,
-    validate_exp=True,
-    validate_iat=False,
-    validate_nbf=True,
-    leeway=50000
-)
+# Skip OIDC registration in test/CI environments or when auth is disabled
+skip_auth = os.getenv("SKIP_AUTH", "false").lower() == "true"
+development_mode = os.getenv("DEVELOPMENT_MODE", "false").lower() == "true"
+testing_mode = os.getenv("TESTING", "false").lower() == "true"
+
+if not (skip_auth or development_mode or testing_mode):
+    try:
+        oauth.register(
+            name="ibm",
+            server_metadata_url=settings.oidc_discovery_endpoint,
+            client_id=settings.ibm_client_id,
+            client_secret=settings.ibm_client_secret,
+            client_kwargs={
+                "scope": "openid email profile",
+                "token_endpoint_auth_method": "client_secret_post"
+            },
+            # Add leeway for token validation
+            jwks_uri=settings.oidc_discovery_endpoint + "/jwks",
+            validate_iss=True,
+            validate_aud=True,
+            validate_exp=True,
+            validate_iat=False,
+            validate_nbf=True,
+            leeway=50000
+        )
+        logger.info("OIDC provider registered successfully")
+    except Exception as e:
+        logger.warning(f"Failed to register OIDC provider: {e}. Auth will work in test mode only.")
+else:
+    logger.info(f"OIDC registration skipped (skip_auth={skip_auth}, development_mode={development_mode}, testing_mode={testing_mode})")
 
 def verify_jwt_token(token: str) -> dict:
     """Verify JWT token and return payload."""
