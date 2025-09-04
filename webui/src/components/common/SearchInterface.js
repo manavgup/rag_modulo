@@ -79,7 +79,7 @@ const SearchInterface = () => {
             doc => docId === result.chunk.document_id
           ) || {};
 
-          console.log('Document metadata found:', docMetadata); 
+ 
 
           acc[docId] = {
             documentId: docId,
@@ -234,7 +234,7 @@ const SearchInterface = () => {
 
       {loading ? (
         <Loading description="Searching..." withOverlay={false} />
-      ) : results && (
+      ) : results ? (
         <div className="search-results">
           {/* Main Answer Section */}
           <Tile className="answer-section">
@@ -271,7 +271,7 @@ const SearchInterface = () => {
               ))}
             </Accordion>
           </div>
-        {results.evaluation && (
+        {results.evaluation && results.evaluation.faithfulness && results.evaluation.answer_relevance && results.evaluation.context_relevance && (
           <div className="evaluation-section">
             <h4>Evaluation</h4>
             <Accordion>
@@ -297,7 +297,17 @@ const SearchInterface = () => {
           </div>
         )}
           </div>
-
+      ) : (
+        <Tile className="no-results">
+          <h4>No Results Found</h4>
+          <p>Your search did not match any documents in the selected collection.</p>
+          <p>Try:</p>
+          <ul>
+            <li>Using different keywords</li>
+            <li>Checking if the collection has documents</li>
+            <li>Selecting a different collection</li>
+          </ul>
+        </Tile>
       )}
     </div>
   );

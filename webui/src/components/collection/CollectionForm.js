@@ -102,18 +102,18 @@ const CollectionForm = () => {
     const formData = new FormData();
     formData.append('collection_name', collectionName);
     formData.append('is_private', isPrivate);
-    formData.append('user_id', user.uuid);
 
     files.forEach((file) => {
       formData.append('files', file);
     });
+
+
 
     try {
       const response = await createCollectionWithDocuments(formData, (event) => {
         const percentCompleted = Math.round((event.loaded * 100) / event.total);
         setUploadProgress(percentCompleted);
       });
-      console.log('API Response:', response);
       setShowSuccessToast(true);
       await fetchUserCollections();
       // Reset form
