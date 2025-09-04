@@ -4,7 +4,7 @@ This package contains all pytest fixtures organized by functionality.
 Import all fixtures here to make them available through conftest.py
 """
 
-from .auth import mock_jwt_decode, mock_jwt_settings, mock_oauth_client
+from .auth import admin_auth_headers, auth_headers, auth_headers_for_role, mock_auth_token, test_client
 from .collections import base_collection, mock_collection_service, test_collection, test_collection_create, vector_store
 from .data import test_documents
 from .db import mock_db_session, test_db, test_session
@@ -44,11 +44,12 @@ __all__ = [
     "base_user",
     "mock_collection_service",
     "mock_db_session",
-    "mock_jwt_decode",
-    "mock_jwt_settings",
+    "admin_auth_headers",
+    "auth_headers",
     "mock_llm_provider",
     "mock_llm_response",
-    "mock_oauth_client",
+    "auth_headers_for_role",
+    "mock_auth_token",
     "mock_pipeline_service",
     "mock_search_service",
     "provider_factory",
@@ -71,6 +72,7 @@ __all__ = [
     "test_session",
     "test_team",
     "test_team_create",
+    "test_client",
     "test_user",
     "uploaded_file",
     "vector_store",

@@ -174,29 +174,5 @@ class Settings(BaseSettings):
     }
 
 
-# Singleton for settings - lazy initialization to support testing
-_settings_instance = None
-
-
-def get_settings() -> Settings:
-    """Get the global settings instance, creating it if necessary."""
-    global _settings_instance
-    if _settings_instance is None:
-        _settings_instance = Settings()
-    return _settings_instance
-
-
-# For backward compatibility, create a property-like access
-class _SettingsProxy:
-    def __getattr__(self, name):
-        return getattr(get_settings(), name)
-
-    def __setattr__(self, name, value):
-        # Allow setting attributes for testing
-        if name.startswith("_"):
-            super().__setattr__(name, value)
-        else:
-            setattr(get_settings(), name, value)
-
-
-settings = _SettingsProxy()
+# Singleton for settings
+settings = Settings()
