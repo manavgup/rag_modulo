@@ -75,6 +75,7 @@ def pipeline_setup(db_session: Session, base_user, test_collection):
 
 
 @pytest.mark.asyncio
+@pytest.mark.integration
 async def test_provider_initialization_error(pipeline_setup):
     """Test handling provider initialization errors."""
     # Break provider initialization

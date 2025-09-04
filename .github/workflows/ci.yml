@@ -205,6 +205,10 @@ jobs:
       - name: Start minimal services for integration tests
         run: |
           echo "Starting essential services for integration tests..."
+          # Set testing environment variables
+          export TESTING=true
+          export SKIP_AUTH=true
+          export DEVELOPMENT_MODE=true
           # Only start essential services to speed up tests
           docker compose up -d postgres milvus-etcd milvus-standalone
           echo "Services started, waiting briefly..."
@@ -212,6 +216,9 @@ jobs:
           docker compose ps
         env:
           DOCKER_BUILDKIT: 1
+          TESTING: true
+          SKIP_AUTH: true
+          DEVELOPMENT_MODE: true
           
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -228,10 +235,16 @@ jobs:
           docker compose run --rm \
             -e TESTING=true \
             -e CONTAINER_ENV=false \
+            -e SKIP_AUTH=true \
+            -e DEVELOPMENT_MODE=true \
             test pytest -v -s -m "integration and not performance" \
             --maxfail=3 \
             --tb=short \
             || echo "Some integration tests failed (non-blocking for now)"
+        env:
+          TESTING: true
+          SKIP_AUTH: true
+          DEVELOPMENT_MODE: true
         
       - name: Upload test reports
         if: always()

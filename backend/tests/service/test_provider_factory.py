@@ -15,6 +15,7 @@ def provider_factory(db_session: Session):
     yield factory
 
 
+@pytest.mark.atomic
 def test_list_providers(provider_factory: LLMProviderFactory):
     providers = provider_factory.list_providers()
     for provider in providers:

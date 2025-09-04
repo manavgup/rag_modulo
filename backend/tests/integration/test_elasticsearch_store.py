@@ -8,6 +8,7 @@ ELASTIC_INDEX = settings.collection_name
 
 
 @pytest.mark.elasticsearch
+@pytest.mark.integration
 class TestElasticsearchStore:
     @pytest.fixture
     @contextmanager

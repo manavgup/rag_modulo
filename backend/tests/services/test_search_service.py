@@ -16,6 +16,7 @@ from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata,
 # 🧪 Basic Search Tests
 # -------------------------------------------
 @pytest.mark.asyncio
+@pytest.mark.atomic
 async def test_search_basic(search_service, base_collection, base_file, base_user, base_pipeline_config):
     """Test basic search functionality with pipeline service."""
     search_input = SearchInput(

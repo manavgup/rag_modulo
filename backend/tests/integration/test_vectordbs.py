@@ -52,6 +52,7 @@ def mock_vectordb_session():
     return mock_session
 
 
+@pytest.mark.integration
 class TestVectorStores:
     """Consolidated test class for all vector store implementations."""
 

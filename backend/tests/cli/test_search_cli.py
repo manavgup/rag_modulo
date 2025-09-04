@@ -23,6 +23,7 @@ except ImportError:
     evaluate_answer_quality = Mock()
 
 
+@pytest.mark.integration
 class TestSearchCLI:
     """Test the search CLI commands."""
 

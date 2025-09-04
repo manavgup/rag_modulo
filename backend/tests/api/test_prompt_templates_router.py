@@ -14,6 +14,7 @@ TEST_TEMPLATE_ID = UUID("87654321-4321-8765-4321-876543210987")
 
 
 @pytest.fixture
+@pytest.mark.api
 def test_template_data():
     return {
         "name": "Test Template",

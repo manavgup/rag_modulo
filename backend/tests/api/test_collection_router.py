@@ -9,6 +9,7 @@ from rag_solution.schemas.collection_schema import CollectionInput
 from rag_solution.schemas.prompt_template_schema import PromptTemplateType
 
 
+@pytest.mark.api
 def test_create_collection(client, collection_service, base_user, auth_headers):
     """Test creating a collection."""
     collection_input = CollectionInput(

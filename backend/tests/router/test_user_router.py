@@ -113,6 +113,7 @@ def sample_pipeline_config_output(sample_pipeline_config_input):
     )
 
 
+@pytest.mark.api
 def test_list_users(client, user_service, sample_user_output):
     """Test listing users."""
     user_service.list_users.return_value = [sample_user_output]

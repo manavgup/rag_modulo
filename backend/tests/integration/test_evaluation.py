@@ -27,6 +27,7 @@ def question_service(db_session):
     return Mock(spec=QuestionService)
 
 
+@pytest.mark.integration
 def test_rag_evaluator():
     """Test the RAGEvaluator."""
     evaluator = RAGEvaluator()

@@ -8,6 +8,7 @@ from vectordbs.data_types import Document
 
 
 @pytest.mark.asyncio
+@pytest.mark.atomic
 async def test_process_word(test_word_path):
     processor = WordProcessor()
     docs = []
