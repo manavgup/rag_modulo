@@ -18,9 +18,40 @@ env:
   TEST_IMAGE: ghcr.io/manavgup/rag_modulo/backend:latest
 
 jobs:
+  # Test isolation validation - atomic tests without any environment variables
+  test-isolation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Install dependencies
+        run: |
+          cd backend && poetry install --with dev,test
+
+      - name: Run test isolation checker
+        run: |
+          cd backend && python ../scripts/check_test_isolation.py
+
+      - name: Run atomic tests without environment variables
+        run: |
+          cd backend && poetry run pytest tests/ -m atomic --tb=short -v
+
   # Fast feedback - lint and unit tests without infrastructure
   lint-and-unit:
     runs-on: ubuntu-latest
+    needs: [test-isolation]
     env:
       # Essential environment variables for current atomic tests
       # TODO: Remove these once issue #172 (test isolation) is fixed

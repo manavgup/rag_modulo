@@ -2,19 +2,23 @@ import logging
 import logging.handlers
 from pathlib import Path
 
-from core.config import settings
+
+# Lazy import to avoid test isolation issues
+def get_settings():
+    from core.config import settings
+
+    return settings
 
 
 def setup_logging(log_dir: Path | None = None) -> None:
     """Configure logging for the entire application."""
 
     # Create formatter
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
     # Configure root logger
     root_logger = logging.getLogger()
+    settings = get_settings()
     root_logger.setLevel(settings.log_level)
 
     # Remove any existing handlers to avoid duplicates
@@ -32,7 +36,7 @@ def setup_logging(log_dir: Path | None = None) -> None:
         file_handler = logging.handlers.RotatingFileHandler(
             log_dir / "rag_modulo.log",
             maxBytes=10485760,  # 10MB
-            backupCount=5
+            backupCount=5,
         )
         file_handler.setFormatter(formatter)
         root_logger.addHandler(file_handler)
@@ -53,7 +57,6 @@ def setup_logging(log_dir: Path | None = None) -> None:
     logging.getLogger("sqlalchemy.dialects").setLevel(sql_level)
     logging.getLogger("sqlalchemy.pool").setLevel(sql_level)
     logging.getLogger("sqlalchemy.orm").setLevel(sql_level)
-
 
 
 def get_logger(name: str) -> logging.Logger:

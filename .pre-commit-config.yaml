@@ -27,7 +27,7 @@ repos:
       - id: ruff-format
         args: ['--line-length=120']
         files: ^backend/
-        
+
   # Python type checking - MyPy
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.8.0
@@ -63,17 +63,24 @@ repos:
         language: script
         files: ^\.github/workflows/.*\.ya?ml$
         pass_filenames: false
-        
+
       - id: python-poetry-check
         name: Check poetry configuration
         entry: bash -c 'cd backend && poetry check'
         language: system
         files: ^backend/(pyproject\.toml|poetry\.lock)$
         pass_filenames: false
-        
+
       - id: validate-ci-environment-fixes
         name: Validate CI environment configuration
         entry: python scripts/validate_ci_fixes.py
         language: system
         files: ^(backend/auth/oidc\.py|backend/core/authentication_middleware\.py|docker-compose\.yml|\.github/workflows/ci\.yml|\.env\.ci)$
+        pass_filenames: false
+
+      - id: check-test-isolation
+        name: Check test isolation violations
+        entry: python scripts/check_test_isolation.py
+        language: system
+        files: ^backend/tests/.*\.py$
         pass_filenames: false
