@@ -9,6 +9,7 @@ on:
 permissions:
   contents: read
   packages: write
+  actions: read
 
 env:
   # Use GHCR images by default
@@ -17,24 +18,31 @@ env:
   TEST_IMAGE: ghcr.io/manavgup/rag_modulo/backend:latest
 
 jobs:
-  # Fast feedback - lint and unit tests without infrastructure  
+  # Fast feedback - lint and unit tests without infrastructure
   lint-and-unit:
     runs-on: ubuntu-latest
     env:
-      # Required environment variables for tests
+      # Essential environment variables for current atomic tests
+      # TODO: Remove these once issue #172 (test isolation) is fixed
       JWT_SECRET_KEY: test-secret-key-for-ci
       RAG_LLM: openai
       WATSONX_INSTANCE_ID: test-instance-id
       WATSONX_APIKEY: test-api-key
       WATSONX_URL: https://test.watsonx.com
+      # Additional variables needed by tests
+      VECTOR_DB: milvus
+      MILVUS_HOST: milvus-standalone
+      MILVUS_PORT: 19530
+      EMBEDDING_MODEL: sentence-transformers/all-minilm-l6-v2
+      DATA_DIR: /tmp/test-data
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.12'
-          
+
       - name: Cache Poetry dependencies
         uses: actions/cache@v4
         with:
@@ -44,35 +52,22 @@ jobs:
           key: ${{ runner.os }}-poetry-${{ hashFiles('backend/poetry.lock') }}
           restore-keys: |
             ${{ runner.os }}-poetry-
-          
+
       - name: Install dependencies
         run: |
           cd backend
-          # Create .env file with test values for CI
-          cat > .env << EOF
-          JWT_SECRET_KEY=test-secret-key-for-ci
-          RAG_LLM=openai
-          WATSONX_INSTANCE_ID=test-instance-id
-          WATSONX_APIKEY=test-api-key
-          WATSONX_URL=https://test.watsonx.com
-          COLLECTIONDB_NAME=test_db
-          COLLECTIONDB_USER=test_user
-          COLLECTIONDB_PASS=test_pass
-          MINIO_ROOT_USER=minioadmin
-          MINIO_ROOT_PASSWORD=minioadmin
-          EOF
-          
+
           pip install poetry
           poetry config virtualenvs.in-project true
           # Regenerate lock file to ensure sync
           poetry lock
           # Install main, dev, and test groups for CI
           poetry install --with dev,test
-          
+
       - name: Check formatting
         run: make format-check
         continue-on-error: true  # Don't fail on format issues initially
-        
+
       - name: Run linting (Ruff + MyPy)
         run: make lint
         continue-on-error: true  # Don't fail on lint issues initially
@@ -80,7 +75,7 @@ jobs:
       - name: Run security checks
         run: make security-check
         continue-on-error: true  # Don't fail on security issues initially
-          
+
       - name: Run unit tests with coverage
         run: |
           cd backend && poetry run pytest tests/ \
@@ -100,10 +95,10 @@ jobs:
       frontend-image: ${{ steps.build.outputs.frontend-image }}
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-        
+
       - name: Cache Docker layers
         uses: actions/cache@v4
         with:
@@ -111,38 +106,38 @@ jobs:
           key: ${{ runner.os }}-buildx-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-buildx-
-            
+
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-          
+
       - name: Build and push images
         id: build
         run: |
           # Build with commit SHA for uniqueness
           BACKEND_TAG="ghcr.io/manavgup/rag_modulo/backend:${{ github.sha }}"
           FRONTEND_TAG="ghcr.io/manavgup/rag_modulo/frontend:${{ github.sha }}"
-          
+
           echo "Building backend image..."
           docker build -t $BACKEND_TAG -f ./backend/Dockerfile.backend ./backend
-          
+
           echo "Building frontend image..."
           docker build -t $FRONTEND_TAG -f ./webui/Dockerfile.frontend ./webui
-          
+
           # Also tag as latest for compose compatibility
           docker tag $BACKEND_TAG ghcr.io/manavgup/rag_modulo/backend:latest
           docker tag $FRONTEND_TAG ghcr.io/manavgup/rag_modulo/frontend:latest
-          
+
           echo "Pushing images to GHCR..."
           # Push images to GHCR
           docker push $BACKEND_TAG
           docker push $FRONTEND_TAG
           docker push ghcr.io/manavgup/rag_modulo/backend:latest
           docker push ghcr.io/manavgup/rag_modulo/frontend:latest
-          
+
           echo "backend-image=$BACKEND_TAG" >> $GITHUB_OUTPUT
           echo "frontend-image=$FRONTEND_TAG" >> $GITHUB_OUTPUT
 
@@ -152,23 +147,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.12'
-          
+
       - name: Install Poetry
         uses: snok/install-poetry@v1
         with:
           version: latest
           virtualenvs-create: true
           virtualenvs-in-project: true
-          
+
       - name: Install dependencies
         run: |
           cd backend && poetry install --with dev,test
-          
+
       - name: Run API tests
         run: |
           cd backend && poetry run pytest tests/ \
@@ -186,22 +181,22 @@ jobs:
       matrix:
         vector_db: [milvus]
       fail-fast: false
-    
+
     env:
       VECTOR_DB: ${{ matrix.vector_db }}
       BACKEND_IMAGE: ${{ needs.build.outputs.backend-image }}
       FRONTEND_IMAGE: ${{ needs.build.outputs.frontend-image }}
-      
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Create environment and volume directories
         run: |
           # Use the .env.ci file for CI testing
           cp .env.ci .env
-          
+
           make create-volumes
-          
+
       - name: Start minimal services for integration tests
         run: |
           echo "Starting essential services for integration tests..."
@@ -219,14 +214,14 @@ jobs:
           TESTING: true
           SKIP_AUTH: true
           DEVELOPMENT_MODE: true
-          
+
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-          
+
       - name: Run integration tests (lightweight)
         run: |
           echo "Running integration tests with built images..."
@@ -245,7 +240,7 @@ jobs:
           TESTING: true
           SKIP_AUTH: true
           DEVELOPMENT_MODE: true
-        
+
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -262,12 +257,12 @@ jobs:
     steps:
       - name: Report results
         run: |
-          echo "## CI/CD Results" 
+          echo "## CI/CD Results"
           echo "- Lint and Unit Tests: ${{ needs.lint-and-unit.result }}"
           echo "- Build: ${{ needs.build.result }}"
           echo "- API Tests: ${{ needs.api-tests.result }}"
           echo "- Integration Tests: ${{ needs.integration-test.result }}"
-          
+
           if [[ "${{ needs.lint-and-unit.result }}" == "failure" || "${{ needs.build.result }}" == "failure" ]]; then
             echo "❌ Critical jobs failed"
             exit 1
