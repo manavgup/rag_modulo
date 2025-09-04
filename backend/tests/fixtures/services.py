@@ -1,6 +1,6 @@
 """Core service fixtures for pytest."""
 
-from uuid import UUID
+from pydantic import UUID4
 
 import pytest
 from pydantic import SecretStr
@@ -260,7 +260,7 @@ def base_user(db_engine: Engine, ensure_watsonx_provider) -> UserOutput:
         session.commit()
 
         user_service = UserService(session)
-        test_id = UUID("00000000-0000-4000-a000-000000000001")  # Fixed UUID
+        test_id = UUID4("00000000-0000-4000-a000-000000000001")  # Fixed UUID
 
         user = user_service.create_user(
             UserInput(

@@ -1,8 +1,7 @@
 from datetime import datetime
 from enum import Enum
-from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, UUID4
 
 
 class ModelType(str, Enum):
@@ -11,7 +10,7 @@ class ModelType(str, Enum):
 
 
 class LLMModelInput(BaseModel):
-    provider_id: UUID
+    provider_id: UUID4
     model_id: str
     default_model_id: str
     model_type: ModelType
@@ -31,8 +30,8 @@ class LLMModelInput(BaseModel):
 
 
 class LLMModelOutput(BaseModel):
-    id: UUID
-    provider_id: UUID
+    id: UUID4
+    provider_id: UUID4
     model_id: str
     default_model_id: str
     model_type: ModelType

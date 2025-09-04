@@ -1,6 +1,6 @@
 import logging
 from typing import Any
-from uuid import UUID
+from pydantic import UUID4
 
 from sqlalchemy.orm import Session
 
@@ -53,7 +53,7 @@ class LLMModelService:
                 provider=str(model_input.provider_id), error_type="model_creation", message=str(e)
             ) from e
 
-    def set_default_model(self, model_id: UUID) -> LLMModelOutput | None:
+    def set_default_model(self, model_id: UUID4) -> LLMModelOutput | None:
         """Set a model as default and clear other defaults for the same provider."""
         try:
             model = self.repository.get_model_by_id(model_id)
@@ -68,18 +68,18 @@ class LLMModelService:
         except Exception as e:
             raise LLMProviderError(provider="unknown", error_type="default_update", message=str(e)) from e
 
-    def get_default_model(self, provider_id: UUID, model_type: ModelType) -> LLMModelOutput | None:
+    def get_default_model(self, provider_id: UUID4, model_type: ModelType) -> LLMModelOutput | None:
         """Get the default model for a provider and type."""
         try:
             return self.repository.get_default_model(provider_id, model_type)
         except Exception as e:
             raise LLMProviderError(provider=str(provider_id), error_type="default_retrieval", message=str(e)) from e
 
-    def get_model_by_id(self, model_id: UUID) -> LLMModelOutput | None:
+    def get_model_by_id(self, model_id: UUID4) -> LLMModelOutput | None:
         """Get model by ID."""
         return self.repository.get_model_by_id(model_id)
 
-    def get_models_by_provider(self, provider_id: UUID) -> list[LLMModelOutput]:
+    def get_models_by_provider(self, provider_id: UUID4) -> list[LLMModelOutput]:
         """Get all models for a provider."""
         try:
             return self.repository.get_models_by_provider(provider_id)
@@ -93,14 +93,14 @@ class LLMModelService:
         except Exception as e:
             raise LLMProviderError(provider="unknown", error_type="model_retrieval", message=str(e)) from e
 
-    def update_model(self, model_id: UUID, updates: dict[str, Any]) -> LLMModelOutput | None:
+    def update_model(self, model_id: UUID4, updates: dict[str, Any]) -> LLMModelOutput | None:
         """Update model details."""
         try:
             return self.repository.update_model(model_id, updates)
         except Exception as e:
             raise LLMProviderError(provider=str(model_id), error_type="model_update", message=str(e)) from e
 
-    def delete_model(self, model_id: UUID) -> bool:
+    def delete_model(self, model_id: UUID4) -> bool:
         """Soft delete a model."""
         try:
             self.repository.delete_model(model_id)

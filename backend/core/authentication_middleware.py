@@ -100,7 +100,12 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             return JSONResponse(status_code=401, content={"detail": "Authentication required"})
 
         logger.info("AuthMiddleware: Passing request to next middleware/handler")
-        response = await call_next(request)
-        logger.info(f"AuthMiddleware: Response status code: {response.status_code}")
-
-        return response
+        logger.info(f"AuthMiddleware: About to call next handler for {request.url.path}")
+        
+        try:
+            response = await call_next(request)
+            logger.info(f"AuthMiddleware: Response status code: {response.status_code}")
+            return response
+        except Exception as e:
+            logger.error(f"AuthMiddleware: Exception in call_next: {e}", exc_info=True)
+            raise

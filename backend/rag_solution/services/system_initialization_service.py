@@ -1,4 +1,4 @@
-from uuid import UUID
+from pydantic import UUID4
 
 from pydantic import SecretStr
 from sqlalchemy.orm import Session
@@ -111,7 +111,7 @@ class SystemInitializationService:
                 raise
             return None
 
-    def _setup_watsonx_models(self, provider_id: UUID, raise_on_error: bool) -> None:
+    def _setup_watsonx_models(self, provider_id: UUID4, raise_on_error: bool) -> None:
         try:
             generation_model = LLMModelInput.model_validate(
                 {

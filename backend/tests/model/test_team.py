@@ -1,4 +1,4 @@
-from uuid import UUID
+from pydantic import UUID4
 
 import pytest
 from fastapi import HTTPException
@@ -51,7 +51,7 @@ def test_get_team(team_service, team_input):
 
 def test_get_non_existent_team(team_service):
     with pytest.raises(HTTPException) as exc_info:
-        team_service.get_team_by_id(UUID("00000000-0000-0000-0000-000000000000"))
+        team_service.get_team_by_id(UUID4("00000000-0000-0000-0000-000000000000"))
     assert exc_info.value.status_code == 404
 
 

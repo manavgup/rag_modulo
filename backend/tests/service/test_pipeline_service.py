@@ -1,6 +1,6 @@
 """Tests for PipelineService implementation."""
 
-from uuid import UUID, uuid4
+from pydantic import UUID4, uuid4
 
 import pytest
 from sqlalchemy.orm import Session
@@ -89,8 +89,8 @@ def search_input() -> SearchInput:
     """Create test search input."""
     return SearchInput(
         question="What is the capital of France?",
-        collection_id=UUID("12345678-1234-5678-1234-567812345678"),
-        pipeline_id=UUID("87654321-4321-8765-4321-876543210987"),
+        collection_id=UUID4("12345678-1234-5678-1234-567812345678"),
+        pipeline_id=UUID4("87654321-4321-8765-4321-876543210987"),
         metadata={"max_length": 100},
     )
 

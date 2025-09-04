@@ -1,13 +1,12 @@
 from datetime import datetime
-from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, UUID4
 
 from rag_solution.schemas.user_schema import UserOutput
 
 
 class TeamInDB(BaseModel):
-    id: UUID
+    id: UUID4
     name: str
     description: str | None
     created_at: datetime
@@ -22,7 +21,7 @@ class TeamInput(BaseModel):
 
 
 class TeamOutput(BaseModel):
-    id: UUID
+    id: UUID4
     name: str
     description: str | None = None
     users: list[UserOutput] | None = None

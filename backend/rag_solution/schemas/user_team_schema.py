@@ -1,17 +1,16 @@
 from datetime import datetime
-from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, UUID4
 
 
 class UserTeamInput(BaseModel):
-    user_id: UUID
-    team_id: UUID
+    user_id: UUID4
+    team_id: UUID4
 
 
 class UserTeamOutput(BaseModel):
-    user_id: UUID
-    team_id: UUID
+    user_id: UUID4
+    team_id: UUID4
     role: str = "member"  # Default role
     joined_at: datetime
 
@@ -19,6 +18,6 @@ class UserTeamOutput(BaseModel):
 
 
 class UserTeamInDB(BaseModel):
-    user_id: UUID
-    team_id: UUID
+    user_id: UUID4
+    team_id: UUID4
     joined_at: datetime

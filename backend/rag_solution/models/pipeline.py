@@ -21,10 +21,10 @@ class PipelineConfig(Base):
 
     # Identifiers
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[UUID] = mapped_column(  # Add user ownership
+    user_id: Mapped[uuid.UUID] = mapped_column(  # Add user ownership
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    collection_id: Mapped[UUID | None] = mapped_column(
+    collection_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("collections.id", ondelete="CASCADE"), nullable=True, index=True
     )
 
@@ -44,7 +44,7 @@ class PipelineConfig(Base):
     is_default: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Provider reference
-    provider_id: Mapped[UUID] = mapped_column(
+    provider_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("llm_providers.id", ondelete="CASCADE"), nullable=False
     )
     provider: Mapped[LLMProvider] = relationship("LLMProvider", lazy="selectin")

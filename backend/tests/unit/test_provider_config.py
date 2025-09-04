@@ -1,6 +1,6 @@
 """Tests for LLM provider and parameter configuration."""
 
-from uuid import UUID, uuid4
+from pydantic import UUID4, uuid4
 
 import pytest
 from pydantic import SecretStr
@@ -76,7 +76,7 @@ def test_create_provider(provider_service: LLMProviderService, valid_provider_in
     assert str(saved_provider.base_url) == "https://us-south.ml.cloud.ibm.com"
     assert saved_provider.project_id == "test-project"
     assert saved_provider.is_active
-    assert isinstance(saved_provider.id, UUID)
+    assert isinstance(saved_provider.id, UUID4)
 
 
 def test_create_provider_validation_error(provider_service: LLMProviderService):

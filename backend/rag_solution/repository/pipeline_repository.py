@@ -4,7 +4,7 @@ This module provides database operations for pipeline configurations while maint
 strict type boundaries and clean separation of concerns.
 """
 
-from uuid import UUID
+from pydantic import UUID4
 
 from sqlalchemy.orm import Session, joinedload
 
@@ -32,11 +32,11 @@ class PipelineConfigRepository:
         """
         self.db = db
 
-    def get_user_default(self, user_id: UUID) -> PipelineConfigOutput | None:
+    def get_user_default(self, user_id: UUID4) -> PipelineConfigOutput | None:
         """Get the default pipeline for a user (non-collection specific).
 
         Args:
-            user_id: UUID of the user
+            user_id: UUID4 of the user
 
         Returns:
             Optional[PipelineConfigOutput]: The default pipeline configuration if found
@@ -58,7 +58,7 @@ class PipelineConfigRepository:
         except Exception as e:
             raise RepositoryError(f"Failed to get user default pipeline: {e!s}") from e
 
-    def get_collection_default(self, collection_id: UUID) -> PipelineConfigOutput | None:
+    def get_collection_default(self, collection_id: UUID4) -> PipelineConfigOutput | None:
         """Get the default pipeline for a collection.
 
         Args:
@@ -102,7 +102,7 @@ class PipelineConfigRepository:
             self.db.rollback()
             raise RepositoryError(f"Failed to create pipeline configuration: {e!s}") from e
 
-    def get_by_id(self, pipeline_id: UUID) -> PipelineConfigOutput:
+    def get_by_id(self, pipeline_id: UUID4) -> PipelineConfigOutput:
         """Get pipeline configuration by ID.
 
         Args:
@@ -127,11 +127,11 @@ class PipelineConfigRepository:
         except Exception as e:
             raise Exception(f"Failed to get pipeline by ID: {e!s}") from e
 
-    def get_by_user(self, user_id: UUID) -> list[PipelineConfigOutput]:
+    def get_by_user(self, user_id: UUID4) -> list[PipelineConfigOutput]:
         """Get all pipelines for a user with optional filtering.
 
         Args:
-            user_id: UUID of the user
+            user_id: UUID4 of the user
             filters: Optional filter parameters
 
         Returns:
@@ -151,7 +151,7 @@ class PipelineConfigRepository:
         except Exception as e:
             raise RepositoryError(f"Failed to get pipelines for user: {e!s}") from e
 
-    def update(self, id: UUID, config: PipelineConfigInput) -> PipelineConfigOutput:
+    def update(self, id: UUID4, config: PipelineConfigInput) -> PipelineConfigOutput:
         """Update an existing pipeline configuration.
 
         Args:
@@ -194,7 +194,7 @@ class PipelineConfigRepository:
             self.db.rollback()
             raise Exception(f"Failed to update pipeline configuration: {e!s}") from e
 
-    def delete(self, id: UUID) -> bool:
+    def delete(self, id: UUID4) -> bool:
         """Delete a pipeline configuration.
 
         Args:
@@ -214,7 +214,7 @@ class PipelineConfigRepository:
             self.db.rollback()
             raise RepositoryError(f"Failed to delete pipeline configuration: {e!s}") from e
 
-    def clear_collection_defaults(self, collection_id: UUID) -> None:
+    def clear_collection_defaults(self, collection_id: UUID4) -> None:
         """Clear default flags for all pipelines in a collection.
 
         Args:
@@ -232,11 +232,11 @@ class PipelineConfigRepository:
             self.db.rollback()
             raise RepositoryError(f"Failed to clear collection defaults: {e!s}") from e
 
-    def clear_user_defaults(self, user_id: UUID) -> None:
+    def clear_user_defaults(self, user_id: UUID4) -> None:
         """Clear default flags for all user's non-collection pipelines.
 
         Args:
-            user_id: UUID of the user
+            user_id: UUID4 of the user
 
         Raises:
             RepositoryError: If operation fails

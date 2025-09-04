@@ -1,6 +1,7 @@
 """Utility functions for CLI search testing."""
 
 import json
+import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -252,13 +253,13 @@ def load_test_queries(file_path: str) -> list[dict[str, Any]]:
 
 def validate_collection_access(collection_id: str, db: Any) -> bool:
     """Validate that collection exists and is accessible."""
-    from uuid import UUID
+    from pydantic import UUID4
 
     from rag_solution.services.collection_service import CollectionService
 
     try:
         collection_service = CollectionService(db)
-        collection = collection_service.get_collection_by_id(UUID(collection_id))
+        collection = collection_service.get_collection_by_id(uuid.UUID(collection_id))
         return collection is not None
     except Exception:
         return False

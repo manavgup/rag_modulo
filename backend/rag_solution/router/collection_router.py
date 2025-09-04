@@ -1,19 +1,26 @@
-from uuid import UUID
+from pydantic import UUID4
 
-from fastapi import APIRouter, BackgroundTasks, Body, Depends, File, Form, HTTPException, Response, UploadFile
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Body,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    Response,
+    UploadFile,
+)
 from sqlalchemy.orm import Session
 
 from core.custom_exceptions import NotFoundError, ValidationError
 from core.logging_utils import get_logger
-from rag_solution.core.dependencies import verify_user_access
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput
 from rag_solution.schemas.file_schema import DocumentDelete, FileMetadata, FileOutput
-
-# New Imports for LLMParameters and PromptTemplates
 from rag_solution.schemas.question_schema import QuestionInput, QuestionOutput
 from rag_solution.schemas.user_collection_schema import UserCollectionOutput
-from rag_solution.schemas.user_schema import UserOutput
 from rag_solution.services.collection_service import CollectionService
 from rag_solution.services.file_management_service import FileManagementService
 from rag_solution.services.question_service import QuestionService
@@ -22,6 +29,56 @@ from rag_solution.services.user_collection_service import UserCollectionService
 logger = get_logger("router.collections")
 
 router = APIRouter(prefix="/api/collections", tags=["collections"])
+
+
+@router.post("/debug-form-data")
+async def debug_form_data(
+    request: Request,
+    collection_name: str = Form(...),
+) -> dict:
+    """Debug endpoint to test form data parsing without database dependency."""
+    # Get user from authenticated JWT token
+    current_user = request.state.user
+    user_id = current_user.get("uuid")
+    
+    logger.debug("=== DEBUG FORM DATA ===")
+    logger.debug(f"Collection name: {collection_name}")
+    logger.debug(f"User ID from JWT: {user_id}")
+    logger.debug(f"Request URL: {request.url}")
+    logger.debug(f"Request query params: {dict(request.query_params)}")
+    logger.debug("=== END DEBUG FORM DATA ===")
+    
+    return {
+        "collection_name": collection_name,
+        "user_id": str(user_id),
+        "query_params": dict(request.query_params)
+    }
+
+
+@router.post("/debug-form-data-with-db")
+async def debug_form_data_with_db(
+    request: Request,
+    collection_name: str = Form(...),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Debug endpoint to test form data parsing WITH database dependency."""
+    # Get user from authenticated JWT token
+    current_user = request.state.user
+    user_id = current_user.get("uuid")
+    
+    logger.info("=== DEBUG FORM DATA WITH DB ===")
+    logger.info(f"Collection name: {collection_name}")
+    logger.info(f"User ID from JWT: {user_id}")
+    logger.info(f"Request URL: {request.url}")
+    logger.info(f"Request query params: {dict(request.query_params)}")
+    logger.info("=== END DEBUG FORM DATA WITH DB ===")
+    
+    return {
+        "collection_name": collection_name,
+        "user_id": str(user_id),
+        "query_params": dict(request.query_params),
+        "db_connected": db is not None
+    }
 
 
 @router.post(
@@ -80,24 +137,22 @@ def create_collection(collection_input: CollectionInput, db: Session = Depends(g
     },
 )
 async def create_collection_with_documents(
+    request: Request,
     collection_name: str = Form(...),
     is_private: bool = Form(...),
-    user_id: UUID = Form(...),
     files: list[UploadFile] = File(...),
     background_tasks: BackgroundTasks = BackgroundTasks(),
-    user: UserOutput = Depends(verify_user_access),
     db: Session = Depends(get_db),
 ) -> CollectionOutput:
     """
     Create a new collection with documents.
 
     Args:
+        request (Request): The HTTP request object containing user authentication.
         collection_name (str): The name of the collection.
         is_private (bool): Whether the collection is private.
-        user_id (uuid.UUID): The ID of the user creating the collection.
         files (List[UploadFile]): The list of files to be added to the collection.
         background_tasks (BackgroundTasks): Background tasks for processing.
-        user (UserOutput): The authenticated user.
         db (Session): The database session.
 
     Returns:
@@ -106,6 +161,23 @@ async def create_collection_with_documents(
     Raises:
         HTTPException: If validation fails or creation fails
     """
+    # Verify authentication and authorization
+    if not request or not hasattr(request.state, "user"):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    current_user = request.state.user
+    user_id = current_user.get("uuid")
+    
+    logger.info("=== COLLECTION ROUTER DEBUG ===")
+    logger.info(f"Creating collection with documents: {collection_name}")
+    logger.info(f"User ID from JWT: {user_id}")
+    logger.info(f"Files count: {len(files)}")
+    logger.info(f"Is private: {is_private}")
+    logger.info(f"Request URL: {request.url}")
+    logger.info(f"Request query params: {dict(request.query_params)}")
+    logger.info(f"Request headers: {dict(request.headers)}")
+    logger.info("=== END COLLECTION ROUTER DEBUG ===")
+    
     try:
         collection_service = CollectionService(db)
         collection = collection_service.create_collection_with_documents(
@@ -135,7 +207,7 @@ async def create_collection_with_documents(
         500: {"description": "Internal server error"},
     },
 )
-def get_collection(collection_id: UUID, db: Session = Depends(get_db)) -> CollectionOutput:
+def get_collection(collection_id: UUID4, db: Session = Depends(get_db)) -> CollectionOutput:
     """
     Retrieve a collection by id.
 
@@ -175,7 +247,7 @@ def get_collection(collection_id: UUID, db: Session = Depends(get_db)) -> Collec
     },
 )
 def create_collection_question(
-    collection_id: UUID,
+    collection_id: UUID4,
     question_input: QuestionInput = Body(..., description="Question input data"),
     db: Session = Depends(get_db),
 ) -> QuestionOutput:
@@ -219,7 +291,7 @@ def create_collection_question(
         500: {"description": "Internal server error"},
     },
 )
-def get_collection_questions(collection_id: UUID, db: Session = Depends(get_db)) -> list[QuestionOutput]:
+def get_collection_questions(collection_id: UUID4, db: Session = Depends(get_db)) -> list[QuestionOutput]:
     """
     Get all questions for a collection.
 
@@ -256,7 +328,7 @@ def get_collection_questions(collection_id: UUID, db: Session = Depends(get_db))
         500: {"description": "Internal server error"},
     },
 )
-def delete_collection_question(collection_id: UUID, question_id: UUID, db: Session = Depends(get_db)) -> None:
+def delete_collection_question(collection_id: UUID4, question_id: UUID4, db: Session = Depends(get_db)) -> None:
     """
     Delete a specific question from a collection.
 
@@ -290,7 +362,7 @@ def delete_collection_question(collection_id: UUID, question_id: UUID, db: Sessi
         500: {"description": "Internal server error"},
     },
 )
-def delete_collection_questions(collection_id: UUID, db: Session = Depends(get_db)) -> Response:
+def delete_collection_questions(collection_id: UUID4, db: Session = Depends(get_db)) -> Response:
     """
     Delete all questions for a collection.
 
@@ -323,7 +395,7 @@ def delete_collection_questions(collection_id: UUID, db: Session = Depends(get_d
         500: {"description": "Internal server error"},
     },
 )
-def delete_collection(collection_id: UUID, db: Session = Depends(get_db)) -> Response:
+def delete_collection(collection_id: UUID4, db: Session = Depends(get_db)) -> Response:
     """
     Delete a collection by id.
 
@@ -360,7 +432,7 @@ def delete_collection(collection_id: UUID, db: Session = Depends(get_db)) -> Res
         500: {"description": "Internal server error"},
     },
 )
-def get_collection_users(collection_id: UUID, db: Session = Depends(get_db)) -> list[UserCollectionOutput]:
+def get_collection_users(collection_id: UUID4, db: Session = Depends(get_db)) -> list[UserCollectionOutput]:
     """
     Get all users associated with a collection.
 
@@ -395,7 +467,7 @@ def get_collection_users(collection_id: UUID, db: Session = Depends(get_db)) -> 
         500: {"description": "Internal server error"},
     },
 )
-def remove_all_users_from_collection(collection_id: UUID, db: Session = Depends(get_db)) -> Response:
+def remove_all_users_from_collection(collection_id: UUID4, db: Session = Depends(get_db)) -> Response:
     """
     Remove all users from a collection.
 
@@ -429,7 +501,7 @@ def remove_all_users_from_collection(collection_id: UUID, db: Session = Depends(
         500: {"description": "Internal server error"},
     },
 )
-def get_collection_files(collection_id: UUID, db: Session = Depends(get_db)) -> list[str]:
+def get_collection_files(collection_id: UUID4, db: Session = Depends(get_db)) -> list[str]:
     """
     Get a list of files in a specific collection.
 
@@ -464,7 +536,7 @@ def get_collection_files(collection_id: UUID, db: Session = Depends(get_db)) -> 
         500: {"description": "Internal server error"},
     },
 )
-def get_file_path(collection_id: UUID, filename: str, db: Session = Depends(get_db)) -> dict[str, str]:
+def get_file_path(collection_id: UUID4, filename: str, db: Session = Depends(get_db)) -> dict[str, str]:
     """
     Get the file path for a specific file in a collection.
 
@@ -506,7 +578,7 @@ def get_file_path(collection_id: UUID, filename: str, db: Session = Depends(get_
         500: {"description": "Internal server error"},
     },
 )
-def delete_files(collection_id: UUID, doc_delete: DocumentDelete, db: Session = Depends(get_db)) -> None:
+def delete_files(collection_id: UUID4, doc_delete: DocumentDelete, db: Session = Depends(get_db)) -> None:
     """
     Delete files from a collection.
 
@@ -546,7 +618,7 @@ def delete_files(collection_id: UUID, doc_delete: DocumentDelete, db: Session = 
     },
 )
 def update_file_metadata(
-    collection_id: UUID, file_id: UUID, metadata: FileMetadata, db: Session = Depends(get_db)
+    collection_id: UUID4, file_id: UUID4, metadata: FileMetadata, db: Session = Depends(get_db)
 ) -> FileOutput:
     """
     Update metadata for a specific file.

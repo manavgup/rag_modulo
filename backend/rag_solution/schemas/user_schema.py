@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, UUID4
@@ -23,7 +21,7 @@ class UserInput(BaseModel):
     email: EmailStr
     name: str = Field(..., min_length=1)
     role: str = Field(default="user")
-    preferred_provider_id: UUID4 | None = Field(None, description="User's preferred LLM provider")  # 👈 Add this
+    preferred_provider_id: UUID4 | None = Field(default=None, description="User's preferred LLM provider")
 
 
 class UserOutput(BaseModel):

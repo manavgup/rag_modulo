@@ -1,6 +1,6 @@
 """Integration tests for PipelineService."""
 
-from uuid import UUID
+from pydantic import UUID4
 
 import pytest
 from fastapi import HTTPException
@@ -20,7 +20,7 @@ def search_input(base_collection) -> SearchInput:
     return SearchInput(
         question="What are the main features of Python?",
         collection_id=base_collection.id,
-        pipeline_id=UUID("00000000-0000-0000-0000-000000000000"),
+        pipeline_id=UUID4("00000000-0000-0000-0000-000000000000"),
         context={},
     )
 
@@ -188,14 +188,14 @@ def test_validate_pipeline(pipeline_service, default_pipeline_config):
 def test_invalid_pipeline_id(pipeline_service, base_collection):
     """Test handling of invalid pipeline ID."""
     with pytest.raises(NotFoundError):
-        pipeline_service.get_pipeline_config(UUID("00000000-0000-0000-0000-000000000000"))
+        pipeline_service.get_pipeline_config(UUID4("00000000-0000-0000-0000-000000000000"))
 
 
 def test_invalid_collection_id(pipeline_service, default_pipeline_config, base_user, base_collection):
     """Test handling of invalid collection ID."""
     config_input = PipelineConfigInput(
         name="test-pipeline",
-        collection_id=UUID("00000000-0000-0000-0000-000000000000"),  # Invalid ID
+        collection_id=UUID4("00000000-0000-0000-0000-000000000000"),  # Invalid ID
         embedding_model="sentence-transformers/all-MiniLM-L6-v2",
         user_id=base_user.id,
         provider_id=default_pipeline_config.provider_id,

@@ -91,7 +91,7 @@ pytest --cov=rag_solution
 ### Example Test with Atomic Fixtures
 ```python
 import pytest
-from uuid import UUID
+from pydantic import UUID4
 from typing import Optional, List
 from datetime import datetime
 
