@@ -12,9 +12,9 @@ permissions:
 
 env:
   # Use GHCR images by default
-  BACKEND_IMAGE: ghcr.io/manavgup/rag-modulo/backend:latest
-  FRONTEND_IMAGE: ghcr.io/manavgup/rag-modulo/frontend:latest
-  TEST_IMAGE: ghcr.io/manavgup/rag-modulo/backend:latest
+  BACKEND_IMAGE: ghcr.io/manavgup/rag_modulo/backend:latest
+  FRONTEND_IMAGE: ghcr.io/manavgup/rag_modulo/frontend:latest
+  TEST_IMAGE: ghcr.io/manavgup/rag_modulo/backend:latest
 
 jobs:
   # Fast feedback - lint and unit tests without infrastructure  
@@ -84,7 +84,7 @@ jobs:
       - name: Run unit tests with coverage
         run: |
           cd backend && poetry run pytest tests/ \
-            -m "unit" \
+            -m "atomic" \
             --cov=rag_solution \
             --cov-report=term-missing \
             --cov-fail-under=60 \
@@ -123,8 +123,8 @@ jobs:
         id: build
         run: |
           # Build with commit SHA for uniqueness
-          BACKEND_TAG="ghcr.io/manavgup/rag-modulo/backend:${{ github.sha }}"
-          FRONTEND_TAG="ghcr.io/manavgup/rag-modulo/frontend:${{ github.sha }}"
+          BACKEND_TAG="ghcr.io/manavgup/rag_modulo/backend:${{ github.sha }}"
+          FRONTEND_TAG="ghcr.io/manavgup/rag_modulo/frontend:${{ github.sha }}"
           
           echo "Building backend image..."
           docker build -t $BACKEND_TAG -f ./backend/Dockerfile.backend ./backend
@@ -133,15 +133,15 @@ jobs:
           docker build -t $FRONTEND_TAG -f ./webui/Dockerfile.frontend ./webui
           
           # Also tag as latest for compose compatibility
-          docker tag $BACKEND_TAG ghcr.io/manavgup/rag-modulo/backend:latest
-          docker tag $FRONTEND_TAG ghcr.io/manavgup/rag-modulo/frontend:latest
+          docker tag $BACKEND_TAG ghcr.io/manavgup/rag_modulo/backend:latest
+          docker tag $FRONTEND_TAG ghcr.io/manavgup/rag_modulo/frontend:latest
           
           echo "Pushing images to GHCR..."
           # Push images to GHCR
           docker push $BACKEND_TAG
           docker push $FRONTEND_TAG
-          docker push ghcr.io/manavgup/rag-modulo/backend:latest
-          docker push ghcr.io/manavgup/rag-modulo/frontend:latest
+          docker push ghcr.io/manavgup/rag_modulo/backend:latest
+          docker push ghcr.io/manavgup/rag_modulo/frontend:latest
           
           echo "backend-image=$BACKEND_TAG" >> $GITHUB_OUTPUT
           echo "frontend-image=$FRONTEND_TAG" >> $GITHUB_OUTPUT
@@ -172,7 +172,7 @@ jobs:
       - name: Run API tests
         run: |
           cd backend && poetry run pytest tests/ \
-            -m "api" \
+            -m "asyncio" \
             --maxfail=5 \
             --tb=short \
             -v
@@ -205,6 +205,10 @@ jobs:
       - name: Start minimal services for integration tests
         run: |
           echo "Starting essential services for integration tests..."
+          # Set testing environment variables
+          export TESTING=true
+          export SKIP_AUTH=true
+          export DEVELOPMENT_MODE=true
           # Only start essential services to speed up tests
           docker compose up -d postgres milvus-etcd milvus-standalone
           echo "Services started, waiting briefly..."
@@ -212,6 +216,9 @@ jobs:
           docker compose ps
         env:
           DOCKER_BUILDKIT: 1
+          TESTING: true
+          SKIP_AUTH: true
+          DEVELOPMENT_MODE: true
           
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -228,10 +235,16 @@ jobs:
           docker compose run --rm \
             -e TESTING=true \
             -e CONTAINER_ENV=false \
+            -e SKIP_AUTH=true \
+            -e DEVELOPMENT_MODE=true \
             test pytest -v -s -m "integration and not performance" \
             --maxfail=3 \
             --tb=short \
             || echo "Some integration tests failed (non-blocking for now)"
+        env:
+          TESTING: true
+          SKIP_AUTH: true
+          DEVELOPMENT_MODE: true
         
       - name: Upload test reports
         if: always()

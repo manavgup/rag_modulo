@@ -70,3 +70,10 @@ repos:
         language: system
         files: ^backend/(pyproject\.toml|poetry\.lock)$
         pass_filenames: false
+        
+      - id: validate-ci-environment-fixes
+        name: Validate CI environment configuration
+        entry: python scripts/validate_ci_fixes.py
+        language: system
+        files: ^(backend/auth/oidc\.py|backend/core/authentication_middleware\.py|docker-compose\.yml|\.github/workflows/ci\.yml|\.env\.ci)$
+        pass_filenames: false

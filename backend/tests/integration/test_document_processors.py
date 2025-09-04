@@ -73,6 +73,7 @@ def complex_test_pdf_path():
 
 
 # Base Test Class
+@pytest.mark.integration
 class TestDocumentProcessors:
     """Consolidated test class for all document processors."""
 

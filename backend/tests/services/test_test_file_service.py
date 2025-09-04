@@ -79,6 +79,7 @@ def mock_metadata():
     )
 
 
+@pytest.mark.atomic
 def test_create_file_record(file_management_service, collection, mock_upload_file):
     file_record = file_management_service.upload_and_create_file_record(
         mock_upload_file, collection.user_ids[0], collection.id

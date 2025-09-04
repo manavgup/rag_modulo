@@ -9,6 +9,7 @@ from rag_solution.schemas.collection_schema import CollectionStatus
 from .base_test import BaseTestRouter
 
 
+@pytest.mark.api
 class TestSearchAndCollections(BaseTestRouter):
     """Test search and collection-related endpoints."""
 

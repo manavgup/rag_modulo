@@ -93,7 +93,7 @@ build-frontend:
 	@echo "Building and pushing frontend image..."
 	@if [ "$(BUILDX_AVAILABLE)" = "yes" ]; then \
 		echo "Using Docker BuildKit with buildx..."; \
-		cd webui && $(CONTAINER_CLI) buildx build --platform linux/amd64 -t ${GHCR_REPO}/frontend:${PROJECT_VERSION} -t ${GHCR_REPO}/frontend:latest -f Dockerfile.frontend . --push; \
+		cd webui && $(CONTAINER_CLI) buildx build -t ${GHCR_REPO}/frontend:${PROJECT_VERSION} -t ${GHCR_REPO}/frontend:latest -f Dockerfile.frontend . --push; \
 	else \
 		echo "Using standard Docker build (buildx not available)..."; \
 		cd webui && $(CONTAINER_CLI) build -t ${GHCR_REPO}/frontend:${PROJECT_VERSION} -t ${GHCR_REPO}/frontend:latest -f Dockerfile.frontend .; \
@@ -105,7 +105,7 @@ build-backend:
 	@echo "Building and pushing backend image..."
 	@if [ "$(BUILDX_AVAILABLE)" = "yes" ]; then \
 		echo "Using Docker BuildKit with buildx..."; \
-		cd backend && $(CONTAINER_CLI) buildx build --platform linux/amd64 -t ${GHCR_REPO}/backend:${PROJECT_VERSION} -t ${GHCR_REPO}/backend:latest -f Dockerfile.backend . --push; \
+		cd backend && $(CONTAINER_CLI) buildx build -t ${GHCR_REPO}/backend:${PROJECT_VERSION} -t ${GHCR_REPO}/backend:latest -f Dockerfile.backend . --push; \
 	else \
 		echo "Using standard Docker build (buildx not available)..."; \
 		cd backend && $(CONTAINER_CLI) build -t ${GHCR_REPO}/backend:${PROJECT_VERSION} -t ${GHCR_REPO}/backend:latest -f Dockerfile.backend .; \
@@ -117,7 +117,7 @@ build-tests:
 	@echo "Building test image..."
 	@if [ "$(BUILDX_AVAILABLE)" = "yes" ]; then \
 		echo "Using Docker BuildKit with buildx..."; \
-		cd backend && $(CONTAINER_CLI) buildx build --platform linux/amd64 -t ${GHCR_REPO}/backend:test-${PROJECT_VERSION} -f Dockerfile.test . --push; \
+		cd backend && $(CONTAINER_CLI) buildx build -t ${GHCR_REPO}/backend:test-${PROJECT_VERSION} -f Dockerfile.test . --push; \
 	else \
 		echo "Using standard Docker build (buildx not available)..."; \
 		cd backend && $(CONTAINER_CLI) build -t ${GHCR_REPO}/backend:test-${PROJECT_VERSION} -f Dockerfile.test .; \

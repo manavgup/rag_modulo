@@ -13,6 +13,7 @@ from rag_solution.services.prompt_template_service import PromptTemplateService
 
 
 @pytest.fixture
+@pytest.mark.integration
 def test_parameters() -> dict[str, LLMParametersInput]:
     """Test LLM parameters for each provider."""
     return {

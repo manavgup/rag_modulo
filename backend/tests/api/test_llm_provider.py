@@ -10,6 +10,7 @@ from rag_solution.schemas.llm_model_schema import ModelType
 from .base_test import BaseTestRouter
 
 
+@pytest.mark.api
 class TestLLMProvider(BaseTestRouter):
     """Test LLM provider and model configuration endpoints."""
 

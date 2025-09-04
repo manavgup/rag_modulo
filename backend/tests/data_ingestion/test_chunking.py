@@ -17,6 +17,7 @@ from rag_solution.data_ingestion.chunking import (
 )
 
 
+@pytest.mark.atomic
 def test_split_sentences():
     """Test sentence splitting functionality."""
     # Test basic sentence splitting

@@ -78,6 +78,7 @@ class BaseStoreTest:
             ),
         ]
 
+    @pytest.mark.integration
     def test_add_documents(self, store):
         documents = self.create_test_documents()
         with store as s:
