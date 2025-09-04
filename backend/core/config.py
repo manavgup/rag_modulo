@@ -10,10 +10,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     """Application settings with environment variable loading."""
 
-    model_config = SettingsConfigDict(
-        extra="allow",
-        validate_default=True
-    )
+    model_config = SettingsConfigDict(extra="allow", validate_default=True)
 
     # Required settings
     jwt_secret_key: str
@@ -76,27 +73,9 @@ class Settings(BaseSettings):
     question_min_length: int = Field(default=15)
     question_max_length: int = Field(default=150)
     question_temperature: float = Field(default=0.7)
-    question_types: list[str] = Field(
-        default=[
-            "What is",
-            "How does",
-            "Why is",
-            "When should",
-            "Which factors"
-        ]
-    )
-    question_patterns: list[str] = Field(
-        default=[
-            "^What",
-            "^How",
-            "^Why",
-            "^When",
-            "^Which"
-        ]
-    )
-    question_required_terms: list[str] = Field(
-        default=[]
-    )
+    question_types: list[str] = Field(default=["What is", "How does", "Why is", "When should", "Which factors"])
+    question_patterns: list[str] = Field(default=["^What", "^How", "^Why", "^When", "^Which"])
+    question_required_terms: list[str] = Field(default=[])
 
     # Frontend settings
     react_app_api_url: Annotated[str, Field(default="/api", env="REACT_APP_API_URL")]
@@ -185,15 +164,39 @@ class Settings(BaseSettings):
             r"^/api/users/(.+)/llm-parameters.*$": ["GET", "POST", "PUT", "DELETE"],
             r"^/api/users/(.+)/prompt-templates.*$": ["GET", "POST", "PUT", "DELETE"],
             r"^/api/users/(.+)/pipelines.*$": ["GET", "POST", "PUT", "DELETE"],
-            r"^/api/users/(.+)/collections.*$": ["GET", "POST", "PUT", "DELETE"]
+            r"^/api/users/(.+)/collections.*$": ["GET", "POST", "PUT", "DELETE"],
         },
         "guest": {
             r"^/api/user-collections$": ["GET", "POST", "DELETE", "PUT"],
             r"^/api/collections$": ["GET", "POST", "DELETE", "PUT"],
-            r"^/api/collection/(.+)$": ["GET", "POST", "DELETE", "PUT"]
-        }
+            r"^/api/collection/(.+)$": ["GET", "POST", "DELETE", "PUT"],
+        },
     }
 
 
-# Singleton for settings
-settings = Settings()
+# Singleton for settings - lazy initialization to support testing
+_settings_instance = None
+
+
+def get_settings() -> Settings:
+    """Get the global settings instance, creating it if necessary."""
+    global _settings_instance
+    if _settings_instance is None:
+        _settings_instance = Settings()
+    return _settings_instance
+
+
+# For backward compatibility, create a property-like access
+class _SettingsProxy:
+    def __getattr__(self, name):
+        return getattr(get_settings(), name)
+
+    def __setattr__(self, name, value):
+        # Allow setting attributes for testing
+        if name.startswith("_"):
+            super().__setattr__(name, value)
+        else:
+            setattr(get_settings(), name, value)
+
+
+settings = _SettingsProxy()
