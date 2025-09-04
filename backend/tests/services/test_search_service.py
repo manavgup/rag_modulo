@@ -1,11 +1,11 @@
 """Tests for SearchService with PipelineService integration."""
 
-from pydantic import UUID4, uuid4
+from unittest.mock import patch
 
 import pytest
 from fastapi import HTTPException
+from pydantic import UUID4, uuid4
 
-from core.config import settings
 from rag_solution.schemas.collection_schema import CollectionInput
 from rag_solution.schemas.search_schema import SearchInput, SearchOutput
 from rag_solution.schemas.user_schema import UserInput, UserOutput
@@ -110,6 +110,7 @@ async def test_search_unauthorized_collection(search_service, user_service, coll
 # 🧪 Multiple Document Tests
 # -------------------------------------------
 @pytest.mark.asyncio
+@patch("core.config.settings.embedding_model", "test-embedding-model")
 async def test_search_multiple_documents(
     search_service, base_user: UserOutput, base_collection, base_pipeline_config, vector_store, provider_factory
 ):
@@ -143,7 +144,7 @@ async def test_search_multiple_documents(
 
     # Add documents to vector store
     vector_store.delete_collection(base_collection.vector_db_name)
-    vector_store.create_collection(base_collection.vector_db_name, {"embedding_model": settings.embedding_model})
+    vector_store.create_collection(base_collection.vector_db_name, {"embedding_model": "test-embedding-model"})
     vector_store.add_documents(base_collection.vector_db_name, documents)
 
     # Perform search

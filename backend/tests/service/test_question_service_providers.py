@@ -1,22 +1,28 @@
 """Tests for question service provider integration."""
 
+from unittest.mock import patch
+
 import pytest
 from sqlalchemy.orm import Session
 
-from core.config import settings
 from rag_solution.models.prompt_template import PromptTemplate
 from rag_solution.schemas.prompt_template_schema import PromptTemplateType
 from rag_solution.services.question_service import QuestionService
 
 
-@pytest.mark.skipif(
-    not settings.wx_api_key or not settings.wx_url or not settings.wx_project_id,
-    reason="WatsonX credentials not configured",
-)
 @pytest.mark.asyncio
 @pytest.mark.atomic
-async def test_question_generation_with_watsonx(db_session: Session, base_user, base_collection):
+@patch("rag_solution.services.question_service.ProviderFactory")
+async def test_question_generation_with_watsonx(mock_provider_factory, db_session: Session, base_user, base_collection):
     """Test question generation using WatsonX provider."""
+    # Mock the provider factory and WatsonX provider
+    mock_watsonx = mock_provider_factory.return_value.get_provider.return_value
+    mock_watsonx.generate_questions.return_value = [
+        "What is Python?",
+        "Who created Python?",
+        "What are Python's key features?",
+    ]
+
     # Create template
     template = PromptTemplate(
         name="test-question-template",

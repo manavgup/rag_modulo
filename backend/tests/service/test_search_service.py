@@ -1,12 +1,13 @@
 """Tests for SearchService with PipelineService integration."""
 
 import uuid
+from unittest.mock import patch
 
 import pytest
 from fastapi import HTTPException
+from pydantic import UUID4
 from sqlalchemy.orm import Session
 
-from core.config import settings
 from core.custom_exceptions import ConfigurationError, LLMProviderError
 from core.logging_utils import get_logger
 from rag_solution.schemas.collection_schema import CollectionInput
@@ -146,6 +147,9 @@ async def test_search_unauthorized_collection(search_service: SearchService, db_
 
 
 @pytest.mark.asyncio
+@patch("core.config.settings.milvus_host", "test-milvus-host")
+@patch("core.config.settings.milvus_port", 19530)
+@patch("core.config.settings.embedding_model", "test-embedding-model")
 async def test_search_multiple_documents(
     search_service: SearchService, db_session, base_user, base_collection, base_pipeline_config, provider_factory
 ):
@@ -153,7 +157,7 @@ async def test_search_multiple_documents(
     file_service = FileManagementService(db_session)
     watsonx = provider_factory.get_provider("watsonx")
     store = MilvusStore()
-    store._connect(settings.milvus_host, settings.milvus_port)
+    store._connect("test-milvus-host", 19530)
 
     # Create multiple test files
     files_data = [
@@ -193,7 +197,7 @@ async def test_search_multiple_documents(
 
     # Add documents to vector store
     store.delete_collection(base_collection.vector_db_name)
-    store.create_collection(base_collection.vector_db_name, {"embedding_model": settings.embedding_model})
+    store.create_collection(base_collection.vector_db_name, {"embedding_model": "test-embedding-model"})
     store.add_documents(base_collection.vector_db_name, documents)
 
     # Perform search
