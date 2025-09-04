@@ -7,6 +7,7 @@ import pytest
 from .base_test import BaseTestRouter
 
 
+@pytest.mark.api
 class TestUserManagement(BaseTestRouter):
     """Test user-related endpoints including teams."""
 

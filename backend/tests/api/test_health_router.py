@@ -109,6 +109,7 @@ def mock_health_checks():
         }
 
 
+@pytest.mark.api
 class TestHealthCheck:
     @pytest.mark.asyncio
     async def test_health_check_success(self, async_client, mock_health_checks, auth_headers, mock_auth_middleware):  # noqa: ARG002

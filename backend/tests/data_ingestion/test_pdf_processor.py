@@ -126,6 +126,7 @@ def ibm_annual_report_path():
     return "/Users/mg/Downloads/IBM_Annual_Report_2022.pdf"
 
 
+@pytest.mark.atomic
 def test_pdf_processor_initialization(pdf_processor):
     """Test initialization of PdfProcessor."""
     assert pdf_processor is not None

@@ -5,6 +5,7 @@ import pytest
 from vectordbs.data_types import Document, QueryWithEmbedding
 
 
+@pytest.mark.integration
 class TestVectorStore:
     """
     A generic test class for VectorStore implementations.
