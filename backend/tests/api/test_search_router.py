@@ -1,5 +1,7 @@
 """Tests for search router endpoints."""
 
+from collections.abc import Generator
+from typing import Any
 from uuid import uuid4
 
 import pytest
@@ -11,7 +13,7 @@ from rag_solution.file_management.database import get_db
 from rag_solution.models.collection import Collection
 from rag_solution.models.file import File
 from rag_solution.models.llm_parameters import LLMParameters
-from rag_solution.models.llm_provider import LLMProvider, LLMProviderModel
+from rag_solution.models.llm_provider import LLMProvider
 from rag_solution.models.prompt_template import PromptTemplate
 from rag_solution.router.search_router import router
 from vectordbs.data_types import FileMetadata
@@ -23,16 +25,16 @@ app.include_router(router)
 
 @pytest.fixture
 @pytest.mark.api
-def test_db(db: Session):
+def test_db(db: Session) -> Session:
     """Get test database session."""
     return db
 
 
 @pytest.fixture
-def client(test_db: Session):
+def client(test_db: Session) -> Generator[TestClient, None, None]:
     """Create test client with database override."""
 
-    def override_get_db():
+    def override_get_db() -> None:
         try:
             yield test_db
         finally:
@@ -47,7 +49,7 @@ def client(test_db: Session):
 
 
 @pytest.fixture
-def test_collection(test_db: Session):
+def test_collection(test_db: Session) -> Collection:
     """Create test collection."""
     collection = Collection(name="test-collection", description="Test collection", vector_db_name="test_collection")
     test_db.add(collection)
@@ -56,13 +58,13 @@ def test_collection(test_db: Session):
 
 
 @pytest.fixture
-def test_file(test_db: Session, test_collection: Collection):
+def test_file(test_db: Session, test_collection: Collection) -> File:
     """Create test file."""
     file = File(
         filename="test.txt",
         document_id="doc1",
         collection_id=test_collection.id,
-        metadata=FileMetadata(total_pages=1, total_chunks=1, keywords=["test"]),
+        metadata=FileMetadata(total_pages=1, total_chunks=1, keywords={"tags": "test"}),  # type: ignore[arg-type]
     )
     test_db.add(file)
     test_db.commit()
@@ -70,30 +72,26 @@ def test_file(test_db: Session, test_collection: Collection):
 
 
 @pytest.fixture
-def test_config(test_db: Session):
+def test_config(test_db: Session) -> dict[str, Any]:
     """Create test configurations."""
     # Create LLM parameters
-    params = LLMParameters(
-        name="test-params", max_new_tokens=100, temperature=0.7, top_k=50, top_p=1.0, is_default=True
-    )
+    params = LLMParameters(name="test-params", max_new_tokens=100, temperature=0.7, top_k=50, top_p=1.0, is_default=True)
     test_db.add(params)
     test_db.commit()
 
     # Create provider and model
-    provider = LLMProvider(
-        name="test-provider", base_url="https://api.test.com", api_key="test-key", is_default=True, is_active=True
-    )
+    provider = LLMProvider(name="test-provider", base_url="https://api.test.com", api_key="test-key", is_default=True, is_active=True)
     test_db.add(provider)
     test_db.commit()
 
-    provider_model = LLMProviderModel(
-        provider_id=provider.id,
-        model_id="test-model",
-        default_model_id="default-model",
-        is_default=True,
-        is_active=True,
-    )
-    test_db.add(provider_model)
+    # provider_model = LLMProviderModel(  # Class doesn't exist
+    #     provider_id=provider.id,
+    #     model_id="test-model",
+    #     default_model_id="default-model",
+    #     is_default=True,
+    #     is_active=True,
+    # )
+    # test_db.add(provider_model)
 
     # Create prompt template
     template = PromptTemplate(
@@ -112,9 +110,7 @@ def test_config(test_db: Session):
 
 
 @pytest.mark.asyncio
-async def test_search_endpoint_success(
-    client: TestClient, test_collection: Collection, test_file: File, test_config: dict
-):
+async def test_search_endpoint_success(client: TestClient, test_collection: Collection, test_file: File, test_config: dict) -> None:
     """Test successful search request."""
     # Create search input
     search_input = {"question": "What is the capital of France?", "collection_id": str(test_collection.id)}
@@ -134,7 +130,7 @@ async def test_search_endpoint_success(
 
 
 @pytest.mark.asyncio
-async def test_search_endpoint_collection_not_found(client: TestClient):
+async def test_search_endpoint_collection_not_found(client: TestClient) -> None:
     """Test search with non-existent collection."""
     search_input = {"question": "test query", "collection_id": str(uuid4())}
 
@@ -144,7 +140,7 @@ async def test_search_endpoint_collection_not_found(client: TestClient):
 
 
 @pytest.mark.asyncio
-async def test_search_endpoint_invalid_input(client: TestClient):
+async def test_search_endpoint_invalid_input(client: TestClient) -> None:
     """Test search with invalid input."""
     # Missing required field
     search_input = {
@@ -157,7 +153,7 @@ async def test_search_endpoint_invalid_input(client: TestClient):
 
 
 @pytest.mark.asyncio
-async def test_search_endpoint_empty_query(client: TestClient, test_collection: Collection):
+async def test_search_endpoint_empty_query(client: TestClient, test_collection: Collection) -> None:
     """Test search with empty query."""
     search_input = {
         "question": "   ",  # Empty after stripping
@@ -170,9 +166,7 @@ async def test_search_endpoint_empty_query(client: TestClient, test_collection: 
 
 
 @pytest.mark.asyncio
-async def test_search_endpoint_with_context(
-    client: TestClient, test_collection: Collection, test_file: File, test_config: dict
-):
+async def test_search_endpoint_with_context(client: TestClient, test_collection: Collection, test_file: File, test_config: dict) -> None:
     """Test search with additional context."""
     search_input = {"question": "What is the capital of France?", "collection_id": str(test_collection.id)}
 
@@ -188,7 +182,7 @@ async def test_search_endpoint_with_context(
 
 
 @pytest.mark.asyncio
-async def test_search_endpoint_large_query(client: TestClient, test_collection: Collection):
+async def test_search_endpoint_large_query(client: TestClient, test_collection: Collection) -> None:
     """Test search with an extremely large query."""
     search_input = {
         "question": "x" * 10000,  # Very large query
@@ -201,7 +195,7 @@ async def test_search_endpoint_large_query(client: TestClient, test_collection: 
 
 
 @pytest.mark.asyncio
-async def test_search_endpoint_malformed_context(client: TestClient, test_collection: Collection):
+async def test_search_endpoint_malformed_context(client: TestClient, test_collection: Collection) -> None:
     """Test search with malformed context data."""
     search_input = {"question": "What is the capital of France?", "collection_id": str(test_collection.id)}
 
@@ -211,9 +205,7 @@ async def test_search_endpoint_malformed_context(client: TestClient, test_collec
 
 
 @pytest.mark.asyncio
-async def test_search_endpoint_invalid_collection_format(
-    client: TestClient, test_collection: Collection, test_db: Session
-):
+async def test_search_endpoint_invalid_collection_format(client: TestClient, test_collection: Collection, test_db: Session) -> None:
     """Test search with invalid collection data format."""
     # Create a collection with invalid format
     invalid_collection = Collection(
@@ -232,7 +224,7 @@ async def test_search_endpoint_invalid_collection_format(
 
 
 @pytest.mark.asyncio
-async def test_search_endpoint_missing_template(client: TestClient, test_collection: Collection, test_db: Session):
+async def test_search_endpoint_missing_template(client: TestClient, test_collection: Collection, test_db: Session) -> None:
     """Test search with missing prompt template configuration."""
     # Remove all prompt templates
     test_db.query(PromptTemplate).delete()
@@ -246,7 +238,7 @@ async def test_search_endpoint_missing_template(client: TestClient, test_collect
 
 
 @pytest.mark.asyncio
-async def test_search_endpoint_no_config(client: TestClient, test_collection: Collection):
+async def test_search_endpoint_no_config(client: TestClient, test_collection: Collection) -> None:
     """Test search with no provider configuration."""
     search_input = {"question": "test query", "collection_id": str(test_collection.id)}
 

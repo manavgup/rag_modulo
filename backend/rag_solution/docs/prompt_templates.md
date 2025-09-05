@@ -177,7 +177,7 @@ class PipelineService:
         self._template_service = PromptTemplateService(db)
         self._evaluator = None
         self._provider = None
-        
+
     async def initialize(
         self,
         collection_id: UUID,
@@ -193,13 +193,13 @@ class PipelineService:
             PromptTemplateType.RESPONSE_EVALUATION,
             collection_id
         )
-        
+
         # Initialize evaluator with template
         self._evaluator = RAGEvaluator(
             provider=self._provider,
             template=self.eval_template
         )
-        
+
     async def execute_pipeline(
         self,
         search_input: SearchInput,
@@ -216,13 +216,13 @@ class PipelineService:
                     "question": search_input.question
                 }
             )
-            
+
             # Generate answer
             generated_answer = await self._provider.generate_text(
                 formatted_query,
                 search_input.metadata
             )
-            
+
             # Run evaluation if enabled
             evaluation = None
             if evaluation_enabled:
@@ -231,14 +231,14 @@ class PipelineService:
                     answer=generated_answer,
                     context=self._get_context(query_results)
                 )
-            
+
             return PipelineResult(
                 rewritten_query=rewritten_query,
                 query_results=query_results,
                 generated_answer=generated_answer,
                 evaluation=evaluation
             )
-            
+
         except Exception as e:
             logger.error(f"Pipeline error: {str(e)}")
             return self._create_error_result(str(e))
@@ -251,7 +251,7 @@ class PromptTemplateService:
     def __init__(self, db: Session):
         self._template_repository = PromptTemplateRepository(db)
         self._cache = TemplateCache()
-        
+
     def format_prompt(
         self,
         template_id: UUID,
@@ -265,17 +265,17 @@ class PromptTemplateService:
             cached = self._cache.get(cache_key)
             if cached:
                 return cached
-        
+
         # Format prompt
         template = self._template_repository.get_by_id(template_id)
         formatted = template.format_prompt(variables)
-        
+
         # Cache result
         if use_cache:
             self._cache.set(cache_key, formatted)
-        
+
         return formatted
-        
+
     def apply_context_strategy(
         self,
         template_id: UUID,
@@ -285,7 +285,7 @@ class PromptTemplateService:
         """Apply context strategy with token limit."""
         template = self._template_repository.get_by_id(template_id)
         strategy = template.context_strategy
-        
+
         if strategy["strategy"] == ContextStrategyType.PRIORITY:
             return self._apply_priority_strategy(
                 context_chunks,

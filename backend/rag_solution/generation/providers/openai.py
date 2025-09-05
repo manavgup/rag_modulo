@@ -3,9 +3,9 @@
 import asyncio
 from collections.abc import Generator, Sequence
 from typing import Any
-from pydantic import UUID4
 
 from openai import AsyncOpenAI, OpenAI
+from pydantic import UUID4
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from core.custom_exceptions import LLMProviderError, NotFoundError, ValidationError
@@ -30,26 +30,18 @@ class OpenAILLM(LLMBase):
             self._provider = provider
 
             self.client = OpenAI(api_key=str(provider.api_key), organization=provider.org_id, base_url=provider.base_url)
-            self.async_client = AsyncOpenAI(
-                api_key=str(provider.api_key), organization=provider.org_id, base_url=provider.base_url
-            )
+            self.async_client = AsyncOpenAI(api_key=str(provider.api_key), organization=provider.org_id, base_url=provider.base_url)
 
             self._models = self.llm_model_service.get_models_by_provider(provider.id)
             self._initialize_default_models()
 
         except Exception as e:
-            raise LLMProviderError(
-                provider="openai", error_type="initialization_failed", message=f"Failed to initialize client: {e!s}"
-            ) from e
+            raise LLMProviderError(provider="openai", error_type="initialization_failed", message=f"Failed to initialize client: {e!s}") from e
 
     def _initialize_default_models(self) -> None:
         """Initialize default models for generation and embeddings."""
-        self._default_model = next(
-            (m for m in self._models if m.is_default and m.model_type == ModelType.GENERATION), None
-        )
-        self._default_embedding_model = next(
-            (m for m in self._models if m.is_default and m.model_type == ModelType.EMBEDDING), None
-        )
+        self._default_model = next((m for m in self._models if m.is_default and m.model_type == ModelType.GENERATION), None)
+        self._default_embedding_model = next((m for m in self._models if m.is_default and m.model_type == ModelType.EMBEDDING), None)
 
         if not self._default_model:
             logger.warning("No default model configured, using gpt-3.5-turbo")
@@ -63,9 +55,7 @@ class OpenAILLM(LLMBase):
         else:
             self._default_embedding_model_id = self._default_embedding_model.model_id
 
-    def _get_generation_params(
-        self, user_id: UUID4, model_parameters: LLMParametersInput | None = None
-    ) -> dict[str, Any]:
+    def _get_generation_params(self, user_id: UUID4, model_parameters: LLMParametersInput | None = None) -> dict[str, Any]:
         """Get validated generation parameters."""
         params = model_parameters or self.llm_parameters_service.get_latest_or_default_parameters(user_id)
 
@@ -97,16 +87,12 @@ class OpenAILLM(LLMBase):
                 return result
             else:
                 formatted_prompt = self._format_prompt(str(prompt), template, variables)
-                response = self.client.chat.completions.create(
+                response = self.client.chat.completions.create(  # type: ignore[union-attr]
                     model=model_id, messages=[{"role": "user", "content": formatted_prompt}], **generation_params
                 )
                 content: str | None = response.choices[0].message.content
                 if content is None:
-                    raise LLMProviderError(
-                        provider="openai",
-                        error_type="generation_failed",
-                        message="OpenAI returned empty content"
-                    )
+                    raise LLMProviderError(provider="openai", error_type="generation_failed", message="OpenAI returned empty content")
                 return content.strip()
 
         except (ValidationError, NotFoundError) as e:
@@ -116,13 +102,9 @@ class OpenAILLM(LLMBase):
                 message=str(e),
             ) from e
         except Exception as e:
-            raise LLMProviderError(
-                provider="openai", error_type="generation_failed", message=f"Failed to generate text: {e!s}"
-            ) from e
+            raise LLMProviderError(provider="openai", error_type="generation_failed", message=f"Failed to generate text: {e!s}") from e
 
-    def _format_prompt(
-        self, prompt: str, template: PromptTemplateBase | None = None, variables: dict[str, Any] | None = None
-    ) -> str:
+    def _format_prompt(self, prompt: str, template: PromptTemplateBase | None = None, variables: dict[str, Any] | None = None) -> str:
         """Format a prompt using a template and variables."""
         if template:
             vars_dict = dict(variables or {})
@@ -134,16 +116,10 @@ class OpenAILLM(LLMBase):
         """Generate text for multiple prompts concurrently."""
 
         async def generate_single(prompt: str) -> str:
-            response = await self.async_client.chat.completions.create(
-                model=model_id, messages=[{"role": "user", "content": prompt}], **generation_params
-            )
+            response = await self.async_client.chat.completions.create(model=model_id, messages=[{"role": "user", "content": prompt}], **generation_params)
             content: str | None = response.choices[0].message.content
             if content is None:
-                raise LLMProviderError(
-                    provider="openai",
-                    error_type="generation_failed",
-                    message="OpenAI returned empty content"
-                )
+                raise LLMProviderError(provider="openai", error_type="generation_failed", message="OpenAI returned empty content")
             return content.strip()
 
         # Process prompts concurrently with a semaphore to limit concurrency
@@ -177,7 +153,7 @@ class OpenAILLM(LLMBase):
             generation_params["stream"] = True
 
             formatted_prompt = self._format_prompt(prompt, template, variables)
-            stream = self.client.chat.completions.create(
+            stream = self.client.chat.completions.create(  # type: ignore[union-attr]
                 model=model_id, messages=[{"role": "user", "content": formatted_prompt}], **generation_params
             )
 
@@ -192,9 +168,7 @@ class OpenAILLM(LLMBase):
                 message=str(e),
             ) from e
         except Exception as e:
-            raise LLMProviderError(
-                provider="openai", error_type="streaming_failed", message=f"Failed to generate streaming text: {e!s}"
-            ) from e
+            raise LLMProviderError(provider="openai", error_type="streaming_failed", message=f"Failed to generate streaming text: {e!s}") from e
 
     def get_embeddings(self, texts: str | Sequence[str]) -> EmbeddingsList:
         """Generate embeddings for texts."""
@@ -205,16 +179,14 @@ class OpenAILLM(LLMBase):
                 texts = [texts]
 
             # OpenAI embeddings API already handles batching efficiently
-            response = self.client.embeddings.create(model=self._default_embedding_model_id, input=texts)
+            response = self.client.embeddings.create(model=self._default_embedding_model_id, input=texts)  # type: ignore[union-attr]
             result = [data.embedding for data in response.data]
             return result
 
         except LLMProviderError:
             raise
         except Exception as e:
-            raise LLMProviderError(
-                provider="openai", error_type="embeddings_failed", message=f"Failed to generate embeddings: {e!s}"
-            ) from e
+            raise LLMProviderError(provider="openai", error_type="embeddings_failed", message=f"Failed to generate embeddings: {e!s}") from e
 
     def close(self) -> None:
         """Clean up provider resources."""

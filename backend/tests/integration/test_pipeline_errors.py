@@ -1,82 +1,30 @@
 """Integration tests for pipeline service error handling."""
 
 import asyncio
+from typing import Any
 from unittest.mock import patch
-from pydantic import UUID4
 
 import pytest
-from sqlalchemy.orm import Session
+from pydantic import UUID4
 
 from core.custom_exceptions import ConfigurationError, LLMProviderError, NotFoundError, ValidationError
+from rag_solution.schemas.collection_schema import CollectionOutput
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
-from rag_solution.schemas.pipeline_schema import PipelineConfigInput
 from rag_solution.schemas.prompt_template_schema import PromptTemplateInput, PromptTemplateType
 from rag_solution.schemas.search_schema import SearchInput
-from rag_solution.services.llm_parameters_service import LLMParametersService
 from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.pipeline_service import PipelineService
-from rag_solution.services.prompt_template_service import PromptTemplateService
-from rag_solution.services.search_service import SearchService
 
-
-@pytest.fixture
-def pipeline_setup(db_session: Session, base_user, test_collection):
-    """Set up pipeline with services."""
-    pipeline_service = PipelineService(db_session)
-    search_service = SearchService(db_session)
-    provider_service = LLMProviderService(db_session)
-    parameters_service = LLMParametersService(db_session)
-    template_service = PromptTemplateService(db_session)
-
-    # Create user's default parameters
-    parameters_input = LLMParametersInput(
-        name="test-parameters",
-        user_id=base_user.id,
-        temperature=0.7,
-        max_new_tokens=1000,
-        top_k=50,
-        top_p=0.95,
-        is_default=True,
-    )
-    parameters = parameters_service.create_parameters(parameters_input)
-
-    # Create user's default templates
-    templates = {}
-    template_base = {
-        "provider": "watsonx",
-        "template_format": "{context}\n\n{question}",
-        "input_variables": {"context": "str", "question": "str"},
-        "validation_schema": {
-            "model": "PromptVariables",
-            "fields": {"context": {"type": "str", "min_length": 1}, "question": {"type": "str", "min_length": 1}},
-            "required": ["context", "question"],
-        },
-        "example_inputs": {"context": "Python was created by Guido van Rossum.", "question": "Who created Python?"},
-        "is_default": True,
-    }
-
-    for template_type in [PromptTemplateType.RAG_QUERY, PromptTemplateType.RESPONSE_EVALUATION]:
-        template_input = PromptTemplateInput(
-            name=f"test-{template_type.value}", template_type=template_type, **template_base
-        )
-        templates[template_type] = template_service.create_template(base_user.id, template_input)
-
-    return {
-        "pipeline_service": pipeline_service,
-        "search_service": search_service,
-        "provider_service": provider_service,
-        "parameters_service": parameters_service,
-        "template_service": template_service,
-        "collection": test_collection,
-        "user": base_user,
-        "parameters": parameters,
-        "templates": templates,
-    }
+# Removed custom pipeline_setup fixture - using individual fixtures instead
 
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-async def test_provider_initialization_error(pipeline_setup):
+async def test_provider_initialization_error(
+    pipeline_service: PipelineService,
+    base_collection: CollectionOutput,
+    llm_provider_service: LLMProviderService,
+) -> None:
     """Test handling provider initialization errors."""
     # Break provider initialization
     with patch("rag_solution.generation.providers.watsonx.WatsonXProvider.initialize") as mock_init:
@@ -84,28 +32,13 @@ async def test_provider_initialization_error(pipeline_setup):
 
         # Initialize pipeline
         with pytest.raises(ConfigurationError) as exc_info:
-            await pipeline_setup["pipeline_service"].initialize(
-                collection_name=pipeline_setup["collection"].vector_db_name,
-                config=PipelineConfigInput(
-                    name="test-pipeline",
-                    description="Test pipeline",
-                    chunking_strategy="fixed",
-                    embedding_model="sentence-transformers/all-mpnet-base-v2",
-                    retriever="vector",
-                    context_strategy="priority",
-                    provider_id=pipeline_setup["provider_service"].get_default_provider().id,
-                    enable_logging=True,
-                    max_context_length=2048,
-                    timeout=30.0,
-                    is_default=False,
-                ),
-            )
+            await pipeline_service.initialize(collection_name=base_collection.vector_db_name)
 
         assert "Failed to initialize provider" in str(exc_info.value)
 
 
 @pytest.mark.asyncio
-async def test_provider_authentication_error(pipeline_setup):
+async def test_provider_authentication_error(pipeline_setup: dict) -> None:
     """Test handling provider authentication errors."""
     # Break provider authentication
     with patch("rag_solution.generation.providers.watsonx.WatsonXProvider.authenticate") as mock_auth:
@@ -115,6 +48,7 @@ async def test_provider_authentication_error(pipeline_setup):
             question="Test query",
             collection_id=pipeline_setup["collection"].id,
             pipeline_id=UUID4("87654321-4321-8765-4321-876543210987"),
+            user_id=pipeline_setup["user"].id,
         )
 
         # Execute pipeline
@@ -125,15 +59,16 @@ async def test_provider_authentication_error(pipeline_setup):
 
 
 @pytest.mark.asyncio
-async def test_template_formatting_error(pipeline_setup):
+async def test_template_formatting_error(pipeline_setup: dict) -> None:
     """Test handling template formatting errors."""
     # Create invalid template
     template_input = PromptTemplateInput(
         name="invalid-template",
-        provider="watsonx",
+        user_id=pipeline_setup["user"].id,
         template_type=PromptTemplateType.RAG_QUERY,
         template_format="Invalid {missing}",  # Missing required placeholder
         input_variables={"missing": "str"},  # Invalid variables
+        max_context_length=2048,
         validation_schema={
             "model": "PromptVariables",
             "fields": {"missing": {"type": "str", "min_length": 1}},
@@ -142,12 +77,13 @@ async def test_template_formatting_error(pipeline_setup):
         example_inputs={"missing": "Example value"},
         is_default=True,
     )
-    pipeline_setup["template_service"].create_or_update_template(pipeline_setup["user"].id, template_input)
+    pipeline_setup["template_service"].create_template(template_input)
 
     search_input = SearchInput(
         question="Test query",
         collection_id=pipeline_setup["collection"].id,
         pipeline_id=UUID4("87654321-4321-8765-4321-876543210987"),
+        user_id=pipeline_setup["user"].id,
     )
 
     # Execute pipeline
@@ -157,7 +93,7 @@ async def test_template_formatting_error(pipeline_setup):
 
 
 @pytest.mark.asyncio
-async def test_retrieval_error(pipeline_setup):
+async def test_retrieval_error(pipeline_setup: dict) -> None:
     """Test handling retrieval errors."""
     # Break vector store connection
     with patch("vectordbs.milvus_store.MilvusStore.search") as mock_search:
@@ -167,6 +103,7 @@ async def test_retrieval_error(pipeline_setup):
             question="Test query",
             collection_id=pipeline_setup["collection"].id,
             pipeline_id=UUID4("87654321-4321-8765-4321-876543210987"),
+            user_id=pipeline_setup["user"].id,
         )
 
         # Execute pipeline
@@ -175,7 +112,7 @@ async def test_retrieval_error(pipeline_setup):
 
 
 @pytest.mark.asyncio
-async def test_generation_error(pipeline_setup):
+async def test_generation_error(pipeline_setup: dict) -> None:
     """Test handling text generation errors."""
     # Break text generation
     with patch("rag_solution.generation.providers.watsonx.WatsonXProvider.generate_text") as mock_generate:
@@ -185,6 +122,7 @@ async def test_generation_error(pipeline_setup):
             question="Test query",
             collection_id=pipeline_setup["collection"].id,
             pipeline_id=UUID4("87654321-4321-8765-4321-876543210987"),
+            user_id=pipeline_setup["user"].id,
         )
 
         # Execute pipeline
@@ -195,7 +133,7 @@ async def test_generation_error(pipeline_setup):
 
 
 @pytest.mark.asyncio
-async def test_evaluation_error(pipeline_setup):
+async def test_evaluation_error(pipeline_setup: dict) -> None:
     """Test handling evaluation errors."""
     # Break evaluation
     with patch("rag_solution.evaluation.evaluator.RAGEvaluator.evaluate") as mock_evaluate:
@@ -205,6 +143,7 @@ async def test_evaluation_error(pipeline_setup):
             question="Test query",
             collection_id=pipeline_setup["collection"].id,
             pipeline_id=UUID4("87654321-4321-8765-4321-876543210987"),
+            user_id=pipeline_setup["user"].id,
         )
 
         # Execute pipeline
@@ -215,11 +154,12 @@ async def test_evaluation_error(pipeline_setup):
 
 
 @pytest.mark.asyncio
-async def test_invalid_configuration(pipeline_setup):
+async def test_invalid_configuration(pipeline_setup: dict) -> None:
     """Test handling invalid configuration."""
     # Create invalid parameters
     parameters_input = LLMParametersInput(
         name="invalid-params",
+        description="Invalid parameters for testing",
         user_id=pipeline_setup["user"].id,
         temperature=2.0,  # Invalid value
         is_default=True,
@@ -230,11 +170,12 @@ async def test_invalid_configuration(pipeline_setup):
 
 
 @pytest.mark.asyncio
-async def test_missing_configuration(pipeline_setup):
+async def test_missing_configuration(pipeline_setup: dict) -> None:
     """Test handling missing configuration."""
     # Try to execute without initialization
     search_input = SearchInput(
         question="Test query",
+        user_id=pipeline_setup["user"].id,
         collection_id=pipeline_setup["collection"].id,
         pipeline_id=UUID4("87654321-4321-8765-4321-876543210987"),
     )
@@ -244,11 +185,11 @@ async def test_missing_configuration(pipeline_setup):
 
 
 @pytest.mark.asyncio
-async def test_concurrent_error_handling(pipeline_setup):
+async def test_concurrent_error_handling(pipeline_setup: dict) -> None:
     """Test handling errors in concurrent operations."""
 
     # Break provider randomly
-    def random_error(*args, **kwargs):
+    def random_error(*args: Any, **kwargs: Any) -> str:
         import random
 
         if random.choice([True, False]):
@@ -262,6 +203,7 @@ async def test_concurrent_error_handling(pipeline_setup):
         search_inputs = [
             SearchInput(
                 question=f"Question {i}",
+                user_id=pipeline_setup["user"].id,
                 collection_id=pipeline_setup["collection"].id,
                 pipeline_id=UUID4("87654321-4321-8765-4321-876543210987"),
             )
@@ -269,12 +211,7 @@ async def test_concurrent_error_handling(pipeline_setup):
         ]
 
         # Execute searches concurrently
-        results = await asyncio.gather(
-            *[
-                pipeline_setup["search_service"].search(search_input, pipeline_setup["user"].id)
-                for search_input in search_inputs
-            ]
-        )
+        results = await asyncio.gather(*[pipeline_setup["search_service"].search(search_input, pipeline_setup["user"].id) for search_input in search_inputs])
 
         # Verify all operations completed with or without errors
         assert len(results) == 5
@@ -286,7 +223,7 @@ async def test_concurrent_error_handling(pipeline_setup):
 
 
 @pytest.mark.asyncio
-async def test_missing_user_defaults(pipeline_setup):
+async def test_missing_user_defaults(pipeline_setup: dict) -> None:
     """Test handling missing user defaults."""
     # Remove user's default parameters and templates
     pipeline_setup["parameters_service"].delete_parameters(pipeline_setup["user"].id)
@@ -294,6 +231,7 @@ async def test_missing_user_defaults(pipeline_setup):
 
     search_input = SearchInput(
         question="Test query",
+        user_id=pipeline_setup["user"].id,
         collection_id=pipeline_setup["collection"].id,
         pipeline_id=UUID4("87654321-4321-8765-4321-876543210987"),
     )

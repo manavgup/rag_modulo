@@ -32,16 +32,16 @@ def generate_jwt_secret() -> str:
 def check_prerequisites() -> bool:
     """Check if required tools are available."""
     print("🔍 Checking prerequisites...")
-    
+
     missing = []
-    
+
     # Check for required commands
     if not run_command("which openssl", check=False):
         missing.append("openssl")
-    
+
     if not run_command("which docker", check=False):
         missing.append("docker")
-        
+
     if missing:
         print(f"❌ Missing required tools: {', '.join(missing)}")
         print("\nPlease install:")
@@ -51,7 +51,7 @@ def check_prerequisites() -> bool:
             elif tool == "docker":
                 print("  - Docker: https://docs.docker.com/get-docker/")
         return False
-    
+
     print("✅ All prerequisites found!")
     return True
 
@@ -60,17 +60,17 @@ def copy_env_template() -> bool:
     """Copy .env.example to .env if it doesn't exist."""
     env_path = Path(".env")
     template_path = Path(".env.example")
-    
+
     if not template_path.exists():
         print("❌ .env.example not found! Make sure you're in the project root.")
         return False
-    
+
     if env_path.exists():
         response = input("⚠️  .env already exists. Overwrite? (y/N): ").lower()
         if response != 'y':
             print("📝 Using existing .env file...")
             return True
-    
+
     shutil.copy(template_path, env_path)
     print("✅ Created .env from template")
     return True
@@ -79,21 +79,21 @@ def copy_env_template() -> bool:
 def setup_auto_generated_values() -> None:
     """Set up values that can be auto-generated."""
     print("\n🔧 Setting up auto-generated values...")
-    
+
     # Generate JWT secret
     jwt_secret = generate_jwt_secret()
-    
+
     # Read .env file
     with open(".env", "r") as f:
         content = f.read()
-    
+
     # Replace auto-generated values
     content = content.replace("generate_with_openssl_rand_hex_32", jwt_secret)
-    
+
     # Write back
     with open(".env", "w") as f:
         f.write(content)
-    
+
     print("✅ Generated JWT secret")
 
 
@@ -101,7 +101,7 @@ def guide_manual_setup() -> None:
     """Guide user through manual credential setup."""
     print("\n🔐 Manual Credential Setup Required")
     print("=" * 50)
-    
+
     credentials_needed = [
         {
             "name": "WATSONX_APIKEY",
@@ -109,13 +109,13 @@ def guide_manual_setup() -> None:
             "instructions": "1. Go to IBM Cloud > Watson AI\n   2. Go to your service instance\n   3. Copy API Key from Credentials tab"
         },
         {
-            "name": "WATSONX_INSTANCE_ID", 
+            "name": "WATSONX_INSTANCE_ID",
             "description": "Watson AI Instance ID",
             "instructions": "1. Go to IBM Cloud > Watson AI\n   2. Go to your service instance\n   3. Copy Instance ID from service details"
         },
         {
             "name": "OPENAI_API_KEY",
-            "description": "OpenAI API Key", 
+            "description": "OpenAI API Key",
             "instructions": "1. Go to https://platform.openai.com/api-keys\n   2. Create new key or copy existing\n   3. Starts with 'sk-'"
         },
         {
@@ -124,7 +124,7 @@ def guide_manual_setup() -> None:
             "instructions": "1. Go to https://console.anthropic.com/settings/keys\n   2. Create new key or copy existing\n   3. Starts with 'sk-ant-'"
         }
     ]
-    
+
     for cred in credentials_needed:
         print(f"\n📋 {cred['name']} - {cred['description']}")
         print(f"   {cred['instructions']}")
@@ -134,11 +134,11 @@ def guide_manual_setup() -> None:
 def validate_setup() -> bool:
     """Validate the setup by running the validation script."""
     print("\n🧪 Validating setup...")
-    
+
     if not Path("scripts/validate_env.py").exists():
         print("⚠️  Validation script not found, skipping validation")
         return True
-    
+
     result = run_command("python scripts/validate_env.py", check=False)
     if "validation passed" in result.lower():
         print("✅ Environment validation passed!")
@@ -153,21 +153,21 @@ def main():
     """Main setup flow."""
     print("🚀 RAG Modulo Environment Setup")
     print("=" * 40)
-    
+
     # Check prerequisites
     if not check_prerequisites():
         sys.exit(1)
-    
+
     # Copy template
     if not copy_env_template():
         sys.exit(1)
-    
+
     # Setup auto-generated values
     setup_auto_generated_values()
-    
+
     # Guide manual setup
     guide_manual_setup()
-    
+
     print("\n✨ Setup Complete!")
     print("=" * 20)
     print("Next steps:")

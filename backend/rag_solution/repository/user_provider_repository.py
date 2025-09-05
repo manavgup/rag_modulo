@@ -1,11 +1,12 @@
-from pydantic import UUID4
+from typing import Any
 
+from pydantic import UUID4
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from rag_solution.core.exceptions import NotFoundError, AlreadyExistsError, ValidationError
 from core.custom_exceptions import RepositoryError
 from core.logging_utils import get_logger
+from rag_solution.core.exceptions import NotFoundError
 from rag_solution.models.llm_provider import LLMProvider
 from rag_solution.models.user import User
 from rag_solution.schemas.llm_provider_schema import LLMProviderOutput
@@ -14,7 +15,7 @@ logger = get_logger(__name__)
 
 
 class UserProviderRepository:
-    def __init__(self, db: Session):
+    def __init__(self: Any, db: Session) -> None:
         self.db = db
 
     def set_user_provider(self, user_id: UUID4, provider_id: UUID4, outer_transaction: Session | None = None) -> bool:
@@ -38,19 +39,13 @@ class UserProviderRepository:
         try:
             user = self.db.query(User).filter(User.id == user_id).first()
             if not user:
-                raise NotFoundError(
-                    resource_type="User",
-                    resource_id=str(user_id)
-                )
+                raise NotFoundError(resource_type="User", resource_id=str(user_id))
 
             user.preferred_provider_id = provider_id
             self.db.commit()
         except IntegrityError as e:
             self.db.rollback()
-            raise NotFoundError(
-                resource_type="LLMProvider",
-                resource_id=str(provider_id)
-            ) from e
+            raise NotFoundError(resource_type="LLMProvider", resource_id=str(provider_id)) from e
         except NotFoundError:
             raise
         except Exception as e:
@@ -78,10 +73,7 @@ class UserProviderRepository:
         try:
             provider = self.db.query(LLMProvider).filter(LLMProvider.is_default.is_(True)).first()
             if not provider:
-                raise NotFoundError(
-                    resource_type="LLMProvider",
-                    identifier="default provider"
-                )
+                raise NotFoundError(resource_type="LLMProvider", identifier="default provider")
             return LLMProviderOutput.model_validate(provider)
         except NotFoundError:
             raise

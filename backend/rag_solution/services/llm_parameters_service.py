@@ -1,5 +1,4 @@
 from pydantic import UUID4
-
 from sqlalchemy.orm import Session
 
 from core.custom_exceptions import NotFoundException

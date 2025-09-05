@@ -1,8 +1,8 @@
 import uuid
 from datetime import datetime
 from typing import Any
-from pydantic import UUID4
 
+from pydantic import UUID4
 from sqlalchemy.orm import Session
 
 from core.custom_exceptions import NotFoundError, PromptTemplateNotFoundError, ValidationError
@@ -16,7 +16,7 @@ from rag_solution.schemas.prompt_template_schema import (
 
 
 class PromptTemplateService:
-    def __init__(self, db: Session):
+    def __init__(self: Any, db: Session) -> None:
         self.repository = PromptTemplateRepository(db)
 
     def create_template(self, template: PromptTemplateInput) -> PromptTemplateOutput:
@@ -158,10 +158,7 @@ class PromptTemplateService:
         try:
             template = self.repository.get_by_id(template_id)
             if not template:
-                raise NotFoundError(
-                    resource_type="PromptTemplate",
-                    resource_id=str(template_id)
-                )
+                raise NotFoundError(resource_type="PromptTemplate", resource_id=str(template_id))
 
             # Clear other defaults of the same type for this user
             other_templates = self.repository.get_by_user_id_and_type(template.user_id, template.template_type)
@@ -177,14 +174,14 @@ class PromptTemplateService:
 
     def format_prompt_by_id(self, template_id: UUID4, variables: dict[str, Any]) -> str:
         """Format a prompt using a template ID.
-        
+
         Args:
             template_id: UUID4 of the template to use
             variables: Variables to substitute in the template
-            
+
         Returns:
             Formatted prompt string
-            
+
         Raises:
             PromptTemplateNotFoundError: If template not found
             ValidationError: If formatting fails
@@ -193,7 +190,7 @@ class PromptTemplateService:
             template = self.repository.get_by_id(template_id)
             if not template:
                 raise PromptTemplateNotFoundError(template_id=str(template_id))
-            
+
             return self._format_prompt_with_template(template, variables)
         except KeyError as e:
             raise ValidationError(f"Missing required variable: {e!s}") from e
@@ -202,14 +199,14 @@ class PromptTemplateService:
 
     def format_prompt_with_template(self, template: PromptTemplateBase, variables: dict[str, Any]) -> str:
         """Format a prompt using a template object.
-        
+
         Args:
             template: PromptTemplateBase object to use
             variables: Variables to substitute in the template
-            
+
         Returns:
             Formatted prompt string
-            
+
         Raises:
             ValidationError: If formatting fails
         """
@@ -243,10 +240,7 @@ class PromptTemplateService:
         """Apply context strategy to format contexts based on template settings."""
         template = self.repository.get_by_id(template_id)
         if not template:
-            raise NotFoundError(
-                resource_type="PromptTemplate",
-                resource_id=str(template_id)
-            )
+            raise NotFoundError(resource_type="PromptTemplate", resource_id=str(template_id))
 
         if not template.context_strategy:
             return "\n\n".join(contexts)

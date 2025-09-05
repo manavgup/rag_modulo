@@ -1,5 +1,7 @@
 """Tests for LLM provider factory."""
 
+from collections.abc import Generator
+
 import pytest
 from sqlalchemy.orm import Session
 
@@ -9,21 +11,21 @@ from rag_solution.generation.providers.watsonx import WatsonXLLM
 
 
 @pytest.fixture
-def provider_factory(db_session: Session):
+def provider_factory(db_session: Session) -> Generator[LLMProviderFactory, None, None]:
     """Create provider factory instance."""
     factory = LLMProviderFactory(db_session)
     yield factory
 
 
 @pytest.mark.atomic
-def test_list_providers(provider_factory: LLMProviderFactory):
+def test_list_providers(provider_factory: LLMProviderFactory) -> None:
     providers = provider_factory.list_providers()
     for provider in providers:
         print(f"****** Provider: {provider}")
     assert "watsonx" in providers, "WatsonX provider should be registered"
 
 
-def test_get_provider(provider_factory: LLMProviderFactory):
+def test_get_provider(provider_factory: LLMProviderFactory) -> None:
     """Test getting a provider instance."""
     # Get WatsonX provider instance
     provider = provider_factory.get_provider("watsonx")
@@ -34,14 +36,14 @@ def test_get_provider(provider_factory: LLMProviderFactory):
     assert provider.client is not None
 
 
-def test_get_unknown_provider(provider_factory: LLMProviderFactory):
+def test_get_unknown_provider(provider_factory: LLMProviderFactory) -> None:
     """Test getting an unknown provider type."""
     with pytest.raises(LLMProviderError) as exc_info:
         provider_factory.get_provider("unknown")
     assert exc_info.value.details["error_type"] == "unknown_provider"
 
 
-def test_provider_instance_caching(provider_factory: LLMProviderFactory):
+def test_provider_instance_caching(provider_factory: LLMProviderFactory) -> None:
     """Test provider instance caching."""
     # Get provider instance twice
     provider1 = provider_factory.get_provider("watsonx")
@@ -51,7 +53,7 @@ def test_provider_instance_caching(provider_factory: LLMProviderFactory):
     assert provider1 is provider2
 
 
-def test_provider_reinitialization(provider_factory: LLMProviderFactory):
+def test_provider_reinitialization(provider_factory: LLMProviderFactory) -> None:
     """Test provider reinitialization when client is None."""
     # Get initial instance
     provider1 = provider_factory.get_provider("watsonx")
@@ -67,7 +69,7 @@ def test_provider_reinitialization(provider_factory: LLMProviderFactory):
     assert provider2.client is not None
 
 
-def test_provider_cleanup(provider_factory: LLMProviderFactory):
+def test_provider_cleanup(provider_factory: LLMProviderFactory) -> None:
     """Test provider cleanup."""
     # Get provider instance
     provider = provider_factory.get_provider("watsonx")
@@ -82,7 +84,7 @@ def test_provider_cleanup(provider_factory: LLMProviderFactory):
     assert provider.client is None
 
 
-def test_provider_case_insensitive(provider_factory: LLMProviderFactory):
+def test_provider_case_insensitive(provider_factory: LLMProviderFactory) -> None:
     """Test provider type is case insensitive."""
     # Get provider with different cases
     provider1 = provider_factory.get_provider("WATSONX")

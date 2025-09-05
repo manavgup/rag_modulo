@@ -3,6 +3,7 @@ import multiprocessing
 import os
 from collections.abc import AsyncGenerator
 from multiprocessing.managers import SyncManager
+from typing import Any
 
 from core.custom_exceptions import DocumentProcessingError
 from rag_solution.data_ingestion.base_processor import BaseProcessor
@@ -25,7 +26,7 @@ class DocumentProcessor:
         question_service (QuestionService): Service for generating suggested questions.
     """
 
-    def __init__(self, manager: SyncManager | None = None):
+    def __init__(self: Any, manager: SyncManager | None = None) -> None:
         """
         Initialize the document processor.
 

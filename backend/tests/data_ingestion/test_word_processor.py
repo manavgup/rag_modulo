@@ -1,4 +1,5 @@
 import os
+from typing import Any
 
 import pytest
 
@@ -9,10 +10,10 @@ from vectordbs.data_types import Document
 
 @pytest.mark.asyncio
 @pytest.mark.atomic
-async def test_process_word(test_word_path):
+async def test_process_word(test_word_path: Any) -> None:
     processor = WordProcessor()
     docs = []
-    async for document in processor.process(test_word_path):
+    async for document in processor.process(test_word_path, "test-doc-id"):
         docs.append(document)
 
     assert len(docs) > 0
@@ -22,8 +23,8 @@ async def test_process_word(test_word_path):
 
 
 @pytest.mark.asyncio
-async def test_process_word_error(test_non_existent_pdf_path):
+async def test_process_word_error(test_non_existent_pdf_path: Any) -> None:
     processor = WordProcessor()
     with pytest.raises(DocumentProcessingError):
-        async for _ in processor.process(test_non_existent_pdf_path):
+        async for _ in processor.process(test_non_existent_pdf_path, "test-doc-id"):
             pass

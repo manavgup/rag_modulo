@@ -36,7 +36,7 @@ class PineconeStore(VectorStore):
             self.client = None
         self.index: Any | None = None
 
-    def create_collection(self, collection_name: str, metadata: dict | None = None) -> None:
+    def create_collection(self, collection_name: str, metadata: dict | None = None) -> None:  # noqa: ARG002
         """
         Create a new Pinecone collection.
 
@@ -116,13 +116,19 @@ class PineconeStore(VectorStore):
         embeddings = get_embeddings(query)
         if not embeddings:
             raise VectorStoreError("Failed to generate embeddings for the query string.")
-        query_embeddings = QueryWithEmbedding(text=query, embeddings=embeddings)
+        # get_embeddings returns list[list[float]], but we need list[float] for single query
+        query_embeddings = QueryWithEmbedding(text=query, embeddings=embeddings[0])
 
         results = self.query(collection_name, query_embeddings, number_of_results=number_of_results)
         return results
 
-    def query(self, collection_name: str, query: QueryWithEmbedding, number_of_results: int = 10,
-              filter: DocumentMetadataFilter | None = None) -> list[QueryResult]:
+    def query(
+        self,
+        collection_name: str,
+        query: QueryWithEmbedding,
+        number_of_results: int = 10,
+        filter: DocumentMetadataFilter | None = None,  # noqa: ARG002
+    ) -> list[QueryResult]:
         """
         Query the specified Pinecone collection using an embedding.
 
@@ -137,7 +143,8 @@ class PineconeStore(VectorStore):
         """
         try:
             # Pinecone expects embeddings as list[float], not list[list[float]]
-            query_embeddings = query.embeddings[0] if isinstance(query.embeddings[0], list) else query.embeddings
+            # query.embeddings is already list[float] from QueryWithEmbedding
+            query_embeddings = query.embeddings
             response = self.client.Index(collection_name).query(
                 vector=query_embeddings,
                 top_k=number_of_results,  # Pinecone API uses top_k, but we maintain our consistent interface
@@ -147,7 +154,7 @@ class PineconeStore(VectorStore):
             return self._process_search_results(response)
         except Exception as e:
             logging.error(f"Failed to query Pinecone index '{collection_name}': {e}")
-            raise CollectionError(f"Failed to query Pinecone index '{collection_name}': {e}")
+            raise CollectionError(f"Failed to query Pinecone index '{collection_name}': {e}") from e
 
     def delete_collection(self, collection_name: str) -> None:
         """
@@ -188,7 +195,7 @@ class PineconeStore(VectorStore):
             return
         except Exception as e:
             logging.error(f"Failed to delete documents from Pinecone index '{collection_name}': {e}")
-            raise CollectionError(f"Failed to delete documents from Pinecone index '{collection_name}': {e}")
+            raise CollectionError(f"Failed to delete documents from Pinecone index '{collection_name}': {e}") from e
 
     def _convert_to_chunk(self, data: dict) -> DocumentChunk:
         """
@@ -227,11 +234,7 @@ class PineconeStore(VectorStore):
         results = []
         for match in response["matches"]:
             chunk = self._convert_to_chunk(match)
-            results.append(
-                QueryResult(
-                    data=[chunk], similarities=[match["score"]], ids=[match["id"]]
-                )
-            )
+            results.append(QueryResult(chunk=chunk, score=match["score"], embeddings=match["values"]))
         return results
 
     def _build_filters(self, filter: DocumentMetadataFilter | None) -> dict[str, Any]:

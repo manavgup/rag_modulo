@@ -1,8 +1,9 @@
 # file_repository.py
 
 import logging
-from pydantic import UUID4
+from typing import Any
 
+from pydantic import UUID4
 from sqlalchemy.orm import Session
 
 from rag_solution.core.exceptions import AlreadyExistsError, NotFoundError, ValidationError
@@ -13,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class FileRepository:
-    def __init__(self, db: Session):
+    def __init__(self: Any, db: Session) -> None:
         self.db = db
 
     def create(self, file: FileInput, user_id: UUID4) -> FileOutput:
@@ -42,9 +43,7 @@ class FileRepository:
         try:
             file = self.db.query(File).filter(File.id == file_id).first()
             if not file:
-                raise NotFoundError(
-                    resource_type="File", resource_id=str(file_id)
-                )
+                raise NotFoundError(resource_type="File", resource_id=str(file_id))
             return self._file_to_output(file)
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise
@@ -56,9 +55,7 @@ class FileRepository:
         try:
             file = self.db.query(File).filter(File.collection_id == collection_id, File.filename == filename).first()
             if not file:
-                raise NotFoundError(
-                    resource_type="File", identifier=f"{filename} in collection {collection_id}"
-                )
+                raise NotFoundError(resource_type="File", identifier=f"{filename} in collection {collection_id}")
             return self._file_to_output(file)
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise
@@ -80,9 +77,7 @@ class FileRepository:
         try:
             file = self.db.query(File).filter(File.id == file_id).first()
             if not file:
-                raise NotFoundError(
-                    resource_type="File", resource_id=str(file_id)
-                )
+                raise NotFoundError(resource_type="File", resource_id=str(file_id))
             update_data = file_update.model_dump(exclude_unset=True)
             if "metadata" in update_data and update_data["metadata"] is not None:
                 file.file_metadata = update_data["metadata"].model_dump()
@@ -103,9 +98,7 @@ class FileRepository:
         try:
             file = self.db.query(File).filter(File.id == file_id).first()
             if not file:
-                raise NotFoundError(
-                    resource_type="File", resource_id=str(file_id)
-                )
+                raise NotFoundError(resource_type="File", resource_id=str(file_id))
             self.db.delete(file)
             self.db.commit()
         except (NotFoundError, AlreadyExistsError, ValidationError):
@@ -139,9 +132,7 @@ class FileRepository:
         try:
             file = self.db.query(File).filter(File.collection_id == collection_id, File.filename == filename).first()
             if not file:
-                raise NotFoundError(
-                    resource_type="File", identifier=f"{filename} in collection {collection_id}"
-                )
+                raise NotFoundError(resource_type="File", identifier=f"{filename} in collection {collection_id}")
             return self._file_to_output(file)
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise
@@ -151,10 +142,7 @@ class FileRepository:
 
     def file_exists(self, collection_id: UUID4, filename: str) -> bool:
         try:
-            return (
-                self.db.query(File).filter(File.collection_id == collection_id, File.filename == filename).first()
-                is not None
-            )
+            return self.db.query(File).filter(File.collection_id == collection_id, File.filename == filename).first() is not None
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise
         except Exception as e:

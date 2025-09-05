@@ -42,7 +42,7 @@ Implement DevContainers using VS Code's Dev Containers extension to provide:
   "dockerComposeFile": "docker-compose.dev.yml",
   "service": "app",
   "workspaceFolder": "/workspace",
-  
+
   "customizations": {
     "vscode": {
       "extensions": [
@@ -75,10 +75,10 @@ Implement DevContainers using VS Code's Dev Containers extension to provide:
       }
     }
   },
-  
+
   "postCreateCommand": "bash .devcontainer/scripts/setup-python.sh && bash .devcontainer/scripts/setup-node.sh",
   "postStartCommand": "bash .devcontainer/scripts/setup-tools.sh",
-  
+
   "forwardPorts": [8000, 3000, 5432, 19530, 9000, 5000],
   "portsAttributes": {
     "8000": {
@@ -106,7 +106,7 @@ Implement DevContainers using VS Code's Dev Containers extension to provide:
       "onAutoForward": "silent"
     }
   },
-  
+
   "remoteUser": "vscode",
   "mounts": [
     "source=${localWorkspaceFolder}/.gitconfig,target=/home/vscode/.gitconfig,type=bind,consistency=cached"

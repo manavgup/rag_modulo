@@ -1,4 +1,6 @@
-from pydantic import EmailStr, UUID4
+from typing import Any
+
+from pydantic import UUID4, EmailStr
 from sqlalchemy.orm import Session
 
 from core.logging_utils import get_logger
@@ -13,7 +15,7 @@ logger = get_logger(__name__)
 class UserService:
     """Service for managing user-related operations."""
 
-    def __init__(self, db: Session):
+    def __init__(self: Any, db: Session) -> None:
         """Initialize with database session."""
         self.db = db
         self.user_repository = UserRepository(db)

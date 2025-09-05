@@ -26,7 +26,9 @@ Ne pas ajouter aucune autre note ou explication à votre sortie en dehors du dic
 {context_str}<|eot_id|><|start_header_id|>assistant<|end_header_id|>"""
 
 # Hallucination Grader answer,context
-FAITHFULNESS_PROMPT_LLAMA3 = """ <|begin_of_text|><|start_header_id|>system<|end_header_id|> You are an evaluation system tasked with evaluating the faithfulness of a response in regards to provided facts.
+FAITHFULNESS_PROMPT_LLAMA3 = (
+    """ <|begin_of_text|><|start_header_id|>system<|end_header_id|> You are an evaluation system tasked with evaluating """
+    """the faithfulness of a response in regards to provided facts.
 you need to assess the factual consistency of the answer.
 Define the faithfulness score as:
 - High: The answer is completely aligned with the supporting context, without introducing any unsupported claims or misinterpretations.
@@ -46,9 +48,12 @@ Generated Answer:
 
 Your assessment in JSON format:
 <|eot_id|><|start_header_id|>assistant<|end_header_id|>"""
+)
 
 # Response Relevance question , answer
-ANSWER_RELEVANCE_PROMPT_LLAMA3 = """ <|begin_of_text|><|start_header_id|>system<|end_header_id|> You are an evaluation system tasked with evaluating the relevance of an answer in regards to question asked.
+ANSWER_RELEVANCE_PROMPT_LLAMA3 = (
+    """ <|begin_of_text|><|start_header_id|>system<|end_header_id|> You are an evaluation system tasked with evaluating """
+    """the relevance of an answer in regards to question asked.
 You are a highly advanced evaluation system specializing in assessing the relevance and factual consistency of answers to given questions.
 Your task:
 1. Evaluate the relevance of the answer based on the question provided.
@@ -72,12 +77,15 @@ Here is the question:
 Here is the answer provided to be evaluated:
 {answer}
 <|eot_id|><|start_header_id|>assistant<|end_header_id|>"""
+)
 
 
 ANSWER_SIMILARITY_EVALUATION_PROMPT_LLAMA3 = """ """
 
 
-CONTEXT_RELEVANCY_PROMPT_LLAMA3 = """ <|begin_of_text|><|start_header_id|>system<|end_header_id|> You are an evaluation system tasked with evaluating the relevance of an answer in regards to question asked.
+CONTEXT_RELEVANCY_PROMPT_LLAMA3 = (
+    """ <|begin_of_text|><|start_header_id|>system<|end_header_id|> You are an evaluation system tasked with evaluating """
+    """the relevance of an answer in regards to question asked.
 You are a highly advanced evaluation system specializing in assessing the relevancy of retrieved Documents in relation to the user's Question.
 
 Your task:
@@ -99,3 +107,4 @@ retrieved documents:
 {context}
 \n ------- \n
 <|eot_id|><|start_header_id|>assistant<|end_header_id|>"""
+)

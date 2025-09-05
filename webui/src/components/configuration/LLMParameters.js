@@ -88,12 +88,12 @@ const LLMParameters = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
+
     try {
       const url = getFullApiUrl(getParametersUrl());
       const method = currentParameter ? 'PUT' : 'POST';
       const path = currentParameter ? `${url}/${currentParameter.id}` : url;
-      
+
       await fetchWithAuthHeader(path, {
         method,
         headers: {
@@ -101,7 +101,7 @@ const LLMParameters = () => {
         },
         body: JSON.stringify(formData),
       });
-      
+
       await fetchData();
       setIsModalOpen(false);
       resetForm();
@@ -115,7 +115,7 @@ const LLMParameters = () => {
 
   const handleDelete = async (parameterId) => {
     if (!window.confirm('Are you sure you want to delete these parameters?')) return;
-    
+
     setLoading(true);
     try {
       await fetchWithAuthHeader(

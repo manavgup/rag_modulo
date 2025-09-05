@@ -1,8 +1,17 @@
 """Test data fixtures for pytest."""
 
+from collections.abc import Generator
+
 import pytest
 
 from core.config import settings
+from rag_solution.data_ingestion.chunking import simple_chunking
+from rag_solution.generation.providers.base import LLMBase
+from rag_solution.schemas.collection_schema import CollectionOutput
+from rag_solution.schemas.file_schema import FileOutput
+from rag_solution.schemas.user_schema import UserOutput
+from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, Source
+from vectordbs.milvus_store import MilvusStore
 
 
 @pytest.fixture
@@ -34,22 +43,16 @@ def test_questions() -> list[str]:
 
 
 @pytest.fixture
-def test_prompt_template_data(base_user) -> dict:
+def test_prompt_template_data(base_user: UserOutput) -> dict[str, object]:
     """Create test prompt template data."""
     return {
         "name": "test-question-template",
         "provider": "watsonx",
         "template_type": "QUESTION_GENERATION",
         "system_prompt": (
-            "You are an AI assistant that generates relevant questions based on "
-            "the given context. Generate clear, focused questions that can be "
-            "answered using the information provided."
+            "You are an AI assistant that generates relevant questions based on " "the given context. Generate clear, focused questions that can be " "answered using the information provided."
         ),
-        "template_format": (
-            "{context}\n\n"
-            "Generate {num_questions} specific questions that can be answered "
-            "using only the information provided above."
-        ),
+        "template_format": ("{context}\n\n" "Generate {num_questions} specific questions that can be answered " "using only the information provided above."),
         "input_variables": {
             "context": "Retrieved passages from knowledge base",
             "num_questions": "Number of questions to generate",
@@ -84,14 +87,14 @@ def sample_content() -> str:
 
     Example:
     class Animal:
-        def __init__(self, name):
+        def __init__(self: Any, name: Any) -> None:
             self.name = name
 
-        def speak(self):
+        def speak(self: Any) -> None:
             pass
 
     class Dog(Animal):
-        def speak(self):
+        def speak(self: Any) -> None:
             return f"{self.name} says woof!"
 
     Functional Programming
@@ -116,10 +119,14 @@ def sample_content() -> str:
 
 
 @pytest.fixture
-def indexed_large_document(vector_store, base_collection, base_file, get_watsonx, sample_content: str):
+def indexed_large_document(
+    vector_store: MilvusStore,
+    base_collection: CollectionOutput,
+    base_file: FileOutput,
+    get_watsonx: LLMBase,
+    sample_content: str,
+) -> Generator[str, None, None]:
     """Add chunked documents to vector store."""
-    from rag_solution.data_ingestion.chunking import simple_chunking
-    from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, Source
 
     # Get chunks using configuration
     chunks = simple_chunking(
@@ -133,7 +140,7 @@ def indexed_large_document(vector_store, base_collection, base_file, get_watsonx
     embeddings = get_watsonx.get_embeddings(chunks)
 
     # Calculate chunk positions
-    positions = []
+    positions: list[tuple[int, int]] = []
     current_pos = 0
 
     for chunk in chunks:
@@ -167,9 +174,7 @@ def indexed_large_document(vector_store, base_collection, base_file, get_watsonx
     ]
 
     # Create document
-    document = Document(
-        document_id=base_file.document_id, name="python_comprehensive_guide.txt", chunks=document_chunks
-    )
+    document = Document(document_id=base_file.document_id, name="python_comprehensive_guide.txt", chunks=document_chunks)
 
     # Set up vector store
     vector_store.delete_collection(base_collection.vector_db_name)

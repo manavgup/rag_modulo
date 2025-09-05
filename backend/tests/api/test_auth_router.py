@@ -1,11 +1,14 @@
 """Tests for AuthRouter API endpoints."""
 
 import json
+from collections.abc import Awaitable, Callable, Generator
 from datetime import datetime, timedelta
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import jwt
 import pytest
+from fastapi import Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.testclient import TestClient
 
@@ -21,20 +24,22 @@ TEST_USER = {
     "role": "admin",  # Use admin role for broader access
 }
 
-TEST_JWT = jwt.encode(TEST_USER, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+TEST_JWT_TOKEN = jwt.encode(TEST_USER, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+# Ensure TEST_JWT is a string, not bytes
+TEST_JWT = TEST_JWT_TOKEN.decode("utf-8") if isinstance(TEST_JWT_TOKEN, bytes) else TEST_JWT_TOKEN
 
 
 @pytest.fixture
-def client():
+def client() -> TestClient:
     """Create a test client for the FastAPI app."""
     return TestClient(app)
 
 
 @pytest.fixture(autouse=True)
-def mock_jwt_verification():
+def mock_jwt_verification() -> Generator[None, None, None]:
     """Mock JWT verification."""
 
-    def mock_verify(token):
+    def mock_verify(token: str) -> dict[str, str]:
         if token == "mock_token_for_testing" or token == TEST_JWT:
             return TEST_USER
         raise jwt.InvalidTokenError("Invalid token")
@@ -47,10 +52,10 @@ def mock_jwt_verification():
 
 
 @pytest.fixture
-def mock_auth_middleware():
+def mock_auth_middleware() -> Generator[None, None, None]:
     """Mock authentication middleware."""
 
-    async def mock_dispatch(request, call_next):
+    async def mock_dispatch(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         # Define open paths that don't require auth
         open_paths = [
             "/api/auth/login",
@@ -84,13 +89,13 @@ def mock_auth_middleware():
 
 
 @pytest.fixture
-def auth_headers():
+def auth_headers() -> dict[str, str]:
     """Create authentication headers."""
     return {"Authorization": f"Bearer {TEST_JWT}", "X-User-UUID": TEST_USER["uuid"], "X-User-Role": TEST_USER["role"]}
 
 
 @pytest.fixture
-def mock_ibm_oauth():
+def mock_ibm_oauth() -> Generator[Any, None, None]:
     """Mock IBM OAuth endpoints with proper token structure."""
     # Create a token that includes both id_token and userinfo
     mock_token_response = {
@@ -103,24 +108,24 @@ def mock_ibm_oauth():
     }
 
     class MockResponse:
-        def __init__(self, data, status_code=200):
+        def __init__(self, data: Any, status_code: int = 200) -> None:
             self.data = data
             self.status_code = status_code
             self.text = json.dumps(data)
 
-        def json(self):
+        def json(self) -> Any:
             return self.data
 
-        def raise_for_status(self):
+        def raise_for_status(self) -> None:
             if self.status_code >= 400:
                 raise Exception(f"HTTP {self.status_code}")
 
     # Mock the authorize_access_token to return proper structure
-    async def mock_authorize_access_token(*args, **kwargs):
+    async def mock_authorize_access_token(*args: Any, **kwargs: Any) -> Any:
         return mock_token_response
 
     # Mock the authorize_redirect
-    async def mock_authorize_redirect(*args, **kwargs):
+    async def mock_authorize_redirect(*args: Any, **kwargs: Any) -> Any:
         return RedirectResponse(url="https://test.com/authorize")
 
     # Create mock oauth object
@@ -134,7 +139,7 @@ def mock_ibm_oauth():
 
 @pytest.mark.api
 class TestAuthentication:
-    def test_token_exchange(self, client, mock_auth_middleware):  # noqa: ARG002
+    def test_token_exchange(self, client: Any, mock_auth_middleware: Any) -> None:  # noqa: ARG002
         """Test POST /api/auth/token - exchanging auth code for token."""
         response_data = {
             "access_token": "test_access_token",
@@ -145,31 +150,31 @@ class TestAuthentication:
 
         # Create a ResponseMock class to ensure all attributes are regular values
         class ResponseMock:
-            def __init__(self):
+            def __init__(self) -> None:
                 self.status_code = 200
                 self.text = json.dumps(response_data)
                 self._json = response_data
 
-            def json(self):
+            def json(self) -> Any:
                 return self._json
 
-            def raise_for_status(self):
+            def raise_for_status(self) -> None:
                 pass
 
         mock_response = ResponseMock()
 
         # Create the mock post function
-        async def mock_post(*args, **kwargs):
+        async def mock_post(*args: Any, **kwargs: Any) -> Any:
             return mock_response
 
         # Create the async client mock
         class AsyncClientMock:
-            async def __aenter__(self):
+            async def __aenter__(self) -> Any:
                 client_mock = MagicMock()
                 client_mock.post = mock_post
                 return client_mock
 
-            async def __aexit__(self, exc_type, exc, tb):
+            async def __aexit__(self, exc_type: Any, exc: Any, tb: Any) -> None:
                 pass
 
         # Patch httpx.AsyncClient
@@ -192,7 +197,7 @@ class TestAuthentication:
             assert data["expires_in"] == 3600
             assert data["id_token"] == "test_id_token"
 
-    def test_callback_success(self, client, mock_ibm_oauth):  # noqa: ARG002
+    def test_callback_success(self, client: Any, mock_ibm_oauth: Any) -> None:  # noqa: ARG002
         """Test successful callback flow."""
         # Disable redirect following
         client.follow_redirects = False
@@ -214,7 +219,7 @@ class TestAuthentication:
         assert decoded_token["email"] == TEST_USER["email"]
         assert decoded_token["name"] == TEST_USER["name"]
 
-    def test_callback_missing_userinfo(self, client, mock_ibm_oauth):
+    def test_callback_missing_userinfo(self, client: Any, mock_ibm_oauth: Any) -> None:
         """Test callback with missing userinfo."""
         # Disable redirect following
         client.follow_redirects = False
@@ -239,7 +244,7 @@ class TestAuthentication:
 
 
 class TestUserEndpoints:
-    def test_get_userinfo(self, client, auth_headers):
+    def test_get_userinfo(self, client: Any, auth_headers: Any) -> None:
         """Test GET /api/auth/userinfo."""
         response = client.get("/api/auth/userinfo", headers=auth_headers)
         assert response.status_code == 200
@@ -247,12 +252,12 @@ class TestUserEndpoints:
         assert data["email"] == TEST_USER["email"]
         assert data["role"] == TEST_USER["role"]
 
-    def test_get_userinfo_no_auth(self, client):
+    def test_get_userinfo_no_auth(self, client: Any) -> None:
         """Test GET /api/auth/userinfo without auth."""
         response = client.get("/api/auth/userinfo")
         assert response.status_code == 401
 
-    def test_session_status(self, client, auth_headers):
+    def test_session_status(self, client: Any, auth_headers: Any) -> None:
         """Test GET /api/auth/session."""
         response = client.get("/api/auth/session", headers=auth_headers)
         assert response.status_code == 200
@@ -260,14 +265,14 @@ class TestUserEndpoints:
         assert data["authenticated"] is True
         assert data["user"]["email"] == TEST_USER["email"]
 
-    def test_session_status_no_auth(self, client):
+    def test_session_status_no_auth(self, client: Any) -> None:
         """Test GET /api/auth/session without auth."""
         response = client.get("/api/auth/session")
         assert response.status_code == 200  # Should still return 200
         data = response.json()
         assert data["authenticated"] is False
 
-    def test_logout(self, client, auth_headers):
+    def test_logout(self, client: Any, auth_headers: Any) -> None:
         """Test POST /api/auth/logout."""
         response = client.post("/api/auth/logout", headers=auth_headers)
         assert response.status_code == 200

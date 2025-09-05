@@ -1,5 +1,6 @@
 """Integration tests for UserService."""
 
+from typing import Any
 from uuid import uuid4
 
 import pytest
@@ -22,7 +23,7 @@ def test_user_input() -> UserInput:
 # 🧪 User Creation Tests
 # -------------------------------------------
 @pytest.mark.atomic
-def test_create_user_success(user_service, test_user_input: UserInput):
+def test_create_user_success(user_service: Any, test_user_input: UserInput) -> None:
     """Test successful user creation."""
     result = user_service.create_user(test_user_input)
 
@@ -34,7 +35,7 @@ def test_create_user_success(user_service, test_user_input: UserInput):
 
 
 @pytest.mark.atomic
-def test_create_user_duplicate_ibm_id(user_service, base_user: UserOutput, test_user_input: UserInput):
+def test_create_user_duplicate_ibm_id(user_service: Any, base_user: UserOutput, test_user_input: UserInput) -> None:
     """Test creating user with duplicate IBM ID."""
     duplicate_input = test_user_input.model_copy(update={"ibm_id": base_user.ibm_id})
 
@@ -45,18 +46,14 @@ def test_create_user_duplicate_ibm_id(user_service, base_user: UserOutput, test_
 
 
 @pytest.mark.atomic
-def test_get_or_create_user_by_fields(user_service):
+def test_get_or_create_user_by_fields(user_service: Any) -> None:
     """Test getting or creating user by fields."""
     # First call should create user
-    result = user_service.get_or_create_user_by_fields(
-        ibm_id="test_ibm_id_3", email="test3@example.com", name="Test User 3"
-    )
+    result = user_service.get_or_create_user_by_fields(ibm_id="test_ibm_id_3", email="test3@example.com", name="Test User 3")
     assert isinstance(result, UserOutput)
 
     # Second call should return existing user
-    same_result = user_service.get_or_create_user_by_fields(
-        ibm_id="test_ibm_id_3", email="test3@example.com", name="Test User 3"
-    )
+    same_result = user_service.get_or_create_user_by_fields(ibm_id="test_ibm_id_3", email="test3@example.com", name="Test User 3")
     assert same_result.id == result.id
 
 
@@ -64,7 +61,7 @@ def test_get_or_create_user_by_fields(user_service):
 # 🧪 User Retrieval Tests
 # -------------------------------------------
 @pytest.mark.atomic
-def test_get_user_by_id(user_service, base_user: UserOutput):
+def test_get_user_by_id(user_service: Any, base_user: UserOutput) -> None:
     """Test getting user by ID."""
     result = user_service.get_user_by_id(base_user.id)
 
@@ -74,7 +71,7 @@ def test_get_user_by_id(user_service, base_user: UserOutput):
 
 
 @pytest.mark.atomic
-def test_get_user_by_id_not_found(user_service):
+def test_get_user_by_id_not_found(user_service: Any) -> None:
     """Test getting user by ID when not found."""
     with pytest.raises(HTTPException) as exc_info:
         user_service.get_user_by_id(uuid4())
@@ -83,7 +80,7 @@ def test_get_user_by_id_not_found(user_service):
 
 
 @pytest.mark.atomic
-def test_get_user_by_ibm_id(user_service, base_user: UserOutput):
+def test_get_user_by_ibm_id(user_service: Any, base_user: UserOutput) -> None:
     """Test getting user by IBM ID."""
     result = user_service.get_user_by_ibm_id(base_user.ibm_id)
 
@@ -93,7 +90,7 @@ def test_get_user_by_ibm_id(user_service, base_user: UserOutput):
 
 
 @pytest.mark.atomic
-def test_get_user_by_ibm_id_not_found(user_service):
+def test_get_user_by_ibm_id_not_found(user_service: Any) -> None:
     """Test getting user by IBM ID when not found."""
     with pytest.raises(HTTPException) as exc_info:
         user_service.get_user_by_ibm_id("non-existent-ibm-id")
@@ -105,7 +102,7 @@ def test_get_user_by_ibm_id_not_found(user_service):
 # 🧪 User Update Tests
 # -------------------------------------------
 @pytest.mark.atomic
-def test_update_user(user_service, base_user: UserOutput):
+def test_update_user(user_service: Any, base_user: UserOutput) -> None:
     """Test updating a user."""
     update_input = UserInput(ibm_id=base_user.ibm_id, email="updated@example.com", name="Updated Name", role="admin")
 
@@ -119,7 +116,7 @@ def test_update_user(user_service, base_user: UserOutput):
 
 
 @pytest.mark.atomic
-def test_update_user_not_found(user_service, test_user_input: UserInput):
+def test_update_user_not_found(user_service: Any, test_user_input: UserInput) -> None:
     """Test updating a user when not found."""
     with pytest.raises(HTTPException) as exc_info:
         user_service.update_user(uuid4(), test_user_input)
@@ -131,7 +128,7 @@ def test_update_user_not_found(user_service, test_user_input: UserInput):
 # 🧪 User Deletion Tests
 # -------------------------------------------
 @pytest.mark.atomic
-def test_delete_user(user_service, base_user: UserOutput):
+def test_delete_user(user_service: Any, base_user: UserOutput) -> None:
     """Test deleting a user."""
     result = user_service.delete_user(base_user.id)
 
@@ -142,7 +139,7 @@ def test_delete_user(user_service, base_user: UserOutput):
 
 
 @pytest.mark.atomic
-def test_delete_user_not_found(user_service):
+def test_delete_user_not_found(user_service: Any) -> None:
     """Test deleting a user when not found."""
     with pytest.raises(HTTPException) as exc_info:
         user_service.delete_user(uuid4())
@@ -154,7 +151,7 @@ def test_delete_user_not_found(user_service):
 # 🧪 User Team Tests
 # -------------------------------------------
 @pytest.mark.atomic
-def test_get_user_teams(user_service, user_team_service, base_user: UserOutput, base_team, user_team):
+def test_get_user_teams(user_service: Any, user_team_service: Any, base_user: UserOutput, base_team: Any, user_team: Any) -> None:
     """Test getting user teams."""
     result = user_team_service.get_team_users(base_team.id)
 
@@ -166,17 +163,10 @@ def test_get_user_teams(user_service, user_team_service, base_user: UserOutput, 
 # 🧪 User Listing Tests
 # -------------------------------------------
 @pytest.mark.atomic
-def test_list_users(
-    user_service,
-    base_user: UserOutput,
-    db_session,
-    clean_db,  # ,  # Add explicit dependency on clean_db fixture
-):
+def test_list_users(user_service: Any, base_user: UserOutput, db_session: Any, clean_db: Any) -> None:
     """Test listing users."""
     # Create additional user
-    other_user = user_service.create_user(
-        UserInput(ibm_id=f"other_user_{uuid4()}", email="other@example.com", name="Other User", role="user")
-    )
+    other_user = user_service.create_user(UserInput(ibm_id=f"other_user_{uuid4()}", email="other@example.com", name="Other User", role="user"))
 
     # Get list of users
     result = user_service.list_users(skip=0, limit=10)

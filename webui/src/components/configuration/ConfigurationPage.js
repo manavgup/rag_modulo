@@ -61,7 +61,7 @@ const ConfigurationPage = () => {
       <Grid>
         <Column lg={16} md={8} sm={4}>
           <h1>Configuration Management</h1>
-          
+
           <Tabs selectedIndex={getSelectedTab()} onChange={handleTabChange}>
             <TabList aria-label="Configuration tabs">
               <Tab renderIcon={() => <Cloud size={16} />}>Provider Settings</Tab>
@@ -69,7 +69,7 @@ const ConfigurationPage = () => {
               <Tab renderIcon={() => <SettingsAdjust size={16} />}>LLM Parameters</Tab>
               <Tab renderIcon={() => <Template size={16} />}>Prompt Templates</Tab>
             </TabList>
-            
+
             <TabPanels>
               <TabPanel>
                 <div className="configuration-section">
@@ -80,7 +80,7 @@ const ConfigurationPage = () => {
                   <ProviderSettings />
                 </div>
               </TabPanel>
-              
+
               <TabPanel>
                 <div className="configuration-section">
                   <h2>Pipeline Settings</h2>
@@ -90,7 +90,7 @@ const ConfigurationPage = () => {
                   <PipelineSettings />
                 </div>
               </TabPanel>
-              
+
               <TabPanel>
                 <div className="configuration-section">
                   <h2>LLM Parameters</h2>
@@ -100,7 +100,7 @@ const ConfigurationPage = () => {
                   <LLMParameters />
                 </div>
               </TabPanel>
-              
+
               <TabPanel>
                 <div className="configuration-section">
                   <h2>Prompt Templates</h2>

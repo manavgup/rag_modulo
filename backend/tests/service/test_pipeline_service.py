@@ -1,15 +1,17 @@
 """Tests for PipelineService implementation."""
 
-from pydantic import UUID4, uuid4
+from typing import Any
+from uuid import uuid4
 
 import pytest
+from pydantic import UUID4
 from sqlalchemy.orm import Session
 
 from core.custom_exceptions import ConfigurationError, ValidationError
 from rag_solution.models.llm_parameters import LLMParameters
 from rag_solution.models.prompt_template import PromptTemplate
 from rag_solution.models.user import User
-from rag_solution.schemas.pipeline_schema import PipelineConfigInput
+from rag_solution.schemas.pipeline_schema import ChunkingStrategy, ContextStrategy, PipelineConfigInput, RetrieverType
 from rag_solution.schemas.prompt_template_schema import PromptTemplateType
 from rag_solution.schemas.search_schema import SearchInput
 from rag_solution.services.llm_provider_service import LLMProviderService
@@ -19,7 +21,6 @@ from vectordbs.data_types import DocumentChunk, DocumentChunkMetadata, QueryResu
 
 
 @pytest.fixture
-@pytest.mark.atomic
 def test_user(db_session: Session) -> User:
     """Create test user."""
     user = User(id=uuid4(), ibm_id="test_user", email="test@example.com", name="Test User")
@@ -47,7 +48,7 @@ def test_llm_parameters(db_session: Session, test_user: User) -> LLMParameters:
 
 
 @pytest.fixture
-def test_templates(db_session: Session, test_user: User) -> dict[str, PromptTemplate]:
+def test_templates(db_session: Session, test_user: User) -> dict[PromptTemplateType, PromptTemplate]:
     """Create test prompt templates."""
     templates = {}
     template_base = {
@@ -91,49 +92,43 @@ def search_input() -> SearchInput:
         question="What is the capital of France?",
         collection_id=UUID4("12345678-1234-5678-1234-567812345678"),
         pipeline_id=UUID4("87654321-4321-8765-4321-876543210987"),
-        metadata={"max_length": 100},
+        user_id=UUID4("11111111-1111-1111-1111-111111111111"),
+        config_metadata={"max_length": 100},
     )
 
 
 @pytest.fixture
 def mock_query_results(db_session: Session) -> list[QueryResult]:
     """Create mock query results."""
-    provider_service = LLMProviderService(db_session)
-    provider = provider_service.get_provider_by_name("watsonx")
-
     text1 = "Test context 1"
     text2 = "Test context 2"
-    embeddings = provider.generate_embeddings([text1, text2])
+    # Mock embeddings
+    embeddings1 = [0.1, 0.2, 0.3]
+    embeddings2 = [0.4, 0.5, 0.6]
 
     return [
         QueryResult(
             chunk=DocumentChunk(
                 chunk_id="chunk1",
                 text=text1,
-                embeddings=embeddings[0],
                 metadata=DocumentChunkMetadata(source=Source.OTHER, document_id="doc1", page_number=1, chunk_number=1),
-                document_id="doc1",
             ),
             score=0.9,
-            document_id="doc1",
-            embeddings=embeddings[0],
+            embeddings=embeddings1,
         ),
         QueryResult(
             chunk=DocumentChunk(
                 chunk_id="chunk2",
                 text=text2,
-                embeddings=embeddings[1],
                 metadata=DocumentChunkMetadata(source=Source.OTHER, document_id="doc2", page_number=1, chunk_number=1),
-                document_id="doc2",
             ),
             score=0.8,
-            document_id="doc2",
-            embeddings=embeddings[1],
+            embeddings=embeddings2,
         ),
     ]
 
 
-def test_service_initialization(pipeline_service: PipelineService):
+def test_service_initialization(pipeline_service: PipelineService) -> None:
     """Test service initialization."""
     assert pipeline_service.db is not None
     assert pipeline_service.query_rewriter is not None
@@ -142,7 +137,7 @@ def test_service_initialization(pipeline_service: PipelineService):
 
 
 @pytest.mark.asyncio
-async def test_pipeline_initialization(pipeline_service: PipelineService):
+async def test_pipeline_initialization(pipeline_service: PipelineService) -> None:
     """Test pipeline initialization."""
     # Initialize for test collection
     await pipeline_service.initialize("test_collection")
@@ -161,14 +156,14 @@ async def test_execute_pipeline(
     search_input: SearchInput,
     test_user: User,
     test_llm_parameters: LLMParameters,
-    test_templates: dict[str, PromptTemplate],
-):
+    test_templates: dict[PromptTemplateType, PromptTemplate],
+) -> None:
     """Test pipeline execution."""
     # Initialize pipeline
     await pipeline_service.initialize("test_collection")
 
     # Execute pipeline
-    result = await pipeline_service.execute_pipeline(search_input, test_user.id)
+    result = await pipeline_service.execute_pipeline(search_input, "test_collection")
 
     # Verify result structure
     assert isinstance(result, PipelineResult)
@@ -181,17 +176,15 @@ async def test_execute_pipeline(
 
 
 @pytest.mark.asyncio
-async def test_pipeline_configuration_error(
-    pipeline_service: PipelineService, search_input: SearchInput, test_user: User
-):
+async def test_pipeline_configuration_error(pipeline_service: PipelineService, search_input: SearchInput, test_user: User) -> None:
     """Test pipeline handling configuration error."""
     # Don't initialize to trigger error
     with pytest.raises(ConfigurationError):
-        await pipeline_service.execute_pipeline(search_input, test_user.id)
+        await pipeline_service.execute_pipeline(search_input, "test_collection")
 
 
 @pytest.mark.asyncio
-async def test_pipeline_validation_error(pipeline_service: PipelineService, search_input: SearchInput, test_user: User):
+async def test_pipeline_validation_error(pipeline_service: PipelineService, search_input: SearchInput, test_user: User) -> None:
     """Test pipeline handling validation error."""
     # Initialize pipeline
     await pipeline_service.initialize("test_collection")
@@ -200,13 +193,11 @@ async def test_pipeline_validation_error(pipeline_service: PipelineService, sear
     search_input.question = ""
 
     with pytest.raises(ValidationError):
-        await pipeline_service.execute_pipeline(search_input, test_user.id)
+        await pipeline_service.execute_pipeline(search_input, "test_collection")
 
 
 @pytest.mark.asyncio
-async def test_pipeline_template_error(
-    pipeline_service: PipelineService, search_input: SearchInput, test_user: User, db_session: Session
-):
+async def test_pipeline_template_error(pipeline_service: PipelineService, search_input: SearchInput, test_user: User, db_session: Session) -> None:
     """Test pipeline handling template error."""
     # Initialize pipeline
     await pipeline_service.initialize("test_collection")
@@ -216,15 +207,13 @@ async def test_pipeline_template_error(
     pipeline_service._prompt_template_service = template_service
 
     # Execute pipeline - should handle template error gracefully
-    result = await pipeline_service.execute_pipeline(search_input, test_user.id)
+    result = await pipeline_service.execute_pipeline(search_input, "test_collection")
     assert result.generated_answer != ""
     assert isinstance(result.generated_answer, str)
 
 
 @pytest.mark.asyncio
-async def test_pipeline_provider_error(
-    pipeline_service: PipelineService, search_input: SearchInput, test_user: User, db_session: Session
-):
+async def test_pipeline_provider_error(pipeline_service: PipelineService, search_input: SearchInput, test_user: User, db_session: Session) -> None:
     """Test pipeline handling provider error."""
     # Initialize pipeline
     await pipeline_service.initialize("test_collection")
@@ -234,15 +223,20 @@ async def test_pipeline_provider_error(
     pipeline_service._llm_provider_service = provider_service
 
     # Execute pipeline - should handle provider error gracefully
-    result = await pipeline_service.execute_pipeline(search_input, test_user.id)
+    result = await pipeline_service.execute_pipeline(search_input, "test_collection")
     assert result.evaluation is not None
     assert "error" in result.evaluation
 
 
-def test_pipeline_result_methods(mock_query_results: list[QueryResult]):
+def test_pipeline_result_methods(mock_query_results: list[QueryResult]) -> None:
     """Test PipelineResult helper methods."""
     result = PipelineResult(
-        rewritten_query="test", query_results=mock_query_results, generated_answer="answer", evaluation={"score": 0.9}
+        success=True,
+        error=None,
+        rewritten_query="test",
+        query_results=mock_query_results,
+        generated_answer="answer",
+        evaluation={"score": 0.9},
     )
 
     # Test sorting
@@ -269,7 +263,7 @@ def test_pipeline_result_methods(mock_query_results: list[QueryResult]):
     assert doc1_results[0].document_id == "doc1"
 
 
-def test_get_collection_default_pipeline(pipeline_service: PipelineService, test_collection, test_config):
+def test_get_collection_default_pipeline(pipeline_service: PipelineService, test_collection: Any, test_config: Any) -> None:
     """Test getting default pipeline for collection."""
     default = pipeline_service.pipeline_repository.get_collection_default(test_collection.id)
     assert default is None  # Initially no default
@@ -283,16 +277,18 @@ def test_get_collection_default_pipeline(pipeline_service: PipelineService, test
     assert default.id == test_config["pipeline"].id
 
 
-def test_validate_collection_default_rules(pipeline_service: PipelineService, test_config):
+def test_validate_collection_default_rules(pipeline_service: PipelineService, test_config: Any) -> None:
     """Test validation rules for collection defaults."""
     # Try to set system-wide pipeline as default
     config_input = PipelineConfigInput(
         name="test-system",
         description="Test system pipeline",
-        chunking_strategy="fixed",
+        chunking_strategy=ChunkingStrategy.FIXED,
         embedding_model="sentence-transformers/all-mpnet-base-v2",
-        retriever="vector",
-        context_strategy="priority",
+        retriever=RetrieverType.VECTOR,
+        context_strategy=ContextStrategy.PRIORITY,
+        user_id=UUID4("11111111-1111-1111-1111-111111111111"),
+        collection_id=None,
         provider_id=test_config["pipeline"].provider_id,
         enable_logging=True,
         max_context_length=2048,

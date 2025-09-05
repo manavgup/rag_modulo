@@ -156,9 +156,7 @@ class LLMProviderFactory:
         except LLMProviderError:
             raise
         except Exception as e:
-            raise LLMProviderError(
-                provider=provider_name, error_type="creation_failed", message=f"Failed to create provider: {e!s}"
-            ) from e
+            raise LLMProviderError(provider=provider_name, error_type="creation_failed", message=f"Failed to create provider: {e!s}") from e
 
     def cleanup_provider(self, provider_name: str, model_id: str | None = None) -> None:
         """

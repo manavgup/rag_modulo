@@ -2,6 +2,7 @@
 
 import json
 import sys
+from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
@@ -28,12 +29,12 @@ class TestSearchCLI:
     """Test the search CLI commands."""
 
     @pytest.fixture
-    def runner(self):
+    def runner(self: "TestSearchCLI") -> CliRunner:
         """Create a CLI test runner."""
         return CliRunner()
 
     @pytest.fixture
-    def mock_services(self):
+    def mock_services(self: "TestSearchCLI") -> None:
         """Mock the services used by the CLI."""
         with patch("cli.search_test.get_services") as mock_get_services:
             mock_db = Mock()
@@ -76,41 +77,48 @@ class TestSearchCLI:
             yield mock_services
 
     @pytest.fixture
-    def mock_logger(self):
+    def mock_logger(self: "TestSearchCLI") -> None:
         """Mock the logger."""
         with patch("cli.search_test.get_logger_lazy") as mock_logger:
             yield mock_logger
 
-    def test_search_command_help(self, runner):
+    def test_search_command_help(self, runner: CliRunner) -> None:
         """Test that the search command help works."""
         result = runner.invoke(search, ["--help"])
         assert result.exit_code == 0
         assert "RAG search testing commands" in result.output
 
-    def test_test_command_help(self, runner):
+    def test_test_command_help(self, runner: CliRunner) -> None:
         """Test that the test command help works."""
         result = runner.invoke(search, ["test", "--help"])
         assert result.exit_code == 0
         assert "Test search query and analyze results" in result.output
 
-    def test_test_command_missing_args(self, runner):
+    def test_test_command_missing_args(self, runner: CliRunner) -> None:
         """Test that test command requires arguments."""
         result = runner.invoke(search, ["test"])
         assert result.exit_code != 0
         assert "Missing option" in result.output
 
-    def test_test_command_execution(self, runner, tmp_path):
+    def test_test_command_execution(self, runner: CliRunner, tmp_path: Any) -> None:
         """Test the test command execution."""
         # Create output file path
         output_file = tmp_path / "results.json"
 
-        result = runner.invoke(search, [
-            "test",
-            "--query", "What is machine learning?",
-            "--collection-id", str(uuid4()),
-            "--user-id", str(uuid4()),
-            "--output", str(output_file),
-        ])
+        result = runner.invoke(
+            search,
+            [
+                "test",
+                "--query",
+                "What is machine learning?",
+                "--collection-id",
+                str(uuid4()),
+                "--user-id",
+                str(uuid4()),
+                "--output",
+                str(output_file),
+            ],
+        )
 
         # Check command executed successfully
         assert result.exit_code == 0
@@ -122,7 +130,7 @@ class TestSearchCLI:
                 assert "query" in data
                 assert "answer" in data
 
-    def test_batch_test_command(self, runner, tmp_path):
+    def test_batch_test_command(self, runner: CliRunner, tmp_path: Any) -> None:
         """Test the batch-test command."""
         # Create test queries file
         queries_file = tmp_path / "queries.json"
@@ -132,31 +140,43 @@ class TestSearchCLI:
                     "query": "What is AI?",
                     "category": "definition",
                     "expected_keywords": ["artificial", "intelligence"],
-                    "complexity": "low"
+                    "complexity": "low",
                 }
             ]
         }
         with open(queries_file, "w") as f:
             json.dump(queries_data, f)
 
-        result = runner.invoke(search, [
-            "batch-test",
-            "--queries-file", str(queries_file),
-            "--collection-id", str(uuid4()),
-            "--user-id", str(uuid4()),
-        ])
+        result = runner.invoke(
+            search,
+            [
+                "batch-test",
+                "--queries-file",
+                str(queries_file),
+                "--collection-id",
+                str(uuid4()),
+                "--user-id",
+                str(uuid4()),
+            ],
+        )
 
         # Check command executed
         assert result.exit_code == 0
 
-    def test_test_components_command(self, runner):
+    def test_test_components_command(self, runner: CliRunner) -> None:
         """Test the test-components command."""
-        result = runner.invoke(search, [
-            "test-components",
-            "--query", "What is machine learning?",
-            "--collection-id", str(uuid4()),
-            "--strategy", "simple"
-        ])
+        result = runner.invoke(
+            search,
+            [
+                "test-components",
+                "--query",
+                "What is machine learning?",
+                "--collection-id",
+                str(uuid4()),
+                "--strategy",
+                "simple",
+            ],
+        )
 
         # Check command executed
         assert result.exit_code == 0
@@ -165,7 +185,7 @@ class TestSearchCLI:
 class TestSearchUtils:
     """Test the utility functions."""
 
-    def test_calculate_retrieval_metrics(self):
+    def test_calculate_retrieval_metrics(self) -> None:
         """Test retrieval metrics calculation."""
         mock_results = [
             Mock(score=0.95),
@@ -180,7 +200,7 @@ class TestSearchUtils:
         assert "score_variance" in metrics
         assert metrics["average_score"] == pytest.approx(0.863, rel=1e-2)
 
-    def test_evaluate_answer_quality(self):
+    def test_evaluate_answer_quality(self) -> None:
         """Test answer quality evaluation."""
         answer = "Machine learning is a subset of artificial intelligence that enables systems to learn from data."
         keywords = ["machine", "learning", "artificial", "intelligence", "data"]
@@ -192,16 +212,14 @@ class TestSearchUtils:
         assert "answer_length" in evaluation
         assert evaluation["keyword_coverage"] == 1.0  # All keywords found
 
-    def test_calculate_quality_score(self):
+    def test_calculate_quality_score(self) -> None:
         """Test quality score calculation."""
         mock_result = Mock()
         mock_result.answer = "This is a test answer"
         mock_result.documents = [Mock(), Mock()]
         mock_result.evaluation = {"score": 80}
 
-        test_case = {
-            "expected_keywords": ["test", "answer"]
-        }
+        test_case = {"expected_keywords": ["test", "answer"]}
 
         score = _calculate_quality_score(mock_result, test_case)
 
@@ -213,7 +231,7 @@ class TestCLIIntegration:
     """Integration tests for CLI with actual services."""
 
     @pytest.mark.asyncio
-    async def test_search_integration(self, db_session, test_collection, test_user):
+    async def test_search_integration(self, db_session: Any, test_collection: Any, test_user: Any) -> None:
         """Test search CLI with real database."""
 
         # This would need proper test fixtures for collection and user

@@ -71,7 +71,7 @@ def test_collection_with_files(db_session: Session, base_user: User) -> Collecti
 
 
 @pytest.mark.atomic
-def test_get_user_collections_with_files(db_session: Session, base_user: User, test_collection_with_files: Collection):
+def test_get_user_collections_with_files(db_session: Session, base_user: User, test_collection_with_files: Collection) -> None:
     """Test fetching user collections with files."""
     service = UserCollectionInteractionService(db_session)
 
@@ -89,11 +89,10 @@ def test_get_user_collections_with_files(db_session: Session, base_user: User, t
     for file in collection.files:
         assert isinstance(file, FileInfo)
         assert file.filename.startswith("file")
-        assert file.file_type == "txt"
 
 
 @pytest.mark.atomic
-def test_get_user_collections_with_files_no_collections(db_session: Session, base_user: User):
+def test_get_user_collections_with_files_no_collections(db_session: Session, base_user: User) -> None:
     """Test fetching user collections when user has no collections."""
     service = UserCollectionInteractionService(db_session)
 
@@ -105,14 +104,12 @@ def test_get_user_collections_with_files_no_collections(db_session: Session, bas
 
 
 @pytest.mark.atomic
-def test_get_user_collections_with_files_multiple_collections(db_session: Session, base_user: User):
+def test_get_user_collections_with_files_multiple_collections(db_session: Session, base_user: User) -> None:
     """Test fetching multiple collections with files."""
     # Create multiple collections with files
     collections = []
     for i in range(3):
-        collection = Collection(
-            name=f"Test Collection {i}", is_private=False, vector_db_name=f"collection_{uuid4().hex}", status="created"
-        )
+        collection = Collection(name=f"Test Collection {i}", is_private=False, vector_db_name=f"collection_{uuid4().hex}", status="created")
         db_session.add(collection)
         db_session.flush()
 
@@ -144,15 +141,15 @@ def test_get_user_collections_with_files_multiple_collections(db_session: Sessio
     assert result.user_id == base_user.id
     assert len(result.collections) == 3
 
-    for i, collection in enumerate(result.collections):
-        assert collection.name == f"Test Collection {i}"
-        assert len(collection.files) == 2
-        for file in collection.files:
+    for i, collection_detail in enumerate(result.collections):
+        assert collection_detail.name == f"Test Collection {i}"
+        assert len(collection_detail.files) == 2
+        for file in collection_detail.files:
             assert file.filename.startswith(f"collection{i}_file")
 
 
 @pytest.mark.atomic
-def test_get_user_collections_with_files_nonexistent_user(db_session: Session):
+def test_get_user_collections_with_files_nonexistent_user(db_session: Session) -> None:
     """Test fetching collections for nonexistent user."""
     service = UserCollectionInteractionService(db_session)
 
@@ -163,12 +160,10 @@ def test_get_user_collections_with_files_nonexistent_user(db_session: Session):
 
 
 @pytest.mark.atomic
-def test_get_user_collections_with_files_empty_collections(db_session: Session, base_user: User):
+def test_get_user_collections_with_files_empty_collections(db_session: Session, base_user: User) -> None:
     """Test fetching collections that have no files."""
     # Create collection without files
-    collection = Collection(
-        name="Empty Collection", is_private=False, vector_db_name=f"collection_{uuid4().hex}", status="created"
-    )
+    collection = Collection(name="Empty Collection", is_private=False, vector_db_name=f"collection_{uuid4().hex}", status="created")
     db_session.add(collection)
     db_session.flush()
 

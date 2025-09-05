@@ -1,9 +1,9 @@
 """Core user routes."""
 
 import logging
-from pydantic import UUID4
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import UUID4
 
 from core.authorization import authorize_decorator
 from rag_solution.core.dependencies import get_user_service, verify_user_access
@@ -29,10 +29,7 @@ router = APIRouter()
     },
 )
 @authorize_decorator(role="admin")
-async def create_user(
-    user_input: UserInput,
-    service: UserService = Depends(get_user_service)
-) -> UserOutput:
+async def create_user(user_input: UserInput, service: UserService = Depends(get_user_service)) -> UserOutput:
     """Create a new user."""
     try:
         return service.create_user(user_input)
@@ -55,10 +52,7 @@ async def create_user(
     },
 )
 @authorize_decorator(role="user")
-async def get_user(
-    user_id: UUID4,
-    user: UserOutput = Depends(verify_user_access)
-) -> UserOutput:
+async def get_user(user_id: UUID4, user: UserOutput = Depends(verify_user_access)) -> UserOutput:
     """Retrieve details for a specific user."""
     # User access is already verified by dependency
     return user
@@ -82,7 +76,7 @@ async def update_user(
     user_id: UUID4,
     user_input: UserInput,
     user: UserOutput = Depends(verify_user_access),
-    service: UserService = Depends(get_user_service)
+    service: UserService = Depends(get_user_service),
 ) -> UserOutput:
     """Update details for a specific user."""
     try:
@@ -108,11 +102,7 @@ async def update_user(
     },
 )
 @authorize_decorator(role="user")
-async def delete_user(
-    user_id: UUID4,
-    user: UserOutput = Depends(verify_user_access),
-    service: UserService = Depends(get_user_service)
-) -> dict:
+async def delete_user(user_id: UUID4, user: UserOutput = Depends(verify_user_access), service: UserService = Depends(get_user_service)) -> dict:
     """Delete a specific user."""
     try:
         service.delete_user(user_id)

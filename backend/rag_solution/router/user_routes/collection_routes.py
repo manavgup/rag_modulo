@@ -1,9 +1,9 @@
 """Collection routes for user-specific operations."""
 
 import logging
-from pydantic import UUID4
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import UUID4
 from sqlalchemy.orm import Session
 
 from rag_solution.core.dependencies import verify_user_access
@@ -28,9 +28,7 @@ router = APIRouter()
         500: {"description": "Internal server error"},
     },
 )
-async def get_user_collections(
-    user_id: UUID4, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)
-) -> list[CollectionOutput]:
+async def get_user_collections(user_id: UUID4, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)) -> list[CollectionOutput]:
     """Retrieve all collections for a user."""
     service = UserCollectionService(db)
     try:
@@ -51,9 +49,7 @@ async def get_user_collections(
         500: {"description": "Internal server error"},
     },
 )
-async def remove_user_collection(
-    user_id: UUID4, collection_id: UUID4, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)
-) -> bool:
+async def remove_user_collection(user_id: UUID4, collection_id: UUID4, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)) -> bool:
     """Remove a collection from a user's access."""
     service = UserCollectionService(db)
     try:

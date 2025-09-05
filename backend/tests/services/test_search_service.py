@@ -1,12 +1,14 @@
 """Tests for SearchService with PipelineService integration."""
 
-from pydantic import UUID4, uuid4
+from typing import Any
+from unittest.mock import patch
+from uuid import uuid4
 
 import pytest
 from fastapi import HTTPException
+from pydantic import UUID4
 
-from core.config import settings
-from rag_solution.schemas.collection_schema import CollectionInput
+from rag_solution.schemas.collection_schema import CollectionInput, CollectionStatus
 from rag_solution.schemas.search_schema import SearchInput, SearchOutput
 from rag_solution.schemas.user_schema import UserInput, UserOutput
 from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, Source
@@ -17,7 +19,7 @@ from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata,
 # -------------------------------------------
 @pytest.mark.asyncio
 @pytest.mark.atomic
-async def test_search_basic(search_service, base_collection, base_file, base_user, base_pipeline_config):
+async def test_search_basic(search_service: Any, base_collection: Any, base_file: Any, base_user: Any, base_pipeline_config: Any) -> None:
     """Test basic search functionality with pipeline service."""
     search_input = SearchInput(
         question="What is the capital of France?",
@@ -36,7 +38,7 @@ async def test_search_basic(search_service, base_collection, base_file, base_use
 
 
 @pytest.mark.asyncio
-async def test_search_no_results(search_service, base_collection, base_user, base_pipeline_config):
+async def test_search_no_results(search_service: Any, base_collection: Any, base_user: Any, base_pipeline_config: Any) -> None:
     """Test search with a query that has no matching documents."""
     search_input = SearchInput(
         question="What is the capital of Mars?",  # Query that won't match any documents
@@ -57,11 +59,11 @@ async def test_search_no_results(search_service, base_collection, base_user, bas
 # 🧪 Authorization Tests
 # -------------------------------------------
 @pytest.mark.asyncio
-async def test_search_invalid_collection(search_service, base_user: UserOutput, base_pipeline_config):
+async def test_search_invalid_collection(search_service: Any, base_user: UserOutput, base_pipeline_config: Any) -> None:
     """Test search with an invalid collection ID."""
     search_input = SearchInput(
         question="Test question",
-        collection_id=str(UUID4(int=0)),  # Invalid UUID
+        collection_id=UUID4(int=0),  # Invalid UUID
         pipeline_id=base_pipeline_config["pipeline"].id,
         user_id=base_user.id,
     )
@@ -73,7 +75,7 @@ async def test_search_invalid_collection(search_service, base_user: UserOutput, 
 
 
 @pytest.mark.asyncio
-async def test_search_unauthorized_collection(search_service, user_service, collection_service, base_pipeline_config):
+async def test_search_unauthorized_collection(search_service: Any, user_service: Any, collection_service: Any, base_pipeline_config: Any) -> None:
     """Test search with a collection the user doesn't have access to."""
     unauthorized_user = user_service.create_user(
         UserInput(
@@ -89,7 +91,7 @@ async def test_search_unauthorized_collection(search_service, user_service, coll
             name="Private Collection",
             is_private=True,
             users=[],  # No users have access
-            status="created",
+            status=CollectionStatus.CREATED,
         )
     )
 
@@ -110,9 +112,15 @@ async def test_search_unauthorized_collection(search_service, user_service, coll
 # 🧪 Multiple Document Tests
 # -------------------------------------------
 @pytest.mark.asyncio
+@patch("core.config.settings.embedding_model", "test-embedding-model")
 async def test_search_multiple_documents(
-    search_service, base_user: UserOutput, base_collection, base_pipeline_config, vector_store, provider_factory
-):
+    search_service: Any,
+    base_user: UserOutput,
+    base_collection: Any,
+    base_pipeline_config: Any,
+    vector_store: Any,
+    provider_factory: Any,
+) -> None:
     """Test search with multiple documents in a collection."""
     watsonx = provider_factory.get_provider("watsonx")
 
@@ -124,7 +132,10 @@ async def test_search_multiple_documents(
 
     documents = []
     for data in files_data:
-        embeddings = watsonx.get_embeddings([data["text"]])
+        # Mock the embeddings call for atomic test
+        mock_embeddings = [[0.1, 0.2, 0.3, 0.4, 0.5]]  # Mock embedding vector
+        with patch.object(watsonx, "get_embeddings", return_value=mock_embeddings):
+            embeddings = watsonx.get_embeddings([data["text"]])
         document = Document(
             document_id=data["doc_id"],
             name=f"{data['doc_id']}.txt",
@@ -133,9 +144,7 @@ async def test_search_multiple_documents(
                     chunk_id=f"chunk_{data['doc_id']}",
                     text=data["text"],
                     embeddings=embeddings[0],
-                    metadata=DocumentChunkMetadata(
-                        source=Source.OTHER, document_id=data["doc_id"], page_number=1, chunk_number=1
-                    ),
+                    metadata=DocumentChunkMetadata(source=Source.OTHER, document_id=data["doc_id"], page_number=1, chunk_number=1),
                 )
             ],
         )
@@ -143,7 +152,7 @@ async def test_search_multiple_documents(
 
     # Add documents to vector store
     vector_store.delete_collection(base_collection.vector_db_name)
-    vector_store.create_collection(base_collection.vector_db_name, {"embedding_model": settings.embedding_model})
+    vector_store.create_collection(base_collection.vector_db_name, {"embedding_model": "test-embedding-model"})
     vector_store.add_documents(base_collection.vector_db_name, documents)
 
     # Perform search
@@ -165,12 +174,12 @@ async def test_search_multiple_documents(
 # 🧪 Error Handling Tests
 # -------------------------------------------
 @pytest.mark.asyncio
-async def test_search_invalid_pipeline(search_service, base_collection, base_user):
+async def test_search_invalid_pipeline(search_service: Any, base_collection: Any, base_user: Any) -> None:
     """Test search with an invalid pipeline ID."""
     search_input = SearchInput(
         question="Test question",
         collection_id=base_collection.id,
-        pipeline_id=str(UUID4(int=0)),  # Invalid UUID
+        pipeline_id=UUID4(int=0),  # Invalid UUID
         user_id=base_user.id,
     )
 
@@ -181,7 +190,7 @@ async def test_search_invalid_pipeline(search_service, base_collection, base_use
 
 
 @pytest.mark.asyncio
-async def test_search_empty_question(search_service, base_collection, base_user, base_pipeline_config):
+async def test_search_empty_question(search_service: Any, base_collection: Any, base_user: Any, base_pipeline_config: Any) -> None:
     """Test search with empty question string."""
     search_input = SearchInput(
         question="",
@@ -197,7 +206,7 @@ async def test_search_empty_question(search_service, base_collection, base_user,
 
 
 @pytest.mark.asyncio
-async def test_search_vector_store_error(search_service, base_collection, base_user, base_pipeline_config, mocker):
+async def test_search_vector_store_error(search_service: Any, base_collection: Any, base_user: Any, base_pipeline_config: Any, mocker: Any) -> None:
     """Test search when vector store connection fails."""
     mocker.patch("vectordbs.milvus_store.MilvusStore._connect", side_effect=Exception("Connection failed"))
 
@@ -217,7 +226,7 @@ async def test_search_vector_store_error(search_service, base_collection, base_u
 # -------------------------------------------
 # 🧪 Helper Function Tests
 # -------------------------------------------
-def test_clean_generated_answer(search_service):
+def test_clean_generated_answer(search_service: Any) -> None:
     """Test cleaning of generated answers."""
     test_cases = [
         ("AND this AND that", "this that"),

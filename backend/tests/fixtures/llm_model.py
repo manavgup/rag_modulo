@@ -5,6 +5,7 @@ import pytest
 from core.config import settings
 from core.logging_utils import get_logger
 from rag_solution.schemas.llm_model_schema import LLMModelInput, ModelType
+from rag_solution.schemas.llm_provider_schema import LLMProviderOutput
 from rag_solution.schemas.user_schema import UserOutput
 from rag_solution.services.llm_model_service import LLMModelService
 
@@ -12,7 +13,7 @@ logger = get_logger("tests.fixtures.llm_model")
 
 
 @pytest.fixture(scope="session")
-def base_model_input(ensure_watsonx_provider) -> LLMModelInput:
+def base_model_input(ensure_watsonx_provider: LLMProviderOutput) -> LLMModelInput:
     """Create base model input for testing."""
     return LLMModelInput(
         provider_id=ensure_watsonx_provider.id,
@@ -32,7 +33,7 @@ def base_model_input(ensure_watsonx_provider) -> LLMModelInput:
 
 
 @pytest.fixture(scope="session")
-def ensure_watsonx_models(session_llm_model_service: LLMModelService, ensure_watsonx_provider, base_user: UserOutput):
+def ensure_watsonx_models(session_llm_model_service: LLMModelService, ensure_watsonx_provider: LLMProviderOutput, base_user: UserOutput) -> LLMProviderOutput:
     """Ensure WatsonX models are configured."""
     try:
         provider = ensure_watsonx_provider

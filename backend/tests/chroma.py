@@ -22,10 +22,20 @@ print("client: ", client)
 
 
 # Example method to verify the connection
-def verify_connection():
+def verify_connection() -> None:
     try:
-        tenant_info = client._admin_client.get_tenant(name="default_tenant")
-        print("Tenant Info: ", tenant_info)
+        # Try to list collections as the primary verification method
+        collections = client.list_collections()
+        print(f"Successfully connected to ChromaDB. Found {len(collections)} collections.")
+
+        # Try heartbeat as additional verification
+        try:
+            heartbeat = client.heartbeat()
+            print("ChromaDB connection successful. Heartbeat:", heartbeat)
+        except AttributeError:
+            # Heartbeat might not be available in all ChromaDB versions
+            print("Heartbeat check skipped (not available in this ChromaDB version)")
+
     except Exception as e:
         logging.error(f"Failed to connect to ChromaDB: {e}")
 

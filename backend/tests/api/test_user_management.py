@@ -1,8 +1,11 @@
 # test_user_management.py
 
+from typing import Any
 from uuid import uuid4
 
 import pytest
+
+from rag_solution.schemas.user_schema import UserOutput
 
 from .base_test import BaseTestRouter
 
@@ -12,7 +15,7 @@ class TestUserManagement(BaseTestRouter):
     """Test user-related endpoints including teams."""
 
     @pytest.fixture
-    def test_user_data(self):
+    def test_user_data(self) -> dict[str, str]:
         """Sample user data for testing."""
         return {
             "ibm_id": f"test_user_{uuid4()}",
@@ -22,13 +25,13 @@ class TestUserManagement(BaseTestRouter):
         }
 
     @pytest.fixture
-    def test_team_data(self):
+    def test_team_data(self) -> dict[str, str]:
         """Sample team data for testing."""
         return {"name": f"Test Team {uuid4()}", "description": "A team for testing purposes"}
 
     # User Management Tests
     @pytest.mark.asyncio
-    async def test_create_user(self, test_user_data):
+    async def test_create_user(self, test_user_data: dict[str, str]) -> None:
         """Test POST /api/users"""
         response = self.post("/api/users", json=test_user_data)
         self.assert_success(response)
@@ -41,7 +44,7 @@ class TestUserManagement(BaseTestRouter):
         self.delete(f"/api/users/{data['id']}")
 
     @pytest.mark.asyncio
-    async def test_get_user(self, base_user):
+    async def test_get_user(self, base_user: UserOutput) -> None:
         """Test GET /api/users/{user_id}"""
         response = self.get(f"/api/users/{base_user.id}")
         self.assert_success(response)
@@ -51,7 +54,7 @@ class TestUserManagement(BaseTestRouter):
 
     # Team Management Tests
     @pytest.mark.asyncio
-    async def test_create_team(self, test_team_data):
+    async def test_create_team(self, test_team_data: dict[str, str]) -> None:
         """Test POST /api/teams"""
         response = self.post("/api/teams", json=test_team_data)
         self.assert_success(response)
@@ -63,14 +66,14 @@ class TestUserManagement(BaseTestRouter):
         self.delete(f"/api/teams/{data['id']}")
 
     @pytest.mark.asyncio
-    async def test_add_user_to_team(self, base_user, base_team):
+    async def test_add_user_to_team(self, base_user: UserOutput, base_team: Any) -> None:
         """Test adding user to team."""
         response = self.post(f"/api/teams/{base_team.id}/users", json={"user_id": str(base_user.id)})
         self.assert_success(response)
         assert response.json()["status"] == "success"
 
     @pytest.mark.asyncio
-    async def test_update_team_member_role(self, base_team, base_user_team):
+    async def test_update_team_member_role(self, base_team: Any, base_user_team: Any) -> None:
         """Test updating team member role."""
         update_data = {"role": "admin"}
         response = self.put(f"/api/teams/{base_team.id}/users/{base_user_team.user_id}", json=update_data)
@@ -79,7 +82,7 @@ class TestUserManagement(BaseTestRouter):
 
     # Collection Tests
     @pytest.mark.asyncio
-    async def test_get_user_collections(self, base_user, base_collection):  # noqa: ARG002
+    async def test_get_user_collections(self, base_user: UserOutput, base_collection: Any) -> None:  # noqa: ARG002
         """Test GET /api/users/{user_id}/collections"""
         response = self.get(f"/api/users/{base_user.id}/collections")
         self.assert_success(response)
@@ -87,7 +90,7 @@ class TestUserManagement(BaseTestRouter):
         assert len(data) > 0
 
     @pytest.mark.asyncio
-    async def test_upload_file_to_collection(self, base_user, base_collection):
+    async def test_upload_file_to_collection(self, base_user: UserOutput, base_collection: Any) -> None:
         """Test file upload."""
         files = {"file": ("test.txt", b"Test content", "text/plain")}
         response = self.post(f"/api/users/{base_user.id}/collections/{base_collection.id}/files", files=files)
@@ -98,7 +101,7 @@ class TestUserManagement(BaseTestRouter):
 
     # Authorization Tests
     @pytest.mark.asyncio
-    async def test_unauthorized_access(self):
+    async def test_unauthorized_access(self) -> None:
         """Test accessing endpoints without authentication."""
         test_id = uuid4()
         endpoints = [
@@ -113,7 +116,7 @@ class TestUserManagement(BaseTestRouter):
             self.assert_unauthorized(response)
 
     @pytest.mark.asyncio
-    async def test_access_other_user(self, base_user):  # noqa: ARG002
+    async def test_access_other_user(self, base_user: UserOutput) -> None:  # noqa: ARG002
         """Test accessing other user's data."""
         other_user_id = uuid4()
         response = self.get(f"/api/users/{other_user_id}")
@@ -121,7 +124,7 @@ class TestUserManagement(BaseTestRouter):
 
     # Validation Tests
     @pytest.mark.asyncio
-    async def test_invalid_input(self, test_user_data, test_team_data):
+    async def test_invalid_input(self, test_user_data: dict[str, str], test_team_data: dict[str, str]) -> None:
         """Test input validation."""
         # Invalid email
         test_user_data["email"] = "invalid-email"

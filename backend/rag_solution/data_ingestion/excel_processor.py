@@ -60,5 +60,5 @@ class ExcelProcessor(BaseProcessor):
                 doc_id=file_path,
                 error_type="processing_failed",
                 message=f"Error processing Excel file {file_path}",
-                details={"error": str(e)}
+                details={"error": str(e)},
             ) from e

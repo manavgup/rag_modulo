@@ -1,19 +1,18 @@
 """Service layer for RAG pipeline execution and management."""
 
 
-
 import re
 import time
 import uuid
 from typing import Any
-from pydantic import UUID4
 
+from pydantic import UUID4
 from sqlalchemy.orm import Session
 
 from core.config import settings
-from rag_solution.core.exceptions import NotFoundError, ValidationError, ConfigurationError
 from core.custom_exceptions import LLMProviderError
 from core.logging_utils import get_logger
+from rag_solution.core.exceptions import ConfigurationError, NotFoundError, ValidationError
 from rag_solution.data_ingestion.ingestion import DocumentStore
 from rag_solution.evaluation.evaluator import RAGEvaluator
 from rag_solution.generation.providers.base import LLMBase
@@ -46,7 +45,7 @@ logger = get_logger("services.pipeline")
 class PipelineService:
     """Service for managing and executing RAG pipelines."""
 
-    def __init__(self, db: Session):
+    def __init__(self: Any, db: Session) -> None:
         """Initialize service with database session."""
         self.db = db
         self._pipeline_repository: PipelineConfigRepository | None = None
@@ -124,7 +123,7 @@ class PipelineService:
             logger.info(f"Pipeline initialized for collection: {collection_name}")
         except Exception as e:
             logger.error(f"Pipeline initialization failed: {e!s}")
-            raise ConfigurationError(f"Pipeline initialization failed: {e!s}") from e
+            raise ConfigurationError("pipeline", f"Pipeline initialization failed: {e!s}") from e
 
     async def _load_documents(self) -> None:
         """Load and process documents from configured data sources."""
@@ -133,7 +132,7 @@ class PipelineService:
             logger.info(f"Loaded documents into collection: {self.document_store.collection_name}")
         except Exception as e:
             logger.error(f"Error loading documents: {e!s}")
-            raise ConfigurationError(f"Document loading failed: {e!s}") from e
+            raise ConfigurationError("document_loading", f"Document loading failed: {e!s}") from e
 
     def get_user_pipelines(self, user_id: UUID4) -> list[PipelineConfigOutput]:
         """Get all pipelines for a user."""
@@ -153,7 +152,7 @@ class PipelineService:
                         provider = providers[0]  # Use first available provider
                     else:
                         logger.error("No LLM providers available in the system")
-                        raise ConfigurationError("No LLM providers available. Please contact administrator.")
+                        raise ConfigurationError("llm_providers", "No LLM providers available. Please contact administrator.")
 
                 # Create default pipeline for existing user
                 default_pipeline = self.initialize_user_pipeline(user_id, provider.id)
@@ -162,7 +161,7 @@ class PipelineService:
             return pipelines  # Already PipelineConfigOutput objects from repository
         except Exception as e:
             logger.error(f"Failed to get user pipelines: {e!s}")
-            raise ConfigurationError(f"Failed to retrieve pipeline configurations: {e!s}") from e
+            raise ConfigurationError("pipeline_retrieval", f"Failed to retrieve pipeline configurations: {e!s}") from e
 
     def get_default_pipeline(self, user_id: UUID4, collection_id: UUID4 | None = None) -> PipelineConfigOutput | None:
         """Get default pipeline for a user or collection.
@@ -221,9 +220,7 @@ class PipelineService:
         """Retrieve pipeline configuration by ID."""
         pipeline = self.pipeline_repository.get_by_id(pipeline_id)
         if not pipeline:
-            raise NotFoundError(
-                resource_type="PipelineConfig", resource_id=str(pipeline_id), message="Pipeline configuration not found"
-            )
+            raise NotFoundError(resource_type="PipelineConfig", resource_id=str(pipeline_id))
         return PipelineConfigOutput.model_validate(pipeline) if pipeline else None
 
     def create_pipeline(self, config_input: PipelineConfigInput) -> PipelineConfigOutput:
@@ -242,9 +239,7 @@ class PipelineService:
 
         pipeline = self.pipeline_repository.get_by_id(pipeline_id)
         if not pipeline:
-            raise NotFoundError(
-                resource_type="PipelineConfig", resource_id=str(pipeline_id), message="Pipeline configuration not found"
-            )
+            raise NotFoundError(resource_type="PipelineConfig", resource_id=str(pipeline_id))
 
         # Update the pipeline
         updated_pipeline = self.pipeline_repository.update(pipeline_id, config_input)
@@ -254,9 +249,7 @@ class PipelineService:
         """Delete a pipeline configuration by ID."""
         pipeline = self.pipeline_repository.get_by_id(pipeline_id)
         if not pipeline:
-            raise NotFoundError(
-                resource_id=str(pipeline_id), resource_type="PipelineConfig", message="Pipeline configuration not found"
-            )
+            raise NotFoundError(resource_id=str(pipeline_id), resource_type="PipelineConfig")
 
         return self.pipeline_repository.delete(pipeline_id)
 
@@ -264,9 +257,7 @@ class PipelineService:
         """Validate pipeline configuration."""
         pipeline = self.pipeline_repository.get_by_id(pipeline_id)
         if not pipeline:
-            raise NotFoundError(
-                resource_type="PipelineConfig", resource_id=str(pipeline_id), message="Pipeline not found"
-            )
+            raise NotFoundError(resource_type="PipelineConfig", resource_id=str(pipeline_id))
 
         errors = []
         warnings: list[str] = []
@@ -284,16 +275,14 @@ class PipelineService:
             error=errors[0] if errors else None,
             warnings=warnings,
             rewritten_query=None,
-            generated_answer=None
+            generated_answer=None,
         )
 
     def test_pipeline(self, pipeline_id: UUID4, query: str) -> PipelineResult:
         """Test pipeline with a sample query."""
         pipeline = self.pipeline_repository.get_by_id(pipeline_id)
         if not pipeline:
-            raise NotFoundError(
-                resource_type="PipelineConfig", resource_id=str(pipeline_id), message="Pipeline not found"
-            )
+            raise NotFoundError(resource_type="PipelineConfig", resource_id=str(pipeline_id))
 
         try:
             # Initialize retriever with basic config
@@ -301,7 +290,7 @@ class PipelineService:
                 "type": pipeline.retriever,
                 "vector_weight": settings.vector_weight if pipeline.retriever == "hybrid" else None,
             }
-            self.retriever = RetrieverFactory.create_retriever(retriever_config, self.document_store)
+            self._retriever = RetrieverFactory.create_retriever(retriever_config, self.document_store)
 
             # Process query
             rewritten_query = self.query_rewriter.rewrite(query)
@@ -313,17 +302,12 @@ class PipelineService:
                 error=None,
                 rewritten_query=rewritten_query,
                 query_results=results[:3],
-                generated_answer=None
+                generated_answer=None,
             )
 
         except Exception as e:
             logger.error(f"Pipeline test failed: {e!s}")
-            return PipelineResult(
-                success=False,
-                error=str(e),
-                rewritten_query=None,
-                generated_answer=None
-            )
+            return PipelineResult(success=False, error=str(e), rewritten_query=None, generated_answer=None)
 
     def set_default_pipeline(self, pipeline_id: UUID4) -> PipelineConfigOutput:
         """
@@ -341,9 +325,7 @@ class PipelineService:
         """
         pipeline = self.pipeline_repository.get_by_id(pipeline_id)
         if not pipeline:
-            raise NotFoundError(
-                resource_type="PipelineConfig", resource_id=str(pipeline_id), message="Pipeline not found"
-            )
+            raise NotFoundError(resource_type="PipelineConfig", resource_id=str(pipeline_id))
 
         # Use collection-specific clear
         if pipeline.collection_id:
@@ -371,9 +353,7 @@ class PipelineService:
             logger.error(f"Error formatting context: {e!s}")
             return "\n\n".join(texts)
 
-    def _validate_configuration(
-        self, pipeline_id: UUID4, user_id: UUID4
-    ) -> tuple[PipelineConfigOutput, LLMParametersInput, LLMBase]:
+    def _validate_configuration(self, pipeline_id: UUID4, user_id: UUID4) -> tuple[PipelineConfigOutput, LLMParametersInput, LLMBase]:
         """
         Validate pipeline configuration and return required components.
 
@@ -392,25 +372,22 @@ class PipelineService:
         # Get pipeline configuration
         pipeline_config = self.pipeline_repository.get_by_id(pipeline_id)
         if not pipeline_config:
-            raise NotFoundError(
-                resource_type="PipelineConfig", resource_id=str(pipeline_id), message="Pipeline configuration not found"
-            )
+            raise NotFoundError(resource_type="PipelineConfig", resource_id=str(pipeline_id))
 
         llm_parameters = self.llm_parameters_service.get_latest_or_default_parameters(user_id)
         if not llm_parameters:
-            raise ConfigurationError("No default LLM parameters found")
+            raise ConfigurationError("llm_parameters", "No default LLM parameters found")
 
         provider_output = self.llm_provider_service.get_provider_by_id(pipeline_config.provider_id)
         if not provider_output:
             raise NotFoundError(
                 resource_type="LLMProvider",
                 resource_id=str(pipeline_config.provider_id),
-                message="LLM provider not found",
             )
 
         provider = LLMProviderFactory(self.db).get_provider(provider_output.name)
         if not provider:
-            raise ConfigurationError("Failed to initialize LLM provider")
+            raise ConfigurationError("llm_provider", "Failed to initialize LLM provider")
 
         return (pipeline_config, llm_parameters.to_input(), provider)
 
@@ -435,7 +412,6 @@ class PipelineService:
             raise NotFoundError(
                 resource_type="PromptTemplateType",
                 resource_id=str(user_id),
-                message="User's RAG query template not found",
             )
 
         eval_template = (
@@ -470,7 +446,7 @@ class PipelineService:
             return results
         except Exception as e:
             logger.error(f"Error retrieving documents: {e!s}")
-            raise ConfigurationError(f"Failed to retrieve documents: {e!s}") from e
+            raise ConfigurationError("document_retrieval", f"Failed to retrieve documents: {e!s}") from e
 
     def _generate_answer(
         self,
@@ -519,9 +495,7 @@ class PipelineService:
                 message=f"LLM provider error: {e!s}",
             ) from e
 
-    async def _evaluate_response(
-        self, query: str, answer: str, context: str, template: PromptTemplateOutput
-    ) -> dict[str, Any] | None:
+    async def _evaluate_response(self, query: str, answer: str, context: str, template: PromptTemplateOutput) -> dict[str, Any] | None:
         """
         Evaluate generated response if enabled.
 
@@ -535,12 +509,8 @@ class PipelineService:
             Optional evaluation results
         """
         try:
-            self.prompt_template_service.format_prompt(
-                template.id, {"context": context, "question": query, "answer": answer}
-            )
-            return await self.evaluator.evaluate(
-                context=context, answer=answer, question=query
-            )
+            self.prompt_template_service.format_prompt(template.id, {"context": context, "question": query, "answer": answer})
+            return await self.evaluator.evaluate(context=context, answer=answer, question=query)
         except Exception as e:
             logger.error(f"Evaluation failed: {e!s}")
             return {"error": str(e)}
@@ -569,9 +539,7 @@ class PipelineService:
                 raise ValidationError("Query cannot be empty")
 
             # Validate pipeline configuration
-            pipeline_config, llm_parameters_input, provider = self._validate_configuration(
-                search_input.pipeline_id, search_input.user_id
-            )
+            pipeline_config, llm_parameters_input, provider = self._validate_configuration(search_input.pipeline_id, search_input.user_id)
 
             # Get required templates
             rag_template, eval_template = self._get_templates(search_input.user_id)
@@ -584,17 +552,11 @@ class PipelineService:
             # Generate answer and evaluate response
             if not query_results:
                 generated_answer = "I apologize, but I couldn't find any relevant documents."
-                evaluation_result = {"error": "No documents found"}
+                evaluation_result: dict[str, Any] | None = {"error": "No documents found"}
             else:
                 context_text = self._format_context(rag_template.id, query_results)
-                generated_answer = self._generate_answer(
-                    search_input.user_id, clean_query, context_text, provider, llm_parameters_input, rag_template
-                )
-                evaluation_result = (
-                    await self._evaluate_response(clean_query, generated_answer, context_text, eval_template)
-                    if settings.runtime_eval and eval_template
-                    else None
-                )
+                generated_answer = self._generate_answer(search_input.user_id, clean_query, context_text, provider, llm_parameters_input, rag_template)
+                evaluation_result = await self._evaluate_response(clean_query, generated_answer, context_text, eval_template) if settings.runtime_eval and eval_template else None
 
             # Prepare and return the result
             execution_time = time.time() - start_time

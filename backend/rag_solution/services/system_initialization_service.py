@@ -1,6 +1,6 @@
-from pydantic import UUID4
+from typing import Any
 
-from pydantic import SecretStr
+from pydantic import UUID4, SecretStr
 from sqlalchemy.orm import Session
 
 from core.config import settings
@@ -18,7 +18,7 @@ logger = get_logger("services.system_initialization")
 
 
 class SystemInitializationService:
-    def __init__(self, db: Session):
+    def __init__(self: Any, db: Session) -> None:
         self.db = db
         self.llm_provider_service = LLMProviderService(db)
         self.llm_model_service = LLMModelService(db)
@@ -69,9 +69,7 @@ class SystemInitializationService:
             logger.info("Added WatsonX configuration")
 
         if settings.openai_api_key:
-            configs["openai"] = LLMProviderInput.model_validate(
-                {"name": "openai", "base_url": "https://api.openai.com", "api_key": SecretStr(settings.openai_api_key)}
-            )
+            configs["openai"] = LLMProviderInput.model_validate({"name": "openai", "base_url": "https://api.openai.com", "api_key": SecretStr(settings.openai_api_key)})
             logger.info("Added OpenAI configuration")
 
         if settings.anthropic_api_key:
@@ -86,15 +84,11 @@ class SystemInitializationService:
 
         return configs
 
-    def _initialize_single_provider(
-        self, name: str, config: LLMProviderInput, existing_provider: LLMProviderOutput | None, raise_on_error: bool
-    ) -> LLMProviderOutput | None:
+    def _initialize_single_provider(self, name: str, config: LLMProviderInput, existing_provider: LLMProviderOutput | None, raise_on_error: bool) -> LLMProviderOutput | None:
         try:
             if existing_provider:
                 logger.info(f"Updating provider: {name}")
-                provider = self.llm_provider_service.update_provider(
-                    existing_provider.id, config.model_dump(exclude_unset=True)
-                )
+                provider = self.llm_provider_service.update_provider(existing_provider.id, config.model_dump(exclude_unset=True))
                 if not provider:
                     raise LLMProviderError(name, "update", f"Failed to update {name}")
             else:

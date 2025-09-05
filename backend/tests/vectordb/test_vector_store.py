@@ -11,11 +11,11 @@ class TestVectorStore:
     A generic test class for VectorStore implementations.
     """
 
-    def test_create_collection(self, store: Any) -> None:
+    def test_create_collection(self: Any, store: Any) -> None:
         store.create_collection("test_collection")
         assert store.collection_name == "test_collection"
 
-    def test_add_documents(self, store: Any) -> None:
+    def test_add_documents(self: Any, store: Any) -> None:
         documents = [
             Document(document_id="doc1", name="Document 1", chunks=[]),
             Document(document_id="doc2", name="Document 2", chunks=[]),
@@ -23,24 +23,24 @@ class TestVectorStore:
         result = store.add_documents("test_collection", documents)
         assert len(result) == len(documents)
 
-    def test_retrieve_documents(self, store: Any) -> None:
+    def test_retrieve_documents(self: Any, store: Any) -> None:
         query = "test query"
         results = store.retrieve_documents(query, "test_collection")
         assert isinstance(results, list)
 
-    def test_query_documents(self, store: Any) -> None:
+    def test_query_documents(self: Any, store: Any) -> None:
         embeddings = [0.1, 0.2, 0.3]
         query = QueryWithEmbedding(text="test query", embeddings=embeddings)
         results = store.query("test_collection", query)
         assert isinstance(results, list)
 
-    def test_delete_collection(self, store: Any) -> None:
+    def test_delete_collection(self: Any, store: Any) -> None:
         store.create_collection("test_collection")
         store.delete_collection("test_collection")
         with pytest.raises(Exception, match=".*"):
             store.retrieve_documents("test query", "test_collection")
 
-    def test_delete_documents(self, store: Any) -> None:
+    def test_delete_documents(self: Any, store: Any) -> None:
         documents = [
             Document(document_id="doc1", name="Document 1", chunks=[]),
             Document(document_id="doc2", name="Document 2", chunks=[]),

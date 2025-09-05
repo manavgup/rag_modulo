@@ -1,7 +1,8 @@
 """Repository for managing suggested questions."""
 
-from pydantic import UUID4
+from typing import Any
 
+from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -17,7 +18,7 @@ logger = get_logger("repository.question")
 class QuestionRepository:
     """Repository for managing suggested questions."""
 
-    def __init__(self, session: Session):
+    def __init__(self: Any, session: Session) -> None:
         """
         Initialize question repository.
 
@@ -40,9 +41,7 @@ class QuestionRepository:
             SQLAlchemyError: If there's a database error
         """
         try:
-            db_question = SuggestedQuestion(
-                collection_id=question_input.collection_id, question=question_input.question
-            )
+            db_question = SuggestedQuestion(collection_id=question_input.collection_id, question=question_input.question)
             self.session.add(db_question)
             self.session.commit()
             self.session.refresh(db_question)
@@ -99,22 +98,12 @@ class QuestionRepository:
         """
         try:
             # Check if the collection exists
-            exists = self.session.query(
-                self.session.query(Collection).filter(Collection.id == collection_id).exists()
-            ).scalar()
+            exists = self.session.query(self.session.query(Collection).filter(Collection.id == collection_id).exists()).scalar()
             if not exists:
-                raise NotFoundError(
-                    resource_type="Collection",
-                    resource_id=str(collection_id)
-                )
+                raise NotFoundError(resource_type="Collection", resource_id=str(collection_id))
 
             # Fetch questions for the collection
-            questions = (
-                self.session.query(SuggestedQuestion)
-                .filter(SuggestedQuestion.collection_id == collection_id)
-                .order_by(SuggestedQuestion.id)
-                .all()
-            )
+            questions = self.session.query(SuggestedQuestion).filter(SuggestedQuestion.collection_id == collection_id).order_by(SuggestedQuestion.id).all()
 
             logger.info(f"Retrieved {len(questions)} questions for collection {collection_id}")
             return questions
@@ -136,9 +125,7 @@ class QuestionRepository:
             SQLAlchemyError: If there's a database error
         """
         try:
-            count = (
-                self.session.query(SuggestedQuestion).filter(SuggestedQuestion.collection_id == collection_id).delete()
-            )
+            count = self.session.query(SuggestedQuestion).filter(SuggestedQuestion.collection_id == collection_id).delete()
             self.session.commit()
             logger.info(f"Deleted {count} questions for collection {collection_id}")
             return count
@@ -161,10 +148,7 @@ class QuestionRepository:
         try:
             question = self.session.query(SuggestedQuestion).filter(SuggestedQuestion.id == question_id).first()
             if not question:
-                raise NotFoundError(
-                    resource_type="SuggestedQuestion",
-                    resource_id=str(question_id)
-                )
+                raise NotFoundError(resource_type="SuggestedQuestion", resource_id=str(question_id))
 
             self.session.delete(question)
             self.session.commit()

@@ -1,5 +1,6 @@
 """Tests for Retrieval Components."""
 
+from typing import Any
 from unittest.mock import Mock
 
 import pytest
@@ -10,7 +11,7 @@ from vectordbs.data_types import VectorQuery
 
 
 @pytest.fixture
-def document_store():
+def document_store() -> Mock:
     """Create a mock document store."""
     store = Mock()
     store.vector_store = Mock()
@@ -20,7 +21,7 @@ def document_store():
 
 @pytest.mark.integration
 class TestRetrievers:
-    def test_vector_retriever_success(self, document_store):
+    def test_vector_retriever_success(self, document_store: Mock) -> None:
         """Test successful vector retrieval."""
         retriever = VectorRetriever(document_store)
         query = VectorQuery(text="test query", number_of_results=5)
@@ -32,7 +33,7 @@ class TestRetrievers:
         assert isinstance(result, list)
         assert document_store.vector_store.retrieve_documents.called
 
-    def test_vector_retriever_error(self, document_store):
+    def test_vector_retriever_error(self, document_store: Mock) -> None:
         """Test vector retrieval error handling."""
         retriever = VectorRetriever(document_store)
         query = VectorQuery(text="test query", number_of_results=5)
@@ -44,7 +45,7 @@ class TestRetrievers:
         assert isinstance(result, list)
         assert len(result) == 0
 
-    def test_keyword_retriever_success(self, document_store):
+    def test_keyword_retriever_success(self, document_store: Mock) -> None:
         """Test successful keyword retrieval."""
         retriever = KeywordRetriever(document_store)
         query = VectorQuery(text="test query", number_of_results=5)
@@ -53,7 +54,7 @@ class TestRetrievers:
         assert isinstance(result, list)
         assert document_store.get_documents.called
 
-    def test_keyword_retriever_error(self, document_store):
+    def test_keyword_retriever_error(self, document_store: Mock) -> None:
         """Test keyword retrieval error handling."""
         retriever = KeywordRetriever(document_store)
         query = VectorQuery(text="test query", number_of_results=5)
@@ -65,7 +66,7 @@ class TestRetrievers:
         assert isinstance(result, list)
         assert len(result) == 0
 
-    def test_hybrid_retriever_success(self, document_store):
+    def test_hybrid_retriever_success(self, document_store: Mock) -> None:
         """Test successful hybrid retrieval."""
         retriever = HybridRetriever(document_store)
         query = VectorQuery(text="test query", number_of_results=5)
@@ -75,7 +76,7 @@ class TestRetrievers:
         assert document_store.vector_store.retrieve_documents.called
         assert document_store.get_documents.called
 
-    def test_hybrid_retriever_partial_failure(self, document_store):
+    def test_hybrid_retriever_partial_failure(self, document_store: Mock) -> None:
         """Test hybrid retrieval with partial failure."""
         retriever = HybridRetriever(document_store)
         query = VectorQuery(text="test query", number_of_results=5)
@@ -88,7 +89,7 @@ class TestRetrievers:
         assert isinstance(result, list)
         assert len(result) == 0
 
-    def test_hybrid_retriever_custom_weight(self, document_store):
+    def test_hybrid_retriever_custom_weight(self, document_store: Mock) -> None:
         """Test hybrid retrieval with custom vector weight."""
         retriever = HybridRetriever(document_store, vector_weight=0.3)
         query = VectorQuery(text="test query", number_of_results=5)
@@ -99,37 +100,37 @@ class TestRetrievers:
 
 
 class TestRetrieverFactory:
-    def test_vector_retriever_creation(self, document_store):
+    def test_vector_retriever_creation(self, document_store: Mock) -> None:
         """Test vector retriever creation."""
         vector_config = {"type": "vector"}
         vector_retriever = RetrieverFactory.create_retriever(vector_config, document_store)
         assert isinstance(vector_retriever, VectorRetriever)
 
-    def test_keyword_retriever_creation(self, document_store):
+    def test_keyword_retriever_creation(self, document_store: Mock) -> None:
         """Test keyword retriever creation."""
         keyword_config = {"type": "keyword"}
         keyword_retriever = RetrieverFactory.create_retriever(keyword_config, document_store)
         assert isinstance(keyword_retriever, KeywordRetriever)
 
-    def test_hybrid_retriever_creation(self, document_store):
+    def test_hybrid_retriever_creation(self, document_store: Mock) -> None:
         """Test hybrid retriever creation."""
         hybrid_config = {"type": "hybrid", "vector_weight": 0.7}
         hybrid_retriever = RetrieverFactory.create_retriever(hybrid_config, document_store)
         assert isinstance(hybrid_retriever, HybridRetriever)
 
-    def test_default_retriever_type(self, document_store):
+    def test_default_retriever_type(self, document_store: Mock) -> None:
         """Test default retriever type (vector)."""
-        config = {}  # No type specified
+        config: dict[str, Any] = {}  # No type specified
         retriever = RetrieverFactory.create_retriever(config, document_store)
         assert isinstance(retriever, VectorRetriever)
 
-    def test_invalid_retriever_type(self, document_store):
+    def test_invalid_retriever_type(self, document_store: Mock) -> None:
         """Test invalid retriever type."""
         config = {"type": "invalid"}
         with pytest.raises(ValueError, match="Invalid retriever type: invalid"):
             RetrieverFactory.create_retriever(config, document_store)
 
-    def test_hybrid_retriever_custom_weight(self, document_store):
+    def test_hybrid_retriever_custom_weight(self, document_store: Mock) -> None:
         """Test hybrid retriever with custom vector weight."""
         config = {"type": "hybrid", "vector_weight": 0.3}
         retriever = RetrieverFactory.create_retriever(config, document_store)

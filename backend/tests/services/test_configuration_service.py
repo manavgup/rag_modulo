@@ -1,9 +1,9 @@
 """Integration tests for configuration-related services."""
 
-from pydantic import UUID4
+from typing import Any
 
 import pytest
-from pydantic import SecretStr
+from pydantic import UUID4, SecretStr
 
 from core.custom_exceptions import NotFoundException, ProviderConfigError, ProviderValidationError, RepositoryError
 from rag_solution.schemas.llm_model_schema import LLMModelInput, ModelType
@@ -23,6 +23,10 @@ def test_provider_input() -> LLMProviderInput:
         base_url="https://test.watsonx.ai/api",
         api_key=SecretStr("test-key"),
         project_id="test-project",
+        org_id="test-org",
+        is_active=True,
+        is_default=False,
+        user_id=UUID4("00000000-0000-0000-0000-000000000001"),
     )
 
 
@@ -47,10 +51,11 @@ def test_model_input() -> LLMModelInput:
 
 
 @pytest.fixture
-def test_llm_parameters(base_user) -> LLMParametersInput:
+def test_llm_parameters(base_user: Any) -> LLMParametersInput:
     """Test LLM parameters data."""
     return LLMParametersInput(
         name="test-params",
+        user_id=base_user.id,
         description="Test parameters",
         max_new_tokens=1000,
         temperature=0.7,
@@ -62,7 +67,7 @@ def test_llm_parameters(base_user) -> LLMParametersInput:
 
 
 @pytest.fixture
-def test_prompt_template(base_user) -> PromptTemplateInput:
+def test_prompt_template(base_user: Any) -> PromptTemplateInput:
     """Test prompt template data."""
     return PromptTemplateInput(
         name="test-template",
@@ -72,6 +77,7 @@ def test_prompt_template(base_user) -> PromptTemplateInput:
         template_format="Context:\n{context}\nQuestion:{question}",
         input_variables={"context": "Retrieved context", "question": "User's question"},
         example_inputs={"context": "Initial context", "question": "Initial question"},
+        max_context_length=1000,
         is_default=True,
     )
 
@@ -80,7 +86,7 @@ def test_prompt_template(base_user) -> PromptTemplateInput:
 # 🧪 Provider Tests
 # -------------------------------------------
 @pytest.mark.atomic
-def test_create_provider(llm_provider_service, test_provider_input: LLMProviderInput):
+def test_create_provider(llm_provider_service: Any, test_provider_input: LLMProviderInput) -> None:
     """Test creating LLM provider."""
     provider = llm_provider_service.create_provider(test_provider_input)
 
@@ -94,8 +100,11 @@ def test_create_provider(llm_provider_service, test_provider_input: LLMProviderI
 
 @pytest.mark.atomic
 def test_create_provider_model(
-    llm_provider_service, llm_model_service, test_provider_input: LLMProviderInput, test_model_input: LLMModelInput
-):
+    llm_provider_service: Any,
+    llm_model_service: Any,
+    test_provider_input: LLMProviderInput,
+    test_model_input: LLMModelInput,
+) -> None:
     """Test creating provider model."""
     provider = llm_provider_service.create_provider(test_provider_input)
     test_model_input.provider_id = provider.id
@@ -111,7 +120,7 @@ def test_create_provider_model(
 # 🧪 LLM Parameters Tests
 # -------------------------------------------
 @pytest.mark.atomic
-def test_create_llm_parameters(llm_parameters_service, test_llm_parameters: LLMParametersInput, base_user):
+def test_create_llm_parameters(llm_parameters_service: Any, test_llm_parameters: LLMParametersInput, base_user: Any) -> None:
     """Test creating LLM parameters."""
     params = llm_parameters_service.create_parameters(base_user.id, test_llm_parameters)
 
@@ -126,7 +135,7 @@ def test_create_llm_parameters(llm_parameters_service, test_llm_parameters: LLMP
 # 🧪 Prompt Template Tests
 # -------------------------------------------
 @pytest.mark.atomic
-def test_create_prompt_template(prompt_template_service, base_user, test_prompt_template):
+def test_create_prompt_template(prompt_template_service: Any, base_user: Any, test_prompt_template: Any) -> None:
     """Test creating prompt template."""
     template = prompt_template_service.create_or_update_template(base_user.id, test_prompt_template)
 
@@ -140,15 +149,15 @@ def test_create_prompt_template(prompt_template_service, base_user, test_prompt_
 # -------------------------------------------
 @pytest.mark.atomic
 def test_configuration_flow(
-    llm_provider_service,
-    llm_parameters_service,
-    prompt_template_service,
-    base_user,
-    test_provider_input,
-    test_model_input,
-    test_llm_parameters,
-    test_prompt_template,
-):
+    llm_provider_service: Any,
+    llm_parameters_service: Any,
+    prompt_template_service: Any,
+    base_user: Any,
+    test_provider_input: Any,
+    test_model_input: Any,
+    test_llm_parameters: Any,
+    test_prompt_template: Any,
+) -> None:
     """Test complete configuration flow."""
     # Create provider
     provider = llm_provider_service.create_provider(test_provider_input)
@@ -176,7 +185,7 @@ def test_configuration_flow(
 # 🧪 Error Tests
 # -------------------------------------------
 @pytest.mark.atomic
-def test_provider_validation_errors(llm_provider_service):
+def test_provider_validation_errors(llm_provider_service: Any) -> None:
     """Test provider validation error handling."""
     # Test invalid name
     with pytest.raises(ProviderValidationError) as exc_info:
@@ -186,6 +195,10 @@ def test_provider_validation_errors(llm_provider_service):
                 base_url="https://test.com",
                 api_key=SecretStr("test-key"),
                 project_id="test-project",
+                org_id="test-org",
+                is_active=True,
+                is_default=False,
+                user_id=UUID4("00000000-0000-0000-0000-000000000001"),
             )
         )
     assert "name" in str(exc_info.value)
@@ -198,15 +211,17 @@ def test_provider_validation_errors(llm_provider_service):
                 base_url="not-a-url",  # Invalid URL
                 api_key=SecretStr("test-key"),
                 project_id="test-project",
+                org_id="test-org",
+                is_active=True,
+                is_default=False,
+                user_id=UUID4("00000000-0000-0000-0000-000000000001"),
             )
         )
     assert "base_url" in str(exc_info.value)
 
 
 @pytest.mark.atomic
-def test_model_validation_errors(
-    llm_provider_service, test_provider_input: LLMProviderInput, test_model_input: LLMModelInput
-):
+def test_model_validation_errors(llm_provider_service: Any, test_provider_input: LLMProviderInput, test_model_input: LLMModelInput) -> None:
     """Test model validation error handling."""
     # Create provider first
     provider = llm_provider_service.create_provider(test_provider_input)
@@ -220,13 +235,13 @@ def test_model_validation_errors(
 
     # Test missing provider ID
     invalid_model = test_model_input.model_copy(update={"provider_id": None})
-    with pytest.raises(ProviderConfigError) as exc_info:
+    with pytest.raises(ProviderConfigError) as exc_info2:
         llm_provider_service.create_provider_model(invalid_model)
-    assert "provider_id" in str(exc_info.value)
+    assert "provider_id" in str(exc_info2.value)
 
 
 @pytest.mark.atomic
-def test_not_found_errors(llm_parameters_service, base_user, test_llm_parameters):
+def test_not_found_errors(llm_parameters_service: Any, base_user: Any, test_llm_parameters: Any) -> None:
     """Test not found error handling."""
     # Test non-existent user
     with pytest.raises(RepositoryError) as exc_info:

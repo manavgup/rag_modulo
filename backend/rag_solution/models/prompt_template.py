@@ -24,9 +24,7 @@ class PromptTemplate(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False, unique=False)
     __table_args__ = (UniqueConstraint("name", "user_id", name="uix_name_user"),)
-    template_type: Mapped[PromptTemplateType] = mapped_column(
-        SQLAlchemyEnum(PromptTemplateType, name="prompttemplatetype", create_type=False), nullable=False
-    )
+    template_type: Mapped[PromptTemplateType] = mapped_column(SQLAlchemyEnum(PromptTemplateType, name="prompttemplatetype", create_type=False), nullable=False)
     system_prompt: Mapped[str | None] = mapped_column(Text, nullable=True, server_default="You are a helpful AI assistant.")
     template_format: Mapped[str] = mapped_column(Text, nullable=False)
     input_variables: Mapped[dict] = mapped_column(JSON, nullable=False)  # Store as JSON

@@ -50,6 +50,8 @@ async def get_oidc_config() -> JSONResponse:
     Retrieve the OIDC configuration for the client.
     """
     logger.debug("Fetching OIDC configuration")
+    if not settings.oidc_discovery_endpoint:
+        raise HTTPException(status_code=500, detail="OIDC discovery endpoint not configured")
     async with httpx.AsyncClient() as client:
         response = await client.get(settings.oidc_discovery_endpoint)
         if response.status_code != 200:
@@ -90,8 +92,11 @@ async def token_exchange(request: Request) -> JSONResponse:
     logger.info(f"Token exchange request received. Form data: {form_data}")
 
     token_request_data = dict(form_data)
-    token_request_data["client_secret"] = settings.ibm_client_secret
+    if settings.ibm_client_secret:
+        token_request_data["client_secret"] = settings.ibm_client_secret
 
+    if not settings.oidc_token_url:
+        raise HTTPException(status_code=500, detail="OIDC token URL not configured")
     async with httpx.AsyncClient() as client:
         try:
             response = await client.post(
@@ -141,9 +146,7 @@ async def auth(request: Request, db: Session = Depends(get_db)) -> Response:
 
         # Create or get user
         user_service = UserService(db)
-        db_user = user_service.get_or_create_user_by_fields(
-            ibm_id=user["sub"], email=user["email"], name=user.get("name", "Unknown")
-        )
+        db_user = user_service.get_or_create_user_by_fields(ibm_id=user["sub"], email=user["email"], name=user.get("name", "Unknown"))
         logger.info(f"User in database: {db_user.id}")
 
         jwt_token = token.get("id_token")
@@ -159,7 +162,9 @@ async def auth(request: Request, db: Session = Depends(get_db)) -> Response:
             "exp": token.get("expires_at"),
             "role": db_user.role,
         }
-        custom_jwt = jwt.encode(custom_jwt_payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+        custom_jwt_token = jwt.encode(custom_jwt_payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+        # Ensure custom_jwt is a string, not bytes
+        custom_jwt = custom_jwt_token.decode("utf-8") if isinstance(custom_jwt_token, bytes) else custom_jwt_token
 
         redirect_url = f"{settings.frontend_url}{settings.frontend_callback}?token={custom_jwt}"
         logger.info(f"Redirecting to frontend: {redirect_url}")

@@ -130,7 +130,7 @@ def base_collection(db_session, base_user) -> Collection:
 @pytest.mark.integration
 class TestQuestionGeneration:
     """Test question generation functionality."""
-    
+
     async def test_suggest_questions(
         self,
         question_service: QuestionService,
@@ -146,7 +146,7 @@ class TestQuestionGeneration:
             user_id=base_user.id,
             num_questions=3
         )
-        
+
         # Verify results
         assert len(questions) > 0
         for question in questions:

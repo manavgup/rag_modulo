@@ -7,11 +7,11 @@ from typing import Any
 
 from chromadb.api.types import Documents, EmbeddingFunction
 from dotenv import load_dotenv
-from ibm_watsonx_ai import APIClient, Credentials
-from ibm_watsonx_ai.foundation_models import Embeddings as wx_Embeddings
-from ibm_watsonx_ai.foundation_models import ModelInference
-from ibm_watsonx_ai.metanames import EmbedTextParamsMetaNames as EmbedParams
-from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams
+from ibm_watsonx_ai import APIClient, Credentials  # type: ignore[import-untyped]
+from ibm_watsonx_ai.foundation_models import Embeddings as wx_Embeddings  # type: ignore[import-untyped]
+from ibm_watsonx_ai.foundation_models import ModelInference  # type: ignore[import-untyped]
+from ibm_watsonx_ai.metanames import EmbedTextParamsMetaNames as EmbedParams  # type: ignore[import-untyped]
+from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams  # type: ignore[import-untyped]
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -56,6 +56,7 @@ def sublist(inputs: list, n: int) -> Generator[list, None, None]:
     for i in range(0, len(inputs), n):
         yield inputs[i : i + n]
 
+
 def _get_client() -> APIClient:
     global client
     if client is None:
@@ -67,9 +68,7 @@ def _get_client() -> APIClient:
     return client
 
 
-def get_model(
-    generate_params: dict | None = None, model_id: str = settings.rag_llm
-) -> ModelInference:
+def get_model(generate_params: dict | None = None, model_id: str = settings.rag_llm) -> ModelInference:
     api_client = _get_client()
 
     if generate_params is None:
@@ -125,11 +124,16 @@ def get_embeddings(texts: str | list[str], embed_client: wx_Embeddings | None = 
     if isinstance(texts, str):
         texts = [texts]
     try:
+        # WatsonX embed_documents returns list[list[float]] but mypy sees it as Any
+        # We know the actual return type from the library documentation
         embedding_vectors = embed_client.embed_documents(texts=texts, concurrency_limit=10)
-        return embedding_vectors
+        # Explicitly type the result as EmbeddingsList
+        result: EmbeddingsList = embedding_vectors
+        return result
     except Exception as e:
         logging.error(f"get_embeddings failed {e}")
         raise e
+
 
 def get_tokenization(texts: str | list[str]) -> list[list[str]]:
     """
@@ -155,6 +159,7 @@ def get_tokenization(texts: str | list[str]) -> list[list[str]]:
         wx_model.close_persistent_connection()
     return all_tokens
 
+
 @lru_cache(maxsize=128)
 def extract_entities(text: str, wx_model: ModelInference | None = None) -> list[dict]:
     if wx_model is None:
@@ -177,7 +182,7 @@ def extract_entities(text: str, wx_model: ModelInference | None = None) -> list[
         start = response.find("[")
         end = response.rfind("]")
         if start != -1 and end != -1 and start < end:
-            json_str = response[start:end+1]
+            json_str = response[start : end + 1]
             logger.debug(f"Parsing JSON: {json_str}")
             entities = json.loads(json_str)
             cleaned_entities = clean_entities(entities)
@@ -192,6 +197,7 @@ def extract_entities(text: str, wx_model: ModelInference | None = None) -> list[
         logger.error(f"Error extracting entities: {e}")
         return []
 
+
 def clean_entities(entities: list[dict]) -> list[dict]:
     cleaned = []
     for entity in entities:
@@ -200,9 +206,7 @@ def clean_entities(entities: list[dict]) -> list[dict]:
     return cleaned
 
 
-def get_tokenization_and_embeddings(
-    texts: str | list[str]
-) -> tuple[list[list[str]], EmbeddingsList]:
+def get_tokenization_and_embeddings(texts: str | list[str]) -> tuple[list[list[str]], EmbeddingsList]:
     """
     Get both tokenization and embeddings for a given text or a list of texts.
 
@@ -214,9 +218,7 @@ def get_tokenization_and_embeddings(
     return tokenized_texts, embeddings
 
 
-def save_embeddings_to_file(
-    embeddings: EmbeddingsList, file_path: str, file_format: str = "json"
-) -> None:
+def save_embeddings_to_file(embeddings: EmbeddingsList, file_path: str, file_format: str = "json") -> None:
     """
     Save embeddings to a file.
 
@@ -239,31 +241,28 @@ def save_embeddings_to_file(
             with open(file_path, "w") as f:
                 for embedding in embeddings:
                     f.write(" ".join(map(str, embedding)) + "\n")
-        logging.info(
-            f"Saved embeddings to file '{file_path}' in format '{file_format}'"
-        )
+        logging.info(f"Saved embeddings to file '{file_path}' in format '{file_format}'")
     except Exception as e:
         logging.error(f"Failed to save embeddings to file '{file_path}': {e}")
         raise
 
 
 class ChromaEmbeddingFunction(EmbeddingFunction):
-    def __init__(
-        self,
-        *,
-        parameters: dict,
-        model_id: str | None = settings.rag_llm,
-    ):
+    def __init__(self, *, parameters: dict, model_id: str | None = settings.rag_llm) -> None:
         self._model_id = model_id
         self._parameters = parameters
         self._client = _get_client()
 
-    def __call__(self, inputs: Documents) -> EmbeddingsList:
+    def __call__(self, inputs: Documents) -> EmbeddingsList:  # type: ignore[override]
         return get_embeddings(texts=inputs)
 
 
-def generate_text(prompt: str | list[str], wx_model: ModelInference | None = None,
-                  concurrency_limit: int = 10, params: dict | None = None) -> str | list[str]:
+def generate_text(
+    prompt: str | list[str],
+    wx_model: ModelInference | None = None,
+    concurrency_limit: int = 10,
+    params: dict | None = None,
+) -> str | list[str]:
     """Generate text using the WatsonX model.
 
     Args:
@@ -280,9 +279,9 @@ def generate_text(prompt: str | list[str], wx_model: ModelInference | None = Non
         if wx_model is None:
             wx_model = get_model()
 
-        response = wx_model.generate_text(prompt=prompt, concurrency_limit=concurrency_limit)
+        response = wx_model.generate_text(prompt=prompt, concurrency_limit=concurrency_limit, params=params)
 
-         # Handle batch responses
+        # Handle batch responses
         if isinstance(prompt, list):
             if isinstance(response, dict) and "results" in response:
                 return [r["generated_text"].strip() for r in response["results"]]
@@ -295,9 +294,9 @@ def generate_text(prompt: str | list[str], wx_model: ModelInference | None = Non
         # Handle single response
         if isinstance(response, dict):
             if "results" in response:
-                return response["results"][0]["generated_text"].strip()
+                return response["results"][0]["generated_text"].strip()  # type: ignore[no-any-return]
             elif "generated_text" in response:
-                return response["generated_text"].strip()
+                return response["generated_text"].strip()  # type: ignore[no-any-return]
 
         return response.strip() if isinstance(response, str) else response["generated_text"].strip()
 
@@ -311,21 +310,16 @@ async def agenerate_responses(
     concurrency_level: int,
     wx_model: ModelInference | None = None,
 ) -> list[str]:
-
     if wx_model is None:
         wx_model = get_model()
 
-    async def throttled_agenerate(
-        prompt: str, semaphore: asyncio.Semaphore, wx_mdl: ModelInference
-    ):
+    async def throttled_agenerate(prompt: str, semaphore: asyncio.Semaphore, wx_mdl: ModelInference) -> str:
         async with semaphore:
             response = await wx_mdl.agenerate(prompt=prompt)
-            return response.get("results")[0].get("generated_text").strip()
+            return response.get("results")[0].get("generated_text").strip()  # type: ignore[no-any-return]
 
     semaphore = asyncio.Semaphore(value=concurrency_level)
-    results = await asyncio.gather(
-        *[throttled_agenerate(prompt, semaphore, wx_model) for prompt in prompts]
-    )
+    results = await asyncio.gather(*[throttled_agenerate(prompt, semaphore, wx_model) for prompt in prompts])
     return results
 
 
@@ -334,9 +328,7 @@ async def generate_all_responses(
     wx_model: ModelInference,
     concurrency_level: int = 5,
 ) -> list[str]:
-    return await agenerate_responses(
-        prompts, concurrency_level=concurrency_level, wx_model=wx_model
-    )
+    return await agenerate_responses(prompts, concurrency_level=concurrency_level, wx_model=wx_model)
 
 
 def generate_batch(
@@ -363,10 +355,7 @@ def generate_text_stream(
     random_seed: int = 50,
     max_retries: int = 3,
 ) -> Generator[Any, None, None]:
-
-    logging.info(
-        f"Generating text with parameters: max_tokens={max_tokens}, temperature={temperature}, timeout={timeout}, max_retries={max_retries}"
-    )
+    logging.info(f"Generating text with parameters: max_tokens={max_tokens}, temperature={temperature}, timeout={timeout}, max_retries={max_retries}")
     logging.debug(f"Prompt: {prompt[:100]}...")  #
     model_inference = get_model(
         generate_params={
@@ -376,4 +365,4 @@ def generate_text_stream(
         },
         model_id=model_id,
     )
-    return model_inference.generate_text_stream(prompt=prompt)
+    return model_inference.generate_text_stream(prompt=prompt)  # type: ignore[no-any-return]

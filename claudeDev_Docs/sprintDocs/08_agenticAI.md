@@ -362,7 +362,7 @@ agent_config:
 ### Agent Workflow
 
 ```
-User Query → Agent Selection → Planning → Tool Selection → 
+User Query → Agent Selection → Planning → Tool Selection →
 Execution → Reflection → Memory Update → Response
 ```
 
