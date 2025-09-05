@@ -5,7 +5,15 @@ import logging
 import time
 from typing import Any
 
-from pymilvus import Collection, CollectionSchema, DataType, FieldSchema, MilvusException, connections, utility
+from pymilvus import (  # type: ignore[import-untyped]
+    Collection,
+    CollectionSchema,
+    DataType,
+    FieldSchema,
+    MilvusException,
+    connections,
+    utility,
+)
 
 from core.config import settings
 from vectordbs.utils.watsonx import get_embeddings
@@ -58,16 +66,20 @@ SCHEMA = [
 class MilvusStore(VectorStore):
     """Milvus vector store implementation."""
 
-    def __init__(self, host: str = MILVUS_HOST, port: int = MILVUS_PORT) -> None:
+    def __init__(self, host: str | None = MILVUS_HOST, port: int | None = MILVUS_PORT) -> None:
         """Initialize MilvusStore with connection parameters.
 
         Args:
             host: The host address for Milvus
             port: The port for Milvus
         """
+        if host is None:
+            raise ValueError("Milvus host must be provided")
+        if port is None:
+            raise ValueError("Milvus port must be provided")
         self._connect(host, port)
 
-    def _connect(self, host: str, port: int) -> None:
+    def _connect(self, host: str | None, port: int | None) -> None:
         """Connect to the Milvus server.
 
         Args:
@@ -77,14 +89,12 @@ class MilvusStore(VectorStore):
         Raises:
             VectorStoreError: If connection fails after retries
         """
+        if host is None or port is None:
+            raise VectorStoreError("Host and port must be provided for Milvus connection")
         attempts = 3
         for attempt in range(attempts):
             try:
-                connections.connect(
-                    "default",
-                    host=host,
-                    port=port
-                )
+                connections.connect("default", host=host, port=port)
                 logging.info(f"Connected to Milvus at {host}:{port}")
                 return
             except MilvusException as e:
@@ -92,7 +102,7 @@ class MilvusStore(VectorStore):
                 if attempt < attempts - 1:
                     logging.info(f"Retrying connection to Milvus... (Attempt {attempt + 2}/{attempts})")
                     time.sleep(10)
-                raise VectorStoreError(f"Failed to connect to Milvus after {attempts} attempts")
+                raise VectorStoreError(f"Failed to connect to Milvus after {attempts} attempts") from e
 
     def _get_collection(self, collection_name: str) -> Collection:
         """Retrieve a collection from Milvus.
@@ -111,7 +121,7 @@ class MilvusStore(VectorStore):
         else:
             raise CollectionError(f"Collection '{collection_name}' does not exist")
 
-    def create_collection(self, collection_name: str, metadata: dict | None = None) -> Collection:
+    def create_collection(self, collection_name: str, metadata: dict | None = None) -> Collection:  # noqa: ARG002
         """Create a new Milvus collection.
 
         Args:
@@ -138,7 +148,7 @@ class MilvusStore(VectorStore):
 
         except MilvusException as e:
             logging.error(f"Failed to create collection '{collection_name}': {e}")
-            raise CollectionError(f"Failed to create collection '{collection_name}': {e}")
+            raise CollectionError(f"Failed to create collection '{collection_name}': {e}") from e
 
     def _create_index(self, collection: Collection) -> None:
         """Create an index for the Milvus collection.
@@ -150,8 +160,8 @@ class MilvusStore(VectorStore):
             CollectionError: If index creation fails
         """
         try:
-            self.index_params = (json.loads(MILVUS_INDEX_PARAMS) if MILVUS_INDEX_PARAMS else None)
-            self.search_params = (json.loads(MILVUS_SEARCH_PARAMS) if MILVUS_SEARCH_PARAMS else None)
+            self.index_params = json.loads(MILVUS_INDEX_PARAMS) if MILVUS_INDEX_PARAMS else None
+            self.search_params = json.loads(MILVUS_SEARCH_PARAMS) if MILVUS_SEARCH_PARAMS else None
 
             if len(collection.indexes) == 0:
                 index_params = self.index_params or {
@@ -166,7 +176,7 @@ class MilvusStore(VectorStore):
 
         except MilvusException as e:
             logging.error(f"Failed to create index for collection '{collection.name}': {e}")
-            raise CollectionError(f"Failed to create index for collection '{collection.name}': {e}")
+            raise CollectionError(f"Failed to create index for collection '{collection.name}': {e}") from e
 
     def add_documents(self, collection_name: str, documents: list[Document]) -> list[str]:
         """Add documents to the collection.
@@ -192,7 +202,7 @@ class MilvusStore(VectorStore):
                         "text": chunk.text,
                         "chunk_id": chunk.chunk_id,
                         "document_name": document.name,
-                         # VARCHAR fields get empty string as default
+                        # VARCHAR fields get empty string as default
                         "source": chunk.metadata.source.value if chunk.metadata else Source.OTHER.value,
                         # INT64 fields get 0 as default
                         "page_number": chunk.metadata.page_number if chunk.metadata else 0,
@@ -207,13 +217,13 @@ class MilvusStore(VectorStore):
 
         except MilvusException as e:
             logging.error(f"Failed to add documents to collection {collection_name}: {e}", exc_info=True)
-            raise DocumentError(f"Failed to add documents to collection {collection_name}: {e}")
+            raise DocumentError(f"Failed to add documents to collection {collection_name}: {e}") from e
 
     def retrieve_documents(
-            self,
-            query: str,
-            collection_name: str,
-            number_of_results: int = 10,
+        self,
+        query: str,
+        collection_name: str,
+        number_of_results: int = 10,
     ) -> list[QueryResult]:
         """Retrieve documents from the collection.
 
@@ -249,7 +259,7 @@ class MilvusStore(VectorStore):
 
         except MilvusException as e:
             logging.error(f"Failed to retrieve documents from collection '{collection_name}': {e}")
-            raise CollectionError(f"Failed to retrieve documents from collection '{collection_name}': {e}")
+            raise CollectionError(f"Failed to retrieve documents from collection '{collection_name}': {e}") from e
 
     def _process_search_results(self, results: Any) -> list[QueryResult]:
         """Process search results from Milvus.
@@ -279,17 +289,19 @@ class MilvusStore(VectorStore):
                             chunk_number=hit.entity.get("chunk_number") if hit.entity.get("chunk_number") else 0,
                             start_index=hit.entity.get("start_index") if hit.entity.get("start_index") else 0,
                             end_index=hit.entity.get("end_index") if hit.entity.get("end_index") else 0,
-                            document_id=hit.entity.get("document_id")
+                            document_id=hit.entity.get("document_id"),
                         ),
-                        document_id=hit.entity.get("document_id")
+                        document_id=hit.entity.get("document_id"),
                     )
 
                     # Create a single QueryResult for each hit
-                    query_results.append(QueryResult(
-                        chunk=chunk,
-                        score=float(hit.distance),  # Single float score
-                        embeddings=hit.entity.get(EMBEDDING_FIELD)  # List of embeddings
-                    ))
+                    query_results.append(
+                        QueryResult(
+                            chunk=chunk,
+                            score=float(hit.distance),  # Single float score
+                            embeddings=hit.entity.get(EMBEDDING_FIELD),  # List of embeddings
+                        )
+                    )
 
                 except Exception as e:
                     logger.error(f"Error processing hit: {e}", exc_info=True)
@@ -313,7 +325,7 @@ class MilvusStore(VectorStore):
                 logging.info(f"Deleted collection '{name}'")
             except MilvusException as e:
                 logging.error(f"Failed to delete collection '{name}': {e}")
-                raise CollectionError(f"Failed to delete collection '{name}': {e}")
+                raise CollectionError(f"Failed to delete collection '{name}': {e}") from e
         else:
             logging.debug(f"Collection '{name}' does not exist.")
 
@@ -338,14 +350,14 @@ class MilvusStore(VectorStore):
             return
         except MilvusException as e:
             logging.error(f"Failed to delete documents from collection '{collection_name}': {e}")
-            raise CollectionError(f"Failed to delete documents from collection '{collection_name}': {e}")
+            raise CollectionError(f"Failed to delete documents from collection '{collection_name}': {e}") from e
 
     def query(
-            self,
-            collection_name: str,
-            query: QueryWithEmbedding,
-            number_of_results: int = 10,
-            filter: DocumentMetadataFilter | None = None,
+        self,
+        collection_name: str,
+        query: QueryWithEmbedding,
+        number_of_results: int = 10,
+        filter: DocumentMetadataFilter | None = None,  # noqa: ARG002
     ) -> list[QueryResult]:
         """Query the collection with an embedding.
 
@@ -376,4 +388,4 @@ class MilvusStore(VectorStore):
 
         except MilvusException as e:
             logging.error(f"Failed to query collection '{collection_name}': {e}")
-            raise CollectionError(f"Failed to query collection '{collection_name}': {e}")
+            raise CollectionError(f"Failed to query collection '{collection_name}': {e}") from e

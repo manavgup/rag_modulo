@@ -2,8 +2,8 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Any
 
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.feature_extraction.text import TfidfVectorizer  # type: ignore[import-untyped]
+from sklearn.metrics.pairwise import cosine_similarity  # type: ignore[import-untyped]
 
 from rag_solution.data_ingestion.ingestion import DocumentStore
 from vectordbs.data_types import Document, DocumentChunk, QueryResult, VectorQuery
@@ -27,7 +27,7 @@ class BaseRetriever(ABC):
 
 
 class VectorRetriever(BaseRetriever):
-    def __init__(self, document_store: DocumentStore):
+    def __init__(self: Any, document_store: DocumentStore) -> None:
         """
         Initialize the VectorRetriever. In our implementation this just calls the vector database.
 
@@ -48,9 +48,7 @@ class VectorRetriever(BaseRetriever):
             List[QueryResult]: A list of retrieved documents with their relevance scores.
         """
         try:
-            results: list[QueryResult] = self.document_store.vector_store.retrieve_documents(
-                query.text, collection_name, query.number_of_results
-            )
+            results: list[QueryResult] = self.document_store.vector_store.retrieve_documents(query.text, collection_name, query.number_of_results)
             logger.info(f"Received {len(results)} documents for query: {query.text}")
             return results
         except ValueError as e:
@@ -59,7 +57,7 @@ class VectorRetriever(BaseRetriever):
 
 
 class KeywordRetriever(BaseRetriever):
-    def __init__(self, document_store: DocumentStore):
+    def __init__(self: Any, document_store: DocumentStore) -> None:
         """
         Initialize the KeywordRetriever.
 
@@ -110,7 +108,7 @@ class KeywordRetriever(BaseRetriever):
                 top_k_indices = similarities.argsort()[-query.number_of_results :][::-1]
 
                 # At this point self.documents is guaranteed to be a list due to the check above
-                documents = self.documents  # type: ignore[misc]  # We know it's not None here
+                documents = self.documents
                 results = [QueryResult(chunk=documents[i], score=float(similarities[i]), embeddings=[]) for i in top_k_indices]
             except ValueError as e:
                 logger.warning(f"TF-IDF vectorization failed: {e}")
@@ -123,7 +121,7 @@ class KeywordRetriever(BaseRetriever):
 
 
 class HybridRetriever(BaseRetriever):
-    def __init__(self, document_store: DocumentStore, vector_weight: float = 0.7):
+    def __init__(self: Any, document_store: DocumentStore, vector_weight: float = 0.7) -> None:
         """
         Initialize the HybridRetriever.
 
@@ -190,17 +188,22 @@ if __name__ == "__main__":
         Document(
             name="relativity",
             document_id="1",
-            chunks=[DocumentChunk(chunk_id="1_1", text="The theory of relativity was developed by Albert Einstein.")]
+            chunks=[DocumentChunk(chunk_id="1_1", text="The theory of relativity was developed by Albert Einstein.")],
         ),
         Document(
             name="quantum",
             document_id="2",
-            chunks=[DocumentChunk(chunk_id="2_1", text="Quantum mechanics describes the behavior of matter and energy at the atomic scale.")]
+            chunks=[
+                DocumentChunk(
+                    chunk_id="2_1",
+                    text="Quantum mechanics describes the behavior of matter and energy at the atomic scale.",
+                )
+            ],
         ),
         Document(
             name="bigbang",
             document_id="3",
-            chunks=[DocumentChunk(chunk_id="3_1", text="The Big Bang theory explains the origin of the universe.")]
+            chunks=[DocumentChunk(chunk_id="3_1", text="The Big Bang theory explains the origin of the universe.")],
         ),
     ]
     # Note: DocumentStore doesn't have add_documents method in this implementation

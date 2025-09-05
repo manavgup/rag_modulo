@@ -1,7 +1,7 @@
 # Use a smaller base image for Node.js
 FROM node:18-alpine AS builder
 
-ENV NODE_ENV=production 
+ENV NODE_ENV=production
 # Set the working directory
 WORKDIR /app
 

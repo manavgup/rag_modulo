@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
 from typing import TYPE_CHECKING
 
 from pydantic import field_validator
@@ -13,6 +12,8 @@ from sqlalchemy.sql import func
 from rag_solution.file_management.database import Base
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from rag_solution.models.user import User
 
 
@@ -25,9 +26,7 @@ class LLMParameters(Base):
 
     # 🆔 Identification
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
-    )
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
 
     # ⚙️ Core LLM Parameters
     name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
@@ -43,9 +42,7 @@ class LLMParameters(Base):
 
     # 📊 Metadata
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
-    )
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # 🔗 Relationships
     user: Mapped[User] = relationship("User", back_populates="llm_parameters", lazy="selectin")

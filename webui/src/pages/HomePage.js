@@ -89,8 +89,8 @@ const HomePage = () => {
     <div className="homepage">
       <Header onMenuClick={toggleSideNav} />
       <div className="main-container">
-        <UISideNav 
-          expanded={isSideNavExpanded} 
+        <UISideNav
+          expanded={isSideNavExpanded}
           onNavigate={handleNavigation}
           currentPage={currentPage}
         />
@@ -121,7 +121,7 @@ const HomePage = () => {
                 ))}
               </div>
 
-              <QueryInput 
+              <QueryInput
                 query={query}
                 setQuery={setQuery}
                 onSearch={handleSearch}

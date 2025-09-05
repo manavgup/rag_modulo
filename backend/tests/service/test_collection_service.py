@@ -28,7 +28,7 @@ def test_file_content() -> str:
 
 
 @pytest.fixture
-def test_file(test_file_content) -> str:
+def test_file(test_file_content: str) -> str:
     """Create a temporary test file."""
     with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
         f.write(test_file_content)
@@ -36,19 +36,17 @@ def test_file(test_file_content) -> str:
 
 
 @pytest.fixture
-def upload_file(test_file) -> UploadFile:
+def upload_file(test_file: str) -> UploadFile:
     """Create an UploadFile instance for testing."""
     with open(test_file, "rb") as f:
         return UploadFile(filename="test.txt", file=f)
 
 
 @pytest.mark.atomic
-def test_create_collection_success(db_session: Session, base_user: User):
+def test_create_collection_success(db_session: Session, base_user: User) -> None:
     """Test successful collection creation."""
     collection_service = CollectionService(db_session)
-    collection_input = CollectionInput(
-        name="Test Collection", is_private=False, users=[base_user.id], status=CollectionStatus.CREATED
-    )
+    collection_input = CollectionInput(name="Test Collection", is_private=False, users=[base_user.id], status=CollectionStatus.CREATED)
 
     result = collection_service.create_collection(collection_input)
 
@@ -59,12 +57,10 @@ def test_create_collection_success(db_session: Session, base_user: User):
 
 
 @pytest.mark.atomic
-def test_create_collection_duplicate_name(db_session: Session, base_user: User, base_collection: Collection):
+def test_create_collection_duplicate_name(db_session: Session, base_user: User, base_collection: Collection) -> None:
     """Test creating collection with duplicate name."""
     collection_service = CollectionService(db_session)
-    collection_input = CollectionInput(
-        name=base_collection.name, is_private=False, users=[base_user.id], status=CollectionStatus.CREATED
-    )
+    collection_input = CollectionInput(name=base_collection.name, is_private=False, users=[base_user.id], status=CollectionStatus.CREATED)
 
     with pytest.raises(HTTPException) as exc_info:
         collection_service.create_collection(collection_input)
@@ -73,7 +69,7 @@ def test_create_collection_duplicate_name(db_session: Session, base_user: User, 
 
 
 @pytest.mark.atomic
-def test_get_collection_success(db_session: Session, base_collection: Collection):
+def test_get_collection_success(db_session: Session, base_collection: Collection) -> None:
     """Test successful collection retrieval."""
     collection_service = CollectionService(db_session)
 
@@ -85,7 +81,7 @@ def test_get_collection_success(db_session: Session, base_collection: Collection
 
 
 @pytest.mark.atomic
-def test_get_collection_not_found(db_session: Session):
+def test_get_collection_not_found(db_session: Session) -> None:
     """Test collection retrieval when not found."""
     collection_service = CollectionService(db_session)
 
@@ -96,12 +92,10 @@ def test_get_collection_not_found(db_session: Session):
 
 
 @pytest.mark.atomic
-def test_update_collection_success(db_session: Session, base_collection: Collection, base_user: User):
+def test_update_collection_success(db_session: Session, base_collection: Collection, base_user: User) -> None:
     """Test successful collection update."""
     collection_service = CollectionService(db_session)
-    update_input = CollectionInput(
-        name="Updated Collection", is_private=True, users=[base_user.id], status=CollectionStatus.COMPLETED
-    )
+    update_input = CollectionInput(name="Updated Collection", is_private=True, users=[base_user.id], status=CollectionStatus.COMPLETED)
 
     result = collection_service.update_collection(base_collection.id, update_input)
 
@@ -111,7 +105,7 @@ def test_update_collection_success(db_session: Session, base_collection: Collect
 
 
 @pytest.mark.atomic
-def test_delete_collection_success(db_session: Session, base_collection: Collection):
+def test_delete_collection_success(db_session: Session, base_collection: Collection) -> None:
     """Test successful collection deletion."""
     collection_service = CollectionService(db_session)
 
@@ -123,7 +117,7 @@ def test_delete_collection_success(db_session: Session, base_collection: Collect
 
 
 @pytest.mark.atomic
-def test_get_user_collections(db_session: Session, base_user: User, base_collection: Collection):
+def test_get_user_collections(db_session: Session, base_user: User, base_collection: Collection) -> None:
     """Test retrieving user collections."""
     collection_service = CollectionService(db_session)
 
@@ -135,7 +129,7 @@ def test_get_user_collections(db_session: Session, base_user: User, base_collect
 
 @pytest.mark.atomic
 @pytest.mark.asyncio
-async def test_create_collection_with_documents(db_session: Session, base_user: User, upload_file: UploadFile):
+async def test_create_collection_with_documents(db_session: Session, base_user: User, upload_file: UploadFile) -> None:
     """Test creating collection with documents."""
     collection_service = CollectionService(db_session)
     background_tasks = BackgroundTasks()
@@ -159,7 +153,7 @@ async def test_create_collection_with_documents(db_session: Session, base_user: 
 
 @pytest.mark.atomic
 @pytest.mark.asyncio
-async def test_process_documents(db_session: Session, base_collection: Collection, base_user: User, test_file: str):
+async def test_process_documents(db_session: Session, base_collection: Collection, base_user: User, test_file: str) -> None:
     """Test document processing."""
     collection_service = CollectionService(db_session)
 
@@ -177,7 +171,7 @@ async def test_process_documents(db_session: Session, base_collection: Collectio
 
 
 @pytest.mark.atomic
-def test_update_collection_status(db_session: Session, base_collection: Collection):
+def test_update_collection_status(db_session: Session, base_collection: Collection) -> None:
     """Test collection status update."""
     collection_service = CollectionService(db_session)
 
@@ -188,7 +182,7 @@ def test_update_collection_status(db_session: Session, base_collection: Collecti
 
 
 @pytest.mark.atomic
-def test_generate_valid_collection_name(db_session: Session):
+def test_generate_valid_collection_name(db_session: Session) -> None:
     """Test generation of valid collection names."""
     collection_service = CollectionService(db_session)
 
@@ -199,14 +193,10 @@ def test_generate_valid_collection_name(db_session: Session):
     assert len(name) > len("collection_")
 
 
-def test_store_documents_success(db_session: Session, base_collection: Collection):
+def test_store_documents_success(db_session: Session, base_collection: Collection) -> None:
     """Test successful document storage."""
     collection_service = CollectionService(db_session)
-    documents = [
-        Document(
-            document_id="test_doc", name="test.txt", chunks=[DocumentChunk(chunk_id="chunk1", text="test content")]
-        )
-    ]
+    documents = [Document(document_id="test_doc", name="test.txt", chunks=[DocumentChunk(chunk_id="chunk1", text="test content")])]
 
     # This should not raise any exceptions
     collection_service.store_documents_in_vector_store(documents, base_collection.vector_db_name)

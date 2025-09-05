@@ -1,7 +1,7 @@
 from typing import Any
-from pydantic import UUID4
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import UUID4
 from sqlalchemy.orm import Session
 
 from rag_solution.file_management.database import get_db
@@ -26,9 +26,7 @@ def get_service(db: Session = Depends(get_db)) -> LLMProviderService:
 
 
 @router.post("/", response_model=LLMProviderOutput)
-def create_provider(
-    provider_input: LLMProviderInput, service: LLMProviderService = Depends(get_service)
-) -> LLMProviderOutput:
+def create_provider(provider_input: LLMProviderInput, service: LLMProviderService = Depends(get_service)) -> LLMProviderOutput:
     """
     Create a new LLM Provider.
     """
@@ -36,9 +34,7 @@ def create_provider(
 
 
 @router.get("/", response_model=list[LLMProviderOutput])
-def get_all_providers(
-    is_active: bool | None = None, service: LLMProviderService = Depends(get_service)
-) -> list[LLMProviderOutput]:
+def get_all_providers(is_active: bool | None = None, service: LLMProviderService = Depends(get_service)) -> list[LLMProviderOutput]:
     """
     Retrieve all LLM Providers.
     """
@@ -57,9 +53,7 @@ def get_provider(provider_id: UUID4, service: LLMProviderService = Depends(get_s
 
 
 @router.put("/{provider_id}", response_model=LLMProviderOutput)
-def update_provider(
-    provider_id: UUID4, updates: dict, service: LLMProviderService = Depends(get_service)
-) -> LLMProviderOutput:
+def update_provider(provider_id: UUID4, updates: dict, service: LLMProviderService = Depends(get_service)) -> LLMProviderOutput:
     """
     Update a specific LLM Provider.
     """
@@ -86,9 +80,7 @@ def delete_provider(provider_id: UUID4, service: LLMProviderService = Depends(ge
 
 
 @router.post("/models/", response_model=LLMModelOutput)
-def create_provider_model(
-    model_input: LLMModelInput, service: LLMProviderService = Depends(get_service)
-) -> LLMModelOutput:
+def create_provider_model(model_input: LLMModelInput, service: LLMProviderService = Depends(get_service)) -> LLMModelOutput:
     """
     Create a new Model for an LLM Provider.
     """
@@ -99,9 +91,7 @@ def create_provider_model(
 
 
 @router.get("/models/provider/{provider_id}", response_model=list[LLMModelOutput])
-def get_models_by_provider(
-    provider_id: UUID4, service: LLMProviderService = Depends(get_service)
-) -> list[LLMModelOutput]:
+def get_models_by_provider(provider_id: UUID4, service: LLMProviderService = Depends(get_service)) -> list[LLMModelOutput]:
     """
     Get all Models associated with an LLM Provider.
     """
@@ -109,9 +99,7 @@ def get_models_by_provider(
 
 
 @router.get("/models/type/{model_type}", response_model=list[LLMModelOutput])
-def get_models_by_type(
-    model_type: ModelType, service: LLMProviderService = Depends(get_service)
-) -> list[LLMModelOutput]:
+def get_models_by_type(model_type: ModelType, service: LLMProviderService = Depends(get_service)) -> list[LLMModelOutput]:
     """
     Get Models filtered by type (e.g., 'generation', 'embedding').
     """

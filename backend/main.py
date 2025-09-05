@@ -1,6 +1,8 @@
 import os
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any
 
 from fastapi import FastAPI
 from sqlalchemy import inspect, text
@@ -50,7 +52,7 @@ logger = get_logger(__name__)
 # 🛠️ LIFESPAN EVENTS
 # -------------------------------------------
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Starting application lifespan events")
 
     try:
@@ -76,7 +78,7 @@ async def lifespan(app: FastAPI):
 
     except Exception as e:
         logger.error(f"Application startup failed: {e}", exc_info=True)
-        raise SystemExit(1)
+        raise SystemExit(1) from e
 
     yield
 
@@ -92,7 +94,7 @@ app = FastAPI(
     description="API for interacting with a fully customizable RAG solution",
     version="1.0.0",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
 )
 
 # Middleware
@@ -125,12 +127,12 @@ app.include_router(search_router)
 # -------------------------------------------
 # 📊 CUSTOM OPENAPI SCHEMA
 # -------------------------------------------
-def custom_openapi():
+def custom_openapi() -> dict[str, Any]:
     if app.openapi_schema:
         return app.openapi_schema
     openapi_schema = app.openapi()
     app.openapi_schema = openapi_schema
-    return openapi_schema
+    return app.openapi_schema
 
 
-app.openapi = custom_openapi
+app.openapi = custom_openapi  # type: ignore[method-assign]

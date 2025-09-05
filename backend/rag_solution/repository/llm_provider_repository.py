@@ -1,5 +1,6 @@
-from pydantic import UUID4
+from typing import Any
 
+from pydantic import UUID4
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -11,7 +12,7 @@ from rag_solution.schemas.llm_provider_schema import LLMProviderInput
 class LLMProviderRepository:
     """Handles database operations related to LLM Providers."""
 
-    def __init__(self, session: Session):
+    def __init__(self: Any, session: Session) -> None:
         self.session = session
 
     def create_provider(self, provider_input: LLMProviderInput) -> LLMProvider:
@@ -29,9 +30,7 @@ class LLMProviderRepository:
             return provider
         except IntegrityError as e:
             self.session.rollback()
-            raise AlreadyExistsError(
-                resource_type="LLMProvider", field="name", value=provider_input.name
-            ) from e
+            raise AlreadyExistsError(resource_type="LLMProvider", field="name", value=provider_input.name) from e
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise
         except Exception:
@@ -47,9 +46,7 @@ class LLMProviderRepository:
         try:
             provider = self.session.query(LLMProvider).filter_by(id=provider_id).first()
             if not provider:
-                raise NotFoundError(
-                    resource_type="LLMProvider", resource_id=str(provider_id)
-                )
+                raise NotFoundError(resource_type="LLMProvider", resource_id=str(provider_id))
             return provider
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise
@@ -65,9 +62,7 @@ class LLMProviderRepository:
         try:
             provider = self.session.query(LLMProvider).filter(LLMProvider.name.ilike(name)).first()
             if not provider:
-                raise NotFoundError(
-                    resource_type="LLMProvider", identifier=name
-                )
+                raise NotFoundError(resource_type="LLMProvider", identifier=name)
             return provider
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise
@@ -93,16 +88,9 @@ class LLMProviderRepository:
             NotFoundError: If provider not found
         """
         try:
-            provider = (
-                self.session.query(LLMProvider)
-                .filter(LLMProvider.name.ilike(name))
-                .filter(LLMProvider.is_active)
-                .first()
-            )
+            provider = self.session.query(LLMProvider).filter(LLMProvider.name.ilike(name)).filter(LLMProvider.is_active).first()
             if not provider:
-                raise NotFoundError(
-                    resource_type="LLMProvider", identifier=name
-                )
+                raise NotFoundError(resource_type="LLMProvider", identifier=name)
             return provider
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise
@@ -133,9 +121,7 @@ class LLMProviderRepository:
 
         except IntegrityError as e:
             self.session.rollback()
-            raise AlreadyExistsError(
-                resource_type="LLMProvider", field="name", value=str(provider_id)
-            ) from e
+            raise AlreadyExistsError(resource_type="LLMProvider", field="name", value=str(provider_id)) from e
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise
         except Exception:
@@ -168,16 +154,9 @@ class LLMProviderRepository:
             NotFoundError: If no default provider found
         """
         try:
-            provider = (
-                self.session.query(LLMProvider)
-                .filter(LLMProvider.is_active)
-                .filter(LLMProvider.is_default)
-                .first()
-            )
+            provider = self.session.query(LLMProvider).filter(LLMProvider.is_active).filter(LLMProvider.is_default).first()
             if not provider:
-                raise NotFoundError(
-                    resource_type="LLMProvider", identifier="default provider"
-                )
+                raise NotFoundError(resource_type="LLMProvider", identifier="default provider")
             return provider
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise

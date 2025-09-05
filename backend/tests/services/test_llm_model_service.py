@@ -1,5 +1,6 @@
 """Integration tests for LLMModelService."""
 
+from typing import Any
 from uuid import uuid4
 
 import pytest
@@ -12,7 +13,7 @@ from rag_solution.schemas.llm_model_schema import LLMModelOutput, ModelType
 # 🧪 Model Creation Tests
 # -------------------------------------------
 @pytest.mark.atomic
-def test_create_model(llm_model_service, base_provider_input, base_model_input, ensure_watsonx_provider):
+def test_create_model(llm_model_service: Any, base_provider_input: Any, base_model_input: Any, ensure_watsonx_provider: Any) -> None:
     """Test model creation."""
     provider = ensure_watsonx_provider
     base_model_input.provider_id = provider.id
@@ -26,7 +27,7 @@ def test_create_model(llm_model_service, base_provider_input, base_model_input, 
     assert model.is_default == base_model_input.is_default
 
 
-def test_create_model_with_invalid_provider(llm_model_service, base_model_input):
+def test_create_model_with_invalid_provider(llm_model_service: Any, base_model_input: Any) -> None:
     """Test model creation with invalid provider ID."""
     base_model_input.provider_id = uuid4()  # Non-existent provider
 
@@ -35,7 +36,7 @@ def test_create_model_with_invalid_provider(llm_model_service, base_model_input)
     assert "provider_id" in str(exc_info.value)
 
 
-def test_create_model_validation(llm_model_service, base_model_input, ensure_watsonx_provider):
+def test_create_model_validation(llm_model_service: Any, base_model_input: Any, ensure_watsonx_provider: Any) -> None:
     """Test model input validation."""
     provider = ensure_watsonx_provider
     base_model_input.provider_id = provider.id
@@ -56,7 +57,7 @@ def test_create_model_validation(llm_model_service, base_model_input, ensure_wat
 # -------------------------------------------
 # 🧪 Model Retrieval Tests
 # -------------------------------------------
-def test_get_model_by_id(llm_model_service, base_model_input, ensure_watsonx_provider):
+def test_get_model_by_id(llm_model_service: Any, base_model_input: Any, ensure_watsonx_provider: Any) -> None:
     """Test getting model by ID."""
     provider = ensure_watsonx_provider
     base_model_input.provider_id = provider.id
@@ -72,7 +73,7 @@ def test_get_model_by_id(llm_model_service, base_model_input, ensure_watsonx_pro
     assert model is None
 
 
-def test_get_models_by_provider(llm_model_service, base_model_input, ensure_watsonx_provider):
+def test_get_models_by_provider(llm_model_service: Any, base_model_input: Any, ensure_watsonx_provider: Any) -> None:
     """Test getting models by provider."""
     provider = ensure_watsonx_provider
     base_model_input.provider_id = provider.id
@@ -88,16 +89,14 @@ def test_get_models_by_provider(llm_model_service, base_model_input, ensure_wats
     assert model2.id in model_ids
 
 
-def test_get_models_by_type(llm_model_service, base_model_input, ensure_watsonx_provider):
+def test_get_models_by_type(llm_model_service: Any, base_model_input: Any, ensure_watsonx_provider: Any) -> None:
     """Test getting models by type."""
     provider = ensure_watsonx_provider
     base_model_input.provider_id = provider.id
 
     # Create models with different types
     gen_model = llm_model_service.create_model(base_model_input.model_copy(update={"model_type": ModelType.GENERATION}))
-    embed_model = llm_model_service.create_model(
-        base_model_input.model_copy(update={"model_id": "embedding-model", "model_type": ModelType.EMBEDDING})
-    )
+    embed_model = llm_model_service.create_model(base_model_input.model_copy(update={"model_id": "embedding-model", "model_type": ModelType.EMBEDDING}))
 
     # Get generation models
     gen_models = llm_model_service.get_models_by_type(ModelType.GENERATION)
@@ -113,16 +112,14 @@ def test_get_models_by_type(llm_model_service, base_model_input, ensure_watsonx_
 # -------------------------------------------
 # 🧪 Default Model Tests
 # -------------------------------------------
-def test_set_default_model(llm_model_service, base_model_input, ensure_watsonx_provider):
+def test_set_default_model(llm_model_service: Any, base_model_input: Any, ensure_watsonx_provider: Any) -> None:
     """Test setting model as default."""
     provider = ensure_watsonx_provider
     base_model_input.provider_id = provider.id
 
     # Create two models
     model1 = llm_model_service.create_model(base_model_input.model_copy(update={"is_default": False}))
-    model2 = llm_model_service.create_model(
-        base_model_input.model_copy(update={"model_id": "model2", "is_default": False})
-    )
+    model2 = llm_model_service.create_model(base_model_input.model_copy(update={"model_id": "model2", "is_default": False}))
 
     # Set model1 as default
     updated = llm_model_service.set_default_model(model1.id)
@@ -133,7 +130,7 @@ def test_set_default_model(llm_model_service, base_model_input, ensure_watsonx_p
     assert model2_check.is_default is False
 
 
-def test_get_default_model(llm_model_service, base_model_input, ensure_watsonx_provider):
+def test_get_default_model(llm_model_service: Any, base_model_input: Any, ensure_watsonx_provider: Any) -> None:
     """Test getting default model for provider and type."""
     provider = ensure_watsonx_provider
     base_model_input.provider_id = provider.id
@@ -151,7 +148,7 @@ def test_get_default_model(llm_model_service, base_model_input, ensure_watsonx_p
 # -------------------------------------------
 # 🧪 Model Update Tests
 # -------------------------------------------
-def test_update_model(llm_model_service, base_model_input, ensure_watsonx_provider):
+def test_update_model(llm_model_service: Any, base_model_input: Any, ensure_watsonx_provider: Any) -> None:
     """Test updating model."""
     provider = ensure_watsonx_provider
     base_model_input.provider_id = provider.id
@@ -169,7 +166,7 @@ def test_update_model(llm_model_service, base_model_input, ensure_watsonx_provid
 # -------------------------------------------
 # 🧪 Model Deletion Tests
 # -------------------------------------------
-def test_delete_model(llm_model_service, base_model_input, ensure_watsonx_provider):
+def test_delete_model(llm_model_service: Any, base_model_input: Any, ensure_watsonx_provider: Any) -> None:
     """Test model deletion."""
     provider = ensure_watsonx_provider
     base_model_input.provider_id = provider.id
@@ -184,7 +181,7 @@ def test_delete_model(llm_model_service, base_model_input, ensure_watsonx_provid
     assert deleted_model is None
 
 
-def test_delete_nonexistent_model(llm_model_service):
+def test_delete_nonexistent_model(llm_model_service: Any) -> None:
     """Test deleting non-existent model."""
     result = llm_model_service.delete_model(uuid4())
     assert result is False
@@ -193,7 +190,7 @@ def test_delete_nonexistent_model(llm_model_service):
 # -------------------------------------------
 # 🧪 Model Configuration Tests
 # -------------------------------------------
-def test_model_runtime_settings(llm_model_service, base_model_input, ensure_watsonx_provider):
+def test_model_runtime_settings(llm_model_service: Any, base_model_input: Any, ensure_watsonx_provider: Any) -> None:
     """Test model runtime settings configuration."""
     provider = ensure_watsonx_provider
     base_model_input.provider_id = provider.id
@@ -233,7 +230,7 @@ def test_model_runtime_settings(llm_model_service, base_model_input, ensure_wats
         assert model.rate_limit == config["rate_limit"]
 
 
-def test_model_type_specific_settings(llm_model_service, base_model_input, ensure_watsonx_provider):
+def test_model_type_specific_settings(llm_model_service: Any, base_model_input: Any, ensure_watsonx_provider: Any) -> None:
     """Test settings specific to different model types."""
     provider = ensure_watsonx_provider
     base_model_input.provider_id = provider.id
@@ -267,7 +264,7 @@ def test_model_type_specific_settings(llm_model_service, base_model_input, ensur
     assert embed_model.stream is False
 
 
-def test_model_state_transitions(llm_model_service, base_model_input, ensure_watsonx_provider):
+def test_model_state_transitions(llm_model_service: Any, base_model_input: Any, ensure_watsonx_provider: Any) -> None:
     """Test model state transitions (active/inactive, default/non-default)."""
     provider = ensure_watsonx_provider
     base_model_input.provider_id = provider.id
@@ -289,7 +286,7 @@ def test_model_state_transitions(llm_model_service, base_model_input, ensure_wat
     assert updated.is_default is True  # Should maintain default status
 
 
-def test_multiple_models_same_provider(llm_model_service, base_model_input, ensure_watsonx_provider):
+def test_multiple_models_same_provider(llm_model_service: Any, base_model_input: Any, ensure_watsonx_provider: Any) -> None:
     """Test handling multiple models for the same provider."""
     provider = ensure_watsonx_provider
     base_model_input.provider_id = provider.id

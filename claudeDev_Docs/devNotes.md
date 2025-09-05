@@ -89,13 +89,13 @@ The repository pattern is used to abstract data access logic from business logic
 class CollectionRepository:
     def __init__(self, db: Session):
         self.db = db
-    
+
     def create(self, collection: Collection) -> Collection:
         self.db.add(collection)
         self.db.commit()
         self.db.refresh(collection)
         return collection
-    
+
     def get_by_id(self, collection_id: int) -> Optional[Collection]:
         return self.db.query(Collection).filter(Collection.id == collection_id).first()
 ```
@@ -109,7 +109,7 @@ class CollectionService:
     def __init__(self, collection_repo: CollectionRepository, vector_store: VectorStore):
         self.collection_repo = collection_repo
         self.vector_store = vector_store
-    
+
     def create_collection(self, collection_data: CollectionCreate) -> Collection:
         # Business logic for collection creation
         collection = Collection(**collection_data.dict())
@@ -198,12 +198,12 @@ class CollectionCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = Field(None, max_length=1000)
     is_public: bool = Field(default=False)
-    
+
     model_config = ConfigDict(
         from_attributes=True,
         validate_assignment=True
     )
-    
+
     @model_validator(mode='before')
     @classmethod
     def validate_name(cls, values):
@@ -223,15 +223,15 @@ def create_collection(
     db: Session
 ) -> Collection:
     """Create a new collection for the specified user.
-    
+
     Args:
         collection_data: The collection data to create
         user_id: The ID of the user creating the collection
         db: Database session for the operation
-        
+
     Returns:
         The created collection instance
-        
+
     Raises:
         ValidationError: If the collection data is invalid
         DatabaseError: If the database operation fails
@@ -324,7 +324,7 @@ def process_document(document_id: int):
         # Processing logic
         pass
     except Exception as e:
-        logger.error(f"Failed to process document {document_id}: {str(e)}", 
+        logger.error(f"Failed to process document {document_id}: {str(e)}",
                     extra={'document_id': document_id, 'error': str(e)})
         raise
 ```
@@ -346,24 +346,24 @@ class TestCollectionService:
         self.mock_repo = Mock()
         self.mock_vector_store = Mock()
         self.service = CollectionService(self.mock_repo, self.mock_vector_store)
-    
+
     def test_create_collection_success(self):
         # Arrange
         collection_data = CollectionCreate(name="Test Collection", description="Test")
         expected_collection = Mock()
         self.mock_repo.create.return_value = expected_collection
-        
+
         # Act
         result = self.service.create_collection(collection_data)
-        
+
         # Assert
         assert result == expected_collection
         self.mock_repo.create.assert_called_once()
-    
+
     def test_create_collection_validation_error(self):
         # Arrange
         collection_data = CollectionCreate(name="", description="Test")
-        
+
         # Act & Assert
         with pytest.raises(ValueError, match="Name cannot be empty"):
             self.service.create_collection(collection_data)
@@ -428,9 +428,9 @@ def db_session(engine):
     connection = engine.connect()
     transaction = connection.begin()
     session = sessionmaker(bind=connection)()
-    
+
     yield session
-    
+
     session.close()
     transaction.rollback()
     connection.close()
@@ -450,14 +450,14 @@ from rag_solution.database import Base
 
 class Collection(Base):
     __tablename__ = "collections"
-    
+
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(String(1000))
     is_public: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
-    
+
     # Relationships
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     user: Mapped["User"] = relationship("User", back_populates="collections")
@@ -485,13 +485,13 @@ def run_migrations_online():
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
-    
+
     with connectable.connect() as connection:
         context.configure(
             connection=connection,
             target_metadata=target_metadata
         )
-        
+
         with context.begin_transaction():
             context.run_migrations()
 ```
@@ -515,8 +515,8 @@ async def get_current_user(
 ) -> User:
     try:
         payload = jwt.decode(
-            credentials.credentials, 
-            settings.jwt_secret_key, 
+            credentials.credentials,
+            settings.jwt_secret_key,
             algorithms=[settings.jwt_algorithm]
         )
         user_id: int = payload.get("sub")
@@ -530,7 +530,7 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials"
         )
-    
+
     user = get_user_by_id(user_id)
     if user is None:
         raise HTTPException(
@@ -553,7 +553,7 @@ class DocumentProcessor(ABC):
     @abstractmethod
     def can_process(self, file_extension: str) -> bool:
         pass
-    
+
     @abstractmethod
     def process(self, file: BinaryIO) -> Document:
         pass
@@ -561,7 +561,7 @@ class DocumentProcessor(ABC):
 class PDFProcessor(DocumentProcessor):
     def can_process(self, file_extension: str) -> bool:
         return file_extension.lower() == '.pdf'
-    
+
     def process(self, file: BinaryIO) -> Document:
         # PDF processing logic
         pass
@@ -574,7 +574,7 @@ class DocumentProcessorFactory:
             TxtProcessor(),
             XlsxProcessor()
         ]
-    
+
     def get_processor(self, file_extension: str) -> DocumentProcessor:
         for processor in self.processors:
             if processor.can_process(file_extension):
@@ -595,11 +595,11 @@ class VectorStore(ABC):
     @abstractmethod
     async def store_embeddings(self, embeddings: List[Embedding]) -> bool:
         pass
-    
+
     @abstractmethod
     async def search(self, query_embedding: List[float], limit: int = 10) -> List[SearchResult]:
         pass
-    
+
     @abstractmethod
     async def delete_embeddings(self, ids: List[str]) -> bool:
         pass
@@ -608,11 +608,11 @@ class MilvusStore(VectorStore):
     def __init__(self, config: Dict[str, Any]):
         self.config = config
         # Initialize Milvus connection
-    
+
     async def store_embeddings(self, embeddings: List[Embedding]) -> bool:
         # Milvus-specific implementation
         pass
-    
+
     async def search(self, query_embedding: List[float], limit: int = 10) -> List[SearchResult]:
         # Milvus-specific search implementation
         pass
@@ -640,7 +640,7 @@ async def create_collection(
     """Create a new collection for the current user."""
     try:
         collection = collection_service.create_collection(
-            collection_data, 
+            collection_data,
             current_user.id
         )
         return CollectionResponse.from_orm(collection)
@@ -680,13 +680,13 @@ from rag_solution.core.config import settings
 class CacheManager:
     def __init__(self):
         self.redis_client = redis.Redis.from_url(settings.redis_url)
-    
+
     async def get(self, key: str) -> Optional[str]:
         return self.redis_client.get(key)
-    
+
     async def set(self, key: str, value: str, expire: int = 3600):
         self.redis_client.setex(key, expire, value)
-    
+
     async def delete(self, key: str):
         self.redis_client.delete(key)
 
@@ -738,13 +738,13 @@ class UserInput(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
     email: str = Field(..., regex=r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
     password: str = Field(..., min_length=8)
-    
+
     @validator('username')
     def validate_username(cls, v):
         if not re.match(r'^[a-zA-Z0-9_]+$', v):
             raise ValueError('Username can only contain letters, numbers, and underscores')
         return v
-    
+
     @validator('password')
     def validate_password(cls, v):
         if not re.search(r'[A-Z]', v):
@@ -813,7 +813,7 @@ class Settings(BaseSettings):
     redis_url: str
     jwt_secret_key: str
     jwt_algorithm: str = "HS256"
-    
+
     class Config:
         env_file = ".env"
         case_sensitive = False
@@ -840,7 +840,7 @@ async def health_check():
         "timestamp": datetime.utcnow().isoformat(),
         "services": {}
     }
-    
+
     # Database health check
     try:
         db = next(get_db())
@@ -849,7 +849,7 @@ async def health_check():
     except Exception as e:
         health_status["services"]["database"] = f"unhealthy: {str(e)}"
         health_status["status"] = "unhealthy"
-    
+
     # Vector store health check
     try:
         vector_store = get_vector_store()
@@ -858,7 +858,7 @@ async def health_check():
     except Exception as e:
         health_status["services"]["vector_store"] = f"unhealthy: {str(e)}"
         health_status["status"] = "unhealthy"
-    
+
     return health_status
 ```
 

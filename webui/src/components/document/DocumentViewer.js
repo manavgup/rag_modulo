@@ -77,7 +77,7 @@ const DocumentViewer = () => {
   const highlightSearchTerm = (text) => {
     if (!searchTerm) return text;
     const regex = new RegExp(`(${searchTerm})`, 'gi');
-    return text.split(regex).map((part, index) => 
+    return text.split(regex).map((part, index) =>
       regex.test(part) ? <mark key={index}>{part}</mark> : part
     );
   };
@@ -141,7 +141,7 @@ const DocumentViewer = () => {
 
       <div className="document-header">
         <h3>{document.title}</h3>
-        
+
         <div className="document-actions">
           <Button
             kind="ghost"
@@ -159,7 +159,7 @@ const DocumentViewer = () => {
           </Button>
         </div>
       </div>
-      
+
       {error && (
         <InlineNotification
           kind="error"

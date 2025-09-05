@@ -1,14 +1,13 @@
 import os
 
-from pymilvus import connections, utility
+import pytest
+from pymilvus import connections, utility  # type: ignore[import-untyped]
 
 
 @pytest.mark.atomic
 def test_milvus_connection() -> None:
     try:
-        connections.connect(
-            alias="default", host=os.getenv("MILVUS_HOST", "milvus-standalone"), port=os.getenv("MILVUS_PORT", "19530")
-        )
+        connections.connect(alias="default", host=os.getenv("MILVUS_HOST", "milvus-standalone"), port=os.getenv("MILVUS_PORT", "19530"))
         print("Successfully connected to Milvus")
 
         # Check if Milvus is healthy

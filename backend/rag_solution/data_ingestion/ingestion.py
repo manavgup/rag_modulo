@@ -3,6 +3,7 @@
 import logging
 import multiprocessing
 import uuid
+from typing import Any
 
 from core.config import settings
 from core.custom_exceptions import DocumentStorageError
@@ -21,7 +22,7 @@ MAX_RETRIES = 3  # Maximum number of retries for storing a document
 
 
 class DocumentStore:
-    def __init__(self, vector_store: VectorStore, collection_name: str):
+    def __init__(self: Any, vector_store: VectorStore, collection_name: str) -> None:
         """Initialize document store."""
         self.vector_store = vector_store
         self.collection_name = collection_name
@@ -32,9 +33,7 @@ class DocumentStore:
         try:
             processed_documents = await self.ingest_documents(data_source)
             self.documents.extend(processed_documents)
-            logger.info(
-                f"Ingested and processed {len(processed_documents)} documents into collection: {self.collection_name}"
-            )
+            logger.info(f"Ingested and processed {len(processed_documents)} documents into collection: {self.collection_name}")
             return processed_documents
         except Exception as e:
             logger.error(f"Error ingesting documents: {e!s}", exc_info=True)
@@ -68,9 +67,7 @@ class DocumentStore:
             logger.info(f"Successfully stored documents in collection {self.collection_name}")
         except Exception as e:
             logger.error(f"Error storing documents: {e}", exc_info=True)
-            raise DocumentStorageError(
-                doc_id="", storage_path="", error_type="storage_failed", message=f"Error: {e}"
-            ) from e
+            raise DocumentStorageError(doc_id="", storage_path="", error_type="storage_failed", message=f"Error: {e}") from e
 
     def get_documents(self) -> list[Document]:
         """Get all documents in the document store."""

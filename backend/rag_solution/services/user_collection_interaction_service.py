@@ -1,6 +1,7 @@
 import logging
-from pydantic import UUID4
+from typing import Any
 
+from pydantic import UUID4
 from sqlalchemy.orm import Session
 
 from rag_solution.repository.collection_repository import CollectionRepository
@@ -11,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class UserCollectionInteractionService:
-    def __init__(self, db: Session):
+    def __init__(self: Any, db: Session) -> None:
         self.db = db
         self.user_collection_repository = UserCollectionRepository(db)
         self.collection_repository = CollectionRepository(db)

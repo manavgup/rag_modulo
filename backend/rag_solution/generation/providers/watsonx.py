@@ -2,13 +2,13 @@
 
 from collections.abc import Generator, Sequence
 from typing import Any
-from pydantic import UUID4
 
-from ibm_watsonx_ai import APIClient, Credentials
-from ibm_watsonx_ai.foundation_models import Embeddings as wx_Embeddings
-from ibm_watsonx_ai.foundation_models import ModelInference
-from ibm_watsonx_ai.metanames import EmbedTextParamsMetaNames as EmbedParams
-from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams
+from ibm_watsonx_ai import APIClient, Credentials  # type: ignore[import-untyped]
+from ibm_watsonx_ai.foundation_models import Embeddings as wx_Embeddings  # type: ignore[import-untyped]
+from ibm_watsonx_ai.foundation_models import ModelInference  # type: ignore[import-untyped]
+from ibm_watsonx_ai.metanames import EmbedTextParamsMetaNames as EmbedParams  # type: ignore[import-untyped]
+from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams  # type: ignore[import-untyped]
+from pydantic import UUID4
 
 from core.custom_exceptions import LLMProviderError, NotFoundError, ValidationError
 from core.logging_utils import get_logger
@@ -36,9 +36,7 @@ class WatsonXLLM(LLMBase):
 
             try:
                 # Convert Pydantic model fields to strings for IBM client
-                credentials = Credentials(
-                    api_key=self._provider.api_key.get_secret_value(), url=str(self._provider.base_url)
-                )
+                credentials = Credentials(api_key=self._provider.api_key.get_secret_value(), url=str(self._provider.base_url))
                 logger.debug("Created IBM credentials")
 
                 self.client = APIClient(project_id=str(self._provider.project_id), credentials=credentials)
@@ -67,9 +65,7 @@ class WatsonXLLM(LLMBase):
             self.embeddings_client = wx_Embeddings(
                 model_id=str(embedding_model.model_id),
                 project_id=str(self._provider.project_id),
-                credentials=Credentials(
-                    api_key=self._provider.api_key.get_secret_value(), url=str(self._provider.base_url)
-                ),
+                credentials=Credentials(api_key=self._provider.api_key.get_secret_value(), url=str(self._provider.base_url)),
                 params={EmbedParams.RETURN_OPTIONS: {"input_text": True}},
             )
             logger.debug(f"Embeddings client: {self.embeddings_client}")
@@ -80,9 +76,7 @@ class WatsonXLLM(LLMBase):
         model = ModelInference(
             model_id=str(model_id),
             project_id=str(self._provider.project_id),
-            credentials=Credentials(
-                api_key=self._provider.api_key.get_secret_value(), url=str(self._provider.base_url)
-            ),
+            credentials=Credentials(api_key=self._provider.api_key.get_secret_value(), url=str(self._provider.base_url)),
         )
         model.set_api_client(api_client=self.client)
 
@@ -100,14 +94,10 @@ class WatsonXLLM(LLMBase):
         """Get the default model ID for text generation."""
         default_model = next((m for m in self._models if m.is_default and m.model_type == ModelType.GENERATION), None)
         if not default_model:
-            raise LLMProviderError(
-                provider=self._provider_name, error_type="no_default_model", message="No default model configured"
-            )
+            raise LLMProviderError(provider=self._provider_name, error_type="no_default_model", message="No default model configured")
         return default_model.model_id
 
-    def _get_generation_params(
-        self, user_id: UUID4, model_parameters: LLMParametersInput | None = None
-    ) -> dict[str, Any]:
+    def _get_generation_params(self, user_id: UUID4, model_parameters: LLMParametersInput | None = None) -> dict[str, Any]:
         """Get generation parameters for WatsonX.
 
         Args:
@@ -119,6 +109,9 @@ class WatsonXLLM(LLMBase):
         """
         # Use provided parameters if available
         params = model_parameters or self.llm_parameters_service.get_latest_or_default_parameters(user_id)
+
+        if params is None:
+            raise ValueError("No LLM parameters found for user")
 
         # Convert to WatsonX format
         return {
@@ -139,9 +132,7 @@ class WatsonXLLM(LLMBase):
     ) -> str | list[str]:
         """Generate text using WatsonX model."""
         try:
-            logger.info(
-                f"user_id: {user_id}, prompt: {prompt}, model_parameters: {model_parameters}, template: {template}, variables: {variables}"
-            )
+            logger.info(f"user_id: {user_id}, prompt: {prompt}, model_parameters: {model_parameters}, template: {template}, variables: {variables}")
             self._ensure_client()
             model = self._get_model(user_id, model_parameters)
 
@@ -154,9 +145,9 @@ class WatsonXLLM(LLMBase):
                     if variables:
                         prompt_variables.update(variables)
 
-                    formatted = self.prompt_template_service.format_prompt_with_template(
-                        template, prompt_variables
-                    )
+                    if template is None:
+                        raise ValueError("Template is required for batch generation")
+                    formatted = self.prompt_template_service.format_prompt_with_template(template, prompt_variables)
                     formatted_prompts.append(formatted)
                     logger.debug(f"Formatted prompt*******: {formatted}")  # Log first 200 chars
 
@@ -174,13 +165,14 @@ class WatsonXLLM(LLMBase):
                     return [str(response).strip()]
             else:
                 # Single prompt handling
+                if template is None:
+                    raise ValueError("Template is required for text generation")
+
                 prompt_variables = {"context": prompt}
                 if variables:
                     prompt_variables.update(variables)
 
-                formatted_prompt = self.prompt_template_service.format_prompt_with_template(
-                    template, prompt_variables
-                )
+                formatted_prompt = self.prompt_template_service.format_prompt_with_template(template, prompt_variables)
                 logger.debug(f"Formatted single prompt: {formatted_prompt}...")
 
                 response = model.generate_text(prompt=formatted_prompt)
@@ -191,10 +183,7 @@ class WatsonXLLM(LLMBase):
                     result = response["results"][0]["generated_text"].strip()
                 elif isinstance(response, list):
                     first_result = response[0]
-                    if isinstance(first_result, dict):
-                        result = first_result["generated_text"].strip()
-                    else:
-                        result = first_result.strip()
+                    result = first_result["generated_text"].strip() if isinstance(first_result, dict) else first_result.strip()
                 else:
                     result = str(response).strip()
                 return result

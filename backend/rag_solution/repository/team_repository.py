@@ -1,6 +1,7 @@
 import logging
-from pydantic import UUID4
+from typing import Any
 
+from pydantic import UUID4
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class TeamRepository:
-    def __init__(self, session: Session):
+    def __init__(self: Any, session: Session) -> None:
         self.session = session
 
     def create(self, team: TeamInput) -> TeamOutput:
@@ -90,9 +91,7 @@ class TeamRepository:
                 raise NotFoundError("Team", resource_id=str(team_id))
 
             # Check for duplicate name, excluding current team
-            existing_team = (
-                self.session.query(Team).filter(Team.name == team_update.name, Team.id != team_id).first()
-            )
+            existing_team = self.session.query(Team).filter(Team.name == team_update.name, Team.id != team_id).first()
             if existing_team:
                 raise AlreadyExistsError("Team", "name", team_update.name)
 

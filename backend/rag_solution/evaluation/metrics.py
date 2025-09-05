@@ -149,25 +149,22 @@ class AnswerSimilarity(BaseModel):
 
 
 class Faithfulness(BaseModel):
-    faithfulness_rate: str = Field(
-        description="factual consistency of the answer can only take one of these values High,Medium,Low"
-    )
-    reasoning: str = Field(
-        description="A clear explanation of the assessment, referencing specific discrepancies or alignments between the answer and the context."
-    )
+    faithfulness_rate: str = Field(description="factual consistency of the answer can only take one of these values High,Medium,Low")
+    reasoning: str = Field(description="A clear explanation of the assessment, referencing specific discrepancies or alignments between the answer and the context.")
 
 
 class AnswerRelevance(BaseModel):
     answer_relevance_rate: str = Field(description="answer relevance rate High,Medium,Low")
     reasoning: str = Field(
-        description="reasoning why the answer_relevance rate was given focus on Completeness: Does the answer fully address the question?,Precision: Is the answer free of unnecessary or redundant information?,Is the answer factually consistent with the given question?"
+        description=(
+            "reasoning why the answer_relevance rate was given focus on "
+            "Completeness: Does the answer fully address the question?, "
+            "Precision: Is the answer free of unnecessary or redundant information?, "
+            "Is the answer factually consistent with the given question?"
+        )
     )
 
 
 class ContextRelevance(BaseModel):
-    context_relevance_rate: int = Field(
-        description="score to assess the relevancy of retrieved documents to the question High,Medium,Low"
-    )
-    reasoning: str = Field(
-        description="reasoning why the relevancy_score score was given justify your rating for each document concisely but clearly."
-    )
+    context_relevance_rate: int = Field(description="score to assess the relevancy of retrieved documents to the question High,Medium,Low")
+    reasoning: str = Field(description="reasoning why the relevancy_score score was given justify your rating for each document concisely but clearly.")

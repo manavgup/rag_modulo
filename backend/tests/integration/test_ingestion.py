@@ -1,6 +1,7 @@
 # tests/test_ingestion.py
 import time
 from datetime import datetime
+from typing import Any
 
 import pytest
 
@@ -22,7 +23,7 @@ sample_document = Document(
         DocumentChunk(
             chunk_id="3",
             text=text,
-            vectors=get_embeddings(text),
+            vectors=get_embeddings(text)[0],
             metadata=DocumentChunkMetadata(
                 source=Source.WEBSITE,
                 created_at=datetime.now().isoformat() + "Z",
@@ -33,7 +34,7 @@ sample_document = Document(
 
 
 @pytest.fixture(scope="module")
-def vector_store_with_collection():
+def vector_store_with_collection() -> None:
     vector_store = get_datastore(settings.vector_db)
     vector_store.create_collection(collection_name)
     yield vector_store
@@ -43,13 +44,13 @@ def vector_store_with_collection():
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-async def test_document_store(vector_store_with_collection):
+async def test_document_store(vector_store_with_collection: Any) -> None:
     """Test the DocumentStore class."""
     # Create document store
     store = DocumentStore(vector_store=vector_store_with_collection, collection_name=collection_name)
 
     # Test adding a single document
-    await store.add_document(sample_document)
+    await store.ingest_documents([sample_document.name])
     stored_docs = vector_store_with_collection.retrieve_documents("sample", collection_name)
     assert len(stored_docs) == 1
 

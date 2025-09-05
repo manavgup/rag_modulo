@@ -2,10 +2,12 @@ import multiprocessing
 import os
 import time
 from collections import Counter
+from collections.abc import Generator
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
-import pymupdf
+import pymupdf  # type: ignore[import-untyped]
 import pytest
 
 from core.custom_exceptions import DocumentProcessingError
@@ -14,7 +16,7 @@ from vectordbs.data_types import DocumentChunk, DocumentChunkMetadata, Source
 
 
 @pytest.fixture(scope="function")
-def complex_test_pdf_path():
+def complex_test_pdf_path() -> Generator[Path, None, None]:
     """Fixture to create a robust PDF file with multiple pages, tables and images."""
     test_file = Path("/tmp/complex_test.pdf")
 
@@ -104,7 +106,7 @@ def complex_test_pdf_path():
         test_file.unlink()
 
 
-def draw_table(page, table_data, top, left, col_width, row_height):
+def draw_table(page: Any, table_data: Any, top: Any, left: Any, col_width: Any, row_height: Any) -> None:
     """Helper function to draw tables in PDF."""
     for i, row in enumerate(table_data):
         for j, cell in enumerate(row):
@@ -115,36 +117,32 @@ def draw_table(page, table_data, top, left, col_width, row_height):
 
 
 @pytest.fixture(scope="function")
-def pdf_processor():
+def pdf_processor() -> Any:
     """Fixture to create an instance of PdfProcessor."""
     with multiprocessing.Manager() as manager:
         return PdfProcessor(manager)
 
 
 @pytest.fixture(scope="module")
-def ibm_annual_report_path():
+def ibm_annual_report_path() -> str:
     return "/Users/mg/Downloads/IBM_Annual_Report_2022.pdf"
 
 
 @pytest.mark.atomic
-def test_pdf_processor_initialization(pdf_processor):
+def test_pdf_processor_initialization(pdf_processor: Any) -> None:
     """Test initialization of PdfProcessor."""
     assert pdf_processor is not None
     assert isinstance(pdf_processor.saved_image_hashes, set)
 
 
-def test_pdf_text_extraction(pdf_processor, complex_test_pdf_path):
+def test_pdf_text_extraction(pdf_processor: Any, complex_test_pdf_path: Any) -> None:
     """Test text extraction from a complex PDF file."""
     with pymupdf.open(str(complex_test_pdf_path)) as doc:
         # Test Page 1
         page1_content = pdf_processor.extract_text_from_page(doc[0])
         assert any("This is a test document." in block["content"] for block in page1_content if block["type"] == "text")
         assert any("Heading 1" in block["content"] for block in page1_content if block["type"] == "text")
-        assert any(
-            "This is some content under heading 1." in block["content"]
-            for block in page1_content
-            if block["type"] == "text"
-        )
+        assert any("This is some content under heading 1." in block["content"] for block in page1_content if block["type"] == "text")
 
         # Test Page 2
         page2_content = pdf_processor.extract_text_from_page(doc[1])
@@ -161,7 +159,7 @@ def test_pdf_text_extraction(pdf_processor, complex_test_pdf_path):
             assert any(content in block["content"] for block in page2_content if block["type"] == "text")
 
 
-def test_pdf_table_extraction_methods(pdf_processor, complex_test_pdf_path):
+def test_pdf_table_extraction_methods(pdf_processor: Any, complex_test_pdf_path: Any) -> None:
     """Test different table extraction methods."""
     with pymupdf.open(str(complex_test_pdf_path)) as doc:
         # Test built-in PyMuPDF table extraction
@@ -186,7 +184,7 @@ def test_pdf_table_extraction_methods(pdf_processor, complex_test_pdf_path):
         assert any("Price" in row[1] for row in tables[0]), "Price column not found"
 
 
-def test_table_validation(pdf_processor):
+def test_table_validation(pdf_processor: Any) -> None:
     """Test the _is_likely_table helper method."""
     # Valid table
     valid_table = [["Header 1", "Header 2", "Header 3"], ["Data 1", "Data 2", "Data 3"], ["Data 4", "Data 5", "Data 6"]]
@@ -206,7 +204,7 @@ def test_table_validation(pdf_processor):
     assert pdf_processor._is_likely_table(min_table), "Minimum valid table should be accepted"
 
 
-def test_document_chunk_creation(pdf_processor):
+def test_document_chunk_creation(pdf_processor: Any) -> None:
     """Test document chunk creation and metadata."""
     # Test chunk creation with text
     chunk_text = "Test chunk content"
@@ -233,7 +231,7 @@ def test_document_chunk_creation(pdf_processor):
 
 
 @pytest.mark.asyncio
-async def test_metadata_inheritance(pdf_processor, complex_test_pdf_path):
+async def test_metadata_inheritance(pdf_processor: Any, complex_test_pdf_path: Any) -> None:
     """Test metadata inheritance and processing."""
     processed_docs = []
     async for doc in pdf_processor.process(str(complex_test_pdf_path), "test_id"):
@@ -259,7 +257,7 @@ async def test_metadata_inheritance(pdf_processor, complex_test_pdf_path):
 
 
 @pytest.mark.asyncio
-async def test_error_handling_scenarios(pdf_processor):
+async def test_error_handling_scenarios(pdf_processor: Any) -> None:
     """Test various error handling scenarios."""
     # Test nonexistent file
     with pytest.raises(DocumentProcessingError):
@@ -300,7 +298,7 @@ async def test_error_handling_scenarios(pdf_processor):
 
 
 @pytest.mark.asyncio
-async def test_concurrent_processing(pdf_processor, complex_test_pdf_path):
+async def test_concurrent_processing(pdf_processor: Any, complex_test_pdf_path: Any) -> None:
     """Test concurrent processing of PDF pages."""
     processed_docs = []
     async for doc in pdf_processor.process(str(complex_test_pdf_path), "test_id"):
@@ -323,7 +321,7 @@ async def test_concurrent_processing(pdf_processor, complex_test_pdf_path):
         assert chunk_numbers == sorted(chunk_numbers), "Chunks not in correct order"
 
         # Verify chunk metadata consistency
-        page_chunks = {}
+        page_chunks: dict[int, list[int]] = {}
         for chunk in doc.chunks:
             page = chunk.metadata.page_number
             if page not in page_chunks:
@@ -332,12 +330,10 @@ async def test_concurrent_processing(pdf_processor, complex_test_pdf_path):
 
         # Verify chunk numbers are sequential within each page
         for page_nums in page_chunks.values():
-            assert page_nums == list(
-                range(min(page_nums), max(page_nums) + 1)
-            ), "Chunk numbers should be sequential within each page"
+            assert page_nums == list(range(min(page_nums), max(page_nums) + 1)), "Chunk numbers should be sequential within each page"
 
 
-def test_pdf_processing_ibm_annual_report(pdf_processor, ibm_annual_report_path):
+def test_pdf_processing_ibm_annual_report(pdf_processor: Any, ibm_annual_report_path: str) -> None:
     """Test processing of IBM annual report."""
     start_time = time.time()
 
@@ -352,12 +348,7 @@ def test_pdf_processing_ibm_annual_report(pdf_processor, ibm_annual_report_path)
     assert len(processed_docs) > 0, "No documents were processed"
 
     # Analyze content types
-    content_types = Counter(
-        chunk.metadata.content_type
-        for doc in processed_docs
-        for chunk in doc.chunks
-        if hasattr(chunk.metadata, "content_type")
-    )
+    content_types = Counter(chunk.metadata.content_type for doc in processed_docs for chunk in doc.chunks if hasattr(chunk.metadata, "content_type"))
     print("\nContent type distribution:")
     for content_type, count in content_types.items():
         print(f"  {content_type}: {count}")

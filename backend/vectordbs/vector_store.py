@@ -32,7 +32,13 @@ class VectorStore(ABC):
         """
 
     @abstractmethod
-    def query(self, collection_name: str, query: QueryWithEmbedding, number_of_results: int = 10, filter: DocumentMetadataFilter | None = None) -> list[QueryResult]:
+    def query(
+        self,
+        collection_name: str,
+        query: QueryWithEmbedding,
+        number_of_results: int = 10,
+        filter: DocumentMetadataFilter | None = None,
+    ) -> list[QueryResult]:
         """Queries the vector store with filtering and query mode options.
 
         Args:

@@ -9,9 +9,9 @@
 
 ## Backend
 - Server: Python with FastAPI
-- Database: 
+- Database:
   - Relational: PostgreSQL
-  - Vector Databases: 
+  - Vector Databases:
     - Milvus
     - Elasticsearch
     - Pinecone
@@ -20,7 +20,7 @@
 - Authentication: JWT, OIDC
 
 ## Data Processing
-- Document Processing: 
+- Document Processing:
   - PyMuPDF (for PDF)
   - python-docx (for Word documents)
   - openpyxl (for Excel files)

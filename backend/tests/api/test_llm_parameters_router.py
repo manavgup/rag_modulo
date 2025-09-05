@@ -1,9 +1,11 @@
 """Tests for LLM Parameters router endpoints."""
 
-from pydantic import UUID4, uuid4
+from typing import Any
+from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
+from pydantic import UUID4
 
 from rag_solution.models.llm_parameters import LLMParameters
 from rag_solution.services.llm_parameters_service import LLMParametersService
@@ -15,7 +17,7 @@ TEST_PARAMETER_ID = UUID4("87654321-4321-8765-4321-876543210987")
 
 @pytest.fixture
 @pytest.mark.api
-def test_parameter_data():
+def test_parameter_data() -> dict[str, Any]:
     return {
         "name": "Test Parameters",
         "provider_id": str(uuid4()),
@@ -31,7 +33,7 @@ def test_parameter_data():
 
 
 @pytest.fixture
-def mock_llm_parameters_service(mocker):
+def mock_llm_parameters_service(mocker: Any) -> Any:
     service = mocker.Mock(spec=LLMParametersService)
 
     # Mock get_parameters
@@ -99,7 +101,7 @@ def mock_llm_parameters_service(mocker):
 
 
 @pytest.mark.asyncio
-async def test_get_llm_parameters(client: AsyncClient, mock_llm_parameters_service, mock_auth_user):
+async def test_get_llm_parameters(client: AsyncClient, mock_llm_parameters_service: Any, mock_auth_user: Any) -> None:
     """Test GET /api/users/{user_id}/llm-parameters endpoint."""
     # Mock auth user
     mock_auth_user(TEST_USER_ID)
@@ -120,9 +122,7 @@ async def test_get_llm_parameters(client: AsyncClient, mock_llm_parameters_servi
 
 
 @pytest.mark.asyncio
-async def test_create_llm_parameters(
-    client: AsyncClient, mock_llm_parameters_service, mock_auth_user, test_parameter_data
-):
+async def test_create_llm_parameters(client: AsyncClient, mock_llm_parameters_service: Any, mock_auth_user: Any, test_parameter_data: dict[str, Any]) -> None:
     """Test POST /api/users/{user_id}/llm-parameters endpoint."""
     # Mock auth user
     mock_auth_user(TEST_USER_ID)
@@ -141,9 +141,7 @@ async def test_create_llm_parameters(
 
 
 @pytest.mark.asyncio
-async def test_update_llm_parameters(
-    client: AsyncClient, mock_llm_parameters_service, mock_auth_user, test_parameter_data
-):
+async def test_update_llm_parameters(client: AsyncClient, mock_llm_parameters_service: Any, mock_auth_user: Any, test_parameter_data: dict[str, Any]) -> None:
     """Test PUT /api/users/{user_id}/llm-parameters/{parameter_id} endpoint."""
     # Mock auth user
     mock_auth_user(TEST_USER_ID)
@@ -153,9 +151,7 @@ async def test_update_llm_parameters(
     test_parameter_data["temperature"] = 0.8
 
     # Make request
-    response = await client.put(
-        f"/api/users/{TEST_USER_ID}/llm-parameters/{TEST_PARAMETER_ID}", json=test_parameter_data
-    )
+    response = await client.put(f"/api/users/{TEST_USER_ID}/llm-parameters/{TEST_PARAMETER_ID}", json=test_parameter_data)
 
     # Assert response
     assert response.status_code == 200
@@ -169,7 +165,7 @@ async def test_update_llm_parameters(
 
 
 @pytest.mark.asyncio
-async def test_delete_llm_parameters(client: AsyncClient, mock_llm_parameters_service, mock_auth_user):
+async def test_delete_llm_parameters(client: AsyncClient, mock_llm_parameters_service: Any, mock_auth_user: Any) -> None:
     """Test DELETE /api/users/{user_id}/llm-parameters/{parameter_id} endpoint."""
     # Mock auth user
     mock_auth_user(TEST_USER_ID)
@@ -186,7 +182,7 @@ async def test_delete_llm_parameters(client: AsyncClient, mock_llm_parameters_se
 
 
 @pytest.mark.asyncio
-async def test_set_default_llm_parameters(client: AsyncClient, mock_llm_parameters_service, mock_auth_user):
+async def test_set_default_llm_parameters(client: AsyncClient, mock_llm_parameters_service: Any, mock_auth_user: Any) -> None:
     """Test PUT /api/users/{user_id}/llm-parameters/{parameter_id}/default endpoint."""
     # Mock auth user
     mock_auth_user(TEST_USER_ID)
@@ -205,14 +201,14 @@ async def test_set_default_llm_parameters(client: AsyncClient, mock_llm_paramete
 
 
 @pytest.mark.asyncio
-async def test_get_llm_parameters_unauthorized(client: AsyncClient):
+async def test_get_llm_parameters_unauthorized(client: AsyncClient) -> None:
     """Test unauthorized access to GET endpoint."""
     response = await client.get(f"/api/users/{TEST_USER_ID}/llm-parameters")
     assert response.status_code == 403
 
 
 @pytest.mark.asyncio
-async def test_get_llm_parameters_wrong_user(client: AsyncClient, mock_auth_user):
+async def test_get_llm_parameters_wrong_user(client: AsyncClient, mock_auth_user: Any) -> None:
     """Test accessing parameters with wrong user ID."""
     # Mock auth user with different ID
     different_user_id = uuid4()
@@ -223,7 +219,7 @@ async def test_get_llm_parameters_wrong_user(client: AsyncClient, mock_auth_user
 
 
 @pytest.mark.asyncio
-async def test_create_llm_parameters_invalid_data(client: AsyncClient, mock_auth_user):
+async def test_create_llm_parameters_invalid_data(client: AsyncClient, mock_auth_user: Any) -> None:
     """Test creating parameters with invalid data."""
     # Mock auth user
     mock_auth_user(TEST_USER_ID)

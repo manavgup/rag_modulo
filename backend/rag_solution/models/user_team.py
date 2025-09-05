@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import uuid
 from datetime import datetime
 
@@ -15,5 +17,5 @@ class UserTeam(Base):
     team_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("teams.id"), primary_key=True)
     joined_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, nullable=False)
 
-    user = relationship("User", back_populates="teams")
-    team = relationship("Team", back_populates="users")
+    user: Mapped[User] = relationship("User", back_populates="teams")  # type: ignore[name-defined]
+    team: Mapped[Team] = relationship("Team", back_populates="users")  # type: ignore[name-defined]

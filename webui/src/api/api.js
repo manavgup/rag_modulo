@@ -70,7 +70,7 @@ export const searchDocuments = async (query, collectionId) => {
   try {
     const url = API_ROUTES.SEARCH;
 
-    
+
     if (collectionId === 'all') {
       throw new Error('Please select a specific collection to search');
     }
@@ -83,7 +83,7 @@ export const searchDocuments = async (query, collectionId) => {
 
     const pipelinesUrl = `${API_ROUTES.USERS_ENDPOINT}/${userData.uuid}/pipelines?collection_id=${collectionId}&is_default=true`;
     const pipelinesResponse = await api.get(pipelinesUrl);
-    
+
     if (!pipelinesResponse.data || pipelinesResponse.data.length === 0) {
       throw new Error('No default pipeline found for the selected collection');
     }
@@ -96,9 +96,9 @@ export const searchDocuments = async (query, collectionId) => {
       pipeline_id: defaultPipelineId,
       user_id: userData.uuid
     });
-    
 
-    
+
+
     return {
       answer: response.data.answer,
       query_results: response.data.query_results || [],
@@ -108,13 +108,13 @@ export const searchDocuments = async (query, collectionId) => {
     };
   } catch (error) {
     console.error('Error in searchDocuments:', error);
-    
+
     // Log more details about the error
     if (error.response) {
       console.error('Error response details:', error.response.data);
       console.error('Error status:', error.response.status);
     }
-    
+
     throw handleApiError(error, 'Error searching documents');
   }
 };
@@ -123,7 +123,7 @@ export const searchDocumentsStream = async (query, collectionId) => {
   try {
     const url = API_ROUTES.SEARCH_STREAM;
 
-    
+
     // Skip if 'all' is selected
     if (collectionId === 'all') {
       throw new Error('Please select a specific collection to search');
@@ -146,7 +146,7 @@ export const createCollectionWithDocuments = async (formData, onUploadProgress) 
   try {
     const url = API_ROUTES.CREATE_COLLECTION_WITH_FILES;
 
-    
+
     const response = await api.post(url, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
@@ -154,7 +154,7 @@ export const createCollectionWithDocuments = async (formData, onUploadProgress) 
       onUploadProgress,
     });
 
-    
+
     return response.data;
   } catch (error) {
 
@@ -172,7 +172,7 @@ export const getUserCollections = async () => {
     const url = `${API_ROUTES.USERS_ENDPOINT}/${userData.uuid}/collections`;
 
     const response = await api.get(url);
-    
+
     // Transform the data structure
     const collections = Array.isArray(response.data) ? response.data : (response.data.collections || []);
     return {

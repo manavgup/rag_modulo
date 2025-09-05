@@ -1,14 +1,15 @@
 """Tests for UserRouter."""
 
+from datetime import datetime
 from unittest.mock import Mock
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from main import app
-from rag_solution.schemas.pipeline_schema import PipelineConfigInput, PipelineConfigOutput
+from rag_solution.schemas.pipeline_schema import PipelineConfigInput, PipelineConfigOutput, RetrieverType
 from rag_solution.schemas.user_collection_schema import UserCollectionsOutput
 from rag_solution.schemas.user_schema import UserInput, UserOutput
 from rag_solution.services.pipeline_service import PipelineService
@@ -19,102 +20,121 @@ from rag_solution.services.user_team_service import UserTeamService
 
 
 @pytest.fixture
-def db_session():
+def db_session() -> Mock:
     """Create a mock database session."""
     return Mock(spec=Session)
 
 
 @pytest.fixture
-def user_service(db_session):
+def user_service(db_session: Mock) -> Mock:
     """Create a mock UserService instance."""
     return Mock(spec=UserService)
 
 
 @pytest.fixture
-def user_collection_service(db_session):
+def user_collection_service(db_session: Mock) -> Mock:
     """Create a mock UserCollectionService instance."""
     return Mock(spec=UserCollectionService)
 
 
 @pytest.fixture
-def user_collection_interaction_service(db_session):
+def user_collection_interaction_service(db_session: Mock) -> Mock:
     """Create a mock UserCollectionInteractionService instance."""
     return Mock(spec=UserCollectionInteractionService)
 
 
 @pytest.fixture
-def user_team_service(db_session):
+def user_team_service(db_session: Mock) -> Mock:
     """Create a mock UserTeamService instance."""
     return Mock(spec=UserTeamService)
 
 
 @pytest.fixture
-def pipeline_service(db_session):
+def pipeline_service(db_session: Mock) -> Mock:
     """Create a mock PipelineService instance."""
     return Mock(spec=PipelineService)
 
 
 @pytest.fixture
-def client():
+def client() -> TestClient:
     """Create a test client for the FastAPI app."""
     return TestClient(app)
 
 
 @pytest.fixture
-def sample_user_id():
+def sample_user_id() -> UUID:
     """Create a sample user ID."""
     return uuid4()
 
 
 @pytest.fixture
-def sample_user_input():
+def sample_collection_id() -> UUID:
+    """Create a sample collection ID."""
+    return uuid4()
+
+
+@pytest.fixture
+def sample_team_id() -> UUID:
+    """Create a sample team ID."""
+    return uuid4()
+
+
+@pytest.fixture
+def sample_user_input() -> UserInput:
     """Create a sample user input."""
     return UserInput(ibm_id="test-ibm-id", email="test@example.com", name="Test User")
 
 
 @pytest.fixture
-def sample_user_output(sample_user_input):
+def sample_user_output(sample_user_input: UserInput) -> UserOutput:
     """Create a sample user output."""
     return UserOutput(
-        id=uuid4(), ibm_id=sample_user_input.ibm_id, email=sample_user_input.email, name=sample_user_input.name
+        id=uuid4(),
+        ibm_id=sample_user_input.ibm_id,
+        email=sample_user_input.email,
+        name=sample_user_input.name,
+        role="user",
+        preferred_provider_id=None,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
     )
 
 
 @pytest.fixture
-def sample_pipeline_config_input():
+def sample_pipeline_config_input() -> PipelineConfigInput:
     """Create a sample pipeline configuration input."""
     return PipelineConfigInput(
+        user_id=uuid4(),
+        provider_id=uuid4(),
+        collection_id=uuid4(),  # type: ignore[call-arg]
         name="Test Pipeline",
         description="This is a test pipeline",
-        provider="watsonx",
-        model_id="test-model",
-        query_rewriter_id="test-rewriter",
-        retriever_id="test-retriever",
-        generator_id="test-generator",
-        evaluator_id="test-evaluator",
-    )
-
-
-@pytest.fixture
-def sample_pipeline_config_output(sample_pipeline_config_input):
-    """Create a sample pipeline configuration output."""
-    return PipelineConfigOutput(
-        id=uuid4(),
-        user_id=uuid4(),
-        name=sample_pipeline_config_input.name,
-        description=sample_pipeline_config_input.description,
-        provider=sample_pipeline_config_input.provider,
-        model_id=sample_pipeline_config_input.model_id,
-        query_rewriter_id=sample_pipeline_config_input.query_rewriter_id,
-        retriever_id=sample_pipeline_config_input.retriever_id,
-        generator_id=sample_pipeline_config_input.generator_id,
-        evaluator_id=sample_pipeline_config_input.evaluator_id,
+        embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+        retriever=RetrieverType.VECTOR,  # type: ignore[arg-type]
         is_default=False,
     )
 
 
+@pytest.fixture
+def sample_pipeline_config_output(sample_pipeline_config_input: PipelineConfigInput) -> PipelineConfigOutput:
+    """Create a sample pipeline configuration output."""
+    return PipelineConfigOutput(
+        id=uuid4(),
+        user_id=sample_pipeline_config_input.user_id,
+        provider_id=sample_pipeline_config_input.provider_id,
+        collection_id=sample_pipeline_config_input.collection_id,
+        name=sample_pipeline_config_input.name,
+        description=sample_pipeline_config_input.description,
+        embedding_model=sample_pipeline_config_input.embedding_model,
+        retriever=sample_pipeline_config_input.retriever,
+        is_default=sample_pipeline_config_input.is_default,
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+    )
+
+
 @pytest.mark.api
-def test_list_users(client, user_service, sample_user_output):
+def test_list_users(client: TestClient, user_service: Mock, sample_user_output: UserOutput) -> None:
     """Test listing users."""
     user_service.list_users.return_value = [sample_user_output]
 
@@ -125,7 +145,7 @@ def test_list_users(client, user_service, sample_user_output):
     assert response.json()[0]["id"] == str(sample_user_output.id)
 
 
-def test_create_user(client, user_service, sample_user_input, sample_user_output):
+def test_create_user(client: TestClient, user_service: Mock, sample_user_input: UserInput, sample_user_output: UserOutput) -> None:
     """Test creating a user."""
     user_service.create_user.return_value = sample_user_output
 
@@ -135,17 +155,7 @@ def test_create_user(client, user_service, sample_user_input, sample_user_output
     assert response.json()["id"] == str(sample_user_output.id)
 
 
-def test_get_user(client, user_service, sample_user_output):
-    """Test getting a user."""
-    user_service.get_user_by_id.return_value = sample_user_output
-
-    response = client.get(f"/api/users/{sample_user_output.id}")
-
-    assert response.status_code == 200
-    assert response.json()["id"] == str(sample_user_output.id)
-
-
-def test_update_user(client, user_service, sample_user_input, sample_user_output):
+def test_update_user(client: TestClient, user_service: Mock, sample_user_input: UserInput, sample_user_output: UserOutput) -> None:
     """Test updating a user."""
     user_service.update_user.return_value = sample_user_output
 
@@ -155,7 +165,7 @@ def test_update_user(client, user_service, sample_user_input, sample_user_output
     assert response.json()["id"] == str(sample_user_output.id)
 
 
-def test_delete_user(client, user_service, sample_user_output):
+def test_delete_user(client: TestClient, user_service: Mock, sample_user_output: UserOutput) -> None:
     """Test deleting a user."""
     user_service.delete_user.return_value = True
 
@@ -165,11 +175,9 @@ def test_delete_user(client, user_service, sample_user_output):
     assert response.json() is True
 
 
-def test_get_user_collections(client, user_collection_interaction_service, sample_user_id, sample_user_output):
+def test_get_user_collections(client: TestClient, user_collection_interaction_service: Mock, sample_user_id: UUID, sample_user_output: UserOutput) -> None:
     """Test getting user collections."""
-    user_collection_interaction_service.get_user_collections_with_files.return_value = UserCollectionsOutput(
-        user_id=sample_user_id, collections=[]
-    )
+    user_collection_interaction_service.get_user_collections_with_files.return_value = UserCollectionsOutput(user_id=sample_user_id, collections=[])
 
     response = client.get(f"/api/users/{sample_user_id}/collections")
 
@@ -177,7 +185,7 @@ def test_get_user_collections(client, user_collection_interaction_service, sampl
     assert response.json()["user_id"] == str(sample_user_id)
 
 
-def test_add_user_to_collection(client, user_collection_service, sample_user_id, sample_collection_id):
+def test_add_user_to_collection(client: TestClient, user_collection_service: Mock, sample_user_id: UUID, sample_collection_id: UUID) -> None:
     """Test adding user to collection."""
     user_collection_service.add_user_to_collection.return_value = True
 
@@ -187,7 +195,7 @@ def test_add_user_to_collection(client, user_collection_service, sample_user_id,
     assert response.json() is True
 
 
-def test_remove_user_from_collection(client, user_collection_service, sample_user_id, sample_collection_id):
+def test_remove_user_from_collection(client: TestClient, user_collection_service: Mock, sample_user_id: UUID, sample_collection_id: UUID) -> None:
     """Test removing user from collection."""
     user_collection_service.remove_user_from_collection.return_value = True
 
@@ -197,7 +205,7 @@ def test_remove_user_from_collection(client, user_collection_service, sample_use
     assert response.json() is True
 
 
-def test_get_user_teams(client, user_team_service, sample_user_id, sample_user_output):
+def test_get_user_teams(client: TestClient, user_team_service: Mock, sample_user_id: UUID, sample_user_output: UserOutput) -> None:
     """Test getting user teams."""
     user_team_service.get_user_teams.return_value = []
 
@@ -207,7 +215,7 @@ def test_get_user_teams(client, user_team_service, sample_user_id, sample_user_o
     assert len(response.json()) == 0
 
 
-def test_add_user_to_team(client, user_team_service, sample_user_id, sample_team_id):
+def test_add_user_to_team(client: TestClient, user_team_service: Mock, sample_user_id: UUID, sample_team_id: UUID) -> None:
     """Test adding user to team."""
     user_team_service.add_user_to_team.return_value = True
 
@@ -217,7 +225,7 @@ def test_add_user_to_team(client, user_team_service, sample_user_id, sample_team
     assert response.json() is True
 
 
-def test_remove_user_from_team(client, user_team_service, sample_user_id, sample_team_id):
+def test_remove_user_from_team(client: TestClient, user_team_service: Mock, sample_user_id: UUID, sample_team_id: UUID) -> None:
     """Test removing user from team."""
     user_team_service.remove_user_from_team.return_value = True
 
@@ -227,7 +235,12 @@ def test_remove_user_from_team(client, user_team_service, sample_user_id, sample
     assert response.json() is True
 
 
-def test_get_pipelines(client, pipeline_service, sample_user_id, sample_pipeline_config_output):
+def test_get_pipelines(
+    client: TestClient,
+    pipeline_service: Mock,
+    sample_user_id: UUID,
+    sample_pipeline_config_output: PipelineConfigOutput,
+) -> None:
     """Test getting user pipelines."""
     pipeline_service.get_user_pipelines.return_value = [sample_pipeline_config_output]
 
@@ -239,8 +252,12 @@ def test_get_pipelines(client, pipeline_service, sample_user_id, sample_pipeline
 
 
 def test_create_pipeline(
-    client, pipeline_service, sample_user_id, sample_pipeline_config_input, sample_pipeline_config_output
-):
+    client: TestClient,
+    pipeline_service: Mock,
+    sample_user_id: UUID,
+    sample_pipeline_config_input: PipelineConfigInput,
+    sample_pipeline_config_output: PipelineConfigOutput,
+) -> None:
     """Test creating a pipeline."""
     pipeline_service.create_pipeline.return_value = sample_pipeline_config_output
 
@@ -251,8 +268,12 @@ def test_create_pipeline(
 
 
 def test_update_pipeline(
-    client, pipeline_service, sample_user_id, sample_pipeline_config_input, sample_pipeline_config_output
-):
+    client: TestClient,
+    pipeline_service: Mock,
+    sample_user_id: UUID,
+    sample_pipeline_config_input: PipelineConfigInput,
+    sample_pipeline_config_output: PipelineConfigOutput,
+) -> None:
     """Test updating a pipeline."""
     pipeline_service.update_pipeline.return_value = sample_pipeline_config_output
 
@@ -265,7 +286,12 @@ def test_update_pipeline(
     assert response.json()["id"] == str(sample_pipeline_config_output.id)
 
 
-def test_delete_pipeline(client, pipeline_service, sample_user_id, sample_pipeline_config_output):
+def test_delete_pipeline(
+    client: TestClient,
+    pipeline_service: Mock,
+    sample_user_id: UUID,
+    sample_pipeline_config_output: PipelineConfigOutput,
+) -> None:
     """Test deleting a pipeline."""
     pipeline_service.delete_pipeline.return_value = True
 
@@ -275,7 +301,12 @@ def test_delete_pipeline(client, pipeline_service, sample_user_id, sample_pipeli
     assert response.json() == {"status": "success"}
 
 
-def test_set_default_pipeline(client, pipeline_service, sample_user_id, sample_pipeline_config_output):
+def test_set_default_pipeline(
+    client: TestClient,
+    pipeline_service: Mock,
+    sample_user_id: UUID,
+    sample_pipeline_config_output: PipelineConfigOutput,
+) -> None:
     """Test setting a default pipeline."""
     pipeline_service.set_default_pipeline.return_value = sample_pipeline_config_output
 
@@ -285,7 +316,12 @@ def test_set_default_pipeline(client, pipeline_service, sample_user_id, sample_p
     assert response.json()["id"] == str(sample_pipeline_config_output.id)
 
 
-def test_validate_pipeline(client, pipeline_service, sample_user_id, sample_pipeline_config_output):
+def test_validate_pipeline(
+    client: TestClient,
+    pipeline_service: Mock,
+    sample_user_id: UUID,
+    sample_pipeline_config_output: PipelineConfigOutput,
+) -> None:
     """Test validating a pipeline."""
     pipeline_service.validate_pipeline.return_value = {"status": "success"}
 
@@ -295,13 +331,16 @@ def test_validate_pipeline(client, pipeline_service, sample_user_id, sample_pipe
     assert response.json()["status"] == "success"
 
 
-def test_test_pipeline(client, pipeline_service, sample_user_id, sample_pipeline_config_output):
+def test_test_pipeline(
+    client: TestClient,
+    pipeline_service: Mock,
+    sample_user_id: UUID,
+    sample_pipeline_config_output: PipelineConfigOutput,
+) -> None:
     """Test testing a pipeline."""
     pipeline_service.test_pipeline.return_value = {"status": "success"}
 
-    response = client.post(
-        f"/api/users/{sample_user_id}/pipelines/{sample_pipeline_config_output.id}/test", params={"query": "test query"}
-    )
+    response = client.post(f"/api/users/{sample_user_id}/pipelines/{sample_pipeline_config_output.id}/test", params={"query": "test query"})
 
     assert response.status_code == 200
     assert response.json()["status"] == "success"

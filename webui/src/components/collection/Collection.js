@@ -172,7 +172,7 @@ const Collections = () => {
   const handleCreateCollection = async () => {
     try {
       const formData = new FormData();
-      
+
       formData.append("collection_name", collectionData.name);
       formData.append("description", collectionData.description);
       formData.append("is_private", collectionData.is_private);
@@ -578,7 +578,7 @@ const Collections = () => {
             action cannot be undone.
           </p>
         </ModalBody>
-        <ModalFooter  
+        <ModalFooter
           primaryButtonText="Delete"
           secondaryButtonText="Cancel"
           onRequestSubmit={handleDeleteConfirm}

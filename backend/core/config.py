@@ -175,4 +175,4 @@ class Settings(BaseSettings):
 
 
 # Singleton for settings
-settings = Settings()
+settings = Settings()  # type: ignore

@@ -2,11 +2,13 @@
 
 import multiprocessing
 import os
+from collections.abc import Generator
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
-import pandas as pd
-import pymupdf
+import pandas as pd  # type: ignore[import-untyped]
+import pymupdf  # type: ignore[import-untyped]  # type: ignore[import-not-found]
 import pytest
 
 from core.custom_exceptions import DocumentProcessingError
@@ -28,7 +30,7 @@ PROCESSOR_CONFIGS = {
 
 # Fixtures for Test Files
 @pytest.fixture(scope="function")
-def sample_excel_path():
+def sample_excel_path() -> Generator[str, None, None]:
     """Create a sample Excel file for testing."""
     file_path = "/tmp/test_data.xlsx"
 
@@ -48,7 +50,7 @@ def sample_excel_path():
 
 
 @pytest.fixture(scope="function")
-def complex_test_pdf_path():
+def complex_test_pdf_path() -> Generator[Path, None, None]:
     """Fixture to create a robust PDF file with multiple pages, tables and images."""
     test_file = Path("/tmp/complex_test.pdf")
 
@@ -78,21 +80,21 @@ class TestDocumentProcessors:
     """Consolidated test class for all document processors."""
 
     @pytest.fixture(params=PROCESSOR_CONFIGS.keys())
-    def processor_type(self, request):
+    def processor_type(self: Any, request: Any) -> str:
         """Parametrized fixture that provides each processor type."""
-        return request.param
+        return str(request.param)  # type: ignore[no-any-return]
 
     @pytest.fixture
-    def processor(self, processor_type):
+    def processor(self: Any, processor_type: str) -> Any:
         """Dynamic fixture that returns the appropriate processor instance."""
         processor_class = PROCESSOR_CONFIGS[processor_type]["class"]
         if processor_type == "pdf":
             with multiprocessing.Manager() as manager:
-                return processor_class(manager)
-        return processor_class()
+                return processor_class(manager)  # type: ignore[operator,no-any-return]
+        return processor_class()  # type: ignore[operator,no-any-return]
 
     @pytest.mark.asyncio
-    async def test_basic_processing(self, processor, request, processor_type):
+    async def test_basic_processing(self, processor: Any, request: Any, processor_type: str) -> None:
         """Test basic document processing for all processor types."""
         fixture_name = PROCESSOR_CONFIGS[processor_type]["fixture"]
         test_file = request.getfixturevalue(fixture_name)
@@ -107,7 +109,7 @@ class TestDocumentProcessors:
         assert len(docs[0].chunks) > 0
 
     @pytest.mark.asyncio
-    async def test_error_handling(self, processor, test_non_existent_pdf_path):
+    async def test_error_handling(self, processor: Any, test_non_existent_pdf_path: str) -> None:
         """Test error handling for non-existent files."""
         with pytest.raises(DocumentProcessingError):
             async for _ in processor.process(test_non_existent_pdf_path):
@@ -118,19 +120,19 @@ class TestDocumentProcessors:
         """Excel-specific test cases."""
 
         @pytest.mark.asyncio
-        async def test_multiple_sheets(self, sample_excel_path):
+        async def test_multiple_sheets(self, sample_excel_path: str) -> None:
             processor = ExcelProcessor()
             documents = []
-            async for doc in processor.process(sample_excel_path):
+            async for doc in processor.process(sample_excel_path, "test_doc_id"):
                 documents.append(doc)
 
-            all_text = " ".join(doc.text for doc in documents)
+            all_text = " ".join(" ".join(chunk.text for chunk in doc.chunks) for doc in documents)
             assert "Sheet: Sheet1" in all_text
             assert "Sheet: Sheet2" in all_text
             assert "Column1" in all_text and "Name" in all_text
 
         @pytest.mark.asyncio
-        async def test_special_characters(self):
+        async def test_special_characters(self) -> None:
             special_file = "/tmp/special.xlsx"
             df = pd.DataFrame(
                 {
@@ -143,10 +145,10 @@ class TestDocumentProcessors:
 
             processor = ExcelProcessor()
             documents = []
-            async for doc in processor.process(special_file):
+            async for doc in processor.process(special_file, "test_doc_id"):
                 documents.append(doc)
 
-            all_text = " ".join(doc.text for doc in documents)
+            all_text = " ".join(" ".join(chunk.text for chunk in doc.chunks) for doc in documents)
             assert "newline" in all_text
             assert "tab" in all_text
             assert "emoji" in all_text
@@ -157,18 +159,14 @@ class TestDocumentProcessors:
     class TestPdfProcessor:
         """PDF-specific test cases."""
 
-        def test_text_extraction(self, complex_test_pdf_path):
+        def test_text_extraction(self, complex_test_pdf_path: str) -> None:
             with multiprocessing.Manager() as manager:
                 processor = PdfProcessor(manager)
                 with pymupdf.open(str(complex_test_pdf_path)) as doc:
                     page1_content = processor.extract_text_from_page(doc[0])
-                    assert any(
-                        "This is a test document." in block["content"]
-                        for block in page1_content
-                        if block["type"] == "text"
-                    )
+                    assert any("This is a test document." in block["content"] for block in page1_content if block["type"] == "text")
 
-        def test_table_validation(self):
+        def test_table_validation(self) -> None:
             with multiprocessing.Manager() as manager:
                 processor = PdfProcessor(manager)
                 valid_table = [
@@ -181,7 +179,7 @@ class TestDocumentProcessors:
                 assert not processor._is_likely_table([["Single"]])
 
         @pytest.mark.asyncio
-        async def test_metadata_inheritance(self, complex_test_pdf_path):
+        async def test_metadata_inheritance(self, complex_test_pdf_path: str) -> None:
             with multiprocessing.Manager() as manager:
                 processor = PdfProcessor(manager)
                 processed_docs = []
@@ -190,6 +188,7 @@ class TestDocumentProcessors:
 
                 assert len(processed_docs) > 0
                 doc = processed_docs[0]
+                assert doc.metadata is not None
                 assert doc.metadata.document_name == os.path.basename(str(complex_test_pdf_path))
                 assert isinstance(doc.metadata.creation_date, datetime)
 
@@ -200,12 +199,12 @@ class TestDocumentProcessors:
     "fixture_name",
     ["test_txt_path", "test_pdf_path", "test_word_path", "test_excel_path"],
 )
-async def test_document_processor(request, fixture_name):
+async def test_document_processor(request: Any, fixture_name: str) -> None:
     """Test the main DocumentProcessor with different file types."""
     test_file = request.getfixturevalue(fixture_name)
     processor = DocumentProcessor()
     docs = []
-    async for document in processor.process_document(test_file):
+    async for document in processor.process_document(test_file, "test_doc_id"):
         docs.append(document)
 
     assert len(docs) > 0

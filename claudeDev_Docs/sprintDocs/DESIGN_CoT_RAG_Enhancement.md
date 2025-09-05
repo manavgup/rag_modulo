@@ -117,13 +117,13 @@ class QuestionClassifier:
 for step in reasoning_steps:
     # 1. Formulate query for current step
     query = formulate_query(step, previous_context)
-    
+
     # 2. Retrieve relevant documents
     docs = retriever.retrieve(query)
-    
+
     # 3. Generate intermediate reasoning
     reasoning = generator.reason(query, docs, previous_reasoning)
-    
+
     # 4. Update context for next iteration
     context.update(reasoning)
 ```
@@ -173,7 +173,7 @@ class ReasoningStep(BaseModel):
     evidence: List[str]
     confidence: float
     retrieved_chunks: List[str]
-    
+
 class CoTSearchInput(BaseModel):
     """Extended search input with CoT parameters"""
     question: str
@@ -193,7 +193,7 @@ class CoTSearchOutput(BaseModel):
     answer: str
     documents: List[DocumentMetadata]
     query_results: List[QueryResult]
-    
+
     # CoT-specific fields
     reasoning_chain: Optional[List[ReasoningStep]] = None
     sub_questions: Optional[List[str]] = None
@@ -201,7 +201,7 @@ class CoTSearchOutput(BaseModel):
     confidence_score: Optional[float] = None
     reasoning_strategy_used: Optional[str] = None
     total_reasoning_time: Optional[float] = None
-    
+
     # Debugging fields
     decomposition_tree: Optional[Dict[str, Any]] = None
     retrieval_rounds: Optional[int] = None
@@ -234,35 +234,35 @@ CREATE INDEX idx_cot_executions_strategy ON cot_executions(strategy);
 
 class ChainOfThoughtService:
     """Main service orchestrating CoT reasoning"""
-    
+
     def __init__(self, db: Session):
         self.db = db
         self.classifier = QuestionClassifier()
         self.decomposer = QuestionDecomposer()
         self.reasoner = IterativeReasoner()
         self.synthesizer = AnswerSynthesizer()
-    
+
     async def execute_cot_search(
-        self, 
+        self,
         search_input: CoTSearchInput,
         pipeline_service: PipelineService
     ) -> CoTSearchOutput:
         """Execute full CoT reasoning pipeline"""
-        
+
     async def decompose_question(
         self,
         question: str,
         strategy: ReasoningStrategy
     ) -> List[str]:
         """Decompose question into sub-questions"""
-        
+
     async def iterative_reasoning(
         self,
         sub_questions: List[str],
         collection_name: str
     ) -> List[ReasoningStep]:
         """Execute iterative reasoning over sub-questions"""
-        
+
     async def synthesize_answer(
         self,
         reasoning_chain: List[ReasoningStep],
@@ -278,21 +278,21 @@ class ChainOfThoughtService:
 
 class QuestionDecomposer:
     """Decomposes complex questions into atomic sub-questions"""
-    
+
     def __init__(self, llm_provider: BaseLLMProvider):
         self.llm_provider = llm_provider
         self.decomposition_prompt = self._load_decomposition_prompt()
-    
+
     async def decompose(
         self,
         question: str,
         max_depth: int = 3
     ) -> DecompositionTree:
         """Create hierarchical decomposition of question"""
-        
+
     def _identify_question_type(self, question: str) -> QuestionType:
         """Classify question type for appropriate decomposition"""
-        
+
     def _generate_sub_questions(
         self,
         question: str,
@@ -308,7 +308,7 @@ class QuestionDecomposer:
 
 class IterativeReasoner:
     """Manages iterative reasoning over decomposed questions"""
-    
+
     def __init__(
         self,
         retriever: BaseRetriever,
@@ -317,21 +317,21 @@ class IterativeReasoner:
         self.retriever = retriever
         self.generator = generator
         self.context_manager = ContextManager()
-    
+
     async def reason_iteratively(
         self,
         sub_questions: List[str],
         collection_name: str
     ) -> List[ReasoningStep]:
         """Execute reasoning for each sub-question"""
-        
+
     async def _reason_single_step(
         self,
         question: str,
         context: ReasoningContext
     ) -> ReasoningStep:
         """Execute single reasoning step with context"""
-        
+
     def _update_context(
         self,
         context: ReasoningContext,
@@ -347,24 +347,24 @@ class IterativeReasoner:
 
 class AnswerSynthesizer:
     """Synthesizes final answer from reasoning chain"""
-    
+
     def __init__(self, llm_provider: BaseLLMProvider):
         self.llm_provider = llm_provider
         self.synthesis_prompt = self._load_synthesis_prompt()
-    
+
     async def synthesize(
         self,
         reasoning_chain: List[ReasoningStep],
         original_question: str
     ) -> SynthesizedAnswer:
         """Create comprehensive answer from reasoning"""
-        
+
     def _extract_key_insights(
         self,
         reasoning_chain: List[ReasoningStep]
     ) -> List[str]:
         """Extract key insights from reasoning chain"""
-        
+
     def _resolve_contradictions(
         self,
         reasoning_chain: List[ReasoningStep]
@@ -379,18 +379,18 @@ class AnswerSynthesizer:
 
 class ContextManager:
     """Manages context across reasoning iterations"""
-    
+
     def __init__(self, max_context_size: int = 8000):
         self.max_context_size = max_context_size
         self.working_memory = WorkingMemory()
         self.fact_store = FactStore()
-    
+
     def update(self, reasoning_step: ReasoningStep) -> None:
         """Update context with new reasoning"""
-        
+
     def get_relevant_context(self, question: str) -> str:
         """Retrieve relevant context for question"""
-        
+
     def prune_context(self) -> None:
         """Prune context to stay within token limits"""
 ```
@@ -477,7 +477,7 @@ async def preview_decomposition(
 
 ### Token Usage
 - **Challenge**: Multiple LLM calls increase token consumption
-- **Mitigation**: 
+- **Mitigation**:
   - Adaptive reasoning depth based on question complexity
   - Context pruning between steps
   - Caching of intermediate results
@@ -571,7 +571,7 @@ def test_answer_completeness():
 ### Technical Risks
 1. **LLM Hallucination in Reasoning**
    - Mitigation: Fact validation against retrieved documents
-   
+
 2. **Circular Reasoning**
    - Mitigation: Loop detection in reasoning chains
 
@@ -673,6 +673,6 @@ pipeline:
 
 ---
 
-*Document Version: 1.0*  
-*Last Updated: 2024*  
+*Document Version: 1.0*
+*Last Updated: 2024*
 *Author: AI Engineering Team*

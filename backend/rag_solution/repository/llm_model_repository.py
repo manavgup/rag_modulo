@@ -1,5 +1,6 @@
-from pydantic import UUID4
+from typing import Any
 
+from pydantic import UUID4
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -9,7 +10,7 @@ from rag_solution.schemas.llm_model_schema import LLMModelInput, LLMModelOutput,
 
 
 class LLMModelRepository:
-    def __init__(self, session: Session):
+    def __init__(self: Any, session: Session) -> None:
         self.session = session
 
     def create_model(self, model_input: LLMModelInput) -> LLMModelOutput:
@@ -22,9 +23,7 @@ class LLMModelRepository:
             return LLMModelOutput.model_validate(model)
         except IntegrityError as e:
             self.session.rollback()
-            raise AlreadyExistsError(
-                resource_type="LLMModel", field="model_id", value=model_input.model_id
-            ) from e
+            raise AlreadyExistsError(resource_type="LLMModel", field="model_id", value=model_input.model_id) from e
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise
         except Exception:
@@ -40,9 +39,7 @@ class LLMModelRepository:
         try:
             model = self.session.query(LLMModel).filter_by(id=model_id).first()
             if not model:
-                raise NotFoundError(
-                    resource_type="LLMModel", resource_id=str(model_id)
-                )
+                raise NotFoundError(resource_type="LLMModel", resource_id=str(model_id))
             return LLMModelOutput.model_validate(model)
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise
@@ -62,7 +59,7 @@ class LLMModelRepository:
     def get_models_by_type(self, model_type: ModelType) -> list[LLMModelOutput]:
         """Retrieve all models of a specific type."""
         try:
-            models = self.session.query(LLMModel).filter(LLMModel.model_type == model_type).all()  # type: ignore[arg-type]
+            models = self.session.query(LLMModel).filter(LLMModel.model_type == model_type).all()
             return [LLMModelOutput.model_validate(m) for m in models]
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise
@@ -79,9 +76,7 @@ class LLMModelRepository:
             # Find the model first
             model = self.session.query(LLMModel).filter_by(id=model_id).first()
             if not model:
-                raise NotFoundError(
-                    resource_type="LLMModel", resource_id=str(model_id)
-                )
+                raise NotFoundError(resource_type="LLMModel", resource_id=str(model_id))
 
             # Apply updates
             for key, value in updates.items():
@@ -92,9 +87,7 @@ class LLMModelRepository:
             return LLMModelOutput.model_validate(model)
         except IntegrityError as e:
             self.session.rollback()
-            raise AlreadyExistsError(
-                resource_type="LLMModel", field="id", value=str(model_id)
-            ) from e
+            raise AlreadyExistsError(resource_type="LLMModel", field="id", value=str(model_id)) from e
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise
         except Exception:
@@ -123,13 +116,7 @@ class LLMModelRepository:
     def clear_other_defaults(self, provider_id: UUID4, model_type: ModelType) -> None:
         """Clear default flag from other models of the same type and provider."""
         try:
-            (
-                self.session.query(LLMModel)
-                .filter(LLMModel.provider_id == provider_id)
-                .filter(LLMModel.model_type == model_type)
-                .filter(LLMModel.is_default)
-                .update({"is_default": False})
-            )
+            (self.session.query(LLMModel).filter(LLMModel.provider_id == provider_id).filter(LLMModel.model_type == model_type).filter(LLMModel.is_default).update({"is_default": False}))
             self.session.commit()
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise
@@ -144,18 +131,9 @@ class LLMModelRepository:
             NotFoundError: If no default model found
         """
         try:
-            model = (
-                self.session.query(LLMModel)
-                .filter(LLMModel.provider_id == provider_id)
-                .filter(LLMModel.model_type == model_type)
-                .filter(LLMModel.is_default)
-                .filter(LLMModel.is_active)
-                .first()
-            )
+            model = self.session.query(LLMModel).filter(LLMModel.provider_id == provider_id).filter(LLMModel.model_type == model_type).filter(LLMModel.is_default).filter(LLMModel.is_active).first()
             if not model:
-                raise NotFoundError(
-                    resource_type="LLMModel", identifier=f"default {model_type} for provider {provider_id}"
-                )
+                raise NotFoundError(resource_type="LLMModel", identifier=f"default {model_type} for provider {provider_id}")
             return LLMModelOutput.model_validate(model)
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise

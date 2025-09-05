@@ -2,7 +2,7 @@ import os
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
-from ibm_watsonx_ai import APIClient, Credentials
+from ibm_watsonx_ai import APIClient, Credentials  # type: ignore[import-untyped]
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -19,9 +19,10 @@ router = APIRouter(prefix="/api", tags=["health"])
 def check_vectordb() -> dict[str, str]:
     """Check the health of the vector database."""
     import time
+
     max_retries = 3
     retry_delay = 2
-    
+
     for attempt in range(max_retries):
         try:
             get_datastore(settings.vector_db)
@@ -34,13 +35,17 @@ def check_vectordb() -> dict[str, str]:
                 logger.error(f"Vector DB health check failed after {max_retries} attempts: {e!s}")
                 return {"status": "unhealthy", "message": f"Vector DB health check failed: {e!s}"}
 
+    # This should never be reached, but mypy requires it
+    return {"status": "unknown", "message": "Vector DB health check completed without result"}
+
 
 def check_datastore(db: Session = Depends(get_db)) -> dict[str, str]:
     """Check the health of the relational database."""
     import time
+
     max_retries = 3
     retry_delay = 2
-    
+
     for attempt in range(max_retries):
         try:
             db.execute(text("Select 1"))
@@ -52,6 +57,9 @@ def check_datastore(db: Session = Depends(get_db)) -> dict[str, str]:
             else:
                 logger.error(f"Relational DB health check failed after {max_retries} attempts: {e!s}")
                 return {"status": "unhealthy", "message": f"Relational DB health check failed: {e!s}"}
+
+    # This should never be reached, but mypy requires it
+    return {"status": "unknown", "message": "Relational DB health check completed without result"}
 
 
 def check_watsonx() -> dict[str, str]:
@@ -133,9 +141,7 @@ def health_check(db: Session = Depends(get_db)) -> dict[str, Any]:
     is_healthy = check_system_health(components)
 
     if not is_healthy:
-        unhealthy_components = [
-            f"{name} ({status['message']})" for name, status in components.items() if status["status"] == "unhealthy"
-        ]
+        unhealthy_components = [f"{name} ({status['message']})" for name, status in components.items() if status["status"] == "unhealthy"]
         raise HTTPException(status_code=503, detail=f"System unhealthy. Components: {', '.join(unhealthy_components)}")
 
     return {"status": "healthy", "components": components}

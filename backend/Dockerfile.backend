@@ -14,7 +14,7 @@ ENV PYTHONUNBUFFERED=1 \
 ENV PATH="$POETRY_HOME/bin:$PATH"
 
 # Install system dependencies
-RUN apt-get update && \ 
+RUN apt-get update && \
     apt-get install -y build-essential curl && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -63,7 +63,7 @@ COPY pyproject.toml ./
 
 # Create a non-root user and group
 RUN groupadd --gid 10001 backend && \
-    useradd --uid 10001 -g backend -M -d /nonexistent backend && \ 
+    useradd --uid 10001 -g backend -M -d /nonexistent backend && \
     mkdir -p /app/logs && \
     chown -R backend:backend /app && \
     chmod -R 755 /app && \

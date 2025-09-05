@@ -1,3 +1,4 @@
+from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import numpy as np
@@ -13,40 +14,37 @@ from vectordbs.data_types import DocumentChunk, QueryResult
 
 
 @pytest.fixture
-def evaluator():
+def evaluator() -> RAGEvaluator:
     """Create a RAGEvaluator instance."""
     return RAGEvaluator()
 
 
 @pytest.fixture
-def sample_query_result():
+def sample_query_result() -> list[QueryResult]:
     """Create sample query results."""
     return [
         QueryResult(
-            data=[
-                DocumentChunk(chunk_id="1", text="Einstein's theory of relativity revolutionized physics.", score=0.9),
-                DocumentChunk(
-                    chunk_id="2", text="The theory describes the relationship between space and time.", score=0.8
-                ),
-            ]
+            chunk=DocumentChunk(chunk_id="1", text="Einstein's theory of relativity revolutionized physics."),
+            score=0.9,
+            embeddings=[0.1, 0.2, 0.3],
         ),
         QueryResult(
-            data=[
-                DocumentChunk(chunk_id="3", text="General relativity explains gravity as curved spacetime.", score=0.7)
-            ]
+            chunk=DocumentChunk(chunk_id="2", text="The theory describes the relationship between space and time."),
+            score=0.8,
+            embeddings=[0.4, 0.5, 0.6],
         ),
     ]
 
 
 @pytest.mark.integration
-def test_evaluator_initialization(evaluator):
+def test_evaluator_initialization(evaluator: Any) -> None:
     """Test RAGEvaluator initialization."""
     assert isinstance(evaluator.faithfulness_evaluator, FaithfulnessEvaluator)
     assert isinstance(evaluator.answer_relevance_evaluator, AnswerRelevanceEvaluator)
     assert isinstance(evaluator.context_relevance_evaluator, ContextRelevanceEvaluator)
 
 
-def test_evaluate_cosine(evaluator, sample_query_result):
+def test_evaluate_cosine(evaluator: Any, sample_query_result: Any) -> None:
     """Test the evaluate_cosine method."""
     query = "What is the theory of relativity?"
     response = "The theory of relativity describes space, time, and gravity."
@@ -63,7 +61,7 @@ def test_evaluate_cosine(evaluator, sample_query_result):
         assert 0 <= results["overall_score"] <= 1
 
 
-def test_calculate_relevance_score(evaluator, sample_query_result):
+def test_calculate_relevance_score(evaluator: RAGEvaluator, sample_query_result: list[QueryResult]) -> None:
     """Test the _calculate_relevance_score method."""
     query = "What is relativity?"
 
@@ -80,7 +78,7 @@ def test_calculate_relevance_score(evaluator, sample_query_result):
         assert 0 <= score <= 1
 
 
-def test_calculate_coherence_score(evaluator):
+def test_calculate_coherence_score(evaluator: RAGEvaluator) -> None:
     """Test the _calculate_coherence_score method."""
     query = "What is relativity?"
     response = "Relativity describes the relationship between space and time."
@@ -98,7 +96,7 @@ def test_calculate_coherence_score(evaluator):
         assert 0 <= score <= 1
 
 
-def test_calculate_faithfulness_score(evaluator, sample_query_result):
+def test_calculate_faithfulness_score(evaluator: RAGEvaluator, sample_query_result: list[QueryResult]) -> None:
     """Test the _calculate_faithfulness_score method."""
     response = "The theory of relativity explains gravity and spacetime."
 
@@ -116,7 +114,7 @@ def test_calculate_faithfulness_score(evaluator, sample_query_result):
 
 
 @pytest.mark.asyncio
-async def test_evaluate_async(evaluator):
+async def test_evaluate_async(evaluator: RAGEvaluator) -> None:
     """Test the async evaluate method."""
     context = "Einstein developed the theory of relativity."
     answer = "The theory describes space, time, and gravity."
@@ -141,7 +139,7 @@ async def test_evaluate_async(evaluator):
 
 
 @pytest.mark.asyncio
-async def test_evaluate_async_error_handling(evaluator):
+async def test_evaluate_async_error_handling(evaluator: RAGEvaluator) -> None:
     """Test error handling in the async evaluate method."""
     context = "Test context"
     answer = "Test answer"
@@ -161,7 +159,7 @@ async def test_evaluate_async_error_handling(evaluator):
         assert mock_llm.aclose_persistent_connection.called
 
 
-def test_edge_cases(evaluator):
+def test_edge_cases(evaluator: RAGEvaluator) -> None:
     """Test edge cases and error handling."""
     # Empty query and response
     with patch("rag_solution.evaluation.evaluator.get_embeddings", return_value=np.array([[0.0, 0.0]])):
@@ -169,7 +167,7 @@ def test_edge_cases(evaluator):
         assert all(score == 0.0 for score in results.values())
 
     # Single document
-    single_doc = [QueryResult(data=[DocumentChunk(chunk_id="1", text="Test", score=1.0)])]
+    single_doc = [QueryResult(chunk=DocumentChunk(chunk_id="1", text="Test"), score=1.0, embeddings=[1.0, 0.0])]
     with patch("rag_solution.evaluation.evaluator.get_embeddings", return_value=np.array([[1.0, 0.0]])):
         results = evaluator.evaluate_cosine("test", "test", single_doc)
         assert all(isinstance(score, float) for score in results.values())
@@ -181,7 +179,7 @@ def test_edge_cases(evaluator):
         assert isinstance(score, float)
 
 
-def test_numerical_stability(evaluator):
+def test_numerical_stability(evaluator: RAGEvaluator) -> None:
     """Test numerical stability with various input patterns."""
     # Test with very similar vectors
     similar_embeddings = np.array([[1.0, 0.0], [0.99999, 0.00001]])

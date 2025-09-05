@@ -116,14 +116,14 @@ chmod 600 .env
 ### GitHub Actions
 Configure secrets in repository settings:
 - `WATSONX_APIKEY`
-- `OPENAI_API_KEY` 
+- `OPENAI_API_KEY`
 - `ANTHROPIC_API_KEY`
 - etc.
 
 ### Production Deployment
 Consider using:
 - AWS Secrets Manager
-- Azure Key Vault  
+- Azure Key Vault
 - HashiCorp Vault
 - Google Secret Manager
 

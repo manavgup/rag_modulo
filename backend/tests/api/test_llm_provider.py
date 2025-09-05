@@ -6,6 +6,7 @@ from uuid import uuid4
 import pytest
 
 from rag_solution.schemas.llm_model_schema import ModelType
+from rag_solution.schemas.llm_provider_schema import LLMProviderOutput
 
 from .base_test import BaseTestRouter
 
@@ -26,7 +27,7 @@ class TestLLMProvider(BaseTestRouter):
         }
 
     @pytest.fixture
-    def test_model_data(self, ensure_watsonx_provider) -> dict[str, Any]:
+    def test_model_data(self, ensure_watsonx_provider: LLMProviderOutput) -> dict[str, Any]:
         """Sample model data for testing."""
         return {
             "provider_id": str(ensure_watsonx_provider.id),
@@ -43,7 +44,7 @@ class TestLLMProvider(BaseTestRouter):
         }
 
     # Provider Management Tests
-    async def test_create_provider(self, test_provider_data):
+    async def test_create_provider(self, test_provider_data: dict[str, Any]) -> None:
         """Test POST /api/llm-providers/"""
         response = await self.post("/api/llm-providers/", json=test_provider_data)
         self.assert_success(response)
@@ -55,7 +56,7 @@ class TestLLMProvider(BaseTestRouter):
         # Cleanup
         await self.delete(f"/api/llm-providers/{data['id']}")
 
-    async def test_get_all_providers(self, ensure_watsonx_provider):  # noqa: ARG002
+    async def test_get_all_providers(self, ensure_watsonx_provider: LLMProviderOutput) -> None:  # noqa: ARG002
         """Test GET /api/llm-providers/"""
         response = await self.get("/api/llm-providers/")
         self.assert_success(response)
@@ -63,7 +64,7 @@ class TestLLMProvider(BaseTestRouter):
         assert len(providers) > 0
         assert any(p["name"] == "watsonx" for p in providers)
 
-    async def test_update_provider(self, ensure_watsonx_provider):
+    async def test_update_provider(self, ensure_watsonx_provider: LLMProviderOutput) -> None:
         """Test PUT /api/llm-providers/{id}"""
         update_data = {"base_url": "https://updated-api.test.com", "project_id": f"updated-project-{uuid4()}"}
         response = await self.put(f"/api/llm-providers/{ensure_watsonx_provider.id}", json=update_data)
@@ -73,7 +74,7 @@ class TestLLMProvider(BaseTestRouter):
         assert data["project_id"] == update_data["project_id"]
 
     # Model Management Tests
-    async def test_create_model(self, test_model_data):
+    async def test_create_model(self, test_model_data: dict[str, Any]) -> None:
         """Test POST /api/llm-providers/models/"""
         response = await self.post("/api/llm-providers/models/", json=test_model_data)
         self.assert_success(response)
@@ -85,7 +86,7 @@ class TestLLMProvider(BaseTestRouter):
         # Cleanup
         await self.delete(f"/api/llm-providers/models/{data['id']}")
 
-    async def test_get_provider_models(self, ensure_watsonx_provider):
+    async def test_get_provider_models(self, ensure_watsonx_provider: LLMProviderOutput) -> None:
         """Test GET /api/llm-providers/{id}/models"""
         response = await self.get(f"/api/llm-providers/{ensure_watsonx_provider.id}/models")
         self.assert_success(response)
@@ -93,14 +94,14 @@ class TestLLMProvider(BaseTestRouter):
         assert len(models) > 0
         assert all("model_id" in model for model in models)
 
-    async def test_get_models_by_type(self):
+    async def test_get_models_by_type(self) -> None:
         """Test GET /api/llm-providers/models/type/{type}"""
         response = await self.get("/api/llm-providers/models/type/GENERATION")
         self.assert_success(response)
         models = response.json()
         assert all(model["model_type"] == "GENERATION" for model in models)
 
-    async def test_update_model(self, test_model_data):
+    async def test_update_model(self, test_model_data: dict[str, Any]) -> None:
         """Test PUT /api/llm-providers/models/{id}"""
         # First create a model
         create_response = await self.post("/api/llm-providers/models/", json=test_model_data)
@@ -119,7 +120,7 @@ class TestLLMProvider(BaseTestRouter):
         await self.delete(f"/api/llm-providers/models/{model_id}")
 
     # Validation Tests
-    async def test_invalid_provider_data(self):
+    async def test_invalid_provider_data(self) -> None:
         """Test provider creation with invalid data."""
         invalid_data = {
             "name": "test",  # Missing required fields
@@ -127,7 +128,7 @@ class TestLLMProvider(BaseTestRouter):
         response = await self.post("/api/llm-providers/", json=invalid_data)
         assert response.status_code == 422
 
-    async def test_invalid_model_data(self, ensure_watsonx_provider):
+    async def test_invalid_model_data(self, ensure_watsonx_provider: LLMProviderOutput) -> None:
         """Test model creation with invalid data."""
         invalid_data = {
             "provider_id": str(ensure_watsonx_provider.id),
@@ -138,7 +139,7 @@ class TestLLMProvider(BaseTestRouter):
         assert response.status_code == 422
 
     # Authorization Tests
-    async def test_unauthorized_access(self):
+    async def test_unauthorized_access(self) -> None:
         """Test endpoints without authentication."""
         test_id = uuid4()
         endpoints = [
@@ -153,7 +154,7 @@ class TestLLMProvider(BaseTestRouter):
             response = await getattr(self, method)(endpoint, authenticated=False)
             self.assert_unauthorized(response)
 
-    async def test_not_found_cases(self):
+    async def test_not_found_cases(self) -> None:
         """Test accessing non-existent resources."""
         non_existent_id = uuid4()
 

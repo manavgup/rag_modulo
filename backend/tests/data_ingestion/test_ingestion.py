@@ -1,5 +1,6 @@
 # tests/test_ingestion.py
 import time
+from typing import Any
 from unittest.mock import mock_open, patch
 
 import pytest
@@ -13,7 +14,7 @@ collection_name = f"test_collection_{timestamp}"
 
 
 @pytest.mark.atomic
-def test_document_store(mock_vector_store):
+def test_document_store(mock_vector_store: Any) -> None:
     """Test the DocumentStore class."""
     # Create document store
     store = DocumentStore(vector_store=mock_vector_store, collection_name=collection_name)
@@ -35,7 +36,7 @@ def test_document_store(mock_vector_store):
 
 
 @pytest.mark.atomic
-def test_document_store_with_mocked_embeddings(mock_vector_store):
+def test_document_store_with_mocked_embeddings(mock_vector_store: Any) -> None:
     """Test DocumentStore with mocked embeddings."""
     with patch("vectordbs.utils.watsonx.get_embeddings", return_value=[0.1, 0.2, 0.3]):
         store = DocumentStore(vector_store=mock_vector_store, collection_name=collection_name)
@@ -49,14 +50,12 @@ def test_document_store_with_mocked_embeddings(mock_vector_store):
 
 
 @pytest.mark.atomic
-def test_document_store_file_loading(mock_vector_store):
+def test_document_store_file_loading(mock_vector_store: Any) -> None:
     """Test DocumentStore file loading with mocked file system."""
     store = DocumentStore(vector_store=mock_vector_store, collection_name=collection_name)
 
     # Test file loading with mocked file system
-    with patch("os.path.exists", return_value=True), patch("os.listdir", return_value=["test.txt"]), patch(
-        "builtins.open", mock_open(read_data="Test content")
-    ):
+    with patch("os.path.exists", return_value=True), patch("os.listdir", return_value=["test.txt"]), patch("builtins.open", mock_open(read_data="Test content")):
         # Test that the store can be created and methods are available
         assert hasattr(store, "load_documents")
         # Note: DocumentStore may not have add_document method, so we just test the setup

@@ -10,7 +10,7 @@ from datetime import datetime
 from multiprocessing.managers import SyncManager
 from typing import Any
 
-import pymupdf
+import pymupdf  # type: ignore[import-untyped]
 
 from core.custom_exceptions import DocumentProcessingError
 from rag_solution.data_ingestion.base_processor import BaseProcessor
@@ -47,10 +47,7 @@ class PdfProcessor(BaseProcessor):
                 total_chunks = 0
 
                 with concurrent.futures.ThreadPoolExecutor(max_workers=multiprocessing.cpu_count()) as executor:
-                    futures = [
-                        executor.submit(self.process_page, page_num, file_path, output_folder, document_id)
-                        for page_num in range(len(doc))
-                    ]
+                    futures = [executor.submit(self.process_page, page_num, file_path, output_folder, document_id) for page_num in range(len(doc))]
 
                     for future in concurrent.futures.as_completed(futures):
                         page_num = futures.index(future)
@@ -71,13 +68,9 @@ class PdfProcessor(BaseProcessor):
                             logger.error(f"Error processing page {page_num} of {file_path}: {e}", exc_info=True)
         except Exception as e:
             logger.error(f"Error reading PDF file {file_path}: {e}", exc_info=True)
-            raise DocumentProcessingError(
-                doc_id=file_path, error_type="DocumentProcessingError", message=f"Error processing PDF file {file_path}"
-            ) from e
+            raise DocumentProcessingError(doc_id=file_path, error_type="DocumentProcessingError", message=f"Error processing PDF file {file_path}") from e
 
-    def process_page(
-        self, page_number: int, file_path: str, output_folder: str, document_id: str
-    ) -> list[DocumentChunk]:
+    def process_page(self, page_number: int, file_path: str, output_folder: str, document_id: str) -> list[DocumentChunk]:
         chunks: list[DocumentChunk] = []
         chunking_method = get_chunking_method()
         chunk_counter = 0  # Initialize counter at start of page
@@ -117,9 +110,7 @@ class PdfProcessor(BaseProcessor):
                             "table_index": 0,  # Not a table
                             "image_index": 0,  # Not an image
                         }
-                        chunks.append(
-                            self.create_document_chunk(chunk_text, chunk_embeddings[ix], chunk_metadata, document_id)
-                        )
+                        chunks.append(self.create_document_chunk(chunk_text, chunk_embeddings[ix], chunk_metadata, document_id))
                         chunk_counter += 1
 
                 # Process tables
@@ -137,9 +128,7 @@ class PdfProcessor(BaseProcessor):
                                 "table_index": table_index,
                                 "image_index": 0,  # Not an image
                             }
-                            chunks.append(
-                                self.create_document_chunk(table_chunk, table_embedding[0], chunk_metadata, document_id)
-                            )
+                            chunks.append(self.create_document_chunk(table_chunk, table_embedding[0], chunk_metadata, document_id))
                             chunk_counter += 1
 
                 # Process images
@@ -155,18 +144,14 @@ class PdfProcessor(BaseProcessor):
                     }
                     image_text = f"Image: {img}"
                     image_embedding = get_embeddings(texts=image_text, embed_client=embed_client)
-                    chunks.append(
-                        self.create_document_chunk(image_text, image_embedding[0], chunk_metadata, document_id)
-                    )
+                    chunks.append(self.create_document_chunk(image_text, image_embedding[0], chunk_metadata, document_id))
                     chunk_counter += 1
 
         except Exception as e:
             logger.error(f"Error processing page {page_number} of {file_path}: {e}", exc_info=True)
         return chunks
 
-    def create_document_chunk(
-        self, chunk_text: str, chunk_embedding: Embeddings, metadata: dict[str, Any], document_id: str
-    ) -> DocumentChunk:
+    def create_document_chunk(self, chunk_text: str, chunk_embedding: Embeddings, metadata: dict[str, Any], document_id: str) -> DocumentChunk:
         chunk_id = str(uuid.uuid4())
         return DocumentChunk(
             chunk_id=chunk_id,
@@ -233,9 +218,7 @@ class PdfProcessor(BaseProcessor):
                 built_in_tables = page.find_tables()
                 for table in built_in_tables:
                     extracted_table = table.extract()
-                    cleaned_table: list[list[str]] = [
-                        [clean_text(cell) if cell is not None else "" for cell in row] for row in extracted_table
-                    ]
+                    cleaned_table: list[list[str]] = [[clean_text(cell) if cell is not None else "" for cell in row] for row in extracted_table]
                     if any(cell for row in cleaned_table for cell in row):  # Only add non-empty tables
                         tables.append(cleaned_table)
                 if tables:
@@ -243,9 +226,7 @@ class PdfProcessor(BaseProcessor):
                     return tables
             except ValueError as ve:
                 if "not a textpage of this page" in str(ve):
-                    logger.info(
-                        f"Page {page.number + 1} doesn't support textpage extraction, falling back to alternative methods"
-                    )
+                    logger.info(f"Page {page.number + 1} doesn't support textpage extraction, falling back to alternative methods")
                 else:
                     logger.warning(f"Unexpected ValueError during table extraction on page {page.number + 1}: {ve}")
             except Exception as e:
@@ -287,12 +268,8 @@ class PdfProcessor(BaseProcessor):
                                 current_y_position = block_y
 
                         # If we haven't started a new row, add to the current row
-                        if (current_y_position is not None and
-                            abs(block_y - current_y_position) <= tolerance and
-                            potential_table):
-                            potential_table[-1].extend(
-                                cell.strip() for cell in re.split(r"\s{3,}", block["content"].strip())
-                            )
+                        if current_y_position is not None and abs(block_y - current_y_position) <= tolerance and potential_table:
+                            potential_table[-1].extend(cell.strip() for cell in re.split(r"\s{3,}", block["content"].strip()))
 
                 # Add the last table if it meets our criteria
                 if len(potential_table) > 1 and all(len(row) > 1 for row in potential_table):
@@ -400,9 +377,7 @@ class PdfProcessor(BaseProcessor):
 
                         if image_hash not in self.saved_image_hashes:
                             image_extension: str = base_image["ext"]
-                            image_filename: str = (
-                                f"{output_folder}/image_{page.number + 1}_{img_index}.{image_extension}"
-                            )
+                            image_filename: str = f"{output_folder}/image_{page.number + 1}_{img_index}.{image_extension}"
                             with open(image_filename, "wb") as img_file:
                                 img_file.write(image_bytes)
                             images.append(image_filename)

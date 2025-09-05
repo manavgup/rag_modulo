@@ -1,5 +1,7 @@
 """Tests for prompt template functionality."""
 
+from typing import Any
+
 import pytest
 from sqlalchemy.orm import Session
 
@@ -8,7 +10,7 @@ from rag_solution.schemas.prompt_template_schema import PromptTemplateType
 
 
 @pytest.mark.atomic
-def test_create_prompt_template(db_session: Session, base_user):
+def test_create_prompt_template(db_session: Session, base_user: Any) -> None:
     """Test creating a prompt template."""
     template = PromptTemplate(
         name="test-template",
@@ -42,22 +44,16 @@ def test_create_prompt_template(db_session: Session, base_user):
     assert template.is_default is True
 
 
-def test_create_question_generation_template(db_session: Session, base_user):
+def test_create_question_generation_template(db_session: Session, base_user: Any) -> None:
     """Test creating a question generation template."""
     template = PromptTemplate(
         name="test-question-template",
         provider="watsonx",
         template_type=PromptTemplateType.QUESTION_GENERATION,
         system_prompt=(
-            "You are an AI assistant that generates relevant questions based on "
-            "the given context. Generate clear, focused questions that can be "
-            "answered using the information provided."
+            "You are an AI assistant that generates relevant questions based on " "the given context. Generate clear, focused questions that can be " "answered using the information provided."
         ),
-        template_format=(
-            "{context}\n\n"
-            "Generate {num_questions} specific questions that can be answered "
-            "using only the information provided above."
-        ),
+        template_format=("{context}\n\n" "Generate {num_questions} specific questions that can be answered " "using only the information provided above."),
         input_variables={
             "context": "Retrieved passages from knowledge base",
             "num_questions": "Number of questions to generate",
@@ -81,7 +77,7 @@ def test_create_question_generation_template(db_session: Session, base_user):
     assert template.is_default is True
 
 
-def test_invalid_provider(db_session: Session, base_user):
+def test_invalid_provider(db_session: Session, base_user: Any) -> None:
     """Test that invalid provider raises error."""
     with pytest.raises(ValueError, match="Invalid provider"):
         PromptTemplate(
@@ -97,7 +93,7 @@ def test_invalid_provider(db_session: Session, base_user):
         )
 
 
-def test_missing_variables(db_session: Session, base_user):
+def test_missing_variables(db_session: Session, base_user: Any) -> None:
     """Test that missing variables in template format raises error."""
     with pytest.raises(ValueError, match="Template variables missing"):
         PromptTemplate(

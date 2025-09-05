@@ -1,6 +1,7 @@
 import logging
-from pydantic import UUID4
+from typing import Any
 
+from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
 
@@ -15,7 +16,7 @@ logger = logging.getLogger(__name__)
 class CollectionRepository:
     """Repository for managing Collection entities in the database."""
 
-    def __init__(self, db: Session):
+    def __init__(self: Any, db: Session) -> None:
         """
         Initialize the CollectionRepository.
 
@@ -49,6 +50,9 @@ class CollectionRepository:
             self.db.add(db_collection)
             self.db.flush()  # Flush to get the collection ID
 
+            # After flush, db_collection should have an ID
+            assert db_collection.id is not None, "Collection should have an ID after flush"
+
             # Create user-collection relationships
             if collection.users:
                 for user_id in collection.users:
@@ -57,13 +61,10 @@ class CollectionRepository:
 
             self.db.commit()
             # Refresh with relationships loaded
-            db_collection = (
-                self.db.query(Collection)
-                .options(joinedload(Collection.users), joinedload(Collection.files))
-                .filter(Collection.id == db_collection.id)
-                .first()
-            )
-            return self._collection_to_output(db_collection)
+            refreshed_collection = self.db.query(Collection).options(joinedload(Collection.users), joinedload(Collection.files)).filter(Collection.id == db_collection.id).first()
+            if refreshed_collection is None:
+                raise NotFoundError(resource_type="Collection", resource_id="unknown")
+            return self._collection_to_output(refreshed_collection)
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise
         except SQLAlchemyError as e:
@@ -86,17 +87,9 @@ class CollectionRepository:
             SQLAlchemyError: If there's a database error.
         """
         try:
-            collection = (
-                self.db.query(Collection)
-                .options(joinedload(Collection.users), joinedload(Collection.files))
-                .filter(Collection.id == collection_id)
-                .first()
-            )
+            collection = self.db.query(Collection).options(joinedload(Collection.users), joinedload(Collection.files)).filter(Collection.id == collection_id).first()
             if not collection:
-                raise NotFoundError(
-                    resource_type="Collection",
-                    resource_id=str(collection_id)
-                )
+                raise NotFoundError(resource_type="Collection", resource_id=str(collection_id))
             return self._collection_to_output(collection)
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise
@@ -106,13 +99,7 @@ class CollectionRepository:
 
     def get_user_collections(self, user_id: UUID4) -> list[CollectionOutput]:
         try:
-            collections = (
-                self.db.query(Collection)
-                .options(joinedload(Collection.users), joinedload(Collection.files))
-                .join(UserCollection)
-                .filter(UserCollection.user_id == user_id)
-                .all()
-            )
+            collections = self.db.query(Collection).options(joinedload(Collection.users), joinedload(Collection.files)).join(UserCollection).filter(UserCollection.user_id == user_id).all()
             return [self._collection_to_output(collection) for collection in collections]
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise
@@ -130,12 +117,7 @@ class CollectionRepository:
             CollectionOutput if found, None if not found
         """
         try:
-            collection = (
-                self.db.query(Collection)
-                .options(joinedload(Collection.users), joinedload(Collection.files))
-                .filter(Collection.name == name)
-                .first()
-            )
+            collection = self.db.query(Collection).options(joinedload(Collection.users), joinedload(Collection.files)).filter(Collection.name == name).first()
             if not collection:
                 return None
             return self._collection_to_output(collection)
@@ -159,26 +141,16 @@ class CollectionRepository:
             SQLAlchemyError: If there's an error during database operations.
         """
         try:
-            collection = (
-                self.db.query(Collection)
-                .options(joinedload(Collection.users), joinedload(Collection.files))
-                .filter(Collection.id == collection_id)
-                .first()
-            )
+            collection = self.db.query(Collection).options(joinedload(Collection.users), joinedload(Collection.files)).filter(Collection.id == collection_id).first()
             if not collection:
-                raise NotFoundError(
-                    resource_type="Collection", resource_id=str(collection_id)
-                )
+                raise NotFoundError(resource_type="Collection", resource_id=str(collection_id))
             for key, value in collection_update.items():
                 setattr(collection, key, value)
             self.db.commit()
             # Refresh with relationships loaded
-            collection = (
-                self.db.query(Collection)
-                .options(joinedload(Collection.users), joinedload(Collection.files))
-                .filter(Collection.id == collection_id)
-                .first()
-            )
+            collection = self.db.query(Collection).options(joinedload(Collection.users), joinedload(Collection.files)).filter(Collection.id == collection_id).first()
+            if collection is None:
+                raise NotFoundError(resource_type="Collection", resource_id=str(collection_id))
             return self._collection_to_output(collection)
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise
@@ -216,13 +188,7 @@ class CollectionRepository:
 
     def list(self, skip: int = 0, limit: int = 100) -> list[CollectionOutput]:
         try:
-            collections = (
-                self.db.query(Collection)
-                .options(joinedload(Collection.users), joinedload(Collection.files))
-                .offset(skip)
-                .limit(limit)
-                .all()
-            )
+            collections = self.db.query(Collection).options(joinedload(Collection.users), joinedload(Collection.files)).offset(skip).limit(limit).all()
             return [self._collection_to_output(collection) for collection in collections]
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise

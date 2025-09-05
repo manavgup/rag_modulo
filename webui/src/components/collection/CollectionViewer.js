@@ -63,7 +63,7 @@ const getDocumentMetadata = (document) => {
 
 const ProcessingStatus = ({ document }) => {
   const metadata = getDocumentMetadata(document);
-  
+
   if (!metadata.total_chunks) {
     return (
       <div className="processing-status">
@@ -150,7 +150,7 @@ const CollectionBrowser = () => {
         creator: selectedCreator !== 'all' ? selectedCreator : undefined
       }
     };
-    
+
     if (selectedCollection) {
       fetchDocuments(selectedCollection.id, searchParams);
     } else {
@@ -161,7 +161,7 @@ const CollectionBrowser = () => {
   const handleCreateCollection = async () => {
     try {
       const formData = new FormData();
-      
+
       formData.append("collection_name", collectionName);
       formData.append("description", collectionDescription);
       formData.append("is_private", false);
@@ -169,7 +169,7 @@ const CollectionBrowser = () => {
         formData.append("files", file);
       });
       formData.append("user_id", user?.uuid);
-      
+
       await createCollectionWithDocuments(formData);
       addNotification("success", "Success", "Collection created successfully.");
       fetchCollections();
@@ -338,10 +338,10 @@ const CollectionBrowser = () => {
   ];
 
   const collectionRows = collections?.map((collection) => {
-    const isProcessing = collection.documents.some(doc => 
+    const isProcessing = collection.documents.some(doc =>
       !getDocumentMetadata(doc).total_chunks
     );
-    const totalChunks = collection.documents.reduce((sum, doc) => 
+    const totalChunks = collection.documents.reduce((sum, doc) =>
       sum + (getDocumentMetadata(doc).total_chunks || 0), 0
     );
 
@@ -394,7 +394,7 @@ const CollectionBrowser = () => {
 
   const documentRows = documents?.map((document) => {
     const metadata = getDocumentMetadata(document);
-    
+
     return {
       id: document.id,
       name: document.name,
@@ -467,7 +467,7 @@ const CollectionBrowser = () => {
       ) : (
         <>
         <h4>Documents</h4>
-         
+
           <DataTable
             rows={selectedCollection ? documentRows : collectionRows}
             headers={selectedCollection ? documentHeaders : collectionHeaders}

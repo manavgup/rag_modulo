@@ -12,7 +12,7 @@ class TestMilvusStore:
     def store(self, milvus_store: Any) -> Any:
         yield milvus_store
 
-    def test_milvus_store_integration(self, store: Any) -> None:
+    def test_milvus_store_integration(self: Any, store: Any) -> None:
         """Test basic operations on the Milvus store."""
         # Add some documents
         doc1 = {"id": "doc1", "text": "This is the first document."}
@@ -34,7 +34,7 @@ class TestMilvusStore:
         assert len(results) == 1
         assert results[0]["id"] == "doc2"
 
-    def test_milvus_store_errors(self, store: Any) -> None:
+    def test_milvus_store_errors(self: Any, store: Any) -> None:
         """Test error handling in the Milvus store."""
         with pytest.raises(ValueError):
             store.get_document_by_id("non-existent-id")

@@ -46,7 +46,7 @@ class SimpleQueryRewriter(BaseQueryRewriter):
 
 
 class HypotheticalDocumentEmbedding(BaseQueryRewriter):
-    def __init__(self, max_tokens: int = 100, timeout: int = 30, max_retries: int = 3):
+    def __init__(self: Any, max_tokens: int = 100, timeout: int = 30, max_retries: int = 3) -> None:
         self.max_tokens = max_tokens
         self.timeout = timeout
         self.max_retries = max_retries
@@ -73,7 +73,7 @@ class HypotheticalDocumentEmbedding(BaseQueryRewriter):
 
 
 class QueryRewriter:
-    def __init__(self, config: dict[str, Any]):
+    def __init__(self, config: dict[str, Any]) -> None:
         self.rewriters: list[BaseQueryRewriter] = []
         try:
             if not isinstance(config, dict):
