@@ -25,13 +25,13 @@ class BaseTestRouter:
     TEST_JWT = jwt.encode(TEST_USER, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
 
     @pytest.fixture(autouse=True)
-    def setup(self, test_client: TestClient, auth_headers: dict[str, str]):
+    def setup(self, test_client: TestClient, auth_headers: dict[str, str]) -> None:
         """Setup test environment."""
         self.client = test_client
         self.auth_headers = auth_headers
 
         # Mock JWT verification
-        def mock_verify(token):
+        def mock_verify(token: Any) -> Any:
             if token == "mock_token_for_testing" or token == self.TEST_JWT:
                 return self.TEST_USER
             raise jwt.InvalidTokenError("Invalid token")
@@ -40,9 +40,9 @@ class BaseTestRouter:
             patch("auth.oidc.verify_jwt_token", side_effect=mock_verify),
             patch("core.authentication_middleware.verify_jwt_token", side_effect=mock_verify),
         ):
-            return
+            pass
 
-    def make_request(self, method: str, url: str, authenticated: bool = True, **kwargs) -> Any:
+    def make_request(self, method: str, url: str, authenticated: bool = True, **kwargs: Any) -> Any:
         """Make an HTTP request with optional authentication.
 
         Args:
@@ -59,19 +59,19 @@ class BaseTestRouter:
         request_method = getattr(self.client, method.lower())
         return request_method(url, **kwargs)
 
-    def get(self, url: str, authenticated: bool = True, **kwargs) -> Any:
+    def get(self, url: str, authenticated: bool = True, **kwargs: Any) -> Any:
         """Make a GET request."""
         return self.make_request("GET", url, authenticated, **kwargs)
 
-    def post(self, url: str, authenticated: bool = True, **kwargs) -> Any:
+    def post(self, url: str, authenticated: bool = True, **kwargs: Any) -> Any:
         """Make a POST request."""
         return self.make_request("POST", url, authenticated, **kwargs)
 
-    def put(self, url: str, authenticated: bool = True, **kwargs) -> Any:
+    def put(self, url: str, authenticated: bool = True, **kwargs: Any) -> Any:
         """Make a PUT request."""
         return self.make_request("PUT", url, authenticated, **kwargs)
 
-    def delete(self, url: str, authenticated: bool = True, **kwargs) -> Any:
+    def delete(self, url: str, authenticated: bool = True, **kwargs: Any) -> Any:
         """Make a DELETE request."""
         return self.make_request("DELETE", url, authenticated, **kwargs)
 

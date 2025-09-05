@@ -90,12 +90,12 @@ const PromptTemplates = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
+
     try {
       const url = getFullApiUrl(getTemplatesUrl());
       const method = currentTemplate ? 'PUT' : 'POST';
       const path = currentTemplate ? `${url}/${currentTemplate.id}` : url;
-      
+
       await fetchWithAuthHeader(path, {
         method,
         headers: {
@@ -103,7 +103,7 @@ const PromptTemplates = () => {
         },
         body: JSON.stringify(formData),
       });
-      
+
       await fetchData();
       setIsModalOpen(false);
       resetForm();
@@ -117,7 +117,7 @@ const PromptTemplates = () => {
 
   const handleDelete = async (templateId) => {
     if (!window.confirm('Are you sure you want to delete this template?')) return;
-    
+
     setLoading(true);
     try {
       await fetchWithAuthHeader(

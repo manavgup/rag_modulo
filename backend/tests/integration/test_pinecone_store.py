@@ -1,4 +1,6 @@
+from collections.abc import Generator
 from contextlib import contextmanager
+from typing import Any
 
 import pytest
 
@@ -12,10 +14,10 @@ PINECONE_INDEX = settings.collection_name
 class TestPineconeStore:
     @pytest.fixture
     @contextmanager
-    def store(self, pinecone_store):
+    def store(self: Any, pinecone_store: Any) -> Generator[Any, None, None]:
         yield pinecone_store
 
-    def test_pinecone_store_integration(self, store):
+    def test_pinecone_store_integration(self, store: Any) -> None:
         """Test basic operations on the Pinecone store."""
         # Add some documents
         doc1 = {"id": "doc1", "text": "This is the first document."}
@@ -37,7 +39,7 @@ class TestPineconeStore:
         assert len(results) == 1
         assert results[0]["id"] == "doc2"
 
-    def test_pinecone_store_errors(self, store):
+    def test_pinecone_store_errors(self, store: Any) -> None:
         """Test error handling in the Pinecone store."""
         with pytest.raises(ValueError):
             store.get_document_by_id("non-existent-id")

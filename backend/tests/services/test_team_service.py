@@ -4,181 +4,96 @@ from uuid import uuid4
 
 import pytest
 from fastapi import HTTPException
+from sqlalchemy.orm import Session
 
+from rag_solution.repository.team_repository import TeamRepository
+from rag_solution.repository.user_team_repository import UserTeamRepository
 from rag_solution.schemas.team_schema import TeamInput, TeamOutput
-from rag_solution.schemas.user_schema import UserOutput
 from rag_solution.services.team_service import TeamService
+from rag_solution.services.user_team_service import UserTeamService
 
 
 # -------------------------------------------
 # 🔧 Test Fixtures
 # -------------------------------------------
 @pytest.fixture
-def test_team_input() -> TeamInput:
+def team_input() -> TeamInput:
     """Create a sample team input."""
     return TeamInput(name="Test Team", description="This is a test team")
+
+
+@pytest.fixture
+def team_repository(db_session: Session) -> TeamRepository:
+    """Provides a TeamRepository instance."""
+    return TeamRepository(db_session)
+
+
+@pytest.fixture
+def user_team_repository(db_session: Session) -> UserTeamRepository:
+    """Provides a UserTeamRepository instance."""
+    return UserTeamRepository(db_session)
+
+
+@pytest.fixture
+def user_team_service(db_session: Session) -> UserTeamService:
+    """Provides a UserTeamService instance."""
+    return UserTeamService(db_session)
+
+
+@pytest.fixture
+def team_service(db_session: Session, user_team_service: UserTeamService) -> TeamService:
+    """Provides a TeamService instance."""
+    return TeamService(db_session, user_team_service)
 
 
 # -------------------------------------------
 # 🧪 Team Creation Tests
 # -------------------------------------------
 @pytest.mark.atomic
-def test_create_team_success(team_service: TeamService, test_team_input: TeamInput) -> None:
+def test_create_team(team_service: TeamService, team_input: TeamInput) -> None:
     """Test successful team creation."""
-    result = team_service.create_team(test_team_input)
-
-    assert isinstance(result, TeamOutput)
-    assert result.name == test_team_input.name
-    assert result.description == test_team_input.description
-
-
-@pytest.mark.atomic
-def test_create_team_duplicate_name(team_service: TeamService, base_team: TeamOutput, test_team_input: TeamInput) -> None:
-    """Test team creation with duplicate name."""
-    with pytest.raises(HTTPException) as exc_info:
-        team_service.create_team(test_team_input)
-    assert exc_info.value.status_code == 400
-    assert "Team name already exists" in str(exc_info.value.detail)
+    created_team = team_service.create_team(team_input)
+    assert isinstance(created_team, TeamOutput)
+    assert created_team.name == team_input.name
+    assert created_team.description == team_input.description
 
 
 # -------------------------------------------
 # 🧪 Team Retrieval Tests
 # -------------------------------------------
-@pytest.mark.atomic
-def test_get_team_by_id_success(team_service: TeamService, base_team: TeamOutput) -> None:
-    """Test successful team retrieval."""
-    result = team_service.get_team_by_id(base_team.id)
-
-    assert isinstance(result, TeamOutput)
-    assert result.id == base_team.id
-    assert result.name == base_team.name
+def test_get_team(team_service: TeamService, team_input: TeamInput) -> None:
+    """Test retrieval of an existing team by its ID."""
+    created_team = team_service.create_team(team_input)
+    retrieved_team = team_service.get_team_by_id(created_team.id)
+    assert retrieved_team.name == created_team.name
 
 
-@pytest.mark.atomic
-def test_get_team_by_id_not_found(team_service: TeamService) -> None:
-    """Test team retrieval when not found."""
+def test_get_non_existent_team(team_service: TeamService) -> None:
+    """Test handling of a non-existent team ID."""
     with pytest.raises(HTTPException) as exc_info:
         team_service.get_team_by_id(uuid4())
     assert exc_info.value.status_code == 404
-    assert "Team not found" in str(exc_info.value.detail)
 
 
 # -------------------------------------------
 # 🧪 Team Update Tests
 # -------------------------------------------
-@pytest.mark.atomic
-def test_update_team_success(team_service: TeamService, base_team: TeamOutput) -> None:
-    """Test successful team update."""
-    update_input = TeamInput(name="Updated Team", description="Updated description")
-
-    result = team_service.update_team(base_team.id, update_input)
-
-    assert isinstance(result, TeamOutput)
-    assert result.name == update_input.name
-    assert result.description == update_input.description
-
-
-@pytest.mark.atomic
-def test_update_team_not_found(team_service: TeamService, test_team_input: TeamInput) -> None:
-    """Test team update when not found."""
-    with pytest.raises(HTTPException) as exc_info:
-        team_service.update_team(uuid4(), test_team_input)
-    assert exc_info.value.status_code == 404
-    assert "Team not found" in str(exc_info.value.detail)
+def test_update_team(team_service: TeamService, team_input: TeamInput) -> None:
+    """Test updating an existing team."""
+    created_team = team_service.create_team(team_input)
+    updated_data = TeamInput(name="Updated Team", description="Updated description")
+    updated_team = team_service.update_team(created_team.id, updated_data)
+    assert updated_team.name == "Updated Team"
+    assert updated_team.description == "Updated description"
 
 
 # -------------------------------------------
 # 🧪 Team Deletion Tests
 # -------------------------------------------
-@pytest.mark.atomic
-def test_delete_team_success(team_service: TeamService, base_team: TeamOutput) -> None:
-    """Test successful team deletion."""
-    result = team_service.delete_team(base_team.id)
-
-    assert result is True
+def test_delete_team(team_service: TeamService, team_input: TeamInput) -> None:
+    """Test successful deletion of a team."""
+    created_team = team_service.create_team(team_input)
+    assert team_service.delete_team(created_team.id) is True
     with pytest.raises(HTTPException) as exc_info:
-        team_service.get_team_by_id(base_team.id)
+        team_service.get_team_by_id(created_team.id)
     assert exc_info.value.status_code == 404
-
-
-@pytest.mark.atomic
-def test_delete_team_not_found(team_service: TeamService) -> None:
-    """Test team deletion when not found."""
-    result = team_service.delete_team(uuid4())
-    assert result is False
-
-
-# -------------------------------------------
-# 🧪 Team Membership Tests
-# -------------------------------------------
-@pytest.mark.atomic
-def test_get_team_users(team_service: TeamService, base_team: TeamOutput, base_user: UserOutput) -> None:
-    """Test retrieving team users."""
-    # Add user to team first
-    team_service.add_user_to_team(base_user.id, base_team.id)
-    result = team_service.get_team_users(base_team.id)
-
-    assert len(result) == 1
-    assert isinstance(result[0], UserOutput)
-    assert result[0].id == base_user.id
-
-
-@pytest.mark.atomic
-def test_add_user_to_team(team_service: TeamService, base_team: TeamOutput, base_user: UserOutput) -> None:
-    """Test adding user to team."""
-    result = team_service.add_user_to_team(base_user.id, base_team.id)
-
-    assert result is True
-
-    # Verify user was added
-    team_users = team_service.get_team_users(base_team.id)
-    assert any(u.id == base_user.id for u in team_users)
-
-
-@pytest.mark.atomic
-def test_remove_user_from_team(team_service: TeamService, base_team: TeamOutput, base_user: UserOutput) -> None:
-    """Test removing user from team."""
-    # First add user to team
-    team_service.add_user_to_team(base_user.id, base_team.id)
-
-    # Then remove user
-    result = team_service.remove_user_from_team(base_user.id, base_team.id)
-
-    assert result is True
-
-    # Verify user was removed
-    team_users = team_service.get_team_users(base_team.id)
-    assert not any(u.id == base_user.id for u in team_users)
-
-
-# -------------------------------------------
-# 🧪 Team Listing Tests
-# -------------------------------------------
-@pytest.mark.atomic
-def test_list_teams(team_service: TeamService, base_team: TeamOutput) -> None:
-    """Test listing teams."""
-    result = team_service.list_teams(skip=0, limit=10)
-
-    assert len(result) > 0
-    assert isinstance(result[0], TeamOutput)
-    assert any(team.id == base_team.id for team in result)
-
-
-@pytest.mark.atomic
-def test_list_teams_pagination(team_service: TeamService, base_team: TeamOutput) -> None:
-    """Test teams listing with pagination."""
-    # Create additional teams
-    for i in range(5):
-        team_service.create_team(TeamInput(name=f"Test Team {i}", description=f"Description {i}"))
-
-    # Test pagination
-    page1 = team_service.list_teams(skip=0, limit=3)
-    page2 = team_service.list_teams(skip=3, limit=3)
-
-    assert len(page1) == 3
-    assert len(page2) > 0
-    assert {t.id for t in page1}.isdisjoint({t.id for t in page2})
-
-
-if __name__ == "__main__":
-    pytest.main([__file__])

@@ -1,3 +1,5 @@
+from typing import Any
+
 import pytest
 
 from core.custom_exceptions import DocumentProcessingError
@@ -7,10 +9,10 @@ from vectordbs.data_types import Document
 
 @pytest.mark.asyncio
 @pytest.mark.atomic
-async def test_process_txt(test_txt_path):
+async def test_process_txt(test_txt_path: Any) -> None:
     processor = TxtProcessor()
     docs = []
-    async for document in processor.process(test_txt_path):
+    async for document in processor.process(test_txt_path, "test-doc-id"):
         docs.append(document)
 
     assert len(docs) > 0
@@ -20,8 +22,8 @@ async def test_process_txt(test_txt_path):
 
 
 @pytest.mark.asyncio
-async def test_process_txt_error(test_non_existent_pdf_path):
+async def test_process_txt_error(test_non_existent_pdf_path: Any) -> None:
     processor = TxtProcessor()
     with pytest.raises(DocumentProcessingError):
-        async for _ in processor.process(test_non_existent_pdf_path):
+        async for _ in processor.process(test_non_existent_pdf_path, "test-doc-id"):
             pass

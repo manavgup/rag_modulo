@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, UUID4
+from pydantic import UUID4, BaseModel, ConfigDict
 
 
 class UserTeamInput(BaseModel):

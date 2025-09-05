@@ -2,7 +2,7 @@ import logging
 import os
 
 import jwt
-from authlib.integrations.starlette_client import OAuth, OAuthError
+from authlib.integrations.starlette_client import OAuth, OAuthError  # type: ignore[import-untyped]
 from fastapi import HTTPException, Request, Response, status
 
 from core.config import settings
@@ -24,10 +24,7 @@ if not (skip_auth or development_mode or testing_mode):
             server_metadata_url=settings.oidc_discovery_endpoint,
             client_id=settings.ibm_client_id,
             client_secret=settings.ibm_client_secret,
-            client_kwargs={
-                "scope": "openid email profile",
-                "token_endpoint_auth_method": "client_secret_post"
-            },
+            client_kwargs={"scope": "openid email profile", "token_endpoint_auth_method": "client_secret_post"},
             # Add leeway for token validation
             jwks_uri=settings.oidc_discovery_endpoint + "/jwks",
             validate_iss=True,
@@ -35,13 +32,14 @@ if not (skip_auth or development_mode or testing_mode):
             validate_exp=True,
             validate_iat=False,
             validate_nbf=True,
-            leeway=50000
+            leeway=50000,
         )
         logger.info("OIDC provider registered successfully")
     except Exception as e:
         logger.warning(f"Failed to register OIDC provider: {e}. Auth will work in test mode only.")
 else:
     logger.info(f"OIDC registration skipped (skip_auth={skip_auth}, development_mode={development_mode}, testing_mode={testing_mode})")
+
 
 def verify_jwt_token(token: str) -> dict:
     """Verify JWT token and return payload."""
@@ -61,8 +59,8 @@ def verify_jwt_token(token: str) -> dict:
             options={
                 "verify_signature": False,  # For testing environment
                 "verify_exp": False,
-                "verify_iat": False
-            }
+                "verify_iat": False,
+            },
         )
         return payload
     except jwt.ExpiredSignatureError:
@@ -77,6 +75,7 @@ def verify_jwt_token(token: str) -> dict:
             detail="Invalid authentication credentials",
             headers={"WWW-Authenticate": "Bearer"},
         ) from None
+
 
 async def get_current_user(request: Request) -> dict:
     auth_header = request.headers.get("Authorization")
@@ -93,6 +92,7 @@ async def get_current_user(request: Request) -> dict:
     logger.info(f"Got User: {payload}")
     return payload
 
+
 async def authorize_redirect(request: Request, redirect_uri: str) -> Response:
     try:
         logger.debug(f"Initiating authorize_redirect with redirect_uri: {redirect_uri}")
@@ -105,6 +105,7 @@ async def authorize_redirect(request: Request, redirect_uri: str) -> Response:
     except Exception as e:
         logger.error(f"Unexpected error during authorize_redirect: {e!s}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Authorization error: {e!s}") from e
+
 
 async def authorize_access_token(request: Request) -> dict:
     try:

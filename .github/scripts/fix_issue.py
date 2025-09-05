@@ -9,24 +9,24 @@ def get_issue_details():
     """Get issue details from GitHub event"""
     token = os.environ['GITHUB_TOKEN']
     event_path = os.environ['GITHUB_EVENT_PATH']
-    
+
     with open(event_path, 'r') as f:
         event_data = json.load(f)
-    
+
     issue_number = event_data['issue']['number']
     repo_name = event_data['repository']['full_name']
-    
+
     g = Github(token)
     repo = g.get_repo(repo_name)
     issue = repo.get_issue(number=issue_number)
-    
+
     return issue, repo
 
 def analyze_and_fix_issue(issue, repo):
     """Analyze issue and create PR with fix"""
     # Initialize agent
     agent = Agent()
-    
+
     # Parse issue body to get test details
     lines = issue.body.split('\n')
     test_info = {}
@@ -59,23 +59,23 @@ def analyze_and_fix_issue(issue, repo):
     - Test name: {test_info['test']}
     - Vector DB: {test_info['vector_db']}
     - Error: {test_info['error']}
-    
+
     Current test code:
     {current_content}
-    
+
     Please analyze the failure and suggest a fix.
     """
-    
+
     try:
         analysis = agent.analyze(prompt)
         fix_suggestion = agent.generate_fix(current_content, analysis)
-        
+
         # Create a new branch
         base_branch = repo.default_branch
         new_branch = f"fix/test-{issue.number}"
         base_ref = repo.get_git_ref(f"heads/{base_branch}")
         repo.create_git_ref(ref=f"refs/heads/{new_branch}", sha=base_ref.object.sha)
-        
+
         # Create/update file in the new branch
         repo.update_file(
             path=test_file,
@@ -84,33 +84,33 @@ def analyze_and_fix_issue(issue, repo):
             sha=repo.get_contents(test_file, ref=new_branch).sha,
             branch=new_branch
         )
-        
+
         # Create pull request
         pr = repo.create_pull(
             title=f"fix: Automated test fix for {test_info['test']}",
             body=f"""
             This PR contains an automated fix for test failure in issue #{issue.number}.
-            
+
             Original error:
             ```
             {test_info['error']}
             ```
-            
+
             Fix analysis:
             {analysis}
-            
+
             Please review the changes carefully before merging.
             """,
             head=new_branch,
             base=base_branch
         )
-        
+
         # Add labels to PR
         pr.add_to_labels("automated-fix", test_info['vector_db'])
-        
+
         # Comment on the issue
         issue.create_comment(f"Created PR #{pr.number} with an automated fix. Please review.")
-        
+
     except Exception as e:
         issue.create_comment(f"Error while trying to create automated fix: {str(e)}")
         raise

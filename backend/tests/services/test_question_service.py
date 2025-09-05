@@ -152,9 +152,7 @@ def test_question_ranking(question_service: QuestionService, base_user: UserOutp
     ]
 
     context = (
-        "Python is a versatile programming language widely used in software development. "
-        "It was created by Guido van Rossum and is particularly popular in web development "
-        "and data analysis."
+        "Python is a versatile programming language widely used in software development. " "It was created by Guido van Rossum and is particularly popular in web development " "and data analysis."
     )
 
     ranked = question_service._rank_questions(questions, context)
@@ -214,9 +212,7 @@ async def test_question_storage_and_retrieval(
     assert len(stored_questions) == len(initial_questions)
 
     # Create additional question
-    question_service.create_question(
-        QuestionInput(collection_id=base_collection.id, question="What are the main features of Python?")
-    )
+    question_service.create_question(QuestionInput(collection_id=base_collection.id, question="What are the main features of Python?"))
 
     # Verify question was added
     updated_questions = question_service.get_collection_questions(base_collection.id)

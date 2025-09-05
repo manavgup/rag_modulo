@@ -3,9 +3,10 @@
 import logging
 from mimetypes import guess_type
 from pathlib import Path
-from pydantic import UUID4
+from typing import Any
 
 from fastapi import UploadFile
+from pydantic import UUID4
 from sqlalchemy.orm import Session
 
 from core.config import settings
@@ -17,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 class FileManagementService:
-    def __init__(self, db: Session):
+    def __init__(self: Any, db: Session) -> None:
         self.file_repository = FileRepository(db)
 
     def create_file(self, file_input: FileInput, user_id: UUID4) -> FileOutput:
@@ -34,11 +35,12 @@ class FileManagementService:
         file_content = file.file.read()
         file_path = self.upload_file(user_id, collection_id, file_content, file.filename or "unknown")
 
+        filename = file.filename or "unknown"
         file_input = FileInput(
             collection_id=collection_id,
-            filename=file.filename,
+            filename=filename,
             file_path=str(file_path),
-            file_type=self.determine_file_type(file.filename),
+            file_type=self.determine_file_type(filename),
             metadata=None,  # We'll update this later when processing is complete
         )
         self.create_file(file_input, user_id)
@@ -66,11 +68,12 @@ class FileManagementService:
     def delete_file(self, file_id: UUID4) -> None:
         logger.info(f"Deleting file: {file_id}")
         file = self.file_repository.get(file_id)  # Will raise NotFoundError if not found
-        
+
         self.file_repository.delete(file_id)
-        file_path = Path(file.file_path)
-        if file_path.exists():
-            file_path.unlink()
+        if file.file_path:
+            file_path = Path(file.file_path)
+            if file_path.exists():
+                file_path.unlink()
 
         logger.info(f"File {file_id} deleted successfully")
 
@@ -114,11 +117,10 @@ class FileManagementService:
             files = self.get_files_by_collection(collection_id)
             if not files:
                 raise NotFoundError(
-                    resource_id=str(collection_id),
                     resource_type="File",
-                    message=f"No files found for collection {collection_id}",
+                    resource_id=str(collection_id),
                 )
-            return [file.filename for file in files]
+            return [file.filename for file in files if file.filename is not None]
         except NotFoundError as e:
             logger.error(f"Not found error getting files for collection {collection_id}: {e!s}")
             raise  # Propagate the NotFoundError
@@ -135,9 +137,7 @@ class FileManagementService:
         metadata: FileMetadata | None = None,
     ) -> FileOutput:
         try:
-            logger.info(
-                f"Uploading file {file.filename} for user {user_id} in collection {collection_id} with document_id {document_id}"
-            )
+            logger.info(f"Uploading file {file.filename} for user {user_id} in collection {collection_id} with document_id {document_id}")
             if file.filename is None:
                 raise ValidationError("File name cannot be empty", field="filename")
 
@@ -183,9 +183,9 @@ class FileManagementService:
 
         file_update = FileInput(
             collection_id=file.collection_id,
-            filename=file.filename,
-            file_path=file.file_path,
-            file_type=file.file_type,
+            filename=file.filename or "unknown",
+            file_path=file.file_path or "",
+            file_type=file.file_type or "unknown",
             metadata=metadata,
         )
         updated_file = self.file_repository.update(file_id, file_update)
@@ -202,6 +202,8 @@ class FileManagementService:
             logger.info(f"Getting file path for {filename} in collection {collection_id}")
             file = self.get_file_by_name(collection_id, filename)
             logger.info(f"found {file.file_path} for {file}")
+            if file.file_path is None:
+                raise ValueError(f"File {filename} has no file path")
             return Path(file.file_path)
         except Exception as e:
             logger.error(f"Unexpected error getting file path: {e!s}")

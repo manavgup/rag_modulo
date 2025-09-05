@@ -360,7 +360,7 @@ The application supports different operating modes controlled by environment var
 ```bash
 # All flags false or unset (default)
 TESTING=false
-SKIP_AUTH=false  
+SKIP_AUTH=false
 DEVELOPMENT_MODE=false
 ```
 - Full authentication required
@@ -641,7 +641,7 @@ Contributions are welcome! Please follow these guidelines when contributing to t
    # Create virtual environment
    python -m venv venv
    source venv/bin/activate  # or `venv\Scripts\activate` on Windows
-   
+
    # Install dependencies
    pip install -r requirements.txt
    pip install -r requirements-dev.txt
@@ -663,12 +663,12 @@ Contributions are welcome! Please follow these guidelines when contributing to t
    ```bash
    # Run all tests
    pytest
-   
+
    # Run specific test types
    pytest backend/tests/services/  # Service tests
    pytest backend/tests/integration/  # Integration tests
    pytest backend/tests/performance/  # Performance tests
-   
+
    # Check coverage
    pytest --cov=backend/rag_solution
    ```

@@ -1,3 +1,4 @@
+from collections.abc import Generator
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -8,7 +9,7 @@ from core.config import settings
 
 # Mock the OAuth client
 @pytest.fixture(autouse=True)
-def mock_oauth_client():
+def mock_oauth_client() -> Generator[MagicMock, None, None]:
     with patch("rag_solution.router.auth_router.oauth") as mock_oauth:
         mock_oauth.ibm = MagicMock()
         yield mock_oauth
@@ -16,19 +17,19 @@ def mock_oauth_client():
 
 @pytest.fixture
 @pytest.mark.integration
-def test_client():
+def test_client() -> TestClient:
     from main import app
 
     return TestClient(app)
 
 
-def test_login_redirect(test_client):
+def test_login_redirect(test_client: TestClient) -> None:
     response = test_client.get("/api/auth/login")
     assert response.status_code == 302
-    assert response.headers["location"].startswith(settings.oidc_authorization_endpoint)
+    assert response.headers["location"].startswith(settings.oidc_discovery_endpoint or "https://test.com")
 
 
-def test_callback_success(test_client, mock_oauth_client):
+def test_callback_success(test_client: TestClient, mock_oauth_client: MagicMock) -> None:
     # Mock the token exchange and user info retrieval
     mock_oauth_client.ibm.authorize_access_token.return_value = {
         "access_token": "mock_access_token",
@@ -50,7 +51,7 @@ def test_callback_success(test_client, mock_oauth_client):
     assert jwt_token.startswith("eyJ")  # JWT typically starts with this
 
 
-def test_get_user_info(test_client):
+def test_get_user_info(test_client: TestClient) -> None:
     # Create a mock JWT token
     mock_jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJtb2NrX2libV9pZCIsImVtYWlsIjoidGVzdEBleGFtcGxlLmNvbSIsIm5hbWUiOiJUZXN0IFVzZXIiLCJ1dWlkIjoibW9ja191dWlkIn0.mock_signature"
 
@@ -63,19 +64,19 @@ def test_get_user_info(test_client):
     assert user_info["uuid"] == "mock_uuid"
 
 
-def test_logout(test_client):
+def test_logout(test_client: TestClient) -> None:
     response = test_client.post("/api/auth/logout")
     assert response.status_code == 200
     assert response.json() == {"message": "Successfully logged out"}
 
 
-def test_get_user_uuid(test_client):
+def test_get_user_uuid(test_client: TestClient) -> None:
     response = test_client.get("/api/auth/user-id/mock_ibm_id")
     assert response.status_code == 200
     assert response.json() == "mock_uuid"
 
 
-def test_protected_route(test_client):
+def test_protected_route(test_client: TestClient) -> None:
     # Test a protected route without a valid JWT
     response = test_client.get("/api/protected")
     assert response.status_code == 401

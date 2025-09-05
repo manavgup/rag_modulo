@@ -1,5 +1,4 @@
 from pydantic import UUID4
-
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -40,12 +39,8 @@ class LLMParametersRepository:
         except IntegrityError as e:
             self.db.rollback()
             if "violates foreign key constraint" in str(e):
-                raise NotFoundError(
-                    resource_type="User", resource_id=str(parameters.user_id)
-                ) from e
-            raise AlreadyExistsError(
-                resource_type="LLMParameters", field="name", value=str(parameters.user_id)
-            ) from e
+                raise NotFoundError(resource_type="User", resource_id=str(parameters.user_id)) from e
+            raise AlreadyExistsError(resource_type="LLMParameters", field="name", value=str(parameters.user_id)) from e
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise
         except Exception:
@@ -67,9 +62,7 @@ class LLMParametersRepository:
         try:
             db_params = self.db.query(LLMParameters).filter(LLMParameters.id == parameter_id).first()
             if not db_params:
-                raise NotFoundError(
-                    resource_type="LLMParameters", resource_id=str(parameter_id)
-                )
+                raise NotFoundError(resource_type="LLMParameters", resource_id=str(parameter_id))
             return LLMParametersOutput.model_validate(db_params)
         except NotFoundError:
             raise
@@ -93,16 +86,11 @@ class LLMParametersRepository:
         try:
             db_params = self.db.query(LLMParameters).filter(LLMParameters.id == parameter_id).first()
             if not db_params:
-                raise NotFoundError(
-                    resource_type="LLMParameters",
-                    resource_id=str(parameter_id)
-                )
+                raise NotFoundError(resource_type="LLMParameters", resource_id=str(parameter_id))
 
             # Validate that user_id cannot be changed
             if parameters.user_id != db_params.user_id:
-                raise ValidationError(
-                    "Cannot change user_id of existing parameters", field="user_id"
-                )
+                raise ValidationError("Cannot change user_id of existing parameters", field="user_id")
 
             param_dict = parameters.model_dump(exclude_unset=True)
             for field, value in param_dict.items():
@@ -129,10 +117,7 @@ class LLMParametersRepository:
         """
         db_params = self.db.query(LLMParameters).filter(LLMParameters.id == parameter_id).first()
         if not db_params:
-            raise NotFoundError(
-                resource_type="LLMParameters",
-                resource_id=str(parameter_id)
-            )
+            raise NotFoundError(resource_type="LLMParameters", resource_id=str(parameter_id))
 
         self.db.delete(db_params)
         self.db.commit()
@@ -171,11 +156,7 @@ class LLMParametersRepository:
         Returns:
             Optional[LLMParametersOutput]: Default parameters if they exist, None otherwise
         """
-        db_params = (
-            self.db.query(LLMParameters)
-            .filter(LLMParameters.user_id == user_id, LLMParameters.is_default.is_(True))
-            .first()
-        )
+        db_params = self.db.query(LLMParameters).filter(LLMParameters.user_id == user_id, LLMParameters.is_default.is_(True)).first()
         return LLMParametersOutput.model_validate(db_params) if db_params else None
 
     def reset_default_parameters(self, user_id: UUID4) -> int:
@@ -187,10 +168,6 @@ class LLMParametersRepository:
         Returns:
             int: Number of parameters updated
         """
-        updated_count = (
-            self.db.query(LLMParameters)
-            .filter(LLMParameters.user_id == user_id, LLMParameters.is_default.is_(True))
-            .update({"is_default": False})
-        )
+        updated_count = self.db.query(LLMParameters).filter(LLMParameters.user_id == user_id, LLMParameters.is_default.is_(True)).update({"is_default": False})
         self.db.commit()
         return updated_count

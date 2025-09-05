@@ -17,7 +17,7 @@ from rag_solution.data_ingestion.chunking import (
 )
 
 
-def test_split_sentences():
+def test_split_sentences() -> None:
     """Test sentence splitting functionality."""
     # Test basic sentence splitting
     text = "This is sentence one. This is sentence two! This is sentence three?"
@@ -45,7 +45,7 @@ def test_split_sentences():
     assert "Mr. Smith went to Washington, D.C" in sentences[0]
 
 
-def test_combine_sentences():
+def test_combine_sentences() -> None:
     """Test sentence combination with context."""
     sentences = ["First sentence.", "Second sentence.", "Third sentence."]
     combined = combine_sentences(sentences)
@@ -66,7 +66,7 @@ def test_combine_sentences():
     assert combine_sentences([]) == []
 
 
-def test_simple_chunking():
+def test_simple_chunking() -> None:
     """Test simple text chunking with overlap."""
     text = "This is a test text that needs to be chunked into smaller pieces for processing."
 
@@ -97,13 +97,9 @@ def test_simple_chunking():
     assert len(chunks) > len(text) // 20  # Should have more chunks due to high overlap
 
 
-def test_semantic_chunking():
+def test_semantic_chunking() -> None:
     """Test semantic-based text chunking."""
-    text = (
-        "This is the first topic. This is also about the first topic. "
-        "This is a new topic. This is also about the new topic. "
-        "This is a third topic. This is also about the third topic."
-    )
+    text = "This is the first topic. This is also about the first topic. " "This is a new topic. This is also about the new topic. " "This is a third topic. This is also about the third topic."
 
     # Mock embeddings for testing
     mock_embeddings = np.array(
@@ -131,12 +127,9 @@ def test_semantic_chunking():
         assert chunks[0] == single
 
 
-def test_token_based_chunking():
+def test_token_based_chunking() -> None:
     """Test token-aware text chunking."""
-    text = (
-        "This is a test text. It has multiple sentences. "
-        "We want to ensure proper tokenization. And respect max tokens."
-    )
+    text = "This is a test text. It has multiple sentences. " "We want to ensure proper tokenization. And respect max tokens."
 
     # Mock tokenization
     mock_tokens = [[1, 2, 3, 4], [1, 2, 3], [1, 2, 3, 4, 5], [1, 2, 3]]
@@ -156,7 +149,7 @@ def test_token_based_chunking():
             assert chunks[0] == short_text
 
 
-def test_calculate_cosine_distances():
+def test_calculate_cosine_distances() -> None:
     """Test cosine distance calculation."""
     # Test with simple 2D embeddings
     embeddings = np.array([[1.0, 0.0], [1.0, 0.0], [0.0, 1.0], [0.0, 1.0]])
@@ -175,7 +168,7 @@ def test_calculate_cosine_distances():
     assert calculate_cosine_distances(np.array([])) == []
 
 
-def test_get_chunking_method():
+def test_get_chunking_method() -> None:
     """Test chunking method factory function."""
     # Test semantic chunking selection
     with patch.object(settings, "chunking_strategy", "semantic"):
@@ -193,7 +186,7 @@ def test_get_chunking_method():
         assert chunker == simple_chunker
 
 
-def test_chunker_integration():
+def test_chunker_integration() -> None:
     """Test integration of chunking methods with settings."""
     text = "This is a test text. It should be chunked according to settings."
 
@@ -220,7 +213,7 @@ def test_chunker_integration():
         assert all(len(chunk) >= 10 for chunk in chunks)
 
 
-def test_edge_cases():
+def test_edge_cases() -> None:
     """Test edge cases and error handling."""
     # Test handling of special characters
     special_text = "This has\nline breaks. And\ttabs. And    multiple    spaces."

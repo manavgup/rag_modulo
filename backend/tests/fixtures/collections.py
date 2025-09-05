@@ -1,58 +1,66 @@
 """Collection management fixtures for pytest."""
 
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
 
 from core.config import settings
 from core.logging_utils import get_logger
-from rag_solution.schemas.collection_schema import CollectionInput, CollectionStatus
+from rag_solution.generation.providers.base import LLMBase
+from rag_solution.models.question import SuggestedQuestion
+from rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput, CollectionStatus
+from rag_solution.schemas.file_schema import FileOutput
+from rag_solution.schemas.question_schema import QuestionInput
 from rag_solution.schemas.user_schema import UserOutput
 from rag_solution.services.collection_service import CollectionService
+from rag_solution.services.question_service import QuestionService
+from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, Source
+from vectordbs.milvus_store import MilvusStore
 
 logger = get_logger("tests.fixtures.collections")
 
 
 @pytest.fixture(scope="session")
-def base_collection(collection_service: CollectionService, base_user: UserOutput):
+def base_collection(collection_service: CollectionService, base_user: UserOutput) -> CollectionOutput:
     """Create a base collection using service."""
     collection_input = CollectionInput(
-        name="Test Collection", is_private=False, users=[base_user.id], status=CollectionStatus.COMPLETED
+        name="Test Collection",
+        is_private=False,
+        users=[base_user.id],
+        status=CollectionStatus.COMPLETED,
     )
     return collection_service.create_collection(collection_input)
 
 
 @pytest.fixture(scope="session")
-def base_suggested_question(question_service, base_collection):
+def base_suggested_question(question_service: QuestionService, base_collection: CollectionOutput) -> SuggestedQuestion:
     """Create a base suggested question using service."""
-    question = f"Test Question {uuid4()}"
-    return question_service.create_question(
-        {"collection_id": base_collection.id, "question": question, "is_valid": True}
-    )
+    question_text = f"Test Question {uuid4()}?"
+    question_input = QuestionInput(collection_id=base_collection.id, question=question_text, question_metadata={"is_valid": True})
+    return question_service.create_question(question_input)
 
 
 @pytest.fixture(scope="session")
-def vector_store():
+def vector_store() -> MilvusStore:
     """Initialize vector store for testing."""
-    from vectordbs.milvus_store import MilvusStore
-
     store = MilvusStore()
     store._connect(settings.milvus_host, settings.milvus_port)
     yield store
 
 
 @pytest.fixture(scope="session")
-def indexed_documents(vector_store, base_collection, base_file, get_watsonx):
+def indexed_documents(
+    vector_store: MilvusStore,
+    base_collection: CollectionOutput,
+    base_file: FileOutput,
+    get_watsonx: LLMBase,
+) -> str:
     """Add documents to vector store and return collection name."""
-    from unittest.mock import patch
 
-    from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, Source
-
-    # Create document from base_file
     text = "Sample text from the file."
 
-    # Mock the embeddings call for atomic tests
-    mock_embeddings = [[0.1, 0.2, 0.3, 0.4, 0.5]]  # Mock embedding vector
+    mock_embeddings = [[0.1, 0.2, 0.3, 0.4, 0.5]]
     with patch.object(get_watsonx, "get_embeddings", return_value=mock_embeddings):
         document = Document(
             document_id=base_file.document_id or str(uuid4()),
@@ -74,12 +82,13 @@ def indexed_documents(vector_store, base_collection, base_file, get_watsonx):
             ],
         )
 
-    # Set up vector store
     vector_store.delete_collection(base_collection.vector_db_name)
-    vector_store.create_collection(base_collection.vector_db_name, {"embedding_model": settings.embedding_model})
+    vector_store.create_collection(
+        base_collection.vector_db_name,
+        {"embedding_model": settings.embedding_model},
+    )
     vector_store.add_documents(base_collection.vector_db_name, [document])
 
     yield base_collection.vector_db_name
 
-    # Cleanup
     vector_store.delete_collection(base_collection.vector_db_name)

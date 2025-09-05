@@ -1,5 +1,6 @@
 """Tests for CollectionRouter."""
 
+from typing import Any
 from uuid import uuid4
 
 import pytest
@@ -8,6 +9,7 @@ from sqlalchemy.orm import Session
 from rag_solution.schemas.collection_schema import CollectionInput, CollectionStatus
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
 from rag_solution.schemas.question_schema import QuestionInput
+from rag_solution.schemas.user_schema import UserOutput
 from rag_solution.services.collection_service import CollectionService
 from rag_solution.services.file_management_service import FileManagementService
 
@@ -18,7 +20,7 @@ from rag_solution.services.file_management_service import FileManagementService
 
 @pytest.fixture
 @pytest.mark.api
-def test_client(test_client):
+def test_client(test_client: Any) -> Any:
     """Use the test client fixture that includes auth mocking."""
     return test_client
 
@@ -36,11 +38,9 @@ def file_management_service(db_session: Session) -> FileManagementService:
 
 
 @pytest.fixture
-def test_collection(base_user) -> CollectionInput:
+def test_collection(base_user: UserOutput) -> CollectionInput:
     """Create a test collection input."""
-    return CollectionInput(
-        name="Test Collection", is_private=False, users=[base_user.id], status=CollectionStatus.CREATED
-    )
+    return CollectionInput(name="Test Collection", is_private=False, users=[base_user.id], status=CollectionStatus.CREATED)
 
 
 @pytest.fixture
@@ -63,7 +63,7 @@ def test_llm_params() -> dict:
 # ----------------
 
 
-def test_create_collection(test_client, test_collection, base_user, auth_headers):
+def test_create_collection(test_client: Any, test_collection: CollectionInput, base_user: UserOutput, auth_headers: dict) -> None:
     """Test creating a collection."""
     # Add user_id to collection input
     collection_data = test_collection.model_dump(mode="json")
@@ -78,7 +78,7 @@ def test_create_collection(test_client, test_collection, base_user, auth_headers
     assert "id" in data
 
 
-def test_get_collection(test_client, collection_service, test_collection, auth_headers):
+def test_get_collection(test_client: Any, collection_service: CollectionService, test_collection: CollectionInput, auth_headers: dict) -> None:
     """Test getting a collection."""
     collection = collection_service.create_collection(test_collection)
 
@@ -90,7 +90,7 @@ def test_get_collection(test_client, collection_service, test_collection, auth_h
     assert data["name"] == collection.name
 
 
-def test_delete_collection(test_client, collection_service, test_collection, auth_headers):
+def test_delete_collection(test_client: Any, collection_service: CollectionService, test_collection: CollectionInput, auth_headers: dict) -> None:
     """Test deleting a collection."""
     collection = collection_service.create_collection(test_collection)
 
@@ -108,8 +108,13 @@ def test_delete_collection(test_client, collection_service, test_collection, aut
 
 
 def test_llm_parameters_crud(
-    test_client, collection_service, test_collection, test_llm_params, base_user, auth_headers
-):
+    test_client: Any,
+    collection_service: CollectionService,
+    test_collection: CollectionInput,
+    test_llm_params: dict,
+    base_user: UserOutput,
+    auth_headers: dict,
+) -> None:
     """Test LLM parameters CRUD operations."""
     # First create a collection
     collection_data = test_collection.model_dump(mode="json")
@@ -120,6 +125,7 @@ def test_llm_parameters_crud(
     params_input = LLMParametersInput(
         name=test_llm_params["name"],
         description=test_llm_params["description"],
+        user_id=base_user.id,
         max_new_tokens=test_llm_params["max_new_tokens"],
         temperature=test_llm_params["temperature"],
         top_k=test_llm_params["top_k"],
@@ -128,9 +134,7 @@ def test_llm_parameters_crud(
         is_default=test_llm_params["is_default"],
     )
 
-    create_response = test_client.post(
-        f"/api/users/{base_user.id}/llm-parameters", json=params_input.model_dump(mode="json"), headers=auth_headers
-    )
+    create_response = test_client.post(f"/api/users/{base_user.id}/llm-parameters", json=params_input.model_dump(mode="json"), headers=auth_headers)
     assert create_response.status_code == 200
     data = create_response.json()
     assert data["name"] == test_llm_params["name"]
@@ -144,9 +148,7 @@ def test_llm_parameters_crud(
     assert get_data["name"] == test_llm_params["name"]
 
     # Delete LLM parameters
-    delete_response = test_client.delete(
-        f"/api/users/{base_user.id}/llm-parameters/{get_data['id']}", headers=auth_headers
-    )
+    delete_response = test_client.delete(f"/api/users/{base_user.id}/llm-parameters/{get_data['id']}", headers=auth_headers)
     assert delete_response.status_code == 200
 
     # Verify deletion
@@ -160,7 +162,13 @@ def test_llm_parameters_crud(
 # ----------------
 
 
-def test_file_operations(test_client, collection_service, test_collection, base_user, auth_headers):
+def test_file_operations(
+    test_client: Any,
+    collection_service: CollectionService,
+    test_collection: CollectionInput,
+    base_user: UserOutput,
+    auth_headers: dict,
+) -> None:
     """Test file operations."""
     # Create collection with user
     collection_data = test_collection.model_dump(mode="json")
@@ -179,7 +187,13 @@ def test_file_operations(test_client, collection_service, test_collection, base_
 # ----------------
 
 
-def test_question_operations(test_client, collection_service, test_collection, base_user, auth_headers):
+def test_question_operations(
+    test_client: Any,
+    collection_service: CollectionService,
+    test_collection: CollectionInput,
+    base_user: UserOutput,
+    auth_headers: dict,
+) -> None:
     """Test question operations."""
     # Create collection with user
     collection_data = test_collection.model_dump(mode="json")
@@ -199,9 +213,7 @@ def test_question_operations(test_client, collection_service, test_collection, b
         json=question_input.model_dump(exclude_unset=True, mode="json"),
         headers=auth_headers,
     )
-    assert (
-        create_response.status_code == 200
-    ), f"Expected 200, got {create_response.status_code}. Response: {create_response.json()}"
+    assert create_response.status_code == 200, f"Expected 200, got {create_response.status_code}. Response: {create_response.json()}"
     create_response.json()["id"]
 
     # Get questions
@@ -226,7 +238,7 @@ def test_question_operations(test_client, collection_service, test_collection, b
 # ----------------
 
 
-def test_validation_errors(test_client, auth_headers):
+def test_validation_errors(test_client: Any, auth_headers: dict) -> None:
     """Test API validation error cases."""
     # Test invalid collection creation
     # Test invalid collection creation (empty name)
@@ -255,7 +267,7 @@ def test_validation_errors(test_client, auth_headers):
     assert response.status_code == 422
 
 
-def test_not_found_errors(test_client, auth_headers):
+def test_not_found_errors(test_client: Any, auth_headers: dict) -> None:
     """Test not found error cases."""
     non_existent_id = uuid4()
 

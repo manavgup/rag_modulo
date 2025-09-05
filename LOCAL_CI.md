@@ -90,7 +90,7 @@ act -P ubuntu-latest=catthehacker/ubuntu:act-latest
 
 ### Pre-commit Hooks Check:
 - ✅ YAML syntax in workflows
-- ✅ Poetry configuration validity  
+- ✅ Poetry configuration validity
 - ✅ Trailing whitespace, file endings
 - ✅ JSON/TOML syntax
 

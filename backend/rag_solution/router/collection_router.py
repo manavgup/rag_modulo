@@ -1,5 +1,3 @@
-from pydantic import UUID4
-
 from fastapi import (
     APIRouter,
     BackgroundTasks,
@@ -12,6 +10,7 @@ from fastapi import (
     Response,
     UploadFile,
 )
+from pydantic import UUID4
 from sqlalchemy.orm import Session
 
 from core.custom_exceptions import NotFoundError, ValidationError
@@ -40,19 +39,15 @@ async def debug_form_data(
     # Get user from authenticated JWT token
     current_user = request.state.user
     user_id = current_user.get("uuid")
-    
+
     logger.debug("=== DEBUG FORM DATA ===")
     logger.debug(f"Collection name: {collection_name}")
     logger.debug(f"User ID from JWT: {user_id}")
     logger.debug(f"Request URL: {request.url}")
     logger.debug(f"Request query params: {dict(request.query_params)}")
     logger.debug("=== END DEBUG FORM DATA ===")
-    
-    return {
-        "collection_name": collection_name,
-        "user_id": str(user_id),
-        "query_params": dict(request.query_params)
-    }
+
+    return {"collection_name": collection_name, "user_id": str(user_id), "query_params": dict(request.query_params)}
 
 
 @router.post("/debug-form-data-with-db")
@@ -65,19 +60,19 @@ async def debug_form_data_with_db(
     # Get user from authenticated JWT token
     current_user = request.state.user
     user_id = current_user.get("uuid")
-    
+
     logger.info("=== DEBUG FORM DATA WITH DB ===")
     logger.info(f"Collection name: {collection_name}")
     logger.info(f"User ID from JWT: {user_id}")
     logger.info(f"Request URL: {request.url}")
     logger.info(f"Request query params: {dict(request.query_params)}")
     logger.info("=== END DEBUG FORM DATA WITH DB ===")
-    
+
     return {
         "collection_name": collection_name,
         "user_id": str(user_id),
         "query_params": dict(request.query_params),
-        "db_connected": db is not None
+        "db_connected": db is not None,
     }
 
 
@@ -164,10 +159,10 @@ async def create_collection_with_documents(
     # Verify authentication and authorization
     if not request or not hasattr(request.state, "user"):
         raise HTTPException(status_code=401, detail="Not authenticated")
-    
+
     current_user = request.state.user
     user_id = current_user.get("uuid")
-    
+
     logger.info("=== COLLECTION ROUTER DEBUG ===")
     logger.info(f"Creating collection with documents: {collection_name}")
     logger.info(f"User ID from JWT: {user_id}")
@@ -177,12 +172,10 @@ async def create_collection_with_documents(
     logger.info(f"Request query params: {dict(request.query_params)}")
     logger.info(f"Request headers: {dict(request.headers)}")
     logger.info("=== END COLLECTION ROUTER DEBUG ===")
-    
+
     try:
         collection_service = CollectionService(db)
-        collection = collection_service.create_collection_with_documents(
-            collection_name, is_private, user_id, files, background_tasks
-        )
+        collection = collection_service.create_collection_with_documents(collection_name, is_private, user_id, files, background_tasks)
         logger.info(f"Collection created successfully: {collection.id}")
         return collection
     except ValidationError as e:
@@ -617,9 +610,7 @@ def delete_files(collection_id: UUID4, doc_delete: DocumentDelete, db: Session =
         500: {"description": "Internal server error"},
     },
 )
-def update_file_metadata(
-    collection_id: UUID4, file_id: UUID4, metadata: FileMetadata, db: Session = Depends(get_db)
-) -> FileOutput:
+def update_file_metadata(collection_id: UUID4, file_id: UUID4, metadata: FileMetadata, db: Session = Depends(get_db)) -> FileOutput:
     """
     Update metadata for a specific file.
 

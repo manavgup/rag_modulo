@@ -28,7 +28,7 @@ Asynchronous Processing: The system utilizes asynchronous programming techniques
 Technical Stack:
 Backend: Python with FastAPI
 Frontend: React with IBM Carbon Design.
-Databases: PostgreSQL (relational), 
+Databases: PostgreSQL (relational),
 Various vector databases (Elasticsearch, Milvus, Pinecone, Weaviate, ChromaDB)
 Containerization: Docker and Docker Compose
 Embedding: IBM WatsonX (customizable)
@@ -96,7 +96,7 @@ cd rag_modulo
 
 Now, based on the project type (web), see the directory structure. Read the Makefile and docker-compose.yml to understand the project structure.
 
-Once you understand the different containers that are created, start by examining the backend folder. Review the rag_solution directory for the modular RAG solution. Start by understanding the support for various vector databases in backend/vectordbs. Review test coverage in backend/tests. 
+Once you understand the different containers that are created, start by examining the backend folder. Review the rag_solution directory for the modular RAG solution. Start by understanding the support for various vector databases in backend/vectordbs. Review test coverage in backend/tests.
 
 .
 ├── Dockerfile.backend
@@ -494,34 +494,34 @@ This document tracks important development practices, solutions to common proble
 4.1. Based on the project type and requirements, define a specific technology stack by choosing one option from each category. Create a techStack.md file in the claudeDev_docs directory to document these choices.
 
 For Web Application:
-- Frontend: 
+- Frontend:
   * React with Create React App (recommended for simplicity and quick setup)
   * Next.js (choose if server-side rendering or advanced routing is required)
-- UI Components: 
+- UI Components:
   * Material-UI (recommended for comprehensive, well-documented components)
   * Chakra UI (choose if a more lightweight, accessible library is preferred)
-- State Management: 
+- State Management:
   * React Context API (recommended for simpler state management needs)
   * Redux Toolkit (choose if complex state management is anticipated)
-- Backend: 
+- Backend:
   * Node.js with Express (recommended for JavaScript consistency)
   * Firebase (choose if rapid development and built-in auth are priorities)
-- Database: 
+- Database:
   * MongoDB (recommended for flexible schema and rapid prototyping)
   * PostgreSQL (choose if structured data and complex queries are needed)
 
 For Mobile App:
-- Framework: 
+- Framework:
   * React Native with Expo (recommended for easiest setup and deployment)
-- UI Components: 
+- UI Components:
   * React Native Paper (recommended for Material Design consistency)
-- State Management: 
+- State Management:
   * React Context API (recommended for simpler state management needs)
   * Redux Toolkit (choose if complex state management is anticipated)
-- Backend: 
+- Backend:
   * Node.js with Express (recommended for JavaScript consistency)
   * Firebase (choose if rapid development and real-time features are needed)
-- Database: 
+- Database:
   * MongoDB (recommended for flexible schema and rapid prototyping)
   * PostgreSQL (choose if structured data and complex queries are needed)
 - Deployment Options:

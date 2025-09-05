@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import uuid
 from datetime import datetime
 
@@ -17,7 +19,7 @@ class Team(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
-    users = relationship("UserTeam", back_populates="team")
+    users: Mapped[list[UserTeam]] = relationship("UserTeam", back_populates="team")  # type: ignore[name-defined]
 
     def __repr__(self) -> str:
         return f"Team(id='{self.id}', name='{self.name}')"

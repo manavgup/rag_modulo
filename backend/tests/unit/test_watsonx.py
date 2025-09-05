@@ -1,5 +1,7 @@
 """Tests for WatsonX provider implementation."""
 
+from typing import Any
+
 import pytest
 
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
@@ -7,7 +9,7 @@ from rag_solution.schemas.prompt_template_schema import PromptTemplateInput, Pro
 
 
 @pytest.mark.atomic
-def test_provider_initialization(provider, db_session) -> None:
+def test_provider_initialization(provider: Any, db_session: Any) -> None:
     """Test provider initialization with config."""
     # Provider should be automatically initialized by base class
     assert provider._provider_name == "watsonx"
@@ -22,7 +24,7 @@ def test_provider_initialization(provider, db_session) -> None:
     assert provider.client is not None
 
 
-def test_generate_text(provider, base_user, base_llm_parameters) -> None:
+def test_generate_text(provider: Any, base_user: Any, base_llm_parameters: Any) -> None:
     """Test text generation."""
     # Convert SQLAlchemy model to Pydantic input model
     params_input = LLMParametersInput(
@@ -44,7 +46,7 @@ def test_generate_text(provider, base_user, base_llm_parameters) -> None:
     assert len(response) > 0
 
 
-def test_generate_text_stream(provider, base_user, base_llm_parameters) -> None:
+def test_generate_text_stream(provider: Any, base_user: Any, base_llm_parameters: Any) -> None:
     """Test streaming text generation."""
     # Convert SQLAlchemy model to Pydantic input model
     params_input = LLMParametersInput(
@@ -68,7 +70,7 @@ def test_generate_text_stream(provider, base_user, base_llm_parameters) -> None:
 
 
 @pytest.mark.atomic
-def test_get_embeddings(provider) -> None:
+def test_get_embeddings(provider: Any) -> None:
     """Test embedding generation."""
     from unittest.mock import patch
 
@@ -82,7 +84,7 @@ def test_get_embeddings(provider) -> None:
     assert all(len(emb) > 0 for emb in embeddings)
 
 
-def test_template_formatting(provider, base_user, base_llm_parameters, prompt_template_service) -> None:
+def test_template_formatting(provider: Any, base_user: Any, base_llm_parameters: Any, prompt_template_service: Any) -> None:
     """Test prompt template formatting."""
     # Convert SQLAlchemy model to Pydantic input model
     params_input = LLMParametersInput(
@@ -101,10 +103,11 @@ def test_template_formatting(provider, base_user, base_llm_parameters, prompt_te
         base_user.id,
         PromptTemplateInput(
             name="test-template",
-            provider="watsonx",
+            user_id=base_user.id,
             template_type=PromptTemplateType.RAG_QUERY,
             template_format="Question: {question}\nContext: {context}",
             input_variables={"question": "User's question", "context": "Retrieved context"},
+            max_context_length=1000,
         ),
     )
 
@@ -122,7 +125,7 @@ def test_template_formatting(provider, base_user, base_llm_parameters, prompt_te
     assert len(response) > 0
 
 
-def test_batch_generation(provider, base_user, base_llm_parameters) -> None:
+def test_batch_generation(provider: Any, base_user: Any, base_llm_parameters: Any) -> None:
     """Test batch text generation."""
     # Convert SQLAlchemy model to Pydantic input model
     params_input = LLMParametersInput(

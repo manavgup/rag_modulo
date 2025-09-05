@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Generator, Sequence
 from pathlib import Path
 from typing import Any
+
 from pydantic import UUID4
 
 from core.custom_exceptions import LLMProviderError
@@ -97,18 +98,14 @@ class LLMBase(ABC):
                 self.initialize_client()
             self.validate_client()
         except Exception as e:
-            raise LLMProviderError(
-                provider=self._provider_name, error_type="client_error", message=f"Client error: {e!s}"
-            ) from e
+            raise LLMProviderError(provider=self._provider_name, error_type="client_error", message=f"Client error: {e!s}") from e
 
     def validate_client(self) -> None:
         """Validate OpenAI client state."""
         if self.client is None:
             raise ValueError("OpenAI client is not initialized")
 
-    def _format_prompt(
-        self, prompt: str, template: PromptTemplateBase | None = None, variables: dict[str, Any] | None = None
-    ) -> str:
+    def _format_prompt(self, prompt: str, template: PromptTemplateBase | None = None, variables: dict[str, Any] | None = None) -> str:
         """Format prompt using template service."""
         if not template:
             return prompt

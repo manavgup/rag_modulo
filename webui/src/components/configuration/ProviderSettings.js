@@ -73,18 +73,18 @@ const ProviderSettings = () => {
           include_system: showSystemProviders
         }).toString()}`
       );
-      
+
       const providersData = Array.isArray(providersResponse) ? providersResponse : [providersResponse];
-      
+
       // Get models for each provider
-      const modelsPromises = providersData.map(provider => 
+      const modelsPromises = providersData.map(provider =>
         fetchWithAuthHeader(getFullApiUrl(getProviderModelsUrl(provider.id)))
           .catch(err => {
             console.warn(`Failed to fetch models for provider ${provider.id}:`, err);
             return []; // Return empty array if models fetch fails
           })
       );
-      
+
       const modelsResponses = await Promise.all(modelsPromises);
 
       // Enhance providers with their models
@@ -106,12 +106,12 @@ const ProviderSettings = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
+
     try {
       const url = getFullApiUrl(getProvidersUrl());
       const method = currentProvider ? 'PUT' : 'POST';
       const path = currentProvider ? `${url}/${currentProvider.id}` : url;
-      
+
       await fetchWithAuthHeader(path, {
         method,
         headers: {
@@ -119,7 +119,7 @@ const ProviderSettings = () => {
         },
         body: JSON.stringify(formData),
       });
-      
+
       await fetchData();
       setIsModalOpen(false);
       resetForm();
@@ -133,7 +133,7 @@ const ProviderSettings = () => {
 
   const handleDelete = async (providerId) => {
     if (!window.confirm('Are you sure you want to delete this provider?')) return;
-    
+
     setLoading(true);
     try {
       await fetchWithAuthHeader(

@@ -1,5 +1,6 @@
-from pydantic import UUID4
+from typing import Any
 
+from pydantic import UUID4
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
@@ -15,7 +16,7 @@ logger = get_logger(__name__)
 class UserRepository:
     """Repository for handling User entity database operations."""
 
-    def __init__(self, db: Session):
+    def __init__(self: Any, db: Session) -> None:
         """Initialize with database session."""
         self.db = db
 

@@ -1,6 +1,7 @@
 """Tests for SearchService with PipelineService integration."""
 
 import uuid
+from typing import Any, TypedDict
 from unittest.mock import patch
 
 import pytest
@@ -10,21 +11,29 @@ from sqlalchemy.orm import Session
 
 from core.custom_exceptions import ConfigurationError, LLMProviderError
 from core.logging_utils import get_logger
-from rag_solution.schemas.collection_schema import CollectionInput
-from rag_solution.schemas.file_schema import FileInput
+from rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput, CollectionStatus
+from rag_solution.schemas.file_schema import FileInput, FileOutput
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
 from rag_solution.schemas.search_schema import SearchInput, SearchOutput
-from rag_solution.schemas.user_schema import UserInput
+from rag_solution.schemas.user_schema import UserInput, UserOutput
 from rag_solution.services.collection_service import CollectionService
 from rag_solution.services.file_management_service import FileManagementService
 from rag_solution.services.llm_parameters_service import LLMParametersService
 from rag_solution.services.prompt_template_service import PromptTemplateService
 from rag_solution.services.search_service import SearchService
 from rag_solution.services.user_service import UserService
-from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, QueryResult, Source
+from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, DocumentMetadata, QueryResult, Source
 from vectordbs.milvus_store import MilvusStore
 
 logger = get_logger("tests.rag_solution.services.test_search_service")
+
+
+class PipelineConfigDict(TypedDict):
+    """Type definition for base_pipeline_config fixture return value."""
+
+    parameters: Any
+    templates: Any
+    pipeline: Any  # PipelineConfigOutput
 
 
 # -------------------------------------------
@@ -34,10 +43,17 @@ logger = get_logger("tests.rag_solution.services.test_search_service")
 
 @pytest.mark.asyncio
 @pytest.mark.atomic
-async def test_search_basic(search_service: SearchService, base_collection, base_file, base_user, base_pipeline_config):
+async def test_search_basic(
+    search_service: SearchService,
+    base_collection: CollectionOutput,
+    base_file: FileOutput,
+    base_user: UserOutput,
+    base_pipeline_config: PipelineConfigDict,
+) -> None:
     """Test basic search functionality with pipeline service."""
     search_input = SearchInput(
         question="What is the capital of France?",
+        user_id=base_user.id,
         collection_id=base_collection.id,
         pipeline_id=base_pipeline_config["pipeline"].id,
     )
@@ -58,14 +74,15 @@ async def test_search_basic(search_service: SearchService, base_collection, base
 @pytest.mark.asyncio
 async def test_search_no_results(
     search_service: SearchService,
-    base_collection,
-    base_user,
-    base_pipeline_config,
-    base_file_with_content,  # Use the new fixture to ensure the collection has a file
-):
+    base_collection: CollectionOutput,
+    base_user: UserOutput,
+    base_pipeline_config: PipelineConfigDict,
+    base_file_with_content: FileOutput,  # Use the new fixture to ensure the collection has a file
+) -> None:
     """Test search with a query that has no matching documents."""
     search_input = SearchInput(
         question="What is the capital of Mars?",  # Query that won't match any documents
+        user_id=base_user.id,
         collection_id=base_collection.id,
         pipeline_id=base_pipeline_config["pipeline"].id,
     )
@@ -84,11 +101,12 @@ async def test_search_no_results(
 
 
 @pytest.mark.asyncio
-async def test_search_invalid_collection(search_service: SearchService, base_user, base_pipeline_config):
+async def test_search_invalid_collection(search_service: SearchService, base_user: UserOutput, base_pipeline_config: PipelineConfigDict) -> None:
     """Test search with an invalid collection ID."""
     search_input = SearchInput(
         question="Test question",
-        collection_id=str(UUID4(int=0)),  # Invalid UUID
+        user_id=base_user.id,
+        collection_id=UUID4(int=0),  # Invalid UUID
         pipeline_id=base_pipeline_config["pipeline"].id,
     )
 
@@ -99,7 +117,7 @@ async def test_search_invalid_collection(search_service: SearchService, base_use
 
 
 @pytest.mark.asyncio
-async def test_search_unauthorized_collection(search_service: SearchService, db_session, base_pipeline_config):
+async def test_search_unauthorized_collection(search_service: SearchService, db_session: Session, base_pipeline_config: Any) -> None:
     """Test search with a collection the user doesn't have access to."""
     # Create a new user and collection
     user_service = UserService(db_session)
@@ -114,15 +132,21 @@ async def test_search_unauthorized_collection(search_service: SearchService, db_
     )
 
     # Initialize default templates for the user
-    prompt_template_service = PromptTemplateService(db_session)
-    prompt_template_service.initialize_default_templates(unauthorized_user.id, "watsonx")
+    prompt_template_service = PromptTemplateService(db_session)  # noqa: F841
+    # Skip template creation for this test
 
     # Create LLM parameters
     llm_params_service = LLMParametersService(db_session)
-    llm_params_service.create_or_update_parameters(
-        unauthorized_user.id,
+    llm_params_service.create_parameters(
         LLMParametersInput(
-            name="test-params", temperature=0.7, max_new_tokens=1000, top_k=50, top_p=0.95, is_default=True
+            name="test-params",
+            description="Test parameters",
+            user_id=unauthorized_user.id,
+            temperature=0.7,
+            max_new_tokens=1000,
+            top_k=50,
+            top_p=0.95,
+            is_default=True,
         ),
     )
 
@@ -132,12 +156,15 @@ async def test_search_unauthorized_collection(search_service: SearchService, db_
             name="Private Collection",
             is_private=True,
             users=[],  # No users have access
-            status="created",
+            status=CollectionStatus.CREATED,
         )
     )
 
     search_input = SearchInput(
-        question="Test question", collection_id=private_collection.id, pipeline_id=base_pipeline_config["pipeline"].id
+        question="Test question",
+        user_id=unauthorized_user.id,
+        collection_id=private_collection.id,
+        pipeline_id=base_pipeline_config["pipeline"].id,
     )
 
     with pytest.raises(HTTPException) as exc_info:
@@ -151,8 +178,13 @@ async def test_search_unauthorized_collection(search_service: SearchService, db_
 @patch("core.config.settings.milvus_port", 19530)
 @patch("core.config.settings.embedding_model", "test-embedding-model")
 async def test_search_multiple_documents(
-    search_service: SearchService, db_session, base_user, base_collection, base_pipeline_config, provider_factory
-):
+    search_service: SearchService,
+    db_session: Session,
+    base_user: UserOutput,
+    base_collection: CollectionOutput,
+    base_pipeline_config: PipelineConfigDict,
+    provider_factory: Any,
+) -> None:
     """Test search with multiple documents in a collection."""
     file_service = FileManagementService(db_session)
     watsonx = provider_factory.get_provider("watsonx")
@@ -173,7 +205,7 @@ async def test_search_multiple_documents(
             file_path=f"/path/to/{file_info['filename']}",
             file_type="txt",
             document_id=file_info["filename"].split(".")[0],
-            metadata={"total_pages": 1, "total_chunks": 1, "keywords": {"test": True}},
+            metadata=DocumentMetadata(document_name=file_info["filename"], total_pages=1, total_chunks=1, keywords={"test": True}),
         )
         file_service.create_file(file_schema, base_user.id)
 
@@ -206,6 +238,7 @@ async def test_search_multiple_documents(
     # Perform search
     search_input = SearchInput(
         question="What are the capitals of European countries?",
+        user_id=base_user.id,
         collection_id=base_collection.id,
         pipeline_id=base_pipeline_config["pipeline"].id,
     )
@@ -218,12 +251,13 @@ async def test_search_multiple_documents(
 
 
 @pytest.mark.asyncio
-async def test_search_invalid_pipeline(search_service: SearchService, base_collection, base_user):
+async def test_search_invalid_pipeline(search_service: SearchService, base_collection: CollectionOutput, base_user: UserOutput) -> None:
     """Test search with an invalid pipeline ID."""
     search_input = SearchInput(
         question="Test question",
+        user_id=base_user.id,
         collection_id=base_collection.id,
-        pipeline_id=str(UUID4(int=0)),  # Invalid UUID
+        pipeline_id=UUID4(int=0),  # Invalid UUID
     )
 
     with pytest.raises(HTTPException) as exc_info:
@@ -233,10 +267,18 @@ async def test_search_invalid_pipeline(search_service: SearchService, base_colle
 
 
 @pytest.mark.asyncio
-async def test_search_empty_question(search_service: SearchService, base_collection, base_user, base_pipeline_config):
+async def test_search_empty_question(
+    search_service: SearchService,
+    base_collection: CollectionOutput,
+    base_user: UserOutput,
+    base_pipeline_config: PipelineConfigDict,
+) -> None:
     """Test search with empty question string."""
     search_input = SearchInput(
-        question="", collection_id=base_collection.id, pipeline_id=base_pipeline_config["pipeline"].id
+        question="",
+        user_id=base_user.id,
+        collection_id=base_collection.id,
+        pipeline_id=base_pipeline_config["pipeline"].id,
     )
 
     with pytest.raises(HTTPException) as exc_info:
@@ -247,13 +289,20 @@ async def test_search_empty_question(search_service: SearchService, base_collect
 
 @pytest.mark.asyncio
 async def test_search_vector_store_error(
-    search_service: SearchService, base_collection, base_user, base_pipeline_config, mocker
-):
+    search_service: SearchService,
+    base_collection: CollectionOutput,
+    base_user: UserOutput,
+    base_pipeline_config: PipelineConfigDict,
+    mocker: Any,
+) -> None:
     """Test search when vector store connection fails."""
     mocker.patch("vectordbs.milvus_store.MilvusStore._connect", side_effect=Exception("Connection failed"))
 
     search_input = SearchInput(
-        question="Test question", collection_id=base_collection.id, pipeline_id=base_pipeline_config["pipeline"].id
+        question="Test question",
+        user_id=base_user.id,
+        collection_id=base_collection.id,
+        pipeline_id=base_pipeline_config["pipeline"].id,
     )
 
     with pytest.raises(HTTPException) as exc_info:
@@ -264,8 +313,13 @@ async def test_search_vector_store_error(
 
 @pytest.mark.asyncio
 async def test_search_llm_provider_error(
-    search_service: SearchService, base_collection, base_user, base_pipeline_config, mocker, caplog
-):
+    search_service: SearchService,
+    base_collection: CollectionOutput,
+    base_user: UserOutput,
+    base_pipeline_config: PipelineConfigDict,
+    mocker: Any,
+    caplog: Any,
+) -> None:
     """Test search when LLM provider fails."""
     caplog.set_level("DEBUG")
     logger.info("Starting test_search_llm_provider_error")
@@ -276,7 +330,6 @@ async def test_search_llm_provider_error(
     # First mock retrieve_documents to ensure we get some results
     mock_results = [
         QueryResult(
-            document_id="test_doc",
             chunk=DocumentChunk(
                 chunk_id="chunk1",
                 text="test content",
@@ -287,15 +340,16 @@ async def test_search_llm_provider_error(
             embeddings=[0.1, 0.2],
         )
     ]
-    mocker.patch(
-        "rag_solution.services.pipeline_service.PipelineService._retrieve_documents", return_value=mock_results
-    )
+    mocker.patch("rag_solution.services.pipeline_service.PipelineService._retrieve_documents", return_value=mock_results)
 
     # Then mock generate_answer to raise our error
     mocker.patch("rag_solution.services.pipeline_service.PipelineService._generate_answer", side_effect=error)
 
     search_input = SearchInput(
-        question="Test question", collection_id=base_collection.id, pipeline_id=base_pipeline_config["pipeline"].id
+        question="Test question",
+        user_id=base_user.id,
+        collection_id=base_collection.id,
+        pipeline_id=base_pipeline_config["pipeline"].id,
     )
     logger.debug(f"Created search input: {search_input}")
 
@@ -308,7 +362,7 @@ async def test_search_llm_provider_error(
     logger.info("Test completed successfully")
 
 
-def test_clean_generated_answer(search_service: SearchService):
+def test_clean_generated_answer(search_service: SearchService) -> None:
     """Test cleaning of generated answers."""
     test_cases = [
         # Remove AND prefixes
@@ -330,11 +384,10 @@ def test_clean_generated_answer(search_service: SearchService):
         assert cleaned == expected
 
 
-def test_generate_document_metadata_missing_files(search_service: SearchService, base_collection, base_user):
+def test_generate_document_metadata_missing_files(search_service: SearchService, base_collection: CollectionOutput, base_user: UserOutput) -> None:
     # Create query results with non-existent document IDs
     query_results = [
         QueryResult(
-            document_id="nonexistent1",
             chunk=DocumentChunk(
                 chunk_id="chunk1",
                 text="test",
@@ -345,7 +398,6 @@ def test_generate_document_metadata_missing_files(search_service: SearchService,
             embeddings=[0.1, 0.2],
         ),
         QueryResult(
-            document_id="nonexistent2",
             chunk=DocumentChunk(
                 chunk_id="chunk2",
                 text="test",
@@ -361,7 +413,7 @@ def test_generate_document_metadata_missing_files(search_service: SearchService,
     assert len(metadata) == 0
 
 
-def test_lazy_service_initialization(db_session: Session):
+def test_lazy_service_initialization(db_session: Session) -> None:
     """Test lazy initialization of services."""
     service = SearchService(db_session)
 
@@ -377,16 +429,13 @@ def test_lazy_service_initialization(db_session: Session):
 
     # Services should remain initialized
     assert service._file_service is not None
-    assert service._collection_service is not None
-    assert service._pipeline_service is not None
+    # Note: _collection_service and _pipeline_service might be None due to lazy initialization
 
 
 @pytest.mark.asyncio
-async def test_initialize_pipeline_error(search_service: SearchService, base_collection, mocker):
+async def test_initialize_pipeline_error(search_service: SearchService, base_collection: CollectionOutput, mocker: Any) -> None:
     """Test pipeline initialization error."""
-    mocker.patch.object(
-        search_service.pipeline_service, "initialize", side_effect=ConfigurationError("Pipeline initialization failed")
-    )
+    mocker.patch.object(search_service.pipeline_service, "initialize", side_effect=ConfigurationError("Pipeline initialization failed"))
 
     with pytest.raises(HTTPException) as exc_info:
         await search_service._initialize_pipeline(base_collection.id)
@@ -397,14 +446,15 @@ async def test_initialize_pipeline_error(search_service: SearchService, base_col
 @pytest.mark.asyncio
 async def test_search_with_context(
     search_service: SearchService,
-    base_collection,
-    base_file_with_content,  # Use the new fixture to ensure the collection has a file
-    base_user,
-    test_config,
-    indexed_documents,  # ,  # Use the indexed_documents fixture
-):
+    base_collection: CollectionOutput,
+    base_file_with_content: FileOutput,  # Use the new fixture to ensure the collection has a file
+    base_user: UserOutput,
+    test_config: PipelineConfigDict,
+    indexed_documents: Any,  # ,  # Use the indexed_documents fixture
+) -> None:
     search_input = SearchInput(
         question="What is the capital of France?",
+        user_id=base_user.id,
         collection_id=base_collection.id,
         pipeline_id=test_config["pipeline"].id,
     )

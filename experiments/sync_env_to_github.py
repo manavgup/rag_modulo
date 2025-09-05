@@ -19,4 +19,3 @@ if __name__ == "__main__":
     github_token = os.getenv("GITHUB_TOKEN", input("Enter your GitHub Personal Access Token: "))
     secrets = load_env()
     upload_to_github_secrets(repo_name, github_token, secrets)
-

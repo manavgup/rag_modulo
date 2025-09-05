@@ -1,5 +1,7 @@
 """Tests for LLM provider initialization."""
 
+from typing import Any
+
 import pytest
 
 from rag_solution.generation.providers.anthropic import AnthropicLLM
@@ -7,6 +9,7 @@ from rag_solution.generation.providers.openai import OpenAILLM
 from rag_solution.generation.providers.watsonx import WatsonXLLM
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput, LLMParametersOutput
 from rag_solution.schemas.prompt_template_schema import PromptTemplateInput, PromptTemplateOutput, PromptTemplateType
+from rag_solution.schemas.user_schema import UserOutput
 from rag_solution.services.llm_parameters_service import LLMParametersService
 from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.prompt_template_service import PromptTemplateService
@@ -14,17 +17,38 @@ from rag_solution.services.prompt_template_service import PromptTemplateService
 
 @pytest.fixture
 @pytest.mark.integration
-def test_parameters() -> dict[str, LLMParametersInput]:
+def test_parameters(base_user: UserOutput) -> dict[str, LLMParametersInput]:
     """Test LLM parameters for each provider."""
     return {
-        "watsonx": LLMParametersInput(name="watsonx-params", temperature=0.7, max_new_tokens=1000, is_default=True),
-        "openai": LLMParametersInput(name="openai-params", temperature=0.7, max_new_tokens=1000, is_default=True),
-        "anthropic": LLMParametersInput(name="anthropic-params", temperature=0.7, max_new_tokens=1000, is_default=True),
+        "watsonx": LLMParametersInput(
+            name="watsonx-params",
+            description="WatsonX parameters",
+            user_id=base_user.id,
+            temperature=0.7,
+            max_new_tokens=1000,
+            is_default=True,
+        ),
+        "openai": LLMParametersInput(
+            name="openai-params",
+            description="OpenAI parameters",
+            user_id=base_user.id,
+            temperature=0.7,
+            max_new_tokens=1000,
+            is_default=True,
+        ),
+        "anthropic": LLMParametersInput(
+            name="anthropic-params",
+            description="Anthropic parameters",
+            user_id=base_user.id,
+            temperature=0.7,
+            max_new_tokens=1000,
+            is_default=True,
+        ),
     }
 
 
 @pytest.fixture
-def test_templates(base_user) -> dict[str, PromptTemplateInput]:
+def test_templates(base_user: UserOutput) -> dict[str, PromptTemplateInput]:
     """Test prompt templates for each provider."""
     return {
         "watsonx": PromptTemplateInput(
@@ -35,6 +59,7 @@ def test_templates(base_user) -> dict[str, PromptTemplateInput]:
             template_format="Context:\n{context}\n\nQuestion:\n{question}\n\nAnswer:\n",
             input_variables={"context": "Retrieved context", "question": "User's question"},
             example_inputs={"context": "Python was created by Guido van Rossum.", "question": "Who created Python?"},
+            max_context_length=1000,
             is_default=True,
         ),
         "openai": PromptTemplateInput(
@@ -45,6 +70,7 @@ def test_templates(base_user) -> dict[str, PromptTemplateInput]:
             template_format="Context:\n{context}\n\nQuestion:\n{question}\n\nAnswer:\n",
             input_variables={"context": "Retrieved context", "question": "User's question"},
             example_inputs={"context": "Python was created by Guido van Rossum.", "question": "Who created Python?"},
+            max_context_length=1000,
             is_default=True,
         ),
         "anthropic": PromptTemplateInput(
@@ -55,6 +81,7 @@ def test_templates(base_user) -> dict[str, PromptTemplateInput]:
             template_format="Context:\n{context}\n\nQuestion:\n{question}\n\nAnswer:\n",
             input_variables={"context": "Retrieved context", "question": "User's question"},
             example_inputs={"context": "Python was created by Guido van Rossum.", "question": "Who created Python?"},
+            max_context_length=1000,
             is_default=True,
         ),
     }
@@ -68,15 +95,22 @@ def test_templates(base_user) -> dict[str, PromptTemplateInput]:
         (AnthropicLLM, "anthropic"),
     ],
 )
-def test_provider_initialization(db_session, base_user, test_parameters, test_templates, provider_class, provider_key):
+def test_provider_initialization(
+    db_session: Any,
+    base_user: UserOutput,
+    test_parameters: dict[str, LLMParametersInput],
+    test_templates: dict[str, PromptTemplateInput],
+    provider_class: Any,
+    provider_key: str,
+) -> None:
     """Test provider initialization for all providers."""
     # Create service instances
     llm_provider_service = LLMProviderService(db_session)
     llm_parameters_service = LLMParametersService(db_session)
     prompt_template_service = PromptTemplateService(db_session)
 
-    # Initialize providers using the `initialize_providers` method
-    initialized_providers = llm_provider_service.initialize_providers(raise_on_error=True)
+    # Get all available providers
+    initialized_providers = llm_provider_service.get_all_providers()
 
     # Verify that the providers were initialized
     assert len(initialized_providers) > 0

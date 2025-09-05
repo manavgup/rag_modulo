@@ -22,30 +22,56 @@ repos:
     rev: v0.1.11
     hooks:
       - id: ruff
-        args: ['--fix', '--line-length=120']
+        args: ['--fix', '--line-length=200', '--config', 'backend/pyproject.toml']
         files: ^backend/
       - id: ruff-format
-        args: ['--line-length=120']
+        args: ['--line-length=200', '--config', 'backend/pyproject.toml']
         files: ^backend/
 
   # Python type checking - MyPy
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.8.0
+    rev: v1.13.0
     hooks:
       - id: mypy
         args: [
-          '--ignore-missing-imports',
           '--disable-error-code=misc',
           '--disable-error-code=unused-ignore',
-          '--no-strict-optional'
+          '--no-strict-optional',
+          'backend/'
         ]
         additional_dependencies:
           - pydantic>=2.0
           - types-setuptools
           - types-PyYAML
-          - sqlalchemy-stubs
+          - sqlalchemy>=2.0.0
+          - types-aiofiles
+          - types-PyJWT
+          - types-requests
+          - pandas-stubs
+          - types-click
+          - fastapi
+          - starlette
+          - pydantic-settings
+          - rich
+          - authlib
+          - scikit-learn
+          - pymupdf
+          - python-docx
+          - pytest
+          - chromadb
+          - ibm-watsonx-ai
+          - tenacity
+          - weaviate-client
+          - pinecone
+          - pymilvus
+          - elasticsearch
+          - openai
+          - anthropic
+          - json-repair
+          - validators
+          - httpx
         files: ^backend/
-        pass_filenames: true
+        pass_filenames: false
 
   # GitHub Workflow validation
   - repo: https://github.com/sirosen/check-jsonschema

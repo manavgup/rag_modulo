@@ -174,7 +174,7 @@ def clean_text(text: Optional[str]) -> str:
     Examples:
         >>> clean_text("Hello, World! How are you?")
         'Hello World How are you'
-        
+
         >>> clean_text("Text@#$%^&*()with!@#$%^&*()symbols")
         'Text with symbols'
     """

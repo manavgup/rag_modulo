@@ -6,7 +6,7 @@ from core.config import Settings
 
 
 @pytest.mark.atomic
-def test_settings_loaded_from_env(mock_settings):
+def test_settings_loaded_from_env(mock_settings: Settings) -> None:
     """Test that settings are loaded from environment variables."""
     # Test required settings
     assert mock_settings.jwt_secret_key == "test-secret-key"
@@ -24,10 +24,10 @@ def test_settings_loaded_from_env(mock_settings):
 
 
 @pytest.mark.atomic
-def test_settings_with_minimal_env(minimal_test_env):
+def test_settings_with_minimal_env(minimal_test_env: pytest.MonkeyPatch) -> None:
     """Test that settings work with minimal environment variables."""
     # Create a fresh settings instance with minimal environment
-    test_settings = Settings()
+    test_settings = Settings()  # type: ignore[call-arg]
 
     # Test that default values are used when env vars are not set
     assert test_settings.vector_db == "milvus"  # Default value
@@ -40,8 +40,8 @@ def test_settings_with_minimal_env(minimal_test_env):
 
 
 @pytest.mark.atomic
-def test_settings_isolation(isolated_test_env):
+def test_settings_isolation(isolated_test_env: pytest.MonkeyPatch) -> None:
     """Test that settings work in completely isolated environment."""
     # This test should fail if settings require real environment variables
     with pytest.raises(ValueError):  # Should fail due to missing required env vars
-        Settings()
+        Settings()  # type: ignore[call-arg]

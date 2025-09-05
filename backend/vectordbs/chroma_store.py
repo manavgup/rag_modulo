@@ -28,6 +28,7 @@ logging.basicConfig(level=settings.log_level)
 
 MetadataType = Mapping[str, str | int | float | bool]
 
+
 class ChromaDBStore(VectorStore):
     def __init__(self, client: ClientAPI | None = None) -> None:
         self._client: ClientAPI = client or self._initialize_client()
@@ -35,6 +36,11 @@ class ChromaDBStore(VectorStore):
     def _initialize_client(self) -> ClientAPI:
         """Initialize the ChromaDB client."""
         try:
+            if CHROMADB_HOST is None or CHROMADB_PORT is None:
+                raise ValueError("ChromaDB host and port must be configured")
+            # Assert that values are not None after the check
+            assert CHROMADB_HOST is not None
+            assert CHROMADB_PORT is not None
             client = chromadb.HttpClient(host=CHROMADB_HOST, port=CHROMADB_PORT)
             logging.info("Connected to ChromaDB")
             return client
@@ -71,18 +77,18 @@ class ChromaDBStore(VectorStore):
                 docs.append(chunk.text)
                 embeddings.append(chunk.embeddings)
                 metadata: MetadataType = {
-                    "source": str(chunk.metadata.source),
+                    "source": str(chunk.metadata.source) if chunk.metadata and chunk.metadata.source else "OTHER",
                     "document_id": chunk.document_id or "",
                 }
                 metadatas.append(metadata)
                 ids.append(chunk.chunk_id)
 
         try:
-            collection.upsert(
-                ids=ids,
-                embeddings=embeddings,
-                metadatas=metadatas,
-                documents=docs)
+            # Convert embeddings to the format expected by ChromaDB
+            import numpy as np
+
+            embeddings_array = np.array(embeddings, dtype=np.float32)
+            collection.upsert(ids=ids, embeddings=embeddings_array, metadatas=metadatas, documents=docs)  # type: ignore[arg-type]
             logging.info(f"Successfully added documents to collection '{collection_name}'")
         except Exception as e:
             logging.error(f"Failed to add documents to ChromaDB collection '{collection_name}': {e}")
@@ -90,9 +96,7 @@ class ChromaDBStore(VectorStore):
 
         return [doc.document_id for doc in documents]
 
-    def retrieve_documents(
-        self, query: str, collection_name: str, number_of_results: int = 10
-    ) -> list[QueryResult]:
+    def retrieve_documents(self, query: str, collection_name: str, number_of_results: int = 10) -> list[QueryResult]:
         """
         Retrieves documents based on a query string.
 
@@ -107,12 +111,16 @@ class ChromaDBStore(VectorStore):
         query_embeddings = get_embeddings(query)
         if not query_embeddings:
             raise DocumentError("Failed to generate embeddings for the query string.")
-        query_with_embedding = QueryWithEmbedding(text=query, embeddings=query_embeddings)
+        # get_embeddings returns list[list[float]], but we need list[float] for single query
+        query_with_embedding = QueryWithEmbedding(text=query, embeddings=query_embeddings[0])
         return self.query(collection_name, query_with_embedding, number_of_results=number_of_results)
 
     def query(
-        self, collection_name: str, query: QueryWithEmbedding,
-        number_of_results: int = 10, filter: DocumentMetadataFilter | None = None
+        self,
+        collection_name: str,
+        query: QueryWithEmbedding,
+        number_of_results: int = 10,
+        filter: DocumentMetadataFilter | None = None,  # noqa: ARG002
     ) -> list[QueryResult]:
         """
         Queries the vector store with filtering and query mode options.
@@ -130,9 +138,9 @@ class ChromaDBStore(VectorStore):
 
         try:
             # ChromaDB expects embeddings as list[float], not list[list[float]]
-            query_embeddings = query.embeddings[0] if isinstance(query.embeddings[0], list) else query.embeddings
+            query_embeddings = query.embeddings[0]  # type: ignore[unreachable]
             response = collection.query(
-                query_embeddings=query_embeddings,
+                query_embeddings=query_embeddings,  # type: ignore[arg-type]
                 n_results=number_of_results,  # ChromaDB API uses n_results, but we maintain our consistent interface
             )
             logging.info(f"Query response: {response}")
@@ -175,7 +183,7 @@ class ChromaDBStore(VectorStore):
             document_id=metadata["document_id"],
         )
 
-    def _process_search_results(self, response: Any, collection_name: str) -> list[QueryResult]:
+    def _process_search_results(self, response: Any, collection_name: str) -> list[QueryResult]:  # noqa: ARG002
         results = []
         ids = response.get("ids", [[]])[0]
         distances = response.get("distances", [[]])[0]

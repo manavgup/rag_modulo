@@ -88,12 +88,12 @@ const PipelineSettings = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
+
     try {
       const url = getFullApiUrl(getPipelinesUrl());
       const method = currentPipeline ? 'PUT' : 'POST';
       const path = currentPipeline ? `${url}/${currentPipeline.id}` : url;
-      
+
       await fetchWithAuthHeader(path, {
         method,
         headers: {
@@ -101,7 +101,7 @@ const PipelineSettings = () => {
         },
         body: JSON.stringify(formData),
       });
-      
+
       await fetchPipelines();
       setIsModalOpen(false);
       resetForm();
@@ -115,7 +115,7 @@ const PipelineSettings = () => {
 
   const handleDelete = async (pipelineId) => {
     if (!window.confirm('Are you sure you want to delete this pipeline?')) return;
-    
+
     setLoading(true);
     try {
       await fetchWithAuthHeader(

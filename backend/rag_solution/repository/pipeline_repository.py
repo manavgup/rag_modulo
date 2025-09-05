@@ -4,8 +4,9 @@ This module provides database operations for pipeline configurations while maint
 strict type boundaries and clean separation of concerns.
 """
 
-from pydantic import UUID4
+from typing import Any
 
+from pydantic import UUID4
 from sqlalchemy.orm import Session, joinedload
 
 from core.custom_exceptions import RepositoryError
@@ -24,7 +25,7 @@ class PipelineConfigRepository:
         db (Session): SQLAlchemy database session
     """
 
-    def __init__(self, db: Session):
+    def __init__(self: Any, db: Session) -> None:
         """Initialize repository with database session.
 
         Args:
@@ -71,11 +72,7 @@ class PipelineConfigRepository:
             RepositoryError: If database operation fails
         """
         try:
-            pipeline = (
-                self.db.query(PipelineConfig)
-                .filter(PipelineConfig.collection_id == collection_id, PipelineConfig.is_default.is_(True))
-                .first()
-            )
+            pipeline = self.db.query(PipelineConfig).filter(PipelineConfig.collection_id == collection_id, PipelineConfig.is_default.is_(True)).first()
             return PipelineConfigOutput.from_db_model(pipeline) if pipeline else None
         except Exception as e:
             raise RepositoryError(f"Failed to get collection default pipeline: {e!s}") from e
@@ -117,10 +114,7 @@ class PipelineConfigRepository:
         try:
             pipeline = self.db.query(PipelineConfig).filter(PipelineConfig.id == pipeline_id).first()
             if not pipeline:
-                raise NotFoundError(
-                    resource_type="PipelineConfig",
-                    resource_id=str(pipeline_id)
-                )
+                raise NotFoundError(resource_type="PipelineConfig", resource_id=str(pipeline_id))
             return PipelineConfigOutput.from_db_model(pipeline)
         except NotFoundError:
             raise
@@ -168,10 +162,7 @@ class PipelineConfigRepository:
             pipeline = self.db.query(PipelineConfig).filter(PipelineConfig.id == id).first()
 
             if not pipeline:
-                raise NotFoundError(
-                    resource_type="PipelineConfig",
-                    resource_id=str(id)
-                )
+                raise NotFoundError(resource_type="PipelineConfig", resource_id=str(id))
 
             # If setting as default, clear other defaults first
             if config.is_default:
@@ -224,9 +215,7 @@ class PipelineConfigRepository:
             RepositoryError: If operation fails
         """
         try:
-            self.db.query(PipelineConfig).filter(
-                PipelineConfig.collection_id == collection_id, PipelineConfig.is_default.is_(True)
-            ).update({"is_default": False})
+            self.db.query(PipelineConfig).filter(PipelineConfig.collection_id == collection_id, PipelineConfig.is_default.is_(True)).update({"is_default": False})
             self.db.commit()
         except Exception as e:
             self.db.rollback()

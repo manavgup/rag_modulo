@@ -1,5 +1,6 @@
 """Authentication fixtures for pytest."""
 
+from collections.abc import Callable, Generator
 from typing import Any
 from unittest.mock import patch
 
@@ -23,7 +24,7 @@ def admin_auth_headers(mock_auth_token: str) -> dict[str, str]:
 
 
 @pytest.fixture
-def auth_headers_for_role(mock_auth_token: str) -> dict[str, str]:
+def auth_headers_for_role(mock_auth_token: str) -> Callable[[str], dict[str, str]]:
     """Create headers for a specific role."""
 
     def _make_headers(role: str = "user") -> dict[str, str]:
@@ -39,7 +40,7 @@ def auth_headers(mock_auth_token: str, base_user: UserOutput) -> dict[str, str]:
 
 
 @pytest.fixture
-def test_client(base_user) -> TestClient:
+def test_client(base_user: UserOutput) -> Generator[TestClient, None, None]:
     """Create a test client with mocked authentication."""
 
     def mock_verify_token(token: str) -> dict[str, Any]:

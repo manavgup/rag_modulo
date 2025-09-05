@@ -1,8 +1,9 @@
 # team_service.py
 
 import logging
-from pydantic import UUID4
+from typing import Any
 
+from pydantic import UUID4
 from sqlalchemy.orm import Session
 
 from rag_solution.repository.team_repository import TeamRepository
@@ -16,7 +17,12 @@ logger = logging.getLogger(__name__)
 
 
 class TeamService:
-    def __init__(self, db: Session, user_team_service: UserTeamService = None, user_service: UserService = None):
+    def __init__(
+        self: Any,
+        db: Session,
+        user_team_service: UserTeamService | None = None,
+        user_service: UserService | None = None,
+    ) -> None:
         self.team_repository = TeamRepository(db)
         self.user_team_service = user_team_service or UserTeamService(db)
         self.user_service = user_service
@@ -66,7 +72,7 @@ class TeamService:
                 continue
         return users
 
-    def add_user_to_team(self, user_id: UUID4, team_id: UUID4) -> UserTeamOutput:
+    def add_user_to_team(self, user_id: UUID4, team_id: UUID4) -> UserTeamOutput | None:
         logger.info(f"Adding user {user_id} to team {team_id}")
         return self.user_team_service.add_user_to_team(user_id, team_id)
 

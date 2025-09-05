@@ -126,15 +126,16 @@ def test_get_users_nonexistent_collection(user_collection_service: UserCollectio
 
 @pytest.mark.atomic
 def test_remove_all_users_from_collection(
-    user_collection_service: UserCollectionService, user_service: Any, base_user: UserOutput, base_collection: CollectionOutput
+    user_collection_service: UserCollectionService,
+    user_service: Any,
+    base_user: UserOutput,
+    base_collection: CollectionOutput,
 ) -> None:
     """Test removing all users from a collection."""
     # Add multiple users
     users = [base_user]
     for i in range(2):
-        user = user_service.create_user_by_fields(
-            ibm_id=f"test{i}", email=f"test{i}@example.com", name=f"Test User {i}"
-        )
+        user = user_service.create_user_by_fields(ibm_id=f"test{i}", email=f"test{i}@example.com", name=f"Test User {i}")
         users.append(user)
         user_collection_service.add_user_to_collection(user.id, base_collection.id)
 

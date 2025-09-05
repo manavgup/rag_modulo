@@ -1,10 +1,11 @@
 import logging
 import logging.handlers
 from pathlib import Path
+from typing import Any
 
 
 # Lazy import to avoid test isolation issues
-def get_settings():
+def get_settings() -> Any:
     from core.config import settings
 
     return settings

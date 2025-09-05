@@ -1,9 +1,9 @@
 """Integration tests for LLMProviderService."""
 
-from pydantic import UUID4, uuid4
+from uuid import uuid4
 
 import pytest
-from pydantic import SecretStr
+from pydantic import UUID4, SecretStr
 
 from core.custom_exceptions import ProviderValidationError
 from rag_solution.schemas.llm_provider_schema import LLMProviderInput, LLMProviderOutput
@@ -92,8 +92,8 @@ def test_get_nonexistent_provider(llm_provider_service: LLMProviderService) -> N
     result = llm_provider_service.get_provider_by_id(uuid4())
     assert result is None
 
-    result = llm_provider_service.get_provider_by_name("nonexistent")
-    assert result is None
+    result_config = llm_provider_service.get_provider_by_name("nonexistent")
+    assert result_config is None
 
 
 # -------------------------------------------

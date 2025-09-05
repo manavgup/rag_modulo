@@ -1,10 +1,12 @@
 # test_llm_config.py
 
+from typing import Any
 from uuid import uuid4
 
 import pytest
 
 from rag_solution.schemas.prompt_template_schema import PromptTemplateType
+from rag_solution.schemas.user_schema import UserOutput
 
 from .base_test import BaseTestRouter
 
@@ -14,7 +16,7 @@ class TestLLMConfiguration(BaseTestRouter):
     """Test LLM-related configuration endpoints."""
 
     @pytest.fixture
-    def test_parameters_data(self):
+    def test_parameters_data(self) -> dict[str, Any]:
         """Sample LLM parameters data."""
         return {
             "name": "Test Parameters",
@@ -28,7 +30,7 @@ class TestLLMConfiguration(BaseTestRouter):
         }
 
     @pytest.fixture
-    def test_template_data(self, base_user):
+    def test_template_data(self, base_user: UserOutput) -> dict[str, Any]:
         """Sample prompt template data."""
         return {
             "user_id": str(base_user.id),
@@ -45,7 +47,7 @@ class TestLLMConfiguration(BaseTestRouter):
 
     # LLM Parameters Tests
     @pytest.mark.asyncio
-    async def test_create_parameters(self, base_user, test_parameters_data):
+    async def test_create_parameters(self, base_user: UserOutput, test_parameters_data: dict[str, Any]) -> None:
         """Test creating LLM parameters."""
         response = self.post(f"/api/users/{base_user.id}/llm-parameters", json=test_parameters_data)
         self.assert_success(response)
@@ -57,7 +59,7 @@ class TestLLMConfiguration(BaseTestRouter):
         self.delete(f"/api/users/{base_user.id}/llm-parameters/{data['id']}")
 
     @pytest.mark.asyncio
-    async def test_get_user_parameters(self, base_user):
+    async def test_get_user_parameters(self, base_user: UserOutput) -> None:
         """Test getting user's LLM parameters."""
         # Create test parameters first
         test_params = {
@@ -91,7 +93,7 @@ class TestLLMConfiguration(BaseTestRouter):
 
     # Prompt Template Tests
     @pytest.mark.asyncio
-    async def test_create_template(self, base_user, test_template_data):
+    async def test_create_template(self, base_user: UserOutput, test_template_data: dict[str, Any]) -> None:
         """Test creating prompt template."""
         response = self.post(f"/api/users/{base_user.id}/prompt-templates", json=test_template_data)
         self.assert_success(response)
@@ -104,7 +106,7 @@ class TestLLMConfiguration(BaseTestRouter):
         assert cleanup_response.status_code == 200
 
     @pytest.mark.asyncio
-    async def test_get_templates_by_type(self, base_user, base_multiple_prompt_templates):  # noqa: ARG002
+    async def test_get_templates_by_type(self, base_user: UserOutput, base_multiple_prompt_templates: Any) -> None:  # noqa: ARG002
         """Test getting templates by type."""
         response = self.get(f"/api/users/{base_user.id}/prompt-templates/type/RAG_QUERY")
         self.assert_success(response)
@@ -114,7 +116,7 @@ class TestLLMConfiguration(BaseTestRouter):
 
     # Authorization Tests
     @pytest.mark.asyncio
-    async def test_unauthorized_access(self, base_user):
+    async def test_unauthorized_access(self, base_user: UserOutput) -> None:
         """Test accessing endpoints without authentication."""
         endpoints = [
             ("get", f"/api/users/{base_user.id}/llm-parameters"),
@@ -126,7 +128,7 @@ class TestLLMConfiguration(BaseTestRouter):
             self.assert_unauthorized(response)
 
     @pytest.mark.asyncio
-    async def test_wrong_user_access(self, test_parameters_data):
+    async def test_wrong_user_access(self, test_parameters_data: dict[str, Any]) -> None:
         """Test accessing with wrong user ID."""
         wrong_user_id = uuid4()
         response = self.post(f"/api/users/{wrong_user_id}/llm-parameters", json=test_parameters_data)
@@ -134,7 +136,7 @@ class TestLLMConfiguration(BaseTestRouter):
 
     # Validation Tests
     @pytest.mark.asyncio
-    async def test_invalid_parameters(self, base_user):
+    async def test_invalid_parameters(self, base_user: UserOutput) -> None:
         """Test parameter validation."""
         invalid_data = {
             "name": "Test",

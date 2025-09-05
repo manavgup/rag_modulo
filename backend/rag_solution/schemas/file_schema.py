@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, UUID4
+from pydantic import UUID4, BaseModel, ConfigDict
 
 from vectordbs.data_types import FileMetadata
 

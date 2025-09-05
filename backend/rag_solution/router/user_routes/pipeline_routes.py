@@ -1,9 +1,9 @@
 """Pipeline configuration routes."""
 
 import logging
-from pydantic import UUID4
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import UUID4
 from sqlalchemy.orm import Session
 
 from rag_solution.core.dependencies import verify_user_access
@@ -50,7 +50,10 @@ async def get_pipelines(user_id: UUID4, db: Session = Depends(get_db), user: Use
     },
 )
 async def create_pipeline(
-    user_id: UUID4, pipeline_input: PipelineConfigInput, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)
+    user_id: UUID4,
+    pipeline_input: PipelineConfigInput,
+    db: Session = Depends(get_db),
+    user: UserOutput = Depends(verify_user_access),
 ) -> PipelineConfigOutput:
     """Create a new pipeline configuration for a user."""
     service = PipelineService(db)
@@ -123,9 +126,7 @@ async def delete_pipeline(user_id: UUID4, pipeline_id: UUID4, db: Session = Depe
         500: {"description": "Internal server error"},
     },
 )
-async def set_default_pipeline(
-    user_id: UUID4, pipeline_id: UUID4, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)
-) -> PipelineConfigOutput:
+async def set_default_pipeline(user_id: UUID4, pipeline_id: UUID4, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)) -> PipelineConfigOutput:
     """Set a specific pipeline configuration as default."""
     service = PipelineService(db)
     try:
