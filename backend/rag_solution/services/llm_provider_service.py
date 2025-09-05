@@ -2,9 +2,9 @@ import logging
 import re
 import uuid
 from typing import Any
-from pydantic import UUID4
 
 import validators
+from pydantic import UUID4
 from sqlalchemy.orm import Session
 
 from core.custom_exceptions import LLMProviderError, ProviderValidationError
@@ -28,15 +28,11 @@ class LLMProviderService:
             raise ProviderValidationError(
                 provider_name=provider_input.name,
                 validation_error="Provider name can only contain alphanumeric characters, hyphens, and underscores",
-                field="name"
+                field="name",
             )
 
         if not validators.url(provider_input.base_url):
-            raise ProviderValidationError(
-                provider_name=provider_input.name,
-                validation_error="Invalid base URL format",
-                field="base_url"
-            )
+            raise ProviderValidationError(provider_name=provider_input.name, validation_error="Invalid base URL format", field="base_url")
 
     def create_provider(self, provider_input: LLMProviderInput) -> LLMProviderOutput:
         """Create a new provider."""
@@ -126,6 +122,7 @@ class LLMProviderService:
 
         # Return IBM Watson models as default
         from datetime import datetime
+
         return [
             LLMModelOutput(
                 id=uuid.UUID("11111111-1111-1111-1111-111111111111"),
@@ -152,6 +149,7 @@ class LLMProviderService:
         # This would typically create a model record in the database
         # For now, return the model data with an ID
         from datetime import datetime
+
         return LLMModelOutput(
             id=uuid.UUID("22222222-2222-2222-2222-222222222222"),
             provider_id=provider_id,
@@ -192,6 +190,7 @@ class LLMProviderService:
         # This would typically update the model in the database
         # For now, return a mock updated model
         from datetime import datetime
+
         return LLMModelOutput(
             id=model_id,
             provider_id=uuid.UUID("11111111-1111-1111-1111-111111111111"),  # Mock provider_id

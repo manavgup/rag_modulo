@@ -1,5 +1,6 @@
-from pydantic import UUID4
+from typing import Any
 
+from pydantic import UUID4
 from sqlalchemy.orm import Session
 
 from core.logging_utils import get_logger
@@ -17,15 +18,13 @@ logger = get_logger(__name__)
 
 
 class UserProviderService:
-    def __init__(self, db: Session):
+    def __init__(self: Any, db: Session) -> None:
         self.db = db
         self.user_provider_repository = UserProviderRepository(db)
         self.prompt_template_service = PromptTemplateService(db)
         self.llm_model_service = LLMModelService(db)
 
-    def initialize_user_defaults(
-        self, user_id: UUID4
-    ) -> tuple[LLMProviderOutput | None, list[PromptTemplateOutput], LLMParametersOutput | None]:
+    def initialize_user_defaults(self, user_id: UUID4) -> tuple[LLMProviderOutput | None, list[PromptTemplateOutput], LLMParametersOutput | None]:
         try:
             # Existing provider initialization
             provider = self.get_user_provider(user_id)
@@ -134,15 +133,9 @@ class UserProviderService:
                 user_id=user_id,
                 template_type=PromptTemplateType.QUESTION_GENERATION,
                 system_prompt=(
-                    "You are an AI assistant that generates relevant questions based on "
-                    "the given context. Generate clear, focused questions that can be "
-                    "answered using the information provided."
+                    "You are an AI assistant that generates relevant questions based on " "the given context. Generate clear, focused questions that can be " "answered using the information provided."
                 ),
-                template_format=(
-                    "{context}\n\n"
-                    "Generate {num_questions} specific questions that can be answered "
-                    "using only the information provided above."
-                ),
+                template_format=("{context}\n\n" "Generate {num_questions} specific questions that can be answered " "using only the information provided above."),
                 input_variables={
                     "context": "Retrieved passages from knowledge base",
                     "num_questions": "Number of questions to generate",

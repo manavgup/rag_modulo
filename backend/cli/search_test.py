@@ -5,7 +5,6 @@ import json
 import time
 import uuid
 from typing import Any
-from pydantic import UUID4
 
 import click
 from rich.console import Console
@@ -14,12 +13,15 @@ from rich.table import Table
 
 console = Console()
 
+
 # Delay imports that require configuration until needed
-def get_logger_lazy():
+def get_logger_lazy() -> Any:
     from core.logging_utils import get_logger
+
     return get_logger("cli.search_test")
 
-def get_services():
+
+def get_services() -> dict[str, Any]:
     from rag_solution.file_management.database import get_db
     from rag_solution.query_rewriting.query_rewriter import (
         HypotheticalDocumentEmbedding,
@@ -52,7 +54,7 @@ def get_services():
 
 
 @click.group()
-def search():
+def search() -> None:
     """RAG search testing commands."""
 
 
@@ -63,12 +65,12 @@ def search():
 @click.option("--user-id", "-u", required=True, help="User UUID")
 @click.option("--verbose", "-v", is_flag=True, help="Show detailed pipeline metrics")
 @click.option("--output", "-o", type=click.Path(), help="Save results to JSON file")
-def test(query: str, collection_id: str, pipeline_id: str | None, user_id: str, verbose: bool, output: str | None):
+def test(query: str, collection_id: str, pipeline_id: str | None, user_id: str, verbose: bool, output: str | None) -> None:
     """Test search query and analyze results."""
     asyncio.run(_test_search(query, collection_id, pipeline_id, user_id, verbose, output))
 
 
-async def _test_search(query: str, collection_id: str, pipeline_id: str | None, user_id: str, verbose: bool, output: str | None):
+async def _test_search(query: str, collection_id: str, pipeline_id: str | None, user_id: str, verbose: bool, output: str | None) -> Any:
     """Execute search test with detailed metrics."""
     start_time = time.time()
 
@@ -93,15 +95,11 @@ async def _test_search(query: str, collection_id: str, pipeline_id: str | None, 
             question=query,
             collection_id=uuid.UUID(collection_id),
             pipeline_id=uuid.UUID(pipeline_id) if pipeline_id else None,
-            user_id=uuid.UUID(user_id)
+            user_id=uuid.UUID(user_id),
         )
 
         # Execute search with progress indicator
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=console
-        ) as progress:
+        with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console) as progress:
             progress.add_task("Executing search...", total=None)
 
             # Perform search
@@ -130,7 +128,7 @@ async def _test_search(query: str, collection_id: str, pipeline_id: str | None, 
         db.close()
 
 
-def _display_results(result: Any, execution_time: float, verbose: bool):
+def _display_results(result: Any, execution_time: float, verbose: bool) -> None:
     """Display search results with formatting."""
 
     # Answer section
@@ -174,7 +172,7 @@ def _display_results(result: Any, execution_time: float, verbose: bool):
             console.print(f"  {key}: {value}")
 
 
-def _save_results(result: Any, execution_time: float, output_path: str):
+def _save_results(result: Any, execution_time: float, output_path: str) -> None:
     """Save search results to JSON file."""
     output_data = {
         "query": result.question if hasattr(result, "question") else None,
@@ -189,10 +187,10 @@ def _save_results(result: Any, execution_time: float, output_path: str):
             {
                 "chunk_id": qr.chunk.chunk_id if qr.chunk else None,
                 "score": qr.score,
-                "text": qr.chunk.text if qr.chunk else None
+                "text": qr.chunk.text if qr.chunk else None,
             }
             for qr in (result.query_results or [])
-        ]
+        ],
     }
 
     with open(output_path, "w") as f:
@@ -203,12 +201,12 @@ def _save_results(result: Any, execution_time: float, output_path: str):
 @click.option("--query", "-q", required=True, help="Search query to test")
 @click.option("--collection-id", "-c", required=True, help="Collection UUID")
 @click.option("--strategy", "-s", type=click.Choice(["simple", "hypothetical"]), default="simple", help="Query rewriting strategy")
-def test_components(query: str, collection_id: str, strategy: str):
+def test_components(query: str, collection_id: str, strategy: str) -> None:
     """Test individual pipeline components."""
     asyncio.run(_test_components(query, collection_id, strategy))
 
 
-async def _test_components(query: str, collection_id: str, strategy: str):
+async def _test_components(query: str, collection_id: str, strategy: str) -> None:
     """Test each RAG pipeline component individually."""
 
     console.print("\n[bold cyan]🔧 Component Testing[/bold cyan]")
@@ -223,10 +221,7 @@ async def _test_components(query: str, collection_id: str, strategy: str):
         # Test 1: Query Rewriting
         console.print("[bold green]1️⃣ Testing Query Rewriting[/bold green]")
 
-        if strategy == "simple":
-            rewriter = services["SimpleQueryRewriter"]({})
-        else:
-            rewriter = services["HypotheticalDocumentEmbedding"]({})
+        rewriter = services["SimpleQueryRewriter"]({}) if strategy == "simple" else services["HypotheticalDocumentEmbedding"]({})
 
         start = time.time()
         rewritten = await rewriter.rewrite(query)
@@ -307,12 +302,12 @@ async def _test_components(query: str, collection_id: str, strategy: str):
 @click.option("--pipeline-id", "-p", help="Pipeline UUID (optional)")
 @click.option("--user-id", "-u", required=True, help="User UUID")
 @click.option("--output", "-o", type=click.Path(), help="Save batch results to JSON file")
-def batch_test(queries_file: str, collection_id: str, pipeline_id: str | None, user_id: str, output: str | None):
+def batch_test(queries_file: str, collection_id: str, pipeline_id: str | None, user_id: str, output: str | None) -> None:
     """Run batch testing with quality metrics."""
     asyncio.run(_batch_test(queries_file, collection_id, pipeline_id, user_id, output))
 
 
-async def _batch_test(queries_file: str, collection_id: str, pipeline_id: str | None, user_id: str, output: str | None):
+async def _batch_test(queries_file: str, collection_id: str, pipeline_id: str | None, user_id: str, output: str | None) -> list[dict[str, Any]]:
     """Execute batch testing on multiple queries."""
 
     # Load test queries
@@ -328,12 +323,7 @@ async def _batch_test(queries_file: str, collection_id: str, pipeline_id: str | 
     results = []
 
     # Process each query
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console
-    ) as progress:
-
+    with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console) as progress:
         for idx, test_case in enumerate(queries, 1):
             query = test_case.get("query", "")
             task = progress.add_task(f"Testing query {idx}/{len(queries)}: {query[:50]}...", total=None)
@@ -346,29 +336,33 @@ async def _batch_test(queries_file: str, collection_id: str, pipeline_id: str | 
                     pipeline_id=pipeline_id,
                     user_id=user_id,
                     verbose=False,
-                    output=None
+                    output=None,
                 )
 
                 # Calculate quality metrics
                 quality_score = _calculate_quality_score(result, test_case)
 
-                results.append({
-                    "query": query,
-                    "category": test_case.get("category", "unknown"),
-                    "success": True,
-                    "answer_length": len(result.answer) if result.answer else 0,
-                    "documents_retrieved": len(result.documents) if result.documents else 0,
-                    "quality_score": quality_score,
-                    "evaluation": result.evaluation
-                })
+                results.append(
+                    {
+                        "query": query,
+                        "category": test_case.get("category", "unknown"),
+                        "success": True,
+                        "answer_length": len(result.answer) if result and hasattr(result, "answer") and result.answer else 0,
+                        "documents_retrieved": len(result.documents) if result and hasattr(result, "documents") and result.documents else 0,
+                        "quality_score": quality_score,
+                        "evaluation": result.evaluation if result and hasattr(result, "evaluation") else None,
+                    }
+                )
 
             except Exception as e:
-                results.append({
-                    "query": query,
-                    "category": test_case.get("category", "unknown"),
-                    "success": False,
-                    "error": str(e)
-                })
+                results.append(
+                    {
+                        "query": query,
+                        "category": test_case.get("category", "unknown"),
+                        "success": False,
+                        "error": str(e),
+                    }
+                )
 
             progress.remove_task(task)
 
@@ -416,7 +410,7 @@ def _calculate_quality_score(result: Any, test_case: dict[str, Any]) -> float:
     return (score / max_score) * 100 if max_score > 0 else 0
 
 
-def _display_batch_summary(results: list[dict[str, Any]]):
+def _display_batch_summary(results: list[dict[str, Any]]) -> None:
     """Display summary of batch test results."""
 
     console.print("\n[bold blue]📈 Batch Test Summary[/bold blue]")

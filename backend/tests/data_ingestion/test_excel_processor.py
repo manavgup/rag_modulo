@@ -1,4 +1,6 @@
 import os
+from collections.abc import Generator
+from typing import Any
 from unittest.mock import patch
 
 import pandas as pd
@@ -10,13 +12,13 @@ from vectordbs.data_types import Document
 
 
 @pytest.fixture
-def excel_processor():
+def excel_processor() -> Any:
     """Create an ExcelProcessor instance."""
     return ExcelProcessor()
 
 
 @pytest.fixture
-def sample_excel_path():
+def sample_excel_path() -> Generator[str, None, None]:
     """Create a sample Excel file for testing."""
     file_path = "/tmp/test_data.xlsx"
 
@@ -39,10 +41,10 @@ def sample_excel_path():
 
 @pytest.mark.asyncio
 @pytest.mark.atomic
-async def test_process_excel_file(excel_processor, sample_excel_path):
+async def test_process_excel_file(excel_processor: Any, sample_excel_path: str) -> None:
     """Test processing a valid Excel file."""
     documents = []
-    async for doc in excel_processor.process(sample_excel_path):
+    async for doc in excel_processor.process(sample_excel_path, "test-doc-id"):
         documents.append(doc)
 
     assert len(documents) > 0
@@ -59,14 +61,14 @@ async def test_process_excel_file(excel_processor, sample_excel_path):
 
 
 @pytest.mark.asyncio
-async def test_process_empty_excel(excel_processor):
+async def test_process_empty_excel(excel_processor: Any) -> None:
     """Test processing an empty Excel file."""
     empty_file = "/tmp/empty.xlsx"
     df = pd.DataFrame()
     df.to_excel(empty_file, index=False)
 
     documents = []
-    async for doc in excel_processor.process(empty_file):
+    async for doc in excel_processor.process(empty_file, "test-doc-id"):
         documents.append(doc)
 
     assert len(documents) > 0  # Should still create at least one document
@@ -75,7 +77,7 @@ async def test_process_empty_excel(excel_processor):
 
 
 @pytest.mark.asyncio
-async def test_process_large_excel(excel_processor):
+async def test_process_large_excel(excel_processor: Any) -> None:
     """Test processing a large Excel file."""
     large_file = "/tmp/large.xlsx"
 
@@ -91,7 +93,7 @@ async def test_process_large_excel(excel_processor):
     large_df.to_excel(large_file, index=False)
 
     documents = []
-    async for doc in excel_processor.process(large_file):
+    async for doc in excel_processor.process(large_file, "test-doc-id"):
         documents.append(doc)
 
     assert len(documents) > 1  # Should create multiple chunks
@@ -100,10 +102,10 @@ async def test_process_large_excel(excel_processor):
 
 
 @pytest.mark.asyncio
-async def test_process_multiple_sheets(excel_processor, sample_excel_path):
+async def test_process_multiple_sheets(excel_processor: Any, sample_excel_path: str) -> None:
     """Test processing Excel file with multiple sheets."""
     documents = []
-    async for doc in excel_processor.process(sample_excel_path):
+    async for doc in excel_processor.process(sample_excel_path, "test-doc-id"):
         documents.append(doc)
 
     all_text = " ".join(doc.text for doc in documents)
@@ -118,7 +120,7 @@ async def test_process_multiple_sheets(excel_processor, sample_excel_path):
 
 
 @pytest.mark.asyncio
-async def test_process_invalid_file(excel_processor):
+async def test_process_invalid_file(excel_processor: Any) -> None:
     """Test processing an invalid file."""
     invalid_file = "/tmp/invalid.xlsx"
 
@@ -127,25 +129,25 @@ async def test_process_invalid_file(excel_processor):
         f.write("Not an Excel file")
 
     with pytest.raises(DocumentProcessingError):
-        async for _ in excel_processor.process(invalid_file):
+        async for _ in excel_processor.process(invalid_file, "test-doc-id"):
             pass
 
     os.remove(invalid_file)
 
 
 @pytest.mark.asyncio
-async def test_process_nonexistent_file(excel_processor):
+async def test_process_nonexistent_file(excel_processor: Any) -> None:
     """Test processing a nonexistent file."""
     with pytest.raises(DocumentProcessingError):
-        async for _ in excel_processor.process("/tmp/nonexistent.xlsx"):
+        async for _ in excel_processor.process("/tmp/nonexistent.xlsx", "test-doc-id"):
             pass
 
 
 @pytest.mark.asyncio
-async def test_document_metadata(excel_processor, sample_excel_path):
+async def test_document_metadata(excel_processor: Any, sample_excel_path: str) -> None:
     """Test document metadata in processed output."""
     documents = []
-    async for doc in excel_processor.process(sample_excel_path):
+    async for doc in excel_processor.process(sample_excel_path, "test-doc-id"):
         documents.append(doc)
 
     for doc in documents:
@@ -155,13 +157,13 @@ async def test_document_metadata(excel_processor, sample_excel_path):
 
 
 @pytest.mark.asyncio
-async def test_chunking_integration(excel_processor, sample_excel_path):
+async def test_chunking_integration(excel_processor: Any, sample_excel_path: str) -> None:
     """Test integration with chunking method."""
     # Mock chunking method to verify it's called with correct data
     mock_chunks = ["Chunk1", "Chunk2"]
     with patch.object(excel_processor, "chunking_method", return_value=mock_chunks):
         documents = []
-        async for doc in excel_processor.process(sample_excel_path):
+        async for doc in excel_processor.process(sample_excel_path, "test-doc-id"):
             documents.append(doc)
 
         assert len(documents) == len(mock_chunks)
@@ -169,7 +171,7 @@ async def test_chunking_integration(excel_processor, sample_excel_path):
 
 
 @pytest.mark.asyncio
-async def test_special_characters(excel_processor):
+async def test_special_characters(excel_processor: Any) -> None:
     """Test handling of special characters in Excel data."""
     special_file = "/tmp/special.xlsx"
 
@@ -184,7 +186,7 @@ async def test_special_characters(excel_processor):
     df.to_excel(special_file, index=False)
 
     documents = []
-    async for doc in excel_processor.process(special_file):
+    async for doc in excel_processor.process(special_file, "test-doc-id"):
         documents.append(doc)
 
     all_text = " ".join(doc.text for doc in documents)

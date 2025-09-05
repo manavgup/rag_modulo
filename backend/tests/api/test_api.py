@@ -2,6 +2,8 @@
 
 from uuid import uuid4
 
+import pytest
+
 from .base_test import BaseTestRouter
 
 
@@ -9,7 +11,7 @@ from .base_test import BaseTestRouter
 class TestCollectionEndpoints(BaseTestRouter):
     """Test collection-related endpoints."""
 
-    def test_create_collection(self):
+    def test_create_collection(self) -> None:
         """Test POST /api/collections"""
         # Create test user first
         user_data = {"ibm_id": f"test_user_{uuid4()}", "email": f"test_{uuid4()}@example.com", "name": "Test User"}
@@ -38,7 +40,7 @@ class TestCollectionEndpoints(BaseTestRouter):
         self.delete(f"/api/collections/{data['id']}")
         self.delete(f"/api/users/{user['id']}")
 
-    def test_get_collection(self):
+    def test_get_collection(self) -> None:
         """Test GET /api/collections/{collection_id}"""
         # Create test user
         user_data = {"ibm_id": f"test_user_{uuid4()}", "email": f"test_{uuid4()}@example.com", "name": "Test User"}
@@ -68,7 +70,7 @@ class TestCollectionEndpoints(BaseTestRouter):
         self.delete(f"/api/collections/{collection['id']}")
         self.delete(f"/api/users/{user['id']}")
 
-    def test_upload_file_to_collection(self):
+    def test_upload_file_to_collection(self) -> None:
         """Test file upload to collection."""
         # Create test user
         user_data = {"ibm_id": f"test_user_{uuid4()}", "email": f"test_{uuid4()}@example.com", "name": "Test User"}
@@ -99,7 +101,7 @@ class TestCollectionEndpoints(BaseTestRouter):
         self.delete(f"/api/collections/{collection['id']}")
         self.delete(f"/api/users/{user['id']}")
 
-    def test_unauthorized_access(self):
+    def test_unauthorized_access(self) -> None:
         """Test accessing endpoints without authentication."""
         test_id = uuid4()
         endpoints = [

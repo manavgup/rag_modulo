@@ -1,9 +1,11 @@
 """Tests for Prompt Templates router endpoints."""
 
-from pydantic import UUID4, uuid4
+from typing import Any
+from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
+from pydantic import UUID4
 
 from rag_solution.models.prompt_template import PromptTemplate
 from rag_solution.services.prompt_template_service import PromptTemplateService
@@ -15,7 +17,7 @@ TEST_TEMPLATE_ID = UUID4("87654321-4321-8765-4321-876543210987")
 
 @pytest.fixture
 @pytest.mark.api
-def test_template_data():
+def test_template_data() -> dict[str, Any]:
     return {
         "name": "Test Template",
         "provider": "test_provider",
@@ -32,7 +34,7 @@ def test_template_data():
 
 
 @pytest.fixture
-def mock_prompt_template_service(mocker):
+def mock_prompt_template_service(mocker: Any) -> Any:
     service = mocker.Mock(spec=PromptTemplateService)
 
     # Mock get_templates
@@ -112,7 +114,7 @@ def mock_prompt_template_service(mocker):
 
 
 @pytest.mark.asyncio
-async def test_get_prompt_templates(client: AsyncClient, mock_prompt_template_service, mock_auth_user):
+async def test_get_prompt_templates(client: AsyncClient, mock_prompt_template_service: Any, mock_auth_user: Any) -> None:
     """Test GET /api/users/{user_id}/prompt-templates endpoint."""
     # Mock auth user
     mock_auth_user(TEST_USER_ID)
@@ -133,9 +135,7 @@ async def test_get_prompt_templates(client: AsyncClient, mock_prompt_template_se
 
 
 @pytest.mark.asyncio
-async def test_create_prompt_template(
-    client: AsyncClient, mock_prompt_template_service, mock_auth_user, test_template_data
-):
+async def test_create_prompt_template(client: AsyncClient, mock_prompt_template_service: Any, mock_auth_user: Any, test_template_data: dict[str, Any]) -> None:
     """Test POST /api/users/{user_id}/prompt-templates endpoint."""
     # Mock auth user
     mock_auth_user(TEST_USER_ID)
@@ -154,9 +154,7 @@ async def test_create_prompt_template(
 
 
 @pytest.mark.asyncio
-async def test_update_prompt_template(
-    client: AsyncClient, mock_prompt_template_service, mock_auth_user, test_template_data
-):
+async def test_update_prompt_template(client: AsyncClient, mock_prompt_template_service: Any, mock_auth_user: Any, test_template_data: dict[str, Any]) -> None:
     """Test PUT /api/users/{user_id}/prompt-templates/{template_id} endpoint."""
     # Mock auth user
     mock_auth_user(TEST_USER_ID)
@@ -168,9 +166,7 @@ async def test_update_prompt_template(
     test_template_data["template_format"] = "Explain {topic}, focusing on {aspect} with {depth} detail"
 
     # Make request
-    response = await client.put(
-        f"/api/users/{TEST_USER_ID}/prompt-templates/{TEST_TEMPLATE_ID}", json=test_template_data
-    )
+    response = await client.put(f"/api/users/{TEST_USER_ID}/prompt-templates/{TEST_TEMPLATE_ID}", json=test_template_data)
 
     # Assert response
     assert response.status_code == 200
@@ -185,7 +181,7 @@ async def test_update_prompt_template(
 
 
 @pytest.mark.asyncio
-async def test_delete_prompt_template(client: AsyncClient, mock_prompt_template_service, mock_auth_user):
+async def test_delete_prompt_template(client: AsyncClient, mock_prompt_template_service: Any, mock_auth_user: Any) -> None:
     """Test DELETE /api/users/{user_id}/prompt-templates/{template_id} endpoint."""
     # Mock auth user
     mock_auth_user(TEST_USER_ID)
@@ -202,7 +198,7 @@ async def test_delete_prompt_template(client: AsyncClient, mock_prompt_template_
 
 
 @pytest.mark.asyncio
-async def test_set_default_prompt_template(client: AsyncClient, mock_prompt_template_service, mock_auth_user):
+async def test_set_default_prompt_template(client: AsyncClient, mock_prompt_template_service: Any, mock_auth_user: Any) -> None:
     """Test PUT /api/users/{user_id}/prompt-templates/{template_id}/default endpoint."""
     # Mock auth user
     mock_auth_user(TEST_USER_ID)
@@ -221,14 +217,14 @@ async def test_set_default_prompt_template(client: AsyncClient, mock_prompt_temp
 
 
 @pytest.mark.asyncio
-async def test_get_prompt_templates_unauthorized(client: AsyncClient):
+async def test_get_prompt_templates_unauthorized(client: AsyncClient) -> None:
     """Test unauthorized access to GET endpoint."""
     response = await client.get(f"/api/users/{TEST_USER_ID}/prompt-templates")
     assert response.status_code == 403
 
 
 @pytest.mark.asyncio
-async def test_get_prompt_templates_wrong_user(client: AsyncClient, mock_auth_user):
+async def test_get_prompt_templates_wrong_user(client: AsyncClient, mock_auth_user: Any) -> None:
     """Test accessing templates with wrong user ID."""
     # Mock auth user with different ID
     different_user_id = uuid4()
@@ -239,7 +235,7 @@ async def test_get_prompt_templates_wrong_user(client: AsyncClient, mock_auth_us
 
 
 @pytest.mark.asyncio
-async def test_create_prompt_template_invalid_data(client: AsyncClient, mock_auth_user):
+async def test_create_prompt_template_invalid_data(client: AsyncClient, mock_auth_user: Any) -> None:
     """Test creating template with invalid data."""
     # Mock auth user
     mock_auth_user(TEST_USER_ID)

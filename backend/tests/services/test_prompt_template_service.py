@@ -31,9 +31,7 @@ def test_prompt_template(base_user: UserOutput) -> PromptTemplateInput:
 # 🧪 Template Creation Tests
 # -------------------------------------------
 @pytest.mark.atomic
-def test_create_prompt_template(
-    prompt_template_service: PromptTemplateService, base_user: UserOutput, test_prompt_template: PromptTemplateInput
-) -> None:
+def test_create_prompt_template(prompt_template_service: PromptTemplateService, base_user: UserOutput, test_prompt_template: PromptTemplateInput) -> None:
     """Test creating prompt template."""
     template = prompt_template_service.create_template(test_prompt_template)
 
@@ -43,9 +41,7 @@ def test_create_prompt_template(
 
 
 @pytest.mark.atomic
-def test_create_or_update_template(
-    prompt_template_service: PromptTemplateService, base_user: UserOutput, test_prompt_template: PromptTemplateInput
-) -> None:
+def test_create_or_update_template(prompt_template_service: PromptTemplateService, base_user: UserOutput, test_prompt_template: PromptTemplateInput) -> None:
     """Test template creation and update."""
     # Create initial template
     template = prompt_template_service.create_template(test_prompt_template)
@@ -131,9 +127,7 @@ def test_format_prompt(prompt_template_service: PromptTemplateService, base_user
 
 
 @pytest.mark.atomic
-def test_format_prompt_missing_variables(
-    prompt_template_service: PromptTemplateService, base_user: UserOutput, test_prompt_template: PromptTemplateInput
-) -> None:
+def test_format_prompt_missing_variables(prompt_template_service: PromptTemplateService, base_user: UserOutput, test_prompt_template: PromptTemplateInput) -> None:
     """Test prompt formatting with missing variables."""
     template = prompt_template_service.create_template(test_prompt_template)
 
@@ -148,9 +142,7 @@ def test_format_prompt_missing_variables(
 # 🧪 Context Strategy Tests
 # -------------------------------------------
 @pytest.mark.atomic
-def test_apply_context_strategy(
-    prompt_template_service: PromptTemplateService, base_user: UserOutput, test_prompt_template: PromptTemplateInput
-) -> None:
+def test_apply_context_strategy(prompt_template_service: PromptTemplateService, base_user: UserOutput, test_prompt_template: PromptTemplateInput) -> None:
     """Test context strategy application."""
     contexts = ["First context chunk", "Second context chunk", "Third context chunk"]
 
@@ -163,9 +155,7 @@ def test_apply_context_strategy(
 
 
 @pytest.mark.atomic
-def test_apply_custom_context_strategy(
-    prompt_template_service: PromptTemplateService, base_user: UserOutput, test_prompt_template: PromptTemplateInput
-) -> None:
+def test_apply_custom_context_strategy(prompt_template_service: PromptTemplateService, base_user: UserOutput, test_prompt_template: PromptTemplateInput) -> None:
     """Test custom context strategy application."""
     # Create template with custom strategy
     template_with_strategy = test_prompt_template.model_copy(

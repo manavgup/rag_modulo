@@ -1,5 +1,6 @@
-from pydantic import UUID4
+from typing import Any
 
+from pydantic import UUID4
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -12,15 +13,13 @@ logger = get_logger(__name__)
 
 
 class UserTeamRepository:
-    def __init__(self, db: Session):
+    def __init__(self: Any, db: Session) -> None:
         self.db = db
 
     def add_user_to_team(self, user_id: UUID4, team_id: UUID4) -> bool:
         """Adds a user to a team if not already present. Returns True if successful or if the user is already in the team."""
 
-        existing_entry = (
-            self.db.query(UserTeam).filter(UserTeam.user_id == user_id, UserTeam.team_id == team_id).first()
-        )
+        existing_entry = self.db.query(UserTeam).filter(UserTeam.user_id == user_id, UserTeam.team_id == team_id).first()
 
         if existing_entry:
             logger.info(f"User {user_id} is already in team {team_id}. No action needed.")
@@ -44,10 +43,7 @@ class UserTeamRepository:
         try:
             user_team = self.db.query(UserTeam).filter(UserTeam.user_id == user_id, UserTeam.team_id == team_id).first()
             if not user_team:
-                raise NotFoundError(
-                    resource_type="UserTeam",
-                    identifier=f"user {user_id} in team {team_id}"
-                )
+                raise NotFoundError(resource_type="UserTeam", identifier=f"user {user_id} in team {team_id}")
 
             self.db.delete(user_team)
             self.db.commit()

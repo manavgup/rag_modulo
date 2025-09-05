@@ -17,9 +17,7 @@ from rag_solution.services.user_collection_service import UserCollectionService
 @pytest.fixture
 def test_collection(db_session: Session) -> Collection:
     """Create a test collection."""
-    collection = Collection(
-        name="Test Collection", is_private=False, vector_db_name=f"collection_{uuid4().hex}", status="created"
-    )
+    collection = Collection(name="Test Collection", is_private=False, vector_db_name=f"collection_{uuid4().hex}", status="created")
     db_session.add(collection)
     db_session.commit()
     db_session.refresh(collection)
@@ -27,7 +25,7 @@ def test_collection(db_session: Session) -> Collection:
 
 
 @pytest.mark.atomic
-def test_get_user_collections(db_session: Session, base_user: User, test_collection: Collection):
+def test_get_user_collections(db_session: Session, base_user: User, test_collection: Collection) -> None:
     """Test fetching user collections."""
     # Add user to collection
     user_collection = UserCollection(user_id=base_user.id, collection_id=test_collection.id)
@@ -44,7 +42,7 @@ def test_get_user_collections(db_session: Session, base_user: User, test_collect
 
 
 @pytest.mark.atomic
-def test_add_user_to_collection(db_session: Session, base_user: User, test_collection: Collection):
+def test_add_user_to_collection(db_session: Session, base_user: User, test_collection: Collection) -> None:
     """Test adding user to collection."""
     service = UserCollectionService(db_session)
 
@@ -52,14 +50,12 @@ def test_add_user_to_collection(db_session: Session, base_user: User, test_colle
 
     assert result is True
     # Verify relationship exists
-    user_collection = (
-        db_session.query(UserCollection).filter_by(user_id=base_user.id, collection_id=test_collection.id).first()
-    )
+    user_collection = db_session.query(UserCollection).filter_by(user_id=base_user.id, collection_id=test_collection.id).first()
     assert user_collection is not None
 
 
 @pytest.mark.atomic
-def test_add_user_to_collection_duplicate(db_session: Session, base_user: User, test_collection: Collection):
+def test_add_user_to_collection_duplicate(db_session: Session, base_user: User, test_collection: Collection) -> None:
     """Test adding user to collection when already added."""
     service = UserCollectionService(db_session)
 
@@ -74,7 +70,7 @@ def test_add_user_to_collection_duplicate(db_session: Session, base_user: User, 
 
 
 @pytest.mark.atomic
-def test_add_user_to_nonexistent_collection(db_session: Session, base_user: User):
+def test_add_user_to_nonexistent_collection(db_session: Session, base_user: User) -> None:
     """Test adding user to nonexistent collection."""
     service = UserCollectionService(db_session)
 
@@ -85,7 +81,7 @@ def test_add_user_to_nonexistent_collection(db_session: Session, base_user: User
 
 
 @pytest.mark.atomic
-def test_remove_user_from_collection(db_session: Session, base_user: User, test_collection: Collection):
+def test_remove_user_from_collection(db_session: Session, base_user: User, test_collection: Collection) -> None:
     """Test removing user from collection."""
     # First add user to collection
     user_collection = UserCollection(user_id=base_user.id, collection_id=test_collection.id)
@@ -97,14 +93,12 @@ def test_remove_user_from_collection(db_session: Session, base_user: User, test_
 
     assert result is True
     # Verify relationship is removed
-    user_collection = (
-        db_session.query(UserCollection).filter_by(user_id=base_user.id, collection_id=test_collection.id).first()
-    )
-    assert user_collection is None
+    removed_user_collection: UserCollection | None = db_session.query(UserCollection).filter_by(user_id=base_user.id, collection_id=test_collection.id).first()
+    assert removed_user_collection is None
 
 
 @pytest.mark.atomic
-def test_remove_user_not_in_collection(db_session: Session, base_user: User, test_collection: Collection):
+def test_remove_user_not_in_collection(db_session: Session, base_user: User, test_collection: Collection) -> None:
     """Test removing user that's not in collection."""
     service = UserCollectionService(db_session)
 
@@ -115,7 +109,7 @@ def test_remove_user_not_in_collection(db_session: Session, base_user: User, tes
 
 
 @pytest.mark.atomic
-def test_get_collection_users(db_session: Session, base_user: User, test_collection: Collection):
+def test_get_collection_users(db_session: Session, base_user: User, test_collection: Collection) -> None:
     """Test fetching users for a collection."""
     # Add user to collection
     user_collection = UserCollection(user_id=base_user.id, collection_id=test_collection.id)
@@ -132,7 +126,7 @@ def test_get_collection_users(db_session: Session, base_user: User, test_collect
 
 
 @pytest.mark.atomic
-def test_get_users_nonexistent_collection(db_session: Session):
+def test_get_users_nonexistent_collection(db_session: Session) -> None:
     """Test fetching users for nonexistent collection."""
     service = UserCollectionService(db_session)
 
@@ -143,7 +137,7 @@ def test_get_users_nonexistent_collection(db_session: Session):
 
 
 @pytest.mark.atomic
-def test_remove_all_users_from_collection(db_session: Session, base_user: User, test_collection: Collection):
+def test_remove_all_users_from_collection(db_session: Session, base_user: User, test_collection: Collection) -> None:
     """Test removing all users from a collection."""
     # Add multiple users
     user1 = User(ibm_id="test1", email="test1@example.com", name="Test User 1")
@@ -170,7 +164,7 @@ def test_remove_all_users_from_collection(db_session: Session, base_user: User, 
 
 
 @pytest.mark.atomic
-def test_remove_all_users_nonexistent_collection(db_session: Session):
+def test_remove_all_users_nonexistent_collection(db_session: Session) -> None:
     """Test removing all users from nonexistent collection."""
     service = UserCollectionService(db_session)
 

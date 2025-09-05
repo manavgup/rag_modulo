@@ -12,7 +12,7 @@ ENV PYTHONUNBUFFERED=1 \
 ENV PATH="$POETRY_HOME/bin:$PATH"
 
 # Install system dependencies
-RUN apt-get update && \ 
+RUN apt-get update && \
     apt-get install -y build-essential curl
 
 # Install Rust and poetry
@@ -50,7 +50,7 @@ COPY . /app
 
 # Create a non-root user and group
 RUN groupadd --gid 10001 test && \
-    useradd --uid 10001 -g test -M -d /nonexistent test && \ 
+    useradd --uid 10001 -g test -M -d /nonexistent test && \
     chown -R test:test /app
 
 # Switch to non-root user

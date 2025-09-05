@@ -116,11 +116,11 @@ mark {
     .search-input-wrapper {
         flex-direction: column;
     }
-    
+
     .search-interface {
         padding: 1rem;
     }
-    
+
     .advanced-search-options {
         grid-template-columns: 1fr;
     }

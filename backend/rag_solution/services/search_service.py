@@ -4,9 +4,9 @@ import time
 from collections.abc import Callable
 from functools import wraps
 from typing import Any, ParamSpec, TypeVar
-from pydantic import UUID4
 
 from fastapi import HTTPException
+from pydantic import UUID4
 from sqlalchemy.orm import Session
 
 from core.custom_exceptions import ConfigurationError, LLMProviderError, NotFoundError, ValidationError
@@ -107,9 +107,7 @@ class SearchService:
             logger.error(f"Error initializing pipeline: {e!s}")
             raise ConfigurationError(f"Pipeline initialization failed: {e!s}") from e
 
-    def _generate_document_metadata(
-        self, query_results: list[QueryResult], collection_id: UUID4
-    ) -> list[DocumentMetadata]:
+    def _generate_document_metadata(self, query_results: list[QueryResult], collection_id: UUID4) -> list[DocumentMetadata]:
         """Generate metadata from retrieved query results."""
         logger.debug("Generating document metadata")
 
@@ -146,9 +144,7 @@ class SearchService:
                 missing_docs.append(doc_id)
 
         if missing_docs:
-            raise ConfigurationError(
-                f"Metadata generation failed: Documents not found in collection metadata: {', '.join(missing_docs)}"
-            )
+            raise ConfigurationError(f"Metadata generation failed: Documents not found in collection metadata: {', '.join(missing_docs)}")
 
         for doc_id in doc_ids:
             doc_metadata.append(file_metadata_by_id[doc_id])
@@ -190,18 +186,14 @@ class SearchService:
         except HTTPException as e:
             # Convert HTTPException to NotFoundError to ensure consistent error handling
             if e.status_code == 404:
-                raise NotFoundError(
-                    resource_type="Collection", resource_id=str(collection_id), message=str(e.detail)
-                ) from e
+                raise NotFoundError(resource_type="Collection", resource_id=str(collection_id), message=str(e.detail)) from e
             raise
 
     def _validate_pipeline(self, pipeline_id: UUID4) -> None:
         """Validate pipeline configuration."""
         pipeline_config = self.pipeline_service.get_pipeline_config(pipeline_id)
         if not pipeline_config:
-            raise NotFoundError(
-                resource_type="Pipeline", resource_id=str(pipeline_id), message="Pipeline configuration not found"
-            )
+            raise NotFoundError(resource_type="Pipeline", resource_id=str(pipeline_id), message="Pipeline configuration not found")
 
     @handle_search_errors
     async def search(self, search_input: SearchInput) -> SearchOutput:
@@ -218,9 +210,7 @@ class SearchService:
         collection_name = await self._initialize_pipeline(search_input.collection_id)
 
         # Execute pipeline
-        pipeline_result = await self.pipeline_service.execute_pipeline(
-            search_input=search_input, collection_name=collection_name
-        )
+        pipeline_result = await self.pipeline_service.execute_pipeline(search_input=search_input, collection_name=collection_name)
 
         if not pipeline_result.success:
             raise ConfigurationError(pipeline_result.error or "Pipeline execution failed")

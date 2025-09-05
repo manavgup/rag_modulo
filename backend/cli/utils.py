@@ -27,24 +27,12 @@ def format_duration(seconds: float) -> str:
 def calculate_retrieval_metrics(query_results: list[Any]) -> dict[str, float]:
     """Calculate retrieval quality metrics."""
     if not query_results:
-        return {
-            "precision": 0.0,
-            "avg_score": 0.0,
-            "max_score": 0.0,
-            "min_score": 0.0,
-            "score_variance": 0.0
-        }
+        return {"precision": 0.0, "avg_score": 0.0, "max_score": 0.0, "min_score": 0.0, "score_variance": 0.0}
 
     scores = [qr.score for qr in query_results if hasattr(qr, "score")]
 
     if not scores:
-        return {
-            "precision": 0.0,
-            "avg_score": 0.0,
-            "max_score": 0.0,
-            "min_score": 0.0,
-            "score_variance": 0.0
-        }
+        return {"precision": 0.0, "avg_score": 0.0, "max_score": 0.0, "min_score": 0.0, "score_variance": 0.0}
 
     avg_score = sum(scores) / len(scores)
     variance = sum((s - avg_score) ** 2 for s in scores) / len(scores) if len(scores) > 1 else 0
@@ -54,7 +42,7 @@ def calculate_retrieval_metrics(query_results: list[Any]) -> dict[str, float]:
         "avg_score": avg_score,
         "max_score": max(scores),
         "min_score": min(scores),
-        "score_variance": variance
+        "score_variance": variance,
     }
 
 
@@ -64,7 +52,7 @@ def evaluate_answer_quality(answer: str, expected_keywords: list[str] | None = N
         "length": len(answer),
         "word_count": len(answer.split()),
         "has_content": len(answer.strip()) > 0,
-        "completeness_score": 0.0
+        "completeness_score": 0.0,
     }
 
     # Basic completeness heuristic
@@ -80,9 +68,9 @@ def evaluate_answer_quality(answer: str, expected_keywords: list[str] | None = N
     # Check for expected keywords if provided
     if expected_keywords:
         keywords_found = [kw for kw in expected_keywords if kw.lower() in answer.lower()]
-        metrics["keyword_coverage"] = len(keywords_found) / len(expected_keywords)
-        metrics["keywords_found"] = keywords_found
-        metrics["keywords_missing"] = [kw for kw in expected_keywords if kw not in keywords_found]
+        metrics["keyword_coverage"] = float(len(keywords_found) / len(expected_keywords))
+        metrics["keywords_found"] = keywords_found  # type: ignore[assignment]
+        metrics["keywords_missing"] = [kw for kw in expected_keywords if kw not in keywords_found]  # type: ignore[assignment]
 
     return metrics
 
@@ -98,7 +86,7 @@ def compare_search_configs(results: list[dict[str, Any]]) -> Table:
     table.add_column("Avg Docs", style="magenta")
 
     # Group results by configuration
-    configs = {}
+    configs: dict[str, list[dict[str, Any]]] = {}
     for result in results:
         config = result.get("config", "default")
         if config not in configs:
@@ -115,13 +103,7 @@ def compare_search_configs(results: list[dict[str, Any]]) -> Table:
             success_rate = len(successful) / len(config_results) * 100
             avg_docs = sum(r.get("documents_retrieved", 0) for r in successful) / len(successful)
 
-            table.add_row(
-                config,
-                f"{avg_quality:.1f}%",
-                format_duration(avg_time),
-                f"{success_rate:.1f}%",
-                f"{avg_docs:.1f}"
-            )
+            table.add_row(config, f"{avg_quality:.1f}%", format_duration(avg_time), f"{success_rate:.1f}%", f"{avg_docs:.1f}")
 
     return table
 
@@ -240,26 +222,25 @@ def load_test_queries(file_path: str) -> list[dict[str, Any]]:
         raise FileNotFoundError(f"Test queries file not found: {file_path}")
 
     with open(path) as f:
-        data = json.load(f)
+        data: Any = json.load(f)
 
     # Support both 'test_queries' and direct list format
     if isinstance(data, list):
-        return data
+        return data  # type: ignore[no-any-return]
     elif isinstance(data, dict) and "test_queries" in data:
-        return data["test_queries"]
+        return data["test_queries"]  # type: ignore[no-any-return]
     else:
         raise ValueError("Invalid test queries format. Expected list or dict with 'test_queries' key.")
 
 
 def validate_collection_access(collection_id: str, db: Any) -> bool:
     """Validate that collection exists and is accessible."""
-    from pydantic import UUID4
 
     from rag_solution.services.collection_service import CollectionService
 
     try:
         collection_service = CollectionService(db)
-        collection = collection_service.get_collection_by_id(uuid.UUID(collection_id))
+        collection = collection_service.get_collection(uuid.UUID(collection_id))
         return collection is not None
     except Exception:
         return False

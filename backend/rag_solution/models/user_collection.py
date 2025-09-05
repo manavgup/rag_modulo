@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import uuid
 from datetime import datetime
 
@@ -29,5 +31,5 @@ class UserCollection(Base):
     collection_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("collections.id"), primary_key=True)
     joined_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, nullable=False)
 
-    user = relationship("User", back_populates="collections", lazy="selectin")
-    collection = relationship("Collection", back_populates="users", lazy="selectin")
+    user: Mapped[User] = relationship("User", back_populates="collections", lazy="selectin")  # type: ignore[name-defined]
+    collection: Mapped[Collection] = relationship("Collection", back_populates="users", lazy="selectin")  # type: ignore[name-defined]

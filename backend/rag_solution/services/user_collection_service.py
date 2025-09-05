@@ -1,5 +1,6 @@
-from pydantic import UUID4
+from typing import Any
 
+from pydantic import UUID4
 from sqlalchemy.orm import Session
 
 from core.logging_utils import get_logger
@@ -13,7 +14,7 @@ logger = get_logger(__name__)
 
 
 class UserCollectionService:
-    def __init__(self, db: Session):
+    def __init__(self: Any, db: Session) -> None:
         self.db = db
         self.user_collection_repository = UserCollectionRepository(db)
 
@@ -30,10 +31,7 @@ class UserCollectionService:
     def get_collection_users(self, collection_id: UUID4) -> list[UserCollectionOutput]:
         collection = self.db.query(Collection).filter(Collection.id == collection_id).first()
         if not collection:
-            raise NotFoundError(
-                resource_type="Collection",
-                resource_id=str(collection_id)
-            )
+            raise NotFoundError(resource_type="Collection", resource_id=str(collection_id))
         return self.user_collection_repository.get_collection_users(collection_id)
 
     def remove_all_users_from_collection(self, collection_id: UUID4) -> bool:

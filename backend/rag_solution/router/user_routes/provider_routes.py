@@ -1,6 +1,5 @@
-from pydantic import UUID4
-
 from fastapi import APIRouter, Depends
+from pydantic import UUID4
 from sqlalchemy.orm import Session
 
 from rag_solution.file_management.database import get_db  # ✅ Import the session dependency

@@ -260,7 +260,7 @@ Add to your CI pipeline for automated quality testing:
       COLLECTION_ID=${{ secrets.TEST_COLLECTION_ID }} \
       USER_ID=${{ secrets.TEST_USER_ID }} \
       OUTPUT=search_quality_report.json
-    
+
     # Check quality threshold
     python -c "
     import json

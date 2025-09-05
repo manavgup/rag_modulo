@@ -20,15 +20,14 @@ from vectordbs.utils.watsonx import generate_text
 logger = logging.getLogger(__name__)
 
 warnings.warn(
-    "The generator.py module is deprecated and will be removed in a future version. "
-    "A new CLI tool using the service layer architecture will replace this utility.",
+    "The generator.py module is deprecated and will be removed in a future version. " "A new CLI tool using the service layer architecture will replace this utility.",
     DeprecationWarning,
     stacklevel=2,
 )
 
 
 class PromptTemplate:
-    def __init__(self, config: dict[str, str]):
+    def __init__(self, config: dict[str, str]) -> None:
         self.system_prompt = config["system_prompt"]
         self.context_prefix = config["context_prefix"]
         self.query_prefix = config["query_prefix"]
@@ -39,7 +38,7 @@ class PromptTemplate:
 
 
 class BaseGenerator:
-    def __init__(self, config: dict[str, Any]):
+    def __init__(self, config: dict[str, Any]) -> None:
         self.config = config
         self.prompt_template = self._load_prompt_template()
         self.max_tokens = self.config.get("max_tokens", 2048)
@@ -69,9 +68,7 @@ class BaseGenerator:
     def truncate_context(self, context: str, query: str) -> str:
         query_tokens = self.approximate_token_count(query)
         prompt_template_tokens = self.approximate_token_count(self.prompt_template.format("", ""))
-        available_tokens = (
-            self.max_tokens - query_tokens - prompt_template_tokens - 50
-        )  # Reserve some tokens for safety
+        available_tokens = self.max_tokens - query_tokens - prompt_template_tokens - 50  # Reserve some tokens for safety
 
         context_words = context.split()
         if len(context_words) > available_tokens:
@@ -88,7 +85,7 @@ class BaseGenerator:
 
 
 class WatsonxGenerator(BaseGenerator):
-    def __init__(self, config: dict[str, Any]):
+    def __init__(self, config: dict[str, Any]) -> None:
         if not isinstance(config, dict):
             raise TypeError(f"Expected config to be a dictionary, but got {type(config).__name__}")
 
@@ -137,7 +134,7 @@ class WatsonxGenerator(BaseGenerator):
 
 
 class OpenAIGenerator(BaseGenerator):
-    def __init__(self, config: dict[str, Any]):
+    def __init__(self, config: dict[str, Any]) -> None:
         super().__init__(config)
         self.model_name = config.get("model_name", "gpt-3.5-turbo")
         import openai
@@ -158,6 +155,7 @@ class OpenAIGenerator(BaseGenerator):
         try:
             # Use the correct OpenAI client API
             from openai import OpenAI
+
             client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
             response = client.chat.completions.create(
                 model=self.model_name,
@@ -187,6 +185,7 @@ class OpenAIGenerator(BaseGenerator):
         try:
             # Use the correct OpenAI client API
             from openai import OpenAI
+
             client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
             response = client.chat.completions.create(
                 model=self.model_name,
@@ -203,7 +202,7 @@ class OpenAIGenerator(BaseGenerator):
 
 
 class AnthropicGenerator(BaseGenerator):
-    def __init__(self, config: dict[str, Any]):
+    def __init__(self, config: dict[str, Any]) -> None:
         super().__init__(config)
         self.model_name = config.get("model_name", "claude-2")
         import anthropic

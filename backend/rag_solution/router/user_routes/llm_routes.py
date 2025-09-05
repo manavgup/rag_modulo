@@ -1,12 +1,12 @@
 """LLM-related routes including parameters and providers."""
 
 import logging
-from pydantic import UUID4
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import UUID4
 from sqlalchemy.orm import Session
 
-from rag_solution.core.dependencies import verify_user_access, get_db
+from rag_solution.core.dependencies import get_db, verify_user_access
 from rag_solution.schemas.llm_model_schema import LLMModelOutput
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput, LLMParametersOutput
 from rag_solution.schemas.llm_provider_schema import LLMProviderInput, LLMProviderOutput
@@ -33,11 +33,7 @@ router = APIRouter()
         500: {"description": "Internal server error"},
     },
 )
-async def get_llm_parameters(
-    user_id: UUID4,
-    user: UserOutput = Depends(verify_user_access),
-    db: Session = Depends(get_db)
-) -> list[LLMParametersOutput]:
+async def get_llm_parameters(user_id: UUID4, user: UserOutput = Depends(verify_user_access), db: Session = Depends(get_db)) -> list[LLMParametersOutput]:
     """Retrieve all LLM parameters for a user."""
     service = LLMParametersService(db)
     try:
@@ -56,7 +52,7 @@ async def create_llm_parameters(
     user_id: UUID4,
     parameters_input: LLMParametersInput,
     user: UserOutput = Depends(verify_user_access),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> LLMParametersOutput:
     """Create a new set of LLM parameters for a user."""
     service = LLMParametersService(db)
@@ -93,12 +89,7 @@ async def update_llm_parameters(
     summary="Delete LLM parameters",
     description="Delete an existing set of LLM parameters",
 )
-async def delete_llm_parameters(
-    user_id: UUID4, 
-    parameter_id: UUID4, 
-    user: UserOutput = Depends(verify_user_access),
-    db: Session = Depends(get_db)
-) -> bool:
+async def delete_llm_parameters(user_id: UUID4, parameter_id: UUID4, user: UserOutput = Depends(verify_user_access), db: Session = Depends(get_db)) -> bool:
     """Delete an existing set of LLM parameters."""
     service = LLMParametersService(db)
     try:
@@ -114,12 +105,7 @@ async def delete_llm_parameters(
     summary="Set default LLM parameters",
     description="Set a specific set of LLM parameters as default",
 )
-async def set_default_llm_parameters(
-    user_id: UUID4, 
-    parameter_id: UUID4, 
-    user: UserOutput = Depends(verify_user_access),
-    db: Session = Depends(get_db)
-) -> LLMParametersOutput:
+async def set_default_llm_parameters(user_id: UUID4, parameter_id: UUID4, user: UserOutput = Depends(verify_user_access), db: Session = Depends(get_db)) -> LLMParametersOutput:
     """Set a specific set of LLM parameters as default."""
     service = LLMParametersService(db)
     try:
@@ -135,11 +121,7 @@ async def set_default_llm_parameters(
     summary="Get LLM providers",
     description="Retrieve all LLM providers for a user",
 )
-async def get_llm_providers(
-    user_id: UUID4, 
-    user: UserOutput = Depends(verify_user_access),
-    db: Session = Depends(get_db)
-) -> list[LLMProviderOutput]:
+async def get_llm_providers(user_id: UUID4, user: UserOutput = Depends(verify_user_access), db: Session = Depends(get_db)) -> list[LLMProviderOutput]:
     """Retrieve all LLM providers for a user."""
     service = LLMProviderService(db)
     try:
@@ -155,10 +137,10 @@ async def get_llm_providers(
     description="Create a new LLM provider configuration",
 )
 async def create_llm_provider(
-    user_id: UUID4, 
-    provider_input: LLMProviderInput, 
+    user_id: UUID4,
+    provider_input: LLMProviderInput,
     user: UserOutput = Depends(verify_user_access),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ) -> LLMProviderOutput:
     """Create a new LLM provider configuration."""
     service = LLMProviderService(db)
@@ -177,12 +159,12 @@ async def create_llm_provider(
     description="Update an existing LLM provider configuration",
 )
 async def update_llm_provider(
-    user_id: UUID4, 
-    provider_id: UUID4, 
-    provider_input: LLMProviderInput, 
+    user_id: UUID4,
+    provider_id: UUID4,
+    provider_input: LLMProviderInput,
     user: UserOutput = Depends(verify_user_access),
-    db: Session = Depends(get_db)
-) -> LLMProviderOutput:
+    db: Session = Depends(get_db),
+) -> LLMProviderOutput | None:
     """Update an existing LLM provider configuration."""
     service = LLMProviderService(db)
     try:
@@ -198,12 +180,7 @@ async def update_llm_provider(
     summary="Delete LLM provider",
     description="Delete an existing LLM provider configuration",
 )
-async def delete_llm_provider(
-    user_id: UUID4, 
-    provider_id: UUID4, 
-    user: UserOutput = Depends(verify_user_access),
-    db: Session = Depends(get_db)
-) -> bool:
+async def delete_llm_provider(user_id: UUID4, provider_id: UUID4, user: UserOutput = Depends(verify_user_access), db: Session = Depends(get_db)) -> bool:
     """Delete an existing LLM provider configuration."""
     service = LLMProviderService(db)
     try:
@@ -218,11 +195,7 @@ async def delete_llm_provider(
     summary="Get provider models",
     description="Retrieve all available models from providers",
 )
-async def get_provider_models(
-    user_id: UUID4, 
-    user: UserOutput = Depends(verify_user_access),
-    db: Session = Depends(get_db)
-) -> list[LLMModelOutput]:
+async def get_provider_models(user_id: UUID4, user: UserOutput = Depends(verify_user_access), db: Session = Depends(get_db)) -> list[LLMModelOutput]:
     """Retrieve all available models from providers."""
     service = LLMProviderService(db)
     try:
@@ -243,12 +216,7 @@ async def get_provider_models(
     summary="Get provider models",
     description="Retrieve all available models for a specific provider",
 )
-async def get_provider_specific_models(
-    user_id: UUID4, 
-    provider_id: UUID4, 
-    user: UserOutput = Depends(verify_user_access),
-    db: Session = Depends(get_db)
-) -> list[LLMModelOutput]:
+async def get_provider_specific_models(user_id: UUID4, provider_id: UUID4, user: UserOutput = Depends(verify_user_access), db: Session = Depends(get_db)) -> list[LLMModelOutput]:
     """Retrieve all available models for a specific provider."""
     service = LLMProviderService(db)
     try:

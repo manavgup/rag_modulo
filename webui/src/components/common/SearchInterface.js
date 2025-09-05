@@ -69,7 +69,7 @@ const SearchInterface = () => {
 
     try {
       const searchResult = await searchDocuments(query, selectedCollection);
-      
+
       // Group source documents by document_id
       const groupedSources = searchResult.query_results.reduce((acc, result) => {
         const docId = result.chunk.document_id || 'unknown';
@@ -79,7 +79,7 @@ const SearchInterface = () => {
             doc => docId === result.chunk.document_id
           ) || {};
 
- 
+
 
           acc[docId] = {
             documentId: docId,
@@ -128,7 +128,7 @@ const SearchInterface = () => {
   const highlightSearchTerms = (text) => {
     if (!query) return text;
     const regex = new RegExp(`(${query.split(' ').join('|')})`, 'gi');
-    return text.split(regex).map((part, index) => 
+    return text.split(regex).map((part, index) =>
         regex.test(part) ? <mark key={index}>{part}</mark> : part
     );
   };
@@ -144,7 +144,7 @@ const SearchInterface = () => {
 
   const renderSourceMetadata = (metadata) => {
     if (!metadata) return null;
-    
+
     const items = [];
     if (metadata.page_number) {
       items.push(`Page ${metadata.page_number}${metadata.total_pages ? ` of ${metadata.total_pages}` : ''}`);
@@ -155,7 +155,7 @@ const SearchInterface = () => {
     if (metadata.created_at) {
       items.push(new Date(metadata.created_at).toLocaleDateString());
     }
-    
+
     return items.length > 0 ? (
       <div className="source-metadata">
         {items.map((item, index) => (

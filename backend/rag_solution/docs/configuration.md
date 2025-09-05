@@ -172,7 +172,7 @@ try:
     provider = provider_service.get_provider_by_name("watsonx")
     parameters = parameters_service.get_parameters(parameters_id)
     template = template_service.get_by_type(PromptTemplateType.RAG_QUERY)
-    
+
 except ConfigurationError as e:
     logger.error(f"Configuration error: {str(e)}")
 except ValidationError as e:

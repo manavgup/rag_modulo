@@ -1,6 +1,5 @@
-from pydantic import UUID4
-
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import UUID4
 from sqlalchemy.orm import Session
 
 from rag_solution.file_management.database import get_db
@@ -81,7 +80,7 @@ def create_team(team: TeamInput, db: Session = Depends(get_db)) -> TeamOutput:
         500: {"description": "Internal server error"},
     },
 )
-def update_user_role_in_team(team_id: UUID4, user_id: UUID4, role: str, db: Session = Depends(get_db)) -> UserTeamOutput:
+def update_user_role_in_team(team_id: UUID4, user_id: UUID4, role: str, db: Session = Depends(get_db)) -> UserTeamOutput | None:
     """
     Update a user's role in a team.
 
@@ -244,7 +243,7 @@ def get_team_users(team_id: UUID4, db: Session = Depends(get_db)) -> list[UserTe
         500: {"description": "Internal server error"},
     },
 )
-def add_user_to_team(team_id: UUID4, user_team_input: UserTeamInput, db: Session = Depends(get_db)) -> UserTeamOutput:
+def add_user_to_team(team_id: UUID4, user_team_input: UserTeamInput, db: Session = Depends(get_db)) -> UserTeamOutput | None:
     """
     Add a user to a team.
 

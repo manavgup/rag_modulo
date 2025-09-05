@@ -13,31 +13,63 @@ def load_research_ecosystem_chunks() -> list[dict[str, Any]]:
     """Load predefined chunks from the research ecosystem document."""
     return [
         {
-            "text": """Canada's research ecosystem is a complex network of institutions, funding agencies, and researchers working together to advance knowledge and innovation. The ecosystem includes universities, government research facilities, private sector R&D labs, and various funding organizations like NSERC, CIHR, and SSHRC.""",
+            "text": (
+                "Canada's research ecosystem is a complex network of institutions, "
+                "funding agencies, and researchers working together to advance knowledge and innovation. "
+                "The ecosystem includes universities, government research facilities, "
+                "private sector R&D labs, and various funding organizations like NSERC, CIHR, and SSHRC."
+            ),
             "metadata": {"source": "research_overview", "section": "overview", "page": 1},
         },
         {
-            "text": """Research Institutions include universities and colleges conducting fundamental and applied research, government research laboratories and facilities, private sector research and development centers, and non-profit research institutes.""",
+            "text": (
+                "Research Institutions include universities and colleges conducting "
+                "fundamental and applied research, government research laboratories and facilities, "
+                "private sector research and development centers, and non-profit research institutes."
+            ),
             "metadata": {"source": "research_overview", "section": "institutions", "page": 1},
         },
         {
-            "text": """Funding Sources include federal funding through tri-council agencies (NSERC, CIHR, SSHRC), provincial research funding programs, industry partnerships and private sector investment, international collaboration grants, and charitable foundations.""",
+            "text": (
+                "Funding Sources include federal funding through tri-council agencies "
+                "(NSERC, CIHR, SSHRC), provincial research funding programs, "
+                "industry partnerships and private sector investment, "
+                "international collaboration grants, and charitable foundations."
+            ),
             "metadata": {"source": "research_overview", "section": "funding", "page": 1},
         },
         {
-            "text": """Research Infrastructure includes advanced research facilities and equipment, high-performance computing resources, research databases and libraries, and specialized laboratories and testing facilities.""",
+            "text": (
+                "Research Infrastructure includes advanced research facilities and equipment, "
+                "high-performance computing resources, research databases and libraries, "
+                "and specialized laboratories and testing facilities."
+            ),
             "metadata": {"source": "research_overview", "section": "infrastructure", "page": 2},
         },
         {
-            "text": """Human Capital comprises principal investigators and research leads, graduate students and postdoctoral fellows, research technicians and support staff, and research administrators and grant managers.""",
+            "text": (
+                "Human Capital comprises principal investigators and research leads, "
+                "graduate students and postdoctoral fellows, research technicians and support staff, "
+                "and research administrators and grant managers."
+            ),
             "metadata": {"source": "research_overview", "section": "human_capital", "page": 2},
         },
         {
-            "text": """The ecosystem faces several challenges including maintaining global competitiveness, securing sustainable funding, attracting and retaining top talent, balancing basic and applied research, improving knowledge translation, and enhancing collaboration between sectors.""",
+            "text": (
+                "The ecosystem faces several challenges including maintaining global competitiveness, "
+                "securing sustainable funding, attracting and retaining top talent, "
+                "balancing basic and applied research, improving knowledge translation, "
+                "and enhancing collaboration between sectors."
+            ),
             "metadata": {"source": "research_overview", "section": "challenges", "page": 3},
         },
         {
-            "text": """Current priorities include strengthening international research partnerships, supporting early career researchers, advancing indigenous research, promoting open science initiatives, developing research talent, and accelerating innovation and commercialization.""",
+            "text": (
+                "Current priorities include strengthening international research partnerships, "
+                "supporting early career researchers, advancing indigenous research, "
+                "promoting open science initiatives, developing research talent, "
+                "and accelerating innovation and commercialization."
+            ),
             "metadata": {"source": "research_overview", "section": "priorities", "page": 3},
         },
     ]
@@ -45,10 +77,24 @@ def load_research_ecosystem_chunks() -> list[dict[str, Any]]:
 
 def create_test_document(chunks: list[dict[str, Any]], doc_id: str = "test_doc") -> Document:
     """Create a Document object from a list of chunk dictionaries."""
+    from vectordbs.data_types import DocumentChunkMetadata, DocumentMetadata, Source
+
     return Document(
-        id=doc_id,
-        chunks=[DocumentChunk(text=chunk["text"], metadata=chunk["metadata"]) for chunk in chunks],
-        metadata={"title": "Canada Research Ecosystem Overview", "source": "test_data", "type": "research_document"},
+        name="test_document",
+        document_id=doc_id,
+        chunks=[
+            DocumentChunk(
+                chunk_id=f"chunk_{i}",
+                text=chunk["text"],
+                metadata=DocumentChunkMetadata(source=Source.OTHER, document_id=doc_id, chunk_number=i),
+            )
+            for i, chunk in enumerate(chunks)
+        ],
+        metadata=DocumentMetadata(
+            title="Canada Research Ecosystem Overview",
+            document_name="test_data",
+            keywords={"type": "research_document"},
+        ),
     )
 
 

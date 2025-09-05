@@ -5,8 +5,8 @@ from typing import Any
 import json_repair
 import pydantic
 from dotenv import find_dotenv, load_dotenv
-from ibm_watsonx_ai.foundation_models import ModelInference
-from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams
+from ibm_watsonx_ai.foundation_models import ModelInference  # type: ignore[import-untyped]
+from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams  # type: ignore[import-untyped]
 from pydantic import BaseModel
 
 from core.logging_utils import get_logger
@@ -62,7 +62,10 @@ def get_schema(pydantic_object: pydantic.BaseModel | type[pydantic.BaseModel], e
     if empty:
         expected_schema = {key: None for key, value in reduced_schema.get("properties", {}).items()}
     else:
-        expected_schema = {key: f"<{value.get('description', '')}>" for key, value in reduced_schema.get("properties", {}).items()}
+        expected_schema = {
+            key: f"<{value.get('description', '') if isinstance(value, dict) and value.get('description') else ''}>"  # type: ignore[misc]
+            for key, value in reduced_schema.get("properties", {}).items()
+        }
 
     return expected_schema if json_output else json.dumps(expected_schema)
 
@@ -98,14 +101,18 @@ class BaseEvaluator:
         llm: ModelInference | None = None,
         prompt: str | None = None,
         pydantic_model: BaseModel | type[BaseModel] | None = None,
-    ):
+    ) -> None:
         self.llm = llm or get_evaluator()
         self.prompt = prompt
         self.pydantic_model = pydantic_model
 
     def evaluate(self, inputs: dict) -> Any:
+        if self.pydantic_model is None:
+            raise ValueError("pydantic_model must be provided")
         schema = get_schema(self.pydantic_model)
         inputs = inputs | {"schema": schema}
+        if self.prompt is None:
+            raise ValueError("prompt must be provided")
         prompt = self.prompt.format(**inputs)
         generated_text = generate_text(prompt=prompt, wx_model=self.llm)
         # Ensure we have a string for json_repair
@@ -125,8 +132,12 @@ class BaseEvaluator:
             Any: The repaired JSON object from the generated text.
         """
         try:
+            if self.pydantic_model is None:
+                raise ValueError("pydantic_model must be provided")
             schema = get_schema(self.pydantic_model)
             inputs = {**inputs, "schema": schema}
+            if self.prompt is None:
+                raise ValueError("prompt must be provided")
             prompt = self.prompt.format(**inputs)
 
             response = await llm.agenerate(prompt=prompt)
@@ -143,11 +154,13 @@ class BaseEvaluator:
             raise RuntimeError(f"Failed to evaluate inputs: {e}") from e
 
     def batch_evaluate(self, inputs: list) -> list[Any]:
+        if self.pydantic_model is None:
+            raise ValueError("pydantic_model must be provided")
+        if self.prompt is None:
+            raise ValueError("prompt must be provided")
+
         all_outputs = []
-        prompts = [
-            self.prompt.format(**{**prompt_inputs, "schema": get_schema(self.pydantic_model)})
-            for prompt_inputs in inputs
-        ]
+        prompts = [self.prompt.format(**{**prompt_inputs, "schema": get_schema(self.pydantic_model)}) for prompt_inputs in inputs]
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         llm = init_llm(parameters=BASE_LLM_PARAMETERS)

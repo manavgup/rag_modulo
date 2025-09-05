@@ -1,5 +1,6 @@
 import logging
 import os
+from typing import Any
 
 import jwt
 from fastapi import Request
@@ -12,16 +13,17 @@ from core.config import settings
 logging.basicConfig(level=settings.log_level)
 logger = logging.getLogger(__name__)
 
+
 class AuthenticationMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(self: Any, request: Request, call_next: Any) -> Any:
         logger.info(f"AuthMiddleware: Processing request to {request.url.path}")
         logger.debug(f"AuthMiddleware: Request headers: {request.headers}")
-        
+
         # Skip authentication entirely in test/development mode
         skip_auth = os.getenv("SKIP_AUTH", "false").lower() == "true"
         development_mode = os.getenv("DEVELOPMENT_MODE", "false").lower() == "true"
         testing_mode = os.getenv("TESTING", "false").lower() == "true"
-        
+
         if skip_auth or development_mode or testing_mode:
             # Set a default test user for CI/development
             request.state.user = {
@@ -29,7 +31,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                 "email": "test@example.com",
                 "name": "Test User",
                 "uuid": request.headers.get("X-User-UUID", "test-uuid"),
-                "role": request.headers.get("X-User-Role", "admin")
+                "role": request.headers.get("X-User-Role", "admin"),
             }
             logger.debug(f"AuthMiddleware: Skipping auth (skip_auth={skip_auth}, dev={development_mode}, test={testing_mode})")
             return await call_next(request)
@@ -37,12 +39,12 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         open_paths = [
             "/api/",
             "/api/auth/login",
-            "/api/auth/callback",   # Important for OAuth flow
+            "/api/auth/callback",  # Important for OAuth flow
             "/api/health",
             "/api/auth/oidc-config",
-            "/api/auth/token",      # Important for token exchange
-            "/api/auth/userinfo",   # Allow initial access for token verification
-            "/api/auth/session",    # Allow checking session status
+            "/api/auth/token",  # Important for token exchange
+            "/api/auth/userinfo",  # Allow initial access for token verification
+            "/api/auth/session",  # Allow checking session status
             "/api/docs",
             "/api/openapi.json",
             "/api/redoc",
@@ -50,7 +52,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             "/api/docs/swagger-ui.css",
             "/api/docs/swagger-ui-bundle.js",
             "/api/docs/swagger-ui-standalone-preset.js",
-            "/api/docs/favicon.png"
+            "/api/docs/favicon.png",
         ]
 
         # Skip authentication for open paths and static files
@@ -71,7 +73,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                         "email": "test@example.com",
                         "name": "Test User",
                         "uuid": request.headers.get("X-User-UUID"),  # Get UUID from header for tests
-                        "role": request.headers.get("X-User-Role", "admin")  # Default to admin for test token
+                        "role": request.headers.get("X-User-Role", "admin"),  # Default to admin for test token
                     }
                     logger.info("AuthMiddleware: Using mock test token")
                 else:
@@ -82,7 +84,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                         "email": payload.get("email"),
                         "name": payload.get("name"),
                         "uuid": payload.get("uuid"),
-                        "role": payload.get("role")
+                        "role": payload.get("role"),
                     }
                 logger.info(f"AuthMiddleware: JWT token validated successfully. User: {request.state.user}")
             except jwt.ExpiredSignatureError:
@@ -101,7 +103,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
 
         logger.info("AuthMiddleware: Passing request to next middleware/handler")
         logger.info(f"AuthMiddleware: About to call next handler for {request.url.path}")
-        
+
         try:
             response = await call_next(request)
             logger.info(f"AuthMiddleware: Response status code: {response.status_code}")

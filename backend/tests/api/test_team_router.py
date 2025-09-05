@@ -1,5 +1,6 @@
 """Tests for team router endpoints."""
 
+from collections.abc import Generator
 from uuid import uuid4
 
 import pytest
@@ -15,16 +16,16 @@ from rag_solution.models.user_team import UserTeam
 
 @pytest.fixture
 @pytest.mark.api
-def test_db(db: Session):
+def test_db(db: Session) -> Session:
     """Get test database session."""
     return db
 
 
 @pytest.fixture
-def client(test_db: Session):
+def client(test_db: Session) -> Generator[TestClient, None, None]:
     """Create test client with database override."""
 
-    def override_get_db():
+    def override_get_db() -> Generator[None, None, None]:
         try:
             yield test_db
         finally:
@@ -39,7 +40,7 @@ def client(test_db: Session):
 
 
 @pytest.fixture
-def test_user(test_db: Session):
+def test_user(test_db: Session) -> User:
     """Create a test user."""
     user = User(ibm_id="test-ibm-id", email="test@example.com", name="Test User")
     test_db.add(user)
@@ -48,7 +49,7 @@ def test_user(test_db: Session):
 
 
 @pytest.fixture
-def test_team(test_db: Session):
+def test_team(test_db: Session) -> Team:
     """Create a test team."""
     team = Team(name="Test Team", description="A team for testing")
     test_db.add(team)
@@ -57,7 +58,7 @@ def test_team(test_db: Session):
 
 
 @pytest.fixture
-def test_user_team(test_db: Session, test_user: User, test_team: Team):
+def test_user_team(test_db: Session, test_user: User, test_team: Team) -> UserTeam:
     """Create a test user-team association."""
     user_team = UserTeam(user_id=test_user.id, team_id=test_team.id, role="member")
     test_db.add(user_team)
@@ -66,7 +67,7 @@ def test_user_team(test_db: Session, test_user: User, test_team: Team):
 
 
 class TestTeamManagement:
-    def test_create_team_success(self, client: TestClient):
+    def test_create_team_success(self, client: TestClient) -> None:
         """Test successful team creation."""
         team_input = {"name": "New Team", "description": "A new test team"}
 
@@ -75,7 +76,7 @@ class TestTeamManagement:
         assert response.json()["name"] == "New Team"
         assert response.json()["description"] == "A new test team"
 
-    def test_create_team_invalid_input(self, client: TestClient):
+    def test_create_team_invalid_input(self, client: TestClient) -> None:
         """Test team creation with invalid input."""
         team_input = {
             # Missing required name field
@@ -85,20 +86,20 @@ class TestTeamManagement:
         response = client.post("/api/teams", json=team_input)
         assert response.status_code == 422
 
-    def test_get_team_success(self, client: TestClient, test_team: Team):
+    def test_get_team_success(self, client: TestClient, test_team: Team) -> None:
         """Test successful team retrieval."""
         response = client.get(f"/api/teams/{test_team.id}")
         assert response.status_code == 200
         assert response.json()["name"] == test_team.name
         assert response.json()["description"] == test_team.description
 
-    def test_get_team_not_found(self, client: TestClient):
+    def test_get_team_not_found(self, client: TestClient) -> None:
         """Test team retrieval when not found."""
         response = client.get(f"/api/teams/{uuid4()}")
         assert response.status_code == 404
         assert "Team not found" in response.json()["detail"]
 
-    def test_update_team_success(self, client: TestClient, test_team: Team):
+    def test_update_team_success(self, client: TestClient, test_team: Team) -> None:
         """Test successful team update."""
         update_data = {"name": "Updated Team", "description": "Updated description"}
 
@@ -107,7 +108,7 @@ class TestTeamManagement:
         assert response.json()["name"] == "Updated Team"
         assert response.json()["description"] == "Updated description"
 
-    def test_update_team_not_found(self, client: TestClient):
+    def test_update_team_not_found(self, client: TestClient) -> None:
         """Test team update when not found."""
         update_data = {"name": "Updated Team", "description": "Updated description"}
 
@@ -115,19 +116,19 @@ class TestTeamManagement:
         assert response.status_code == 404
         assert "Team not found" in response.json()["detail"]
 
-    def test_delete_team_success(self, client: TestClient, test_team: Team):
+    def test_delete_team_success(self, client: TestClient, test_team: Team) -> None:
         """Test successful team deletion."""
         response = client.delete(f"/api/teams/{test_team.id}")
         assert response.status_code == 200
         assert response.json() is True
 
-    def test_delete_team_not_found(self, client: TestClient):
+    def test_delete_team_not_found(self, client: TestClient) -> None:
         """Test team deletion when not found."""
         response = client.delete(f"/api/teams/{uuid4()}")
         assert response.status_code == 200
         assert response.json() is False
 
-    def test_list_teams_success(self, client: TestClient, test_team: Team):
+    def test_list_teams_success(self, client: TestClient, test_team: Team) -> None:
         """Test successful teams listing."""
         response = client.get("/api/teams")
         assert response.status_code == 200
@@ -135,7 +136,7 @@ class TestTeamManagement:
         assert len(teams) > 0
         assert any(team["id"] == str(test_team.id) for team in teams)
 
-    def test_list_teams_pagination(self, client: TestClient, test_team: Team):  # noqa: ARG002
+    def test_list_teams_pagination(self, client: TestClient, test_team: Team) -> None:  # noqa: ARG002
         """Test teams listing with pagination."""
         # Create additional teams
         team_input = {"name": "Another Team", "description": "Another test team"}
@@ -153,7 +154,7 @@ class TestTeamManagement:
 
 
 class TestTeamUsers:
-    def test_get_team_users_success(self, client: TestClient, test_team: Team, test_user_team: UserTeam):  # noqa: ARG002
+    def test_get_team_users_success(self, client: TestClient, test_team: Team, test_user_team: UserTeam) -> None:  # noqa: ARG002
         """Test successful team users retrieval."""
         response = client.get(f"/api/teams/{test_team.id}/users")
         assert response.status_code == 200
@@ -161,7 +162,7 @@ class TestTeamUsers:
         assert len(users) > 0
         assert users[0]["role"] == "member"
 
-    def test_get_team_users_empty(self, client: TestClient, test_team: Team):  # noqa: ARG002
+    def test_get_team_users_empty(self, client: TestClient, test_team: Team) -> None:  # noqa: ARG002
         """Test team users retrieval when team has no users."""
         # Create a new team without users
         team_input = {"name": "Empty Team", "description": "Team with no users"}
@@ -172,7 +173,7 @@ class TestTeamUsers:
         assert response.status_code == 200
         assert len(response.json()) == 0
 
-    def test_get_team_users_team_not_found(self, client: TestClient):
+    def test_get_team_users_team_not_found(self, client: TestClient) -> None:
         """Test team users retrieval when team not found."""
         response = client.get(f"/api/teams/{uuid4()}/users")
         assert response.status_code == 200

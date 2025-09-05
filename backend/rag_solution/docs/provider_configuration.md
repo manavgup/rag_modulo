@@ -158,7 +158,7 @@ class LLMProviderService:
     def __init__(self, db: Session):
         self._metrics = ProviderMetrics()
         self._cache = ResponseCache()
-        
+
     async def generate_text(
         self,
         prompt: str,
@@ -172,7 +172,7 @@ class LLMProviderService:
             if cached:
                 self._metrics.record_cache_hit()
                 return cached
-                
+
         # Track metrics
         start_time = time.time()
         try:
@@ -181,17 +181,17 @@ class LLMProviderService:
                 model_parameters
             )
             self._metrics.record_success(time.time() - start_time)
-            
+
             # Cache response
             if use_cache:
                 self._cache.set(prompt, model_parameters, response)
-                
+
             return response
-            
+
         except Exception as e:
             self._metrics.record_error(str(e))
             raise
-            
+
     def get_metrics(self) -> Dict[str, Any]:
         """Get provider performance metrics."""
         return {
@@ -218,10 +218,10 @@ from core.custom_exceptions import (
 try:
     # Get provider
     provider = provider_service.get_provider_by_name("watsonx")
-    
+
     # Get parameters
     parameters = parameters_service.get_parameters(parameters_id)
-    
+
     # Generate text
     response = provider.generate_text(
         prompt=prompt,
@@ -249,21 +249,21 @@ PROVIDER_ERROR_TYPES = {
     "INIT_FAILED": "initialization_failed",
     "AUTH_FAILED": "authentication_failed",
     "CONFIG_INVALID": "configuration_invalid",
-    
+
     # Runtime Errors
     "RATE_LIMIT": "rate_limit_exceeded",
     "TIMEOUT": "request_timeout",
     "API_ERROR": "api_error",
-    
+
     # Generation Errors
     "PROMPT_ERROR": "prompt_preparation_failed",
     "TEMPLATE_ERROR": "template_formatting_failed",
     "PARAM_ERROR": "invalid_parameters",
-    
+
     # Resource Errors
     "MODEL_ERROR": "model_not_available",
     "RESOURCE_ERROR": "resource_exhausted",
-    
+
     # Response Errors
     "RESPONSE_ERROR": "invalid_response",
     "PARSING_ERROR": "response_parsing_failed"

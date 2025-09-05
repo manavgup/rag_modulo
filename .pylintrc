@@ -1,0 +1,7 @@
+[FORMAT]
+# Match Flake8 max-line-length
+max-line-length=120
+
+[MESSAGES CONTROL]
+# Disable line-too-long if still flagged
+disable=C0301

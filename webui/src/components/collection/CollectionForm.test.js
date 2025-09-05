@@ -30,7 +30,7 @@ describe('CollectionForm', () => {
   test('validates collection name', async () => {
     render(<CollectionForm />);
     const nameInput = screen.getByLabelText('Collection Name');
-    
+
     userEvent.type(nameInput, 'ab');
     await waitFor(() => {
       expect(screen.getByText('Collection name must be at least 3 characters long.')).toBeInTheDocument();
@@ -46,7 +46,7 @@ describe('CollectionForm', () => {
   test('shows error when no files are selected', async () => {
     render(<CollectionForm />);
     const submitButton = screen.getByText('Create Collection');
-    
+
     fireEvent.click(submitButton);
     await waitFor(() => {
       expect(screen.getByText('Please add at least one file to the collection.')).toBeInTheDocument();
@@ -94,7 +94,7 @@ describe('CollectionForm', () => {
     await waitFor(() => {
       expect(createCollectionWithDocuments).toHaveBeenCalled();
     });
-    
+
     await waitFor(() => {
       expect(screen.getByText('Collection Created')).toBeInTheDocument();
     });

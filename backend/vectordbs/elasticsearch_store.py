@@ -32,19 +32,32 @@ ELASTIC_API_KEY = settings.elastic_api_key
 
 
 class ElasticSearchStore(VectorStore):
-    def __init__(self, host: str = ELASTICSEARCH_HOST, port: int = int(ELASTICSEARCH_PORT)) -> None:
+    def __init__(self, host: str | None = None, port: int | None = None) -> None:
+        # Use provided values or fall back to settings with proper defaults
+        actual_host = host or ELASTICSEARCH_HOST or "localhost"
+        actual_port = port or (int(ELASTICSEARCH_PORT) if ELASTICSEARCH_PORT else 9200)
+
         self.index_name = ELASTICSEARCH_INDEX
-        if ELASTIC_CLOUD_ID:
+        if ELASTIC_CLOUD_ID and ELASTIC_API_KEY:
             self.client = Elasticsearch(ELASTIC_CLOUD_ID, api_key=ELASTIC_API_KEY)
         else:
-            self.client = Elasticsearch(
-                hosts=[{"host": host, "port": int(port), "scheme": "https"}],
-                ca_certs=ELASTIC_CACERT_PATH,
-                basic_auth=("elastic", ELASTIC_PASSWORD),
-                verify_certs=False  # Disable SSL verification
-            )
+            # Build client arguments dynamically to handle None values
+            client_kwargs: dict[str, Any] = {
+                "hosts": [{"host": actual_host, "port": actual_port, "scheme": "https"}],
+                "verify_certs": False,  # Disable SSL verification
+            }
 
-    def create_collection(self, collection_name: str, metadata: dict | None = None) -> None:
+            # Only add basic_auth if password is available
+            if ELASTIC_PASSWORD:
+                client_kwargs["basic_auth"] = ("elastic", ELASTIC_PASSWORD)
+
+            # Only add ca_certs if path is available
+            if ELASTIC_CACERT_PATH:
+                client_kwargs["ca_certs"] = ELASTIC_CACERT_PATH
+
+            self.client = Elasticsearch(**client_kwargs)
+
+    def create_collection(self, collection_name: str, metadata: dict | None = None) -> None:  # noqa: ARG002
         """
         Create a new Elasticsearch index.
 
@@ -72,7 +85,7 @@ class ElasticSearchStore(VectorStore):
                         "created_at": {"type": "date"},
                         "author": {"type": "keyword"},
                         "document_id": {"type": "keyword"},
-                        "chunk_id": {"type": "keyword"}
+                        "chunk_id": {"type": "keyword"},
                     }
                 },
             }
@@ -80,17 +93,21 @@ class ElasticSearchStore(VectorStore):
             logging.info(f"Collection '{collection_name}' created successfully")
         except Exception as e:
             logging.error(f"Failed to create collection '{collection_name}': {e}", exc_info=True)
-            raise CollectionError(f"Failed to create collection '{collection_name}': {e}")
+            raise CollectionError(f"Failed to create collection '{collection_name}': {e}") from e
 
-    def add_documents(self, collection_name: str, documents: list[Document]) -> None:
+    def add_documents(self, collection_name: str, documents: list[Document]) -> list[str]:
         """
         Add documents to the specified Elasticsearch index.
 
         Args:
             collection_name (str): The name of the index to add documents to.
             documents (List[Document]): A list of documents to add.
+
+        Returns:
+            List[str]: The list of document IDs that were added.
         """
         try:
+            document_ids = []
             for document in documents:
                 # Get embeddings for the first chunk (assuming single chunk per document for now)
                 if document.chunks:
@@ -103,13 +120,20 @@ class ElasticSearchStore(VectorStore):
                         "document_id": document.document_id,
                         "chunk_id": chunk.chunk_id,
                     }
+                    # Index the document and get the response
+                    response = self.client.index(index=collection_name, body=body)
+                    # Elasticsearch returns the document ID in the response
+                    if response and "_id" in response:
+                        document_ids.append(response["_id"])
+                    else:
+                        document_ids.append(chunk.chunk_id)  # Fallback to chunk_id
                 else:
                     continue
-                self.client.index(index=collection_name, body=body)
             logging.info(f"Documents added to collection '{collection_name}' successfully")
+            return document_ids
         except Exception as e:
             logging.error(f"Failed to add documents to collection '{collection_name}': {e}", exc_info=True)
-            raise DocumentError(f"Failed to add documents to collection '{collection_name}': {e}")
+            raise DocumentError(f"Failed to add documents to collection '{collection_name}': {e}") from e
 
     def retrieve_documents(
         self,
@@ -129,21 +153,13 @@ class ElasticSearchStore(VectorStore):
             List[QueryResult]: A list of query results.
         """
         try:
-            response = self.client.search(
-                index=collection_name,
-                body={
-                    "query": {
-                        "match": {
-                            "text": query
-                        }
-                    },
-                    "size": limit
-                }
-            )
-            return self._process_search_results(response)
+            response = self.client.search(index=collection_name, body={"query": {"match": {"text": query}}, "size": limit})
+            # Convert ObjectApiResponse to dict
+            response_dict = response.body if hasattr(response, "body") else dict(response)
+            return self._process_search_results(response_dict)
         except Exception as e:
             logging.error(f"Failed to retrieve documents from index '{collection_name}': {e}", exc_info=True)
-            raise DocumentError(f"Failed to retrieve documents from index '{collection_name}': {e}")
+            raise DocumentError(f"Failed to retrieve documents from index '{collection_name}': {e}") from e
 
     def query(
         self,
@@ -179,13 +195,15 @@ class ElasticSearchStore(VectorStore):
                         },
                         "filter": self._build_filters(filter),
                     }
-                }
+                },
             }
             response = self.client.search(index=collection_name, body=body)
-            return self._process_search_results(response)
+            # Convert ObjectApiResponse to dict
+            response_dict = response.body if hasattr(response, "body") else dict(response)
+            return self._process_search_results(response_dict)
         except Exception as e:
             logging.error(f"Failed to query documents from index '{collection_name}': {e}", exc_info=True)
-            raise DocumentError(f"Failed to query documents from index '{collection_name}': {e}")
+            raise DocumentError(f"Failed to query documents from index '{collection_name}': {e}") from e
 
     def delete_collection(self, collection_name: str) -> None:
         """
@@ -201,7 +219,7 @@ class ElasticSearchStore(VectorStore):
             logging.warning(f"Collection '{collection_name}' not found")
         except Exception as e:
             logging.error(f"Failed to delete collection '{collection_name}': {e}", exc_info=True)
-            raise CollectionError(f"Failed to delete collection '{collection_name}': {e}")
+            raise CollectionError(f"Failed to delete collection '{collection_name}': {e}") from e
 
     def delete_documents(self, collection_name: str, document_ids: list[str]) -> None:
         """
@@ -217,11 +235,9 @@ class ElasticSearchStore(VectorStore):
             logging.info(f"Documents deleted from collection '{collection_name}' successfully")
         except Exception as e:
             logging.error(f"Failed to delete documents from collection '{collection_name}': {e}", exc_info=True)
-            raise DocumentError(f"Failed to delete documents from collection '{collection_name}': {e}")
+            raise DocumentError(f"Failed to delete documents from collection '{collection_name}': {e}") from e
 
-    def _build_filters(
-        self, filter: DocumentMetadataFilter | None
-    ) -> dict[str, Any]:
+    def _build_filters(self, filter: DocumentMetadataFilter | None) -> dict[str, Any]:
         """Build Elasticsearch filters from a DocumentMetadataFilter."""
         if not filter:
             return {}
@@ -259,11 +275,7 @@ class ElasticSearchStore(VectorStore):
             )
 
             # Create QueryResult
-            result = QueryResult(
-                chunk=chunk,
-                score=score,
-                embeddings=source.get("embedding", [])
-            )
+            result = QueryResult(chunk=chunk, score=score, embeddings=source.get("embedding", []))
             results.append(result)
 
         return results

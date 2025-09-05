@@ -11,15 +11,18 @@ from pydantic import BaseModel, ConfigDict
 # Simplified embedding type
 Embedding = float
 Embeddings = list[float]
-EmbeddingsList = list[Embeddings] # List of embeddings
+EmbeddingsList = list[Embeddings]  # List of embeddings
+
 
 class Source(str, Enum):
     """Source types for documents."""
+
     WEBSITE = "website"
     PDF = "pdf"
     WORD_DOCUMENT = "word"
     POWERPOINT = "ppt"
     OTHER = "other"
+
 
 class DocumentMetadata(BaseModel):
     """Comprehensive metadata for documents and files.
@@ -41,6 +44,7 @@ class DocumentMetadata(BaseModel):
         total_chunks: Number of chunks from processing
         content_type: MIME type of the document
     """
+
     document_name: str | None = None
     title: str | None = None
     author: str | None = None
@@ -57,10 +61,7 @@ class DocumentMetadata(BaseModel):
 
     def to_json_dict(self) -> dict[str, Any]:
         """Convert to dictionary suitable for JSON storage."""
-        return {
-            k: v.isoformat() if isinstance(v, datetime) else v
-            for k, v in self.model_dump(exclude_none=True).items()
-        }
+        return {k: v.isoformat() if isinstance(v, datetime) else v for k, v in self.model_dump(exclude_none=True).items()}
 
     @classmethod
     def from_json_dict(cls, data: dict[str, Any]) -> DocumentMetadata:
@@ -72,8 +73,10 @@ class DocumentMetadata(BaseModel):
             data["mod_date"] = datetime.fromisoformat(data["mod_date"])
         return cls(**data)
 
+
 # Type alias for use in file-related contexts
 FileMetadata = DocumentMetadata
+
 
 class DocumentChunkMetadata(BaseModel):
     """Chunk-level metadata containing position and content information.
@@ -92,12 +95,13 @@ class DocumentChunkMetadata(BaseModel):
         table_index: Index if chunk is from a table
         image_index: Index if chunk is from an image
     """
+
     source: Source
     document_id: str | None = None
     page_number: int | None = None
     chunk_number: int | None = None
     start_index: int | None = None  # Added
-    end_index: int | None = None    # Added
+    end_index: int | None = None  # Added
     table_index: int | None = None
     image_index: int | None = None
     source_id: str | None = None
@@ -106,6 +110,7 @@ class DocumentChunkMetadata(BaseModel):
     author: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
 
 class DocumentChunk(BaseModel):
     """A chunk of text from a document with associated metadata and embeddings.
@@ -117,6 +122,7 @@ class DocumentChunk(BaseModel):
         metadata: Associated chunk-level metadata
         document_id: Reference to parent document
     """
+
     chunk_id: str
     text: str
     embeddings: Embeddings | None = None
@@ -126,8 +132,6 @@ class DocumentChunk(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-
-
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> DocumentChunk:
         """Create instance from dictionary data."""
@@ -136,8 +140,9 @@ class DocumentChunk(BaseModel):
             text=data["text"],
             embeddings=data.get("embeddings"),
             metadata=DocumentChunkMetadata.model_validate(data["metadata"]) if data.get("metadata") else None,
-            document_id=data.get("document_id")
+            document_id=data.get("document_id"),
         )
+
 
 class Document(BaseModel):
     """A document with its chunks and metadata.
@@ -150,6 +155,7 @@ class Document(BaseModel):
         path: Optional file path
         metadata: Document-level metadata
     """
+
     name: str
     document_id: str
     chunks: list[DocumentChunk]
@@ -171,8 +177,9 @@ class Document(BaseModel):
             document_id=data["document_id"],
             chunks=[DocumentChunk.from_dict(chunk) for chunk in data["chunks"]],
             path=data.get("path", ""),
-            metadata=DocumentMetadata.model_validate(data["metadata"]) if data.get("metadata") else None
+            metadata=DocumentMetadata.model_validate(data["metadata"]) if data.get("metadata") else None,
         )
+
 
 class DocumentMetadataFilter(BaseModel):
     """Filter criteria for document metadata.
@@ -182,11 +189,13 @@ class DocumentMetadataFilter(BaseModel):
         operator: Comparison operator
         value: Value to compare against
     """
+
     field_name: str
     operator: str = ""
     value: Any = None
 
     model_config = ConfigDict(from_attributes=True)
+
 
 class VectorQuery(BaseModel):
     """Query for vector database searches.
@@ -200,12 +209,14 @@ class VectorQuery(BaseModel):
         metadata_filter: Optional metadata-based filtering
         number_of_results: Maximum number of results to return (defaults to 10)
     """
+
     text: str
     embeddings: Embeddings | None = None  # Pre-computed if available
     metadata_filter: DocumentMetadataFilter | None = None
     number_of_results: int = 10  # Default to 10 results
 
     model_config = ConfigDict(from_attributes=True)
+
 
 class QueryResult(BaseModel):
     """Results from a vector store query.
@@ -216,6 +227,7 @@ class QueryResult(BaseModel):
         embeddings: Vector embeddings for each chunk
         data: List of chunks (for backward compatibility)
     """
+
     chunk: DocumentChunk
     score: float
     embeddings: Embeddings
@@ -250,6 +262,7 @@ class QueryResult(BaseModel):
         """Return number of results."""
         return 1
 
+
 class QueryWithEmbedding(BaseModel):
     """A query with its vector embedding.
 
@@ -258,6 +271,7 @@ class QueryWithEmbedding(BaseModel):
         embeddings: Vector embedding of the text
         vectors: Alias for embeddings
     """
+
     text: str
     embeddings: Embeddings
 
@@ -272,4 +286,3 @@ class QueryWithEmbedding(BaseModel):
     def vectors(self, value: Embeddings) -> None:
         """Set vectors (updates embeddings)."""
         self.embeddings = value
-

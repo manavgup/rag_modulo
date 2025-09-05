@@ -67,7 +67,7 @@ const Dashboard = () => {
             </ClickableTile>
           </div>
         </Tile>
-        
+
         <Tile className="dashboard-section" key="recent-collections">
             <h3>Recent Collections</h3>
             <StructuredListWrapper aria-label="Recent collections" key="sList">

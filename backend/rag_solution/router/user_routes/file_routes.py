@@ -1,9 +1,9 @@
 """File management routes."""
 
 import logging
-from pydantic import UUID4
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from pydantic import UUID4
 from sqlalchemy.orm import Session
 
 from rag_solution.core.dependencies import verify_user_access
@@ -40,9 +40,7 @@ async def upload_file(
     service = FileManagementService(db)
     try:
         # Upload file and create file record
-        return service.upload_and_create_file_record(
-            file, user_id, collection_id or user_id, str(user_id)
-        )
+        return service.upload_and_create_file_record(file, user_id, collection_id or user_id, str(user_id))
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to upload file: {e!s}") from e
 
@@ -63,6 +61,7 @@ async def delete_file(user_id: UUID4, file_id: UUID4, db: Session = Depends(get_
     """Delete a file from a user's collection."""
     service = FileManagementService(db)
     try:
-        return service.delete_file(file_id)
+        service.delete_file(file_id)
+        return True
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to delete file: {e!s}") from e

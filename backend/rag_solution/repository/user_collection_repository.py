@@ -1,10 +1,12 @@
-from pydantic import UUID4
+from typing import Any
 
+from pydantic import UUID4
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from rag_solution.core.exceptions import NotFoundError, AlreadyExistsError, ValidationError
+from core.custom_exceptions import RepositoryError
 from core.logging_utils import get_logger
+from rag_solution.core.exceptions import AlreadyExistsError, NotFoundError
 from rag_solution.models.collection import Collection
 from rag_solution.models.user import User
 from rag_solution.models.user_collection import UserCollection
@@ -14,31 +16,21 @@ logger = get_logger(__name__)
 
 
 class UserCollectionRepository:
-    def __init__(self, db: Session):
+    def __init__(self: Any, db: Session) -> None:
         self.db = db
 
     def add_user_to_collection(self, user_id: UUID4, collection_id: UUID4) -> bool:
         # First check if collection exists
         collection = self.db.query(Collection).filter(Collection.id == collection_id).first()
         if not collection:
-            raise NotFoundError(
-                resource_type="Collection",
-                resource_id=str(collection_id)
-            )
+            raise NotFoundError(resource_type="Collection", resource_id=str(collection_id))
 
         # Check if user exists (assuming you have a User model)
         user = self.db.query(User).filter(User.id == user_id).first()
         if not user:
-            raise NotFoundError(
-                resource_type="User",
-                resource_id=str(user_id)
-            )
+            raise NotFoundError(resource_type="User", resource_id=str(user_id))
 
-        existing_entry = (
-            self.db.query(UserCollection)
-            .filter(UserCollection.user_id == user_id, UserCollection.collection_id == collection_id)
-            .first()
-        )
+        existing_entry = self.db.query(UserCollection).filter(UserCollection.user_id == user_id, UserCollection.collection_id == collection_id).first()
 
         if existing_entry:
             logger.info(f"User {user_id} is already in collection {collection_id}.")
@@ -52,23 +44,14 @@ class UserCollectionRepository:
         except IntegrityError as e:
             self.db.rollback()
             logger.error(f"IntegrityError: {e!s}")
-            raise AlreadyExistsError(
-                resource_type="UserCollection", field="user_id:collection_id", value=f"{user_id}:{collection_id}"
-            ) from e
+            raise AlreadyExistsError(resource_type="UserCollection", field="user_id:collection_id", value=f"{user_id}:{collection_id}") from e
 
     def remove_user_from_collection(self, user_id: UUID4, collection_id: UUID4) -> bool:
         # First check if the relationship exists
-        user_collection = (
-            self.db.query(UserCollection)
-            .filter(UserCollection.user_id == user_id, UserCollection.collection_id == collection_id)
-            .first()
-        )
+        user_collection = self.db.query(UserCollection).filter(UserCollection.user_id == user_id, UserCollection.collection_id == collection_id).first()
 
         if not user_collection:
-            raise NotFoundError(
-                resource_type="UserCollection",
-                resource_id=f"{user_id}:{collection_id}"
-            )
+            raise NotFoundError(resource_type="UserCollection", resource_id=f"{user_id}:{collection_id}")
 
         try:
             self.db.delete(user_collection)
@@ -107,16 +90,9 @@ class UserCollectionRepository:
 
     def get_user_collection(self, user_id: UUID4, collection_id: UUID4) -> UserCollectionOutput:
         try:
-            user_collection = (
-                self.db.query(UserCollection)
-                .filter(UserCollection.user_id == user_id, UserCollection.collection_id == collection_id)
-                .first()
-            )
+            user_collection = self.db.query(UserCollection).filter(UserCollection.user_id == user_id, UserCollection.collection_id == collection_id).first()
             if not user_collection:
-                raise NotFoundError(
-                    resource_type="UserCollection",
-                    resource_id=f"{user_id}:{collection_id}"
-                )
+                raise NotFoundError(resource_type="UserCollection", resource_id=f"{user_id}:{collection_id}")
             return self._to_output(user_collection)
         except Exception as e:
             logger.error(f"Database error: {e!s}")

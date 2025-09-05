@@ -437,7 +437,7 @@ restart-backend:
 	@docker-compose exec -T backend python healthcheck.py 2>/dev/null || (echo "Waiting for backend to be ready..." && sleep 10)
 	@echo "Backend restarted successfully!"
 
-restart-frontend: 
+restart-frontend:
 	@echo "Restarting frontend service..."
 	$(DOCKER_COMPOSE) restart frontend
 	@echo "Waiting for frontend to be ready..."
@@ -492,7 +492,7 @@ NC := \033[0m # No Color
 # Local CI targets (mirror GitHub Actions)
 
 ## Linting targets
-lint: lint-ruff lint-mypy
+lint: lint-ruff lint-mypy lint-pylint
 	@echo "$(GREEN)✅ All linting checks completed$(NC)"
 
 lint-ruff: venv
@@ -502,13 +502,18 @@ lint-ruff: venv
 
 lint-mypy: venv
 	@echo "$(CYAN)🔎 Running Mypy type checker...$(NC)"
-	@cd backend && $(POETRY) run mypy rag_solution/ --ignore-missing-imports --disable-error-code=misc --disable-error-code=unused-ignore --no-strict-optional
+	@cd backend && $(POETRY) run mypy . --disable-error-code=misc --disable-error-code=unused-ignore --no-strict-optional
+
+lint-pylint: venv
+	@echo "$(CYAN)🔍 Running Pylint checks...$(NC)"
+	@pylint --rcfile=.pylintrc backend/rag_solution tests || true
+	@cd backend && $(POETRY) run mypy . --disable-error-code=misc --disable-error-code=unused-ignore --no-strict-optional
 	@echo "$(GREEN)✅ Mypy type checks passed$(NC)"
 
 ## NEW: Strict type checking target
 lint-mypy-strict:
 	@echo "$(CYAN)🔎 Running strict Mypy type checker...$(NC)"
-	cd backend && poetry run mypy rag_solution/ \
+	cd backend && poetry run mypy . \
 		--strict \
 		--warn-redundant-casts \
 		--warn-unused-ignores \
@@ -564,12 +569,12 @@ format-check: venv
 ## Pre-commit targets
 pre-commit-run:
 	@echo "$(CYAN)🔧 Running pre-commit hooks on all files...$(NC)"
-	poetry run pre-commit run --all-files
+	@cd backend && $(POETRY) run pre-commit run --all-files
 	@echo "$(GREEN)✅ Pre-commit run completed$(NC)"
 
 pre-commit-update:
 	@echo "$(CYAN)⬆️  Updating pre-commit hooks...$(NC)"
-	poetry run pre-commit autoupdate
+	@cd backend && $(POETRY) run pre-commit autoupdate
 	@echo "$(GREEN)✅ Pre-commit hooks updated$(NC)"
 
 setup-pre-commit:
@@ -884,7 +889,7 @@ help:
 	@echo "  run-services  		Run services using Docker Compose"
 	@echo "  stop-containers  	Stop all containers using Docker Compose"
 	@echo "  restart-backend  	Restart backend service with health check"
-	@echo "  restart-frontend 	Restart frontend service with wait"  
+	@echo "  restart-frontend 	Restart frontend service with wait"
 	@echo "  restart-app      	Restart both backend and frontend services"
 	@echo "  restart-backend-safe Restart backend and reload frontend nginx"
 	@echo "  clean         		Clean up Docker Compose volumes and cache"

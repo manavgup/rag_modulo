@@ -42,9 +42,7 @@ def get_document(name: str, document_id: str, text: str, metadata: dict | None =
         <Source.OTHER: 'other'>
     """
     # Create chunk metadata for source information
-    chunk_metadata = DocumentChunkMetadata(
-        source=Source.PDF if name.lower().endswith(".pdf") else Source.OTHER, document_id=document_id
-    )
+    chunk_metadata = DocumentChunkMetadata(source=Source.PDF if name.lower().endswith(".pdf") else Source.OTHER, document_id=document_id)
 
     # Create document metadata if provided
     doc_metadata = None

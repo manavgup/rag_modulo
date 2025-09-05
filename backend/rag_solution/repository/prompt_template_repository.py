@@ -1,5 +1,6 @@
-from pydantic import UUID4
+from typing import Any
 
+from pydantic import UUID4
 from sqlalchemy.orm import Session
 
 from rag_solution.core.exceptions import NotFoundError
@@ -8,7 +9,7 @@ from rag_solution.schemas.prompt_template_schema import PromptTemplateInput, Pro
 
 
 class PromptTemplateRepository:
-    def __init__(self, db: Session):
+    def __init__(self: Any, db: Session) -> None:
         self.db = db
 
     def create_template(self, template: PromptTemplateInput) -> PromptTemplate:
@@ -22,10 +23,7 @@ class PromptTemplateRepository:
         try:
             template = self.db.query(PromptTemplate).filter_by(id=id).first()
             if not template:
-                raise NotFoundError(
-                    resource_type="PromptTemplate",
-                    resource_id=str(id)
-                )
+                raise NotFoundError(resource_type="PromptTemplate", resource_id=str(id))
             return template
         except NotFoundError:
             raise
@@ -47,10 +45,7 @@ class PromptTemplateRepository:
         try:
             template = self.db.query(PromptTemplate).filter_by(user_id=user_id, id=template_id).first()
             if not template:
-                raise NotFoundError(
-                    resource_type="PromptTemplate",
-                    identifier=f"template {template_id} for user {user_id}"
-                )
+                raise NotFoundError(resource_type="PromptTemplate", identifier=f"template {template_id} for user {user_id}")
 
             self.db.delete(template)
             self.db.commit()
