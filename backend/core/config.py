@@ -1,8 +1,10 @@
 """Configuration settings for the RAG Modulo application."""
 
 import tempfile
+from functools import lru_cache
 from typing import Annotated
 
+from pydantic import field_validator
 from pydantic.fields import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -12,9 +14,9 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(extra="allow", validate_default=True)
 
-    # Required settings
-    jwt_secret_key: str
-    rag_llm: str
+    # Required settings with defaults for development/testing
+    jwt_secret_key: str = Field(default="dev-secret-key-change-in-production-f8a7b2c1")
+    rag_llm: str = Field(default="openai")
 
     # Search settings
     number_of_results: Annotated[int, Field(default=5, env="NUMBER_OF_RESULTS")]
@@ -25,10 +27,10 @@ class Settings(BaseSettings):
     vector_db: Annotated[str, Field(default="milvus", env="VECTOR_DB")]
     collection_name: str | None = None
 
-    # LLM Provider credentials
-    wx_project_id: str = Field(alias="WATSONX_INSTANCE_ID")
-    wx_api_key: str = Field(alias="WATSONX_APIKEY")
-    wx_url: str = Field(alias="WATSONX_URL")
+    # LLM Provider credentials with defaults
+    wx_project_id: str = Field(default="", alias="WATSONX_INSTANCE_ID")
+    wx_api_key: str = Field(default="", alias="WATSONX_APIKEY")
+    wx_url: str = Field(default="https://us-south.ml.cloud.ibm.com", alias="WATSONX_URL")
     openai_api_key: Annotated[str | None, Field(default=None, env="OPENAI_API_KEY")]
     anthropic_api_key: Annotated[str | None, Field(default=None, env="ANTHROPIC_API_KEY")]
 
@@ -173,6 +175,77 @@ class Settings(BaseSettings):
         },
     }
 
+    @field_validator("jwt_secret_key")
+    @classmethod
+    def validate_jwt_secret(cls, v):
+        """Validate JWT secret key and warn if using default in production."""
+        if v and "dev-secret-key" in v:
+            import os
 
-# Singleton for settings
-settings = Settings()  # type: ignore
+            if os.getenv("ENVIRONMENT", "").lower() in ("production", "prod"):
+                try:
+                    from core.logging_utils import get_logger
+
+                    logger = get_logger(__name__)
+                    logger.warning("⚠️  Using default JWT secret in production! " "Set JWT_SECRET_KEY environment variable.")
+                except ImportError:
+                    # Fallback to print if logging utils not available
+                    print("⚠️  Using default JWT secret in production! " "Set JWT_SECRET_KEY environment variable.")
+        return v
+
+    @field_validator("rag_llm")
+    @classmethod
+    def validate_rag_llm(cls, v):
+        """Validate RAG LLM choice."""
+        valid_llms = ["openai", "anthropic", "watsonx"]
+        if v not in valid_llms:
+            try:
+                from core.logging_utils import get_logger
+
+                logger = get_logger(__name__)
+                logger.warning(f"⚠️  Invalid RAG LLM '{v}'. Valid options: {valid_llms}. " f"Falling back to 'openai'.")
+            except ImportError:
+                # Fallback to print if logging utils not available
+                print(f"⚠️  Invalid RAG LLM '{v}'. Valid options: {valid_llms}. " f"Falling back to 'openai'.")
+            return "openai"
+        return v
+
+    def validate_production_settings(self):
+        """Validate settings for production deployment."""
+        warnings = []
+
+        if "dev-secret-key" in self.jwt_secret_key:
+            warnings.append("Using default JWT secret key")
+
+        if not self.wx_api_key or self.wx_api_key == "":
+            warnings.append("WatsonX API key not configured")
+
+        if warnings:
+            try:
+                from core.logging_utils import get_logger
+
+                logger = get_logger(__name__)
+                logger.warning(f"⚠️  Production configuration warnings: {', '.join(warnings)}")
+            except ImportError:
+                # Fallback to print if logging utils not available
+                print(f"⚠️  Production configuration warnings: {', '.join(warnings)}")
+
+        return len(warnings) == 0
+
+
+@lru_cache
+def get_settings() -> Settings:
+    """Get cached settings instance with lazy initialization.
+
+    This function creates a single, cached instance of Settings that can be
+    imported and used throughout the application. The @lru_cache decorator
+    ensures that the same instance is returned on subsequent calls.
+
+    Returns:
+        Settings: The cached settings instance
+    """
+    return Settings()  # type: ignore[call-arg]
+
+
+# Module-level settings instance for backwards compatibility
+settings = get_settings()
