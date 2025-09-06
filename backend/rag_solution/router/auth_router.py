@@ -1,4 +1,5 @@
 import logging
+from typing import Annotated
 
 import httpx
 import jwt
@@ -8,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from auth.oidc import oauth
-from core.config import settings
+from core.config import Settings, get_settings
 from rag_solution.file_management.database import get_db
 from rag_solution.services.user_service import UserService
 
@@ -45,7 +46,7 @@ class UserInfo(BaseModel):
 
 
 @router.get("/oidc-config", response_model=OIDCConfig)
-async def get_oidc_config() -> JSONResponse:
+async def get_oidc_config(settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)) -> JSONResponse:
     """
     Retrieve the OIDC configuration for the client.
     """
@@ -84,7 +85,7 @@ async def get_oidc_config() -> JSONResponse:
 
 
 @router.post("/token", response_model=TokenResponse)
-async def token_exchange(request: Request) -> JSONResponse:
+async def token_exchange(request: Request, settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)) -> JSONResponse:
     """
     Exchange an authorization code for an access token.
     """
@@ -117,7 +118,7 @@ async def token_exchange(request: Request) -> JSONResponse:
 
 
 @router.get("/login")
-async def login(request: Request) -> Response:
+async def login(request: Request, settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)) -> Response:
     try:
         callback_url = f"{settings.frontend_url}/api/auth/callback"
         logger.info(f"Initiating login with redirect_uri: {callback_url}")
@@ -130,7 +131,7 @@ async def login(request: Request) -> Response:
 
 
 @router.get("/callback")
-async def auth(request: Request, db: Session = Depends(get_db)) -> Response:
+async def auth(request: Request, db: Session = Depends(get_db), settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)) -> Response:
     try:
         logger.info("Received authentication callback")
         token = await oauth.ibm.authorize_access_token(request)
@@ -145,7 +146,7 @@ async def auth(request: Request, db: Session = Depends(get_db)) -> Response:
         logger.info(f"Authenticated user: {user.get('email')}")
 
         # Create or get user
-        user_service = UserService(db)
+        user_service = UserService(db, settings)
         db_user = user_service.get_or_create_user_by_fields(ibm_id=user["sub"], email=user["email"], name=user.get("name", "Unknown"))
         logger.info(f"User in database: {db_user.id}")
 
@@ -162,9 +163,10 @@ async def auth(request: Request, db: Session = Depends(get_db)) -> Response:
             "exp": token.get("expires_at"),
             "role": db_user.role,
         }
-        custom_jwt_token = jwt.encode(custom_jwt_payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
-        # Ensure custom_jwt is a string, not bytes
-        custom_jwt = custom_jwt_token.decode("utf-8") if isinstance(custom_jwt_token, bytes) else custom_jwt_token
+        custom_jwt = jwt.encode(custom_jwt_payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+        # PyJWT returns a string in newer versions, but ensure it's always a string
+        if isinstance(custom_jwt, bytes):
+            custom_jwt = custom_jwt.decode("utf-8")
 
         redirect_url = f"{settings.frontend_url}{settings.frontend_callback}?token={custom_jwt}"
         logger.info(f"Redirecting to frontend: {redirect_url}")
@@ -187,7 +189,7 @@ async def logout(request: Request) -> JSONResponse:
 
 
 @router.get("/userinfo", response_model=UserInfo)
-async def get_userinfo(request: Request) -> JSONResponse:
+async def get_userinfo(request: Request, settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)) -> JSONResponse:
     """
     Retrieve the user information from the JWT Token.
     """
@@ -222,7 +224,7 @@ async def get_userinfo(request: Request) -> JSONResponse:
 
 
 @router.get("/check-auth")
-async def check_auth(request: Request) -> JSONResponse:
+async def check_auth(request: Request, settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)) -> JSONResponse:
     """
     Check if the user is authenticated.
     """
@@ -254,7 +256,7 @@ async def check_auth(request: Request) -> JSONResponse:
 
 
 @router.get("/session")
-async def session_status(request: Request) -> JSONResponse:
+async def session_status(request: Request, settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)) -> JSONResponse:
     """
     Check session status and retrieve user info if authenticated.
     """

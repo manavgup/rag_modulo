@@ -3,7 +3,7 @@ from typing import Any
 
 from elasticsearch import Elasticsearch, NotFoundError
 
-from core.config import settings
+from core.config import Settings, get_settings
 from vectordbs.utils.watsonx import get_embeddings
 
 from .data_types import (
@@ -18,28 +18,24 @@ from .data_types import (
 from .error_types import CollectionError, DocumentError
 from .vector_store import VectorStore
 
-logging.basicConfig(level=settings.log_level)
-
-ELASTICSEARCH_HOST = settings.elastic_host
-ELASTICSEARCH_PORT = settings.elastic_port
-ELASTICSEARCH_INDEX = settings.collection_name
-EMBEDDING_MODEL = settings.embedding_model
-EMBEDDING_DIM = settings.embedding_dim
-ELASTIC_PASSWORD = settings.elastic_password
-ELASTIC_CACERT_PATH = settings.elastic_cacert_path
-ELASTIC_CLOUD_ID = settings.elastic_cloud_id
-ELASTIC_API_KEY = settings.elastic_api_key
+# Remove module-level constants - use dependency injection instead
 
 
 class ElasticSearchStore(VectorStore):
-    def __init__(self, host: str | None = None, port: int | None = None) -> None:
-        # Use provided values or fall back to settings with proper defaults
-        actual_host = host or ELASTICSEARCH_HOST or "localhost"
-        actual_port = port or (int(ELASTICSEARCH_PORT) if ELASTICSEARCH_PORT else 9200)
+    def __init__(self, host: str | None = None, port: int | None = None, settings: Settings = get_settings()) -> None:
+        # Call parent constructor for proper dependency injection
+        super().__init__(settings)
 
-        self.index_name = ELASTICSEARCH_INDEX
-        if ELASTIC_CLOUD_ID and ELASTIC_API_KEY:
-            self.client = Elasticsearch(ELASTIC_CLOUD_ID, api_key=ELASTIC_API_KEY)
+        # Configure logging
+        logging.basicConfig(level=self.settings.log_level)
+
+        # Use provided values or fall back to settings with proper defaults
+        actual_host = host or self.settings.elastic_host or "localhost"
+        actual_port = port or (int(self.settings.elastic_port) if self.settings.elastic_port else 9200)
+
+        self.index_name = self.settings.collection_name
+        if self.settings.elastic_cloud_id and self.settings.elastic_api_key:
+            self.client = Elasticsearch(self.settings.elastic_cloud_id, api_key=self.settings.elastic_api_key)
         else:
             # Build client arguments dynamically to handle None values
             client_kwargs: dict[str, Any] = {
@@ -48,12 +44,12 @@ class ElasticSearchStore(VectorStore):
             }
 
             # Only add basic_auth if password is available
-            if ELASTIC_PASSWORD:
-                client_kwargs["basic_auth"] = ("elastic", ELASTIC_PASSWORD)
+            if self.settings.elastic_password:
+                client_kwargs["basic_auth"] = ("elastic", self.settings.elastic_password)
 
             # Only add ca_certs if path is available
-            if ELASTIC_CACERT_PATH:
-                client_kwargs["ca_certs"] = ELASTIC_CACERT_PATH
+            if self.settings.elastic_cacert_path:
+                client_kwargs["ca_certs"] = self.settings.elastic_cacert_path
 
             self.client = Elasticsearch(**client_kwargs)
 
@@ -77,7 +73,7 @@ class ElasticSearchStore(VectorStore):
                     "properties": {
                         "embedding": {
                             "type": "knn_vector",
-                            "dimension": EMBEDDING_DIM,
+                            "dimension": self.settings.embedding_dim,
                         },
                         "text": {"type": "text"},
                         "source": {"type": "keyword"},
@@ -112,7 +108,7 @@ class ElasticSearchStore(VectorStore):
                 # Get embeddings for the first chunk (assuming single chunk per document for now)
                 if document.chunks:
                     chunk = document.chunks[0]
-                    embeddings = get_embeddings(chunk.text, EMBEDDING_MODEL)
+                    embeddings = get_embeddings(chunk.text, settings=self.settings)
                     body = {
                         "text": chunk.text,
                         "embedding": embeddings,

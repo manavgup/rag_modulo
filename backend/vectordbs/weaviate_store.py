@@ -7,7 +7,7 @@ from weaviate.classes.config import DataType, Property
 from weaviate.exceptions import WeaviateConnectionError
 from weaviate.util import generate_uuid5
 
-from core.config import settings
+from core.config import Settings, get_settings
 from vectordbs.utils.watsonx import get_embeddings
 
 from .data_types import (
@@ -24,19 +24,22 @@ from .vector_store import VectorStore  # Ensure this import is correct
 
 
 class WeaviateDataStore(VectorStore):
-    def __init__(self) -> None:
+    def __init__(self, settings: Settings = get_settings()) -> None:
+        # Call parent constructor for proper dependency injection
+        super().__init__(settings)
+
         auth_credentials = self._build_auth_credentials()
         try:
             logging.debug(
-                f"Connecting to weaviate instance at {settings.weaviate_host} & \
-                {settings.weaviate_port} with credential type {type(auth_credentials).__name__}"
+                f"Connecting to weaviate instance at {self.settings.weaviate_host} & \
+                {self.settings.weaviate_port} with credential type {type(auth_credentials).__name__}"
             )
             self.client = weaviate.connect_to_custom(
-                http_host=settings.weaviate_host or "localhost",
-                http_port=settings.weaviate_port or 8080,
+                http_host=self.settings.weaviate_host or "localhost",
+                http_port=self.settings.weaviate_port or 8080,
                 http_secure=False,
-                grpc_host=settings.weaviate_host or "localhost",
-                grpc_port=settings.weaviate_grpc_port or 50051,
+                grpc_host=self.settings.weaviate_host or "localhost",
+                grpc_port=self.settings.weaviate_grpc_port or 50051,
                 grpc_secure=False,
                 auth_credentials=auth_credentials,
             )
@@ -58,10 +61,9 @@ class WeaviateDataStore(VectorStore):
 
         return error_messages
 
-    @staticmethod
-    def _build_auth_credentials() -> weaviate.auth.AuthCredentials | None:
-        if settings.weaviate_username and settings.weaviate_password:
-            return weaviate.auth.AuthClientPassword(settings.weaviate_username, settings.weaviate_password, settings.weaviate_scopes)
+    def _build_auth_credentials(self) -> weaviate.auth.AuthCredentials | None:
+        if self.settings.weaviate_username and self.settings.weaviate_password:
+            return weaviate.auth.AuthClientPassword(self.settings.weaviate_username, self.settings.weaviate_password, self.settings.weaviate_scopes)
         else:
             return None
 
@@ -234,7 +236,7 @@ class WeaviateDataStore(VectorStore):
             raise CollectionError(f"Collection '{collection_name}' does not exist")
 
         # Assuming you have some method to generate embeddings from text
-        embeddings = get_embeddings(query)
+        embeddings = get_embeddings(query, settings=self.settings)
         query_with_embedding = QueryWithEmbedding(text=query, embeddings=embeddings[0])
         logging.debug(f"Query with embedding: {query_with_embedding}")
         return self.query(collection_name, query_with_embedding, number_of_results=number_of_results)

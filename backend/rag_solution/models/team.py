@@ -2,12 +2,16 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from rag_solution.file_management.database import Base
+
+if TYPE_CHECKING:
+    from rag_solution.models.user_team import UserTeam
 
 
 class Team(Base):
@@ -19,7 +23,7 @@ class Team(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, onupdate=datetime.now)
 
-    users: Mapped[list[UserTeam]] = relationship("UserTeam", back_populates="team")  # type: ignore[name-defined]
+    users: Mapped[list[UserTeam]] = relationship("UserTeam", back_populates="team")
 
     def __repr__(self) -> str:
         return f"Team(id='{self.id}', name='{self.name}')"

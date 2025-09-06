@@ -9,7 +9,7 @@ from typing import Any
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
-from core.config import settings
+from core.config import Settings
 from core.custom_exceptions import LLMProviderError
 from core.logging_utils import get_logger
 from rag_solution.core.exceptions import ConfigurationError, NotFoundError, ValidationError
@@ -37,7 +37,7 @@ from rag_solution.services.llm_parameters_service import LLMParametersService
 from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.prompt_template_service import PromptTemplateService
 from vectordbs.data_types import QueryResult, VectorQuery
-from vectordbs.factory import get_datastore
+from vectordbs.factory import VectorStoreFactory
 
 logger = get_logger("services.pipeline")
 
@@ -45,9 +45,12 @@ logger = get_logger("services.pipeline")
 class PipelineService:
     """Service for managing and executing RAG pipelines."""
 
-    def __init__(self: Any, db: Session) -> None:
-        """Initialize service with database session."""
+    def __init__(self: Any, db: Session, settings: Settings) -> None:
+        """Initialize service with database session and settings injection."""
         self.db = db
+        if settings is None:
+            raise ValueError("Settings must be provided to PipelineService")
+        self.settings = settings
         self._pipeline_repository: PipelineConfigRepository | None = None
         self._llm_parameters_service: LLMParametersService | None = None
         self._prompt_template_service: PromptTemplateService | None = None
@@ -56,7 +59,9 @@ class PipelineService:
 
         # Core RAG components
         self.query_rewriter = QueryRewriter({})
-        self.vector_store = get_datastore("milvus")
+        # Use factory with proper dependency injection
+        factory = VectorStoreFactory(self.settings)
+        self.vector_store = factory.get_datastore(self.settings.vector_db)
         self.evaluator = RAGEvaluator()
 
         # Lazy initialized components
@@ -91,7 +96,7 @@ class PipelineService:
     @property
     def file_management_service(self) -> FileManagementService:
         if self._file_management_service is None:
-            self._file_management_service = FileManagementService(self.db)
+            self._file_management_service = FileManagementService(self.db, self.settings)
         return self._file_management_service
 
     @property
@@ -202,12 +207,12 @@ class PipelineService:
                 user_id=user_id,
                 collection_id=None,  # Default pipeline doesn't belong to a specific collection
                 provider_id=provider_id,
-                chunking_strategy=ChunkingStrategy(settings.chunking_strategy),
-                embedding_model=settings.embedding_model,
-                retriever=RetrieverType(settings.retrieval_type),
+                chunking_strategy=ChunkingStrategy(self.settings.chunking_strategy),
+                embedding_model=self.settings.embedding_model,
+                retriever=RetrieverType(self.settings.retrieval_type),
                 context_strategy=ContextStrategy.PRIORITY,
                 enable_logging=True,
-                max_context_length=settings.max_context_length,
+                max_context_length=self.settings.max_context_length,
                 timeout=30.0,
                 is_default=True,
             )
@@ -288,13 +293,13 @@ class PipelineService:
             # Initialize retriever with basic config
             retriever_config = {
                 "type": pipeline.retriever,
-                "vector_weight": settings.vector_weight if pipeline.retriever == "hybrid" else None,
+                "vector_weight": self.settings.vector_weight if pipeline.retriever == "hybrid" else None,
             }
             self._retriever = RetrieverFactory.create_retriever(retriever_config, self.document_store)
 
             # Process query
             rewritten_query = self.query_rewriter.rewrite(query)
-            vector_query = VectorQuery(text=query, number_of_results=settings.number_of_results)
+            vector_query = VectorQuery(text=query, number_of_results=self.settings.number_of_results)
             results = self.retriever.retrieve("test_collection", vector_query)
             logger.info(f"**** Results: {results}")
             return PipelineResult(
@@ -419,7 +424,7 @@ class PipelineService:
                 user_id,
                 PromptTemplateType.RESPONSE_EVALUATION,
             )
-            if settings.runtime_eval
+            if self.settings.runtime_eval
             else None
         )
 
@@ -440,7 +445,7 @@ class PipelineService:
             ConfigurationError: If retrieval fails
         """
         try:
-            vector_query = VectorQuery(text=query, number_of_results=settings.number_of_results)
+            vector_query = VectorQuery(text=query, number_of_results=self.settings.number_of_results)
             results = self.retriever.retrieve(collection_name, vector_query)
             logger.info(f"Retrieved {len(results)} documents")
             return results
@@ -556,7 +561,7 @@ class PipelineService:
             else:
                 context_text = self._format_context(rag_template.id, query_results)
                 generated_answer = self._generate_answer(search_input.user_id, clean_query, context_text, provider, llm_parameters_input, rag_template)
-                evaluation_result = await self._evaluate_response(clean_query, generated_answer, context_text, eval_template) if settings.runtime_eval and eval_template else None
+                evaluation_result = await self._evaluate_response(clean_query, generated_answer, context_text, eval_template) if self.settings.runtime_eval and eval_template else None
 
             # Prepare and return the result
             execution_time = time.time() - start_time

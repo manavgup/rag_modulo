@@ -1,5 +1,5 @@
 # project_root/backend/database/__init__.py
 
-from rag_solution.file_management.database import Base, engine
 
-Base.metadata.create_all(bind=engine)
+# Database tables will be created during application startup, not at import time
+# This prevents connection errors during test collection phase

@@ -3,7 +3,7 @@
 
 import pytest
 
-from core.config import settings
+from core.config import get_settings
 from rag_solution.schemas.collection_schema import CollectionOutput
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
 from rag_solution.schemas.llm_provider_schema import LLMProviderOutput
@@ -30,6 +30,7 @@ def default_pipeline_config(
     ensure_watsonx_provider: LLMProviderOutput,
 ) -> PipelineConfigOutput:
     """Create default pipeline configuration using service."""
+    settings = get_settings()
     config_input = PipelineConfigInput(
         name="default-pipeline",
         description="Default test pipeline configuration",

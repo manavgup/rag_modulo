@@ -5,6 +5,7 @@ from collections.abc import AsyncIterator
 
 import pandas as pd
 
+from core.config import Settings
 from core.custom_exceptions import DocumentProcessingError
 from rag_solution.data_ingestion.base_processor import BaseProcessor
 from rag_solution.doc_utils import get_document
@@ -21,6 +22,9 @@ class ExcelProcessor(BaseProcessor):
     Methods:
         process(file_path: str) -> AsyncIterable[Document]: Process the Excel file and yield Document instances.
     """
+
+    def __init__(self, settings: Settings) -> None:
+        super().__init__(settings)
 
     async def process(self, file_path: str, _document_id: str) -> AsyncIterator[Document]:
         """

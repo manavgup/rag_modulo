@@ -12,19 +12,20 @@ from typing import Any
 
 import pymupdf  # type: ignore[import-untyped]
 
+from core.config import Settings, get_settings
 from core.custom_exceptions import DocumentProcessingError
 from rag_solution.data_ingestion.base_processor import BaseProcessor
 from rag_solution.data_ingestion.chunking import get_chunking_method
 from rag_solution.doc_utils import clean_text
 from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, DocumentMetadata, Embeddings, Source
-from vectordbs.utils.watsonx import _get_embeddings_client, get_embeddings, sublist
+from vectordbs.utils.watsonx import get_embeddings, get_wx_embeddings_client, sublist
 
 logger = logging.getLogger(__name__)
 
 
 class PdfProcessor(BaseProcessor):
-    def __init__(self, manager: SyncManager | None = None) -> None:
-        super().__init__()
+    def __init__(self, manager: SyncManager | None = None, settings: Settings = get_settings()) -> None:
+        super().__init__(settings)
         if manager is None:
             manager = multiprocessing.Manager()
         self.saved_image_hashes = set(manager.list())
@@ -94,7 +95,7 @@ class PdfProcessor(BaseProcessor):
                 # Process main text
                 text_chunks = chunking_method(full_text)
                 current_position = 0  # Track position in full text
-                embed_client = _get_embeddings_client()
+                embed_client = get_wx_embeddings_client(self.settings)
                 for subset_chunks in sublist(inputs=text_chunks, n=5):
                     chunk_embeddings = get_embeddings(texts=subset_chunks, embed_client=embed_client)
                     for ix, chunk_text in enumerate(subset_chunks):

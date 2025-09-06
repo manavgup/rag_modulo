@@ -1,9 +1,7 @@
-from typing import Any
-
 from pydantic import UUID4, SecretStr
 from sqlalchemy.orm import Session
 
-from core.config import settings
+from core.config import Settings
 from core.custom_exceptions import LLMProviderError
 from core.logging_utils import get_logger
 from rag_solution.schemas.llm_model_schema import LLMModelInput, ModelType
@@ -18,8 +16,15 @@ logger = get_logger("services.system_initialization")
 
 
 class SystemInitializationService:
-    def __init__(self: Any, db: Session) -> None:
+    def __init__(self, db: Session, settings: Settings) -> None:
+        """Initialize service with dependency injection.
+
+        Args:
+            db: Database session
+            settings: Configuration settings
+        """
         self.db = db
+        self.settings = settings
         self.llm_provider_service = LLMProviderService(db)
         self.llm_model_service = LLMModelService(db)
 
@@ -56,28 +61,28 @@ class SystemInitializationService:
     def _get_provider_configs(self) -> dict[str, LLMProviderInput]:
         configs: dict[str, LLMProviderInput] = {}
 
-        if settings.wx_api_key and settings.wx_project_id:
+        if self.settings.wx_api_key and self.settings.wx_project_id:
             configs["watsonx"] = LLMProviderInput.model_validate(
                 {
                     "name": "watsonx",
-                    "base_url": settings.wx_url or "https://us-south.ml.cloud.ibm.com",
-                    "api_key": SecretStr(settings.wx_api_key),
-                    "project_id": settings.wx_project_id,
+                    "base_url": self.settings.wx_url or "https://us-south.ml.cloud.ibm.com",
+                    "api_key": SecretStr(self.settings.wx_api_key),
+                    "project_id": self.settings.wx_project_id,
                     "is_default": True,
                 }
             )
             logger.info("Added WatsonX configuration")
 
-        if settings.openai_api_key:
-            configs["openai"] = LLMProviderInput.model_validate({"name": "openai", "base_url": "https://api.openai.com", "api_key": SecretStr(settings.openai_api_key)})
+        if self.settings.openai_api_key:
+            configs["openai"] = LLMProviderInput.model_validate({"name": "openai", "base_url": "https://api.openai.com", "api_key": SecretStr(self.settings.openai_api_key)})
             logger.info("Added OpenAI configuration")
 
-        if settings.anthropic_api_key:
+        if self.settings.anthropic_api_key:
             configs["anthropic"] = LLMProviderInput.model_validate(
                 {
                     "name": "anthropic",
                     "base_url": "https://api.anthropic.com",
-                    "api_key": SecretStr(settings.anthropic_api_key),
+                    "api_key": SecretStr(self.settings.anthropic_api_key),
                 }
             )
             logger.info("Added Anthropic configuration")
@@ -110,7 +115,7 @@ class SystemInitializationService:
             generation_model = LLMModelInput.model_validate(
                 {
                     "provider_id": provider_id,
-                    "model_id": settings.rag_llm,
+                    "model_id": self.settings.rag_llm,
                     "default_model_id": "ibm/granite-3-8b-instruct",
                     "model_type": ModelType.GENERATION,
                     "timeout": 30,
@@ -128,8 +133,8 @@ class SystemInitializationService:
             embedding_model = LLMModelInput.model_validate(
                 {
                     "provider_id": provider_id,
-                    "model_id": settings.embedding_model,
-                    "default_model_id": settings.embedding_model,
+                    "model_id": self.settings.embedding_model,
+                    "default_model_id": self.settings.embedding_model,
                     "model_type": ModelType.EMBEDDING,
                     "timeout": 30,
                     "max_retries": 3,

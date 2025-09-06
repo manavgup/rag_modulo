@@ -1,7 +1,10 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
+from core.config import Settings, get_settings
 from rag_solution.file_management.database import get_db  # ✅ Import the session dependency
 from rag_solution.schemas.user_schema import UserOutput
 from rag_solution.services.user_service import UserService
@@ -9,9 +12,9 @@ from rag_solution.services.user_service import UserService
 router = APIRouter()
 
 
-def get_user_service(db: Session = Depends(get_db)) -> UserService:
-    """Provides an instance of UserService with a database session."""
-    return UserService(db)
+def get_user_service(db: Session = Depends(get_db), settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)) -> UserService:
+    """Provides an instance of UserService with a database session and settings."""
+    return UserService(db, settings)
 
 
 @router.put("/{user_id}/preferred/{provider_id}", response_model=UserOutput)
