@@ -3,9 +3,9 @@
 These tests verify the Poetry version and lock file issues that block Docker builds.
 """
 
+import re
 import subprocess
 from pathlib import Path
-import re
 
 
 class TestPoetryLockCompatibility:
