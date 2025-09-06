@@ -3,7 +3,7 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from core.config import settings
+from core.config import get_settings
 from rag_solution.data_ingestion.chunking import (
     calculate_cosine_distances,
     combine_sentences,
@@ -172,16 +172,19 @@ def test_calculate_cosine_distances() -> None:
 def test_get_chunking_method() -> None:
     """Test chunking method factory function."""
     # Test semantic chunking selection
+    settings = get_settings()
     with patch.object(settings, "chunking_strategy", "semantic"):
         chunker = get_chunking_method()
         assert chunker == semantic_chunker
 
     # Test simple chunking selection
+    settings = get_settings()
     with patch.object(settings, "chunking_strategy", "simple"):
         chunker = get_chunking_method()
         assert chunker == simple_chunker
 
     # Test default fallback
+    settings = get_settings()
     with patch.object(settings, "chunking_strategy", "unknown"):
         chunker = get_chunking_method()
         assert chunker == simple_chunker
@@ -192,6 +195,7 @@ def test_chunker_integration() -> None:
     text = "This is a test text. It should be chunked according to settings."
 
     # Test simple chunker with settings
+    settings = get_settings()
     with (
         patch.object(settings, "min_chunk_size", 10),
         patch.object(settings, "max_chunk_size", 50),
@@ -204,6 +208,7 @@ def test_chunker_integration() -> None:
 
     # Test semantic chunker with settings
     mock_embeddings = np.array([[1.0, 0.0], [0.9, 0.1], [0.0, 1.0]])
+    settings = get_settings()
     with (
         patch("rag_solution.data_ingestion.chunking.get_embeddings", return_value=mock_embeddings),
         patch.object(settings, "min_chunk_size", 10),

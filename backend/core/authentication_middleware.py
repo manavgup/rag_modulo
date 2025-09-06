@@ -8,8 +8,10 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from auth.oidc import verify_jwt_token
-from core.config import settings
+from core.config import get_settings
 
+# Get settings safely for middleware
+settings = get_settings()
 logging.basicConfig(level=settings.log_level)
 logger = logging.getLogger(__name__)
 

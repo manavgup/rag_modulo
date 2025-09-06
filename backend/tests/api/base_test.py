@@ -7,7 +7,7 @@ import jwt
 import pytest
 from fastapi.testclient import TestClient
 
-from core.config import settings
+from core.config import get_settings
 
 
 class BaseTestRouter:
@@ -22,7 +22,13 @@ class BaseTestRouter:
         "role": "admin",
     }
 
-    TEST_JWT = jwt.encode(TEST_USER, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+    @property
+    def test_jwt(self) -> str:
+        """Generate test JWT token using current settings."""
+        settings = get_settings()
+        token = jwt.encode(self.TEST_USER, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+        # PyJWT 2.0+ returns str directly, not bytes
+        return token if isinstance(token, str) else token.decode("utf-8")
 
     @pytest.fixture(autouse=True)
     def setup(self, test_client: TestClient, auth_headers: dict[str, str]) -> None:
@@ -32,7 +38,7 @@ class BaseTestRouter:
 
         # Mock JWT verification
         def mock_verify(token: Any) -> Any:
-            if token == "mock_token_for_testing" or token == self.TEST_JWT:
+            if token == "mock_token_for_testing" or token == self.test_jwt:
                 return self.TEST_USER
             raise jwt.InvalidTokenError("Invalid token")
 

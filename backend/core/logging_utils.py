@@ -5,10 +5,10 @@ from typing import Any
 
 
 # Lazy import to avoid test isolation issues
-def get_settings() -> Any:
-    from core.config import settings
+def get_app_settings() -> Any:
+    from core.config import get_settings
 
-    return settings
+    return get_settings()
 
 
 def setup_logging(log_dir: Path | None = None) -> None:
@@ -19,8 +19,18 @@ def setup_logging(log_dir: Path | None = None) -> None:
 
     # Configure root logger
     root_logger = logging.getLogger()
-    settings = get_settings()
-    root_logger.setLevel(settings.log_level)
+
+    # Get log level safely with fallback for test isolation
+    try:
+        settings = get_app_settings()
+        log_level = getattr(settings, "log_level", "INFO")
+        # Handle case where settings might be mocked during tests
+        if hasattr(log_level, "_mock_name") or not isinstance(log_level, str):
+            log_level = "INFO"
+        root_logger.setLevel(log_level)
+    except (ImportError, AttributeError, TypeError):
+        # Fallback to INFO if settings cannot be loaded (e.g., during test isolation)
+        root_logger.setLevel("INFO")
 
     # Remove any existing handlers to avoid duplicates
     for handler in root_logger.handlers[:]:

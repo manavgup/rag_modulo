@@ -4,7 +4,7 @@ from typing import Any
 
 from chromadb import ClientAPI, chromadb
 
-from core.config import settings
+from core.config import Settings, get_settings
 from vectordbs.utils.watsonx import get_embeddings
 
 from .data_types import (
@@ -19,29 +19,29 @@ from .data_types import (
 from .error_types import CollectionError, DocumentError
 from .vector_store import VectorStore
 
-CHROMADB_HOST = settings.chromadb_host
-CHROMADB_PORT = settings.chromadb_port
-EMBEDDING_MODEL = settings.embedding_model
-EMBEDDING_DIM = settings.embedding_dim
-
-logging.basicConfig(level=settings.log_level)
+# Remove module-level constants - use dependency injection instead
 
 MetadataType = Mapping[str, str | int | float | bool]
 
 
 class ChromaDBStore(VectorStore):
-    def __init__(self, client: ClientAPI | None = None) -> None:
+    def __init__(self, client: ClientAPI | None = None, settings: Settings = get_settings()) -> None:
+        # Call parent constructor for proper dependency injection
+        super().__init__(settings)
         self._client: ClientAPI = client or self._initialize_client()
+
+        # Configure logging
+        logging.basicConfig(level=self.settings.log_level)
 
     def _initialize_client(self) -> ClientAPI:
         """Initialize the ChromaDB client."""
         try:
-            if CHROMADB_HOST is None or CHROMADB_PORT is None:
+            if self.settings.chromadb_host is None or self.settings.chromadb_port is None:
                 raise ValueError("ChromaDB host and port must be configured")
             # Assert that values are not None after the check
-            assert CHROMADB_HOST is not None
-            assert CHROMADB_PORT is not None
-            client = chromadb.HttpClient(host=CHROMADB_HOST, port=CHROMADB_PORT)
+            assert self.settings.chromadb_host is not None
+            assert self.settings.chromadb_port is not None
+            client = chromadb.HttpClient(host=self.settings.chromadb_host, port=self.settings.chromadb_port)
             logging.info("Connected to ChromaDB")
             return client
         except Exception as e:
@@ -108,7 +108,7 @@ class ChromaDBStore(VectorStore):
         Returns:
             List[QueryResult]: The list of query results.
         """
-        query_embeddings = get_embeddings(query)
+        query_embeddings = get_embeddings(query, settings=self.settings)
         if not query_embeddings:
             raise DocumentError("Failed to generate embeddings for the query string.")
         # get_embeddings returns list[list[float]], but we need list[float] for single query

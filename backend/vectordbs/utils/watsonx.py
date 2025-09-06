@@ -19,19 +19,14 @@ from tenacity import (
     wait_exponential,
 )
 
-from core.config import settings
+from core.config import Settings, get_settings
 from vectordbs.data_types import EmbeddingsList
-
-WATSONX_INSTANCE_ID = settings.wx_project_id
-EMBEDDING_MODEL = settings.embedding_model
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Global client
-client = None
-embeddings_client = None
+# Remove global clients - use dependency injection instead
 
 
 # Rate limiting settings
@@ -57,19 +52,37 @@ def sublist(inputs: list, n: int) -> Generator[list, None, None]:
         yield inputs[i : i + n]
 
 
-def _get_client() -> APIClient:
-    global client
-    if client is None:
-        load_dotenv(override=True)
-        client = APIClient(
-            project_id=WATSONX_INSTANCE_ID,
-            credentials=Credentials(api_key=settings.wx_api_key, url=settings.wx_url),
-        )
-    return client
+def get_wx_client(settings: Settings) -> APIClient:
+    """Create a WatsonX API client with dependency injection.
+
+    Args:
+        settings: Settings object containing WatsonX configuration
+
+    Returns:
+        APIClient: Configured WatsonX API client
+    """
+    load_dotenv(override=True)
+    return APIClient(
+        project_id=settings.wx_project_id,
+        credentials=Credentials(api_key=settings.wx_api_key, url=settings.wx_url),
+    )
 
 
-def get_model(generate_params: dict | None = None, model_id: str = settings.rag_llm) -> ModelInference:
-    api_client = _get_client()
+def get_model(settings: Settings = get_settings(), generate_params: dict | None = None, model_id: str | None = None) -> ModelInference:
+    """Create a WatsonX model inference instance with dependency injection.
+
+    Args:
+        settings: Settings object containing WatsonX configuration
+        generate_params: Optional generation parameters
+        model_id: Optional model ID override
+
+    Returns:
+        ModelInference: Configured WatsonX model inference instance
+    """
+
+    model_id = model_id or settings.rag_llm
+
+    api_client = get_wx_client(settings)
 
     if generate_params is None:
         generate_params = {
@@ -85,44 +98,57 @@ def get_model(generate_params: dict | None = None, model_id: str = settings.rag_
         model_id=model_id,
         params=generate_params,
         credentials=Credentials(api_key=settings.wx_api_key, url=settings.wx_url),
-        project_id=WATSONX_INSTANCE_ID,
+        project_id=settings.wx_project_id,
     )
     model_inference.set_api_client(api_client=api_client)
     return model_inference
 
 
-def _get_embeddings_client(embed_params: dict | None = None) -> wx_Embeddings:
-    global embeddings_client
-    if embeddings_client is None:
+def get_wx_embeddings_client(settings: Settings, embed_params: dict | None = None) -> wx_Embeddings:
+    """Create a WatsonX embeddings client with dependency injection.
+
+    Args:
+        settings: Settings object containing WatsonX configuration
+        embed_params: Optional embedding parameters
+
+    Returns:
+        wx_Embeddings: Configured WatsonX embeddings client
+    """
+    if embed_params is None:
         embed_params = {
             EmbedParams.TRUNCATE_INPUT_TOKENS: 3,
             EmbedParams.RETURN_OPTIONS: {"input_text": True},
         }
-    if embeddings_client is None:
-        load_dotenv(override=True)
-        embeddings_client = wx_Embeddings(
-            persistent_connection=True,
-            model_id=EMBEDDING_MODEL,
-            params=embed_params,
-            project_id=WATSONX_INSTANCE_ID,
-            credentials=Credentials(api_key=settings.wx_api_key, url=settings.wx_url),
-        )
-    return embeddings_client
+    load_dotenv(override=True)
+    return wx_Embeddings(
+        persistent_connection=True,
+        model_id=settings.embedding_model,
+        params=embed_params,
+        project_id=settings.wx_project_id,
+        credentials=Credentials(api_key=settings.wx_api_key, url=settings.wx_url),
+    )
 
 
-def get_embeddings(texts: str | list[str], embed_client: wx_Embeddings | None = None) -> EmbeddingsList:
+def get_embeddings(texts: str | list[str], settings: Settings = get_settings(), embed_client: wx_Embeddings | None = None) -> EmbeddingsList:
     """
-    Get embeddings for a given text or a list of texts.
+    Get embeddings for a given text or a list of texts with dependency injection.
 
-    :param texts: A single string or a list of strings.
-    :param embed_client: an instance of watsonx embeddings model client.
-    :return: A list of floats representing the embeddings.
+    Args:
+        texts: A single string or a list of strings
+        settings: Settings object containing WatsonX configuration
+        embed_client: Optional pre-configured embeddings client
+
+    Returns:
+        EmbeddingsList: A list of embedding vectors
     """
+
     if embed_client is None:
-        embed_client = _get_embeddings_client()
+        embed_client = get_wx_embeddings_client(settings)
+
     # Ensure texts is a list
     if isinstance(texts, str):
         texts = [texts]
+
     try:
         # WatsonX embed_documents returns list[list[float]] but mypy sees it as Any
         # We know the actual return type from the library documentation
@@ -135,14 +161,18 @@ def get_embeddings(texts: str | list[str], embed_client: wx_Embeddings | None = 
         raise e
 
 
-def get_tokenization(texts: str | list[str]) -> list[list[str]]:
+def get_tokenization(texts: str | list[str], settings: Settings | None = None) -> list[list[str]]:
     """
     Get tokenization for a given text or a list of texts.
 
     :param texts: A single string or a list of strings.
+    :param settings: Optional settings object. If None, uses get_settings()
     :return: A list of lists of strings representing the tokens.
     """
-    wx_model = get_model()
+    if settings is None:
+        settings = get_settings()
+
+    wx_model = get_model(settings=settings)
     # Ensure texts is a list
     if isinstance(texts, str):
         texts = [texts]
@@ -161,9 +191,12 @@ def get_tokenization(texts: str | list[str]) -> list[list[str]]:
 
 
 @lru_cache(maxsize=128)
-def extract_entities(text: str, wx_model: ModelInference | None = None) -> list[dict]:
+def extract_entities(text: str, wx_model: ModelInference | None = None, settings: Settings | None = None) -> list[dict]:
+    if settings is None:
+        settings = get_settings()
+
     if wx_model is None:
-        wx_model = get_model()
+        wx_model = get_model(settings=settings)
 
     prompt = (
         "Extract the named entities from the following text and respond ONLY with a JSON list of dictionaries. Each dictionary should have 'entity' and 'type' keys, and nothing else.\n"
@@ -172,7 +205,7 @@ def extract_entities(text: str, wx_model: ModelInference | None = None) -> list[
     )
 
     try:
-        response = generate_text(prompt, wx_model)
+        response = generate_text(prompt, wx_model, settings=settings)
 
         # Ensure response is a string for processing
         if isinstance(response, list):
@@ -206,15 +239,19 @@ def clean_entities(entities: list[dict]) -> list[dict]:
     return cleaned
 
 
-def get_tokenization_and_embeddings(texts: str | list[str]) -> tuple[list[list[str]], EmbeddingsList]:
+def get_tokenization_and_embeddings(texts: str | list[str], settings: Settings | None = None) -> tuple[list[list[str]], EmbeddingsList]:
     """
     Get both tokenization and embeddings for a given text or a list of texts.
 
     :param texts: A single string or a list of strings.
+    :param settings: Optional settings object. If None, uses get_settings()
     :return: A tuple containing a list of lists of strings (tokens) and a list of floats (embeddings).
     """
-    tokenized_texts = get_tokenization(texts)
-    embeddings = get_embeddings(texts)
+    if settings is None:
+        settings = get_settings()
+
+    tokenized_texts = get_tokenization(texts, settings=settings)
+    embeddings = get_embeddings(texts, settings=settings)
     return tokenized_texts, embeddings
 
 
@@ -248,13 +285,14 @@ def save_embeddings_to_file(embeddings: EmbeddingsList, file_path: str, file_for
 
 
 class ChromaEmbeddingFunction(EmbeddingFunction):
-    def __init__(self, *, parameters: dict, model_id: str | None = settings.rag_llm) -> None:
+    def __init__(self, *, parameters: dict, model_id: str | None = None, settings: Settings = get_settings()) -> None:
         self._model_id = model_id
         self._parameters = parameters
-        self._client = _get_client()
+        self._settings = settings
+        self._client = get_wx_client(self._settings)
 
     def __call__(self, inputs: Documents) -> EmbeddingsList:  # type: ignore[override]
-        return get_embeddings(texts=inputs)
+        return get_embeddings(texts=inputs, settings=self._settings)
 
 
 def generate_text(
@@ -262,6 +300,7 @@ def generate_text(
     wx_model: ModelInference | None = None,
     concurrency_limit: int = 10,
     params: dict | None = None,
+    settings: Settings | None = None,
 ) -> str | list[str]:
     """Generate text using the WatsonX model.
 
@@ -277,7 +316,9 @@ def generate_text(
     try:
         logging.info("Making API call to text generation service")
         if wx_model is None:
-            wx_model = get_model()
+            if settings is None:
+                settings = get_settings()
+            wx_model = get_model(settings, params, None)
 
         response = wx_model.generate_text(prompt=prompt, concurrency_limit=concurrency_limit, params=params)
 
@@ -309,9 +350,13 @@ async def agenerate_responses(
     prompts: list[str],
     concurrency_level: int,
     wx_model: ModelInference | None = None,
+    settings: Settings | None = None,
 ) -> list[str]:
+    if settings is None:
+        settings = get_settings()
+
     if wx_model is None:
-        wx_model = get_model()
+        wx_model = get_model(settings=settings)
 
     async def throttled_agenerate(prompt: str, semaphore: asyncio.Semaphore, wx_mdl: ModelInference) -> str:
         async with semaphore:
@@ -327,18 +372,23 @@ async def generate_all_responses(
     prompts: list[str],
     wx_model: ModelInference,
     concurrency_level: int = 5,
+    settings: Settings | None = None,
 ) -> list[str]:
-    return await agenerate_responses(prompts, concurrency_level=concurrency_level, wx_model=wx_model)
+    return await agenerate_responses(prompts, concurrency_level=concurrency_level, wx_model=wx_model, settings=settings)
 
 
 def generate_batch(
     prompts: list[str],
     wx_model: ModelInference | None = None,
     concurrency_level: int = 5,
+    settings: Settings | None = None,
 ) -> list[str]:
+    if settings is None:
+        settings = get_settings()
+
     if wx_model is None:
-        wx_model = get_model()
-    return asyncio.run(generate_all_responses(prompts, wx_model, concurrency_level))
+        wx_model = get_model(settings=settings)
+    return asyncio.run(generate_all_responses(prompts, wx_model, concurrency_level, settings))
 
 
 @retry(
@@ -354,7 +404,11 @@ def generate_text_stream(
     timeout: int = 30,
     random_seed: int = 50,
     max_retries: int = 3,
+    settings: Settings | None = None,
 ) -> Generator[Any, None, None]:
+    if settings is None:
+        settings = get_settings()
+
     logging.info(f"Generating text with parameters: max_tokens={max_tokens}, temperature={temperature}, timeout={timeout}, max_retries={max_retries}")
     logging.debug(f"Prompt: {prompt[:100]}...")  #
     model_inference = get_model(
@@ -364,5 +418,6 @@ def generate_text_stream(
             GenParams.RANDOM_SEED: random_seed,
         },
         model_id=model_id,
+        settings=settings,
     )
     return model_inference.generate_text_stream(prompt=prompt)  # type: ignore[no-any-return]

@@ -150,6 +150,7 @@ if __name__ == "__main__":
     def get_node_text(node: Any) -> str:
         return getattr(node, "text", str(node))
 
+    from core.config import get_settings
     from rag_solution.file_management.database import get_db
     from rag_solution.services.search_service import SearchService
     from rag_solution.services.user_collection_service import UserCollectionService
@@ -189,9 +190,10 @@ if __name__ == "__main__":
     # Custom LLM-as-a-judge metrics
     print("\n--- Evaluating LLM-as-a-Judge Metrics ---")
     db_session = next(get_db())
+    settings = get_settings()
     user_collection_service = UserCollectionService(db=db_session)
     vector_database_name = "collection_8b1d4bc0a11b4f7c929b83d37e7b91d6"
-    search_service = SearchService(db=db_session)
+    search_service = SearchService(db=db_session, settings=settings)
     pipeline = search_service._pipeline_service
 
     question = "What were the major equity-related activities reported by IBM as " "of December 31, 2023?"

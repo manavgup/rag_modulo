@@ -9,6 +9,7 @@ from fastapi import HTTPException
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
+from core.config import Settings
 from core.custom_exceptions import ConfigurationError, LLMProviderError, NotFoundError, ValidationError
 from core.logging_utils import get_logger
 from rag_solution.schemas.search_schema import SearchInput, SearchOutput
@@ -52,10 +53,11 @@ def handle_search_errors(func: Callable[..., Any]) -> Callable[..., Any]:
 class SearchService:
     """Service for handling search operations through the RAG pipeline."""
 
-    def __init__(self, db: Session) -> None:
+    def __init__(self, db: Session, settings: Settings) -> None:
         """Initialize SearchService with dependencies."""
         logger.debug("Initializing SearchService")
         self.db: Session = db
+        self.settings = settings
         self._file_service: FileManagementService | None = None
         self._collection_service: CollectionService | None = None
         self._pipeline_service: PipelineService | None = None
@@ -65,7 +67,7 @@ class SearchService:
         """Lazy initialization of file management service."""
         if self._file_service is None:
             logger.debug("Lazy initializing file management service")
-            self._file_service = FileManagementService(self.db)
+            self._file_service = FileManagementService(self.db, self.settings)
         return self._file_service
 
     @property
@@ -73,7 +75,7 @@ class SearchService:
         """Lazy initialization of collection service."""
         if self._collection_service is None:
             logger.debug("Lazy initializing collection service")
-            self._collection_service = CollectionService(self.db)
+            self._collection_service = CollectionService(self.db, self.settings)
         return self._collection_service
 
     @property
@@ -81,7 +83,7 @@ class SearchService:
         """Lazy initialization of pipeline service."""
         if self._pipeline_service is None:
             logger.debug("Lazy initializing pipeline service")
-            self._pipeline_service = PipelineService(self.db)
+            self._pipeline_service = PipelineService(self.db, self.settings)
         return self._pipeline_service
 
     @handle_search_errors

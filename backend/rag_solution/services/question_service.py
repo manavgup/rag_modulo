@@ -8,7 +8,7 @@ from typing import Any
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
-from core.config import settings
+from core.config import Settings
 from core.custom_exceptions import NotFoundError, ValidationError
 from core.logging_utils import get_logger
 from rag_solution.generation.providers.factory import LLMProviderFactory
@@ -26,17 +26,19 @@ logger = get_logger("services.question")
 class QuestionService:
     """Service for managing question suggestions."""
 
-    def __init__(self, db: Session) -> None:
+    def __init__(self, db: Session, settings: Settings) -> None:
         """
         Initialize question service.
 
         Args:
             db: Database session
+            settings: Configuration settings (injected via dependency injection)
 
         Raises:
             ValidationError: If configuration is invalid
         """
         self.db = db
+        self.settings = settings
         self._question_repository: QuestionRepository | None = None
         self._prompt_template_service: PromptTemplateService | None = None
         self._llm_parameters_service: LLMParametersService | None = None
@@ -267,7 +269,9 @@ class QuestionService:
         logger.debug(f"Provider: {provider}")
 
         # Combine texts respecting context length
-        available_context_length = settings.max_context_length - settings.max_new_tokens
+        if self.settings is None:
+            raise ValueError("Settings must be provided to QuestionService")
+        available_context_length = self.settings.max_context_length - self.settings.max_new_tokens
         combined_texts = self._combine_text_chunks(texts, available_context_length)
 
         generation_stats = {"total_chunks": len(texts), "successful_generations": 0, "failed_generations": 0}
@@ -288,8 +292,8 @@ class QuestionService:
         all_questions = []
 
         # Process in batches respecting concurrency limit
-        for i in range(0, len(combined_texts), settings.llm_concurrency):
-            batch = combined_texts[i : i + settings.llm_concurrency]
+        for i in range(0, len(combined_texts), self.settings.llm_concurrency):
+            batch = combined_texts[i : i + self.settings.llm_concurrency]
 
             try:
                 # Generate questions for batch
