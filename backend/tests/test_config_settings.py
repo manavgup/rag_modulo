@@ -9,8 +9,9 @@ These tests verify that:
 """
 
 import os
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 
 class TestSettingsDefaults:
@@ -82,7 +83,7 @@ class TestLazyInitialization:
     def test_get_settings_returns_settings_instance(self):
         """get_settings() should return a Settings instance."""
         with patch.dict(os.environ, {}, clear=True):
-            from core.config import get_settings, Settings
+            from core.config import Settings, get_settings
 
             settings = get_settings()
             assert isinstance(settings, Settings)

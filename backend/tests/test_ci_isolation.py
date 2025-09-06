@@ -3,9 +3,9 @@
 This test simulates what happens in the CI pipeline's test-isolation job.
 """
 
+import os
 import subprocess
 import sys
-import os
 
 
 def test_module_import_without_env_vars():
