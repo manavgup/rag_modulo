@@ -43,7 +43,7 @@ class TestSettingsValidationErrors:
 import sys
 sys.path.insert(0, '.')
 try:
-    from core.config import settings
+    from core.config import get_settings
     print('UNEXPECTED_SUCCESS: Settings loaded without env vars')
     exit(0)
 except Exception as e:

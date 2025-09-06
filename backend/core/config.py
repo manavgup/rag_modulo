@@ -247,5 +247,7 @@ def get_settings() -> Settings:
     return Settings()  # type: ignore[call-arg]
 
 
-# Module-level settings instance for backwards compatibility
+# DEPRECATED: Direct module-level settings access
+# This will be removed in a future version. Use get_settings() with FastAPI dependency injection instead.
+# For now, we call get_settings() directly for backward compatibility during migration.
 settings = get_settings()

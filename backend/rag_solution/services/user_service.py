@@ -3,6 +3,7 @@ from typing import Any
 from pydantic import UUID4, EmailStr
 from sqlalchemy.orm import Session
 
+from core.config import Settings
 from core.logging_utils import get_logger
 from rag_solution.core.exceptions import NotFoundError, ValidationError
 from rag_solution.repository.user_repository import UserRepository
@@ -15,11 +16,12 @@ logger = get_logger(__name__)
 class UserService:
     """Service for managing user-related operations."""
 
-    def __init__(self: Any, db: Session) -> None:
-        """Initialize with database session."""
+    def __init__(self: Any, db: Session, settings: Settings) -> None:
+        """Initialize with database session and settings."""
         self.db = db
+        self.settings = settings
         self.user_repository = UserRepository(db)
-        self.user_provider_service = UserProviderService(db)
+        self.user_provider_service = UserProviderService(db, settings)
 
     def create_user(self, user_input: UserInput) -> UserOutput:
         """Creates a new user with validation.

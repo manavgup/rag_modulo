@@ -4,8 +4,9 @@ from typing import Any
 
 import pytest
 
-from core.config import settings
+from core.config import get_settings
 
+settings = get_settings()
 ELASTIC_INDEX = settings.collection_name
 
 

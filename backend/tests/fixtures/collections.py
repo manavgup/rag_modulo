@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import pytest
 
-from core.config import settings
+from core.config import get_settings
 from core.logging_utils import get_logger
 from rag_solution.generation.providers.base import LLMBase
 from rag_solution.models.question import SuggestedQuestion
@@ -44,6 +44,7 @@ def base_suggested_question(question_service: QuestionService, base_collection: 
 @pytest.fixture(scope="session")
 def vector_store() -> MilvusStore:
     """Initialize vector store for testing."""
+    settings = get_settings()
     store = MilvusStore()
     store._connect(settings.milvus_host, settings.milvus_port)
     yield store
@@ -83,6 +84,7 @@ def indexed_documents(
         )
 
     vector_store.delete_collection(base_collection.vector_db_name)
+    settings = get_settings()
     vector_store.create_collection(
         base_collection.vector_db_name,
         {"embedding_model": settings.embedding_model},

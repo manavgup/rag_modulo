@@ -1,22 +1,22 @@
 import os
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from ibm_watsonx_ai import APIClient, Credentials  # type: ignore[import-untyped]
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from core.config import settings
+from core.config import Settings, get_settings
 from core.logging_utils import get_logger
 from rag_solution.file_management.database import get_db
-from vectordbs.factory import get_datastore
+from vectordbs.factory import VectorStoreFactory
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api", tags=["health"])
 
 
-def check_vectordb() -> dict[str, str]:
+def check_vectordb(settings: Settings) -> dict[str, str]:
     """Check the health of the vector database."""
     import time
 
@@ -25,7 +25,8 @@ def check_vectordb() -> dict[str, str]:
 
     for attempt in range(max_retries):
         try:
-            get_datastore(settings.vector_db)
+            factory = VectorStoreFactory(settings)
+            factory.get_datastore(settings.vector_db)
             return {"status": "healthy", "message": "Vector DB is connected and operational"}
         except Exception as e:
             logger.warning(f"Vector DB health check attempt {attempt + 1} failed: {e!s}")
@@ -62,7 +63,7 @@ def check_datastore(db: Session = Depends(get_db)) -> dict[str, str]:
     return {"status": "unknown", "message": "Relational DB health check completed without result"}
 
 
-def check_watsonx() -> dict[str, str]:
+def check_watsonx(settings: Settings) -> dict[str, str]:
     """Check the health of the WatsonX service."""
     if not all([settings.wx_project_id, settings.wx_api_key, settings.wx_url]):
         logger.warning("WatsonX not configured - skipping health check")
@@ -79,7 +80,7 @@ def check_watsonx() -> dict[str, str]:
         return {"status": "unhealthy", "message": f"WatsonX health check failed: {e!s}"}
 
 
-def check_file_system() -> dict[str, str]:
+def check_file_system(settings: Settings) -> dict[str, str]:
     """Check the health of the file system."""
     try:
         upload_dir = settings.file_storage_path
@@ -118,12 +119,16 @@ def check_system_health(components: dict[str, dict[str, str]]) -> bool:
         503: {"description": "One or more components are unhealthy"},
     },
 )
-def health_check(db: Session = Depends(get_db)) -> dict[str, Any]:
+def health_check(
+    db: Session = Depends(get_db),
+    settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings),
+) -> dict[str, Any]:
     """
     Perform a health check on all system components.
 
     Args:
         db: The database session.
+        settings: Application settings (injected via FastAPI dependency injection)
 
     Returns:
         dict: Health check results for all components
@@ -132,10 +137,10 @@ def health_check(db: Session = Depends(get_db)) -> dict[str, Any]:
         HTTPException: If any component is unhealthy
     """
     components = {
-        "vectordb": check_vectordb(),
+        "vectordb": check_vectordb(settings),
         "datastore": check_datastore(db),
-        "watsonx": check_watsonx(),
-        "file_system": check_file_system(),
+        "watsonx": check_watsonx(settings),
+        "file_system": check_file_system(settings),
     }
 
     is_healthy = check_system_health(components)

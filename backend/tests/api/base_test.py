@@ -7,7 +7,7 @@ import jwt
 import pytest
 from fastapi.testclient import TestClient
 
-from core.config import settings
+from core.config import get_settings
 
 
 class BaseTestRouter:
@@ -22,7 +22,12 @@ class BaseTestRouter:
         "role": "admin",
     }
 
-    TEST_JWT = jwt.encode(TEST_USER, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+    @classmethod
+    @property
+    def test_jwt(cls) -> str:
+        """Generate test JWT token using current settings."""
+        settings = get_settings()
+        return jwt.encode(cls.TEST_USER, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
 
     @pytest.fixture(autouse=True)
     def setup(self, test_client: TestClient, auth_headers: dict[str, str]) -> None:

@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 from datetime import datetime
 
-from core.config import settings
+from core.config import Settings
 from rag_solution.data_ingestion.chunking import get_chunking_method
 from vectordbs.data_types import Document, DocumentMetadata
 
@@ -22,11 +22,12 @@ class BaseProcessor(ABC):
         chunking_method: Method used for chunking documents.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, settings: Settings) -> None:
+        self.settings = settings
         self.min_chunk_size: int = settings.min_chunk_size
         self.max_chunk_size: int = settings.max_chunk_size
         self.semantic_threshold: float = settings.semantic_threshold
-        self.chunking_method = get_chunking_method()
+        self.chunking_method = get_chunking_method(settings)
 
     def extract_metadata(self, file_path: str) -> DocumentMetadata:
         """

@@ -10,6 +10,7 @@ from fastapi import Depends, HTTPException, Request
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
+from core.config import Settings, get_settings
 from rag_solution.core.exceptions import NotFoundError
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.user_schema import UserOutput
@@ -17,6 +18,8 @@ from rag_solution.services.collection_service import CollectionService
 from rag_solution.services.file_management_service import FileManagementService
 from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.pipeline_service import PipelineService
+from rag_solution.services.question_service import QuestionService
+from rag_solution.services.search_service import SearchService
 from rag_solution.services.team_service import TeamService
 from rag_solution.services.user_service import UserService
 
@@ -32,7 +35,7 @@ def get_current_user(request: Request) -> dict[Any, Any]:
     return request.state.user  # type: ignore[no-any-return]
 
 
-def verify_user_access(user_id: UUID4, request: Request, db: Session = Depends(get_db)) -> UserOutput:
+def verify_user_access(user_id: UUID4, request: Request, db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> UserOutput:
     """Verify that the current user has access to the requested user resource.
 
     Args:
@@ -56,13 +59,13 @@ def verify_user_access(user_id: UUID4, request: Request, db: Session = Depends(g
 
     # Get and return the user object
     try:
-        user_service = UserService(db)
+        user_service = UserService(db, settings)
         return user_service.get_user_by_id(user_id)
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
 
 
-def verify_admin_access(request: Request, db: Session = Depends(get_db)) -> UserOutput:
+def verify_admin_access(request: Request, db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> UserOutput:
     """Verify that the current user has admin privileges.
 
     Args:
@@ -79,7 +82,7 @@ def verify_admin_access(request: Request, db: Session = Depends(get_db)) -> User
 
     # Get the full user object to check role
     try:
-        user_service = UserService(db)
+        user_service = UserService(db, settings)
         user_id = UUID4(current_user_data.get("uuid"))
         current_user = user_service.get_user_by_id(user_id)
     except (ValueError, NotFoundError) as e:
@@ -92,7 +95,7 @@ def verify_admin_access(request: Request, db: Session = Depends(get_db)) -> User
     return current_user
 
 
-def verify_collection_access(collection_id: UUID4, user_id: UUID4, request: Request, db: Session = Depends(get_db)) -> bool:
+def verify_collection_access(collection_id: UUID4, user_id: UUID4, request: Request, db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> bool:
     """Verify that a user has access to a specific collection.
 
     Args:
@@ -117,7 +120,7 @@ def verify_collection_access(collection_id: UUID4, user_id: UUID4, request: Requ
     # Check collection ownership (implement based on your business logic)
     from rag_solution.services.user_collection_service import UserCollectionService
 
-    user_collection_service = UserCollectionService(db)
+    user_collection_service = UserCollectionService(db, settings)
 
     try:
         user_collections = user_collection_service.get_user_collections(user_id)
@@ -129,7 +132,7 @@ def verify_collection_access(collection_id: UUID4, user_id: UUID4, request: Requ
     return True
 
 
-def verify_team_access(team_id: UUID4, user_id: UUID4, request: Request, db: Session = Depends(get_db)) -> bool:
+def verify_team_access(team_id: UUID4, user_id: UUID4, request: Request, db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> bool:
     """Verify that a user has access to a specific team.
 
     Args:
@@ -154,7 +157,7 @@ def verify_team_access(team_id: UUID4, user_id: UUID4, request: Request, db: Ses
     # Check team membership
     from rag_solution.services.user_team_service import UserTeamService
 
-    user_team_service = UserTeamService(db)
+    user_team_service = UserTeamService(db, settings)
 
     try:
         user_teams = user_team_service.get_user_teams(user_id)
@@ -167,41 +170,68 @@ def verify_team_access(team_id: UUID4, user_id: UUID4, request: Request, db: Ses
 
 
 # Service dependency factories
-def get_user_service(db: Session = Depends(get_db)) -> UserService:
+def get_user_service(db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> UserService:
     """Get UserService instance."""
-    return UserService(db)
+    return UserService(db, settings)
 
 
-def get_collection_service(db: Session = Depends(get_db)) -> CollectionService:
-    """Get CollectionService instance."""
-    from rag_solution.services.collection_service import CollectionService
+def get_collection_service(
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings)
+) -> CollectionService:
+    """Get CollectionService instance with proper dependency injection."""
+    return CollectionService(db, settings)
 
-    return CollectionService(db)
 
-
-def get_file_service(db: Session = Depends(get_db)) -> FileManagementService:
-    """Get FileManagementService instance."""
+def get_file_service(
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings)
+) -> FileManagementService:
+    """Get FileManagementService instance with proper dependency injection."""
     from rag_solution.services.file_management_service import FileManagementService
 
-    return FileManagementService(db)
+    return FileManagementService(db, settings)
 
 
-def get_team_service(db: Session = Depends(get_db)) -> TeamService:
+def get_team_service(db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> TeamService:
     """Get TeamService instance."""
     from rag_solution.services.team_service import TeamService
 
-    return TeamService(db)
+    return TeamService(db, settings)
 
 
-def get_pipeline_service(db: Session = Depends(get_db)) -> PipelineService:
-    """Get PipelineService instance."""
+def get_pipeline_service(
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings)
+) -> PipelineService:
+    """Get PipelineService instance with proper dependency injection."""
     from rag_solution.services.pipeline_service import PipelineService
 
-    return PipelineService(db)
+    return PipelineService(db, settings)
 
 
-def get_llm_provider_service(db: Session = Depends(get_db)) -> LLMProviderService:
+def get_llm_provider_service(db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> LLMProviderService:
     """Get LLMProviderService instance."""
     from rag_solution.services.llm_provider_service import LLMProviderService
 
-    return LLMProviderService(db)
+    return LLMProviderService(db, settings)
+
+
+def get_question_service(
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings)
+) -> QuestionService:
+    """Get QuestionService instance with proper dependency injection."""
+    from rag_solution.services.question_service import QuestionService
+
+    return QuestionService(db, settings)
+
+
+def get_search_service(
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings)
+) -> SearchService:
+    """Get SearchService instance with proper dependency injection."""
+    from rag_solution.services.search_service import SearchService
+
+    return SearchService(db, settings)

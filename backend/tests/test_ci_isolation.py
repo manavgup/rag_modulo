@@ -24,7 +24,7 @@ def test_module_import_without_env_vars():
 
     # Try to import the config module
     result = subprocess.run(
-        [sys.executable, "-c", "from core.config import settings; print('✓ Import success with defaults:', settings.rag_llm)"],
+        [sys.executable, "-c", "from core.config import get_settings; print('✓ Import success with defaults:', settings.rag_llm)"],
         env=env,
         capture_output=True,
         text=True,
@@ -59,7 +59,7 @@ import sys
 sys.path.insert(0, '.')
 # This is what was failing in CI - importing config in an atomic test context
 try:
-    from core.config import settings, get_settings
+    from core.config import get_settings, get_settings
     # Validate defaults work
     assert settings.jwt_secret_key.startswith('dev-secret-key')
     assert settings.rag_llm == 'openai'

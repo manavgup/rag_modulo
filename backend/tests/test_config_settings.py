@@ -149,7 +149,7 @@ class TestBackwardCompatibility:
     """Test that existing code patterns still work."""
 
     def test_direct_settings_import_still_works(self):
-        """The pattern 'from core.config import settings' should still work."""
+        """The pattern 'from core.config import get_settings' should still work."""
         with patch.dict(os.environ, {}, clear=True):
             from core.config import get_settings
 

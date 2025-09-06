@@ -1,6 +1,9 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from core.config import Settings, get_settings
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.search_schema import SearchInput, SearchOutput
 from rag_solution.services.search_service import SearchService
@@ -8,17 +11,21 @@ from rag_solution.services.search_service import SearchService
 router = APIRouter(prefix="/api/search", tags=["search"])
 
 
-def get_search_service(db: Session = Depends(get_db)) -> SearchService:
+def get_search_service(
+    db: Session = Depends(get_db),
+    settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)
+) -> SearchService:
     """
-    Dependency to create a new SearchService instance with the database session.
+    Dependency to create a new SearchService instance with the database session and settings.
 
     Args:
         db (Session): Database session from dependency injection
+        settings (Settings): Application settings from dependency injection
 
     Returns:
         SearchService: Initialized search service instance
     """
-    return SearchService(db)
+    return SearchService(db, settings)
 
 
 @router.post(

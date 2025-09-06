@@ -3,7 +3,6 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from core.config import settings
 from rag_solution.data_ingestion.chunking import (
     calculate_cosine_distances,
     combine_sentences,
@@ -170,6 +169,9 @@ def test_calculate_cosine_distances() -> None:
 
 def test_get_chunking_method() -> None:
     """Test chunking method factory function."""
+    from core.config import get_settings
+    settings = get_settings()
+
     # Test semantic chunking selection
     with patch.object(settings, "chunking_strategy", "semantic"):
         chunker = get_chunking_method()
@@ -188,6 +190,9 @@ def test_get_chunking_method() -> None:
 
 def test_chunker_integration() -> None:
     """Test integration of chunking methods with settings."""
+    from core.config import get_settings
+    settings = get_settings()
+
     text = "This is a test text. It should be chunked according to settings."
 
     # Test simple chunker with settings

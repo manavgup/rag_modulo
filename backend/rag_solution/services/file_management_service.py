@@ -9,7 +9,7 @@ from fastapi import UploadFile
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
-from core.config import settings
+from core.config import Settings
 from rag_solution.core.exceptions import NotFoundError, ValidationError
 from rag_solution.repository.file_repository import FileRepository
 from rag_solution.schemas.file_schema import FileInput, FileMetadata, FileOutput
@@ -18,8 +18,9 @@ logger = logging.getLogger(__name__)
 
 
 class FileManagementService:
-    def __init__(self: Any, db: Session) -> None:
+    def __init__(self: Any, db: Session, settings: Settings) -> None:
         self.file_repository = FileRepository(db)
+        self.settings = settings
 
     def create_file(self, file_input: FileInput, user_id: UUID4) -> FileOutput:
         logger.info(f"Creating file record: {file_input.filename}")
@@ -160,7 +161,9 @@ class FileManagementService:
 
     def upload_file(self, user_id: UUID4, collection_id: UUID4, file_content: bytes, filename: str) -> Path:
         try:
-            user_folder = Path(f"{settings.file_storage_path}/{user_id}")
+            if self.settings is None:
+                raise ValueError("Settings must be provided to FileManagementService")
+            user_folder = Path(f"{self.settings.file_storage_path}/{user_id}")
             collection_folder = user_folder / str(collection_id)
             collection_folder.mkdir(parents=True, exist_ok=True)
 

@@ -8,7 +8,7 @@ from pydantic import UUID4, SecretStr
 from sqlalchemy import Engine, text
 from sqlalchemy.orm import Session, sessionmaker
 
-from core.config import settings
+from core.config import get_settings
 from core.logging_utils import get_logger
 from rag_solution.schemas.llm_parameters_schema import LLMParametersOutput
 from rag_solution.schemas.llm_provider_schema import LLMProviderOutput
@@ -35,24 +35,28 @@ logger = get_logger("tests.fixtures.services")
 @pytest.fixture
 def user_service(db_session: Session) -> UserService:
     """Initialize UserService."""
-    return UserService(db_session)
+    settings = get_settings()
+    return UserService(db_session, settings)
 
 
 @pytest.fixture
 def user_team_service(db_session: Session) -> UserTeamService:
-    return UserTeamService(db_session)
+    settings = get_settings()
+    return UserTeamService(db_session, settings)
 
 
 @pytest.fixture
 def llm_provider_service(db_session: Session) -> LLMProviderService:
     """Initialize LLMProviderService."""
-    return LLMProviderService(db_session)
+    settings = get_settings()
+    return LLMProviderService(db_session, settings)
 
 
 @pytest.fixture
 def llm_model_service(db_session: Session) -> LLMModelService:
     """Initialize LLMModelService."""
-    return LLMModelService(db_session)
+    settings = get_settings()
+    return LLMModelService(db_session, settings)
 
 
 @pytest.fixture
@@ -64,68 +68,79 @@ def llm_provider() -> str:
 @pytest.fixture
 def llm_parameters_service(db_session: Session) -> LLMParametersService:
     """Initialize LLMParametersService."""
-    return LLMParametersService(db_session)
+    settings = get_settings()
+    return LLMParametersService(db_session, settings)
 
 
 @pytest.fixture
 def prompt_template_service(db_session: Session) -> PromptTemplateService:
     """Initialize PromptTemplateService."""
-    return PromptTemplateService(db_session)
+    settings = get_settings()
+    return PromptTemplateService(db_session, settings)
 
 
 @pytest.fixture(scope="session")
 def collection_service(session_db: Session) -> CollectionService:
     """Initialize CollectionService."""
-    return CollectionService(session_db)
+    settings = get_settings()
+    return CollectionService(session_db, settings)
 
 
 @pytest.fixture(scope="session")
 def user_collection_service(session_db: Session) -> UserCollectionService:
-    return UserCollectionService(session_db)
+    settings = get_settings()
+    return UserCollectionService(session_db, settings)
 
 
 @pytest.fixture
 def file_service(db_session: Session) -> FileManagementService:
     """Initialize FileManagementService."""
-    return FileManagementService(db_session)
+    settings = get_settings()
+    return FileManagementService(db_session, settings)
 
 
 @pytest.fixture
 def pipeline_service(db_session: Session) -> PipelineService:
     """Initialize PipelineService."""
-    return PipelineService(db_session)
+    settings = get_settings()
+    return PipelineService(db_session, settings)
 
 
 @pytest.fixture(scope="session")
 def question_service(session_db: Session) -> QuestionService:
     """Initialize QuestionService."""
-    return QuestionService(session_db)
+    settings = get_settings()
+    return QuestionService(session_db, settings)
 
 
 @pytest.fixture(scope="session")
 def search_service(session_db: Session) -> SearchService:
     """Initialize SearchService."""
-    return SearchService(session_db)
+    settings = get_settings()
+    return SearchService(session_db, settings)
 
 
 @pytest.fixture(scope="session")
 def team_service(session_db: Session) -> TeamService:
     """Initialize TeamService."""
-    return TeamService(session_db)
+    settings = get_settings()
+    return TeamService(session_db, settings)
 
 
 @pytest.fixture(scope="session")
 def session_llm_provider_service(db_engine: Engine) -> LLMProviderService:
     """Session-scoped LLM provider service."""
     session = sessionmaker(bind=db_engine)()
-    return LLMProviderService(session)
+    settings = get_settings()
+    return LLMProviderService(session, settings)
 
 
 @pytest.fixture(scope="session")
 def session_llm_model_service(db_engine: Engine) -> LLMModelService:
     """Session-scoped LLM model service."""
     session = sessionmaker(bind=db_engine)()
-    return LLMModelService(session)
+    settings = get_settings()
+    return LLMModelService(session, settings)
 
 
 @pytest.fixture(scope="session")
@@ -139,19 +154,22 @@ def session_db(db_engine: Engine) -> Generator[Session, None, None]:
 @pytest.fixture(scope="session")
 def session_user_service(session_db: Session) -> UserService:
     """Initialize session-scoped UserService."""
-    return UserService(session_db)
+    settings = get_settings()
+    return UserService(session_db, settings)
 
 
 @pytest.fixture(scope="session")
 def session_llm_parameters_service(session_db: Session) -> LLMParametersService:
     """Initialize session-scoped LLMParametersService."""
-    return LLMParametersService(session_db)
+    settings = get_settings()
+    return LLMParametersService(session_db, settings)
 
 
 @pytest.fixture(scope="session")
 def session_prompt_template_service(session_db: Session) -> PromptTemplateService:
     """Initialize session-scoped PromptTemplateService."""
-    return PromptTemplateService(session_db)
+    settings = get_settings()
+    return PromptTemplateService(session_db, settings)
 
 
 @pytest.fixture(scope="session")
@@ -175,6 +193,7 @@ def ensure_watsonx_provider(session_llm_provider_service: LLMProviderService, se
             )
 
         # Create provider
+        settings = get_settings()
         provider_input = LLMProviderInput(
             name="watsonx",
             base_url=settings.wx_url or "https://us-south.ml.cloud.ibm.com",
@@ -275,7 +294,8 @@ def base_user(db_engine: Engine, ensure_watsonx_provider: LLMProviderOutput) -> 
 
         session.commit()
 
-        user_service = UserService(session)
+        settings = get_settings()
+        user_service = UserService(session, settings)
         test_id = UUID4("00000000-0000-4000-a000-000000000001")  # Fixed UUID
 
         user = user_service.create_user(UserInput(id=test_id, email="test@example.com", ibm_id=f"test_user_{test_id}", name="Test User", role="user"))

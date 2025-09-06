@@ -3,6 +3,7 @@ from typing import Any
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
+from core.config import Settings
 from core.logging_utils import get_logger
 from rag_solution.core.exceptions import ValidationError
 from rag_solution.repository.user_provider_repository import UserProviderRepository
@@ -18,8 +19,9 @@ logger = get_logger(__name__)
 
 
 class UserProviderService:
-    def __init__(self: Any, db: Session) -> None:
+    def __init__(self: Any, db: Session, settings: Settings) -> None:
         self.db = db
+        self.settings = settings
         self.user_provider_repository = UserProviderRepository(db)
         self.prompt_template_service = PromptTemplateService(db)
         self.llm_model_service = LLMModelService(db)
@@ -49,7 +51,7 @@ class UserProviderService:
             logger.info(f"Parameters initialized: {default_parameters.id}")
 
             # Initialize default pipeline
-            pipeline_service = PipelineService(self.db)
+            pipeline_service = PipelineService(self.db, self.settings)
             pipeline_service.initialize_user_pipeline(user_id, provider.id)
 
             self.db.commit()
