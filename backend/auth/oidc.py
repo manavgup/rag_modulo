@@ -5,7 +5,10 @@ import jwt
 from authlib.integrations.starlette_client import OAuth, OAuthError  # type: ignore[import-untyped]
 from fastapi import HTTPException, Request, Response, status
 
-from core.config import settings
+from core.config import get_settings
+
+# Get settings safely for auth
+settings = get_settings()
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)

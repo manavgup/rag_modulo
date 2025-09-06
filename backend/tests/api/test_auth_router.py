@@ -12,7 +12,7 @@ from fastapi import Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.testclient import TestClient
 
-from core.config import settings
+from core.config import get_settings
 from main import app
 
 # Test Data
@@ -24,6 +24,7 @@ TEST_USER = {
     "role": "admin",  # Use admin role for broader access
 }
 
+settings = get_settings()
 TEST_JWT_TOKEN = jwt.encode(TEST_USER, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
 # Ensure TEST_JWT is a string, not bytes
 TEST_JWT = TEST_JWT_TOKEN.decode("utf-8") if isinstance(TEST_JWT_TOKEN, bytes) else TEST_JWT_TOKEN

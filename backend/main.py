@@ -10,7 +10,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 # Middleware & Config
 from core.authentication_middleware import AuthenticationMiddleware
-from core.config import settings
+from core.config import get_settings
 
 # Logging
 from core.logging_utils import get_logger, setup_logging
@@ -72,7 +72,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
         # Initialize LLM Providers
         logger.info("Initializing LLM Providers...")
         with next(get_db()) as db:
-            system_init_service = SystemInitializationService(db)
+            system_init_service = SystemInitializationService(db, get_settings())
             providers = system_init_service.initialize_providers(raise_on_error=True)
             logger.info(f"Initialized providers: {', '.join(p.name for p in providers)}")
 
@@ -100,7 +100,7 @@ app = FastAPI(
 # Middleware
 app.add_middleware(
     SessionMiddleware,
-    secret_key=settings.ibm_client_secret or "default_secret",
+    secret_key=get_settings().ibm_client_secret or "default_secret",
     session_cookie="rag_modulo_session",
     max_age=3600,
 )

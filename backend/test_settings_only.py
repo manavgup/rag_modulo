@@ -6,8 +6,8 @@ This script specifically tests ONLY the Settings configuration fix,
 avoiding other unrelated test suite issues (database, imports, etc.).
 """
 
-import sys
 import os
+import sys
 
 
 def test_settings_import_without_env_vars():
@@ -19,7 +19,7 @@ def test_settings_import_without_env_vars():
         os.environ.pop(var, None)
 
     try:
-        from core.config import settings, get_settings
+        from core.config import get_settings, settings
 
         # Validate defaults work
         assert settings.jwt_secret_key.startswith("dev-secret-key"), f"Expected dev-secret-key, got {settings.jwt_secret_key[:20]}"
@@ -57,6 +57,7 @@ def test_settings_with_env_vars():
     try:
         # Need to reload the module to pick up new env vars
         import importlib
+
         import core.config
 
         importlib.reload(core.config)

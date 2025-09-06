@@ -35,7 +35,7 @@ sys.path.insert(0, '.')
 # Test that we can import core modules without triggering database connections
 try:
     # This should work without database
-    from core.config import settings
+    from core.config import get_settings
     print('SUCCESS: Core config imported without database')
     exit(0)
 except Exception as e:

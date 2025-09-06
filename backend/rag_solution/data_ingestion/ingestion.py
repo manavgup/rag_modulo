@@ -5,7 +5,7 @@ import multiprocessing
 import uuid
 from typing import Any
 
-from core.config import settings
+from core.config import Settings, get_settings
 from core.custom_exceptions import DocumentStorageError
 from rag_solution.data_ingestion.document_processor import DocumentProcessor
 from vectordbs.data_types import Document
@@ -15,15 +15,14 @@ from vectordbs.vector_store import VectorStore
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-DATA_DIR = settings.data_dir
-VECTOR_DB = settings.vector_db
-COLLECTION_NAME = settings.collection_name
+# Remove module-level constants - use dependency injection instead
 MAX_RETRIES = 3  # Maximum number of retries for storing a document
 
 
 class DocumentStore:
-    def __init__(self: Any, vector_store: VectorStore, collection_name: str) -> None:
-        """Initialize document store."""
+    def __init__(self: Any, vector_store: VectorStore, collection_name: str, settings: Settings = get_settings()) -> None:
+        """Initialize document store with dependency injection."""
+        self.settings = settings
         self.vector_store = vector_store
         self.collection_name = collection_name
         self.documents: list[Document] = []
@@ -43,7 +42,7 @@ class DocumentStore:
         """Ingest documents and store them in the vector store."""
         processed_documents: list[Document] = []
         with multiprocessing.Manager() as manager:
-            processor = DocumentProcessor(manager)
+            processor = DocumentProcessor(manager, self.settings)
 
             for file_path in file_paths:
                 logger.info(f"Processing file: {file_path}")

@@ -1,14 +1,13 @@
 # collection_service.py
 import multiprocessing
 import re
-from typing import Any
 from uuid import uuid4
 
 from fastapi import BackgroundTasks, UploadFile
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
-from core.config import settings
+from core.config import Settings
 from core.custom_exceptions import (
     CollectionProcessingError,
     DocumentIngestionError,
@@ -36,7 +35,7 @@ from rag_solution.services.user_collection_service import UserCollectionService
 from rag_solution.services.user_provider_service import UserProviderService
 from vectordbs.data_types import Document
 from vectordbs.error_types import CollectionError
-from vectordbs.factory import get_datastore
+from vectordbs.factory import VectorStoreFactory
 
 logger = get_logger("services.collection")
 
@@ -46,17 +45,30 @@ class CollectionService:
     Service class for managing collections and their associated documents.
     """
 
-    def __init__(self: Any, db: Session) -> None:
+    def __init__(self, db: Session, settings: Settings) -> None:
+        """Initialize CollectionService with dependency injection.
+
+        Args:
+            db: Database session
+            settings: Configuration settings
+        """
         self.db = db
+        self.settings = settings
+
+        # Initialize repositories and services
         self.collection_repository = CollectionRepository(db)
         self.user_collection_service = UserCollectionService(db)
-        self.file_management_service = FileManagementService(db)
-        self.vector_store = get_datastore(settings.vector_db)
-        self.user_provider_service = UserProviderService(db)
+        self.file_management_service = FileManagementService(db, settings)
+
+        # Create vector store factory and get the configured store
+        vector_store_factory = VectorStoreFactory(settings)
+        self.vector_store = vector_store_factory.get_datastore(settings.vector_db)
+
+        # Initialize other services
+        self.user_provider_service = UserProviderService(db, settings)
         self.prompt_template_service = PromptTemplateService(db)
         self.llm_parameters_service = LLMParametersService(db)
-        # Initialize question service
-        self.question_service = QuestionService(db=db)
+        self.question_service = QuestionService(db, settings)
         self.llm_model_service = LLMModelService(db)
 
     @staticmethod
@@ -371,7 +383,7 @@ class CollectionService:
         """
         processed_documents = []
         with multiprocessing.Manager() as manager:
-            processor = DocumentProcessor(manager)
+            processor = DocumentProcessor(manager, self.settings)
 
             for file_path, document_id in zip(file_paths, document_ids, strict=False):
                 logger.info(f"Processing file: {file_path}")

@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from fastapi import (
     APIRouter,
     BackgroundTasks,
@@ -13,6 +15,7 @@ from fastapi import (
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
+from core.config import Settings, get_settings
 from core.custom_exceptions import NotFoundError, ValidationError
 from core.logging_utils import get_logger
 from rag_solution.file_management.database import get_db
@@ -89,7 +92,11 @@ async def debug_form_data_with_db(
         500: {"description": "Internal server error"},
     },
 )
-def create_collection(collection_input: CollectionInput, db: Session = Depends(get_db)) -> CollectionOutput:
+def create_collection(
+    collection_input: CollectionInput,
+    db: Session = Depends(get_db),
+    settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)
+) -> CollectionOutput:
     """
     Create a new collection.
 
@@ -104,7 +111,7 @@ def create_collection(collection_input: CollectionInput, db: Session = Depends(g
         HTTPException: If validation fails, collection not found, or creation fails
     """
     try:
-        service = CollectionService(db)
+        service = CollectionService(db, settings)
         return service.create_collection(collection_input)
     except ValidationError as e:
         logger.error(f"Validation error creating collection: {e}")
@@ -138,6 +145,7 @@ async def create_collection_with_documents(
     files: list[UploadFile] = File(...),
     background_tasks: BackgroundTasks = BackgroundTasks(),
     db: Session = Depends(get_db),
+    settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)
 ) -> CollectionOutput:
     """
     Create a new collection with documents.
@@ -174,7 +182,7 @@ async def create_collection_with_documents(
     logger.info("=== END COLLECTION ROUTER DEBUG ===")
 
     try:
-        collection_service = CollectionService(db)
+        collection_service = CollectionService(db, settings)
         collection = collection_service.create_collection_with_documents(collection_name, is_private, user_id, files, background_tasks)
         logger.info(f"Collection created successfully: {collection.id}")
         return collection
@@ -200,7 +208,11 @@ async def create_collection_with_documents(
         500: {"description": "Internal server error"},
     },
 )
-def get_collection(collection_id: UUID4, db: Session = Depends(get_db)) -> CollectionOutput:
+def get_collection(
+    collection_id: UUID4,
+    db: Session = Depends(get_db),
+    settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)
+) -> CollectionOutput:
     """
     Retrieve a collection by id.
 
@@ -215,7 +227,7 @@ def get_collection(collection_id: UUID4, db: Session = Depends(get_db)) -> Colle
         HTTPException: If collection not found
     """
     try:
-        service = CollectionService(db)
+        service = CollectionService(db, settings)
         collection = service.get_collection(collection_id)
         return collection
     except HTTPException as e:
@@ -243,6 +255,7 @@ def create_collection_question(
     collection_id: UUID4,
     question_input: QuestionInput = Body(..., description="Question input data"),
     db: Session = Depends(get_db),
+    settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)
 ) -> QuestionOutput:
     """Create a new question for a collection.
 
@@ -259,7 +272,7 @@ def create_collection_question(
     """
     try:
         # Create question service instance
-        question_service = QuestionService(db=db)
+        question_service = QuestionService(db=db, settings=settings)
         # Ensure collection_id matches route parameter
         question_input.collection_id = collection_id
         result = question_service.create_question(question_input)
@@ -284,7 +297,11 @@ def create_collection_question(
         500: {"description": "Internal server error"},
     },
 )
-def get_collection_questions(collection_id: UUID4, db: Session = Depends(get_db)) -> list[QuestionOutput]:
+def get_collection_questions(
+    collection_id: UUID4,
+    db: Session = Depends(get_db),
+    settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)
+) -> list[QuestionOutput]:
     """
     Get all questions for a collection.
 
@@ -299,7 +316,7 @@ def get_collection_questions(collection_id: UUID4, db: Session = Depends(get_db)
         HTTPException: If collection not found or retrieval fails
     """
     try:
-        question_service = QuestionService(db=db)
+        question_service = QuestionService(db=db, settings=settings)
         questions = question_service.get_collection_questions(collection_id)
         return [QuestionOutput.model_validate(q) for q in questions]
     except NotFoundError as e:
@@ -321,7 +338,12 @@ def get_collection_questions(collection_id: UUID4, db: Session = Depends(get_db)
         500: {"description": "Internal server error"},
     },
 )
-def delete_collection_question(collection_id: UUID4, question_id: UUID4, db: Session = Depends(get_db)) -> None:
+def delete_collection_question(
+    collection_id: UUID4,
+    question_id: UUID4,
+    db: Session = Depends(get_db),
+    settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)
+) -> None:
     """
     Delete a specific question from a collection.
 
@@ -334,7 +356,7 @@ def delete_collection_question(collection_id: UUID4, question_id: UUID4, db: Ses
         HTTPException: If question not found or deletion fails
     """
     try:
-        question_service = QuestionService(db=db)
+        question_service = QuestionService(db=db, settings=settings)
         question_service.delete_question(question_id)
         return None
     except NotFoundError as e:
@@ -355,7 +377,11 @@ def delete_collection_question(collection_id: UUID4, question_id: UUID4, db: Ses
         500: {"description": "Internal server error"},
     },
 )
-def delete_collection_questions(collection_id: UUID4, db: Session = Depends(get_db)) -> Response:
+def delete_collection_questions(
+    collection_id: UUID4,
+    db: Session = Depends(get_db),
+    settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)
+) -> Response:
     """
     Delete all questions for a collection.
 
@@ -367,7 +393,7 @@ def delete_collection_questions(collection_id: UUID4, db: Session = Depends(get_
         HTTPException: If collection not found or deletion fails
     """
     try:
-        question_service = QuestionService(db=db)
+        question_service = QuestionService(db=db, settings=settings)
         question_service.delete_questions_by_collection(collection_id)
         return Response(status_code=204)
     except NotFoundError as e:
@@ -388,7 +414,11 @@ def delete_collection_questions(collection_id: UUID4, db: Session = Depends(get_
         500: {"description": "Internal server error"},
     },
 )
-def delete_collection(collection_id: UUID4, db: Session = Depends(get_db)) -> Response:
+def delete_collection(
+    collection_id: UUID4,
+    db: Session = Depends(get_db),
+    settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)
+) -> Response:
     """
     Delete a collection by id.
 
@@ -403,7 +433,7 @@ def delete_collection(collection_id: UUID4, db: Session = Depends(get_db)) -> Re
         HTTPException: If collection not found or deletion fails
     """
     try:
-        service = CollectionService(db)
+        service = CollectionService(db, settings)
         service.delete_collection(collection_id)
         return Response(status_code=204)
     except NotFoundError as e:
@@ -425,7 +455,10 @@ def delete_collection(collection_id: UUID4, db: Session = Depends(get_db)) -> Re
         500: {"description": "Internal server error"},
     },
 )
-def get_collection_users(collection_id: UUID4, db: Session = Depends(get_db)) -> list[UserCollectionOutput]:
+def get_collection_users(
+    collection_id: UUID4,
+    db: Session = Depends(get_db)
+) -> list[UserCollectionOutput]:
     """
     Get all users associated with a collection.
 
@@ -460,7 +493,10 @@ def get_collection_users(collection_id: UUID4, db: Session = Depends(get_db)) ->
         500: {"description": "Internal server error"},
     },
 )
-def remove_all_users_from_collection(collection_id: UUID4, db: Session = Depends(get_db)) -> Response:
+def remove_all_users_from_collection(
+    collection_id: UUID4,
+    db: Session = Depends(get_db)
+) -> Response:
     """
     Remove all users from a collection.
 
@@ -494,7 +530,11 @@ def remove_all_users_from_collection(collection_id: UUID4, db: Session = Depends
         500: {"description": "Internal server error"},
     },
 )
-def get_collection_files(collection_id: UUID4, db: Session = Depends(get_db)) -> list[str]:
+def get_collection_files(
+    collection_id: UUID4,
+    db: Session = Depends(get_db),
+    settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)
+) -> list[str]:
     """
     Get a list of files in a specific collection.
 
@@ -509,7 +549,7 @@ def get_collection_files(collection_id: UUID4, db: Session = Depends(get_db)) ->
         HTTPException: If collection not found
     """
     try:
-        service = FileManagementService(db)
+        service = FileManagementService(db, settings)
         return service.get_files(collection_id)
     except NotFoundError as e:
         logger.error(f"Not found error getting collection files: {e}")
@@ -529,7 +569,12 @@ def get_collection_files(collection_id: UUID4, db: Session = Depends(get_db)) ->
         500: {"description": "Internal server error"},
     },
 )
-def get_file_path(collection_id: UUID4, filename: str, db: Session = Depends(get_db)) -> dict[str, str]:
+def get_file_path(
+    collection_id: UUID4,
+    filename: str,
+    db: Session = Depends(get_db),
+    settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)
+) -> dict[str, str]:
     """
     Get the file path for a specific file in a collection.
 
@@ -545,7 +590,7 @@ def get_file_path(collection_id: UUID4, filename: str, db: Session = Depends(get
         HTTPException: If file not found
     """
     try:
-        service = FileManagementService(db)
+        service = FileManagementService(db, settings)
         file_path = service.get_file_path(collection_id, filename)
         if not file_path.exists():
             logger.error(f"File not found: {filename}")
@@ -571,7 +616,12 @@ def get_file_path(collection_id: UUID4, filename: str, db: Session = Depends(get
         500: {"description": "Internal server error"},
     },
 )
-def delete_files(collection_id: UUID4, doc_delete: DocumentDelete, db: Session = Depends(get_db)) -> None:
+def delete_files(
+    collection_id: UUID4,
+    doc_delete: DocumentDelete,
+    db: Session = Depends(get_db),
+    settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)
+) -> None:
     """
     Delete files from a collection.
 
@@ -584,7 +634,7 @@ def delete_files(collection_id: UUID4, doc_delete: DocumentDelete, db: Session =
         HTTPException: If files not found or deletion fails
     """
     try:
-        service = FileManagementService(db)
+        service = FileManagementService(db, settings)
         service.delete_files(collection_id, doc_delete.filenames)
     except ValidationError as e:
         logger.error(f"Validation error deleting files: {e}")
@@ -610,7 +660,13 @@ def delete_files(collection_id: UUID4, doc_delete: DocumentDelete, db: Session =
         500: {"description": "Internal server error"},
     },
 )
-def update_file_metadata(collection_id: UUID4, file_id: UUID4, metadata: FileMetadata, db: Session = Depends(get_db)) -> FileOutput:
+def update_file_metadata(
+    collection_id: UUID4,
+    file_id: UUID4,
+    metadata: FileMetadata,
+    db: Session = Depends(get_db),
+    settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)
+) -> FileOutput:
     """
     Update metadata for a specific file.
 
@@ -627,7 +683,7 @@ def update_file_metadata(collection_id: UUID4, file_id: UUID4, metadata: FileMet
         HTTPException: If validation fails, file not found, or update fails
     """
     try:
-        service = FileManagementService(db)
+        service = FileManagementService(db, settings)
         return service.update_file_metadata(collection_id, file_id, metadata)
     except ValidationError as e:
         logger.error(f"Validation error updating file metadata: {e}")

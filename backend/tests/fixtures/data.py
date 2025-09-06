@@ -4,7 +4,7 @@ from collections.abc import Generator
 
 import pytest
 
-from core.config import settings
+from core.config import get_settings
 from rag_solution.data_ingestion.chunking import simple_chunking
 from rag_solution.generation.providers.base import LLMBase
 from rag_solution.schemas.collection_schema import CollectionOutput
@@ -129,6 +129,7 @@ def indexed_large_document(
     """Add chunked documents to vector store."""
 
     # Get chunks using configuration
+    settings = get_settings()
     chunks = simple_chunking(
         text=sample_content,
         min_chunk_size=settings.min_chunk_size,

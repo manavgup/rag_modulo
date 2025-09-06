@@ -5,10 +5,10 @@ from typing import Any
 
 
 # Lazy import to avoid test isolation issues
-def get_settings() -> Any:
-    from core.config import settings
+def get_app_settings() -> Any:
+    from core.config import get_settings
 
-    return settings
+    return get_settings()
 
 
 def setup_logging(log_dir: Path | None = None) -> None:
@@ -22,7 +22,7 @@ def setup_logging(log_dir: Path | None = None) -> None:
 
     # Get log level safely with fallback for test isolation
     try:
-        settings = get_settings()
+        settings = get_app_settings()
         log_level = getattr(settings, "log_level", "INFO")
         # Handle case where settings might be mocked during tests
         if hasattr(log_level, "_mock_name") or not isinstance(log_level, str):

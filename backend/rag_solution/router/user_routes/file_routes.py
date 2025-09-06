@@ -1,11 +1,13 @@
 """File management routes."""
 
 import logging
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
+from core.config import Settings, get_settings
 from rag_solution.core.dependencies import verify_user_access
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.file_schema import FileOutput
@@ -35,9 +37,10 @@ async def upload_file(
     db: Session = Depends(get_db),
     collection_id: UUID4 | None = None,
     user: UserOutput = Depends(verify_user_access),
+    settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)
 ) -> FileOutput:
     """Upload a file to a user's collection."""
-    service = FileManagementService(db)
+    service = FileManagementService(db, settings)
     try:
         # Upload file and create file record
         return service.upload_and_create_file_record(file, user_id, collection_id or user_id, str(user_id))
@@ -57,9 +60,15 @@ async def upload_file(
         500: {"description": "Internal server error"},
     },
 )
-async def delete_file(user_id: UUID4, file_id: UUID4, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)) -> bool:
+async def delete_file(
+    user_id: UUID4,
+    file_id: UUID4,
+    db: Session = Depends(get_db),
+    user: UserOutput = Depends(verify_user_access),
+    settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)
+) -> bool:
     """Delete a file from a user's collection."""
-    service = FileManagementService(db)
+    service = FileManagementService(db, settings)
     try:
         service.delete_file(file_id)
         return True

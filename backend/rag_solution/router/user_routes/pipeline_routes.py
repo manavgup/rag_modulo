@@ -1,11 +1,13 @@
 """Pipeline configuration routes."""
 
 import logging
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
+from core.config import Settings, get_settings
 from rag_solution.core.dependencies import verify_user_access
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.pipeline_schema import PipelineConfigInput, PipelineConfigOutput
@@ -28,9 +30,14 @@ router = APIRouter()
         500: {"description": "Internal server error"},
     },
 )
-async def get_pipelines(user_id: UUID4, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)) -> list[PipelineConfigOutput]:
+async def get_pipelines(
+    user_id: UUID4,
+    db: Session = Depends(get_db),
+    user: UserOutput = Depends(verify_user_access),
+    settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)
+) -> list[PipelineConfigOutput]:
     """Retrieve all pipeline configurations for a user."""
-    service = PipelineService(db)
+    service = PipelineService(db, settings)
     try:
         return service.get_user_pipelines(user_id)
     except Exception as e:
@@ -54,9 +61,10 @@ async def create_pipeline(
     pipeline_input: PipelineConfigInput,
     db: Session = Depends(get_db),
     user: UserOutput = Depends(verify_user_access),
+    settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)
 ) -> PipelineConfigOutput:
     """Create a new pipeline configuration for a user."""
-    service = PipelineService(db)
+    service = PipelineService(db, settings)
     try:
         if not pipeline_input.user_id:
             pipeline_input.user_id = user_id
@@ -84,9 +92,10 @@ async def update_pipeline(
     pipeline_input: PipelineConfigInput,
     db: Session = Depends(get_db),
     user: UserOutput = Depends(verify_user_access),
+    settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)
 ) -> PipelineConfigOutput:
     """Update an existing pipeline configuration."""
-    service = PipelineService(db)
+    service = PipelineService(db, settings)
     try:
         return service.update_pipeline(pipeline_id, pipeline_input)
     except Exception as e:
@@ -105,9 +114,15 @@ async def update_pipeline(
         500: {"description": "Internal server error"},
     },
 )
-async def delete_pipeline(user_id: UUID4, pipeline_id: UUID4, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)) -> bool:
+async def delete_pipeline(
+    user_id: UUID4,
+    pipeline_id: UUID4,
+    db: Session = Depends(get_db),
+    user: UserOutput = Depends(verify_user_access),
+    settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)
+) -> bool:
     """Delete an existing pipeline configuration."""
-    service = PipelineService(db)
+    service = PipelineService(db, settings)
     try:
         return service.delete_pipeline(pipeline_id)
     except Exception as e:
@@ -126,9 +141,15 @@ async def delete_pipeline(user_id: UUID4, pipeline_id: UUID4, db: Session = Depe
         500: {"description": "Internal server error"},
     },
 )
-async def set_default_pipeline(user_id: UUID4, pipeline_id: UUID4, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)) -> PipelineConfigOutput:
+async def set_default_pipeline(
+    user_id: UUID4,
+    pipeline_id: UUID4,
+    db: Session = Depends(get_db),
+    user: UserOutput = Depends(verify_user_access),
+    settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)
+) -> PipelineConfigOutput:
     """Set a specific pipeline configuration as default."""
-    service = PipelineService(db)
+    service = PipelineService(db, settings)
     try:
         return service.set_default_pipeline(pipeline_id)
     except Exception as e:

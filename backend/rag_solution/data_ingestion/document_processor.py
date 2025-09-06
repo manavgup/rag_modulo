@@ -5,6 +5,7 @@ from collections.abc import AsyncGenerator
 from multiprocessing.managers import SyncManager
 from typing import Any
 
+from core.config import Settings, get_settings
 from core.custom_exceptions import DocumentProcessingError
 from rag_solution.data_ingestion.base_processor import BaseProcessor
 from rag_solution.data_ingestion.excel_processor import ExcelProcessor
@@ -26,22 +27,23 @@ class DocumentProcessor:
         question_service (QuestionService): Service for generating suggested questions.
     """
 
-    def __init__(self: Any, manager: SyncManager | None = None) -> None:
+    def __init__(self: Any, manager: SyncManager | None = None, settings: Settings = get_settings()) -> None:
         """
         Initialize the document processor.
 
         Args:
             manager (Optional[SyncManager]): Multiprocessing manager for shared resources
-            question_service (Optional[QuestionService]): Service for question operations
+            settings (Settings): Settings object for dependency injection
         """
         if manager is None:
             manager = multiprocessing.Manager()
         self.manager = manager
+        self.settings = settings
         self.processors: dict[str, BaseProcessor] = {
-            ".txt": TxtProcessor(),
-            ".pdf": PdfProcessor(self.manager),
-            ".docx": WordProcessor(),
-            ".xlsx": ExcelProcessor(),
+            ".txt": TxtProcessor(settings),
+            ".pdf": PdfProcessor(self.manager, settings),
+            ".docx": WordProcessor(settings),
+            ".xlsx": ExcelProcessor(settings),
         }
 
     async def _process_async(self, processor: BaseProcessor, file_path: str, document_id: str) -> list[Document]:

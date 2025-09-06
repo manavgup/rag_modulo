@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from core.config import settings
+from core.config import get_settings
 
 
 # Mock the OAuth client
@@ -24,6 +24,7 @@ def test_client() -> TestClient:
 
 
 def test_login_redirect(test_client: TestClient) -> None:
+    settings = get_settings()
     response = test_client.get("/api/auth/login")
     assert response.status_code == 302
     assert response.headers["location"].startswith(settings.oidc_discovery_endpoint or "https://test.com")
@@ -41,6 +42,7 @@ def test_callback_success(test_client: TestClient, mock_oauth_client: MagicMock)
         "name": "Test User",
     }
 
+    settings = get_settings()
     response = test_client.get("/api/auth/callback?code=mock_code&state=mock_state")
     assert response.status_code == 302
     assert response.headers["location"].startswith(settings.frontend_url)

@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 
-from core.config import settings
+from core.config import get_settings
 from rag_solution.data_ingestion.ingestion import DocumentStore
 from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, Source
 from vectordbs.factory import get_datastore
@@ -38,6 +38,7 @@ def create_sample_document() -> Document:
 
 @pytest.fixture(scope="module")
 def vector_store_with_collection() -> None:
+    settings = get_settings()
     vector_store = get_datastore(settings.vector_db)
     vector_store.create_collection(collection_name)
     yield vector_store
@@ -61,6 +62,7 @@ async def test_document_store(vector_store_with_collection: Any) -> None:
     assert len(stored_docs) == 1
 
     # Test ingesting documents from directory
+    settings = get_settings()
     await store.load_documents([settings.data_dir])
     # Assuming some documents are present in the data_dir
     stored_docs = vector_store_with_collection.retrieve_documents("ROI", collection_name, number_of_results=2)

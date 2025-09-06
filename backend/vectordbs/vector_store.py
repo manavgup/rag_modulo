@@ -1,10 +1,22 @@
 from abc import ABC, abstractmethod
 
+from core.config import Settings
+
 from .data_types import Document, DocumentMetadataFilter, QueryResult, QueryWithEmbedding
 
 
 class VectorStore(ABC):
-    """Abstract base class for vector stores."""
+    """Abstract base class for vector stores with dependency injection."""
+
+    def __init__(self, settings: Settings) -> None:
+        """
+        Initialize the vector store with settings.
+        All subclasses must call this constructor to ensure proper dependency injection.
+
+        Args:
+            settings: Settings object containing configuration for the vector store
+        """
+        self.settings = settings
 
     @abstractmethod
     def create_collection(self, collection_name: str, metadata: dict | None = None) -> None:

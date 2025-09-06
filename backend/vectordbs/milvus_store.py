@@ -15,7 +15,7 @@ from pymilvus import (  # type: ignore[import-untyped]
     utility,
 )
 
-from core.config import settings
+from core.config import Settings, get_settings
 from vectordbs.utils.watsonx import get_embeddings
 
 from .data_types import (
@@ -32,52 +32,55 @@ from .vector_store import VectorStore
 
 logger = logging.getLogger(__name__)
 
-# Configuration constants
-MILVUS_COLLECTION = settings.collection_name
-MILVUS_HOST = settings.milvus_host
-MILVUS_PORT = settings.milvus_port
-MILVUS_USER = settings.milvus_user
-MILVUS_PASSWORD = settings.milvus_password
-MILVUS_USE_SECURITY = MILVUS_PASSWORD is not None
-EMBEDDING_DIM = settings.embedding_dim
-EMBEDDING_FIELD = settings.embedding_field
-EMBEDDING_MODEL = settings.embedding_model
-MILVUS_INDEX_PARAMS = settings.milvus_index_params
-MILVUS_SEARCH_PARAMS = settings.milvus_search_params
+# Remove module-level constants - use dependency injection instead
 
-# Schema definition
-SCHEMA = [
-    FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=True),
-    FieldSchema(name="document_id", dtype=DataType.VARCHAR, max_length=65535),
-    FieldSchema(name=EMBEDDING_FIELD, dtype=DataType.FLOAT_VECTOR, dim=EMBEDDING_DIM),
-    FieldSchema(name="text", dtype=DataType.VARCHAR, max_length=65535),
-    FieldSchema(name="chunk_id", dtype=DataType.VARCHAR, max_length=100),
-    # Document metadata fields
-    FieldSchema(name="document_name", dtype=DataType.VARCHAR, max_length=65535),
-    # Chunk metadata fields
-    FieldSchema(name="source", dtype=DataType.VARCHAR, max_length=20),
-    FieldSchema(name="page_number", dtype=DataType.INT64),
-    FieldSchema(name="chunk_number", dtype=DataType.INT64),
-    FieldSchema(name="start_index", dtype=DataType.INT64),
-    FieldSchema(name="end_index", dtype=DataType.INT64),
-]
+def _create_schema(settings: Settings) -> list[FieldSchema]:
+    """Create the schema for Milvus collection with injected settings."""
+    return [
+        FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=True),
+        FieldSchema(name="document_id", dtype=DataType.VARCHAR, max_length=65535),
+        FieldSchema(name=settings.embedding_field, dtype=DataType.FLOAT_VECTOR, dim=settings.embedding_dim),
+        FieldSchema(name="text", dtype=DataType.VARCHAR, max_length=65535),
+        FieldSchema(name="chunk_id", dtype=DataType.VARCHAR, max_length=100),
+        # Document metadata fields
+        FieldSchema(name="document_name", dtype=DataType.VARCHAR, max_length=65535),
+        # Chunk metadata fields
+        FieldSchema(name="source", dtype=DataType.VARCHAR, max_length=20),
+        FieldSchema(name="page_number", dtype=DataType.INT64),
+        FieldSchema(name="chunk_number", dtype=DataType.INT64),
+        FieldSchema(name="start_index", dtype=DataType.INT64),
+        FieldSchema(name="end_index", dtype=DataType.INT64),
+    ]
 
 
 class MilvusStore(VectorStore):
     """Milvus vector store implementation."""
 
-    def __init__(self, host: str | None = MILVUS_HOST, port: int | None = MILVUS_PORT) -> None:
+    def __init__(self, settings: Settings | None = None, host: str | None = None, port: int | None = None) -> None:
         """Initialize MilvusStore with connection parameters.
 
         Args:
-            host: The host address for Milvus
-            port: The port for Milvus
+            settings: Settings object (required for proper dependency injection)
+            host: The host address for Milvus (overrides settings if provided)
+            port: The port for Milvus (overrides settings if provided)
         """
-        if host is None:
+        # Use provided settings or get default (fallback for backward compatibility)
+        if settings is None:
+            settings = get_settings()
+
+        # Call parent constructor for proper dependency injection
+        super().__init__(settings)
+        self.schema = _create_schema(settings)
+
+        # Use provided values or fall back to settings
+        actual_host = host or settings.milvus_host
+        actual_port = port or settings.milvus_port
+
+        if actual_host is None:
             raise ValueError("Milvus host must be provided")
-        if port is None:
+        if actual_port is None:
             raise ValueError("Milvus port must be provided")
-        self._connect(host, port)
+        self._connect(actual_host, actual_port)
 
     def _connect(self, host: str | None, port: int | None) -> None:
         """Connect to the Milvus server.
@@ -138,7 +141,7 @@ class MilvusStore(VectorStore):
             if utility.has_collection(collection_name):
                 raise CollectionError(f"Collection {collection_name} already exists.")
 
-            schema = CollectionSchema(fields=SCHEMA)
+            schema = CollectionSchema(fields=self.schema)
             collection = Collection(name=collection_name, schema=schema)
             logging.info(f"Created Milvus collection '{collection_name}' with schema {schema}")
 
@@ -160,8 +163,8 @@ class MilvusStore(VectorStore):
             CollectionError: If index creation fails
         """
         try:
-            self.index_params = json.loads(MILVUS_INDEX_PARAMS) if MILVUS_INDEX_PARAMS else None
-            self.search_params = json.loads(MILVUS_SEARCH_PARAMS) if MILVUS_SEARCH_PARAMS else None
+            self.index_params = json.loads(self.settings.milvus_index_params) if self.settings.milvus_index_params else None
+            self.search_params = json.loads(self.settings.milvus_search_params) if self.settings.milvus_search_params else None
 
             if len(collection.indexes) == 0:
                 index_params = self.index_params or {
@@ -169,7 +172,7 @@ class MilvusStore(VectorStore):
                     "index_type": "HNSW",
                     "params": {"M": 8, "efConstruction": 64},
                 }
-                collection.create_index(field_name=EMBEDDING_FIELD, index_params=index_params)
+                collection.create_index(field_name=self.settings.embedding_field, index_params=index_params)
                 logging.info(f"Created index for collection '{collection.name}' with params {index_params}")
             else:
                 logging.info(f"Index already exists for collection '{collection.name}'")
@@ -198,7 +201,7 @@ class MilvusStore(VectorStore):
                 for chunk in document.chunks:
                     chunk_data = {
                         "document_id": document.document_id,
-                        EMBEDDING_FIELD: chunk.embeddings,
+                        self.settings.embedding_field: chunk.embeddings,
                         "text": chunk.text,
                         "chunk_id": chunk.chunk_id,
                         "document_name": document.name,
@@ -240,7 +243,7 @@ class MilvusStore(VectorStore):
         """
         collection = self._get_collection(collection_name)
 
-        embeddings = get_embeddings(texts=query)
+        embeddings = get_embeddings(texts=query, settings=self.settings)
         if not embeddings:
             raise VectorStoreError("Failed to generate embeddings for the query string.")
         query_embeddings = QueryWithEmbedding(text=query, embeddings=embeddings[0])
@@ -250,9 +253,9 @@ class MilvusStore(VectorStore):
             search_params = {"metric_type": "IP", "params": {"nprobe": 10}}
             search_results = collection.search(
                 data=[query_embeddings.embeddings],
-                anns_field=EMBEDDING_FIELD,
+                anns_field=self.settings.embedding_field,
                 param=search_params,
-                output_fields=[field.name for field in SCHEMA if field.name != "id"],
+                output_fields=[field.name for field in self.schema if field.name != "id"],
                 limit=number_of_results,
             )
             return self._process_search_results(search_results)
@@ -282,7 +285,7 @@ class MilvusStore(VectorStore):
                     chunk = DocumentChunk(
                         chunk_id=str(hit.id),
                         text=hit.entity.get("text") or "",
-                        embeddings=hit.entity.get(EMBEDDING_FIELD),
+                        embeddings=hit.entity.get(self.settings.embedding_field),
                         metadata=DocumentChunkMetadata(
                             source=Source(hit.entity.get("source")) if hit.entity.get("source") else Source.OTHER,
                             page_number=hit.entity.get("page_number") if hit.entity.get("page_number") else 0,
@@ -299,7 +302,7 @@ class MilvusStore(VectorStore):
                         QueryResult(
                             chunk=chunk,
                             score=float(hit.distance),  # Single float score
-                            embeddings=hit.entity.get(EMBEDDING_FIELD),  # List of embeddings
+                            embeddings=hit.entity.get(self.settings.embedding_field),  # List of embeddings
                         )
                     )
 
@@ -379,9 +382,9 @@ class MilvusStore(VectorStore):
             search_params = {"metric_type": "IP", "params": {"nprobe": 10}}
             result = collection.search(
                 data=[query.embeddings],
-                anns_field=EMBEDDING_FIELD,
+                anns_field=self.settings.embedding_field,
                 param=search_params,
-                output_fields=[field.name for field in SCHEMA if field.name != "id"],
+                output_fields=[field.name for field in self.schema if field.name != "id"],
                 limit=number_of_results,
             )
             return self._process_search_results(result)

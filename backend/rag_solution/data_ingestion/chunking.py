@@ -15,7 +15,7 @@ else:
     except ImportError:
         cosine_similarity = None
 
-from core.config import settings
+from core.config import Settings, get_settings
 from vectordbs.utils.watsonx import get_embeddings, get_tokenization
 
 logging.basicConfig(level=logging.DEBUG)
@@ -142,7 +142,7 @@ def calculate_cosine_distances(embeddings: np.ndarray) -> list[float]:
     return distances
 
 
-def simple_chunker(text: str) -> list[str]:
+def simple_chunker(text: str, settings: Settings = get_settings()) -> list[str]:
     return simple_chunking(
         text,
         settings.min_chunk_size,
@@ -151,7 +151,7 @@ def simple_chunker(text: str) -> list[str]:
     )
 
 
-def semantic_chunker(text: str) -> list[str]:
+def semantic_chunker(text: str, settings: Settings = get_settings()) -> list[str]:
     return semantic_chunking(
         text,
         settings.min_chunk_size,
@@ -159,7 +159,7 @@ def semantic_chunker(text: str) -> list[str]:
     )
 
 
-def get_chunking_method() -> Callable[[str], list[str]]:
+def get_chunking_method(settings: Settings = get_settings()) -> Callable[[str], list[str]]:
     if settings.chunking_strategy.lower() == "semantic":
         return semantic_chunker
     else:

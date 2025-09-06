@@ -14,7 +14,7 @@ import warnings
 from os.path import abspath, dirname
 from typing import Any
 
-from core.config import settings
+from core.config import Settings, get_settings
 from vectordbs.utils.watsonx import generate_text
 
 logger = logging.getLogger(__name__)
@@ -38,8 +38,9 @@ class PromptTemplate:
 
 
 class BaseGenerator:
-    def __init__(self, config: dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any], settings: Settings | None = None) -> None:
         self.config = config
+        self.settings = settings or get_settings()
         self.prompt_template = self._load_prompt_template()
         self.max_tokens = self.config.get("max_tokens", 2048)
 
@@ -85,12 +86,12 @@ class BaseGenerator:
 
 
 class WatsonxGenerator(BaseGenerator):
-    def __init__(self, config: dict[str, Any]) -> None:
+    def __init__(self, config: dict[str, Any], settings: Settings | None = None) -> None:
         if not isinstance(config, dict):
             raise TypeError(f"Expected config to be a dictionary, but got {type(config).__name__}")
 
-        super().__init__(config)
-        self.model_name = config.get("model_name", settings.rag_llm)
+        super().__init__(config, settings)
+        self.model_name = config.get("model_name", self.settings.rag_llm)
 
     def generate(self, prompt: str | list[str], context: str | None = None, **kwargs: Any) -> str | list[str]:  # noqa: ARG002
         """Generate text using the language model.
@@ -134,8 +135,8 @@ class WatsonxGenerator(BaseGenerator):
 
 
 class OpenAIGenerator(BaseGenerator):
-    def __init__(self, config: dict[str, Any]) -> None:
-        super().__init__(config)
+    def __init__(self, config: dict[str, Any], settings: Settings | None = None) -> None:
+        super().__init__(config, settings)
         self.model_name = config.get("model_name", "gpt-3.5-turbo")
         import openai
 
@@ -202,8 +203,8 @@ class OpenAIGenerator(BaseGenerator):
 
 
 class AnthropicGenerator(BaseGenerator):
-    def __init__(self, config: dict[str, Any]) -> None:
-        super().__init__(config)
+    def __init__(self, config: dict[str, Any], settings: Settings | None = None) -> None:
+        super().__init__(config, settings)
         self.model_name = config.get("model_name", "claude-2")
         import anthropic
 

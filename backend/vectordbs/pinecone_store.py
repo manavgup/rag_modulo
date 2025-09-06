@@ -3,7 +3,7 @@ from typing import Any
 
 from pinecone import Pinecone, ServerlessSpec
 
-from core.config import settings
+from core.config import Settings, get_settings
 from vectordbs.utils.watsonx import get_embeddings
 
 from .data_types import (
@@ -18,18 +18,19 @@ from .data_types import (
 from .error_types import CollectionError, VectorStoreError
 from .vector_store import VectorStore
 
-PINECONE_API_KEY = settings.pinecone_api_key
-PINECONE_CLOUD = settings.pinecone_cloud
-PINECONE_REGION = settings.pinecone_region
-EMBEDDING_DIM = settings.embedding_dim
-
-logging.basicConfig(level=logging.INFO)
+# Remove module-level constants - use dependency injection instead
 
 
 class PineconeStore(VectorStore):
-    def __init__(self) -> None:
+    def __init__(self, settings: Settings = get_settings()) -> None:
+        # Call parent constructor for proper dependency injection
+        super().__init__(settings)
+
+        # Configure logging
+        logging.basicConfig(level=logging.INFO)
+
         try:
-            self.client = Pinecone(api_key=PINECONE_API_KEY, pool_threads=30)
+            self.client = Pinecone(api_key=self.settings.pinecone_api_key, pool_threads=30)
             logging.info("Pinecone client initialized successfully")
         except Exception as e:
             logging.error(f"Failed to initialize Pinecone client: {e}")
@@ -51,9 +52,9 @@ class PineconeStore(VectorStore):
             else:
                 self.client.create_index(
                     name=collection_name,
-                    dimension=EMBEDDING_DIM,
+                    dimension=self.settings.embedding_dim,
                     metric="cosine",
-                    spec=ServerlessSpec(cloud=PINECONE_CLOUD, region=PINECONE_REGION),
+                    spec=ServerlessSpec(cloud=self.settings.pinecone_cloud, region=self.settings.pinecone_region),
                 )
                 self.index = self.client.Index(collection_name)
                 logging.info(f"Pinecone index '{collection_name}' created successfully")
@@ -113,7 +114,7 @@ class PineconeStore(VectorStore):
         if collection_name not in self.client.list_indexes():
             raise CollectionError(f"Collection '{collection_name}' does not exist")
 
-        embeddings = get_embeddings(query)
+        embeddings = get_embeddings(query, settings=self.settings)
         if not embeddings:
             raise VectorStoreError("Failed to generate embeddings for the query string.")
         # get_embeddings returns list[list[float]], but we need list[float] for single query
