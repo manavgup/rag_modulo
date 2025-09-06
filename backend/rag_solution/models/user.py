@@ -32,16 +32,10 @@ class User(Base):
 
     # Add cascade="all, delete-orphan" to relationships where User is the parent
     teams: Mapped[list[UserTeam]] = relationship("UserTeam", back_populates="user", cascade="all, delete-orphan")
-    collections: Mapped[list[UserCollection]] = relationship(
-        "UserCollection", back_populates="user", cascade="all, delete-orphan"
-    )
+    collections: Mapped[list[UserCollection]] = relationship("UserCollection", back_populates="user", cascade="all, delete-orphan")
     files: Mapped[list[File]] = relationship("File", back_populates="user", cascade="all, delete-orphan")
-    llm_parameters: Mapped[list[LLMParameters]] = relationship(
-        "LLMParameters", back_populates="user", cascade="all, delete-orphan"
-    )
-    prompt_templates: Mapped[list[PromptTemplate]] = relationship(
-        "PromptTemplate", back_populates="user", cascade="all, delete-orphan"
-    )
+    llm_parameters: Mapped[list[LLMParameters]] = relationship("LLMParameters", back_populates="user", cascade="all, delete-orphan")
+    prompt_templates: Mapped[list[PromptTemplate]] = relationship("PromptTemplate", back_populates="user", cascade="all, delete-orphan")
 
     def __repr__(self) -> str:
         return f"User(id='{self.id}', ibm_id='{self.ibm_id}', " f"email='{self.email}', name='{self.name}', role='{self.role}')"

@@ -68,11 +68,7 @@ def get_wx_client(settings: Settings) -> APIClient:
     )
 
 
-def get_model(
-    settings: Settings = get_settings(),
-    generate_params: dict | None = None,
-    model_id: str | None = None
-) -> ModelInference:
+def get_model(settings: Settings = get_settings(), generate_params: dict | None = None, model_id: str | None = None) -> ModelInference:
     """Create a WatsonX model inference instance with dependency injection.
 
     Args:
@@ -133,11 +129,7 @@ def get_wx_embeddings_client(settings: Settings, embed_params: dict | None = Non
     )
 
 
-def get_embeddings(
-    texts: str | list[str],
-    settings: Settings = get_settings(),
-    embed_client: wx_Embeddings | None = None
-) -> EmbeddingsList:
+def get_embeddings(texts: str | list[str], settings: Settings = get_settings(), embed_client: wx_Embeddings | None = None) -> EmbeddingsList:
     """
     Get embeddings for a given text or a list of texts with dependency injection.
 

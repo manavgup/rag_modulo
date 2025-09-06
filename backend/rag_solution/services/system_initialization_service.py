@@ -1,4 +1,3 @@
-
 from pydantic import UUID4, SecretStr
 from sqlalchemy.orm import Session
 

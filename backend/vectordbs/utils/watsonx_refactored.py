@@ -71,10 +71,7 @@ class WatsonXClient:
             load_dotenv(override=True)
             self._client = APIClient(
                 project_id=self.watsonx_instance_id,
-                credentials=Credentials(
-                    api_key=self.settings.wx_api_key,
-                    url=self.settings.wx_url
-                ),
+                credentials=Credentials(api_key=self.settings.wx_api_key, url=self.settings.wx_url),
             )
         return self._client
 
@@ -91,21 +88,14 @@ class WatsonXClient:
             self._embeddings_client = wx_Embeddings(
                 model_id=self.embedding_model,
                 params=embed_params,
-                credentials=Credentials(
-                    api_key=self.settings.wx_api_key,
-                    url=self.settings.wx_url
-                ),
+                credentials=Credentials(api_key=self.settings.wx_api_key, url=self.settings.wx_url),
                 project_id=self.watsonx_instance_id,
             )
             self._embeddings_client.set_api_client(api_client)
 
         return self._embeddings_client
 
-    def get_model(
-        self,
-        generate_params: dict | None = None,
-        model_id: str | None = None
-    ) -> ModelInference:
+    def get_model(self, generate_params: dict | None = None, model_id: str | None = None) -> ModelInference:
         """Get a model inference instance."""
         if model_id is None:
             model_id = self.settings.rag_llm
@@ -124,10 +114,7 @@ class WatsonXClient:
             persistent_connection=True,
             model_id=model_id,
             params=generate_params,
-            credentials=Credentials(
-                api_key=self.settings.wx_api_key,
-                url=self.settings.wx_url
-            ),
+            credentials=Credentials(api_key=self.settings.wx_api_key, url=self.settings.wx_url),
             project_id=self.watsonx_instance_id,
         )
         model_inference.set_api_client(api_client=api_client)
@@ -151,11 +138,7 @@ def sublist(inputs: list, n: int) -> Generator[list, None, None]:
 
 
 # Updated functions with settings parameter
-def get_embeddings(
-    texts: str | list[str],
-    embed_client: wx_Embeddings | None = None,
-    settings: Settings | None = None
-) -> EmbeddingsList:
+def get_embeddings(texts: str | list[str], embed_client: wx_Embeddings | None = None, settings: Settings | None = None) -> EmbeddingsList:
     """
     Get embeddings for the given texts.
 
@@ -186,11 +169,7 @@ def get_embeddings(
         raise
 
 
-def get_model(
-    generate_params: dict | None = None,
-    model_id: str | None = None,
-    settings: Settings | None = None
-) -> ModelInference:
+def get_model(generate_params: dict | None = None, model_id: str | None = None, settings: Settings | None = None) -> ModelInference:
     """
     Get a model inference instance.
 
@@ -209,12 +188,7 @@ def get_model(
     return wx_client.get_model(generate_params, model_id)
 
 
-def generate_text(
-    prompt: str,
-    wx_model: ModelInference | None = None,
-    settings: Settings | None = None,
-    **kwargs
-) -> str:
+def generate_text(prompt: str, wx_model: ModelInference | None = None, settings: Settings | None = None, **kwargs) -> str:
     """
     Generate text using WatsonX.
 
@@ -267,6 +241,7 @@ class ChromaEmbeddingFunction(EmbeddingFunction):
 
 # Backward compatibility functions
 # These maintain the old interface but use dependency injection internally
+
 
 def _get_client() -> APIClient:
     """

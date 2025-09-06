@@ -51,10 +51,7 @@ class VectorStoreFactory:
             store_class = self._datastore_mapping[datastore]
             return store_class(self.settings)  # Inject settings
         except KeyError as exc:
-            raise ValueError(
-                f"Unsupported vector database: {datastore}. "
-                f"Supported databases are {list(self._datastore_mapping.keys())}"
-            ) from exc
+            raise ValueError(f"Unsupported vector database: {datastore}. " f"Supported databases are {list(self._datastore_mapping.keys())}") from exc
 
     def list_supported_stores(self) -> list[str]:
         """List all supported vector store types."""
@@ -83,12 +80,7 @@ def get_datastore(datastore: str) -> VectorStore:
 
     from core.config import get_settings
 
-    warnings.warn(
-        "get_datastore() is deprecated and will be removed. "
-        "Use VectorStoreFactory with dependency injection instead.",
-        DeprecationWarning,
-        stacklevel=2
-    )
+    warnings.warn("get_datastore() is deprecated and will be removed. " "Use VectorStoreFactory with dependency injection instead.", DeprecationWarning, stacklevel=2)
 
     factory = VectorStoreFactory(get_settings())
     return factory.get_datastore(datastore)

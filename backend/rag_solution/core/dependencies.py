@@ -175,18 +175,12 @@ def get_user_service(db: Session = Depends(get_db), settings: Settings = Depends
     return UserService(db, settings)
 
 
-def get_collection_service(
-    db: Session = Depends(get_db),
-    settings: Settings = Depends(get_settings)
-) -> CollectionService:
+def get_collection_service(db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> CollectionService:
     """Get CollectionService instance with proper dependency injection."""
     return CollectionService(db, settings)
 
 
-def get_file_service(
-    db: Session = Depends(get_db),
-    settings: Settings = Depends(get_settings)
-) -> FileManagementService:
+def get_file_service(db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> FileManagementService:
     """Get FileManagementService instance with proper dependency injection."""
     from rag_solution.services.file_management_service import FileManagementService
 
@@ -200,10 +194,7 @@ def get_team_service(db: Session = Depends(get_db), settings: Settings = Depends
     return TeamService(db, settings)
 
 
-def get_pipeline_service(
-    db: Session = Depends(get_db),
-    settings: Settings = Depends(get_settings)
-) -> PipelineService:
+def get_pipeline_service(db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> PipelineService:
     """Get PipelineService instance with proper dependency injection."""
     from rag_solution.services.pipeline_service import PipelineService
 
@@ -217,20 +208,14 @@ def get_llm_provider_service(db: Session = Depends(get_db), settings: Settings =
     return LLMProviderService(db, settings)
 
 
-def get_question_service(
-    db: Session = Depends(get_db),
-    settings: Settings = Depends(get_settings)
-) -> QuestionService:
+def get_question_service(db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> QuestionService:
     """Get QuestionService instance with proper dependency injection."""
     from rag_solution.services.question_service import QuestionService
 
     return QuestionService(db, settings)
 
 
-def get_search_service(
-    db: Session = Depends(get_db),
-    settings: Settings = Depends(get_settings)
-) -> SearchService:
+def get_search_service(db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> SearchService:
     """Get SearchService instance with proper dependency injection."""
     from rag_solution.services.search_service import SearchService
 

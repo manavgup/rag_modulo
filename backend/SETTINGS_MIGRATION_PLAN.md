@@ -301,8 +301,8 @@ Then we can remove the `settings = get_settings()` line from `config.py`.
 from core.config import settings
 
 # ❌ PROBLEM: These execute at module import time!
-WATSONX_INSTANCE_ID = settings.wx_project_id  
-EMBEDDING_MODEL = settings.embedding_model     
+WATSONX_INSTANCE_ID = settings.wx_project_id
+EMBEDDING_MODEL = settings.embedding_model
 
 # Global clients
 client = None
@@ -331,27 +331,27 @@ from typing import Optional
 
 class WatsonXClient:
     """Manages WatsonX connections with dependency injection."""
-    
+
     _instances: dict[str, 'WatsonXClient'] = {}
-    
+
     def __init__(self, settings: Settings):
         self.settings = settings
         self.watsonx_instance_id = settings.wx_project_id
         self.embedding_model = settings.embedding_model
         self._client: Optional[APIClient] = None
         self._embeddings_client: Optional[wx_Embeddings] = None
-    
+
     @classmethod
     def get_instance(cls, settings: Optional[Settings] = None) -> 'WatsonXClient':
         """Get cached instance or create new one."""
         if settings is None:
             settings = get_settings()
-        
+
         cache_key = settings.wx_project_id or "default"
         if cache_key not in cls._instances:
             cls._instances[cache_key] = cls(settings)
         return cls._instances[cache_key]
-    
+
     def get_client(self) -> APIClient:
         """Get or create API client."""
         if self._client is None:
@@ -373,11 +373,11 @@ def get_embeddings(
     """Get embeddings with injected settings."""
     if settings is None:
         settings = get_settings()
-    
+
     if embed_client is None:
         wx_client = WatsonXClient.get_instance(settings)
         embed_client = wx_client.get_embeddings_client()
-    
+
     # ... rest of function logic
 ```
 

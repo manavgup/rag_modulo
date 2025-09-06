@@ -92,11 +92,7 @@ async def debug_form_data_with_db(
         500: {"description": "Internal server error"},
     },
 )
-def create_collection(
-    collection_input: CollectionInput,
-    db: Session = Depends(get_db),
-    settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)
-) -> CollectionOutput:
+def create_collection(collection_input: CollectionInput, db: Session = Depends(get_db), settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)) -> CollectionOutput:
     """
     Create a new collection.
 
@@ -145,7 +141,7 @@ async def create_collection_with_documents(
     files: list[UploadFile] = File(...),
     background_tasks: BackgroundTasks = BackgroundTasks(),
     db: Session = Depends(get_db),
-    settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)
+    settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings),
 ) -> CollectionOutput:
     """
     Create a new collection with documents.
@@ -208,11 +204,7 @@ async def create_collection_with_documents(
         500: {"description": "Internal server error"},
     },
 )
-def get_collection(
-    collection_id: UUID4,
-    db: Session = Depends(get_db),
-    settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)
-) -> CollectionOutput:
+def get_collection(collection_id: UUID4, db: Session = Depends(get_db), settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)) -> CollectionOutput:
     """
     Retrieve a collection by id.
 
@@ -255,7 +247,7 @@ def create_collection_question(
     collection_id: UUID4,
     question_input: QuestionInput = Body(..., description="Question input data"),
     db: Session = Depends(get_db),
-    settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)
+    settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings),
 ) -> QuestionOutput:
     """Create a new question for a collection.
 
@@ -297,11 +289,7 @@ def create_collection_question(
         500: {"description": "Internal server error"},
     },
 )
-def get_collection_questions(
-    collection_id: UUID4,
-    db: Session = Depends(get_db),
-    settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)
-) -> list[QuestionOutput]:
+def get_collection_questions(collection_id: UUID4, db: Session = Depends(get_db), settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)) -> list[QuestionOutput]:
     """
     Get all questions for a collection.
 
@@ -338,12 +326,7 @@ def get_collection_questions(
         500: {"description": "Internal server error"},
     },
 )
-def delete_collection_question(
-    collection_id: UUID4,
-    question_id: UUID4,
-    db: Session = Depends(get_db),
-    settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)
-) -> None:
+def delete_collection_question(collection_id: UUID4, question_id: UUID4, db: Session = Depends(get_db), settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)) -> None:
     """
     Delete a specific question from a collection.
 
@@ -377,11 +360,7 @@ def delete_collection_question(
         500: {"description": "Internal server error"},
     },
 )
-def delete_collection_questions(
-    collection_id: UUID4,
-    db: Session = Depends(get_db),
-    settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)
-) -> Response:
+def delete_collection_questions(collection_id: UUID4, db: Session = Depends(get_db), settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)) -> Response:
     """
     Delete all questions for a collection.
 
@@ -414,11 +393,7 @@ def delete_collection_questions(
         500: {"description": "Internal server error"},
     },
 )
-def delete_collection(
-    collection_id: UUID4,
-    db: Session = Depends(get_db),
-    settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)
-) -> Response:
+def delete_collection(collection_id: UUID4, db: Session = Depends(get_db), settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)) -> Response:
     """
     Delete a collection by id.
 
@@ -455,10 +430,7 @@ def delete_collection(
         500: {"description": "Internal server error"},
     },
 )
-def get_collection_users(
-    collection_id: UUID4,
-    db: Session = Depends(get_db)
-) -> list[UserCollectionOutput]:
+def get_collection_users(collection_id: UUID4, db: Session = Depends(get_db)) -> list[UserCollectionOutput]:
     """
     Get all users associated with a collection.
 
@@ -493,10 +465,7 @@ def get_collection_users(
         500: {"description": "Internal server error"},
     },
 )
-def remove_all_users_from_collection(
-    collection_id: UUID4,
-    db: Session = Depends(get_db)
-) -> Response:
+def remove_all_users_from_collection(collection_id: UUID4, db: Session = Depends(get_db)) -> Response:
     """
     Remove all users from a collection.
 
@@ -530,11 +499,7 @@ def remove_all_users_from_collection(
         500: {"description": "Internal server error"},
     },
 )
-def get_collection_files(
-    collection_id: UUID4,
-    db: Session = Depends(get_db),
-    settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)
-) -> list[str]:
+def get_collection_files(collection_id: UUID4, db: Session = Depends(get_db), settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)) -> list[str]:
     """
     Get a list of files in a specific collection.
 
@@ -569,12 +534,7 @@ def get_collection_files(
         500: {"description": "Internal server error"},
     },
 )
-def get_file_path(
-    collection_id: UUID4,
-    filename: str,
-    db: Session = Depends(get_db),
-    settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)
-) -> dict[str, str]:
+def get_file_path(collection_id: UUID4, filename: str, db: Session = Depends(get_db), settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)) -> dict[str, str]:
     """
     Get the file path for a specific file in a collection.
 
@@ -616,12 +576,7 @@ def get_file_path(
         500: {"description": "Internal server error"},
     },
 )
-def delete_files(
-    collection_id: UUID4,
-    doc_delete: DocumentDelete,
-    db: Session = Depends(get_db),
-    settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)
-) -> None:
+def delete_files(collection_id: UUID4, doc_delete: DocumentDelete, db: Session = Depends(get_db), settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)) -> None:
     """
     Delete files from a collection.
 
@@ -661,11 +616,7 @@ def delete_files(
     },
 )
 def update_file_metadata(
-    collection_id: UUID4,
-    file_id: UUID4,
-    metadata: FileMetadata,
-    db: Session = Depends(get_db),
-    settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)
+    collection_id: UUID4, file_id: UUID4, metadata: FileMetadata, db: Session = Depends(get_db), settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)
 ) -> FileOutput:
     """
     Update metadata for a specific file.
