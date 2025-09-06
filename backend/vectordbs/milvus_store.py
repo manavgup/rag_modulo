@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 
 # Remove module-level constants - use dependency injection instead
 
+
 def _create_schema(settings: Settings) -> list[FieldSchema]:
     """Create the schema for Milvus collection with injected settings."""
     return [

@@ -300,6 +300,7 @@ def test_logging_utils_resilient_to_mocked_settings():
 
         # Root logger should have INFO level after setup_logging with mocked settings
         import logging
+
         root_logger = logging.getLogger()
         assert root_logger.level == logging.INFO
 
@@ -319,15 +320,9 @@ def test_fastapi_route_dependency_injection_pattern():
     app = FastAPI()
 
     @app.get("/settings-test")
-    def test_route(
-        settings: Annotated[Settings, Depends(get_settings)]
-    ):
+    def test_route(settings: Annotated[Settings, Depends(get_settings)]):
         """Example route using proper dependency injection."""
-        return {
-            "llm": settings.rag_llm,
-            "vector_db": settings.vector_db,
-            "jwt_key_prefix": settings.jwt_secret_key[:10]
-        }
+        return {"llm": settings.rag_llm, "vector_db": settings.vector_db, "jwt_key_prefix": settings.jwt_secret_key[:10]}
 
     client = TestClient(app)
 
@@ -356,10 +351,7 @@ def test_service_class_dependency_injection_pattern():
             self.llm_provider = settings.rag_llm
 
         def get_config(self):
-            return {
-                "llm": self.llm_provider,
-                "embeddings": self.settings.embedding_model
-            }
+            return {"llm": self.llm_provider, "embeddings": self.settings.embedding_model}
 
     # In FastAPI, this would be injected, but for testing we manually create
     get_settings.cache_clear()
@@ -409,6 +401,7 @@ def test_full_fastapi_app_with_settings_injection():
 
 # Vector Store Dependency Injection Tests
 
+
 def test_vector_store_base_class_requires_settings():
     """Test that VectorStore base class enforces settings dependency injection."""
     from vectordbs.vector_store import VectorStore
@@ -417,14 +410,19 @@ def test_vector_store_base_class_requires_settings():
     class TestVectorStore(VectorStore):
         def create_collection(self, _collection_name: str, _metadata: dict | None = None) -> None:
             pass
+
         def add_documents(self, _collection_name: str, _documents: list) -> list[str]:
             return []
+
         def retrieve_documents(self, _query: str, _collection_name: str, _number_of_results: int = 10) -> list:
             return []
+
         def query(self, _collection_name: str, _query, _number_of_results: int = 10, _filter=None) -> list:
             return []
+
         def delete_collection(self, _collection_name: str) -> None:
             pass
+
         def delete_documents(self, _collection_name: str, _document_ids: list[str]) -> None:
             pass
 
@@ -604,17 +602,11 @@ def test_watsonx_utils_dependency_injection():
     mock_settings.random_seed = 42
 
     # Test get_wx_client
-    with patch("vectordbs.utils.watsonx.APIClient") as mock_api_client, \
-         patch("vectordbs.utils.watsonx.Credentials") as mock_credentials, \
-         patch("vectordbs.utils.watsonx.load_dotenv"):
-
+    with patch("vectordbs.utils.watsonx.APIClient") as mock_api_client, patch("vectordbs.utils.watsonx.Credentials") as mock_credentials, patch("vectordbs.utils.watsonx.load_dotenv"):
         get_wx_client(mock_settings)
 
         mock_credentials.assert_called_once_with(api_key="test-key", url="https://test.watsonx.com")
-        mock_api_client.assert_called_once_with(
-            project_id="test-project",
-            credentials=mock_credentials.return_value
-        )
+        mock_api_client.assert_called_once_with(project_id="test-project", credentials=mock_credentials.return_value)
 
     # Test get_embeddings with injected settings
     with patch("vectordbs.utils.watsonx.get_wx_embeddings_client") as mock_get_client:
@@ -698,11 +690,11 @@ def test_no_global_settings_import_in_critical_modules():
             # Check for problematic imports
             for node in ast.walk(tree):
                 if isinstance(node, ast.ImportFrom) and node.module == "core.config" and node.names:
-                        for alias in node.names:
-                            # Should NOT import 'settings' directly
-                            assert alias.name != "settings", f"File {file_path} still imports global 'settings' object"
-                            # SHOULD import 'Settings' class and 'get_settings' function
-                            assert alias.name in ["Settings", "get_settings"], f"File {file_path} has unexpected import: {alias.name}"
+                    for alias in node.names:
+                        # Should NOT import 'settings' directly
+                        assert alias.name != "settings", f"File {file_path} still imports global 'settings' object"
+                        # SHOULD import 'Settings' class and 'get_settings' function
+                        assert alias.name in ["Settings", "get_settings"], f"File {file_path} has unexpected import: {alias.name}"
 
 
 if __name__ == "__main__":

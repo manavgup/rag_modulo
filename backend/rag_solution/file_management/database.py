@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 if not os.environ.get("PYTEST_CURRENT_TEST"):
     logger.info("Database module is being imported")
 
+
 # Initialize database components with dependency injection
 def create_database_url(settings: Settings | None = None) -> URL:
     """Create database URL from settings."""
@@ -40,6 +41,7 @@ def create_database_url(settings: Settings | None = None) -> URL:
         logger.debug(f"Database URL: {database_url}")
 
     return database_url
+
 
 # Create database components using default settings
 # This maintains backward compatibility while enabling dependency injection

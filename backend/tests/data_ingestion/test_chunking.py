@@ -170,6 +170,7 @@ def test_calculate_cosine_distances() -> None:
 def test_get_chunking_method() -> None:
     """Test chunking method factory function."""
     from core.config import get_settings
+
     settings = get_settings()
 
     # Test semantic chunking selection
@@ -191,6 +192,7 @@ def test_get_chunking_method() -> None:
 def test_chunker_integration() -> None:
     """Test integration of chunking methods with settings."""
     from core.config import get_settings
+
     settings = get_settings()
 
     text = "This is a test text. It should be chunked according to settings."
