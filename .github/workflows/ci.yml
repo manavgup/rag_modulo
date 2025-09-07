@@ -36,9 +36,13 @@ jobs:
           virtualenvs-create: true
           virtualenvs-in-project: true
 
-      - name: Install dependencies
-        run: |
-          cd backend && poetry install --with dev,test
+      - name: Install dependencies with retry
+        uses: nick-fields/retry@v2
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          retry_wait_seconds: 30
+          command: cd backend && poetry install --with dev,test
 
       - name: Run test isolation checker
         run: |
@@ -84,16 +88,20 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-poetry-
 
-      - name: Install dependencies
-        run: |
-          cd backend
-
-          pip install poetry
-          poetry config virtualenvs.in-project true
-          # Regenerate lock file to ensure sync
-          poetry lock
-          # Install main, dev, and test groups for CI
-          poetry install --with dev,test
+      - name: Install dependencies with retry
+        uses: nick-fields/retry@v2
+        with:
+          timeout_minutes: 15
+          max_attempts: 3
+          retry_wait_seconds: 30
+          command: |
+            cd backend
+            pip install poetry
+            poetry config virtualenvs.in-project true
+            # Regenerate lock file to ensure sync
+            poetry lock
+            # Install main, dev, and test groups for CI
+            poetry install --with dev,test
 
       - name: Check formatting
         run: make format-check
@@ -191,9 +199,13 @@ jobs:
           virtualenvs-create: true
           virtualenvs-in-project: true
 
-      - name: Install dependencies
-        run: |
-          cd backend && poetry install --with dev,test
+      - name: Install dependencies with retry
+        uses: nick-fields/retry@v2
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          retry_wait_seconds: 30
+          command: cd backend && poetry install --with dev,test
 
       - name: Run API tests
         run: |
@@ -237,8 +249,8 @@ jobs:
           export DEVELOPMENT_MODE=true
           # Only start essential services to speed up tests
           docker compose up -d postgres milvus-etcd milvus-standalone
-          echo "Services started, waiting briefly..."
-          sleep 30
+          echo "Services started, using health check instead of sleep..."
+          ./.github/scripts/wait-for-services.sh --config ./.github/config/ci-services.yml --timeout 120 --verbose
           docker compose ps
         env:
           DOCKER_BUILDKIT: 1

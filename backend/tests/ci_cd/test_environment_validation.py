@@ -478,81 +478,71 @@ class TestEnvironmentValidationIntegration:
 class TestNetworkRetryAndResilience:
     """
     Tests for network retry mechanisms addressing dependency installation failures.
-    
-    Addresses: "Poetry Installation: The poetry install step could fail if there's a 
+
+    Addresses: "Poetry Installation: The poetry install step could fail if there's a
     transient network issue or a problem with a package repository."
     """
-    
+
     def test_poetry_dependency_installation_with_network_retry(self):
         """
         Test poetry installation with network failure retry logic.
-        
+
         Input/Output pairs:
         - Input: poetry install fails due to network timeout
         - Expected Output: Automatic retry with exponential backoff succeeds
         """
         # This will FAIL - poetry retry mechanism doesn't exist
         from backend.ci_cd.poetry_installation_manager import PoetryInstallationManager
-        
+
         manager = PoetryInstallationManager()
-        
+
         # Simulate network failure scenarios
-        network_failure_scenarios = [
-            {"error_type": "ConnectionTimeout", "retry_count": 3},
-            {"error_type": "DNSResolutionError", "retry_count": 2},
-            {"error_type": "PackageNotFound", "retry_count": 1}
-        ]
-        
+        network_failure_scenarios = [{"error_type": "ConnectionTimeout", "retry_count": 3}, {"error_type": "DNSResolutionError", "retry_count": 2}, {"error_type": "PackageNotFound", "retry_count": 1}]
+
         for scenario in network_failure_scenarios:
-            retry_result = manager.install_with_network_retry(
-                scenario["error_type"],
-                max_retries=scenario["retry_count"]
-            )
-            
+            retry_result = manager.install_with_network_retry(scenario["error_type"], max_retries=scenario["retry_count"])
+
             assert "installation_successful" in retry_result
             assert "retry_attempts" in retry_result
             assert "total_time" in retry_result
             assert "failure_recovery" in retry_result
-            
+
             # Should eventually succeed after retries
             if scenario["error_type"] != "PackageNotFound":
                 assert retry_result["installation_successful"] is True
                 assert retry_result["retry_attempts"] <= scenario["retry_count"]
-    
+
     def test_github_actions_step_retry_configuration_validation(self):
         """
         Test validation of retry configuration in GitHub Actions steps.
-        
+
         Input/Output pairs:
         - Input: CI workflow steps configuration
         - Expected Output: Critical steps have proper retry mechanisms
         """
         # This will FAIL - GitHub Actions retry validation doesn't exist
         from backend.ci_cd.github_actions_retry_validator import GitHubActionsRetryValidator
-        
+
         validator = GitHubActionsRetryValidator()
-        
+
         # Critical CI steps that should have retry logic
         critical_steps = {
             "poetry_install": {"expected_retries": 3, "timeout": 600},
             "docker_pull": {"expected_retries": 2, "timeout": 300},
             "dependency_cache_restore": {"expected_retries": 3, "timeout": 120},
-            "service_health_check": {"expected_retries": 5, "timeout": 180}
+            "service_health_check": {"expected_retries": 5, "timeout": 180},
         }
-        
+
         validation_result = validator.validate_step_retry_configuration(critical_steps)
-        
+
         assert "steps_with_retry" in validation_result
         assert "missing_retry_configuration" in validation_result
         assert "timeout_configuration_valid" in validation_result
         assert "retry_strategy_recommendations" in validation_result
-        
+
         # All critical steps should have retry configuration
         for step_name in critical_steps.keys():
-            step_validated = (
-                step_name in validation_result["steps_with_retry"] or 
-                step_name in validation_result["missing_retry_configuration"]
-            )
+            step_validated = step_name in validation_result["steps_with_retry"] or step_name in validation_result["missing_retry_configuration"]
             assert step_validated, f"Step {step_name} not validated for retry configuration"
 
 

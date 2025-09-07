@@ -9,7 +9,6 @@ then implement the functionality to make them pass.
 """
 
 import os
-import time
 from unittest.mock import Mock, patch
 import pytest
 
@@ -351,115 +350,103 @@ class TestPreCommitHookEnforcementSystem:
 class TestTeamWidePreCommitEnforcement:
     """
     Test-Driven Development tests for team-wide pre-commit hook enforcement.
-    
-    Addresses the core issue: "Use a pre-commit hook to run these checks locally 
+
+    Addresses the core issue: "Use a pre-commit hook to run these checks locally
     before you even push your code. Enforcing its use across your team would be highly effective."
-    
+
     These tests will initially FAIL and guide the implementation.
     """
-    
+
     def test_team_member_pre_commit_installation_enforcement(self):
         """
         Test enforcement mechanism that ensures all team members have pre-commit installed.
-        
+
         Input/Output pairs:
         - Input: Team member attempts to commit without pre-commit setup
         - Expected Output: Commit blocked with clear setup instructions
         """
         # This will FAIL - team enforcement doesn't exist
         from backend.ci_cd.team_precommit_enforcer import TeamPreCommitEnforcer
-        
+
         enforcer = TeamPreCommitEnforcer()
-        
+
         # Simulate team member without pre-commit setup
-        team_member_env = {
-            "pre_commit_installed": False,
-            "hooks_configured": False,
-            "user_email": "new.developer@company.com"
-        }
-        
+        team_member_env = {"pre_commit_installed": False, "hooks_configured": False, "user_email": "new.developer@company.com"}
+
         enforcement_result = enforcer.enforce_precommit_setup(team_member_env)
-        
+
         assert "setup_required" in enforcement_result
         assert "installation_blocked" in enforcement_result
         assert "setup_instructions" in enforcement_result
         assert "enforcement_level" in enforcement_result
-        
+
         # Should block commit and provide instructions
         assert enforcement_result["setup_required"] is True
         assert enforcement_result["installation_blocked"] is True
         assert len(enforcement_result["setup_instructions"]) > 0
         assert enforcement_result["enforcement_level"] == "strict"
-    
+
     def test_repository_level_pre_commit_requirement_validation(self):
         """
         Test repository-level validation that pre-commit hooks are mandatory.
-        
+
         Input/Output pairs:
         - Input: Repository configuration for mandatory pre-commit
         - Expected Output: Validation ensures hooks are required for all commits
         """
         # This will FAIL - repository enforcement doesn't exist
         from backend.ci_cd.repository_precommit_validator import RepositoryPreCommitValidator
-        
+
         validator = RepositoryPreCommitValidator()
-        
+
         # Check repository configuration
-        repo_config = {
-            "require_precommit_hooks": True,
-            "allow_hook_bypass": False,
-            "enforcement_exceptions": ["emergency-hotfix"],
-            "team_members": ["dev1@company.com", "dev2@company.com"]
-        }
-        
+        repo_config = {"require_precommit_hooks": True, "allow_hook_bypass": False, "enforcement_exceptions": ["emergency-hotfix"], "team_members": ["dev1@company.com", "dev2@company.com"]}
+
         validation_result = validator.validate_repository_enforcement(repo_config)
-        
+
         assert "enforcement_active" in validation_result
         assert "bypass_prevention" in validation_result
         assert "team_compliance_status" in validation_result
         assert "enforcement_gaps" in validation_result
-        
+
         # Repository should enforce pre-commit for all team members
         assert validation_result["enforcement_active"] is True
         assert validation_result["bypass_prevention"] is True
         assert isinstance(validation_result["team_compliance_status"], dict)
-    
+
     def test_ci_validation_of_local_precommit_execution(self):
         """
         Test that CI validates pre-commit hooks were actually run locally.
-        
+
         This addresses the issue: catching linting/typing issues locally
         so they never make it to the CI pipeline.
-        
+
         Input/Output pairs:
         - Input: Commit that bypassed pre-commit hooks locally
         - Expected Output: CI detects bypass and fails with clear message
         """
         # This will FAIL - CI pre-commit validation doesn't exist
         from backend.ci_cd.ci_precommit_validator import CIPreCommitValidator
-        
+
         validator = CIPreCommitValidator()
-        
+
         # Simulate commit that should have been caught by pre-commit
         problematic_commit = {
             "commit_sha": "abc123def",
-            "files_changed": [
-                {"file": "src/module.py", "has_lint_issues": True},
-                {"file": "tests/test_feature.py", "has_unused_imports": True}
-            ],
+            "files_changed": [{"file": "src/module.py", "has_lint_issues": True}, {"file": "tests/test_feature.py", "has_unused_imports": True}],
             "precommit_metadata": {
                 "executed": False,  # Pre-commit was bypassed
-                "hook_results": {}
-            }
+                "hook_results": {},
+            },
         }
-        
+
         validation_result = validator.validate_precommit_execution(problematic_commit)
-        
+
         assert "precommit_bypassed" in validation_result
         assert "issues_should_have_been_caught" in validation_result
         assert "ci_failure_reason" in validation_result
         assert "remediation_steps" in validation_result
-        
+
         # CI should detect the bypass and provide clear guidance
         assert validation_result["precommit_bypassed"] is True
         assert len(validation_result["issues_should_have_been_caught"]) > 0
@@ -470,80 +457,72 @@ class TestTeamWidePreCommitEnforcement:
 class TestLintingTypingIssuePreventionTDD:
     """
     Tests for preventing linting and typing issues from reaching CI.
-    
-    Addresses: "mypy Failures: A change in one part of the code could lead to a type 
+
+    Addresses: "mypy Failures: A change in one part of the code could lead to a type
     inference failure in a completely different file, which can be hard to spot."
     """
-    
+
     def test_local_mypy_execution_validation(self):
         """
         Test that mypy type checking is executed locally before commits.
-        
+
         Input/Output pairs:
         - Input: Code changes that would cause mypy failures
         - Expected Output: Local pre-commit catches mypy issues before CI
         """
         # This will FAIL - local mypy validation doesn't exist
         from backend.ci_cd.local_type_checker import LocalTypeChecker
-        
+
         checker = LocalTypeChecker()
-        
+
         # Simulate code changes that cause type issues
         code_changes = [
-            {
-                "file": "rag_solution/services/user_service.py",
-                "changes": ["Added new method without type hints"],
-                "type_issues": ["Missing return type annotation"]
-            },
-            {
-                "file": "rag_solution/models/user.py",
-                "changes": ["Modified field type"],
-                "type_issues": ["Incompatible type in assignment"]
-            }
+            {"file": "rag_solution/services/user_service.py", "changes": ["Added new method without type hints"], "type_issues": ["Missing return type annotation"]},
+            {"file": "rag_solution/models/user.py", "changes": ["Modified field type"], "type_issues": ["Incompatible type in assignment"]},
         ]
-        
+
         validation_result = checker.validate_types_before_commit(code_changes)
-        
+
         assert "type_check_passed" in validation_result
         assert "type_errors_found" in validation_result
         assert "affected_files" in validation_result
         assert "commit_should_be_blocked" in validation_result
-        
+
         # Should catch type issues and block commit
         assert validation_result["type_check_passed"] is False
         assert len(validation_result["type_errors_found"]) > 0
         assert validation_result["commit_should_be_blocked"] is True
-    
+
     def test_ruff_pylint_local_execution_validation(self):
         """
         Test that ruff and pylint checks are executed locally before commits.
-        
+
         Input/Output pairs:
         - Input: Code with unused imports and long lines
         - Expected Output: Local pre-commit catches style issues before CI
         """
         # This will FAIL - local linting validation doesn't exist
         from backend.ci_cd.local_linter import LocalLinter
-        
+
         linter = LocalLinter()
-        
+
         # Simulate code with style issues
         code_with_issues = {
             "file": "rag_solution/services/document_service.py",
             "issues": [
                 {"tool": "ruff", "code": "F401", "message": "unused import"},
                 {"tool": "ruff", "code": "E501", "message": "line too long"},
-                {"tool": "pylint", "code": "C0103", "message": "invalid variable name"}
-            ]
+                {"tool": "pylint", "code": "C0103", "message": "invalid variable name"},
+            ],
         }
-        
+
         linting_result = linter.validate_style_before_commit(code_with_issues)
-        
+
         assert "linting_passed" in linting_result
         assert "style_issues_found" in linting_result
         assert "auto_fixable_issues" in linting_result
         assert "manual_fix_required" in linting_result
-        
+
         # Should catch style issues and suggest fixes
         assert linting_result["linting_passed"] is False
         assert len(linting_result["style_issues_found"]) > 0
@@ -687,80 +666,80 @@ pre-commit run --color=always --hook-stage=pre-commit $@
 class TestEnvironmentVariableValidationEnhancement:
     """
     Enhanced tests for environment variable validation addressing CI-specific needs.
-    
-    Addresses: "Environment Variables: If a test is added that requires a new environment 
-    variable, but that variable is not added to the .env.ci file, the test will fail in 
+
+    Addresses: "Environment Variables: If a test is added that requires a new environment
+    variable, but that variable is not added to the .env.ci file, the test will fail in
     the CI environment even if it passes locally."
     """
-    
+
     def test_ci_environment_variable_synchronization_validation(self):
         """
         Test validation that .env.ci contains all required variables for tests.
-        
+
         Input/Output pairs:
         - Input: Test file requiring new environment variable
         - Expected Output: Validation detects missing variable in .env.ci
         """
         # This will FAIL - CI env synchronization validation doesn't exist
         from backend.ci_cd.environment_synchronizer import EnvironmentSynchronizer
-        
+
         synchronizer = EnvironmentSynchronizer()
-        
+
         # Simulate test requiring new environment variable
         test_requirements = {
             "test_file": "tests/api/test_new_feature.py",
             "required_env_vars": [
                 "NEW_FEATURE_API_KEY",
                 "NEW_FEATURE_ENDPOINT",
-                "EXISTING_VAR_JWT_SECRET_KEY"  # Already exists
-            ]
+                "EXISTING_VAR_JWT_SECRET_KEY",  # Already exists
+            ],
         }
-        
+
         synchronization_result = synchronizer.validate_ci_env_synchronization(test_requirements)
-        
+
         assert "synchronization_valid" in synchronization_result
         assert "missing_in_ci_env" in synchronization_result
         assert "missing_in_local_env" in synchronization_result
         assert "synchronization_warnings" in synchronization_result
-        
+
         # Should detect missing variables
         assert isinstance(synchronization_result["missing_in_ci_env"], list)
         assert isinstance(synchronization_result["missing_in_local_env"], list)
-        
+
         # Should provide guidance for adding missing variables
         if not synchronization_result["synchronization_valid"]:
             assert len(synchronization_result["synchronization_warnings"]) > 0
-    
+
     def test_environment_validation_script_for_ci_startup(self):
         """
         Test environment validation script that runs at CI startup.
-        
+
         Input/Output pairs:
         - Input: CI environment with missing or invalid variables
         - Expected Output: Clear validation errors before tests begin
         """
         # This will FAIL - CI startup validation doesn't exist
         from backend.ci_cd.ci_startup_validator import CIStartupValidator
-        
+
         validator = CIStartupValidator()
-        
+
         # Simulate CI environment with issues
         ci_environment = {
             "JWT_SECRET_KEY": "test_secret",
             "RAG_LLM": "openai",
             # Missing: WATSONX_APIKEY, VECTOR_DB, etc.
             "COLLECTIONDB_HOST": "localhost",
-            "INVALID_VAR": ""  # Empty value
+            "INVALID_VAR": "",  # Empty value
         }
-        
+
         validation_result = validator.validate_ci_startup_environment(ci_environment)
-        
+
         assert "validation_passed" in validation_result
         assert "missing_required_vars" in validation_result
         assert "invalid_values" in validation_result
         assert "startup_should_continue" in validation_result
         assert "error_messages" in validation_result
-        
+
         # Should provide clear error messages for CI logs
         if not validation_result["validation_passed"]:
             assert validation_result["startup_should_continue"] is False
