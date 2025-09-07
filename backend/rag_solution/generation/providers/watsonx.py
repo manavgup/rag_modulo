@@ -1,5 +1,7 @@
 """WatsonX provider implementation using IBM watsonx.ai API."""
 
+from __future__ import annotations
+
 from collections.abc import Generator, Sequence
 from typing import Any
 
