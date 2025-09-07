@@ -254,7 +254,7 @@ jobs:
           export SKIP_AUTH=true
           export DEVELOPMENT_MODE=true
           # Only start essential services to speed up tests
-          docker compose up -d postgres milvus-etcd milvus-standalone
+          docker compose up -d backend postgres milvus-etcd milvus-standalone
           echo "Services started, using health check instead of sleep..."
           ./.github/scripts/wait-for-services.sh --config ./.github/config/ci-services.yml --timeout 120 --verbose
           docker compose ps
