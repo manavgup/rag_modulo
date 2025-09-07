@@ -131,7 +131,7 @@ async def login(request: Request, settings: Annotated[Settings, Depends(get_sett
 
 
 @router.get("/callback")
-async def auth(request: Request, db: Session = Depends(get_db), settings: Annotated[Settings, Depends(get_settings)]) -> Response:
+async def auth(request: Request, db: Annotated[Session, Depends(get_db)], settings: Annotated[Settings, Depends(get_settings)]) -> Response:
     try:
         logger.info("Received authentication callback")
         token = await oauth.ibm.authorize_access_token(request)

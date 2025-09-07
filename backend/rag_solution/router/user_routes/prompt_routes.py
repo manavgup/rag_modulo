@@ -1,6 +1,7 @@
 """Prompt template routes."""
 
 import logging
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import UUID4
@@ -29,7 +30,7 @@ router = APIRouter()
         500: {"description": "Internal server error"},
     },
 )
-async def get_prompt_templates(user_id: UUID4, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)) -> list[PromptTemplateOutput]:
+async def get_prompt_templates(user_id: UUID4, db: Annotated[Session, Depends(get_db)], user: Annotated[UserOutput, Depends(verify_user_access)]) -> list[PromptTemplateOutput]:
     """Retrieve all prompt templates for a user."""
     service = PromptTemplateService(db)
     try:
@@ -53,8 +54,8 @@ async def get_prompt_templates(user_id: UUID4, db: Session = Depends(get_db), us
 async def create_prompt_template(
     user_id: UUID4,
     template_input: PromptTemplateInput,
-    db: Session = Depends(get_db),
-    user: UserOutput = Depends(verify_user_access),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[UserOutput, Depends(verify_user_access)],
 ) -> PromptTemplateOutput:
     """Create a new prompt template for a user."""
     service = PromptTemplateService(db)
@@ -83,8 +84,8 @@ async def update_prompt_template(
     user_id: UUID4,
     template_id: UUID4,
     template_input: PromptTemplateInput,
-    db: Session = Depends(get_db),
-    user: UserOutput = Depends(verify_user_access),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[UserOutput, Depends(verify_user_access)],
 ) -> PromptTemplateOutput:
     """Update an existing prompt template."""
     service = PromptTemplateService(db)
@@ -109,7 +110,7 @@ async def update_prompt_template(
         500: {"description": "Internal server error"},
     },
 )
-async def delete_prompt_template(user_id: UUID4, template_id: UUID4, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)) -> bool:
+async def delete_prompt_template(user_id: UUID4, template_id: UUID4, db: Annotated[Session, Depends(get_db)], user: Annotated[UserOutput, Depends(verify_user_access)]) -> bool:
     """Delete an existing prompt template."""
     service = PromptTemplateService(db)
     try:
@@ -130,7 +131,7 @@ async def delete_prompt_template(user_id: UUID4, template_id: UUID4, db: Session
         500: {"description": "Internal server error"},
     },
 )
-async def set_default_prompt_template(user_id: UUID4, template_id: UUID4, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access)) -> PromptTemplateOutput:
+async def set_default_prompt_template(user_id: UUID4, template_id: UUID4, db: Annotated[Session, Depends(get_db)], user: Annotated[UserOutput, Depends(verify_user_access)]) -> PromptTemplateOutput:
     """Set a specific prompt template as default."""
     service = PromptTemplateService(db)
     try:
@@ -153,8 +154,8 @@ async def set_default_prompt_template(user_id: UUID4, template_id: UUID4, db: Se
 async def get_prompt_templates_by_type(
     user_id: UUID4,
     template_type: PromptTemplateType,
-    db: Session = Depends(get_db),
-    user: UserOutput = Depends(verify_user_access),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[UserOutput, Depends(verify_user_access)],
 ) -> list[PromptTemplateOutput]:
     """Retrieve prompt templates for a user by their type."""
     service = PromptTemplateService(db)

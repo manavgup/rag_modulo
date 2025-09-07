@@ -115,7 +115,7 @@ def test_generator_factory_invalid() -> None:
 
 def test_generator_default_type() -> None:
     """Test creating a generator with default type (watsonx)."""
-    config = {"model_id": "test-model", "api_key": "test-key", "project_id": "test-project"}
+    config = {"type": "watsonx", "model_id": "test-model", "api_key": "test-key", "project_id": "test-project"}
     generator = GeneratorFactory.create_generator(config)
     assert isinstance(generator, WatsonxGenerator)
 
