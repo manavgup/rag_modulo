@@ -25,7 +25,6 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-        continue-on-error: true
 
       - name: Build and push frontend
         uses: docker/build-push-action@v5
@@ -38,6 +37,7 @@ jobs:
             ghcr.io/${{ github.repository }}/frontend:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+        continue-on-error: true
 
       - name: Build and push backend
         uses: docker/build-push-action@v5
@@ -50,3 +50,4 @@ jobs:
             ghcr.io/${{ github.repository }}/backend:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+        continue-on-error: true
