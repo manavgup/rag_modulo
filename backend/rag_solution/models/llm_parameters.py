@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from pydantic import field_validator
@@ -12,8 +13,6 @@ from sqlalchemy.sql import func
 from rag_solution.file_management.database import Base
 
 if TYPE_CHECKING:
-    from datetime import datetime
-
     from rag_solution.models.user import User
 
 
