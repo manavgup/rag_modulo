@@ -37,7 +37,6 @@ def test_team(db_session: Session, test_team_input: TeamInput) -> Team:
     return team
 
 
-@pytest.mark.atomic
 def test_create_team_success(db_session: Session, test_team_input: TeamInput, test_user_team_service: UserTeamService) -> None:
     """Test successful team creation."""
     service = TeamService(db_session, test_user_team_service)
@@ -50,7 +49,6 @@ def test_create_team_success(db_session: Session, test_team_input: TeamInput, te
     # is_private field doesn't exist in TeamInput/TeamOutput
 
 
-@pytest.mark.atomic
 def test_create_team_duplicate_name(db_session: Session, test_team: Team, test_team_input: TeamInput, test_user_team_service: UserTeamService) -> None:
     """Test team creation with duplicate name."""
     service = TeamService(db_session, test_user_team_service)
@@ -61,7 +59,6 @@ def test_create_team_duplicate_name(db_session: Session, test_team: Team, test_t
     assert "Team name already exists" in str(exc_info.value.detail)
 
 
-@pytest.mark.atomic
 def test_get_team_by_id_success(db_session: Session, test_team: Team, test_user_team_service: UserTeamService) -> None:
     """Test successful team retrieval."""
     service = TeamService(db_session, test_user_team_service)
@@ -73,7 +70,6 @@ def test_get_team_by_id_success(db_session: Session, test_team: Team, test_user_
     assert result.name == test_team.name
 
 
-@pytest.mark.atomic
 def test_get_team_by_id_not_found(db_session: Session, test_user_team_service: UserTeamService) -> None:
     """Test team retrieval when not found."""
     service = TeamService(db_session, test_user_team_service)
@@ -84,7 +80,6 @@ def test_get_team_by_id_not_found(db_session: Session, test_user_team_service: U
     assert "Team not found" in str(exc_info.value.detail)
 
 
-@pytest.mark.atomic
 def test_update_team_success(db_session: Session, test_team: Team, test_user_team_service: UserTeamService) -> None:
     """Test successful team update."""
     service = TeamService(db_session, test_user_team_service)
@@ -98,7 +93,6 @@ def test_update_team_success(db_session: Session, test_team: Team, test_user_tea
     # is_private field doesn't exist in TeamInput/TeamOutput
 
 
-@pytest.mark.atomic
 def test_update_team_not_found(db_session: Session, test_team_input: TeamInput, test_user_team_service: UserTeamService) -> None:
     """Test team update when not found."""
     service = TeamService(db_session, test_user_team_service)
@@ -109,7 +103,6 @@ def test_update_team_not_found(db_session: Session, test_team_input: TeamInput, 
     assert "Team not found" in str(exc_info.value.detail)
 
 
-@pytest.mark.atomic
 def test_delete_team_success(db_session: Session, test_team: Team, test_user_team_service: UserTeamService) -> None:
     """Test successful team deletion."""
     service = TeamService(db_session, test_user_team_service)
@@ -121,7 +114,6 @@ def test_delete_team_success(db_session: Session, test_team: Team, test_user_tea
     assert db_session.query(Team).filter_by(id=test_team.id).first() is None
 
 
-@pytest.mark.atomic
 def test_delete_team_not_found(db_session: Session, test_user_team_service: UserTeamService) -> None:
     """Test team deletion when not found."""
     service = TeamService(db_session, test_user_team_service)
@@ -131,7 +123,6 @@ def test_delete_team_not_found(db_session: Session, test_user_team_service: User
     assert not result
 
 
-@pytest.mark.atomic
 def test_get_team_users(db_session: Session, test_team: Team, base_user: User, test_user_team_service: UserTeamService) -> None:
     """Test retrieving team users."""
     # Add user to team
@@ -147,7 +138,6 @@ def test_get_team_users(db_session: Session, test_team: Team, base_user: User, t
     assert result[0].id == base_user.id
 
 
-@pytest.mark.atomic
 def test_add_user_to_team(db_session: Session, test_team: Team, base_user: User, test_user_team_service: UserTeamService) -> None:
     """Test adding user to team."""
     service = TeamService(db_session, test_user_team_service)
@@ -160,7 +150,6 @@ def test_add_user_to_team(db_session: Session, test_team: Team, base_user: User,
     assert user_team is not None
 
 
-@pytest.mark.atomic
 def test_remove_user_from_team(db_session: Session, test_team: Team, base_user: User, test_user_team_service: UserTeamService) -> None:
     """Test removing user from team."""
     # First add user to team
@@ -177,7 +166,6 @@ def test_remove_user_from_team(db_session: Session, test_team: Team, base_user: 
     assert user_team is None
 
 
-@pytest.mark.atomic
 def test_list_teams(db_session: Session, test_team: Team, test_user_team_service: UserTeamService) -> None:
     """Test listing teams."""
     service = TeamService(db_session, test_user_team_service)
@@ -189,7 +177,6 @@ def test_list_teams(db_session: Session, test_team: Team, test_user_team_service
     assert any(team.id == test_team.id for team in result)
 
 
-@pytest.mark.atomic
 def test_list_teams_pagination(db_session: Session, test_team: Team, test_user_team_service: UserTeamService) -> None:
     """Test teams listing with pagination."""
     service = TeamService(db_session, test_user_team_service)

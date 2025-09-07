@@ -24,7 +24,6 @@ def test_collection(db_session: Session) -> Collection:
     return collection
 
 
-@pytest.mark.atomic
 def test_get_user_collections(db_session: Session, base_user: User, test_collection: Collection) -> None:
     """Test fetching user collections."""
     # Add user to collection
@@ -41,7 +40,6 @@ def test_get_user_collections(db_session: Session, base_user: User, test_collect
     assert result[0].name == test_collection.name
 
 
-@pytest.mark.atomic
 def test_add_user_to_collection(db_session: Session, base_user: User, test_collection: Collection) -> None:
     """Test adding user to collection."""
     service = UserCollectionService(db_session)
@@ -54,7 +52,6 @@ def test_add_user_to_collection(db_session: Session, base_user: User, test_colle
     assert user_collection is not None
 
 
-@pytest.mark.atomic
 def test_add_user_to_collection_duplicate(db_session: Session, base_user: User, test_collection: Collection) -> None:
     """Test adding user to collection when already added."""
     service = UserCollectionService(db_session)
@@ -69,7 +66,6 @@ def test_add_user_to_collection_duplicate(db_session: Session, base_user: User, 
     assert "User already has access to collection" in str(exc_info.value.detail)
 
 
-@pytest.mark.atomic
 def test_add_user_to_nonexistent_collection(db_session: Session, base_user: User) -> None:
     """Test adding user to nonexistent collection."""
     service = UserCollectionService(db_session)
@@ -80,7 +76,6 @@ def test_add_user_to_nonexistent_collection(db_session: Session, base_user: User
     assert "Collection not found" in str(exc_info.value.detail)
 
 
-@pytest.mark.atomic
 def test_remove_user_from_collection(db_session: Session, base_user: User, test_collection: Collection) -> None:
     """Test removing user from collection."""
     # First add user to collection
@@ -97,7 +92,6 @@ def test_remove_user_from_collection(db_session: Session, base_user: User, test_
     assert removed_user_collection is None
 
 
-@pytest.mark.atomic
 def test_remove_user_not_in_collection(db_session: Session, base_user: User, test_collection: Collection) -> None:
     """Test removing user that's not in collection."""
     service = UserCollectionService(db_session)
@@ -108,7 +102,6 @@ def test_remove_user_not_in_collection(db_session: Session, base_user: User, tes
     assert "User does not have access to collection" in str(exc_info.value.detail)
 
 
-@pytest.mark.atomic
 def test_get_collection_users(db_session: Session, base_user: User, test_collection: Collection) -> None:
     """Test fetching users for a collection."""
     # Add user to collection
@@ -125,7 +118,6 @@ def test_get_collection_users(db_session: Session, base_user: User, test_collect
     assert result[0].name == base_user.name
 
 
-@pytest.mark.atomic
 def test_get_users_nonexistent_collection(db_session: Session) -> None:
     """Test fetching users for nonexistent collection."""
     service = UserCollectionService(db_session)
@@ -136,7 +128,6 @@ def test_get_users_nonexistent_collection(db_session: Session) -> None:
     assert "Collection not found" in str(exc_info.value.detail)
 
 
-@pytest.mark.atomic
 def test_remove_all_users_from_collection(db_session: Session, base_user: User, test_collection: Collection) -> None:
     """Test removing all users from a collection."""
     # Add multiple users
@@ -163,7 +154,6 @@ def test_remove_all_users_from_collection(db_session: Session, base_user: User, 
     assert count == 0
 
 
-@pytest.mark.atomic
 def test_remove_all_users_nonexistent_collection(db_session: Session) -> None:
     """Test removing all users from nonexistent collection."""
     service = UserCollectionService(db_session)

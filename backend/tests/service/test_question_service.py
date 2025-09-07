@@ -14,7 +14,6 @@ from rag_solution.schemas.prompt_template_schema import PromptTemplateInput, Pro
 from rag_solution.services.question_service import QuestionService
 
 
-@pytest.mark.atomic
 @pytest.mark.asyncio
 async def test_suggest_questions_success(
     question_service: QuestionService,
@@ -49,7 +48,6 @@ async def test_suggest_questions_success(
         assert any(term.lower() in question.question.lower() for term in key_terms)
 
 
-@pytest.mark.atomic
 @pytest.mark.asyncio
 async def test_suggest_questions_empty_texts(
     question_service: QuestionService,
@@ -71,7 +69,6 @@ async def test_suggest_questions_empty_texts(
     assert len(questions) == 0
 
 
-@pytest.mark.atomic
 @pytest.mark.asyncio
 async def test_suggest_questions_validation(
     question_service: QuestionService,
@@ -106,7 +103,6 @@ async def test_suggest_questions_validation(
         assert any(pattern in question_lower for pattern in ["what", "how", "why", "who"]), f"Question does not contain expected pattern: {question.question}"
 
 
-@pytest.mark.atomic
 @pytest.mark.asyncio
 async def test_regenerate_questions(
     question_service: QuestionService,
@@ -148,7 +144,6 @@ async def test_regenerate_questions(
     assert all(q.is_valid for q in new_questions)
 
 
-@pytest.mark.atomic
 @pytest.mark.asyncio
 async def test_get_collection_questions(
     question_service: QuestionService,
@@ -243,7 +238,6 @@ def test_duplicate_question_filtering(question_service: QuestionService) -> None
     assert "What is Python programming?" in unique_questions
 
 
-@pytest.mark.atomic
 @pytest.mark.asyncio
 async def test_suggest_questions_empty_llm_response(
     question_service: QuestionService,
@@ -308,7 +302,6 @@ async def test_suggest_questions_empty_llm_response(
     assert len(questions) == 0
 
 
-@pytest.mark.atomic
 def test_validate_question_malformed_input(question_service: QuestionService) -> None:
     """Test validation of malformed questions."""
     context = "Sample context"
@@ -330,7 +323,6 @@ def test_validate_question_malformed_input(question_service: QuestionService) ->
             assert not is_valid
 
 
-@pytest.mark.atomic
 def test_invalid_configuration(question_service: QuestionService) -> None:
     """Test validation of invalid question inputs."""
     context = "Python is a programming language. It is used for software development."

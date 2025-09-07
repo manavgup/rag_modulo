@@ -70,7 +70,6 @@ def test_collection_with_files(db_session: Session, base_user: User) -> Collecti
     return collection
 
 
-@pytest.mark.atomic
 def test_get_user_collections_with_files(db_session: Session, base_user: User, test_collection_with_files: Collection) -> None:
     """Test fetching user collections with files."""
     service = UserCollectionInteractionService(db_session)
@@ -91,7 +90,6 @@ def test_get_user_collections_with_files(db_session: Session, base_user: User, t
         assert file.filename.startswith("file")
 
 
-@pytest.mark.atomic
 def test_get_user_collections_with_files_no_collections(db_session: Session, base_user: User) -> None:
     """Test fetching user collections when user has no collections."""
     service = UserCollectionInteractionService(db_session)
@@ -103,7 +101,6 @@ def test_get_user_collections_with_files_no_collections(db_session: Session, bas
     assert len(result.collections) == 0
 
 
-@pytest.mark.atomic
 def test_get_user_collections_with_files_multiple_collections(db_session: Session, base_user: User) -> None:
     """Test fetching multiple collections with files."""
     # Create multiple collections with files
@@ -148,7 +145,6 @@ def test_get_user_collections_with_files_multiple_collections(db_session: Sessio
             assert file.filename.startswith(f"collection{i}_file")
 
 
-@pytest.mark.atomic
 def test_get_user_collections_with_files_nonexistent_user(db_session: Session) -> None:
     """Test fetching collections for nonexistent user."""
     service = UserCollectionInteractionService(db_session)
@@ -159,7 +155,6 @@ def test_get_user_collections_with_files_nonexistent_user(db_session: Session) -
     assert len(result.collections) == 0
 
 
-@pytest.mark.atomic
 def test_get_user_collections_with_files_empty_collections(db_session: Session, base_user: User) -> None:
     """Test fetching collections that have no files."""
     # Create collection without files
