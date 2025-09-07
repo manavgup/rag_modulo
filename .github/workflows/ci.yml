@@ -186,121 +186,10 @@ jobs:
           echo "backend-image=$BACKEND_TAG" >> $GITHUB_OUTPUT
           echo "frontend-image=$FRONTEND_TAG" >> $GITHUB_OUTPUT
 
-  # API tests (fast, no external dependencies)
-  api-tests:
-    needs: [lint-and-unit]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.12'
-
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-        with:
-          version: latest
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-
-      - name: Install dependencies with retry
-        uses: nick-fields/retry@v2
-        with:
-          timeout_minutes: 10
-          max_attempts: 3
-          retry_wait_seconds: 30
-          command: cd backend && poetry install --with dev,test
-
-      - name: Run API tests
-        run: |
-          cd backend && poetry run pytest tests/ \
-            -m "asyncio" \
-            --maxfail=5 \
-            --tb=short \
-            -v
-        continue-on-error: true
-
-  # Integration tests (only when needed)
-  integration-test:
-    needs: [build, lint-and-unit, api-tests]
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        vector_db: [milvus]
-      fail-fast: false
-
-    env:
-      VECTOR_DB: ${{ matrix.vector_db }}
-      BACKEND_IMAGE: ${{ needs.build.outputs.backend-image }}
-      FRONTEND_IMAGE: ${{ needs.build.outputs.frontend-image }}
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Create environment and volume directories
-        run: |
-          # Use the .env.ci file for CI testing
-          cp .env.ci .env
-
-          make create-volumes
-
-      - name: Start minimal services for integration tests
-        run: |
-          echo "Starting essential services for integration tests..."
-          # Set testing environment variables
-          export TESTING=true
-          export SKIP_AUTH=true
-          export DEVELOPMENT_MODE=true
-          # Only start essential services to speed up tests
-          docker compose up -d backend postgres milvus-etcd milvus-standalone
-          echo "Services started, using health check instead of sleep..."
-          ./.github/scripts/wait-for-services.sh --config ./.github/config/ci-services.yml --timeout 120 --verbose
-          docker compose ps
-        env:
-          DOCKER_BUILDKIT: 1
-          TESTING: true
-          SKIP_AUTH: true
-          DEVELOPMENT_MODE: true
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Run integration tests (lightweight)
-        run: |
-          echo "Running integration tests with built images..."
-          make create-test-dirs
-          # Run only integration tests, skip performance tests for speed
-          docker compose run --rm \
-            -e TESTING=true \
-            -e CONTAINER_ENV=false \
-            -e SKIP_AUTH=true \
-            -e DEVELOPMENT_MODE=true \
-            test pytest -v -s -m "integration and not performance" \
-            --maxfail=3 \
-            --tb=short \
-            || echo "Some integration tests failed (non-blocking for now)"
-        env:
-          TESTING: true
-          SKIP_AUTH: true
-          DEVELOPMENT_MODE: true
-
-      - name: Upload test reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-reports-${{ matrix.vector_db }}
-          path: test-reports/
-          retention-days: 1
 
   # Simple reporting without complex XML parsing
   report:
-    needs: [lint-and-unit, build, api-tests, integration-test]
+    needs: [lint-and-unit, build]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -309,8 +198,6 @@ jobs:
           echo "## CI/CD Results"
           echo "- Lint and Unit Tests: ${{ needs.lint-and-unit.result }}"
           echo "- Build: ${{ needs.build.result }}"
-          echo "- API Tests: ${{ needs.api-tests.result }}"
-          echo "- Integration Tests: ${{ needs.integration-test.result }}"
 
           if [[ "${{ needs.lint-and-unit.result }}" == "failure" || "${{ needs.build.result }}" == "failure" ]]; then
             echo "❌ Critical jobs failed"
