@@ -12,7 +12,7 @@ from rag_solution.services.user_service import UserService
 router = APIRouter()
 
 
-def get_user_service(db: Session = Depends(get_db), settings: Annotated[Settings, Depends(get_settings)]) -> UserService:
+def get_user_service(db: Annotated[Session, Depends(get_db)], settings: Annotated[Settings, Depends(get_settings)]) -> UserService:
     """Provides an instance of UserService with a database session and settings."""
     return UserService(db, settings)
 
@@ -21,7 +21,7 @@ def get_user_service(db: Session = Depends(get_db), settings: Annotated[Settings
 def set_user_preferred_provider(
     user_id: UUID4,
     provider_id: UUID4,
-    service: UserService = Depends(get_user_service),  # ✅ Provide the session via dependency injection
+    service: Annotated[UserService, Depends(get_user_service)],  # ✅ Provide the session via dependency injection
 ) -> UserOutput:
     """Sets the user's preferred LLM provider."""
     return service.set_user_preferred_provider(user_id, provider_id)
@@ -30,7 +30,7 @@ def set_user_preferred_provider(
 @router.get("/{user_id}/preferred", response_model=UserOutput)
 def get_user_preferred_provider(
     user_id: UUID4,
-    service: UserService = Depends(get_user_service),  # ✅ Provide the session via dependency injection
+    service: Annotated[UserService, Depends(get_user_service)],  # ✅ Provide the session via dependency injection
 ) -> UserOutput:
     """Retrieves the user's preferred LLM provider."""
     return service.get_user_by_id(user_id)
