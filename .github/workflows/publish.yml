@@ -7,6 +7,7 @@ on:
 permissions:
   contents: read
   packages: write
+  id-token: write
 
 jobs:
   build-and-publish:
@@ -24,6 +25,7 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
 
       - name: Build and push frontend
         uses: docker/build-push-action@v5
