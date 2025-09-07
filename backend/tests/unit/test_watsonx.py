@@ -2,13 +2,11 @@
 
 from typing import Any
 
-import pytest
 
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
 from rag_solution.schemas.prompt_template_schema import PromptTemplateInput, PromptTemplateType
 
 
-@pytest.mark.atomic
 def test_provider_initialization(provider: Any, db_session: Any) -> None:
     """Test provider initialization with config."""
     # Provider should be automatically initialized by base class
@@ -69,7 +67,6 @@ def test_generate_text_stream(provider: Any, base_user: Any, base_llm_parameters
     assert all(isinstance(chunk, str) for chunk in chunks)
 
 
-@pytest.mark.atomic
 def test_get_embeddings(provider: Any) -> None:
     """Test embedding generation."""
     from unittest.mock import patch

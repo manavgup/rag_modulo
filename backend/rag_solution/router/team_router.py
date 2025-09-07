@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import UUID4
 from sqlalchemy.orm import Session
@@ -11,7 +13,7 @@ from rag_solution.services.user_team_service import UserTeamService
 router = APIRouter(prefix="/api/teams", tags=["teams"])
 
 
-def get_team_service(db: Session = Depends(get_db)) -> TeamService:
+def get_team_service(db: Annotated[Session, Depends(get_db)]) -> TeamService:
     """
     Get an instance of the TeamService.
 
@@ -24,7 +26,7 @@ def get_team_service(db: Session = Depends(get_db)) -> TeamService:
     return TeamService(db)
 
 
-def get_user_team_service(db: Session = Depends(get_db)) -> UserTeamService:
+def get_user_team_service(db: Annotated[Session, Depends(get_db)]) -> UserTeamService:
     """
     Get an instance of the UserTeamService.
 
@@ -48,7 +50,7 @@ def get_user_team_service(db: Session = Depends(get_db)) -> UserTeamService:
         500: {"description": "Internal server error"},
     },
 )
-def create_team(team: TeamInput, db: Session = Depends(get_db)) -> TeamOutput:
+def create_team(team: TeamInput, db: Annotated[Session, Depends(get_db)]) -> TeamOutput:
     """
     Create a new team.
 
@@ -80,7 +82,7 @@ def create_team(team: TeamInput, db: Session = Depends(get_db)) -> TeamOutput:
         500: {"description": "Internal server error"},
     },
 )
-def update_user_role_in_team(team_id: UUID4, user_id: UUID4, role: str, db: Session = Depends(get_db)) -> UserTeamOutput | None:
+def update_user_role_in_team(team_id: UUID4, user_id: UUID4, role: str, db: Annotated[Session, Depends(get_db)]) -> UserTeamOutput | None:
     """
     Update a user's role in a team.
 
@@ -111,7 +113,7 @@ def update_user_role_in_team(team_id: UUID4, user_id: UUID4, role: str, db: Sess
         500: {"description": "Internal server error"},
     },
 )
-def get_team(team_id: UUID4, db: Session = Depends(get_db)) -> TeamOutput:
+def get_team(team_id: UUID4, db: Annotated[Session, Depends(get_db)]) -> TeamOutput:
     """
     Get a team by its ID.
 
@@ -144,7 +146,7 @@ def get_team(team_id: UUID4, db: Session = Depends(get_db)) -> TeamOutput:
         500: {"description": "Internal server error"},
     },
 )
-def update_team(team_id: UUID4, team_update: TeamInput, db: Session = Depends(get_db)) -> TeamOutput:
+def update_team(team_id: UUID4, team_update: TeamInput, db: Annotated[Session, Depends(get_db)]) -> TeamOutput:
     """
     Update a team.
 
@@ -177,7 +179,7 @@ def update_team(team_id: UUID4, team_update: TeamInput, db: Session = Depends(ge
         500: {"description": "Internal server error"},
     },
 )
-def delete_team(team_id: UUID4, db: Session = Depends(get_db)) -> bool:
+def delete_team(team_id: UUID4, db: Annotated[Session, Depends(get_db)]) -> bool:
     """
     Delete a team.
 
@@ -199,7 +201,7 @@ def delete_team(team_id: UUID4, db: Session = Depends(get_db)) -> bool:
     description="Retrieve a list of all teams with pagination",
     responses={200: {"description": "Teams retrieved successfully"}, 500: {"description": "Internal server error"}},
 )
-def list_teams(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)) -> list[TeamOutput]:
+def list_teams(db: Annotated[Session, Depends(get_db)], skip: int = 0, limit: int = 100) -> list[TeamOutput]:
     """
     List teams with pagination.
 
@@ -226,7 +228,7 @@ def list_teams(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)) -
         500: {"description": "Internal server error"},
     },
 )
-def get_team_users(team_id: UUID4, db: Session = Depends(get_db)) -> list[UserTeamOutput]:
+def get_team_users(team_id: UUID4, db: Annotated[Session, Depends(get_db)]) -> list[UserTeamOutput]:
     service = UserTeamService(db)
     return service.get_team_users(team_id)
 
@@ -243,7 +245,7 @@ def get_team_users(team_id: UUID4, db: Session = Depends(get_db)) -> list[UserTe
         500: {"description": "Internal server error"},
     },
 )
-def add_user_to_team(team_id: UUID4, user_team_input: UserTeamInput, db: Session = Depends(get_db)) -> UserTeamOutput | None:
+def add_user_to_team(team_id: UUID4, user_team_input: UserTeamInput, db: Annotated[Session, Depends(get_db)]) -> UserTeamOutput | None:
     """
     Add a user to a team.
 

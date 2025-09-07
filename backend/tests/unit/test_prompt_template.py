@@ -9,7 +9,6 @@ from rag_solution.models.prompt_template import PromptTemplate
 from rag_solution.schemas.prompt_template_schema import PromptTemplateType
 
 
-@pytest.mark.atomic
 def test_create_prompt_template(db_session: Session, base_user: Any) -> None:
     """Test creating a prompt template."""
     template = PromptTemplate(

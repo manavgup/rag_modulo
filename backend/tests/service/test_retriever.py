@@ -2,14 +2,12 @@ import unittest
 from typing import Any
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from rag_solution.data_ingestion.ingestion import DocumentStore
 from rag_solution.retrieval.retriever import HybridRetriever, KeywordRetriever, VectorRetriever
 from vectordbs.data_types import Document, DocumentChunk, QueryResult, VectorQuery
 
 
-@pytest.mark.atomic
 class TestRetriever(unittest.TestCase):
     def setUp(self: Any) -> None:
         self.mock_vector_store = MagicMock()

@@ -40,7 +40,6 @@ def team_service(db_session: Session, user_team_service: UserTeamService) -> Tea
     return TeamService(db_session, user_team_service)
 
 
-@pytest.mark.atomic
 def test_create_team(team_service: TeamService, team_input: TeamInput) -> None:
     """Tests team creation success."""
     created_team = team_service.create_team(team_input)

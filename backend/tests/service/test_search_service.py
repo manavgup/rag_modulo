@@ -42,7 +42,6 @@ class PipelineConfigDict(TypedDict):
 
 
 @pytest.mark.asyncio
-@pytest.mark.atomic
 async def test_search_basic(
     search_service: SearchService,
     base_collection: CollectionOutput,

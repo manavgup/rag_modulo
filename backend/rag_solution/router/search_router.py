@@ -11,7 +11,7 @@ from rag_solution.services.search_service import SearchService
 router = APIRouter(prefix="/api/search", tags=["search"])
 
 
-def get_search_service(db: Session = Depends(get_db), settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)) -> SearchService:
+def get_search_service(db: Annotated[Session, Depends(get_db)], settings: Annotated[Settings, Depends(get_settings)]) -> SearchService:
     """
     Dependency to create a new SearchService instance with the database session and settings.
 
@@ -39,7 +39,7 @@ def get_search_service(db: Session = Depends(get_db), settings: Annotated[Settin
 )
 async def search(
     search_input: SearchInput,
-    search_service: SearchService = Depends(get_search_service),
+    search_service: Annotated[SearchService, Depends(get_search_service)],
 ) -> SearchOutput:
     """
     Process a search query through the RAG pipeline.

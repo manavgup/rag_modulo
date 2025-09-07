@@ -15,7 +15,6 @@ from rag_solution.services.user_collection_service import UserCollectionService
 # -------------------------------------------
 # 🧪 Collection Access Tests
 # -------------------------------------------
-@pytest.mark.atomic
 def test_get_user_collections(user_collection_service: UserCollectionService, base_user: UserOutput, base_collection: CollectionOutput) -> None:
     """Test fetching user collections."""
     result = user_collection_service.get_user_collections(base_user.id)
@@ -26,7 +25,6 @@ def test_get_user_collections(user_collection_service: UserCollectionService, ba
     assert result[0].name == base_collection.name
 
 
-@pytest.mark.atomic
 def test_get_user_collections_empty(user_collection_service: UserCollectionService, base_user: UserOutput) -> None:
     """Test fetching collections for user with no collections."""
     # First remove user from any existing collections
@@ -41,7 +39,6 @@ def test_get_user_collections_empty(user_collection_service: UserCollectionServi
 # -------------------------------------------
 # 🧪 Collection Membership Tests
 # -------------------------------------------
-@pytest.mark.atomic
 def test_add_user_to_collection(user_collection_service: UserCollectionService, base_user: UserOutput, base_collection: CollectionOutput) -> None:
     """Test adding user to collection."""
     result = user_collection_service.add_user_to_collection(base_user.id, base_collection.id)
@@ -53,7 +50,6 @@ def test_add_user_to_collection(user_collection_service: UserCollectionService, 
     assert any(c.id == base_collection.id for c in collections)
 
 
-@pytest.mark.atomic
 def test_add_user_to_collection_duplicate(user_collection_service: UserCollectionService, base_user: UserOutput, base_collection: CollectionOutput) -> None:
     """Test adding user to collection when already added."""
     # First addition should succeed
@@ -66,7 +62,6 @@ def test_add_user_to_collection_duplicate(user_collection_service: UserCollectio
     assert "User already has access to collection" in str(exc_info.value.detail)
 
 
-@pytest.mark.atomic
 def test_add_user_to_nonexistent_collection(user_collection_service: UserCollectionService, base_user: UserOutput) -> None:
     """Test adding user to nonexistent collection."""
     with pytest.raises(HTTPException) as exc_info:
@@ -75,7 +70,6 @@ def test_add_user_to_nonexistent_collection(user_collection_service: UserCollect
     assert "User or collection not found" in str(exc_info.value.detail)
 
 
-@pytest.mark.atomic
 def test_remove_user_from_collection(user_collection_service: UserCollectionService, base_user: UserOutput, base_collection: CollectionOutput) -> None:
     """Test removing user from collection."""
     # First add user to collection
@@ -90,7 +84,6 @@ def test_remove_user_from_collection(user_collection_service: UserCollectionServ
     assert not any(c.id == base_collection.id for c in collections)
 
 
-@pytest.mark.atomic
 def test_remove_user_not_in_collection(user_collection_service: UserCollectionService, base_user: UserOutput, base_collection: CollectionOutput) -> None:
     """Test removing user that's not in collection."""
     with pytest.raises(HTTPException) as exc_info:
@@ -102,7 +95,6 @@ def test_remove_user_not_in_collection(user_collection_service: UserCollectionSe
 # -------------------------------------------
 # 🧪 Collection Users Tests
 # -------------------------------------------
-@pytest.mark.atomic
 def test_get_collection_users(user_collection_service: UserCollectionService, base_user: UserOutput, base_collection: CollectionOutput) -> None:
     """Test fetching users for a collection."""
     # Add user to collection
@@ -115,7 +107,6 @@ def test_get_collection_users(user_collection_service: UserCollectionService, ba
     assert result[0].user_id == base_user.id
 
 
-@pytest.mark.atomic
 def test_get_users_nonexistent_collection(user_collection_service: UserCollectionService) -> None:
     """Test fetching users for nonexistent collection."""
     with pytest.raises(HTTPException) as exc_info:
@@ -124,7 +115,6 @@ def test_get_users_nonexistent_collection(user_collection_service: UserCollectio
     assert "Collection not found" in str(exc_info.value.detail)
 
 
-@pytest.mark.atomic
 def test_remove_all_users_from_collection(
     user_collection_service: UserCollectionService,
     user_service: Any,
@@ -149,7 +139,6 @@ def test_remove_all_users_from_collection(
         assert not any(c.id == base_collection.id for c in collections)
 
 
-@pytest.mark.atomic
 def test_remove_all_users_nonexistent_collection(user_collection_service: UserCollectionService) -> None:
     """Test removing all users from nonexistent collection."""
     with pytest.raises(HTTPException) as exc_info:

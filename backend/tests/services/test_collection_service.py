@@ -46,7 +46,6 @@ def upload_file(test_file: str) -> UploadFile:
 # -------------------------------------------
 # 🧪 Test Cases
 # -------------------------------------------
-@pytest.mark.atomic
 def test_create_collection_success(collection_service: Any, base_user: UserOutput) -> None:
     """Test successful collection creation."""
     collection_input = CollectionInput(name="Test Collection", is_private=False, users=[base_user.id], status=CollectionStatus.CREATED)
@@ -59,7 +58,6 @@ def test_create_collection_success(collection_service: Any, base_user: UserOutpu
     assert result.status == CollectionStatus.CREATED
 
 
-@pytest.mark.atomic
 def test_create_collection_duplicate_name(collection_service: Any, base_user: UserOutput, base_collection: Any) -> None:
     """Test creating collection with duplicate name."""
     collection_input = CollectionInput(name=base_collection.name, is_private=False, users=[base_user.id], status=CollectionStatus.CREATED)
@@ -70,7 +68,6 @@ def test_create_collection_duplicate_name(collection_service: Any, base_user: Us
     assert "Collection name already exists" in str(exc_info.value.detail)
 
 
-@pytest.mark.atomic
 def test_get_collection_success(collection_service: Any, base_collection: Any) -> None:
     """Test successful collection retrieval."""
     result = collection_service.get_collection(base_collection.id)
@@ -80,7 +77,6 @@ def test_get_collection_success(collection_service: Any, base_collection: Any) -
     assert result.name == base_collection.name
 
 
-@pytest.mark.atomic
 def test_get_collection_not_found(collection_service: Any) -> None:
     """Test collection retrieval when not found."""
     with pytest.raises(HTTPException) as exc_info:
@@ -89,7 +85,6 @@ def test_get_collection_not_found(collection_service: Any) -> None:
     assert "not found" in str(exc_info.value.detail)
 
 
-@pytest.mark.atomic
 def test_update_collection_success(collection_service: Any, base_collection: Any, base_user: Any) -> None:
     """Test successful collection update."""
     update_input = CollectionInput(name="Updated Collection", is_private=True, users=[base_user.id], status=CollectionStatus.COMPLETED)
@@ -101,7 +96,6 @@ def test_update_collection_success(collection_service: Any, base_collection: Any
     assert result.is_private == update_input.is_private
 
 
-@pytest.mark.atomic
 def test_delete_collection_success(collection_service: Any, base_collection: Any) -> None:
     """Test successful collection deletion."""
     result = collection_service.delete_collection(base_collection.id)
@@ -113,7 +107,6 @@ def test_delete_collection_success(collection_service: Any, base_collection: Any
     assert exc_info.value.status_code == 404
 
 
-@pytest.mark.atomic
 def test_get_user_collections(collection_service: Any, base_user: UserOutput, base_collection: Any) -> None:
     """Test retrieving user collections."""
     result = collection_service.get_user_collections(base_user.id)
@@ -122,7 +115,6 @@ def test_get_user_collections(collection_service: Any, base_user: UserOutput, ba
     assert any(c.id == base_collection.id for c in result)
 
 
-@pytest.mark.atomic
 @pytest.mark.asyncio
 async def test_create_collection_with_documents(collection_service: Any, base_user: UserOutput, upload_file: UploadFile) -> None:
     """Test creating collection with documents."""
@@ -145,7 +137,6 @@ async def test_create_collection_with_documents(collection_service: Any, base_us
         upload_file.file.close()
 
 
-@pytest.mark.atomic
 @pytest.mark.asyncio
 async def test_process_documents(collection_service: Any, base_collection: Any, base_user: Any, test_file: str) -> None:
     """Test document processing."""
@@ -162,7 +153,6 @@ async def test_process_documents(collection_service: Any, base_collection: Any, 
     assert updated_collection.status == CollectionStatus.COMPLETED
 
 
-@pytest.mark.atomic
 def test_update_collection_status(collection_service: Any, base_collection: Any) -> None:
     """Test collection status update."""
     collection_service.update_collection_status(base_collection.id, CollectionStatus.PROCESSING)
@@ -171,7 +161,6 @@ def test_update_collection_status(collection_service: Any, base_collection: Any)
     assert updated_collection.status == CollectionStatus.PROCESSING
 
 
-@pytest.mark.atomic
 def test_generate_valid_collection_name(collection_service: Any) -> None:
     """Test generation of valid collection names."""
     name = collection_service._generate_valid_collection_name()

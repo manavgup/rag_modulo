@@ -34,10 +34,10 @@ router = APIRouter()
 async def upload_file(
     user_id: UUID4,
     file: UploadFile,
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[UserOutput, Depends(verify_user_access)],
+    settings: Annotated[Settings, Depends(get_settings)],
     collection_id: UUID4 | None = None,
-    user: UserOutput = Depends(verify_user_access),
-    settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings),
 ) -> FileOutput:
     """Upload a file to a user's collection."""
     service = FileManagementService(db, settings)
@@ -61,7 +61,7 @@ async def upload_file(
     },
 )
 async def delete_file(
-    user_id: UUID4, file_id: UUID4, db: Session = Depends(get_db), user: UserOutput = Depends(verify_user_access), settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)
+    user_id: UUID4, file_id: UUID4, db: Annotated[Session, Depends(get_db)], user: Annotated[UserOutput, Depends(verify_user_access)], settings: Annotated[Settings, Depends(get_settings)]
 ) -> bool:
     """Delete a file from a user's collection."""
     service = FileManagementService(db, settings)

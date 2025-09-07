@@ -43,7 +43,6 @@ def collection_service(db_session: Session) -> CollectionService:
     return CollectionService(db_session)
 
 
-@pytest.mark.atomic
 def test_add_user_to_collection(
     user_collection_service: UserCollectionService,
     user_service: UserService,

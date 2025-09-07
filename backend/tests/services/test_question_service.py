@@ -11,7 +11,6 @@ from rag_solution.schemas.user_schema import UserOutput
 from rag_solution.services.question_service import QuestionService
 
 
-@pytest.mark.atomic
 @pytest.mark.asyncio
 async def test_suggest_questions_success(
     question_service: QuestionService,
@@ -44,7 +43,6 @@ async def test_suggest_questions_success(
         assert any(term.lower() in question.question.lower() for term in key_terms)
 
 
-@pytest.mark.atomic
 @pytest.mark.asyncio
 async def test_suggest_questions_empty_texts(
     question_service: QuestionService,
@@ -66,7 +64,6 @@ async def test_suggest_questions_empty_texts(
     assert len(questions) == 0
 
 
-@pytest.mark.atomic
 @pytest.mark.asyncio
 async def test_question_generation_with_technical_content(
     question_service: QuestionService,
@@ -116,7 +113,6 @@ async def test_question_generation_with_technical_content(
         assert len(question.question.split()) <= 15
 
 
-@pytest.mark.atomic
 def test_question_filtering(question_service: QuestionService, base_user: UserOutput, base_llm_parameters: LLMParametersOutput) -> None:
     """Test internal question filtering logic."""
     questions = [
@@ -141,7 +137,6 @@ def test_question_filtering(question_service: QuestionService, base_user: UserOu
     assert "What is programming?" in filtered
 
 
-@pytest.mark.atomic
 def test_question_ranking(question_service: QuestionService, base_user: UserOutput, base_llm_parameters: LLMParametersOutput) -> None:
     """Test ranking of questions by relevance."""
     questions = [
@@ -166,7 +161,6 @@ def test_question_ranking(question_service: QuestionService, base_user: UserOutp
     assert "What is the capital of France?" not in ranked
 
 
-@pytest.mark.atomic
 def test_duplicate_question_filtering(question_service: QuestionService) -> None:
     """Test deduplication of similar questions."""
     questions = [
@@ -184,7 +178,6 @@ def test_duplicate_question_filtering(question_service: QuestionService) -> None
     assert "What is Python programming?" in unique_questions
 
 
-@pytest.mark.atomic
 async def test_question_storage_and_retrieval(
     question_service: QuestionService,
     base_collection: CollectionOutput,

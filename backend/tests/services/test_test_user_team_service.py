@@ -35,7 +35,6 @@ def team_service(db_session: Session) -> TeamService:
     return TeamService(db_session, user_team_service=UserTeamService(db_session))
 
 
-@pytest.mark.atomic
 def test_add_user_to_team(
     user_team_service: UserTeamService,
     user_service: UserService,
