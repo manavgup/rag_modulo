@@ -10,6 +10,21 @@ from rag_solution.services.question_service import QuestionService
 from vectordbs.data_types import DocumentChunk, QueryResult
 
 
+@pytest.fixture(autouse=True)
+def mock_watsonx_imports():
+    """Mock WatsonX imports for atomic tests to prevent environment variable issues."""
+    with patch("vectordbs.utils.watsonx.get_wx_client") as mock_client, patch("vectordbs.utils.watsonx.get_model") as mock_model, patch(
+        "vectordbs.utils.watsonx.generate_text"
+    ) as mock_generate, patch("rag_solution.evaluation.llm_as_judge_evals.init_llm") as mock_init_llm:
+        # Configure mocks
+        mock_client.return_value = Mock()
+        mock_model.return_value = Mock()
+        mock_generate.return_value = "mocked response"
+        mock_init_llm.return_value = Mock()
+
+        yield
+
+
 @pytest.fixture
 def db_session() -> Mock:
     """Create a mock database session."""

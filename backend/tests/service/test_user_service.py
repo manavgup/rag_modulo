@@ -20,7 +20,6 @@ def test_user_input() -> UserInput:
     return UserInput(ibm_id="test_ibm_id_2", email="test2@example.com", name="Test User 2", role="user")
 
 
-@pytest.mark.atomic
 def test_create_user_success(db_session: Session, test_user_input: UserInput) -> None:
     """Test successful user creation."""
     service = UserService(db_session)
@@ -34,7 +33,6 @@ def test_create_user_success(db_session: Session, test_user_input: UserInput) ->
     assert result.role == test_user_input.role
 
 
-@pytest.mark.atomic
 def test_create_user_duplicate_ibm_id(db_session: Session, base_user: User, test_user_input: UserInput) -> None:
     """Test creating user with duplicate IBM ID."""
     service = UserService(db_session)
@@ -46,7 +44,6 @@ def test_create_user_duplicate_ibm_id(db_session: Session, base_user: User, test
     assert "IBM ID already exists" in str(exc_info.value.detail)
 
 
-@pytest.mark.atomic
 def test_get_or_create_user_by_fields(db_session: Session) -> None:
     """Test getting or creating user by fields."""
     service = UserService(db_session)
@@ -60,7 +57,6 @@ def test_get_or_create_user_by_fields(db_session: Session) -> None:
     assert same_result.id == result.id
 
 
-@pytest.mark.atomic
 def test_get_user_by_id(db_session: Session, base_user: User) -> None:
     """Test getting user by ID."""
     service = UserService(db_session)
@@ -72,7 +68,6 @@ def test_get_user_by_id(db_session: Session, base_user: User) -> None:
     assert result.name == base_user.name
 
 
-@pytest.mark.atomic
 def test_get_user_by_id_not_found(db_session: Session) -> None:
     """Test getting user by ID when not found."""
     service = UserService(db_session)
@@ -83,7 +78,6 @@ def test_get_user_by_id_not_found(db_session: Session) -> None:
     assert "User not found" in str(exc_info.value.detail)
 
 
-@pytest.mark.atomic
 def test_get_user_by_ibm_id(db_session: Session, base_user: User) -> None:
     """Test getting user by IBM ID."""
     service = UserService(db_session)
@@ -95,7 +89,6 @@ def test_get_user_by_ibm_id(db_session: Session, base_user: User) -> None:
     assert result.name == base_user.name
 
 
-@pytest.mark.atomic
 def test_get_user_by_ibm_id_not_found(db_session: Session) -> None:
     """Test getting user by IBM ID when not found."""
     service = UserService(db_session)
@@ -106,7 +99,6 @@ def test_get_user_by_ibm_id_not_found(db_session: Session) -> None:
     assert "User not found" in str(exc_info.value.detail)
 
 
-@pytest.mark.atomic
 def test_update_user(db_session: Session, base_user: User) -> None:
     """Test updating a user."""
     service = UserService(db_session)
@@ -121,7 +113,6 @@ def test_update_user(db_session: Session, base_user: User) -> None:
     assert result.role == update_input.role
 
 
-@pytest.mark.atomic
 def test_update_user_not_found(db_session: Session, test_user_input: UserInput) -> None:
     """Test updating a user when not found."""
     service = UserService(db_session)
@@ -132,7 +123,6 @@ def test_update_user_not_found(db_session: Session, test_user_input: UserInput) 
     assert "User not found" in str(exc_info.value.detail)
 
 
-@pytest.mark.atomic
 def test_delete_user(db_session: Session, base_user: User) -> None:
     """Test deleting a user."""
     service = UserService(db_session)
@@ -142,7 +132,6 @@ def test_delete_user(db_session: Session, base_user: User) -> None:
     assert db_session.query(User).filter_by(id=base_user.id).first() is None
 
 
-@pytest.mark.atomic
 def test_delete_user_not_found(db_session: Session) -> None:
     """Test deleting a user when not found."""
     service = UserService(db_session)
@@ -154,7 +143,6 @@ def test_delete_user_not_found(db_session: Session) -> None:
 
 
 @pytest.mark.skip(reason="get_user_teams method does not exist on UserService")
-@pytest.mark.atomic
 def test_get_user_teams(db_session: Session, base_user: User) -> None:
     """Test getting user teams."""
     # Create a team and associate it with the user
@@ -179,7 +167,6 @@ def test_get_user_teams(db_session: Session, base_user: User) -> None:
     assert result[0].name == team.name
 
 
-@pytest.mark.atomic
 def test_list_users(db_session: Session, base_user: User) -> None:
     """Test listing users."""
     service = UserService(db_session)
@@ -197,7 +184,6 @@ def test_list_users(db_session: Session, base_user: User) -> None:
     assert any(user.id == other_user.id for user in result)
 
 
-@pytest.mark.atomic
 def test_list_users_pagination(db_session: Session, base_user: User) -> None:
     """Test users listing with pagination."""
     service = UserService(db_session)

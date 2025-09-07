@@ -85,7 +85,6 @@ def test_prompt_template(base_user: Any) -> PromptTemplateInput:
 # -------------------------------------------
 # 🧪 Provider Tests
 # -------------------------------------------
-@pytest.mark.atomic
 def test_create_provider(llm_provider_service: Any, test_provider_input: LLMProviderInput) -> None:
     """Test creating LLM provider."""
     provider = llm_provider_service.create_provider(test_provider_input)
@@ -98,7 +97,6 @@ def test_create_provider(llm_provider_service: Any, test_provider_input: LLMProv
     assert isinstance(provider.id, UUID4)
 
 
-@pytest.mark.atomic
 def test_create_provider_model(
     llm_provider_service: Any,
     llm_model_service: Any,
@@ -119,7 +117,6 @@ def test_create_provider_model(
 # -------------------------------------------
 # 🧪 LLM Parameters Tests
 # -------------------------------------------
-@pytest.mark.atomic
 def test_create_llm_parameters(llm_parameters_service: Any, test_llm_parameters: LLMParametersInput, base_user: Any) -> None:
     """Test creating LLM parameters."""
     params = llm_parameters_service.create_parameters(base_user.id, test_llm_parameters)
@@ -134,7 +131,6 @@ def test_create_llm_parameters(llm_parameters_service: Any, test_llm_parameters:
 # -------------------------------------------
 # 🧪 Prompt Template Tests
 # -------------------------------------------
-@pytest.mark.atomic
 def test_create_prompt_template(prompt_template_service: Any, base_user: Any, test_prompt_template: Any) -> None:
     """Test creating prompt template."""
     template = prompt_template_service.create_or_update_template(base_user.id, test_prompt_template)
@@ -147,7 +143,6 @@ def test_create_prompt_template(prompt_template_service: Any, base_user: Any, te
 # -------------------------------------------
 # 🧪 Integration Tests
 # -------------------------------------------
-@pytest.mark.atomic
 def test_configuration_flow(
     llm_provider_service: Any,
     llm_parameters_service: Any,
@@ -184,7 +179,6 @@ def test_configuration_flow(
 # -------------------------------------------
 # 🧪 Error Tests
 # -------------------------------------------
-@pytest.mark.atomic
 def test_provider_validation_errors(llm_provider_service: Any) -> None:
     """Test provider validation error handling."""
     # Test invalid name
@@ -220,7 +214,6 @@ def test_provider_validation_errors(llm_provider_service: Any) -> None:
     assert "base_url" in str(exc_info.value)
 
 
-@pytest.mark.atomic
 def test_model_validation_errors(llm_provider_service: Any, test_provider_input: LLMProviderInput, test_model_input: LLMModelInput) -> None:
     """Test model validation error handling."""
     # Create provider first
@@ -240,7 +233,6 @@ def test_model_validation_errors(llm_provider_service: Any, test_provider_input:
     assert "provider_id" in str(exc_info2.value)
 
 
-@pytest.mark.atomic
 def test_not_found_errors(llm_parameters_service: Any, base_user: Any, test_llm_parameters: Any) -> None:
     """Test not found error handling."""
     # Test non-existent user

@@ -40,7 +40,7 @@ def check_vectordb(settings: Settings) -> dict[str, str]:
     return {"status": "unknown", "message": "Vector DB health check completed without result"}
 
 
-def check_datastore(db: Session = Depends(get_db)) -> dict[str, str]:
+def check_datastore(db: Annotated[Session, Depends(get_db)]) -> dict[str, str]:
     """Check the health of the relational database."""
     import time
 
@@ -120,8 +120,8 @@ def check_system_health(components: dict[str, dict[str, str]]) -> bool:
     },
 )
 def health_check(
-    db: Session = Depends(get_db),
-    settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings),
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> dict[str, Any]:
     """
     Perform a health check on all system components.

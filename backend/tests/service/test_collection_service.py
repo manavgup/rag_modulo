@@ -42,7 +42,6 @@ def upload_file(test_file: str) -> UploadFile:
         return UploadFile(filename="test.txt", file=f)
 
 
-@pytest.mark.atomic
 def test_create_collection_success(db_session: Session, base_user: User) -> None:
     """Test successful collection creation."""
     collection_service = CollectionService(db_session)
@@ -56,7 +55,6 @@ def test_create_collection_success(db_session: Session, base_user: User) -> None
     assert result.status == CollectionStatus.CREATED
 
 
-@pytest.mark.atomic
 def test_create_collection_duplicate_name(db_session: Session, base_user: User, base_collection: Collection) -> None:
     """Test creating collection with duplicate name."""
     collection_service = CollectionService(db_session)
@@ -68,7 +66,6 @@ def test_create_collection_duplicate_name(db_session: Session, base_user: User, 
     assert "Collection name already exists" in str(exc_info.value.detail)
 
 
-@pytest.mark.atomic
 def test_get_collection_success(db_session: Session, base_collection: Collection) -> None:
     """Test successful collection retrieval."""
     collection_service = CollectionService(db_session)
@@ -80,7 +77,6 @@ def test_get_collection_success(db_session: Session, base_collection: Collection
     assert result.name == base_collection.name
 
 
-@pytest.mark.atomic
 def test_get_collection_not_found(db_session: Session) -> None:
     """Test collection retrieval when not found."""
     collection_service = CollectionService(db_session)
@@ -91,7 +87,6 @@ def test_get_collection_not_found(db_session: Session) -> None:
     assert "Collection not found" in str(exc_info.value.detail)
 
 
-@pytest.mark.atomic
 def test_update_collection_success(db_session: Session, base_collection: Collection, base_user: User) -> None:
     """Test successful collection update."""
     collection_service = CollectionService(db_session)
@@ -104,7 +99,6 @@ def test_update_collection_success(db_session: Session, base_collection: Collect
     assert result.is_private == update_input.is_private
 
 
-@pytest.mark.atomic
 def test_delete_collection_success(db_session: Session, base_collection: Collection) -> None:
     """Test successful collection deletion."""
     collection_service = CollectionService(db_session)
@@ -116,7 +110,6 @@ def test_delete_collection_success(db_session: Session, base_collection: Collect
     assert collection_service.collection_repository.get(base_collection.id) is None
 
 
-@pytest.mark.atomic
 def test_get_user_collections(db_session: Session, base_user: User, base_collection: Collection) -> None:
     """Test retrieving user collections."""
     collection_service = CollectionService(db_session)
@@ -127,7 +120,6 @@ def test_get_user_collections(db_session: Session, base_user: User, base_collect
     assert any(c.id == base_collection.id for c in result)
 
 
-@pytest.mark.atomic
 @pytest.mark.asyncio
 async def test_create_collection_with_documents(db_session: Session, base_user: User, upload_file: UploadFile) -> None:
     """Test creating collection with documents."""
@@ -151,7 +143,6 @@ async def test_create_collection_with_documents(db_session: Session, base_user: 
         upload_file.file.close()
 
 
-@pytest.mark.atomic
 @pytest.mark.asyncio
 async def test_process_documents(db_session: Session, base_collection: Collection, base_user: User, test_file: str) -> None:
     """Test document processing."""
@@ -170,7 +161,6 @@ async def test_process_documents(db_session: Session, base_collection: Collectio
     assert updated_collection.status == CollectionStatus.COMPLETED
 
 
-@pytest.mark.atomic
 def test_update_collection_status(db_session: Session, base_collection: Collection) -> None:
     """Test collection status update."""
     collection_service = CollectionService(db_session)
@@ -181,7 +171,6 @@ def test_update_collection_status(db_session: Session, base_collection: Collecti
     assert updated_collection.status == CollectionStatus.PROCESSING
 
 
-@pytest.mark.atomic
 def test_generate_valid_collection_name(db_session: Session) -> None:
     """Test generation of valid collection names."""
     collection_service = CollectionService(db_session)

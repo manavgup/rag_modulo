@@ -41,7 +41,6 @@ def user_service(db_session: Session) -> UserService:
     return UserService(db_session)
 
 
-@pytest.mark.atomic
 def test_create_user(user_service: UserService) -> None:
     user_input = UserInput(ibm_id="test_ibm_id", email="test@example.com", name="Test User", preferred_provider_id=None)
     user_output = user_service.create_user(user_input)

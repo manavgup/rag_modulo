@@ -1,5 +1,7 @@
 """Factory for creating and managing LLM provider instances."""
 
+from __future__ import annotations
+
 from threading import Lock
 from typing import ClassVar
 

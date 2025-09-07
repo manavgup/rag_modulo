@@ -62,7 +62,6 @@ def valid_model_input() -> LLMModelInput:
     )
 
 
-@pytest.mark.atomic
 def test_create_provider(provider_service: LLMProviderService, valid_provider_input: LLMProviderInput) -> None:
     """
     Test creating a provider.

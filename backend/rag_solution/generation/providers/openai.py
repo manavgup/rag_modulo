@@ -1,5 +1,7 @@
 """OpenAI provider implementation for text generation and embeddings."""
 
+from __future__ import annotations
+
 import asyncio
 from collections.abc import Generator, Sequence
 from typing import Any
