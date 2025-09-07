@@ -33,30 +33,26 @@ logger = get_logger("tests.fixtures.services")
 
 # Base Services
 @pytest.fixture
-def user_service(db_session: Session) -> UserService:
+def user_service(db_session: Session, mock_settings) -> UserService:
     """Initialize UserService."""
-    settings = get_settings()
-    return UserService(db_session, settings)
+    return UserService(db_session, mock_settings)
 
 
 @pytest.fixture
-def user_team_service(db_session: Session) -> UserTeamService:
-    settings = get_settings()
-    return UserTeamService(db_session, settings)
+def user_team_service(db_session: Session, mock_settings) -> UserTeamService:
+    return UserTeamService(db_session, mock_settings)
 
 
 @pytest.fixture
-def llm_provider_service(db_session: Session) -> LLMProviderService:
+def llm_provider_service(db_session: Session, mock_settings) -> LLMProviderService:
     """Initialize LLMProviderService."""
-    settings = get_settings()
-    return LLMProviderService(db_session, settings)
+    return LLMProviderService(db_session, mock_settings)
 
 
 @pytest.fixture
-def llm_model_service(db_session: Session) -> LLMModelService:
+def llm_model_service(db_session: Session, mock_settings) -> LLMModelService:
     """Initialize LLMModelService."""
-    settings = get_settings()
-    return LLMModelService(db_session, settings)
+    return LLMModelService(db_session, mock_settings)
 
 
 @pytest.fixture
@@ -66,17 +62,15 @@ def llm_provider() -> str:
 
 
 @pytest.fixture
-def llm_parameters_service(db_session: Session) -> LLMParametersService:
+def llm_parameters_service(db_session: Session, mock_settings) -> LLMParametersService:
     """Initialize LLMParametersService."""
-    settings = get_settings()
-    return LLMParametersService(db_session, settings)
+    return LLMParametersService(db_session, mock_settings)
 
 
 @pytest.fixture
-def prompt_template_service(db_session: Session) -> PromptTemplateService:
+def prompt_template_service(db_session: Session, mock_settings) -> PromptTemplateService:
     """Initialize PromptTemplateService."""
-    settings = get_settings()
-    return PromptTemplateService(db_session, settings)
+    return PromptTemplateService(db_session, mock_settings)
 
 
 @pytest.fixture(scope="session")
@@ -87,23 +81,20 @@ def collection_service(session_db: Session) -> CollectionService:
 
 
 @pytest.fixture(scope="session")
-def user_collection_service(session_db: Session) -> UserCollectionService:
-    settings = get_settings()
-    return UserCollectionService(session_db, settings)
+def user_collection_service(session_db: Session, mock_settings) -> UserCollectionService:
+    return UserCollectionService(session_db, mock_settings)
 
 
 @pytest.fixture
-def file_service(db_session: Session) -> FileManagementService:
+def file_service(db_session: Session, mock_settings) -> FileManagementService:
     """Initialize FileManagementService."""
-    settings = get_settings()
-    return FileManagementService(db_session, settings)
+    return FileManagementService(db_session, mock_settings)
 
 
 @pytest.fixture
-def pipeline_service(db_session: Session) -> PipelineService:
+def pipeline_service(db_session: Session, mock_settings) -> PipelineService:
     """Initialize PipelineService."""
-    settings = get_settings()
-    return PipelineService(db_session, settings)
+    return PipelineService(db_session, mock_settings)
 
 
 @pytest.fixture(scope="session")

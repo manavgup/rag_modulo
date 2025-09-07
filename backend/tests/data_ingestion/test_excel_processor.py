@@ -12,9 +12,9 @@ from vectordbs.data_types import Document
 
 
 @pytest.fixture
-def excel_processor() -> Any:
+def excel_processor(mock_settings) -> Any:
     """Create an ExcelProcessor instance."""
-    return ExcelProcessor()
+    return ExcelProcessor(mock_settings)
 
 
 @pytest.fixture
