@@ -121,7 +121,7 @@ def check_system_health(components: dict[str, dict[str, str]]) -> bool:
 )
 def health_check(
     db: Session = Depends(get_db),
-    settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings),
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> dict[str, Any]:
     """
     Perform a health check on all system components.
