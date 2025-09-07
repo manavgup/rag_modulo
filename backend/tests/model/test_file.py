@@ -81,7 +81,6 @@ def mock_metadata() -> FileMetadata:
     )
 
 
-@pytest.mark.atomic
 def test_create_file_record(file_management_service: FileManagementService, collection: CollectionOutput, mock_upload_file: UploadFile) -> None:
     file_record = file_management_service.upload_and_create_file_record(mock_upload_file, collection.user_ids[0], collection.id, "test_document_id")
     assert isinstance(file_record, FileOutput)

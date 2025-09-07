@@ -64,7 +64,6 @@ def user_team_service(db_session: Session) -> UserTeamService:
     return UserTeamService(db_session)
 
 
-@pytest.mark.atomic
 def test_create_collection(user_service: UserService, collection_service: CollectionService) -> None:
     user = user_service.create_user(UserInput(ibm_id="test_ibm_id", email="test@example.com", name="Test User"))
     collection_input = CollectionInput(name="Test Collection", is_private=True, users=[user.id])

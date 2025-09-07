@@ -96,7 +96,6 @@ class TestLLMParametersSchema:
 # -------------------------------------------
 # 🧪 Service Operation Tests
 # -------------------------------------------
-@pytest.mark.atomic
 def test_create_parameters(llm_parameters_service: Any, base_user: UserOutput, test_llm_parameters: LLMParametersInput) -> None:
     """Test creating parameters through service."""
     created = llm_parameters_service.create_parameters(test_llm_parameters)
@@ -107,7 +106,6 @@ def test_create_parameters(llm_parameters_service: Any, base_user: UserOutput, t
     assert created.repetition_penalty == test_llm_parameters.repetition_penalty
 
 
-@pytest.mark.atomic
 def test_create_duplicate_name(llm_parameters_service: Any, base_user: UserOutput, test_llm_parameters: LLMParametersInput) -> None:
     """Test creating parameters with duplicate name."""
     llm_parameters_service.create_parameters(test_llm_parameters)
@@ -118,7 +116,6 @@ def test_create_duplicate_name(llm_parameters_service: Any, base_user: UserOutpu
     assert updated.name == "duplicate_name"
 
 
-@pytest.mark.atomic
 def test_get_parameters(llm_parameters_service: LLMParametersService, base_user: UserOutput, test_llm_parameters: LLMParametersInput) -> None:
     """Test retrieving parameters through service."""
     llm_parameters_service.create_parameters(test_llm_parameters)
@@ -128,14 +125,12 @@ def test_get_parameters(llm_parameters_service: LLMParametersService, base_user:
     assert any(param.name == test_llm_parameters.name for param in retrieved)
 
 
-@pytest.mark.atomic
 def test_get_nonexistent_user_parameters(llm_parameters_service: Any) -> None:
     """Test retrieving parameters for non-existent user."""
     retrieved = llm_parameters_service.get_user_parameters(uuid4())
     assert len(retrieved) == 0
 
 
-@pytest.mark.atomic
 def test_update_parameters(llm_parameters_service: Any, base_user: UserOutput, test_llm_parameters: LLMParametersInput) -> None:
     """Test updating parameters through service."""
     created = llm_parameters_service.create_parameters(test_llm_parameters)
@@ -156,7 +151,6 @@ def test_update_parameters(llm_parameters_service: Any, base_user: UserOutput, t
     assert updated.repetition_penalty == 1.2
 
 
-@pytest.mark.atomic
 def test_delete_parameters(llm_parameters_service: Any, base_user: UserOutput, test_llm_parameters: LLMParametersInput) -> None:
     """Test deleting parameters through service."""
     created = llm_parameters_service.create_parameters(test_llm_parameters)
@@ -170,7 +164,6 @@ def test_delete_parameters(llm_parameters_service: Any, base_user: UserOutput, t
 # -------------------------------------------
 # 🧪 Default Parameters Tests
 # -------------------------------------------
-@pytest.mark.atomic
 def test_user_default_parameters_management(llm_parameters_service: Any, base_user: UserOutput) -> None:
     """Test user's default parameters management."""
     # Create first default parameters
@@ -209,7 +202,6 @@ def test_user_default_parameters_management(llm_parameters_service: Any, base_us
     assert created2.is_default is True
 
 
-@pytest.mark.atomic
 def test_multiple_users_default_parameters(llm_parameters_service: Any, user_service: Any, base_user: UserOutput) -> None:
     """Test default parameters for multiple users."""
     # Create second user
@@ -258,7 +250,6 @@ def test_multiple_users_default_parameters(llm_parameters_service: Any, user_ser
     assert default2.repetition_penalty == 1.2
 
 
-@pytest.mark.atomic
 def test_set_default_parameters(llm_parameters_service: Any, base_user: UserOutput, test_llm_parameters: LLMParametersInput) -> None:
     """Test setting parameters as default."""
     created = llm_parameters_service.create_parameters(test_llm_parameters)

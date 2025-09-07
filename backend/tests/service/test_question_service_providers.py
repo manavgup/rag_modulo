@@ -12,7 +12,6 @@ from rag_solution.services.question_service import QuestionService
 
 
 @pytest.mark.asyncio
-@pytest.mark.atomic
 @patch("rag_solution.services.question_service.ProviderFactory")
 async def test_question_generation_with_watsonx(mock_provider_factory: Any, db_session: Session, base_user: Any, base_collection: Any) -> None:
     """Test question generation using WatsonX provider."""

@@ -77,7 +77,6 @@ def sample_template_model(sample_user_id: UUID4, sample_template_input: PromptTe
     )
 
 
-@pytest.mark.atomic
 def test_create_template(template_service: PromptTemplateService, sample_user_id: UUID4) -> None:
     """Test creating a template."""
     # Mock repository response

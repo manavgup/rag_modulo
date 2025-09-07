@@ -38,10 +38,7 @@ class TestQueryRewriter(unittest.TestCase):
         self.assertIn("hypothetical document", rewritten_query)
 
         mock_generate_text.assert_called_once_with(
-            "Generate a concise hypothetical document (maximum 50 tokens) that would perfectly answer the query: test query",
-            max_tokens=50,
-            timeout=30,
-            max_retries=3,
+            "Generate a concise hypothetical document (maximum 50 tokens) that would perfectly answer the query: test query", params={"max_tokens": 50, "timeout": 30, "max_retries": 3}
         )
 
     @patch("rag_solution.query_rewriting.query_rewriter.generate_text")
@@ -56,9 +53,7 @@ class TestQueryRewriter(unittest.TestCase):
 
         mock_generate_text.assert_called_once_with(
             "Generate a concise hypothetical document (maximum 50 tokens) that would perfectly answer the query: test query\nAdditional context: {'additional_info': 'context information'}",
-            max_tokens=50,
-            timeout=30,
-            max_retries=3,
+            params={"max_tokens": 50, "timeout": 30, "max_retries": 3},
         )
 
     @patch("rag_solution.query_rewriting.query_rewriter.generate_text")

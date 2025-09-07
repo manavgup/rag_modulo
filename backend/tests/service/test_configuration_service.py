@@ -89,7 +89,6 @@ def test_prompt_template(base_user: Any) -> PromptTemplateInput:
     )
 
 
-@pytest.mark.atomic
 def test_create_provider(db_session: Session, test_provider_input: LLMProviderInput) -> None:
     """Test creating LLM provider."""
     service = LLMProviderService(db_session)
@@ -103,7 +102,6 @@ def test_create_provider(db_session: Session, test_provider_input: LLMProviderIn
     assert isinstance(provider.id, UUID4)
 
 
-@pytest.mark.atomic
 def test_create_provider_model(db_session: Session, test_provider_input: LLMProviderInput, test_model_input: LLMModelInput) -> None:
     """Test creating provider model."""
     service = LLMProviderService(db_session)
@@ -117,7 +115,6 @@ def test_create_provider_model(db_session: Session, test_provider_input: LLMProv
     assert model.provider_id == provider.id
 
 
-@pytest.mark.atomic
 def test_create_llm_parameters(db_session: Session, test_llm_parameters: LLMParametersInput) -> None:
     """Test creating LLM parameters."""
     service = LLMParametersService(db_session)
@@ -130,7 +127,6 @@ def test_create_llm_parameters(db_session: Session, test_llm_parameters: LLMPara
     assert params.is_default == test_llm_parameters.is_default
 
 
-@pytest.mark.atomic
 def test_create_prompt_template(db_session: Session, base_user: Any, test_prompt_template: PromptTemplateInput) -> None:
     """Test creating prompt template."""
     service = PromptTemplateService(db_session)
@@ -141,7 +137,6 @@ def test_create_prompt_template(db_session: Session, base_user: Any, test_prompt
     assert template.is_default == test_prompt_template.is_default
 
 
-@pytest.mark.atomic
 def test_configuration_flow(
     db_session: Session,
     base_user: Any,
@@ -177,7 +172,6 @@ def test_configuration_flow(
     assert template.user_id == base_user.id
 
 
-@pytest.mark.atomic
 def test_provider_validation_errors(db_session: Session) -> None:
     """Test provider validation error handling."""
     service = LLMProviderService(db_session)
@@ -215,7 +209,6 @@ def test_provider_validation_errors(db_session: Session) -> None:
     assert "base_url" in str(exc_info.value)
 
 
-@pytest.mark.atomic
 def test_model_validation_errors(db_session: Session, test_provider_input: LLMProviderInput, test_model_input: LLMModelInput) -> None:
     """Test model validation error handling."""
     service = LLMProviderService(db_session)
@@ -235,7 +228,6 @@ def test_model_validation_errors(db_session: Session, test_provider_input: LLMPr
     assert "provider_id" in str(config_exc_info.value)
 
 
-@pytest.mark.atomic
 def test_not_found_errors(db_session: Session, base_user: Any, test_llm_parameters: LLMParametersInput) -> None:
     """Test not found error handling."""
     parameters_service = LLMParametersService(db_session)
