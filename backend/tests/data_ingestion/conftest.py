@@ -2,6 +2,7 @@ import pytest
 import pandas as pd
 from docx import Document as DocxDocument
 import pymupdf
+from unittest.mock import Mock, patch
 
 
 @pytest.fixture
@@ -42,3 +43,21 @@ def test_pdf_path(tmp_path):
 @pytest.fixture
 def test_non_existent_pdf_path(tmp_path):
     return str(tmp_path / "non_existent.pdf")
+
+
+@pytest.fixture(autouse=True)
+def mock_watsonx_imports():
+    """Mock WatsonX imports for atomic tests to prevent environment variable issues."""
+    with patch("vectordbs.utils.watsonx.get_wx_embeddings_client") as mock_embeddings_client, patch("vectordbs.utils.watsonx.get_wx_client") as mock_client, patch(
+        "vectordbs.utils.watsonx.get_embeddings"
+    ) as mock_get_embeddings:
+        # Mock the embeddings client
+        mock_embeddings_client.return_value = Mock()
+
+        # Mock the main client
+        mock_client.return_value = Mock()
+
+        # Mock the get_embeddings function to return dummy embeddings
+        mock_get_embeddings.return_value = [[0.1, 0.2, 0.3, 0.4, 0.5]]  # Dummy embedding vector
+
+        yield

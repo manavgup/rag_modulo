@@ -5,7 +5,6 @@ import pytest
 from core.config import Settings
 
 
-@pytest.mark.atomic
 def test_settings_loaded_from_env(mock_settings: Settings) -> None:
     """Test that settings are loaded from environment variables."""
     # Test required settings
@@ -23,7 +22,6 @@ def test_settings_loaded_from_env(mock_settings: Settings) -> None:
     assert mock_settings.project_name == "rag_modulo"
 
 
-@pytest.mark.atomic
 def test_settings_with_minimal_env(minimal_test_env: pytest.MonkeyPatch) -> None:
     """Test that settings work with minimal environment variables."""
     # Create a fresh settings instance with minimal environment
@@ -39,7 +37,6 @@ def test_settings_with_minimal_env(minimal_test_env: pytest.MonkeyPatch) -> None
     assert test_settings.rag_llm == "watsonx"
 
 
-@pytest.mark.atomic
 def test_settings_isolation(isolated_test_env: pytest.MonkeyPatch) -> None:
     """Test that settings work in completely isolated environment."""
     # This test should fail if settings require real environment variables
