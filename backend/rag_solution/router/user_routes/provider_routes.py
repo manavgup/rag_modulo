@@ -12,7 +12,7 @@ from rag_solution.services.user_service import UserService
 router = APIRouter()
 
 
-def get_user_service(db: Session = Depends(get_db), settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)) -> UserService:
+def get_user_service(db: Session = Depends(get_db), settings: Annotated[Settings, Depends(get_settings)]) -> UserService:
     """Provides an instance of UserService with a database session and settings."""
     return UserService(db, settings)
 

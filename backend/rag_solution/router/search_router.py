@@ -11,7 +11,7 @@ from rag_solution.services.search_service import SearchService
 router = APIRouter(prefix="/api/search", tags=["search"])
 
 
-def get_search_service(db: Session = Depends(get_db), settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)) -> SearchService:
+def get_search_service(db: Session = Depends(get_db), settings: Annotated[Settings, Depends(get_settings)]) -> SearchService:
     """
     Dependency to create a new SearchService instance with the database session and settings.
 

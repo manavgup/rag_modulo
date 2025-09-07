@@ -46,7 +46,7 @@ class UserInfo(BaseModel):
 
 
 @router.get("/oidc-config", response_model=OIDCConfig)
-async def get_oidc_config(settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)) -> JSONResponse:
+async def get_oidc_config(settings: Annotated[Settings, Depends(get_settings)]) -> JSONResponse:
     """
     Retrieve the OIDC configuration for the client.
     """
@@ -85,7 +85,7 @@ async def get_oidc_config(settings: Annotated[Settings, Depends(get_settings)] =
 
 
 @router.post("/token", response_model=TokenResponse)
-async def token_exchange(request: Request, settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)) -> JSONResponse:
+async def token_exchange(request: Request, settings: Annotated[Settings, Depends(get_settings)]) -> JSONResponse:
     """
     Exchange an authorization code for an access token.
     """
@@ -118,7 +118,7 @@ async def token_exchange(request: Request, settings: Annotated[Settings, Depends
 
 
 @router.get("/login")
-async def login(request: Request, settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)) -> Response:
+async def login(request: Request, settings: Annotated[Settings, Depends(get_settings)]) -> Response:
     try:
         callback_url = f"{settings.frontend_url}/api/auth/callback"
         logger.info(f"Initiating login with redirect_uri: {callback_url}")
@@ -131,7 +131,7 @@ async def login(request: Request, settings: Annotated[Settings, Depends(get_sett
 
 
 @router.get("/callback")
-async def auth(request: Request, db: Session = Depends(get_db), settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)) -> Response:
+async def auth(request: Request, db: Session = Depends(get_db), settings: Annotated[Settings, Depends(get_settings)]) -> Response:
     try:
         logger.info("Received authentication callback")
         token = await oauth.ibm.authorize_access_token(request)
@@ -189,7 +189,7 @@ async def logout(request: Request) -> JSONResponse:
 
 
 @router.get("/userinfo", response_model=UserInfo)
-async def get_userinfo(request: Request, settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)) -> JSONResponse:
+async def get_userinfo(request: Request, settings: Annotated[Settings, Depends(get_settings)]) -> JSONResponse:
     """
     Retrieve the user information from the JWT Token.
     """
@@ -224,7 +224,7 @@ async def get_userinfo(request: Request, settings: Annotated[Settings, Depends(g
 
 
 @router.get("/check-auth")
-async def check_auth(request: Request, settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)) -> JSONResponse:
+async def check_auth(request: Request, settings: Annotated[Settings, Depends(get_settings)]) -> JSONResponse:
     """
     Check if the user is authenticated.
     """
@@ -256,7 +256,7 @@ async def check_auth(request: Request, settings: Annotated[Settings, Depends(get
 
 
 @router.get("/session")
-async def session_status(request: Request, settings: Annotated[Settings, Depends(get_settings)] = Depends(get_settings)) -> JSONResponse:
+async def session_status(request: Request, settings: Annotated[Settings, Depends(get_settings)]) -> JSONResponse:
     """
     Check session status and retrieve user info if authenticated.
     """
