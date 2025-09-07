@@ -10,8 +10,8 @@ from vectordbs.data_types import Document
 
 @pytest.mark.asyncio
 @pytest.mark.atomic
-async def test_process_word(test_word_path: Any) -> None:
-    processor = WordProcessor()
+async def test_process_word(test_word_path: Any, mock_settings) -> None:
+    processor = WordProcessor(mock_settings)
     docs = []
     async for document in processor.process(test_word_path, "test-doc-id"):
         docs.append(document)
@@ -23,8 +23,8 @@ async def test_process_word(test_word_path: Any) -> None:
 
 
 @pytest.mark.asyncio
-async def test_process_word_error(test_non_existent_pdf_path: Any) -> None:
-    processor = WordProcessor()
+async def test_process_word_error(test_non_existent_pdf_path: Any, mock_settings) -> None:
+    processor = WordProcessor(mock_settings)
     with pytest.raises(DocumentProcessingError):
         async for _ in processor.process(test_non_existent_pdf_path, "test-doc-id"):
             pass
