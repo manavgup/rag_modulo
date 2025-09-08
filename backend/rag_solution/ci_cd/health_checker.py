@@ -7,7 +7,8 @@ Replaces unreliable sleep-based waits with active health polling.
 import socket
 import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
-from typing import Any, Optional
+from typing import Any
+
 import requests
 
 
@@ -18,7 +19,7 @@ class HealthChecker:
     Replaces sleep-based waits with active polling of service health endpoints.
     """
 
-    def __init__(self, services: list[dict[str, Any]], max_total_timeout: Optional[int] = None):
+    def __init__(self, services: list[dict[str, Any]], max_total_timeout: int | None = None):
         """
         Initialize health checker.
 

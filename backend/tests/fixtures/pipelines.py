@@ -1,6 +1,5 @@
 """Pipeline configuration fixtures for pytest."""
 
-
 import pytest
 
 from core.config import get_settings

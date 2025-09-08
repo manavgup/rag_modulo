@@ -1,6 +1,5 @@
 """Integration tests for QuestionService."""
 
-
 import pytest
 
 from rag_solution.schemas.collection_schema import CollectionOutput

@@ -1,6 +1,5 @@
 """Service layer for RAG pipeline execution and management."""
 
-
 import re
 import time
 import uuid
