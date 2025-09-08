@@ -42,6 +42,7 @@ from rag_solution.models.pipeline import PipelineConfig
 from rag_solution.models.prompt_template import PromptTemplate
 from rag_solution.models.user import User
 from rag_solution.router.search_router import router
+from tests.fixtures.db import db_engine, db_session
 
 # Create test app
 app = FastAPI()
@@ -119,30 +120,6 @@ def test_empty_collection(test_db: Session, test_user: User) -> Collection:
 
 
 @pytest.fixture
-def test_pipeline_config(test_db: Session, test_user: User) -> PipelineConfig:
-    """Create test pipeline configuration."""
-    pipeline = PipelineConfig(
-        name="test-pipeline",
-        description="Test pipeline for search debugging",
-        collection_id=None,  # Will be updated in tests
-        user_id=test_user.id,
-        chunking_strategy="fixed",
-        embedding_model="test-embedding-model",
-        retriever="vector",
-        context_strategy="priority",
-        enable_logging=True,
-        max_context_length=2048,
-        timeout=30.0,
-        config_metadata={"top_k": 5, "similarity_threshold": 0.7},
-        is_default=True,
-        provider_id=test_llm_config["provider"].id,
-    )
-    test_db.add(pipeline)
-    test_db.commit()
-    return pipeline
-
-
-@pytest.fixture
 def test_llm_config(test_db: Session, test_user: User) -> dict[str, Any]:
     """Create test LLM configuration."""
     import uuid
@@ -180,11 +157,34 @@ def test_llm_config(test_db: Session, test_user: User) -> dict[str, Any]:
     return {"provider": provider, "parameters": params, "template": template}
 
 
+@pytest.fixture
+def test_pipeline_config(test_db: Session, test_user: User, test_llm_config: dict[str, Any]) -> PipelineConfig:
+    """Create test pipeline configuration."""
+    pipeline = PipelineConfig(
+        name="test-pipeline",
+        description="Test pipeline for search debugging",
+        collection_id=None,  # Will be updated in tests
+        user_id=test_user.id,
+        chunking_strategy="fixed",
+        embedding_model="test-embedding-model",
+        retriever="vector",
+        context_strategy="priority",
+        enable_logging=True,
+        max_context_length=2048,
+        timeout=30.0,
+        config_metadata={"top_k": 5, "similarity_threshold": 0.7},
+        is_default=True,
+        provider_id=test_llm_config["provider"].id,
+    )
+    test_db.add(pipeline)
+    test_db.commit()
+    return pipeline
+
+
 class TestSearchCoreFunctionality:
     """Test core search functionality to ensure it works correctly."""
 
-    def test_search_api_endpoint_basic_functionality(
-        self, client: TestClient, test_collection_with_documents: Collection, test_pipeline_config: PipelineConfig    ) -> None:
+    def test_search_api_endpoint_basic_functionality(self, client: TestClient, test_collection_with_documents: Collection, test_pipeline_config: PipelineConfig) -> None:
         """Test that the search API endpoint works with basic functionality."""
         # Update pipeline config to use the test collection
         test_pipeline_config.collection_id = test_collection_with_documents.id
@@ -222,9 +222,7 @@ class TestSearchCoreFunctionality:
         assert isinstance(data["query_results"], list), "Query results should be a list"
         assert len(data["query_results"]) > 0, "Should return query results"
 
-    def test_search_document_ingestion_and_indexing(
-        self, client: TestClient, test_collection_with_documents: Collection, test_pipeline_config: PipelineConfig
-    ) -> None:
+    def test_search_document_ingestion_and_indexing(self, client: TestClient, test_collection_with_documents: Collection, test_pipeline_config: PipelineConfig) -> None:
         """Test that documents are properly ingested and indexed for search."""
         # Update pipeline config to use the test collection
         test_pipeline_config.collection_id = test_collection_with_documents.id
@@ -523,8 +521,7 @@ class TestSearchCoreFunctionality:
             assert isinstance(recorded_time, int | float), "Response time should be numeric"
             assert recorded_time > 0, "Response time should be positive"
 
-    def test_search_with_multiple_documents_retrieval(
-        self, client: TestClient, test_collection_with_documents: Collection, test_pipeline_config: PipelineConfig    ) -> None:
+    def test_search_with_multiple_documents_retrieval(self, client: TestClient, test_collection_with_documents: Collection, test_pipeline_config: PipelineConfig) -> None:
         """Test that search can retrieve and process multiple documents."""
         # Update pipeline config to use the test collection
         test_pipeline_config.collection_id = test_collection_with_documents.id
@@ -1091,8 +1088,7 @@ class TestSearchEdgeCases:
             data = response.json()
             assert "detail" in data, "Response should contain error detail"
 
-    def test_search_with_special_characters_in_query(
-        self, client: TestClient, test_collection_with_documents: Collection, test_pipeline_config: PipelineConfig    ) -> None:
+    def test_search_with_special_characters_in_query(self, client: TestClient, test_collection_with_documents: Collection, test_pipeline_config: PipelineConfig) -> None:
         """Test search with special characters in query - Issue #160: Error Handling edge case."""
         # Update pipeline config to use the test collection
         test_pipeline_config.collection_id = test_collection_with_documents.id
@@ -1111,8 +1107,7 @@ class TestSearchEdgeCases:
         assert "answer" in data, "Response should contain 'answer' field"
         assert "query_results" in data, "Response should contain 'query_results' field"
 
-    def test_search_with_unicode_characters_in_query(
-        self, client: TestClient, test_collection_with_documents: Collection, test_pipeline_config: PipelineConfig    ) -> None:
+    def test_search_with_unicode_characters_in_query(self, client: TestClient, test_collection_with_documents: Collection, test_pipeline_config: PipelineConfig) -> None:
         """Test search with Unicode characters in query - Issue #160: Error Handling edge case."""
         # Update pipeline config to use the test collection
         test_pipeline_config.collection_id = test_collection_with_documents.id
@@ -1324,8 +1319,7 @@ class TestSearchEdgeCases:
             assert "source" in result["metadata"], "Metadata should contain source"
             assert "document_id" in result["metadata"], "Metadata should contain document_id"
 
-    def test_search_collection_selection_validation(
-        self, client: TestClient, test_collection_with_documents: Collection, test_pipeline_config: PipelineConfig    ) -> None:
+    def test_search_collection_selection_validation(self, client: TestClient, test_collection_with_documents: Collection, test_pipeline_config: PipelineConfig) -> None:
         """Test collection selection validation - Issue #160: Collection Selection edge case."""
         # Update pipeline config to use the test collection
         test_pipeline_config.collection_id = test_collection_with_documents.id
