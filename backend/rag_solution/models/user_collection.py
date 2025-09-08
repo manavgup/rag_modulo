@@ -11,7 +11,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from rag_solution.file_management.database import Base
 
 if TYPE_CHECKING:
-
     from rag_solution.models.collection import Collection
     from rag_solution.models.user import User
 

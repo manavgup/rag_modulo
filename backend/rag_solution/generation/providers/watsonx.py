@@ -2,24 +2,28 @@
 
 from __future__ import annotations
 
-from collections.abc import Generator, Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ibm_watsonx_ai import APIClient, Credentials  # type: ignore[import-untyped]
 from ibm_watsonx_ai.foundation_models import Embeddings as wx_Embeddings  # type: ignore[import-untyped]
 from ibm_watsonx_ai.foundation_models import ModelInference  # type: ignore[import-untyped]
 from ibm_watsonx_ai.metanames import EmbedTextParamsMetaNames as EmbedParams  # type: ignore[import-untyped]
 from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams  # type: ignore[import-untyped]
-from pydantic import UUID4
 
 from core.custom_exceptions import LLMProviderError, NotFoundError, ValidationError
 from core.logging_utils import get_logger
 from rag_solution.schemas.llm_model_schema import ModelType
-from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
-from rag_solution.schemas.prompt_template_schema import PromptTemplateBase
-from vectordbs.data_types import EmbeddingsList
 
 from .base import LLMBase
+
+if TYPE_CHECKING:
+    from collections.abc import Generator, Sequence
+
+    from pydantic import UUID4
+
+    from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
+    from rag_solution.schemas.prompt_template_schema import PromptTemplateBase
+    from vectordbs.data_types import EmbeddingsList
 
 logger = get_logger("llm.providers.watsonx")
 

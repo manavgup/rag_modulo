@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import UUID4

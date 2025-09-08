@@ -10,6 +10,7 @@ then implement the functionality to make them pass.
 
 import subprocess
 from unittest.mock import Mock, patch
+
 import pytest
 from requests.exceptions import ConnectionError, Timeout
 
@@ -212,8 +213,9 @@ class TestServiceHealthCheckSystem:
         - Expected Output: Results dict with all 3 services
         """
         # This will FAIL - implementation doesn't exist
-        from backend.ci_cd.health_checker import HealthChecker
         import time
+
+        from backend.ci_cd.health_checker import HealthChecker
 
         def mock_get_delay(*args, **kwargs):
             time.sleep(0.5)  # Simulate 500ms response time
@@ -276,8 +278,9 @@ class TestServiceHealthCheckSystem:
         - Expected Output: Process should timeout after 60 seconds and return partial results
         """
         # This will FAIL - overall timeout not implemented
-        from backend.ci_cd.health_checker import HealthChecker
         import time
+
+        from backend.ci_cd.health_checker import HealthChecker
 
         def mock_get_slow(*args, **kwargs):
             time.sleep(10)  # Each service takes 10 seconds
@@ -325,7 +328,7 @@ class TestRaceConditionHandling:
         from backend.ci_cd.health_checker import HealthChecker
         from backend.ci_cd.race_condition_detector import RaceConditionDetector
 
-        detector = RaceConditionDetector()
+        RaceConditionDetector()
 
         # Mock scenario: service returns 200 but isn't actually ready
         service_config = {
@@ -562,8 +565,9 @@ class TestHealthCheckIntegrationWithCI:
             timeout: 30
         """
         # This will FAIL - config file doesn't exist
-        import yaml
         import os
+
+        import yaml
 
         config_path = "../.github/config/ci-services.yml"
         assert os.path.exists(config_path), f"Service config not found at {config_path}"

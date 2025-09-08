@@ -2,7 +2,6 @@ import unittest
 from typing import Any
 from unittest.mock import MagicMock
 
-
 from rag_solution.data_ingestion.ingestion import DocumentStore
 from rag_solution.retrieval.factories import RetrieverFactory
 from rag_solution.retrieval.retriever import HybridRetriever, KeywordRetriever, VectorRetriever
