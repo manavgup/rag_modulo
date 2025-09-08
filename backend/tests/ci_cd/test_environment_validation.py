@@ -11,6 +11,7 @@ then implement the functionality to make them pass.
 import os
 import tempfile
 from unittest.mock import Mock, patch
+
 import pytest
 import yaml
 
@@ -111,7 +112,6 @@ class TestEnvironmentValidationSystem:
             validator = EnvironmentValidator()
             result = validator.validate_required_vars()
 
-            expected_result = {"valid": True, "missing_vars": [], "invalid_vars": {}, "warnings": []}
 
             assert result["valid"] is True
             assert result["missing_vars"] == []
@@ -211,7 +211,6 @@ class TestEnvironmentValidationSystem:
             validator = EnvironmentValidator()
             result = validator.validate_service_configs()
 
-            expected_result = {"valid": True, "service_errors": {}, "missing_service_vars": {}, "warnings": []}
 
             assert result["valid"] is True
             assert result["service_errors"] == {}
@@ -426,7 +425,6 @@ class TestEnvironmentValidationIntegration:
 
         # Look for validation step and its failure handling
         validation_section_found = False
-        proper_failure_handling = False
 
         lines = workflow_content.split("\n")
         in_validation_step = False
@@ -437,7 +435,7 @@ class TestEnvironmentValidationIntegration:
                 in_validation_step = True
 
             if in_validation_step and ("continue-on-error: false" in line or "exit 1" in line or "fail" in line.lower()):
-                proper_failure_handling = True
+                pass
 
             if in_validation_step and line.strip().startswith("- name:") and "validation" not in line.lower():
                 in_validation_step = False
@@ -541,7 +539,7 @@ class TestNetworkRetryAndResilience:
         assert "retry_strategy_recommendations" in validation_result
 
         # All critical steps should have retry configuration
-        for step_name in critical_steps.keys():
+        for step_name in critical_steps:
             step_validated = step_name in validation_result["steps_with_retry"] or step_name in validation_result["missing_retry_configuration"]
             assert step_validated, f"Step {step_name} not validated for retry configuration"
 

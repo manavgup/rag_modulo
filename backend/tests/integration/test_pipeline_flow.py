@@ -1,6 +1,5 @@
 """Integration tests for pipeline workflow."""
 
-
 import pytest
 from pydantic import SecretStr
 from sqlalchemy.orm import Session

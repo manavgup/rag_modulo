@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 from threading import Lock
-from typing import ClassVar
-
-from sqlalchemy.orm import Session
+from typing import TYPE_CHECKING, ClassVar
 
 from core.custom_exceptions import LLMProviderError
 from core.logging_utils import get_logger
@@ -14,7 +12,10 @@ from rag_solution.services.llm_parameters_service import LLMParametersService
 from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.prompt_template_service import PromptTemplateService
 
-from .base import LLMBase
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from .base import LLMBase
 
 logger = get_logger("llm.providers.factory")
 

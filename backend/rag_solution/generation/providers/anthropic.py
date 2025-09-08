@@ -3,21 +3,25 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Generator, Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import anthropic
-from pydantic import UUID4
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from core.custom_exceptions import LLMProviderError, NotFoundError, ValidationError
 from core.logging_utils import get_logger
 from rag_solution.schemas.llm_model_schema import ModelType
-from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
-from rag_solution.schemas.prompt_template_schema import PromptTemplateBase
-from vectordbs.data_types import EmbeddingsList
 
 from .base import LLMBase
+
+if TYPE_CHECKING:
+    from collections.abc import Generator, Sequence
+
+    from pydantic import UUID4
+
+    from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
+    from rag_solution.schemas.prompt_template_schema import PromptTemplateBase
+    from vectordbs.data_types import EmbeddingsList
 
 logger = get_logger("llm.providers.anthropic")
 

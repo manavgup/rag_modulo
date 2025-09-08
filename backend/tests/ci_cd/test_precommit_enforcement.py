@@ -10,6 +10,7 @@ then implement the functionality to make them pass.
 
 import os
 from unittest.mock import Mock, patch
+
 import pytest
 
 
@@ -56,18 +57,16 @@ class TestPreCommitHookEnforcementSystem:
         from backend.ci_cd.precommit_enforcer import PreCommitEnforcer
 
         # Mock git hooks directory and pre-commit hook file
-        with patch("os.path.exists") as mock_exists:
-            with patch("builtins.open", mock_open_precommit_hook()) as mock_open:
-                mock_exists.side_effect = lambda path: path.endswith(".git/hooks/pre-commit")
+        with patch("os.path.exists") as mock_exists, patch("builtins.open", mock_open_precommit_hook()):
+            mock_exists.side_effect = lambda path: path.endswith(".git/hooks/pre-commit")
 
-                enforcer = PreCommitEnforcer()
-                result = enforcer.check_hooks_installed()
+            enforcer = PreCommitEnforcer()
+            result = enforcer.check_hooks_installed()
 
-                expected_result = {"installed": True, "hook_file": ".git/hooks/pre-commit", "hook_type": "pre-commit", "version": "pre-commit"}
 
-                assert result["installed"] is True
-                assert result["hook_file"].endswith("pre-commit")
-                assert "pre-commit" in result.get("hook_type", "")
+            assert result["installed"] is True
+            assert result["hook_file"].endswith("pre-commit")
+            assert "pre-commit" in result.get("hook_type", "")
 
     def test_precommit_hooks_installation_check_missing(self):
         """
@@ -108,16 +107,15 @@ class TestPreCommitHookEnforcementSystem:
             ]
         }
 
-        with patch("yaml.safe_load", return_value=mock_config):
-            with patch("os.path.exists", return_value=True):
-                enforcer = PreCommitEnforcer()
-                result = enforcer.validate_hook_config()
+        with patch("yaml.safe_load", return_value=mock_config), patch("os.path.exists", return_value=True):
+            enforcer = PreCommitEnforcer()
+            result = enforcer.validate_hook_config()
 
-                assert result["valid"] is True
-                assert result["hooks_count"] >= 5  # At least the essential hooks
-                assert result["missing_hooks"] == []
-                assert "ruff" in str(result).lower()  # Should detect ruff
-                assert "mypy" in str(result).lower()  # Should detect mypy
+            assert result["valid"] is True
+            assert result["hooks_count"] >= 5  # At least the essential hooks
+            assert result["missing_hooks"] == []
+            assert "ruff" in str(result).lower()  # Should detect ruff
+            assert "mypy" in str(result).lower()  # Should detect mypy
 
     def test_precommit_hook_config_validation_missing_essential_hooks(self):
         """
@@ -138,18 +136,17 @@ class TestPreCommitHookEnforcementSystem:
             ]
         }
 
-        with patch("yaml.safe_load", return_value=mock_config):
-            with patch("os.path.exists", return_value=True):
-                enforcer = PreCommitEnforcer()
-                result = enforcer.validate_hook_config()
+        with patch("yaml.safe_load", return_value=mock_config), patch("os.path.exists", return_value=True):
+            enforcer = PreCommitEnforcer()
+            result = enforcer.validate_hook_config()
 
-                assert result["valid"] is False
-                assert "missing_hooks" in result
-                assert len(result["missing_hooks"]) > 0
+            assert result["valid"] is False
+            assert "missing_hooks" in result
+            assert len(result["missing_hooks"]) > 0
 
-                # Should detect missing essential hooks
-                missing_hooks_str = str(result["missing_hooks"]).lower()
-                assert "ruff" in missing_hooks_str or "mypy" in missing_hooks_str
+            # Should detect missing essential hooks
+            missing_hooks_str = str(result["missing_hooks"]).lower()
+            assert "ruff" in missing_hooks_str or "mypy" in missing_hooks_str
 
     def test_precommit_hooks_installation_process(self):
         """
@@ -571,7 +568,7 @@ class TestPreCommitEnforcementIntegration:
         # Should include pre-commit compliance check
         compliance_indicators = ["precommit", "pre-commit", "hook compliance", "lint enforcement"]
 
-        has_compliance_check = any(indicator in workflow_content.lower() for indicator in compliance_indicators)
+        any(indicator in workflow_content.lower() for indicator in compliance_indicators)
 
         # This assertion might be too strict initially - adjust based on implementation
         # assert has_compliance_check, "CI workflow doesn't include pre-commit compliance check"
