@@ -31,11 +31,13 @@ from rag_solution.schemas.pipeline_schema import (
 )
 from rag_solution.schemas.prompt_template_schema import PromptTemplateOutput, PromptTemplateType
 from rag_solution.schemas.search_schema import SearchInput
+from rag_solution.services.collection_service import CollectionService
 from rag_solution.services.file_management_service import FileManagementService
 from rag_solution.services.llm_parameters_service import LLMParametersService
 from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.prompt_template_service import PromptTemplateService
 from vectordbs.data_types import QueryResult, VectorQuery
+from vectordbs.error_types import CollectionError
 from vectordbs.factory import VectorStoreFactory
 
 logger = get_logger("services.pipeline")
@@ -55,13 +57,15 @@ class PipelineService:
         self._prompt_template_service: PromptTemplateService | None = None
         self._llm_provider_service: LLMProviderService | None = None
         self._file_management_service: FileManagementService | None = None
+        self._collection_service: CollectionService | None = None
 
         # Core RAG components
         self.query_rewriter = QueryRewriter({})
         # Use factory with proper dependency injection
         factory = VectorStoreFactory(self.settings)
         self.vector_store = factory.get_datastore(self.settings.vector_db)
-        self.evaluator = RAGEvaluator()
+        # Lazy initialize evaluator to avoid WatsonX client initialization at import time
+        self._evaluator: RAGEvaluator | None = None
 
         # Lazy initialized components
         self._document_store: DocumentStore | None = None
@@ -70,33 +74,52 @@ class PipelineService:
     # Property-based lazy initialization
     @property
     def pipeline_repository(self) -> PipelineConfigRepository:
+        """Get or create pipeline repository instance."""
         if self._pipeline_repository is None:
             self._pipeline_repository = PipelineConfigRepository(self.db)
         return self._pipeline_repository
 
     @property
     def llm_parameters_service(self) -> LLMParametersService:
+        """Get or create LLM parameters service instance."""
         if self._llm_parameters_service is None:
             self._llm_parameters_service = LLMParametersService(self.db)
         return self._llm_parameters_service
 
     @property
     def prompt_template_service(self) -> PromptTemplateService:
+        """Get or create prompt template service instance."""
         if self._prompt_template_service is None:
             self._prompt_template_service = PromptTemplateService(self.db)
         return self._prompt_template_service
 
     @property
     def llm_provider_service(self) -> LLMProviderService:
+        """Get or create LLM provider service instance."""
         if self._llm_provider_service is None:
             self._llm_provider_service = LLMProviderService(self.db)
         return self._llm_provider_service
 
     @property
     def file_management_service(self) -> FileManagementService:
+        """Get or create file management service instance."""
         if self._file_management_service is None:
             self._file_management_service = FileManagementService(self.db, self.settings)
         return self._file_management_service
+
+    @property
+    def collection_service(self) -> CollectionService:
+        """Lazy initialization of collection service."""
+        if self._collection_service is None:
+            self._collection_service = CollectionService(self.db, self.settings)
+        return self._collection_service
+
+    @property
+    def evaluator(self) -> RAGEvaluator:
+        """Get or create RAG evaluator instance."""
+        if self._evaluator is None:
+            self._evaluator = RAGEvaluator()
+        return self._evaluator
 
     @property
     def document_store(self) -> DocumentStore:
@@ -112,7 +135,7 @@ class PipelineService:
             self._retriever = RetrieverFactory.create_retriever({}, self.document_store)
         return self._retriever
 
-    async def initialize(self, collection_name: str) -> None:
+    async def initialize(self, collection_name: str, collection_id: UUID4 | None = None) -> None:
         """Initialize pipeline components for a collection."""
         try:
             # Update document store collection
@@ -122,18 +145,64 @@ class PipelineService:
             self._retriever = RetrieverFactory.create_retriever({}, self.document_store)
 
             # Load documents
-            await self._load_documents()
+            await self._load_documents(collection_id)
 
             logger.info(f"Pipeline initialized for collection: {collection_name}")
         except Exception as e:
             logger.error(f"Pipeline initialization failed: {e!s}")
             raise ConfigurationError("pipeline", f"Pipeline initialization failed: {e!s}") from e
 
-    async def _load_documents(self) -> None:
+    async def _load_documents(self, collection_id: UUID4 | None = None) -> None:
         """Load and process documents from configured data sources."""
         try:
-            await self.document_store.load_documents([])
-            logger.info(f"Loaded documents into collection: {self.document_store.collection_name}")
+            # Get collection from database to find associated files
+            if collection_id:
+                collection = self.collection_service.get_collection(collection_id)
+            else:
+                # Fallback: try to find collection by vector_db_name
+                logger.warning(f"No collection_id provided, cannot load documents for {self.document_store.collection_name}")
+                await self.document_store.load_documents([])
+                return
+
+            if not collection:
+                logger.warning(f"Collection {self.document_store.collection_name} not found in database")
+                await self.document_store.load_documents([])
+                return
+
+            # Get files associated with this collection
+            files = self.file_management_service.get_files_by_collection(collection.id)
+            if not files:
+                logger.info(f"No files found for collection {self.document_store.collection_name}")
+                await self.document_store.load_documents([])
+                return
+
+            # Create collection in vector store if it doesn't exist
+            try:
+                self.vector_store.create_collection(self.document_store.collection_name)
+                logger.info(f"Created collection {self.document_store.collection_name} in vector store")
+            except CollectionError as e:
+                if "already exists" in str(e):
+                    logger.info(f"Collection {self.document_store.collection_name} already exists in vector store")
+                else:
+                    raise
+
+            # Get file paths and document IDs
+            file_paths = [file.file_path for file in files if file.file_path]
+            document_ids = [file.document_id for file in files if file.document_id]
+
+            if not file_paths:
+                logger.warning(f"No valid file paths found for collection {self.document_store.collection_name}")
+                await self.document_store.load_documents([])
+                return
+
+            # Process and ingest documents
+            processed_documents = await self.collection_service.ingest_documents(
+                file_paths,
+                self.document_store.collection_name,
+                document_ids
+            )
+
+            logger.info(f"Loaded {len(processed_documents)} documents into collection: {self.document_store.collection_name}")
         except Exception as e:
             logger.error(f"Error loading documents: {e!s}")
             raise ConfigurationError("document_loading", f"Document loading failed: {e!s}") from e

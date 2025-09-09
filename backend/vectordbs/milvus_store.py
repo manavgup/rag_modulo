@@ -209,10 +209,10 @@ class MilvusStore(VectorStore):
                         # VARCHAR fields get empty string as default
                         "source": chunk.metadata.source.value if chunk.metadata else Source.OTHER.value,
                         # INT64 fields get 0 as default
-                        "page_number": chunk.metadata.page_number if chunk.metadata else 0,
-                        "chunk_number": chunk.metadata.chunk_number if chunk.metadata else 0,
-                        "start_index": chunk.metadata.start_index if chunk.metadata else 0,
-                        "end_index": chunk.metadata.end_index if chunk.metadata else 0,
+                        "page_number": chunk.metadata.page_number if chunk.metadata and chunk.metadata.page_number is not None else 0,
+                        "chunk_number": chunk.metadata.chunk_number if chunk.metadata and chunk.metadata.chunk_number is not None else 0,
+                        "start_index": chunk.metadata.start_index if chunk.metadata and chunk.metadata.start_index is not None else 0,
+                        "end_index": chunk.metadata.end_index if chunk.metadata and chunk.metadata.end_index is not None else 0,
                     }
                     data.append(chunk_data)
             collection.insert(data)
