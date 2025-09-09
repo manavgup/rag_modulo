@@ -100,7 +100,7 @@ class SearchService:
                 )
 
             # Initialize pipeline
-            await self.pipeline_service.initialize(collection.vector_db_name)
+            await self.pipeline_service.initialize(collection.vector_db_name, collection_id)
             return collection.vector_db_name
 
         except (NotFoundError, ConfigurationError):

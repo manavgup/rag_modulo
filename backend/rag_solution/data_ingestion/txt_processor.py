@@ -8,7 +8,6 @@ import aiofiles
 from core.config import Settings
 from core.custom_exceptions import DocumentProcessingError
 from rag_solution.data_ingestion.base_processor import BaseProcessor
-from rag_solution.doc_utils import get_document
 from vectordbs.data_types import Document
 
 logger = logging.getLogger(__name__)
@@ -45,8 +44,34 @@ class TxtProcessor(BaseProcessor):
                 text = await f.read()
                 chunks = self.chunking_method(text)
 
-                for chunk in chunks:
-                    yield get_document(name=os.path.basename(file_path), document_id=str(uuid.uuid4()), text=chunk)
+                # Create one document with all chunks
+                from rag_solution.doc_utils import get_embeddings
+                from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, Source
+
+                # Create chunk metadata for source information
+                chunk_metadata = DocumentChunkMetadata(source=Source.OTHER, document_id=_document_id)
+
+                # Create all chunks for this document
+                document_chunks = []
+                for chunk_text in chunks:
+                    chunk = DocumentChunk(
+                        chunk_id=str(uuid.uuid4()),
+                        text=chunk_text,
+                        embeddings=get_embeddings(chunk_text)[0],  # Extract first embedding from list
+                        document_id=_document_id,
+                        metadata=chunk_metadata,
+                    )
+                    document_chunks.append(chunk)
+
+                # Create one document with all chunks
+                document = Document(
+                    name=os.path.basename(file_path),
+                    document_id=_document_id,
+                    chunks=document_chunks,
+                    metadata=None,
+                )
+
+                yield document
         except Exception as e:
             logger.error(f"Error processing TXT file {file_path}: {e}", exc_info=True)
             raise DocumentProcessingError(

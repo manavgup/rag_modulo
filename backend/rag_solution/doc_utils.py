@@ -58,7 +58,7 @@ def get_document(name: str, document_id: str, text: str, metadata: dict | None =
             DocumentChunk(
                 chunk_id=str(uuid.uuid4()),
                 text=text,
-                vectors=get_embeddings(text)[0],  # Extract first embedding from list
+                embeddings=get_embeddings(text)[0],  # Extract first embedding from list
                 document_id=document_id,
                 metadata=chunk_metadata,
             )

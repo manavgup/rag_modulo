@@ -8,7 +8,7 @@ from pydantic import UUID4, SecretStr
 from sqlalchemy import Engine, text
 from sqlalchemy.orm import Session, sessionmaker
 
-from core.config import get_settings
+from core.config import Settings, get_settings
 from core.logging_utils import get_logger
 from rag_solution.schemas.llm_parameters_schema import LLMParametersOutput
 from rag_solution.schemas.llm_provider_schema import LLMProviderOutput
@@ -40,6 +40,7 @@ def user_service(db_session: Session, mock_settings) -> UserService:
 
 @pytest.fixture
 def user_team_service(db_session: Session, mock_settings) -> UserTeamService:
+    """Initialize UserTeamService."""
     return UserTeamService(db_session, mock_settings)
 
 
@@ -74,21 +75,79 @@ def prompt_template_service(db_session: Session, mock_settings) -> PromptTemplat
 
 
 @pytest.fixture(scope="session")
+def session_mock_settings() -> Settings:
+    """Create a session-scoped mocked settings object."""
+    import os
+    from unittest.mock import patch
+
+    mock_env_vars = {
+        "JWT_SECRET_KEY": "test-secret-key",
+        "RAG_LLM": "watsonx",
+        "WATSONX_APIKEY": "test-api-key",
+        "WATSONX_URL": "https://test.watsonx.ai",
+        "WATSONX_INSTANCE_ID": "test-instance-id",
+        "VECTOR_DB": "milvus",
+        "MILVUS_HOST": "milvus-standalone",
+        "MILVUS_PORT": "19530",
+        "PROJECT_NAME": "rag_modulo",
+        "EMBEDDING_MODEL": "sentence-transformers/all-MiniLM-L6-v2",
+        "MAX_NEW_TOKENS": "100",
+        "MIN_NEW_TOKENS": "10",
+        "TEMPERATURE": "0.7",
+        "TOP_K": "5",
+        "RANDOM_SEED": "42",
+    }
+
+    with patch.dict(os.environ, mock_env_vars, clear=True):
+        from core.config import Settings
+        return Settings()
+
+
+@pytest.fixture(scope="session")
 def collection_service(session_db: Session) -> CollectionService:
-    """Initialize CollectionService."""
-    settings = get_settings()
-    return CollectionService(session_db, settings)
+    """Initialize CollectionService with mocked vector store."""
+    from unittest.mock import Mock, patch
+
+    # Mock the vector store to avoid Milvus connection issues
+    mock_vector_store = Mock()
+    mock_vector_store.create_collection.return_value = True
+    mock_vector_store.add_documents.return_value = True
+    mock_vector_store.retrieve_documents.return_value = []
+    mock_vector_store.delete_collection.return_value = True
+
+    with patch("rag_solution.services.collection_service.VectorStoreFactory") as mock_factory:
+        mock_factory.return_value.get_datastore.return_value = mock_vector_store
+        settings = get_settings()
+        return CollectionService(session_db, settings)
+
+
+@pytest.fixture(scope="session")
+def mock_pipeline_service():
+    """Mock PipelineService to avoid Milvus connection during user initialization."""
+    from unittest.mock import Mock, patch
+
+    # Mock the PipelineService
+    mock_pipeline = Mock()
+    mock_pipeline.create_collection.return_value = True
+    mock_pipeline.add_documents.return_value = True
+    mock_pipeline.retrieve_documents.return_value = []
+    mock_pipeline.delete_collection.return_value = True
+
+    with patch("rag_solution.services.pipeline_service.PipelineService") as mock_factory:
+        mock_factory.return_value = mock_pipeline
+        yield mock_pipeline
 
 
 @pytest.fixture(scope="session")
 def user_collection_service(session_db: Session, mock_settings) -> UserCollectionService:
+    """Initialize UserCollectionService."""
     return UserCollectionService(session_db, mock_settings)
 
 
-@pytest.fixture
-def file_service(db_session: Session, mock_settings) -> FileManagementService:
+@pytest.fixture(scope="session")
+def file_service(session_db: Session, session_mock_settings: Settings) -> FileManagementService:
     """Initialize FileManagementService."""
-    return FileManagementService(db_session, mock_settings)
+    return FileManagementService(session_db, session_mock_settings)
 
 
 @pytest.fixture
@@ -122,16 +181,14 @@ def team_service(session_db: Session) -> TeamService:
 def session_llm_provider_service(db_engine: Engine) -> LLMProviderService:
     """Session-scoped LLM provider service."""
     session = sessionmaker(bind=db_engine)()
-    settings = get_settings()
-    return LLMProviderService(session, settings)
+    return LLMProviderService(session)
 
 
 @pytest.fixture(scope="session")
 def session_llm_model_service(db_engine: Engine) -> LLMModelService:
     """Session-scoped LLM model service."""
     session = sessionmaker(bind=db_engine)()
-    settings = get_settings()
-    return LLMModelService(session, settings)
+    return LLMModelService(session)
 
 
 @pytest.fixture(scope="session")
@@ -265,7 +322,7 @@ def init_providers(
 
 
 @pytest.fixture(scope="session")
-def base_user(db_engine: Engine, ensure_watsonx_provider: LLMProviderOutput) -> UserOutput:
+def base_user(db_engine: Engine, ensure_watsonx_provider: LLMProviderOutput, mock_pipeline_service) -> UserOutput:
     """Create a test user once for the entire test session."""
     session = sessionmaker(bind=db_engine)()
 
