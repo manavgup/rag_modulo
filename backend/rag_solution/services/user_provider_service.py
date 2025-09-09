@@ -1,3 +1,5 @@
+"""User provider service for managing user-specific LLM configurations."""
+
 from typing import Any
 
 from pydantic import UUID4
@@ -12,13 +14,15 @@ from rag_solution.schemas.llm_provider_schema import LLMProviderOutput
 from rag_solution.schemas.prompt_template_schema import PromptTemplateInput, PromptTemplateOutput, PromptTemplateType
 from rag_solution.services.llm_model_service import LLMModelService
 from rag_solution.services.llm_parameters_service import LLMParametersService
-from rag_solution.services.pipeline_service import PipelineService
+
+# from rag_solution.services.pipeline_service import PipelineService  # Lazy import to avoid circular dependency
 from rag_solution.services.prompt_template_service import PromptTemplateService
 
 logger = get_logger(__name__)
 
 
 class UserProviderService:
+    """Service for managing user-specific LLM provider configurations."""
     def __init__(self: Any, db: Session, settings: Settings) -> None:
         self.db = db
         self.settings = settings
@@ -27,6 +31,7 @@ class UserProviderService:
         self.llm_model_service = LLMModelService(db)
 
     def initialize_user_defaults(self, user_id: UUID4) -> tuple[LLMProviderOutput | None, list[PromptTemplateOutput], LLMParametersOutput | None]:
+        """Initialize default LLM configurations for a new user."""
         try:
             # Existing provider initialization
             provider = self.get_user_provider(user_id)
@@ -51,6 +56,7 @@ class UserProviderService:
             logger.info(f"Parameters initialized: {default_parameters.id}")
 
             # Initialize default pipeline
+            from rag_solution.services.pipeline_service import PipelineService
             pipeline_service = PipelineService(self.db, self.settings)
             pipeline_service.initialize_user_pipeline(user_id, provider.id)
 

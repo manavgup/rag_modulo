@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import UUID4, BaseModel, Field, SecretStr
+from pydantic import UUID4, BaseModel, Field, SecretStr, field_validator
 
 
 class LLMProviderInput(BaseModel):
@@ -46,6 +46,16 @@ class LLMProviderConfig(BaseModel):
     is_default: bool
     created_at: datetime
     updated_at: datetime
+
+    @field_validator("api_key", mode="before")
+    @classmethod
+    def convert_api_key_to_secret_str(cls, v):
+        """Convert string API key to SecretStr."""
+        if isinstance(v, str):
+            print(f"DEBUG: Converting API key '{v}' to SecretStr")
+            return SecretStr(v)
+        print(f"DEBUG: API key is not a string: {type(v)} = {v}")
+        return v
 
     class Config:
         from_attributes = True
