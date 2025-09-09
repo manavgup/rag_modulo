@@ -13,10 +13,10 @@ from rag_solution.services.llm_parameters_service import LLMParametersService
 logger = get_logger("tests.fixtures.llm")
 
 
-@pytest.fixture
-def provider_factory(db_session: Session) -> LLMProviderFactory:
+@pytest.fixture(scope="session")
+def provider_factory(session_db: Session) -> LLMProviderFactory:
     """Create a provider factory for testing."""
-    return LLMProviderFactory(db_session)
+    return LLMProviderFactory(session_db)
 
 
 @pytest.fixture(scope="session")
@@ -36,7 +36,7 @@ def base_llm_parameters(llm_parameters_service: LLMParametersService, base_user:
     return llm_parameters_service.create_parameters(params)
 
 
-@pytest.fixture
-def get_watsonx(llm_provider_factory: LLMProviderFactory) -> LLMBase:
+@pytest.fixture(scope="session")
+def get_watsonx(provider_factory: LLMProviderFactory) -> LLMBase:
     """Get WatsonX provider instance."""
-    return llm_provider_factory.get_provider("watsonx")
+    return provider_factory.get_provider("watsonx")

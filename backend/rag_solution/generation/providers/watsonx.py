@@ -42,7 +42,11 @@ class WatsonXLLM(LLMBase):
 
             try:
                 # Convert Pydantic model fields to strings for IBM client
-                credentials = Credentials(api_key=self._provider.api_key.get_secret_value(), url=str(self._provider.base_url))
+                api_key_value = self._provider.api_key.get_secret_value()
+                logger.debug(f"DEBUG: API key type: {type(self._provider.api_key)}")
+                logger.debug(f"DEBUG: API key value: '{api_key_value}'")
+                logger.debug(f"DEBUG: API key length: {len(api_key_value) if api_key_value else 'None'}")
+                credentials = Credentials(api_key=api_key_value, url=str(self._provider.base_url))
                 logger.debug("Created IBM credentials")
 
                 self.client = APIClient(project_id=str(self._provider.project_id), credentials=credentials)
