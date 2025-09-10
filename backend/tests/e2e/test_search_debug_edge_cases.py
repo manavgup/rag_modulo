@@ -109,9 +109,7 @@ def test_llm_config(test_db: Session, base_user: UserOutput) -> dict[str, Any]:
     if existing_provider:
         provider = existing_provider
     else:
-        provider = LLMProvider(
-            name="watsonx", base_url="https://api.test.com", api_key="test-key", is_default=True, is_active=True
-        )
+        provider = LLMProvider(name="watsonx", base_url="https://api.test.com", api_key="test-key", is_default=True, is_active=True)
         test_db.add(provider)
     test_db.commit()
 
@@ -221,10 +219,7 @@ class TestSearchCoreFunctionality:
         if response.status_code == 500:
             error_detail = response.json().get("detail", "")
             # Expected errors in red phase: Milvus connection, LLM initialization, etc.
-            assert any(
-                error in error_detail
-                for error in ["Failed to connect to Milvus", "Failed to initialize LLM", "Error processing search"]
-            ), f"Unexpected error: {error_detail}"
+            assert any(error in error_detail for error in ["Failed to connect to Milvus", "Failed to initialize LLM", "Error processing search"]), f"Unexpected error: {error_detail}"
             return  # This is expected in the red phase
 
         # If we get here, the test is in the green phase (functionality implemented)
@@ -325,9 +320,7 @@ class TestSearchCoreFunctionality:
                 assert isinstance(result["score"], int | float), "Score should be numeric"
                 assert 0.0 <= result["score"] <= 1.0, "Score should be between 0 and 1"
 
-    def test_search_llm_generation_with_context(
-        self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig
-    ) -> None:
+    def test_search_llm_generation_with_context(self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig) -> None:
         """Test that LLM generation works with proper context from documents."""
         # Update pipeline config to use the test collection
         test_pipeline_config.collection_id = base_collection.id
@@ -362,9 +355,7 @@ class TestSearchCoreFunctionality:
         is_not_generic = not any(generic in answer_lower for generic in generic_responses)
         assert is_not_generic, f"Answer should not be generic: {answer}"
 
-    def test_search_results_format_consistency(
-        self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig
-    ) -> None:
+    def test_search_results_format_consistency(self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig) -> None:
         """Test that search results maintain consistent format across different queries."""
         # Update pipeline config to use the test collection
         test_pipeline_config.collection_id = base_collection.id
@@ -401,16 +392,10 @@ class TestSearchCoreFunctionality:
             assert isinstance(data["answer"], str), f"Answer should be string for query: {query}"
             assert isinstance(data["documents"], list), f"Documents should be list for query: {query}"
             assert isinstance(data["query_results"], list), f"Query results should be list for query: {query}"
-            assert isinstance(
-                data["rewritten_query"], str | type(None)
-            ), f"Rewritten query should be string or None for query: {query}"
-            assert isinstance(
-                data["evaluation"], dict | type(None)
-            ), f"Evaluation should be dict or None for query: {query}"
+            assert isinstance(data["rewritten_query"], str | type(None)), f"Rewritten query should be string or None for query: {query}"
+            assert isinstance(data["evaluation"], dict | type(None)), f"Evaluation should be dict or None for query: {query}"
 
-    def test_search_with_different_query_types(
-        self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig
-    ) -> None:
+    def test_search_with_different_query_types(self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig) -> None:
         """Test search with different types of queries to verify robustness."""
         # Update pipeline config to use the test collection
         test_pipeline_config.collection_id = base_collection.id
@@ -453,9 +438,7 @@ class TestSearchCoreFunctionality:
             assert len(data["query_results"]) > 0, f"No query results for query: {query}"
             assert len(data["documents"]) > 0, f"No documents returned for query: {query}"
 
-    def test_search_pipeline_execution_flow(
-        self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig
-    ) -> None:
+    def test_search_pipeline_execution_flow(self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig) -> None:
         """Test that the complete search pipeline executes correctly."""
         # Update pipeline config to use the test collection
         test_pipeline_config.collection_id = base_collection.id
@@ -487,9 +470,7 @@ class TestSearchCoreFunctionality:
                 if metric in data["evaluation"]:
                     assert isinstance(data["evaluation"][metric], int | float), f"Metric {metric} should be numeric"
 
-    def test_search_with_config_metadata(
-        self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig
-    ) -> None:
+    def test_search_with_config_metadata(self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig) -> None:
         """Test search with additional configuration metadata."""
         # Update pipeline config to use the test collection
         test_pipeline_config.collection_id = base_collection.id
@@ -517,9 +498,7 @@ class TestSearchCoreFunctionality:
         answer_length = len(data["answer"])
         assert answer_length > 20, "Answer should be detailed given high detail level config"
 
-    def test_search_vector_store_integration(
-        self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig
-    ) -> None:
+    def test_search_vector_store_integration(self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig) -> None:
         """Test that search properly integrates with vector store for document retrieval."""
         # Update pipeline config to use the test collection
         test_pipeline_config.collection_id = base_collection.id
@@ -554,9 +533,7 @@ class TestSearchCoreFunctionality:
             assert "content" in result, "Query results should include content"
             assert len(result["content"]) > 0, "Content should not be empty"
 
-    def test_search_llm_provider_integration(
-        self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig
-    ) -> None:
+    def test_search_llm_provider_integration(self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig) -> None:
         """Test that search properly integrates with LLM provider for answer generation."""
         # Update pipeline config to use the test collection
         test_pipeline_config.collection_id = base_collection.id
@@ -590,9 +567,7 @@ class TestSearchCoreFunctionality:
         has_document_reference = any(ref in answer_lower for ref in document_references)
         assert has_document_reference, f"Answer should reference documents: {answer}"
 
-    def test_search_response_time_performance(
-        self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig
-    ) -> None:
+    def test_search_response_time_performance(self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig) -> None:
         """Test that search responses are returned within reasonable time."""
         # Update pipeline config to use the test collection
         test_pipeline_config.collection_id = base_collection.id
@@ -623,9 +598,7 @@ class TestSearchCoreFunctionality:
             assert isinstance(recorded_time, int | float), "Response time should be numeric"
             assert recorded_time > 0, "Response time should be positive"
 
-    def test_search_with_multiple_documents_retrieval(
-        self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig
-    ) -> None:
+    def test_search_with_multiple_documents_retrieval(self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig) -> None:
         """Test that search can retrieve and process multiple documents."""
         # Update pipeline config to use the test collection
         test_pipeline_config.collection_id = base_collection.id
@@ -662,9 +635,7 @@ class TestSearchCoreFunctionality:
 class TestSearchCollectionSelection:
     """Test collection selection functionality."""
 
-    def test_search_uses_correct_collection(
-        self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig
-    ) -> None:
+    def test_search_uses_correct_collection(self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig) -> None:
         """Test that search uses the correct collection when multiple collections exist."""
         # Create another collection to test selection
         Collection(name="other-collection", vector_db_name="other_collection", status="CREATED")
@@ -696,9 +667,7 @@ class TestSearchCollectionSelection:
 
         # Verify all returned documents belong to the correct collection
         for doc in data["documents"]:
-            assert doc["collection_id"] == str(
-                base_collection.id
-            ), "All documents should belong to the specified collection"
+            assert doc["collection_id"] == str(base_collection.id), "All documents should belong to the specified collection"
 
     def test_search_with_invalid_collection_id(self, client: TestClient) -> None:
         """Test search with non-existent collection ID."""
@@ -739,9 +708,7 @@ class TestSearchCollectionSelection:
 class TestSearchDocumentRetrieval:
     """Test document retrieval and indexing functionality."""
 
-    def test_search_with_documents_in_collection(
-        self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig
-    ) -> None:
+    def test_search_with_documents_in_collection(self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig) -> None:
         """Test search when collection has properly indexed documents."""
         # Update pipeline config to use the test collection
         test_pipeline_config.collection_id = base_collection.id
@@ -781,9 +748,7 @@ class TestSearchDocumentRetrieval:
             assert isinstance(result["score"], int | float)
             assert result["score"] >= 0.0  # Similarity scores should be non-negative
 
-    def test_search_with_empty_collection(
-        self, client: TestClient, test_empty_collection: Collection, test_pipeline_config: PipelineConfig
-    ) -> None:
+    def test_search_with_empty_collection(self, client: TestClient, test_empty_collection: Collection, test_pipeline_config: PipelineConfig) -> None:
         """Test search when collection exists but has no documents."""
         # Update pipeline config to use the empty collection
         test_pipeline_config.collection_id = test_empty_collection.id
@@ -814,9 +779,7 @@ class TestSearchDocumentRetrieval:
             data = response.json()
             assert "empty" in data["detail"].lower() or "no documents" in data["detail"].lower()
 
-    def test_search_document_indexing_verification(
-        self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig
-    ) -> None:
+    def test_search_document_indexing_verification(self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig) -> None:
         """Test that documents are properly indexed in vector store."""
         # Update pipeline config to use the test collection
         test_pipeline_config.collection_id = base_collection.id
@@ -850,9 +813,7 @@ class TestSearchDocumentRetrieval:
 class TestSearchResultsDisplay:
     """Test search results display and UI formatting."""
 
-    def test_search_results_display_format(
-        self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig
-    ) -> None:
+    def test_search_results_display_format(self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig) -> None:
         """Test that search results are properly formatted for UI display."""
         # Update pipeline config to use the test collection
         test_pipeline_config.collection_id = base_collection.id
@@ -893,9 +854,7 @@ class TestSearchResultsDisplay:
             for field in required_result_fields:
                 assert field in result, f"Missing required query result field: {field}"
 
-    def test_search_results_with_rewritten_query(
-        self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig
-    ) -> None:
+    def test_search_results_with_rewritten_query(self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig) -> None:
         """Test that search results include rewritten query when applicable."""
         # Update pipeline config to use the test collection
         test_pipeline_config.collection_id = base_collection.id
@@ -925,9 +884,7 @@ class TestSearchResultsDisplay:
         # This is a basic check - in practice, the rewriting might be more sophisticated
         assert rewritten != original, "Rewritten query should be different from original"
 
-    def test_search_results_evaluation_metrics(
-        self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig
-    ) -> None:
+    def test_search_results_evaluation_metrics(self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig) -> None:
         """Test that search results include evaluation metrics."""
         # Update pipeline config to use the test collection
         test_pipeline_config.collection_id = base_collection.id
@@ -961,9 +918,7 @@ class TestSearchResultsDisplay:
 class TestSearchErrorHandling:
     """Test error handling and edge cases."""
 
-    def test_search_with_malformed_queries(
-        self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig
-    ) -> None:
+    def test_search_with_malformed_queries(self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig) -> None:
         """Test search with various malformed queries."""
         # Update pipeline config to use the test collection
         test_pipeline_config.collection_id = base_collection.id
@@ -1030,9 +985,7 @@ class TestSearchErrorHandling:
         data = response.json()
         assert "pipeline" in data["detail"].lower() or "configuration" in data["detail"].lower()
 
-    def test_search_with_invalid_user_id(
-        self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig
-    ) -> None:
+    def test_search_with_invalid_user_id(self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig) -> None:
         """Test search with invalid user ID."""
         # Update pipeline config to use the test collection
         test_pipeline_config.collection_id = base_collection.id
@@ -1078,9 +1031,7 @@ class TestSearchErrorHandling:
 class TestSearchPerformanceAndReliability:
     """Test search performance and reliability edge cases."""
 
-    def test_search_timeout_handling(
-        self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig
-    ) -> None:
+    def test_search_timeout_handling(self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig) -> None:
         """Test search timeout handling."""
         # Update pipeline config to use the test collection
         test_pipeline_config.collection_id = base_collection.id
@@ -1103,9 +1054,7 @@ class TestSearchPerformanceAndReliability:
             data = response.json()
             assert "timeout" in data["detail"].lower() or "time" in data["detail"].lower()
 
-    def test_search_concurrent_requests(
-        self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig
-    ) -> None:
+    def test_search_concurrent_requests(self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig) -> None:
         """Test search with concurrent requests."""
         # Update pipeline config to use the test collection
         test_pipeline_config.collection_id = base_collection.id
@@ -1372,9 +1321,7 @@ class TestSearchErrorHandlingValidation:
             assert "query_results" in data
             assert len(data["query_results"]) == 0  # No documents found
 
-    def test_invalid_collection_id_returns_404(
-        self, client: TestClient, test_pipeline_config: PipelineConfig, base_user: UserOutput
-    ) -> None:
+    def test_invalid_collection_id_returns_404(self, client: TestClient, test_pipeline_config: PipelineConfig, base_user: UserOutput) -> None:
         """Test that invalid collection ID returns 404."""
         invalid_collection_id = str(uuid4())
 
@@ -1447,9 +1394,7 @@ class TestSearchErrorHandlingValidation:
 class TestSearchEdgeCases:
     """Test edge cases for search functionality - Issue #160 specific debugging scenarios."""
 
-    def test_search_with_empty_collection(
-        self, client: TestClient, test_empty_collection: Collection, test_pipeline_config: PipelineConfig
-    ) -> None:
+    def test_search_with_empty_collection(self, client: TestClient, test_empty_collection: Collection, test_pipeline_config: PipelineConfig) -> None:
         """Test search with empty collection - Issue #160: Document Retrieval edge case."""
         # Update pipeline config to use the empty collection
         test_pipeline_config.collection_id = test_empty_collection.id
@@ -1467,10 +1412,7 @@ class TestSearchEdgeCases:
         # TDD Red Phase: Currently expecting failure until we implement the functionality
         if response.status_code == 500:
             error_detail = response.json().get("detail", "")
-            assert any(
-                error in error_detail
-                for error in ["Failed to connect to Milvus", "Failed to initialize LLM", "Error processing search"]
-            ), f"Unexpected error: {error_detail}"
+            assert any(error in error_detail for error in ["Failed to connect to Milvus", "Failed to initialize LLM", "Error processing search"]), f"Unexpected error: {error_detail}"
             return  # This is expected in the red phase
 
         # If we get here, the test is in the green phase (functionality implemented)
@@ -1492,9 +1434,7 @@ class TestSearchEdgeCases:
         # Answer should indicate no results found
         assert isinstance(data["answer"], str), "Answer should be a string"
         assert len(data["answer"].strip()) > 0, "Answer should not be empty"
-        assert (
-            "no documents" in data["answer"].lower() or "no results" in data["answer"].lower()
-        ), "Answer should indicate no results found"
+        assert "no documents" in data["answer"].lower() or "no results" in data["answer"].lower(), "Answer should indicate no results found"
 
     def test_search_with_invalid_collection_id(self, client: TestClient, test_pipeline_config: PipelineConfig) -> None:
         """Test search with invalid collection ID - Issue #160: Collection Selection edge case."""
@@ -1517,13 +1457,9 @@ class TestSearchEdgeCases:
         # Should have clear error message about collection not found
         assert "detail" in data, "Response should contain error detail"
         error_message = data["detail"].lower()
-        assert "collection" in error_message and (
-            "not found" in error_message or "invalid" in error_message
-        ), f"Error message should mention collection not found: {error_message}"
+        assert "collection" in error_message and ("not found" in error_message or "invalid" in error_message), f"Error message should mention collection not found: {error_message}"
 
-    def test_search_with_malformed_query(
-        self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig
-    ) -> None:
+    def test_search_with_malformed_query(self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig) -> None:
         """Test search with malformed or empty query - Issue #160: Error Handling edge case."""
         # Update pipeline config to use the test collection
         test_pipeline_config.collection_id = base_collection.id
@@ -1544,13 +1480,9 @@ class TestSearchEdgeCases:
         data = response.json()
         assert "detail" in data, "Response should contain error detail"
         error_message = data["detail"].lower()
-        assert "question" in error_message and (
-            "empty" in error_message or "required" in error_message
-        ), f"Error message should mention empty question: {error_message}"
+        assert "question" in error_message and ("empty" in error_message or "required" in error_message), f"Error message should mention empty question: {error_message}"
 
-    def test_search_with_very_long_query(
-        self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig
-    ) -> None:
+    def test_search_with_very_long_query(self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig) -> None:
         """Test search with very long query - Issue #160: Error Handling edge case."""
         # Update pipeline config to use the test collection
         test_pipeline_config.collection_id = base_collection.id
@@ -1581,9 +1513,7 @@ class TestSearchEdgeCases:
             data = response.json()
             assert "detail" in data, "Response should contain error detail"
 
-    def test_search_with_special_characters_in_query(
-        self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig
-    ) -> None:
+    def test_search_with_special_characters_in_query(self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig) -> None:
         """Test search with special characters in query - Issue #160: Error Handling edge case."""
         # Update pipeline config to use the test collection
         test_pipeline_config.collection_id = base_collection.id
@@ -1601,17 +1531,13 @@ class TestSearchEdgeCases:
         response = client.post("/api/search", json=search_input)
 
         # Expected behavior: Should handle special characters gracefully
-        assert (
-            response.status_code == 200
-        ), f"Expected 200 for special characters, got {response.status_code}: {response.text}"
+        assert response.status_code == 200, f"Expected 200 for special characters, got {response.status_code}: {response.text}"
 
         data = response.json()
         assert "answer" in data, "Response should contain 'answer' field"
         assert "query_results" in data, "Response should contain 'query_results' field"
 
-    def test_search_with_unicode_characters_in_query(
-        self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig
-    ) -> None:
+    def test_search_with_unicode_characters_in_query(self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig) -> None:
         """Test search with Unicode characters in query - Issue #160: Error Handling edge case."""
         # Update pipeline config to use the test collection
         test_pipeline_config.collection_id = base_collection.id
@@ -1629,17 +1555,13 @@ class TestSearchEdgeCases:
         response = client.post("/api/search", json=search_input)
 
         # Expected behavior: Should handle Unicode characters gracefully
-        assert (
-            response.status_code == 200
-        ), f"Expected 200 for Unicode characters, got {response.status_code}: {response.text}"
+        assert response.status_code == 200, f"Expected 200 for Unicode characters, got {response.status_code}: {response.text}"
 
         data = response.json()
         assert "answer" in data, "Response should contain 'answer' field"
         assert "query_results" in data, "Response should contain 'query_results' field"
 
-    def test_search_with_sql_injection_attempt(
-        self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig
-    ) -> None:
+    def test_search_with_sql_injection_attempt(self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig) -> None:
         """Test search with SQL injection attempt - Issue #160: Error Handling edge case."""
         # Update pipeline config to use the test collection
         test_pipeline_config.collection_id = base_collection.id
@@ -1657,18 +1579,14 @@ class TestSearchEdgeCases:
         response = client.post("/api/search", json=search_input)
 
         # Expected behavior: Should handle SQL injection attempt safely
-        assert (
-            response.status_code == 200
-        ), f"Expected 200 for SQL injection attempt, got {response.status_code}: {response.text}"
+        assert response.status_code == 200, f"Expected 200 for SQL injection attempt, got {response.status_code}: {response.text}"
 
         data = response.json()
         assert "answer" in data, "Response should contain 'answer' field"
         # Should not execute SQL injection
         assert "DROP TABLE" not in data["answer"], "Should not execute SQL injection"
 
-    def test_search_with_xss_attempt(
-        self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig
-    ) -> None:
+    def test_search_with_xss_attempt(self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig) -> None:
         """Test search with XSS attempt - Issue #160: Error Handling edge case."""
         # Update pipeline config to use the test collection
         test_pipeline_config.collection_id = base_collection.id
@@ -1693,9 +1611,7 @@ class TestSearchEdgeCases:
         # Should not execute XSS
         assert "<script>" not in data["answer"], "Should not execute XSS"
 
-    def test_search_with_very_short_query(
-        self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig
-    ) -> None:
+    def test_search_with_very_short_query(self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig) -> None:
         """Test search with very short query - Issue #160: Error Handling edge case."""
         # Update pipeline config to use the test collection
         test_pipeline_config.collection_id = base_collection.id
@@ -1719,9 +1635,7 @@ class TestSearchEdgeCases:
         assert "answer" in data, "Response should contain 'answer' field"
         assert "query_results" in data, "Response should contain 'query_results' field"
 
-    def test_search_with_numeric_query(
-        self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig
-    ) -> None:
+    def test_search_with_numeric_query(self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig) -> None:
         """Test search with numeric query - Issue #160: Error Handling edge case."""
         # Update pipeline config to use the test collection
         test_pipeline_config.collection_id = base_collection.id
@@ -1739,17 +1653,13 @@ class TestSearchEdgeCases:
         response = client.post("/api/search", json=search_input)
 
         # Expected behavior: Should handle numeric query gracefully
-        assert (
-            response.status_code == 200
-        ), f"Expected 200 for numeric query, got {response.status_code}: {response.text}"
+        assert response.status_code == 200, f"Expected 200 for numeric query, got {response.status_code}: {response.text}"
 
         data = response.json()
         assert "answer" in data, "Response should contain 'answer' field"
         assert "query_results" in data, "Response should contain 'query_results' field"
 
-    def test_search_with_whitespace_only_query(
-        self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig
-    ) -> None:
+    def test_search_with_whitespace_only_query(self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig) -> None:
         """Test search with whitespace-only query - Issue #160: Error Handling edge case."""
         # Update pipeline config to use the test collection
         test_pipeline_config.collection_id = base_collection.id
@@ -1767,20 +1677,14 @@ class TestSearchEdgeCases:
         response = client.post("/api/search", json=search_input)
 
         # Expected behavior: Should return 400 with validation error
-        assert (
-            response.status_code == 400
-        ), f"Expected 400 for whitespace-only query, got {response.status_code}: {response.text}"
+        assert response.status_code == 400, f"Expected 400 for whitespace-only query, got {response.status_code}: {response.text}"
 
         data = response.json()
         assert "detail" in data, "Response should contain error detail"
         error_message = data["detail"].lower()
-        assert "question" in error_message and (
-            "empty" in error_message or "required" in error_message
-        ), f"Error message should mention empty question: {error_message}"
+        assert "question" in error_message and ("empty" in error_message or "required" in error_message), f"Error message should mention empty question: {error_message}"
 
-    def test_search_results_display_formatting(
-        self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig
-    ) -> None:
+    def test_search_results_display_formatting(self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig) -> None:
         """Test search results display formatting - Issue #160: Search Results Display edge case."""
         # Update pipeline config to use the test collection
         test_pipeline_config.collection_id = base_collection.id
@@ -1827,9 +1731,7 @@ class TestSearchEdgeCases:
             assert "score" in result, "Query result should have score field"
             assert "metadata" in result, "Query result should have metadata field"
 
-    def test_search_document_indexing_verification(
-        self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig
-    ) -> None:
+    def test_search_document_indexing_verification(self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig) -> None:
         """Test document indexing verification - Issue #160: Document Retrieval edge case."""
         # Update pipeline config to use the test collection
         test_pipeline_config.collection_id = base_collection.id
@@ -1867,9 +1769,7 @@ class TestSearchEdgeCases:
             assert "source" in result["metadata"], "Metadata should contain source"
             assert "document_id" in result["metadata"], "Metadata should contain document_id"
 
-    def test_search_collection_selection_validation(
-        self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig
-    ) -> None:
+    def test_search_collection_selection_validation(self, client: TestClient, base_collection: CollectionOutput, test_pipeline_config: PipelineConfig) -> None:
         """Test collection selection validation - Issue #160: Collection Selection edge case."""
         # Update pipeline config to use the test collection
         test_pipeline_config.collection_id = base_collection.id
@@ -1897,9 +1797,7 @@ class TestSearchEdgeCases:
         for doc in data["documents"]:
             assert "metadata" in doc, "Document should have metadata"
             # The metadata should indicate the correct collection
-            assert doc["metadata"]["collection_id"] == str(
-                base_collection.id
-            ), "Document should come from the correct collection"
+            assert doc["metadata"]["collection_id"] == str(base_collection.id), "Document should come from the correct collection"
 
     def test_search_error_message_quality(self, client: TestClient, test_pipeline_config: PipelineConfig) -> None:
         """Test error message quality - Issue #160: Error Handling edge case."""
@@ -1927,9 +1825,7 @@ class TestSearchEdgeCases:
 
         # Error message should be clear and actionable
         assert "collection" in error_message.lower(), "Error message should mention collection"
-        assert (
-            "not found" in error_message.lower() or "invalid" in error_message.lower()
-        ), "Error message should indicate collection not found"
+        assert "not found" in error_message.lower() or "invalid" in error_message.lower(), "Error message should indicate collection not found"
 
         # Error message should not be generic
         generic_errors = ["internal error", "something went wrong", "error occurred"]

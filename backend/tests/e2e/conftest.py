@@ -43,12 +43,7 @@ def base_user_e2e(full_database_setup, full_llm_provider_setup):
     """Create a test user for E2E tests."""
     # This would create a real user in the database
     # For now, we'll use a mock
-    return {
-        "id": 1,
-        "email": "e2e-test@example.com",
-        "name": "E2E Test User",
-        "role": "user"
-    }
+    return {"id": 1, "email": "e2e-test@example.com", "name": "E2E Test User", "role": "user"}
 
 
 @pytest.fixture(scope="session")
@@ -56,12 +51,7 @@ def base_collection_e2e(full_database_setup, base_user_e2e):
     """Create a test collection for E2E tests."""
     # This would create a real collection in the database
     # For now, we'll use a mock
-    return {
-        "id": 1,
-        "name": "E2E Test Collection",
-        "description": "A collection for E2E testing",
-        "user_id": base_user_e2e["id"]
-    }
+    return {"id": 1, "name": "E2E Test Collection", "description": "A collection for E2E testing", "user_id": base_user_e2e["id"]}
 
 
 @pytest.fixture(scope="session")
@@ -69,12 +59,7 @@ def base_team_e2e(full_database_setup, base_user_e2e):
     """Create a test team for E2E tests."""
     # This would create a real team in the database
     # For now, we'll use a mock
-    return {
-        "id": 1,
-        "name": "E2E Test Team",
-        "description": "A team for E2E testing",
-        "user_id": base_user_e2e["id"]
-    }
+    return {"id": 1, "name": "E2E Test Team", "description": "A team for E2E testing", "user_id": base_user_e2e["id"]}
 
 
 @pytest.fixture

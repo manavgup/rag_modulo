@@ -371,7 +371,6 @@ class TestPreCommitHooksIntegration:
         # From the .pre-commit-config.yaml we saw:
         expected_local_hooks = ["validate-ci-locally", "python-poetry-check", "validate-ci-environment-fixes", "check-test-isolation"]
 
-
         assert "local_hooks_found" in result
         assert "scripts_exist" in result
         assert "executable_permissions" in result

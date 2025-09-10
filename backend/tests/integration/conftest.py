@@ -23,22 +23,13 @@ def test_database_url():
 @pytest.fixture(scope="session")
 def test_milvus_config():
     """Provide test Milvus configuration for integration tests."""
-    return {
-        "host": "localhost",
-        "port": 19530,
-        "collection_name": "test_collection"
-    }
+    return {"host": "localhost", "port": 19530, "collection_name": "test_collection"}
 
 
 @pytest.fixture(scope="session")
 def test_minio_config():
     """Provide test MinIO configuration for integration tests."""
-    return {
-        "endpoint": "localhost:9000",
-        "access_key": "test",
-        "secret_key": "test123",
-        "bucket": "test-bucket"
-    }
+    return {"endpoint": "localhost:9000", "access_key": "test", "secret_key": "test123", "bucket": "test-bucket"}
 
 
 @pytest.fixture

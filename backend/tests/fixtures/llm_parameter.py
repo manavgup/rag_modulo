@@ -41,23 +41,6 @@ def custom_llm_parameters_input() -> LLMParametersInput:
     )
 
 
-@pytest.fixture(scope="session")
-def base_llm_parameters(base_user: UserOutput, session_llm_parameters_service: LLMParametersService) -> LLMParametersOutput:
-    # Create parameters with the correct user_id
-    params_input = LLMParametersInput(
-        user_id=base_user.id,
-        name="Test Default Parameters",
-        description="Default parameters for testing",
-        max_new_tokens=100,
-        temperature=0.7,
-        top_k=50,
-        top_p=1.0,
-        repetition_penalty=1.1,
-        is_default=True,
-    )
-    return session_llm_parameters_service.create_parameters(params_input)
-
-
 @pytest.fixture
 def custom_llm_parameters(base_user: UserOutput, session_llm_parameters_service: LLMParametersService) -> LLMParametersOutput:
     """Create custom LLM parameters in the database."""

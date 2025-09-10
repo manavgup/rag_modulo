@@ -63,7 +63,6 @@ class TestPreCommitHookEnforcementSystem:
             enforcer = PreCommitEnforcer()
             result = enforcer.check_hooks_installed()
 
-
             assert result["installed"] is True
             assert result["hook_file"].endswith("pre-commit")
             assert "pre-commit" in result.get("hook_type", "")

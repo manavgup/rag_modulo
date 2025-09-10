@@ -38,32 +38,19 @@ def isolated_test_env(mock_env_vars):
 @pytest.fixture
 def user_input_data() -> dict[str, Any]:
     """Create user input data for testing."""
-    return {
-        "email": "test@example.com",
-        "ibm_id": "test_user_123",
-        "name": "Test User",
-        "role": "user"
-    }
+    return {"email": "test@example.com", "ibm_id": "test_user_123", "name": "Test User", "role": "user"}
 
 
 @pytest.fixture
 def collection_input_data() -> dict[str, Any]:
     """Create collection input data for testing."""
-    return {
-        "name": "Test Collection",
-        "description": "A test collection",
-        "user_id": 1
-    }
+    return {"name": "Test Collection", "description": "A test collection", "user_id": 1}
 
 
 @pytest.fixture
 def team_input_data() -> dict[str, Any]:
     """Create team input data for testing."""
-    return {
-        "name": "Test Team",
-        "description": "A test team",
-        "user_id": 1
-    }
+    return {"name": "Test Team", "description": "A test team", "user_id": 1}
 
 
 @pytest.fixture

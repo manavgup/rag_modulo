@@ -34,22 +34,6 @@ def async_client() -> TestClient:
     return TestClient(app)
 
 
-@pytest.fixture(autouse=True)
-def mock_jwt_verification() -> Generator[None, Any, None]:
-    """Mock JWT verification."""
-
-    def mock_verify(token: str) -> dict[str, str]:
-        if token == "mock_token_for_testing" or token == TEST_JWT:
-            return TEST_USER
-        raise jwt.InvalidTokenError("Invalid token")
-
-    with (
-        patch("auth.oidc.verify_jwt_token", side_effect=mock_verify),
-        patch("core.authentication_middleware.verify_jwt_token", side_effect=mock_verify),
-    ):
-        yield
-
-
 @pytest.fixture
 def auth_headers() -> dict[str, str]:
     """Create authentication headers."""
