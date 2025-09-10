@@ -21,7 +21,6 @@ env/
 .CVS/
 
 # Ignore development and testing directories and files
-docs/
 coverage/
 *.log
 
