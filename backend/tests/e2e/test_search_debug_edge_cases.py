@@ -256,10 +256,10 @@ class TestSearchCoreFunctionality:
         client: TestClient,
         base_collection: CollectionOutput,
         test_pipeline_config: PipelineConfig,
-        base_user: UserOutput,
-        indexed_documents: str,
+        _base_user: UserOutput,
+        _indexed_documents: str,
         base_file: FileOutput,
-    ) -> None:  # noqa: ARG002
+    ) -> None:
         """Test that documents are properly ingested and indexed for search."""
 
         # Mock the get_embeddings function to avoid WatsonX API calls
