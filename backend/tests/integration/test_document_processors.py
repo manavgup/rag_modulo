@@ -4,7 +4,6 @@ import multiprocessing
 import os
 from collections.abc import Generator
 from datetime import datetime
-from pathlib import Path
 from typing import Any
 
 import pandas as pd  # type: ignore[import-untyped]
@@ -47,31 +46,6 @@ def sample_excel_path() -> Generator[str, None, None]:
 
     if os.path.exists(file_path):
         os.remove(file_path)
-
-
-@pytest.fixture(scope="function")
-def complex_test_pdf_path() -> Generator[Path, None, None]:
-    """Fixture to create a robust PDF file with multiple pages, tables and images."""
-    test_file = Path("/tmp/complex_test.pdf")
-
-    doc = pymupdf.open()
-
-    # Page 1: Text and Heading
-    page1 = doc.new_page()
-    page1.insert_text((100, 100), "This is a test document.")
-    page1.insert_text((100, 150), "Heading 1", fontsize=14)
-    page1.insert_text((100, 200), "This is some content under heading 1.")
-
-    # Add more pages and content as needed
-    # ... [Previous PDF creation code remains the same]
-
-    doc.save(test_file)
-    doc.close()
-
-    yield test_file
-
-    if test_file.exists():
-        test_file.unlink()
 
 
 # Base Test Class

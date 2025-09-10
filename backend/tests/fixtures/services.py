@@ -100,6 +100,7 @@ def session_mock_settings() -> Settings:
 
     with patch.dict(os.environ, mock_env_vars, clear=True):
         from core.config import Settings
+
         return Settings()
 
 

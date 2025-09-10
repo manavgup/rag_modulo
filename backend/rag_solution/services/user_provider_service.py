@@ -23,6 +23,7 @@ logger = get_logger(__name__)
 
 class UserProviderService:
     """Service for managing user-specific LLM provider configurations."""
+
     def __init__(self: Any, db: Session, settings: Settings) -> None:
         self.db = db
         self.settings = settings
@@ -57,6 +58,7 @@ class UserProviderService:
 
             # Initialize default pipeline
             from rag_solution.services.pipeline_service import PipelineService
+
             pipeline_service = PipelineService(self.db, self.settings)
             pipeline_service.initialize_user_pipeline(user_id, provider.id)
 

@@ -14,12 +14,7 @@ from rag_solution.schemas.user_schema import UserInput
 def test_user_input_validation(mock_env_vars, isolated_test_env):
     """Test user input validation without external dependencies."""
     # Valid user input
-    valid_user = UserInput(
-        email="test@example.com",
-        ibm_id="test_user_123",
-        name="Test User",
-        role="user"
-    )
+    valid_user = UserInput(email="test@example.com", ibm_id="test_user_123", name="Test User", role="user")
     assert valid_user.email == "test@example.com"
     assert valid_user.ibm_id == "test_user_123"
     assert valid_user.name == "Test User"
@@ -30,23 +25,14 @@ def test_user_input_validation(mock_env_vars, isolated_test_env):
 def test_user_input_invalid_email(mock_env_vars, isolated_test_env):
     """Test user input validation with invalid email."""
     with pytest.raises(ValidationError):
-        UserInput(
-            email="invalid-email",
-            ibm_id="test_user_123",
-            name="Test User",
-            role="user"
-        )
+        UserInput(email="invalid-email", ibm_id="test_user_123", name="Test User", role="user")
 
 
 @pytest.mark.atomic
 def test_collection_input_validation(mock_env_vars, isolated_test_env):
     """Test collection input validation without external dependencies."""
     # Valid collection input
-    valid_collection = CollectionInput(
-        name="Test Collection",
-        is_private=True,
-        users=[uuid4()]
-    )
+    valid_collection = CollectionInput(name="Test Collection", is_private=True, users=[uuid4()])
     assert valid_collection.name == "Test Collection"
     assert valid_collection.is_private is True
     assert len(valid_collection.users) == 1
@@ -57,10 +43,7 @@ def test_collection_input_validation(mock_env_vars, isolated_test_env):
 def test_team_input_validation(mock_env_vars, isolated_test_env):
     """Test team input validation without external dependencies."""
     # Valid team input
-    valid_team = TeamInput(
-        name="Test Team",
-        description="A test team"
-    )
+    valid_team = TeamInput(name="Test Team", description="A test team")
     assert valid_team.name == "Test Team"
     assert valid_team.description == "A test team"
 

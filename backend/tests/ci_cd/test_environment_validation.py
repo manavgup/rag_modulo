@@ -112,7 +112,6 @@ class TestEnvironmentValidationSystem:
             validator = EnvironmentValidator()
             result = validator.validate_required_vars()
 
-
             assert result["valid"] is True
             assert result["missing_vars"] == []
             assert result["invalid_vars"] == {}
@@ -210,7 +209,6 @@ class TestEnvironmentValidationSystem:
         with patch.dict(os.environ, test_env, clear=True):
             validator = EnvironmentValidator()
             result = validator.validate_service_configs()
-
 
             assert result["valid"] is True
             assert result["service_errors"] == {}

@@ -2,9 +2,7 @@ import multiprocessing
 import os
 import time
 from collections import Counter
-from collections.abc import Generator
 from datetime import datetime
-from pathlib import Path
 from typing import Any
 
 import pymupdf  # type: ignore[import-untyped]
@@ -13,97 +11,6 @@ import pytest
 from core.custom_exceptions import DocumentProcessingError
 from rag_solution.data_ingestion.pdf_processor import PdfProcessor
 from vectordbs.data_types import DocumentChunk, DocumentChunkMetadata, Source
-
-
-@pytest.fixture(scope="function")
-def complex_test_pdf_path() -> Generator[Path, None, None]:
-    """Fixture to create a robust PDF file with multiple pages, tables and images."""
-    test_file = Path("/tmp/complex_test.pdf")
-
-    # Create a PDF using PyMuPDF
-    doc = pymupdf.open()
-
-    # Page 1: Text and Heading
-    page1 = doc.new_page()
-    page1.insert_text((100, 100), "This is a test document.")
-    page1.insert_text((100, 150), "Heading 1", fontsize=14)
-    page1.insert_text((100, 200), "This is some content under heading 1.")
-
-    # Page 2: Table 1
-    page2 = doc.new_page()
-    page2.insert_text((100, 100), "Table 1", fontsize=14)
-
-    table_data = [
-        ["Header 1", "Header 2", "Header 3"],
-        ["Row 1, Col 1", "Row 1, Col 2", "Row 1, Col 3"],
-        ["Row 2, Col 1", "Row 2, Col 2", "Row 2, Col 3"],
-    ]
-
-    draw_table(page2, table_data, 150, 100, 133, 30)
-
-    # Page 3: Table 2 and Image
-    page3 = doc.new_page()
-    page3.insert_text((100, 100), "Table 2", fontsize=14)
-
-    table2_data = [
-        ["Header A", "Header B", "Header C"],
-        ["Row 1, Col A", "Row 1, Col B", "Row 1, Col C"],
-        ["Row 2, Col A", "Row 2, Col B", "Row 2, Col C"],
-    ]
-
-    draw_table(page3, table2_data, 150, 100, 133, 30)
-
-    # Add an image
-    img_rect = pymupdf.Rect(100, 300, 200, 400)
-    page3.insert_image(img_rect, filename="backend/tests/test_files/test_image.png")
-
-    # Page 4: Sparse table for validation testing
-    page4 = doc.new_page()
-    sparse_table_data = [["", ""], ["", ""], ["Single Data", ""]]
-    draw_table(page4, sparse_table_data, 150, 100, 133, 30)
-
-    # Page 5: Complex table layout
-    page5 = doc.new_page()
-    complex_table_data = [
-        ["Product", "Q1 Sales", "Q2 Sales", "Q3 Sales", "Q4 Sales"],
-        ["Widget A", "$1000", "$1200", "$1100", "$1300"],
-        ["Widget B", "$800", "$850", "$900", "$950"],
-        ["Widget C", "$1500", "$1600", "$1650", "$1700"],
-    ]
-    draw_table(page5, complex_table_data, 150, 100, 100, 30)
-
-    # Page 6: Grid-like text layout
-    page6 = doc.new_page()
-    grid_text = [
-        ["Item", "Price", "Quantity", "Total"],
-        ["Apple", "$1.00", "5", "$5.00"],
-        ["Orange", "$0.75", "8", "$6.00"],
-        ["Banana", "$0.50", "10", "$5.00"],
-    ]
-    for i, row in enumerate(grid_text):
-        for j, cell in enumerate(row):
-            page6.insert_text((100 + j * 100, 100 + i * 50), cell)
-
-    # Add metadata with creation and modification dates
-    doc.set_metadata(
-        {
-            "title": "Test PDF",
-            "author": "Pytest",
-            "subject": "Testing",
-            "keywords": "test,pdf,processing",
-            "creationDate": "D:20240113205000",
-            "modDate": "D:20240113205000",
-        }
-    )
-
-    doc.save(test_file)
-    doc.close()
-
-    yield test_file
-
-    # Cleanup
-    if test_file.exists():
-        test_file.unlink()
 
 
 def draw_table(page: Any, table_data: Any, top: Any, left: Any, col_width: Any, row_height: Any) -> None:
