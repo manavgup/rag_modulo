@@ -13,8 +13,8 @@ import pytest
 sys.path.append(str(Path(__file__).parent.parent / "atomic"))
 
 # Import fixtures from other layers
-from rag_solution.schemas.user_schema import UserOutput  # noqa: E402
-from tests.fixtures.auth import test_client as auth_test_client  # noqa: E402
+from rag_solution.schemas.user_schema import UserOutput
+from tests.fixtures.auth import test_client as auth_test_client
 
 
 @pytest.fixture
