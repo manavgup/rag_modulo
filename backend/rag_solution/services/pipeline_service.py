@@ -196,11 +196,7 @@ class PipelineService:
                 return
 
             # Process and ingest documents
-            processed_documents = await self.collection_service.ingest_documents(
-                file_paths,
-                self.document_store.collection_name,
-                document_ids
-            )
+            processed_documents = await self.collection_service.ingest_documents(file_paths, self.document_store.collection_name, document_ids)
 
             logger.info(f"Loaded {len(processed_documents)} documents into collection: {self.document_store.collection_name}")
         except Exception as e:

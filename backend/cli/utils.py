@@ -233,13 +233,13 @@ def load_test_queries(file_path: str) -> list[dict[str, Any]]:
         raise ValueError("Invalid test queries format. Expected list or dict with 'test_queries' key.")
 
 
-def validate_collection_access(collection_id: str, db: Any) -> bool:
+def validate_collection_access(collection_id: str, db: Any, settings: Any) -> bool:
     """Validate that collection exists and is accessible."""
 
     from rag_solution.services.collection_service import CollectionService
 
     try:
-        collection_service = CollectionService(db)
+        collection_service = CollectionService(db, settings)
         collection = collection_service.get_collection(uuid.UUID(collection_id))
         return collection is not None
     except Exception:

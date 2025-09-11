@@ -1,0 +1,18 @@
+# Fixture Migration Mapping
+# Update these imports in your test files:
+
+# complex_test_pdf_path
+# Old: from integration.test_document_processors import complex_test_pdf_path
+# New: from tests.fixtures import complex_test_pdf_path
+
+# mock_watsonx_imports
+# Old: from evaluation.test_evaluator import mock_watsonx_imports
+# New: from tests.fixtures import mock_watsonx_imports
+
+# base_llm_parameters
+# Old: from fixtures.llm_parameter import base_llm_parameters
+# New: from tests.fixtures import base_llm_parameters
+
+# mock_jwt_verification
+# Old: from e2e.test_auth_router import mock_jwt_verification
+# New: from tests.fixtures import mock_jwt_verification

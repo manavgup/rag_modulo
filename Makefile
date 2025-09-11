@@ -381,6 +381,42 @@ tests: validate-env run-backend create-test-dirs
 		--cov-report=xml:/app/test-reports/coverage/coverage.xml \
 		|| { echo "Tests failed"; $(MAKE) stop-containers; exit 1; }
 
+# NEW: Layered Testing Targets (Issue #187)
+test-atomic: venv
+	@echo "⚡ Running atomic tests (no coverage, no database, no reports)..."
+	cd backend && poetry run pytest -c pytest-atomic.ini tests/atomic/ -v
+
+test-unit-fast: venv
+	@echo "🏃 Running unit tests (mocked dependencies)..."
+	cd backend && poetry run pytest -c pytest-atomic.ini tests/unit/ -v
+
+test-integration: run-backend create-test-dirs
+	@echo "🔗 Running integration tests (testcontainers)..."
+	cd backend && poetry run pytest tests/integration/ -v
+
+test-e2e: run-backend create-test-dirs
+	@echo "🌐 Running E2E tests (full stack)..."
+	cd backend && poetry run pytest tests/e2e/ -v
+
+# Combined test targets
+test-fast: test-atomic test-unit-fast
+test-all: test-atomic test-unit-fast test-integration test-e2e
+
+# Code quality validation for tests
+test-lint: venv
+	@echo "🔍 Running code quality checks on test files..."
+	cd backend && poetry run ruff check tests/ --fix
+	cd backend && poetry run mypy tests/
+	cd backend && poetry run pylint tests/
+
+# Pre-commit validation
+test-validate: test-lint test-atomic
+	@echo "✅ All tests pass quality checks and run successfully"
+
+# Combined test targets with quality validation
+test-fast-validated: test-lint test-atomic test-unit-fast
+test-all-validated: test-lint test-atomic test-unit-fast test-integration test-e2e
+
 # Run - Local Development (default - uses local builds)
 run-app: build-all-local run-backend run-frontend
 	@echo "All application containers are now running with local images."
@@ -497,7 +533,7 @@ lint: lint-ruff lint-mypy lint-pylint
 
 lint-ruff: venv
 	@echo "$(CYAN)🔍 Running Ruff linter...$(NC)"
-	@cd backend && $(POETRY) run ruff check rag_solution/ tests/ --line-length 200
+	@cd backend && $(POETRY) run ruff check rag_solution/ tests/ --line-length=200 --config pyproject.toml
 	@echo "$(GREEN)✅ Ruff checks passed$(NC)"
 
 lint-mypy: venv
@@ -542,12 +578,12 @@ test-doctest:
 ## Import sorting targets
 format-imports: venv
 	@echo "$(CYAN)🔧 Sorting imports...$(NC)"
-	@cd backend && $(POETRY) run ruff check --select I --fix rag_solution/ tests/
+	@cd backend && $(POETRY) run ruff check --select I --fix rag_solution/ tests/ --config pyproject.toml
 	@echo "$(GREEN)✅ Import sorting completed$(NC)"
 
 check-imports: venv
 	@echo "$(CYAN)🔍 Checking import order...$(NC)"
-	@cd backend && $(POETRY) run ruff check --select I rag_solution/ tests/
+	@cd backend && $(POETRY) run ruff check --select I rag_solution/ tests/ --config pyproject.toml
 	@echo "$(GREEN)✅ Import check completed$(NC)"
 
 ## Formatting targets
@@ -556,14 +592,14 @@ format: format-ruff format-imports
 
 format-ruff: venv
 	@echo "$(CYAN)🔧 Running Ruff formatter...$(NC)"
-	@cd backend && $(POETRY) run ruff format rag_solution/ tests/ --line-length 200
-	@cd backend && $(POETRY) run ruff check --fix rag_solution/ tests/ --line-length 120
+	@cd backend && $(POETRY) run ruff format rag_solution/ tests/ --line-length=200 --config pyproject.toml
+	@cd backend && $(POETRY) run ruff check --fix rag_solution/ tests/ --line-length=200 --config pyproject.toml
 	@echo "$(GREEN)✅ Ruff formatting completed$(NC)"
 
 format-check: venv
 	@echo "$(CYAN)🔍 Checking code formatting...$(NC)"
-	@cd backend && $(POETRY) run ruff format --check rag_solution/ tests/ --line-length 200
-	@cd backend && $(POETRY) run ruff check rag_solution/ tests/ --line-length 200
+	@cd backend && $(POETRY) run ruff format --check rag_solution/ tests/ --line-length=200 --config pyproject.toml
+	@cd backend && $(POETRY) run ruff check rag_solution/ tests/ --line-length=200 --config pyproject.toml
 	@echo "$(GREEN)✅ Format check completed$(NC)"
 
 ## Pre-commit targets
