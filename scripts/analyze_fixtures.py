@@ -25,14 +25,14 @@ class FixtureAnalyzer:
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
-            
+
             tree = ast.parse(content)
-            
+
             for node in ast.walk(tree):
                 if isinstance(node, ast.FunctionDef):
                     if self._is_fixture(node):
                         self._extract_fixture_info(node, file_path)
-                        
+
         except Exception as e:
             print(f"Error analyzing {file_path}: {e}")
 
@@ -51,16 +51,16 @@ class FixtureAnalyzer:
     def _extract_fixture_info(self, node: ast.FunctionDef, file_path: Path) -> None:
         """Extract information about a fixture."""
         fixture_name = node.name
-        
+
         # Determine fixture type based on file location
         fixture_type = self._determine_fixture_type(file_path)
-        
+
         # Extract scope from decorators
         scope = self._extract_scope(node)
-        
+
         # Extract dependencies from function parameters
         dependencies = [arg.arg for arg in node.args.args if arg.arg != "self"]
-        
+
         # Store fixture information
         self.fixtures[fixture_name] = {
             "file": str(file_path.relative_to(self.test_dir)),
@@ -70,14 +70,14 @@ class FixtureAnalyzer:
             "line_number": node.lineno,
             "docstring": ast.get_docstring(node) or "",
         }
-        
+
         # Track duplicates
         self.duplicates[fixture_name].append(str(file_path.relative_to(self.test_dir)))
 
     def _determine_fixture_type(self, file_path: Path) -> str:
         """Determine fixture type based on file location."""
         path_parts = file_path.parts
-        
+
         if "atomic" in path_parts:
             return "atomic"
         elif "unit" in path_parts:
@@ -117,26 +117,26 @@ class FixtureAnalyzer:
         report.append("# Fixture Analysis Report")
         report.append("=" * 50)
         report.append("")
-        
+
         # Summary statistics
         total_fixtures = len(self.fixtures)
         duplicates = self.find_duplicates()
-        
+
         report.append(f"## Summary")
         report.append(f"- Total fixtures: {total_fixtures}")
         report.append(f"- Duplicate fixtures: {len(duplicates)}")
         report.append("")
-        
+
         # Fixture distribution by type
         type_distribution = defaultdict(int)
         for fixture_info in self.fixtures.values():
             type_distribution[fixture_info["type"]] += 1
-        
+
         report.append("## Fixture Distribution by Type")
         for fixture_type, count in sorted(type_distribution.items()):
             report.append(f"- {fixture_type}: {count}")
         report.append("")
-        
+
         # Duplicate fixtures
         if duplicates:
             report.append("## Duplicate Fixtures")
@@ -146,34 +146,34 @@ class FixtureAnalyzer:
                 for file_path in files:
                     report.append(f"- {file_path}")
                 report.append("")
-        
+
         # Fixtures by file
         file_fixtures = defaultdict(list)
         for fixture_name, fixture_info in self.fixtures.items():
             file_fixtures[fixture_info["file"]].append(fixture_name)
-        
+
         report.append("## Fixtures by File")
         for file_path, fixtures in sorted(file_fixtures.items()):
             report.append(f"### {file_path}")
             report.append(f"Fixtures ({len(fixtures)}): {', '.join(fixtures)}")
             report.append("")
-        
+
         return "\n".join(report)
 
     def export_fixture_mapping(self) -> Dict[str, Any]:
         """Export fixture mapping for migration planning."""
         duplicates = self.find_duplicates()
-        
+
         # Fixture distribution by type
         type_distribution = defaultdict(int)
         for fixture_info in self.fixtures.values():
             type_distribution[fixture_info["type"]] += 1
-        
+
         # Fixtures by file
         file_fixtures = defaultdict(list)
         for fixture_name, fixture_info in self.fixtures.items():
             file_fixtures[fixture_info["file"]].append(fixture_name)
-        
+
         return {
             "total_fixtures": len(self.fixtures),
             "duplicates": dict(duplicates),
@@ -190,16 +190,16 @@ def main(test_dir: str, output: str, export_json: str) -> None:
     """Analyze pytest fixtures across the test suite."""
     analyzer = FixtureAnalyzer(test_dir)
     analyzer.analyze_directory()
-    
+
     report = analyzer.generate_report()
-    
+
     if output:
         with open(output, "w") as f:
             f.write(report)
         print(f"Report written to {output}")
     else:
         print(report)
-    
+
     if export_json:
         mapping = analyzer.export_fixture_mapping()
         import json

@@ -164,11 +164,10 @@ async def auth(request: Request, db: Annotated[Session, Depends(get_db)], settin
             "role": db_user.role,
         }
         custom_jwt = jwt.encode(custom_jwt_payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
-        # PyJWT returns a string in newer versions, but ensure it's always a string
-        if isinstance(custom_jwt, bytes):
-            custom_jwt = custom_jwt.decode("utf-8")
+        # PyJWT always returns a string in modern versions, but ensure it's a string
+        custom_jwt_str = custom_jwt.decode("utf-8") if isinstance(custom_jwt, bytes) else str(custom_jwt)
 
-        redirect_url = f"{settings.frontend_url}{settings.frontend_callback}?token={custom_jwt}"
+        redirect_url = f"{settings.frontend_url}{settings.frontend_callback}?token={custom_jwt_str}"
         logger.info(f"Redirecting to frontend: {redirect_url}")
 
         return RedirectResponse(url=redirect_url)

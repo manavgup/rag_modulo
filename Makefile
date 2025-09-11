@@ -533,7 +533,7 @@ lint: lint-ruff lint-mypy lint-pylint
 
 lint-ruff: venv
 	@echo "$(CYAN)🔍 Running Ruff linter...$(NC)"
-	@cd backend && $(POETRY) run ruff check rag_solution/ tests/ --line-length 200
+	@cd backend && $(POETRY) run ruff check rag_solution/ tests/ --line-length=200 --config pyproject.toml
 	@echo "$(GREEN)✅ Ruff checks passed$(NC)"
 
 lint-mypy: venv
@@ -578,12 +578,12 @@ test-doctest:
 ## Import sorting targets
 format-imports: venv
 	@echo "$(CYAN)🔧 Sorting imports...$(NC)"
-	@cd backend && $(POETRY) run ruff check --select I --fix rag_solution/ tests/
+	@cd backend && $(POETRY) run ruff check --select I --fix rag_solution/ tests/ --config pyproject.toml
 	@echo "$(GREEN)✅ Import sorting completed$(NC)"
 
 check-imports: venv
 	@echo "$(CYAN)🔍 Checking import order...$(NC)"
-	@cd backend && $(POETRY) run ruff check --select I rag_solution/ tests/
+	@cd backend && $(POETRY) run ruff check --select I rag_solution/ tests/ --config pyproject.toml
 	@echo "$(GREEN)✅ Import check completed$(NC)"
 
 ## Formatting targets
@@ -592,14 +592,14 @@ format: format-ruff format-imports
 
 format-ruff: venv
 	@echo "$(CYAN)🔧 Running Ruff formatter...$(NC)"
-	@cd backend && $(POETRY) run ruff format rag_solution/ tests/ --line-length 200
-	@cd backend && $(POETRY) run ruff check --fix rag_solution/ tests/ --line-length 120
+	@cd backend && $(POETRY) run ruff format rag_solution/ tests/ --line-length=200 --config pyproject.toml
+	@cd backend && $(POETRY) run ruff check --fix rag_solution/ tests/ --line-length=200 --config pyproject.toml
 	@echo "$(GREEN)✅ Ruff formatting completed$(NC)"
 
 format-check: venv
 	@echo "$(CYAN)🔍 Checking code formatting...$(NC)"
-	@cd backend && $(POETRY) run ruff format --check rag_solution/ tests/ --line-length 200
-	@cd backend && $(POETRY) run ruff check rag_solution/ tests/ --line-length 200
+	@cd backend && $(POETRY) run ruff format --check rag_solution/ tests/ --line-length=200 --config pyproject.toml
+	@cd backend && $(POETRY) run ruff check rag_solution/ tests/ --line-length=200 --config pyproject.toml
 	@echo "$(GREEN)✅ Format check completed$(NC)"
 
 ## Pre-commit targets

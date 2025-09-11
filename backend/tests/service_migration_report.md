@@ -90,4 +90,3 @@
 - Original file: tests/service_backup/test_retriever.py
 - Test count: 4
 - Categories: {'atomic': 0, 'unit': 1, 'integration': 0, 'e2e': 0}
-

@@ -80,7 +80,7 @@ class HealthChecker:
                     time.sleep(retry_delay * (2**attempt))  # Exponential backoff
 
         # All attempts failed
-        return {"name": service_config["name"], "healthy": False, "error": str(last_error), "response_time": None, "status_code": None, "retry_attempts": attempts - 1}
+        return {"name": service_config["name"], "healthy": False, "error": str(last_error), "response_time": 0.0, "status_code": None, "retry_attempts": attempts - 1}
 
     def _check_http_service(self, service_config: dict[str, Any], timeout: int) -> dict[str, Any]:
         """Check HTTP service health."""
@@ -92,6 +92,8 @@ class HealthChecker:
             "healthy": 200 <= response.status_code < 400,
             "error": None if 200 <= response.status_code < 400 else f"HTTP {response.status_code}",
             "status_code": response.status_code,
+            "response_time": 0.0,  # Will be updated by caller
+            "retry_attempts": 0,  # Will be updated by caller
         }
 
     def _check_tcp_service(self, service_config: dict[str, Any], timeout: int) -> dict[str, Any]:
@@ -108,7 +110,14 @@ class HealthChecker:
         try:
             result = sock.connect_ex((host, port))
             healthy = result == 0
-            return {"name": service_config["name"], "healthy": healthy, "error": None if healthy else f"Connection refused to {host}:{port}", "status_code": None}
+            return {
+                "name": service_config["name"],
+                "healthy": healthy,
+                "error": None if healthy else f"Connection refused to {host}:{port}",
+                "status_code": None,
+                "response_time": 0.0,
+                "retry_attempts": 0,
+            }
         finally:
             sock.close()
 
@@ -127,6 +136,8 @@ class HealthChecker:
             "healthy": True,  # Simplified for now
             "error": None,
             "status_code": 200,
+            "response_time": 0.0,  # Will be updated by caller
+            "retry_attempts": 0,  # Will be updated by caller
         }
 
     def check_all_services_parallel(self) -> dict[str, dict[str, Any]]:
@@ -137,7 +148,7 @@ class HealthChecker:
             Dict mapping service names to their health check results
         """
         start_time = time.time()
-        results = {}
+        results: dict[str, dict[str, Any]] = {}
 
         with ThreadPoolExecutor(max_workers=min(len(self.services), 10)) as executor:
             # Submit all health checks
@@ -151,7 +162,7 @@ class HealthChecker:
                     # Check if we've exceeded total timeout
                     elapsed_time = time.time() - start_time
                     if self.max_total_timeout and elapsed_time >= self.max_total_timeout:
-                        results["timeout_exceeded"] = True
+                        results["timeout_exceeded"] = {"timeout": True, "elapsed_time": elapsed_time}
                         break
 
                     remaining_timeout = None
@@ -162,7 +173,7 @@ class HealthChecker:
                     results[service["name"]] = result
 
                 except TimeoutError:
-                    results[service["name"]] = {"name": service["name"], "healthy": False, "error": "Health check timed out", "response_time": None, "status_code": None, "retry_attempts": 0}
+                    results[service["name"]] = {"name": service["name"], "healthy": False, "error": "Health check timed out", "response_time": 0.0, "status_code": None, "retry_attempts": 0}
 
         return results
 

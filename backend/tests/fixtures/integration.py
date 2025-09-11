@@ -4,11 +4,18 @@ from collections.abc import Generator
 from pathlib import Path
 
 import pytest
+from core.config import get_settings
 
 try:
-    import pymupdf
+    import pymupdf  # type: ignore[import-untyped]
 except ImportError:
     pymupdf = None
+
+
+@pytest.fixture(scope="function")
+def integration_settings():
+    """Integration test settings fixture."""
+    return get_settings()
 
 
 @pytest.fixture(scope="function")
@@ -29,36 +36,19 @@ def complex_test_pdf_path() -> Generator[Path, None, None]:
 
     # Page 2: Table
     page2 = doc.new_page()
-    page2.insert_text((100, 100), "Table Example", fontsize=12)
-    # Add table content here
+    page2.insert_text((100, 100), "Table Data")
+    page2.insert_text((100, 120), "Row 1, Col 1")
+    page2.insert_text((200, 120), "Row 1, Col 2")
 
     # Page 3: Image placeholder
     page3 = doc.new_page()
-    page3.insert_text((100, 100), "Image Example", fontsize=12)
-    page3.insert_text((100, 150), "[Image would be here]", fontsize=10)
+    page3.insert_text((100, 100), "Image placeholder")
 
     doc.save(test_file)
     doc.close()
 
     yield test_file
 
+    # Cleanup
     if test_file.exists():
         test_file.unlink()
-
-
-@pytest.fixture(scope="session")
-def test_database_url() -> str:
-    """Test database URL for integration tests."""
-    return "postgresql://test:test@localhost:5432/test_db"
-
-
-@pytest.fixture(scope="session")
-def test_milvus_config() -> dict:
-    """Test Milvus configuration for integration tests."""
-    return {"host": "localhost", "port": 19530, "collection_name": "test_collection"}
-
-
-@pytest.fixture(scope="session")
-def test_minio_config() -> dict:
-    """Test MinIO configuration for integration tests."""
-    return {"endpoint": "localhost:9000", "access_key": "test", "secret_key": "test123", "bucket": "test-bucket"}

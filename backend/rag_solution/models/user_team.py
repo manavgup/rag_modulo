@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -10,8 +11,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from rag_solution.file_management.database import Base
 
 if TYPE_CHECKING:
-    import uuid
-
     from rag_solution.models.team import Team
     from rag_solution.models.user import User
 

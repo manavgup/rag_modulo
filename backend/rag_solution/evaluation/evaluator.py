@@ -94,7 +94,11 @@ class RAGEvaluator:
         query_embedding = get_embeddings(query)
         response_embedding = get_embeddings(response)
         coherence = cosine_similarity(query_embedding, response_embedding)
-        return float(coherence)
+        # Handle both scalar and array results from cosine_similarity
+        if hasattr(coherence, "item"):
+            return float(coherence.item())
+        else:
+            return float(coherence)
 
     def _calculate_faithfulness_score(self, response: str, retrieved_documents: list[QueryResult]) -> float:
         """
