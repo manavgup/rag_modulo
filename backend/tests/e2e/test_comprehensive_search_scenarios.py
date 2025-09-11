@@ -10,7 +10,6 @@ These tests define the expected behavior of the search system and will fail init
 
 import pytest
 import time
-from typing import Any, Dict, List
 from uuid import uuid4, UUID
 from unittest.mock import Mock, AsyncMock
 
@@ -34,55 +33,50 @@ class TestComprehensiveSearchScenarios:
             "name": "Machine Learning Documentation",
             "description": "Comprehensive ML documentation and tutorials",
             "document_count": 150,
-            "expected_topics": ["algorithms", "neural networks", "deep learning", "supervised learning"]
+            "expected_topics": ["algorithms", "neural networks", "deep learning", "supervised learning"],
         },
         "python_programming": {
-            "id": "550e8400-e29b-41d4-a716-446655440002", 
+            "id": "550e8400-e29b-41d4-a716-446655440002",
             "name": "Python Programming Guide",
             "description": "Python programming tutorials and best practices",
             "document_count": 200,
-            "expected_topics": ["syntax", "libraries", "best practices", "performance"]
+            "expected_topics": ["syntax", "libraries", "best practices", "performance"],
         },
         "data_science": {
             "id": "550e8400-e29b-41d4-a716-446655440003",
-            "name": "Data Science Handbook", 
+            "name": "Data Science Handbook",
             "description": "Data science methodologies and tools",
             "document_count": 100,
-            "expected_topics": ["statistics", "visualization", "analysis", "pandas", "numpy"]
-        }
+            "expected_topics": ["statistics", "visualization", "analysis", "pandas", "numpy"],
+        },
     }
 
     TEST_QUERIES = {
-        "simple_factual": {
-            "question": "What is machine learning?",
-            "expected_answer_contains": ["machine learning", "algorithm", "data"],
-            "expected_sources": 3,
-            "max_response_time": 5.0
-        },
+        "simple_factual": {"question": "What is machine learning?", "expected_answer_contains": ["machine learning", "algorithm", "data"], "expected_sources": 3, "max_response_time": 5.0},
         "complex_analytical": {
             "question": "How do neural networks learn from data and what are the key algorithms?",
             "expected_answer_contains": ["neural network", "backpropagation", "gradient descent"],
             "expected_sources": 5,
-            "max_response_time": 8.0
+            "max_response_time": 8.0,
         },
         "comparative": {
             "question": "What are the differences between supervised and unsupervised learning?",
             "expected_answer_contains": ["supervised", "unsupervised", "difference", "labeled data"],
             "expected_sources": 4,
-            "max_response_time": 6.0
+            "max_response_time": 6.0,
         },
         "technical_deep_dive": {
             "question": "Explain the mathematical foundations of gradient descent optimization",
             "expected_answer_contains": ["gradient", "derivative", "optimization", "convergence"],
             "expected_sources": 6,
-            "max_response_time": 10.0
+            "max_response_time": 10.0,
         },
         "practical_application": {
             "question": "How would I implement a recommendation system using Python?",
             "expected_answer_contains": ["recommendation", "python", "implementation", "algorithm"],
             "expected_sources": 4,
-            "max_response_time": 7.0
-        }
+            "max_response_time": 7.0,
+        },
     }
 
     TEST_PIPELINES = {
@@ -92,24 +86,24 @@ class TestComprehensiveSearchScenarios:
             "retriever_type": "semantic",
             "chunking_strategy": "semantic",
             "context_strategy": "weighted",
-            "llm_provider": "watsonx"
+            "llm_provider": "watsonx",
         },
         "fast": {
-            "id": "550e8400-e29b-41d4-a716-446655440011", 
+            "id": "550e8400-e29b-41d4-a716-446655440011",
             "name": "Fast RAG Pipeline",
             "retriever_type": "keyword",
             "chunking_strategy": "fixed",
             "context_strategy": "simple",
-            "llm_provider": "watsonx"
+            "llm_provider": "watsonx",
         },
         "comprehensive": {
             "id": "550e8400-e29b-41d4-a716-446655440012",
-            "name": "Comprehensive RAG Pipeline", 
+            "name": "Comprehensive RAG Pipeline",
             "retriever_type": "hybrid",
             "chunking_strategy": "semantic",
             "context_strategy": "weighted",
-            "llm_provider": "watsonx"
-        }
+            "llm_provider": "watsonx",
+        },
     }
 
     @pytest.fixture
@@ -138,28 +132,23 @@ class TestComprehensiveSearchScenarios:
         collection_id = UUID(self.TEST_COLLECTIONS["machine_learning"]["id"])
         pipeline_id = UUID(self.TEST_PIPELINES["default"]["id"])
         query_data = self.TEST_QUERIES["simple_factual"]
-        
-        search_input = SearchInput(
-            question=query_data["question"],
-            collection_id=collection_id,
-            pipeline_id=pipeline_id,
-            user_id=test_user_id
-        )
+
+        search_input = SearchInput(question=query_data["question"], collection_id=collection_id, pipeline_id=pipeline_id, user_id=test_user_id)
 
         expected_output = SearchOutput(
             answer="Machine learning is a subset of artificial intelligence that focuses on algorithms and statistical models.",
             documents=[
                 {"id": "doc1", "title": "Introduction to ML", "source": "ml_handbook.pdf"},
                 {"id": "doc2", "title": "ML Algorithms", "source": "algorithms.pdf"},
-                {"id": "doc3", "title": "Data Processing", "source": "data_processing.pdf"}
+                {"id": "doc3", "title": "Data Processing", "source": "data_processing.pdf"},
             ],
             query_results=[
                 {"content": "Machine learning algorithms...", "score": 0.95},
                 {"content": "Statistical models in ML...", "score": 0.87},
-                {"content": "Data-driven approaches...", "score": 0.82}
+                {"content": "Data-driven approaches...", "score": 0.82},
             ],
             rewritten_query="What is machine learning and how does it work?",
-            evaluation={"relevance_score": 0.92, "answer_quality": 0.88}
+            evaluation={"relevance_score": 0.92, "answer_quality": 0.88},
         )
 
         mock_search_service.search.return_value = expected_output
@@ -176,7 +165,7 @@ class TestComprehensiveSearchScenarios:
         assert len(result.documents) >= query_data["expected_sources"]
         assert len(result.query_results) >= query_data["expected_sources"]
         assert response_time <= query_data["max_response_time"]
-        
+
         # Verify answer contains expected keywords
         answer_lower = result.answer.lower()
         for keyword in query_data["expected_answer_contains"]:
@@ -188,13 +177,8 @@ class TestComprehensiveSearchScenarios:
         collection_id = UUID(self.TEST_COLLECTIONS["machine_learning"]["id"])
         pipeline_id = UUID(self.TEST_PIPELINES["comprehensive"]["id"])
         query_data = self.TEST_QUERIES["complex_analytical"]
-        
-        search_input = SearchInput(
-            question=query_data["question"],
-            collection_id=collection_id,
-            pipeline_id=pipeline_id,
-            user_id=test_user_id
-        )
+
+        search_input = SearchInput(question=query_data["question"], collection_id=collection_id, pipeline_id=pipeline_id, user_id=test_user_id)
 
         expected_output = SearchOutput(
             answer="Neural networks learn through backpropagation and gradient descent algorithms...",
@@ -203,17 +187,17 @@ class TestComprehensiveSearchScenarios:
                 {"id": "doc2", "title": "Learning Algorithms", "source": "learning_algorithms.pdf"},
                 {"id": "doc3", "title": "Backpropagation", "source": "backprop.pdf"},
                 {"id": "doc4", "title": "Gradient Descent", "source": "gradient_descent.pdf"},
-                {"id": "doc5", "title": "Deep Learning", "source": "deep_learning.pdf"}
+                {"id": "doc5", "title": "Deep Learning", "source": "deep_learning.pdf"},
             ],
             query_results=[
                 {"content": "Neural networks use backpropagation...", "score": 0.98},
                 {"content": "Gradient descent optimization...", "score": 0.94},
                 {"content": "Learning algorithms in neural networks...", "score": 0.91},
                 {"content": "Deep learning architectures...", "score": 0.89},
-                {"content": "Training neural networks...", "score": 0.86}
+                {"content": "Training neural networks...", "score": 0.86},
             ],
             rewritten_query="How do neural networks learn from data using algorithms like backpropagation and gradient descent?",
-            evaluation={"relevance_score": 0.95, "answer_quality": 0.92, "completeness": 0.88}
+            evaluation={"relevance_score": 0.95, "answer_quality": 0.92, "completeness": 0.88},
         )
 
         mock_search_service.search.return_value = expected_output
@@ -228,7 +212,7 @@ class TestComprehensiveSearchScenarios:
         assert len(result.documents) >= query_data["expected_sources"]
         assert len(result.query_results) >= query_data["expected_sources"]
         assert response_time <= query_data["max_response_time"]
-        
+
         # Verify answer contains expected technical terms
         answer_lower = result.answer.lower()
         for keyword in query_data["expected_answer_contains"]:
@@ -240,13 +224,8 @@ class TestComprehensiveSearchScenarios:
         collection_id = UUID(self.TEST_COLLECTIONS["machine_learning"]["id"])
         pipeline_id = UUID(self.TEST_PIPELINES["default"]["id"])
         query_data = self.TEST_QUERIES["comparative"]
-        
-        search_input = SearchInput(
-            question=query_data["question"],
-            collection_id=collection_id,
-            pipeline_id=pipeline_id,
-            user_id=test_user_id
-        )
+
+        search_input = SearchInput(question=query_data["question"], collection_id=collection_id, pipeline_id=pipeline_id, user_id=test_user_id)
 
         expected_output = SearchOutput(
             answer="Supervised learning uses labeled data for training, while unsupervised learning finds patterns in unlabeled data...",
@@ -254,16 +233,16 @@ class TestComprehensiveSearchScenarios:
                 {"id": "doc1", "title": "Supervised Learning", "source": "supervised.pdf"},
                 {"id": "doc2", "title": "Unsupervised Learning", "source": "unsupervised.pdf"},
                 {"id": "doc3", "title": "Learning Types Comparison", "source": "comparison.pdf"},
-                {"id": "doc4", "title": "Machine Learning Overview", "source": "ml_overview.pdf"}
+                {"id": "doc4", "title": "Machine Learning Overview", "source": "ml_overview.pdf"},
             ],
             query_results=[
                 {"content": "Supervised learning requires labeled training data...", "score": 0.96},
                 {"content": "Unsupervised learning discovers hidden patterns...", "score": 0.94},
                 {"content": "Key differences between learning types...", "score": 0.91},
-                {"content": "When to use supervised vs unsupervised...", "score": 0.88}
+                {"content": "When to use supervised vs unsupervised...", "score": 0.88},
             ],
             rewritten_query="What are the key differences between supervised and unsupervised machine learning approaches?",
-            evaluation={"relevance_score": 0.94, "answer_quality": 0.90, "comparison_quality": 0.92}
+            evaluation={"relevance_score": 0.94, "answer_quality": 0.90, "comparison_quality": 0.92},
         )
 
         mock_search_service.search.return_value = expected_output
@@ -274,7 +253,7 @@ class TestComprehensiveSearchScenarios:
         # Assert
         assert result is not None
         assert len(result.documents) >= query_data["expected_sources"]
-        
+
         # Verify comparative answer structure
         answer_lower = result.answer.lower()
         assert "supervised" in answer_lower
@@ -287,13 +266,8 @@ class TestComprehensiveSearchScenarios:
         collection_id = UUID(self.TEST_COLLECTIONS["machine_learning"]["id"])
         pipeline_id = UUID(self.TEST_PIPELINES["comprehensive"]["id"])
         query_data = self.TEST_QUERIES["technical_deep_dive"]
-        
-        search_input = SearchInput(
-            question=query_data["question"],
-            collection_id=collection_id,
-            pipeline_id=pipeline_id,
-            user_id=test_user_id
-        )
+
+        search_input = SearchInput(question=query_data["question"], collection_id=collection_id, pipeline_id=pipeline_id, user_id=test_user_id)
 
         expected_output = SearchOutput(
             answer="Gradient descent is an optimization algorithm that minimizes functions by iteratively moving in the direction of steepest descent...",
@@ -303,7 +277,7 @@ class TestComprehensiveSearchScenarios:
                 {"id": "doc3", "title": "Optimization Algorithms", "source": "optimization.pdf"},
                 {"id": "doc4", "title": "Derivatives and Calculus", "source": "calculus.pdf"},
                 {"id": "doc5", "title": "Convergence Analysis", "source": "convergence.pdf"},
-                {"id": "doc6", "title": "Advanced Optimization", "source": "advanced_opt.pdf"}
+                {"id": "doc6", "title": "Advanced Optimization", "source": "advanced_opt.pdf"},
             ],
             query_results=[
                 {"content": "Gradient descent uses derivatives to find minimum...", "score": 0.99},
@@ -311,10 +285,10 @@ class TestComprehensiveSearchScenarios:
                 {"content": "Convergence conditions and analysis...", "score": 0.95},
                 {"content": "Derivative-based optimization...", "score": 0.93},
                 {"content": "Iterative optimization methods...", "score": 0.91},
-                {"content": "Steepest descent algorithm...", "score": 0.89}
+                {"content": "Steepest descent algorithm...", "score": 0.89},
             ],
             rewritten_query="Explain the mathematical principles and algorithmic foundations of gradient descent optimization",
-            evaluation={"relevance_score": 0.97, "answer_quality": 0.94, "technical_depth": 0.96}
+            evaluation={"relevance_score": 0.97, "answer_quality": 0.94, "technical_depth": 0.96},
         )
 
         mock_search_service.search.return_value = expected_output
@@ -328,7 +302,7 @@ class TestComprehensiveSearchScenarios:
         assert result is not None
         assert len(result.documents) >= query_data["expected_sources"]
         assert response_time <= query_data["max_response_time"]
-        
+
         # Verify technical depth
         answer_lower = result.answer.lower()
         for keyword in query_data["expected_answer_contains"]:
@@ -340,13 +314,8 @@ class TestComprehensiveSearchScenarios:
         collection_id = UUID(self.TEST_COLLECTIONS["python_programming"]["id"])
         pipeline_id = UUID(self.TEST_PIPELINES["default"]["id"])
         query_data = self.TEST_QUERIES["practical_application"]
-        
-        search_input = SearchInput(
-            question=query_data["question"],
-            collection_id=collection_id,
-            pipeline_id=pipeline_id,
-            user_id=test_user_id
-        )
+
+        search_input = SearchInput(question=query_data["question"], collection_id=collection_id, pipeline_id=pipeline_id, user_id=test_user_id)
 
         expected_output = SearchOutput(
             answer="To implement a recommendation system in Python, you can use libraries like scikit-learn, pandas, and numpy...",
@@ -354,16 +323,16 @@ class TestComprehensiveSearchScenarios:
                 {"id": "doc1", "title": "Python Recommendation Systems", "source": "rec_sys_python.pdf"},
                 {"id": "doc2", "title": "Scikit-learn Tutorial", "source": "sklearn_tutorial.pdf"},
                 {"id": "doc3", "title": "Pandas for Data Analysis", "source": "pandas_guide.pdf"},
-                {"id": "doc4", "title": "Machine Learning Implementation", "source": "ml_implementation.pdf"}
+                {"id": "doc4", "title": "Machine Learning Implementation", "source": "ml_implementation.pdf"},
             ],
             query_results=[
                 {"content": "Building recommendation systems with Python...", "score": 0.98},
                 {"content": "Using scikit-learn for collaborative filtering...", "score": 0.95},
                 {"content": "Data preprocessing with pandas...", "score": 0.92},
-                {"content": "Implementation best practices...", "score": 0.89}
+                {"content": "Implementation best practices...", "score": 0.89},
             ],
             rewritten_query="How to implement a recommendation system using Python programming language and libraries?",
-            evaluation={"relevance_score": 0.93, "answer_quality": 0.91, "practical_value": 0.94}
+            evaluation={"relevance_score": 0.93, "answer_quality": 0.91, "practical_value": 0.94},
         )
 
         mock_search_service.search.return_value = expected_output
@@ -374,7 +343,7 @@ class TestComprehensiveSearchScenarios:
         # Assert
         assert result is not None
         assert len(result.documents) >= query_data["expected_sources"]
-        
+
         # Verify practical implementation focus
         answer_lower = result.answer.lower()
         assert "python" in answer_lower
@@ -387,20 +356,15 @@ class TestComprehensiveSearchScenarios:
         # Arrange
         collection_id = UUID(self.TEST_COLLECTIONS["machine_learning"]["id"])
         pipeline_id = UUID(self.TEST_PIPELINES["fast"]["id"])
-        
-        search_input = SearchInput(
-            question="What is machine learning?",
-            collection_id=collection_id,
-            pipeline_id=pipeline_id,
-            user_id=test_user_id
-        )
+
+        search_input = SearchInput(question="What is machine learning?", collection_id=collection_id, pipeline_id=pipeline_id, user_id=test_user_id)
 
         expected_output = SearchOutput(
             answer="Machine learning is a subset of AI...",
             documents=[{"id": "doc1", "title": "ML Basics", "source": "basics.pdf"}],
             query_results=[{"content": "ML definition...", "score": 0.95}],
             rewritten_query="What is machine learning?",
-            evaluation={"relevance_score": 0.90}
+            evaluation={"relevance_score": 0.90},
         )
 
         mock_search_service.search.return_value = expected_output
@@ -412,14 +376,14 @@ class TestComprehensiveSearchScenarios:
             result = mock_search_service.search(search_input)
             response_time = time.time() - start_time
             response_times.append(response_time)
-            
+
             assert result is not None
             assert response_time <= 2.0, f"Response time {response_time}s exceeds 2s limit"
 
         # Verify performance consistency
         avg_response_time = sum(response_times) / len(response_times)
         max_response_time = max(response_times)
-        
+
         assert avg_response_time <= 1.5, f"Average response time {avg_response_time}s exceeds 1.5s limit"
         assert max_response_time <= 2.0, f"Max response time {max_response_time}s exceeds 2s limit"
 
@@ -428,21 +392,15 @@ class TestComprehensiveSearchScenarios:
         # Arrange
         collection_id = UUID(self.TEST_COLLECTIONS["machine_learning"]["id"])
         pipeline_id = UUID(self.TEST_PIPELINES["default"]["id"])
-        
-        queries = [
-            "What is machine learning?",
-            "How do neural networks work?",
-            "What is deep learning?",
-            "Explain supervised learning",
-            "What is unsupervised learning?"
-        ]
+
+        queries = ["What is machine learning?", "How do neural networks work?", "What is deep learning?", "Explain supervised learning", "What is unsupervised learning?"]
 
         expected_output = SearchOutput(
             answer="Test answer",
             documents=[{"id": "doc1", "title": "Test Doc", "source": "test.pdf"}],
             query_results=[{"content": "Test content", "score": 0.95}],
             rewritten_query="Test query",
-            evaluation={"relevance_score": 0.90}
+            evaluation={"relevance_score": 0.90},
         )
 
         mock_search_service.search.return_value = expected_output
@@ -450,17 +408,12 @@ class TestComprehensiveSearchScenarios:
         # Act - Simulate concurrent requests
         start_time = time.time()
         results = []
-        
+
         for query in queries:
-            search_input = SearchInput(
-                question=query,
-                collection_id=collection_id,
-                pipeline_id=pipeline_id,
-                user_id=test_user_id
-            )
+            search_input = SearchInput(question=query, collection_id=collection_id, pipeline_id=pipeline_id, user_id=test_user_id)
             result = mock_search_service.search(search_input)
             results.append(result)
-        
+
         total_time = time.time() - start_time
 
         # Assert
@@ -474,12 +427,12 @@ class TestComprehensiveSearchScenarios:
         # Arrange
         collection_id = UUID(self.TEST_COLLECTIONS["machine_learning"]["id"])
         pipeline_id = UUID(self.TEST_PIPELINES["default"]["id"])
-        
+
         search_input = SearchInput(
             question="",  # Empty query
             collection_id=collection_id,
             pipeline_id=pipeline_id,
-            user_id=test_user_id
+            user_id=test_user_id,
         )
 
         # Mock should raise ValidationError for empty query
@@ -494,13 +447,8 @@ class TestComprehensiveSearchScenarios:
         # Arrange
         invalid_collection_id = uuid4()  # Non-existent collection
         pipeline_id = UUID(self.TEST_PIPELINES["default"]["id"])
-        
-        search_input = SearchInput(
-            question="What is machine learning?",
-            collection_id=invalid_collection_id,
-            pipeline_id=pipeline_id,
-            user_id=test_user_id
-        )
+
+        search_input = SearchInput(question="What is machine learning?", collection_id=invalid_collection_id, pipeline_id=pipeline_id, user_id=test_user_id)
 
         # Mock should raise NotFoundError for invalid collection
         mock_search_service.search.side_effect = ValueError("Collection not found")
@@ -514,13 +462,8 @@ class TestComprehensiveSearchScenarios:
         # Arrange
         collection_id = UUID(self.TEST_COLLECTIONS["machine_learning"]["id"])
         invalid_pipeline_id = uuid4()  # Non-existent pipeline
-        
-        search_input = SearchInput(
-            question="What is machine learning?",
-            collection_id=collection_id,
-            pipeline_id=invalid_pipeline_id,
-            user_id=test_user_id
-        )
+
+        search_input = SearchInput(question="What is machine learning?", collection_id=collection_id, pipeline_id=invalid_pipeline_id, user_id=test_user_id)
 
         # Mock should raise NotFoundError for invalid pipeline
         mock_search_service.search.side_effect = ValueError("Pipeline configuration not found")
@@ -534,23 +477,18 @@ class TestComprehensiveSearchScenarios:
         # Arrange
         collection_id = UUID(self.TEST_COLLECTIONS["machine_learning"]["id"])
         pipeline_id = UUID(self.TEST_PIPELINES["default"]["id"])
-        
+
         # Create a very long query (1000+ characters)
         long_query = "What is machine learning? " * 50  # ~1250 characters
-        
-        search_input = SearchInput(
-            question=long_query,
-            collection_id=collection_id,
-            pipeline_id=pipeline_id,
-            user_id=test_user_id
-        )
+
+        search_input = SearchInput(question=long_query, collection_id=collection_id, pipeline_id=pipeline_id, user_id=test_user_id)
 
         expected_output = SearchOutput(
             answer="Machine learning is a subset of artificial intelligence...",
             documents=[{"id": "doc1", "title": "ML Basics", "source": "basics.pdf"}],
             query_results=[{"content": "ML definition...", "score": 0.95}],
             rewritten_query="What is machine learning?",  # Should be shortened
-            evaluation={"relevance_score": 0.90}
+            evaluation={"relevance_score": 0.90},
         )
 
         mock_search_service.search.return_value = expected_output
@@ -568,22 +506,17 @@ class TestComprehensiveSearchScenarios:
         # Arrange
         collection_id = UUID(self.TEST_COLLECTIONS["machine_learning"]["id"])
         pipeline_id = UUID(self.TEST_PIPELINES["default"]["id"])
-        
+
         special_query = "What is machine learning? @#$%^&*()_+-=[]{}|;':\",./<>?"
-        
-        search_input = SearchInput(
-            question=special_query,
-            collection_id=collection_id,
-            pipeline_id=pipeline_id,
-            user_id=test_user_id
-        )
+
+        search_input = SearchInput(question=special_query, collection_id=collection_id, pipeline_id=pipeline_id, user_id=test_user_id)
 
         expected_output = SearchOutput(
             answer="Machine learning is a subset of artificial intelligence...",
             documents=[{"id": "doc1", "title": "ML Basics", "source": "basics.pdf"}],
             query_results=[{"content": "ML definition...", "score": 0.95}],
             rewritten_query="What is machine learning?",  # Special chars should be cleaned
-            evaluation={"relevance_score": 0.90}
+            evaluation={"relevance_score": 0.90},
         )
 
         mock_search_service.search.return_value = expected_output
@@ -603,28 +536,23 @@ class TestComprehensiveSearchScenarios:
         # Arrange
         collection_id = UUID(self.TEST_COLLECTIONS["machine_learning"]["id"])
         pipeline_id = UUID(self.TEST_PIPELINES["default"]["id"])
-        
-        search_input = SearchInput(
-            question="What is machine learning?",
-            collection_id=collection_id,
-            pipeline_id=pipeline_id,
-            user_id=test_user_id
-        )
+
+        search_input = SearchInput(question="What is machine learning?", collection_id=collection_id, pipeline_id=pipeline_id, user_id=test_user_id)
 
         expected_output = SearchOutput(
             answer="Machine learning is a subset of artificial intelligence that focuses on algorithms and statistical models.",
             documents=[
                 {"id": "doc1", "title": "Introduction to ML", "source": "ml_handbook.pdf", "metadata": {"pages": 150}},
                 {"id": "doc2", "title": "ML Algorithms", "source": "algorithms.pdf", "metadata": {"pages": 200}},
-                {"id": "doc3", "title": "Data Processing", "source": "data_processing.pdf", "metadata": {"pages": 100}}
+                {"id": "doc3", "title": "Data Processing", "source": "data_processing.pdf", "metadata": {"pages": 100}},
             ],
             query_results=[
                 {"content": "Machine learning algorithms enable computers to learn from data...", "score": 0.95, "metadata": {"chunk_id": "chunk1"}},
                 {"content": "Statistical models form the foundation of machine learning...", "score": 0.87, "metadata": {"chunk_id": "chunk2"}},
-                {"content": "Data-driven approaches are central to ML...", "score": 0.82, "metadata": {"chunk_id": "chunk3"}}
+                {"content": "Data-driven approaches are central to ML...", "score": 0.82, "metadata": {"chunk_id": "chunk3"}},
             ],
             rewritten_query="What is machine learning and how does it work?",
-            evaluation={"relevance_score": 0.92, "answer_quality": 0.88, "source_diversity": 0.85}
+            evaluation={"relevance_score": 0.92, "answer_quality": 0.88, "source_diversity": 0.85},
         )
 
         mock_search_service.search.return_value = expected_output
@@ -635,11 +563,11 @@ class TestComprehensiveSearchScenarios:
         # Assert - Data Quality Checks
         assert result is not None
         assert isinstance(result, SearchOutput)
-        
+
         # Answer quality
         assert len(result.answer) > 10, "Answer should be substantial"
         assert len(result.answer.split()) >= 5, "Answer should have multiple words"
-        
+
         # Documents quality
         assert len(result.documents) > 0, "Should return at least one document"
         for doc in result.documents:
@@ -647,7 +575,7 @@ class TestComprehensiveSearchScenarios:
             assert "title" in doc, "Document should have title"
             assert "source" in doc, "Document should have source"
             assert len(doc["title"]) > 0, "Document title should not be empty"
-        
+
         # Query results quality
         assert len(result.query_results) > 0, "Should return at least one query result"
         for query_result in result.query_results:
@@ -655,7 +583,7 @@ class TestComprehensiveSearchScenarios:
             assert "score" in query_result, "Query result should have score"
             assert 0 <= query_result["score"] <= 1, "Score should be between 0 and 1"
             assert len(query_result["content"]) > 10, "Content should be substantial"
-        
+
         # Evaluation quality
         assert result.evaluation is not None, "Should include evaluation metrics"
         assert "relevance_score" in result.evaluation, "Should include relevance score"
@@ -666,13 +594,8 @@ class TestComprehensiveSearchScenarios:
         # Arrange
         collection_id = UUID(self.TEST_COLLECTIONS["machine_learning"]["id"])
         pipeline_id = UUID(self.TEST_PIPELINES["default"]["id"])
-        
-        search_input = SearchInput(
-            question="What is machine learning?",
-            collection_id=collection_id,
-            pipeline_id=pipeline_id,
-            user_id=test_user_id
-        )
+
+        search_input = SearchInput(question="What is machine learning?", collection_id=collection_id, pipeline_id=pipeline_id, user_id=test_user_id)
 
         # Mock consistent output
         expected_output = SearchOutput(
@@ -680,7 +603,7 @@ class TestComprehensiveSearchScenarios:
             documents=[{"id": "doc1", "title": "ML Basics", "source": "basics.pdf"}],
             query_results=[{"content": "ML definition...", "score": 0.95}],
             rewritten_query="What is machine learning?",
-            evaluation={"relevance_score": 0.90}
+            evaluation={"relevance_score": 0.90},
         )
 
         mock_search_service.search.return_value = expected_output
@@ -694,15 +617,15 @@ class TestComprehensiveSearchScenarios:
         # Assert - Results should be consistent
         assert len(results) == 3
         assert all(result is not None for result in results)
-        
+
         # Check answer consistency
         answers = [result.answer for result in results]
         assert all(answer == answers[0] for answer in answers), "Answers should be consistent"
-        
+
         # Check document consistency
         doc_counts = [len(result.documents) for result in results]
         assert all(count == doc_counts[0] for count in doc_counts), "Document counts should be consistent"
-        
+
         # Check query result consistency
         query_result_counts = [len(result.query_results) for result in results]
         assert all(count == query_result_counts[0] for count in query_result_counts), "Query result counts should be consistent"
@@ -713,18 +636,13 @@ class TestComprehensiveSearchScenarios:
         # Arrange
         collection_id = UUID(self.TEST_COLLECTIONS["machine_learning"]["id"])
         pipeline_id = UUID(self.TEST_PIPELINES["default"]["id"])
-        
-        search_input = SearchInput(
-            question="What is machine learning?",
-            collection_id=collection_id,
-            pipeline_id=pipeline_id,
-            user_id=test_user_id
-        )
+
+        search_input = SearchInput(question="What is machine learning?", collection_id=collection_id, pipeline_id=pipeline_id, user_id=test_user_id)
 
         # Mock dependencies
         mock_db = Mock(spec=Session)
         mock_settings = Mock()
-        
+
         # Create real SearchService instance (this will fail in red phase)
         search_service = SearchService(mock_db, mock_settings)
 
@@ -737,18 +655,13 @@ class TestComprehensiveSearchScenarios:
         # Arrange
         collection_id = UUID(self.TEST_COLLECTIONS["machine_learning"]["id"])
         pipeline_id = UUID(self.TEST_PIPELINES["default"]["id"])
-        
-        search_input = SearchInput(
-            question="What is machine learning?",
-            collection_id=collection_id,
-            pipeline_id=pipeline_id,
-            user_id=test_user_id
-        )
+
+        search_input = SearchInput(question="What is machine learning?", collection_id=collection_id, pipeline_id=pipeline_id, user_id=test_user_id)
 
         # Mock dependencies
         mock_db = Mock(spec=Session)
         mock_settings = Mock()
-        
+
         # Create real PipelineService instance (this will fail in red phase)
         pipeline_service = PipelineService(mock_db, mock_settings)
 
@@ -762,13 +675,8 @@ class TestComprehensiveSearchScenarios:
         # Arrange
         collection_id = UUID(self.TEST_COLLECTIONS["machine_learning"]["id"])
         pipeline_id = UUID(self.TEST_PIPELINES["default"]["id"])
-        
-        search_data = {
-            "question": "What is machine learning?",
-            "collection_id": str(collection_id),
-            "pipeline_id": str(pipeline_id),
-            "user_id": str(test_user_id)
-        }
+
+        search_data = {"question": "What is machine learning?", "collection_id": str(collection_id), "pipeline_id": str(pipeline_id), "user_id": str(test_user_id)}
 
         # Mock FastAPI test client (this will fail in red phase)
         client = TestClient(router)
