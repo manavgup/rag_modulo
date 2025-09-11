@@ -17,6 +17,11 @@ env:
   FRONTEND_IMAGE: ghcr.io/manavgup/rag_modulo/frontend:latest
   TEST_IMAGE: ghcr.io/manavgup/rag_modulo/backend:latest
 
+  # CI Environment Variables
+  TESTING: true
+  SKIP_AUTH: true
+  DEVELOPMENT_MODE: true
+
 jobs:
   # Test isolation validation - atomic tests without any environment variables
   test-isolation:
@@ -46,10 +51,16 @@ jobs:
 
       - name: Run test isolation checker
         run: |
+          export TESTING=true
+          export SKIP_AUTH=true
+          export DEVELOPMENT_MODE=true
           cd backend && python ../scripts/check_test_isolation.py
 
       - name: Run atomic tests without environment variables
         run: |
+          export TESTING=true
+          export SKIP_AUTH=true
+          export DEVELOPMENT_MODE=true
           cd backend && poetry run pytest tests/ -m atomic --tb=short -v
 
   # Fast feedback - lint and unit tests without infrastructure

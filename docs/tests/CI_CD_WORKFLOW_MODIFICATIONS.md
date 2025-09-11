@@ -6,23 +6,30 @@ This document outlines the modifications needed for the CI/CD pipeline to suppor
 
 ## Current CI/CD Issues
 
-### Performance Problems
-- **Current pipeline time**: 45-90 minutes
-- **All tests require Docker containers**: Even "unit" tests
-- **Coverage reporting forced on every test**: Massive overhead
-- **Sequential execution**: No parallelization of test layers
+### Performance Problems ✅ **PARTIALLY RESOLVED**
+- **Current pipeline time**: 45-90 minutes → **Target: <15 minutes**
+- ~~**All tests require Docker containers**: Even "unit" tests~~ ✅ **FIXED** (Atomic tests run without containers)
+- ~~**Coverage reporting forced on every test**: Massive overhead~~ ✅ **FIXED** (Atomic tests skip coverage)
+- **Sequential execution**: No parallelization of test layers (Next phase)
 
-### Current Makefile Issues
+### Current Makefile Issues ✅ **RESOLVED**
 ```makefile
-# Current problematic targets
-unit-tests: run-backend create-test-dirs
-    # Forces Docker containers for unit tests!
+# ✅ NEW: Fixed targets implemented
+test-atomic: venv
+    # Lightning fast - no containers, no coverage, no database
+    cd backend && poetry run pytest -c pytest-atomic.ini tests/atomic/ -v
 
-integration-tests: run-backend create-test-dirs
-    # Same issue
+test-unit-fast: venv
+    # Fast unit tests with minimal setup
+    cd backend && poetry run pytest -c pytest-atomic.ini tests/unit/ -v --no-cov
 
-api-tests: run-backend create-test-dirs
-    # Same issue
+test-integration: run-backend create-test-dirs
+    # Integration tests with testcontainers
+    cd backend && poetry run pytest tests/integration/ -v
+
+test-e2e: run-backend create-test-dirs
+    # E2E tests with full Docker stack
+    cd backend && poetry run pytest tests/e2e/ -v
 ```
 
 ## New CI/CD Architecture

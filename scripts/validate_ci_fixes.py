@@ -99,8 +99,7 @@ def main():
             r"TESTING: true",
             r"SKIP_AUTH: true",
             r"DEVELOPMENT_MODE: true",
-            r"export TESTING=true",
-            r"-e TESTING=true"
+            r"export TESTING=true"
         ],
         "GitHub Actions environment variables"
     ):

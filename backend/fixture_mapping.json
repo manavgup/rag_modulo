@@ -1,0 +1,141 @@
+{
+  "total_fixtures": 66,
+  "duplicates": {
+    "complex_test_pdf_path": [
+      "integration/test_document_processors.py",
+      "data_ingestion/test_pdf_processor.py"
+    ],
+    "mock_watsonx_imports": [
+      "evaluation/test_evaluator.py",
+      "evaluation/test_evaluation.py"
+    ],
+    "base_llm_parameters": [
+      "fixtures/llm_parameter.py",
+      "fixtures/llm.py"
+    ],
+    "mock_jwt_verification": [
+      "e2e/test_auth_router.py",
+      "e2e/test_health_router.py"
+    ]
+  },
+  "fixtures_by_type": {
+    "scattered": 8,
+    "integration": 8,
+    "centralized": 43,
+    "e2e": 7
+  },
+  "fixtures_by_file": {
+    "conftest.py": [
+      "capture_logs",
+      "configure_logging"
+    ],
+    "test_ci_environment.py": [
+      "setup_environment"
+    ],
+    "integration/conftest.py": [
+      "test_database_url",
+      "test_milvus_config",
+      "test_minio_config"
+    ],
+    "integration/test_document_processors.py": [
+      "sample_excel_path",
+      "processor_type"
+    ],
+    "data_ingestion/test_pdf_processor.py": [
+      "complex_test_pdf_path",
+      "pdf_processor",
+      "ibm_annual_report_path"
+    ],
+    "integration/test_vectordbs.py": [
+      "store_type"
+    ],
+    "integration/test_ingestion.py": [
+      "vector_store_with_collection"
+    ],
+    "integration/test_user_flow.py": [
+      "mock_oauth_client"
+    ],
+    "api/base_test.py": [
+      "setup"
+    ],
+    "evaluation/test_evaluation.py": [
+      "mock_watsonx_imports"
+    ],
+    "fixtures/llm_parameter.py": [
+      "default_llm_parameters_input"
+    ],
+    "fixtures/llm.py": [
+      "base_llm_parameters",
+      "provider_factory",
+      "get_watsonx"
+    ],
+    "fixtures/files.py": [
+      "base_file"
+    ],
+    "fixtures/db.py": [
+      "db_engine",
+      "db_session"
+    ],
+    "fixtures/services.py": [
+      "session_mock_settings",
+      "collection_service",
+      "mock_pipeline_service",
+      "user_collection_service",
+      "file_service",
+      "question_service",
+      "search_service",
+      "team_service",
+      "session_llm_provider_service",
+      "session_llm_model_service",
+      "session_db",
+      "session_user_service",
+      "session_llm_parameters_service",
+      "session_prompt_template_service",
+      "ensure_watsonx_provider",
+      "init_providers",
+      "base_user"
+    ],
+    "fixtures/teams.py": [
+      "base_team",
+      "user_team",
+      "base_user_team"
+    ],
+    "fixtures/llm_model.py": [
+      "base_model_input",
+      "ensure_watsonx_models"
+    ],
+    "fixtures/collections.py": [
+      "base_collection",
+      "base_suggested_question",
+      "vector_store",
+      "indexed_documents"
+    ],
+    "fixtures/llm_provider.py": [
+      "base_provider_input"
+    ],
+    "fixtures/pipelines.py": [
+      "default_pipeline_config",
+      "base_pipeline_config"
+    ],
+    "fixtures/prompt_template.py": [
+      "base_rag_prompt_template_input",
+      "base_question_gen_template_input",
+      "base_prompt_template_input",
+      "base_prompt_template",
+      "base_rag_prompt_template",
+      "base_question_gen_template",
+      "base_multiple_prompt_templates"
+    ],
+    "e2e/conftest.py": [
+      "full_database_setup",
+      "full_llm_provider_setup",
+      "full_vector_store_setup",
+      "base_user_e2e",
+      "base_collection_e2e",
+      "base_team_e2e"
+    ],
+    "e2e/test_health_router.py": [
+      "mock_jwt_verification"
+    ]
+  }
+}

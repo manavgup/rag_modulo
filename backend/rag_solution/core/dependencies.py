@@ -95,7 +95,7 @@ def verify_admin_access(request: Request, db: Session = Depends(get_db), setting
     return current_user
 
 
-def verify_collection_access(collection_id: UUID4, user_id: UUID4, request: Request, db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> bool:
+def verify_collection_access(collection_id: UUID4, user_id: UUID4, request: Request, db: Session = Depends(get_db), _settings: Settings = Depends(get_settings)) -> bool:
     """Verify that a user has access to a specific collection.
 
     Args:
@@ -120,7 +120,7 @@ def verify_collection_access(collection_id: UUID4, user_id: UUID4, request: Requ
     # Check collection ownership (implement based on your business logic)
     from rag_solution.services.user_collection_service import UserCollectionService
 
-    user_collection_service = UserCollectionService(db, settings)
+    user_collection_service = UserCollectionService(db)
 
     try:
         user_collections = user_collection_service.get_user_collections(user_id)
@@ -132,7 +132,7 @@ def verify_collection_access(collection_id: UUID4, user_id: UUID4, request: Requ
     return True
 
 
-def verify_team_access(team_id: UUID4, user_id: UUID4, request: Request, db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> bool:
+def verify_team_access(team_id: UUID4, user_id: UUID4, request: Request, db: Session = Depends(get_db), _settings: Settings = Depends(get_settings)) -> bool:
     """Verify that a user has access to a specific team.
 
     Args:
@@ -157,7 +157,7 @@ def verify_team_access(team_id: UUID4, user_id: UUID4, request: Request, db: Ses
     # Check team membership
     from rag_solution.services.user_team_service import UserTeamService
 
-    user_team_service = UserTeamService(db, settings)
+    user_team_service = UserTeamService(db)
 
     try:
         user_teams = user_team_service.get_user_teams(user_id)
@@ -187,11 +187,11 @@ def get_file_service(db: Session = Depends(get_db), settings: Settings = Depends
     return FileManagementService(db, settings)
 
 
-def get_team_service(db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> TeamService:
+def get_team_service(db: Session = Depends(get_db)) -> TeamService:
     """Get TeamService instance."""
     from rag_solution.services.team_service import TeamService
 
-    return TeamService(db, settings)
+    return TeamService(db)
 
 
 def get_pipeline_service(db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> PipelineService:
@@ -201,11 +201,11 @@ def get_pipeline_service(db: Session = Depends(get_db), settings: Settings = Dep
     return PipelineService(db, settings)
 
 
-def get_llm_provider_service(db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> LLMProviderService:
+def get_llm_provider_service(db: Session = Depends(get_db), _settings: Settings = Depends(get_settings)) -> LLMProviderService:
     """Get LLMProviderService instance."""
     from rag_solution.services.llm_provider_service import LLMProviderService
 
-    return LLMProviderService(db, settings)
+    return LLMProviderService(db)
 
 
 def get_question_service(db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> QuestionService:

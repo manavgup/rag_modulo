@@ -1,17 +1,13 @@
+"""User fixtures for tests."""
+
+from datetime import datetime
 from uuid import uuid4
 
 import pytest
-from sqlalchemy.orm import Session
-
-from rag_solution.schemas.user_schema import UserInput, UserOutput
-from rag_solution.services.user_service import UserService
+from rag_solution.schemas.user_schema import UserOutput
 
 
-@pytest.fixture
-def test_user(db_session: Session) -> UserOutput:
-    """Create a test user for individual tests."""
-    user_service = UserService(db_session)
-    test_id = uuid4()
-    user = user_service.create_user(UserInput(email=f"test_{test_id}@example.com", ibm_id=f"test_user_{test_id}", name="Test User", role="user"))
-    yield user
-    # Optional cleanup if needed
+@pytest.fixture(scope="function")
+def base_user() -> UserOutput:
+    """Create a base user for tests."""
+    return UserOutput(id=uuid4(), email="test@example.com", ibm_id="test_user_123", name="Test User", role="user", preferred_provider_id=None, created_at=datetime.now(), updated_at=datetime.now())

@@ -1,5 +1,6 @@
 import logging
 import os
+from typing import Any
 
 import jwt
 from authlib.integrations.starlette_client import OAuth, OAuthError  # type: ignore[import-untyped]
@@ -29,7 +30,7 @@ if not (skip_auth or development_mode or testing_mode):
             client_secret=settings.ibm_client_secret,
             client_kwargs={"scope": "openid email profile", "token_endpoint_auth_method": "client_secret_post"},
             # Add leeway for token validation
-            jwks_uri=settings.oidc_discovery_endpoint + "/jwks",
+            jwks_uri=(settings.oidc_discovery_endpoint or "") + "/jwks",
             validate_iss=True,
             validate_aud=True,
             validate_exp=True,
@@ -44,7 +45,7 @@ else:
     logger.info(f"OIDC registration skipped (skip_auth={skip_auth}, development_mode={development_mode}, testing_mode={testing_mode})")
 
 
-def verify_jwt_token(token: str) -> dict:
+def verify_jwt_token(token: str) -> dict[str, Any]:
     """Verify JWT token and return payload."""
     try:
         # Special handling for test token
@@ -110,7 +111,7 @@ async def authorize_redirect(request: Request, redirect_uri: str) -> Response:
         raise HTTPException(status_code=500, detail=f"Authorization error: {e!s}") from e
 
 
-async def authorize_access_token(request: Request) -> dict:
+async def authorize_access_token(request: Request) -> dict[str, Any]:
     try:
         logger.debug("Initiating authorize_access_token")
         token = await oauth.ibm.authorize_access_token(request)
