@@ -20,11 +20,26 @@ from rag_solution.schemas.search_schema import SearchInput, SearchOutput
 from rag_solution.services.search_service import SearchService
 from rag_solution.services.pipeline_service import PipelineService
 from rag_solution.router.search_router import router
+from vectordbs.data_types import DocumentMetadata, QueryResult, DocumentChunk
 
 
 @pytest.mark.e2e
 class TestComprehensiveSearchScenarios:
     """Comprehensive E2E test scenarios for search functionality."""
+    
+    @staticmethod
+    def create_test_document_metadata(name: str, title: str) -> DocumentMetadata:
+        """Helper to create test document metadata."""
+        return DocumentMetadata(document_name=name, title=title)
+    
+    @staticmethod
+    def create_test_query_result(chunk_id: str, text: str, score: float) -> QueryResult:
+        """Helper to create test query result."""
+        return QueryResult(
+            chunk=DocumentChunk(chunk_id=chunk_id, text=text),
+            score=score,
+            embeddings=[0.1, 0.2, 0.3]  # Simple test embedding
+        )
 
     # Test Data Collections
     TEST_COLLECTIONS = {
@@ -138,14 +153,14 @@ class TestComprehensiveSearchScenarios:
         expected_output = SearchOutput(
             answer="Machine learning is a subset of artificial intelligence that focuses on algorithms and statistical models.",
             documents=[
-                {"id": "doc1", "title": "Introduction to ML", "source": "ml_handbook.pdf"},
-                {"id": "doc2", "title": "ML Algorithms", "source": "algorithms.pdf"},
-                {"id": "doc3", "title": "Data Processing", "source": "data_processing.pdf"},
+                self.create_test_document_metadata("ml_handbook.pdf", "Introduction to ML"),
+                self.create_test_document_metadata("algorithms.pdf", "ML Algorithms"),
+                self.create_test_document_metadata("data_processing.pdf", "Data Processing"),
             ],
             query_results=[
-                {"content": "Machine learning algorithms...", "score": 0.95},
-                {"content": "Statistical models in ML...", "score": 0.87},
-                {"content": "Data-driven approaches...", "score": 0.82},
+                self.create_test_query_result("chunk1", "Machine learning algorithms...", 0.95),
+                self.create_test_query_result("chunk2", "Statistical models in ML...", 0.87),
+                self.create_test_query_result("chunk3", "Data-driven approaches...", 0.82),
             ],
             rewritten_query="What is machine learning and how does it work?",
             evaluation={"relevance_score": 0.92, "answer_quality": 0.88},
@@ -183,18 +198,18 @@ class TestComprehensiveSearchScenarios:
         expected_output = SearchOutput(
             answer="Neural networks learn through backpropagation and gradient descent algorithms...",
             documents=[
-                {"id": "doc1", "title": "Neural Networks Fundamentals", "source": "nn_basics.pdf"},
-                {"id": "doc2", "title": "Learning Algorithms", "source": "learning_algorithms.pdf"},
-                {"id": "doc3", "title": "Backpropagation", "source": "backprop.pdf"},
-                {"id": "doc4", "title": "Gradient Descent", "source": "gradient_descent.pdf"},
-                {"id": "doc5", "title": "Deep Learning", "source": "deep_learning.pdf"},
+                self.create_test_document_metadata("nn_basics.pdf", "Neural Networks Fundamentals"),
+                self.create_test_document_metadata("learning_algorithms.pdf", "Learning Algorithms"),
+                self.create_test_document_metadata("backprop.pdf", "Backpropagation"),
+                self.create_test_document_metadata("gradient_descent.pdf", "Gradient Descent"),
+                self.create_test_document_metadata("deep_learning.pdf", "Deep Learning"),
             ],
             query_results=[
-                {"content": "Neural networks use backpropagation...", "score": 0.98},
-                {"content": "Gradient descent optimization...", "score": 0.94},
-                {"content": "Learning algorithms in neural networks...", "score": 0.91},
-                {"content": "Deep learning architectures...", "score": 0.89},
-                {"content": "Training neural networks...", "score": 0.86},
+                self.create_test_query_result("chunk1", "Neural networks use backpropagation...", 0.98),
+                self.create_test_query_result("chunk2", "Gradient descent optimization...", 0.94),
+                self.create_test_query_result("chunk3", "Learning algorithms in neural networks...", 0.91),
+                self.create_test_query_result("chunk4", "Deep learning architectures...", 0.89),
+                self.create_test_query_result("chunk5", "Training neural networks...", 0.86),
             ],
             rewritten_query="How do neural networks learn from data using algorithms like backpropagation and gradient descent?",
             evaluation={"relevance_score": 0.95, "answer_quality": 0.92, "completeness": 0.88},
