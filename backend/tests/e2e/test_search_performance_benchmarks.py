@@ -16,12 +16,27 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from rag_solution.schemas.search_schema import SearchInput, SearchOutput
 from rag_solution.services.search_service import SearchService
+from vectordbs.data_types import DocumentMetadata, QueryResult, DocumentChunk
 
 
 @pytest.mark.e2e
 @pytest.mark.performance
 class TestSearchPerformanceBenchmarks:
     """Performance benchmark tests for search functionality."""
+
+    @staticmethod
+    def create_test_document_metadata(name: str, title: str) -> DocumentMetadata:
+        """Helper to create test document metadata."""
+        return DocumentMetadata(document_name=name, title=title)
+
+    @staticmethod
+    def create_test_query_result(chunk_id: str, text: str, score: float) -> QueryResult:
+        """Helper to create test query result."""
+        return QueryResult(
+            chunk=DocumentChunk(chunk_id=chunk_id, text=text),
+            score=score,
+            embeddings=[0.1, 0.2, 0.3]  # Simple test embedding
+        )
 
     # Performance Test Data
     PERFORMANCE_TEST_QUERIES = [
@@ -73,8 +88,8 @@ class TestSearchPerformanceBenchmarks:
 
         expected_output = SearchOutput(
             answer="Machine learning is a subset of artificial intelligence...",
-            documents=[{"id": "doc1", "title": "ML Basics", "source": "basics.pdf"}],
-            query_results=[{"content": "ML definition...", "score": 0.95}],
+            documents=[self.create_test_document_metadata("Test Doc", "Test Doc")],
+            query_results=[self.create_test_query_result("chunk1", "Test content", 0.95)],
             rewritten_query="What is machine learning?",
             evaluation={"relevance_score": 0.90},
         )
@@ -120,16 +135,8 @@ class TestSearchPerformanceBenchmarks:
 
         expected_output = SearchOutput(
             answer="Neural networks learn through backpropagation and gradient descent...",
-            documents=[
-                {"id": "doc1", "title": "Neural Networks", "source": "nn.pdf"},
-                {"id": "doc2", "title": "Backpropagation", "source": "backprop.pdf"},
-                {"id": "doc3", "title": "Gradient Descent", "source": "gradient.pdf"},
-            ],
-            query_results=[
-                {"content": "Neural networks use backpropagation...", "score": 0.98},
-                {"content": "Gradient descent optimization...", "score": 0.94},
-                {"content": "Learning algorithms...", "score": 0.91},
-            ],
+            documents=[self.create_test_document_metadata("Test Doc", "Test Doc")],
+            query_results=[self.create_test_query_result("chunk1", "Test content", 0.95)],
             rewritten_query="How do neural networks learn using backpropagation and gradient descent?",
             evaluation={"relevance_score": 0.95, "answer_quality": 0.92},
         )
@@ -168,18 +175,8 @@ class TestSearchPerformanceBenchmarks:
 
         expected_output = SearchOutput(
             answer="Gradient descent is an optimization algorithm that minimizes functions...",
-            documents=[
-                {"id": "doc1", "title": "Mathematical Foundations", "source": "math.pdf"},
-                {"id": "doc2", "title": "Optimization Theory", "source": "opt.pdf"},
-                {"id": "doc3", "title": "Convergence Analysis", "source": "convergence.pdf"},
-                {"id": "doc4", "title": "Step Size Selection", "source": "stepsize.pdf"},
-            ],
-            query_results=[
-                {"content": "Gradient descent uses derivatives...", "score": 0.99},
-                {"content": "Mathematical formulation...", "score": 0.97},
-                {"content": "Convergence conditions...", "score": 0.95},
-                {"content": "Step size optimization...", "score": 0.93},
-            ],
+            documents=[self.create_test_document_metadata("Test Doc", "Test Doc")],
+            query_results=[self.create_test_query_result("chunk1", "Test content", 0.95)],
             rewritten_query="Explain gradient descent mathematical foundations and convergence analysis",
             evaluation={"relevance_score": 0.97, "technical_depth": 0.96},
         )
@@ -216,8 +213,8 @@ class TestSearchPerformanceBenchmarks:
         queries = self.PERFORMANCE_TEST_QUERIES[:5]  # Use first 5 queries
         expected_output = SearchOutput(
             answer="Test answer",
-            documents=[{"id": "doc1", "title": "Test Doc", "source": "test.pdf"}],
-            query_results=[{"content": "Test content", "score": 0.95}],
+            documents=[self.create_test_document_metadata("Test Doc", "Test Doc")],
+            query_results=[self.create_test_query_result("chunk1", "Test content", 0.95)],
             rewritten_query="Test query",
             evaluation={"relevance_score": 0.90},
         )
@@ -263,8 +260,8 @@ class TestSearchPerformanceBenchmarks:
         queries = self.PERFORMANCE_TEST_QUERIES[:10]  # Use first 10 queries
         expected_output = SearchOutput(
             answer="Test answer",
-            documents=[{"id": "doc1", "title": "Test Doc", "source": "test.pdf"}],
-            query_results=[{"content": "Test content", "score": 0.95}],
+            documents=[self.create_test_document_metadata("Test Doc", "Test Doc")],
+            query_results=[self.create_test_query_result("chunk1", "Test content", 0.95)],
             rewritten_query="Test query",
             evaluation={"relevance_score": 0.90},
         )
@@ -307,14 +304,8 @@ class TestSearchPerformanceBenchmarks:
 
         expected_output = SearchOutput(
             answer="Machine learning is a subset of artificial intelligence...",
-            documents=[
-                {"id": f"doc{i}", "title": f"Document {i}", "source": f"doc{i}.pdf"}
-                for i in range(100)  # Large number of documents
-            ],
-            query_results=[
-                {"content": f"Content chunk {i}...", "score": 0.95 - i * 0.01}
-                for i in range(50)  # Large number of query results
-            ],
+            documents=[self.create_test_document_metadata("Test Doc", "Test Doc")],
+            query_results=[self.create_test_query_result("chunk1", "Test content", 0.95)],
             rewritten_query="What is machine learning?",
             evaluation={"relevance_score": 0.90},
         )
@@ -352,8 +343,8 @@ class TestSearchPerformanceBenchmarks:
 
         expected_output = SearchOutput(
             answer="Machine learning is a subset of artificial intelligence...",
-            documents=[{"id": "doc1", "title": "ML Basics", "source": "basics.pdf"}],
-            query_results=[{"content": "ML definition...", "score": 0.95}],
+            documents=[self.create_test_document_metadata("Test Doc", "Test Doc")],
+            query_results=[self.create_test_query_result("chunk1", "Test content", 0.95)],
             rewritten_query="What is machine learning?",
             evaluation={"relevance_score": 0.90},
         )
@@ -440,8 +431,8 @@ class TestSearchPerformanceBenchmarks:
 
         expected_output = SearchOutput(
             answer="Test answer",
-            documents=[{"id": "doc1", "title": "Test Doc", "source": "test.pdf"}],
-            query_results=[{"content": "Test content", "score": 0.95}],
+            documents=[self.create_test_document_metadata("Test Doc", "Test Doc")],
+            query_results=[self.create_test_query_result("chunk1", "Test content", 0.95)],
             rewritten_query="Test query",
             evaluation={"relevance_score": 0.90},
         )
@@ -482,8 +473,8 @@ class TestSearchPerformanceBenchmarks:
 
         expected_output = SearchOutput(
             answer="Machine learning is a subset of artificial intelligence...",
-            documents=[{"id": "doc1", "title": "ML Basics", "source": "basics.pdf"}],
-            query_results=[{"content": "ML definition...", "score": 0.95}],
+            documents=[self.create_test_document_metadata("Test Doc", "Test Doc")],
+            query_results=[self.create_test_query_result("chunk1", "Test content", 0.95)],
             rewritten_query="What is machine learning?",
             evaluation={"relevance_score": 0.90},
         )
