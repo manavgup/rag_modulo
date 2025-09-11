@@ -177,7 +177,7 @@ class Settings(BaseSettings):
 
     @field_validator("jwt_secret_key")
     @classmethod
-    def validate_jwt_secret(cls, v):
+    def validate_jwt_secret(cls, v: str | None) -> str | None:
         """Validate JWT secret key and warn if using default in production."""
         if v and "dev-secret-key" in v:
             import os

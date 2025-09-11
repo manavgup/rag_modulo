@@ -16,4 +16,3 @@
 # mock_jwt_verification
 # Old: from e2e.test_auth_router import mock_jwt_verification
 # New: from tests.fixtures import mock_jwt_verification
-

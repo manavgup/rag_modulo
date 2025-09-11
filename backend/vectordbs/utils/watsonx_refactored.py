@@ -5,7 +5,7 @@ This shows how to migrate from module-level settings access to proper patterns.
 
 import logging
 from collections.abc import Generator
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from chromadb.api.types import Documents, EmbeddingFunction
 from dotenv import load_dotenv
@@ -232,11 +232,14 @@ class ChromaEmbeddingFunction(EmbeddingFunction):
         self.settings = settings
         self.wx_client = WatsonXClient.get_instance(settings)
 
-    def __call__(self, input: Documents) -> list[list[float]]:
+    def __call__(self, input: Documents) -> list[Any]:
         """Embed the input documents."""
         embed_client = self.wx_client.get_embeddings_client()
         embeddings = embed_client.embed_documents(texts=input)
-        return embeddings
+        # Convert to the expected format for ChromaDB
+        import numpy as np
+
+        return [np.array(embedding, dtype=np.float32) for embedding in embeddings]
 
 
 # Backward compatibility functions

@@ -59,3 +59,16 @@ def mock_watsonx_provider():
     provider.embed_text.return_value = [0.1, 0.2, 0.3, 0.4, 0.5] * 100  # 500-dim vector
     provider.is_available.return_value = True
     return provider
+
+
+@pytest.fixture
+def db_session():
+    """Mock database session for integration tests."""
+    from unittest.mock import Mock
+
+    session = Mock()
+    session.execute.return_value.scalar.return_value = 1
+    session.add = Mock()
+    session.commit = Mock()
+    session.rollback = Mock()
+    return session

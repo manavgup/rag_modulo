@@ -1,13 +1,20 @@
 """Unit test fixtures - Mocked dependencies for unit tests."""
 
-# Import atomic fixtures from the atomic layer
 import sys
+from datetime import datetime
 from pathlib import Path
+from typing import Any
 from unittest.mock import Mock
+from uuid import uuid4
 
 import pytest
 
+# Add atomic tests to path for imports
 sys.path.append(str(Path(__file__).parent.parent / "atomic"))
+
+# Import fixtures from other layers
+from rag_solution.schemas.user_schema import UserOutput  # noqa: E402
+from tests.fixtures.auth import test_client as auth_test_client  # noqa: E402
 
 
 @pytest.fixture
@@ -87,3 +94,53 @@ def mock_http_client():
     client.put.return_value = response
     client.delete.return_value = response
     return client
+
+
+# Re-export fixtures from other layers for unit tests
+@pytest.fixture
+def test_client() -> Any:
+    """Re-export test_client fixture for unit tests."""
+    return auth_test_client
+
+
+@pytest.fixture
+def mock_auth_token() -> str:
+    """Create a mock JWT token for unit tests."""
+    return "mock_token_for_testing"
+
+
+@pytest.fixture
+def auth_headers(mock_auth_token: str, base_user: UserOutput) -> dict[str, str]:
+    """Create regular user authentication headers for unit tests."""
+    return {"Authorization": f"Bearer {mock_auth_token}", "X-User-UUID": str(base_user.id), "X-User-Role": "user"}
+
+
+@pytest.fixture
+def base_user() -> UserOutput:
+    """Create a base user for unit tests."""
+    return UserOutput(id=uuid4(), email="test@example.com", ibm_id="test_user_123", name="Test User", role="user", preferred_provider_id=None, created_at=datetime.now(), updated_at=datetime.now())
+
+
+@pytest.fixture
+def test_collection() -> dict:
+    """Create test collection data for unit tests."""
+    return {"id": 1, "name": "Test Collection", "description": "A test collection", "is_private": True, "user_id": 1}
+
+
+@pytest.fixture
+def test_llm_params() -> dict:
+    """Create test LLM parameters for unit tests."""
+    return {"max_new_tokens": 100, "temperature": 0.7, "top_k": 50, "top_p": 1.0, "repetition_penalty": 1.1}
+
+
+@pytest.fixture
+def integration_settings():
+    """Mock integration settings for unit tests."""
+    from unittest.mock import Mock
+
+    settings = Mock()
+    settings.jwt_secret_key = "test-secret-key"
+    settings.rag_llm = "watsonx"
+    settings.vector_db = "milvus"
+    settings.postgres_url = "postgresql://test:test@localhost:5432/test_db"
+    return settings

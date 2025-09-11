@@ -45,11 +45,11 @@ class ServiceTestConsolidator:
 
             analysis["total_files"] += 1
             service_name = test_file.stem.replace("test_", "").replace("_service", "")
-            
+
             # Count tests in file
             test_count = self._count_tests_in_file(test_file)
             analysis["total_tests"] += test_count
-            
+
             # Categorize tests
             categories = self._categorize_tests(test_file)
             analysis["services"][service_name] = {
@@ -57,7 +57,7 @@ class ServiceTestConsolidator:
                 "test_count": test_count,
                 "categories": categories,
             }
-            
+
             for category, count in categories.items():
                 analysis["test_categories"][category] += count
 
@@ -68,14 +68,14 @@ class ServiceTestConsolidator:
         try:
             with open(file_path, "r") as f:
                 content = f.read()
-            
+
             tree = ast.parse(content)
             test_count = 0
-            
+
             for node in ast.walk(tree):
                 if isinstance(node, ast.FunctionDef) and node.name.startswith("test_"):
                     test_count += 1
-            
+
             return test_count
         except Exception as e:
             print(f"Error analyzing {file_path}: {e}")
@@ -84,11 +84,11 @@ class ServiceTestConsolidator:
     def _categorize_tests(self, file_path: Path) -> Dict[str, int]:
         """Categorize tests based on their content and dependencies."""
         categories = {"atomic": 0, "unit": 0, "integration": 0, "e2e": 0}
-        
+
         try:
             with open(file_path, "r") as f:
                 content = f.read()
-            
+
             # Simple heuristic categorization based on content
             if "db_session" in content or "database" in content.lower():
                 categories["integration"] += 1
@@ -98,23 +98,23 @@ class ServiceTestConsolidator:
                 categories["e2e"] += 1
             else:
                 categories["atomic"] += 1
-                
+
         except Exception as e:
             print(f"Error categorizing {file_path}: {e}")
-        
+
         return categories
 
     def consolidate_service_tests(self) -> None:
         """Consolidate service tests into proper layers."""
         print("🔄 Starting service test consolidation...")
-        
+
         analysis = self.analyze_service_tests()
         print(f"📊 Found {analysis['total_files']} service test files with {analysis['total_tests']} tests")
-        
+
         # Create target directories if they don't exist
         for directory in [self.atomic_dir, self.unit_dir, self.integration_dir, self.e2e_dir]:
             directory.mkdir(exist_ok=True)
-        
+
         # Process each service
         for service_name, service_info in analysis["services"].items():
             print(f"\n🔄 Processing {service_name} service...")
@@ -123,15 +123,15 @@ class ServiceTestConsolidator:
     def _consolidate_service(self, service_name: str, service_info: Dict[str, Any]) -> None:
         """Consolidate tests for a specific service."""
         source_file = Path(service_info["file"])
-        
+
         # Create atomic tests
         atomic_file = self.atomic_dir / f"test_{service_name}_validation.py"
         self._create_atomic_tests(service_name, source_file, atomic_file)
-        
+
         # Create unit tests
         unit_file = self.unit_dir / f"test_{service_name}_service.py"
         self._create_unit_tests(service_name, source_file, unit_file)
-        
+
         # Create integration tests
         integration_file = self.integration_dir / f"test_{service_name}_database.py"
         self._create_integration_tests(service_name, source_file, integration_file)
@@ -174,10 +174,10 @@ def test_{service_name}_output_serialization():
     )
     assert output is not None
 '''
-        
+
         with open(target_file, "w") as f:
             f.write(atomic_content)
-        
+
         print(f"  ✅ Created atomic tests: {target_file}")
 
     def _create_unit_tests(self, service_name: str, source_file: Path, target_file: Path) -> None:
@@ -195,7 +195,7 @@ def test_{service_name}_service_creation():
     """Test {service_name} service creation with mocked dependencies."""
     mock_db = Mock()
     mock_settings = Mock()
-    
+
     service = {service_name.title()}Service(mock_db, mock_settings)
     assert service is not None
 
@@ -205,16 +205,16 @@ def test_{service_name}_service_methods():
     """Test {service_name} service methods with mocked dependencies."""
     mock_db = Mock()
     mock_settings = Mock()
-    
+
     service = {service_name.title()}Service(mock_db, mock_settings)
-    
+
     # Test service methods with mocks
     # Add specific test cases here
 '''
-        
+
         with open(target_file, "w") as f:
             f.write(unit_content)
-        
+
         print(f"  ✅ Created unit tests: {target_file}")
 
     def _create_integration_tests(self, service_name: str, source_file: Path, target_file: Path) -> None:
@@ -244,16 +244,16 @@ def test_{service_name}_service_integration():
         # Add specific test cases here
         pass
 '''
-        
+
         with open(target_file, "w") as f:
             f.write(integration_content)
-        
+
         print(f"  ✅ Created integration tests: {target_file}")
 
     def create_migration_report(self) -> None:
         """Create a migration report."""
         analysis = self.analyze_service_tests()
-        
+
         report_file = self.test_dir / "service_migration_report.md"
         with open(report_file, "w") as f:
             f.write("# Service Test Migration Report\n\n")
@@ -261,14 +261,14 @@ def test_{service_name}_service_integration():
             f.write(f"- Total files processed: {analysis['total_files']}\n")
             f.write(f"- Total tests: {analysis['total_tests']}\n")
             f.write(f"- Services migrated: {len(analysis['services'])}\n\n")
-            
+
             f.write("## Services Migrated\n")
             for service_name, service_info in analysis["services"].items():
                 f.write(f"### {service_name.title()} Service\n")
                 f.write(f"- Original file: {service_info['file']}\n")
                 f.write(f"- Test count: {service_info['test_count']}\n")
                 f.write(f"- Categories: {service_info['categories']}\n\n")
-        
+
         print(f"📋 Created migration report: {report_file}")
 
 
@@ -278,17 +278,17 @@ def test_{service_name}_service_integration():
 def main(test_dir: str, dry_run: bool) -> None:
     """Consolidate service tests into proper test layers."""
     consolidator = ServiceTestConsolidator(test_dir)
-    
+
     if dry_run:
         analysis = consolidator.analyze_service_tests()
         print("🔍 DRY RUN - Would consolidate the following services:")
         for service_name, service_info in analysis["services"].items():
             print(f"  - {service_name}: {service_info['test_count']} tests")
         return
-    
+
     consolidator.consolidate_service_tests()
     consolidator.create_migration_report()
-    
+
     print("✅ Service test consolidation complete!")
 
 

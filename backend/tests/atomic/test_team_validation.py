@@ -6,42 +6,37 @@ from pydantic import BaseModel, ValidationError
 
 class TeamInput(BaseModel):
     """Simple input model for testing."""
+
     name: str
     description: str = ""
 
 
 @pytest.mark.atomic
-def test_team_input_validation():
+def test_team_input_validation() -> None:
     """Test team input validation without external dependencies."""
     # Valid input
-    valid_input = TeamInput(
-        name="Test Team",
-        description="A test team"
-    )
+    valid_input = TeamInput(name="Test Team", description="A test team")
     assert valid_input.name == "Test Team"
     assert valid_input.description == "A test team"
 
 
 @pytest.mark.atomic
-def test_team_input_invalid_data():
+def test_team_input_invalid_data() -> None:
     """Test team input validation with invalid data."""
-    # TeamInput doesn't have strict validation, so we'll test a different scenario
+    # TeamInput doesn"t have strict validation, so we"ll test a different scenario
     # Test with None name (which should fail)
     with pytest.raises(ValidationError):
         TeamInput(
             name=None,  # None name should fail
-            description="A test team"
+            description="A test team",
         )
 
 
 @pytest.mark.atomic
-def test_team_input_serialization():
+def test_team_input_serialization() -> None:
     """Test team input serialization."""
-    input_data = TeamInput(
-        name="Test Team",
-        description="A test team"
-    )
-    
+    input_data = TeamInput(name="Test Team", description="A test team")
+
     # Test serialization
     data = input_data.model_dump()
     assert data["name"] == "Test Team"
@@ -49,7 +44,7 @@ def test_team_input_serialization():
 
 
 @pytest.mark.atomic
-def test_team_string_validation():
+def test_team_string_validation() -> None:
     """Test team string validation."""
     test_string = "Hello, World!"
     assert len(test_string) > 0
@@ -58,17 +53,11 @@ def test_team_string_validation():
 
 
 @pytest.mark.atomic
-def test_team_data_types():
+def test_team_data_types() -> None:
     """Test team data type validation."""
     # Test various data types
-    test_data = {
-        "string": "test",
-        "number": 42,
-        "boolean": True,
-        "list": [1, 2, 3],
-        "dict": {"key": "value"}
-    }
-    
+    test_data = {"string": "test", "number": 42, "boolean": True, "list": [1, 2, 3], "dict": {"key": "value"}}
+
     assert isinstance(test_data["string"], str)
     assert isinstance(test_data["number"], int)
     assert isinstance(test_data["boolean"], bool)
