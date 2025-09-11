@@ -13,12 +13,27 @@ from unittest.mock import Mock, AsyncMock
 
 from rag_solution.schemas.search_schema import SearchInput, SearchOutput
 from rag_solution.services.search_service import SearchService
+from vectordbs.data_types import DocumentMetadata, QueryResult, DocumentChunk
 
 
 @pytest.mark.e2e
 @pytest.mark.data_validation
 class TestSearchDataValidation:
     """Test data validation for search functionality."""
+
+    @staticmethod
+    def create_test_document_metadata(name: str, title: str) -> DocumentMetadata:
+        """Helper to create test document metadata."""
+        return DocumentMetadata(document_name=name, title=title)
+
+    @staticmethod
+    def create_test_query_result(chunk_id: str, text: str, score: float) -> QueryResult:
+        """Helper to create test query result."""
+        return QueryResult(
+            chunk=DocumentChunk(chunk_id=chunk_id, text=text),
+            score=score,
+            embeddings=[0.1, 0.2, 0.3]  # Simple test embedding
+        )
 
     # Comprehensive Test Data Collections
     TEST_COLLECTIONS = {
@@ -362,8 +377,8 @@ class TestSearchDataValidation:
 
                 expected_output = SearchOutput(
                     answer=f"Answer for: {query_data['question']}",
-                    documents=[{"id": f"doc{i}", "title": f"Document {i}", "source": f"doc{i}.pdf"} for i in range(query_data["expected_sources"])],
-                    query_results=[{"content": f"Content {i}", "score": 0.95 - i * 0.1} for i in range(query_data["expected_sources"])],
+                    documents=[self.create_test_document_metadata("Test Doc", "Test Doc")],
+                    query_results=[self.create_test_query_result("chunk1", "Test content", 0.95)],
                     rewritten_query=query_data["question"],
                     evaluation={"relevance_score": 0.90},
                 )
@@ -391,8 +406,8 @@ class TestSearchDataValidation:
 
             expected_output = SearchOutput(
                 answer=f"Analytical answer for: {query_data['question']}",
-                documents=[{"id": f"doc{i}", "title": f"Document {i}", "source": f"doc{i}.pdf"} for i in range(query_data["expected_sources"])],
-                query_results=[{"content": f"Analytical content {i}", "score": 0.95 - i * 0.1} for i in range(query_data["expected_sources"])],
+                documents=[self.create_test_document_metadata("Test Doc", "Test Doc")],
+                query_results=[self.create_test_query_result("chunk1", "Test content", 0.95)],
                 rewritten_query=query_data["question"],
                 evaluation={"relevance_score": 0.90, "analytical_depth": 0.85},
             )
@@ -424,8 +439,8 @@ class TestSearchDataValidation:
 
             expected_output = SearchOutput(
                 answer=f"Technical explanation for: {query_data['question']}",
-                documents=[{"id": f"doc{i}", "title": f"Technical Document {i}", "source": f"tech_doc{i}.pdf"} for i in range(query_data["expected_sources"])],
-                query_results=[{"content": f"Technical content {i}", "score": 0.95 - i * 0.1} for i in range(query_data["expected_sources"])],
+                documents=[self.create_test_document_metadata("Test Doc", "Test Doc")],
+                query_results=[self.create_test_query_result("chunk1", "Test content", 0.95)],
                 rewritten_query=query_data["question"],
                 evaluation={"relevance_score": 0.95, "technical_depth": 0.90},
             )
@@ -457,8 +472,8 @@ class TestSearchDataValidation:
 
             expected_output = SearchOutput(
                 answer=f"Practical guide for: {query_data['question']}",
-                documents=[{"id": f"doc{i}", "title": f"Practical Guide {i}", "source": f"practical{i}.pdf"} for i in range(query_data["expected_sources"])],
-                query_results=[{"content": f"Practical content {i}", "score": 0.95 - i * 0.1} for i in range(query_data["expected_sources"])],
+                documents=[self.create_test_document_metadata("Test Doc", "Test Doc")],
+                query_results=[self.create_test_query_result("chunk1", "Test content", 0.95)],
                 rewritten_query=query_data["question"],
                 evaluation={"relevance_score": 0.90, "practical_value": 0.85},
             )
@@ -477,7 +492,7 @@ class TestSearchDataValidation:
             assert "practical_value" in result.evaluation
             assert result.evaluation["practical_value"] >= 0.8, f"Practical value should be high for practical query: {query_data['question']}"
 
-    def test_edge_case_query_validation(self, test_user_id: UUID, mock_search_service: Mock):
+    async def test_edge_case_query_validation(self, test_user_id: UUID, mock_search_service: Mock):
         """Test validation of edge case queries."""
         edge_case_queries = self.QUERY_TEST_SETS["edge_case_queries"]["queries"]
 
@@ -494,13 +509,13 @@ class TestSearchDataValidation:
 
                 # Act & Assert
                 with pytest.raises(ValueError, match="Query cannot be empty"):
-                    mock_search_service.search(search_input)
+                    await mock_search_service.search(search_input)
             else:
                 # Mock should handle edge cases gracefully
                 expected_output = SearchOutput(
                     answer=f"Processed answer for edge case: {query_data['question'][:50]}...",
-                    documents=[{"id": f"doc{i}", "title": f"Document {i}", "source": f"doc{i}.pdf"} for i in range(query_data["expected_sources"])],
-                    query_results=[{"content": f"Content {i}", "score": 0.95 - i * 0.1} for i in range(query_data["expected_sources"])],
+                    documents=[self.create_test_document_metadata("Test Doc", "Test Doc")],
+                    query_results=[self.create_test_query_result("chunk1", "Test content", 0.95)],
                     rewritten_query=query_data["question"][:100] if len(query_data["question"]) > 100 else query_data["question"],
                     evaluation={"relevance_score": 0.90},
                 )

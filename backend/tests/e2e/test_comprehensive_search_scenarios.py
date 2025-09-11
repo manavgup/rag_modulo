@@ -437,7 +437,7 @@ class TestComprehensiveSearchScenarios:
         assert total_time <= 10.0, f"Concurrent requests took {total_time}s, exceeds 10s limit"
 
     # Test Scenario 3: Error Handling and Edge Cases
-    def test_empty_query_handling(self, test_user_id: UUID, mock_search_service: Mock):
+    async def test_empty_query_handling(self, test_user_id: UUID, mock_search_service: Mock):
         """Test handling of empty queries."""
         # Arrange
         collection_id = UUID(self.TEST_COLLECTIONS["machine_learning"]["id"])
@@ -455,9 +455,9 @@ class TestComprehensiveSearchScenarios:
 
         # Act & Assert
         with pytest.raises(ValueError, match="Query cannot be empty"):
-            mock_search_service.search(search_input)
+            await mock_search_service.search(search_input)
 
-    def test_invalid_collection_id_handling(self, test_user_id: UUID, mock_search_service: Mock):
+    async def test_invalid_collection_id_handling(self, test_user_id: UUID, mock_search_service: Mock):
         """Test handling of invalid collection IDs."""
         # Arrange
         invalid_collection_id = uuid4()  # Non-existent collection
@@ -470,9 +470,9 @@ class TestComprehensiveSearchScenarios:
 
         # Act & Assert
         with pytest.raises(ValueError, match="Collection not found"):
-            mock_search_service.search(search_input)
+            await mock_search_service.search(search_input)
 
-    def test_invalid_pipeline_id_handling(self, test_user_id: UUID, mock_search_service: Mock):
+    async def test_invalid_pipeline_id_handling(self, test_user_id: UUID, mock_search_service: Mock):
         """Test handling of invalid pipeline IDs."""
         # Arrange
         collection_id = UUID(self.TEST_COLLECTIONS["machine_learning"]["id"])
@@ -485,7 +485,7 @@ class TestComprehensiveSearchScenarios:
 
         # Act & Assert
         with pytest.raises(ValueError, match="Pipeline configuration not found"):
-            mock_search_service.search(search_input)
+            await mock_search_service.search(search_input)
 
     def test_very_long_query_handling(self, test_user_id: UUID, mock_search_service: Mock):
         """Test handling of very long queries."""
@@ -646,7 +646,7 @@ class TestComprehensiveSearchScenarios:
         assert all(count == query_result_counts[0] for count in query_result_counts), "Query result counts should be consistent"
 
     # Test Scenario 5: Integration Points
-    def test_search_service_integration(self, test_user_id: UUID):
+    async def test_search_service_integration(self, test_user_id: UUID):
         """Test search service integration with dependencies."""
         # Arrange
         collection_id = UUID(self.TEST_COLLECTIONS["machine_learning"]["id"])
@@ -663,7 +663,7 @@ class TestComprehensiveSearchScenarios:
 
         # Act & Assert - This should fail in red phase until implementation is complete
         with pytest.raises(Exception):  # Expected to fail in red phase
-            search_service.search(search_input)
+            await search_service.search(search_input)
 
     def test_pipeline_service_integration(self, test_user_id: UUID):
         """Test pipeline service integration."""
