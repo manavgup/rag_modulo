@@ -9,12 +9,11 @@ from uuid import uuid4
 
 import pytest
 
-# Add atomic tests to path for imports
-sys.path.append(str(Path(__file__).parent.parent / "atomic"))
+from rag_solution.schemas.user_schema import UserOutput
+from tests.fixtures.auth import test_client as auth_test_client
 
-# Import fixtures from other layers
-from rag_solution.schemas.user_schema import UserOutput  # noqa: E402
-from tests.fixtures.auth import test_client as auth_test_client  # noqa: E402
+# Add atomic tests to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent / "atomic"))
 
 
 @pytest.fixture
