@@ -10,7 +10,7 @@ Initial TDD approach created an over-comprehensive test suite (~450 tests) that 
 
 #### **Atomic Tests** (`tests/atomic/test_cli_core.py`)
 - Command parsing and argument validation
-- Configuration management and validation  
+- Configuration management and validation
 - Authentication token logic and session management
 - Output formatting utilities (table/JSON)
 - **~15 focused tests** instead of ~150
@@ -18,7 +18,7 @@ Initial TDD approach created an over-comprehensive test suite (~450 tests) that 
 #### **Unit Tests** (`tests/unit/test_cli_client.py`)
 - HTTP client wrapper functionality
 - API endpoint routing correctness
-- Request/response handling  
+- Request/response handling
 - Authentication header management
 - Error handling and user-friendly messages
 - **~20 focused tests** instead of ~200
@@ -40,7 +40,7 @@ Initial TDD approach created an over-comprehensive test suite (~450 tests) that 
 
 ### ✅ **Business Logic Coverage (Already Tested):**
 - **Service Tests**: `tests/unit/test_*_service*.py` - Business logic validation
-- **API Tests**: `tests/unit/test_*_router.py` - API endpoint validation  
+- **API Tests**: `tests/unit/test_*_router.py` - API endpoint validation
 - **Integration Tests**: `tests/integration/test_*_service.py` - Service integration
 - **Database Tests**: `tests/integration/test_*_database.py` - Data persistence
 
@@ -67,7 +67,7 @@ Initial TDD approach created an over-comprehensive test suite (~450 tests) that 
 - Clear separation of concerns
 - Easier to maintain
 
-### ✅ **Better Test Strategy**  
+### ✅ **Better Test Strategy**
 - CLI tests focus on CLI-specific concerns
 - Business logic tested once in service layer
 - Integration verified without duplication
@@ -82,13 +82,13 @@ Initial TDD approach created an over-comprehensive test suite (~450 tests) that 
 ```bash
 # CLI-specific tests only
 make test testfile=tests/atomic/test_cli_core.py
-make test testfile=tests/unit/test_cli_client.py  
+make test testfile=tests/unit/test_cli_client.py
 make test testfile=tests/integration/test_cli_integration.py
 make test testfile=tests/e2e/test_cli_e2e.py
 
 # Full test suite (includes existing service tests)
 make unit-tests      # Includes CLI unit tests
-make integration-tests # Includes CLI integration tests  
+make integration-tests # Includes CLI integration tests
 make api-tests       # Includes CLI e2e tests
 ```
 
