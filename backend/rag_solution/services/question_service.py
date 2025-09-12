@@ -109,7 +109,7 @@ class QuestionService:
         else:  # word_count > 3
             # Handle questions with more than 3 words (longer questions)
             relevance_score = len(question_words.intersection(context_words)) / word_count
-            min_relevance = 0.25  # Stricter threshold for relevance
+            min_relevance = 0.3  # Stricter threshold for relevance
             is_valid = relevance_score >= min_relevance
 
         return is_valid, cleaned_question
@@ -181,6 +181,10 @@ class QuestionService:
         current_length = 0
 
         for text in texts:
+            # Truncate texts that are too long for the limit
+            if len(text) > available_context_length:
+                text = text[:available_context_length]
+
             text_length = len(text)
             if current_length + text_length <= available_context_length:
                 current_batch.append(text)
@@ -188,8 +192,8 @@ class QuestionService:
             else:
                 if current_batch:
                     combined_texts.append(" ".join(current_batch))
-                    current_batch = [text]
-                    current_length = text_length
+                current_batch = [text]
+                current_length = text_length
 
         if current_batch:
             combined_texts.append(" ".join(current_batch))

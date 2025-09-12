@@ -82,7 +82,7 @@ def mock_env_vars():
         "WATSONX_APIKEY": "test-api-key",
         "WATSONX_URL": "https://test.watsonx.ai",
         "VECTOR_DB": "milvus",
-        "MILVUS_HOST": "test-milvus-host",
+        "MILVUS_HOST": "localhost",
         "MILVUS_PORT": "19530",
         "PROJECT_NAME": "rag_modulo",
         "EMBEDDING_MODEL": "test-embedding-model",
@@ -96,6 +96,15 @@ def mock_settings(mock_env_vars):
     with patch.dict(os.environ, mock_env_vars, clear=True):
         settings = Settings()
         return settings
+
+
+@pytest.fixture
+def e2e_settings():
+    """Create a real settings object for E2E tests using actual environment variables."""
+    # Import here to avoid circular imports
+    from core.config import get_settings
+
+    return get_settings()
 
 
 @pytest.fixture

@@ -5,7 +5,7 @@ Simplified version of test_user_router.py
 import pytest
 
 
-@pytest.mark.integration
+@pytest.mark.unit
 class TestSimplified:
     """Simplified test that works."""
 

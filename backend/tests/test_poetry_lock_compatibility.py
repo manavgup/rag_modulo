@@ -7,7 +7,10 @@ import re
 import subprocess
 from pathlib import Path
 
+import pytest
 
+
+@pytest.mark.integration
 class TestPoetryLockCompatibility:
     """Test Poetry lock file compatibility issues."""
 

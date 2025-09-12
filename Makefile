@@ -171,7 +171,7 @@ use-ghcr-images:
 	@echo "Configuring environment for GHCR images..."
 	@echo "BACKEND_IMAGE=${GHCR_REPO}/backend:latest" > .env.local
 	@echo "FRONTEND_IMAGE=${GHCR_REPO}/frontend:latest" >> .env.local
-	@echo "TEST_IMAGE=${GHCR_REPO}/backend:latest" >> .env.local
+	@echo "TEST_IMAGE=${GHCR_REPO}/backend:test-${PROJECT_VERSION}" >> .env.local
 	@echo "GHCR image configuration saved to .env.local"
 
 # Helper function to check if containers are healthy
@@ -392,11 +392,30 @@ test-unit-fast: venv
 
 test-integration: run-backend create-test-dirs
 	@echo "🔗 Running integration tests (testcontainers)..."
-	cd backend && poetry run pytest tests/integration/ -v
+	$(DOCKER_COMPOSE) run --rm \
+		-v $$(pwd)/backend:/app/backend:ro \
+		-v $$(pwd)/tests:/app/tests:ro \
+		-v $$(pwd)/test-reports:/app/test-reports \
+		-e TESTING=true \
+		-e CONTAINER_ENV=false \
+		test pytest -v backend/tests/integration/
 
-test-e2e: run-backend create-test-dirs
+run-backend-e2e: run-services
+	@echo "Starting backend with E2E configuration (auth disabled)..."
+	SKIP_AUTH=true TESTING=true DEVELOPMENT_MODE=true $(DOCKER_COMPOSE) up -d backend
+	@echo "Backend is now running in E2E mode."
+
+test-e2e: run-backend-e2e create-test-dirs
 	@echo "🌐 Running E2E tests (full stack)..."
-	cd backend && poetry run pytest tests/e2e/ -v
+	@echo "Waiting for backend to be ready..."
+	@sleep 10  # Give backend time to initialize
+	$(DOCKER_COMPOSE) run --rm \
+		-v $$(pwd)/backend:/app/backend:ro \
+		-v $$(pwd)/tests:/app/tests:ro \
+		-v $$(pwd)/test-reports:/app/test-reports \
+		-e TESTING=true \
+		-e CONTAINER_ENV=false \
+		test pytest -v backend/tests/e2e/
 
 # Combined test targets
 test-fast: test-atomic test-unit-fast
@@ -568,6 +587,27 @@ lint-docstrings-strict:
 	cd backend && poetry run interrogate rag_solution/ -v
 	cd backend && poetry run pydocstyle rag_solution/
 	@echo "$(GREEN)✅ Strict docstring checks passed$(NC)"
+
+## Strangler Pattern targets for gradual linting adoption
+lint-progress:
+	@echo "$(CYAN)📊 Checking linting progress (strangler pattern)...$(NC)"
+	@python scripts/check_linting_progress.py
+
+lint-migrate-file:
+	@echo "$(CYAN)🔄 Migrating file to full linting compliance...$(NC)"
+	@if [ -z "$(FILE)" ]; then \
+		echo "$(RED)❌ Usage: make lint-migrate-file FILE=path/to/file.py$(NC)"; \
+		exit 1; \
+	fi
+	@python scripts/migrate_file_to_compliance.py "$(FILE)"
+
+lint-strangler-status:
+	@echo "$(CYAN)📈 Showing strangler pattern status...$(NC)"
+	@python scripts/show_strangler_status.py
+
+init-strangler:
+	@echo "$(CYAN)🔧 Initializing strangler pattern...$(NC)"
+	@./scripts/init-strangler-pattern.sh
 
 ## NEW: Doctest execution target
 test-doctest:
@@ -849,6 +889,10 @@ help:
 	@echo "  lint-mypy-strict\t\tRun strict MyPy type checker"
 	@echo "  lint-docstrings\t\tCheck docstring coverage (50% threshold)"
 	@echo "  lint-docstrings-strict\tCheck docstring coverage (50% threshold)"
+	@echo "  lint-progress     \tShow strangler pattern linting progress"
+	@echo "  lint-migrate-file \tMigrate file to full linting compliance (FILE=path)"
+	@echo "  lint-strangler-status\tShow strangler pattern status"
+	@echo "  init-strangler    \tInitialize strangler pattern for gradual linting"
 	@echo ""
 	@echo "$(CYAN)🎨 Formatting Targets:$(NC)"
 	@echo "  format        \t\tAuto-format code and sort imports"

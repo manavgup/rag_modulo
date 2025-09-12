@@ -110,3 +110,10 @@ repos:
         language: system
         files: ^backend/tests/.*\.py$
         pass_filenames: false
+
+      - id: check-strangler-compliance
+        name: Check strangler pattern compliance for new/modified files
+        entry: python scripts/check_strangler_compliance.py
+        language: system
+        files: ^(backend|scripts)/.*\.py$
+        pass_filenames: false

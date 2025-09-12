@@ -13,7 +13,10 @@ import sys
 import tempfile
 from pathlib import Path
 
+import pytest
 
+
+@pytest.mark.integration
 class TestCICDPipeline:
     """Tests that simulate each CI/CD job."""
 
@@ -145,6 +148,7 @@ print('✓ Settings work with CI env vars')
         assert result.returncode == 0, f"poetry.lock should be valid: {result.stderr}"
 
 
+@pytest.mark.integration
 class TestPreCommitHooks:
     """Tests that pre-commit hooks work with the new Settings."""
 
@@ -185,6 +189,7 @@ class TestPreCommitHooks:
         test_file = """
 from core.config import settings, Settings, get_settings
 
+@pytest.mark.integration
 def test_function() -> Settings:
     return get_settings()
 
@@ -208,6 +213,7 @@ def use_settings() -> str:
             os.unlink(temp_file)
 
 
+@pytest.mark.integration
 class TestDockerBuild:
     """Tests for Docker build compatibility."""
 
@@ -260,6 +266,7 @@ print('✓ App can start in Docker environment')
         assert result.returncode == 0, f"App should start in Docker environment: {result.stderr}"
 
 
+@pytest.mark.integration
 class TestMakefileCommands:
     """Test that Makefile commands work with new Settings."""
 
