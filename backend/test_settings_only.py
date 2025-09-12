@@ -9,7 +9,10 @@ avoiding other unrelated test suite issues (database, imports, etc.).
 import os
 import sys
 
+import pytest
 
+
+@pytest.mark.unit
 def test_settings_import_without_env_vars():
     """Test that Settings can be imported without environment variables."""
     print("Testing Settings import without env vars...")
@@ -43,6 +46,7 @@ def test_settings_import_without_env_vars():
         return False
 
 
+@pytest.mark.unit
 def test_settings_with_env_vars():
     """Test that Settings respect environment variables when provided."""
     print("Testing Settings with environment variables...")

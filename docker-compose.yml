@@ -58,7 +58,7 @@ services:
       retries: 3
 
   test:
-    image: ${TEST_IMAGE:-ghcr.io/manavgup/rag_modulo/backend:latest}
+    image: ${TEST_IMAGE:-ghcr.io/manavgup/rag_modulo/backend:test-1.0.0}
     networks:
       - app-network
     depends_on:

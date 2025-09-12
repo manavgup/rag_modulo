@@ -48,5 +48,6 @@ class SearchOutput(BaseModel):
     query_results: list[QueryResult]
     rewritten_query: str | None = None
     evaluation: dict[str, Any] | None = None
+    execution_time: float | None = None
 
     model_config = ConfigDict(from_attributes=True)

@@ -3,7 +3,7 @@ from collections.abc import Callable
 from typing import Any
 
 import numpy as np
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class RetrievalMetricResult(BaseModel):
@@ -52,8 +52,7 @@ class BaseRetrievalMetric(BaseModel, ABC):
 
         """
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 _AGG_FUNC: dict[str, Callable] = {"mean": np.mean, "median": np.median, "max": np.max}

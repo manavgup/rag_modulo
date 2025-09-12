@@ -39,8 +39,8 @@ class CollectionOutput(BaseModel):
     is_private: bool
     created_at: datetime
     updated_at: datetime
-    user_ids: list[UUID4]
-    files: list[FileInfo]
+    user_ids: list[UUID4] = []
+    files: list[FileInfo] = []
     status: CollectionStatus
 
     model_config = ConfigDict(from_attributes=True)

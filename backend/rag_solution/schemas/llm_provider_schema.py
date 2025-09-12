@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import UUID4, BaseModel, Field, SecretStr, field_validator
+from pydantic import UUID4, BaseModel, Field, SecretStr, field_validator, ConfigDict
 
 
 class LLMProviderInput(BaseModel):
@@ -29,8 +29,7 @@ class LLMProviderOutput(BaseModel):
     created_at: datetime = Field(..., description="Timestamp of creation")
     updated_at: datetime = Field(..., description="Timestamp of last update")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class LLMProviderConfig(BaseModel):
@@ -57,5 +56,4 @@ class LLMProviderConfig(BaseModel):
         print(f"DEBUG: API key is not a string: {type(v)} = {v}")
         return v
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

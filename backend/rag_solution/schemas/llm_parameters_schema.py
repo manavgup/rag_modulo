@@ -38,7 +38,7 @@ class LLMParametersOutput(LLMParametersBase):
     top_k: int = Field(..., description="Top-k sampling parameter")
     top_p: float = Field(..., description="Top-p sampling parameter")
     repetition_penalty: float | None = Field(..., description="Penalty for repeated tokens")
-    is_default: bool = Field(..., description="Flag indicating if this is the default configuration")
+    is_default: bool = Field(default=False, description="Flag indicating if this is the default configuration")
     created_at: datetime = Field(..., description="Creation timestamp")
     updated_at: datetime = Field(..., description="Last update timestamp")
 
