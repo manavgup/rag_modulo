@@ -72,3 +72,38 @@ def db_session():
     session.commit = Mock()
     session.rollback = Mock()
     return session
+
+
+@pytest.fixture
+def mock_llm_provider_service():
+    """Mock LLM provider service that returns iterable objects."""
+    from unittest.mock import Mock
+
+    service = Mock()
+
+    # Mock provider object with required attributes
+    mock_provider = Mock()
+    mock_provider.id = "test-id"
+    mock_provider.name = "watsonx"
+    mock_provider.base_url = "https://test.watsonx.ai"
+    mock_provider.is_active = True
+    mock_provider.is_default = True
+
+    # Make get_all_providers return a list instead of Mock
+    service.get_all_providers.return_value = [mock_provider]
+    service.create_provider.return_value = mock_provider
+    service.get_by_name.return_value = mock_provider
+
+    return service
+
+
+@pytest.fixture
+def mock_llm_model_service():
+    """Mock LLM model service for integration tests."""
+    from unittest.mock import Mock
+
+    service = Mock()
+    service.get_models_by_provider.return_value = []
+    service.create_model.return_value = Mock()
+
+    return service
