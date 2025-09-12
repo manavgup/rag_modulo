@@ -1,22 +1,20 @@
 """TDD Unit tests for CollectionService - RED phase: Tests that describe expected behavior."""
 
-import pytest
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
+
+import pytest
 from sqlalchemy.orm import Session
 
 from core.config import Settings
-from rag_solution.services.collection_service import CollectionService
+
+# Import the custom exceptions from the correct module
+from core.custom_exceptions import DocumentStorageError, EmptyDocumentError, QuestionGenerationError
+from rag_solution.core.exceptions import AlreadyExistsError
 from rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput, CollectionStatus
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
 from rag_solution.schemas.prompt_template_schema import PromptTemplateType
-from rag_solution.core.exceptions import (
-    AlreadyExistsError
-)
-# Import the custom exceptions from the correct module
-from core.custom_exceptions import (
-    EmptyDocumentError, QuestionGenerationError, DocumentStorageError
-)
+from rag_solution.services.collection_service import CollectionService
 from vectordbs.data_types import Document, DocumentChunk
 from vectordbs.error_types import CollectionError
 
@@ -38,16 +36,15 @@ class TestCollectionServiceTDD:
     @pytest.fixture
     def service(self, mock_db, mock_settings):
         """Create service instance with mocked dependencies."""
-        with patch('rag_solution.services.collection_service.CollectionRepository') as mock_repo, \
-             patch('rag_solution.services.collection_service.UserCollectionService') as mock_user_collection, \
-             patch('rag_solution.services.collection_service.FileManagementService') as mock_file_mgmt, \
-             patch('rag_solution.services.collection_service.VectorStoreFactory') as mock_vector_factory, \
-             patch('rag_solution.services.collection_service.UserProviderService') as mock_user_provider, \
-             patch('rag_solution.services.collection_service.PromptTemplateService') as mock_prompt, \
-             patch('rag_solution.services.collection_service.LLMParametersService') as mock_llm_params, \
-             patch('rag_solution.services.collection_service.QuestionService') as mock_question, \
-             patch('rag_solution.services.collection_service.LLMModelService') as mock_llm_model:
-
+        with patch("rag_solution.services.collection_service.CollectionRepository"), patch(
+            "rag_solution.services.collection_service.UserCollectionService"
+        ), patch("rag_solution.services.collection_service.FileManagementService"), patch(
+            "rag_solution.services.collection_service.VectorStoreFactory"
+        ) as mock_vector_factory, patch("rag_solution.services.collection_service.UserProviderService"), patch(
+            "rag_solution.services.collection_service.PromptTemplateService"
+        ), patch("rag_solution.services.collection_service.LLMParametersService"), patch(
+            "rag_solution.services.collection_service.QuestionService"
+        ), patch("rag_solution.services.collection_service.LLMModelService"):
             # Mock vector store
             mock_vector_store = Mock()
             mock_vector_factory.return_value.get_datastore.return_value = mock_vector_store
@@ -73,17 +70,12 @@ class TestCollectionServiceTDD:
 
         # Should start with 'collection_' and contain only valid characters
         assert name.startswith("collection_")
-        assert all(c.isalnum() or c == '_' for c in name)
+        assert all(c.isalnum() or c == "_" for c in name)
         assert len(name) > 11  # 'collection_' + some uuid chars
 
     def test_create_collection_success_red_phase(self, service):
         """RED: Test successful collection creation."""
-        collection_input = CollectionInput(
-            name="Test Collection",
-            is_private=False,
-            users=[uuid4()],
-            status=CollectionStatus.CREATED
-        )
+        collection_input = CollectionInput(name="Test Collection", is_private=False, users=[uuid4()], status=CollectionStatus.CREATED)
 
         expected_collection = CollectionOutput(
             id=uuid4(),
@@ -92,7 +84,7 @@ class TestCollectionServiceTDD:
             vector_db_name="collection_abc123",
             status=CollectionStatus.CREATED,
             created_at="2024-01-01T00:00:00Z",
-            updated_at="2024-01-01T00:00:00Z"
+            updated_at="2024-01-01T00:00:00Z",
         )
 
         # Mock successful creation flow
@@ -109,12 +101,7 @@ class TestCollectionServiceTDD:
 
     def test_create_collection_already_exists_red_phase(self, service):
         """RED: Test collection creation when name already exists - should raise AlreadyExistsError."""
-        collection_input = CollectionInput(
-            name="Existing Collection",
-            is_private=False,
-            users=[uuid4()],
-            status=CollectionStatus.CREATED
-        )
+        collection_input = CollectionInput(name="Existing Collection", is_private=False, users=[uuid4()], status=CollectionStatus.CREATED)
 
         existing_collection = CollectionOutput(
             id=uuid4(),
@@ -123,7 +110,7 @@ class TestCollectionServiceTDD:
             vector_db_name="collection_existing",
             status=CollectionStatus.CREATED,
             created_at="2024-01-01T00:00:00Z",
-            updated_at="2024-01-01T00:00:00Z"
+            updated_at="2024-01-01T00:00:00Z",
         )
 
         service.collection_repository.get_by_name.return_value = existing_collection
@@ -137,12 +124,7 @@ class TestCollectionServiceTDD:
 
     def test_create_collection_vector_store_failure_red_phase(self, service):
         """RED: Test collection creation with vector store failure - should cleanup."""
-        collection_input = CollectionInput(
-            name="Test Collection",
-            is_private=False,
-            users=[uuid4()],
-            status=CollectionStatus.CREATED
-        )
+        collection_input = CollectionInput(name="Test Collection", is_private=False, users=[uuid4()], status=CollectionStatus.CREATED)
 
         expected_collection = CollectionOutput(
             id=uuid4(),
@@ -151,7 +133,7 @@ class TestCollectionServiceTDD:
             vector_db_name="collection_abc123",
             status=CollectionStatus.CREATED,
             created_at="2024-01-01T00:00:00Z",
-            updated_at="2024-01-01T00:00:00Z"
+            updated_at="2024-01-01T00:00:00Z",
         )
 
         service.collection_repository.get_by_name.return_value = None
@@ -176,7 +158,7 @@ class TestCollectionServiceTDD:
             vector_db_name="collection_abc123",
             status=CollectionStatus.CREATED,
             created_at="2024-01-01T00:00:00Z",
-            updated_at="2024-01-01T00:00:00Z"
+            updated_at="2024-01-01T00:00:00Z",
         )
 
         service.collection_repository.get.return_value = expected_collection
@@ -192,12 +174,7 @@ class TestCollectionServiceTDD:
         user_id_1 = uuid4()
         user_id_2 = uuid4()
 
-        collection_update = CollectionInput(
-            name="Updated Collection",
-            is_private=True,
-            users=[user_id_1, user_id_2],
-            status=CollectionStatus.CREATED
-        )
+        collection_update = CollectionInput(name="Updated Collection", is_private=True, users=[user_id_1, user_id_2], status=CollectionStatus.CREATED)
 
         existing_collection = CollectionOutput(
             id=collection_id,
@@ -206,7 +183,7 @@ class TestCollectionServiceTDD:
             vector_db_name="collection_abc123",
             status=CollectionStatus.CREATED,
             created_at="2024-01-01T00:00:00Z",
-            updated_at="2024-01-01T00:00:00Z"
+            updated_at="2024-01-01T00:00:00Z",
         )
 
         updated_collection = CollectionOutput(
@@ -216,14 +193,13 @@ class TestCollectionServiceTDD:
             vector_db_name="collection_abc123",
             status=CollectionStatus.CREATED,
             created_at="2024-01-01T00:00:00Z",
-            updated_at="2024-01-01T00:00:00Z"
+            updated_at="2024-01-01T00:00:00Z",
         )
 
         # Mock user collection outputs (existing users)
         from rag_solution.schemas.user_collection_schema import UserCollectionOutput
-        existing_user_collections = [
-            UserCollectionOutput(user_id=user_id_1, collection_id=collection_id, created_at="2024-01-01T00:00:00Z")
-        ]
+
+        existing_user_collections = [UserCollectionOutput(user_id=user_id_1, collection_id=collection_id, created_at="2024-01-01T00:00:00Z")]
 
         service.collection_repository.get.side_effect = [existing_collection, updated_collection]
         service.user_collection_service.get_collection_users.return_value = existing_user_collections
@@ -248,7 +224,7 @@ class TestCollectionServiceTDD:
             vector_db_name="collection_abc123",
             status=CollectionStatus.CREATED,
             created_at="2024-01-01T00:00:00Z",
-            updated_at="2024-01-01T00:00:00Z"
+            updated_at="2024-01-01T00:00:00Z",
         )
 
         service.collection_repository.get.return_value = existing_collection
@@ -273,7 +249,7 @@ class TestCollectionServiceTDD:
             vector_db_name="collection_abc123",
             status=CollectionStatus.CREATED,
             created_at="2024-01-01T00:00:00Z",
-            updated_at="2024-01-01T00:00:00Z"
+            updated_at="2024-01-01T00:00:00Z",
         )
 
         service.collection_repository.get.return_value = existing_collection
@@ -292,8 +268,24 @@ class TestCollectionServiceTDD:
         """RED: Test successful user collections retrieval."""
         user_id = uuid4()
         collections = [
-            CollectionOutput(id=uuid4(), name="Collection 1", is_private=False, vector_db_name="col1", status=CollectionStatus.CREATED, created_at="2024-01-01T00:00:00Z", updated_at="2024-01-01T00:00:00Z"),
-            CollectionOutput(id=uuid4(), name="Collection 2", is_private=True, vector_db_name="col2", status=CollectionStatus.COMPLETED, created_at="2024-01-01T00:00:00Z", updated_at="2024-01-01T00:00:00Z")
+            CollectionOutput(
+                id=uuid4(),
+                name="Collection 1",
+                is_private=False,
+                vector_db_name="col1",
+                status=CollectionStatus.CREATED,
+                created_at="2024-01-01T00:00:00Z",
+                updated_at="2024-01-01T00:00:00Z",
+            ),
+            CollectionOutput(
+                id=uuid4(),
+                name="Collection 2",
+                is_private=True,
+                vector_db_name="col2",
+                status=CollectionStatus.COMPLETED,
+                created_at="2024-01-01T00:00:00Z",
+                updated_at="2024-01-01T00:00:00Z",
+            ),
         ]
 
         service.collection_repository.get_user_collections.return_value = collections
@@ -315,10 +307,7 @@ class TestCollectionServiceTDD:
         # Mock processed documents
         chunk1 = DocumentChunk(chunk_index=0, text="Sample text 1")
         chunk2 = DocumentChunk(chunk_index=1, text="Sample text 2")
-        processed_docs = [
-            Document(id="doc1", chunks=[chunk1]),
-            Document(id="doc2", chunks=[chunk2])
-        ]
+        processed_docs = [Document(id="doc1", chunks=[chunk1]), Document(id="doc2", chunks=[chunk2])]
 
         # Mock successful processing
         service._process_and_ingest_documents = AsyncMock(return_value=processed_docs)
@@ -338,10 +327,7 @@ class TestCollectionServiceTDD:
         chunk2 = DocumentChunk(chunk_index=1, text="Sample text 2")
         chunk3 = DocumentChunk(chunk_index=2, text="")  # Empty text
 
-        processed_docs = [
-            Document(id="doc1", chunks=[chunk1, chunk3]),
-            Document(id="doc2", chunks=[chunk2])
-        ]
+        processed_docs = [Document(id="doc1", chunks=[chunk1, chunk3]), Document(id="doc2", chunks=[chunk2])]
 
         result = service._extract_document_texts(processed_docs, collection_id)
 
@@ -354,10 +340,7 @@ class TestCollectionServiceTDD:
         chunk1 = DocumentChunk(chunk_index=0, text="")  # Empty text
         chunk2 = DocumentChunk(chunk_index=1, text=None)  # None text
 
-        processed_docs = [
-            Document(id="doc1", chunks=[chunk1]),
-            Document(id="doc2", chunks=[chunk2])
-        ]
+        processed_docs = [Document(id="doc1", chunks=[chunk1]), Document(id="doc2", chunks=[chunk2])]
 
         service.update_collection_status = Mock()
 
@@ -376,16 +359,7 @@ class TestCollectionServiceTDD:
         # Mock dependencies
         mock_provider = Mock(name="openai")
         mock_template = Mock()
-        mock_parameters = LLMParametersInput(
-            name="test_params",
-            description="Test parameters",
-            user_id=user_id,
-            temperature=0.7,
-            max_new_tokens=100,
-            top_p=0.9,
-            top_k=40,
-            repetition_penalty=1.1
-        )
+        mock_parameters = LLMParametersInput(name="test_params", description="Test parameters", user_id=user_id, temperature=0.7, max_new_tokens=100, top_p=0.9, top_k=40, repetition_penalty=1.1)
         mock_questions = ["Question 1?", "Question 2?"]
 
         service.user_provider_service.get_user_provider.return_value = mock_provider
@@ -397,12 +371,7 @@ class TestCollectionServiceTDD:
         await service._generate_collection_questions(document_texts, collection_id, user_id)
 
         service.question_service.suggest_questions.assert_called_once_with(
-            texts=document_texts,
-            collection_id=collection_id,
-            user_id=user_id,
-            provider_name=mock_provider.name,
-            template=mock_template,
-            parameters=mock_parameters
+            texts=document_texts, collection_id=collection_id, user_id=user_id, provider_name=mock_provider.name, template=mock_template, parameters=mock_parameters
         )
         service.update_collection_status.assert_called_once_with(collection_id, CollectionStatus.COMPLETED)
 
@@ -429,16 +398,7 @@ class TestCollectionServiceTDD:
 
         mock_provider = Mock(name="openai")
         mock_template = Mock()
-        mock_parameters = LLMParametersInput(
-            name="test_params",
-            description="Test parameters",
-            user_id=user_id,
-            temperature=0.7,
-            max_new_tokens=100,
-            top_p=0.9,
-            top_k=40,
-            repetition_penalty=1.1
-        )
+        mock_parameters = LLMParametersInput(name="test_params", description="Test parameters", user_id=user_id, temperature=0.7, max_new_tokens=100, top_p=0.9, top_k=40, repetition_penalty=1.1)
 
         service.user_provider_service.get_user_provider.return_value = mock_provider
         service._get_question_generation_template = Mock(return_value=mock_template)
@@ -468,6 +428,7 @@ class TestCollectionServiceTDD:
         user_id = uuid4()
 
         from rag_solution.schemas.llm_parameters_schema import LLMParametersOutput
+
         mock_parameters = LLMParametersOutput(
             id=uuid4(),
             name="test_params",
@@ -479,7 +440,7 @@ class TestCollectionServiceTDD:
             top_k=40,
             repetition_penalty=1.1,
             created_at="2024-01-01T00:00:00Z",
-            updated_at="2024-01-01T00:00:00Z"
+            updated_at="2024-01-01T00:00:00Z",
         )
 
         service.llm_parameters_service.get_latest_or_default_parameters.return_value = mock_parameters
@@ -512,9 +473,7 @@ class TestCollectionServiceTDD:
         chunk1 = DocumentChunk(chunk_index=0, text="Sample text 1")
         document = Document(id="doc1", chunks=[chunk1])
 
-        with patch('rag_solution.services.collection_service.multiprocessing.Manager') as mock_manager, \
-             patch('rag_solution.services.collection_service.DocumentProcessor') as mock_processor_class:
-
+        with patch("rag_solution.services.collection_service.multiprocessing.Manager"), patch("rag_solution.services.collection_service.DocumentProcessor") as mock_processor_class:
             mock_processor = Mock()
             mock_processor_class.return_value = mock_processor
 
@@ -581,9 +540,7 @@ class TestCollectionServiceTDD:
 
     def test_service_initialization_red_phase(self, mock_db, mock_settings):
         """RED: Test service initialization with all dependencies."""
-        with patch('rag_solution.services.collection_service.CollectionRepository') as mock_repo, \
-             patch('rag_solution.services.collection_service.VectorStoreFactory') as mock_vector_factory:
-
+        with patch("rag_solution.services.collection_service.CollectionRepository"), patch("rag_solution.services.collection_service.VectorStoreFactory") as mock_vector_factory:
             mock_vector_store = Mock()
             mock_vector_factory.return_value.get_datastore.return_value = mock_vector_store
 
@@ -593,6 +550,7 @@ class TestCollectionServiceTDD:
             assert service.settings is mock_settings
             assert service.vector_store is mock_vector_store
             mock_vector_factory.assert_called_once_with(mock_settings)
+
 
 # RED PHASE COMPLETE: These tests will reveal several logic issues:
 # 1. delete_collection raises generic Exception instead of specific error for PostgreSQL failure

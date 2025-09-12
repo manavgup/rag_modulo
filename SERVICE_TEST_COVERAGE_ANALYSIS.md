@@ -13,7 +13,7 @@ This document analyzes the test coverage for the four core services in the RAG M
 **Methods Covered:**
 - ✅ `search()` - **Primary method** - Comprehensive E2E coverage
 - ✅ `_validate_search_input()` - Input validation tests
-- ✅ `_validate_collection_access()` - Access control tests  
+- ✅ `_validate_collection_access()` - Access control tests
 - ✅ `_validate_pipeline()` - Pipeline validation tests
 - ✅ `_generate_document_metadata()` - Metadata generation tests
 - ✅ `_clean_generated_answer()` - Answer cleaning tests
@@ -210,7 +210,7 @@ This document analyzes the test coverage for the four core services in the RAG M
 
 ### Target State (After Implementation)
 - **SearchService**: 95%+ coverage
-- **PipelineService**: 85%+ coverage  
+- **PipelineService**: 85%+ coverage
 - **CollectionService**: 80%+ coverage
 - **QuestionService**: 75%+ coverage
 

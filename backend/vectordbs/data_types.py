@@ -49,7 +49,7 @@ class DocumentMetadata(BaseModel):
     title: str | None = None
     author: str | None = None
     subject: str | None = None
-    keywords: dict[str, Any] | None = None  # Allow structured keyword data
+    keywords: dict[str, Any] | list[str] | None = None  # Allow structured keyword data or list of strings
     creator: str | None = None
     producer: str | None = None
     creation_date: datetime | None = None
@@ -123,8 +123,8 @@ class DocumentChunk(BaseModel):
         document_id: Reference to parent document
     """
 
-    chunk_id: str
-    text: str
+    chunk_id: str | None = None
+    text: str | None = None
     embeddings: Embeddings | None = None
     vectors: Embeddings | None = None  # Alias for embeddings
     metadata: DocumentChunkMetadata | None = None
@@ -156,14 +156,14 @@ class Document(BaseModel):
         metadata: Document-level metadata
     """
 
-    name: str
-    document_id: str
+    name: str | None = None
+    document_id: str | None = None
     chunks: list[DocumentChunk]
     path: str | None = ""
     metadata: DocumentMetadata | None = None
 
     @property
-    def id(self) -> str:
+    def id(self) -> str | None:
         """Alias for document_id."""
         return self.document_id
 
@@ -228,17 +228,17 @@ class QueryResult(BaseModel):
         data: List of chunks (for backward compatibility)
     """
 
-    chunk: DocumentChunk
+    chunk: DocumentChunk | None = None
     score: float
-    embeddings: Embeddings
+    embeddings: Embeddings | None = None
 
     @property
     def data(self) -> list[DocumentChunk]:
         """List of chunks for backward compatibility."""
-        return [self.chunk]
+        return [self.chunk] if self.chunk else []
 
     @property
-    def document(self) -> DocumentChunk:
+    def document(self) -> DocumentChunk | None:
         """Alias for chunk (for backward compatibility)."""
         return self.chunk
 
@@ -246,17 +246,20 @@ class QueryResult(BaseModel):
 
     def __repr__(self) -> str:
         """Readable string representation."""
-        return f"QueryResult(chunk_id={self.chunk.chunk_id}, score={self.score:.3f}, text={self.chunk.text[:50]}...)"
+        if self.chunk:
+            return f"QueryResult(chunk_id={self.chunk.chunk_id}, score={self.score:.3f}, text={self.chunk.text[:50]}...)"
+        else:
+            return f"QueryResult(chunk_id=None, score={self.score:.3f}, text=None)"
 
     @property
-    def chunk_id(self) -> str:
+    def chunk_id(self) -> str | None:
         """Convenience accessor for chunk's ID."""
-        return self.chunk.chunk_id
+        return self.chunk.chunk_id if self.chunk else None
 
     @property
     def document_id(self) -> str | None:
         """Convenience accessor for document's ID."""
-        return self.chunk.document_id
+        return self.chunk.document_id if self.chunk else None
 
     def __len__(self) -> int:
         """Return number of results."""

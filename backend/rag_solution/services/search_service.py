@@ -195,12 +195,12 @@ class SearchService:
         """Validate pipeline configuration."""
         pipeline_config = self.pipeline_service.get_pipeline_config(pipeline_id)
         if not pipeline_config:
-            raise NotFoundError(resource_type="Pipeline", resource_id=str(pipeline_id), message="Pipeline configuration not found")
+            raise NotFoundError(resource_type="Pipeline", resource_id=str(pipeline_id), message=f"Pipeline configuration not found for ID {pipeline_id}")
 
     @handle_search_errors
     async def search(self, search_input: SearchInput) -> SearchOutput:
         """Process a search query through the RAG pipeline."""
-        time.time()
+        start_time = time.time()
         logger.info("Starting search operation")
 
         # Validate inputs
@@ -227,6 +227,9 @@ class SearchService:
             pipeline_result.generated_answer = ""
         cleaned_answer = self._clean_generated_answer(pipeline_result.generated_answer)
 
+        # Calculate execution time
+        execution_time = time.time() - start_time
+
         # Build response
         return SearchOutput(
             answer=cleaned_answer,
@@ -234,4 +237,5 @@ class SearchService:
             query_results=pipeline_result.query_results,
             rewritten_query=pipeline_result.rewritten_query,
             evaluation=pipeline_result.evaluation,
+            execution_time=execution_time,
         )

@@ -25,7 +25,8 @@ def check_test_isolation(test_file: str, content: str) -> List[Tuple[int, int, s
         'test_ci_environment.py',
         'test_settings_acceptance.py',
         'test_cicd_precommit_coverage.py',
-        'test_settings_dependency_injection.py'
+        'test_settings_dependency_injection.py',
+        'test_environment_loading.py'  # Explicitly tests env var loading
     ]):
         return violations
 
@@ -34,8 +35,8 @@ def check_test_isolation(test_file: str, content: str) -> List[Tuple[int, int, s
         if 'os.getenv(' in line or 'os.environ[' in line:
             violations.append((i, 0, "Direct environment variable access in test"))
 
-        # Check for real API calls
-        if 'requests.get(' in line or 'requests.post(' in line:
+        # Check for real API calls (but skip E2E tests that need real API calls)
+        if ('requests.get(' in line or 'requests.post(' in line) and '/e2e/' not in test_file:
             violations.append((i, 0, "Real API call in test"))
 
     return violations
@@ -51,7 +52,8 @@ def check_patterns(test_file: str, content: str) -> List[Tuple[int, str]]:
         'test_ci_environment.py',
         'test_settings_acceptance.py',
         'test_cicd_precommit_coverage.py',
-        'test_settings_dependency_injection.py'
+        'test_settings_dependency_injection.py',
+        'test_environment_loading.py'  # Explicitly tests env var loading
     ]):
         return violations
 
