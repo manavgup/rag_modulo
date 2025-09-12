@@ -178,7 +178,7 @@ class PipelineResult(BaseModel):
     warnings: list[str] | None = Field(default=None, description="Warning messages")
     rewritten_query: str | None = Field(None, min_length=1)
     query_results: list[QueryResult] | None = None
-    generated_answer: str | None = Field(None, min_length=1)
+    generated_answer: str | None = Field(None)
     evaluation: dict[str, Any] | None = None
 
     model_config = ConfigDict(from_attributes=True, validate_assignment=True, arbitrary_types_allowed=True)

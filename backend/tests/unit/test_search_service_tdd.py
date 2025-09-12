@@ -10,9 +10,7 @@ from core.config import Settings
 from rag_solution.services.search_service import SearchService, handle_search_errors
 from rag_solution.schemas.search_schema import SearchInput, SearchOutput
 from rag_solution.schemas.collection_schema import CollectionOutput, CollectionStatus
-from core.custom_exceptions import (
-    ConfigurationError, LLMProviderError, NotFoundError, ValidationError
-)
+from core.custom_exceptions import ConfigurationError, LLMProviderError, NotFoundError, ValidationError
 from vectordbs.data_types import QueryResult
 
 
@@ -58,7 +56,7 @@ class TestSearchServiceTDD:
         # Reset to None to test lazy loading
         service._file_service = None
 
-        with patch('rag_solution.services.search_service.FileManagementService') as mock_service_class:
+        with patch("rag_solution.services.search_service.FileManagementService") as mock_service_class:
             mock_instance = Mock()
             mock_service_class.return_value = mock_instance
 
@@ -76,7 +74,7 @@ class TestSearchServiceTDD:
         """RED: Test lazy loading of collection service."""
         service._collection_service = None
 
-        with patch('rag_solution.services.search_service.CollectionService') as mock_service_class:
+        with patch("rag_solution.services.search_service.CollectionService") as mock_service_class:
             mock_instance = Mock()
             mock_service_class.return_value = mock_instance
 
@@ -89,7 +87,7 @@ class TestSearchServiceTDD:
         """RED: Test lazy loading of pipeline service."""
         service._pipeline_service = None
 
-        with patch('rag_solution.services.search_service.PipelineService') as mock_service_class:
+        with patch("rag_solution.services.search_service.PipelineService") as mock_service_class:
             mock_instance = Mock()
             mock_service_class.return_value = mock_instance
 
@@ -111,7 +109,7 @@ class TestSearchServiceTDD:
             user_ids=[],
             files=[],
             created_at="2024-01-01T00:00:00Z",
-            updated_at="2024-01-01T00:00:00Z"
+            updated_at="2024-01-01T00:00:00Z",
         )
 
         service._collection_service.get_collection.return_value = collection
@@ -131,6 +129,7 @@ class TestSearchServiceTDD:
         service._collection_service.get_collection.return_value = None
 
         from fastapi import HTTPException
+
         with pytest.raises(HTTPException) as exc_info:
             await service._initialize_pipeline(collection_id)
 
@@ -151,13 +150,14 @@ class TestSearchServiceTDD:
             user_ids=[],
             files=[],
             created_at="2024-01-01T00:00:00Z",
-            updated_at="2024-01-01T00:00:00Z"
+            updated_at="2024-01-01T00:00:00Z",
         )
 
         service._collection_service.get_collection.return_value = collection
         service._pipeline_service.initialize = AsyncMock(side_effect=Exception("Pipeline init failed"))
 
         from fastapi import HTTPException
+
         with pytest.raises(HTTPException) as exc_info:
             await service._initialize_pipeline(collection_id)
 
@@ -171,19 +171,15 @@ class TestSearchServiceTDD:
         doc_id_2 = "doc2"
 
         from vectordbs.data_types import DocumentChunk
+
         query_results = [
-            QueryResult(
-                chunk=DocumentChunk(chunk_id="chunk1", text="Sample text 1", document_id=doc_id_1, page_number=1),
-                score=0.9
-            ),
-            QueryResult(
-                chunk=DocumentChunk(chunk_id="chunk2", text="Sample text 2", document_id=doc_id_2, page_number=2),
-                score=0.8
-            ),
+            QueryResult(chunk=DocumentChunk(chunk_id="chunk1", text="Sample text 1", document_id=doc_id_1, page_number=1), score=0.9),
+            QueryResult(chunk=DocumentChunk(chunk_id="chunk2", text="Sample text 2", document_id=doc_id_2, page_number=2), score=0.8),
         ]
 
         # Mock file metadata
         from rag_solution.schemas.file_schema import FileOutput, FileMetadata
+
         files = [
             FileOutput(
                 id=uuid4(),
@@ -193,13 +189,9 @@ class TestSearchServiceTDD:
                 user_id=uuid4(),
                 size=1024,
                 file_path="/path/to/doc1.pdf",
-                metadata=FileMetadata(
-                    total_pages=5,
-                    total_chunks=10,
-                    keywords=["keyword1", "keyword2"]
-                ),
+                metadata=FileMetadata(total_pages=5, total_chunks=10, keywords=["keyword1", "keyword2"]),
                 created_at="2024-01-01T00:00:00Z",
-                updated_at="2024-01-01T00:00:00Z"
+                updated_at="2024-01-01T00:00:00Z",
             ),
             FileOutput(
                 id=uuid4(),
@@ -209,21 +201,17 @@ class TestSearchServiceTDD:
                 user_id=uuid4(),
                 size=512,
                 file_path="/path/to/doc2.txt",
-                metadata=FileMetadata(
-                    total_pages=1,
-                    total_chunks=5,
-                    keywords=["keyword3"]
-                ),
+                metadata=FileMetadata(total_pages=1, total_chunks=5, keywords=["keyword3"]),
                 created_at="2024-01-01T00:00:00Z",
-                updated_at="2024-01-01T00:00:00Z"
-            )
+                updated_at="2024-01-01T00:00:00Z",
+            ),
         ]
 
         # Mock the file service by setting the internal attribute
         mock_file_service = Mock()
         mock_file_service.get_files_by_collection.return_value = files
         service._file_service = mock_file_service
-        
+
         result = service._generate_document_metadata(query_results, collection_id)
 
         assert len(result) == 2
@@ -246,7 +234,7 @@ class TestSearchServiceTDD:
     def test_generate_document_metadata_missing_files_red_phase(self, service):
         """RED: Test document metadata generation when files not found - should raise ConfigurationError."""
         from vectordbs.data_types import DocumentChunk, QueryResult
-        
+
         collection_id = uuid4()
         # Create proper QueryResult with DocumentChunk
         chunk = DocumentChunk(chunk_id="chunk1", text="Sample text", document_id="doc1")
@@ -264,7 +252,7 @@ class TestSearchServiceTDD:
     def test_generate_document_metadata_missing_document_metadata_red_phase(self, service):
         """RED: Test when document referenced in results but not found in metadata - should raise ConfigurationError."""
         from vectordbs.data_types import DocumentChunk, QueryResult
-        
+
         collection_id = uuid4()
         # Create proper QueryResult with DocumentChunk
         chunk = DocumentChunk(chunk_id="chunk1", text="Sample text", document_id="missing_doc")
@@ -274,6 +262,7 @@ class TestSearchServiceTDD:
 
         # Files exist but don't include the referenced document
         from rag_solution.schemas.file_schema import FileOutput
+
         files = [
             FileOutput(
                 id=uuid4(),
@@ -285,7 +274,7 @@ class TestSearchServiceTDD:
                 file_path="/path/to/other_doc.pdf",
                 metadata=None,
                 created_at="2024-01-01T00:00:00Z",
-                updated_at="2024-01-01T00:00:00Z"
+                updated_at="2024-01-01T00:00:00Z",
             )
         ]
 
@@ -316,24 +305,14 @@ class TestSearchServiceTDD:
 
     def test_validate_search_input_success_red_phase(self, service):
         """RED: Test successful search input validation."""
-        search_input = SearchInput(
-            question="What is the capital of France?",
-            collection_id=uuid4(),
-            pipeline_id=uuid4(),
-            user_id=uuid4()
-        )
+        search_input = SearchInput(question="What is the capital of France?", collection_id=uuid4(), pipeline_id=uuid4(), user_id=uuid4())
 
         # Should not raise any exception
         service._validate_search_input(search_input)
 
     def test_validate_search_input_empty_question_red_phase(self, service):
         """RED: Test search input validation with empty question - should raise ValidationError."""
-        search_input = SearchInput(
-            question="",
-            collection_id=uuid4(),
-            pipeline_id=uuid4(),
-            user_id=uuid4()
-        )
+        search_input = SearchInput(question="", collection_id=uuid4(), pipeline_id=uuid4(), user_id=uuid4())
 
         with pytest.raises(ValidationError) as exc_info:
             service._validate_search_input(search_input)
@@ -342,12 +321,7 @@ class TestSearchServiceTDD:
 
     def test_validate_search_input_whitespace_only_question_red_phase(self, service):
         """RED: Test search input validation with whitespace-only question."""
-        search_input = SearchInput(
-            question="   ",
-            collection_id=uuid4(),
-            pipeline_id=uuid4(),
-            user_id=uuid4()
-        )
+        search_input = SearchInput(question="   ", collection_id=uuid4(), pipeline_id=uuid4(), user_id=uuid4())
 
         with pytest.raises(ValidationError):
             service._validate_search_input(search_input)
@@ -366,7 +340,7 @@ class TestSearchServiceTDD:
             user_ids=[],
             files=[],
             created_at="2024-01-01T00:00:00Z",
-            updated_at="2024-01-01T00:00:00Z"
+            updated_at="2024-01-01T00:00:00Z",
         )
 
         service._collection_service.get_collection.return_value = collection
@@ -388,7 +362,7 @@ class TestSearchServiceTDD:
             user_ids=[],
             files=[],
             created_at="2024-01-01T00:00:00Z",
-            updated_at="2024-01-01T00:00:00Z"
+            updated_at="2024-01-01T00:00:00Z",
         )
 
         # User has access to this collection
@@ -414,7 +388,7 @@ class TestSearchServiceTDD:
             user_ids=[],
             files=[],
             created_at="2024-01-01T00:00:00Z",
-            updated_at="2024-01-01T00:00:00Z"
+            updated_at="2024-01-01T00:00:00Z",
         )
 
         # User has no collections or doesn't have access to this one
@@ -467,12 +441,7 @@ class TestSearchServiceTDD:
     @pytest.mark.asyncio
     async def test_search_success_red_phase(self, service):
         """RED: Test successful search operation end-to-end."""
-        search_input = SearchInput(
-            question="What is machine learning?",
-            collection_id=uuid4(),
-            pipeline_id=uuid4(),
-            user_id=uuid4()
-        )
+        search_input = SearchInput(question="What is machine learning?", collection_id=uuid4(), pipeline_id=uuid4(), user_id=uuid4())
 
         # Mock all validation methods to pass
         service._validate_search_input = Mock()
@@ -482,14 +451,8 @@ class TestSearchServiceTDD:
 
         # Mock pipeline execution
         from rag_solution.schemas.pipeline_schema import PipelineResult
-        pipeline_result = PipelineResult(
-            success=True,
-            generated_answer="Machine learning is AI",
-            query_results=[],
-            rewritten_query="machine learning definition",
-            evaluation=None,
-            error=None
-        )
+
+        pipeline_result = PipelineResult(success=True, generated_answer="Machine learning is AI", query_results=[], rewritten_query="machine learning definition", evaluation=None, error=None)
 
         service._pipeline_service.execute_pipeline = AsyncMock(return_value=pipeline_result)
         service._generate_document_metadata = Mock(return_value=[])
@@ -510,12 +473,7 @@ class TestSearchServiceTDD:
     @pytest.mark.asyncio
     async def test_search_pipeline_execution_fails_red_phase(self, service):
         """RED: Test search when pipeline execution fails."""
-        search_input = SearchInput(
-            question="What is machine learning?",
-            collection_id=uuid4(),
-            pipeline_id=uuid4(),
-            user_id=uuid4()
-        )
+        search_input = SearchInput(question="What is machine learning?", collection_id=uuid4(), pipeline_id=uuid4(), user_id=uuid4())
 
         # Mock validations to pass
         service._validate_search_input = Mock()
@@ -525,18 +483,13 @@ class TestSearchServiceTDD:
 
         # Mock pipeline execution failure
         from rag_solution.schemas.pipeline_schema import PipelineResult
-        pipeline_result = PipelineResult(
-            success=False,
-            generated_answer=None,
-            query_results=None,
-            rewritten_query=None,
-            evaluation=None,
-            error="Pipeline execution failed"
-        )
+
+        pipeline_result = PipelineResult(success=False, generated_answer=None, query_results=None, rewritten_query=None, evaluation=None, error="Pipeline execution failed")
 
         service._pipeline_service.execute_pipeline = AsyncMock(return_value=pipeline_result)
 
         from fastapi import HTTPException
+
         with pytest.raises(HTTPException) as exc_info:
             await service.search(search_input)
 
@@ -546,12 +499,7 @@ class TestSearchServiceTDD:
     @pytest.mark.asyncio
     async def test_search_with_null_pipeline_results_red_phase(self, service):
         """RED: Test search handles null pipeline results gracefully."""
-        search_input = SearchInput(
-            question="What is machine learning?",
-            collection_id=uuid4(),
-            pipeline_id=uuid4(),
-            user_id=uuid4()
-        )
+        search_input = SearchInput(question="What is machine learning?", collection_id=uuid4(), pipeline_id=uuid4(), user_id=uuid4())
 
         # Mock validations
         service._validate_search_input = Mock()
@@ -561,14 +509,8 @@ class TestSearchServiceTDD:
 
         # Mock pipeline result with null values
         from rag_solution.schemas.pipeline_schema import PipelineResult
-        pipeline_result = PipelineResult(
-            success=True,
-            generated_answer=None,
-            query_results=None,
-            rewritten_query=None,
-            evaluation=None,
-            error=None
-        )
+
+        pipeline_result = PipelineResult(success=True, generated_answer=None, query_results=None, rewritten_query=None, evaluation=None, error=None)
 
         service._pipeline_service.execute_pipeline = AsyncMock(return_value=pipeline_result)
         service._generate_document_metadata = Mock(return_value=[])
@@ -590,6 +532,7 @@ class TestSearchServiceTDD:
 
         with pytest.raises(HTTPException) as exc_info:
             import asyncio
+
             asyncio.run(mock_function())
 
         assert exc_info.value.status_code == 404
@@ -604,6 +547,7 @@ class TestSearchServiceTDD:
 
         with pytest.raises(HTTPException) as exc_info:
             import asyncio
+
             asyncio.run(mock_function())
 
         assert exc_info.value.status_code == 400
@@ -618,6 +562,7 @@ class TestSearchServiceTDD:
 
         with pytest.raises(HTTPException) as exc_info:
             import asyncio
+
             asyncio.run(mock_function())
 
         assert exc_info.value.status_code == 500
@@ -631,6 +576,7 @@ class TestSearchServiceTDD:
 
         with pytest.raises(HTTPException) as exc_info:
             import asyncio
+
             asyncio.run(mock_function())
 
         assert exc_info.value.status_code == 500
@@ -638,14 +584,9 @@ class TestSearchServiceTDD:
 
     def test_search_time_tracking_logic_issue_red_phase(self, service):
         """RED: Test search method has logic issue - time.time() called but result not used."""
-        search_input = SearchInput(
-            question="Test question",
-            collection_id=uuid4(),
-            pipeline_id=uuid4(),
-            user_id=uuid4()
-        )
+        search_input = SearchInput(question="Test question", collection_id=uuid4(), pipeline_id=uuid4(), user_id=uuid4())
 
-        with patch('rag_solution.services.search_service.time.time') as mock_time:
+        with patch("rag_solution.services.search_service.time.time") as mock_time:
             mock_time.return_value = 12345.67
 
             # Mock all methods to avoid actual execution
@@ -655,26 +596,22 @@ class TestSearchServiceTDD:
             service._initialize_pipeline = AsyncMock(return_value="test")
 
             from rag_solution.schemas.pipeline_schema import PipelineResult
-            pipeline_result = PipelineResult(
-                success=True,
-                generated_answer="Answer",
-                query_results=[],
-                rewritten_query="query",
-                evaluation=None,
-                error=None
-            )
+
+            pipeline_result = PipelineResult(success=True, generated_answer="Answer", query_results=[], rewritten_query="query", evaluation=None, error=None)
             service._pipeline_service.execute_pipeline = AsyncMock(return_value=pipeline_result)
             service._generate_document_metadata = Mock(return_value=[])
             service._clean_generated_answer = Mock(return_value="Answer")
 
             import asyncio
+
             result = asyncio.run(service.search(search_input))
 
             # Verify time.time() is called at least twice (start and end, plus possible logging calls)
             assert mock_time.call_count >= 2
             # The result should now contain timing information
-            assert hasattr(result, 'execution_time')
+            assert hasattr(result, "execution_time")
             assert result.execution_time is not None
+
 
 # RED PHASE COMPLETE: These tests will reveal several logic issues:
 # 1. time.time() called but result never used (dead code)

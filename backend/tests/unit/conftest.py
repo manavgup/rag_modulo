@@ -1,5 +1,7 @@
 """Unit test fixtures - Mocked dependencies for unit tests."""
 
+# pylint: disable=import-outside-toplevel,redefined-outer-name
+
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -8,9 +10,6 @@ from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
-
-from rag_solution.schemas.user_schema import UserOutput
-from tests.fixtures.auth import test_client as auth_test_client
 
 # Add atomic tests to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "atomic"))
@@ -99,7 +98,11 @@ def mock_http_client():
 @pytest.fixture
 def test_client() -> Any:
     """Re-export test_client fixture for unit tests."""
-    return auth_test_client
+    # Create a simple mock client for unit tests
+    client = Mock()
+    client.get.return_value = Mock(status_code=200, json=lambda: {"status": "ok"})
+    client.post.return_value = Mock(status_code=201, json=lambda: {"id": 1})
+    return client
 
 
 @pytest.fixture
@@ -109,15 +112,25 @@ def mock_auth_token() -> str:
 
 
 @pytest.fixture
-def auth_headers(mock_auth_token: str, base_user: UserOutput) -> dict[str, str]:
+def auth_headers(mock_auth_token, base_user) -> dict[str, str]:
     """Create regular user authentication headers for unit tests."""
     return {"Authorization": f"Bearer {mock_auth_token}", "X-User-UUID": str(base_user.id), "X-User-Role": "user"}
 
 
 @pytest.fixture
-def base_user() -> UserOutput:
+def base_user():
     """Create a base user for unit tests."""
-    return UserOutput(id=uuid4(), email="test@example.com", ibm_id="test_user_123", name="Test User", role="user", preferred_provider_id=None, created_at=datetime.now(), updated_at=datetime.now())
+    # Create a proper mock user object with required attributes
+    user = Mock()
+    user.id = uuid4()
+    user.email = "test@example.com"
+    user.ibm_id = "test_user_123"
+    user.name = "Test User"
+    user.role = "user"
+    user.preferred_provider_id = None
+    user.created_at = datetime.now()
+    user.updated_at = datetime.now()
+    return user
 
 
 @pytest.fixture
@@ -133,10 +146,25 @@ def test_llm_params() -> dict:
 
 
 @pytest.fixture
+def mock_settings():
+    """Mock settings for unit tests."""
+    settings = Mock()
+    settings.jwt_secret_key = "test-secret-key"
+    settings.rag_llm = "watsonx"
+    settings.vector_db = "milvus"
+    settings.postgres_url = "postgresql://test:test@localhost:5432/test_db"
+    settings.wx_api_key = "test-api-key"
+    settings.wx_project_id = "test-project-id"
+    settings.wx_url = "https://test.watsonx.ai"
+    settings.milvus_host = "localhost"
+    settings.milvus_port = 19530
+    settings.file_storage_path = "/tmp/test_uploads"
+    return settings
+
+
+@pytest.fixture
 def integration_settings():
     """Mock integration settings for unit tests."""
-    from unittest.mock import Mock
-
     settings = Mock()
     settings.jwt_secret_key = "test-secret-key"
     settings.rag_llm = "watsonx"

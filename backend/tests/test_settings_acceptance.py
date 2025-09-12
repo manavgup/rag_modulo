@@ -7,7 +7,10 @@ import os
 import subprocess
 import sys
 
+import pytest
 
+
+@pytest.mark.unit
 def test_acceptance_settings_with_defaults():
     """ACCEPTANCE TEST: Settings should work without any env vars."""
     test_script = """
@@ -35,6 +38,7 @@ print("✓ Settings works without environment variables")
     assert "✓ Settings works" in result.stdout
 
 
+@pytest.mark.unit
 def test_acceptance_lazy_initialization():
     """ACCEPTANCE TEST: Settings should support lazy initialization."""
     test_script = """
@@ -56,6 +60,7 @@ print("✓ Lazy initialization works")
     assert "✓ Lazy initialization" in result.stdout
 
 
+@pytest.mark.unit
 def test_acceptance_backwards_compatible():
     """ACCEPTANCE TEST: Old import patterns should still work."""
     test_script = """
@@ -76,6 +81,7 @@ print("✓ Backwards compatible")
     assert "✓ Backwards compatible" in result.stdout
 
 
+@pytest.mark.unit
 def test_acceptance_env_vars_override():
     """ACCEPTANCE TEST: Environment variables should override defaults."""
     test_script = """
@@ -97,6 +103,7 @@ print("✓ Environment variables override defaults")
     assert "✓ Environment variables" in result.stdout
 
 
+@pytest.mark.unit
 def test_acceptance_pytest_atomic_works():
     """ACCEPTANCE TEST: Settings can be imported in atomic test context."""
     env = os.environ.copy()
@@ -135,6 +142,7 @@ except Exception as e:
     assert result.returncode == 0, f"Settings should work in atomic context. Error: {result.stderr}"
 
 
+@pytest.mark.integration
 def test_acceptance_docker_context():
     """ACCEPTANCE TEST: Settings should work in Docker-like environment."""
     test_script = """

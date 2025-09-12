@@ -16,6 +16,13 @@ from rag_solution.schemas.prompt_template_schema import (
 
 
 class PromptTemplateService:
+    """Service for managing prompt templates.
+
+    Provides CRUD operations for prompt templates including creation, retrieval,
+    updates, and deletion. Handles different template types (RAG_QUERY, QUESTION_GENERATION)
+    and manages user-specific template access.
+    """
+
     def __init__(self: Any, db: Session) -> None:
         self.repository = PromptTemplateRepository(db)
 

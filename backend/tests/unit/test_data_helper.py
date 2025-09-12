@@ -5,7 +5,7 @@ Simplified version of test_data_helper.py
 import pytest
 
 
-@pytest.mark.integration
+@pytest.mark.unit
 class TestSimplified:
     """Simplified test that works."""
 

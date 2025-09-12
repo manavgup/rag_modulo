@@ -62,7 +62,7 @@ class UserService:
         Raises:
             NotFoundError: If user not found
         """
-        logger.info(f"Fetching user with id: {user_id}")
+        logger.info("Fetching user with id: %s", user_id)
         return self.user_repository.get_by_id(user_id)
 
     def get_user_by_ibm_id(self, ibm_id: str) -> UserOutput:
@@ -71,7 +71,7 @@ class UserService:
         Raises:
             NotFoundError: If user not found
         """
-        logger.info(f"Fetching user with IBM ID: {ibm_id}")
+        logger.info("Fetching user with IBM ID: %s", ibm_id)
         return self.user_repository.get_by_ibm_id(ibm_id)
 
     def update_user(self, user_id: UUID4, user_update: UserInput) -> UserOutput:
@@ -82,9 +82,9 @@ class UserService:
             AlreadyExistsError: If new IBM ID or email already exists
             ValidationError: If data is invalid
         """
-        logger.info(f"Updating user {user_id}")
+        logger.info("Updating user %s", user_id)
         user = self.user_repository.update(user_id, user_update)
-        logger.info(f"User {user_id} updated successfully")
+        logger.info("User %s updated successfully", user_id)
         return user
 
     def delete_user(self, user_id: UUID4) -> None:
@@ -93,23 +93,30 @@ class UserService:
         Raises:
             NotFoundError: If user not found
         """
-        logger.info(f"Deleting user: {user_id}")
+        logger.info("Deleting user: %s", user_id)
         self.user_repository.delete(user_id)
-        logger.info(f"User {user_id} deleted successfully")
+        logger.info("User %s deleted successfully", user_id)
 
     def list_users(self, skip: int = 0, limit: int = 100) -> list[UserOutput]:
         """Lists users with pagination."""
-        logger.info(f"Listing users with skip={skip} and limit={limit}")
+        logger.info("Listing users with skip=%s and limit=%s", skip, limit)
         users = self.user_repository.list_users(skip, limit)
-        logger.info(f"Retrieved {len(users)} users")
+        logger.info("Retrieved %s users", len(users))
         return users
 
     def get_user(self, user_id: UUID4) -> UserOutput:
         """Get user by ID (alias for get_user_by_id)."""
         return self.get_user_by_id(user_id)
 
-    def set_user_preferred_provider(self, user_id: UUID4, _provider_id: UUID4) -> UserOutput:
+    def set_user_preferred_provider(self, user_id: UUID4, provider_id: UUID4) -> UserOutput:
         """Set user's preferred provider."""
-        # This would typically update the user's preferred_provider_id field
-        # For now, return the user as-is
-        return self.get_user_by_id(user_id)
+        from rag_solution.schemas.user_schema import UserInput
+
+        logger.info("Setting preferred provider for user %s to %s", user_id, provider_id)
+        # Get current user to preserve other fields
+        current_user = self.user_repository.get_by_id(user_id)
+        # Create UserInput with updated preferred_provider_id
+        user_update = UserInput(ibm_id=current_user.ibm_id, email=current_user.email, name=current_user.name, role=current_user.role, preferred_provider_id=provider_id)
+        user = self.user_repository.update(user_id, user_update)
+        logger.info("User %s preferred provider updated successfully", user_id)
+        return user

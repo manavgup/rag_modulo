@@ -17,7 +17,7 @@ from rag_solution.data_ingestion.chunking import (
 )
 
 
-@pytest.mark.unit
+@pytest.mark.integration
 def test_split_sentences() -> None:
     """Test sentence splitting functionality."""
     # Test basic sentence splitting
@@ -46,6 +46,7 @@ def test_split_sentences() -> None:
     assert "Mr." in sentences[0]  # Updated to match actual behavior
 
 
+@pytest.mark.integration
 def test_combine_sentences() -> None:
     """Test sentence combination with context."""
     sentences = ["First sentence.", "Second sentence.", "Third sentence."]
@@ -67,6 +68,7 @@ def test_combine_sentences() -> None:
     assert combine_sentences([]) == []
 
 
+@pytest.mark.integration
 def test_simple_chunking() -> None:
     """Test simple text chunking with overlap."""
     text = "This is a test text that needs to be chunked into smaller pieces for processing."
@@ -98,6 +100,7 @@ def test_simple_chunking() -> None:
     assert len(chunks) > len(text) // 20  # Should have more chunks due to high overlap
 
 
+@pytest.mark.integration
 def test_semantic_chunking() -> None:
     """Test semantic-based text chunking."""
     text = "This is the first topic. This is also about the first topic. " "This is a new topic. This is also about the new topic. " "This is a third topic. This is also about the third topic."
@@ -128,6 +131,7 @@ def test_semantic_chunking() -> None:
         assert chunks[0] == single
 
 
+@pytest.mark.integration
 def test_token_based_chunking() -> None:
     """Test token-aware text chunking."""
     text = "This is a test text. It has multiple sentences. " "We want to ensure proper tokenization. And respect max tokens."
@@ -150,6 +154,7 @@ def test_token_based_chunking() -> None:
             assert chunks[0] == short_text
 
 
+@pytest.mark.integration
 def test_calculate_cosine_distances() -> None:
     """Test cosine distance calculation."""
     # Test with simple 2D embeddings
@@ -169,6 +174,7 @@ def test_calculate_cosine_distances() -> None:
     assert calculate_cosine_distances(np.array([])) == []
 
 
+@pytest.mark.integration
 def test_get_chunking_method() -> None:
     """Test chunking method factory function."""
     # Test semantic chunking selection
@@ -190,6 +196,7 @@ def test_get_chunking_method() -> None:
         assert chunker == simple_chunker
 
 
+@pytest.mark.integration
 def test_chunker_integration() -> None:
     """Test integration of chunking methods with settings."""
     text = "This is a test text. It should be chunked according to settings."
@@ -219,6 +226,7 @@ def test_chunker_integration() -> None:
         assert all(len(chunk) >= 10 for chunk in chunks)
 
 
+@pytest.mark.integration
 def test_edge_cases() -> None:
     """Test edge cases and error handling."""
     # Test handling of special characters

@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import Enum
 
-from pydantic import UUID4, BaseModel, Field
+from pydantic import UUID4, BaseModel, Field, ConfigDict
 
 
 class ModelType(str, Enum):
@@ -24,9 +24,7 @@ class LLMModelInput(BaseModel):
     is_default: bool = Field(False)
     is_active: bool = Field(True)
 
-    model_config = {
-        "protected_namespaces": ()  # This removes the model_ namespace warnings
-    }
+    model_config = ConfigDict(protected_namespaces=())
 
 
 class LLMModelOutput(BaseModel):
@@ -47,5 +45,4 @@ class LLMModelOutput(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
