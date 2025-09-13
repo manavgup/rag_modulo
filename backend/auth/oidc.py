@@ -1,5 +1,6 @@
 import logging
 import os
+from datetime import datetime, timedelta
 from typing import Any
 
 import jwt
@@ -123,3 +124,35 @@ async def authorize_access_token(request: Request) -> dict[str, Any]:
     except Exception as e:
         logger.error(f"Unexpected error during authorize_access_token: {e!s}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Token authorization error: {e!s}") from e
+
+
+def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
+    """
+    Create a JWT access token for internal use.
+
+    Args:
+        data: The payload data to encode in the token
+        expires_delta: Optional expiration time delta (defaults to 24 hours)
+
+    Returns:
+        Encoded JWT token string
+    """
+    to_encode = data.copy()
+
+    # Set expiration time
+    expire = datetime.utcnow() + expires_delta if expires_delta else datetime.utcnow() + timedelta(hours=24)
+
+    to_encode.update({"exp": expire})
+
+    # Add standard JWT claims
+    to_encode.update(
+        {
+            "iat": datetime.utcnow(),  # Issued at
+            "iss": "rag-modulo",  # Issuer
+        }
+    )
+
+    # Encode the JWT token
+    encoded_jwt = jwt.encode(to_encode, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+
+    return encoded_jwt
