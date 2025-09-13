@@ -47,6 +47,10 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             "/api/auth/token",  # Important for token exchange
             "/api/auth/userinfo",  # Allow initial access for token verification
             "/api/auth/session",  # Allow checking session status
+            "/api/auth/device/start",  # Device flow initiation
+            "/api/auth/device/poll",  # Device flow polling
+            "/api/auth/cli/start",  # CLI authentication initiation
+            "/api/auth/cli/token",  # CLI token exchange
             "/api/docs",
             "/api/openapi.json",
             "/api/redoc",
@@ -58,6 +62,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         ]
 
         # Skip authentication for open paths and static files
+        logger.debug(f"AuthMiddleware: Checking path '{request.url.path}' against open_paths: {open_paths}")
         if request.url.path in open_paths or request.url.path.startswith("/static/"):
             logger.info(f"AuthMiddleware: Allowing access to open path: {request.url.path}")
             return await call_next(request)
