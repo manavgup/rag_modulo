@@ -1,6 +1,5 @@
 """Atomic tests for evaluation data validation and schemas."""
 
-
 import numpy as np
 import pytest
 
@@ -37,7 +36,14 @@ class TestEvaluationDataValidation:
     def test_evaluation_metrics_validation(self):
         """Test evaluation metrics data structure validation."""
         # Valid evaluation results
-        evaluation_results = {"relevance": 0.85, "coherence": 0.92, "faithfulness": 0.78, "overall_score": 0.85, "context_relevance": 0.88, "answer_relevance": 0.82}
+        evaluation_results = {
+            "relevance": 0.85,
+            "coherence": 0.92,
+            "faithfulness": 0.78,
+            "overall_score": 0.85,
+            "context_relevance": 0.88,
+            "answer_relevance": 0.82,
+        }
 
         # Test structure
         assert isinstance(evaluation_results, dict)
@@ -124,9 +130,24 @@ class TestEvaluationDataValidation:
         """Test evaluation error handling validation."""
         # Valid error structures
         valid_errors = [
-            {"error_type": "EmbeddingError", "message": "Failed to generate embeddings", "query": "test query", "timestamp": "2024-01-01T00:00:00Z"},
-            {"error_type": "EvaluationError", "message": "Failed to evaluate response", "response": "test response", "timestamp": "2024-01-01T00:00:00Z"},
-            {"error_type": "ValidationError", "message": "Invalid input data", "input_data": {"query": "test"}, "timestamp": "2024-01-01T00:00:00Z"},
+            {
+                "error_type": "EmbeddingError",
+                "message": "Failed to generate embeddings",
+                "query": "test query",
+                "timestamp": "2024-01-01T00:00:00Z",
+            },
+            {
+                "error_type": "EvaluationError",
+                "message": "Failed to evaluate response",
+                "response": "test response",
+                "timestamp": "2024-01-01T00:00:00Z",
+            },
+            {
+                "error_type": "ValidationError",
+                "message": "Invalid input data",
+                "input_data": {"query": "test"},
+                "timestamp": "2024-01-01T00:00:00Z",
+            },
         ]
 
         for error in valid_errors:
@@ -144,8 +165,16 @@ class TestEvaluationDataValidation:
         # Valid batch evaluation data
         batch_data = {
             "queries": ["What is machine learning?", "How does neural networks work?", "What is deep learning?"],
-            "responses": ["Machine learning is a subset of AI.", "Neural networks are inspired by the brain.", "Deep learning uses multiple layers."],
-            "contexts": [[{"text": "ML context 1"}, {"text": "ML context 2"}], [{"text": "NN context 1"}, {"text": "NN context 2"}], [{"text": "DL context 1"}, {"text": "DL context 2"}]],
+            "responses": [
+                "Machine learning is a subset of AI.",
+                "Neural networks are inspired by the brain.",
+                "Deep learning uses multiple layers.",
+            ],
+            "contexts": [
+                [{"text": "ML context 1"}, {"text": "ML context 2"}],
+                [{"text": "NN context 1"}, {"text": "NN context 2"}],
+                [{"text": "DL context 1"}, {"text": "DL context 2"}],
+            ],
         }
 
         # Test structure

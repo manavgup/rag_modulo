@@ -31,7 +31,10 @@ router = APIRouter()
     },
 )
 async def get_pipelines(
-    user_id: UUID4, db: Annotated[Session, Depends(get_db)], user: Annotated[UserOutput, Depends(verify_user_access)], settings: Annotated[Settings, Depends(get_settings)]
+    user_id: UUID4,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[UserOutput, Depends(verify_user_access)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> list[PipelineConfigOutput]:
     """Retrieve all pipeline configurations for a user."""
     service = PipelineService(db, settings)
@@ -112,7 +115,11 @@ async def update_pipeline(
     },
 )
 async def delete_pipeline(
-    user_id: UUID4, pipeline_id: UUID4, db: Annotated[Session, Depends(get_db)], user: Annotated[UserOutput, Depends(verify_user_access)], settings: Annotated[Settings, Depends(get_settings)]
+    user_id: UUID4,
+    pipeline_id: UUID4,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[UserOutput, Depends(verify_user_access)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> bool:
     """Delete an existing pipeline configuration."""
     service = PipelineService(db, settings)
@@ -135,7 +142,11 @@ async def delete_pipeline(
     },
 )
 async def set_default_pipeline(
-    user_id: UUID4, pipeline_id: UUID4, db: Annotated[Session, Depends(get_db)], user: Annotated[UserOutput, Depends(verify_user_access)], settings: Annotated[Settings, Depends(get_settings)]
+    user_id: UUID4,
+    pipeline_id: UUID4,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[UserOutput, Depends(verify_user_access)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> PipelineConfigOutput:
     """Set a specific pipeline configuration as default."""
     service = PipelineService(db, settings)

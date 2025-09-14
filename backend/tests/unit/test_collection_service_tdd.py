@@ -36,15 +36,17 @@ class TestCollectionServiceTDD:
     @pytest.fixture
     def service(self, mock_db, mock_settings):
         """Create service instance with mocked dependencies."""
-        with patch("rag_solution.services.collection_service.CollectionRepository"), patch(
-            "rag_solution.services.collection_service.UserCollectionService"
-        ), patch("rag_solution.services.collection_service.FileManagementService"), patch(
-            "rag_solution.services.collection_service.VectorStoreFactory"
-        ) as mock_vector_factory, patch("rag_solution.services.collection_service.UserProviderService"), patch(
-            "rag_solution.services.collection_service.PromptTemplateService"
-        ), patch("rag_solution.services.collection_service.LLMParametersService"), patch(
-            "rag_solution.services.collection_service.QuestionService"
-        ), patch("rag_solution.services.collection_service.LLMModelService"):
+        with (
+            patch("rag_solution.services.collection_service.CollectionRepository"),
+            patch("rag_solution.services.collection_service.UserCollectionService"),
+            patch("rag_solution.services.collection_service.FileManagementService"),
+            patch("rag_solution.services.collection_service.VectorStoreFactory") as mock_vector_factory,
+            patch("rag_solution.services.collection_service.UserProviderService"),
+            patch("rag_solution.services.collection_service.PromptTemplateService"),
+            patch("rag_solution.services.collection_service.LLMParametersService"),
+            patch("rag_solution.services.collection_service.QuestionService"),
+            patch("rag_solution.services.collection_service.LLMModelService"),
+        ):
             # Mock vector store
             mock_vector_store = Mock()
             mock_vector_factory.return_value.get_datastore.return_value = mock_vector_store
@@ -359,7 +361,16 @@ class TestCollectionServiceTDD:
         # Mock dependencies
         mock_provider = Mock(name="openai")
         mock_template = Mock()
-        mock_parameters = LLMParametersInput(name="test_params", description="Test parameters", user_id=user_id, temperature=0.7, max_new_tokens=100, top_p=0.9, top_k=40, repetition_penalty=1.1)
+        mock_parameters = LLMParametersInput(
+            name="test_params",
+            description="Test parameters",
+            user_id=user_id,
+            temperature=0.7,
+            max_new_tokens=100,
+            top_p=0.9,
+            top_k=40,
+            repetition_penalty=1.1,
+        )
         mock_questions = ["Question 1?", "Question 2?"]
 
         service.user_provider_service.get_user_provider.return_value = mock_provider
@@ -371,7 +382,12 @@ class TestCollectionServiceTDD:
         await service._generate_collection_questions(document_texts, collection_id, user_id)
 
         service.question_service.suggest_questions.assert_called_once_with(
-            texts=document_texts, collection_id=collection_id, user_id=user_id, provider_name=mock_provider.name, template=mock_template, parameters=mock_parameters
+            texts=document_texts,
+            collection_id=collection_id,
+            user_id=user_id,
+            provider_name=mock_provider.name,
+            template=mock_template,
+            parameters=mock_parameters,
         )
         service.update_collection_status.assert_called_once_with(collection_id, CollectionStatus.COMPLETED)
 
@@ -398,7 +414,16 @@ class TestCollectionServiceTDD:
 
         mock_provider = Mock(name="openai")
         mock_template = Mock()
-        mock_parameters = LLMParametersInput(name="test_params", description="Test parameters", user_id=user_id, temperature=0.7, max_new_tokens=100, top_p=0.9, top_k=40, repetition_penalty=1.1)
+        mock_parameters = LLMParametersInput(
+            name="test_params",
+            description="Test parameters",
+            user_id=user_id,
+            temperature=0.7,
+            max_new_tokens=100,
+            top_p=0.9,
+            top_k=40,
+            repetition_penalty=1.1,
+        )
 
         service.user_provider_service.get_user_provider.return_value = mock_provider
         service._get_question_generation_template = Mock(return_value=mock_template)
@@ -473,7 +498,10 @@ class TestCollectionServiceTDD:
         chunk1 = DocumentChunk(chunk_index=0, text="Sample text 1")
         document = Document(id="doc1", chunks=[chunk1])
 
-        with patch("rag_solution.services.collection_service.multiprocessing.Manager"), patch("rag_solution.services.collection_service.DocumentProcessor") as mock_processor_class:
+        with (
+            patch("rag_solution.services.collection_service.multiprocessing.Manager"),
+            patch("rag_solution.services.collection_service.DocumentProcessor") as mock_processor_class,
+        ):
             mock_processor = Mock()
             mock_processor_class.return_value = mock_processor
 
@@ -540,7 +568,10 @@ class TestCollectionServiceTDD:
 
     def test_service_initialization_red_phase(self, mock_db, mock_settings):
         """RED: Test service initialization with all dependencies."""
-        with patch("rag_solution.services.collection_service.CollectionRepository"), patch("rag_solution.services.collection_service.VectorStoreFactory") as mock_vector_factory:
+        with (
+            patch("rag_solution.services.collection_service.CollectionRepository"),
+            patch("rag_solution.services.collection_service.VectorStoreFactory") as mock_vector_factory,
+        ):
             mock_vector_store = Mock()
             mock_vector_factory.return_value.get_datastore.return_value = mock_vector_store
 

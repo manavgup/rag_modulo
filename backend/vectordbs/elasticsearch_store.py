@@ -1,3 +1,9 @@
+"""Elasticsearch vector store implementation.
+
+This module provides an Elasticsearch-based implementation of the VectorStore interface,
+enabling document storage, retrieval, and search operations using Elasticsearch.
+"""
+
 import logging
 from typing import Any
 
@@ -8,8 +14,8 @@ from vectordbs.utils.watsonx import get_embeddings
 
 from .data_types import (
     Document,
-    DocumentChunk,
     DocumentChunkMetadata,
+    DocumentChunkWithScore,
     DocumentMetadataFilter,
     QueryResult,
     QueryWithEmbedding,
@@ -22,6 +28,12 @@ from .vector_store import VectorStore
 
 
 class ElasticSearchStore(VectorStore):
+    """Elasticsearch implementation of the VectorStore interface.
+
+    This class provides Elasticsearch-based vector storage and retrieval capabilities,
+    including document management, collection operations, and similarity search.
+    """
+
     def __init__(self, host: str | None = None, port: int | None = None, settings: Settings = get_settings()) -> None:
         # Call parent constructor for proper dependency injection
         super().__init__(settings)
@@ -48,230 +60,183 @@ class ElasticSearchStore(VectorStore):
                 client_kwargs["basic_auth"] = ("elastic", self.settings.elastic_password)
 
             # Only add ca_certs if path is available
-            if self.settings.elastic_cacert_path:
-                client_kwargs["ca_certs"] = self.settings.elastic_cacert_path
+            if hasattr(self.settings, "elastic_ca_certs") and self.settings.elastic_ca_certs:
+                client_kwargs["ca_certs"] = self.settings.elastic_ca_certs
 
             self.client = Elasticsearch(**client_kwargs)
 
-    def create_collection(self, collection_name: str, metadata: dict | None = None) -> None:  # noqa: ARG002
-        """
-        Create a new Elasticsearch index.
-
-        Args:
-            name (str): The name of the index to create.
-            embedding_model_id (str): The ID of the embedding model.
-        """
+        # Test connection
         try:
-            settings = {
-                "settings": {
-                    "number_of_shards": 1,
-                    "number_of_replicas": 0,
-                    "knn": True,
-                    "knn.algo_param.ef_search": 100,
-                },
+            if not self.client.ping():
+                raise ConnectionError("Failed to connect to Elasticsearch")
+            logging.info("Connected to Elasticsearch")
+        except Exception as e:
+            logging.error("Failed to connect to Elasticsearch: %s", str(e))
+            raise CollectionError(f"Failed to connect to Elasticsearch: {e}") from e
+
+    def create_collection(self, collection_name: str, metadata: dict | None = None) -> None:
+        """Create a collection (index) in Elasticsearch."""
+        try:
+            # Create index with mapping for vector search
+            index_body = {
                 "mappings": {
                     "properties": {
-                        "embedding": {
-                            "type": "knn_vector",
-                            "dimension": self.settings.embedding_dim,
-                        },
                         "text": {"type": "text"},
-                        "source": {"type": "keyword"},
-                        "url": {"type": "keyword"},
-                        "created_at": {"type": "date"},
-                        "author": {"type": "keyword"},
+                        "embeddings": {"type": "dense_vector", "dims": 1536},  # Adjust dims based on your embedding model
+                        "metadata": {"type": "object"},
                         "document_id": {"type": "keyword"},
                         "chunk_id": {"type": "keyword"},
                     }
-                },
+                }
             }
-            self.client.indices.create(index=collection_name, body=settings)
-            logging.info(f"Collection '{collection_name}' created successfully")
+            if metadata:
+                index_body["settings"] = metadata
+
+            self.client.indices.create(index=collection_name, body=index_body)
+            logging.info("Collection '%s' created successfully", collection_name)
         except Exception as e:
-            logging.error(f"Failed to create collection '{collection_name}': {e}", exc_info=True)
+            logging.error("Failed to create collection '%s': %s", collection_name, str(e))
             raise CollectionError(f"Failed to create collection '{collection_name}': {e}") from e
 
     def add_documents(self, collection_name: str, documents: list[Document]) -> list[str]:
-        """
-        Add documents to the specified Elasticsearch index.
+        """Adds documents to the vector store."""
+        self._create_collection_if_not_exists(collection_name)
 
-        Args:
-            collection_name (str): The name of the index to add documents to.
-            documents (List[Document]): A list of documents to add.
+        document_ids = []
+        for document in documents:
+            for chunk in document.chunks:
+                doc_body = {
+                    "text": chunk.text,
+                    "embeddings": chunk.embeddings,
+                    "metadata": {
+                        "source": str(chunk.metadata.source) if chunk.metadata and chunk.metadata.source else "OTHER",
+                        "document_id": chunk.document_id or "",
+                    },
+                    "document_id": chunk.document_id,
+                    "chunk_id": chunk.chunk_id,
+                }
 
-        Returns:
-            List[str]: The list of document IDs that were added.
-        """
-        try:
-            document_ids = []
-            for document in documents:
-                # Get embeddings for the first chunk (assuming single chunk per document for now)
-                if document.chunks:
-                    chunk = document.chunks[0]
-                    embeddings = get_embeddings(chunk.text, settings=self.settings)
-                    body = {
-                        "text": chunk.text,
-                        "embedding": embeddings,
-                        "source": chunk.metadata.source if chunk.metadata else "unknown",
-                        "document_id": document.document_id,
-                        "chunk_id": chunk.chunk_id,
-                    }
-                    # Index the document and get the response
-                    response = self.client.index(index=collection_name, body=body)
-                    # Elasticsearch returns the document ID in the response
-                    if response and "_id" in response:
-                        document_ids.append(response["_id"])
-                    else:
-                        document_ids.append(chunk.chunk_id)  # Fallback to chunk_id
-                else:
-                    continue
-            logging.info(f"Documents added to collection '{collection_name}' successfully")
-            return document_ids
-        except Exception as e:
-            logging.error(f"Failed to add documents to collection '{collection_name}': {e}", exc_info=True)
-            raise DocumentError(f"Failed to add documents to collection '{collection_name}': {e}") from e
+                try:
+                    self.client.index(index=collection_name, id=chunk.chunk_id, body=doc_body)
+                    document_ids.append(chunk.document_id)
+                except Exception as e:
+                    logging.error("Failed to add document to Elasticsearch: %s", str(e))
+                    raise DocumentError(f"Failed to add document to Elasticsearch: {e}") from e
 
-    def retrieve_documents(
-        self,
-        query: str,
-        collection_name: str,
-        limit: int = 10,
-    ) -> list[QueryResult]:
+        return document_ids
+
+    def retrieve_documents(self, query: str, collection_name: str, limit: int = 10) -> list[QueryResult]:
         """
-        Retrieve documents from the specified Elasticsearch index based on a query.
+        Retrieves documents based on a query string.
 
         Args:
             query (str): The query string.
-            collection_name (Optional[str]): The name of the index to query.
-            limit (int): The number of results to return.
+            collection_name (str): The name of the collection to retrieve from.
+            limit (int): The maximum number of results to return.
 
         Returns:
-            List[QueryResult]: A list of query results.
+            List[QueryResult]: The list of query results.
         """
-        try:
-            response = self.client.search(index=collection_name, body={"query": {"match": {"text": query}}, "size": limit})
-            # Convert ObjectApiResponse to dict
-            response_dict = response.body if hasattr(response, "body") else dict(response)
-            return self._process_search_results(response_dict)
-        except Exception as e:
-            logging.error(f"Failed to retrieve documents from index '{collection_name}': {e}", exc_info=True)
-            raise DocumentError(f"Failed to retrieve documents from index '{collection_name}': {e}") from e
+        query_embeddings = get_embeddings(query, settings=self.settings)
+        if not query_embeddings:
+            raise DocumentError("Failed to generate embeddings for the query string.")
+        # get_embeddings returns list[list[float]], but we need list[float] for single query
+        query_with_embedding = QueryWithEmbedding(text=query, embeddings=query_embeddings[0])
+        return self.query(collection_name, query_with_embedding, number_of_results=limit)
 
     def query(
         self,
         collection_name: str,
         query: QueryWithEmbedding,
         number_of_results: int = 10,
-        filter: DocumentMetadataFilter | None = None,
+        metadata_filter: DocumentMetadataFilter | None = None,  # noqa: ARG002
     ) -> list[QueryResult]:
         """
-        Query the specified Elasticsearch index using KNN.
+        Queries the vector store with filtering and query mode options.
 
         Args:
-            collection_name (str): The name of the index to query.
-            query (QueryWithEmbedding): The query embedding.
-            number_of_results (int): The number of results to return.
-            filter (Optional[DocumentMetadataFilter]): A filter to apply to the query.
+            collection_name (str): The name of the collection to query.
+            query (QueryWithEmbedding): The query with embedding to search for.
+            number_of_results (int): The maximum number of results to return.
+            metadata_filter (Optional[DocumentMetadataFilter]): Optional filter to apply to the query.
 
         Returns:
-            List[QueryResult]: A list of query results.
+            List[QueryResult]: The list of query results.
         """
         try:
-            body = {
-                "size": number_of_results,
+            # Elasticsearch vector search query
+            search_body = {
                 "query": {
-                    "bool": {
-                        "must": {
-                            "knn": {
-                                "field": "embedding",
-                                "query_vector": query.embeddings,
-                                "k": number_of_results,
-                                "num_candidates": 100,
-                            }
+                    "script_score": {
+                        "query": {"match_all": {}},
+                        "script": {
+                            "source": "cosineSimilarity(params.query_vector, 'embeddings') + 1.0",
+                            "params": {"query_vector": query.embeddings[0]},
                         },
-                        "filter": self._build_filters(filter),
                     }
                 },
+                "size": number_of_results,
             }
-            response = self.client.search(index=collection_name, body=body)
-            # Convert ObjectApiResponse to dict
-            response_dict = response.body if hasattr(response, "body") else dict(response)
-            return self._process_search_results(response_dict)
+
+            response = self.client.search(index=collection_name, body=search_body)
+            logging.info("Query response: %s", response)
+            return self._process_search_results(response, collection_name)
         except Exception as e:
-            logging.error(f"Failed to query documents from index '{collection_name}': {e}", exc_info=True)
-            raise DocumentError(f"Failed to query documents from index '{collection_name}': {e}") from e
+            logging.error("Failed to query Elasticsearch collection '%s': %s", collection_name, str(e))
+            raise DocumentError(f"Failed to query Elasticsearch collection '{collection_name}': {e}") from e
 
     def delete_collection(self, collection_name: str) -> None:
-        """
-        Delete the specified Elasticsearch index.
-
-        Args:
-            collection_name (str): The name of the index to delete.
-        """
+        """Deletes a collection (index) from the vector store."""
         try:
             self.client.indices.delete(index=collection_name)
-            logging.info(f"Collection '{collection_name}' deleted successfully")
+            logging.info("Deleted collection '%s'", collection_name)
         except NotFoundError:
-            logging.warning(f"Collection '{collection_name}' not found")
+            logging.warning("Collection '%s' not found", collection_name)
         except Exception as e:
-            logging.error(f"Failed to delete collection '{collection_name}': {e}", exc_info=True)
-            raise CollectionError(f"Failed to delete collection '{collection_name}': {e}") from e
+            logging.error("Failed to delete Elasticsearch collection: %s", str(e))
+            raise CollectionError(f"Failed to delete Elasticsearch collection: {e}") from e
 
     def delete_documents(self, collection_name: str, document_ids: list[str]) -> None:
-        """
-        Delete documents from the specified Elasticsearch index.
-
-        Args:
-            document_ids (List[str]): A list of document IDs to delete.
-            collection_name (Optional[str]): The name of the index to delete documents from.
-        """
+        """Deletes documents by their IDs from the vector store."""
         try:
-            for document_id in document_ids:
-                self.client.delete(index=collection_name, id=document_id)
-            logging.info(f"Documents deleted from collection '{collection_name}' successfully")
+            for doc_id in document_ids:
+                # Delete by document_id field
+                query = {"query": {"term": {"document_id": doc_id}}}
+                self.client.delete_by_query(index=collection_name, body=query)
+            logging.info("Deleted %d documents from collection '%s'", len(document_ids), collection_name)
         except Exception as e:
-            logging.error(f"Failed to delete documents from collection '{collection_name}': {e}", exc_info=True)
-            raise DocumentError(f"Failed to delete documents from collection '{collection_name}': {e}") from e
+            logging.error("Failed to delete documents from Elasticsearch collection '%s': %s", collection_name, str(e))
+            raise DocumentError(f"Failed to delete documents from Elasticsearch collection '{collection_name}': {e}") from e
 
-    def _build_filters(self, filter: DocumentMetadataFilter | None) -> dict[str, Any]:
-        """Build Elasticsearch filters from a DocumentMetadataFilter."""
-        if not filter:
-            return {}
-        filters = []
-        if filter.operator.lower() in ["eq", "equals", "term"]:
-            field_filter = {"term": {filter.field_name: filter.value}}
-            filters.append(field_filter)
-        elif filter.operator.lower() == "gte":
-            range_filter = {"range": {filter.field_name: {"gte": filter.value}}}
-            filters.append(range_filter)
-        elif filter.operator.lower() == "lte":
-            range_filter = {"range": {filter.field_name: {"lte": filter.value}}}
-            filters.append(range_filter)
-        return {"bool": {"filter": filters}}
+    def _create_collection_if_not_exists(self, collection_name: str) -> None:
+        """Create a collection if it doesn't exist."""
+        try:
+            self.client.indices.get(index=collection_name)
+        except NotFoundError:
+            self.create_collection(collection_name)
 
-    def _process_search_results(self, response: dict[str, Any]) -> list[QueryResult]:
+    def _process_search_results(self, response: Any, collection_name: str) -> list[QueryResult]:  # noqa: ARG002
         """Process Elasticsearch search results into QueryResult objects."""
         results = []
         hits = response.get("hits", {}).get("hits", [])
 
         for hit in hits:
-            source = hit.get("_source", {})
-            score = hit.get("_score", 0.0)
+            source = hit["_source"]
+            score = hit["_score"]
 
-            # Create DocumentChunk from source
-            chunk = DocumentChunk(
-                chunk_id=source.get("chunk_id", ""),
-                text=source.get("text", ""),
-                embeddings=source.get("embedding", []),
+            # Create DocumentChunkWithScore
+            chunk = DocumentChunkWithScore(
+                chunk_id=source["chunk_id"],
+                text=source["text"],
+                embeddings=source["embeddings"],
                 metadata=DocumentChunkMetadata(
-                    source=Source(source.get("source", "unknown")),
-                    document_id=source.get("document_id"),
+                    source=Source(source["metadata"]["source"]) if source["metadata"]["source"] else Source.OTHER,
+                    document_id=source["metadata"]["document_id"],
                 ),
-                document_id=source.get("document_id"),
+                document_id=source["document_id"],
+                score=score,
             )
 
-            # Create QueryResult
-            result = QueryResult(chunk=chunk, score=score, embeddings=source.get("embedding", []))
-            results.append(result)
+            results.append(QueryResult(chunk=chunk, score=score, embeddings=[]))
 
         return results

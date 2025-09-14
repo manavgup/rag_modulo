@@ -2,14 +2,15 @@
 Real TDD tests for CollectionService - testing actual functionality to find real bugs.
 """
 
-import pytest
 from uuid import uuid4
-from sqlalchemy.orm import Session
-from sqlalchemy import create_engine
 
-from rag_solution.services.collection_service import CollectionService
-from rag_solution.schemas.collection_schema import CollectionInput
+import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
+
 from core.config import Settings
+from rag_solution.schemas.collection_schema import CollectionInput
+from rag_solution.services.collection_service import CollectionService
 
 
 @pytest.mark.e2e

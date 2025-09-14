@@ -4,8 +4,8 @@ import pytest
 from sqlalchemy.orm import Session
 
 from core.config import get_settings
-from rag_solution.services.system_initialization_service import SystemInitializationService
 from rag_solution.schemas.llm_provider_schema import LLMProviderInput
+from rag_solution.services.system_initialization_service import SystemInitializationService
 
 
 @pytest.mark.integration
@@ -30,8 +30,8 @@ class TestSystemInitializationServiceIntegration:
         """Test service initialization with real database connection."""
         assert service.db is not None
         assert service.settings is settings
-        assert hasattr(service, 'llm_provider_service')
-        assert hasattr(service, 'llm_model_service')
+        assert hasattr(service, "llm_provider_service")
+        assert hasattr(service, "llm_model_service")
 
     def test_get_provider_configs_with_env_settings(self, service):
         """Test _get_provider_configs with environment settings."""
@@ -53,11 +53,11 @@ class TestSystemInitializationServiceIntegration:
 
             # If providers were created, verify structure
             for provider in result:
-                assert hasattr(provider, 'id')
-                assert hasattr(provider, 'name')
-                assert hasattr(provider, 'base_url')
-                assert hasattr(provider, 'is_active')
-                assert hasattr(provider, 'is_default')
+                assert hasattr(provider, "id")
+                assert hasattr(provider, "name")
+                assert hasattr(provider, "base_url")
+                assert hasattr(provider, "is_active")
+                assert hasattr(provider, "is_default")
 
         except Exception as e:
             # Test should handle gracefully
@@ -67,7 +67,7 @@ class TestSystemInitializationServiceIntegration:
         """Test provider creation and then retrieval."""
         try:
             # Initialize providers
-            initial_providers = service.initialize_providers(raise_on_error=False)
+            _initial_providers = service.initialize_providers(raise_on_error=False)
 
             # Get existing providers again
             existing_providers = service.llm_provider_service.get_all_providers()
@@ -105,23 +105,14 @@ class TestSystemInitializationServiceIntegration:
     def test_provider_error_handling_integration(self, service):
         """Test provider error handling with real database."""
         # Test with invalid provider configuration
-        invalid_provider = LLMProviderInput(
-            name="invalid_provider",
-            base_url="https://invalid.api.com",
-            api_key="invalid-key"
-        )
+        invalid_provider = LLMProviderInput(name="invalid_provider", base_url="https://invalid.api.com", api_key="invalid-key")
 
         try:
             # This should handle errors gracefully
-            result = service._initialize_single_provider(
-                "invalid_provider",
-                invalid_provider,
-                None,
-                False
-            )
+            result = service._initialize_single_provider("invalid_provider", invalid_provider, None, False)
 
             # Should either succeed or return None (graceful failure)
-            assert result is None or hasattr(result, 'id')
+            assert result is None or hasattr(result, "id")
 
         except Exception as e:
             # Should handle database/provider errors

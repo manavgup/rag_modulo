@@ -1,15 +1,16 @@
 """TDD Unit tests for QuestionService - RED phase: Tests that describe expected behavior."""
 
-import pytest
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
+
+import pytest
 from sqlalchemy.orm import Session
 
 from core.config import Settings
-from rag_solution.services.question_service import QuestionService
-from rag_solution.schemas.question_schema import QuestionInput
-from rag_solution.models.question import SuggestedQuestion
 from core.custom_exceptions import NotFoundError
+from rag_solution.models.question import SuggestedQuestion
+from rag_solution.schemas.question_schema import QuestionInput
+from rag_solution.services.question_service import QuestionService
 
 
 @pytest.mark.unit
@@ -33,7 +34,7 @@ class TestQuestionServiceTDD:
     @pytest.fixture
     def service(self, mock_db, mock_settings):
         """Create service instance with mocked dependencies."""
-        with patch('rag_solution.services.question_service.LLMProviderFactory') as mock_factory:
+        with patch("rag_solution.services.question_service.LLMProviderFactory") as _mock_factory:
             service = QuestionService(mock_db, mock_settings)
 
             # Mock the lazy-loaded services
@@ -46,7 +47,7 @@ class TestQuestionServiceTDD:
 
     def test_service_initialization_red_phase(self, mock_db, mock_settings):
         """RED: Test service initialization sets up dependencies correctly."""
-        with patch('rag_solution.services.question_service.LLMProviderFactory'):
+        with patch("rag_solution.services.question_service.LLMProviderFactory"):
             service = QuestionService(mock_db, mock_settings)
 
             assert service.db is mock_db
@@ -61,7 +62,7 @@ class TestQuestionServiceTDD:
         # Reset to None to test lazy loading
         service._question_repository = None
 
-        with patch('rag_solution.services.question_service.QuestionRepository') as mock_repo_class:
+        with patch("rag_solution.services.question_service.QuestionRepository") as mock_repo_class:
             mock_instance = Mock()
             mock_repo_class.return_value = mock_instance
 
@@ -163,7 +164,7 @@ class TestQuestionServiceTDD:
         questions = [
             "What is data science?",  # High relevance
             "How does machine learning work?",  # Medium relevance
-            "What are the best restaurants?"  # Low relevance
+            "What are the best restaurants?",  # Low relevance
         ]
         context = "Data science uses machine learning algorithms to analyze data"
 
@@ -180,7 +181,7 @@ class TestQuestionServiceTDD:
             "What is machine learning?",
             "1. What is machine learning?",  # Same after normalization
             "What is AI?",
-            "What is machine learning"  # Different punctuation
+            "What is machine learning",  # Different punctuation
         ]
 
         unique = service._filter_duplicate_questions(questions)
@@ -215,14 +216,7 @@ class TestQuestionServiceTDD:
     @pytest.mark.asyncio
     async def test_suggest_questions_empty_texts_red_phase(self, service):
         """RED: Test suggest_questions returns empty list for empty texts."""
-        result = await service.suggest_questions(
-            texts=[],
-            collection_id=uuid4(),
-            user_id=uuid4(),
-            provider_name="openai",
-            template=Mock(),
-            parameters=Mock()
-        )
+        result = await service.suggest_questions(texts=[], collection_id=uuid4(), user_id=uuid4(), provider_name="openai", template=Mock(), parameters=Mock())
 
         assert result == []
 
@@ -241,18 +235,18 @@ class TestQuestionServiceTDD:
         # Mock question creation
         mock_questions = [
             SuggestedQuestion(id=uuid4(), collection_id=collection_id, question="What is machine learning?"),
-            SuggestedQuestion(id=uuid4(), collection_id=collection_id, question="How do algorithms work?")
+            SuggestedQuestion(id=uuid4(), collection_id=collection_id, question="How do algorithms work?"),
         ]
         service._question_repository.create_questions.return_value = mock_questions
 
-        with patch('time.time', side_effect=[1000.0, 1000.2, 1000.4, 1000.6, 1000.8, 1001.0, 1001.2, 1001.5]):  # Start and end times plus logging calls
+        with patch("time.time", side_effect=[1000.0, 1000.2, 1000.4, 1000.6, 1000.8, 1001.0, 1001.2, 1001.5]):  # Start and end times plus logging calls
             result = await service.suggest_questions(
                 texts=texts,
                 collection_id=collection_id,
                 user_id=user_id,
                 provider_name="openai",
                 template=Mock(),
-                parameters=Mock()
+                parameters=Mock(),
             )
 
         assert len(result) == 2
@@ -274,7 +268,7 @@ class TestQuestionServiceTDD:
                 user_id=uuid4(),
                 provider_name="openai",
                 template=Mock(),
-                parameters=Mock()
+                parameters=Mock(),
             )
 
         assert "Settings must be provided" in str(exc_info.value)
@@ -309,9 +303,7 @@ class TestQuestionServiceTDD:
         parameters = Mock()
         stats = {"successful_generations": 0, "failed_generations": 0}
 
-        result = await service._generate_questions_from_texts(
-            combined_texts, mock_provider, user_id, template, parameters, 3, stats
-        )
+        result = await service._generate_questions_from_texts(combined_texts, mock_provider, user_id, template, parameters, 3, stats)
 
         assert "What is this?" in result
         assert "How does it work?" in result
@@ -330,9 +322,7 @@ class TestQuestionServiceTDD:
         parameters = Mock()
         stats = {"successful_generations": 0, "failed_generations": 0}
 
-        result = await service._generate_questions_from_texts(
-            combined_texts, mock_provider, user_id, template, parameters, 3, stats
-        )
+        result = await service._generate_questions_from_texts(combined_texts, mock_provider, user_id, template, parameters, 3, stats)
 
         assert result == []  # Should return empty list on failure
         assert stats["successful_generations"] == 0
@@ -340,10 +330,7 @@ class TestQuestionServiceTDD:
 
     def test_extract_questions_from_responses_list_input_red_phase(self, service):
         """RED: Test question extraction from list responses."""
-        responses = [
-            "What is this?\nHow does it work?\nNot a question",
-            "Why is this important?\nSome statement."
-        ]
+        responses = ["What is this?\nHow does it work?\nNot a question", "Why is this important?\nSome statement."]
 
         result = service._extract_questions_from_responses(responses)
 
@@ -365,13 +352,14 @@ class TestQuestionServiceTDD:
             "What is machine learning?",  # Valid
             "Invalid question",  # Invalid - no question mark
             "How does AI work?",  # Valid
-            "What is machine learning?"  # Duplicate
+            "What is machine learning?",  # Duplicate
         ]
         texts = ["Machine learning and AI are important technologies"]
 
         # Mock validation to return specific results
         def mock_validate(q, ctx):
             return q.endswith("?"), q
+
         service._validate_question = mock_validate
 
         result = service._process_generated_questions(all_questions, texts, None)
@@ -387,13 +375,10 @@ class TestQuestionServiceTDD:
         collection_id = uuid4()
         questions = ["What is this?", "How does it work?"]
 
-        mock_stored_questions = [
-            SuggestedQuestion(id=uuid4(), collection_id=collection_id, question=q)
-            for q in questions
-        ]
+        mock_stored_questions = [SuggestedQuestion(id=uuid4(), collection_id=collection_id, question=q) for q in questions]
 
         # Mock the asyncio.to_thread call
-        with patch('asyncio.to_thread') as mock_to_thread:
+        with patch("asyncio.to_thread") as mock_to_thread:
             mock_to_thread.return_value = mock_stored_questions
 
             result = await service._store_questions(collection_id, questions)
@@ -413,16 +398,9 @@ class TestQuestionServiceTDD:
 
     def test_create_question_success_red_phase(self, service):
         """RED: Test successful question creation."""
-        question_input = QuestionInput(
-            collection_id=uuid4(),
-            question="What is this?"
-        )
+        question_input = QuestionInput(collection_id=uuid4(), question="What is this?")
 
-        expected_question = SuggestedQuestion(
-            id=uuid4(),
-            collection_id=question_input.collection_id,
-            question=question_input.question
-        )
+        expected_question = SuggestedQuestion(id=uuid4(), collection_id=question_input.collection_id, question=question_input.question)
 
         service._question_repository.create_question.return_value = expected_question
 
@@ -433,10 +411,7 @@ class TestQuestionServiceTDD:
 
     def test_create_question_repository_error_red_phase(self, service):
         """RED: Test question creation handles repository errors."""
-        question_input = QuestionInput(
-            collection_id=uuid4(),
-            question="What is this?"
-        )
+        question_input = QuestionInput(collection_id=uuid4(), question="What is this?")
 
         service._question_repository.create_question.side_effect = Exception("Database error")
 
@@ -481,7 +456,7 @@ class TestQuestionServiceTDD:
         collection_id = uuid4()
         expected_questions = [
             SuggestedQuestion(id=uuid4(), collection_id=collection_id, question="What is this?"),
-            SuggestedQuestion(id=uuid4(), collection_id=collection_id, question="How does it work?")
+            SuggestedQuestion(id=uuid4(), collection_id=collection_id, question="How does it work?"),
         ]
 
         service._question_repository.get_questions_by_collection.return_value = expected_questions
@@ -513,9 +488,7 @@ class TestQuestionServiceTDD:
         service._question_repository.delete_questions_by_collection.return_value = None
 
         # Mock new question generation
-        expected_questions = [
-            SuggestedQuestion(id=uuid4(), collection_id=collection_id, question="What is regenerated?")
-        ]
+        expected_questions = [SuggestedQuestion(id=uuid4(), collection_id=collection_id, question="What is regenerated?")]
 
         # Mock the suggest_questions method
         service.suggest_questions = AsyncMock(return_value=expected_questions)
@@ -526,7 +499,7 @@ class TestQuestionServiceTDD:
             texts=texts,
             provider_name="openai",
             template=Mock(),
-            parameters=Mock()
+            parameters=Mock(),
         )
 
         assert result == expected_questions
@@ -547,7 +520,7 @@ class TestQuestionServiceTDD:
                 texts=["Text"],
                 provider_name="openai",
                 template=Mock(),
-                parameters=Mock()
+                parameters=Mock(),
             )
 
         assert "Delete failed" in str(exc_info.value)
@@ -574,6 +547,7 @@ class TestQuestionServiceTDD:
         # Current implementation may create empty batches
         if combined:
             assert all(len(chunk) <= available_length for chunk in combined)
+
 
 # RED PHASE COMPLETE: These tests will reveal several logic issues:
 # 1. Complex question validation logic with edge cases

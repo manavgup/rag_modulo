@@ -93,7 +93,16 @@ class TestDocumentProcessingValidation:
     def test_processing_metadata_validation(self):
         """Test processing metadata validation."""
         # Valid processing metadata
-        valid_metadata = {"processor_type": "txt", "file_size": 1024, "chunk_count": 5, "processing_time": 0.5, "success": True, "error_message": None, "file_extension": ".txt", "encoding": "utf-8"}
+        valid_metadata = {
+            "processor_type": "txt",
+            "file_size": 1024,
+            "chunk_count": 5,
+            "processing_time": 0.5,
+            "success": True,
+            "error_message": None,
+            "file_extension": ".txt",
+            "encoding": "utf-8",
+        }
 
         # Test metadata structure
         assert isinstance(valid_metadata, dict)
@@ -146,9 +155,24 @@ class TestDocumentProcessingValidation:
         """Test error handling validation."""
         # Valid error structures
         valid_errors = [
-            {"error_type": "FileNotFoundError", "message": "File not found", "file_path": "/path/to/file.txt", "timestamp": "2024-01-01T00:00:00Z"},
-            {"error_type": "UnsupportedFormatError", "message": "Unsupported file format", "file_path": "/path/to/file.xyz", "timestamp": "2024-01-01T00:00:00Z"},
-            {"error_type": "ProcessingError", "message": "Failed to process document", "file_path": "/path/to/corrupted.pdf", "timestamp": "2024-01-01T00:00:00Z"},
+            {
+                "error_type": "FileNotFoundError",
+                "message": "File not found",
+                "file_path": "/path/to/file.txt",
+                "timestamp": "2024-01-01T00:00:00Z",
+            },
+            {
+                "error_type": "UnsupportedFormatError",
+                "message": "Unsupported file format",
+                "file_path": "/path/to/file.xyz",
+                "timestamp": "2024-01-01T00:00:00Z",
+            },
+            {
+                "error_type": "ProcessingError",
+                "message": "Failed to process document",
+                "file_path": "/path/to/corrupted.pdf",
+                "timestamp": "2024-01-01T00:00:00Z",
+            },
         ]
 
         for error in valid_errors:
@@ -166,7 +190,15 @@ class TestDocumentProcessingValidation:
     def test_processing_configuration_validation(self):
         """Test processing configuration validation."""
         # Valid processing configuration
-        config = {"chunk_size": 1000, "overlap": 200, "max_file_size": 10 * 1024 * 1024, "supported_formats": [".txt", ".pdf", ".docx"], "encoding": "utf-8", "timeout": 30, "retry_count": 3}
+        config = {
+            "chunk_size": 1000,
+            "overlap": 200,
+            "max_file_size": 10 * 1024 * 1024,
+            "supported_formats": [".txt", ".pdf", ".docx"],
+            "encoding": "utf-8",
+            "timeout": 30,
+            "retry_count": 3,
+        }
 
         # Test configuration structure
         assert isinstance(config, dict)

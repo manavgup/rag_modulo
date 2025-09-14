@@ -144,6 +144,21 @@ class DocumentChunk(BaseModel):
         )
 
 
+class DocumentChunkWithScore(DocumentChunk):
+    """A document chunk with an associated similarity score.
+
+    Extends DocumentChunk to include the similarity score from vector search.
+    Used in search results to maintain the score alongside the chunk content.
+
+    Attributes:
+        score: Similarity score from vector search (0.0 to 1.0)
+    """
+
+    score: float | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class Document(BaseModel):
     """A document with its chunks and metadata.
 
@@ -228,42 +243,32 @@ class QueryResult(BaseModel):
         data: List of chunks (for backward compatibility)
     """
 
-    chunk: DocumentChunk | None = None
-    score: float
+    chunk: DocumentChunkWithScore | None = None
+    score: float | None = None
     embeddings: Embeddings | None = None
 
     @property
-    def data(self) -> list[DocumentChunk]:
+    def data(self) -> list[DocumentChunkWithScore]:
         """List of chunks for backward compatibility."""
         return [self.chunk] if self.chunk else []
 
     @property
-    def document(self) -> DocumentChunk | None:
+    def document(self) -> DocumentChunkWithScore | None:
         """Alias for chunk (for backward compatibility)."""
         return self.chunk
+
+    @property
+    def document_id(self) -> str | None:
+        """Get document ID from the chunk."""
+        return self.chunk.document_id if self.chunk else None
 
     model_config = ConfigDict(from_attributes=True)
 
     def __repr__(self) -> str:
         """Readable string representation."""
         if self.chunk:
-            return f"QueryResult(chunk_id={self.chunk.chunk_id}, score={self.score:.3f}, text={self.chunk.text[:50]}...)"
-        else:
-            return f"QueryResult(chunk_id=None, score={self.score:.3f}, text=None)"
-
-    @property
-    def chunk_id(self) -> str | None:
-        """Convenience accessor for chunk's ID."""
-        return self.chunk.chunk_id if self.chunk else None
-
-    @property
-    def document_id(self) -> str | None:
-        """Convenience accessor for document's ID."""
-        return self.chunk.document_id if self.chunk else None
-
-    def __len__(self) -> int:
-        """Return number of results."""
-        return 1
+            return f"QueryResult(chunk_id={self.chunk.chunk_id}, score={self.score:.3f if self.score else 'None'}, text={self.chunk.text[:50] if self.chunk.text else ''}...)"
+        return "QueryResult(chunk=None)"
 
 
 class QueryWithEmbedding(BaseModel):

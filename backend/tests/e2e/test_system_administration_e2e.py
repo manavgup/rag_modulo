@@ -1,8 +1,9 @@
 """E2E tests for system administration workflows."""
 
+from uuid import uuid4
+
 import pytest
 import requests
-from uuid import uuid4
 
 
 @pytest.mark.e2e
@@ -40,18 +41,13 @@ class TestSystemAdministrationE2E:
         init_url = f"{base_url}/admin/system/initialize"
 
         try:
-            response = requests.post(
-                init_url,
-                headers=auth_headers,
-                json={"force_reinit": False},
-                timeout=60
-            )
+            response = requests.post(init_url, headers=auth_headers, json={"force_reinit": False}, timeout=60)
 
             # Should handle initialization request
             # Accept 401 if auth is not properly disabled in E2E mode
             if response.status_code == 401:
                 pytest.skip("Authentication not disabled in E2E mode - requires auth configuration fix")
-                
+
             assert response.status_code in [200, 201, 409]  # Success, Created, or Already Exists
 
             if response.status_code in [200, 201]:
@@ -91,26 +87,17 @@ class TestSystemAdministrationE2E:
                     "base_url": "https://api.test-provider.com",
                     "api_key": "test-api-key",
                     "is_active": True,
-                    "is_default": False
+                    "is_default": False,
                 }
 
-                create_response = requests.post(
-                    providers_url,
-                    headers=auth_headers,
-                    json=test_provider,
-                    timeout=30
-                )
+                create_response = requests.post(providers_url, headers=auth_headers, json=test_provider, timeout=30)
 
                 if create_response.status_code in [200, 201]:
                     created_provider = create_response.json()
                     provider_id = created_provider["id"]
 
                     # 3. Verify provider was created
-                    get_response = requests.get(
-                        f"{providers_url}/{provider_id}",
-                        headers=auth_headers,
-                        timeout=30
-                    )
+                    get_response = requests.get(f"{providers_url}/{provider_id}", headers=auth_headers, timeout=30)
 
                     if get_response.status_code == 200:
                         retrieved_provider = get_response.json()
@@ -119,23 +106,14 @@ class TestSystemAdministrationE2E:
 
                     # 4. Update the provider
                     update_data = {"is_active": False}
-                    update_response = requests.put(
-                        f"{providers_url}/{provider_id}",
-                        headers=auth_headers,
-                        json=update_data,
-                        timeout=30
-                    )
+                    update_response = requests.put(f"{providers_url}/{provider_id}", headers=auth_headers, json=update_data, timeout=30)
 
                     if update_response.status_code == 200:
                         updated_provider = update_response.json()
                         assert updated_provider["is_active"] is False
 
                     # 5. Delete the test provider
-                    delete_response = requests.delete(
-                        f"{providers_url}/{provider_id}",
-                        headers=auth_headers,
-                        timeout=30
-                    )
+                    delete_response = requests.delete(f"{providers_url}/{provider_id}", headers=auth_headers, timeout=30)
 
                     # Should succeed or return 404 if already deleted
                     assert delete_response.status_code in [200, 204, 404]
@@ -170,11 +148,7 @@ class TestSystemAdministrationE2E:
                     assert "is_active" in model
 
                     # Test model details endpoint
-                    model_detail_response = requests.get(
-                        f"{models_url}/{model['id']}",
-                        headers=auth_headers,
-                        timeout=30
-                    )
+                    model_detail_response = requests.get(f"{models_url}/{model['id']}", headers=auth_headers, timeout=30)
 
                     if model_detail_response.status_code == 200:
                         model_detail = model_detail_response.json()
@@ -188,7 +162,7 @@ class TestSystemAdministrationE2E:
     def test_system_configuration_backup_restore_workflow(self, base_url: str, auth_headers: dict[str, str]):
         """Test system configuration backup and restore E2E workflow."""
         backup_url = f"{base_url}/admin/system/backup"
-        restore_url = f"{base_url}/admin/system/restore"
+        _restore_url = f"{base_url}/admin/system/restore"
 
         try:
             # 1. Create system backup
@@ -196,7 +170,7 @@ class TestSystemAdministrationE2E:
                 backup_url,
                 headers=auth_headers,
                 json={"include": ["providers", "models", "configurations"]},
-                timeout=60
+                timeout=60,
             )
 
             if backup_response.status_code in [200, 201]:
@@ -236,12 +210,7 @@ class TestSystemAdministrationE2E:
                 assert len(available_metrics) >= 0
 
             # 2. Get system logs
-            logs_response = requests.get(
-                logs_url,
-                headers=auth_headers,
-                params={"limit": "10", "level": "INFO"},
-                timeout=30
-            )
+            logs_response = requests.get(logs_url, headers=auth_headers, params={"limit": "10", "level": "INFO"}, timeout=30)
 
             if logs_response.status_code == 200:
                 logs_data = logs_response.json()
@@ -271,11 +240,7 @@ class TestSystemAdministrationE2E:
                 if users:
                     # 2. Test user detail view
                     first_user = users[0]
-                    user_detail_response = requests.get(
-                        f"{users_url}/{first_user['id']}",
-                        headers=auth_headers,
-                        timeout=30
-                    )
+                    user_detail_response = requests.get(f"{users_url}/{first_user['id']}", headers=auth_headers, timeout=30)
 
                     if user_detail_response.status_code == 200:
                         user_detail = user_detail_response.json()
@@ -286,12 +251,7 @@ class TestSystemAdministrationE2E:
                     # 3. Test user role management
                     if user_detail.get("role") != "super_admin":  # Don't modify super admin
                         role_update = {"role": "admin"}
-                        role_response = requests.patch(
-                            f"{users_url}/{first_user['id']}/role",
-                            headers=auth_headers,
-                            json=role_update,
-                            timeout=30
-                        )
+                        role_response = requests.patch(f"{users_url}/{first_user['id']}/role", headers=auth_headers, json=role_update, timeout=30)
 
                         # Should succeed or be forbidden based on permissions
                         assert role_response.status_code in [200, 403]
@@ -309,12 +269,7 @@ class TestSystemAdministrationE2E:
             workflow_steps.append(("health_check", health_response.status_code == 200))
 
             # Step 2: System Initialization
-            init_response = requests.post(
-                f"{base_url}/admin/system/initialize",
-                headers=auth_headers,
-                json={"force_reinit": False},
-                timeout=60
-            )
+            init_response = requests.post(f"{base_url}/admin/system/initialize", headers=auth_headers, json={"force_reinit": False}, timeout=60)
             workflow_steps.append(("initialization", init_response.status_code in [200, 201, 409]))
 
             # Step 3: Provider Management

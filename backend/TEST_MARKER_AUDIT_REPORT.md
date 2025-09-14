@@ -12,7 +12,7 @@
 tests/
 ├── atomic/      # ✅ Correctly marked with @pytest.mark.atomic
 ├── unit/        # ❌ INCORRECTLY marked with @pytest.mark.integration
-├── integration/ # ❌ INCORRECTLY marked with @pytest.mark.unit  
+├── integration/ # ❌ INCORRECTLY marked with @pytest.mark.unit
 ├── e2e/         # ✅ Correctly marked with @pytest.mark.e2e
 └── fixtures/    # Shared fixtures across all test types
 ```
@@ -133,7 +133,7 @@ tests/fixtures/
 # Fix all unit test markers
 find tests/unit -name "*.py" -exec sed -i '' 's/@pytest.mark.integration/@pytest.mark.unit/g' {} \;
 
-# Fix all integration test markers  
+# Fix all integration test markers
 find tests/integration -name "*.py" -exec sed -i '' 's/@pytest.mark.unit/@pytest.mark.integration/g' {} \;
 ```
 

@@ -84,8 +84,10 @@ def get_db() -> Generator[Session, None, None]:
     except SQLAlchemyError as e:
         logger.error(f"A database error occurred: {e}", exc_info=True)
         db.rollback()
+        raise
     except Exception as e:
         logger.error(f"An unexpected error occurred: {e}", exc_info=True)
+        raise
     finally:
         db.close()
         if not os.environ.get("PYTEST_CURRENT_TEST"):

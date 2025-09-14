@@ -69,14 +69,26 @@ def convert_to_unit_test(content: str, _file_path: str) -> str:
     """Convert integration test to unit test if appropriate."""
 
     # Check if this is a simple test that can be converted
-    if any(pattern in content for pattern in ["test_basic_functionality", "test_configuration", "test_mock_services", "test_simple_", "test_pure_"]):
+    if any(
+        pattern in content
+        for pattern in [
+            "test_basic_functionality",
+            "test_configuration",
+            "test_mock_services",
+            "test_simple_",
+            "test_pure_",
+        ]
+    ):
         # Change integration marker to unit marker
         content = re.sub(r"@pytest\.mark\.integration", "@pytest.mark.unit", content)
 
         # Add unit test imports
         if "from tests.fixtures.unit import" not in content:
             content = add_integration_settings_import(content)
-            content = content.replace("from tests.fixtures.integration import integration_settings", "from tests.fixtures.unit import mock_user_service, mock_collection_service")
+            content = content.replace(
+                "from tests.fixtures.integration import integration_settings",
+                "from tests.fixtures.unit import mock_user_service, mock_collection_service",
+            )
 
     return content
 
@@ -100,10 +112,7 @@ def should_delete_test(file_path: str, content: str) -> bool:
             return True
 
     # Delete tests with too many external dependencies
-    if content.count("WMLClientError") > 0 or content.count("api_key") > 5:
-        return True
-
-    return False
+    return bool(content.count("WMLClientError") > 0 or content.count("api_key") > 5)
 
 
 def fix_integration_test_file(file_path: str) -> tuple[bool, str]:

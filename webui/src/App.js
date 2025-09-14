@@ -89,7 +89,7 @@ const AppContent = () => {
     <Routes>
       {/* Auth Routes */}
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/callback" element={<AuthCallback />} />
+      <Route path="/auth/callback" element={<AuthCallback />} />
 
       {/* Main Routes */}
       <Route

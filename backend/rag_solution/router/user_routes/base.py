@@ -103,7 +103,11 @@ async def update_user(
     },
 )
 @authorize_decorator(role="user")
-async def delete_user(user_id: UUID4, user: Annotated[UserOutput, Depends(verify_user_access)], service: Annotated[UserService, Depends(get_user_service)]) -> dict:
+async def delete_user(
+    user_id: UUID4,
+    user: Annotated[UserOutput, Depends(verify_user_access)],
+    service: Annotated[UserService, Depends(get_user_service)],
+) -> dict:
     """Delete a specific user."""
     try:
         service.delete_user(user_id)

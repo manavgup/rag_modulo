@@ -1,17 +1,21 @@
 """TDD Unit tests for SearchService - RED phase: Tests that describe expected behavior."""
 
-import pytest
-from unittest.mock import Mock, patch, AsyncMock
+import asyncio
+from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
-from sqlalchemy.orm import Session
+
+import pytest
 from fastapi import HTTPException
+from sqlalchemy.orm import Session
 
 from core.config import Settings
-from rag_solution.services.search_service import SearchService, handle_search_errors
-from rag_solution.schemas.search_schema import SearchInput, SearchOutput
-from rag_solution.schemas.collection_schema import CollectionOutput, CollectionStatus
 from core.custom_exceptions import ConfigurationError, LLMProviderError, NotFoundError, ValidationError
-from vectordbs.data_types import QueryResult
+from rag_solution.schemas.collection_schema import CollectionOutput, CollectionStatus
+from rag_solution.schemas.file_schema import FileMetadata, FileOutput
+from rag_solution.schemas.pipeline_schema import PipelineResult
+from rag_solution.schemas.search_schema import SearchInput, SearchOutput
+from rag_solution.services.search_service import SearchService, handle_search_errors
+from vectordbs.data_types import DocumentChunk, QueryResult
 
 
 @pytest.mark.unit
@@ -128,8 +132,6 @@ class TestSearchServiceTDD:
 
         service._collection_service.get_collection.return_value = None
 
-        from fastapi import HTTPException
-
         with pytest.raises(HTTPException) as exc_info:
             await service._initialize_pipeline(collection_id)
 
@@ -156,8 +158,6 @@ class TestSearchServiceTDD:
         service._collection_service.get_collection.return_value = collection
         service._pipeline_service.initialize = AsyncMock(side_effect=Exception("Pipeline init failed"))
 
-        from fastapi import HTTPException
-
         with pytest.raises(HTTPException) as exc_info:
             await service._initialize_pipeline(collection_id)
 
@@ -170,16 +170,18 @@ class TestSearchServiceTDD:
         doc_id_1 = "doc1"
         doc_id_2 = "doc2"
 
-        from vectordbs.data_types import DocumentChunk
-
         query_results = [
-            QueryResult(chunk=DocumentChunk(chunk_id="chunk1", text="Sample text 1", document_id=doc_id_1, page_number=1), score=0.9),
-            QueryResult(chunk=DocumentChunk(chunk_id="chunk2", text="Sample text 2", document_id=doc_id_2, page_number=2), score=0.8),
+            QueryResult(
+                chunk=DocumentChunk(chunk_id="chunk1", text="Sample text 1", document_id=doc_id_1, page_number=1),
+                score=0.9,
+            ),
+            QueryResult(
+                chunk=DocumentChunk(chunk_id="chunk2", text="Sample text 2", document_id=doc_id_2, page_number=2),
+                score=0.8,
+            ),
         ]
 
         # Mock file metadata
-        from rag_solution.schemas.file_schema import FileOutput, FileMetadata
-
         files = [
             FileOutput(
                 id=uuid4(),
@@ -233,8 +235,6 @@ class TestSearchServiceTDD:
 
     def test_generate_document_metadata_missing_files_red_phase(self, service):
         """RED: Test document metadata generation when files not found - should raise ConfigurationError."""
-        from vectordbs.data_types import DocumentChunk, QueryResult
-
         collection_id = uuid4()
         # Create proper QueryResult with DocumentChunk
         chunk = DocumentChunk(chunk_id="chunk1", text="Sample text", document_id="doc1")
@@ -251,8 +251,6 @@ class TestSearchServiceTDD:
 
     def test_generate_document_metadata_missing_document_metadata_red_phase(self, service):
         """RED: Test when document referenced in results but not found in metadata - should raise ConfigurationError."""
-        from vectordbs.data_types import DocumentChunk, QueryResult
-
         collection_id = uuid4()
         # Create proper QueryResult with DocumentChunk
         chunk = DocumentChunk(chunk_id="chunk1", text="Sample text", document_id="missing_doc")
@@ -261,8 +259,6 @@ class TestSearchServiceTDD:
         ]
 
         # Files exist but don't include the referenced document
-        from rag_solution.schemas.file_schema import FileOutput
-
         files = [
             FileOutput(
                 id=uuid4(),
@@ -450,9 +446,14 @@ class TestSearchServiceTDD:
         service._initialize_pipeline = AsyncMock(return_value="test_collection")
 
         # Mock pipeline execution
-        from rag_solution.schemas.pipeline_schema import PipelineResult
-
-        pipeline_result = PipelineResult(success=True, generated_answer="Machine learning is AI", query_results=[], rewritten_query="machine learning definition", evaluation=None, error=None)
+        pipeline_result = PipelineResult(
+            success=True,
+            generated_answer="Machine learning is AI",
+            query_results=[],
+            rewritten_query="machine learning definition",
+            evaluation=None,
+            error=None,
+        )
 
         service._pipeline_service.execute_pipeline = AsyncMock(return_value=pipeline_result)
         service._generate_document_metadata = Mock(return_value=[])
@@ -482,13 +483,16 @@ class TestSearchServiceTDD:
         service._initialize_pipeline = AsyncMock(return_value="test_collection")
 
         # Mock pipeline execution failure
-        from rag_solution.schemas.pipeline_schema import PipelineResult
-
-        pipeline_result = PipelineResult(success=False, generated_answer=None, query_results=None, rewritten_query=None, evaluation=None, error="Pipeline execution failed")
+        pipeline_result = PipelineResult(
+            success=False,
+            generated_answer=None,
+            query_results=None,
+            rewritten_query=None,
+            evaluation=None,
+            error="Pipeline execution failed",
+        )
 
         service._pipeline_service.execute_pipeline = AsyncMock(return_value=pipeline_result)
-
-        from fastapi import HTTPException
 
         with pytest.raises(HTTPException) as exc_info:
             await service.search(search_input)
@@ -508,8 +512,6 @@ class TestSearchServiceTDD:
         service._initialize_pipeline = AsyncMock(return_value="test_collection")
 
         # Mock pipeline result with null values
-        from rag_solution.schemas.pipeline_schema import PipelineResult
-
         pipeline_result = PipelineResult(success=True, generated_answer=None, query_results=None, rewritten_query=None, evaluation=None, error=None)
 
         service._pipeline_service.execute_pipeline = AsyncMock(return_value=pipeline_result)
@@ -531,8 +533,6 @@ class TestSearchServiceTDD:
             raise NotFoundError("Resource", "123")
 
         with pytest.raises(HTTPException) as exc_info:
-            import asyncio
-
             asyncio.run(mock_function())
 
         assert exc_info.value.status_code == 404
@@ -546,8 +546,6 @@ class TestSearchServiceTDD:
             raise ValidationError("Invalid input")
 
         with pytest.raises(HTTPException) as exc_info:
-            import asyncio
-
             asyncio.run(mock_function())
 
         assert exc_info.value.status_code == 400
@@ -561,8 +559,6 @@ class TestSearchServiceTDD:
             raise LLMProviderError("provider", "operation", "reason")
 
         with pytest.raises(HTTPException) as exc_info:
-            import asyncio
-
             asyncio.run(mock_function())
 
         assert exc_info.value.status_code == 500
@@ -572,11 +568,9 @@ class TestSearchServiceTDD:
 
         @handle_search_errors
         async def mock_function():
-            raise Exception("Unexpected error")
+            raise ValueError("Unexpected error")
 
         with pytest.raises(HTTPException) as exc_info:
-            import asyncio
-
             asyncio.run(mock_function())
 
         assert exc_info.value.status_code == 500
@@ -595,14 +589,17 @@ class TestSearchServiceTDD:
             service._validate_pipeline = Mock()
             service._initialize_pipeline = AsyncMock(return_value="test")
 
-            from rag_solution.schemas.pipeline_schema import PipelineResult
-
-            pipeline_result = PipelineResult(success=True, generated_answer="Answer", query_results=[], rewritten_query="query", evaluation=None, error=None)
+            pipeline_result = PipelineResult(
+                success=True,
+                generated_answer="Answer",
+                query_results=[],
+                rewritten_query="query",
+                evaluation=None,
+                error=None,
+            )
             service._pipeline_service.execute_pipeline = AsyncMock(return_value=pipeline_result)
             service._generate_document_metadata = Mock(return_value=[])
             service._clean_generated_answer = Mock(return_value="Answer")
-
-            import asyncio
 
             result = asyncio.run(service.search(search_input))
 

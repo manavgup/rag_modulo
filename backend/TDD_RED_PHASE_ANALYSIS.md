@@ -6,14 +6,14 @@
 
 **Problem**: Tests fail when run directly with `poetry run pytest` but may work with `make test-e2e`
 
-**Root Cause**: 
+**Root Cause**:
 - `make test-e2e` loads `.env` via Makefile (line 2: `-include .env`) and starts Docker containers
 - `poetry run pytest` relies on pytest-env plugin, but `.env` is in parent directory, not backend/
 
 **Solution**:
 ```bash
 # Fix pytest.ini to use correct .env path
-env_files = 
+env_files =
     ../.env
 ```
 
@@ -70,9 +70,9 @@ Or fix pytest.ini:
 
 ```ini
 [pytest]
-env_files = 
+env_files =
     ../.env
-env = 
+env =
     MILVUS_HOST=localhost  # Override for local testing
 ```
 
@@ -89,7 +89,7 @@ from testcontainers.compose import DockerCompose
 @pytest.fixture(scope="session")
 def docker_services():
     """Start all required services for E2E tests."""
-    with DockerCompose("../docker-compose.yml", 
+    with DockerCompose("../docker-compose.yml",
                        services=["postgres", "milvus-standalone"]) as compose:
         # Wait for services to be healthy
         compose.wait_for("postgres")
@@ -123,7 +123,7 @@ def real_search_service(real_db, real_settings):
    - ❌ Database queries
    - ❌ Transaction handling
    - ❌ Vector store operations
-   
+
 3. **E2E Tests** (Full stack, real services)
    - ❌ Complete search flow
    - ❌ Performance under load
@@ -136,55 +136,55 @@ def real_search_service(real_db, real_settings):
 
 class TestSearchServiceFullCoverage:
     """Comprehensive unit tests for 100% coverage."""
-    
+
     def test_lazy_file_service_initialization(self):
         """Test lazy initialization of file_service property."""
         # Currently untested
-        
+
     def test_lazy_collection_service_initialization(self):
         """Test lazy initialization of collection_service property."""
         # Currently untested
-        
+
     def test_lazy_pipeline_service_initialization(self):
         """Test lazy initialization of pipeline_service property."""
         # Currently untested
-    
+
     def test_initialize_pipeline_not_found_error(self):
         """Test _initialize_pipeline when collection not found."""
         # Currently untested
-        
+
     def test_initialize_pipeline_configuration_error(self):
         """Test _initialize_pipeline when pipeline init fails."""
         # Currently untested
-    
+
     def test_generate_document_metadata_empty_results(self):
         """Test _generate_document_metadata with no query results."""
         # Currently untested
-        
+
     def test_generate_document_metadata_missing_files(self):
         """Test _generate_document_metadata when files not found."""
         # Currently untested
-        
+
     def test_generate_document_metadata_missing_doc_ids(self):
         """Test _generate_document_metadata with missing document IDs."""
         # Currently untested
-    
+
     def test_clean_generated_answer_with_duplicates(self):
         """Test _clean_generated_answer removes duplicates."""
         # Currently untested
-        
+
     def test_validate_collection_access_private_collection(self):
         """Test _validate_collection_access for private collections."""
         # Currently untested
-        
+
     def test_validate_pipeline_not_found(self):
         """Test _validate_pipeline when pipeline not found."""
         # Currently untested
-        
+
     def test_search_pipeline_execution_failure(self):
         """Test search when pipeline execution fails."""
         # Currently untested
-        
+
     def test_handle_search_errors_decorator_all_paths(self):
         """Test all error handling paths in decorator."""
         # Currently untested

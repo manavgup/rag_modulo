@@ -1,15 +1,16 @@
 """TDD Unit tests for TeamService - RED phase: Tests that describe expected behavior."""
 
-import pytest
 from unittest.mock import Mock, patch
 from uuid import uuid4
+
+import pytest
 from sqlalchemy.orm import Session
 
-from rag_solution.services.team_service import TeamService
+from core.custom_exceptions import NotFoundError
 from rag_solution.schemas.team_schema import TeamInput, TeamOutput
 from rag_solution.schemas.user_schema import UserOutput
 from rag_solution.schemas.user_team_schema import UserTeamOutput
-from core.custom_exceptions import NotFoundError
+from rag_solution.services.team_service import TeamService
 
 
 @pytest.mark.unit
@@ -39,9 +40,10 @@ class TestTeamServiceTDD:
     @pytest.fixture
     def service(self, mock_db):
         """Create service instance with mocked dependencies."""
-        with patch('rag_solution.services.team_service.TeamRepository') as mock_repo_class, \
-             patch('rag_solution.services.team_service.UserTeamService') as mock_user_team_class:
-
+        with (
+            patch("rag_solution.services.team_service.TeamRepository") as _mock_repo_class,
+            patch("rag_solution.services.team_service.UserTeamService") as _mock_user_team_class,
+        ):
             service = TeamService(mock_db)
             service.team_repository = Mock()
             service.user_team_service = Mock()
@@ -53,11 +55,7 @@ class TestTeamServiceTDD:
         team_input = TeamInput(name="Development Team", description="Software development team")
         team_id = uuid4()
 
-        expected_team = TeamOutput(
-            id=team_id,
-            name="Development Team",
-            description="Software development team"
-        )
+        expected_team = TeamOutput(id=team_id, name="Development Team", description="Software development team")
 
         service.team_repository.create.return_value = expected_team
 
@@ -86,11 +84,7 @@ class TestTeamServiceTDD:
     def test_get_team_by_id_success_red_phase(self, service):
         """RED: Test successful team retrieval by ID."""
         team_id = uuid4()
-        expected_team = TeamOutput(
-            id=team_id,
-            name="Test Team",
-            description="Test team description"
-        )
+        expected_team = TeamOutput(id=team_id, name="Test Team", description="Test team description")
 
         service.team_repository.get.return_value = expected_team
 
@@ -119,11 +113,7 @@ class TestTeamServiceTDD:
         team_id = uuid4()
         team_update = TeamInput(name="Updated Team", description="Updated description")
 
-        updated_team = TeamOutput(
-            id=team_id,
-            name="Updated Team",
-            description="Updated description"
-        )
+        updated_team = TeamOutput(id=team_id, name="Updated Team", description="Updated description")
 
         service.team_repository.update.return_value = updated_team
 
@@ -191,13 +181,31 @@ class TestTeamServiceTDD:
         # Mock user-team relationships
         user_teams = [
             UserTeamOutput(user_id=user_id_1, team_id=team_id, role="member", joined_at="2024-01-01T00:00:00Z"),
-            UserTeamOutput(user_id=user_id_2, team_id=team_id, role="admin", joined_at="2024-01-01T00:00:00Z")
+            UserTeamOutput(user_id=user_id_2, team_id=team_id, role="admin", joined_at="2024-01-01T00:00:00Z"),
         ]
 
         # Mock actual users
         users = [
-            UserOutput(id=user_id_1, email="user1@example.com", ibm_id="user1", name="User 1", role="user", preferred_provider_id=None, created_at="2024-01-01T00:00:00Z", updated_at="2024-01-01T00:00:00Z"),
-            UserOutput(id=user_id_2, email="user2@example.com", ibm_id="user2", name="User 2", role="admin", preferred_provider_id=None, created_at="2024-01-01T00:00:00Z", updated_at="2024-01-01T00:00:00Z")
+            UserOutput(
+                id=user_id_1,
+                email="user1@example.com",
+                ibm_id="user1",
+                name="User 1",
+                role="user",
+                preferred_provider_id=None,
+                created_at="2024-01-01T00:00:00Z",
+                updated_at="2024-01-01T00:00:00Z",
+            ),
+            UserOutput(
+                id=user_id_2,
+                email="user2@example.com",
+                ibm_id="user2",
+                name="User 2",
+                role="admin",
+                preferred_provider_id=None,
+                created_at="2024-01-01T00:00:00Z",
+                updated_at="2024-01-01T00:00:00Z",
+            ),
         ]
 
         service.user_team_service.get_team_users.return_value = user_teams
@@ -231,10 +239,19 @@ class TestTeamServiceTDD:
 
         user_teams = [
             UserTeamOutput(user_id=user_id_1, team_id=team_id, role="member", joined_at="2024-01-01T00:00:00Z"),
-            UserTeamOutput(user_id=user_id_2, team_id=team_id, role="admin", joined_at="2024-01-01T00:00:00Z")
+            UserTeamOutput(user_id=user_id_2, team_id=team_id, role="admin", joined_at="2024-01-01T00:00:00Z"),
         ]
 
-        good_user = UserOutput(id=user_id_1, email="user1@example.com", ibm_id="user1", name="User 1", role="user", preferred_provider_id=None, created_at="2024-01-01T00:00:00Z", updated_at="2024-01-01T00:00:00Z")
+        good_user = UserOutput(
+            id=user_id_1,
+            email="user1@example.com",
+            ibm_id="user1",
+            name="User 1",
+            role="user",
+            preferred_provider_id=None,
+            created_at="2024-01-01T00:00:00Z",
+            updated_at="2024-01-01T00:00:00Z",
+        )
 
         service.user_team_service.get_team_users.return_value = user_teams
 
@@ -257,12 +274,7 @@ class TestTeamServiceTDD:
         user_id = uuid4()
         team_id = uuid4()
 
-        expected_user_team = UserTeamOutput(
-            user_id=user_id,
-            team_id=team_id,
-            role="member",
-            joined_at="2024-01-01T00:00:00Z"
-        )
+        expected_user_team = UserTeamOutput(user_id=user_id, team_id=team_id, role="member", joined_at="2024-01-01T00:00:00Z")
 
         service.user_team_service.add_user_to_team.return_value = expected_user_team
 
@@ -288,7 +300,7 @@ class TestTeamServiceTDD:
         teams = [
             TeamOutput(id=uuid4(), name="Team 1", description="First team"),
             TeamOutput(id=uuid4(), name="Team 2", description="Second team"),
-            TeamOutput(id=uuid4(), name="Team 3", description="Third team")
+            TeamOutput(id=uuid4(), name="Team 3", description="Third team"),
         ]
 
         service.team_repository.list.return_value = teams
@@ -303,7 +315,7 @@ class TestTeamServiceTDD:
         """RED: Test team listing with custom pagination."""
         teams = [
             TeamOutput(id=uuid4(), name="Team 4", description="Fourth team"),
-            TeamOutput(id=uuid4(), name="Team 5", description="Fifth team")
+            TeamOutput(id=uuid4(), name="Team 5", description="Fifth team"),
         ]
 
         service.team_repository.list.return_value = teams
@@ -327,7 +339,7 @@ class TestTeamServiceTDD:
         mock_user_team_service = Mock()
         mock_user_service = Mock()
 
-        with patch('rag_solution.services.team_service.TeamRepository') as mock_repo_class:
+        with patch("rag_solution.services.team_service.TeamRepository") as mock_repo_class:
             service = TeamService(mock_db, mock_user_team_service, mock_user_service)
 
             assert service.user_team_service is mock_user_team_service
@@ -336,9 +348,10 @@ class TestTeamServiceTDD:
 
     def test_service_initialization_without_dependencies_red_phase(self, mock_db):
         """RED: Test service initialization without provided dependencies."""
-        with patch('rag_solution.services.team_service.TeamRepository') as mock_repo_class, \
-             patch('rag_solution.services.team_service.UserTeamService') as mock_user_team_class:
-
+        with (
+            patch("rag_solution.services.team_service.TeamRepository") as mock_repo_class,
+            patch("rag_solution.services.team_service.UserTeamService") as mock_user_team_class,
+        ):
             service = TeamService(mock_db)
 
             assert service.user_service is None  # Not provided
@@ -353,13 +366,14 @@ class TestTeamServiceTDD:
 
         service.team_repository.create.return_value = expected_team
 
-        with patch('rag_solution.services.team_service.logger') as mock_logger:
+        with patch("rag_solution.services.team_service.logger") as mock_logger:
             service.create_team(team_input)
 
             # Should log creation start and success
             assert mock_logger.info.call_count == 2
             mock_logger.info.assert_any_call(f"Creating team with input: {team_input}")
             mock_logger.info.assert_any_call(f"Team created successfully: {team_id}")
+
 
 # RED PHASE COMPLETE: Now let's run these tests to see what fails
 # This will guide our GREEN phase implementation fixes
