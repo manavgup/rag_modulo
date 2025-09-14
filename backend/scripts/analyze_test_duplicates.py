@@ -10,7 +10,14 @@ from typing import Any
 
 def analyze_test_directory(directory: Path) -> dict[str, list[Path]]:
     """Analyze a test directory and categorize files."""
-    categories: dict[str, list[Path]] = {"atomic": [], "unit": [], "integration": [], "e2e": [], "fixtures": [], "other": []}
+    categories: dict[str, list[Path]] = {
+        "atomic": [],
+        "unit": [],
+        "integration": [],
+        "e2e": [],
+        "fixtures": [],
+        "other": [],
+    }
 
     if not directory.exists():
         return categories
@@ -39,7 +46,15 @@ def find_duplicate_tests() -> dict[str, list[Path]]:
     duplicates = {}
 
     # Directories to check for duplicates
-    test_dirs = ["tests/integration", "tests/integration_backup", "tests/integration_backup_analysis", "tests/service_backup", "tests/services", "tests/e2e", "tests/e2e_backup"]
+    test_dirs = [
+        "tests/integration",
+        "tests/integration_backup",
+        "tests/integration_backup_analysis",
+        "tests/service_backup",
+        "tests/services",
+        "tests/e2e",
+        "tests/e2e_backup",
+    ]
 
     all_files: dict[str, list[Path]] = {}
 

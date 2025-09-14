@@ -116,7 +116,13 @@ class UserService:
         # Get current user to preserve other fields
         current_user = self.user_repository.get_by_id(user_id)
         # Create UserInput with updated preferred_provider_id
-        user_update = UserInput(ibm_id=current_user.ibm_id, email=current_user.email, name=current_user.name, role=current_user.role, preferred_provider_id=provider_id)
+        user_update = UserInput(
+            ibm_id=current_user.ibm_id,
+            email=current_user.email,
+            name=current_user.name,
+            role=current_user.role,
+            preferred_provider_id=provider_id,
+        )
         user = self.user_repository.update(user_id, user_update)
         logger.info("User %s preferred provider updated successfully", user_id)
         return user

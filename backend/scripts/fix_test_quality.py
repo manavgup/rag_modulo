@@ -63,7 +63,11 @@ def fix_pydantic_usage(content: str) -> str:
     content = re.sub(r"from datetime import datetime", "from datetime import datetime, timezone", content)
 
     # Fix timezone usage
-    content = re.sub(r"datetime\((\d+), (\d+), (\d+), (\d+), (\d+), (\d+), tzinfo=TzInfo\(UTC\)\)", r"datetime(\1, \2, \3, \4, \5, \6, tzinfo=timezone.utc)", content)
+    content = re.sub(
+        r"datetime\((\d+), (\d+), (\d+), (\d+), (\d+), (\d+), tzinfo=TzInfo\(UTC\)\)",
+        r"datetime(\1, \2, \3, \4, \5, \6, tzinfo=timezone.utc)",
+        content,
+    )
 
     # Fix ConfigDict usage
     content = re.sub(r"class Config:", "model_config = ConfigDict(", content)

@@ -57,7 +57,11 @@ def fix_datetime_imports(content: str) -> str:
 def fix_pydantic_usage(content: str) -> str:
     """Fix Pydantic 2.0 usage patterns."""
     # Fix datetime usage in Pydantic models
-    content = re.sub(r"datetime\((\d+), (\d+), (\d+), (\d+), (\d+), (\d+)\)", r"datetime(\1, \2, \3, \4, \5, \6, tzinfo=timezone.utc)", content)
+    content = re.sub(
+        r"datetime\((\d+), (\d+), (\d+), (\d+), (\d+), (\d+)\)",
+        r"datetime(\1, \2, \3, \4, \5, \6, tzinfo=timezone.utc)",
+        content,
+    )
 
     return content
 

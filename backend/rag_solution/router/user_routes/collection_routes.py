@@ -50,7 +50,12 @@ async def get_user_collections(user_id: UUID4, db: Annotated[Session, Depends(ge
         500: {"description": "Internal server error"},
     },
 )
-async def remove_user_collection(user_id: UUID4, collection_id: UUID4, db: Annotated[Session, Depends(get_db)], user: Annotated[UserOutput, Depends(verify_user_access)]) -> bool:
+async def remove_user_collection(
+    user_id: UUID4,
+    collection_id: UUID4,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[UserOutput, Depends(verify_user_access)],
+) -> bool:
     """Remove a collection from a user's access."""
     service = UserCollectionService(db)
     try:

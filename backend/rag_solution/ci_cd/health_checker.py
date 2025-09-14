@@ -42,7 +42,14 @@ class HealthChecker:
         """
         service_config = next((s for s in self.services if s["name"] == service_name), None)
         if not service_config:
-            return {"name": service_name, "healthy": False, "error": f"Service {service_name} not found in configuration", "response_time": None, "status_code": None, "retry_attempts": 0}
+            return {
+                "name": service_name,
+                "healthy": False,
+                "error": f"Service {service_name} not found in configuration",
+                "response_time": None,
+                "status_code": None,
+                "retry_attempts": 0,
+            }
 
         return self._perform_health_check(service_config)
 
@@ -80,7 +87,14 @@ class HealthChecker:
                     time.sleep(retry_delay * (2**attempt))  # Exponential backoff
 
         # All attempts failed
-        return {"name": service_config["name"], "healthy": False, "error": str(last_error), "response_time": 0.0, "status_code": None, "retry_attempts": attempts - 1}
+        return {
+            "name": service_config["name"],
+            "healthy": False,
+            "error": str(last_error),
+            "response_time": 0.0,
+            "status_code": None,
+            "retry_attempts": attempts - 1,
+        }
 
     def _check_http_service(self, service_config: dict[str, Any], timeout: int) -> dict[str, Any]:
         """Check HTTP service health."""
@@ -173,7 +187,14 @@ class HealthChecker:
                     results[service["name"]] = result
 
                 except TimeoutError:
-                    results[service["name"]] = {"name": service["name"], "healthy": False, "error": "Health check timed out", "response_time": 0.0, "status_code": None, "retry_attempts": 0}
+                    results[service["name"]] = {
+                        "name": service["name"],
+                        "healthy": False,
+                        "error": "Health check timed out",
+                        "response_time": 0.0,
+                        "status_code": None,
+                        "retry_attempts": 0,
+                    }
 
         return results
 

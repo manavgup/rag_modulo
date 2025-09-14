@@ -1,0 +1,8 @@
+title: 📖 Commands
+nav:
+  - index.md
+  - auth.md
+  - collections.md
+  - documents.md
+  - search.md
+  - users.md

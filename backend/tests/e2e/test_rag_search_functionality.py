@@ -10,14 +10,15 @@ These tests will fail until we have a working RAG system with:
 These are true E2E tests that require the full RAG infrastructure to be working.
 """
 
-import pytest
 from uuid import uuid4
-from sqlalchemy.orm import Session
-from sqlalchemy import create_engine
 
+import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
+
+from core.config import Settings
 from rag_solution.schemas.search_schema import SearchInput, SearchOutput
 from rag_solution.services.search_service import SearchService
-from core.config import Settings
 
 
 @pytest.mark.e2e

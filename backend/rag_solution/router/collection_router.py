@@ -79,6 +79,68 @@ async def debug_form_data_with_db(
     }
 
 
+# TEST ENDPOINT - Remove this after debugging
+@router.get(
+    "/test",
+    summary="Test endpoint to list collections without auth",
+    response_model=list[CollectionOutput],
+)
+async def test_list_collections(
+    db: Annotated[Session, Depends(get_db)],
+) -> list[CollectionOutput]:
+    """Test endpoint to list collections without authentication."""
+    try:
+        # Use a mock user ID for testing
+        from uuid import UUID
+
+        mock_user_id = UUID("9bae4a21-718b-4c8b-bdd2-22857779a85b")  # From auth logs
+
+        user_collection_service = UserCollectionService(db)
+        collections = user_collection_service.get_user_collections(mock_user_id)
+
+        logger.info(f"TEST: Retrieved {len(collections)} collections for mock user {mock_user_id}")
+        return collections
+
+    except Exception as e:
+        logger.error(f"TEST: Error listing collections: {e!s}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error retrieving collections: {e!s}") from e
+
+
+@router.get(
+    "",
+    summary="List all collections for the authenticated user",
+    response_model=list[CollectionOutput],
+    description="Retrieve all collections accessible to the authenticated user.",
+    responses={
+        200: {"description": "Collections retrieved successfully"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def list_collections(
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> list[CollectionOutput]:
+    """List all collections for the authenticated user."""
+    try:
+        # Get the current user from the authenticated request
+        current_user = request.state.user
+        user_id = current_user.get("uuid")
+
+        if not user_id:
+            raise HTTPException(status_code=401, detail="User not authenticated")
+
+        user_collection_service = UserCollectionService(db)
+        collections = user_collection_service.get_user_collections(user_id)
+
+        logger.info(f"Retrieved {len(collections)} collections for user {user_id}")
+        return collections
+
+    except Exception as e:
+        logger.error(f"Error listing collections: {e!s}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error retrieving collections: {e!s}") from e
+
+
 @router.post(
     "",
     summary="Create a new collection",
@@ -92,13 +154,20 @@ async def debug_form_data_with_db(
         500: {"description": "Internal server error"},
     },
 )
-def create_collection(collection_input: CollectionInput, db: Annotated[Session, Depends(get_db)], settings: Annotated[Settings, Depends(get_settings)]) -> CollectionOutput:
+def create_collection(
+    request: Request,
+    collection_input: CollectionInput,
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> CollectionOutput:
     """
     Create a new collection.
 
     Args:
+        request: The request object containing authenticated user info
         collection_input (CollectionInput): The input data for creating a collection.
         db (Session): The database session.
+        settings: Application settings
 
     Returns:
         CollectionOutput: The created collection.
@@ -107,6 +176,21 @@ def create_collection(collection_input: CollectionInput, db: Annotated[Session, 
         HTTPException: If validation fails, collection not found, or creation fails
     """
     try:
+        # Get current user from authenticated request
+        current_user = request.state.user
+        user_id = current_user.get("uuid")
+
+        if not user_id:
+            raise HTTPException(status_code=401, detail="User not authenticated")
+
+        # Add current user to the collection users list
+        if not collection_input.users:
+            collection_input.users = []
+
+        # Ensure the creating user is always included
+        if user_id not in collection_input.users:
+            collection_input.users.append(user_id)
+
         service = CollectionService(db, settings)
         return service.create_collection(collection_input)
     except ValidationError as e:
@@ -326,7 +410,12 @@ def get_collection_questions(collection_id: UUID4, db: Annotated[Session, Depend
         500: {"description": "Internal server error"},
     },
 )
-def delete_collection_question(collection_id: UUID4, question_id: UUID4, db: Annotated[Session, Depends(get_db)], settings: Annotated[Settings, Depends(get_settings)]) -> None:
+def delete_collection_question(
+    collection_id: UUID4,
+    question_id: UUID4,
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> None:
     """
     Delete a specific question from a collection.
 
@@ -534,7 +623,12 @@ def get_collection_files(collection_id: UUID4, db: Annotated[Session, Depends(ge
         500: {"description": "Internal server error"},
     },
 )
-def get_file_path(collection_id: UUID4, filename: str, db: Annotated[Session, Depends(get_db)], settings: Annotated[Settings, Depends(get_settings)]) -> dict[str, str]:
+def get_file_path(
+    collection_id: UUID4,
+    filename: str,
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> dict[str, str]:
     """
     Get the file path for a specific file in a collection.
 
@@ -576,7 +670,12 @@ def get_file_path(collection_id: UUID4, filename: str, db: Annotated[Session, De
         500: {"description": "Internal server error"},
     },
 )
-def delete_files(collection_id: UUID4, doc_delete: DocumentDelete, db: Annotated[Session, Depends(get_db)], settings: Annotated[Settings, Depends(get_settings)]) -> None:
+def delete_files(
+    collection_id: UUID4,
+    doc_delete: DocumentDelete,
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> None:
     """
     Delete files from a collection.
 
@@ -615,7 +714,13 @@ def delete_files(collection_id: UUID4, doc_delete: DocumentDelete, db: Annotated
         500: {"description": "Internal server error"},
     },
 )
-def update_file_metadata(collection_id: UUID4, file_id: UUID4, metadata: FileMetadata, db: Annotated[Session, Depends(get_db)], settings: Annotated[Settings, Depends(get_settings)]) -> FileOutput:
+def update_file_metadata(
+    collection_id: UUID4,
+    file_id: UUID4,
+    metadata: FileMetadata,
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> FileOutput:
     """
     Update metadata for a specific file.
 

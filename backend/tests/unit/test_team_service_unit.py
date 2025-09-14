@@ -1,12 +1,13 @@
 """Unit tests for TeamService with mocked dependencies."""
 
-import pytest
 from unittest.mock import Mock, patch
 from uuid import uuid4
+
+import pytest
 from sqlalchemy.orm import Session
 
-from rag_solution.services.team_service import TeamService
 from rag_solution.schemas.team_schema import TeamInput, TeamOutput
+from rag_solution.services.team_service import TeamService
 
 
 @pytest.mark.unit
@@ -26,8 +27,10 @@ class TestTeamServiceUnit:
     @pytest.fixture
     def service(self, mock_db):
         """Create service instance with mocked repository."""
-        with patch('rag_solution.services.team_service.TeamRepository') as mock_repo_class, \
-             patch('rag_solution.services.team_service.UserTeamService') as mock_user_team_service_class:
+        with (
+            patch("rag_solution.services.team_service.TeamRepository"),
+            patch("rag_solution.services.team_service.UserTeamService"),
+        ):
             service = TeamService(mock_db)
             service.team_repository = Mock()
             service.user_team_service = Mock()
@@ -35,9 +38,11 @@ class TestTeamServiceUnit:
 
     def test_service_initialization(self, mock_db):
         """Test service initialization with dependency injection."""
-        with patch('rag_solution.services.team_service.TeamRepository') as mock_repo_class, \
-             patch('rag_solution.services.team_service.UserTeamService') as mock_user_team_service_class:
-            service = TeamService(mock_db)
+        with (
+            patch("rag_solution.services.team_service.TeamRepository") as mock_repo_class,
+            patch("rag_solution.services.team_service.UserTeamService") as mock_user_team_service_class,
+        ):
+            TeamService(mock_db)
 
             mock_repo_class.assert_called_once_with(mock_db)
             mock_user_team_service_class.assert_called_once_with(mock_db)
@@ -47,11 +52,7 @@ class TestTeamServiceUnit:
         team_input = TeamInput(name="Development Team", description="Software development team")
         team_id = uuid4()
 
-        mock_team = TeamOutput(
-            id=team_id,
-            name="Development Team",
-            description="Software development team"
-        )
+        mock_team = TeamOutput(id=team_id, name="Development Team", description="Software development team")
 
         service.team_repository.create.return_value = mock_team
 
@@ -75,11 +76,7 @@ class TestTeamServiceUnit:
     def test_get_team_by_id_success(self, service):
         """Test successful team retrieval by ID."""
         team_id = uuid4()
-        mock_team = TeamOutput(
-            id=team_id,
-            name="Test Team",
-            description="Test team description"
-        )
+        mock_team = TeamOutput(id=team_id, name="Test Team", description="Test team description")
 
         service.team_repository.get.return_value = mock_team
 
@@ -93,6 +90,7 @@ class TestTeamServiceUnit:
         team_id = uuid4()
 
         from rag_solution.core.exceptions import NotFoundError
+
         service.team_repository.get.side_effect = NotFoundError("Team not found")
 
         with pytest.raises(NotFoundError):
@@ -105,7 +103,7 @@ class TestTeamServiceUnit:
         mock_teams = [
             TeamOutput(id=uuid4(), name="Team 1", description="First team"),
             TeamOutput(id=uuid4(), name="Team 2", description="Second team"),
-            TeamOutput(id=uuid4(), name="Team 3", description="Third team")
+            TeamOutput(id=uuid4(), name="Team 3", description="Third team"),
         ]
 
         service.team_repository.list.return_value = mock_teams
@@ -130,11 +128,7 @@ class TestTeamServiceUnit:
         team_id = uuid4()
         team_input = TeamInput(name="Updated Team", description="Updated description")
 
-        updated_team = TeamOutput(
-            id=team_id,
-            name="Updated Team",
-            description="Updated description"
-        )
+        updated_team = TeamOutput(id=team_id, name="Updated Team", description="Updated description")
 
         service.team_repository.update.return_value = updated_team
 
@@ -149,6 +143,7 @@ class TestTeamServiceUnit:
         team_input = TeamInput(name="Updated Team", description="Updated description")
 
         from rag_solution.core.exceptions import NotFoundError
+
         service.team_repository.update.side_effect = NotFoundError("Team not found")
 
         with pytest.raises(NotFoundError):
@@ -172,6 +167,7 @@ class TestTeamServiceUnit:
         team_id = uuid4()
 
         from rag_solution.core.exceptions import NotFoundError
+
         service.team_repository.delete.side_effect = NotFoundError("Team not found")
 
         with pytest.raises(NotFoundError):
@@ -186,7 +182,7 @@ class TestTeamServiceUnit:
         search_term = "Development"
         matching_teams = [
             TeamOutput(id=uuid4(), name="Frontend Development", description="UI development"),
-            TeamOutput(id=uuid4(), name="Backend Development", description="API development")
+            TeamOutput(id=uuid4(), name="Backend Development", description="API development"),
         ]
 
         service.team_repository.search_by_name.return_value = matching_teams
@@ -217,7 +213,7 @@ class TestTeamServiceUnit:
         user_id = uuid4()
         user_teams = [
             TeamOutput(id=uuid4(), name="User Team 1", description="First user team"),
-            TeamOutput(id=uuid4(), name="User Team 2", description="Second user team")
+            TeamOutput(id=uuid4(), name="User Team 2", description="Second user team"),
         ]
 
         service.team_repository.get_by_user_id.return_value = user_teams
@@ -249,12 +245,8 @@ class TestTeamServiceUnit:
         service.team_repository.add_user_to_team.return_value = True
 
         from rag_solution.schemas.user_team_schema import UserTeamOutput
-        mock_user_team = UserTeamOutput(
-            user_id=user_id,
-            team_id=team_id,
-            role="member",
-            joined_at="2024-01-01T00:00:00Z"
-        )
+
+        mock_user_team = UserTeamOutput(user_id=user_id, team_id=team_id, role="member", joined_at="2024-01-01T00:00:00Z")
         service.user_team_service.add_user_to_team.return_value = mock_user_team
 
         result = service.add_user_to_team(user_id, team_id)
@@ -301,27 +293,45 @@ class TestTeamServiceUnit:
     def test_get_team_users_success(self, service):
         """Test successful retrieval of team users."""
         team_id = uuid4()
-        
+
         from rag_solution.schemas.user_schema import UserOutput
         from rag_solution.schemas.user_team_schema import UserTeamOutput
-        
+
         user1_id = uuid4()
         user2_id = uuid4()
-        
+
         mock_user_teams = [
             UserTeamOutput(user_id=user1_id, team_id=team_id, role="member", joined_at="2024-01-01T00:00:00Z"),
-            UserTeamOutput(user_id=user2_id, team_id=team_id, role="member", joined_at="2024-01-01T00:00:00Z")
+            UserTeamOutput(user_id=user2_id, team_id=team_id, role="member", joined_at="2024-01-01T00:00:00Z"),
         ]
-        
+
         mock_users = [
-            UserOutput(id=user1_id, name="John Doe", email="john@example.com", ibm_id="john_doe", role="user", preferred_provider_id=None, created_at="2024-01-01T00:00:00Z", updated_at="2024-01-01T00:00:00Z"),
-            UserOutput(id=user2_id, name="Jane Smith", email="jane@example.com", ibm_id="jane_smith", role="user", preferred_provider_id=None, created_at="2024-01-01T00:00:00Z", updated_at="2024-01-01T00:00:00Z")
+            UserOutput(
+                id=user1_id,
+                name="John Doe",
+                email="john@example.com",
+                ibm_id="john_doe",
+                role="user",
+                preferred_provider_id=None,
+                created_at="2024-01-01T00:00:00Z",
+                updated_at="2024-01-01T00:00:00Z",
+            ),
+            UserOutput(
+                id=user2_id,
+                name="Jane Smith",
+                email="jane@example.com",
+                ibm_id="jane_smith",
+                role="user",
+                preferred_provider_id=None,
+                created_at="2024-01-01T00:00:00Z",
+                updated_at="2024-01-01T00:00:00Z",
+            ),
         ]
-        
+
         service.user_team_service.get_team_users.return_value = mock_user_teams
         service.user_service = Mock()
         service.user_service.get_user_by_id.side_effect = mock_users
-        
+
         result = service.get_team_users(team_id)
 
         assert result == mock_users

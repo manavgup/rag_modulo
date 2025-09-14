@@ -1,3 +1,9 @@
+"""OIDC authentication module for IBM Cloud Identity.
+
+This module provides OIDC authentication functionality using IBM Cloud Identity,
+including JWT token verification, OAuth flow handling, and user authentication.
+"""
+
 import logging
 import os
 from datetime import datetime, timedelta
@@ -40,10 +46,10 @@ if not (skip_auth or development_mode or testing_mode):
             leeway=50000,
         )
         logger.info("OIDC provider registered successfully")
-    except Exception as e:
-        logger.warning(f"Failed to register OIDC provider: {e}. Auth will work in test mode only.")
+    except (OAuthError, ValueError, KeyError) as e:
+        logger.warning("Failed to register OIDC provider: %s. Auth will work in test mode only.", str(e))
 else:
-    logger.info(f"OIDC registration skipped (skip_auth={skip_auth}, development_mode={development_mode}, testing_mode={testing_mode})")
+    logger.info("OIDC registration skipped (skip_auth=%s, development_mode=%s, testing_mode=%s)", skip_auth, development_mode, testing_mode)
 
 
 def verify_jwt_token(token: str) -> dict[str, Any]:
@@ -83,6 +89,17 @@ def verify_jwt_token(token: str) -> dict[str, Any]:
 
 
 async def get_current_user(request: Request) -> dict:
+    """Extract and verify current user from request headers.
+
+    Args:
+        request: FastAPI request object
+
+    Returns:
+        User payload dictionary
+
+    Raises:
+        HTTPException: If authentication fails
+    """
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
         raise HTTPException(
@@ -94,35 +111,58 @@ async def get_current_user(request: Request) -> dict:
     token = auth_header.split(" ")[1]
     payload = verify_jwt_token(token)
 
-    logger.info(f"Got User: {payload}")
+    logger.info("Got User: %s", payload)
     return payload
 
 
 async def authorize_redirect(request: Request, redirect_uri: str) -> Response:
+    """Initiate OAuth authorization redirect.
+
+    Args:
+        request: FastAPI request object
+        redirect_uri: URI to redirect to after authorization
+
+    Returns:
+        Redirect response
+
+    Raises:
+        HTTPException: If authorization fails
+    """
     try:
-        logger.debug(f"Initiating authorize_redirect with redirect_uri: {redirect_uri}")
+        logger.debug("Initiating authorize_redirect with redirect_uri: %s", redirect_uri)
         response = await oauth.ibm.authorize_redirect(request, redirect_uri)
-        logger.debug(f"authorize_redirect response: {response}")
+        logger.debug("authorize_redirect response: %s", response)
         return response
     except OAuthError as error:
-        logger.error(f"OAuth error during authorize_redirect: {error!s}", exc_info=True)
+        logger.error("OAuth error during authorize_redirect: %s", str(error), exc_info=True)
         raise HTTPException(status_code=500, detail=f"OAuth authorization error: {error!s}") from error
-    except Exception as e:
-        logger.error(f"Unexpected error during authorize_redirect: {e!s}", exc_info=True)
+    except (ValueError, KeyError, AttributeError) as e:
+        logger.error("Unexpected error during authorize_redirect: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Authorization error: {e!s}") from e
 
 
 async def authorize_access_token(request: Request) -> dict[str, Any]:
+    """Exchange authorization code for access token.
+
+    Args:
+        request: FastAPI request object
+
+    Returns:
+        Token dictionary containing access token and user info
+
+    Raises:
+        HTTPException: If token exchange fails
+    """
     try:
         logger.debug("Initiating authorize_access_token")
         token = await oauth.ibm.authorize_access_token(request)
-        logger.debug(f"Token received: {token}")
+        logger.debug("Token received: %s", token)
         return token
     except OAuthError as error:
-        logger.error(f"OAuth error during authorize_access_token: {error!s}", exc_info=True)
+        logger.error("OAuth error during authorize_access_token: %s", str(error), exc_info=True)
         raise HTTPException(status_code=500, detail=f"OAuth token authorization error: {error!s}") from error
-    except Exception as e:
-        logger.error(f"Unexpected error during authorize_access_token: {e!s}", exc_info=True)
+    except (ValueError, KeyError, AttributeError) as e:
+        logger.error("Unexpected error during authorize_access_token: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Token authorization error: {e!s}") from e
 
 
@@ -155,4 +195,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
     # Encode the JWT token
     encoded_jwt = jwt.encode(to_encode, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
 
+    # Ensure we return a string, not bytes
+    if isinstance(encoded_jwt, bytes):
+        return encoded_jwt.decode("utf-8")
     return encoded_jwt

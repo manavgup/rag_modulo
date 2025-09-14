@@ -2,14 +2,15 @@
 Real TDD tests for PipelineService - testing actual functionality to find real bugs.
 """
 
-import pytest
 from uuid import uuid4
-from sqlalchemy.orm import Session
-from sqlalchemy import create_engine
 
-from rag_solution.services.pipeline_service import PipelineService
-from rag_solution.schemas.search_schema import SearchInput
+import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
+
 from core.config import Settings
+from rag_solution.schemas.search_schema import SearchInput
+from rag_solution.services.pipeline_service import PipelineService
 
 
 @pytest.mark.e2e

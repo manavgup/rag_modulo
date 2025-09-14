@@ -1,6 +1,7 @@
 """Test that environment variables are loaded correctly."""
 
 import os
+
 import pytest
 
 
