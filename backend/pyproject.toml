@@ -170,32 +170,91 @@ pythonpath = ["."]
 testpaths = ["backend/tests"]
 
 [tool.ruff]
-# Ruff configuration to work better with MyPy
+# Ruff configuration - consolidated from .ruff.toml
 target-version = "py312"
-line-length = 200
+line-length = 120
+
+# Exclude certain directories
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+]
 
 [tool.ruff.lint]
-# Disable rules that conflict with MyPy's forward references
+# Enable comprehensive rule set
 select = [
-    "E",  # pycodestyle errors
-    "W",  # pycodestyle warnings
-    "F",  # pyflakes
-    "B",  # flake8-bugbear
-    "C4", # flake8-comprehensions
-    "UP", # pyupgrade
-    "ARG", # flake8-unused-arguments
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "I",   # isort
+    "W",   # pycodestyle warnings
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+    "N",   # pep8-naming
+    "Q",   # flake8-quotes
     "SIM", # flake8-simplify
-    "TCH", # flake8-type-checking
+    "ARG", # flake8-unused-arguments
+    "PIE", # flake8-pie
+    "TID", # flake8-tidy-imports
     "RUF", # Ruff-specific rules
 ]
 
-# Disable specific rules that conflict with MyPy
+# Disable problematic rules
 ignore = [
+    "E501",   # Line too long (handled by formatter)
+    "E203",   # Whitespace before ':' (conflicts with Black)
     "UP037",  # Remove quotes from type annotation (conflicts with forward refs)
     "F821",   # Undefined name (conflicts with forward refs)
-    "TCH003", # Move standard library import into type-checking block (uuid is used at runtime)
     "B008",   # Do not perform function call in argument defaults (FastAPI Depends pattern)
+    "ARG001", # Unused function argument (common in FastAPI/pytest)
+    "TCH001", # Move third-party import into type-checking block (breaks SQLAlchemy)
+    "TCH002", # Move standard library import into type-checking block (breaks SQLAlchemy)
+    "TCH003", # Move standard library import into type-checking block (breaks SQLAlchemy)
 ]
+
+# Allow fix for all enabled rules (when `--fix`) is provided
+fixable = ["ALL"]
+unfixable = []
+
+# Allow unused variables when underscore-prefixed
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+# Import sorting configuration
+[tool.ruff.lint.isort]
+known-first-party = ["rag_solution"]
+
+# Formatting configuration
+[tool.ruff.format]
+# Like Black, use double quotes for strings
+quote-style = "double"
+
+# Like Black, indent with spaces, rather than tabs
+indent-style = "space"
+
+# Like Black, respect magic trailing commas
+skip-magic-trailing-comma = false
+
+# Like Black, automatically detect the appropriate line ending
+line-ending = "auto"
 
 [tool.ruff.lint.per-file-ignores]
 # Allow forward references in model files
