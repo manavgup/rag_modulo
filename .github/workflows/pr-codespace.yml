@@ -92,20 +92,20 @@ jobs:
         echo "Setting up Codespace environment for PR review..."
 
         # Initialize development environment
-        gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} --command "cd /workspace && make dev-init"
+        gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} -- "cd /workspace && make dev-init"
 
         # Build development images
-        gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} --command "cd /workspace && make dev-build"
+        gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} -- "cd /workspace && make dev-build"
 
     - name: Validate PR Changes
       run: |
         echo "Validating PR changes in Codespace..."
 
         # Check if Dev Container builds successfully
-        gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} --command "cd /workspace && make dev-validate"
+        gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} -- "cd /workspace && make dev-validate"
 
         # Test that all make commands work
-        gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} --command "cd /workspace && make help"
+        gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} -- "cd /workspace && make help"
 
     - name: Update PR Comment
       uses: actions/github-script@v6

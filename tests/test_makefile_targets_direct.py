@@ -18,42 +18,42 @@ import pytest
 
 class DirectMakefileTester:
     """Test helper for Makefile targets running directly on host."""
-    
+
     def __init__(self):
         """Initialize the tester."""
         self.project_root = Path(__file__).parent.parent
         self.test_dir = None
         self.original_cwd = os.getcwd()
-    
+
     def setup_test_environment(self) -> None:
         """Set up a clean test environment with a copy of the project."""
         try:
             # Create a temporary directory for testing
             self.test_dir = Path(tempfile.mkdtemp(prefix="rag-modulo-test-"))
-            
+
             # Copy essential files needed for testing
             files_to_copy = [
                 "Makefile",
-                "docker-compose.yml", 
+                "docker-compose.yml",
                 "docker-compose.dev.yml",
                 "docker-compose-infra.yml",
                 "env.example",
                 "env.dev.example"
             ]
-            
+
             # Copy files
             for file in files_to_copy:
                 src = self.project_root / file
                 if src.exists():
                     shutil.copy2(src, self.test_dir / file)
-            
+
             # Copy backend directory completely (needed for Docker builds)
             backend_src = self.project_root / "backend"
             if backend_src.exists():
                 backend_dst = self.test_dir / "backend"
                 # Copy essential backend files and directories needed by Dockerfile
                 backend_dst.mkdir(parents=True, exist_ok=True)
-                
+
                 # Copy root files
                 backend_files = [
                     "main.py", "healthcheck.py", "pyproject.toml", "poetry.lock"
@@ -62,11 +62,11 @@ class DirectMakefileTester:
                     src_file = backend_src / file
                     if src_file.exists():
                         shutil.copy2(src_file, backend_dst / file)
-                
+
                 # Copy Dockerfiles
                 for dockerfile in backend_src.glob("Dockerfile*"):
                     shutil.copy2(dockerfile, backend_dst / dockerfile.name)
-                
+
                 # Copy source directories (needed by Dockerfile)
                 source_dirs = [
                     "rag_solution", "auth", "core", "cli", "vectordbs"
@@ -76,7 +76,7 @@ class DirectMakefileTester:
                     if src_dir.exists():
                         dst_dir = backend_dst / dir_name
                         shutil.copytree(src_dir, dst_dir, ignore=shutil.ignore_patterns('__pycache__', '*.pyc', '.pytest_cache'))
-            
+
             # Copy other directories (minimal copy for speed)
             other_dirs = ["webui", "scripts"]
             for dir_name in other_dirs:
@@ -92,31 +92,31 @@ class DirectMakefileTester:
                             dst_file = dst / rel_path
                             dst_file.parent.mkdir(parents=True, exist_ok=True)
                             shutil.copy2(file, dst_file)
-            
+
             # Change to test directory
             os.chdir(self.test_dir)
-            
+
         except Exception as e:
             pytest.skip(f"Failed to create test environment: {e}")
-    
+
     def teardown_test_environment(self) -> None:
         """Clean up the test environment."""
         try:
             # Return to original directory
             os.chdir(self.original_cwd)
-            
+
             # Clean up any Docker resources created during tests
             subprocess.run([
                 "docker", "compose", "-f", "docker-compose.dev.yml", "down", "-v"
             ], capture_output=True, check=False, cwd=self.test_dir)
-            
+
             # Remove test directory
             if self.test_dir and self.test_dir.exists():
                 shutil.rmtree(self.test_dir, ignore_errors=True)
-                
+
         except Exception:
             pass  # Ignore cleanup errors
-    
+
     def run_make_command(self, target: str, timeout: int = 60) -> Dict[str, Any]:
         """Run a make command in the test directory."""
         try:
@@ -127,7 +127,7 @@ class DirectMakefileTester:
                 timeout=timeout,
                 cwd=self.test_dir
             )
-            
+
             return {
                 "success": result.returncode == 0,
                 "stdout": result.stdout,
@@ -162,52 +162,52 @@ def direct_makefile_tester():
 @pytest.mark.makefile
 class TestMakefileTargetsDirect:
     """Test Makefile targets directly on the host."""
-    
+
     def test_check_docker_requirements(self, direct_makefile_tester):
         """Test that Docker requirements can be checked."""
         result = direct_makefile_tester.run_make_command("check-docker")
-        
+
         # This should work if Docker is installed
         if "Docker is not installed" in result["stderr"]:
             pytest.skip("Docker is not installed on the test system")
-        
+
         assert result["success"], f"Docker check failed: {result['stderr']}"
-    
+
     def test_make_dev_init(self, direct_makefile_tester):
         """Test that make dev-init creates necessary files."""
         result = direct_makefile_tester.run_make_command("dev-init")
-        
+
         assert result["success"], f"make dev-init failed: {result['stderr']}"
-        
+
         # Check that .env.dev was created
         env_dev = direct_makefile_tester.test_dir / ".env.dev"
         assert env_dev.exists(), ".env.dev was not created"
-    
+
     def test_make_help(self, direct_makefile_tester):
         """Test that make help displays usage information."""
         result = direct_makefile_tester.run_make_command("help")
-        
+
         assert result["success"], f"make help failed: {result['stderr']}"
         assert "Usage: make [target]" in result["stdout"]
         assert "check-docker" in result["stdout"]
-    
+
     def test_make_info(self, direct_makefile_tester):
         """Test that make info displays project information."""
         result = direct_makefile_tester.run_make_command("info")
-        
+
         assert result["success"], f"make info failed: {result['stderr']}"
         assert "Project name:" in result["stdout"]
         assert "Python version:" in result["stdout"]
-    
+
     @pytest.mark.slow
     def test_make_dev_build_minimal(self, direct_makefile_tester):
         """Test that make dev-build starts correctly (minimal test)."""
         # First initialize
         direct_makefile_tester.run_make_command("dev-init")
-        
+
         # Try to start the build (we'll timeout quickly to just test it starts)
         result = direct_makefile_tester.run_make_command("dev-build", timeout=10)
-        
+
         # We expect it to timeout or start building
         # If it fails immediately with Docker errors, that's a problem
         if "Docker is not installed" in result["stderr"]:
@@ -216,34 +216,34 @@ class TestMakefileTargetsDirect:
             pytest.skip("Docker Compose V2 is not available")
         if "permission denied" in result["stderr"].lower():
             pytest.skip("Docker permissions issue on test system")
-        
+
         # If it timed out, that means it started building (good)
         # If it succeeded quickly, that's also fine (cached build)
         assert result["returncode"] in [0, -1], f"Unexpected error: {result['stderr']}"
-    
+
     def test_make_clean(self, direct_makefile_tester):
         """Test that make clean works without errors."""
         # Create some test directories that clean should remove
         test_dirs = [".pytest_cache", ".mypy_cache", "volumes"]
         for dir_name in test_dirs:
             (direct_makefile_tester.test_dir / dir_name).mkdir(exist_ok=True)
-        
+
         result = direct_makefile_tester.run_make_command("clean", timeout=30)
-        
+
         # Clean might fail if no containers exist, but shouldn't have syntax errors
         if "unknown shorthand flag" in result["stderr"]:
             pytest.fail(f"Docker command syntax error: {result['stderr']}")
-        
+
         # The clean target might not succeed fully if containers don't exist,
         # but it should at least clean local directories
         # Note: The Makefile's clean target runs rm -rf for these directories
         # Check that at least the make command ran (even if docker commands failed)
-        
+
         # For a more reliable test, we check if the clean command tried to run
         # The important thing is that we don't get Docker command syntax errors
         assert "unknown shorthand flag" not in result["stderr"], \
             f"Docker command syntax error detected: {result['stderr']}"
-        
+
         # The clean command should at least attempt to run (even if it fails due to missing containers)
         # Return code 2 means make target failed but executed, which is fine for testing
         # Return code 0 means success, also fine
