@@ -60,7 +60,13 @@ class TestConfigurationDataValidation:
     def test_llm_provider_url_validation(self):
         """Test LLM provider URL validation rules."""
         # Valid URLs
-        valid_urls = ["https://api.openai.com/v1", "https://test.watsonx.ai/api", "https://api.anthropic.com", "http://localhost:8000/api", "https://api.example.com/v1/chat"]
+        valid_urls = [
+            "https://api.openai.com/v1",
+            "https://test.watsonx.ai/api",
+            "https://api.anthropic.com",
+            "http://localhost:8000/api",
+            "https://api.example.com/v1/chat",
+        ]
 
         for url in valid_urls:
             provider = LLMProviderInput(
@@ -212,7 +218,12 @@ class TestConfigurationDataValidation:
     def test_prompt_template_type_enum_validation(self):
         """Test PromptTemplateType enum validation."""
         # Test all valid template types
-        valid_types = [PromptTemplateType.RAG_QUERY, PromptTemplateType.QUESTION_GENERATION, PromptTemplateType.RESPONSE_EVALUATION, PromptTemplateType.CUSTOM]
+        valid_types = [
+            PromptTemplateType.RAG_QUERY,
+            PromptTemplateType.QUESTION_GENERATION,
+            PromptTemplateType.RESPONSE_EVALUATION,
+            PromptTemplateType.CUSTOM,
+        ]
 
         for template_type in valid_types:
             template = PromptTemplateInput(

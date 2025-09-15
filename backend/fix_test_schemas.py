@@ -26,7 +26,11 @@ def fix_search_output_instances(content: str) -> str:
         if documents_match:
             documents_content = documents_match.group(1)
             # Replace dict format with DocumentMetadata format
-            documents_content = re.sub(r'\{"id":\s*"([^"]+)",\s*"title":\s*"([^"]+)",\s*"source":\s*"([^"]+)"\}', r'DocumentMetadata(document_name="\3", title="\2")', documents_content)
+            documents_content = re.sub(
+                r'\{"id":\s*"([^"]+)",\s*"title":\s*"([^"]+)",\s*"source":\s*"([^"]+)"\}',
+                r'DocumentMetadata(document_name="\3", title="\2")',
+                documents_content,
+            )
             inner_content = inner_content.replace(documents_match.group(0), f"documents=[{documents_content}]")
 
         # Fix query_results list
@@ -63,7 +67,11 @@ def fix_test_file(file_path: Path) -> None:
         # Find the import section and add our imports
         import_pattern = r"(from rag_solution\.router\.search_router import router)"
         if re.search(import_pattern, content):
-            content = re.sub(import_pattern, r"\1\nfrom vectordbs.data_types import DocumentMetadata, QueryResult, DocumentChunk", content)
+            content = re.sub(
+                import_pattern,
+                r"\1\nfrom vectordbs.data_types import DocumentMetadata, QueryResult, DocumentChunk",
+                content,
+            )
 
     # Fix SearchOutput instances
     content = fix_search_output_instances(content)

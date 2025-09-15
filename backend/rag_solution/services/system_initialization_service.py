@@ -74,7 +74,13 @@ class SystemInitializationService:
             logger.info("Added WatsonX configuration")
 
         if self.settings.openai_api_key:
-            configs["openai"] = LLMProviderInput.model_validate({"name": "openai", "base_url": "https://api.openai.com", "api_key": SecretStr(self.settings.openai_api_key)})
+            configs["openai"] = LLMProviderInput.model_validate(
+                {
+                    "name": "openai",
+                    "base_url": "https://api.openai.com",
+                    "api_key": SecretStr(self.settings.openai_api_key),
+                }
+            )
             logger.info("Added OpenAI configuration")
 
         if self.settings.anthropic_api_key:

@@ -1,12 +1,13 @@
 """Unit tests for UserService with mocked dependencies."""
 
-import pytest
 from unittest.mock import Mock, patch
 from uuid import uuid4
+
+import pytest
 from sqlalchemy.orm import Session
 
-from rag_solution.services.user_service import UserService
 from rag_solution.schemas.user_schema import UserInput, UserOutput
+from rag_solution.services.user_service import UserService
 
 
 @pytest.mark.unit
@@ -26,8 +27,10 @@ class TestUserServiceUnit:
     @pytest.fixture
     def service(self, mock_db, mock_settings):
         """Create service instance with mocked repository."""
-        with patch('rag_solution.services.user_service.UserRepository') as mock_repo_class, \
-             patch('rag_solution.services.user_service.UserProviderService') as mock_provider_service_class:
+        with (
+            patch("rag_solution.services.user_service.UserRepository"),
+            patch("rag_solution.services.user_service.UserProviderService"),
+        ):
             service = UserService(mock_db, mock_settings)
             service.user_repository = Mock()
             service.user_provider_service = Mock()
@@ -35,7 +38,7 @@ class TestUserServiceUnit:
 
     def test_service_initialization(self, mock_db, mock_settings):
         """Test service initialization with dependency injection."""
-        with patch('rag_solution.services.user_service.UserRepository') as mock_repo_class:
+        with patch("rag_solution.services.user_service.UserRepository") as mock_repo_class:
             service = UserService(mock_db, mock_settings)
 
             assert service.db is mock_db
@@ -44,12 +47,7 @@ class TestUserServiceUnit:
 
     def test_create_user_success(self, service):
         """Test successful user creation."""
-        user_input = UserInput(
-            email="test@example.com",
-            ibm_id="test_user_123",
-            name="Test User",
-            role="user"
-        )
+        user_input = UserInput(email="test@example.com", ibm_id="test_user_123", name="Test User", role="user")
         user_id = uuid4()
 
         mock_user = UserOutput(
@@ -60,16 +58,20 @@ class TestUserServiceUnit:
             role="user",
             preferred_provider_id=None,
             created_at="2024-01-01T00:00:00Z",
-            updated_at="2024-01-01T00:00:00Z"
+            updated_at="2024-01-01T00:00:00Z",
         )
 
         service.user_repository.create.return_value = mock_user
-        
+
         # Mock initialize_user_defaults to return successful values
         mock_provider = Mock()
         mock_templates = [Mock(), Mock()]  # Need at least 2 templates
         mock_parameters = Mock()
-        service.user_provider_service.initialize_user_defaults.return_value = (mock_provider, mock_templates, mock_parameters)
+        service.user_provider_service.initialize_user_defaults.return_value = (
+            mock_provider,
+            mock_templates,
+            mock_parameters,
+        )
 
         result = service.create_user(user_input)
 
@@ -79,12 +81,7 @@ class TestUserServiceUnit:
 
     def test_create_user_duplicate_email_error(self, service):
         """Test user creation with duplicate email."""
-        user_input = UserInput(
-            email="existing@example.com",
-            ibm_id="existing_user",
-            name="Existing User",
-            role="user"
-        )
+        user_input = UserInput(email="existing@example.com", ibm_id="existing_user", name="Existing User", role="user")
 
         service.user_repository.create.side_effect = Exception("Email already exists")
 
@@ -105,7 +102,7 @@ class TestUserServiceUnit:
             role="user",
             preferred_provider_id=None,
             created_at="2024-01-01T00:00:00Z",
-            updated_at="2024-01-01T00:00:00Z"
+            updated_at="2024-01-01T00:00:00Z",
         )
 
         service.user_repository.get_by_id.return_value = mock_user
@@ -128,7 +125,7 @@ class TestUserServiceUnit:
 
     @pytest.mark.skip(reason="Method doesn't exist in current UserService implementation")
     # DISABLED: get_user_by_email method doesn't exist in UserService
-    def test_get_user_by_email_success_DISABLED(self, service):
+    def test_get_user_by_email_success_disabled(self, service):
         """Test successful user retrieval by email."""
         email = "test@example.com"
         mock_user = UserOutput(
@@ -139,7 +136,7 @@ class TestUserServiceUnit:
             role="user",
             preferred_provider_id=None,
             created_at="2024-01-01T00:00:00Z",
-            updated_at="2024-01-01T00:00:00Z"
+            updated_at="2024-01-01T00:00:00Z",
         )
 
         service.user_repository.get_by_email.return_value = mock_user
@@ -151,7 +148,7 @@ class TestUserServiceUnit:
 
     @pytest.mark.skip(reason="Method doesn't exist in current UserService implementation")
     # DISABLED: get_user_by_email method doesn't exist in UserService
-    def test_get_user_by_email_not_found_DISABLED(self, service):
+    def test_get_user_by_email_not_found_disabled(self, service):
         """Test user retrieval by email when user not found."""
         email = "nonexistent@example.com"
 
@@ -173,7 +170,7 @@ class TestUserServiceUnit:
             role="user",
             preferred_provider_id=None,
             created_at="2024-01-01T00:00:00Z",
-            updated_at="2024-01-01T00:00:00Z"
+            updated_at="2024-01-01T00:00:00Z",
         )
 
         service.user_repository.get_by_ibm_id.return_value = mock_user
@@ -186,9 +183,36 @@ class TestUserServiceUnit:
     def test_list_users_success(self, service):
         """Test successful retrieval of all users."""
         mock_users = [
-            UserOutput(id=uuid4(), email="user1@example.com", ibm_id="user1", name="User 1", role="user", preferred_provider_id=None, created_at="2024-01-01T00:00:00Z", updated_at="2024-01-01T00:00:00Z"),
-            UserOutput(id=uuid4(), email="user2@example.com", ibm_id="user2", name="User 2", role="admin", preferred_provider_id=None, created_at="2024-01-01T00:00:00Z", updated_at="2024-01-01T00:00:00Z"),
-            UserOutput(id=uuid4(), email="user3@example.com", ibm_id="user3", name="User 3", role="user", preferred_provider_id=None, created_at="2024-01-01T00:00:00Z", updated_at="2024-01-01T00:00:00Z")
+            UserOutput(
+                id=uuid4(),
+                email="user1@example.com",
+                ibm_id="user1",
+                name="User 1",
+                role="user",
+                preferred_provider_id=None,
+                created_at="2024-01-01T00:00:00Z",
+                updated_at="2024-01-01T00:00:00Z",
+            ),
+            UserOutput(
+                id=uuid4(),
+                email="user2@example.com",
+                ibm_id="user2",
+                name="User 2",
+                role="admin",
+                preferred_provider_id=None,
+                created_at="2024-01-01T00:00:00Z",
+                updated_at="2024-01-01T00:00:00Z",
+            ),
+            UserOutput(
+                id=uuid4(),
+                email="user3@example.com",
+                ibm_id="user3",
+                name="User 3",
+                role="user",
+                preferred_provider_id=None,
+                created_at="2024-01-01T00:00:00Z",
+                updated_at="2024-01-01T00:00:00Z",
+            ),
         ]
 
         service.user_repository.list_users.return_value = mock_users
@@ -211,12 +235,7 @@ class TestUserServiceUnit:
     def test_update_user_success(self, service):
         """Test successful user update."""
         user_id = uuid4()
-        user_input = UserInput(
-            email="updated@example.com",
-            ibm_id="updated_user",
-            name="Updated User",
-            role="admin"
-        )
+        user_input = UserInput(email="updated@example.com", ibm_id="updated_user", name="Updated User", role="admin")
 
         updated_user = UserOutput(
             id=user_id,
@@ -226,7 +245,7 @@ class TestUserServiceUnit:
             role="admin",
             preferred_provider_id=None,
             created_at="2024-01-01T00:00:00Z",
-            updated_at="2024-01-02T00:00:00Z"
+            updated_at="2024-01-02T00:00:00Z",
         )
 
         service.user_repository.update.return_value = updated_user
@@ -239,12 +258,7 @@ class TestUserServiceUnit:
     def test_update_user_not_found(self, service):
         """Test user update when user not found."""
         user_id = uuid4()
-        user_input = UserInput(
-            email="updated@example.com",
-            ibm_id="updated_user",
-            name="Updated User",
-            role="admin"
-        )
+        user_input = UserInput(email="updated@example.com", ibm_id="updated_user", name="Updated User", role="admin")
 
         service.user_repository.update.return_value = None
 
@@ -269,6 +283,7 @@ class TestUserServiceUnit:
         user_id = uuid4()
 
         from rag_solution.core.exceptions import NotFoundError
+
         service.user_repository.delete.side_effect = NotFoundError("User not found")
 
         with pytest.raises(NotFoundError):
@@ -278,12 +293,30 @@ class TestUserServiceUnit:
 
     @pytest.mark.skip(reason="Method doesn't exist in current UserService implementation")
     # DISABLED: search_users_by_name method doesn't exist in UserService
-    def test_search_users_by_name_success_DISABLED(self, service):
+    def test_search_users_by_name_success_disabled(self, service):
         """Test successful user search by name."""
         search_term = "John"
         matching_users = [
-            UserOutput(id=uuid4(), email="john.doe@example.com", ibm_id="john_doe", name="John Doe", role="user", preferred_provider_id=None, created_at="2024-01-01T00:00:00Z", updated_at="2024-01-01T00:00:00Z"),
-            UserOutput(id=uuid4(), email="john.smith@example.com", ibm_id="john_smith", name="John Smith", role="admin", preferred_provider_id=None, created_at="2024-01-01T00:00:00Z", updated_at="2024-01-01T00:00:00Z")
+            UserOutput(
+                id=uuid4(),
+                email="john.doe@example.com",
+                ibm_id="john_doe",
+                name="John Doe",
+                role="user",
+                preferred_provider_id=None,
+                created_at="2024-01-01T00:00:00Z",
+                updated_at="2024-01-01T00:00:00Z",
+            ),
+            UserOutput(
+                id=uuid4(),
+                email="john.smith@example.com",
+                ibm_id="john_smith",
+                name="John Smith",
+                role="admin",
+                preferred_provider_id=None,
+                created_at="2024-01-01T00:00:00Z",
+                updated_at="2024-01-01T00:00:00Z",
+            ),
         ]
 
         service.user_repository.search_by_name.return_value = matching_users
@@ -296,7 +329,7 @@ class TestUserServiceUnit:
 
     @pytest.mark.skip(reason="Method doesn't exist in current UserService implementation")
     # DISABLED: search_users_by_name method doesn't exist in UserService
-    def test_search_users_by_name_no_results_DISABLED(self, service):
+    def test_search_users_by_name_no_results_disabled(self, service):
         """Test user search by name with no results."""
         search_term = "NonExistentName"
 
@@ -309,12 +342,30 @@ class TestUserServiceUnit:
 
     @pytest.mark.skip(reason="Method doesn't exist in current UserService implementation")
     # DISABLED: get_users_by_role method doesn't exist in UserService
-    def test_get_users_by_role_success_DISABLED(self, service):
+    def test_get_users_by_role_success_disabled(self, service):
         """Test successful retrieval of users by role."""
         role = "admin"
         admin_users = [
-            UserOutput(id=uuid4(), email="admin1@example.com", ibm_id="admin1", name="Admin 1", role="admin", preferred_provider_id=None, created_at="2024-01-01T00:00:00Z", updated_at="2024-01-01T00:00:00Z"),
-            UserOutput(id=uuid4(), email="admin2@example.com", ibm_id="admin2", name="Admin 2", role="admin", preferred_provider_id=None, created_at="2024-01-01T00:00:00Z", updated_at="2024-01-01T00:00:00Z")
+            UserOutput(
+                id=uuid4(),
+                email="admin1@example.com",
+                ibm_id="admin1",
+                name="Admin 1",
+                role="admin",
+                preferred_provider_id=None,
+                created_at="2024-01-01T00:00:00Z",
+                updated_at="2024-01-01T00:00:00Z",
+            ),
+            UserOutput(
+                id=uuid4(),
+                email="admin2@example.com",
+                ibm_id="admin2",
+                name="Admin 2",
+                role="admin",
+                preferred_provider_id=None,
+                created_at="2024-01-01T00:00:00Z",
+                updated_at="2024-01-01T00:00:00Z",
+            ),
         ]
 
         service.user_repository.get_by_role.return_value = admin_users
@@ -327,7 +378,7 @@ class TestUserServiceUnit:
 
     @pytest.mark.skip(reason="Method doesn't exist in current UserService implementation")
     # DISABLED: get_users_by_role method doesn't exist in UserService
-    def test_get_users_by_role_no_users_DISABLED(self, service):
+    def test_get_users_by_role_no_users_disabled(self, service):
         """Test retrieval of users by role when no users found."""
         role = "super_admin"
 
@@ -346,13 +397,13 @@ class TestUserServiceUnit:
         # Mock get_by_id to return a UserOutput object
         current_user = UserOutput(
             id=user_id,
-            email="test@example.com", 
+            email="test@example.com",
             ibm_id="test_user",
             name="Test User",
             role="user",
             preferred_provider_id=None,
             created_at="2024-01-01T00:00:00Z",
-            updated_at="2024-01-01T00:00:00Z"
+            updated_at="2024-01-01T00:00:00Z",
         )
         service.user_repository.get_by_id.return_value = current_user
 
@@ -360,12 +411,12 @@ class TestUserServiceUnit:
         updated_user = UserOutput(
             id=user_id,
             email="test@example.com",
-            ibm_id="test_user", 
+            ibm_id="test_user",
             name="Test User",
             role="user",
             preferred_provider_id=provider_id,
             created_at="2024-01-01T00:00:00Z",
-            updated_at="2024-01-01T00:00:00Z"
+            updated_at="2024-01-01T00:00:00Z",
         )
         service.user_repository.update.return_value = updated_user
 
@@ -382,6 +433,7 @@ class TestUserServiceUnit:
         provider_id = uuid4()
 
         from rag_solution.core.exceptions import NotFoundError
+
         service.user_repository.get_by_id.side_effect = NotFoundError("User not found")
 
         with pytest.raises(NotFoundError):
@@ -391,7 +443,7 @@ class TestUserServiceUnit:
 
     @pytest.mark.skip(reason="Method doesn't exist in current UserService implementation")
     # DISABLED: activate_user method doesn't exist in UserService
-    def test_activate_user_success_DISABLED(self, service):
+    def test_activate_user_success_disabled(self, service):
         """Test successful user activation."""
         user_id = uuid4()
 
@@ -404,7 +456,7 @@ class TestUserServiceUnit:
 
     @pytest.mark.skip(reason="Method doesn't exist in current UserService implementation")
     # DISABLED: deactivate_user method doesn't exist in UserService
-    def test_deactivate_user_success_DISABLED(self, service):
+    def test_deactivate_user_success_disabled(self, service):
         """Test successful user deactivation."""
         user_id = uuid4()
 
@@ -417,7 +469,7 @@ class TestUserServiceUnit:
 
     @pytest.mark.skip(reason="Method doesn't exist in current UserService implementation")
     # DISABLED: is_user_admin method doesn't exist in UserService
-    def test_is_user_admin_true_DISABLED(self, service):
+    def test_is_user_admin_true_disabled(self, service):
         """Test checking if user is admin - returns True."""
         user_id = uuid4()
 
@@ -430,7 +482,7 @@ class TestUserServiceUnit:
 
     @pytest.mark.skip(reason="Method doesn't exist in current UserService implementation")
     # DISABLED: is_user_admin method doesn't exist in UserService
-    def test_is_user_admin_false_DISABLED(self, service):
+    def test_is_user_admin_false_disabled(self, service):
         """Test checking if user is admin - returns False."""
         user_id = uuid4()
 

@@ -61,7 +61,11 @@ async def upload_file(
     },
 )
 async def delete_file(
-    user_id: UUID4, file_id: UUID4, db: Annotated[Session, Depends(get_db)], user: Annotated[UserOutput, Depends(verify_user_access)], settings: Annotated[Settings, Depends(get_settings)]
+    user_id: UUID4,
+    file_id: UUID4,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[UserOutput, Depends(verify_user_access)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> bool:
     """Delete a file from a user's collection."""
     service = FileManagementService(db, settings)

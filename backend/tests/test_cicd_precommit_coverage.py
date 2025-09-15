@@ -29,7 +29,17 @@ class TestCICDPipeline:
         # This is what fails in CI currently
         env = os.environ.copy()
         # Remove ALL potentially required env vars (as CI does)
-        vars_to_remove = ["JWT_SECRET_KEY", "RAG_LLM", "WATSONX_INSTANCE_ID", "WATSONX_APIKEY", "WATSONX_URL", "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "VECTOR_DB", "EMBEDDING_MODEL"]
+        vars_to_remove = [
+            "JWT_SECRET_KEY",
+            "RAG_LLM",
+            "WATSONX_INSTANCE_ID",
+            "WATSONX_APIKEY",
+            "WATSONX_URL",
+            "OPENAI_API_KEY",
+            "ANTHROPIC_API_KEY",
+            "VECTOR_DB",
+            "EMBEDDING_MODEL",
+        ]
         for var in vars_to_remove:
             env.pop(var, None)
 
@@ -174,7 +184,13 @@ class TestPreCommitHooks:
             script_path = Path(__file__).parent.parent.parent / script
             if script_path.exists():
                 # Try to import the script
-                result = subprocess.run([sys.executable, str(script_path), "--help"], env=env, capture_output=True, text=True, cwd=script_path.parent)
+                result = subprocess.run(
+                    [sys.executable, str(script_path), "--help"],
+                    env=env,
+                    capture_output=True,
+                    text=True,
+                    cwd=script_path.parent,
+                )
 
                 # Should not crash due to missing env vars
                 # (might fail for other reasons like missing --help, but not ValidationError)
@@ -204,7 +220,10 @@ def use_settings() -> str:
         try:
             # Run mypy on the test file
             result = subprocess.run(
-                [sys.executable, "-m", "mypy", "--ignore-missing-imports", temp_file], capture_output=True, text=True, cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                [sys.executable, "-m", "mypy", "--ignore-missing-imports", temp_file],
+                capture_output=True,
+                text=True,
+                cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
             )
 
             # Should not have import errors
@@ -282,7 +301,13 @@ class TestMakefileCommands:
                 del env[key]
 
         # Run the Ruff check that make lint does
-        result = subprocess.run(["poetry", "run", "ruff", "check", "--help"], env=env, capture_output=True, text=True, cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        result = subprocess.run(
+            ["poetry", "run", "ruff", "check", "--help"],
+            env=env,
+            capture_output=True,
+            text=True,
+            cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        )
 
         # Should not fail (ruff itself doesn't need our config)
         assert result.returncode == 0, "Ruff should work without env vars"
@@ -298,7 +323,13 @@ class TestMakefileCommands:
         env.setdefault("RAG_LLM", "openai")
 
         # Try to run pytest with a simple test file
-        result = subprocess.run(["poetry", "run", "pytest", "--co", "-q"], env=env, capture_output=True, text=True, cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        result = subprocess.run(
+            ["poetry", "run", "pytest", "--co", "-q"],
+            env=env,
+            capture_output=True,
+            text=True,
+            cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        )
 
         # Should not fail with ValidationError
         assert "ValidationError" not in result.stderr, "make test should not fail with ValidationError"
@@ -310,7 +341,12 @@ def run_all_coverage_tests():
     print("CI/CD & PRE-COMMIT COVERAGE TESTS")
     print("=" * 70)
 
-    test_classes = [("CI/CD Pipeline", TestCICDPipeline), ("Pre-commit Hooks", TestPreCommitHooks), ("Docker Build", TestDockerBuild), ("Makefile Commands", TestMakefileCommands)]
+    test_classes = [
+        ("CI/CD Pipeline", TestCICDPipeline),
+        ("Pre-commit Hooks", TestPreCommitHooks),
+        ("Docker Build", TestDockerBuild),
+        ("Makefile Commands", TestMakefileCommands),
+    ]
 
     results = []
 

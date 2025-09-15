@@ -1,7 +1,8 @@
 """Atomic tests for TeamService - schema and logic validation only."""
 
-import pytest
 from uuid import uuid4
+
+import pytest
 
 from rag_solution.schemas.team_schema import TeamInput, TeamOutput
 
@@ -13,10 +14,7 @@ class TestTeamServiceAtomic:
     def test_team_input_validation(self):
         """Test TeamInput schema validation."""
         # Valid team input
-        valid_team = TeamInput(
-            name="Development Team",
-            description="Software development team"
-        )
+        valid_team = TeamInput(name="Development Team", description="Software development team")
 
         assert valid_team.name == "Development Team"
         assert valid_team.description == "Software development team"
@@ -25,11 +23,7 @@ class TestTeamServiceAtomic:
         """Test TeamOutput schema validation."""
         # Valid team output
         team_id = uuid4()
-        valid_team = TeamOutput(
-            id=team_id,
-            name="Development Team",
-            description="Software development team"
-        )
+        valid_team = TeamOutput(id=team_id, name="Development Team", description="Software development team")
 
         assert valid_team.id == team_id
         assert valid_team.name == "Development Team"
@@ -44,7 +38,7 @@ class TestTeamServiceAtomic:
             "team_beta",
             "Team123",
             "Frontend Development Team",
-            "Team A-1"
+            "Team A-1",
         ]
 
         for name in valid_names:
@@ -61,7 +55,7 @@ class TestTeamServiceAtomic:
             "A longer description with multiple words and punctuation.",
             "Team responsible for frontend development, UI/UX design, and user experience.",
             "",  # Empty description should be allowed
-            "Description with numbers 123 and symbols @#$%"
+            "Description with numbers 123 and symbols @#$%",
         ]
 
         for description in valid_descriptions:
@@ -72,10 +66,7 @@ class TestTeamServiceAtomic:
     def test_team_serialization(self):
         """Test team data serialization."""
         # Test TeamInput serialization
-        team_input = TeamInput(
-            name="Serialization Team",
-            description="Team for testing serialization"
-        )
+        team_input = TeamInput(name="Serialization Team", description="Team for testing serialization")
 
         data = team_input.model_dump()
         assert isinstance(data, dict)
@@ -86,11 +77,7 @@ class TestTeamServiceAtomic:
 
         # Test TeamOutput serialization
         team_id = uuid4()
-        team_output = TeamOutput(
-            id=team_id,
-            name="Output Team",
-            description="Team for output testing"
-        )
+        team_output = TeamOutput(id=team_id, name="Output Team", description="Team for output testing")
 
         data = team_output.model_dump()
         assert isinstance(data, dict)
@@ -122,25 +109,19 @@ class TestTeamServiceAtomic:
             {"id": uuid4(), "name": "Frontend Team", "description": "UI/UX development"},
             {"id": uuid4(), "name": "Backend Team", "description": "API and database development"},
             {"id": uuid4(), "name": "DevOps Team", "description": "Infrastructure and deployment"},
-            {"id": uuid4(), "name": "QA Team", "description": "Quality assurance and testing"}
+            {"id": uuid4(), "name": "QA Team", "description": "Quality assurance and testing"},
         ]
 
         # Test search by name logic
         search_term = "frontend"
-        matching_teams = [
-            team for team in teams
-            if search_term.lower() in team["name"].lower() or search_term.lower() in team["description"].lower()
-        ]
+        matching_teams = [team for team in teams if search_term.lower() in team["name"].lower() or search_term.lower() in team["description"].lower()]
 
         assert len(matching_teams) == 1
         assert matching_teams[0]["name"] == "Frontend Team"
 
         # Test search by description
         search_term = "development"
-        matching_teams = [
-            team for team in teams
-            if search_term.lower() in team["name"].lower() or search_term.lower() in team["description"].lower()
-        ]
+        matching_teams = [team for team in teams if search_term.lower() in team["name"].lower() or search_term.lower() in team["description"].lower()]
 
         assert len(matching_teams) == 2
         team_names = [team["name"] for team in matching_teams]
@@ -154,7 +135,7 @@ class TestTeamServiceAtomic:
             {"id": uuid4(), "name": "Active Team 1", "active": True},
             {"id": uuid4(), "name": "Active Team 2", "active": True},
             {"id": uuid4(), "name": "Inactive Team 1", "active": False},
-            {"id": uuid4(), "name": "Active Team 3", "active": True}
+            {"id": uuid4(), "name": "Active Team 3", "active": True},
         ]
 
         # Test active team filtering
@@ -171,7 +152,7 @@ class TestTeamServiceAtomic:
         teams = [
             {"name": "Zebra Team", "created_at": "2024-01-03"},
             {"name": "Alpha Team", "created_at": "2024-01-01"},
-            {"name": "Beta Team", "created_at": "2024-01-02"}
+            {"name": "Beta Team", "created_at": "2024-01-02"},
         ]
 
         # Test sorting by name
@@ -194,10 +175,7 @@ class TestTeamServiceAtomic:
         assert minimal_team.description == ""
 
         # Test team with special characters
-        special_team = TeamInput(
-            name="Team @#$% Special",
-            description="Description with special chars: !@#$%^&*()"
-        )
+        special_team = TeamInput(name="Team @#$% Special", description="Description with special chars: !@#$%^&*()")
         assert special_team.name == "Team @#$% Special"
         assert "!@#$%^&*()" in special_team.description
 
@@ -224,10 +202,7 @@ class TestTeamServiceAtomic:
 
         # Test delete logic
         team_id = uuid4()
-        teams_list = [
-            {"id": team_id, "name": "To Delete"},
-            {"id": uuid4(), "name": "To Keep"}
-        ]
+        teams_list = [{"id": team_id, "name": "To Delete"}, {"id": uuid4(), "name": "To Keep"}]
 
         # Filter out team to delete
         remaining_teams = [team for team in teams_list if team["id"] != team_id]

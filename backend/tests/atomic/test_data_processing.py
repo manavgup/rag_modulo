@@ -1,6 +1,5 @@
 """Atomic tests for data processing validation and schemas."""
 
-
 import pytest
 
 from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, Source
@@ -17,8 +16,16 @@ class TestDataProcessingValidation:
             document_id="doc_123",
             name="test_document.pdf",
             chunks=[
-                DocumentChunk(chunk_id="chunk_1", text="This is the first chunk of text.", metadata=DocumentChunkMetadata(source=Source.PDF, page_number=1, chunk_number=1)),
-                DocumentChunk(chunk_id="chunk_2", text="This is the second chunk of text.", metadata=DocumentChunkMetadata(source=Source.PDF, page_number=1, chunk_number=2)),
+                DocumentChunk(
+                    chunk_id="chunk_1",
+                    text="This is the first chunk of text.",
+                    metadata=DocumentChunkMetadata(source=Source.PDF, page_number=1, chunk_number=1),
+                ),
+                DocumentChunk(
+                    chunk_id="chunk_2",
+                    text="This is the second chunk of text.",
+                    metadata=DocumentChunkMetadata(source=Source.PDF, page_number=1, chunk_number=2),
+                ),
             ],
         )
 
@@ -33,7 +40,11 @@ class TestDataProcessingValidation:
     def test_document_chunk_validation(self):
         """Test DocumentChunk data structure validation."""
         # Valid chunk data
-        valid_chunk = DocumentChunk(chunk_id="chunk_123", text="This is a test chunk with some content.", metadata=DocumentChunkMetadata(source=Source.PDF, page_number=1, chunk_number=1))
+        valid_chunk = DocumentChunk(
+            chunk_id="chunk_123",
+            text="This is a test chunk with some content.",
+            metadata=DocumentChunkMetadata(source=Source.PDF, page_number=1, chunk_number=1),
+        )
 
         assert valid_chunk.chunk_id == "chunk_123"
         assert valid_chunk.text == "This is a test chunk with some content."
@@ -99,7 +110,14 @@ class TestDataProcessingValidation:
     def test_document_name_validation(self):
         """Test document name validation rules."""
         # Valid document names
-        valid_names = ["test_document.pdf", "document-123.txt", "file_with_underscores.docx", "File With Spaces.pdf", "file.with.dots.pdf", "FILE_UPPER.PDF"]
+        valid_names = [
+            "test_document.pdf",
+            "document-123.txt",
+            "file_with_underscores.docx",
+            "File With Spaces.pdf",
+            "file.with.dots.pdf",
+            "FILE_UPPER.PDF",
+        ]
 
         for name in valid_names:
             doc = Document(document_id="test_doc", name=name, chunks=[])
@@ -125,7 +143,15 @@ class TestDataProcessingValidation:
         """Test document data serialization."""
         # Test document serialization
         doc = Document(
-            document_id="serialization_test", name="test.pdf", chunks=[DocumentChunk(chunk_id="chunk_1", text="Test content", metadata=DocumentChunkMetadata(source=Source.PDF, page_number=1))]
+            document_id="serialization_test",
+            name="test.pdf",
+            chunks=[
+                DocumentChunk(
+                    chunk_id="chunk_1",
+                    text="Test content",
+                    metadata=DocumentChunkMetadata(source=Source.PDF, page_number=1),
+                )
+            ],
         )
 
         # Test that we can access all properties
@@ -151,7 +177,13 @@ class TestDataProcessingValidation:
         # Create document with many chunks
         chunks = []
         for i in range(100):
-            chunks.append(DocumentChunk(chunk_id=f"chunk_{i}", text=f"This is chunk number {i}", metadata=DocumentChunkMetadata(source=Source.PDF, page_number=(i // 10) + 1, chunk_number=i)))
+            chunks.append(
+                DocumentChunk(
+                    chunk_id=f"chunk_{i}",
+                    text=f"This is chunk number {i}",
+                    metadata=DocumentChunkMetadata(source=Source.PDF, page_number=(i // 10) + 1, chunk_number=i),
+                )
+            )
 
         large_doc = Document(document_id="large_doc", name="large_document.pdf", chunks=chunks)
 

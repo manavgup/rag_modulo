@@ -31,7 +31,12 @@ def fix_isinstance_patterns(content: str) -> str:
 def fix_ternary_operators(content: str) -> str:
     """Fix ternary operator patterns."""
     # Fix if-else blocks that can be ternary
-    content = re.sub(r'if hasattr\(([^,]+), "item"\):\s*\n\s*([^=]+) = ([^;]+)\s*\n\s*else:\s*\n\s*([^=]+) = ([^;]+)', r'\2 = \3 if hasattr(\1, "item") else \5', content, flags=re.MULTILINE)
+    content = re.sub(
+        r'if hasattr\(([^,]+), "item"\):\s*\n\s*([^=]+) = ([^;]+)\s*\n\s*else:\s*\n\s*([^=]+) = ([^;]+)',
+        r'\2 = \3 if hasattr(\1, "item") else \5',
+        content,
+        flags=re.MULTILINE,
+    )
 
     return content
 

@@ -1,14 +1,15 @@
 """TDD Unit tests for UserService - RED phase: Tests that describe expected behavior."""
 
-import pytest
 from unittest.mock import Mock, patch
 from uuid import uuid4
+
+import pytest
 from sqlalchemy.orm import Session
 
 from core.config import Settings
-from rag_solution.services.user_service import UserService
-from rag_solution.schemas.user_schema import UserInput, UserOutput
 from rag_solution.core.exceptions import NotFoundError, ValidationError
+from rag_solution.schemas.user_schema import UserInput, UserOutput
+from rag_solution.services.user_service import UserService
 
 
 @pytest.mark.unit
@@ -38,9 +39,10 @@ class TestUserServiceTDD:
     @pytest.fixture
     def service(self, mock_db, mock_settings):
         """Create service instance with mocked dependencies."""
-        with patch('rag_solution.services.user_service.UserRepository') as mock_repo_class, \
-             patch('rag_solution.services.user_service.UserProviderService') as mock_provider_class:
-
+        with (
+            patch("rag_solution.services.user_service.UserRepository"),
+            patch("rag_solution.services.user_service.UserProviderService"),
+        ):
             service = UserService(mock_db, mock_settings)
             service.user_repository = Mock()
             service.user_provider_service = Mock()
@@ -48,13 +50,7 @@ class TestUserServiceTDD:
 
     def test_create_user_success_red_phase(self, service, mock_db):
         """RED: Test successful user creation with proper transaction management."""
-        user_input = UserInput(
-            ibm_id="test_user",
-            email="test@example.com",
-            name="Test User",
-            role="user",
-            preferred_provider_id=None
-        )
+        user_input = UserInput(ibm_id="test_user", email="test@example.com", name="Test User", role="user", preferred_provider_id=None)
         user_id = uuid4()
 
         expected_user = UserOutput(
@@ -65,7 +61,7 @@ class TestUserServiceTDD:
             role="user",
             preferred_provider_id=None,
             created_at="2024-01-01T00:00:00Z",
-            updated_at="2024-01-01T00:00:00Z"
+            updated_at="2024-01-01T00:00:00Z",
         )
 
         # Mock successful creation flow
@@ -73,7 +69,7 @@ class TestUserServiceTDD:
         service.user_provider_service.initialize_user_defaults.return_value = (
             Mock(),  # provider
             [Mock(), Mock()],  # templates (2 required)
-            Mock()   # parameters
+            Mock(),  # parameters
         )
 
         result = service.create_user(user_input)
@@ -87,13 +83,7 @@ class TestUserServiceTDD:
 
     def test_create_user_initialization_failure_red_phase(self, service, mock_db):
         """RED: Test user creation when defaults initialization fails - should rollback."""
-        user_input = UserInput(
-            ibm_id="test_user",
-            email="test@example.com",
-            name="Test User",
-            role="user",
-            preferred_provider_id=None
-        )
+        user_input = UserInput(ibm_id="test_user", email="test@example.com", name="Test User", role="user", preferred_provider_id=None)
         user_id = uuid4()
 
         expected_user = UserOutput(
@@ -104,7 +94,7 @@ class TestUserServiceTDD:
             role="user",
             preferred_provider_id=None,
             created_at="2024-01-01T00:00:00Z",
-            updated_at="2024-01-01T00:00:00Z"
+            updated_at="2024-01-01T00:00:00Z",
         )
 
         service.user_repository.create.return_value = expected_user
@@ -113,7 +103,7 @@ class TestUserServiceTDD:
         service.user_provider_service.initialize_user_defaults.return_value = (
             None,  # provider missing
             [Mock(), Mock()],  # templates
-            Mock()   # parameters
+            Mock(),  # parameters
         )
 
         # Should raise ValidationError and rollback
@@ -126,13 +116,7 @@ class TestUserServiceTDD:
 
     def test_create_user_insufficient_templates_red_phase(self, service, mock_db):
         """RED: Test user creation when fewer than 2 templates created - should rollback."""
-        user_input = UserInput(
-            ibm_id="test_user",
-            email="test@example.com",
-            name="Test User",
-            role="user",
-            preferred_provider_id=None
-        )
+        user_input = UserInput(ibm_id="test_user", email="test@example.com", name="Test User", role="user", preferred_provider_id=None)
         user_id = uuid4()
 
         expected_user = UserOutput(
@@ -143,7 +127,7 @@ class TestUserServiceTDD:
             role="user",
             preferred_provider_id=None,
             created_at="2024-01-01T00:00:00Z",
-            updated_at="2024-01-01T00:00:00Z"
+            updated_at="2024-01-01T00:00:00Z",
         )
 
         service.user_repository.create.return_value = expected_user
@@ -152,7 +136,7 @@ class TestUserServiceTDD:
         service.user_provider_service.initialize_user_defaults.return_value = (
             Mock(),  # provider
             [Mock()],  # only 1 template
-            Mock()   # parameters
+            Mock(),  # parameters
         )
 
         with pytest.raises(ValidationError):
@@ -167,7 +151,7 @@ class TestUserServiceTDD:
             email="existing@example.com",
             name="Existing User",
             role="user",
-            preferred_provider_id=None
+            preferred_provider_id=None,
         )
 
         existing_user = UserOutput(
@@ -178,7 +162,7 @@ class TestUserServiceTDD:
             role="user",
             preferred_provider_id=None,
             created_at="2024-01-01T00:00:00Z",
-            updated_at="2024-01-01T00:00:00Z"
+            updated_at="2024-01-01T00:00:00Z",
         )
 
         service.user_repository.get_by_ibm_id.return_value = existing_user
@@ -189,15 +173,9 @@ class TestUserServiceTDD:
         service.user_repository.get_by_ibm_id.assert_called_once_with("existing_user")
         service.user_repository.create.assert_not_called()
 
-    def test_get_or_create_user_new_user_red_phase(self, service, mock_db):
+    def test_get_or_create_user_new_user_red_phase(self, service, mock_db):  # noqa: ARG002
         """RED: Test get_or_create when user doesn't exist - should create new."""
-        user_input = UserInput(
-            ibm_id="new_user",
-            email="new@example.com",
-            name="New User",
-            role="user",
-            preferred_provider_id=None
-        )
+        user_input = UserInput(ibm_id="new_user", email="new@example.com", name="New User", role="user", preferred_provider_id=None)
 
         new_user = UserOutput(
             id=uuid4(),
@@ -207,15 +185,13 @@ class TestUserServiceTDD:
             role="user",
             preferred_provider_id=None,
             created_at="2024-01-01T00:00:00Z",
-            updated_at="2024-01-01T00:00:00Z"
+            updated_at="2024-01-01T00:00:00Z",
         )
 
         # User not found, then created successfully
         service.user_repository.get_by_ibm_id.side_effect = NotFoundError("User", "new_user")
         service.user_repository.create.return_value = new_user
-        service.user_provider_service.initialize_user_defaults.return_value = (
-            Mock(), [Mock(), Mock()], Mock()
-        )
+        service.user_provider_service.initialize_user_defaults.return_value = (Mock(), [Mock(), Mock()], Mock())
 
         result = service.get_or_create_user(user_input)
 
@@ -233,17 +209,12 @@ class TestUserServiceTDD:
             role="admin",
             preferred_provider_id=None,
             created_at="2024-01-01T00:00:00Z",
-            updated_at="2024-01-01T00:00:00Z"
+            updated_at="2024-01-01T00:00:00Z",
         )
 
         service.user_repository.get_by_ibm_id.return_value = existing_user
 
-        result = service.get_or_create_user_by_fields(
-            ibm_id="field_user",
-            email="field@example.com",
-            name="Field User",
-            role="admin"
-        )
+        result = service.get_or_create_user_by_fields(ibm_id="field_user", email="field@example.com", name="Field User", role="admin")
 
         assert result is existing_user
         service.user_repository.get_by_ibm_id.assert_called_once_with("field_user")
@@ -259,7 +230,7 @@ class TestUserServiceTDD:
             role="user",
             preferred_provider_id=None,
             created_at="2024-01-01T00:00:00Z",
-            updated_at="2024-01-01T00:00:00Z"
+            updated_at="2024-01-01T00:00:00Z",
         )
 
         service.user_repository.get_by_id.return_value = expected_user
@@ -292,7 +263,7 @@ class TestUserServiceTDD:
             role="user",
             preferred_provider_id=None,
             created_at="2024-01-01T00:00:00Z",
-            updated_at="2024-01-01T00:00:00Z"
+            updated_at="2024-01-01T00:00:00Z",
         )
 
         service.user_repository.get_by_ibm_id.return_value = expected_user
@@ -311,7 +282,7 @@ class TestUserServiceTDD:
             email="updated@example.com",
             name="Updated User",
             role="admin",
-            preferred_provider_id=None
+            preferred_provider_id=None,
         )
 
         updated_user = UserOutput(
@@ -322,7 +293,7 @@ class TestUserServiceTDD:
             role="admin",
             preferred_provider_id=None,
             created_at="2024-01-01T00:00:00Z",
-            updated_at="2024-01-01T00:00:00Z"
+            updated_at="2024-01-01T00:00:00Z",
         )
 
         service.user_repository.update.return_value = updated_user
@@ -341,7 +312,7 @@ class TestUserServiceTDD:
             email="updated@example.com",
             name="Updated User",
             role="admin",
-            preferred_provider_id=None
+            preferred_provider_id=None,
         )
 
         service.user_repository.update.side_effect = NotFoundError("User", user_id)
@@ -377,9 +348,36 @@ class TestUserServiceTDD:
     def test_list_users_success_red_phase(self, service):
         """RED: Test successful user listing."""
         users = [
-            UserOutput(id=uuid4(), ibm_id="user1", email="user1@example.com", name="User 1", role="user", preferred_provider_id=None, created_at="2024-01-01T00:00:00Z", updated_at="2024-01-01T00:00:00Z"),
-            UserOutput(id=uuid4(), ibm_id="user2", email="user2@example.com", name="User 2", role="admin", preferred_provider_id=None, created_at="2024-01-01T00:00:00Z", updated_at="2024-01-01T00:00:00Z"),
-            UserOutput(id=uuid4(), ibm_id="user3", email="user3@example.com", name="User 3", role="user", preferred_provider_id=None, created_at="2024-01-01T00:00:00Z", updated_at="2024-01-01T00:00:00Z")
+            UserOutput(
+                id=uuid4(),
+                ibm_id="user1",
+                email="user1@example.com",
+                name="User 1",
+                role="user",
+                preferred_provider_id=None,
+                created_at="2024-01-01T00:00:00Z",
+                updated_at="2024-01-01T00:00:00Z",
+            ),
+            UserOutput(
+                id=uuid4(),
+                ibm_id="user2",
+                email="user2@example.com",
+                name="User 2",
+                role="admin",
+                preferred_provider_id=None,
+                created_at="2024-01-01T00:00:00Z",
+                updated_at="2024-01-01T00:00:00Z",
+            ),
+            UserOutput(
+                id=uuid4(),
+                ibm_id="user3",
+                email="user3@example.com",
+                name="User 3",
+                role="user",
+                preferred_provider_id=None,
+                created_at="2024-01-01T00:00:00Z",
+                updated_at="2024-01-01T00:00:00Z",
+            ),
         ]
 
         service.user_repository.list_users.return_value = users
@@ -393,8 +391,26 @@ class TestUserServiceTDD:
     def test_list_users_with_pagination_red_phase(self, service):
         """RED: Test user listing with custom pagination."""
         users = [
-            UserOutput(id=uuid4(), ibm_id="user4", email="user4@example.com", name="User 4", role="user", preferred_provider_id=None, created_at="2024-01-01T00:00:00Z", updated_at="2024-01-01T00:00:00Z"),
-            UserOutput(id=uuid4(), ibm_id="user5", email="user5@example.com", name="User 5", role="admin", preferred_provider_id=None, created_at="2024-01-01T00:00:00Z", updated_at="2024-01-01T00:00:00Z")
+            UserOutput(
+                id=uuid4(),
+                ibm_id="user4",
+                email="user4@example.com",
+                name="User 4",
+                role="user",
+                preferred_provider_id=None,
+                created_at="2024-01-01T00:00:00Z",
+                updated_at="2024-01-01T00:00:00Z",
+            ),
+            UserOutput(
+                id=uuid4(),
+                ibm_id="user5",
+                email="user5@example.com",
+                name="User 5",
+                role="admin",
+                preferred_provider_id=None,
+                created_at="2024-01-01T00:00:00Z",
+                updated_at="2024-01-01T00:00:00Z",
+            ),
         ]
 
         service.user_repository.list_users.return_value = users
@@ -415,7 +431,7 @@ class TestUserServiceTDD:
             role="user",
             preferred_provider_id=None,
             created_at="2024-01-01T00:00:00Z",
-            updated_at="2024-01-01T00:00:00Z"
+            updated_at="2024-01-01T00:00:00Z",
         )
 
         service.user_repository.get_by_id.return_value = expected_user
@@ -439,7 +455,7 @@ class TestUserServiceTDD:
             role="user",
             preferred_provider_id=None,
             created_at="2024-01-01T00:00:00Z",
-            updated_at="2024-01-01T00:00:00Z"
+            updated_at="2024-01-01T00:00:00Z",
         )
         service.user_repository.get_by_id.return_value = current_user
 
@@ -452,7 +468,7 @@ class TestUserServiceTDD:
             role="user",
             preferred_provider_id=provider_id,  # Now correctly updated
             created_at="2024-01-01T00:00:00Z",
-            updated_at="2024-01-01T00:00:00Z"
+            updated_at="2024-01-01T00:00:00Z",
         )
         service.user_repository.update.return_value = updated_user
 
@@ -465,9 +481,10 @@ class TestUserServiceTDD:
 
     def test_service_initialization_red_phase(self, mock_db, mock_settings):
         """RED: Test service initialization with dependencies."""
-        with patch('rag_solution.services.user_service.UserRepository') as mock_repo_class, \
-             patch('rag_solution.services.user_service.UserProviderService') as mock_provider_class:
-
+        with (
+            patch("rag_solution.services.user_service.UserRepository") as mock_repo_class,
+            patch("rag_solution.services.user_service.UserProviderService") as mock_provider_class,
+        ):
             service = UserService(mock_db, mock_settings)
 
             assert service.db is mock_db
@@ -486,12 +503,12 @@ class TestUserServiceTDD:
             role="user",
             preferred_provider_id=None,
             created_at="2024-01-01T00:00:00Z",
-            updated_at="2024-01-01T00:00:00Z"
+            updated_at="2024-01-01T00:00:00Z",
         )
 
         service.user_repository.get_by_id.return_value = expected_user
 
-        with patch('rag_solution.services.user_service.logger') as mock_logger:
+        with patch("rag_solution.services.user_service.logger") as mock_logger:
             service.get_user_by_id(user_id)
 
             # Should log fetching start (using lazy % formatting)
@@ -499,13 +516,7 @@ class TestUserServiceTDD:
 
     def test_transaction_rollback_on_repository_exception_red_phase(self, service, mock_db):
         """RED: Test transaction handling when repository creation fails."""
-        user_input = UserInput(
-            ibm_id="test_user",
-            email="test@example.com",
-            name="Test User",
-            role="user",
-            preferred_provider_id=None
-        )
+        user_input = UserInput(ibm_id="test_user", email="test@example.com", name="Test User", role="user", preferred_provider_id=None)
 
         # Repository creation fails
         service.user_repository.create.side_effect = Exception("Database constraint violation")
@@ -518,6 +529,7 @@ class TestUserServiceTDD:
         # No rollback should be called because exception happens before defaults validation
         mock_db.rollback.assert_not_called()
         mock_db.commit.assert_not_called()
+
 
 # RED PHASE COMPLETE: These tests will reveal several logic issues:
 # 1. set_user_preferred_provider doesn't actually update the provider

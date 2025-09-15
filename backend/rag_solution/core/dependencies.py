@@ -95,7 +95,13 @@ def verify_admin_access(request: Request, db: Session = Depends(get_db), setting
     return current_user
 
 
-def verify_collection_access(collection_id: UUID4, user_id: UUID4, request: Request, db: Session = Depends(get_db), _settings: Settings = Depends(get_settings)) -> bool:
+def verify_collection_access(
+    collection_id: UUID4,
+    user_id: UUID4,
+    request: Request,
+    db: Session = Depends(get_db),
+    _settings: Settings = Depends(get_settings),
+) -> bool:
     """Verify that a user has access to a specific collection.
 
     Args:
@@ -132,7 +138,13 @@ def verify_collection_access(collection_id: UUID4, user_id: UUID4, request: Requ
     return True
 
 
-def verify_team_access(team_id: UUID4, user_id: UUID4, request: Request, db: Session = Depends(get_db), _settings: Settings = Depends(get_settings)) -> bool:
+def verify_team_access(
+    team_id: UUID4,
+    user_id: UUID4,
+    request: Request,
+    db: Session = Depends(get_db),
+    _settings: Settings = Depends(get_settings),
+) -> bool:
     """Verify that a user has access to a specific team.
 
     Args:

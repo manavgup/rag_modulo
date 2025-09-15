@@ -24,7 +24,9 @@ class LLMProvider(Base):
     project_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    )
     is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
 
     models: Mapped[list["LLMModel"]] = relationship("LLMModel", back_populates="provider")

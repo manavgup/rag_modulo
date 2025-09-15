@@ -1,0 +1,8 @@
+title: 🖥️ CLI
+nav:
+  - index.md
+  - installation.md
+  - authentication.md
+  - commands
+  - configuration.md
+  - troubleshooting.md

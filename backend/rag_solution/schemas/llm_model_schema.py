@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import Enum
 
-from pydantic import UUID4, BaseModel, Field, ConfigDict
+from pydantic import UUID4, BaseModel, ConfigDict, Field
 
 
 class ModelType(str, Enum):

@@ -22,10 +22,10 @@ repos:
     rev: v0.1.11
     hooks:
       - id: ruff
-        args: ['--fix', '--line-length=200', '--config', 'backend/pyproject.toml']
+        args: ['--fix', '--config', 'backend/pyproject.toml']
         files: ^backend/
       - id: ruff-format
-        args: ['--line-length=200', '--config', 'backend/pyproject.toml']
+        args: ['--config', 'backend/pyproject.toml']
         files: ^backend/
 
   # Python type checking - MyPy

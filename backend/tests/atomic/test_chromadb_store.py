@@ -1,6 +1,5 @@
 """Atomic tests for ChromaDB data validation and schemas."""
 
-
 import pytest
 
 
@@ -11,7 +10,11 @@ class TestChromaDBDataValidation:
     def test_document_data_validation(self):
         """Test document data structure validation."""
         # Valid document data
-        valid_doc = {"id": "doc1", "text": "This is a test document", "metadata": {"source": "test", "created_at": "2024-01-01"}}
+        valid_doc = {
+            "id": "doc1",
+            "text": "This is a test document",
+            "metadata": {"source": "test", "created_at": "2024-01-01"},
+        }
 
         # Test required fields
         assert "id" in valid_doc
@@ -41,7 +44,13 @@ class TestChromaDBDataValidation:
     def test_text_content_validation(self):
         """Test text content validation rules."""
         # Valid text content
-        valid_texts = ["Simple text", "Text with numbers 123", "Text with special chars !@#$%", "Multiline\ntext\ncontent", "Unicode text: 你好世界 🌍"]
+        valid_texts = [
+            "Simple text",
+            "Text with numbers 123",
+            "Text with special chars !@#$%",
+            "Multiline\ntext\ncontent",
+            "Unicode text: 你好世界 🌍",
+        ]
 
         for text in valid_texts:
             assert isinstance(text, str)
@@ -50,7 +59,13 @@ class TestChromaDBDataValidation:
     def test_metadata_validation(self):
         """Test metadata structure validation."""
         # Valid metadata
-        valid_metadata = {"source": "test", "created_at": "2024-01-01T00:00:00Z", "author": "test_user", "tags": ["test", "document"], "score": 0.95}
+        valid_metadata = {
+            "source": "test",
+            "created_at": "2024-01-01T00:00:00Z",
+            "author": "test_user",
+            "tags": ["test", "document"],
+            "score": 0.95,
+        }
 
         # Test metadata structure
         assert isinstance(valid_metadata, dict)
@@ -63,7 +78,13 @@ class TestChromaDBDataValidation:
     def test_search_query_validation(self):
         """Test search query validation rules."""
         # Valid search queries
-        valid_queries = ["simple query", "query with numbers 123", "query with special chars !@#", "multiline\nquery", "unicode query: 你好"]
+        valid_queries = [
+            "simple query",
+            "query with numbers 123",
+            "query with special chars !@#",
+            "multiline\nquery",
+            "unicode query: 你好",
+        ]
 
         for query in valid_queries:
             assert isinstance(query, str)
@@ -103,7 +124,13 @@ class TestChromaDBDataValidation:
     def test_collection_name_validation(self):
         """Test collection name validation rules."""
         # Valid collection names
-        valid_names = ["test_collection", "collection-123", "collection.with.dots", "collection_with_underscores", "Collection123"]
+        valid_names = [
+            "test_collection",
+            "collection-123",
+            "collection.with.dots",
+            "collection_with_underscores",
+            "Collection123",
+        ]
 
         for name in valid_names:
             assert isinstance(name, str)
