@@ -30,7 +30,9 @@ router = APIRouter()
         500: {"description": "Internal server error"},
     },
 )
-async def get_prompt_templates(user_id: UUID4, db: Annotated[Session, Depends(get_db)], user: Annotated[UserOutput, Depends(verify_user_access)]) -> list[PromptTemplateOutput]:
+async def get_prompt_templates(
+    user_id: UUID4, db: Annotated[Session, Depends(get_db)], user: Annotated[UserOutput, Depends(verify_user_access)]
+) -> list[PromptTemplateOutput]:
     """Retrieve all prompt templates for a user."""
     service = PromptTemplateService(db)
     try:

@@ -4,9 +4,9 @@ from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import pytest
+from core.config import Settings
 from sqlalchemy.orm import Session
 
-from core.config import Settings
 from rag_solution.core.exceptions import NotFoundError, ValidationError
 from rag_solution.schemas.user_schema import UserInput, UserOutput
 from rag_solution.services.user_service import UserService
@@ -50,7 +50,9 @@ class TestUserServiceTDD:
 
     def test_create_user_success_red_phase(self, service, mock_db):
         """RED: Test successful user creation with proper transaction management."""
-        user_input = UserInput(ibm_id="test_user", email="test@example.com", name="Test User", role="user", preferred_provider_id=None)
+        user_input = UserInput(
+            ibm_id="test_user", email="test@example.com", name="Test User", role="user", preferred_provider_id=None
+        )
         user_id = uuid4()
 
         expected_user = UserOutput(
@@ -83,7 +85,9 @@ class TestUserServiceTDD:
 
     def test_create_user_initialization_failure_red_phase(self, service, mock_db):
         """RED: Test user creation when defaults initialization fails - should rollback."""
-        user_input = UserInput(ibm_id="test_user", email="test@example.com", name="Test User", role="user", preferred_provider_id=None)
+        user_input = UserInput(
+            ibm_id="test_user", email="test@example.com", name="Test User", role="user", preferred_provider_id=None
+        )
         user_id = uuid4()
 
         expected_user = UserOutput(
@@ -116,7 +120,9 @@ class TestUserServiceTDD:
 
     def test_create_user_insufficient_templates_red_phase(self, service, mock_db):
         """RED: Test user creation when fewer than 2 templates created - should rollback."""
-        user_input = UserInput(ibm_id="test_user", email="test@example.com", name="Test User", role="user", preferred_provider_id=None)
+        user_input = UserInput(
+            ibm_id="test_user", email="test@example.com", name="Test User", role="user", preferred_provider_id=None
+        )
         user_id = uuid4()
 
         expected_user = UserOutput(
@@ -175,7 +181,9 @@ class TestUserServiceTDD:
 
     def test_get_or_create_user_new_user_red_phase(self, service, mock_db):  # noqa: ARG002
         """RED: Test get_or_create when user doesn't exist - should create new."""
-        user_input = UserInput(ibm_id="new_user", email="new@example.com", name="New User", role="user", preferred_provider_id=None)
+        user_input = UserInput(
+            ibm_id="new_user", email="new@example.com", name="New User", role="user", preferred_provider_id=None
+        )
 
         new_user = UserOutput(
             id=uuid4(),
@@ -214,7 +222,9 @@ class TestUserServiceTDD:
 
         service.user_repository.get_by_ibm_id.return_value = existing_user
 
-        result = service.get_or_create_user_by_fields(ibm_id="field_user", email="field@example.com", name="Field User", role="admin")
+        result = service.get_or_create_user_by_fields(
+            ibm_id="field_user", email="field@example.com", name="Field User", role="admin"
+        )
 
         assert result is existing_user
         service.user_repository.get_by_ibm_id.assert_called_once_with("field_user")
@@ -516,7 +526,9 @@ class TestUserServiceTDD:
 
     def test_transaction_rollback_on_repository_exception_red_phase(self, service, mock_db):
         """RED: Test transaction handling when repository creation fails."""
-        user_input = UserInput(ibm_id="test_user", email="test@example.com", name="Test User", role="user", preferred_provider_id=None)
+        user_input = UserInput(
+            ibm_id="test_user", email="test@example.com", name="Test User", role="user", preferred_provider_id=None
+        )
 
         # Repository creation fails
         service.user_repository.create.side_effect = Exception("Database constraint violation")

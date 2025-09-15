@@ -1,9 +1,9 @@
-from pydantic import UUID4, SecretStr
-from sqlalchemy.orm import Session
-
 from core.config import Settings
 from core.custom_exceptions import LLMProviderError
 from core.logging_utils import get_logger
+from pydantic import UUID4, SecretStr
+from sqlalchemy.orm import Session
+
 from rag_solution.schemas.llm_model_schema import LLMModelInput, ModelType
 from rag_solution.schemas.llm_provider_schema import (
     LLMProviderInput,
@@ -95,11 +95,15 @@ class SystemInitializationService:
 
         return configs
 
-    def _initialize_single_provider(self, name: str, config: LLMProviderInput, existing_provider: LLMProviderOutput | None, raise_on_error: bool) -> LLMProviderOutput | None:
+    def _initialize_single_provider(
+        self, name: str, config: LLMProviderInput, existing_provider: LLMProviderOutput | None, raise_on_error: bool
+    ) -> LLMProviderOutput | None:
         try:
             if existing_provider:
                 logger.info(f"Updating provider: {name}")
-                provider = self.llm_provider_service.update_provider(existing_provider.id, config.model_dump(exclude_unset=True))
+                provider = self.llm_provider_service.update_provider(
+                    existing_provider.id, config.model_dump(exclude_unset=True)
+                )
                 if not provider:
                     raise LLMProviderError(name, "update", f"Failed to update {name}")
             else:

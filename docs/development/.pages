@@ -1,0 +1,7 @@
+title: 🛠️ Development
+nav:
+  - index.md
+  - environment-setup.md
+  - workflow.md
+  - codespaces.md
+  - contributing.md

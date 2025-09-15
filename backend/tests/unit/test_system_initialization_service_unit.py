@@ -5,10 +5,10 @@ from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import pytest
-from sqlalchemy.orm import Session
-
 from core.config import Settings
 from core.custom_exceptions import LLMProviderError
+from sqlalchemy.orm import Session
+
 from rag_solution.schemas.llm_model_schema import ModelType
 from rag_solution.schemas.llm_provider_schema import LLMProviderInput, LLMProviderOutput
 from rag_solution.services.system_initialization_service import SystemInitializationService
@@ -148,7 +148,9 @@ class TestSystemInitializationServiceUnit:
             patch.object(service, "_get_provider_configs") as mock_get_configs,
             patch.object(service, "_initialize_single_provider") as mock_init_single,
         ):
-            mock_get_configs.return_value = {"watsonx": LLMProviderInput(name="watsonx", base_url="https://test.com", api_key="test-key")}
+            mock_get_configs.return_value = {
+                "watsonx": LLMProviderInput(name="watsonx", base_url="https://test.com", api_key="test-key")
+            }
             mock_init_single.return_value = mock_provider
 
             result = service.initialize_providers()
@@ -193,14 +195,18 @@ class TestSystemInitializationServiceUnit:
             patch.object(service, "_get_provider_configs") as mock_get_configs,
             patch.object(service, "_initialize_single_provider") as mock_init_single,
         ):
-            mock_get_configs.return_value = {"watsonx": LLMProviderInput(name="watsonx", base_url="https://test-wx.com", api_key="test-key")}
+            mock_get_configs.return_value = {
+                "watsonx": LLMProviderInput(name="watsonx", base_url="https://test-wx.com", api_key="test-key")
+            }
             mock_init_single.return_value = updated_provider
 
             result = service.initialize_providers()
 
             assert len(result) == 1
             assert result[0] is updated_provider
-            mock_init_single.assert_called_once_with("watsonx", mock_get_configs.return_value["watsonx"], existing_provider, False)
+            mock_init_single.assert_called_once_with(
+                "watsonx", mock_get_configs.return_value["watsonx"], existing_provider, False
+            )
 
     def test_initialize_providers_get_providers_error_no_raise(self, service):
         """Test initialize_providers when get_all_providers fails with raise_on_error=False."""
@@ -241,7 +247,9 @@ class TestSystemInitializationServiceUnit:
             patch.object(service, "_get_provider_configs") as mock_get_configs,
             patch.object(service, "_initialize_single_provider") as mock_init_single,
         ):
-            mock_get_configs.return_value = {"watsonx": LLMProviderInput(name="watsonx", base_url="https://test.com", api_key="invalid-key")}
+            mock_get_configs.return_value = {
+                "watsonx": LLMProviderInput(name="watsonx", base_url="https://test.com", api_key="invalid-key")
+            }
             mock_init_single.side_effect = Exception("Invalid API key")
 
             result = service.initialize_providers(raise_on_error=False)
@@ -257,7 +265,9 @@ class TestSystemInitializationServiceUnit:
             patch.object(service, "_get_provider_configs") as mock_get_configs,
             patch.object(service, "_initialize_single_provider") as mock_init_single,
         ):
-            mock_get_configs.return_value = {"watsonx": LLMProviderInput(name="watsonx", base_url="https://test.com", api_key="invalid-key")}
+            mock_get_configs.return_value = {
+                "watsonx": LLMProviderInput(name="watsonx", base_url="https://test.com", api_key="invalid-key")
+            }
             mock_init_single.side_effect = Exception("Invalid API key")
 
             with pytest.raises(LLMProviderError) as exc_info:
@@ -321,7 +331,9 @@ class TestSystemInitializationServiceUnit:
         result = service._initialize_single_provider("openai", config, existing_provider, False)
 
         assert result is updated_provider
-        service.llm_provider_service.update_provider.assert_called_once_with(existing_provider.id, config.model_dump(exclude_unset=True))
+        service.llm_provider_service.update_provider.assert_called_once_with(
+            existing_provider.id, config.model_dump(exclude_unset=True)
+        )
 
     def test_initialize_single_provider_create_error_no_raise(self, service):
         """Test _initialize_single_provider handles create error with raise_on_error=False."""
@@ -348,7 +360,9 @@ class TestSystemInitializationServiceUnit:
     def test_initialize_single_provider_watsonx_with_models(self, service):
         """Test _initialize_single_provider for WatsonX creates models."""
         provider_id = uuid4()
-        config = LLMProviderInput(name="watsonx", base_url="https://test-wx.com", api_key="test-key", project_id="test-project")
+        config = LLMProviderInput(
+            name="watsonx", base_url="https://test-wx.com", api_key="test-key", project_id="test-project"
+        )
 
         mock_provider = LLMProviderOutput(
             id=provider_id,

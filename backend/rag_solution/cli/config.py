@@ -181,6 +181,7 @@ class RAGConfig(BaseModel):
             f"{prefix}OUTPUT_FORMAT": "output_format",
             f"{prefix}VERBOSE": "verbose",
             f"{prefix}MAX_RETRIES": "max_retries",
+            f"{prefix}DRY_RUN": "dry_run",
         }
 
         for env_var, field_name in env_mapping.items():
@@ -192,7 +193,7 @@ class RAGConfig(BaseModel):
                         env_data[field_name] = int(value)
                     except ValueError as ve:
                         raise ValidationError(f"Invalid integer value for {env_var}: {value}") from ve
-                elif field_name == "verbose":
+                elif field_name in ("verbose", "dry_run"):
                     env_data[field_name] = value.lower() in ("true", "1", "yes", "on")
                 elif field_name == "api_url":
                     env_data[field_name] = HttpUrl(value)

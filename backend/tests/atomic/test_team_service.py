@@ -114,14 +114,22 @@ class TestTeamServiceAtomic:
 
         # Test search by name logic
         search_term = "frontend"
-        matching_teams = [team for team in teams if search_term.lower() in team["name"].lower() or search_term.lower() in team["description"].lower()]
+        matching_teams = [
+            team
+            for team in teams
+            if search_term.lower() in team["name"].lower() or search_term.lower() in team["description"].lower()
+        ]
 
         assert len(matching_teams) == 1
         assert matching_teams[0]["name"] == "Frontend Team"
 
         # Test search by description
         search_term = "development"
-        matching_teams = [team for team in teams if search_term.lower() in team["name"].lower() or search_term.lower() in team["description"].lower()]
+        matching_teams = [
+            team
+            for team in teams
+            if search_term.lower() in team["name"].lower() or search_term.lower() in team["description"].lower()
+        ]
 
         assert len(matching_teams) == 2
         team_names = [team["name"] for team in matching_teams]

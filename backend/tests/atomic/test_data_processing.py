@@ -1,7 +1,6 @@
 """Atomic tests for data processing validation and schemas."""
 
 import pytest
-
 from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, Source
 
 
@@ -69,7 +68,9 @@ class TestDataProcessingValidation:
         valid_chunk_ids = ["chunk_1", "chunk-2", "chunk_3_abc", "chunk.with.dots", "CHUNK_123_UPPER"]
 
         for chunk_id in valid_chunk_ids:
-            chunk = DocumentChunk(chunk_id=chunk_id, text="Test text", metadata=DocumentChunkMetadata(source=Source.PDF))
+            chunk = DocumentChunk(
+                chunk_id=chunk_id, text="Test text", metadata=DocumentChunkMetadata(source=Source.PDF)
+            )
             assert chunk.chunk_id == chunk_id
             assert isinstance(chunk.chunk_id, str)
             assert len(chunk.chunk_id.strip()) > 0
@@ -95,7 +96,9 @@ class TestDataProcessingValidation:
     def test_metadata_validation(self):
         """Test metadata structure validation."""
         # Valid metadata
-        valid_metadata = DocumentChunkMetadata(source=Source.PDF, document_id="test_doc_123", page_number=1, chunk_number=1, start_index=0, end_index=100)
+        valid_metadata = DocumentChunkMetadata(
+            source=Source.PDF, document_id="test_doc_123", page_number=1, chunk_number=1, start_index=0, end_index=100
+        )
 
         chunk = DocumentChunk(chunk_id="test_chunk", text="Test content", metadata=valid_metadata)
 
@@ -128,7 +131,9 @@ class TestDataProcessingValidation:
     def test_chunk_metadata_types(self):
         """Test chunk metadata type validation."""
         # Test different metadata value types
-        metadata = DocumentChunkMetadata(source=Source.PDF, document_id="test_doc", page_number=1, chunk_number=1, start_index=0, end_index=50)
+        metadata = DocumentChunkMetadata(
+            source=Source.PDF, document_id="test_doc", page_number=1, chunk_number=1, start_index=0, end_index=50
+        )
 
         chunk = DocumentChunk(chunk_id="test_chunk", text="Test content", metadata=metadata)
 

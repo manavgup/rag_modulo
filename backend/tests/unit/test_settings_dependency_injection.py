@@ -330,10 +330,9 @@ def test_fastapi_route_dependency_injection_pattern():
     """Test the recommended FastAPI route dependency injection pattern."""
     from typing import Annotated
 
+    from core.config import Settings, get_settings
     from fastapi import Depends, FastAPI
     from fastapi.testclient import TestClient
-
-    from core.config import Settings, get_settings
 
     app = FastAPI()
 
@@ -547,6 +546,7 @@ def test_vector_stores_no_module_level_settings_access():
 def test_data_ingestion_dependency_injection():
     """Test that data ingestion classes properly use dependency injection."""
     from core.config import get_settings
+
     from rag_solution.data_ingestion.ingestion import DocumentStore
     from rag_solution.data_ingestion.pdf_processor import PdfProcessor
 
@@ -666,6 +666,7 @@ def test_watsonx_utils_dependency_injection():
 def test_base_processor_class_requires_settings():
     """Test that BaseProcessor requires settings injection and processors inherit it."""
     from core.config import get_settings
+
     from rag_solution.data_ingestion.base_processor import BaseProcessor
     from rag_solution.data_ingestion.excel_processor import ExcelProcessor
     from rag_solution.data_ingestion.txt_processor import TxtProcessor

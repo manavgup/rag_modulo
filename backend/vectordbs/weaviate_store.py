@@ -8,8 +8,8 @@ import logging
 from typing import Any
 
 import weaviate  # type: ignore[import-untyped]
-
 from core.config import Settings, get_settings
+
 from vectordbs.utils.watsonx import get_embeddings
 
 from .data_types import (
@@ -44,7 +44,12 @@ class WeaviateDataStore(VectorStore):
         # Initialize Weaviate client using v4 API
         auth_credentials = self._build_auth_credentials()
         try:
-            logging.debug("Connecting to weaviate instance at %s & %s with credential type %s", self.settings.weaviate_host, self.settings.weaviate_port, type(auth_credentials).__name__)
+            logging.debug(
+                "Connecting to weaviate instance at %s & %s with credential type %s",
+                self.settings.weaviate_host,
+                self.settings.weaviate_port,
+                type(auth_credentials).__name__,
+            )
             self.client = weaviate.connect_to_custom(
                 http_host=self.settings.weaviate_host or "localhost",
                 http_port=self.settings.weaviate_port or 8080,
@@ -61,7 +66,9 @@ class WeaviateDataStore(VectorStore):
     def _build_auth_credentials(self) -> Any:
         """Build authentication credentials for Weaviate."""
         if self.settings.weaviate_username and self.settings.weaviate_password:
-            return weaviate.auth.AuthClientPassword(self.settings.weaviate_username, self.settings.weaviate_password, self.settings.weaviate_scopes)
+            return weaviate.auth.AuthClientPassword(
+                self.settings.weaviate_username, self.settings.weaviate_password, self.settings.weaviate_scopes
+            )
         else:
             return None
 
@@ -73,11 +80,19 @@ class WeaviateDataStore(VectorStore):
             "vectorizer": "none",  # We'll provide our own vectors
             "properties": [
                 {"name": "text", "dataType": ["text"], "description": "The text content of the document chunk"},
-                {"name": "document_id", "dataType": ["string"], "description": "The ID of the document this chunk belongs to"},
+                {
+                    "name": "document_id",
+                    "dataType": ["string"],
+                    "description": "The ID of the document this chunk belongs to",
+                },
                 {"name": "chunk_id", "dataType": ["string"], "description": "The unique ID of this chunk"},
                 {"name": "source", "dataType": ["string"], "description": "The source of the document"},
                 {"name": "page_number", "dataType": ["int"], "description": "The page number of the chunk"},
-                {"name": "chunk_number", "dataType": ["int"], "description": "The number of the chunk within the document"},
+                {
+                    "name": "chunk_number",
+                    "dataType": ["int"],
+                    "description": "The number of the chunk within the document",
+                },
             ],
         }
 
@@ -134,7 +149,10 @@ class WeaviateDataStore(VectorStore):
                     }
 
                     # Add to Weaviate with vector
-                    self.client.data_object.create(data_object=data_object, class_name=collection_name, vector=chunk.embeddings)  # type: ignore[attr-defined]
+                    self.client.collections.get(collection_name).data.insert(
+                        data_object,  # type: ignore[arg-type]
+                        vector=chunk.embeddings,
+                    )
 
                     document_ids.append(chunk.document_id)
 
@@ -188,11 +206,11 @@ class WeaviateDataStore(VectorStore):
         """
         try:
             # Perform vector search
-            results = (
-                self.client.query.get(class_name=collection_name, properties=["text", "document_id", "chunk_id", "source", "page_number", "chunk_number"])  # type: ignore[attr-defined]
-                .with_near_vector({"vector": query.embeddings[0]})
-                .with_limit(number_of_results)
-                .do()
+            collection = self.client.collections.get(collection_name)
+            results = collection.query.near_vector(  # type: ignore[call-overload]
+                near_vector=query.embeddings[0],
+                limit=number_of_results,
+                return_metadata=["distance"],
             )
 
             logging.info("Query response: %s", results)
@@ -230,38 +248,48 @@ class WeaviateDataStore(VectorStore):
         """
         try:
             # Query for objects with the specified document_ids
+            collection = self.client.collections.get(collection_name)
             for doc_id in document_ids:
-                results = self.client.query.get(class_name=collection_name, properties=["document_id"]).with_where({"path": ["document_id"], "operator": "Equal", "valueString": doc_id}).do()  # type: ignore[attr-defined]
+                # Query for objects with matching document_id
+                results = collection.query.fetch_objects(  # type: ignore[call-overload]
+                    filters={"path": ["document_id"], "operator": "Equal", "valueString": doc_id}
+                )
 
                 # Delete each object
-                for obj in results["data"]["Get"][collection_name]:
-                    self.client.data_object.delete(uuid=obj["_additional"]["id"], class_name=collection_name)  # type: ignore[attr-defined]
+                for obj in results.objects:
+                    collection.data.delete_by_id(obj.uuid)
 
             logging.info("Deleted documents from collection '%s'", collection_name)
         except Exception as e:
             logging.error("Failed to delete documents from Weaviate collection '%s': %s", collection_name, str(e))
             raise DocumentError(f"Failed to delete documents from Weaviate collection '{collection_name}': {e}") from e
 
-    def _process_search_results(self, results: Any, collection_name: str) -> list[QueryResult]:
+    def _process_search_results(self, results: Any, collection_name: str) -> list[QueryResult]:  # noqa: ARG002
         """Process Weaviate search results into QueryResult objects."""
         query_results = []
 
-        for obj in results["data"]["Get"][collection_name]:
+        for obj in results.objects:
             # Create DocumentChunkWithScore
             chunk = DocumentChunkWithScore(
-                chunk_id=obj["chunk_id"],
-                text=obj["text"],
+                chunk_id=obj.properties.get("chunk_id", ""),
+                text=obj.properties.get("text", ""),
                 embeddings=None,  # Weaviate doesn't return embeddings in search results
                 metadata=DocumentChunkMetadata(
-                    source=Source(obj["source"]),
-                    document_id=obj["document_id"],
-                    page_number=obj["page_number"],
-                    chunk_number=obj["chunk_number"],
+                    source=Source(obj.properties.get("source", "OTHER")),
+                    document_id=obj.properties.get("document_id", ""),
+                    page_number=obj.properties.get("page_number", 0),
+                    chunk_number=obj.properties.get("chunk_number", 0),
                 ),
-                document_id=obj["document_id"],
-                score=float(obj["_additional"]["distance"]),  # Convert distance to score
+                document_id=obj.properties.get("document_id", ""),
+                score=float(obj.metadata.distance) if obj.metadata.distance is not None else 0.0,
             )
 
-            query_results.append(QueryResult(chunk=chunk, score=float(obj["_additional"]["distance"]), embeddings=[]))
+            query_results.append(
+                QueryResult(
+                    chunk=chunk,
+                    score=float(obj.metadata.distance) if obj.metadata.distance is not None else 0.0,
+                    embeddings=[],
+                )
+            )
 
         return query_results

@@ -3,11 +3,11 @@
 import logging
 from typing import Annotated
 
+from core.config import Settings, get_settings
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
-from core.config import Settings, get_settings
 from rag_solution.core.dependencies import verify_user_access
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.pipeline_schema import PipelineConfigInput, PipelineConfigOutput

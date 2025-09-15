@@ -83,7 +83,9 @@ class AuthManager:
         self.tokens_dir.mkdir(parents=True, exist_ok=True)
         self.token_file = self.tokens_dir / f"{profile}.json"
 
-    def create_token_data(self, token: str, expires_at: datetime, user_info: dict[str, Any] | None = None) -> dict[str, Any]:
+    def create_token_data(
+        self, token: str, expires_at: datetime, user_info: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Create token data structure.
 
         Args:

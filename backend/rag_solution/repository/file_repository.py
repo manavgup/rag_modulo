@@ -142,7 +142,10 @@ class FileRepository:
 
     def file_exists(self, collection_id: UUID4, filename: str) -> bool:
         try:
-            return self.db.query(File).filter(File.collection_id == collection_id, File.filename == filename).first() is not None
+            return (
+                self.db.query(File).filter(File.collection_id == collection_id, File.filename == filename).first()
+                is not None
+            )
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise
         except Exception as e:

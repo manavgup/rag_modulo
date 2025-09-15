@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, ClassVar
 
 from core.custom_exceptions import LLMProviderError
 from core.logging_utils import get_logger
+
 from rag_solution.services.llm_model_service import LLMModelService
 from rag_solution.services.llm_parameters_service import LLMParametersService
 from rag_solution.services.llm_provider_service import LLMProviderService
@@ -159,7 +160,9 @@ class LLMProviderFactory:
         except LLMProviderError:
             raise
         except Exception as e:
-            raise LLMProviderError(provider=provider_name, error_type="creation_failed", message=f"Failed to create provider: {e!s}") from e
+            raise LLMProviderError(
+                provider=provider_name, error_type="creation_failed", message=f"Failed to create provider: {e!s}"
+            ) from e
 
     def cleanup_provider(self, provider_name: str, model_id: str | None = None) -> None:
         """

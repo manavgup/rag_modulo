@@ -26,7 +26,9 @@ class SearchCommands(BaseCommand):
         """
         super().__init__(api_client, config)
 
-    def query(self, collection_id: str, query: str, pipeline_id: str | None = None, max_chunks: int = 5) -> CommandResult:
+    def query(
+        self, collection_id: str, query: str, pipeline_id: str | None = None, max_chunks: int = 5
+    ) -> CommandResult:
         """Execute a search query.
 
         Args:
@@ -57,7 +59,9 @@ class SearchCommands(BaseCommand):
         except Exception as e:
             return self._handle_api_error(e)
 
-    def explain(self, collection_id: str, query: str, show_retrieval: bool = False, show_rewriting: bool = False) -> CommandResult:
+    def explain(
+        self, collection_id: str, query: str, show_retrieval: bool = False, show_rewriting: bool = False
+    ) -> CommandResult:
         """Explain search results and processing.
 
         Args:
@@ -119,7 +123,9 @@ class SearchCommands(BaseCommand):
         except Exception as e:
             return self._handle_api_error(e)
 
-    def semantic_search(self, collection_id: str, query: str, similarity_threshold: float = 0.7, max_results: int = 10) -> CommandResult:
+    def semantic_search(
+        self, collection_id: str, query: str, similarity_threshold: float = 0.7, max_results: int = 10
+    ) -> CommandResult:
         """Execute semantic search with similarity filtering.
 
         Args:
@@ -143,12 +149,16 @@ class SearchCommands(BaseCommand):
 
             response = self.api_client.post("/api/search/semantic", data=data)
 
-            return self._create_success_result(data=response, message=f"Found {len(response.get('results', []))} semantic matches")
+            return self._create_success_result(
+                data=response, message=f"Found {len(response.get('results', []))} semantic matches"
+            )
 
         except Exception as e:
             return self._handle_api_error(e)
 
-    def hybrid_search(self, collection_id: str, query: str, semantic_weight: float = 0.7, keyword_weight: float = 0.3) -> CommandResult:
+    def hybrid_search(
+        self, collection_id: str, query: str, semantic_weight: float = 0.7, keyword_weight: float = 0.3
+    ) -> CommandResult:
         """Execute hybrid search combining semantic and keyword search.
 
         Args:
@@ -177,7 +187,9 @@ class SearchCommands(BaseCommand):
         except Exception as e:
             return self._handle_api_error(e)
 
-    def search_similar_documents(self, document_id: str, collection_id: str | None = None, limit: int = 5) -> CommandResult:
+    def search_similar_documents(
+        self, document_id: str, collection_id: str | None = None, limit: int = 5
+    ) -> CommandResult:
         """Find documents similar to a given document.
 
         Args:
@@ -198,7 +210,9 @@ class SearchCommands(BaseCommand):
 
             response = self.api_client.post("/api/search/similar-documents", data=data)
 
-            return self._create_success_result(data=response, message=f"Found {len(response.get('similar_documents', []))} similar documents")
+            return self._create_success_result(
+                data=response, message=f"Found {len(response.get('similar_documents', []))} similar documents"
+            )
 
         except Exception as e:
             return self._handle_api_error(e)
@@ -224,12 +238,16 @@ class SearchCommands(BaseCommand):
 
             response = self.api_client.get("/api/search/history", params=params)
 
-            return self._create_success_result(data=response, message=f"Retrieved {len(response.get('searches', []))} search history items")
+            return self._create_success_result(
+                data=response, message=f"Retrieved {len(response.get('searches', []))} search history items"
+            )
 
         except Exception as e:
             return self._handle_api_error(e)
 
-    def save_search(self, query: str, collection_id: str, name: str | None = None, description: str | None = None) -> CommandResult:
+    def save_search(
+        self, query: str, collection_id: str, name: str | None = None, description: str | None = None
+    ) -> CommandResult:
         """Save a search query for later use.
 
         Args:
@@ -276,7 +294,9 @@ class SearchCommands(BaseCommand):
 
             response = self.api_client.get("/api/search/saved-searches", params=params)
 
-            return self._create_success_result(data=response, message=f"Retrieved {len(response.get('saved_searches', []))} saved searches")
+            return self._create_success_result(
+                data=response, message=f"Retrieved {len(response.get('saved_searches', []))} saved searches"
+            )
 
         except Exception as e:
             return self._handle_api_error(e)

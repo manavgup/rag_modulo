@@ -1,0 +1,196 @@
+site_name: RAG Modulo Documentation
+site_description: Comprehensive documentation for RAG Modulo - AI-powered document processing and search platform
+site_author: RAG Modulo Team
+site_url: https://manavgup.github.io/rag_modulo
+
+# Repository
+repo_name: manavgup/rag_modulo
+repo_url: https://github.com/manavgup/rag_modulo
+edit_uri: edit/main/docs/
+
+# Configuration
+theme:
+  name: material
+  palette:
+    # Palette toggle for automatic mode
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to system preference
+
+  features:
+    - announce.dismiss
+    - content.action.edit
+    - content.action.view
+    - content.code.annotate
+    - content.code.copy
+    - content.code.select
+    - content.tabs.link
+    - content.tooltips
+    - header.autohide
+    - navigation.expand
+    - navigation.footer
+    - navigation.indexes
+    - navigation.instant
+    - navigation.instant.prefetch
+    - navigation.instant.progress
+    - navigation.prune
+    - navigation.sections
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.top
+    - search.highlight
+    - search.share
+    - search.suggest
+    - toc.follow
+    - toc.integrate
+
+  icon:
+    repo: fontawesome/brands/github
+    edit: material/pencil
+    view: material/eye
+
+# Plugins
+plugins:
+  - search:
+      lang: en
+  - git-revision-date-localized:
+      enable_creation_date: true
+  - minify:
+      minify_html: true
+
+# Extensions
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - toc:
+      permalink: true
+      title: On this page
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.magiclink:
+      normalize_issue_symbols: true
+      repo_url_shorthand: true
+      user: manavgup
+      repo: rag_modulo
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+      combine_header_slug: true
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+# Page tree
+nav:
+  - Home: index.md
+  - 🚀 Getting Started:
+    - Quick Start: getting-started.md
+    - Installation: installation.md
+    - Configuration: configuration.md
+  - 🛠️ Development:
+    - Overview: development/index.md
+    - Environment Setup: development/environment-setup.md
+    - Development Workflow: development/workflow.md
+    - GitHub Codespaces: development/codespaces.md
+    - Contributing: development/contributing.md
+  - 🧪 Testing:
+    - Overview: testing/index.md
+    - Comprehensive Testing Guide: testing/COMPREHENSIVE_TESTING_GUIDE.md
+    - Manual Validation Checklist: testing/MANUAL_VALIDATION_CHECKLIST.md
+  - 🚀 Deployment:
+    - Overview: deployment/index.md
+    - Production: deployment/production.md
+    - Cloud Deployment: deployment/cloud.md
+    - Monitoring: deployment/monitoring.md
+  - 🖥️ CLI:
+    - Overview: cli/index.md
+    - Installation: cli/installation.md
+    - Authentication: cli/authentication.md
+    - Commands: cli/commands/index.md
+    - Configuration: cli/configuration.md
+    - Troubleshooting: cli/troubleshooting.md
+  - 📚 API Reference:
+    - Overview: api/README.md
+    - Authentication: api/authentication.md
+    - Endpoints: api/endpoints.md
+    - Schemas: api/schemas.md
+  - 🏗️ Architecture:
+    - Overview: architecture/README.md
+    - Components: architecture/components.md
+    - Data Flow: architecture/data-flow.md
+    - Security: architecture/security.md
+  - 🧪 Testing:
+    - Overview: tests/README.md
+    - Test Strategy: tests/strategy.md
+    - Running Tests: tests/running.md
+    - Test Data: tests/data.md
+  - 🔧 Troubleshooting:
+    - Common Issues: troubleshooting.md
+    - Debugging: debugging.md
+    - Performance: performance.md
+  - 📖 Additional Resources:
+    - Changelog: changelog.md
+    - FAQ: faq.md
+    - Glossary: glossary.md
+    - Contributing: CONTRIBUTING.md
+
+# Extra
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/manavgup/rag_modulo
+    - icon: fontawesome/brands/docker
+      link: https://hub.docker.com/r/ragmodulo/backend
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/rag-modulo
+
+  version:
+    provider: mike
+
+# Copyright
+copyright: Copyright &copy; 2024 RAG Modulo Team

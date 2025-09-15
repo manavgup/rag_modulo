@@ -2,11 +2,11 @@
 
 from typing import Any
 
+from core.config import Settings
+from core.logging_utils import get_logger
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
-from core.config import Settings
-from core.logging_utils import get_logger
 from rag_solution.core.exceptions import ValidationError
 from rag_solution.repository.user_provider_repository import UserProviderRepository
 from rag_solution.schemas.llm_parameters_schema import LLMParametersOutput
@@ -31,7 +31,9 @@ class UserProviderService:
         self.prompt_template_service = PromptTemplateService(db)
         self.llm_model_service = LLMModelService(db)
 
-    def initialize_user_defaults(self, user_id: UUID4) -> tuple[LLMProviderOutput | None, list[PromptTemplateOutput], LLMParametersOutput | None]:
+    def initialize_user_defaults(
+        self, user_id: UUID4
+    ) -> tuple[LLMProviderOutput | None, list[PromptTemplateOutput], LLMParametersOutput | None]:
         """Initialize default LLM configurations for a new user."""
         try:
             # Existing provider initialization
@@ -68,7 +70,9 @@ class UserProviderService:
         except Exception as e:
             logger.error(f"Initialization error: {e!s}")
             self.db.rollback()
-            raise ValidationError(f"Failed to initialize required user configuration: {e}", field="user_initialization") from e
+            raise ValidationError(
+                f"Failed to initialize required user configuration: {e}", field="user_initialization"
+            ) from e
 
     def get_user_provider(self, user_id: UUID4) -> LLMProviderOutput | None:
         """Get user's preferred provider or assign the default provider if missing."""
@@ -143,9 +147,15 @@ class UserProviderService:
                 user_id=user_id,
                 template_type=PromptTemplateType.QUESTION_GENERATION,
                 system_prompt=(
-                    "You are an AI assistant that generates relevant questions based on " "the given context. Generate clear, focused questions that can be " "answered using the information provided."
+                    "You are an AI assistant that generates relevant questions based on "
+                    "the given context. Generate clear, focused questions that can be "
+                    "answered using the information provided."
                 ),
-                template_format=("{context}\n\n" "Generate {num_questions} specific questions that can be answered " "using only the information provided above."),
+                template_format=(
+                    "{context}\n\n"
+                    "Generate {num_questions} specific questions that can be answered "
+                    "using only the information provided above."
+                ),
                 input_variables={
                     "context": "Retrieved passages from knowledge base",
                     "num_questions": "Number of questions to generate",
