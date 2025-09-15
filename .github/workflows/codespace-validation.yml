@@ -19,6 +19,9 @@ jobs:
         # GitHub CLI is already installed in GitHub Actions runners
         gh --version
 
+        # Authenticate GitHub CLI using the GITHUB_TOKEN
+        echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
+
     - name: Create Codespace
       id: create-codespace
       run: |
