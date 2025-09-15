@@ -1,0 +1,57 @@
+name: Makefile Testing
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'Makefile'
+      - 'tests/**'
+      - 'backend/**'
+  workflow_dispatch:
+
+jobs:
+  makefile-tests:
+    runs-on: ubuntu-latest
+    name: Test Makefile Targets
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+
+    - name: Install pytest
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Test Makefile targets directly
+      run: |
+        echo "Running direct Makefile tests..."
+        python -m pytest tests/test_makefile_targets_direct.py -v
+
+    - name: Test make help
+      run: |
+        echo "Testing make help command..."
+        make help
+
+    - name: Test make info
+      run: |
+        echo "Testing make info command..."
+        make info
+
+    - name: Test make check-docker
+      run: |
+        echo "Testing Docker requirements check..."
+        make check-docker
+
+    - name: Test Results
+      run: |
+        echo "✅ Makefile testing completed successfully!"
+        echo "All Makefile targets are working correctly."
