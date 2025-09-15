@@ -122,13 +122,14 @@ jobs:
       run: |
         echo "Creating volume directories..."
 
-        # Create directories that docker-compose expects for bind mounts
+        # Create ALL directories that docker-compose expects for bind mounts
         mkdir -p volumes/postgres
         mkdir -p volumes/milvus
         mkdir -p volumes/etcd
         mkdir -p volumes/minio
+        mkdir -p volumes/backend
 
-        echo "✅ Volume directories created"
+        echo "✅ All volume directories created"
 
     - name: Build Development Images
       run: |
@@ -155,7 +156,7 @@ jobs:
 
         # Start only the backend service without infrastructure dependencies
         # This tests that the development image can be built and run
-        docker compose -f docker-compose.dev.yml up -d backend --no-deps
+        docker compose -f docker-compose.dev.yml up -d --no-deps backend
 
         # Wait for container to be healthy or running
         sleep 10
