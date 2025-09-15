@@ -3,8 +3,6 @@
   "dockerComposeFile": "../docker-compose.dev.yml",
   "service": "backend",
   "workspaceFolder": "/workspace",
-  
-  // Configure tool-specific properties
   "customizations": {
     "vscode": {
       "extensions": [
@@ -68,8 +66,6 @@
       }
     }
   },
-
-  // Features to add to the dev container
   "features": {
     "ghcr.io/devcontainers/features/git:1": {},
     "ghcr.io/devcontainers/features/github-cli:1": {},
@@ -83,9 +79,6 @@
       "installTools": "make,curl,wget,git,unzip,ca-certificates"
     }
   },
-
-
-  // Use 'forwardPorts' to make a list of ports inside the container available locally
   "forwardPorts": [8000, 3000, 5001, 5432, 19530],
   "portsAttributes": {
     "8000": {
@@ -109,11 +102,7 @@
       "onAutoForward": "silent"
     }
   },
-
-  // Configure tool-specific properties
   "postStartCommand": "echo 'RAG Modulo development environment ready!'",
-
-  // Use root user to avoid permission issues with VS Code server
   "remoteUser": "root",
   "remoteEnv": {
     "PYTHONPATH": "/app:/app/rag_solution:/app/vectordbs",
@@ -121,11 +110,7 @@
     "TESTING": "true",
     "SKIP_AUTH": "true"
   },
-
-  // Configure container lifecycle
   "shutdownAction": "stopCompose",
-
-  // Codespaces-specific optimizations
   "onCreateCommand": "echo 'Codespace environment ready!'",
   "updateContentCommand": "echo 'Updating Codespace environment...'",
   "postCreateCommand": "mkdir -p /root/.vscode-server && chmod 755 /root/.vscode-server && apt-get update && apt-get install -y make curl && echo 'VS Code server directory created and make installed'"
