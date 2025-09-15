@@ -36,7 +36,9 @@ class OutputFormatter:
         """
         self.console = console or Console()
 
-    def format_table(self, data: list[dict[str, Any]], headers: list[str] | None = None, title: str | None = None) -> str:
+    def format_table(
+        self, data: list[dict[str, Any]], headers: list[str] | None = None, title: str | None = None
+    ) -> str:
         """Format data as a table.
 
         Args:
@@ -192,7 +194,9 @@ def format_json_output(data: Any, indent: int = 2) -> str:
     return formatter.format_json(data, indent=indent)
 
 
-def format_operation_result(message: str, success_count: int = 0, error_count: int = 0, details: dict[str, Any] | None = None) -> str:
+def format_operation_result(
+    message: str, success_count: int = 0, error_count: int = 0, details: dict[str, Any] | None = None
+) -> str:
     """Format operation result with status indicators.
 
     Args:
@@ -314,7 +318,9 @@ def confirm_action(message: str, default: bool = False) -> bool:
     return response.lower() in ("y", "yes", "true", "1")
 
 
-def select_from_list(items: list[str], prompt: str = "Select an option:", allow_multiple: bool = False) -> str | list[str] | None:
+def select_from_list(
+    items: list[str], prompt: str = "Select an option:", allow_multiple: bool = False
+) -> str | list[str] | None:
     """Allow user to select from a list of options.
 
     Args:

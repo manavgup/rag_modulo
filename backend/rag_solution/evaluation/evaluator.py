@@ -12,6 +12,9 @@ else:
     except ImportError:
         cosine_similarity = None
 
+from vectordbs.data_types import DocumentChunkWithScore, QueryResult
+from vectordbs.utils.watsonx import get_embeddings
+
 from rag_solution.evaluation.llm_as_judge_evals import (
     BASE_LLM_PARAMETERS,
     AnswerRelevanceEvaluator,
@@ -19,8 +22,6 @@ from rag_solution.evaluation.llm_as_judge_evals import (
     FaithfulnessEvaluator,
     init_llm,
 )
-from vectordbs.data_types import DocumentChunkWithScore, QueryResult
-from vectordbs.utils.watsonx import get_embeddings
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +47,9 @@ class RAGEvaluator:
             Dict[str, float]: A dictionary containing evaluation metrics.
         """
         if cosine_similarity is None:
-            raise ImportError("scikit-learn is not installed. Please install it to use " "cosine similarity evaluation.")
+            raise ImportError(
+                "scikit-learn is not installed. Please install it to use " "cosine similarity evaluation."
+            )
 
         relevance_score = self._calculate_relevance_score(query, retrieved_documents)
         coherence_score = self._calculate_coherence_score(query, response)
@@ -132,7 +135,9 @@ class RAGEvaluator:
             results = await asyncio.gather(
                 self.faithfulness_evaluator.a_evaluate_faithfulness(context=context, answer=answer, llm=llm),
                 self.answer_relevance_evaluator.a_evaluate_answer_relevance(question=question, answer=answer, llm=llm),
-                self.context_relevance_evaluator.a_evaluate_context_relevance(context=context, question=question, llm=llm),
+                self.context_relevance_evaluator.a_evaluate_context_relevance(
+                    context=context, question=question, llm=llm
+                ),
                 return_exceptions=True,
             )
             return {
@@ -155,6 +160,7 @@ if __name__ == "__main__":
         return getattr(node, "text", str(node))
 
     from core.config import get_settings
+
     from rag_solution.file_management.database import get_db
     from rag_solution.services.search_service import SearchService
     from rag_solution.services.user_collection_service import UserCollectionService
@@ -164,12 +170,20 @@ if __name__ == "__main__":
     # INITIAL COSINE METRICS
     print("--- Evaluating Cosine Metrics ---")
     query = "What is the theory of relativity?"
-    response = "The theory of relativity, proposed by Albert Einstein, " "describes how space and time are interconnected and how gravity " "affects the fabric of spacetime."
+    response = (
+        "The theory of relativity, proposed by Albert Einstein, "
+        "describes how space and time are interconnected and how gravity "
+        "affects the fabric of spacetime."
+    )
     retrieved_documents = [
         QueryResult(
             chunk=DocumentChunkWithScore(
                 chunk_id="1",
-                text=("Albert Einstein's theory of relativity " "revolutionized our understanding of space, time, " "and gravity."),
+                text=(
+                    "Albert Einstein's theory of relativity "
+                    "revolutionized our understanding of space, time, "
+                    "and gravity."
+                ),
                 metadata=None,
                 score=0.9,
             ),

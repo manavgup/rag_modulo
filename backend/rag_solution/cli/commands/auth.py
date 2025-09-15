@@ -76,7 +76,9 @@ class AuthCommands(BaseCommand):
                 # Save token to auth manager
                 self.api_client.set_auth_token(token, expires_at)
 
-                return self._create_success_result(data={"username": username, "authenticated": True}, message=f"Successfully logged in as {username}")
+                return self._create_success_result(
+                    data={"username": username, "authenticated": True}, message=f"Successfully logged in as {username}"
+                )
             else:
                 return self._create_error_result(message="Login failed - no token received", error_code="LOGIN_FAILED")
 
@@ -135,7 +137,9 @@ class AuthCommands(BaseCommand):
             jwt_token = input("Enter the JWT token from the callback page: ").strip()
 
             if not jwt_token:
-                return self._create_error_result(message="JWT token is required to complete authentication", error_code="MISSING_JWT_TOKEN")
+                return self._create_error_result(
+                    message="JWT token is required to complete authentication", error_code="MISSING_JWT_TOKEN"
+                )
 
             # Step 4: Validate the JWT token and get user info
             print("\nValidating JWT token...")
@@ -166,7 +170,9 @@ class AuthCommands(BaseCommand):
         except AuthenticationError as e:
             return self._create_error_result(message=f"Authentication failed: {e}", error_code="AUTH_FAILED")
         except Exception as e:
-            return self._create_error_result(message=f"Failed to complete OIDC authentication: {e}", error_code="OIDC_FAILED")
+            return self._create_error_result(
+                message=f"Failed to complete OIDC authentication: {e}", error_code="OIDC_FAILED"
+            )
 
     def set_token(self, token: str, expires_in: int = 86400) -> CommandResult:
         """Set authentication token directly.
@@ -235,10 +241,14 @@ class AuthCommands(BaseCommand):
                     response = self.api_client.get("/api/auth/me")
                     username = response.get("username", "Unknown")
 
-                    return self._create_success_result(data={"authenticated": True, "username": username}, message=f"Authenticated as {username}")
+                    return self._create_success_result(
+                        data={"authenticated": True, "username": username}, message=f"Authenticated as {username}"
+                    )
                 except Exception:
                     # Token might be expired or invalid
-                    return self._create_error_result(message="Authentication token is invalid or expired", error_code="TOKEN_INVALID")
+                    return self._create_error_result(
+                        message="Authentication token is invalid or expired", error_code="TOKEN_INVALID"
+                    )
             else:
                 return self._create_error_result(message="Not authenticated", error_code="NOT_AUTHENTICATED")
 

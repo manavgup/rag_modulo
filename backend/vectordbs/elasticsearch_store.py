@@ -7,9 +7,9 @@ enabling document storage, retrieval, and search operations using Elasticsearch.
 import logging
 from typing import Any
 
+from core.config import Settings, get_settings
 from elasticsearch import Elasticsearch, NotFoundError
 
-from core.config import Settings, get_settings
 from vectordbs.utils.watsonx import get_embeddings
 
 from .data_types import (
@@ -82,7 +82,10 @@ class ElasticSearchStore(VectorStore):
                 "mappings": {
                     "properties": {
                         "text": {"type": "text"},
-                        "embeddings": {"type": "dense_vector", "dims": 1536},  # Adjust dims based on your embedding model
+                        "embeddings": {
+                            "type": "dense_vector",
+                            "dims": 1536,
+                        },  # Adjust dims based on your embedding model
                         "metadata": {"type": "object"},
                         "document_id": {"type": "keyword"},
                         "chunk_id": {"type": "keyword"},
@@ -206,7 +209,9 @@ class ElasticSearchStore(VectorStore):
             logging.info("Deleted %d documents from collection '%s'", len(document_ids), collection_name)
         except Exception as e:
             logging.error("Failed to delete documents from Elasticsearch collection '%s': %s", collection_name, str(e))
-            raise DocumentError(f"Failed to delete documents from Elasticsearch collection '{collection_name}': {e}") from e
+            raise DocumentError(
+                f"Failed to delete documents from Elasticsearch collection '{collection_name}': {e}"
+            ) from e
 
     def _create_collection_if_not_exists(self, collection_name: str) -> None:
         """Create a collection if it doesn't exist."""

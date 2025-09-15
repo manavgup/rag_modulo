@@ -1,0 +1,103 @@
+name: PR Dev Container Info
+
+on:
+  pull_request:
+    types: [opened, reopened]
+
+jobs:
+  devcontainer-info:
+    runs-on: ubuntu-latest
+    name: Add Dev Container Instructions
+    permissions:
+      pull-requests: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Check Dev Container Configuration
+      id: check-devcontainer
+      run: |
+        if [ -f ".devcontainer/devcontainer.json" ]; then
+          echo "devcontainer-exists=true" >> $GITHUB_OUTPUT
+        else
+          echo "devcontainer-exists=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Comment on PR with Dev Container Instructions
+      if: steps.check-devcontainer.outputs.devcontainer-exists == 'true'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const prNumber = context.issue.number;
+          const branch = context.payload.pull_request.head.ref;
+
+          const comment = `## 🚀 Development Environment Options
+
+          This repository supports Dev Containers for a consistent development environment.
+
+          ### Option 1: GitHub Codespaces (Recommended)
+
+          Create a cloud-based development environment:
+
+          1. Click the green **Code** button above
+          2. Select the **Codespaces** tab
+          3. Click **Create codespace on ${branch}**
+          4. Wait 2-3 minutes for environment setup
+          5. Start coding with all tools pre-configured!
+
+          ### Option 2: VS Code Dev Containers (Local)
+
+          Use Dev Containers on your local machine:
+
+          1. Install [Docker Desktop](https://www.docker.com/products/docker-desktop)
+          2. Install [VS Code](https://code.visualstudio.com/)
+          3. Install the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+          4. Clone this PR branch locally
+          5. Open in VS Code and click "Reopen in Container" when prompted
+
+          ### Option 3: Traditional Local Setup
+
+          Set up the development environment manually:
+
+          \`\`\`bash
+          # Clone the repository
+          git clone https://github.com/${{ github.repository }}.git
+          cd rag_modulo
+          git checkout ${branch}
+
+          # Initialize development environment
+          make dev-init
+          make dev-build
+          make dev-up
+          make dev-validate
+          \`\`\`
+
+          ### Available Commands
+
+          Once in your development environment:
+
+          \`\`\`bash
+          make help           # Show all available commands
+          make dev-validate   # Validate environment setup
+          make test-atomic    # Run atomic tests
+          make test-unit      # Run unit tests
+          make lint          # Run linting
+          \`\`\`
+
+          ### Services Available
+
+          When running \`make dev-up\`:
+          - Backend API: http://localhost:8000
+          - Frontend: http://localhost:3000
+          - MLflow: http://localhost:5001
+
+          ---
+          *This automated message helps reviewers quickly set up the development environment.*`;
+
+          await github.rest.issues.createComment({
+            issue_number: prNumber,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });

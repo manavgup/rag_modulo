@@ -29,7 +29,9 @@ class CollectionCommands(BaseCommand):
         """
         super().__init__(api_client, config)
 
-    def list_collections(self, private_only: bool = False, shared_only: bool = False, team: str | None = None) -> CommandResult:
+    def list_collections(
+        self, private_only: bool = False, shared_only: bool = False, team: str | None = None
+    ) -> CommandResult:
         """List available collections.
 
         Args:
@@ -58,7 +60,9 @@ class CollectionCommands(BaseCommand):
         except (APIError, AuthenticationError, RAGCLIError) as e:
             return self._handle_api_error(e)
 
-    def create_collection(self, name: str, description: str | None = None, vector_db: str = "milvus", is_private: bool = False) -> CommandResult:
+    def create_collection(
+        self, name: str, description: str | None = None, vector_db: str = "milvus", is_private: bool = False
+    ) -> CommandResult:
         """Create a new collection.
 
         Args:
@@ -109,7 +113,9 @@ class CollectionCommands(BaseCommand):
         except (APIError, AuthenticationError, RAGCLIError) as e:
             return self._handle_api_error(e)
 
-    def update_collection(self, collection_id: str, name: str | None = None, description: str | None = None) -> CommandResult:
+    def update_collection(
+        self, collection_id: str, name: str | None = None, description: str | None = None
+    ) -> CommandResult:
         """Update collection details.
 
         Args:
@@ -150,6 +156,12 @@ class CollectionCommands(BaseCommand):
             CommandResult with deletion status
         """
         self._require_authentication()
+
+        # Check for dry-run mode
+        if self._is_dry_run():
+            return self._create_dry_run_result(
+                f"delete collection {collection_id}", {"collection_id": collection_id, "force": force}
+            )
 
         try:
             params = {}

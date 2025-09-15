@@ -276,7 +276,9 @@ class HealthCommands(BaseCommand):
 
             response = self.api_client.get("/api/health/performance", params=params)
 
-            return self._create_success_result(data=response, message=f"Performance statistics for {time_range} retrieved successfully")
+            return self._create_success_result(
+                data=response, message=f"Performance statistics for {time_range} retrieved successfully"
+            )
 
         except Exception as e:
             return self._handle_api_error(e)

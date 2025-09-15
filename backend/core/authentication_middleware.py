@@ -9,13 +9,13 @@ import os
 from typing import Any
 
 import jwt
+from auth.oidc import verify_jwt_token
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from auth.oidc import verify_jwt_token
 from core.config import get_settings
 from core.mock_user_init import ensure_mock_user_exists
 

@@ -14,7 +14,9 @@ def test_collection_input_validation() -> None:
     from rag_solution.schemas.collection_schema import CollectionStatus
 
     # Valid input
-    valid_input = CollectionInput(name="Test Collection", is_private=True, users=[uuid4(), uuid4()], status=CollectionStatus.CREATED)
+    valid_input = CollectionInput(
+        name="Test Collection", is_private=True, users=[uuid4(), uuid4()], status=CollectionStatus.CREATED
+    )
     assert valid_input.name == "Test Collection"
     assert valid_input.is_private is True
     assert len(valid_input.users) == 2
@@ -39,7 +41,9 @@ def test_collection_input_serialization() -> None:
     """Test collection input serialization."""
     from uuid import uuid4
 
-    input_data = CollectionInput(name="Test Collection", is_private=True, users=[uuid4(), uuid4()], status=CollectionStatus.CREATED)
+    input_data = CollectionInput(
+        name="Test Collection", is_private=True, users=[uuid4(), uuid4()], status=CollectionStatus.CREATED
+    )
 
     # Test serialization
     data = input_data.model_dump()

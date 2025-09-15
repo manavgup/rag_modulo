@@ -52,7 +52,9 @@ def ensure_mock_user_exists(db: Session, settings: Settings, user_key: str = "de
             return existing_user.id
 
         # Create new user with full initialization
-        user_input = UserInput(ibm_id=str(config["ibm_id"]), email=str(config["email"]), name=str(config["name"]), role=str(config["role"]))
+        user_input = UserInput(
+            ibm_id=str(config["ibm_id"]), email=str(config["email"]), name=str(config["name"]), role=str(config["role"])
+        )
 
         logger.info("Creating mock user: %s", config["email"])
         user = user_service.create_user(user_input)

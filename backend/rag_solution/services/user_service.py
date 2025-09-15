@@ -1,10 +1,10 @@
 from typing import Any
 
+from core.config import Settings
+from core.logging_utils import get_logger
 from pydantic import UUID4, EmailStr
 from sqlalchemy.orm import Session
 
-from core.config import Settings
-from core.logging_utils import get_logger
 from rag_solution.core.exceptions import NotFoundError, ValidationError
 from rag_solution.repository.user_repository import UserRepository
 from rag_solution.schemas.user_schema import UserInput, UserOutput
@@ -46,7 +46,9 @@ class UserService:
 
     def get_or_create_user_by_fields(self, ibm_id: str, email: EmailStr, name: str, role: str = "user") -> UserOutput:
         """Gets existing user or creates new one by fields."""
-        return self.get_or_create_user(UserInput(ibm_id=ibm_id, email=email, name=name, role=role, preferred_provider_id=None))
+        return self.get_or_create_user(
+            UserInput(ibm_id=ibm_id, email=email, name=name, role=role, preferred_provider_id=None)
+        )
 
     def get_or_create_user(self, user_input: UserInput) -> UserOutput:
         """Gets existing user or creates new one from input model."""

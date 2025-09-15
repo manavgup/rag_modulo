@@ -27,7 +27,15 @@ GHCR_REPO ?= ghcr.io/manavgup/rag_modulo
 
 # Tools
 CONTAINER_CLI := docker
+
+# Check for Docker Compose V2 (docker compose)
+DOCKER_COMPOSE_V2 := $(shell docker compose version >/dev/null 2>&1 && echo "yes" || echo "no")
+ifeq ($(DOCKER_COMPOSE_V2),yes)
 DOCKER_COMPOSE := docker compose
+else
+# Provide helpful error message instead of failing immediately
+DOCKER_COMPOSE := echo "ERROR: Docker Compose V2 not found. Please install Docker Desktop or docker-compose-plugin" && false
+endif
 
 # Check Docker version and available build methods
 DOCKER_VERSION := $(shell docker version --format '{{.Client.Version}}' 2>/dev/null)
@@ -47,7 +55,7 @@ VECTOR_DB ?= milvus
 
 .DEFAULT_GOAL := help
 
-.PHONY: init-env sync-frontend-deps build-frontend build-backend build-tests build-all build-frontend-local build-backend-local build-tests-local build-all-local test tests api-tests unit-tests integration-tests performance-tests service-tests pipeline-tests all-tests run-app run-backend run-frontend run-services stop-containers restart-backend restart-frontend restart-app restart-backend-safe clean create-volumes logs info help pull-ghcr-images venv clean-venv format-imports check-imports quick-check security-check coverage coverage-report quality fix-all check-deps check-deps-tree export-requirements docs-generate docs-serve search-test search-batch search-components uv-install uv-sync uv-export validate-env health-check build-optimize build-performance
+.PHONY: init-env sync-frontend-deps build-frontend build-backend build-tests build-all build-frontend-local build-backend-local build-tests-local build-all-local test tests api-tests unit-tests integration-tests performance-tests service-tests pipeline-tests all-tests run-app run-backend run-frontend run-services stop-containers restart-backend restart-frontend restart-app restart-backend-safe clean create-volumes logs info help pull-ghcr-images venv clean-venv format-imports check-imports quick-check security-check coverage coverage-report quality fix-all check-deps check-deps-tree export-requirements docs-generate docs-serve search-test search-batch search-components uv-install uv-sync uv-export validate-env health-check build-optimize build-performance dev-init dev-build dev-up dev-restart dev-down dev-logs dev-status dev-validate dev-watch dev-debug dev-test dev-profile dev-setup dev-reset clean-all test-watch
 
 # Init
 init-env:
@@ -55,6 +63,267 @@ init-env:
 	@echo "PROJECT_NAME=${PROJECT_NAME}" >> .env
 	@echo "PYTHON_VERSION=${PYTHON_VERSION}" >> .env
 	@echo "VECTOR_DB=${VECTOR_DB}" >> .env
+
+# Development Workflow Targets (Issue #210)
+dev-init:
+	@echo "$(CYAN)🚀 Initializing development environment...$(NC)"
+	@if [ ! -f .env ]; then \
+		echo "Creating .env from env.example..."; \
+		cp env.example .env; \
+		echo "$(YELLOW)⚠️  Please edit .env with your actual credentials$(NC)"; \
+	fi
+	@if [ ! -f .env.dev ]; then \
+		echo "Creating .env.dev from env.dev.example..."; \
+		cp env.dev.example .env.dev; \
+		echo "$(YELLOW)⚠️  Please edit .env.dev with your development credentials$(NC)"; \
+	fi
+	@echo "$(GREEN)✅ Development environment initialized$(NC)"
+	@echo "$(CYAN)💡 Next steps:$(NC)"
+	@echo "  1. Edit .env.dev with your development credentials"
+	@echo "  2. Run 'make dev-build' to build local images"
+	@echo "  3. Run 'make dev-up' to start development environment"
+
+dev-build:
+	@echo "$(CYAN)🔨 Building development images...$(NC)"
+	@echo "Building backend image..."
+	@if [ "$(BUILDX_AVAILABLE)" = "yes" ]; then \
+		echo "Using Docker BuildKit with buildx..."; \
+		cd backend && $(CONTAINER_CLI) buildx build --load -t rag-modulo/backend:dev -t rag-modulo/backend:latest -f Dockerfile.backend .; \
+	else \
+		echo "Using standard Docker build..."; \
+		cd backend && $(CONTAINER_CLI) build -t rag-modulo/backend:dev -t rag-modulo/backend:latest -f Dockerfile.backend .; \
+	fi
+	@echo "Building frontend image..."
+	@if [ "$(BUILDX_AVAILABLE)" = "yes" ]; then \
+		echo "Using Docker BuildKit with buildx..."; \
+		cd webui && $(CONTAINER_CLI) buildx build --load -t rag-modulo/frontend:dev -t rag-modulo/frontend:latest -f Dockerfile.frontend .; \
+	else \
+		echo "Using standard Docker build..."; \
+		cd webui && $(CONTAINER_CLI) build -t rag-modulo/frontend:dev -t rag-modulo/frontend:latest -f Dockerfile.frontend .; \
+	fi
+	@echo "Building test image..."
+	@if [ "$(BUILDX_AVAILABLE)" = "yes" ]; then \
+		echo "Using Docker BuildKit with buildx..."; \
+		cd backend && $(CONTAINER_CLI) buildx build --load -t rag-modulo/backend:test-dev -f Dockerfile.test .; \
+	else \
+		echo "Using standard Docker build..."; \
+		cd backend && $(CONTAINER_CLI) build -t rag-modulo/backend:test-dev -f Dockerfile.test .; \
+	fi
+	@echo "$(GREEN)✅ Development images built successfully$(NC)"
+
+dev-up: create-volumes
+	@echo "$(CYAN)🚀 Starting development environment...$(NC)"
+	@echo "Using docker-compose.dev.yml with local builds"
+	@$(DOCKER_COMPOSE) -f docker-compose.dev.yml --env-file .env.dev up -d
+	@echo "$(GREEN)✅ Development environment started$(NC)"
+	@echo "$(CYAN)💡 Services available at:$(NC)"
+	@echo "  Backend: http://localhost:8000"
+	@echo "  Frontend: http://localhost:3000"
+	@echo "  MLflow: http://localhost:5001"
+	@echo ""
+	@echo "$(CYAN)🔍 To check status: make dev-status$(NC)"
+	@echo "$(CYAN)📋 To view logs: make dev-logs$(NC)"
+
+dev-restart: dev-build
+	@echo "$(CYAN)🔄 Restarting development environment with latest changes...$(NC)"
+	@$(DOCKER_COMPOSE) -f docker-compose.dev.yml --env-file .env.dev restart backend frontend
+	@echo "$(GREEN)✅ Development environment restarted$(NC)"
+	@echo "$(CYAN)💡 Your local changes are now running$(NC)"
+
+dev-down:
+	@echo "$(CYAN)🛑 Stopping development environment...$(NC)"
+	@$(DOCKER_COMPOSE) -f docker-compose.dev.yml down
+	@echo "$(GREEN)✅ Development environment stopped$(NC)"
+
+dev-logs:
+	@echo "$(CYAN)📋 Showing development environment logs...$(NC)"
+	@$(DOCKER_COMPOSE) -f docker-compose.dev.yml logs -f
+
+dev-status:
+	@echo "$(CYAN)📊 Development Environment Status$(NC)"
+	@echo ""
+	@echo "$(CYAN)🐳 Container Status:$(NC)"
+	@$(DOCKER_COMPOSE) -f docker-compose.dev.yml ps
+	@echo ""
+	@echo "$(CYAN)🔍 Image Information:$(NC)"
+	@echo "Backend images:"
+	@$(CONTAINER_CLI) images | grep "rag-modulo/backend" || echo "No backend images found"
+	@echo "Frontend images:"
+	@$(CONTAINER_CLI) images | grep "rag-modulo/frontend" || echo "No frontend images found"
+	@echo ""
+	@echo "$(CYAN)🌐 Service URLs:$(NC)"
+	@echo "  Backend: http://localhost:8000"
+	@echo "  Frontend: http://localhost:3000"
+	@echo "  MLflow: http://localhost:5001"
+	@echo ""
+	@echo "$(CYAN)🔧 Development Commands:$(NC)"
+	@echo "  make dev-restart  - Rebuild and restart with latest changes"
+	@echo "  make dev-logs     - View logs"
+	@echo "  make dev-down     - Stop development environment"
+
+dev-validate:
+	@echo "$(CYAN)✅ Validating development environment...$(NC)"
+	@echo "Checking if development images exist..."
+	@if $(CONTAINER_CLI) images | grep -q "rag-modulo.*backend.*dev\|localhost.*rag-modulo.*backend"; then \
+		echo "$(GREEN)✅ Backend development image found$(NC)"; \
+	else \
+		echo "$(RED)❌ Backend development image not found. Run 'make dev-build'$(NC)"; \
+	fi
+	@if $(CONTAINER_CLI) images | grep -q "rag-modulo.*frontend.*dev\|localhost.*rag-modulo.*frontend"; then \
+		echo "$(GREEN)✅ Frontend development image found$(NC)"; \
+	else \
+		echo "$(RED)❌ Frontend development image not found. Run 'make dev-build'$(NC)"; \
+	fi
+	@echo "Checking if containers are running..."
+	@if $(DOCKER_COMPOSE) -f docker-compose.dev.yml ps | grep -q "Up"; then \
+		echo "$(GREEN)✅ Development containers are running$(NC)"; \
+	else \
+		echo "$(YELLOW)⚠️  Development containers are not running. Run 'make dev-up'$(NC)"; \
+	fi
+	@echo "Testing backend health..."
+	@if curl -s http://localhost:8000/health >/dev/null 2>&1; then \
+		echo "$(GREEN)✅ Backend is healthy$(NC)"; \
+	else \
+		echo "$(YELLOW)⚠️  Backend health check failed$(NC)"; \
+	fi
+	@echo "Testing frontend health..."
+	@if curl -s http://localhost:3000 >/dev/null 2>&1; then \
+		echo "$(GREEN)✅ Frontend is healthy$(NC)"; \
+	else \
+		echo "$(YELLOW)⚠️  Frontend health check failed$(NC)"; \
+	fi
+	@echo "$(GREEN)✅ Development environment validation completed$(NC)"
+
+# Phase 2: Enhanced Development Experience
+dev-watch:
+	@echo "$(CYAN)👀 Starting file watcher for auto-rebuild...$(NC)"
+	@echo "Watching for changes in backend/ and webui/ directories"
+	@echo "Press Ctrl+C to stop watching"
+	@if command -v fswatch >/dev/null 2>&1; then \
+		echo "Using fswatch for file watching..."; \
+		fswatch -o backend/ webui/ | while read; do \
+			echo "$(YELLOW)📁 File change detected, rebuilding...$(NC)"; \
+			$(MAKE) dev-restart; \
+		done; \
+	elif command -v inotifywait >/dev/null 2>&1; then \
+		echo "Using inotifywait for file watching..."; \
+		while inotifywait -r -e modify,create,delete backend/ webui/; do \
+			echo "$(YELLOW)📁 File change detected, rebuilding...$(NC)"; \
+			$(MAKE) dev-restart; \
+		done; \
+	else \
+		echo "$(RED)❌ No file watcher available. Install fswatch (macOS) or inotify-tools (Linux)$(NC)"; \
+		echo "macOS: brew install fswatch"; \
+		echo "Linux: sudo apt-get install inotify-tools"; \
+		exit 1; \
+	fi
+
+# Phase 3: Advanced Features
+dev-debug:
+	@echo "$(CYAN)🐛 Starting development environment in debug mode...$(NC)"
+	@echo "Enabling additional logging and debug features"
+	@$(DOCKER_COMPOSE) -f docker-compose.dev.yml --env-file .env.dev up -d
+	@echo "Setting debug environment variables..."
+	@$(DOCKER_COMPOSE) -f docker-compose.dev.yml exec backend sh -c "export DEBUG=true && export LOG_LEVEL=DEBUG && export PYTHONPATH=/app"
+	@echo "$(GREEN)✅ Debug mode enabled$(NC)"
+	@echo "$(CYAN)💡 Debug logs available with: make dev-logs$(NC)"
+	@echo "$(CYAN)💡 Backend debug shell: $(DOCKER_COMPOSE) -f docker-compose.dev.yml exec backend bash$(NC)"
+
+dev-test:
+	@echo "$(CYAN)🧪 Starting development environment in test mode...$(NC)"
+	@echo "Using isolated test data and test-specific configurations"
+	@if [ ! -f .env.test ]; then \
+		echo "Creating .env.test from env.dev.example..."; \
+		cp env.dev.example .env.test; \
+		echo "TESTING=true" >> .env.test; \
+		echo "SKIP_AUTH=true" >> .env.test; \
+		echo "DEVELOPMENT_MODE=true" >> .env.test; \
+		echo "TEST_DATA_MODE=true" >> .env.test; \
+		echo "$(YELLOW)⚠️  Please edit .env.test with your test credentials$(NC)"; \
+	fi
+	@$(DOCKER_COMPOSE) -f docker-compose.dev.yml --env-file .env.test up -d
+	@echo "$(GREEN)✅ Test mode enabled with isolated test data$(NC)"
+	@echo "$(CYAN)💡 Test environment uses separate .env.test file$(NC)"
+
+dev-profile:
+	@echo "$(CYAN)📊 Starting development environment in profiling mode...$(NC)"
+	@echo "Enabling performance profiling and metrics collection"
+	@$(DOCKER_COMPOSE) -f docker-compose.dev.yml --env-file .env.dev up -d
+	@echo "Setting profiling environment variables..."
+	@$(DOCKER_COMPOSE) -f docker-compose.dev.yml exec backend sh -c "export PROFILING=true && export METRICS_ENABLED=true && export PERFORMANCE_MONITORING=true"
+	@echo "$(GREEN)✅ Profiling mode enabled$(NC)"
+	@echo "$(CYAN)💡 Performance metrics available at: http://localhost:8000/metrics$(NC)"
+	@echo "$(CYAN)💡 Profiling data will be collected in ./logs/profiling/$(NC)"
+
+# Enhanced Developer Experience (Issue #170)
+dev-setup:
+	@echo "$(CYAN)🚀 Setting up development environment for new feature...$(NC)"
+	@echo "This will prepare a clean development environment for feature work"
+	@make dev-init
+	@make dev-build
+	@make dev-up
+	@make dev-validate
+	@echo "$(GREEN)✅ Development environment ready for feature work$(NC)"
+	@echo "$(CYAN)💡 Next steps:$(NC)"
+	@echo "  1. Create your feature branch: git checkout -b feature/your-feature-name"
+	@echo "  2. Start coding!"
+	@echo "  3. Use 'make dev-restart' to see changes immediately"
+	@echo "  4. Use 'make dev-watch' for automatic rebuilds on file changes"
+
+dev-reset:
+	@echo "$(CYAN)🔄 Resetting development environment to clean state...$(NC)"
+	@echo "This will stop containers, clean volumes, and restart fresh"
+	@make dev-down
+	@echo "Cleaning Docker volumes..."
+	@docker volume prune --force
+	@echo "Cleaning build cache..."
+	@docker builder prune --force
+	@echo "Restarting development environment..."
+	@make dev-build
+	@make dev-up
+	@make dev-validate
+	@echo "$(GREEN)✅ Development environment reset complete$(NC)"
+
+clean-all:
+	@echo "$(CYAN)🧹 Complete cleanup of development environment...$(NC)"
+	@echo "This will remove ALL containers, volumes, images, and build cache"
+	@echo "$(YELLOW)⚠️  This is destructive and will remove all data$(NC)"
+	@read -p "Are you sure? (y/N): " confirm && [ "$$confirm" = "y" ] || exit 1
+	@make dev-down
+	@echo "Removing all containers..."
+	@docker container prune --force
+	@echo "Removing all volumes..."
+	@docker volume prune --force
+	@echo "Removing all images..."
+	@docker image prune -a --force
+	@echo "Removing build cache..."
+	@docker builder prune -a --force
+	@echo "Cleaning local files..."
+	@rm -rf logs/ volumes/ .env.dev .env.test
+	@echo "$(GREEN)✅ Complete cleanup finished$(NC)"
+
+test-watch:
+	@echo "$(CYAN)🧪 Starting test watcher...$(NC)"
+	@echo "Watching for test file changes and running tests automatically"
+	@echo "Press Ctrl+C to stop watching"
+	@if command -v fswatch >/dev/null 2>&1; then \
+		echo "Using fswatch for test watching..."; \
+		fswatch -o backend/tests/ | while read; do \
+			echo "$(YELLOW)🧪 Test file changed, running tests...$(NC)"; \
+			$(MAKE) test-atomic; \
+		done; \
+	elif command -v inotifywait >/dev/null 2>&1; then \
+		echo "Using inotifywait for test watching..."; \
+		while inotifywait -r -e modify,create,delete backend/tests/; do \
+			echo "$(YELLOW)🧪 Test file changed, running tests...$(NC)"; \
+			$(MAKE) test-atomic; \
+		done; \
+	else \
+		echo "$(RED)❌ No file watcher available. Install fswatch (macOS) or inotify-tools (Linux)$(NC)"; \
+		echo "macOS: brew install fswatch"; \
+		echo "Linux: sudo apt-get install inotify-tools"; \
+		exit 1; \
+	fi
 
 # Virtual environment management
 venv: $(VENVS_DIR)/bin/activate
@@ -489,7 +758,7 @@ restart-backend:
 	@echo "Restarting backend service..."
 	$(DOCKER_COMPOSE) restart backend
 	@echo "Waiting for backend to be healthy..."
-	@docker-compose exec -T backend python healthcheck.py 2>/dev/null || (echo "Waiting for backend to be ready..." && sleep 10)
+	@$(DOCKER_COMPOSE) exec -T backend python healthcheck.py 2>/dev/null || (echo "Waiting for backend to be ready..." && sleep 10)
 	@echo "Backend restarted successfully!"
 
 restart-frontend:
@@ -507,18 +776,19 @@ restart-backend-safe:
 	@echo "Restarting backend service with frontend reload..."
 	$(DOCKER_COMPOSE) restart backend
 	@echo "Waiting for backend to be healthy..."
-	@docker-compose exec -T backend python healthcheck.py 2>/dev/null || (echo "Waiting for backend to be ready..." && sleep 10)
+	@$(DOCKER_COMPOSE) exec -T backend python healthcheck.py 2>/dev/null || (echo "Waiting for backend to be ready..." && sleep 10)
 	@echo "Reloading frontend nginx configuration..."
-	@docker-compose exec -T frontend nginx -s reload 2>/dev/null || echo "Frontend reload not needed"
+	@$(DOCKER_COMPOSE) exec -T frontend nginx -s reload 2>/dev/null || echo "Frontend reload not needed"
 	@echo "Backend restarted and frontend reconnected successfully!"
 
 clean: stop-containers
 	@echo "Cleaning up existing containers and volumes..."
-	-@$(CONTAINER_CLI) pod rm -f $$($(CONTAINER_CLI) pod ls -q) || true
-	-@$(CONTAINER_CLI) rm -f $$($(CONTAINER_CLI) ps -aq) || true
-	-@$(CONTAINER_CLI) volume prune -f || true
-	-@$(CONTAINER_CLI) container prune -f || true
-	rm -rf .pytest_cache .mypy_cache data volumes my_chroma_data tests
+	-@$(CONTAINER_CLI) ps -aq | xargs $(CONTAINER_CLI) rm --force || true
+	-@$(CONTAINER_CLI) volume prune --force || true
+	-@$(CONTAINER_CLI) container prune --force || true
+	-@$(CONTAINER_CLI) image prune --force || true
+	-@$(CONTAINER_CLI) network prune --force || true
+	rm -rf .pytest_cache .mypy_cache data volumes my_chroma_data
 
 # Service / reusable targets
 create-volumes:
@@ -874,13 +1144,70 @@ env-help:
 	@echo "  - Missing .env? Run 'make setup-env'"
 	@echo "  - Wrong values? Compare with .env.example"
 
+# Check Docker requirements
+check-docker:
+	@echo "$(CYAN)🔍 Checking Docker requirements...$(NC)"
+	@if ! command -v docker >/dev/null 2>&1; then \
+		echo "$(RED)❌ Docker is not installed$(NC)"; \
+		echo "Please install Docker Desktop from https://www.docker.com/products/docker-desktop"; \
+		exit 1; \
+	else \
+		echo "$(GREEN)✅ Docker is installed$(NC)"; \
+	fi
+	@if [ "$(DOCKER_COMPOSE_V2)" != "yes" ]; then \
+		echo "$(RED)❌ Docker Compose V2 is not available$(NC)"; \
+		echo "$(YELLOW)To install on Ubuntu/Debian:$(NC)"; \
+		echo "  sudo apt-get update"; \
+		echo "  sudo apt-get install docker-compose-plugin"; \
+		echo "$(YELLOW)To install on macOS:$(NC)"; \
+		echo "  Install or update Docker Desktop"; \
+		echo "$(YELLOW)To install on other systems:$(NC)"; \
+		echo "  https://docs.docker.com/compose/install/"; \
+		exit 1; \
+	else \
+		echo "$(GREEN)✅ Docker Compose V2 is available$(NC)"; \
+		docker compose version; \
+	fi
+	@if [ "$(BUILDX_AVAILABLE)" != "yes" ]; then \
+		echo "$(YELLOW)⚠️  Docker Buildx is not available (optional but recommended)$(NC)"; \
+		echo "  Install with: make install-buildx"; \
+	else \
+		echo "$(GREEN)✅ Docker Buildx is available$(NC)"; \
+	fi
+	@echo "$(GREEN)✅ All required Docker components are ready$(NC)"
+
 help:
 	@echo "Usage: make [target]"
 	@echo ""
 	@echo "$(CYAN)🚀 Quick Commands:$(NC)"
+	@echo "  check-docker  \t\tCheck Docker and Docker Compose V2 requirements"
 	@echo "  ci-local      \t\tRun full local CI (format-check + lint + tests)"
 	@echo "  ci-fix        \t\tAuto-fix formatting and linting issues"
 	@echo "  pre-commit-run\t\tRun all pre-commit hooks"
+	@echo ""
+	@echo "$(CYAN)🛠️ Development Workflow (Issue #210):$(NC)"
+	@echo "  dev-init      \t\tInitialize development environment (.env.dev)"
+	@echo "  dev-build     \t\tBuild local development images"
+	@echo "  dev-up        \t\tStart development environment with local builds"
+	@echo "  dev-restart   \t\tRebuild and restart with latest changes"
+	@echo "  dev-down      \t\tStop development environment"
+	@echo "  dev-logs      \t\tView development environment logs"
+	@echo "  dev-status    \t\tShow development environment status"
+	@echo "  dev-validate   \t\tValidate development environment health"
+	@echo ""
+	@echo "$(CYAN)👀 Phase 2: Enhanced Development Experience:$(NC)"
+	@echo "  dev-watch     \t\tAuto-rebuild on file changes (file watcher)"
+	@echo ""
+	@echo "$(CYAN)🚀 Phase 3: Advanced Features:$(NC)"
+	@echo "  dev-debug     \t\tStart in debug mode with additional logging"
+	@echo "  dev-test      \t\tStart in test mode with isolated test data"
+	@echo "  dev-profile   \t\tStart in profiling mode with performance metrics"
+	@echo ""
+	@echo "$(CYAN)🎯 Enhanced Developer Experience (Issue #170):$(NC)"
+	@echo "  dev-setup     \t\tComplete setup for new feature development"
+	@echo "  dev-reset     \t\tReset development environment to clean state"
+	@echo "  clean-all     \t\tComplete cleanup (destructive - removes all data)"
+	@echo "  test-watch    \t\tRun tests automatically on test file changes"
 	@echo ""
 	@echo "$(CYAN)🔍 Linting Targets:$(NC)"
 	@echo "  lint          \t\tRun all linters (ruff + mypy)"

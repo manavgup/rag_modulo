@@ -120,7 +120,9 @@ def token_based_chunking(text: str, max_tokens: int = 100, overlap: int = 20) ->
         if current_token_count + len(tokens) > max_tokens and current_chunk:
             chunks.append(" ".join(current_chunk))
             # Keep the last 'overlap' tokens for the next chunk
-            overlap_tokens: list[str] = functools.reduce(operator.iadd, [get_tokenization([sent])[0] for sent in current_chunk[-2:]], [])[-overlap:]
+            overlap_tokens: list[str] = functools.reduce(
+                operator.iadd, [get_tokenization([sent])[0] for sent in current_chunk[-2:]], []
+            )[-overlap:]
             current_chunk = [sentences[sentences.index(current_chunk[-1])]]
             current_token_count = len(overlap_tokens)
 

@@ -9,6 +9,7 @@ import logging
 import time
 from typing import Any
 
+from core.config import Settings, get_settings
 from pymilvus import (  # type: ignore[import-untyped]
     Collection,
     CollectionSchema,
@@ -19,7 +20,6 @@ from pymilvus import (  # type: ignore[import-untyped]
     utility,
 )
 
-from core.config import Settings, get_settings
 from vectordbs.utils.watsonx import get_embeddings
 
 from .data_types import (
@@ -136,7 +136,9 @@ class MilvusStore(VectorStore):
     def _create_collection(self, collection_name: str) -> None:
         """Internal method to create collection."""
         try:
-            schema = CollectionSchema(fields=_create_schema(self.settings), description=f"Collection for {collection_name}")
+            schema = CollectionSchema(
+                fields=_create_schema(self.settings), description=f"Collection for {collection_name}"
+            )
             collection = Collection(name=collection_name, schema=schema)
 
             # Create index
@@ -261,7 +263,15 @@ class MilvusStore(VectorStore):
                 anns_field=self.settings.embedding_field,
                 param=self.search_params,
                 limit=number_of_results,
-                output_fields=["document_id", "text", "chunk_id", "source", "page_number", "chunk_number", "document_name"],
+                output_fields=[
+                    "document_id",
+                    "text",
+                    "chunk_id",
+                    "source",
+                    "page_number",
+                    "chunk_number",
+                    "document_name",
+                ],
             )
 
             logging.info("Query response: %s", results)

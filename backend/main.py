@@ -4,10 +4,6 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI
-from sqlalchemy import inspect, text
-from starlette.middleware.sessions import SessionMiddleware
-
 # Middleware & Config
 from core.authentication_middleware import AuthenticationMiddleware
 from core.config import get_settings
@@ -15,6 +11,9 @@ from core.config import get_settings
 # Logging
 from core.logging_utils import get_logger, setup_logging
 from core.loggingcors_middleware import LoggingCORSMiddleware
+from fastapi import FastAPI
+from sqlalchemy import inspect, text
+from starlette.middleware.sessions import SessionMiddleware
 
 # Database
 from rag_solution.file_management.database import Base, engine, get_db

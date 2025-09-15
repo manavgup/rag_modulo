@@ -5,8 +5,9 @@ from collections.abc import AsyncIterator
 from datetime import datetime
 
 from core.config import Settings
-from rag_solution.data_ingestion.chunking import get_chunking_method
 from vectordbs.data_types import Document, DocumentMetadata
+
+from rag_solution.data_ingestion.chunking import get_chunking_method
 
 logging.basicConfig(level=logging.INFO)
 

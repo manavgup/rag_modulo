@@ -1,5 +1,8 @@
 from typing import Annotated
 
+from core.config import Settings, get_settings
+from core.custom_exceptions import NotFoundError, ValidationError
+from core.logging_utils import get_logger
 from fastapi import (
     APIRouter,
     BackgroundTasks,
@@ -15,9 +18,6 @@ from fastapi import (
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
-from core.config import Settings, get_settings
-from core.custom_exceptions import NotFoundError, ValidationError
-from core.logging_utils import get_logger
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput
 from rag_solution.schemas.file_schema import DocumentDelete, FileMetadata, FileOutput
@@ -263,7 +263,9 @@ async def create_collection_with_documents(
 
     try:
         collection_service = CollectionService(db, settings)
-        collection = collection_service.create_collection_with_documents(collection_name, is_private, user_id, files, background_tasks)
+        collection = collection_service.create_collection_with_documents(
+            collection_name, is_private, user_id, files, background_tasks
+        )
         logger.info(f"Collection created successfully: {collection.id}")
         return collection
     except ValidationError as e:
@@ -288,7 +290,9 @@ async def create_collection_with_documents(
         500: {"description": "Internal server error"},
     },
 )
-def get_collection(collection_id: UUID4, db: Annotated[Session, Depends(get_db)], settings: Annotated[Settings, Depends(get_settings)]) -> CollectionOutput:
+def get_collection(
+    collection_id: UUID4, db: Annotated[Session, Depends(get_db)], settings: Annotated[Settings, Depends(get_settings)]
+) -> CollectionOutput:
     """
     Retrieve a collection by id.
 
@@ -373,7 +377,9 @@ def create_collection_question(
         500: {"description": "Internal server error"},
     },
 )
-def get_collection_questions(collection_id: UUID4, db: Annotated[Session, Depends(get_db)], settings: Annotated[Settings, Depends(get_settings)]) -> list[QuestionOutput]:
+def get_collection_questions(
+    collection_id: UUID4, db: Annotated[Session, Depends(get_db)], settings: Annotated[Settings, Depends(get_settings)]
+) -> list[QuestionOutput]:
     """
     Get all questions for a collection.
 
@@ -449,7 +455,9 @@ def delete_collection_question(
         500: {"description": "Internal server error"},
     },
 )
-def delete_collection_questions(collection_id: UUID4, db: Annotated[Session, Depends(get_db)], settings: Annotated[Settings, Depends(get_settings)]) -> Response:
+def delete_collection_questions(
+    collection_id: UUID4, db: Annotated[Session, Depends(get_db)], settings: Annotated[Settings, Depends(get_settings)]
+) -> Response:
     """
     Delete all questions for a collection.
 
@@ -482,7 +490,9 @@ def delete_collection_questions(collection_id: UUID4, db: Annotated[Session, Dep
         500: {"description": "Internal server error"},
     },
 )
-def delete_collection(collection_id: UUID4, db: Annotated[Session, Depends(get_db)], settings: Annotated[Settings, Depends(get_settings)]) -> Response:
+def delete_collection(
+    collection_id: UUID4, db: Annotated[Session, Depends(get_db)], settings: Annotated[Settings, Depends(get_settings)]
+) -> Response:
     """
     Delete a collection by id.
 
@@ -588,7 +598,9 @@ def remove_all_users_from_collection(collection_id: UUID4, db: Annotated[Session
         500: {"description": "Internal server error"},
     },
 )
-def get_collection_files(collection_id: UUID4, db: Annotated[Session, Depends(get_db)], settings: Annotated[Settings, Depends(get_settings)]) -> list[str]:
+def get_collection_files(
+    collection_id: UUID4, db: Annotated[Session, Depends(get_db)], settings: Annotated[Settings, Depends(get_settings)]
+) -> list[str]:
     """
     Get a list of files in a specific collection.
 

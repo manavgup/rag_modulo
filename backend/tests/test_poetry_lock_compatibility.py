@@ -122,7 +122,9 @@ class TestPoetryLockCompatibility:
                     flags = [p for p in parts[1:] if p.startswith("--")]
 
                     # Check if subcommand exists
-                    result = subprocess.run(["poetry", subcommand, "--help"], capture_output=True, text=True, cwd=backend_dir)
+                    result = subprocess.run(
+                        ["poetry", subcommand, "--help"], capture_output=True, text=True, cwd=backend_dir
+                    )
 
                     if result.returncode != 0:
                         print(f"⚠️  Subcommand '{subcommand}' not available")

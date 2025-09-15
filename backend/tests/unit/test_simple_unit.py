@@ -134,7 +134,9 @@ def test_pure_collection_validation() -> None:
     from rag_solution.schemas.collection_schema import CollectionInput, CollectionStatus
 
     # Test valid collection input
-    collection_input = CollectionInput(name="Test Collection", is_private=True, users=[uuid4(), uuid4(), uuid4()], status=CollectionStatus.CREATED)
+    collection_input = CollectionInput(
+        name="Test Collection", is_private=True, users=[uuid4(), uuid4(), uuid4()], status=CollectionStatus.CREATED
+    )
     assert collection_input.name == "Test Collection"
     assert collection_input.is_private is True
     assert len(collection_input.users) == 3
@@ -160,7 +162,9 @@ def test_pure_search_validation() -> None:
     from rag_solution.schemas.search_schema import SearchInput
 
     # Test valid search input
-    search_input = SearchInput(question="What is machine learning?", collection_id=uuid4(), user_id=uuid4(), pipeline_id=uuid4())
+    search_input = SearchInput(
+        question="What is machine learning?", collection_id=uuid4(), user_id=uuid4(), pipeline_id=uuid4()
+    )
     assert search_input.question == "What is machine learning?"
     assert search_input.collection_id is not None
     assert search_input.user_id is not None

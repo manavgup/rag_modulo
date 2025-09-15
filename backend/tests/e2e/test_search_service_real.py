@@ -8,10 +8,10 @@ is correct. This is what TDD should actually do.
 from uuid import uuid4
 
 import pytest
+from core.config import Settings
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from core.config import Settings
 from rag_solution.schemas.search_schema import SearchInput, SearchOutput
 from rag_solution.services.search_service import SearchService
 
@@ -25,7 +25,8 @@ class TestSearchServiceReal:
         """Create a real SearchService with real database connection."""
         # Use real database connection for E2E tests
         engine = create_engine(
-            f"postgresql://{e2e_settings.collectiondb_user}:{e2e_settings.collectiondb_pass}@" f"{e2e_settings.collectiondb_host}:{e2e_settings.collectiondb_port}/{e2e_settings.collectiondb_name}"
+            f"postgresql://{e2e_settings.collectiondb_user}:{e2e_settings.collectiondb_pass}@"
+            f"{e2e_settings.collectiondb_host}:{e2e_settings.collectiondb_port}/{e2e_settings.collectiondb_name}"
         )
         session = Session(engine)
         return SearchService(session, e2e_settings)

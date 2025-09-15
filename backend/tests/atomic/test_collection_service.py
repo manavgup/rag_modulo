@@ -15,7 +15,9 @@ class TestCollectionDataValidation:
     def test_collection_input_validation(self):
         """Test CollectionInput schema validation."""
         # Valid collection input
-        valid_input = CollectionInput(name="Test Collection", is_private=False, users=[uuid4()], status=CollectionStatus.CREATED)
+        valid_input = CollectionInput(
+            name="Test Collection", is_private=False, users=[uuid4()], status=CollectionStatus.CREATED
+        )
 
         assert valid_input.name == "Test Collection"
         assert not valid_input.is_private
@@ -42,25 +44,33 @@ class TestCollectionDataValidation:
     def test_collection_privacy_validation(self):
         """Test collection privacy validation."""
         # Test private collection
-        private_collection = CollectionInput(name="Private Collection", is_private=True, users=[], status=CollectionStatus.CREATED)
+        private_collection = CollectionInput(
+            name="Private Collection", is_private=True, users=[], status=CollectionStatus.CREATED
+        )
         assert private_collection.is_private is True
 
         # Test public collection
-        public_collection = CollectionInput(name="Public Collection", is_private=False, users=[], status=CollectionStatus.CREATED)
+        public_collection = CollectionInput(
+            name="Public Collection", is_private=False, users=[], status=CollectionStatus.CREATED
+        )
         assert not public_collection.is_private
 
     def test_collection_users_validation(self):
         """Test collection users validation."""
         # Test with multiple users
         user_ids = [uuid4(), uuid4(), uuid4()]
-        collection = CollectionInput(name="Multi-user Collection", is_private=False, users=user_ids, status=CollectionStatus.CREATED)
+        collection = CollectionInput(
+            name="Multi-user Collection", is_private=False, users=user_ids, status=CollectionStatus.CREATED
+        )
         assert len(collection.users) == 3
         from uuid import UUID
 
         assert all(isinstance(user_id, UUID) for user_id in collection.users)
 
         # Test with no users
-        empty_collection = CollectionInput(name="Empty Collection", is_private=True, users=[], status=CollectionStatus.CREATED)
+        empty_collection = CollectionInput(
+            name="Empty Collection", is_private=True, users=[], status=CollectionStatus.CREATED
+        )
         assert len(empty_collection.users) == 0
         assert isinstance(empty_collection.users, list)
 
@@ -108,7 +118,9 @@ class TestCollectionDataValidation:
 
     def test_collection_serialization(self):
         """Test collection data serialization."""
-        collection = CollectionInput(name="Serialization Test", is_private=False, users=[uuid4()], status=CollectionStatus.CREATED)
+        collection = CollectionInput(
+            name="Serialization Test", is_private=False, users=[uuid4()], status=CollectionStatus.CREATED
+        )
 
         # Test model_dump
         data = collection.model_dump()
@@ -134,7 +146,9 @@ class TestCollectionDataValidation:
 
         # Test invalid users (not UUIDs) - Pydantic should handle this
         try:
-            CollectionInput(name="Test Collection", is_private=True, users=["invalid-uuid"], status=CollectionStatus.CREATED)
+            CollectionInput(
+                name="Test Collection", is_private=True, users=["invalid-uuid"], status=CollectionStatus.CREATED
+            )
             # If no exception is raised, that"s also valid behavior
             assert True
         except Exception:
@@ -143,7 +157,9 @@ class TestCollectionDataValidation:
 
     def test_collection_string_representation(self):
         """Test collection string representation."""
-        collection = CollectionInput(name="String Test Collection", is_private=True, users=[], status=CollectionStatus.CREATED)
+        collection = CollectionInput(
+            name="String Test Collection", is_private=True, users=[], status=CollectionStatus.CREATED
+        )
 
         # Test string representation
         str_repr = str(collection)

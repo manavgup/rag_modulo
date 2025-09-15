@@ -44,6 +44,7 @@ class RAGConfig(BaseModel):
     output_format: str = Field(default="table", pattern=r"^(table|json|yaml)$", description="Default output format")
     verbose: bool = Field(default=False, description="Enable verbose output")
     max_retries: int = Field(default=3, ge=0, le=10, description="Maximum number of API request retries")
+    dry_run: bool = Field(default=False, description="Enable dry-run mode for destructive operations")
 
     model_config = {"str_strip_whitespace": True, "validate_assignment": True, "extra": "forbid"}
 
@@ -180,6 +181,7 @@ class RAGConfig(BaseModel):
             f"{prefix}OUTPUT_FORMAT": "output_format",
             f"{prefix}VERBOSE": "verbose",
             f"{prefix}MAX_RETRIES": "max_retries",
+            f"{prefix}DRY_RUN": "dry_run",
         }
 
         for env_var, field_name in env_mapping.items():
@@ -191,7 +193,7 @@ class RAGConfig(BaseModel):
                         env_data[field_name] = int(value)
                     except ValueError as ve:
                         raise ValidationError(f"Invalid integer value for {env_var}: {value}") from ve
-                elif field_name == "verbose":
+                elif field_name in ("verbose", "dry_run"):
                     env_data[field_name] = value.lower() in ("true", "1", "yes", "on")
                 elif field_name == "api_url":
                     env_data[field_name] = HttpUrl(value)

@@ -4,11 +4,11 @@ import uuid
 from collections.abc import AsyncIterator
 
 import aiofiles
-
 from core.config import Settings
 from core.custom_exceptions import DocumentProcessingError
-from rag_solution.data_ingestion.base_processor import BaseProcessor
 from vectordbs.data_types import Document
+
+from rag_solution.data_ingestion.base_processor import BaseProcessor
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -45,8 +45,9 @@ class TxtProcessor(BaseProcessor):
                 chunks = self.chunking_method(text)
 
                 # Create one document with all chunks
-                from rag_solution.doc_utils import get_embeddings
                 from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, Source
+
+                from rag_solution.doc_utils import get_embeddings
 
                 # Create chunk metadata for source information
                 chunk_metadata = DocumentChunkMetadata(source=Source.OTHER, document_id=_document_id)
