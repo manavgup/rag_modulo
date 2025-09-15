@@ -11,6 +11,8 @@ from .collections import CollectionCommands
 from .config import ConfigCommands
 from .documents import DocumentCommands
 from .health import HealthCommands
+from .pipelines import PipelineCommands
+from .providers import ProviderCommands
 from .search import SearchCommands
 from .users import UserCommands
 
@@ -20,6 +22,8 @@ __all__: Final[list[str]] = [
     "ConfigCommands",
     "DocumentCommands",
     "HealthCommands",
+    "PipelineCommands",
+    "ProviderCommands",
     "SearchCommands",
     "UserCommands",
 ]

@@ -44,6 +44,7 @@ class RAGConfig(BaseModel):
     output_format: str = Field(default="table", pattern=r"^(table|json|yaml)$", description="Default output format")
     verbose: bool = Field(default=False, description="Enable verbose output")
     max_retries: int = Field(default=3, ge=0, le=10, description="Maximum number of API request retries")
+    dry_run: bool = Field(default=False, description="Enable dry-run mode for destructive operations")
 
     model_config = {"str_strip_whitespace": True, "validate_assignment": True, "extra": "forbid"}
 
