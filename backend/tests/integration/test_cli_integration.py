@@ -9,7 +9,6 @@ These tests focus on CLI-specific integration concerns:
 Business logic is covered by existing service/API tests.
 """
 
-import os
 import pytest
 import requests
 
@@ -27,7 +26,10 @@ class TestCLIAPIConnectivity:
     @pytest.fixture
     def api_url(self, monkeypatch):
         """Get API URL for testing."""
-        return os.getenv("API_URL", "http://localhost:8000")
+        # Set default API URL for testing - avoiding direct env access
+        api_url = "http://localhost:8000"
+        monkeypatch.setenv("API_URL", api_url)
+        return api_url
 
     @pytest.fixture
     def cli_config(self, api_url):
