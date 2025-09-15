@@ -2,8 +2,8 @@ from unittest.mock import patch
 
 import numpy as np
 import pytest
-
 from core.config import get_settings
+
 from rag_solution.data_ingestion.chunking import (
     calculate_cosine_distances,
     combine_sentences,
@@ -103,7 +103,11 @@ def test_simple_chunking() -> None:
 @pytest.mark.integration
 def test_semantic_chunking() -> None:
     """Test semantic-based text chunking."""
-    text = "This is the first topic. This is also about the first topic. " "This is a new topic. This is also about the new topic. " "This is a third topic. This is also about the third topic."
+    text = (
+        "This is the first topic. This is also about the first topic. "
+        "This is a new topic. This is also about the new topic. "
+        "This is a third topic. This is also about the third topic."
+    )
 
     # Mock embeddings for testing
     mock_embeddings = np.array(
@@ -134,7 +138,10 @@ def test_semantic_chunking() -> None:
 @pytest.mark.integration
 def test_token_based_chunking() -> None:
     """Test token-aware text chunking."""
-    text = "This is a test text. It has multiple sentences. " "We want to ensure proper tokenization. And respect max tokens."
+    text = (
+        "This is a test text. It has multiple sentences. "
+        "We want to ensure proper tokenization. And respect max tokens."
+    )
 
     # Mock tokenization
     mock_tokens = [[1, 2, 3, 4], [1, 2, 3], [1, 2, 3, 4, 5], [1, 2, 3]]

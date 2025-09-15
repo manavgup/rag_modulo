@@ -48,7 +48,9 @@ def fix_search_output_instances(content: str) -> str:
                 ),
                 query_results_content,
             )
-            inner_content = inner_content.replace(query_results_match.group(0), f"query_results=[{query_results_content}]")
+            inner_content = inner_content.replace(
+                query_results_match.group(0), f"query_results=[{query_results_content}]"
+            )
 
         return f"SearchOutput({inner_content})"
 

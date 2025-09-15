@@ -1,9 +1,9 @@
 """Integration tests for SystemInitializationService with real database connections."""
 
 import pytest
+from core.config import get_settings
 from sqlalchemy.orm import Session
 
-from core.config import get_settings
 from rag_solution.schemas.llm_provider_schema import LLMProviderInput
 from rag_solution.services.system_initialization_service import SystemInitializationService
 
@@ -105,7 +105,9 @@ class TestSystemInitializationServiceIntegration:
     def test_provider_error_handling_integration(self, service):
         """Test provider error handling with real database."""
         # Test with invalid provider configuration
-        invalid_provider = LLMProviderInput(name="invalid_provider", base_url="https://invalid.api.com", api_key="invalid-key")
+        invalid_provider = LLMProviderInput(
+            name="invalid_provider", base_url="https://invalid.api.com", api_key="invalid-key"
+        )
 
         try:
             # This should handle errors gracefully

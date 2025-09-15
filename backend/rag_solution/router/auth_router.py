@@ -13,13 +13,13 @@ from typing import Annotated, Any
 
 import httpx
 import jwt
+from auth.oidc import create_access_token, oauth
+from core.config import Settings, get_settings
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel, HttpUrl
 from sqlalchemy.orm import Session
 
-from auth.oidc import create_access_token, oauth
-from core.config import Settings, get_settings
 from rag_solution.core.device_flow import (
     DeviceFlowConfig,
     DeviceFlowRecord,
@@ -139,7 +139,9 @@ async def token_exchange(request: Request, settings: Annotated[Settings, Depends
 
 
 @router.get("/login")
-async def login(request: Request, settings: Annotated[Settings, Depends(get_settings)], source: str = "web") -> Response:
+async def login(
+    request: Request, settings: Annotated[Settings, Depends(get_settings)], source: str = "web"
+) -> Response:
     """Initiate OAuth login flow."""
     try:
         callback_url = f"{settings.frontend_url}/api/auth/callback"
@@ -204,7 +206,9 @@ def _determine_redirect_url(state: str, custom_jwt_str: str, settings: Settings)
 
 
 @router.get("/callback")
-async def auth(request: Request, db: Annotated[Session, Depends(get_db)], settings: Annotated[Settings, Depends(get_settings)]) -> Response:
+async def auth(
+    request: Request, db: Annotated[Session, Depends(get_db)], settings: Annotated[Settings, Depends(get_settings)]
+) -> Response:
     """Handle OAuth authentication callback."""
     try:
         logger.info("Received authentication callback")
@@ -216,7 +220,9 @@ async def auth(request: Request, db: Annotated[Session, Depends(get_db)], settin
 
         # Create or get user
         user_service = UserService(db, settings)
-        db_user = user_service.get_or_create_user_by_fields(ibm_id=user["sub"], email=user["email"], name=user.get("name", "Unknown"))
+        db_user = user_service.get_or_create_user_by_fields(
+            ibm_id=user["sub"], email=user["email"], name=user.get("name", "Unknown")
+        )
         logger.info("User in database: %s", db_user.id)
 
         custom_jwt_str = _create_custom_jwt(user, db_user, token, settings)
@@ -395,7 +401,9 @@ class CLIAuthResponse(BaseModel):
 
 
 @router.post("/cli/start", response_model=CLIAuthResponse)
-async def start_cli_auth(request: CLIAuthRequest, settings: Annotated[Settings, Depends(get_settings)]) -> CLIAuthResponse:
+async def start_cli_auth(
+    request: CLIAuthRequest, settings: Annotated[Settings, Depends(get_settings)]
+) -> CLIAuthResponse:
     """Start CLI browser-based authentication.
 
     This endpoint creates an authentication URL that the CLI can open
@@ -464,7 +472,9 @@ async def exchange_cli_token_deprecated(request: CLITokenRequest, db: Session = 
 
 # Device Flow Endpoints (kept for future use with other providers)
 @router.post("/device/start", response_model=DeviceFlowStartResponse)
-async def start_device_flow(request: DeviceFlowStartRequest, settings: Annotated[Settings, Depends(get_settings)]) -> DeviceFlowStartResponse:
+async def start_device_flow(
+    request: DeviceFlowStartRequest, settings: Annotated[Settings, Depends(get_settings)]
+) -> DeviceFlowStartResponse:
     """Start OAuth 2.0 Device Authorization Flow.
 
     This endpoint initiates the device flow by requesting a device code
@@ -484,7 +494,9 @@ async def start_device_flow(request: DeviceFlowStartRequest, settings: Annotated
                 "https://prepiam.ice.ibmcloud.com/v1.0/endpoint/default/device_authorization",
             )
         ),
-        token_url=HttpUrl(getattr(settings, "oidc_token_url", "https://prepiam.ice.ibmcloud.com/v1.0/endpoint/default/token")),
+        token_url=HttpUrl(
+            getattr(settings, "oidc_token_url", "https://prepiam.ice.ibmcloud.com/v1.0/endpoint/default/token")
+        ),
     )
 
     # Request device authorization from IBM OIDC
@@ -545,7 +557,9 @@ def _handle_device_flow_success(data: dict[str, Any], db: Session, settings: Set
     # Create or update user in database
     user_service = UserService(db, settings)
     user = user_service.get_or_create_user_by_fields(
-        ibm_id=user_info.get("sub", "unknown"), email=user_info.get("email", "unknown@ibm.com"), name=user_info.get("name", user_info.get("email", "unknown"))
+        ibm_id=user_info.get("sub", "unknown"),
+        email=user_info.get("email", "unknown@ibm.com"),
+        name=user_info.get("name", user_info.get("email", "unknown")),
     )
 
     # Create JWT token for our application
@@ -566,7 +580,9 @@ def _handle_device_flow_success(data: dict[str, Any], db: Session, settings: Set
     )
 
 
-def _handle_device_flow_error(response: httpx.Response, record: DeviceFlowRecord, storage: Any) -> DeviceFlowPollResponse:
+def _handle_device_flow_error(
+    response: httpx.Response, record: DeviceFlowRecord, storage: Any
+) -> DeviceFlowPollResponse:
     """Handle device flow error responses."""
     error_data = response.json()
     error_code = error_data.get("error", "unknown_error")
@@ -585,7 +601,9 @@ def _handle_device_flow_error(response: httpx.Response, record: DeviceFlowRecord
 
 
 @router.post("/device/poll", response_model=DeviceFlowPollResponse)
-async def poll_device_token(request: DeviceFlowPollRequest, settings: Annotated[Settings, Depends(get_settings)], db: Session = Depends(get_db)) -> DeviceFlowPollResponse:
+async def poll_device_token(
+    request: DeviceFlowPollRequest, settings: Annotated[Settings, Depends(get_settings)], db: Session = Depends(get_db)
+) -> DeviceFlowPollResponse:
     """Poll for device flow token.
 
     This endpoint polls the IBM OIDC provider to check if the user
@@ -595,10 +613,14 @@ async def poll_device_token(request: DeviceFlowPollRequest, settings: Annotated[
     record = storage.get_record(request.device_code)
 
     if not record:
-        return DeviceFlowPollResponse(status="error", error="invalid_grant", error_description="Device code not found or expired")
+        return DeviceFlowPollResponse(
+            status="error", error="invalid_grant", error_description="Device code not found or expired"
+        )
 
     if record.is_expired():
-        return DeviceFlowPollResponse(status="error", error="expired_token", error_description="Device code has expired")
+        return DeviceFlowPollResponse(
+            status="error", error="expired_token", error_description="Device code has expired"
+        )
 
     # Create device flow configuration
     config = DeviceFlowConfig(
@@ -611,7 +633,9 @@ async def poll_device_token(request: DeviceFlowPollRequest, settings: Annotated[
                 "https://prepiam.ice.ibmcloud.com/v1.0/endpoint/default/device_authorization",
             )
         ),
-        token_url=HttpUrl(getattr(settings, "oidc_token_url", "https://prepiam.ice.ibmcloud.com/v1.0/endpoint/default/token")),
+        token_url=HttpUrl(
+            getattr(settings, "oidc_token_url", "https://prepiam.ice.ibmcloud.com/v1.0/endpoint/default/token")
+        ),
     )
 
     # Poll IBM OIDC token endpoint
@@ -653,4 +677,6 @@ async def poll_device_token(request: DeviceFlowPollRequest, settings: Annotated[
 
         except httpx.RequestError as e:
             logger.error("Network error during device flow polling: %s", str(e))
-            return DeviceFlowPollResponse(status="error", error="network_error", error_description="Failed to contact authorization server")
+            return DeviceFlowPollResponse(
+                status="error", error="network_error", error_description="Failed to contact authorization server"
+            )

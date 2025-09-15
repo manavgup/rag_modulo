@@ -1,0 +1,57 @@
+name: Codespace Validation
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  codespace-validation:
+    runs-on: ubuntu-latest
+    name: Validate Dev Container in Codespace
+    
+    steps:
+    - name: Create Codespace
+      id: create-codespace
+      uses: github/codespace-action@v1
+      with:
+        codespace-name: validation-${{ github.run_number }}
+        timeout-minutes: 10
+        
+    - name: Wait for Codespace to be ready
+      run: |
+        echo "Waiting for Codespace to be ready..."
+        sleep 30
+        
+    - name: Validate Dev Container Setup
+      run: |
+        echo "Validating Dev Container configuration..."
+        # Test that make command is available
+        gh codespace exec --command "make --version" --codespace ${{ steps.create-codespace.outputs.codespace-name }}
+        
+        # Test that Python is available
+        gh codespace exec --command "python --version" --codespace ${{ steps.create-codespace.outputs.codespace-name }}
+        
+        # Test that VS Code extensions are installed
+        gh codespace exec --command "code --list-extensions | grep -E '(python|ruff|docker)'" --codespace ${{ steps.create-codespace.outputs.codespace-name }}
+        
+    - name: Test Development Workflow
+      run: |
+        echo "Testing development workflow commands..."
+        
+        # Test make commands
+        gh codespace exec --command "cd /workspace && make dev-validate" --codespace ${{ steps.create-codespace.outputs.codespace-name }}
+        
+        # Test Docker commands
+        gh codespace exec --command "docker --version" --codespace ${{ steps.create-codespace.outputs.codespace-name }}
+        
+    - name: Cleanup Codespace
+      if: always()
+      run: |
+        echo "Cleaning up Codespace..."
+        gh codespace delete --codespace ${{ steps.create-codespace.outputs.codespace-name }} --force
+        
+    - name: Validation Results
+      run: |
+        echo "✅ Codespace validation completed successfully!"
+        echo "Dev Container configuration is working correctly."

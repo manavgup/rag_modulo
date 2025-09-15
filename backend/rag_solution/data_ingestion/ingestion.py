@@ -7,9 +7,10 @@ from typing import Any
 
 from core.config import Settings, get_settings
 from core.custom_exceptions import DocumentStorageError
-from rag_solution.data_ingestion.document_processor import DocumentProcessor
 from vectordbs.data_types import Document
 from vectordbs.vector_store import VectorStore
+
+from rag_solution.data_ingestion.document_processor import DocumentProcessor
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -20,7 +21,9 @@ MAX_RETRIES = 3  # Maximum number of retries for storing a document
 
 
 class DocumentStore:
-    def __init__(self: Any, vector_store: VectorStore, collection_name: str, settings: Settings = get_settings()) -> None:
+    def __init__(
+        self: Any, vector_store: VectorStore, collection_name: str, settings: Settings = get_settings()
+    ) -> None:
         """Initialize document store with dependency injection."""
         self.settings = settings
         self.vector_store = vector_store
@@ -32,7 +35,9 @@ class DocumentStore:
         try:
             processed_documents = await self.ingest_documents(data_source)
             self.documents.extend(processed_documents)
-            logger.info(f"Ingested and processed {len(processed_documents)} documents into collection: {self.collection_name}")
+            logger.info(
+                f"Ingested and processed {len(processed_documents)} documents into collection: {self.collection_name}"
+            )
             return processed_documents
         except Exception as e:
             logger.error(f"Error ingesting documents: {e!s}", exc_info=True)
@@ -66,7 +71,9 @@ class DocumentStore:
             logger.info(f"Successfully stored documents in collection {self.collection_name}")
         except Exception as e:
             logger.error(f"Error storing documents: {e}", exc_info=True)
-            raise DocumentStorageError(doc_id="", storage_path="", error_type="storage_failed", message=f"Error: {e}") from e
+            raise DocumentStorageError(
+                doc_id="", storage_path="", error_type="storage_failed", message=f"Error: {e}"
+            ) from e
 
     def get_documents(self) -> list[Document]:
         """Get all documents in the document store."""

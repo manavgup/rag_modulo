@@ -5,10 +5,10 @@ Real TDD tests for PipelineService - testing actual functionality to find real b
 from uuid import uuid4
 
 import pytest
+from core.config import Settings
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from core.config import Settings
 from rag_solution.schemas.search_schema import SearchInput
 from rag_solution.services.pipeline_service import PipelineService
 
@@ -22,7 +22,8 @@ class TestPipelineServiceReal:
         """Create a real PipelineService with real database connection."""
         # Use real database connection for E2E tests
         engine = create_engine(
-            f"postgresql://{e2e_settings.collectiondb_user}:{e2e_settings.collectiondb_pass}@" f"{e2e_settings.collectiondb_host}:{e2e_settings.collectiondb_port}/{e2e_settings.collectiondb_name}"
+            f"postgresql://{e2e_settings.collectiondb_user}:{e2e_settings.collectiondb_pass}@"
+            f"{e2e_settings.collectiondb_host}:{e2e_settings.collectiondb_port}/{e2e_settings.collectiondb_name}"
         )
         session = Session(engine)
         return PipelineService(session, e2e_settings)
@@ -69,7 +70,9 @@ class TestPipelineServiceReal:
         assert any(keyword in error_message for keyword in ["string", "validation", "type"])
 
     @pytest.mark.asyncio
-    async def test_execute_pipeline_with_valid_input_but_missing_infrastructure(self, pipeline_service: PipelineService):
+    async def test_execute_pipeline_with_valid_input_but_missing_infrastructure(
+        self, pipeline_service: PipelineService
+    ):
         """Test execute_pipeline with valid input but missing infrastructure."""
         search_input = SearchInput(
             question="What is machine learning?",

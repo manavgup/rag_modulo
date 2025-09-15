@@ -4,19 +4,19 @@ from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import pytest
-from sqlalchemy.orm import Session
-
 from core.config import Settings
 
 # Import the custom exceptions from the correct module
 from core.custom_exceptions import DocumentStorageError, EmptyDocumentError, QuestionGenerationError
+from sqlalchemy.orm import Session
+from vectordbs.data_types import Document, DocumentChunk
+from vectordbs.error_types import CollectionError
+
 from rag_solution.core.exceptions import AlreadyExistsError
 from rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput, CollectionStatus
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
 from rag_solution.schemas.prompt_template_schema import PromptTemplateType
 from rag_solution.services.collection_service import CollectionService
-from vectordbs.data_types import Document, DocumentChunk
-from vectordbs.error_types import CollectionError
 
 
 @pytest.mark.unit
@@ -77,7 +77,9 @@ class TestCollectionServiceTDD:
 
     def test_create_collection_success_red_phase(self, service):
         """RED: Test successful collection creation."""
-        collection_input = CollectionInput(name="Test Collection", is_private=False, users=[uuid4()], status=CollectionStatus.CREATED)
+        collection_input = CollectionInput(
+            name="Test Collection", is_private=False, users=[uuid4()], status=CollectionStatus.CREATED
+        )
 
         expected_collection = CollectionOutput(
             id=uuid4(),
@@ -103,7 +105,9 @@ class TestCollectionServiceTDD:
 
     def test_create_collection_already_exists_red_phase(self, service):
         """RED: Test collection creation when name already exists - should raise AlreadyExistsError."""
-        collection_input = CollectionInput(name="Existing Collection", is_private=False, users=[uuid4()], status=CollectionStatus.CREATED)
+        collection_input = CollectionInput(
+            name="Existing Collection", is_private=False, users=[uuid4()], status=CollectionStatus.CREATED
+        )
 
         existing_collection = CollectionOutput(
             id=uuid4(),
@@ -126,7 +130,9 @@ class TestCollectionServiceTDD:
 
     def test_create_collection_vector_store_failure_red_phase(self, service):
         """RED: Test collection creation with vector store failure - should cleanup."""
-        collection_input = CollectionInput(name="Test Collection", is_private=False, users=[uuid4()], status=CollectionStatus.CREATED)
+        collection_input = CollectionInput(
+            name="Test Collection", is_private=False, users=[uuid4()], status=CollectionStatus.CREATED
+        )
 
         expected_collection = CollectionOutput(
             id=uuid4(),
@@ -176,7 +182,9 @@ class TestCollectionServiceTDD:
         user_id_1 = uuid4()
         user_id_2 = uuid4()
 
-        collection_update = CollectionInput(name="Updated Collection", is_private=True, users=[user_id_1, user_id_2], status=CollectionStatus.CREATED)
+        collection_update = CollectionInput(
+            name="Updated Collection", is_private=True, users=[user_id_1, user_id_2], status=CollectionStatus.CREATED
+        )
 
         existing_collection = CollectionOutput(
             id=collection_id,
@@ -201,7 +209,9 @@ class TestCollectionServiceTDD:
         # Mock user collection outputs (existing users)
         from rag_solution.schemas.user_collection_schema import UserCollectionOutput
 
-        existing_user_collections = [UserCollectionOutput(user_id=user_id_1, collection_id=collection_id, created_at="2024-01-01T00:00:00Z")]
+        existing_user_collections = [
+            UserCollectionOutput(user_id=user_id_1, collection_id=collection_id, created_at="2024-01-01T00:00:00Z")
+        ]
 
         service.collection_repository.get.side_effect = [existing_collection, updated_collection]
         service.user_collection_service.get_collection_users.return_value = existing_user_collections
@@ -318,9 +328,13 @@ class TestCollectionServiceTDD:
 
         await service.process_documents(file_paths, collection_id, vector_db_name, document_ids, user_id)
 
-        service._process_and_ingest_documents.assert_called_once_with(file_paths, vector_db_name, document_ids, collection_id)
+        service._process_and_ingest_documents.assert_called_once_with(
+            file_paths, vector_db_name, document_ids, collection_id
+        )
         service._extract_document_texts.assert_called_once_with(processed_docs, collection_id)
-        service._generate_collection_questions.assert_called_once_with(["Sample text 1", "Sample text 2"], collection_id, user_id)
+        service._generate_collection_questions.assert_called_once_with(
+            ["Sample text 1", "Sample text 2"], collection_id, user_id
+        )
 
     def test_extract_document_texts_success_red_phase(self, service):
         """RED: Test successful document text extraction."""
@@ -446,7 +460,9 @@ class TestCollectionServiceTDD:
         result = service._get_question_generation_template(user_id)
 
         assert result is expected_template
-        service.prompt_template_service.get_by_type.assert_called_once_with(user_id, PromptTemplateType.QUESTION_GENERATION)
+        service.prompt_template_service.get_by_type.assert_called_once_with(
+            user_id, PromptTemplateType.QUESTION_GENERATION
+        )
 
     def test_get_llm_parameters_input_success_red_phase(self, service):
         """RED: Test getting LLM parameters input."""

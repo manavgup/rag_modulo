@@ -1,9 +1,9 @@
 from typing import Annotated
 
+from core.config import Settings, get_settings
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from core.config import Settings, get_settings
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.search_schema import SearchInput, SearchOutput
 from rag_solution.services.search_service import SearchService
@@ -11,7 +11,9 @@ from rag_solution.services.search_service import SearchService
 router = APIRouter(prefix="/api/search", tags=["search"])
 
 
-def get_search_service(db: Annotated[Session, Depends(get_db)], settings: Annotated[Settings, Depends(get_settings)]) -> SearchService:
+def get_search_service(
+    db: Annotated[Session, Depends(get_db)], settings: Annotated[Settings, Depends(get_settings)]
+) -> SearchService:
     """
     Dependency to create a new SearchService instance with the database session and settings.
 
@@ -62,4 +64,6 @@ async def search(
     except ValueError as ve:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve)) from ve
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error processing search: {e!s}") from e
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error processing search: {e!s}"
+        ) from e

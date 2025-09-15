@@ -83,7 +83,9 @@ class ConfigCommands(BaseCommand):
 
             config_file = config_dir / f"{name}.json"
             if config_file.exists():
-                return self._create_error_result(message=f"Profile '{name}' already exists", error_code="PROFILE_EXISTS")
+                return self._create_error_result(
+                    message=f"Profile '{name}' already exists", error_code="PROFILE_EXISTS"
+                )
 
             with config_file.open("w", encoding="utf-8") as f:
                 f.write(new_config.model_dump_json(indent=2))
@@ -123,7 +125,9 @@ class ConfigCommands(BaseCommand):
             # Load and return configuration
             profile_config = RAGConfig.model_validate_json(config_file.read_text(encoding="utf-8"))
 
-            return self._create_success_result(data=profile_config.model_dump(), message=f"Profile '{name}' details retrieved")
+            return self._create_success_result(
+                data=profile_config.model_dump(), message=f"Profile '{name}' details retrieved"
+            )
 
         except (ValidationError, OSError, PermissionError, ValueError) as e:
             return self._handle_api_error(e)
@@ -159,7 +163,9 @@ class ConfigCommands(BaseCommand):
             with config_file.open("w", encoding="utf-8") as f:
                 f.write(profile_config.model_dump_json(indent=2))
 
-            return self._create_success_result(data=profile_config.model_dump(), message=f"Profile '{name}' updated successfully")
+            return self._create_success_result(
+                data=profile_config.model_dump(), message=f"Profile '{name}' updated successfully"
+            )
 
         except (ValidationError, OSError, PermissionError, ValueError) as e:
             return self._handle_api_error(e)
@@ -176,7 +182,9 @@ class ConfigCommands(BaseCommand):
         """
         try:
             if name == "default" and not force:
-                return self._create_error_result(message="Cannot delete default profile without --force flag", error_code="DEFAULT_PROFILE_PROTECTED")
+                return self._create_error_result(
+                    message="Cannot delete default profile without --force flag", error_code="DEFAULT_PROFILE_PROTECTED"
+                )
 
             config_dir = Path.home() / ".rag-cli"
             config_file = config_dir / f"{name}.json"
@@ -244,7 +252,9 @@ class ConfigCommands(BaseCommand):
 
             current_profile = current_file.read_text(encoding="utf-8").strip() if current_file.exists() else "default"
 
-            return self._create_success_result(data={"current_profile": current_profile}, message=f"Current profile: {current_profile}")
+            return self._create_success_result(
+                data={"current_profile": current_profile}, message=f"Current profile: {current_profile}"
+            )
 
         except (OSError, PermissionError, ValueError) as e:
             return self._handle_api_error(e)
@@ -272,7 +282,9 @@ class ConfigCommands(BaseCommand):
             # Copy configuration file
             output_file.write_text(config_file.read_text(encoding="utf-8"), encoding="utf-8")
 
-            return self._create_success_result(data={"output_path": str(output_file)}, message=f"Profile '{name}' exported to {output_file}")
+            return self._create_success_result(
+                data={"output_path": str(output_file)}, message=f"Profile '{name}' exported to {output_file}"
+            )
 
         except (OSError, PermissionError, ValueError) as e:
             return self._handle_api_error(e)
@@ -290,13 +302,17 @@ class ConfigCommands(BaseCommand):
         try:
             config_path = Path(config_path)
             if not config_path.exists():
-                return self._create_error_result(message=f"Configuration file not found: {config_path}", error_code="CONFIG_FILE_NOT_FOUND")
+                return self._create_error_result(
+                    message=f"Configuration file not found: {config_path}", error_code="CONFIG_FILE_NOT_FOUND"
+                )
 
             # Load and validate configuration
             try:
                 profile_config = RAGConfig.model_validate_json(config_path.read_text(encoding="utf-8"))
             except (ValidationError, json.JSONDecodeError, ValueError) as e:
-                return self._create_error_result(message=f"Invalid configuration file: {e!s}", error_code="INVALID_CONFIG_FILE")
+                return self._create_error_result(
+                    message=f"Invalid configuration file: {e!s}", error_code="INVALID_CONFIG_FILE"
+                )
 
             # Determine profile name
             if name is None:
@@ -313,7 +329,9 @@ class ConfigCommands(BaseCommand):
             with config_file.open("w", encoding="utf-8") as f:
                 f.write(profile_config.model_dump_json(indent=2))
 
-            return self._create_success_result(data={"profile": name}, message=f"Profile '{name}' imported successfully")
+            return self._create_success_result(
+                data={"profile": name}, message=f"Profile '{name}' imported successfully"
+            )
 
         except (ValidationError, OSError, PermissionError, ValueError) as e:
             return self._handle_api_error(e)
@@ -338,7 +356,9 @@ class ConfigCommands(BaseCommand):
             try:
                 profile_config = RAGConfig.model_validate_json(config_file.read_text(encoding="utf-8"))
             except (ValidationError, json.JSONDecodeError, ValueError) as e:
-                return self._create_error_result(message=f"Invalid profile configuration: {e!s}", error_code="INVALID_PROFILE_CONFIG")
+                return self._create_error_result(
+                    message=f"Invalid profile configuration: {e!s}", error_code="INVALID_PROFILE_CONFIG"
+                )
 
             # Test connectivity
             test_client = RAGAPIClient(profile_config)
@@ -359,7 +379,9 @@ class ConfigCommands(BaseCommand):
                 "timeout": profile_config.timeout,
             }
 
-            return self._create_success_result(data=validation_results, message=f"Profile '{name}' validation completed")
+            return self._create_success_result(
+                data=validation_results, message=f"Profile '{name}' validation completed"
+            )
 
         except (ValidationError, OSError, PermissionError, ValueError) as e:
             return self._handle_api_error(e)

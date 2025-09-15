@@ -10,8 +10,8 @@ from typing import Any
 
 import numpy as np
 from chromadb import ClientAPI, chromadb
-
 from core.config import Settings, get_settings
+
 from vectordbs.utils.watsonx import get_embeddings
 
 from .data_types import (
@@ -183,7 +183,9 @@ class ChromaDBStore(VectorStore):
             logging.error("Failed to delete documents from ChromaDB collection '%s': %s", collection_name, str(e))
             raise DocumentError(f"Failed to delete documents from ChromaDB collection '{collection_name}': {e}") from e
 
-    def _convert_to_chunk(self, chunk_id: str, text: str, embeddings: list[float] | None, metadata: dict) -> DocumentChunk:
+    def _convert_to_chunk(
+        self, chunk_id: str, text: str, embeddings: list[float] | None, metadata: dict
+    ) -> DocumentChunk:
         """Convert ChromaDB response data to DocumentChunk."""
         return DocumentChunk(
             chunk_id=chunk_id,

@@ -53,7 +53,10 @@ class VectorStoreFactory:
             store_class = self._datastore_mapping[datastore]
             return store_class(self.settings)  # Inject settings
         except KeyError as exc:
-            raise ValueError(f"Unsupported vector database: {datastore}. " f"Supported databases are {list(self._datastore_mapping.keys())}") from exc
+            raise ValueError(
+                f"Unsupported vector database: {datastore}. "
+                f"Supported databases are {list(self._datastore_mapping.keys())}"
+            ) from exc
 
     def list_supported_stores(self) -> list[str]:
         """List all supported vector store types."""

@@ -187,7 +187,9 @@ class Settings(BaseSettings):
                     from core.logging_utils import get_logger
 
                     logger = get_logger(__name__)
-                    logger.warning("⚠️  Using default JWT secret in production! " "Set JWT_SECRET_KEY environment variable.")
+                    logger.warning(
+                        "⚠️  Using default JWT secret in production! " "Set JWT_SECRET_KEY environment variable."
+                    )
                 except ImportError:
                     # Fallback to print if logging utils not available
                     print("⚠️  Using default JWT secret in production! " "Set JWT_SECRET_KEY environment variable.")

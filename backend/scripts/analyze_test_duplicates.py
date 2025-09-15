@@ -149,8 +149,12 @@ def main():
             else:
                 print(f"    📊 {analysis['test_functions']} test functions, {analysis['test_classes']} classes")
                 print(f"    📏 {analysis['lines']} lines, {analysis['size']} bytes")
-                print(f"    🏷️  Markers: atomic={analysis['has_atomic']}, unit={analysis['has_unit']}, integration={analysis['has_integration']}, e2e={analysis['has_e2e']}")
-                print(f"    🔧 Dependencies: pytest={analysis['has_pytest']}, fastapi={analysis['has_fastapi']}, mock={analysis['has_mock']}")
+                print(
+                    f"    🏷️  Markers: atomic={analysis['has_atomic']}, unit={analysis['has_unit']}, integration={analysis['has_integration']}, e2e={analysis['has_e2e']}"
+                )
+                print(
+                    f"    🔧 Dependencies: pytest={analysis['has_pytest']}, fastapi={analysis['has_fastapi']}, mock={analysis['has_mock']}"
+                )
                 print(f"    🌐 External: database={analysis['has_database']}, http={analysis['has_http']}")
 
     # Analyze core tests
@@ -164,8 +168,12 @@ def main():
         else:
             print(f"    📊 {analysis['test_functions']} test functions, {analysis['test_classes']} classes")
             print(f"    📏 {analysis['lines']} lines, {analysis['size']} bytes")
-            print(f"    🏷️  Markers: atomic={analysis['has_atomic']}, unit={analysis['has_unit']}, integration={analysis['has_integration']}, e2e={analysis['has_e2e']}")
-            print(f"    🔧 Dependencies: pytest={analysis['has_pytest']}, fastapi={analysis['has_fastapi']}, mock={analysis['has_mock']}")
+            print(
+                f"    🏷️  Markers: atomic={analysis['has_atomic']}, unit={analysis['has_unit']}, integration={analysis['has_integration']}, e2e={analysis['has_e2e']}"
+            )
+            print(
+                f"    🔧 Dependencies: pytest={analysis['has_pytest']}, fastapi={analysis['has_fastapi']}, mock={analysis['has_mock']}"
+            )
             print(f"    🌐 External: database={analysis['has_database']}, http={analysis['has_http']}")
 
     # Recommendations

@@ -103,7 +103,9 @@ def compare_search_configs(results: list[dict[str, Any]]) -> Table:
             success_rate = len(successful) / len(config_results) * 100
             avg_docs = sum(r.get("documents_retrieved", 0) for r in successful) / len(successful)
 
-            table.add_row(config, f"{avg_quality:.1f}%", format_duration(avg_time), f"{success_rate:.1f}%", f"{avg_docs:.1f}")
+            table.add_row(
+                config, f"{avg_quality:.1f}%", format_duration(avg_time), f"{success_rate:.1f}%", f"{avg_docs:.1f}"
+            )
 
     return table
 

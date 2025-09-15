@@ -29,7 +29,9 @@ class DocumentCommands(BaseCommand):
         """
         super().__init__(api_client, config)
 
-    def list_documents(self, collection_id: str | None = None, status: str | None = None, limit: int = 50) -> CommandResult:
+    def list_documents(
+        self, collection_id: str | None = None, status: str | None = None, limit: int = 50
+    ) -> CommandResult:
         """List documents in the system.
 
         Args:
@@ -58,7 +60,9 @@ class DocumentCommands(BaseCommand):
         except Exception as e:
             return self._handle_api_error(e)
 
-    def upload_document(self, file_path: str | Path, collection_id: str, metadata: dict[str, Any] | None = None) -> CommandResult:
+    def upload_document(
+        self, file_path: str | Path, collection_id: str, metadata: dict[str, Any] | None = None
+    ) -> CommandResult:
         """Upload a document to a collection.
 
         Args:
@@ -83,7 +87,9 @@ class DocumentCommands(BaseCommand):
 
             response = self.api_client.post_file("/api/files/upload", file_path, data=data)
 
-            return self._create_success_result(data=response, message=f"Document '{file_path.name}' uploaded successfully")
+            return self._create_success_result(
+                data=response, message=f"Document '{file_path.name}' uploaded successfully"
+            )
 
         except Exception as e:
             return self._handle_api_error(e)
@@ -107,7 +113,9 @@ class DocumentCommands(BaseCommand):
         except Exception as e:
             return self._handle_api_error(e)
 
-    def update_document(self, document_id: str, name: str | None = None, metadata: dict[str, Any] | None = None) -> CommandResult:
+    def update_document(
+        self, document_id: str, name: str | None = None, metadata: dict[str, Any] | None = None
+    ) -> CommandResult:
         """Update document details.
 
         Args:
@@ -161,7 +169,9 @@ class DocumentCommands(BaseCommand):
         except Exception as e:
             return self._handle_api_error(e)
 
-    def batch_upload_documents(self, file_paths: list[str | Path], collection_id: str, parallel: bool = False) -> CommandResult:
+    def batch_upload_documents(
+        self, file_paths: list[str | Path], collection_id: str, parallel: bool = False
+    ) -> CommandResult:
         """Upload multiple documents in batch.
 
         Args:
@@ -180,7 +190,9 @@ class DocumentCommands(BaseCommand):
             for file_path in file_paths:
                 path_obj = Path(file_path)
                 if not path_obj.exists():
-                    return self._create_error_result(message=f"File not found: {file_path}", error_code="FILE_NOT_FOUND")
+                    return self._create_error_result(
+                        message=f"File not found: {file_path}", error_code="FILE_NOT_FOUND"
+                    )
                 valid_files.append(path_obj)
 
             # TODO: Implement proper file handling for batch upload
@@ -274,7 +286,9 @@ class DocumentCommands(BaseCommand):
                 for chunk in response.iter_content(chunk_size=8192):
                     f.write(chunk)
 
-            return self._create_success_result(data={"file_path": str(output_file)}, message=f"Document downloaded to {output_file}")
+            return self._create_success_result(
+                data={"file_path": str(output_file)}, message=f"Document downloaded to {output_file}"
+            )
 
         except Exception as e:
             return self._handle_api_error(e)
@@ -296,7 +310,9 @@ class DocumentCommands(BaseCommand):
 
             response = self.api_client.get(f"/api/files/{document_id}/chunks", params=params)
 
-            return self._create_success_result(data=response, message=f"Retrieved {len(response.get('chunks', []))} chunks")
+            return self._create_success_result(
+                data=response, message=f"Retrieved {len(response.get('chunks', []))} chunks"
+            )
 
         except Exception as e:
             return self._handle_api_error(e)

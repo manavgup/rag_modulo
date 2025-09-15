@@ -22,6 +22,9 @@ def get_logger_lazy() -> Any:
 
 
 def get_services() -> dict[str, Any]:
+    from vectordbs.factory import get_datastore
+    from vectordbs.vector_store import VectorStore
+
     from rag_solution.file_management.database import get_db
     from rag_solution.query_rewriting.query_rewriter import (
         HypotheticalDocumentEmbedding,
@@ -33,8 +36,6 @@ def get_services() -> dict[str, Any]:
     from rag_solution.services.collection_service import CollectionService
     from rag_solution.services.pipeline_service import PipelineService
     from rag_solution.services.search_service import SearchService
-    from vectordbs.factory import get_datastore
-    from vectordbs.vector_store import VectorStore
 
     return {
         "get_db": get_db,
@@ -65,12 +66,16 @@ def search() -> None:
 @click.option("--user-id", "-u", required=True, help="User UUID")
 @click.option("--verbose", "-v", is_flag=True, help="Show detailed pipeline metrics")
 @click.option("--output", "-o", type=click.Path(), help="Save results to JSON file")
-def test(query: str, collection_id: str, pipeline_id: str | None, user_id: str, verbose: bool, output: str | None) -> None:
+def test(
+    query: str, collection_id: str, pipeline_id: str | None, user_id: str, verbose: bool, output: str | None
+) -> None:
     """Test search query and analyze results."""
     asyncio.run(_test_search(query, collection_id, pipeline_id, user_id, verbose, output))
 
 
-async def _test_search(query: str, collection_id: str, pipeline_id: str | None, user_id: str, verbose: bool, output: str | None) -> Any:
+async def _test_search(
+    query: str, collection_id: str, pipeline_id: str | None, user_id: str, verbose: bool, output: str | None
+) -> Any:
     """Execute search test with detailed metrics."""
     start_time = time.time()
 
@@ -99,7 +104,9 @@ async def _test_search(query: str, collection_id: str, pipeline_id: str | None, 
         )
 
         # Execute search with progress indicator
-        with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console) as progress:
+        with Progress(
+            SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console
+        ) as progress:
             progress.add_task("Executing search...", total=None)
 
             # Perform search
@@ -200,7 +207,9 @@ def _save_results(result: Any, execution_time: float, output_path: str) -> None:
 @search.command()
 @click.option("--query", "-q", required=True, help="Search query to test")
 @click.option("--collection-id", "-c", required=True, help="Collection UUID")
-@click.option("--strategy", "-s", type=click.Choice(["simple", "hypothetical"]), default="simple", help="Query rewriting strategy")
+@click.option(
+    "--strategy", "-s", type=click.Choice(["simple", "hypothetical"]), default="simple", help="Query rewriting strategy"
+)
 def test_components(query: str, collection_id: str, strategy: str) -> None:
     """Test individual pipeline components."""
     asyncio.run(_test_components(query, collection_id, strategy))
@@ -221,7 +230,11 @@ async def _test_components(query: str, collection_id: str, strategy: str) -> Non
         # Test 1: Query Rewriting
         console.print("[bold green]1️⃣ Testing Query Rewriting[/bold green]")
 
-        rewriter = services["SimpleQueryRewriter"]({}) if strategy == "simple" else services["HypotheticalDocumentEmbedding"]({})
+        rewriter = (
+            services["SimpleQueryRewriter"]({})
+            if strategy == "simple"
+            else services["HypotheticalDocumentEmbedding"]({})
+        )
 
         start = time.time()
         rewritten = await rewriter.rewrite(query)
@@ -283,7 +296,9 @@ async def _test_components(query: str, collection_id: str, strategy: str) -> Non
         summary_table.add_column("Time", style="yellow")
 
         summary_table.add_row("Query Rewriting", "✅ Success", f"{rewrite_time:.3f}s")
-        summary_table.add_row("Document Retrieval", "✅ Success" if results else "❌ No results", f"{retrieval_time:.3f}s")
+        summary_table.add_row(
+            "Document Retrieval", "✅ Success" if results else "❌ No results", f"{retrieval_time:.3f}s"
+        )
         summary_table.add_row("Context Formatting", "✅ Success" if results else "⚠️ No context", "N/A")
 
         console.print(summary_table)
@@ -302,12 +317,16 @@ async def _test_components(query: str, collection_id: str, strategy: str) -> Non
 @click.option("--pipeline-id", "-p", help="Pipeline UUID (optional)")
 @click.option("--user-id", "-u", required=True, help="User UUID")
 @click.option("--output", "-o", type=click.Path(), help="Save batch results to JSON file")
-def batch_test(queries_file: str, collection_id: str, pipeline_id: str | None, user_id: str, output: str | None) -> None:
+def batch_test(
+    queries_file: str, collection_id: str, pipeline_id: str | None, user_id: str, output: str | None
+) -> None:
     """Run batch testing with quality metrics."""
     asyncio.run(_batch_test(queries_file, collection_id, pipeline_id, user_id, output))
 
 
-async def _batch_test(queries_file: str, collection_id: str, pipeline_id: str | None, user_id: str, output: str | None) -> list[dict[str, Any]]:
+async def _batch_test(
+    queries_file: str, collection_id: str, pipeline_id: str | None, user_id: str, output: str | None
+) -> list[dict[str, Any]]:
     """Execute batch testing on multiple queries."""
 
     # Load test queries
@@ -347,8 +366,12 @@ async def _batch_test(queries_file: str, collection_id: str, pipeline_id: str | 
                         "query": query,
                         "category": test_case.get("category", "unknown"),
                         "success": True,
-                        "answer_length": len(result.answer) if result and hasattr(result, "answer") and result.answer else 0,
-                        "documents_retrieved": len(result.documents) if result and hasattr(result, "documents") and result.documents else 0,
+                        "answer_length": len(result.answer)
+                        if result and hasattr(result, "answer") and result.answer
+                        else 0,
+                        "documents_retrieved": len(result.documents)
+                        if result and hasattr(result, "documents") and result.documents
+                        else 0,
                         "quality_score": quality_score,
                         "evaluation": result.evaluation if result and hasattr(result, "evaluation") else None,
                     }
