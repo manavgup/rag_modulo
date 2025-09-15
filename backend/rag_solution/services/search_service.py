@@ -5,18 +5,18 @@ from collections.abc import Callable
 from functools import wraps
 from typing import Any, ParamSpec, TypeVar
 
-from fastapi import HTTPException
-from pydantic import UUID4
-from sqlalchemy.orm import Session
-
 from core.config import Settings
 from core.custom_exceptions import ConfigurationError, LLMProviderError, NotFoundError, ValidationError
 from core.logging_utils import get_logger
+from fastapi import HTTPException
+from pydantic import UUID4
+from sqlalchemy.orm import Session
+from vectordbs.data_types import DocumentMetadata, QueryResult
+
 from rag_solution.schemas.search_schema import SearchInput, SearchOutput
 from rag_solution.services.collection_service import CollectionService
 from rag_solution.services.file_management_service import FileManagementService
 from rag_solution.services.pipeline_service import PipelineService
-from vectordbs.data_types import DocumentMetadata, QueryResult
 
 logger = get_logger("services.search")
 
@@ -109,7 +109,9 @@ class SearchService:
             logger.error(f"Error initializing pipeline: {e!s}")
             raise ConfigurationError(f"Pipeline initialization failed: {e!s}") from e
 
-    def _generate_document_metadata(self, query_results: list[QueryResult], collection_id: UUID4) -> list[DocumentMetadata]:
+    def _generate_document_metadata(
+        self, query_results: list[QueryResult], collection_id: UUID4
+    ) -> list[DocumentMetadata]:
         """Generate metadata from retrieved query results."""
         logger.debug("Generating document metadata")
 
@@ -146,7 +148,9 @@ class SearchService:
                 missing_docs.append(doc_id)
 
         if missing_docs:
-            raise ConfigurationError(f"Metadata generation failed: Documents not found in collection metadata: {', '.join(missing_docs)}")
+            raise ConfigurationError(
+                f"Metadata generation failed: Documents not found in collection metadata: {', '.join(missing_docs)}"
+            )
 
         for doc_id in doc_ids:
             doc_metadata.append(file_metadata_by_id[doc_id])
@@ -188,7 +192,9 @@ class SearchService:
         except HTTPException as e:
             # Convert HTTPException to NotFoundError to ensure consistent error handling
             if e.status_code == 404:
-                raise NotFoundError(resource_type="Collection", resource_id=str(collection_id), message=str(e.detail)) from e
+                raise NotFoundError(
+                    resource_type="Collection", resource_id=str(collection_id), message=str(e.detail)
+                ) from e
             raise
 
     def _validate_pipeline(self, pipeline_id: UUID4) -> None:
@@ -216,7 +222,9 @@ class SearchService:
         collection_name = await self._initialize_pipeline(search_input.collection_id)
 
         # Execute pipeline
-        pipeline_result = await self.pipeline_service.execute_pipeline(search_input=search_input, collection_name=collection_name)
+        pipeline_result = await self.pipeline_service.execute_pipeline(
+            search_input=search_input, collection_name=collection_name
+        )
 
         if not pipeline_result.success:
             raise ConfigurationError(pipeline_result.error or "Pipeline execution failed")

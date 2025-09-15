@@ -9,11 +9,10 @@ from collections.abc import Generator
 from unittest.mock import MagicMock
 
 import pytest
-from fastapi import Request, Response
-from fastapi.responses import JSONResponse
-
 from auth.oidc import verify_jwt_token
 from core.authentication_middleware import AuthenticationMiddleware
+from fastapi import Request, Response
+from fastapi.responses import JSONResponse
 
 
 @pytest.mark.api
@@ -237,9 +236,16 @@ class TestEnvironmentVariables:
             os.environ["SKIP_AUTH"] = skip_auth
             os.environ["DEVELOPMENT_MODE"] = dev_mode
 
-            skip = os.getenv("SKIP_AUTH", "false").lower() == "true" or os.getenv("DEVELOPMENT_MODE", "false").lower() == "true" or os.getenv("TESTING", "false").lower() == "true"
+            skip = (
+                os.getenv("SKIP_AUTH", "false").lower() == "true"
+                or os.getenv("DEVELOPMENT_MODE", "false").lower() == "true"
+                or os.getenv("TESTING", "false").lower() == "true"
+            )
 
-            assert skip == should_skip, f"Failed for TESTING={testing}, SKIP_AUTH={skip_auth}, " f"DEVELOPMENT_MODE={dev_mode}. Expected skip={should_skip}, got {skip}"
+            assert skip == should_skip, (
+                f"Failed for TESTING={testing}, SKIP_AUTH={skip_auth}, "
+                f"DEVELOPMENT_MODE={dev_mode}. Expected skip={should_skip}, got {skip}"
+            )
 
 
 if __name__ == "__main__":

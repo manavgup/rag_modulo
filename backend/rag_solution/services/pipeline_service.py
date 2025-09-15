@@ -5,12 +5,15 @@ import time
 import uuid
 from typing import Any
 
-from pydantic import UUID4
-from sqlalchemy.orm import Session
-
 from core.config import Settings
 from core.custom_exceptions import LLMProviderError
 from core.logging_utils import get_logger
+from pydantic import UUID4
+from sqlalchemy.orm import Session
+from vectordbs.data_types import QueryResult, VectorQuery
+from vectordbs.error_types import CollectionError
+from vectordbs.factory import VectorStoreFactory
+
 from rag_solution.core.exceptions import ConfigurationError, NotFoundError, ValidationError
 from rag_solution.data_ingestion.ingestion import DocumentStore
 from rag_solution.evaluation.evaluator import RAGEvaluator
@@ -36,9 +39,6 @@ from rag_solution.services.file_management_service import FileManagementService
 from rag_solution.services.llm_parameters_service import LLMParametersService
 from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.prompt_template_service import PromptTemplateService
-from vectordbs.data_types import QueryResult, VectorQuery
-from vectordbs.error_types import CollectionError
-from vectordbs.factory import VectorStoreFactory
 
 logger = get_logger("services.pipeline")
 
@@ -148,7 +148,9 @@ class PipelineService:
             # Only ensure the collection exists in vector store
             try:
                 # Check if collection exists, create only if it doesn't
-                if not hasattr(self.vector_store, "collection_exists") or not self.vector_store.collection_exists(collection_name):
+                if not hasattr(self.vector_store, "collection_exists") or not self.vector_store.collection_exists(
+                    collection_name
+                ):
                     self.vector_store.create_collection(collection_name)
                     logger.info(f"Created collection {collection_name} in vector store")
                 else:
@@ -173,7 +175,9 @@ class PipelineService:
                 collection = self.collection_service.get_collection(collection_id)
             else:
                 # Fallback: try to find collection by vector_db_name
-                logger.warning(f"No collection_id provided, cannot load documents for {self.document_store.collection_name}")
+                logger.warning(
+                    f"No collection_id provided, cannot load documents for {self.document_store.collection_name}"
+                )
                 await self.document_store.load_documents([])
                 return
 
@@ -209,9 +213,13 @@ class PipelineService:
                 return
 
             # Process and ingest documents
-            processed_documents = await self.collection_service.ingest_documents(file_paths, self.document_store.collection_name, document_ids)
+            processed_documents = await self.collection_service.ingest_documents(
+                file_paths, self.document_store.collection_name, document_ids
+            )
 
-            logger.info(f"Loaded {len(processed_documents)} documents into collection: {self.document_store.collection_name}")
+            logger.info(
+                f"Loaded {len(processed_documents)} documents into collection: {self.document_store.collection_name}"
+            )
         except Exception as e:
             logger.error(f"Error loading documents: {e!s}")
             raise ConfigurationError("document_loading", f"Document loading failed: {e!s}") from e
@@ -234,7 +242,9 @@ class PipelineService:
                         provider = providers[0]  # Use first available provider
                     else:
                         logger.error("No LLM providers available in the system")
-                        raise ConfigurationError("llm_providers", "No LLM providers available. Please contact administrator.")
+                        raise ConfigurationError(
+                            "llm_providers", "No LLM providers available. Please contact administrator."
+                        )
 
                 # Create default pipeline for existing user
                 default_pipeline = self.initialize_user_pipeline(user_id, provider.id)
@@ -435,7 +445,9 @@ class PipelineService:
             logger.error(f"Error formatting context: {e!s}")
             return "\n\n".join(texts)
 
-    def _validate_configuration(self, pipeline_id: UUID4, user_id: UUID4) -> tuple[PipelineConfigOutput, LLMParametersInput, LLMBase]:
+    def _validate_configuration(
+        self, pipeline_id: UUID4, user_id: UUID4
+    ) -> tuple[PipelineConfigOutput, LLMParametersInput, LLMBase]:
         """
         Validate pipeline configuration and return required components.
 
@@ -577,7 +589,9 @@ class PipelineService:
                 message=f"LLM provider error: {e!s}",
             ) from e
 
-    async def _evaluate_response(self, query: str, answer: str, context: str, template: PromptTemplateOutput) -> dict[str, Any] | None:
+    async def _evaluate_response(
+        self, query: str, answer: str, context: str, template: PromptTemplateOutput
+    ) -> dict[str, Any] | None:
         """
         Evaluate generated response if enabled.
 
@@ -591,7 +605,9 @@ class PipelineService:
             Optional evaluation results
         """
         try:
-            self.prompt_template_service.format_prompt(template.id, {"context": context, "question": query, "answer": answer})
+            self.prompt_template_service.format_prompt(
+                template.id, {"context": context, "question": query, "answer": answer}
+            )
             return await self.evaluator.evaluate(context=context, answer=answer, question=query)
         except Exception as e:
             logger.error(f"Evaluation failed: {e!s}")
@@ -621,7 +637,9 @@ class PipelineService:
                 raise ValidationError("Query cannot be empty")
 
             # Validate pipeline configuration
-            pipeline_config, llm_parameters_input, provider = self._validate_configuration(search_input.pipeline_id, search_input.user_id)
+            pipeline_config, llm_parameters_input, provider = self._validate_configuration(
+                search_input.pipeline_id, search_input.user_id
+            )
 
             # Get required templates
             rag_template, eval_template = self._get_templates(search_input.user_id)
@@ -637,8 +655,14 @@ class PipelineService:
                 evaluation_result: dict[str, Any] | None = {"error": "No documents found"}
             else:
                 context_text = self._format_context(rag_template.id, query_results)
-                generated_answer = self._generate_answer(search_input.user_id, clean_query, context_text, provider, llm_parameters_input, rag_template)
-                evaluation_result = await self._evaluate_response(clean_query, generated_answer, context_text, eval_template) if self.settings.runtime_eval and eval_template else None
+                generated_answer = self._generate_answer(
+                    search_input.user_id, clean_query, context_text, provider, llm_parameters_input, rag_template
+                )
+                evaluation_result = (
+                    await self._evaluate_response(clean_query, generated_answer, context_text, eval_template)
+                    if self.settings.runtime_eval and eval_template
+                    else None
+                )
 
             # Prepare and return the result
             execution_time = time.time() - start_time

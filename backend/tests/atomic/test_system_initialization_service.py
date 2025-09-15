@@ -157,7 +157,9 @@ class TestSystemInitializationServiceAtomic:
     def test_provider_config_defaults(self):
         """Test provider configuration default values."""
         # Minimal config with defaults
-        config = LLMProviderInput(name="minimal-provider", base_url="https://minimal.api.com", api_key=SecretStr("minimal-key"))
+        config = LLMProviderInput(
+            name="minimal-provider", base_url="https://minimal.api.com", api_key=SecretStr("minimal-key")
+        )
 
         # Check defaults
         assert config.org_id is None

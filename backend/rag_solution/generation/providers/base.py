@@ -3,10 +3,11 @@ from collections.abc import Generator, Sequence
 from pathlib import Path
 from typing import Any
 
-from pydantic import UUID4
-
 from core.custom_exceptions import LLMProviderError
 from core.logging_utils import get_logger, setup_logging
+from pydantic import UUID4
+from vectordbs.data_types import EmbeddingsList
+
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
 from rag_solution.schemas.llm_provider_schema import LLMProviderConfig
 from rag_solution.schemas.prompt_template_schema import PromptTemplateBase
@@ -14,7 +15,6 @@ from rag_solution.services.llm_model_service import LLMModelService
 from rag_solution.services.llm_parameters_service import LLMParametersService
 from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.prompt_template_service import PromptTemplateService
-from vectordbs.data_types import EmbeddingsList
 
 setup_logging(Path("logs"))
 logger = get_logger("llm.providers")
@@ -98,14 +98,18 @@ class LLMBase(ABC):
                 self.initialize_client()
             self.validate_client()
         except Exception as e:
-            raise LLMProviderError(provider=self._provider_name, error_type="client_error", message=f"Client error: {e!s}") from e
+            raise LLMProviderError(
+                provider=self._provider_name, error_type="client_error", message=f"Client error: {e!s}"
+            ) from e
 
     def validate_client(self) -> None:
         """Validate OpenAI client state."""
         if self.client is None:
             raise ValueError("OpenAI client is not initialized")
 
-    def _format_prompt(self, prompt: str, template: PromptTemplateBase | None = None, variables: dict[str, Any] | None = None) -> str:
+    def _format_prompt(
+        self, prompt: str, template: PromptTemplateBase | None = None, variables: dict[str, Any] | None = None
+    ) -> str:
         """Format prompt using template service."""
         if not template:
             return prompt

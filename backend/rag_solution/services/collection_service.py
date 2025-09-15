@@ -3,10 +3,6 @@ import multiprocessing
 import re
 from uuid import uuid4
 
-from fastapi import BackgroundTasks, UploadFile
-from pydantic import UUID4
-from sqlalchemy.orm import Session
-
 from core.config import Settings
 from core.custom_exceptions import (
     CollectionProcessingError,
@@ -21,6 +17,13 @@ from core.custom_exceptions import (
     ValidationError,
 )
 from core.logging_utils import get_logger
+from fastapi import BackgroundTasks, UploadFile
+from pydantic import UUID4
+from sqlalchemy.orm import Session
+from vectordbs.data_types import Document
+from vectordbs.error_types import CollectionError
+from vectordbs.factory import VectorStoreFactory
+
 from rag_solution.data_ingestion.document_processor import DocumentProcessor
 from rag_solution.repository.collection_repository import CollectionRepository
 from rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput, CollectionStatus
@@ -33,9 +36,6 @@ from rag_solution.services.prompt_template_service import PromptTemplateService
 from rag_solution.services.question_service import QuestionService
 from rag_solution.services.user_collection_service import UserCollectionService
 from rag_solution.services.user_provider_service import UserProviderService
-from vectordbs.data_types import Document
-from vectordbs.error_types import CollectionError
-from vectordbs.factory import VectorStoreFactory
 
 logger = get_logger("services.collection")
 
@@ -206,7 +206,9 @@ class CollectionService:
         collection = None
         try:
             # Create the collection
-            collection_input = CollectionInput(name=collection_name, is_private=is_private, users=[user_id], status=CollectionStatus.CREATED)
+            collection_input = CollectionInput(
+                name=collection_name, is_private=is_private, users=[user_id], status=CollectionStatus.CREATED
+            )
             collection = self.create_collection(collection_input)
 
             # Upload the files and create file records in the database
@@ -220,10 +222,16 @@ class CollectionService:
             self.update_collection_status(collection.id, CollectionStatus.PROCESSING)
 
             # Get file paths
-            file_paths = [str(self.file_management_service.get_file_path(collection.id, file.filename)) for file in files if file.filename is not None]
+            file_paths = [
+                str(self.file_management_service.get_file_path(collection.id, file.filename))
+                for file in files
+                if file.filename is not None
+            ]
 
             # Process documents and generate questions as a background task
-            background_tasks.add_task(self.process_documents, file_paths, collection.id, collection.vector_db_name, document_ids, user_id)
+            background_tasks.add_task(
+                self.process_documents, file_paths, collection.id, collection.vector_db_name, document_ids, user_id
+            )
             logger.info(f"Collection with documents created successfully: {collection.id}")
 
             return collection
@@ -237,7 +245,9 @@ class CollectionService:
             logger.error(f"Error in create_collection_with_documents: {e!s}")
             raise
 
-    async def process_documents(self, file_paths: list[str], collection_id: UUID4, vector_db_name: str, document_ids: list[str], user_id: UUID4) -> None:
+    async def process_documents(
+        self, file_paths: list[str], collection_id: UUID4, vector_db_name: str, document_ids: list[str], user_id: UUID4
+    ) -> None:
         """Process documents and generate questions for a collection.
 
         Args:
@@ -256,7 +266,9 @@ class CollectionService:
         """
         try:
             # Process documents into vector store
-            processed_documents = await self._process_and_ingest_documents(file_paths, vector_db_name, document_ids, collection_id)
+            processed_documents = await self._process_and_ingest_documents(
+                file_paths, vector_db_name, document_ids, collection_id
+            )
 
             # Extract document texts for question generation
             document_texts = self._extract_document_texts(processed_documents, collection_id)
@@ -270,16 +282,22 @@ class CollectionService:
         except Exception as e:
             logger.error(f"Unexpected error processing documents for collection {collection_id}: {e!s}")
             self.update_collection_status(collection_id, CollectionStatus.ERROR)
-            raise CollectionProcessingError(collection_id=str(collection_id), stage="processing", error_type="unexpected_error", message=str(e)) from e
+            raise CollectionProcessingError(
+                collection_id=str(collection_id), stage="processing", error_type="unexpected_error", message=str(e)
+            ) from e
 
-    async def _process_and_ingest_documents(self, file_paths: list[str], vector_db_name: str, document_ids: list[str], collection_id: UUID4) -> list[Document]:
+    async def _process_and_ingest_documents(
+        self, file_paths: list[str], vector_db_name: str, document_ids: list[str], collection_id: UUID4
+    ) -> list[Document]:
         """Process and ingest documents into vector store."""
         try:
             return await self.ingest_documents(file_paths, vector_db_name, document_ids)
         except DocumentIngestionError as e:
             logger.error(f"Document ingestion failed: {e!s}")
             self.update_collection_status(collection_id, CollectionStatus.ERROR)
-            raise CollectionProcessingError(collection_id=str(collection_id), stage="ingestion", error_type="ingestion_failed", message=str(e)) from e
+            raise CollectionProcessingError(
+                collection_id=str(collection_id), stage="ingestion", error_type="ingestion_failed", message=str(e)
+            ) from e
 
     def _extract_document_texts(self, processed_documents: list[Document], collection_id: UUID4) -> list[str]:
         """Extract text chunks from processed documents."""
@@ -297,7 +315,9 @@ class CollectionService:
 
         return document_texts
 
-    async def _generate_collection_questions(self, document_texts: list[str], collection_id: UUID4, user_id: UUID4) -> None:
+    async def _generate_collection_questions(
+        self, document_texts: list[str], collection_id: UUID4, user_id: UUID4
+    ) -> None:
         """Generate questions for collection from document texts."""
         # Get provider and generation parameters
         provider = self.user_provider_service.get_user_provider(user_id)
@@ -325,20 +345,32 @@ class CollectionService:
             if not questions:
                 logger.warning(f"No questions were generated for collection {collection_id}")
                 self.update_collection_status(collection_id, CollectionStatus.ERROR)
-                raise QuestionGenerationError(collection_id=str(collection_id), error_type="no_questions", message="No questions were generated")
+                raise QuestionGenerationError(
+                    collection_id=str(collection_id), error_type="no_questions", message="No questions were generated"
+                )
 
             logger.info(f"Generated {len(questions)} questions for collection {collection_id}")
             self.update_collection_status(collection_id, CollectionStatus.COMPLETED)
 
         except (ValidationError, NotFoundError, LLMProviderError) as e:
-            error_type = "validation_error" if isinstance(e, ValidationError) else "template_not_found" if isinstance(e, NotFoundError) else "provider_error"
+            error_type = (
+                "validation_error"
+                if isinstance(e, ValidationError)
+                else "template_not_found"
+                if isinstance(e, NotFoundError)
+                else "provider_error"
+            )
             logger.error(f"Question generation failed ({error_type}): {e!s}")
             self.update_collection_status(collection_id, CollectionStatus.ERROR)
-            raise QuestionGenerationError(collection_id=str(collection_id), error_type=error_type, message=str(e)) from e
+            raise QuestionGenerationError(
+                collection_id=str(collection_id), error_type=error_type, message=str(e)
+            ) from e
         except Exception as e:
             logger.error(f"Unexpected error during question generation: {e!s}")
             self.update_collection_status(collection_id, CollectionStatus.ERROR)
-            raise QuestionGenerationError(collection_id=str(collection_id), error_type="unexpected_error", message=str(e)) from e
+            raise QuestionGenerationError(
+                collection_id=str(collection_id), error_type="unexpected_error", message=str(e)
+            ) from e
 
     def _get_question_generation_template(self, user_id: UUID4) -> PromptTemplateOutput | None:
         """Get question generation template for user."""
@@ -365,7 +397,9 @@ class CollectionService:
             repetition_penalty=parameters.repetition_penalty,
         )
 
-    async def ingest_documents(self, file_paths: list[str], vector_db_name: str, document_ids: list[str]) -> list[Document]:
+    async def ingest_documents(
+        self, file_paths: list[str], vector_db_name: str, document_ids: list[str]
+    ) -> list[Document]:
         """Ingest documents and store them in the vector store.
 
         Args:
@@ -397,10 +431,14 @@ class CollectionService:
                             self.store_documents_in_vector_store([document], vector_db_name)
                         except DocumentStorageError as e:
                             logger.error(f"Failed to store document {document_id} in vector store: {e!s}")
-                            raise DocumentIngestionError(doc_id=document_id, stage="vector_store", error_type="storage_failed", message=str(e)) from e
+                            raise DocumentIngestionError(
+                                doc_id=document_id, stage="vector_store", error_type="storage_failed", message=str(e)
+                            ) from e
                 except (UnsupportedFileTypeError, DocumentProcessingError) as e:
                     logger.error(f"Error processing file {file_path}: {e!s}")
-                    raise DocumentIngestionError(doc_id=document_id, stage="processing", error_type="processing_failed", message=str(e)) from e
+                    raise DocumentIngestionError(
+                        doc_id=document_id, stage="processing", error_type="processing_failed", message=str(e)
+                    ) from e
         logger.info("Document processing complete")
         return processed_documents
 

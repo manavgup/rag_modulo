@@ -8,6 +8,7 @@ from collections.abc import Generator
 from typing import Any, ClassVar
 
 from chromadb.api.types import Documents, EmbeddingFunction
+from core.config import Settings, get_settings
 from dotenv import load_dotenv
 from ibm_watsonx_ai import APIClient, Credentials  # type: ignore[import-untyped]
 from ibm_watsonx_ai.foundation_models import Embeddings as wx_Embeddings  # type: ignore[import-untyped]
@@ -15,7 +16,6 @@ from ibm_watsonx_ai.foundation_models import ModelInference  # type: ignore[impo
 from ibm_watsonx_ai.metanames import EmbedTextParamsMetaNames as EmbedParams  # type: ignore[import-untyped]
 from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams  # type: ignore[import-untyped]
 
-from core.config import Settings, get_settings
 from vectordbs.data_types import EmbeddingsList
 
 # Configure logging
@@ -138,7 +138,9 @@ def sublist(inputs: list, n: int) -> Generator[list, None, None]:
 
 
 # Updated functions with settings parameter
-def get_embeddings(texts: str | list[str], embed_client: wx_Embeddings | None = None, settings: Settings | None = None) -> EmbeddingsList:
+def get_embeddings(
+    texts: str | list[str], embed_client: wx_Embeddings | None = None, settings: Settings | None = None
+) -> EmbeddingsList:
     """
     Get embeddings for the given texts.
 
@@ -169,7 +171,9 @@ def get_embeddings(texts: str | list[str], embed_client: wx_Embeddings | None = 
         raise
 
 
-def get_model(generate_params: dict | None = None, model_id: str | None = None, settings: Settings | None = None) -> ModelInference:
+def get_model(
+    generate_params: dict | None = None, model_id: str | None = None, settings: Settings | None = None
+) -> ModelInference:
     """
     Get a model inference instance.
 
@@ -188,7 +192,9 @@ def get_model(generate_params: dict | None = None, model_id: str | None = None, 
     return wx_client.get_model(generate_params, model_id)
 
 
-def generate_text(prompt: str, wx_model: ModelInference | None = None, settings: Settings | None = None, **kwargs) -> str:
+def generate_text(
+    prompt: str, wx_model: ModelInference | None = None, settings: Settings | None = None, **kwargs
+) -> str:
     """
     Generate text using WatsonX.
 

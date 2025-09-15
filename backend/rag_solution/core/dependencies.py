@@ -6,11 +6,11 @@ and service injection that can be used across all routers.
 
 from typing import Any
 
+from core.config import Settings, get_settings
 from fastapi import Depends, HTTPException, Request
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
-from core.config import Settings, get_settings
 from rag_solution.core.exceptions import NotFoundError
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.user_schema import UserOutput
@@ -35,7 +35,9 @@ def get_current_user(request: Request) -> dict[Any, Any]:
     return request.state.user  # type: ignore[no-any-return]
 
 
-def verify_user_access(user_id: UUID4, request: Request, db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> UserOutput:
+def verify_user_access(
+    user_id: UUID4, request: Request, db: Session = Depends(get_db), settings: Settings = Depends(get_settings)
+) -> UserOutput:
     """Verify that the current user has access to the requested user resource.
 
     Args:
@@ -65,7 +67,9 @@ def verify_user_access(user_id: UUID4, request: Request, db: Session = Depends(g
         raise HTTPException(status_code=404, detail=str(e)) from e
 
 
-def verify_admin_access(request: Request, db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> UserOutput:
+def verify_admin_access(
+    request: Request, db: Session = Depends(get_db), settings: Settings = Depends(get_settings)
+) -> UserOutput:
     """Verify that the current user has admin privileges.
 
     Args:
@@ -187,12 +191,16 @@ def get_user_service(db: Session = Depends(get_db), settings: Settings = Depends
     return UserService(db, settings)
 
 
-def get_collection_service(db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> CollectionService:
+def get_collection_service(
+    db: Session = Depends(get_db), settings: Settings = Depends(get_settings)
+) -> CollectionService:
     """Get CollectionService instance with proper dependency injection."""
     return CollectionService(db, settings)
 
 
-def get_file_service(db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> FileManagementService:
+def get_file_service(
+    db: Session = Depends(get_db), settings: Settings = Depends(get_settings)
+) -> FileManagementService:
     """Get FileManagementService instance with proper dependency injection."""
     from rag_solution.services.file_management_service import FileManagementService
 
@@ -213,7 +221,9 @@ def get_pipeline_service(db: Session = Depends(get_db), settings: Settings = Dep
     return PipelineService(db, settings)
 
 
-def get_llm_provider_service(db: Session = Depends(get_db), _settings: Settings = Depends(get_settings)) -> LLMProviderService:
+def get_llm_provider_service(
+    db: Session = Depends(get_db), _settings: Settings = Depends(get_settings)
+) -> LLMProviderService:
     """Get LLMProviderService instance."""
     from rag_solution.services.llm_provider_service import LLMProviderService
 

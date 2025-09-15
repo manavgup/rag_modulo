@@ -13,10 +13,10 @@ These are true E2E tests that require the full RAG infrastructure to be working.
 from uuid import uuid4
 
 import pytest
+from core.config import Settings
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from core.config import Settings
 from rag_solution.schemas.search_schema import SearchInput, SearchOutput
 from rag_solution.services.search_service import SearchService
 
@@ -30,7 +30,8 @@ class TestRAGSearchFunctionality:
         """Create a real SearchService with real database connection."""
         # Use real database connection for E2E tests - no mocks
         engine = create_engine(
-            f"postgresql://{e2e_settings.collectiondb_user}:{e2e_settings.collectiondb_pass}@" f"{e2e_settings.collectiondb_host}:{e2e_settings.collectiondb_port}/{e2e_settings.collectiondb_name}"
+            f"postgresql://{e2e_settings.collectiondb_user}:{e2e_settings.collectiondb_pass}@"
+            f"{e2e_settings.collectiondb_host}:{e2e_settings.collectiondb_port}/{e2e_settings.collectiondb_name}"
         )
         session = Session(engine)
         return SearchService(session, e2e_settings)
@@ -67,7 +68,10 @@ class TestRAGSearchFunctionality:
         except Exception as exc:
             # Expected failures: collection not found, pipeline not found, Milvus connection, etc.
             error_message = str(exc).lower()
-            assert any(keyword in error_message for keyword in ["not found", "collection", "pipeline", "milvus", "connection", "vector", "404"])
+            assert any(
+                keyword in error_message
+                for keyword in ["not found", "collection", "pipeline", "milvus", "connection", "vector", "404"]
+            )
 
     @pytest.mark.asyncio
     async def test_rag_search_with_technical_query(self, search_service: SearchService):
@@ -85,12 +89,18 @@ class TestRAGSearchFunctionality:
             # Validate technical answer quality
             assert isinstance(result, SearchOutput)
             assert len(result.answer) > 50  # Technical answers should be detailed
-            assert any(keyword in result.answer.lower() for keyword in ["supervised", "unsupervised", "learning", "training", "data"])
+            assert any(
+                keyword in result.answer.lower()
+                for keyword in ["supervised", "unsupervised", "learning", "training", "data"]
+            )
 
         except Exception as exc:
             # Expected infrastructure failures
             error_message = str(exc).lower()
-            assert any(keyword in error_message for keyword in ["not found", "collection", "pipeline", "milvus", "connection", "vector"])
+            assert any(
+                keyword in error_message
+                for keyword in ["not found", "collection", "pipeline", "milvus", "connection", "vector"]
+            )
 
     @pytest.mark.asyncio
     async def test_rag_search_with_comparative_query(self, search_service: SearchService):
@@ -108,12 +118,18 @@ class TestRAGSearchFunctionality:
             # Validate comparative analysis
             assert isinstance(result, SearchOutput)
             assert len(result.answer) > 100  # Comparative answers should be detailed
-            assert any(keyword in result.answer.lower() for keyword in ["neural", "decision", "tree", "classification", "compare"])
+            assert any(
+                keyword in result.answer.lower()
+                for keyword in ["neural", "decision", "tree", "classification", "compare"]
+            )
 
         except Exception as exc:
             # Expected infrastructure failures
             error_message = str(exc).lower()
-            assert any(keyword in error_message for keyword in ["not found", "collection", "pipeline", "milvus", "connection", "vector"])
+            assert any(
+                keyword in error_message
+                for keyword in ["not found", "collection", "pipeline", "milvus", "connection", "vector"]
+            )
 
     @pytest.mark.asyncio
     async def test_rag_search_result_ranking(self, search_service: SearchService):
@@ -140,7 +156,10 @@ class TestRAGSearchFunctionality:
         except Exception as exc:
             # Expected infrastructure failures
             error_message = str(exc).lower()
-            assert any(keyword in error_message for keyword in ["not found", "collection", "pipeline", "milvus", "connection", "vector"])
+            assert any(
+                keyword in error_message
+                for keyword in ["not found", "collection", "pipeline", "milvus", "connection", "vector"]
+            )
 
     @pytest.mark.asyncio
     async def test_rag_search_answer_quality(self, search_service: SearchService):
@@ -166,7 +185,10 @@ class TestRAGSearchFunctionality:
         except Exception as exc:
             # Expected infrastructure failures
             error_message = str(exc).lower()
-            assert any(keyword in error_message for keyword in ["not found", "collection", "pipeline", "milvus", "connection", "vector"])
+            assert any(
+                keyword in error_message
+                for keyword in ["not found", "collection", "pipeline", "milvus", "connection", "vector"]
+            )
 
     @pytest.mark.asyncio
     async def test_rag_search_with_no_relevant_documents(self, search_service: SearchService):
@@ -190,4 +212,7 @@ class TestRAGSearchFunctionality:
         except Exception as exc:
             # Expected infrastructure failures
             error_message = str(exc).lower()
-            assert any(keyword in error_message for keyword in ["not found", "collection", "pipeline", "milvus", "connection", "vector"])
+            assert any(
+                keyword in error_message
+                for keyword in ["not found", "collection", "pipeline", "milvus", "connection", "vector"]
+            )

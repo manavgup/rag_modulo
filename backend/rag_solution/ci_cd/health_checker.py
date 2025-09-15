@@ -166,7 +166,9 @@ class HealthChecker:
 
         with ThreadPoolExecutor(max_workers=min(len(self.services), 10)) as executor:
             # Submit all health checks
-            future_to_service = {executor.submit(self._perform_health_check, service): service for service in self.services}
+            future_to_service = {
+                executor.submit(self._perform_health_check, service): service for service in self.services
+            }
 
             # Collect results with timeout
             for future in future_to_service:
