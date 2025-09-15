@@ -14,6 +14,11 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Setup GitHub CLI
+      run: |
+        # GitHub CLI is already installed in GitHub Actions runners
+        gh --version
+
     - name: Create Codespace
       id: create-codespace
       run: |
@@ -40,23 +45,23 @@ jobs:
       run: |
         echo "Validating Dev Container configuration..."
         # Test that make command is available
-        gh codespace exec --command "make --version" --codespace ${{ steps.create-codespace.outputs.codespace-name }}
+        gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} --command "make --version"
 
         # Test that Python is available
-        gh codespace exec --command "python --version" --codespace ${{ steps.create-codespace.outputs.codespace-name }}
+        gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} --command "python --version"
 
         # Test that VS Code extensions are installed
-        gh codespace exec --command "code --list-extensions | grep -E '(python|ruff|docker)'" --codespace ${{ steps.create-codespace.outputs.codespace-name }}
+        gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} --command "code --list-extensions | grep -E '(python|ruff|docker)'"
 
     - name: Test Development Workflow
       run: |
         echo "Testing development workflow commands..."
 
         # Test make commands
-        gh codespace exec --command "cd /workspace && make dev-validate" --codespace ${{ steps.create-codespace.outputs.codespace-name }}
+        gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} --command "cd /workspace && make dev-validate"
 
         # Test Docker commands
-        gh codespace exec --command "docker --version" --codespace ${{ steps.create-codespace.outputs.codespace-name }}
+        gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} --command "docker --version"
 
     - name: Cleanup Codespace
       if: always()

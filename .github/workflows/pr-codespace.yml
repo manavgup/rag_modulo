@@ -13,6 +13,11 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Setup GitHub CLI
+      run: |
+        # GitHub CLI is already installed in GitHub Actions runners
+        gh --version
+
     - name: Create PR Codespace
       id: create-codespace
       run: |
@@ -84,20 +89,20 @@ jobs:
         echo "Setting up Codespace environment for PR review..."
 
         # Initialize development environment
-        gh codespace exec --command "cd /workspace && make dev-init" --codespace ${{ steps.create-codespace.outputs.codespace-name }}
+        gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} --command "cd /workspace && make dev-init"
 
         # Build development images
-        gh codespace exec --command "cd /workspace && make dev-build" --codespace ${{ steps.create-codespace.outputs.codespace-name }}
+        gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} --command "cd /workspace && make dev-build"
 
     - name: Validate PR Changes
       run: |
         echo "Validating PR changes in Codespace..."
 
         # Check if Dev Container builds successfully
-        gh codespace exec --command "cd /workspace && make dev-validate" --codespace ${{ steps.create-codespace.outputs.codespace-name }}
+        gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} --command "cd /workspace && make dev-validate"
 
         # Test that all make commands work
-        gh codespace exec --command "cd /workspace && make help" --codespace ${{ steps.create-codespace.outputs.codespace-name }}
+        gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} --command "cd /workspace && make help"
 
     - name: Update PR Comment
       uses: actions/github-script@v6
