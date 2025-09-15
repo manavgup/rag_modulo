@@ -8,125 +8,138 @@ jobs:
   pr-codespace:
     runs-on: ubuntu-latest
     name: Create Codespace for PR Review
-    
+
     steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
     - name: Create PR Codespace
       id: create-codespace
-      uses: github/codespace-action@v1
-      with:
-        codespace-name: pr-${{ github.event.number }}-${{ github.run_number }}
-        timeout-minutes: 5
-        
+      run: |
+        echo "Creating Codespace for PR review..."
+        CODESPACE_NAME="pr-${{ github.event.number }}-${{ github.run_number }}"
+        echo "codespace-name=$CODESPACE_NAME" >> $GITHUB_OUTPUT
+
+        # Create Codespace using GitHub CLI
+        gh codespace create \
+          --repo ${{ github.repository }} \
+          --branch ${{ github.head_ref }} \
+          --machine basicLinux32gb \
+          --display-name "$CODESPACE_NAME" \
+          --idle-timeout 5m
+
+        echo "Codespace created: $CODESPACE_NAME"
+
     - name: Wait for Codespace
       run: |
         echo "Waiting for Codespace to be ready..."
         sleep 30
-        
+
     - name: Comment on PR
       uses: actions/github-script@v6
       with:
         script: |
           const codespaceName = '${{ steps.create-codespace.outputs.codespace-name }}';
           const codespaceUrl = `https://github.com/codespaces/${codespaceName}`;
-          
+
           const comment = `## 🚀 Codespace Created for PR Review
-          
+
           A Codespace has been created for this PR to enable easy review and testing.
-          
+
           **Codespace Details:**
           - **Name**: \`${codespaceName}\`
           - **URL**: ${codespaceUrl}
           - **Branch**: \`${{ github.head_ref }}\`
-          
+
           **How to Use:**
           1. Click the Codespace URL above
           2. Wait for the environment to load (2-3 minutes)
           3. Test the changes in the Codespace
           4. Leave feedback in this PR
-          
+
           **Available Commands:**
           \`\`\`bash
           # Start development environment
           make dev-up
-          
+
           # Validate everything is working
           make dev-validate
-          
+
           # Run tests
           make test-atomic
           make test-unit
           \`\`\`
-          
+
           **Note**: This Codespace will be automatically deleted after 7 days of inactivity.`;
-          
+
           github.rest.issues.createComment({
             issue_number: context.issue.number,
             owner: context.repo.owner,
             repo: context.repo.repo,
             body: comment
           });
-          
+
     - name: Setup Codespace Environment
       run: |
         echo "Setting up Codespace environment for PR review..."
-        
+
         # Initialize development environment
         gh codespace exec --command "cd /workspace && make dev-init" --codespace ${{ steps.create-codespace.outputs.codespace-name }}
-        
+
         # Build development images
         gh codespace exec --command "cd /workspace && make dev-build" --codespace ${{ steps.create-codespace.outputs.codespace-name }}
-        
+
     - name: Validate PR Changes
       run: |
         echo "Validating PR changes in Codespace..."
-        
+
         # Check if Dev Container builds successfully
         gh codespace exec --command "cd /workspace && make dev-validate" --codespace ${{ steps.create-codespace.outputs.codespace-name }}
-        
+
         # Test that all make commands work
         gh codespace exec --command "cd /workspace && make help" --codespace ${{ steps.create-codespace.outputs.codespace-name }}
-        
+
     - name: Update PR Comment
       uses: actions/github-script@v6
       with:
         script: |
           const codespaceName = '${{ steps.create-codespace.outputs.codespace-name }}';
           const codespaceUrl = `https://github.com/codespaces/${codespaceName}`;
-          
+
           const comment = `## ✅ Codespace Ready for PR Review
-          
+
           **Codespace Details:**
           - **Name**: \`${codespaceName}\`
           - **URL**: ${codespaceUrl}
           - **Status**: ✅ Ready for testing
           - **Environment**: ✅ Development environment initialized
-          
+
           **Quick Start:**
           \`\`\`bash
           # In Codespace terminal
           make dev-up
           make dev-validate
           \`\`\`
-          
+
           **Services Available:**
           - Backend: http://localhost:8000
           - Frontend: http://localhost:3000
           - MLflow: http://localhost:5001
-          
+
           **Note**: This Codespace will be automatically deleted after 7 days of inactivity.`;
-          
+
           // Find and update the existing comment
           const comments = await github.rest.issues.listComments({
             owner: context.repo.owner,
             repo: context.repo.repo,
             issue_number: context.issue.number
           });
-          
-          const botComment = comments.data.find(comment => 
-            comment.user.type === 'Bot' && 
+
+          const botComment = comments.data.find(comment =>
+            comment.user.type === 'Bot' &&
             comment.body.includes('Codespace Created for PR Review')
           );
-          
+
           if (botComment) {
             github.rest.issues.updateComment({
               comment_id: botComment.id,

@@ -13,88 +13,101 @@ jobs:
   codespace-testing:
     runs-on: ubuntu-latest
     name: Run Tests in Codespace Environment
-    
+
     steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
     - name: Create Codespace
       id: create-codespace
-      uses: github/codespace-action@v1
-      with:
-        codespace-name: testing-${{ github.run_number }}
-        timeout-minutes: 15
-        
+      run: |
+        echo "Creating Codespace for testing..."
+        CODESPACE_NAME="testing-${{ github.run_number }}"
+        echo "codespace-name=$CODESPACE_NAME" >> $GITHUB_OUTPUT
+
+        # Create Codespace using GitHub CLI
+        gh codespace create \
+          --repo ${{ github.repository }} \
+          --branch ${{ github.head_ref }} \
+          --machine basicLinux32gb \
+          --display-name "$CODESPACE_NAME" \
+          --idle-timeout 15m
+
+        echo "Codespace created: $CODESPACE_NAME"
+
     - name: Wait for Codespace to be ready
       run: |
         echo "Waiting for Codespace to be ready..."
-        sleep 45
-        
+        sleep 30
+
     - name: Setup Development Environment
       run: |
         echo "Setting up development environment in Codespace..."
-        
+
         # Initialize development environment
         gh codespace exec --command "cd /workspace && make dev-init" --codespace ${{ steps.create-codespace.outputs.codespace-name }}
-        
+
         # Build development images
         gh codespace exec --command "cd /workspace && make dev-build" --codespace ${{ steps.create-codespace.outputs.codespace-name }}
-        
+
     - name: Start Services
       run: |
         echo "Starting development services..."
-        
+
         # Start development environment
         gh codespace exec --command "cd /workspace && make dev-up" --codespace ${{ steps.create-codespace.outputs.codespace-name }}
-        
+
         # Wait for services to be healthy
         gh codespace exec --command "cd /workspace && make dev-validate" --codespace ${{ steps.create-codespace.outputs.codespace-name }}
-        
+
     - name: Run Tests
       run: |
         echo "Running tests in Codespace environment..."
-        
+
         # Run atomic tests
         gh codespace exec --command "cd /workspace && make test-atomic" --codespace ${{ steps.create-codespace.outputs.codespace-name }}
-        
+
         # Run unit tests
         gh codespace exec --command "cd /workspace && make test-unit" --codespace ${{ steps.create-codespace.outputs.codespace-name }}
-        
+
         # Run integration tests
         gh codespace exec --command "cd /workspace && make test-integration" --codespace ${{ steps.create-codespace.outputs.codespace-name }}
-        
+
     - name: Test Hot Reloading
       run: |
         echo "Testing hot reloading functionality..."
-        
+
         # Create a test file change
         gh codespace exec --command "cd /workspace/backend && echo '# Test change' >> test_hot_reload.py" --codespace ${{ steps.create-codespace.outputs.codespace-name }}
-        
+
         # Verify the change is reflected
         gh codespace exec --command "cd /workspace && ls backend/test_hot_reload.py" --codespace ${{ steps.create-codespace.outputs.codespace-name }}
-        
+
         # Clean up test file
         gh codespace exec --command "cd /workspace/backend && rm test_hot_reload.py" --codespace ${{ steps.create-codespace.outputs.codespace-name }}
-        
+
     - name: Test CLI Commands
       run: |
         echo "Testing CLI commands..."
-        
+
         # Test CLI help
         gh codespace exec --command "cd /workspace && poetry run python -m rag_solution.cli.main --help" --codespace ${{ steps.create-codespace.outputs.codespace-name }}
-        
+
         # Test health check
         gh codespace exec --command "cd /workspace && poetry run python -m rag_solution.cli.main health check" --codespace ${{ steps.create-codespace.outputs.codespace-name }}
-        
+
     - name: Cleanup Services
       if: always()
       run: |
         echo "Cleaning up services..."
         gh codespace exec --command "cd /workspace && make dev-down" --codespace ${{ steps.create-codespace.outputs.codespace-name }}
-        
+
     - name: Cleanup Codespace
       if: always()
       run: |
         echo "Cleaning up Codespace..."
         gh codespace delete --codespace ${{ steps.create-codespace.outputs.codespace-name }} --force
-        
+
     - name: Test Results
       run: |
         echo "✅ Codespace testing completed successfully!"
