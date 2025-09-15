@@ -135,7 +135,7 @@ class PipelineService:
             self._retriever = RetrieverFactory.create_retriever({}, self.document_store)
         return self._retriever
 
-    async def initialize(self, collection_name: str, collection_id: UUID4 | None = None) -> None:
+    async def initialize(self, collection_name: str, collection_id: UUID4 | None = None) -> None:  # noqa: ARG002
         """Initialize pipeline components for a collection."""
         try:
             # Update document store collection
@@ -144,8 +144,21 @@ class PipelineService:
             # Reinitialize retriever with new document store
             self._retriever = RetrieverFactory.create_retriever({}, self.document_store)
 
-            # Load documents
-            await self._load_documents(collection_id)
+            # For search operations, we don't need to reload documents - they should already be processed
+            # Only ensure the collection exists in vector store
+            try:
+                # Check if collection exists, create only if it doesn't
+                if not hasattr(self.vector_store, "collection_exists") or not self.vector_store.collection_exists(collection_name):
+                    self.vector_store.create_collection(collection_name)
+                    logger.info(f"Created collection {collection_name} in vector store")
+                else:
+                    logger.info(f"Collection {collection_name} already exists in vector store")
+            except Exception as e:
+                # If creation fails because it exists, that's fine
+                if "already exists" in str(e).lower():
+                    logger.info(f"Collection {collection_name} already exists in vector store")
+                else:
+                    logger.warning(f"Could not verify/create collection {collection_name}: {e}")
 
             logger.info(f"Pipeline initialized for collection: {collection_name}")
         except Exception as e:

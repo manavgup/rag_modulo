@@ -1,11 +1,12 @@
 """Atomic tests for SystemInitializationService - schema and logic validation only."""
 
-import pytest
-from pydantic import SecretStr
 from uuid import uuid4
 
-from rag_solution.schemas.llm_provider_schema import LLMProviderInput
+import pytest
+from pydantic import SecretStr
+
 from rag_solution.schemas.llm_model_schema import LLMModelInput, ModelType
+from rag_solution.schemas.llm_provider_schema import LLMProviderInput
 
 
 @pytest.mark.atomic
@@ -21,7 +22,7 @@ class TestSystemInitializationServiceAtomic:
             api_key=SecretStr("test-api-key"),
             project_id="test-project-id",
             is_default=True,
-            is_active=True
+            is_active=True,
         )
 
         assert valid_config.name == "watsonx"
@@ -39,7 +40,7 @@ class TestSystemInitializationServiceAtomic:
             base_url="https://api.openai.com",
             api_key=SecretStr("test-openai-key"),
             is_default=False,
-            is_active=True
+            is_active=True,
         )
 
         assert valid_config.name == "openai"
@@ -56,7 +57,7 @@ class TestSystemInitializationServiceAtomic:
             base_url="https://api.anthropic.com",
             api_key=SecretStr("test-anthropic-key"),
             is_default=False,
-            is_active=True
+            is_active=True,
         )
 
         assert valid_config.name == "anthropic"
@@ -74,7 +75,7 @@ class TestSystemInitializationServiceAtomic:
             org_id="test-org",
             project_id="test-project",
             is_default=True,
-            is_active=True
+            is_active=True,
         )
 
         data = config.model_dump()
@@ -104,7 +105,7 @@ class TestSystemInitializationServiceAtomic:
             stream=False,
             rate_limit=10,
             is_default=True,
-            is_active=True
+            is_active=True,
         )
 
         assert valid_model.provider_id == provider_id
@@ -137,7 +138,7 @@ class TestSystemInitializationServiceAtomic:
             stream=False,
             rate_limit=10,
             is_default=True,
-            is_active=True
+            is_active=True,
         )
 
         assert valid_model.provider_id == provider_id
@@ -156,11 +157,7 @@ class TestSystemInitializationServiceAtomic:
     def test_provider_config_defaults(self):
         """Test provider configuration default values."""
         # Minimal config with defaults
-        config = LLMProviderInput(
-            name="minimal-provider",
-            base_url="https://minimal.api.com",
-            api_key=SecretStr("minimal-key")
-        )
+        config = LLMProviderInput(name="minimal-provider", base_url="https://minimal.api.com", api_key=SecretStr("minimal-key"))
 
         # Check defaults
         assert config.org_id is None
@@ -193,7 +190,7 @@ class TestSystemInitializationServiceAtomic:
                 "base_url": "https://us-south.ml.cloud.ibm.com",
                 "api_key": "test-wx-key",
                 "project_id": "test-project",
-                "is_default": True
+                "is_default": True,
             }
 
         # Simulate OpenAI config creation
@@ -201,7 +198,7 @@ class TestSystemInitializationServiceAtomic:
             provider_configs["openai"] = {
                 "name": "openai",
                 "base_url": "https://api.openai.com",
-                "api_key": "test-openai-key"
+                "api_key": "test-openai-key",
             }
 
         # Test logic flow
@@ -223,10 +220,7 @@ class TestSystemInitializationServiceAtomic:
 
         # Test raise_on_error logic
         raise_on_error = False
-        if not raise_on_error:
-            result = []
-        else:
-            result = None
+        result = [] if not raise_on_error else None
 
         assert result == []  # Should return empty list when raise_on_error=False
 
@@ -235,7 +229,7 @@ class TestSystemInitializationServiceAtomic:
         # Simulate existing provider check
         existing_providers = {
             "watsonx": {"id": uuid4(), "name": "watsonx"},
-            "openai": {"id": uuid4(), "name": "openai"}
+            "openai": {"id": uuid4(), "name": "openai"},
         }
 
         # Test update logic

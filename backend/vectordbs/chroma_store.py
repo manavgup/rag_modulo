@@ -1,7 +1,14 @@
+"""ChromaDB vector store implementation.
+
+This module provides a ChromaDB-based implementation of the VectorStore interface,
+enabling document storage, retrieval, and search operations using ChromaDB.
+"""
+
 import logging
 from collections.abc import Mapping
 from typing import Any
 
+import numpy as np
 from chromadb import ClientAPI, chromadb
 
 from core.config import Settings, get_settings
@@ -11,6 +18,7 @@ from .data_types import (
     Document,
     DocumentChunk,
     DocumentChunkMetadata,
+    DocumentChunkWithScore,
     DocumentMetadataFilter,
     QueryResult,
     QueryWithEmbedding,
@@ -25,6 +33,12 @@ MetadataType = Mapping[str, str | int | float | bool]
 
 
 class ChromaDBStore(VectorStore):
+    """ChromaDB implementation of the VectorStore interface.
+
+    This class provides ChromaDB-based vector storage and retrieval capabilities,
+    including document management, collection operations, and similarity search.
+    """
+
     def __init__(self, client: ClientAPI | None = None, settings: Settings = get_settings()) -> None:
         # Call parent constructor for proper dependency injection
         super().__init__(settings)
@@ -45,23 +59,23 @@ class ChromaDBStore(VectorStore):
             logging.info("Connected to ChromaDB")
             return client
         except Exception as e:
-            logging.error(f"Failed to connect to ChromaDB: {e}")
+            logging.error("Failed to connect to ChromaDB: %s", str(e))
             raise CollectionError(f"Failed to connect to ChromaDB: {e}") from e
 
     def create_collection(self, collection_name: str, metadata: dict | None = None) -> None:
         """Create a collection in ChromaDB."""
         try:
             self._client.create_collection(name=collection_name, metadata=metadata)
-            logging.info(f"Collection '{collection_name}' created successfully")
+            logging.info("Collection '%s' created successfully", collection_name)
         except Exception as e:
-            logging.error(f"Failed to create collection '{collection_name}': {e}")
+            logging.error("Failed to create collection '%s': %s", collection_name, str(e))
             raise CollectionError(f"Failed to create collection '{collection_name}': {e}") from e
 
     def _create_collection_if_not_exists(self, collection_name: str) -> None:
         """Create a collection if it doesn't exist."""
         try:
             self._client.get_collection(collection_name)
-        except Exception:
+        except (ValueError, KeyError, AttributeError):
             self.create_collection(collection_name)
 
     def add_documents(self, collection_name: str, documents: list[Document]) -> list[str]:
@@ -85,13 +99,11 @@ class ChromaDBStore(VectorStore):
 
         try:
             # Convert embeddings to the format expected by ChromaDB
-            import numpy as np
-
             embeddings_array = np.array(embeddings, dtype=np.float32)
             collection.upsert(ids=ids, embeddings=embeddings_array, metadatas=metadatas, documents=docs)  # type: ignore[arg-type]
-            logging.info(f"Successfully added documents to collection '{collection_name}'")
+            logging.info("Successfully added documents to collection '%s'", collection_name)
         except Exception as e:
-            logging.error(f"Failed to add documents to ChromaDB collection '{collection_name}': {e}")
+            logging.error("Failed to add documents to ChromaDB collection '%s': %s", collection_name, str(e))
             raise DocumentError(f"Failed to add documents to ChromaDB collection '{collection_name}': {e}") from e
 
         return [doc.document_id for doc in documents]
@@ -120,7 +132,7 @@ class ChromaDBStore(VectorStore):
         collection_name: str,
         query: QueryWithEmbedding,
         number_of_results: int = 10,
-        filter: DocumentMetadataFilter | None = None,  # noqa: ARG002
+        metadata_filter: DocumentMetadataFilter | None = None,  # noqa: ARG002
     ) -> list[QueryResult]:
         """
         Queries the vector store with filtering and query mode options.
@@ -129,7 +141,7 @@ class ChromaDBStore(VectorStore):
             collection_name (str): The name of the collection to query.
             query (QueryWithEmbedding): The query with embedding to search for.
             number_of_results (int): The maximum number of results to return.
-            filter (Optional[DocumentMetadataFilter]): Optional filter to apply to the query.
+            metadata_filter (Optional[DocumentMetadataFilter]): Optional filter to apply to the query.
 
         Returns:
             List[QueryResult]: The list of query results.
@@ -143,10 +155,10 @@ class ChromaDBStore(VectorStore):
                 query_embeddings=query_embeddings,  # type: ignore[arg-type]
                 n_results=number_of_results,  # ChromaDB API uses n_results, but we maintain our consistent interface
             )
-            logging.info(f"Query response: {response}")
+            logging.info("Query response: %s", response)
             return self._process_search_results(response, collection_name)
         except Exception as e:
-            logging.error(f"Failed to query ChromaDB collection '{collection_name}': {e}")
+            logging.error("Failed to query ChromaDB collection '%s': %s", collection_name, str(e))
             raise DocumentError(f"Failed to query ChromaDB collection '{collection_name}': {e}") from e
 
     def delete_collection(self, collection_name: str) -> None:
@@ -154,9 +166,9 @@ class ChromaDBStore(VectorStore):
 
         try:
             self._client.delete_collection(collection_name)
-            logging.info(f"Deleted collection '{collection_name}'")
+            logging.info("Deleted collection '%s'", collection_name)
         except Exception as e:
-            logging.error(f"Failed to delete ChromaDB collection: {e}")
+            logging.error("Failed to delete ChromaDB collection: %s", str(e))
             raise CollectionError(f"Failed to delete ChromaDB collection: {e}") from e
 
     def delete_documents(self, collection_name: str, document_ids: list[str]) -> None:
@@ -165,15 +177,16 @@ class ChromaDBStore(VectorStore):
 
         try:
             collection.delete(ids=document_ids)
-            logging.info(f"Deleted {len(document_ids)} documents from collection '{collection_name}'")
+            logging.info("Deleted %d documents from collection '%s'", len(document_ids), collection_name)
             return
         except Exception as e:
-            logging.error(f"Failed to delete documents from ChromaDB collection '{collection_name}': {e}")
+            logging.error("Failed to delete documents from ChromaDB collection '%s': %s", collection_name, str(e))
             raise DocumentError(f"Failed to delete documents from ChromaDB collection '{collection_name}': {e}") from e
 
-    def _convert_to_chunk(self, id: str, text: str, embeddings: list[float] | None, metadata: dict) -> DocumentChunk:
+    def _convert_to_chunk(self, chunk_id: str, text: str, embeddings: list[float] | None, metadata: dict) -> DocumentChunk:
+        """Convert ChromaDB response data to DocumentChunk."""
         return DocumentChunk(
-            chunk_id=id,
+            chunk_id=chunk_id,
             text=text,
             embeddings=embeddings,
             metadata=DocumentChunkMetadata(
@@ -184,18 +197,27 @@ class ChromaDBStore(VectorStore):
         )
 
     def _process_search_results(self, response: Any, collection_name: str) -> list[QueryResult]:  # noqa: ARG002
+        """Process ChromaDB search results into QueryResult objects."""
         results = []
         ids = response.get("ids", [[]])[0]
         distances = response.get("distances", [[]])[0]
         metadatas = response.get("metadatas", [[]])[0]
         documents = response.get("documents", [[]])[0]
 
-        for i in range(len(ids)):
-            chunk = self._convert_to_chunk(
-                id=ids[i],
+        for i, chunk_id in enumerate(ids):
+            base_chunk = self._convert_to_chunk(
+                chunk_id=chunk_id,
                 text=documents[i],
                 embeddings=None,  # Assuming embeddings are not returned in the response, otherwise add appropriate key
                 metadata=metadatas[i],
+            )
+            chunk = DocumentChunkWithScore(
+                chunk_id=base_chunk.chunk_id,
+                text=base_chunk.text,
+                embeddings=base_chunk.embeddings,
+                metadata=base_chunk.metadata,
+                document_id=base_chunk.document_id,
+                score=1.0 - distances[i],
             )
             results.append(QueryResult(chunk=chunk, score=1.0 - distances[i], embeddings=[]))
         return results

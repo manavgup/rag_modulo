@@ -3,7 +3,7 @@ from collections.abc import Callable
 from typing import Any
 
 import numpy as np
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class RetrievalMetricResult(BaseModel):

@@ -32,7 +32,12 @@ assert settings.wx_url is not None
 print("✓ Settings works without environment variables")
 """
 
-    result = subprocess.run([sys.executable, "-c", test_script], capture_output=True, text=True, cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    result = subprocess.run(
+        [sys.executable, "-c", test_script],
+        capture_output=True,
+        text=True,
+        cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    )
 
     assert result.returncode == 0, f"Settings should work without env vars. Error: {result.stderr}"
     assert "✓ Settings works" in result.stdout
@@ -54,7 +59,12 @@ assert settings1 is settings2
 print("✓ Lazy initialization works")
 """
 
-    result = subprocess.run([sys.executable, "-c", test_script], capture_output=True, text=True, cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    result = subprocess.run(
+        [sys.executable, "-c", test_script],
+        capture_output=True,
+        text=True,
+        cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    )
 
     assert result.returncode == 0, f"Lazy initialization should work. Error: {result.stderr}"
     assert "✓ Lazy initialization" in result.stdout
@@ -75,7 +85,12 @@ assert core.config.settings is not None
 print("✓ Backwards compatible")
 """
 
-    result = subprocess.run([sys.executable, "-c", test_script], capture_output=True, text=True, cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    result = subprocess.run(
+        [sys.executable, "-c", test_script],
+        capture_output=True,
+        text=True,
+        cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    )
 
     assert result.returncode == 0, f"Should be backwards compatible. Error: {result.stderr}"
     assert "✓ Backwards compatible" in result.stdout
@@ -97,7 +112,12 @@ assert settings.rag_llm == "anthropic"
 print("✓ Environment variables override defaults")
 """
 
-    result = subprocess.run([sys.executable, "-c", test_script], capture_output=True, text=True, cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    result = subprocess.run(
+        [sys.executable, "-c", test_script],
+        capture_output=True,
+        text=True,
+        cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    )
 
     assert result.returncode == 0, f"Env vars should override. Error: {result.stderr}"
     assert "✓ Environment variables" in result.stdout
@@ -163,7 +183,12 @@ assert hasattr(settings, 'jwt_secret_key')
 print("✓ Works in Docker context")
 """
 
-    result = subprocess.run([sys.executable, "-c", test_script], capture_output=True, text=True, cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    result = subprocess.run(
+        [sys.executable, "-c", test_script],
+        capture_output=True,
+        text=True,
+        cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    )
 
     assert result.returncode == 0, f"Should work in Docker context. Error: {result.stderr}"
     assert "✓ Works in Docker" in result.stdout

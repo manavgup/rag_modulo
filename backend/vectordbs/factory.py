@@ -8,7 +8,9 @@ interact with different vector stores through a unified `VectorStore`
 interface without needing to know the specific implementation details.
 """
 
-from core.config import Settings
+import warnings
+
+from core.config import Settings, get_settings
 
 from .elasticsearch_store import ElasticSearchStore
 from .milvus_store import MilvusStore
@@ -76,11 +78,11 @@ def get_datastore(datastore: str) -> VectorStore:
     Raises:
         ValueError: If the specified datastore is not supported.
     """
-    import warnings
-
-    from core.config import get_settings
-
-    warnings.warn("get_datastore() is deprecated and will be removed. " "Use VectorStoreFactory with dependency injection instead.", DeprecationWarning, stacklevel=2)
+    warnings.warn(
+        "get_datastore() is deprecated and will be removed. Use VectorStoreFactory with dependency injection instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
 
     factory = VectorStoreFactory(get_settings())
     return factory.get_datastore(datastore)

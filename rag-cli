@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# RAG CLI wrapper script
+# This script allows running rag-cli from the project root
+
+# Get the directory where this script is located
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+# Change to backend directory and run the CLI through Poetry
+cd "$SCRIPT_DIR/backend" && exec poetry run python -m rag_solution.cli.main "$@"

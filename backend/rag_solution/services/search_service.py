@@ -195,7 +195,11 @@ class SearchService:
         """Validate pipeline configuration."""
         pipeline_config = self.pipeline_service.get_pipeline_config(pipeline_id)
         if not pipeline_config:
-            raise NotFoundError(resource_type="Pipeline", resource_id=str(pipeline_id), message=f"Pipeline configuration not found for ID {pipeline_id}")
+            raise NotFoundError(
+                resource_type="Pipeline",
+                resource_id=str(pipeline_id),
+                message=f"Pipeline configuration not found for ID {pipeline_id}",
+            )
 
     @handle_search_errors
     async def search(self, search_input: SearchInput) -> SearchOutput:

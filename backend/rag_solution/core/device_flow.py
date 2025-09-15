@@ -38,8 +38,8 @@ class DeviceFlowConfig(BaseModel):
         return cls(
             client_id=os.getenv("IBM_CLIENT_ID", ""),
             client_secret=os.getenv("IBM_CLIENT_SECRET", ""),
-            device_auth_url=os.getenv("OIDC_DEVICE_AUTH_URL", "https://prepiam.ice.ibmcloud.com/v1.0/endpoint/default/device_authorization"),
-            token_url=os.getenv("OIDC_TOKEN_URL", "https://prepiam.ice.ibmcloud.com/v1.0/endpoint/default/token"),
+            device_auth_url=HttpUrl(os.getenv("OIDC_DEVICE_AUTH_URL", "https://prepiam.ice.ibmcloud.com/v1.0/endpoint/default/device_authorization")),
+            token_url=HttpUrl(os.getenv("OIDC_TOKEN_URL", "https://prepiam.ice.ibmcloud.com/v1.0/endpoint/default/token")),
             default_interval=int(os.getenv("DEVICE_FLOW_INTERVAL", "5")),
             max_interval=int(os.getenv("DEVICE_FLOW_MAX_INTERVAL", "60")),
             default_expires_in=int(os.getenv("DEVICE_FLOW_EXPIRES_IN", "600")),
@@ -76,7 +76,7 @@ class DeviceFlowStorage:
     For this implementation, we use simple in-memory storage with automatic cleanup.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._records: dict[str, DeviceFlowRecord] = {}
 
     def store_record(self, record: DeviceFlowRecord) -> None:
@@ -192,7 +192,7 @@ def calculate_next_polling_interval(base_interval: int, attempt: int, max_interv
         return base_interval
 
     # Exponential backoff: base_interval * 2^(attempt-1)
-    interval = base_interval * (2 ** (attempt - 1))
+    interval = int(base_interval * (2 ** (attempt - 1)))
     return min(interval, max_interval)
 
 
@@ -202,7 +202,11 @@ def parse_device_flow_error(error_code: str) -> dict[str, Any]:
     Based on RFC 8628 error codes.
     """
     error_info = {
-        "authorization_pending": {"code": "authorization_pending", "message": "User has not yet completed authorization", "retry": True},
+        "authorization_pending": {
+            "code": "authorization_pending",
+            "message": "User has not yet completed authorization",
+            "retry": True,
+        },
         "slow_down": {"code": "slow_down", "message": "Polling too frequently, slow down", "retry": True},
         "expired_token": {"code": "expired_token", "message": "Device code has expired", "retry": False},
         "access_denied": {"code": "access_denied", "message": "User denied the authorization request", "retry": False},
@@ -246,4 +250,10 @@ def calculate_device_flow_timeout(expires_in: int, interval: int, buffer_seconds
     max_attempts = total_timeout // interval if interval > 0 else 0
     expires_at = datetime.now() + timedelta(seconds=expires_in)
 
-    return {"total_timeout": total_timeout, "max_attempts": max_attempts, "expires_at": expires_at, "interval": interval, "buffer_seconds": buffer_seconds}
+    return {
+        "total_timeout": total_timeout,
+        "max_attempts": max_attempts,
+        "expires_at": expires_at,
+        "interval": interval,
+        "buffer_seconds": buffer_seconds,
+    }

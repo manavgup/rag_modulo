@@ -67,7 +67,12 @@ class TestDeviceFlowConfiguration:
 
         # Invalid URLs
         with pytest.raises(ValidationError):
-            DeviceFlowConfig(client_id="test-client-id", client_secret="test-secret", device_auth_url="invalid-url", token_url="https://valid.com/token")
+            DeviceFlowConfig(
+                client_id="test-client-id",
+                client_secret="test-secret",
+                device_auth_url="invalid-url",
+                token_url="https://valid.com/token",
+            )
 
     def test_device_flow_intervals_validation(self):
         """Test device flow polling interval validation."""
@@ -183,7 +188,12 @@ class TestDeviceFlowStorage:
 
         # Create record
         record = DeviceFlowRecord(
-            device_code="device123", user_code="ABCD-1234", verification_uri="https://ibm.com/device", expires_at=datetime.now() + timedelta(minutes=10), interval=5, status="pending"
+            device_code="device123",
+            user_code="ABCD-1234",
+            verification_uri="https://ibm.com/device",
+            expires_at=datetime.now() + timedelta(minutes=10),
+            interval=5,
+            status="pending",
         )
 
         assert record.device_code == "device123"
@@ -209,7 +219,12 @@ class TestDeviceFlowStorage:
 
         # Valid record
         valid_record = DeviceFlowRecord(
-            device_code="device456", user_code="WXYZ-5678", verification_uri="https://ibm.com/device", expires_at=datetime.now() + timedelta(minutes=10), interval=5, status="pending"
+            device_code="device456",
+            user_code="WXYZ-5678",
+            verification_uri="https://ibm.com/device",
+            expires_at=datetime.now() + timedelta(minutes=10),
+            interval=5,
+            status="pending",
         )
 
         assert valid_record.is_expired() is False
@@ -222,7 +237,12 @@ class TestDeviceFlowStorage:
 
         # Store record
         record = DeviceFlowRecord(
-            device_code="device789", user_code="TEST-1234", verification_uri="https://ibm.com/device", expires_at=datetime.now() + timedelta(minutes=10), interval=5, status="pending"
+            device_code="device789",
+            user_code="TEST-1234",
+            verification_uri="https://ibm.com/device",
+            expires_at=datetime.now() + timedelta(minutes=10),
+            interval=5,
+            status="pending",
         )
 
         storage.store_record(record)
@@ -252,12 +272,22 @@ class TestDeviceFlowStorage:
 
         # Add expired record
         expired_record = DeviceFlowRecord(
-            device_code="expired123", user_code="EXP1-2345", verification_uri="https://ibm.com/device", expires_at=datetime.now() - timedelta(minutes=1), interval=5, status="pending"
+            device_code="expired123",
+            user_code="EXP1-2345",
+            verification_uri="https://ibm.com/device",
+            expires_at=datetime.now() - timedelta(minutes=1),
+            interval=5,
+            status="pending",
         )
 
         # Add valid record
         valid_record = DeviceFlowRecord(
-            device_code="valid456", user_code="VAL2-6789", verification_uri="https://ibm.com/device", expires_at=datetime.now() + timedelta(minutes=10), interval=5, status="pending"
+            device_code="valid456",
+            user_code="VAL2-6789",
+            verification_uri="https://ibm.com/device",
+            expires_at=datetime.now() + timedelta(minutes=10),
+            interval=5,
+            status="pending",
         )
 
         storage.store_record(expired_record)
@@ -298,13 +328,29 @@ class TestDeviceFlowUtilities:
         from rag_solution.core.device_flow import parse_device_flow_error
 
         # Standard OAuth errors
-        assert parse_device_flow_error("authorization_pending") == {"code": "authorization_pending", "message": "User has not yet completed authorization", "retry": True}
+        assert parse_device_flow_error("authorization_pending") == {
+            "code": "authorization_pending",
+            "message": "User has not yet completed authorization",
+            "retry": True,
+        }
 
-        assert parse_device_flow_error("slow_down") == {"code": "slow_down", "message": "Polling too frequently, slow down", "retry": True}
+        assert parse_device_flow_error("slow_down") == {
+            "code": "slow_down",
+            "message": "Polling too frequently, slow down",
+            "retry": True,
+        }
 
-        assert parse_device_flow_error("expired_token") == {"code": "expired_token", "message": "Device code has expired", "retry": False}
+        assert parse_device_flow_error("expired_token") == {
+            "code": "expired_token",
+            "message": "Device code has expired",
+            "retry": False,
+        }
 
-        assert parse_device_flow_error("access_denied") == {"code": "access_denied", "message": "User denied the authorization request", "retry": False}
+        assert parse_device_flow_error("access_denied") == {
+            "code": "access_denied",
+            "message": "User denied the authorization request",
+            "retry": False,
+        }
 
     def test_device_flow_url_construction(self):
         """Test construction of device flow URLs."""

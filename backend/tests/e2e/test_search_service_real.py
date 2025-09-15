@@ -5,14 +5,15 @@ These tests call the real SearchService and will fail until the implementation
 is correct. This is what TDD should actually do.
 """
 
-import pytest
 from uuid import uuid4
-from sqlalchemy.orm import Session
-from sqlalchemy import create_engine
 
+import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
+
+from core.config import Settings
 from rag_solution.schemas.search_schema import SearchInput, SearchOutput
 from rag_solution.services.search_service import SearchService
-from core.config import Settings
 
 
 @pytest.mark.e2e

@@ -148,7 +148,12 @@ class TestCoreServicesDataValidation:
     def test_collection_status_validation(self):
         """Test collection status validation."""
         # Test all valid statuses
-        statuses = [CollectionStatus.CREATED, CollectionStatus.PROCESSING, CollectionStatus.COMPLETED, CollectionStatus.ERROR]
+        statuses = [
+            CollectionStatus.CREATED,
+            CollectionStatus.PROCESSING,
+            CollectionStatus.COMPLETED,
+            CollectionStatus.ERROR,
+        ]
 
         for status in statuses:
             collection = CollectionInput(name=f"Collection {status}", is_private=True, users=[], status=status)

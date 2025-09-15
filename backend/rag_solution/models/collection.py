@@ -31,19 +31,25 @@ class Collection(Base):
     # ⚙️ Core Attributes
     name: Mapped[str] = mapped_column(String, index=True)
     vector_db_name: Mapped[str] = mapped_column(String, nullable=False)
-    status: Mapped[CollectionStatus] = mapped_column(Enum(CollectionStatus, name="collectionstatus", create_type=False), default=CollectionStatus.CREATED)
+    status: Mapped[CollectionStatus] = mapped_column(
+        Enum(CollectionStatus, name="collectionstatus", create_type=False), default=CollectionStatus.CREATED
+    )
 
     # 🟢 Flags
     is_private: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # 📊 Metadata
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
     # 🔗 Relationships
     files: Mapped[list[File]] = relationship("File", back_populates="collection", lazy="selectin")
     users: Mapped[list[UserCollection]] = relationship("UserCollection", back_populates="collection", lazy="selectin")
-    suggested_questions: Mapped[list[SuggestedQuestion]] = relationship("SuggestedQuestion", back_populates="collection", cascade="all, delete-orphan")
+    suggested_questions: Mapped[list[SuggestedQuestion]] = relationship(
+        "SuggestedQuestion", back_populates="collection", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
         return f"Collection(id='{self.id}', name='{self.name}', is_private={self.is_private})"

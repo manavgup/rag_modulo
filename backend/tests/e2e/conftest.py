@@ -1,6 +1,5 @@
 """E2E test fixtures for system administration tests."""
 
-import os
 import pytest
 
 
@@ -17,7 +16,4 @@ def auth_headers() -> dict[str, str]:
     """Provide authentication headers for E2E tests."""
     # For E2E tests, we might need to authenticate
     # For now, return basic headers
-    return {
-        "Content-Type": "application/json",
-        "Accept": "application/json"
-    }
+    return {"Content-Type": "application/json", "Accept": "application/json"}

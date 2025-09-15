@@ -48,7 +48,10 @@ def test_get_settings_returns_consistent_instance():
 @pytest.mark.unit
 def test_get_settings_with_environment_variables():
     """Test that get_settings respects environment variables."""
-    with patch.dict(os.environ, {"WATSONX_URL": "https://test.example.com", "JWT_SECRET_KEY": "test-secret-key", "RAG_LLM": "openai"}):
+    with patch.dict(
+        os.environ,
+        {"WATSONX_URL": "https://test.example.com", "JWT_SECRET_KEY": "test-secret-key", "RAG_LLM": "openai"},
+    ):
         from core.config import get_settings
 
         # Clear cache to get fresh instance with new env vars
@@ -337,7 +340,11 @@ def test_fastapi_route_dependency_injection_pattern():
     @app.get("/settings-test")
     def test_route(settings: Annotated[Settings, Depends(get_settings)]):
         """Example route using proper dependency injection."""
-        return {"llm": settings.rag_llm, "vector_db": settings.vector_db, "jwt_key_prefix": settings.jwt_secret_key[:10]}
+        return {
+            "llm": settings.rag_llm,
+            "vector_db": settings.vector_db,
+            "jwt_key_prefix": settings.jwt_secret_key[:10],
+        }
 
     client = TestClient(app)
 
@@ -395,7 +402,15 @@ def test_full_fastapi_app_with_settings_injection():
 
     client = TestClient(app)
 
-    with patch.dict(os.environ, {"RAG_LLM": "openai", "VECTOR_DB": "milvus", "WATSONX_URL": "https://test.watsonx.com", "EMBEDDING_MODEL": "text-embedding-ada-002"}):
+    with patch.dict(
+        os.environ,
+        {
+            "RAG_LLM": "openai",
+            "VECTOR_DB": "milvus",
+            "WATSONX_URL": "https://test.watsonx.com",
+            "EMBEDDING_MODEL": "text-embedding-ada-002",
+        },
+    ):
         get_settings.cache_clear()
 
         # Test health endpoint
@@ -472,7 +487,7 @@ def test_pinecone_store_dependency_injection():
         assert store.settings.pinecone_api_key == "test-key"
 
         # Verify Pinecone was initialized with injected settings
-        mock_pinecone.assert_called_once_with(api_key="test-key", pool_threads=30)
+        mock_pinecone.assert_called_once_with(api_key="test-key")
 
 
 @pytest.mark.unit
@@ -624,7 +639,11 @@ def test_watsonx_utils_dependency_injection():
     mock_settings.random_seed = 42
 
     # Test get_wx_client
-    with patch("vectordbs.utils.watsonx.APIClient") as mock_api_client, patch("vectordbs.utils.watsonx.Credentials") as mock_credentials, patch("vectordbs.utils.watsonx.load_dotenv"):
+    with (
+        patch("vectordbs.utils.watsonx.APIClient") as mock_api_client,
+        patch("vectordbs.utils.watsonx.Credentials") as mock_credentials,
+        patch("vectordbs.utils.watsonx.load_dotenv"),
+    ):
         get_wx_client(mock_settings)
 
         mock_credentials.assert_called_once_with(api_key="test-key", url="https://test.watsonx.com")
@@ -718,7 +737,10 @@ def test_no_global_settings_import_in_critical_modules():
                         # Should NOT import 'settings' directly
                         assert alias.name != "settings", f"File {file_path} still imports global 'settings' object"
                         # SHOULD import 'Settings' class and 'get_settings' function
-                        assert alias.name in ["Settings", "get_settings"], f"File {file_path} has unexpected import: {alias.name}"
+                        assert alias.name in [
+                            "Settings",
+                            "get_settings",
+                        ], f"File {file_path} has unexpected import: {alias.name}"
 
 
 if __name__ == "__main__":

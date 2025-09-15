@@ -90,7 +90,12 @@ async def update_llm_parameters(
     summary="Delete LLM parameters",
     description="Delete an existing set of LLM parameters",
 )
-async def delete_llm_parameters(user_id: UUID4, parameter_id: UUID4, user: Annotated[UserOutput, Depends(verify_user_access)], db: Annotated[Session, Depends(get_db)]) -> bool:
+async def delete_llm_parameters(
+    user_id: UUID4,
+    parameter_id: UUID4,
+    user: Annotated[UserOutput, Depends(verify_user_access)],
+    db: Annotated[Session, Depends(get_db)],
+) -> bool:
     """Delete an existing set of LLM parameters."""
     service = LLMParametersService(db)
     try:
@@ -106,7 +111,12 @@ async def delete_llm_parameters(user_id: UUID4, parameter_id: UUID4, user: Annot
     summary="Set default LLM parameters",
     description="Set a specific set of LLM parameters as default",
 )
-async def set_default_llm_parameters(user_id: UUID4, parameter_id: UUID4, user: Annotated[UserOutput, Depends(verify_user_access)], db: Annotated[Session, Depends(get_db)]) -> LLMParametersOutput:
+async def set_default_llm_parameters(
+    user_id: UUID4,
+    parameter_id: UUID4,
+    user: Annotated[UserOutput, Depends(verify_user_access)],
+    db: Annotated[Session, Depends(get_db)],
+) -> LLMParametersOutput:
     """Set a specific set of LLM parameters as default."""
     service = LLMParametersService(db)
     try:
@@ -181,7 +191,12 @@ async def update_llm_provider(
     summary="Delete LLM provider",
     description="Delete an existing LLM provider configuration",
 )
-async def delete_llm_provider(user_id: UUID4, provider_id: UUID4, user: Annotated[UserOutput, Depends(verify_user_access)], db: Annotated[Session, Depends(get_db)]) -> bool:
+async def delete_llm_provider(
+    user_id: UUID4,
+    provider_id: UUID4,
+    user: Annotated[UserOutput, Depends(verify_user_access)],
+    db: Annotated[Session, Depends(get_db)],
+) -> bool:
     """Delete an existing LLM provider configuration."""
     service = LLMProviderService(db)
     try:
@@ -217,7 +232,12 @@ async def get_provider_models(user_id: UUID4, user: Annotated[UserOutput, Depend
     summary="Get provider models",
     description="Retrieve all available models for a specific provider",
 )
-async def get_provider_specific_models(user_id: UUID4, provider_id: UUID4, user: Annotated[UserOutput, Depends(verify_user_access)], db: Annotated[Session, Depends(get_db)]) -> list[LLMModelOutput]:
+async def get_provider_specific_models(
+    user_id: UUID4,
+    provider_id: UUID4,
+    user: Annotated[UserOutput, Depends(verify_user_access)],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[LLMModelOutput]:
     """Retrieve all available models for a specific provider."""
     service = LLMProviderService(db)
     try:

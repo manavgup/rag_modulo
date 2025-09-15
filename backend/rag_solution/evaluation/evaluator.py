@@ -19,7 +19,7 @@ from rag_solution.evaluation.llm_as_judge_evals import (
     FaithfulnessEvaluator,
     init_llm,
 )
-from vectordbs.data_types import DocumentChunk, QueryResult
+from vectordbs.data_types import DocumentChunkWithScore, QueryResult
 from vectordbs.utils.watsonx import get_embeddings
 
 logger = logging.getLogger(__name__)
@@ -167,19 +167,21 @@ if __name__ == "__main__":
     response = "The theory of relativity, proposed by Albert Einstein, " "describes how space and time are interconnected and how gravity " "affects the fabric of spacetime."
     retrieved_documents = [
         QueryResult(
-            chunk=DocumentChunk(
+            chunk=DocumentChunkWithScore(
                 chunk_id="1",
                 text=("Albert Einstein's theory of relativity " "revolutionized our understanding of space, time, " "and gravity."),
                 metadata=None,
+                score=0.9,
             ),
             score=0.9,
             embeddings=[0.1, 0.2, 0.3],  # Mock embeddings
         ),
         QueryResult(
-            chunk=DocumentChunk(
+            chunk=DocumentChunkWithScore(
                 chunk_id="2",
                 text=("The theory of relativity consists of two parts: " "special relativity and general relativity."),
                 metadata=None,
+                score=0.8,
             ),
             score=0.8,
             embeddings=[0.4, 0.5, 0.6],  # Mock embeddings

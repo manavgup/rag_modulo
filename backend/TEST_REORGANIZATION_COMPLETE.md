@@ -14,7 +14,7 @@ Moved **7 files** from unit to integration tests based on their actual functiona
 ```bash
 # Files moved from tests/unit/ to tests/integration/:
 tests/unit/test_collection_database.py    → tests/integration/test_collection_database.py
-tests/unit/test_milvus_connection.py       → tests/integration/test_milvus_connection.py  
+tests/unit/test_milvus_connection.py       → tests/integration/test_milvus_connection.py
 tests/unit/test_postgresql_connection.py   → tests/integration/test_postgresql_connection.py
 tests/unit/test_search_database.py         → tests/integration/test_search_database.py
 tests/unit/test_team_database.py           → tests/integration/test_team_database.py
@@ -36,7 +36,7 @@ tests/unit/test_vectordbs.py               → tests/integration/test_vectordbs.
 ```bash
 # Select by marker (works correctly now)
 pytest -m atomic      # 30 tests from tests/atomic/
-pytest -m unit        # 84 tests from tests/unit/ 
+pytest -m unit        # 84 tests from tests/unit/
 pytest -m integration # 22 tests from tests/integration/
 pytest -m e2e         # 25 tests from tests/e2e/
 
@@ -80,7 +80,7 @@ All tests run correctly after reorganization:
 
 ### ✅ **Fixed and Working**
 - ✅ Test markers align with directory structure
-- ✅ Makefile targets work correctly  
+- ✅ Makefile targets work correctly
 - ✅ Environment variables load properly
 - ✅ Unit tests are fast (<100ms total)
 - ✅ Integration tests are properly categorized
@@ -115,7 +115,7 @@ make test-all                         # atomic → unit → integration → e2e
 ### Using Environment-Aware Script
 ```bash
 ./run_tests.sh unit        # Unit tests with proper environment
-./run_tests.sh integration # Integration tests with proper environment  
+./run_tests.sh integration # Integration tests with proper environment
 ./run_tests.sh e2e         # E2E tests with proper environment
 ./run_tests.sh coverage    # Coverage analysis
 ```
@@ -125,7 +125,7 @@ make test-all                         # atomic → unit → integration → e2e
 ### For TDD Red Phase Completion
 1. **Write more failing tests** to achieve 100% coverage on:
    - `search_service.py` (currently 27% coverage)
-   - `pipeline_service.py` 
+   - `pipeline_service.py`
    - `collection_service.py`
    - `question_service.py`
 

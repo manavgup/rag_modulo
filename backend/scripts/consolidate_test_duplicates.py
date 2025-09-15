@@ -37,7 +37,12 @@ def consolidate_integration_tests():
     print("🔄 Consolidating integration test duplicates...")
 
     # Priority order: integration/ > integration_backup/ > integration_backup_analysis/ > service_backup/
-    priority_dirs = ["tests/integration", "tests/integration_backup", "tests/integration_backup_analysis", "tests/service_backup"]
+    priority_dirs = [
+        "tests/integration",
+        "tests/integration_backup",
+        "tests/integration_backup_analysis",
+        "tests/service_backup",
+    ]
 
     # Find all test files
     all_tests = {}
@@ -152,7 +157,13 @@ def clean_empty_directories():
     """Remove empty directories."""
     print("🔄 Cleaning empty directories...")
 
-    directories_to_remove = ["tests/services", "tests/integration_backup", "tests/integration_backup_analysis", "tests/service_backup", "tests/e2e_backup"]
+    directories_to_remove = [
+        "tests/services",
+        "tests/integration_backup",
+        "tests/integration_backup_analysis",
+        "tests/service_backup",
+        "tests/e2e_backup",
+    ]
 
     for dir_path in directories_to_remove:
         if Path(dir_path).exists():
@@ -175,8 +186,14 @@ def fix_schema_issues():
         # Fix the test that uses wrong schema
         if "class TestUserInput" in content:
             # Replace the custom TestUserInput with proper UserInput usage
-            content = content.replace('class TestUserInput(BaseModel):\n    name: str\n    description: str = ""', "# Using actual UserInput schema from rag_solution.schemas.user_schema")
-            content = content.replace("from pydantic import BaseModel", "from pydantic import ValidationError\nfrom rag_solution.schemas.user_schema import UserInput")
+            content = content.replace(
+                'class TestUserInput(BaseModel):\n    name: str\n    description: str = ""',
+                "# Using actual UserInput schema from rag_solution.schemas.user_schema",
+            )
+            content = content.replace(
+                "from pydantic import BaseModel",
+                "from pydantic import ValidationError\nfrom rag_solution.schemas.user_schema import UserInput",
+            )
 
             user_validation_file.write_text(content, encoding="utf-8")
             print(f"✅ Fixed UserInput schema in {user_validation_file}")
@@ -188,8 +205,14 @@ def fix_schema_issues():
 
         # Fix the test that uses wrong schema
         if "class TestSearchInput" in content:
-            content = content.replace('class TestSearchInput(BaseModel):\n    name: str\n    description: str = ""', "# Using actual SearchInput schema from rag_solution.schemas.search_schema")
-            content = content.replace("from pydantic import BaseModel", "from pydantic import ValidationError\nfrom rag_solution.schemas.search_schema import SearchInput")
+            content = content.replace(
+                'class TestSearchInput(BaseModel):\n    name: str\n    description: str = ""',
+                "# Using actual SearchInput schema from rag_solution.schemas.search_schema",
+            )
+            content = content.replace(
+                "from pydantic import BaseModel",
+                "from pydantic import ValidationError\nfrom rag_solution.schemas.search_schema import SearchInput",
+            )
 
             search_validation_file.write_text(content, encoding="utf-8")
             print(f"✅ Fixed SearchInput schema in {search_validation_file}")
@@ -202,9 +225,13 @@ def fix_schema_issues():
         # Fix the test that uses wrong schema
         if "class TestCollectionInput" in content:
             content = content.replace(
-                'class TestCollectionInput(BaseModel):\n    name: str\n    description: str = ""', "# Using actual CollectionInput schema from rag_solution.schemas.collection_schema"
+                'class TestCollectionInput(BaseModel):\n    name: str\n    description: str = ""',
+                "# Using actual CollectionInput schema from rag_solution.schemas.collection_schema",
             )
-            content = content.replace("from pydantic import BaseModel", "from pydantic import ValidationError\nfrom rag_solution.schemas.collection_schema import CollectionInput")
+            content = content.replace(
+                "from pydantic import BaseModel",
+                "from pydantic import ValidationError\nfrom rag_solution.schemas.collection_schema import CollectionInput",
+            )
 
             collection_validation_file.write_text(content, encoding="utf-8")
             print(f"✅ Fixed CollectionInput schema in {collection_validation_file}")

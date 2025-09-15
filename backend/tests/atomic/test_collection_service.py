@@ -25,7 +25,13 @@ class TestCollectionDataValidation:
     def test_collection_name_validation(self):
         """Test collection name validation rules."""
         # Valid names
-        valid_names = ["Test Collection", "collection-123", "collection_with_underscores", "Collection123", "My Collection Name"]
+        valid_names = [
+            "Test Collection",
+            "collection-123",
+            "collection_with_underscores",
+            "Collection123",
+            "My Collection Name",
+        ]
 
         for name in valid_names:
             collection = CollectionInput(name=name, is_private=True, users=[], status=CollectionStatus.CREATED)
@@ -61,7 +67,12 @@ class TestCollectionDataValidation:
     def test_collection_status_validation(self):
         """Test collection status validation."""
         # Test all valid statuses
-        statuses = [CollectionStatus.CREATED, CollectionStatus.PROCESSING, CollectionStatus.COMPLETED, CollectionStatus.ERROR]
+        statuses = [
+            CollectionStatus.CREATED,
+            CollectionStatus.PROCESSING,
+            CollectionStatus.COMPLETED,
+            CollectionStatus.ERROR,
+        ]
 
         for status in statuses:
             collection = CollectionInput(name=f"Collection {status}", is_private=True, users=[], status=status)

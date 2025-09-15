@@ -110,7 +110,12 @@ async def update_prompt_template(
         500: {"description": "Internal server error"},
     },
 )
-async def delete_prompt_template(user_id: UUID4, template_id: UUID4, db: Annotated[Session, Depends(get_db)], user: Annotated[UserOutput, Depends(verify_user_access)]) -> bool:
+async def delete_prompt_template(
+    user_id: UUID4,
+    template_id: UUID4,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[UserOutput, Depends(verify_user_access)],
+) -> bool:
     """Delete an existing prompt template."""
     service = PromptTemplateService(db)
     try:
@@ -131,7 +136,12 @@ async def delete_prompt_template(user_id: UUID4, template_id: UUID4, db: Annotat
         500: {"description": "Internal server error"},
     },
 )
-async def set_default_prompt_template(user_id: UUID4, template_id: UUID4, db: Annotated[Session, Depends(get_db)], user: Annotated[UserOutput, Depends(verify_user_access)]) -> PromptTemplateOutput:
+async def set_default_prompt_template(
+    user_id: UUID4,
+    template_id: UUID4,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[UserOutput, Depends(verify_user_access)],
+) -> PromptTemplateOutput:
     """Set a specific prompt template as default."""
     service = PromptTemplateService(db)
     try:
