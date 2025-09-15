@@ -1,0 +1,161 @@
+name: Development Environment CI
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - '.devcontainer/**'
+      - 'Makefile'
+      - 'docker-compose*.yml'
+      - 'backend/**'
+      - 'tests/**'
+  workflow_dispatch:
+
+jobs:
+  test-dev-environment:
+    runs-on: ubuntu-latest
+    name: Test Development Environment Setup
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Validate Dev Container JSON
+      run: |
+        echo "Validating .devcontainer/devcontainer.json..."
+        if [ ! -f ".devcontainer/devcontainer.json" ]; then
+          echo "❌ .devcontainer/devcontainer.json not found"
+          exit 1
+        fi
+
+        # Check if JSON is valid
+        python3 -m json.tool .devcontainer/devcontainer.json > /dev/null
+        if [ $? -eq 0 ]; then
+          echo "✅ Dev Container configuration is valid JSON"
+        else
+          echo "❌ Dev Container configuration has invalid JSON"
+          exit 1
+        fi
+
+    - name: Test Docker Compose Configuration
+      run: |
+        echo "Testing Docker Compose configuration..."
+
+        # Validate docker-compose.dev.yml
+        docker compose -f docker-compose.dev.yml config > /dev/null
+        if [ $? -eq 0 ]; then
+          echo "✅ docker-compose.dev.yml is valid"
+        else
+          echo "❌ docker-compose.dev.yml validation failed"
+          exit 1
+        fi
+
+    - name: Test Makefile Targets
+      run: |
+        echo "Testing Makefile targets..."
+
+        # Test basic make commands
+        make help
+        make info
+        make check-docker
+
+    - name: Initialize Development Environment
+      run: |
+        echo "Initializing development environment..."
+        make dev-init
+
+        # Check if .env.dev was created
+        if [ -f ".env.dev" ]; then
+          echo "✅ .env.dev created successfully"
+        else
+          echo "❌ .env.dev creation failed"
+          exit 1
+        fi
+
+    - name: Build Development Images
+      run: |
+        echo "Building development Docker images..."
+
+        # Build images without starting services
+        docker compose -f docker-compose.dev.yml build --no-cache backend
+
+        if [ $? -eq 0 ]; then
+          echo "✅ Backend development image built successfully"
+        else
+          echo "❌ Backend development image build failed"
+          exit 1
+        fi
+
+    - name: Test Container Startup
+      run: |
+        echo "Testing container startup..."
+
+        # Start backend service only (without dependencies)
+        docker compose -f docker-compose.dev.yml up -d backend
+
+        # Wait for container to be healthy or running
+        sleep 10
+
+        # Check container status
+        if docker compose -f docker-compose.dev.yml ps | grep -q "backend.*running"; then
+          echo "✅ Backend container started successfully"
+        else
+          echo "❌ Backend container failed to start"
+          docker compose -f docker-compose.dev.yml logs backend
+          exit 1
+        fi
+
+    - name: Test Development Tools in Container
+      run: |
+        echo "Testing development tools in container..."
+
+        # Test Python is available
+        docker compose -f docker-compose.dev.yml exec -T backend python --version
+
+        # Test Poetry is available
+        docker compose -f docker-compose.dev.yml exec -T backend poetry --version || echo "Poetry not installed"
+
+        # Test make is available
+        docker compose -f docker-compose.dev.yml exec -T backend make --version || echo "Make not installed"
+
+    - name: Cleanup
+      if: always()
+      run: |
+        echo "Cleaning up Docker resources..."
+        docker compose -f docker-compose.dev.yml down -v || true
+        docker system prune -f || true
+
+    - name: Summary
+      run: |
+        echo "## Development Environment Test Summary"
+        echo ""
+        echo "### ✅ Tests Passed"
+        echo "- Dev Container configuration is valid"
+        echo "- Docker Compose configuration works"
+        echo "- Makefile targets are functional"
+        echo "- Development images build successfully"
+        echo "- Containers start properly"
+        echo ""
+        echo "### 📝 For Contributors"
+        echo ""
+        echo "To use this development environment:"
+        echo ""
+        echo "**Option 1: GitHub Codespaces (Cloud)**"
+        echo "1. Go to the repository on GitHub"
+        echo "2. Click green 'Code' button → 'Codespaces' tab"
+        echo "3. Click 'Create codespace on branch'"
+        echo ""
+        echo "**Option 2: VS Code Dev Containers (Local)**"
+        echo "1. Install Docker Desktop and VS Code"
+        echo "2. Install 'Dev Containers' extension"
+        echo "3. Open repository and click 'Reopen in Container'"
+        echo ""
+        echo "**Option 3: Traditional Setup**"
+        echo "\`\`\`bash"
+        echo "make dev-init"
+        echo "make dev-build"
+        echo "make dev-up"
+        echo "\`\`\`"
