@@ -27,7 +27,7 @@ class TestCLICompleteWorkflow:
     @pytest.fixture
     def api_url(self, monkeypatch):
         """Get API URL for testing."""
-        return monkeypatch.getenv("API_URL", "http://localhost:8000")
+        return os.getenv("API_URL", "http://localhost:8000")
 
     @pytest.fixture
     def cli_config(self, api_url):

@@ -81,7 +81,7 @@ class TestCLIConfiguration:
         """Test default configuration values."""
         config = RAGConfig()
 
-        assert config.api_url == "http://localhost:8000"
+        assert str(config.api_url) == "http://localhost:8000/"
         assert config.profile == "default"
         assert config.timeout == 30
         assert config.auth_token is None

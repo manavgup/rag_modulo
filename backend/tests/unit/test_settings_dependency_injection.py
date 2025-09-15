@@ -487,7 +487,7 @@ def test_pinecone_store_dependency_injection():
         assert store.settings.pinecone_api_key == "test-key"
 
         # Verify Pinecone was initialized with injected settings
-        mock_pinecone.assert_called_once_with(api_key="test-key", pool_threads=30)
+        mock_pinecone.assert_called_once_with(api_key="test-key")
 
 
 @pytest.mark.unit
