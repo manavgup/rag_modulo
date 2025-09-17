@@ -254,22 +254,18 @@ def main_admin_cli(args: Sequence[str] | None = None) -> int:
 
 def _handle_batch_user_command(users_cmd: UserCommands, args) -> object:
     """Handle batch user commands.
-    
+
     Args:
         users_cmd: UserCommands instance
         args: Parsed arguments
-        
+
     Returns:
         CommandResult
     """
     if args.batch_command == "import":
-        return users_cmd.create_error_result(
-            message="User import not yet implemented", error_code="NOT_IMPLEMENTED"
-        )
+        return users_cmd.create_error_result(message="User import not yet implemented", error_code="NOT_IMPLEMENTED")
     if args.batch_command == "export":
-        return users_cmd.create_error_result(
-            message="User export not yet implemented", error_code="NOT_IMPLEMENTED"
-        )
+        return users_cmd.create_error_result(message="User export not yet implemented", error_code="NOT_IMPLEMENTED")
     return users_cmd.create_error_result(
         message=f"Unknown batch command: {args.batch_command}", error_code="UNKNOWN_COMMAND"
     )
@@ -277,11 +273,11 @@ def _handle_batch_user_command(users_cmd: UserCommands, args) -> object:
 
 def _handle_health_check_command(health_cmd: HealthCommands, args) -> object:
     """Handle health check command.
-    
+
     Args:
         health_cmd: HealthCommands instance
         args: Parsed arguments
-        
+
     Returns:
         CommandResult
     """
@@ -399,9 +395,7 @@ def _handle_config_admin_command(config_cmd: ConfigCommands, args) -> object:
             message="Config validation not yet implemented", error_code="NOT_IMPLEMENTED"
         )
     if args.config_command == "reset":
-        return config_cmd.create_error_result(
-            message="Config reset not yet implemented", error_code="NOT_IMPLEMENTED"
-        )
+        return config_cmd.create_error_result(message="Config reset not yet implemented", error_code="NOT_IMPLEMENTED")
     return config_cmd.create_error_result(
         message=f"Unknown config command: {args.config_command}", error_code="UNKNOWN_COMMAND"
     )

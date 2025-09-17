@@ -31,13 +31,14 @@ logger = logging.getLogger(__name__)
 
 class PdfProcessor(BaseProcessor):
     """PDF document processor with advanced extraction capabilities.
-    
+
     This processor handles PDF documents with support for:
     - Text extraction with formatting preservation
     - Table detection and extraction
     - Image extraction and deduplication
     - Semantic chunking with embeddings
     """
+
     def __init__(self, manager: SyncManager | None = None, settings: Settings = get_settings()) -> None:
         super().__init__(settings)
         if manager is None:
@@ -46,11 +47,11 @@ class PdfProcessor(BaseProcessor):
 
     async def process(self, file_path: str, document_id: str) -> AsyncIterator[Document]:
         """Process PDF document and yield Document objects.
-        
+
         Args:
             file_path: Path to the PDF file
             document_id: Unique identifier for the document
-            
+
         Yields:
             Document objects with extracted content
         """
@@ -103,13 +104,13 @@ class PdfProcessor(BaseProcessor):
         self, page_number: int, file_path: str, output_folder: str, document_id: str
     ) -> list[DocumentChunk]:
         """Process a single PDF page and extract chunks.
-        
+
         Args:
             page_number: Page number to process
             file_path: Path to the PDF file
             output_folder: Folder for extracted images
             document_id: Document identifier
-            
+
         Returns:
             List of document chunks from the page
         """
@@ -203,13 +204,13 @@ class PdfProcessor(BaseProcessor):
         self, chunk_text: str, chunk_embedding: Embeddings, metadata: dict[str, Any], document_id: str
     ) -> DocumentChunk:
         """Create a document chunk with embeddings.
-        
+
         Args:
             chunk_text: Text content of the chunk
             chunk_embedding: Embedding vector for the chunk
             metadata: Chunk metadata
             document_id: Document identifier
-            
+
         Returns:
             DocumentChunk object
         """
@@ -224,10 +225,10 @@ class PdfProcessor(BaseProcessor):
 
     def extract_text_from_page(self, page: pymupdf.Page) -> list[dict[str, Any]]:
         """Extract text blocks from a PDF page.
-        
+
         Args:
             page: PyMuPDF page object
-            
+
         Returns:
             List of text blocks with formatting information
         """
@@ -274,10 +275,10 @@ class PdfProcessor(BaseProcessor):
 
     def extract_tables_from_page(self, page: pymupdf.Page) -> list[list[list[str]]]:
         """Extract tables from a PDF page using multiple methods.
-        
+
         Args:
             page: PyMuPDF page object
-            
+
         Returns:
             List of extracted tables
         """
@@ -307,7 +308,7 @@ class PdfProcessor(BaseProcessor):
                 if "not a textpage of this page" in str(ve):
                     logger.info(
                         "Page %d doesn't support textpage extraction, falling back to alternative methods",
-                        page.number + 1
+                        page.number + 1,
                     )
                 else:
                     logger.warning("Unexpected ValueError during table extraction on page %d: %s", page.number + 1, ve)
@@ -451,11 +452,11 @@ class PdfProcessor(BaseProcessor):
 
     def extract_images_from_page(self, page: pymupdf.Page, output_folder: str) -> list[str]:
         """Extract images from a PDF page.
-        
+
         Args:
             page: PyMuPDF page object
             output_folder: Directory to save extracted images
-            
+
         Returns:
             List of paths to extracted images
         """
@@ -483,7 +484,9 @@ class PdfProcessor(BaseProcessor):
                             self.saved_image_hashes.add(image_hash)
                             logger.info("Saved new image: %s", image_filename)
                         else:
-                            logger.info("Skipped duplicate image on page %d, image index %d", page.number + 1, img_index)
+                            logger.info(
+                                "Skipped duplicate image on page %d, image index %d", page.number + 1, img_index
+                            )
                     else:
                         logger.warning("Failed to extract image %d from page %d", xref, page.number + 1)
                 except Exception as e:

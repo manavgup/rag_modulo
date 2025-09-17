@@ -28,7 +28,6 @@ class TxtProcessor(BaseProcessor):
         process(file_path: str) -> AsyncIterable[Document]: Process the text file and yield Document instances.
     """
 
-
     async def process(self, file_path: str, _document_id: str) -> AsyncIterator[Document]:
         """
         Process the text file and yield Document instances.

@@ -7,10 +7,10 @@ document retrieval with LLM-based answer generation.
 
 from typing import Annotated
 
+from core.config import Settings, get_settings
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from core.config import Settings, get_settings
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.search_schema import SearchInput, SearchOutput
 from rag_solution.services.search_service import SearchService
@@ -72,6 +72,5 @@ async def search(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve)) from ve
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error processing search: {e!s}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error processing search: {e!s}"
         ) from e
