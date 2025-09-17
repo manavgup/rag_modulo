@@ -5,7 +5,7 @@ simplified pipeline resolution architecture.
 """
 
 import contextlib
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import pytest
@@ -32,7 +32,9 @@ class TestPipelineServiceSignatureUpdate:
     @pytest.fixture
     def pipeline_service(self, mock_db, mock_settings):
         """Create PipelineService instance."""
-        return PipelineService(mock_db, mock_settings)
+        with patch("vectordbs.factory.VectorStoreFactory.get_datastore") as mock_factory:
+            mock_factory.return_value = Mock()
+            return PipelineService(mock_db, mock_settings)
 
     @pytest.fixture
     def sample_search_input(self):

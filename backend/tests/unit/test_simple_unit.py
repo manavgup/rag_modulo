@@ -161,14 +161,12 @@ def test_pure_search_validation() -> None:
 
     from rag_solution.schemas.search_schema import SearchInput
 
-    # Test valid search input
-    search_input = SearchInput(
-        question="What is machine learning?", collection_id=uuid4(), user_id=uuid4(), pipeline_id=uuid4()
-    )
+    # Test valid search input - no pipeline_id needed anymore
+    search_input = SearchInput(question="What is machine learning?", collection_id=uuid4(), user_id=uuid4())
     assert search_input.question == "What is machine learning?"
     assert search_input.collection_id is not None
     assert search_input.user_id is not None
-    assert search_input.pipeline_id is not None
+    # pipeline_id no longer exists - handled by backend
 
 
 @pytest.mark.unit

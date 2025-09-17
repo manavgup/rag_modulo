@@ -17,6 +17,7 @@ from rag_solution.schemas.collection_schema import CollectionStatus
 from rag_solution.schemas.search_schema import SearchInput, SearchOutput
 from rag_solution.services.collection_service import CollectionService
 from rag_solution.services.file_management_service import FileManagementService
+from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.pipeline_service import PipelineService
 
 logger = get_logger("services.search")
@@ -62,6 +63,7 @@ class SearchService:
         self._file_service: FileManagementService | None = None
         self._collection_service: CollectionService | None = None
         self._pipeline_service: PipelineService | None = None
+        self._llm_provider_service: LLMProviderService | None = None
 
     @property
     def file_service(self) -> FileManagementService:
@@ -86,6 +88,14 @@ class SearchService:
             logger.debug("Lazy initializing pipeline service")
             self._pipeline_service = PipelineService(self.db, self.settings)
         return self._pipeline_service
+
+    @property
+    def llm_provider_service(self) -> LLMProviderService:
+        """Lazy initialization of LLM provider service."""
+        if self._llm_provider_service is None:
+            logger.debug("Lazy initializing LLM provider service")
+            self._llm_provider_service = LLMProviderService(self.db)
+        return self._llm_provider_service
 
     @handle_search_errors
     async def _initialize_pipeline(self, collection_id: UUID4) -> str:
@@ -227,6 +237,26 @@ class SearchService:
                 message=f"Pipeline configuration not found for ID {pipeline_id}",
             )
 
+    def _resolve_user_default_pipeline(self, user_id: UUID4) -> UUID4:
+        """Resolve user's default pipeline, creating one if none exists."""
+        # Try to get user's existing default pipeline
+        default_pipeline = self.pipeline_service.get_default_pipeline(user_id)
+
+        if default_pipeline:
+            return default_pipeline.id
+
+        # No default pipeline exists, create one
+        logger.info(f"Creating default pipeline for user {user_id}")
+
+        # Get user's LLM provider (or system default)
+        default_provider = self.llm_provider_service.get_user_provider(user_id)
+        if not default_provider:
+            raise ConfigurationError("No LLM provider available for pipeline creation")
+
+        # Create default pipeline for user
+        created_pipeline = self.pipeline_service.initialize_user_pipeline(user_id, default_provider.id)
+        return created_pipeline.id
+
     @handle_search_errors
     async def search(self, search_input: SearchInput) -> SearchOutput:
         """Process a search query through the RAG pipeline."""
@@ -236,14 +266,17 @@ class SearchService:
         # Validate inputs
         self._validate_search_input(search_input)
         self._validate_collection_access(search_input.collection_id, search_input.user_id)
-        self._validate_pipeline(search_input.pipeline_id)
+
+        # Resolve user's default pipeline
+        pipeline_id = self._resolve_user_default_pipeline(search_input.user_id)
+        self._validate_pipeline(pipeline_id)
 
         # Initialize pipeline
         collection_name = await self._initialize_pipeline(search_input.collection_id)
 
         # Execute pipeline
         pipeline_result = await self.pipeline_service.execute_pipeline(
-            search_input=search_input, collection_name=collection_name
+            search_input=search_input, collection_name=collection_name, pipeline_id=pipeline_id
         )
 
         if not pipeline_result.success:

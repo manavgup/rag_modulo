@@ -174,7 +174,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             return True
         return False
 
-    def _handle_mock_token(self, request: Request, token: str) -> bool:  # pylint: disable=unused-argument
+    def _handle_mock_token(self, request: Request, token: str) -> bool:  # pylint: disable=unused-argument  # noqa: ARG002
         """Handle mock token authentication.
 
         Args:

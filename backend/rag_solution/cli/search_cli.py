@@ -126,7 +126,6 @@ def main_search_cli(args: Sequence[str] | None = None) -> int:
             result = search_cmd.query(
                 collection_id=parsed_args.collection,
                 query=parsed_args.query,
-                pipeline_id=parsed_args.pipeline,
                 max_chunks=parsed_args.max_chunks,
             )
 
