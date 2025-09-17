@@ -151,6 +151,57 @@ This architecture allows for flexibility in choosing vector databases and ensure
    make run-ghcr
    ```
 
+## 🛠️ Development Workflow
+
+**NEW**: Streamlined development workflow for faster iteration! See [Development Workflow Guide](docs/development/workflow.md) for complete details.
+
+**CLOUD DEVELOPMENT**: Full GitHub Codespaces support with automated PR validation! See [GitHub Codespaces Guide](docs/development/codespaces.md) for cloud development.
+
+**TESTING**: Comprehensive testing strategy with fresh environment simulation, automated tests, and manual validation! See [Testing Documentation](docs/testing/index.md) for complete testing guide.
+
+### Quick Development Start
+
+#### Local Development (Dev Container)
+```bash
+# Initialize development environment
+make dev-init
+
+# Build and start development environment
+make dev-build
+make dev-up
+
+# Validate everything is working
+make dev-validate
+```
+
+#### Cloud Development (GitHub Codespaces)
+1. **Go to GitHub repository** → "Code" → "Codespaces"
+2. **Click "Create codespace"** on your branch
+3. **Wait for environment** to load (2-3 minutes)
+4. **Start coding** in browser-based VS Code!
+
+**Automated PR Validation**: Every PR automatically gets a Codespace for easy testing and review.
+
+### Development Commands
+
+| Command | Description |
+|---------|-------------|
+| `make dev-init` | Initialize development environment |
+| `make dev-build` | Build local development images |
+| `make dev-up` | Start development environment |
+| `make dev-restart` | Rebuild and restart with latest changes |
+| `make dev-down` | Stop development environment |
+| `make dev-status` | Show development environment status |
+| `make dev-validate` | Validate development environment health |
+
+### Key Benefits
+
+- ✅ **Local builds by default** - No more remote image confusion
+- ✅ **Automatic environment setup** - Development variables configured
+- ✅ **Fast iteration** - Changes visible immediately
+- ✅ **Health validation** - Know when everything is working
+- ✅ **Consistent workflow** - Same setup for all developers
+
 ### Development Setup
 
 1. **Backend Setup**:
