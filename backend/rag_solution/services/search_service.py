@@ -13,6 +13,7 @@ from pydantic import UUID4
 from sqlalchemy.orm import Session
 from vectordbs.data_types import DocumentMetadata, QueryResult
 
+from rag_solution.schemas.collection_schema import CollectionStatus
 from rag_solution.schemas.search_schema import SearchInput, SearchOutput
 from rag_solution.services.collection_service import CollectionService
 from rag_solution.services.file_management_service import FileManagementService
@@ -180,6 +181,25 @@ class SearchService:
                     resource_id=str(collection_id),
                     message=f"Collection with ID {collection_id} not found",
                 )
+
+            # Check collection status - only allow search on completed collections
+            if collection.status != CollectionStatus.COMPLETED:
+                if collection.status == CollectionStatus.PROCESSING:
+                    raise ValidationError(
+                        f"Collection {collection_id} is still processing documents. Please wait for processing to complete."
+                    )
+                elif collection.status == CollectionStatus.CREATED:
+                    raise ValidationError(
+                        f"Collection {collection_id} has no documents. Please upload documents before searching."
+                    )
+                elif collection.status == CollectionStatus.ERROR:
+                    raise ValidationError(
+                        f"Collection {collection_id} encountered errors during processing. Please check collection status."
+                    )
+                else:
+                    raise ValidationError(
+                        f"Collection {collection_id} is not ready for search (status: {collection.status})."
+                    )
 
             if user_id and collection.is_private:
                 user_collections = self.collection_service.get_user_collections(user_id)

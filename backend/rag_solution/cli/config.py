@@ -316,8 +316,11 @@ class ProfileManager:
             The created RAGConfig instance
 
         Raises:
-            ConfigurationError: If profile creation fails
+            ConfigurationError: If profile creation fails or profile already exists
         """
+        if self.profile_exists(name):
+            raise ConfigurationError(f"Profile '{name}' already exists")
+
         try:
             config = RAGConfig(profile=name, api_url=HttpUrl(api_url))
             config.save_to_file()

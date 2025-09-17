@@ -55,7 +55,10 @@ class CollectionCommands(BaseCommand):
 
             response = self.api_client.get("/api/collections", params=params)
 
-            return self._create_success_result(data=response, message=f"Found {response.get('total', 0)} collections")
+            return self._create_success_result(
+                data=response,
+                message=f"Found {response.get('total', len(response.get('collections', [])))} collections",
+            )
 
         except (APIError, AuthenticationError, RAGCLIError) as e:
             return self._handle_api_error(e)
@@ -77,10 +80,19 @@ class CollectionCommands(BaseCommand):
         self._require_authentication()
 
         try:
-            data = {"name": name, "vector_db_name": vector_db, "is_private": is_private}
+            # Use the correct schema format expected by CollectionInput
+            data = {
+                "name": name,
+                "is_private": is_private,
+                "users": [],  # Will be populated by the server with current user
+                "status": "created",
+            }
 
-            if description:
-                data["description"] = description
+            # Note: vector_db is handled by the server/service layer, not in the input schema
+            # The description field is not part of CollectionInput schema currently
+            # These parameters are kept for API compatibility but not used in current implementation
+            _ = description  # Suppress unused parameter warning
+            _ = vector_db  # Suppress unused parameter warning
 
             response = self.api_client.post("/api/collections", data=data)
 
@@ -88,6 +100,68 @@ class CollectionCommands(BaseCommand):
 
         except (APIError, AuthenticationError, RAGCLIError) as e:
             return self._handle_api_error(e)
+
+    def create_collection_with_documents(self, name: str, files: list[str], is_private: bool = False) -> CommandResult:
+        """Create a new collection with documents.
+
+        This method calls the create_collection_with_documents endpoint which:
+        - Creates the collection
+        - Uploads the provided files
+        - Triggers background document processing
+        - Processes documents into vector store
+
+        Args:
+            name: Collection name
+            files: List of file paths to upload
+            is_private: Whether collection is private
+
+        Returns:
+            CommandResult with created collection data
+        """
+        self._require_authentication()
+
+        try:
+            import os
+
+            # Prepare form data
+            form_data = {"collection_name": name, "is_private": str(is_private).lower()}
+
+            # Prepare files for upload
+            file_objects = []
+            try:
+                for file_path in files:
+                    if not os.path.exists(file_path):
+                        return self._create_error_result(f"File not found: {file_path}")
+
+                    with open(file_path, "rb") as file_obj:
+                        file_objects.append(
+                            ("files", (os.path.basename(file_path), file_obj.read(), "application/octet-stream"))
+                        )
+
+                # Use the API client's session to make form-data request
+                response = self.api_client.session.post(
+                    f"{self.api_client.config.api_url}/api/collections",
+                    data=form_data,
+                    files=file_objects,
+                    timeout=120,  # Longer timeout for file uploads
+                )
+
+                response.raise_for_status()
+                result_data = response.json()
+
+                return self._create_success_result(
+                    data=result_data,
+                    message=f"Collection '{name}' created with {len(files)} documents. Processing started in background.",
+                )
+
+            finally:
+                # Files are now read into memory, no need to close them
+                pass
+
+        except (APIError, AuthenticationError, RAGCLIError) as e:
+            return self._handle_api_error(e)
+        except Exception as e:
+            return self._create_error_result(f"Failed to create collection with documents: {e!s}")
 
     def get_collection(self, collection_id: str, include_stats: bool = False) -> CommandResult:
         """Get collection details.
@@ -109,6 +183,35 @@ class CollectionCommands(BaseCommand):
             response = self.api_client.get(f"/api/collections/{collection_id}", params=params)
 
             return self._create_success_result(data=response, message="Collection details retrieved successfully")
+
+        except (APIError, AuthenticationError, RAGCLIError) as e:
+            return self._handle_api_error(e)
+
+    def get_collection_status(self, collection_id: str) -> CommandResult:
+        """Get collection processing status.
+
+        Args:
+            collection_id: Collection identifier
+
+        Returns:
+            CommandResult with collection status information
+        """
+        self._require_authentication()
+
+        try:
+            response = self.api_client.get(f"/api/collections/{collection_id}")
+
+            # Extract just the status information
+            status_data = {
+                "id": response.get("id"),
+                "status": response.get("status"),
+                "name": response.get("name"),
+                "message": response.get("message", ""),
+            }
+
+            return self._create_success_result(
+                data=status_data, message=f"Collection status: {status_data.get('status', 'unknown')}"
+            )
 
         except (APIError, AuthenticationError, RAGCLIError) as e:
             return self._handle_api_error(e)

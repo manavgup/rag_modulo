@@ -9,6 +9,8 @@ from typing import Any
 from rich.console import Console
 from rich.table import Table
 
+from rag_solution.services.collection_service import CollectionService
+
 console = Console()
 
 
@@ -16,12 +18,11 @@ def format_duration(seconds: float) -> str:
     """Format duration in seconds to human-readable string."""
     if seconds < 1:
         return f"{seconds*1000:.0f}ms"
-    elif seconds < 60:
+    if seconds < 60:
         return f"{seconds:.1f}s"
-    else:
-        minutes = int(seconds // 60)
-        secs = seconds % 60
-        return f"{minutes}m {secs:.1f}s"
+    minutes = int(seconds // 60)
+    secs = seconds % 60
+    return f"{minutes}m {secs:.1f}s"
 
 
 def calculate_retrieval_metrics(query_results: list[Any]) -> dict[str, float]:
@@ -110,18 +111,8 @@ def compare_search_configs(results: list[dict[str, Any]]) -> Table:
     return table
 
 
-def generate_quality_report(results: list[dict[str, Any]], output_path: str | None = None) -> str:
-    """Generate comprehensive quality report."""
-    report_lines = []
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    report_lines.append("=" * 80)
-    report_lines.append("RAG SEARCH QUALITY REPORT")
-    report_lines.append(f"Generated: {timestamp}")
-    report_lines.append("=" * 80)
-    report_lines.append("")
-
-    # Summary statistics
+def _add_summary_section(report_lines: list[str], results: list[dict[str, Any]]) -> None:
+    """Add summary section to report."""
     total = len(results)
     successful = sum(1 for r in results if r.get("success", False))
     failed = total - successful
@@ -133,54 +124,72 @@ def generate_quality_report(results: list[dict[str, Any]], output_path: str | No
     report_lines.append(f"Failed: {failed} ({failed/total*100:.1f}%)")
     report_lines.append("")
 
-    if successful > 0:
-        # Quality metrics
-        avg_quality = sum(r.get("quality_score", 0) for r in results if r.get("success", False)) / successful
-        max_quality = max(r.get("quality_score", 0) for r in results if r.get("success", False))
-        min_quality = min(r.get("quality_score", 0) for r in results if r.get("success", False))
 
-        report_lines.append("QUALITY METRICS")
-        report_lines.append("-" * 40)
-        report_lines.append(f"Average Quality Score: {avg_quality:.1f}%")
-        report_lines.append(f"Maximum Quality Score: {max_quality:.1f}%")
-        report_lines.append(f"Minimum Quality Score: {min_quality:.1f}%")
-        report_lines.append("")
+def _add_quality_metrics(report_lines: list[str], results: list[dict[str, Any]]) -> None:
+    """Add quality metrics section to report."""
+    successful_results = [r for r in results if r.get("success", False)]
+    if not successful_results:
+        return
 
-        # Performance metrics
-        times = [r.get("execution_time", 0) for r in results if r.get("success", False) and r.get("execution_time")]
-        if times:
-            avg_time = sum(times) / len(times)
-            max_time = max(times)
-            min_time = min(times)
+    quality_scores = [r.get("quality_score", 0) for r in successful_results]
+    avg_quality = sum(quality_scores) / len(quality_scores)
+    max_quality = max(quality_scores)
+    min_quality = min(quality_scores)
 
-            report_lines.append("PERFORMANCE METRICS")
-            report_lines.append("-" * 40)
-            report_lines.append(f"Average Execution Time: {format_duration(avg_time)}")
-            report_lines.append(f"Maximum Execution Time: {format_duration(max_time)}")
-            report_lines.append(f"Minimum Execution Time: {format_duration(min_time)}")
-            report_lines.append("")
+    report_lines.append("QUALITY METRICS")
+    report_lines.append("-" * 40)
+    report_lines.append(f"Average Quality Score: {avg_quality:.1f}%")
+    report_lines.append(f"Maximum Quality Score: {max_quality:.1f}%")
+    report_lines.append(f"Minimum Quality Score: {min_quality:.1f}%")
+    report_lines.append("")
 
-        # Retrieval metrics
-        docs_counts = [r.get("documents_retrieved", 0) for r in results if r.get("success", False)]
-        avg_docs = sum(docs_counts) / len(docs_counts) if docs_counts else 0
 
-        report_lines.append("RETRIEVAL METRICS")
-        report_lines.append("-" * 40)
-        report_lines.append(f"Average Documents Retrieved: {avg_docs:.1f}")
-        report_lines.append(f"Queries with No Results: {sum(1 for d in docs_counts if d == 0)}")
-        report_lines.append("")
+def _add_performance_metrics(report_lines: list[str], results: list[dict[str, Any]]) -> None:
+    """Add performance metrics section to report."""
+    times = [r.get("execution_time", 0) for r in results if r.get("success", False) and r.get("execution_time")]
+    if not times:
+        return
 
-    # Failed queries
-    if failed > 0:
-        report_lines.append("FAILED QUERIES")
-        report_lines.append("-" * 40)
-        for result in results:
-            if not result.get("success", False):
-                report_lines.append(f"- Query: {result.get('query', 'Unknown')}")
-                report_lines.append(f"  Error: {result.get('error', 'Unknown error')}")
-        report_lines.append("")
+    avg_time = sum(times) / len(times)
+    max_time = max(times)
+    min_time = min(times)
 
-    # Category breakdown if available
+    report_lines.append("PERFORMANCE METRICS")
+    report_lines.append("-" * 40)
+    report_lines.append(f"Average Execution Time: {format_duration(avg_time)}")
+    report_lines.append(f"Maximum Execution Time: {format_duration(max_time)}")
+    report_lines.append(f"Minimum Execution Time: {format_duration(min_time)}")
+    report_lines.append("")
+
+
+def _add_retrieval_metrics(report_lines: list[str], results: list[dict[str, Any]]) -> None:
+    """Add retrieval metrics section to report."""
+    docs_counts = [r.get("documents_retrieved", 0) for r in results if r.get("success", False)]
+    avg_docs = sum(docs_counts) / len(docs_counts) if docs_counts else 0
+
+    report_lines.append("RETRIEVAL METRICS")
+    report_lines.append("-" * 40)
+    report_lines.append(f"Average Documents Retrieved: {avg_docs:.1f}")
+    report_lines.append(f"Queries with No Results: {sum(1 for d in docs_counts if d == 0)}")
+    report_lines.append("")
+
+
+def _add_failed_queries(report_lines: list[str], results: list[dict[str, Any]]) -> None:
+    """Add failed queries section to report."""
+    failed_results = [r for r in results if not r.get("success", False)]
+    if not failed_results:
+        return
+
+    report_lines.append("FAILED QUERIES")
+    report_lines.append("-" * 40)
+    for result in failed_results:
+        report_lines.append(f"- Query: {result.get('query', 'Unknown')}")
+        report_lines.append(f"  Error: {result.get('error', 'Unknown error')}")
+    report_lines.append("")
+
+
+def _add_category_breakdown(report_lines: list[str], results: list[dict[str, Any]]) -> None:
+    """Add category breakdown section to report."""
     categories = {}
     for result in results:
         cat = result.get("category", "uncategorized")
@@ -191,17 +200,42 @@ def generate_quality_report(results: list[dict[str, Any]], output_path: str | No
             categories[cat]["successful"] += 1
             categories[cat]["quality_sum"] += result.get("quality_score", 0)
 
-    if len(categories) > 1:
-        report_lines.append("CATEGORY BREAKDOWN")
-        report_lines.append("-" * 40)
-        for cat, stats in categories.items():
-            success_rate = stats["successful"] / stats["total"] * 100 if stats["total"] > 0 else 0
-            avg_quality = stats["quality_sum"] / stats["successful"] if stats["successful"] > 0 else 0
-            report_lines.append(f"{cat}:")
-            report_lines.append(f"  Total: {stats['total']}")
-            report_lines.append(f"  Success Rate: {success_rate:.1f}%")
-            report_lines.append(f"  Avg Quality: {avg_quality:.1f}%")
-        report_lines.append("")
+    if len(categories) <= 1:
+        return
+
+    report_lines.append("CATEGORY BREAKDOWN")
+    report_lines.append("-" * 40)
+    for cat, stats in categories.items():
+        success_rate = stats["successful"] / stats["total"] * 100 if stats["total"] > 0 else 0
+        avg_quality = stats["quality_sum"] / stats["successful"] if stats["successful"] > 0 else 0
+        report_lines.append(f"{cat}:")
+        report_lines.append(f"  Total: {stats['total']}")
+        report_lines.append(f"  Success Rate: {success_rate:.1f}%")
+        report_lines.append(f"  Avg Quality: {avg_quality:.1f}%")
+    report_lines.append("")
+
+
+def generate_quality_report(results: list[dict[str, Any]], output_path: str | None = None) -> str:
+    """Generate comprehensive quality report."""
+    report_lines = []
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    report_lines.append("=" * 80)
+    report_lines.append("RAG SEARCH QUALITY REPORT")
+    report_lines.append(f"Generated: {timestamp}")
+    report_lines.append("=" * 80)
+    report_lines.append("")
+
+    _add_summary_section(report_lines, results)
+
+    successful_results = [r for r in results if r.get("success", False)]
+    if successful_results:
+        _add_quality_metrics(report_lines, results)
+        _add_performance_metrics(report_lines, results)
+        _add_retrieval_metrics(report_lines, results)
+
+    _add_failed_queries(report_lines, results)
+    _add_category_breakdown(report_lines, results)
 
     report_lines.append("=" * 80)
 
@@ -209,7 +243,7 @@ def generate_quality_report(results: list[dict[str, Any]], output_path: str | No
 
     # Save to file if path provided
     if output_path:
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             f.write(report_text)
         console.print(f"[green]Report saved to {output_path}[/green]")
 
@@ -223,26 +257,22 @@ def load_test_queries(file_path: str) -> list[dict[str, Any]]:
     if not path.exists():
         raise FileNotFoundError(f"Test queries file not found: {file_path}")
 
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         data: Any = json.load(f)
 
     # Support both 'test_queries' and direct list format
     if isinstance(data, list):
         return data  # type: ignore[no-any-return]
-    elif isinstance(data, dict) and "test_queries" in data:
+    if isinstance(data, dict) and "test_queries" in data:
         return data["test_queries"]  # type: ignore[no-any-return]
-    else:
-        raise ValueError("Invalid test queries format. Expected list or dict with 'test_queries' key.")
+    raise ValueError("Invalid test queries format. Expected list or dict with 'test_queries' key.")
 
 
 def validate_collection_access(collection_id: str, db: Any, settings: Any) -> bool:
     """Validate that collection exists and is accessible."""
-
-    from rag_solution.services.collection_service import CollectionService
-
     try:
         collection_service = CollectionService(db, settings)
         collection = collection_service.get_collection(uuid.UUID(collection_id))
         return collection is not None
-    except Exception:
+    except (ValueError, TypeError, AttributeError):
         return False

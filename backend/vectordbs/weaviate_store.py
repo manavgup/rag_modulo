@@ -4,6 +4,8 @@ This module provides a Weaviate-based implementation of the VectorStore interfac
 enabling document storage, retrieval, and search operations using Weaviate.
 """
 
+# pylint: disable=no-member
+
 import logging
 from typing import Any
 
@@ -69,8 +71,7 @@ class WeaviateDataStore(VectorStore):
             return weaviate.auth.AuthClientPassword(
                 self.settings.weaviate_username, self.settings.weaviate_password, self.settings.weaviate_scopes
             )
-        else:
-            return None
+        return None
 
     def _create_schema(self, collection_name: str) -> None:
         """Create the schema for Weaviate collection."""
@@ -149,9 +150,8 @@ class WeaviateDataStore(VectorStore):
                     }
 
                     # Add to Weaviate with vector
-                    self.client.collections.get(collection_name).data.insert(
-                        data_object,  # type: ignore[arg-type]
-                        vector=chunk.embeddings,
+                    self.client.data_object.create(  # type: ignore[attr-defined]
+                        data_object=data_object, class_name=collection_name, vector=chunk.embeddings
                     )
 
                     document_ids.append(chunk.document_id)
@@ -183,12 +183,12 @@ class WeaviateDataStore(VectorStore):
         query_with_embedding = QueryWithEmbedding(text=query, embeddings=query_embeddings[0])
         return self.query(collection_name, query_with_embedding, number_of_results=number_of_results)
 
-    def query(
+    def query(  # pylint: disable=redefined-builtin
         self,
         collection_name: str,
         query: QueryWithEmbedding,
         number_of_results: int = 10,
-        metadata_filter: DocumentMetadataFilter | None = None,  # noqa: ARG002
+        filter: DocumentMetadataFilter | None = None,  # noqa: ARG002
     ) -> list[QueryResult]:
         """Query the Weaviate collection.
 
@@ -196,7 +196,7 @@ class WeaviateDataStore(VectorStore):
             collection_name: Name of the collection to query
             query: Query with embedding
             number_of_results: Maximum number of results to return
-            metadata_filter: Optional metadata filter
+            filter: Optional metadata filter
 
         Returns:
             List[QueryResult]: List of query results
@@ -206,11 +206,14 @@ class WeaviateDataStore(VectorStore):
         """
         try:
             # Perform vector search
-            collection = self.client.collections.get(collection_name)
-            results = collection.query.near_vector(  # type: ignore[call-overload]
-                near_vector=query.embeddings[0],
-                limit=number_of_results,
-                return_metadata=["distance"],
+            results = (
+                self.client.query.get(  # type: ignore[attr-defined]
+                    class_name=collection_name,
+                    properties=["text", "document_id", "chunk_id", "source", "page_number", "chunk_number"],
+                )
+                .with_near_vector({"vector": query.embeddings[0]})
+                .with_limit(number_of_results)
+                .do()
             )
 
             logging.info("Query response: %s", results)
@@ -248,48 +251,42 @@ class WeaviateDataStore(VectorStore):
         """
         try:
             # Query for objects with the specified document_ids
-            collection = self.client.collections.get(collection_name)
             for doc_id in document_ids:
-                # Query for objects with matching document_id
-                results = collection.query.fetch_objects(  # type: ignore[call-overload]
-                    filters={"path": ["document_id"], "operator": "Equal", "valueString": doc_id}
+                results = (
+                    self.client.query.get(class_name=collection_name, properties=["document_id"])  # type: ignore[attr-defined]
+                    .with_where({"path": ["document_id"], "operator": "Equal", "valueString": doc_id})
+                    .do()
                 )
 
                 # Delete each object
-                for obj in results.objects:
-                    collection.data.delete_by_id(obj.uuid)
+                for obj in results["data"]["Get"][collection_name]:
+                    self.client.data_object.delete(uuid=obj["_additional"]["id"], class_name=collection_name)  # type: ignore[attr-defined]
 
             logging.info("Deleted documents from collection '%s'", collection_name)
         except Exception as e:
             logging.error("Failed to delete documents from Weaviate collection '%s': %s", collection_name, str(e))
             raise DocumentError(f"Failed to delete documents from Weaviate collection '{collection_name}': {e}") from e
 
-    def _process_search_results(self, results: Any, collection_name: str) -> list[QueryResult]:  # noqa: ARG002
+    def _process_search_results(self, results: Any, collection_name: str) -> list[QueryResult]:
         """Process Weaviate search results into QueryResult objects."""
         query_results = []
 
-        for obj in results.objects:
+        for obj in results["data"]["Get"][collection_name]:
             # Create DocumentChunkWithScore
             chunk = DocumentChunkWithScore(
-                chunk_id=obj.properties.get("chunk_id", ""),
-                text=obj.properties.get("text", ""),
+                chunk_id=obj["chunk_id"],
+                text=obj["text"],
                 embeddings=None,  # Weaviate doesn't return embeddings in search results
                 metadata=DocumentChunkMetadata(
-                    source=Source(obj.properties.get("source", "OTHER")),
-                    document_id=obj.properties.get("document_id", ""),
-                    page_number=obj.properties.get("page_number", 0),
-                    chunk_number=obj.properties.get("chunk_number", 0),
+                    source=Source(obj["source"]),
+                    document_id=obj["document_id"],
+                    page_number=obj["page_number"],
+                    chunk_number=obj["chunk_number"],
                 ),
-                document_id=obj.properties.get("document_id", ""),
-                score=float(obj.metadata.distance) if obj.metadata.distance is not None else 0.0,
+                document_id=obj["document_id"],
+                score=float(obj["_additional"]["distance"]),  # Convert distance to score
             )
 
-            query_results.append(
-                QueryResult(
-                    chunk=chunk,
-                    score=float(obj.metadata.distance) if obj.metadata.distance is not None else 0.0,
-                    embeddings=[],
-                )
-            )
+            query_results.append(QueryResult(chunk=chunk, score=float(obj["_additional"]["distance"]), embeddings=[]))
 
         return query_results

@@ -1,9 +1,14 @@
+"""Word document processor.
+
+This module provides functionality for processing Microsoft Word documents,
+extracting text content and creating document chunks.
+"""
+
 import logging
 import os
 import uuid
 from collections.abc import AsyncIterator
 
-from core.config import Settings
 from core.custom_exceptions import DocumentProcessingError
 from docx import Document as DocxDocument
 from vectordbs.data_types import Document
@@ -22,9 +27,6 @@ class WordProcessor(BaseProcessor):
     Methods:
         process(file_path: str) -> AsyncIterable[Document]: Process the Word document and yield Document instances.
     """
-
-    def __init__(self, settings: Settings) -> None:
-        super().__init__(settings)
 
     async def process(self, file_path: str, _document_id: str) -> AsyncIterator[Document]:
         """
@@ -53,7 +55,7 @@ class WordProcessor(BaseProcessor):
             for chunk in chunks:
                 yield get_document(name=os.path.basename(file_path), document_id=str(uuid.uuid4()), text=chunk)
         except Exception as e:
-            logger.error(f"Error reading Word file {file_path}: {e}", exc_info=True)
+            logger.error("Error reading Word file %s: %s", file_path, e, exc_info=True)
             raise DocumentProcessingError(
                 doc_id=file_path,
                 error_type="processing_failed",

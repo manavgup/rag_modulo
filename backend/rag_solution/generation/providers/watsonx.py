@@ -173,7 +173,7 @@ class WatsonXLLM(LLMBase):
 
                 response = model.generate_text(
                     prompt=formatted_prompts,
-                    concurrency_limit=10,  # Max concurrency limit
+                    concurrency_limit=8,  # Max concurrency limit
                 )
 
                 logger.debug(f"Response: {response}")

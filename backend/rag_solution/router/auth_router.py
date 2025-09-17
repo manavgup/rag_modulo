@@ -262,17 +262,24 @@ async def get_userinfo(request: Request, settings: Annotated[Settings, Depends(g
             raise HTTPException(status_code=401, detail="Invalid authorization scheme")
 
         # Special handling for mock token (only in testing environments)
-        if token == "mock_token_for_testing" and os.getenv("TESTING", "false").lower() == "true":
+        from core.mock_auth import is_mock_token
+
+        if is_mock_token(token) and os.getenv("TESTING", "false").lower() == "true":
             logger.info("Using mock token for testing (testing environment only)")
-            user_info = UserInfo(
-                sub="test_user_id",
-                name="Test User",
-                email="test@example.com",
-                uuid="9bae4a21-718b-4c8b-bdd2-22857779a85b",
-                role="admin",
-            )
-            logger.info("Retrieved mock user info: %s", user_info.email)
-            return JSONResponse(content=user_info.model_dump())
+            # Use the user info from request.state.user set by authentication middleware
+            if hasattr(request.state, "user") and request.state.user:
+                user_data = request.state.user
+                user_info = UserInfo(
+                    sub=user_data.get("id", "test_user_id"),
+                    name=user_data.get("name", "Test User"),
+                    email=user_data.get("email", "test@example.com"),
+                    uuid=user_data.get("uuid"),
+                    role=user_data.get("role", "admin"),
+                )
+                logger.info("Retrieved mock user info: %s", user_info.email)
+                return JSONResponse(content=user_info.model_dump())
+            else:
+                raise HTTPException(status_code=401, detail="Mock user not properly initialized")
 
         logger.info("Decoding JWT token")
         payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
@@ -290,6 +297,28 @@ async def get_userinfo(request: Request, settings: Annotated[Settings, Depends(g
     except jwt.PyJWTError as e:
         logger.error("Error decoding JWT: %s", str(e))
         raise HTTPException(status_code=401, detail="Invalid token") from e
+
+
+@router.get("/me")
+async def get_current_user(request: Request) -> JSONResponse:
+    """Get current authenticated user from request state.
+
+    This endpoint returns the user information that was set by the authentication middleware.
+    It works with both real JWT tokens and mock tokens.
+    """
+    if not hasattr(request.state, "user") or not request.state.user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    user_data = request.state.user
+    return JSONResponse(
+        content={
+            "id": user_data.get("id"),
+            "email": user_data.get("email"),
+            "name": user_data.get("name"),
+            "uuid": user_data.get("uuid"),
+            "role": user_data.get("role"),
+        }
+    )
 
 
 @router.get("/check-auth")

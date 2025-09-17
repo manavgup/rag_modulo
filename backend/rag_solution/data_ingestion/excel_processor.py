@@ -1,10 +1,15 @@
+"""Excel document processor.
+
+This module provides functionality for processing Excel files,
+extracting data from all sheets and converting to document chunks.
+"""
+
 import logging
 import os
 import uuid
 from collections.abc import AsyncIterator
 
 import pandas as pd
-from core.config import Settings
 from core.custom_exceptions import DocumentProcessingError
 from vectordbs.data_types import Document
 
@@ -22,9 +27,6 @@ class ExcelProcessor(BaseProcessor):
     Methods:
         process(file_path: str) -> AsyncIterable[Document]: Process the Excel file and yield Document instances.
     """
-
-    def __init__(self, settings: Settings) -> None:
-        super().__init__(settings)
 
     async def process(self, file_path: str, _document_id: str) -> AsyncIterator[Document]:
         """
@@ -59,7 +61,7 @@ class ExcelProcessor(BaseProcessor):
                     text=chunk,
                 )
         except Exception as e:
-            logger.error(f"Error reading Excel file {file_path}: {e}", exc_info=True)
+            logger.error("Error reading Excel file %s: %s", file_path, e, exc_info=True)
             raise DocumentProcessingError(
                 doc_id=file_path,
                 error_type="processing_failed",

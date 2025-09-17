@@ -1,3 +1,9 @@
+"""Document processor for handling multiple file types.
+
+This module provides a unified interface for processing different document types
+including PDF, Word, Excel, and text files.
+"""
+
 import logging
 import multiprocessing
 import os
@@ -82,7 +88,7 @@ class DocumentProcessor:
             processor = self.processors.get(file_extension)
 
             if not processor:
-                logger.warning(f"No processor found for file extension: {file_extension}")
+                logger.warning("No processor found for file extension: %s", file_extension)
                 return
 
             # Process the document asynchronously
@@ -93,7 +99,7 @@ class DocumentProcessor:
                 yield doc
 
         except Exception as e:
-            logger.error(f"Error processing document {file_path}: {e}", exc_info=True)
+            logger.error("Error processing document %s: %s", file_path, e, exc_info=True)
             raise DocumentProcessingError(
                 doc_id=document_id,
                 error_type="DocumentProcessingError",
@@ -117,5 +123,4 @@ class DocumentProcessor:
         processor = self.processors.get(file_extension)
         if processor:
             return processor.extract_metadata(file_path)
-        else:
-            raise ValueError(f"Unsupported file type: {file_extension}")
+        raise ValueError(f"Unsupported file type: {file_extension}")

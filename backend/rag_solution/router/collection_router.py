@@ -91,9 +91,10 @@ async def test_list_collections(
     """Test endpoint to list collections without authentication."""
     try:
         # Use a mock user ID for testing
-        from uuid import UUID
+        from core.mock_auth import ensure_mock_user_exists
 
-        mock_user_id = UUID("9bae4a21-718b-4c8b-bdd2-22857779a85b")  # From auth logs
+        settings = get_settings()
+        mock_user_id = ensure_mock_user_exists(db, settings)
 
         user_collection_service = UserCollectionService(db)
         collections = user_collection_service.get_user_collections(mock_user_id)

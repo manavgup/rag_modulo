@@ -1,3 +1,9 @@
+"""Base processor for document ingestion.
+
+This module provides the abstract base class for all document processors,
+handling common functionality like metadata extraction and chunking configuration.
+"""
+
 import logging
 import os
 from abc import ABC, abstractmethod

@@ -88,7 +88,7 @@ class DocumentStorageError(BaseCustomError):
 class DocumentIngestionError(BaseCustomError):
     """Exception raised for errors during document ingestion."""
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self, doc_id: str, stage: str, error_type: str, message: str, details: dict[str, Any] | None = None
     ) -> None:
         """Initialize document ingestion error.
@@ -153,7 +153,7 @@ class ProviderValidationError(ValidationError):
     including Pydantic validation failures for provider schemas.
     """
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         provider_name: str,
         validation_error: PydanticValidationError | str,
@@ -294,7 +294,7 @@ class LLMProviderError(BaseCustomError):
     - Client operations
     """
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         provider: str,
         error_type: str,
@@ -339,7 +339,7 @@ class ConfigurationError(BaseCustomError):
 class ProviderConfigError(BaseCustomError):
     """Exception raised for errors related to provider configuration."""
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self, provider: str, model_id: str, error_type: str, message: str, details: dict[str, Any] | None = None
     ) -> None:
         """Initialize provider configuration error.
@@ -399,7 +399,7 @@ class EmptyDocumentError(BaseCustomError):
 class CollectionProcessingError(BaseCustomError):
     """Exception raised for general collection processing failures."""
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self, collection_id: str, stage: str, error_type: str, message: str, details: dict[str, Any] | None = None
     ) -> None:
         """Initialize collection processing error.
@@ -462,7 +462,7 @@ class ModelConfigError(BaseCustomError):
     or incompatible model configurations.
     """
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         field: str,
         message: str,

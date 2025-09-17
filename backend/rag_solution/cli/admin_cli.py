@@ -241,16 +241,71 @@ def main_admin_cli(args: Sequence[str] | None = None) -> int:
             else:
                 print_status(getattr(result, "message", None) or "Command completed successfully", "success")
             return 0
-        else:
-            print_error(getattr(result, "message", None) or "Command failed")
-            return 1
+        print_error(getattr(result, "message", None) or "Command failed")
+        return 1
 
     except KeyboardInterrupt:
         print_status("Operation cancelled by user", "warning")
         return 130
-    except Exception as e:
+    except (ConnectionError, ValueError, TypeError, AttributeError) as e:
         print_error(f"Admin error: {e!s}")
         return 2
+
+
+def _handle_batch_user_command(users_cmd: UserCommands, args) -> object:
+    """Handle batch user commands.
+
+    Args:
+        users_cmd: UserCommands instance
+        args: Parsed arguments
+
+    Returns:
+        CommandResult
+    """
+    if args.batch_command == "import":
+        return users_cmd.create_error_result(message="User import not yet implemented", error_code="NOT_IMPLEMENTED")
+    if args.batch_command == "export":
+        return users_cmd.create_error_result(message="User export not yet implemented", error_code="NOT_IMPLEMENTED")
+    return users_cmd.create_error_result(
+        message=f"Unknown batch command: {args.batch_command}", error_code="UNKNOWN_COMMAND"
+    )
+
+
+def _handle_health_check_command(health_cmd: HealthCommands, args) -> object:
+    """Handle health check command.
+
+    Args:
+        health_cmd: HealthCommands instance
+        args: Parsed arguments
+
+    Returns:
+        CommandResult
+    """
+    # Run multiple health checks based on flags
+    results = []
+    if getattr(args, "api", False):
+        results.append(health_cmd.check_health())
+    if getattr(args, "database", False):
+        results.append(health_cmd.check_database_health())
+    if getattr(args, "vector_db", False):
+        results.append(health_cmd.check_vector_db_health())
+    if getattr(args, "llm_providers", False):
+        results.append(health_cmd.check_llm_providers_health())
+
+    # If no specific checks requested, run general health check
+    if not results:
+        results.append(health_cmd.check_health())
+
+    # Return combined result
+    all_success = all(r.success for r in results)
+    combined_data = {"checks": [r.data for r in results]}
+    message = "All health checks passed" if all_success else "Some health checks failed"
+
+    return (
+        health_cmd.create_success_result(data=combined_data, message=message)
+        if all_success
+        else health_cmd.create_error_result(message=message, data=combined_data)
+    )
 
 
 def _handle_user_admin_command(users_cmd: UserCommands, args) -> object:
@@ -269,46 +324,32 @@ def _handle_user_admin_command(users_cmd: UserCommands, args) -> object:
             team=getattr(args, "team", None),
             active_only=getattr(args, "active", False),
         )
-    elif args.users_command == "create":
+    if args.users_command == "create":
         return users_cmd.create_user(
             email=args.email,
             name=args.name,
             role=getattr(args, "role", "user"),
             teams=getattr(args, "teams", None),
         )
-    elif args.users_command == "show":
+    if args.users_command == "show":
         return users_cmd.get_user(args.user_id)
-    elif args.users_command == "update":
+    if args.users_command == "update":
         return users_cmd.update_user(
             user_id=args.user_id,
             name=getattr(args, "name", None),
             role=getattr(args, "role", None),
             active=getattr(args, "active", None),
         )
-    elif args.users_command == "delete":
+    if args.users_command == "delete":
         return users_cmd.delete_user(
             user_id=args.user_id,
             force=getattr(args, "force", False),
         )
-    elif args.users_command == "batch":
-        if args.batch_command == "import":
-            # TODO: Implement user import
-            return users_cmd._create_error_result(
-                message="User import not yet implemented", error_code="NOT_IMPLEMENTED"
-            )
-        elif args.batch_command == "export":
-            # TODO: Implement user export
-            return users_cmd._create_error_result(
-                message="User export not yet implemented", error_code="NOT_IMPLEMENTED"
-            )
-        else:
-            return users_cmd._create_error_result(
-                message=f"Unknown batch command: {args.batch_command}", error_code="UNKNOWN_COMMAND"
-            )
-    else:
-        return users_cmd._create_error_result(
-            message=f"Unknown users command: {args.users_command}", error_code="UNKNOWN_COMMAND"
-        )
+    if args.users_command == "batch":
+        return _handle_batch_user_command(users_cmd, args)
+    return users_cmd.create_error_result(
+        message=f"Unknown users command: {args.users_command}", error_code="UNKNOWN_COMMAND"
+    )
 
 
 def _handle_health_admin_command(health_cmd: HealthCommands, args) -> object:
@@ -322,44 +363,19 @@ def _handle_health_admin_command(health_cmd: HealthCommands, args) -> object:
         CommandResult
     """
     if args.health_command == "check":
-        # Run multiple health checks based on flags
-        results = []
-        if getattr(args, "api", False):
-            results.append(health_cmd.check_health())
-        if getattr(args, "database", False):
-            results.append(health_cmd.check_database_health())
-        if getattr(args, "vector_db", False):
-            results.append(health_cmd.check_vector_db_health())
-        if getattr(args, "llm_providers", False):
-            results.append(health_cmd.check_llm_providers_health())
-
-        # If no specific checks requested, run general health check
-        if not results:
-            results.append(health_cmd.check_health())
-
-        # Return combined result
-        all_success = all(r.success for r in results)
-        combined_data = {"checks": [r.data for r in results]}
-        message = "All health checks passed" if all_success else "Some health checks failed"
-
-        return (
-            health_cmd._create_success_result(data=combined_data, message=message)
-            if all_success
-            else health_cmd._create_error_result(message=message, data=combined_data)
-        )
-    elif args.health_command == "diagnostics":
+        return _handle_health_check_command(health_cmd, args)
+    if args.health_command == "diagnostics":
         return health_cmd.run_diagnostics(
             component=getattr(args, "component", None),
             verbose=getattr(args, "verbose", False),
         )
-    elif args.health_command == "metrics":
+    if args.health_command == "metrics":
         return health_cmd.get_metrics(metric_type=getattr(args, "type", None))
-    elif args.health_command == "version":
+    if args.health_command == "version":
         return health_cmd.get_version_info()
-    else:
-        return health_cmd._create_error_result(
-            message=f"Unknown health command: {args.health_command}", error_code="UNKNOWN_COMMAND"
-        )
+    return health_cmd.create_error_result(
+        message=f"Unknown health command: {args.health_command}", error_code="UNKNOWN_COMMAND"
+    )
 
 
 def _handle_config_admin_command(config_cmd: ConfigCommands, args) -> object:
@@ -374,18 +390,15 @@ def _handle_config_admin_command(config_cmd: ConfigCommands, args) -> object:
     """
     if args.config_command == "show":
         return config_cmd.get_current_profile()
-    elif args.config_command == "validate":
-        # TODO: Implement config validation
-        return config_cmd._create_error_result(
+    if args.config_command == "validate":
+        return config_cmd.create_error_result(
             message="Config validation not yet implemented", error_code="NOT_IMPLEMENTED"
         )
-    elif args.config_command == "reset":
-        # TODO: Implement config reset
-        return config_cmd._create_error_result(message="Config reset not yet implemented", error_code="NOT_IMPLEMENTED")
-    else:
-        return config_cmd._create_error_result(
-            message=f"Unknown config command: {args.config_command}", error_code="UNKNOWN_COMMAND"
-        )
+    if args.config_command == "reset":
+        return config_cmd.create_error_result(message="Config reset not yet implemented", error_code="NOT_IMPLEMENTED")
+    return config_cmd.create_error_result(
+        message=f"Unknown config command: {args.config_command}", error_code="UNKNOWN_COMMAND"
+    )
 
 
 def main() -> None:

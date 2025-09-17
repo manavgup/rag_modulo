@@ -1,6 +1,13 @@
+"""Document utilities.
+
+This module provides utility functions for creating and manipulating
+document objects, including text cleaning and validation.
+"""
+
+import os
 import uuid
 
-from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, Source
+from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, DocumentMetadata, Source
 from vectordbs.utils.watsonx import get_embeddings
 
 
@@ -49,8 +56,6 @@ def get_document(name: str, document_id: str, text: str, metadata: dict | None =
     # Create document metadata if provided
     doc_metadata = None
     if metadata:
-        from vectordbs.data_types import DocumentMetadata
-
         doc_metadata = DocumentMetadata(**metadata)
 
     return Document(
@@ -118,8 +123,6 @@ def extract_filename_from_path(file_path: str) -> str:
         >>> extract_filename_from_path("archive.tar.gz")
         'archive.tar.gz'
     """
-    import os
-
     return os.path.basename(file_path)
 
 
@@ -159,8 +162,6 @@ def is_valid_document_type(filename: str, allowed_extensions: list[str]) -> bool
         >>> is_valid_document_type("file.txt", [])
         False
     """
-    import os
-
     _, ext = os.path.splitext(filename)
     return ext.lower() in [ext.lower() for ext in allowed_extensions]
 

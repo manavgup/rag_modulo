@@ -4,16 +4,31 @@ This module provides the main CLI interface using argparse, defining all
 commands, subcommands, and their arguments. It follows the argparse-based
 approach for better enterprise reliability and testing.
 """
+# pylint: disable=too-many-lines
 
 import argparse
+import json
 import sys
 from collections.abc import Sequence
 
+from .client import RAGAPIClient
+from .commands import (
+    AuthCommands,
+    CollectionCommands,
+    ConfigCommands,
+    DocumentCommands,
+    HealthCommands,
+    PipelineCommands,
+    ProviderCommands,
+    SearchCommands,
+    UserCommands,
+)
 from .config import RAGConfig
 from .exceptions import RAGCLIError
+from .output import format_json_output, format_table_output, print_error, print_status
 
 
-class CLIResult:
+class CLIResult:  # pylint: disable=too-few-public-methods
     """Result of CLI command execution.
 
     This class standardizes the return value from CLI commands,
@@ -471,7 +486,7 @@ def _add_pipeline_commands(subparsers: argparse._SubParsersAction) -> None:
     test_pipeline_parser.add_argument("--save-results", action="store_true", help="Save test results for analysis")
 
 
-def main_cli(args: Sequence[str] | None = None) -> CLIResult:
+def main_cli(args: Sequence[str] | None = None) -> CLIResult:  # pylint: disable=too-many-locals,too-many-return-statements,too-many-branches,too-many-statements,too-many-nested-blocks
     """Main CLI entry point.
 
     Args:
@@ -505,20 +520,6 @@ def main_cli(args: Sequence[str] | None = None) -> CLIResult:
         )
 
         # Execute command based on what was requested
-        from rag_solution.cli.client import RAGAPIClient
-        from rag_solution.cli.commands import (
-            AuthCommands,
-            CollectionCommands,
-            ConfigCommands,
-            DocumentCommands,
-            HealthCommands,
-            PipelineCommands,
-            ProviderCommands,
-            SearchCommands,
-            UserCommands,
-        )
-        from rag_solution.cli.output import format_json_output, format_table_output, print_error, print_status
-
         # Create API client
         api_client = RAGAPIClient(config)
 
@@ -682,6 +683,7 @@ def main_cli(args: Sequence[str] | None = None) -> CLIResult:
                         force=getattr(parsed_args, "force", False),
                     )
                 elif parsed_args.documents_command == "batch-upload":
+                    # pylint: disable=fixme
                     # TODO: Implement batch upload
                     result = documents_cmd._create_error_result(
                         message="Batch upload not yet implemented", error_code="NOT_IMPLEMENTED"
@@ -730,6 +732,7 @@ def main_cli(args: Sequence[str] | None = None) -> CLIResult:
                         show_rewriting=getattr(parsed_args, "show_rewriting", False),
                     )
                 elif parsed_args.search_command == "batch":
+                    # pylint: disable=fixme
                     # TODO: Implement batch search
                     result = search_cmd._create_error_result(
                         message="Batch search not yet implemented", error_code="NOT_IMPLEMENTED"
@@ -813,11 +816,13 @@ def main_cli(args: Sequence[str] | None = None) -> CLIResult:
                 if parsed_args.config_command == "show":
                     result = config_cmd.get_current_profile()
                 elif parsed_args.config_command == "validate":
+                    # pylint: disable=fixme
                     # TODO: Implement config validation
                     result = config_cmd._create_error_result(
                         message="Config validation not yet implemented", error_code="NOT_IMPLEMENTED"
                     )
                 elif parsed_args.config_command == "reset":
+                    # pylint: disable=fixme
                     # TODO: Implement config reset
                     result = config_cmd._create_error_result(
                         message="Config reset not yet implemented", error_code="NOT_IMPLEMENTED"
@@ -914,8 +919,6 @@ def main_cli(args: Sequence[str] | None = None) -> CLIResult:
                     # Parse parameters if provided
                     parameters = None
                     if hasattr(parsed_args, "parameters") and parsed_args.parameters:
-                        import json
-
                         try:
                             parameters = json.loads(parsed_args.parameters)
                         except json.JSONDecodeError:
@@ -937,8 +940,6 @@ def main_cli(args: Sequence[str] | None = None) -> CLIResult:
                     # Parse parameters if provided
                     parameters = None
                     if hasattr(parsed_args, "parameters") and parsed_args.parameters:
-                        import json
-
                         try:
                             parameters = json.loads(parsed_args.parameters)
                         except json.JSONDecodeError:
