@@ -255,23 +255,16 @@ class PipelineService:
             logger.error(f"Failed to get user pipelines: {e!s}")
             raise ConfigurationError("pipeline_retrieval", f"Failed to retrieve pipeline configurations: {e!s}") from e
 
-    def get_default_pipeline(self, user_id: UUID4, collection_id: UUID4 | None = None) -> PipelineConfigOutput | None:
-        """Get default pipeline for a user or collection.
+    def get_default_pipeline(self, user_id: UUID4) -> PipelineConfigOutput | None:
+        """Get default pipeline for a user.
 
         Args:
             user_id: User UUID
-            collection_id: Optional collection UUID to get collection-specific default
 
         Returns:
             Optional[PipelineConfigOutput]: Default pipeline configuration if found
         """
         try:
-            if collection_id:
-                pipeline = self.pipeline_repository.get_collection_default(collection_id)
-                if pipeline:
-                    return pipeline
-
-            # Fall back to user default if no collection default exists
             return self.pipeline_repository.get_user_default(user_id)
         except Exception as e:
             logger.error(f"Failed to get default pipeline: {e!s}")
@@ -608,19 +601,21 @@ class PipelineService:
             self.prompt_template_service.format_prompt(
                 template.id, {"context": context, "question": query, "answer": answer}
             )
-            return await self.evaluator.evaluate(context=context, answer=answer, question=query)
+            return await self.evaluator.evaluate(context=context, answer=answer, question_text=query)
         except Exception as e:
             logger.error(f"Evaluation failed: {e!s}")
             return {"error": str(e)}
 
-    async def execute_pipeline(self, search_input: SearchInput, collection_name: str) -> PipelineResult:
+    async def execute_pipeline(
+        self, search_input: SearchInput, collection_name: str, pipeline_id: UUID4
+    ) -> PipelineResult:
         """
         Execute the RAG pipeline.
 
         Args:
             search_input: Search parameters and query.
-            user_id: ID of the user.
             collection_name: Name of the collection to search.
+            pipeline_id: ID of the pipeline configuration to use.
 
         Returns:
             PipelineResult containing generated answer and metadata.
@@ -638,7 +633,7 @@ class PipelineService:
 
             # Validate pipeline configuration
             pipeline_config, llm_parameters_input, provider = self._validate_configuration(
-                search_input.pipeline_id, search_input.user_id
+                pipeline_id, search_input.user_id
             )
 
             # Get required templates

@@ -141,7 +141,12 @@
     "backend/tests/test_ci_environment.py",
     "backend/tests/test_poetry_lock_compatibility.py",
     "backend/tests/unit/test_simple_unit.py",
-    "backend/vectordbs/utils/watsonx.py"
+    "backend/vectordbs/utils/watsonx.py",
+    "backend/tests/atomic/test_search_input_schema_simplified.py",
+    "backend/tests/cli/test_search_commands_simplified.py",
+    "backend/tests/integration/test_search_pipeline_resolution_integration.py",
+    "backend/tests/unit/test_pipeline_service_signature_update.py",
+    "backend/tests/unit/test_search_service_pipeline_resolution.py"
   ],
   "non_compliant_files": [
     "backend/tests/integration/conftest.py",
@@ -160,11 +165,7 @@
     "scripts/show_strangler_status.py",
     "backend/auth/oidc.py",
     "backend/cli/utils.py",
-    "backend/core/authentication_middleware.py",
-    "backend/core/config.py",
     "backend/core/custom_exceptions.py",
-    "backend/core/mock_auth.py",
-    "backend/main.py",
     "backend/rag_solution/cli/auth.py",
     "backend/rag_solution/cli/commands/__init__.py",
     "backend/rag_solution/cli/commands/documents.py",
@@ -178,7 +179,6 @@
     "backend/rag_solution/doc_utils.py",
     "backend/rag_solution/router/search_router.py",
     "backend/rag_solution/schemas/pipeline_schema.py",
-    "backend/rag_solution/schemas/search_schema.py",
     "backend/scripts/fix_datetime_imports.py",
     "backend/tests/fixtures/auth.py",
     "backend/tests/fixtures/integration.py",
@@ -190,7 +190,12 @@
     "scripts/check_linting_progress.py",
     "scripts/migrate_file_to_compliance.py",
     "scripts/show_strangler_status.py",
-    "backend/rag_solution/cli/commands/__init__.py"
+    "backend/rag_solution/cli/commands/__init__.py",
+    "backend/core/authentication_middleware.py",
+    "backend/core/config.py",
+    "backend/core/mock_auth.py",
+    "backend/main.py",
+    "backend/rag_solution/schemas/search_schema.py"
   ],
   "new_files_requiring_compliance": [],
   "legacy_files_exempt": [

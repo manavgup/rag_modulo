@@ -44,7 +44,6 @@ class TestSearchServiceReal:
         search_input = SearchInput(
             question="",  # Empty query
             collection_id=uuid4(),
-            pipeline_id=uuid4(),
             user_id=uuid4(),
         )
 
@@ -64,7 +63,6 @@ class TestSearchServiceReal:
             SearchInput(
                 question=None,  # None query - should fail Pydantic validation
                 collection_id=uuid4(),
-                pipeline_id=uuid4(),
                 user_id=uuid4(),
             )
 
@@ -78,7 +76,6 @@ class TestSearchServiceReal:
         search_input = SearchInput(
             question="   \n\t   ",  # Whitespace only
             collection_id=uuid4(),
-            pipeline_id=uuid4(),
             user_id=uuid4(),
         )
 
@@ -96,7 +93,6 @@ class TestSearchServiceReal:
         search_input = SearchInput(
             question="What is machine learning?",
             collection_id=uuid4(),  # Non-existent collection
-            pipeline_id=uuid4(),
             user_id=uuid4(),
         )
 
@@ -114,7 +110,7 @@ class TestSearchServiceReal:
         search_input = SearchInput(
             question="What is machine learning?",
             collection_id=uuid4(),
-            pipeline_id=uuid4(),  # Non-existent pipeline
+            # Non-existent pipeline
             user_id=uuid4(),
         )
 
@@ -132,7 +128,7 @@ class TestSearchServiceReal:
         search_input = SearchInput(
             question="What is machine learning?",
             collection_id=uuid4(),  # Non-existent collection
-            pipeline_id=uuid4(),  # Non-existent pipeline
+            # Non-existent pipeline
             user_id=uuid4(),
         )
 
@@ -150,7 +146,6 @@ class TestSearchServiceReal:
         valid_input = SearchInput(
             question="What is machine learning?",
             collection_id=uuid4(),
-            pipeline_id=uuid4(),
             user_id=uuid4(),
         )
         assert valid_input.question == "What is machine learning?"

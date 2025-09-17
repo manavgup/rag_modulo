@@ -1,14 +1,21 @@
 #!/usr/bin/env python3
-"""Simple CLI test script that demonstrates the CLI functionality.
+"""Enhanced CLI test script that demonstrates the CLI functionality.
 
-This script tests the separate RAG CLI workflow:
-1. Creates an empty collection using the create_collection endpoint
-2. Uploads a document to the collection using the upload_file endpoint
-3. Performs a search query using the proper SearchInput schema
+This script tests the separate RAG CLI workflow with comprehensive user interaction:
+1. Checks if mock user exists and creates if needed
+2. Displays user information (ID, pipeline id, default provider id)
+3. Lists existing collections with file counts
+4. Allows user to choose between creating new collection or querying existing ones
+5. For new collections: creates collection and uploads file
+6. Suggests default questions or allows custom question input
+7. Performs search and displays results
 
-Uses the separate create_collection + upload_file workflow to test that
-the refactored shared processing logic works correctly for both combined
-and separate workflows.
+Key features of the enhanced architecture:
+- Interactive user experience with choices and suggestions
+- Comprehensive user and collection information display
+- Automatic question generation and suggestion
+- Pipeline resolution handled automatically by the backend
+- Uses the separate create_collection + upload_file workflow
 """
 
 import os
@@ -17,28 +24,33 @@ import time
 import traceback
 from datetime import datetime
 
-# Add the parent directory to sys.path to enable imports
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Add the backend directory to sys.path to enable imports
+backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+sys.path.insert(0, backend_dir)
 
 from rag_solution.cli.client import RAGAPIClient  # noqa: E402
 from rag_solution.cli.commands.collections import CollectionCommands  # noqa: E402
 from rag_solution.cli.commands.documents import DocumentCommands  # noqa: E402
 from rag_solution.cli.commands.search import SearchCommands  # noqa: E402
+from rag_solution.cli.commands.users import UserCommands  # noqa: E402
 from rag_solution.cli.config import RAGConfig  # noqa: E402
 from rag_solution.cli.mock_auth_helper import setup_mock_authentication  # noqa: E402
 
 
 def _print_intro():
     """Print introduction and features."""
-    print("🚀 RAG CLI Simple Demonstration")
-    print("=" * 60)
-    print("Testing CLI with separate create_collection + upload_file workflow")
+    print("🚀 Enhanced RAG CLI Demonstration with Interactive Workflow")
+    print("=" * 70)
+    print("Testing CLI with comprehensive user interaction and pipeline resolution")
     print("Features:")
-    print("• Configurable mock tokens via environment variables")
-    print("• Separate create_collection and upload_file endpoints")
+    print("• Interactive user experience with choices and suggestions")
+    print("• User status checking and pipeline information display")
+    print("• Collection listing with file counts and status")
+    print("• Choice between creating new collections or using existing ones")
+    print("• Suggested questions from collection or custom question input")
+    print("• Automatic backend pipeline resolution")
     print("• Background document processing pipeline")
-    print("• Proper SearchInput schema format")
-    print("• Tests refactored shared processing logic")
+    print("• Enhanced search results with source information")
     print()
 
 
@@ -58,6 +70,184 @@ def _setup_cli_environment():
     mock_token = setup_mock_authentication(api_client, verbose=True)
 
     return config, api_client, mock_token
+
+
+def _check_and_create_user(api_client, config):
+    """Check if mock user exists and create if needed."""
+    print("\n👤 Step 1: Checking User Status")
+    print("-" * 50)
+
+    users_cmd = UserCommands(api_client, config)
+
+    # Get current user info
+    user_result = users_cmd.get_current_user()
+
+    if user_result.success:
+        user_data = user_result.data
+        print("✅ User already exists!")
+        print(f"   User ID: {user_data.get('id', 'N/A')}")
+        print(f"   Name: {user_data.get('name', 'N/A')}")
+        print(f"   Email: {user_data.get('email', 'N/A')}")
+        print(f"   Role: {user_data.get('role', 'N/A')}")
+        return user_data.get("id")
+    else:
+        print("❌ User not found or authentication failed")
+        print(f"   Error: {user_result.message}")
+        return None
+
+
+def _get_user_pipeline_info(api_client, config, user_id):
+    """Get user's pipeline and provider information."""
+    print("\n🔧 Step 2: Getting User Pipeline Information")
+    print("-" * 50)
+
+    try:
+        # Try to get user's default pipeline
+        pipeline_response = api_client.get(f"/api/users/{user_id}/pipeline")
+        if pipeline_response:
+            pipeline_id = pipeline_response.get("id", "N/A")
+            print(f"   Default Pipeline ID: {pipeline_id}")
+        else:
+            print("   Default Pipeline ID: Not set (will be created automatically)")
+
+        # Try to get user's default provider
+        provider_response = api_client.get(f"/api/users/{user_id}/provider")
+        if provider_response:
+            provider_id = provider_response.get("id", "N/A")
+            provider_name = provider_response.get("name", "N/A")
+            print(f"   Default Provider ID: {provider_id}")
+            print(f"   Default Provider Name: {provider_name}")
+        else:
+            print("   Default Provider ID: Not set (will be created automatically)")
+
+    except Exception as e:
+        print(f"   Note: Pipeline/provider info not available: {e}")
+        print("   (This is normal for new users - will be created automatically)")
+
+
+def _list_user_collections(api_client, config):
+    """List user's collections with file counts."""
+    print("\n📁 Step 3: Listing User Collections")
+    print("-" * 50)
+
+    collections_cmd = CollectionCommands(api_client, config)
+    result = collections_cmd.list_collections()
+
+    if result.success and result.data:
+        # Handle both list and dict response formats
+        collections = result.data if isinstance(result.data, list) else result.data.get("collections", [])
+
+        if collections:
+            print(f"✅ Found {len(collections)} collection(s):")
+            for i, collection in enumerate(collections, 1):
+                collection_id = collection.get("id", "N/A")
+                name = collection.get("name", "Unnamed")
+                # Extract file count from the files array
+                files = collection.get("files", [])
+                file_count = len(files) if files else 0
+                status = collection.get("status", "unknown")
+
+                print(f"   {i}. Collection: {name}")
+                print(f"      ID: {collection_id}")
+                print(f"      Files: {file_count}")
+                print(f"      Status: {status}")
+                print()
+            return collections
+        else:
+            print("📭 No collections found")
+            return []
+    else:
+        print(f"❌ Failed to list collections: {result.message}")
+        return []
+
+
+def _get_collection_questions(api_client, config, collection_id):
+    """Get suggested questions for a collection."""
+    try:
+        response = api_client.get(f"/api/collections/{collection_id}/questions")
+        if response:
+            return [q.get("question", "") for q in response if q.get("question")]
+    except Exception:
+        pass
+    return []
+
+
+def _ask_user_choice():
+    """Ask user whether to create new collection or use existing one."""
+    print("\n🤔 Step 4: Choose Action")
+    print("-" * 50)
+    print("What would you like to do?")
+    print("1. Create a new collection and upload a file")
+    print("2. Query against an existing collection")
+
+    while True:
+        choice = input("\nEnter your choice (1 or 2): ").strip()
+        if choice in ["1", "2"]:
+            return choice
+        print("Please enter 1 or 2")
+
+
+def _select_existing_collection(collections):
+    """Let user select from existing collections."""
+    print("\n📋 Select Collection to Query")
+    print("-" * 30)
+
+    for i, collection in enumerate(collections, 1):
+        name = collection.get("name", "Unnamed")
+        # Extract file count from the files array
+        files = collection.get("files", [])
+        file_count = len(files) if files else 0
+        print(f"{i}. {name} ({file_count} files)")
+
+    while True:
+        try:
+            choice = int(input(f"\nSelect collection (1-{len(collections)}): "))
+            if 1 <= choice <= len(collections):
+                return collections[choice - 1]
+            print(f"Please enter a number between 1 and {len(collections)}")
+        except ValueError:
+            print("Please enter a valid number")
+
+
+def _get_user_question(api_client, config, collection_id):
+    """Get question from user or suggest default questions."""
+    print("\n❓ Step 5: Choose Question")
+    print("-" * 50)
+
+    # Try to get suggested questions
+    suggested_questions = _get_collection_questions(api_client, config, collection_id)
+
+    if suggested_questions:
+        print("📝 Suggested questions for this collection:")
+        for i, question in enumerate(suggested_questions[:5], 1):  # Show max 5
+            print(f"   {i}. {question}")
+        print()
+
+        print("Options:")
+        print("1. Use a suggested question (enter number)")
+        print("2. Enter your own question")
+
+        while True:
+            choice = input("\nEnter your choice (1 or 2): ").strip()
+            if choice == "1":
+                try:
+                    q_num = int(input(f"Enter question number (1-{len(suggested_questions)}): "))
+                    if 1 <= q_num <= len(suggested_questions):
+                        return suggested_questions[q_num - 1]
+                    print(f"Please enter a number between 1 and {len(suggested_questions)}")
+                except ValueError:
+                    print("Please enter a valid number")
+            elif choice == "2":
+                break
+            else:
+                print("Please enter 1 or 2")
+
+    # Get custom question
+    while True:
+        question = input("\nEnter your question: ").strip()
+        if question:
+            return question
+        print("Please enter a non-empty question")
 
 
 def _create_collection(api_client, config):
@@ -160,27 +350,27 @@ def _wait_for_processing(api_client, config, collection_id):
     return True
 
 
-def _search_document(api_client, config, collection_id):
-    """Search the document."""
-    print("\n🔍 Step 4: Searching Document")
+def _search_document_with_question(api_client, config, collection_id, question):
+    """Search the document with user-provided question."""
+    print("\n🔍 Step 6: Searching Document")
     print("-" * 40)
     print("The CLI will get user context from /api/auth/me")
+    print("Pipeline resolution is now handled automatically by the backend")
 
     search_cmd = SearchCommands(api_client, config)
-    query = "What technologies does this paper talk about?"
 
-    print(f"   Query: {query}")
+    print(f"   Query: {question}")
     print(f"   Collection ID: {collection_id}")
-    print("   User and Pipeline will be determined automatically")
+    print("   Pipeline: Will be resolved automatically from user's default")
 
     max_retries = 3
     retry_delay = 2
 
     for attempt in range(max_retries + 1):
+        # No pipeline_id parameter needed anymore - backend handles resolution
         result = search_cmd.query(
             collection_id=collection_id,
-            query=query,
-            pipeline_id=None,  # Let CLI fetch from user context
+            query=question,
             max_chunks=5,
         )
 
@@ -198,11 +388,17 @@ def _search_document(api_client, config, collection_id):
 
     if result.success:
         print("✅ Search completed successfully!")
-        print(f"   Query: {query}")
-        print("   Schema used: SearchInput (question, collection_id, user_id, pipeline_id)")
+        print(f"   Query: {question}")
+        print("   Schema used: SearchInput (question, collection_id, user_id, config_metadata)")
+        print("   Note: pipeline_id removed - backend resolves user's default pipeline")
         if result.data:
             answer = result.data.get("answer", "No answer returned")
             print(f"   Full Answer: {answer}")
+
+            # Also show sources if available
+            sources = result.data.get("sources", [])
+            if sources:
+                print(f"   Sources: {len(sources)} document chunks referenced")
         return True
 
     print(f"❌ Search failed: {result.message}")
@@ -213,18 +409,21 @@ def _search_document(api_client, config, collection_id):
 
 def _print_summary(mock_token):
     """Print completion summary."""
-    print("\n🎉 CLI Demonstration Complete!")
-    print("=" * 60)
+    print("\n🎉 Enhanced CLI Demonstration Complete!")
+    print("=" * 70)
     print("Summary of operations tested:")
-    print("• ✅ Configurable mock token authentication")
-    print("• ✅ Separate create_collection + upload_file workflow")
+    print("• ✅ Interactive user status checking and creation")
+    print("• ✅ User pipeline and provider information display")
+    print("• ✅ Collection listing with file counts and status")
+    print("• ✅ User choice between new/existing collections")
+    print("• ✅ Suggested questions from collections")
+    print("• ✅ Custom question input capability")
+    print("• ✅ Enhanced search with source information")
+    print("• ✅ Automatic backend pipeline resolution")
     print("• ✅ Background document processing pipeline")
-    print("• ✅ Simplified search without complex pipeline setup")
-    print("• ✅ CLI search command handling")
-    print("• ✅ Refactored shared processing logic")
     print(f"• ✅ Mock token used: {mock_token}")
     print()
-    print("🚀 Separate workflow with simplified CLI search tested successfully!")
+    print("🚀 Enhanced interactive workflow architecture working successfully!")
 
 
 def _handle_error(e, mock_token, config):
@@ -244,23 +443,64 @@ def _handle_error(e, mock_token, config):
 
 
 def main():
-    """Main function to demonstrate CLI functionality."""
+    """Main function to demonstrate enhanced CLI functionality."""
     _print_intro()
 
     try:
         config, api_client, mock_token = _setup_cli_environment()
 
-        collection_id, pdf_path = _create_collection(api_client, config)
-        if not collection_id:
+        # Step 1: Check user status
+        user_id = _check_and_create_user(api_client, config)
+        if not user_id:
+            print("❌ Cannot proceed without valid user")
             return
 
-        if not _upload_document(api_client, config, collection_id, pdf_path):
-            return
+        # Step 2: Get user pipeline info
+        _get_user_pipeline_info(api_client, config, user_id)
 
-        if not _wait_for_processing(api_client, config, collection_id):
-            return
+        # Step 3: List existing collections
+        collections = _list_user_collections(api_client, config)
 
-        if not _search_document(api_client, config, collection_id):
+        # Step 4: Ask user choice
+        choice = _ask_user_choice()
+
+        collection_id = None
+
+        if choice == "1":
+            # Create new collection
+            collection_id, pdf_path = _create_collection(api_client, config)
+            if not collection_id:
+                return
+
+            if not _upload_document(api_client, config, collection_id, pdf_path):
+                return
+
+            if not _wait_for_processing(api_client, config, collection_id):
+                return
+
+        elif choice == "2":
+            # Use existing collection
+            if not collections:
+                print("❌ No existing collections to query")
+                return
+
+            selected_collection = _select_existing_collection(collections)
+            collection_id = selected_collection.get("id")
+
+            # Check if collection has files
+            files = selected_collection.get("files", [])
+            file_count = len(files) if files else 0
+            if file_count == 0:
+                print("⚠️  Selected collection has no files. You may want to upload some first.")
+                proceed = input("Continue anyway? (y/n): ").strip().lower()
+                if proceed != "y":
+                    return
+
+        # Step 5: Get question
+        question = _get_user_question(api_client, config, collection_id)
+
+        # Step 6: Perform search
+        if not _search_document_with_question(api_client, config, collection_id, question):
             return
 
         _print_summary(mock_token)
@@ -270,9 +510,9 @@ def main():
 
 
 def show_usage():
-    """Show usage instructions for the test script."""
-    print("RAG CLI Test Script Usage:")
-    print("=" * 50)
+    """Show usage instructions for the enhanced test script."""
+    print("Enhanced RAG CLI Test Script Usage:")
+    print("=" * 60)
     print()
     print("Prerequisites:")
     print("1. Start the RAG FastAPI server:")
@@ -283,10 +523,21 @@ def show_usage():
     print("   export TESTING=true                   # Enable auth bypass")
     print()
     print("3. Update PDF file path in the script:")
-    print("   Edit line ~84 to point to an actual PDF file")
+    print("   Edit line ~246 to point to an actual PDF file")
     print()
-    print("4. Run the test:")
-    print("   python backend/test_cli_simple.py")
+    print("4. Run the enhanced test (from project root):")
+    print("   python backend/examples/cli/test_workflow.py")
+    print()
+    print("   Or from backend directory:")
+    print("   cd backend && python examples/cli/test_workflow.py")
+    print()
+    print("Interactive Features:")
+    print("• Check user status and create if needed")
+    print("• Display user pipeline and provider information")
+    print("• List existing collections with file counts")
+    print("• Choose between creating new collection or using existing")
+    print("• Select from suggested questions or enter custom question")
+    print("• Enhanced search results with source information")
     print()
 
 

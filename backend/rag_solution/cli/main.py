@@ -721,7 +721,6 @@ def main_cli(args: Sequence[str] | None = None) -> CLIResult:  # pylint: disable
                     result = search_cmd.query(
                         collection_id=parsed_args.collection_id,
                         query=parsed_args.query,
-                        pipeline_id=getattr(parsed_args, "pipeline_id", None),
                         max_chunks=getattr(parsed_args, "max_chunks", 5),
                     )
                 elif parsed_args.search_command == "explain":

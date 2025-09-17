@@ -26,15 +26,12 @@ class SearchCommands(BaseCommand):
         """
         super().__init__(api_client, config)
 
-    def query(
-        self, collection_id: str, query: str, pipeline_id: str | None = None, max_chunks: int = 5
-    ) -> CommandResult:
+    def query(self, collection_id: str, query: str, max_chunks: int = 5) -> CommandResult:
         """Execute a search query.
 
         Args:
             collection_id: Collection to search in
             query: Search query text
-            pipeline_id: Optional specific pipeline to use
             max_chunks: Maximum number of chunks to retrieve
 
         Returns:
@@ -53,30 +50,12 @@ class SearchCommands(BaseCommand):
                     "Failed to get current user. Search requires authenticated user context."
                 )
 
-            # Get user's default pipeline if not provided
-            if not pipeline_id:
-                try:
-                    pipelines = self.api_client.get(f"/api/users/{user_id}/pipelines")
-                    if pipelines and len(pipelines) > 0:
-                        # Find default or use first
-                        for p in pipelines:
-                            if p.get("is_default"):
-                                pipeline_id = p["id"]
-                                break
-                        if not pipeline_id:
-                            pipeline_id = pipelines[0]["id"]
-                except Exception:
-                    pass  # Will fail at search if no pipeline
-
-            if not pipeline_id:
-                return self._create_error_result("No pipeline found. User may not be properly initialized.")
-
-            # Call the correct /api/search endpoint with SearchInput schema
+            # Call the correct /api/search endpoint with simplified SearchInput schema
+            # Pipeline resolution is now handled automatically by the backend
             data = {
                 "question": query,  # SearchInput uses "question" not "query"
                 "collection_id": collection_id,
                 "user_id": user_id,
-                "pipeline_id": pipeline_id,
                 "config_metadata": {"max_chunks": max_chunks},
             }
 
@@ -118,13 +97,12 @@ class SearchCommands(BaseCommand):
         except Exception as e:
             return self._handle_api_error(e)
 
-    def batch_search(self, collection_id: str, queries: list[str], pipeline_id: str | None = None) -> CommandResult:
+    def batch_search(self, collection_id: str, queries: list[str]) -> CommandResult:
         """Execute multiple search queries in batch.
 
         Args:
             collection_id: Collection to search in
             queries: List of search queries
-            pipeline_id: Optional specific pipeline to use
 
         Returns:
             CommandResult with batch search results
@@ -133,9 +111,6 @@ class SearchCommands(BaseCommand):
 
         try:
             data = {"collection_id": collection_id, "queries": queries}
-
-            if pipeline_id:
-                data["pipeline_id"] = pipeline_id
 
             response = self.api_client.post("/api/search/batch", data=data)
 

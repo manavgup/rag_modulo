@@ -252,7 +252,7 @@ def main_admin_cli(args: Sequence[str] | None = None) -> int:
         return 2
 
 
-def _handle_batch_user_command(users_cmd: UserCommands, args) -> object:
+def _handle_batch_user_command(users_cmd: UserCommands, args: argparse.Namespace) -> object:
     """Handle batch user commands.
 
     Args:
@@ -263,15 +263,15 @@ def _handle_batch_user_command(users_cmd: UserCommands, args) -> object:
         CommandResult
     """
     if args.batch_command == "import":
-        return users_cmd.create_error_result(message="User import not yet implemented", error_code="NOT_IMPLEMENTED")
+        return users_cmd._create_error_result(message="User import not yet implemented", error_code="NOT_IMPLEMENTED")  # type: ignore[attr-defined]
     if args.batch_command == "export":
-        return users_cmd.create_error_result(message="User export not yet implemented", error_code="NOT_IMPLEMENTED")
-    return users_cmd.create_error_result(
+        return users_cmd._create_error_result(message="User export not yet implemented", error_code="NOT_IMPLEMENTED")  # type: ignore[attr-defined]
+    return users_cmd._create_error_result(
         message=f"Unknown batch command: {args.batch_command}", error_code="UNKNOWN_COMMAND"
-    )
+    )  # type: ignore[attr-defined]
 
 
-def _handle_health_check_command(health_cmd: HealthCommands, args) -> object:
+def _handle_health_check_command(health_cmd: HealthCommands, args: argparse.Namespace) -> object:
     """Handle health check command.
 
     Args:
@@ -302,13 +302,13 @@ def _handle_health_check_command(health_cmd: HealthCommands, args) -> object:
     message = "All health checks passed" if all_success else "Some health checks failed"
 
     return (
-        health_cmd.create_success_result(data=combined_data, message=message)
+        health_cmd._create_success_result(data=combined_data, message=message)  # type: ignore[attr-defined]
         if all_success
-        else health_cmd.create_error_result(message=message, data=combined_data)
+        else health_cmd._create_error_result(message=message, data=combined_data)  # type: ignore[attr-defined]
     )
 
 
-def _handle_user_admin_command(users_cmd: UserCommands, args) -> object:
+def _handle_user_admin_command(users_cmd: UserCommands, args: argparse.Namespace) -> object:
     """Handle user admin commands.
 
     Args:
@@ -347,12 +347,12 @@ def _handle_user_admin_command(users_cmd: UserCommands, args) -> object:
         )
     if args.users_command == "batch":
         return _handle_batch_user_command(users_cmd, args)
-    return users_cmd.create_error_result(
+    return users_cmd._create_error_result(
         message=f"Unknown users command: {args.users_command}", error_code="UNKNOWN_COMMAND"
-    )
+    )  # type: ignore[attr-defined]
 
 
-def _handle_health_admin_command(health_cmd: HealthCommands, args) -> object:
+def _handle_health_admin_command(health_cmd: HealthCommands, args: argparse.Namespace) -> object:
     """Handle health admin commands.
 
     Args:
@@ -373,12 +373,12 @@ def _handle_health_admin_command(health_cmd: HealthCommands, args) -> object:
         return health_cmd.get_metrics(metric_type=getattr(args, "type", None))
     if args.health_command == "version":
         return health_cmd.get_version_info()
-    return health_cmd.create_error_result(
+    return health_cmd._create_error_result(
         message=f"Unknown health command: {args.health_command}", error_code="UNKNOWN_COMMAND"
-    )
+    )  # type: ignore[attr-defined]
 
 
-def _handle_config_admin_command(config_cmd: ConfigCommands, args) -> object:
+def _handle_config_admin_command(config_cmd: ConfigCommands, args: argparse.Namespace) -> object:
     """Handle config admin commands.
 
     Args:
@@ -391,14 +391,14 @@ def _handle_config_admin_command(config_cmd: ConfigCommands, args) -> object:
     if args.config_command == "show":
         return config_cmd.get_current_profile()
     if args.config_command == "validate":
-        return config_cmd.create_error_result(
+        return config_cmd._create_error_result(
             message="Config validation not yet implemented", error_code="NOT_IMPLEMENTED"
-        )
+        )  # type: ignore[attr-defined]
     if args.config_command == "reset":
-        return config_cmd.create_error_result(message="Config reset not yet implemented", error_code="NOT_IMPLEMENTED")
-    return config_cmd.create_error_result(
+        return config_cmd._create_error_result(message="Config reset not yet implemented", error_code="NOT_IMPLEMENTED")  # type: ignore[attr-defined]
+    return config_cmd._create_error_result(
         message=f"Unknown config command: {args.config_command}", error_code="UNKNOWN_COMMAND"
-    )
+    )  # type: ignore[attr-defined]
 
 
 def main() -> None:

@@ -5,6 +5,7 @@ including middleware configuration, router registration, database initialization
 and LLM provider setup.
 """
 
+import contextlib
 import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -102,10 +103,8 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
             logger.error("Failed to get database session")
             return
         finally:
-            try:
+            with contextlib.suppress(StopIteration):
                 next(db_gen)
-            except StopIteration:
-                pass
 
     except Exception as e:
         logger.error("Application startup failed: %s", e, exc_info=True)

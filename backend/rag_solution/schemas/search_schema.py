@@ -10,19 +10,21 @@ class SearchInput(BaseModel):
     """Input schema for search requests.
 
     Defines the structure of search requests to the API.
+    Pipeline selection is handled automatically by the backend based on user context.
 
     Attributes:
         question: The user's query text
         collection_id: UUID4 of the collection to search in
+        user_id: UUID4 of the requesting user
+        config_metadata: Optional search configuration parameters
     """
 
     question: str
     collection_id: UUID4
-    pipeline_id: UUID4
     user_id: UUID4
     config_metadata: dict[str, Any] | None = None
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
 
 
 class SearchOutput(BaseModel):

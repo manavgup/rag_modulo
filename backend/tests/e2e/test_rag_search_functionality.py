@@ -47,7 +47,7 @@ class TestRAGSearchFunctionality:
         search_input = SearchInput(
             question="What is machine learning?",
             collection_id=uuid4(),  # This needs to be a real collection ID with documents
-            pipeline_id=uuid4(),  # This needs to be a real pipeline ID
+            # This needs to be a real pipeline ID
             user_id=uuid4(),
         )
 
@@ -79,7 +79,7 @@ class TestRAGSearchFunctionality:
         search_input = SearchInput(
             question="Explain the difference between supervised and unsupervised learning",
             collection_id=uuid4(),  # Needs real collection with ML documents
-            pipeline_id=uuid4(),  # Needs real pipeline
+            # Needs real pipeline
             user_id=uuid4(),
         )
 
@@ -108,7 +108,7 @@ class TestRAGSearchFunctionality:
         search_input = SearchInput(
             question="Compare neural networks and decision trees for classification",
             collection_id=uuid4(),  # Needs collection with ML algorithm docs
-            pipeline_id=uuid4(),  # Needs real pipeline
+            # Needs real pipeline
             user_id=uuid4(),
         )
 
@@ -137,7 +137,7 @@ class TestRAGSearchFunctionality:
         search_input = SearchInput(
             question="deep learning applications",
             collection_id=uuid4(),  # Needs collection with varied ML docs
-            pipeline_id=uuid4(),  # Needs real pipeline
+            # Needs real pipeline
             user_id=uuid4(),
         )
 
@@ -167,7 +167,7 @@ class TestRAGSearchFunctionality:
         search_input = SearchInput(
             question="What are the main benefits of using machine learning?",
             collection_id=uuid4(),  # Needs collection with ML benefit docs
-            pipeline_id=uuid4(),  # Needs real pipeline
+            # Needs real pipeline
             user_id=uuid4(),
         )
 
@@ -196,7 +196,7 @@ class TestRAGSearchFunctionality:
         search_input = SearchInput(
             question="What is the weather like on Mars today?",  # Unlikely to have relevant docs
             collection_id=uuid4(),  # Collection without Mars weather docs
-            pipeline_id=uuid4(),  # Needs real pipeline
+            # Needs real pipeline
             user_id=uuid4(),
         )
 
