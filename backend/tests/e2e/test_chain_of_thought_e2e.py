@@ -55,19 +55,12 @@ class TestChainOfThoughtE2EWorkflow:
         user = test_user_and_collection["user"]
         collection = test_user_and_collection["collection"]
 
-        # Prepare search request with CoT configuration
+        # Prepare search request - CoT automatically determined by question complexity
         search_request = {
             "question": "What is machine learning and how does it differ from traditional programming approaches?",
             "collection_id": str(collection.id),
-            "user_id": str(user.id),
-            "config_metadata": {
-                "cot_enabled": True,
-                "cot_config": {
-                    "max_reasoning_depth": 3,
-                    "reasoning_strategy": "decomposition",
-                    "context_preservation": True
-                }
-            }
+            "user_id": str(user.id)
+            # No config_metadata needed - CoT is always-on with automatic classification
         }
 
         # Execute search request
@@ -137,11 +130,8 @@ class TestChainOfThoughtE2EWorkflow:
             search_request = {
                 "question": test_case["question"],
                 "collection_id": str(collection.id),
-                "user_id": str(user.id),
-                "config_metadata": {
-                    "cot_enabled": True,
-                    "auto_classify": True
-                }
+                "user_id": str(user.id)
+                # No config_metadata needed - CoT auto-classifies questions based on complexity
             }
 
             start_time = asyncio.get_event_loop().time()
@@ -177,8 +167,8 @@ class TestChainOfThoughtE2EWorkflow:
         baseline_request = {
             "question": question,
             "collection_id": str(collection.id),
-            "user_id": str(user.id),
-            "config_metadata": {"cot_enabled": False}
+            "user_id": str(user.id)
+            # No config_metadata needed - CoT is always-on with automatic classification
         }
 
         baseline_response = await client.post("/api/v1/search", json=baseline_request)
@@ -189,11 +179,8 @@ class TestChainOfThoughtE2EWorkflow:
         cot_request = {
             "question": question,
             "collection_id": str(collection.id),
-            "user_id": str(user.id),
-            "config_metadata": {
-                "cot_enabled": True,
-                "track_tokens": True
-            }
+            "user_id": str(user.id)
+            # No config_metadata needed - CoT is always-on with automatic classification
         }
 
         cot_response = await client.post("/api/v1/search", json=cot_request)
@@ -217,16 +204,15 @@ class TestChainOfThoughtE2EWorkflow:
         user = test_user_and_collection["user"]
         collection = test_user_and_collection["collection"]
 
-        # CLI command with CoT enabled
+        # CLI command - CoT automatically determined by question complexity
         cli_command = [
             "python", "-m", "rag_solution.cli.main",
             "search", "query",
             str(collection.id),
             "What is machine learning and how does it work?",
             "--user-id", str(user.id),
-            "--cot-enabled",
-            "--reasoning-strategy", "decomposition",
             "--output-format", "json"
+            # No CoT flags needed - always-on with automatic classification
         ]
 
         # Execute CLI command
@@ -283,11 +269,8 @@ class TestChainOfThoughtE2EWorkflow:
             search_request = {
                 "question": scenario["question"],
                 "collection_id": str(collection.id),
-                "user_id": str(user.id),
-                "config_metadata": {
-                    "cot_enabled": True,
-                    "auto_classify": True
-                }
+                "user_id": str(user.id)
+                # No config_metadata needed - CoT is always-on with automatic classification
             }
 
             response = await client.post("/api/v1/search", json=search_request)
@@ -335,11 +318,8 @@ class TestChainOfThoughtE2EWorkflow:
             search_request = {
                 "question": test_case["question"],
                 "collection_id": str(collection.id),
-                "user_id": str(user.id),
-                "config_metadata": {
-                    "cot_enabled": True,
-                    "reasoning_strategy": "decomposition"
-                }
+                "user_id": str(user.id)
+                # No config_metadata needed - CoT is always-on with automatic classification
             }
 
             response = await client.post("/api/v1/search", json=search_request)
@@ -383,11 +363,8 @@ class TestChainOfThoughtE2EWorkflow:
             search_request = {
                 "question": test_case["question"],
                 "collection_id": str(collection.id),
-                "user_id": str(user.id),
-                "config_metadata": {
-                    "cot_enabled": True,
-                    "fallback_enabled": True
-                }
+                "user_id": str(user.id)
+                # No config_metadata needed - CoT is always-on with automatic classification
             }
 
             response = await client.post("/api/v1/search", json=search_request)
@@ -416,8 +393,8 @@ class TestChainOfThoughtE2EWorkflow:
             {
                 "question": f"What is machine learning application number {i}?",
                 "collection_id": str(collection.id),
-                "user_id": str(user.id),
-                "config_metadata": {"cot_enabled": True}
+                "user_id": str(user.id)
+                # No config_metadata needed - CoT is always-on with automatic classification
             }
             for i in range(5)
         ]
@@ -448,11 +425,8 @@ class TestChainOfThoughtE2EWorkflow:
         search_request = {
             "question": "Test question for database consistency",
             "collection_id": str(collection.id),
-            "user_id": str(user.id),
-            "config_metadata": {
-                "cot_enabled": True,
-                "persist_reasoning": True
-            }
+            "user_id": str(user.id)
+            # No config_metadata needed - CoT is always-on with automatic classification
         }
 
         response = await client.post("/api/v1/search", json=search_request)

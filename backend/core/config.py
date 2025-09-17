@@ -46,6 +46,11 @@ class Settings(BaseSettings):
     chunk_overlap: Annotated[int, Field(default=10, alias="CHUNK_OVERLAP")]
     semantic_threshold: Annotated[float, Field(default=0.5, alias="SEMANTIC_THRESHOLD")]
 
+    # Chain of Thought (CoT) settings
+    cot_max_reasoning_depth: Annotated[int, Field(default=3, alias="COT_MAX_REASONING_DEPTH")]
+    cot_reasoning_strategy: Annotated[str, Field(default="decomposition", alias="COT_REASONING_STRATEGY")]
+    cot_token_budget_multiplier: Annotated[float, Field(default=2.0, alias="COT_TOKEN_BUDGET_MULTIPLIER")]
+
     # Embedding settings
     embedding_model: Annotated[str, Field(default="sentence-transformers/all-minilm-l6-v2", alias="EMBEDDING_MODEL")]
     embedding_dim: Annotated[int, Field(default=384, alias="EMBEDDING_DIM")]
