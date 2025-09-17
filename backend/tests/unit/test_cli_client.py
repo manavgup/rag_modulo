@@ -270,17 +270,11 @@ class TestCLICommandWrapper:
         assert result.data["email"] == "test@example.com"
 
     def test_search_query_command(self, mock_api_client):
-        """Test search query command wrapper."""
+        """Test search query command wrapper with simplified pipeline resolution."""
         from rag_solution.cli.commands.search import SearchCommands
 
-        # Mock the auth/me endpoint
+        # Mock the auth/me endpoint - only called once now
         mock_api_client.get.return_value = {"id": "user123", "uuid": "user123"}
-
-        # Mock the pipelines endpoint
-        mock_api_client.get.side_effect = [
-            {"id": "user123", "uuid": "user123"},  # First call to /api/auth/me
-            [{"id": "pipeline123", "is_default": True}],  # Second call to /api/users/{user_id}/pipelines
-        ]
 
         # Mock API response for search
         mock_api_client.post.return_value = {
@@ -292,14 +286,13 @@ class TestCLICommandWrapper:
         commands = SearchCommands(api_client=mock_api_client)
         result = commands.query(collection_id="collection123", query="What is machine learning?")
 
-        # Verify API call
+        # Verify API call - no pipeline_id anymore
         mock_api_client.post.assert_called_once_with(
             "/api/search",
             data={
                 "question": "What is machine learning?",
                 "collection_id": "collection123",
                 "user_id": "user123",
-                "pipeline_id": "pipeline123",
                 "config_metadata": {"max_chunks": 5},
             },
         )

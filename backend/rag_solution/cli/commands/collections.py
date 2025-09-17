@@ -55,9 +55,18 @@ class CollectionCommands(BaseCommand):
 
             response = self.api_client.get("/api/collections", params=params)
 
+            # Handle both list and dict response formats
+            if isinstance(response, list):
+                total_count = len(response)
+                # Wrap list in dict for CommandResult compatibility
+                result_data = {"collections": response, "total": total_count}
+            else:
+                total_count = response.get("total", len(response.get("collections", [])))
+                result_data = response
+
             return self._create_success_result(
-                data=response,
-                message=f"Found {response.get('total', len(response.get('collections', [])))} collections",
+                data=result_data,
+                message=f"Found {total_count} collections",
             )
 
         except (APIError, AuthenticationError, RAGCLIError) as e:

@@ -350,6 +350,6 @@ This checklist ensures all Makefile targets work correctly and handle edge cases
 - [ ] **Documentation is accurate**
 - [ ] **Integration tests pass**
 
-**Validated by**: _________________  
-**Date**: _________________  
+**Validated by**: _________________
+**Date**: _________________
 **Environment**: _________________

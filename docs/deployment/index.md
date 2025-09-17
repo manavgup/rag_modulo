@@ -264,15 +264,15 @@ class Settings(BaseSettings):
     production_mode: bool = Field(default=False, env="PRODUCTION_MODE")
     debug: bool = Field(default=False, env="DEBUG")
     log_level: str = Field(default="INFO", env="LOG_LEVEL")
-    
+
     # Security
     jwt_secret_key: str = Field(env="JWT_SECRET_KEY")
     skip_auth: bool = Field(default=False, env="SKIP_AUTH")
-    
+
     # Database
     collectiondb_host: str = Field(default="postgres", env="COLLECTIONDB_HOST")
     collectiondb_name: str = Field(default="rag_modulo", env="COLLECTIONDB_NAME")
-    
+
     # AI Services
     watsonx_apikey: str = Field(env="WATSONX_APIKEY")
     watsonx_url: str = Field(env="WATSONX_URL")
@@ -438,7 +438,7 @@ groups:
           severity: critical
         annotations:
           summary: "High error rate detected"
-          
+
       - alert: HighResponseTime
         expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 2
         for: 5m
@@ -505,9 +505,9 @@ make dev-profile
 
 # Check slow queries
 docker exec rag_modulo-postgres-1 psql -U rag_user -d rag_modulo -c "
-SELECT query, mean_time, calls 
-FROM pg_stat_statements 
-ORDER BY mean_time DESC 
+SELECT query, mean_time, calls
+FROM pg_stat_statements
+ORDER BY mean_time DESC
 LIMIT 10;
 "
 ```

@@ -4,13 +4,12 @@ Tests the core business logic for resolving user default pipelines
 when no explicit pipeline_id is provided in SearchInput.
 """
 
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
 import pytest
 from core.custom_exceptions import ConfigurationError
 
-from rag_solution.schemas.pipeline_schema import PipelineConfigOutput
 from rag_solution.schemas.search_schema import SearchInput
 from rag_solution.services.search_service import SearchService
 
@@ -47,17 +46,8 @@ class TestSearchServicePipelineResolution:
         """Test resolving user default pipeline when user has a default."""
         # Arrange
         expected_pipeline_id = uuid4()
-        mock_pipeline = PipelineConfigOutput(
-            id=expected_pipeline_id,
-            name="User Default Pipeline",
-            user_id=sample_search_input.user_id,
-            provider_id=uuid4(),
-            is_default=True,
-            chunking_strategy="fixed",
-            embedding_model="text-embedding-ada-002",
-            retriever="vector",
-            context_strategy="priority",
-        )
+        mock_pipeline = Mock()
+        mock_pipeline.id = expected_pipeline_id
 
         # Mock pipeline service to return user's default
         search_service._pipeline_service = Mock()
@@ -84,7 +74,7 @@ class TestSearchServicePipelineResolution:
         search_service._llm_provider_service = Mock()
         mock_provider = Mock()
         mock_provider.id = provider_id
-        search_service.llm_provider_service.get_default_provider.return_value = mock_provider
+        search_service.llm_provider_service.get_user_provider.return_value = mock_provider
 
         # Mock pipeline creation
         mock_created_pipeline = Mock()
@@ -97,7 +87,7 @@ class TestSearchServicePipelineResolution:
         # Assert
         assert resolved_pipeline_id == created_pipeline_id
         search_service.pipeline_service.get_default_pipeline.assert_called_once_with(sample_search_input.user_id)
-        search_service.llm_provider_service.get_default_provider.assert_called_once()
+        search_service.llm_provider_service.get_user_provider.assert_called_once_with(sample_search_input.user_id)
         search_service.pipeline_service.initialize_user_pipeline.assert_called_once_with(
             sample_search_input.user_id, provider_id
         )
@@ -109,7 +99,7 @@ class TestSearchServicePipelineResolution:
         search_service.pipeline_service.get_default_pipeline.return_value = None
 
         search_service._llm_provider_service = Mock()
-        search_service.llm_provider_service.get_default_provider.return_value = None
+        search_service.llm_provider_service.get_user_provider.return_value = None
 
         # Act & Assert
         with pytest.raises(ConfigurationError) as exc_info:
@@ -117,7 +107,8 @@ class TestSearchServicePipelineResolution:
 
         assert "No LLM provider available" in str(exc_info.value)
 
-    def test_search_uses_resolved_pipeline_id(self, search_service, sample_search_input):
+    @pytest.mark.asyncio
+    async def test_search_uses_resolved_pipeline_id(self, search_service, sample_search_input):
         """Test that search method uses resolved pipeline_id instead of SearchInput.pipeline_id."""
         # Arrange
         resolved_pipeline_id = uuid4()
@@ -127,7 +118,7 @@ class TestSearchServicePipelineResolution:
         search_service._validate_collection_access = Mock()
         search_service._validate_pipeline = Mock()
         search_service._resolve_user_default_pipeline = Mock(return_value=resolved_pipeline_id)
-        search_service._initialize_pipeline = Mock(return_value="test_collection")
+        search_service._initialize_pipeline = AsyncMock(return_value="test_collection")
 
         # Mock pipeline service execution
         search_service._pipeline_service = Mock()
@@ -137,14 +128,14 @@ class TestSearchServicePipelineResolution:
         mock_result.query_results = []
         mock_result.rewritten_query = None
         mock_result.evaluation = None
-        search_service.pipeline_service.execute_pipeline.return_value = mock_result
+        search_service.pipeline_service.execute_pipeline = AsyncMock(return_value=mock_result)
 
         # Mock document metadata generation
         search_service._generate_document_metadata = Mock(return_value=[])
         search_service._clean_generated_answer = Mock(return_value="Clean answer")
 
         # Act
-        search_service.search(sample_search_input)
+        await search_service.search(sample_search_input)
 
         # Assert
         search_service._resolve_user_default_pipeline.assert_called_once_with(sample_search_input.user_id)
@@ -155,7 +146,8 @@ class TestSearchServicePipelineResolution:
             pipeline_id=resolved_pipeline_id,  # Should pass resolved pipeline_id
         )
 
-    def test_search_pipeline_resolution_error_propagated(self, search_service, sample_search_input):
+    @pytest.mark.asyncio
+    async def test_search_pipeline_resolution_error_propagated(self, search_service, sample_search_input):
         """Test that pipeline resolution errors are properly propagated."""
         # Arrange
         search_service._validate_search_input = Mock()
@@ -165,10 +157,13 @@ class TestSearchServicePipelineResolution:
         )
 
         # Act & Assert
-        with pytest.raises(ConfigurationError) as exc_info:
-            search_service.search(sample_search_input)
+        from fastapi import HTTPException
 
-        assert "Failed to resolve pipeline" in str(exc_info.value)
+        with pytest.raises(HTTPException) as exc_info:
+            await search_service.search(sample_search_input)
+
+        assert exc_info.value.status_code == 500
+        assert "Failed to resolve pipeline" in str(exc_info.value.detail)
 
     def test_method_resolve_user_default_pipeline_exists_on_service(self, search_service):
         """Test that _resolve_user_default_pipeline method exists on SearchService."""

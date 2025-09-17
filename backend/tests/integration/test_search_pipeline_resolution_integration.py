@@ -5,7 +5,7 @@ SearchService to PipelineService with automatic pipeline resolution.
 """
 
 import contextlib
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import pytest
@@ -42,7 +42,8 @@ class TestSearchPipelineResolutionIntegration:
     @patch("rag_solution.services.search_service.CollectionService")
     @patch("rag_solution.services.search_service.PipelineService")
     @patch("rag_solution.services.search_service.FileManagementService")
-    def test_search_end_to_end_with_pipeline_resolution(
+    @pytest.mark.asyncio
+    async def test_search_end_to_end_with_pipeline_resolution(
         self,
         mock_file_service_class,
         mock_pipeline_service_class,
@@ -71,7 +72,7 @@ class TestSearchPipelineResolutionIntegration:
         mock_default_pipeline.id = resolved_pipeline_id
         mock_pipeline_service.get_default_pipeline.return_value = mock_default_pipeline
         mock_pipeline_service.get_pipeline_config.return_value = Mock()  # For validation
-        mock_pipeline_service.initialize.return_value = None
+        mock_pipeline_service.initialize = AsyncMock(return_value=None)
 
         # Mock successful pipeline execution
         mock_pipeline_result = Mock()
@@ -80,7 +81,7 @@ class TestSearchPipelineResolutionIntegration:
         mock_pipeline_result.query_results = []
         mock_pipeline_result.rewritten_query = None
         mock_pipeline_result.evaluation = None
-        mock_pipeline_service.execute_pipeline.return_value = mock_pipeline_result
+        mock_pipeline_service.execute_pipeline = AsyncMock(return_value=mock_pipeline_result)
         mock_pipeline_service_class.return_value = mock_pipeline_service
 
         # Mock FileManagementService
@@ -92,7 +93,7 @@ class TestSearchPipelineResolutionIntegration:
         search_service = SearchService(mock_db, mock_settings)
 
         # Act
-        result = search_service.search(search_input_without_pipeline)
+        result = await search_service.search(search_input_without_pipeline)
 
         # Assert
         assert result is not None
@@ -108,7 +109,8 @@ class TestSearchPipelineResolutionIntegration:
 
     @patch("rag_solution.services.search_service.CollectionService")
     @patch("rag_solution.services.search_service.PipelineService")
-    def test_search_creates_default_pipeline_when_user_has_none(
+    @pytest.mark.asyncio
+    async def test_search_creates_default_pipeline_when_user_has_none(
         self,
         mock_pipeline_service_class,
         mock_collection_service_class,
@@ -148,13 +150,13 @@ class TestSearchPipelineResolutionIntegration:
         # Create SearchService and mock LLM provider service
         search_service = SearchService(mock_db, mock_settings)
         search_service._llm_provider_service = Mock()
-        search_service.llm_provider_service.get_default_provider.return_value = mock_provider
+        search_service.llm_provider_service.get_user_provider.return_value = mock_provider
 
         # Mock other required methods
         search_service._validate_search_input = Mock()
         search_service._validate_collection_access = Mock()
         search_service._validate_pipeline = Mock()
-        search_service._initialize_pipeline = Mock(return_value="test_collection")
+        search_service._initialize_pipeline = AsyncMock(return_value="test_collection")
         search_service._generate_document_metadata = Mock(return_value=[])
         search_service._clean_generated_answer = Mock(return_value="Test answer")
 
@@ -165,17 +167,19 @@ class TestSearchPipelineResolutionIntegration:
         mock_result.query_results = []
         mock_result.rewritten_query = None
         mock_result.evaluation = None
-        mock_pipeline_service.execute_pipeline.return_value = mock_result
+        mock_pipeline_service.execute_pipeline = AsyncMock(return_value=mock_result)
 
         # Act
-        result = search_service.search(search_input_without_pipeline)
+        result = await search_service.search(search_input_without_pipeline)
 
         # Assert
         assert result is not None
 
         # Verify default pipeline creation flow
         mock_pipeline_service.get_default_pipeline.assert_called_once_with(search_input_without_pipeline.user_id)
-        search_service.llm_provider_service.get_default_provider.assert_called_once()
+        search_service.llm_provider_service.get_user_provider.assert_called_once_with(
+            search_input_without_pipeline.user_id
+        )
         mock_pipeline_service.initialize_user_pipeline.assert_called_once_with(
             search_input_without_pipeline.user_id, provider_id
         )

@@ -130,7 +130,7 @@ from typing import Optional
 
 class Settings(BaseSettings):
     """Application settings with environment variable support."""
-    
+
     # Application
     production_mode: bool = Field(default=False, env="PRODUCTION_MODE")
     debug: bool = Field(default=False, env="DEBUG")
@@ -138,24 +138,24 @@ class Settings(BaseSettings):
     testing: bool = Field(default=False, env="TESTING")
     skip_auth: bool = Field(default=False, env="SKIP_AUTH")
     development_mode: bool = Field(default=False, env="DEVELOPMENT_MODE")
-    
+
     # Security
     jwt_secret_key: str = Field(env="JWT_SECRET_KEY")
     jwt_algorithm: str = Field(default="HS256", env="JWT_ALGORITHM")
     jwt_expiration_hours: int = Field(default=24, env="JWT_EXPIRATION_HOURS")
-    
+
     # Database
     collectiondb_host: str = Field(default="postgres", env="COLLECTIONDB_HOST")
     collectiondb_port: int = Field(default=5432, env="COLLECTIONDB_PORT")
     collectiondb_name: str = Field(default="rag_modulo", env="COLLECTIONDB_NAME")
     collectiondb_user: str = Field(default="rag_user", env="COLLECTIONDB_USER")
     collectiondb_pass: str = Field(env="COLLECTIONDB_PASS")
-    
+
     # AI Services
     watsonx_instance_id: str = Field(env="WATSONX_INSTANCE_ID")
     watsonx_apikey: str = Field(env="WATSONX_APIKEY")
     watsonx_url: str = Field(env="WATSONX_URL")
-    
+
     class Config:
         env_file = ".env"
         case_sensitive = False
@@ -168,17 +168,17 @@ class Settings(BaseSettings):
 const config = {
   // API Configuration
   apiUrl: process.env.REACT_APP_API_URL || 'http://localhost:8000',
-  
+
   // Environment
   environment: process.env.NODE_ENV || 'development',
-  
+
   // Features
   features: {
     analytics: process.env.REACT_APP_ANALYTICS_ENABLED === 'true',
     debug: process.env.REACT_APP_DEBUG === 'true',
     hotReload: process.env.NODE_ENV === 'development'
   },
-  
+
   // Authentication
   auth: {
     provider: process.env.REACT_APP_AUTH_PROVIDER || 'jwt',
@@ -271,21 +271,21 @@ from typing import Optional, Dict, Any
 
 class RAGConfig(BaseModel):
     """CLI configuration model."""
-    
+
     # API Configuration
     api_url: str = Field(default="http://localhost:8000", env="RAG_API_URL")
     timeout: int = Field(default=30, env="RAG_TIMEOUT")
-    
+
     # Authentication
     token: Optional[str] = Field(default=None, env="RAG_TOKEN")
     username: Optional[str] = Field(default=None, env="RAG_USERNAME")
     password: Optional[str] = Field(default=None, env="RAG_PASSWORD")
-    
+
     # Output Configuration
     output_format: str = Field(default="table", env="RAG_OUTPUT_FORMAT")
     verbose: bool = Field(default=False, env="RAG_VERBOSE")
     dry_run: bool = Field(default=False, env="RAG_DRY_RUN")
-    
+
     # Profile Management
     profile: str = Field(default="default", env="RAG_PROFILE")
     profiles: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
@@ -300,12 +300,12 @@ profiles:
     api_url: "http://localhost:8000"
     output_format: "table"
     verbose: false
-    
+
   production:
     api_url: "https://api.yourdomain.com"
     output_format: "json"
     verbose: true
-    
+
   development:
     api_url: "http://localhost:8000"
     output_format: "table"
@@ -372,14 +372,14 @@ import os
 
 class ConfigValidator(BaseModel):
     """Configuration validation."""
-    
+
     @validator('jwt_secret_key')
     def validate_jwt_secret(cls, v):
         """Validate JWT secret key strength."""
         if len(v) < 32:
             raise ValueError('JWT secret key must be at least 32 characters')
         return v
-    
+
     @validator('watsonx_apikey')
     def validate_watsonx_key(cls, v):
         """Validate WatsonX API key format."""
