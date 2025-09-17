@@ -80,6 +80,7 @@
     "backend/vectordbs/elasticsearch_store.py",
     "backend/vectordbs/milvus_store.py",
     "backend/vectordbs/pinecone_store.py",
+    "backend/vectordbs/weaviate_store.py",
     "scripts/check_strangler_compliance.py",
     "backend/rag_solution/cli/admin_cli.py",
     "backend/rag_solution/cli/commands/pipelines.py",
@@ -148,6 +149,9 @@
     "backend/core/mock_user_init.py",
     "backend/fix_remaining_schemas.py",
     "backend/rag_solution/cli/__init__.py",
+    "backend/rag_solution/cli/auth.py",
+    "backend/rag_solution/cli/client.py",
+    "backend/rag_solution/cli/exceptions.py",
     "backend/tests/atomic/test_document_processors.py",
     "backend/tests/e2e/conftest.py",
     "backend/tests/fixtures/user.py",
@@ -182,7 +186,11 @@
     "backend/vectordbs/data_types.py",
     "backend/vectordbs/factory.py",
     "backend/vectordbs/utils/watsonx_refactored.py",
-    "backend/vectordbs/weaviate_store.py"
+    "backend/vectordbs/weaviate_store.py",
+    "scripts/check_linting_progress.py",
+    "scripts/migrate_file_to_compliance.py",
+    "scripts/show_strangler_status.py",
+    "backend/rag_solution/cli/commands/__init__.py"
   ],
   "new_files_requiring_compliance": [],
   "legacy_files_exempt": [
