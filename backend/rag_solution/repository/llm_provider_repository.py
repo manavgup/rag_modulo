@@ -88,7 +88,12 @@ class LLMProviderRepository:
             NotFoundError: If provider not found
         """
         try:
-            provider = self.session.query(LLMProvider).filter(LLMProvider.name.ilike(name)).filter(LLMProvider.is_active).first()
+            provider = (
+                self.session.query(LLMProvider)
+                .filter(LLMProvider.name.ilike(name))
+                .filter(LLMProvider.is_active)
+                .first()
+            )
             if not provider:
                 raise NotFoundError(resource_type="LLMProvider", identifier=name)
             return provider
@@ -154,7 +159,9 @@ class LLMProviderRepository:
             NotFoundError: If no default provider found
         """
         try:
-            provider = self.session.query(LLMProvider).filter(LLMProvider.is_active).filter(LLMProvider.is_default).first()
+            provider = (
+                self.session.query(LLMProvider).filter(LLMProvider.is_active).filter(LLMProvider.is_default).first()
+            )
             if not provider:
                 raise NotFoundError(resource_type="LLMProvider", identifier="default provider")
             return provider

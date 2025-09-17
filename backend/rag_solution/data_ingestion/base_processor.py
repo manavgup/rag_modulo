@@ -1,3 +1,9 @@
+"""Base processor for document ingestion.
+
+This module provides the abstract base class for all document processors,
+handling common functionality like metadata extraction and chunking configuration.
+"""
+
 import logging
 import os
 from abc import ABC, abstractmethod
@@ -5,8 +11,9 @@ from collections.abc import AsyncIterator
 from datetime import datetime
 
 from core.config import Settings
-from rag_solution.data_ingestion.chunking import get_chunking_method
 from vectordbs.data_types import Document, DocumentMetadata
+
+from rag_solution.data_ingestion.chunking import get_chunking_method
 
 logging.basicConfig(level=logging.INFO)
 

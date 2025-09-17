@@ -1,10 +1,10 @@
 from typing import Any
 
+from core.logging_utils import get_logger
 from pydantic import UUID4
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from core.logging_utils import get_logger
 from rag_solution.core.exceptions import NotFoundError
 from rag_solution.models.user_team import UserTeam
 from rag_solution.schemas.user_team_schema import UserTeamOutput
@@ -19,7 +19,9 @@ class UserTeamRepository:
     def add_user_to_team(self, user_id: UUID4, team_id: UUID4) -> bool:
         """Adds a user to a team if not already present. Returns True if successful or if the user is already in the team."""
 
-        existing_entry = self.db.query(UserTeam).filter(UserTeam.user_id == user_id, UserTeam.team_id == team_id).first()
+        existing_entry = (
+            self.db.query(UserTeam).filter(UserTeam.user_id == user_id, UserTeam.team_id == team_id).first()
+        )
 
         if existing_entry:
             logger.info(f"User {user_id} is already in team {team_id}. No action needed.")

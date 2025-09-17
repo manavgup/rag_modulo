@@ -4,9 +4,9 @@ from typing import Any
 
 from sklearn.feature_extraction.text import TfidfVectorizer  # type: ignore[import-untyped]
 from sklearn.metrics.pairwise import cosine_similarity  # type: ignore[import-untyped]
+from vectordbs.data_types import Document, DocumentChunk, QueryResult, VectorQuery
 
 from rag_solution.data_ingestion.ingestion import DocumentStore
-from vectordbs.data_types import Document, DocumentChunk, QueryResult, VectorQuery
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +48,9 @@ class VectorRetriever(BaseRetriever):
             List[QueryResult]: A list of retrieved documents with their relevance scores.
         """
         try:
-            results: list[QueryResult] = self.document_store.vector_store.retrieve_documents(query.text, collection_name, query.number_of_results)
+            results: list[QueryResult] = self.document_store.vector_store.retrieve_documents(
+                query.text, collection_name, query.number_of_results
+            )
             logger.info(f"Received {len(results)} documents for query: {query.text}")
             return results
         except ValueError as e:
@@ -109,7 +111,9 @@ class KeywordRetriever(BaseRetriever):
 
                 # At this point self.documents is guaranteed to be a list due to the check above
                 documents = self.documents
-                results = [QueryResult(chunk=documents[i], score=float(similarities[i]), embeddings=[]) for i in top_k_indices]
+                results = [
+                    QueryResult(chunk=documents[i], score=float(similarities[i]), embeddings=[]) for i in top_k_indices
+                ]
             except ValueError as e:
                 logger.warning(f"TF-IDF vectorization failed: {e}")
                 return []

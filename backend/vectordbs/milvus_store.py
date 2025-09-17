@@ -9,6 +9,7 @@ import logging
 import time
 from typing import Any
 
+from core.config import Settings, get_settings
 from pymilvus import (  # type: ignore[import-untyped]
     Collection,
     CollectionSchema,
@@ -19,7 +20,6 @@ from pymilvus import (  # type: ignore[import-untyped]
     utility,
 )
 
-from core.config import Settings, get_settings
 from vectordbs.utils.watsonx import get_embeddings
 
 from .data_types import (
@@ -52,7 +52,7 @@ def _create_schema(settings: Settings) -> list[FieldSchema]:
         # Chunk metadata fields
         FieldSchema(name="source", dtype=DataType.VARCHAR, max_length=20),
         FieldSchema(name="page_number", dtype=DataType.INT64),
-        FieldSchema(name="chunk_index", dtype=DataType.INT64),
+        FieldSchema(name="chunk_number", dtype=DataType.INT64),
     ]
 
 
@@ -136,7 +136,9 @@ class MilvusStore(VectorStore):
     def _create_collection(self, collection_name: str) -> None:
         """Internal method to create collection."""
         try:
-            schema = CollectionSchema(fields=_create_schema(self.settings), description=f"Collection for {collection_name}")
+            schema = CollectionSchema(
+                fields=_create_schema(self.settings), description=f"Collection for {collection_name}"
+            )
             collection = Collection(name=collection_name, schema=schema)
 
             # Create index
@@ -173,7 +175,7 @@ class MilvusStore(VectorStore):
             chunk_ids = []
             sources = []
             page_numbers = []
-            chunk_indices = []
+            chunk_numbers = []
             document_names = []
 
             for document in documents:
@@ -184,7 +186,7 @@ class MilvusStore(VectorStore):
                     chunk_ids.append(chunk.chunk_id)
                     sources.append(str(chunk.metadata.source) if chunk.metadata and chunk.metadata.source else "OTHER")
                     page_numbers.append(chunk.metadata.page_number if chunk.metadata else 0)
-                    chunk_indices.append(chunk.metadata.chunk_number if chunk.metadata else 0)
+                    chunk_numbers.append(chunk.metadata.chunk_number if chunk.metadata else 0)
                     document_names.append(document.metadata.title if document.metadata else "")
 
             # Insert data
@@ -197,7 +199,7 @@ class MilvusStore(VectorStore):
                     document_names,
                     sources,
                     page_numbers,
-                    chunk_indices,
+                    chunk_numbers,
                 ]
             )
 
@@ -257,11 +259,19 @@ class MilvusStore(VectorStore):
 
             # Perform search
             results = collection.search(
-                data=[query.embeddings[0]],
+                data=[query.embeddings],  # Pass the full embedding vector, not just the first element
                 anns_field=self.settings.embedding_field,
                 param=self.search_params,
                 limit=number_of_results,
-                output_fields=["document_id", "text", "chunk_id", "source", "page_number", "chunk_number", "document_name"],
+                output_fields=[
+                    "document_id",
+                    "text",
+                    "chunk_id",
+                    "source",
+                    "page_number",
+                    "chunk_number",
+                    "document_name",
+                ],
             )
 
             logging.info("Query response: %s", results)
@@ -319,13 +329,14 @@ class MilvusStore(VectorStore):
         query_results = []
 
         for hit in results[0]:  # results is a list of hits for each query
-            # Extract data from hit
-            document_id = hit.entity.get("document_id", "")
-            text = hit.entity.get("text", "")
-            chunk_id = hit.entity.get("chunk_id", "")
-            source = hit.entity.get("source", "OTHER")
-            page_number = hit.entity.get("page_number", 0)
-            chunk_number = hit.entity.get("chunk_number", 0)
+            # Extract data from hit using proper Milvus Hit API
+            entity = hit.entity
+            document_id = getattr(entity, "document_id", "")
+            text = getattr(entity, "text", "")
+            chunk_id = getattr(entity, "chunk_id", "")
+            source = getattr(entity, "source", "OTHER")
+            page_number = getattr(entity, "page_number", 0)
+            chunk_number = getattr(entity, "chunk_number", 0)
 
             # Create DocumentChunkWithScore
             chunk = DocumentChunkWithScore(
@@ -333,7 +344,7 @@ class MilvusStore(VectorStore):
                 text=text,
                 embeddings=None,  # Milvus doesn't return embeddings in search results
                 metadata=DocumentChunkMetadata(
-                    source=Source(source),
+                    source=Source(source.lower().replace("source.", "") if source else "other"),
                     document_id=document_id,
                     page_number=page_number,
                     chunk_number=chunk_number,

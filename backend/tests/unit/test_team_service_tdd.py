@@ -4,9 +4,9 @@ from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import pytest
+from core.custom_exceptions import NotFoundError
 from sqlalchemy.orm import Session
 
-from core.custom_exceptions import NotFoundError
 from rag_solution.schemas.team_schema import TeamInput, TeamOutput
 from rag_solution.schemas.user_schema import UserOutput
 from rag_solution.schemas.user_team_schema import UserTeamOutput
@@ -274,7 +274,9 @@ class TestTeamServiceTDD:
         user_id = uuid4()
         team_id = uuid4()
 
-        expected_user_team = UserTeamOutput(user_id=user_id, team_id=team_id, role="member", joined_at="2024-01-01T00:00:00Z")
+        expected_user_team = UserTeamOutput(
+            user_id=user_id, team_id=team_id, role="member", joined_at="2024-01-01T00:00:00Z"
+        )
 
         service.user_team_service.add_user_to_team.return_value = expected_user_team
 

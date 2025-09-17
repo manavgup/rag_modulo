@@ -1,3 +1,9 @@
+"""Document processor for handling multiple file types.
+
+This module provides a unified interface for processing different document types
+including PDF, Word, Excel, and text files.
+"""
+
 import logging
 import multiprocessing
 import os
@@ -7,12 +13,13 @@ from typing import Any
 
 from core.config import Settings, get_settings
 from core.custom_exceptions import DocumentProcessingError
+from vectordbs.data_types import Document, DocumentMetadata
+
 from rag_solution.data_ingestion.base_processor import BaseProcessor
 from rag_solution.data_ingestion.excel_processor import ExcelProcessor
 from rag_solution.data_ingestion.pdf_processor import PdfProcessor
 from rag_solution.data_ingestion.txt_processor import TxtProcessor
 from rag_solution.data_ingestion.word_processor import WordProcessor
-from vectordbs.data_types import Document, DocumentMetadata
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -81,7 +88,7 @@ class DocumentProcessor:
             processor = self.processors.get(file_extension)
 
             if not processor:
-                logger.warning(f"No processor found for file extension: {file_extension}")
+                logger.warning("No processor found for file extension: %s", file_extension)
                 return
 
             # Process the document asynchronously
@@ -92,7 +99,7 @@ class DocumentProcessor:
                 yield doc
 
         except Exception as e:
-            logger.error(f"Error processing document {file_path}: {e}", exc_info=True)
+            logger.error("Error processing document %s: %s", file_path, e, exc_info=True)
             raise DocumentProcessingError(
                 doc_id=document_id,
                 error_type="DocumentProcessingError",
@@ -116,5 +123,4 @@ class DocumentProcessor:
         processor = self.processors.get(file_extension)
         if processor:
             return processor.extract_metadata(file_path)
-        else:
-            raise ValueError(f"Unsupported file type: {file_extension}")
+        raise ValueError(f"Unsupported file type: {file_extension}")

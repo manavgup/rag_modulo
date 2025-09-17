@@ -12,7 +12,9 @@ def test_search_input_validation() -> None:
     from uuid import uuid4
 
     # Valid input
-    valid_input = SearchInput(question="What is machine learning?", collection_id=uuid4(), user_id=uuid4(), pipeline_id=uuid4())
+    valid_input = SearchInput(
+        question="What is machine learning?", collection_id=uuid4(), user_id=uuid4(), pipeline_id=uuid4()
+    )
     assert valid_input.question == "What is machine learning?"
     assert valid_input.collection_id is not None
     assert valid_input.user_id is not None
@@ -48,7 +50,9 @@ def test_search_input_serialization() -> None:
     """Test search input serialization."""
     from uuid import uuid4
 
-    input_data = SearchInput(question="What is machine learning?", collection_id=uuid4(), user_id=uuid4(), pipeline_id=uuid4())
+    input_data = SearchInput(
+        question="What is machine learning?", collection_id=uuid4(), user_id=uuid4(), pipeline_id=uuid4()
+    )
 
     # Test serialization
     data = input_data.model_dump()

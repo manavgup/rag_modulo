@@ -11,9 +11,9 @@ from typing import Any
 
 import jwt
 from authlib.integrations.starlette_client import OAuth, OAuthError  # type: ignore[import-untyped]
-from fastapi import HTTPException, Request, Response, status
-
 from core.config import get_settings
+from core.mock_auth import is_mock_token
+from fastapi import HTTPException, Request, Response, status
 
 # Get settings safely for auth
 settings = get_settings()
@@ -49,14 +49,19 @@ if not (skip_auth or development_mode or testing_mode):
     except (OAuthError, ValueError, KeyError) as e:
         logger.warning("Failed to register OIDC provider: %s. Auth will work in test mode only.", str(e))
 else:
-    logger.info("OIDC registration skipped (skip_auth=%s, development_mode=%s, testing_mode=%s)", skip_auth, development_mode, testing_mode)
+    logger.info(
+        "OIDC registration skipped (skip_auth=%s, development_mode=%s, testing_mode=%s)",
+        skip_auth,
+        development_mode,
+        testing_mode,
+    )
 
 
 def verify_jwt_token(token: str) -> dict[str, Any]:
     """Verify JWT token and return payload."""
     try:
-        # Special handling for test token
-        if token == "mock_token_for_testing":
+        # Special handling for mock tokens
+        if is_mock_token(token):
             return {
                 "sub": "test_user_id",
                 "email": "test@example.com",

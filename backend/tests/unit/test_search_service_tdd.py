@@ -5,17 +5,17 @@ from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import pytest
-from fastapi import HTTPException
-from sqlalchemy.orm import Session
-
 from core.config import Settings
 from core.custom_exceptions import ConfigurationError, LLMProviderError, NotFoundError, ValidationError
+from fastapi import HTTPException
+from sqlalchemy.orm import Session
+from vectordbs.data_types import DocumentChunk, QueryResult
+
 from rag_solution.schemas.collection_schema import CollectionOutput, CollectionStatus
 from rag_solution.schemas.file_schema import FileMetadata, FileOutput
 from rag_solution.schemas.pipeline_schema import PipelineResult
 from rag_solution.schemas.search_schema import SearchInput, SearchOutput
 from rag_solution.services.search_service import SearchService, handle_search_errors
-from vectordbs.data_types import DocumentChunk, QueryResult
 
 
 @pytest.mark.unit
@@ -301,7 +301,9 @@ class TestSearchServiceTDD:
 
     def test_validate_search_input_success_red_phase(self, service):
         """RED: Test successful search input validation."""
-        search_input = SearchInput(question="What is the capital of France?", collection_id=uuid4(), pipeline_id=uuid4(), user_id=uuid4())
+        search_input = SearchInput(
+            question="What is the capital of France?", collection_id=uuid4(), pipeline_id=uuid4(), user_id=uuid4()
+        )
 
         # Should not raise any exception
         service._validate_search_input(search_input)
@@ -437,7 +439,9 @@ class TestSearchServiceTDD:
     @pytest.mark.asyncio
     async def test_search_success_red_phase(self, service):
         """RED: Test successful search operation end-to-end."""
-        search_input = SearchInput(question="What is machine learning?", collection_id=uuid4(), pipeline_id=uuid4(), user_id=uuid4())
+        search_input = SearchInput(
+            question="What is machine learning?", collection_id=uuid4(), pipeline_id=uuid4(), user_id=uuid4()
+        )
 
         # Mock all validation methods to pass
         service._validate_search_input = Mock()
@@ -474,7 +478,9 @@ class TestSearchServiceTDD:
     @pytest.mark.asyncio
     async def test_search_pipeline_execution_fails_red_phase(self, service):
         """RED: Test search when pipeline execution fails."""
-        search_input = SearchInput(question="What is machine learning?", collection_id=uuid4(), pipeline_id=uuid4(), user_id=uuid4())
+        search_input = SearchInput(
+            question="What is machine learning?", collection_id=uuid4(), pipeline_id=uuid4(), user_id=uuid4()
+        )
 
         # Mock validations to pass
         service._validate_search_input = Mock()
@@ -503,7 +509,9 @@ class TestSearchServiceTDD:
     @pytest.mark.asyncio
     async def test_search_with_null_pipeline_results_red_phase(self, service):
         """RED: Test search handles null pipeline results gracefully."""
-        search_input = SearchInput(question="What is machine learning?", collection_id=uuid4(), pipeline_id=uuid4(), user_id=uuid4())
+        search_input = SearchInput(
+            question="What is machine learning?", collection_id=uuid4(), pipeline_id=uuid4(), user_id=uuid4()
+        )
 
         # Mock validations
         service._validate_search_input = Mock()
@@ -512,7 +520,9 @@ class TestSearchServiceTDD:
         service._initialize_pipeline = AsyncMock(return_value="test_collection")
 
         # Mock pipeline result with null values
-        pipeline_result = PipelineResult(success=True, generated_answer=None, query_results=None, rewritten_query=None, evaluation=None, error=None)
+        pipeline_result = PipelineResult(
+            success=True, generated_answer=None, query_results=None, rewritten_query=None, evaluation=None, error=None
+        )
 
         service._pipeline_service.execute_pipeline = AsyncMock(return_value=pipeline_result)
         service._generate_document_metadata = Mock(return_value=[])
@@ -578,7 +588,9 @@ class TestSearchServiceTDD:
 
     def test_search_time_tracking_logic_issue_red_phase(self, service):
         """RED: Test search method has logic issue - time.time() called but result not used."""
-        search_input = SearchInput(question="Test question", collection_id=uuid4(), pipeline_id=uuid4(), user_id=uuid4())
+        search_input = SearchInput(
+            question="Test question", collection_id=uuid4(), pipeline_id=uuid4(), user_id=uuid4()
+        )
 
         with patch("rag_solution.services.search_service.time.time") as mock_time:
             mock_time.return_value = 12345.67

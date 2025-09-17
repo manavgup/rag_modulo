@@ -35,7 +35,10 @@ def fix_service_constructor_calls(content: str) -> str:
 
 def add_integration_settings_import(content: str) -> str:
     """Add integration_settings import if not present."""
-    if "integration_settings" not in content and "from tests.fixtures.integration import integration_settings" not in content:
+    if (
+        "integration_settings" not in content
+        and "from tests.fixtures.integration import integration_settings" not in content
+    ):
         # Find the last import statement
         lines = content.split("\n")
         import_end = 0
@@ -54,7 +57,9 @@ def fix_mock_object_issues(content: str) -> str:
     """Fix common mock object issues."""
 
     # Fix mock object iteration issues
-    content = re.sub(r"for (\w+) in mock_\w+\.query\(\)\.filter\(\)\.all\(\):", r"for \1 in []:  # Mock returns empty list", content)
+    content = re.sub(
+        r"for (\w+) in mock_\w+\.query\(\)\.filter\(\)\.all\(\):", r"for \1 in []:  # Mock returns empty list", content
+    )
 
     # Fix mock object length issues
     content = re.sub(r"len\(mock_\w+\.query\(\)\.filter\(\)\.all\(\)\)", r"0  # Mock returns empty list", content)

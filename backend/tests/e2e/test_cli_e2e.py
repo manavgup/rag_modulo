@@ -92,7 +92,9 @@ class TestCLICompleteWorkflow:
 
                     # In real workflow, user would authenticate and provide auth code
                     # For test, we'll simulate setting a token directly
-                    test_token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoidGVzdCIsImV4cCI6OTk5OTk5OTk5OX0.test"
+                    test_token = (
+                        "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoidGVzdCIsImV4cCI6OTk5OTk5OTk5OX0.test"
+                    )
                     from datetime import datetime, timedelta
 
                     expires_at = (datetime.now() + timedelta(hours=1)).isoformat()
@@ -206,7 +208,9 @@ class TestCLICompleteWorkflow:
 
                         time.sleep(2)  # Allow time for document processing
 
-                        search_result = search_commands.query(collection_id=collection_id, query="What is machine learning?", max_chunks=3)
+                        search_result = search_commands.query(
+                            collection_id=collection_id, query="What is machine learning?", max_chunks=3
+                        )
 
                         if search_result.success:
                             # Verify search returned results

@@ -2,7 +2,6 @@
 
 import numpy as np
 import pytest
-
 from vectordbs.data_types import DocumentChunk, DocumentChunkMetadata, QueryResult, Source
 
 
@@ -16,7 +15,9 @@ class TestEvaluationDataValidation:
         chunk = DocumentChunk(
             chunk_id="test_chunk_1",
             text="This is a test chunk with some content.",
-            metadata=DocumentChunkMetadata(source=Source.PDF, document_id="test_doc", page_number=1, chunk_number=1, start_index=0, end_index=50),
+            metadata=DocumentChunkMetadata(
+                source=Source.PDF, document_id="test_doc", page_number=1, chunk_number=1, start_index=0, end_index=50
+            ),
         )
 
         query_result = QueryResult(chunk=chunk, score=0.85, embeddings=[0.1, 0.2, 0.3, 0.4, 0.5])

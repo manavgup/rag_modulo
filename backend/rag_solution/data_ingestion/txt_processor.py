@@ -1,14 +1,20 @@
+"""Text document processor.
+
+This module provides functionality for processing plain text files,
+extracting content and creating document chunks.
+"""
+
 import logging
 import os
 import uuid
 from collections.abc import AsyncIterator
 
 import aiofiles
-
-from core.config import Settings
 from core.custom_exceptions import DocumentProcessingError
+from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, Source
+
 from rag_solution.data_ingestion.base_processor import BaseProcessor
-from vectordbs.data_types import Document
+from rag_solution.doc_utils import get_embeddings
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -22,8 +28,6 @@ class TxtProcessor(BaseProcessor):
         process(file_path: str) -> AsyncIterable[Document]: Process the text file and yield Document instances.
     """
 
-    def __init__(self, settings: Settings) -> None:
-        super().__init__(settings)
 
     async def process(self, file_path: str, _document_id: str) -> AsyncIterator[Document]:
         """
@@ -45,8 +49,6 @@ class TxtProcessor(BaseProcessor):
                 chunks = self.chunking_method(text)
 
                 # Create one document with all chunks
-                from rag_solution.doc_utils import get_embeddings
-                from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, Source
 
                 # Create chunk metadata for source information
                 chunk_metadata = DocumentChunkMetadata(source=Source.OTHER, document_id=_document_id)
@@ -73,7 +75,7 @@ class TxtProcessor(BaseProcessor):
 
                 yield document
         except Exception as e:
-            logger.error(f"Error processing TXT file {file_path}: {e}", exc_info=True)
+            logger.error("Error processing TXT file %s: %s", file_path, e, exc_info=True)
             raise DocumentProcessingError(
                 doc_id=file_path,
                 error_type="processing_failed",

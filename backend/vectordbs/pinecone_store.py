@@ -7,9 +7,9 @@ enabling document storage, retrieval, and search operations using Pinecone.
 import logging
 from typing import Any
 
+from core.config import Settings, get_settings
 from pinecone import Pinecone, ServerlessSpec  # type: ignore[import-untyped]
 
-from core.config import Settings, get_settings
 from vectordbs.utils.watsonx import get_embeddings
 
 from .data_types import (
@@ -66,7 +66,12 @@ class PineconeStore(VectorStore):
                 return
 
             # Create index
-            self.pc.create_index(name=collection_name, dimension=self.settings.embedding_dim, metric="cosine", spec=ServerlessSpec(cloud="aws", region="us-east-1"))
+            self.pc.create_index(
+                name=collection_name,
+                dimension=self.settings.embedding_dim,
+                metric="cosine",
+                spec=ServerlessSpec(cloud="aws", region="us-east-1"),
+            )
 
             logging.info("Collection '%s' created successfully", collection_name)
         except Exception as e:
@@ -102,7 +107,9 @@ class PineconeStore(VectorStore):
                             "metadata": {
                                 "text": chunk.text,
                                 "document_id": chunk.document_id or "",
-                                "source": str(chunk.metadata.source) if chunk.metadata and chunk.metadata.source else "OTHER",
+                                "source": str(chunk.metadata.source)
+                                if chunk.metadata and chunk.metadata.source
+                                else "OTHER",
                                 "page_number": chunk.metadata.page_number if chunk.metadata else 0,
                                 "chunk_number": chunk.metadata.chunk_number if chunk.metadata else 0,
                             },

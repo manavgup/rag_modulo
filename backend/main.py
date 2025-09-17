@@ -1,3 +1,10 @@
+"""RAG Modulo FastAPI Application.
+
+This module contains the main FastAPI application for the RAG Modulo system,
+including middleware configuration, router registration, database initialization,
+and LLM provider setup.
+"""
+
 import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -5,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI
+from fastapi.openapi.utils import get_openapi
 from sqlalchemy import inspect, text
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -53,12 +61,26 @@ logger = get_logger(__name__)
 # -------------------------------------------
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
+    """Application lifespan manager for startup and shutdown events.
+
+    Handles database initialization, table creation, and LLM provider setup
+    during application startup, and cleanup during shutdown.
+
+    Args:
+        _app: FastAPI application instance
+
+    Yields:
+        None: Control back to the application
+
+    Raises:
+        SystemExit: If critical initialization fails
+    """
     logger.info("Starting application lifespan events")
 
     try:
         inspector = inspect(engine)
         existing_tables = set(inspector.get_table_names())
-        logger.info(f"Existing tables: {existing_tables}")
+        logger.info("Existing tables: %s", existing_tables)
 
         # Ensure all tables are created
         Base.metadata.create_all(bind=engine)
@@ -67,17 +89,27 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
         # Database sanity check
         with engine.connect() as connection:
             result = connection.execute(text("SELECT 1"))
-            logger.info(f"Database connection test result: {result.fetchone()}")
+            logger.info("Database connection test result: %s", result.fetchone())
 
         # Initialize LLM Providers
         logger.info("Initializing LLM Providers...")
-        with next(get_db()) as db:
+        db_gen = get_db()
+        try:
+            db = next(db_gen)
             system_init_service = SystemInitializationService(db, get_settings())
             providers = system_init_service.initialize_providers(raise_on_error=True)
-            logger.info(f"Initialized providers: {', '.join(p.name for p in providers)}")
+            logger.info("Initialized providers: %s", ', '.join(p.name for p in providers))
+        except StopIteration:
+            logger.error("Failed to get database session")
+            return
+        finally:
+            try:
+                next(db_gen)
+            except StopIteration:
+                pass
 
     except Exception as e:
-        logger.error(f"Application startup failed: {e}", exc_info=True)
+        logger.error("Application startup failed: %s", e, exc_info=True)
         raise SystemExit(1) from e
 
     yield
@@ -128,9 +160,23 @@ app.include_router(search_router)
 # 📊 CUSTOM OPENAPI SCHEMA
 # -------------------------------------------
 def custom_openapi() -> dict[str, Any]:
+    """Generate custom OpenAPI schema for the application.
+
+    Creates and caches the OpenAPI schema using FastAPI's default generation.
+    This function prevents recursion issues and provides consistent API documentation.
+
+    Returns:
+        dict[str, Any]: The OpenAPI schema dictionary
+    """
     if app.openapi_schema:
         return app.openapi_schema
-    openapi_schema = app.openapi()
+    # Use the default FastAPI openapi generation without recursion
+    openapi_schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        description=app.description,
+        routes=app.routes,
+    )
     app.openapi_schema = openapi_schema
     return app.openapi_schema
 

@@ -220,7 +220,9 @@ class TestUserServiceAtomic:
         assert minimal_user.name == "U"
 
         # Test user with special characters in name
-        special_user = UserInput(email="special@test.com", ibm_id="special_user", name="User's Name (Special)", role="user")
+        special_user = UserInput(
+            email="special@test.com", ibm_id="special_user", name="User's Name (Special)", role="user"
+        )
         assert "'" in special_user.name
         assert "(" in special_user.name
 

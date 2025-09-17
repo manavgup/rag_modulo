@@ -1,10 +1,10 @@
 import logging
 from typing import Any
 
+from core.custom_exceptions import LLMProviderError, ModelConfigError, ModelValidationError
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
-from core.custom_exceptions import LLMProviderError, ModelConfigError, ModelValidationError
 from rag_solution.repository.llm_model_repository import LLMModelRepository
 from rag_solution.repository.llm_provider_repository import LLMProviderRepository
 from rag_solution.schemas.llm_model_schema import LLMModelInput, LLMModelOutput, ModelType
@@ -23,10 +23,14 @@ class LLMModelService:
     def _validate_model_input(self, model_input: LLMModelInput) -> None:
         """Validate model input."""
         if model_input.timeout <= 0:
-            raise ModelValidationError(field="timeout", message="Timeout must be greater than 0", value=model_input.timeout)
+            raise ModelValidationError(
+                field="timeout", message="Timeout must be greater than 0", value=model_input.timeout
+            )
 
         if model_input.max_retries < 0:
-            raise ModelValidationError(field="max_retries", message="Max retries cannot be negative", value=model_input.max_retries)
+            raise ModelValidationError(
+                field="max_retries", message="Max retries cannot be negative", value=model_input.max_retries
+            )
 
         # Validate provider exists
         provider = self.provider_repository.get_provider_by_id(model_input.provider_id)
@@ -45,7 +49,9 @@ class LLMModelService:
         except (ModelValidationError, ModelConfigError):
             raise
         except Exception as e:
-            raise LLMProviderError(provider=str(model_input.provider_id), error_type="model_creation", message=str(e)) from e
+            raise LLMProviderError(
+                provider=str(model_input.provider_id), error_type="model_creation", message=str(e)
+            ) from e
 
     def set_default_model(self, model_id: UUID4) -> LLMModelOutput | None:
         """Set a model as default and clear other defaults for the same provider."""

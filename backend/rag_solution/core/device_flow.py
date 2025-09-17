@@ -25,7 +25,9 @@ class DeviceFlowConfig(BaseModel):
     token_url: HttpUrl = Field(..., description="IBM token endpoint")
     default_interval: int = Field(default=5, ge=1, le=60, description="Default polling interval in seconds")
     max_interval: int = Field(default=60, ge=1, le=300, description="Maximum polling interval in seconds")
-    default_expires_in: int = Field(default=600, ge=60, le=1800, description="Default device code expiration in seconds")
+    default_expires_in: int = Field(
+        default=600, ge=60, le=1800, description="Default device code expiration in seconds"
+    )
 
     @classmethod
     def from_env(cls) -> "DeviceFlowConfig":
@@ -38,8 +40,15 @@ class DeviceFlowConfig(BaseModel):
         return cls(
             client_id=os.getenv("IBM_CLIENT_ID", ""),
             client_secret=os.getenv("IBM_CLIENT_SECRET", ""),
-            device_auth_url=HttpUrl(os.getenv("OIDC_DEVICE_AUTH_URL", "https://prepiam.ice.ibmcloud.com/v1.0/endpoint/default/device_authorization")),
-            token_url=HttpUrl(os.getenv("OIDC_TOKEN_URL", "https://prepiam.ice.ibmcloud.com/v1.0/endpoint/default/token")),
+            device_auth_url=HttpUrl(
+                os.getenv(
+                    "OIDC_DEVICE_AUTH_URL",
+                    "https://prepiam.ice.ibmcloud.com/v1.0/endpoint/default/device_authorization",
+                )
+            ),
+            token_url=HttpUrl(
+                os.getenv("OIDC_TOKEN_URL", "https://prepiam.ice.ibmcloud.com/v1.0/endpoint/default/token")
+            ),
             default_interval=int(os.getenv("DEVICE_FLOW_INTERVAL", "5")),
             max_interval=int(os.getenv("DEVICE_FLOW_MAX_INTERVAL", "60")),
             default_expires_in=int(os.getenv("DEVICE_FLOW_EXPIRES_IN", "600")),

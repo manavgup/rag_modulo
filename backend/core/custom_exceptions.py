@@ -61,7 +61,9 @@ class DocumentProcessingError(BaseCustomError):
             message: Error message
             details: Additional error details
         """
-        super().__init__(message, status_code=500, details={"document_id": doc_id, "error_type": error_type, **(details or {})})
+        super().__init__(
+            message, status_code=500, details={"document_id": doc_id, "error_type": error_type, **(details or {})}
+        )
 
 
 class DocumentStorageError(BaseCustomError):
@@ -86,7 +88,9 @@ class DocumentStorageError(BaseCustomError):
 class DocumentIngestionError(BaseCustomError):
     """Exception raised for errors during document ingestion."""
 
-    def __init__(self, doc_id: str, stage: str, error_type: str, message: str, details: dict[str, Any] | None = None) -> None:
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+        self, doc_id: str, stage: str, error_type: str, message: str, details: dict[str, Any] | None = None
+    ) -> None:
         """Initialize document ingestion error.
 
         Args:
@@ -128,7 +132,9 @@ NotFoundException = NotFoundError
 class ValidationError(BaseCustomError):
     """Exception raised when data validation fails."""
 
-    def __init__(self, message: str, field: str | None = None, value: Any | None = None, details: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self, message: str, field: str | None = None, value: Any | None = None, details: dict[str, Any] | None = None
+    ) -> None:
         """Initialize validation error.
 
         Args:
@@ -147,7 +153,7 @@ class ProviderValidationError(ValidationError):
     including Pydantic validation failures for provider schemas.
     """
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         provider_name: str,
         validation_error: PydanticValidationError | str,
@@ -165,13 +171,20 @@ class ProviderValidationError(ValidationError):
             details: Additional validation details
         """
         if isinstance(validation_error, PydanticValidationError):
-            error_details = {"errors": [{"loc": [".".join(str(loc) for loc in error["loc"])], "msg": error["msg"], "type": error["type"]} for error in validation_error.errors()]}
+            error_details = {
+                "errors": [
+                    {"loc": [".".join(str(loc) for loc in error["loc"])], "msg": error["msg"], "type": error["type"]}
+                    for error in validation_error.errors()
+                ]
+            }
             message = f"Provider validation failed for {provider_name}: {validation_error}"
         else:
             error_details = {}
             message = str(validation_error)
 
-        super().__init__(message, field=field, value=value, details={"provider": provider_name, **error_details, **(details or {})})
+        super().__init__(
+            message, field=field, value=value, details={"provider": provider_name, **error_details, **(details or {})}
+        )
 
 
 class LLMParameterError(BaseCustomError):
@@ -186,7 +199,9 @@ class LLMParameterError(BaseCustomError):
             message: Error message
             details: Additional error details
         """
-        super().__init__(message, status_code=400, details={"parameter": param_name, "error_type": error_type, **(details or {})})
+        super().__init__(
+            message, status_code=400, details={"parameter": param_name, "error_type": error_type, **(details or {})}
+        )
 
 
 class DuplicateEntryError(ValidationError):
@@ -279,7 +294,7 @@ class LLMProviderError(BaseCustomError):
     - Client operations
     """
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         provider: str,
         error_type: str,
@@ -324,7 +339,9 @@ class ConfigurationError(BaseCustomError):
 class ProviderConfigError(BaseCustomError):
     """Exception raised for errors related to provider configuration."""
 
-    def __init__(self, provider: str, model_id: str, error_type: str, message: str, details: dict[str, Any] | None = None) -> None:
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+        self, provider: str, model_id: str, error_type: str, message: str, details: dict[str, Any] | None = None
+    ) -> None:
         """Initialize provider configuration error.
 
         Args:
@@ -344,7 +361,9 @@ class ProviderConfigError(BaseCustomError):
 class QuestionGenerationError(BaseCustomError):
     """Exception raised for failures in the question generation process."""
 
-    def __init__(self, collection_id: str, error_type: str, message: str, details: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self, collection_id: str, error_type: str, message: str, details: dict[str, Any] | None = None
+    ) -> None:
         """Initialize question generation error.
 
         Args:
@@ -380,7 +399,9 @@ class EmptyDocumentError(BaseCustomError):
 class CollectionProcessingError(BaseCustomError):
     """Exception raised for general collection processing failures."""
 
-    def __init__(self, collection_id: str, stage: str, error_type: str, message: str, details: dict[str, Any] | None = None) -> None:
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+        self, collection_id: str, stage: str, error_type: str, message: str, details: dict[str, Any] | None = None
+    ) -> None:
         """Initialize collection processing error.
 
         Args:
@@ -417,7 +438,9 @@ class ModelValidationError(ValidationError):
     including Pydantic validation failures for model schemas.
     """
 
-    def __init__(self, field: str, message: str, value: Any | None = None, details: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self, field: str, message: str, value: Any | None = None, details: dict[str, Any] | None = None
+    ) -> None:
         """Initialize model validation error.
 
         Args:
@@ -426,7 +449,9 @@ class ModelValidationError(ValidationError):
             value: Optional invalid value that caused the error
             details: Additional validation details
         """
-        super().__init__(message=message, field=field, value=value, details={"validation_type": "model", **(details or {})})
+        super().__init__(
+            message=message, field=field, value=value, details={"validation_type": "model", **(details or {})}
+        )
 
 
 class ModelConfigError(BaseCustomError):
@@ -437,7 +462,7 @@ class ModelConfigError(BaseCustomError):
     or incompatible model configurations.
     """
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         field: str,
         message: str,

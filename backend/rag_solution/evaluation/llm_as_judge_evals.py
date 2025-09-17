@@ -4,12 +4,13 @@ from typing import Any
 
 import json_repair
 import pydantic
+from core.logging_utils import get_logger
 from dotenv import find_dotenv, load_dotenv
 from ibm_watsonx_ai.foundation_models import ModelInference  # type: ignore[import-untyped]
 from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams  # type: ignore[import-untyped]
 from pydantic import BaseModel
+from vectordbs.utils.watsonx import generate_batch, generate_text, get_model
 
-from core.logging_utils import get_logger
 from rag_solution.evaluation.metrics import AnswerRelevance, AnswerSimilarity, ContextRelevance, Faithfulness
 from rag_solution.evaluation.prompts import (
     ANSWER_RELEVANCE_PROMPT_LLAMA3,
@@ -17,7 +18,6 @@ from rag_solution.evaluation.prompts import (
     CONTEXT_RELEVANCY_PROMPT_LLAMA3,
     FAITHFULNESS_PROMPT_LLAMA3,
 )
-from vectordbs.utils.watsonx import generate_batch, generate_text, get_model
 
 logger = get_logger(__name__)
 
@@ -31,7 +31,9 @@ BASE_LLM_PARAMETERS = {
 }
 
 
-def get_schema(pydantic_object: pydantic.BaseModel | type[pydantic.BaseModel], empty: bool = False, json_output: bool = False) -> str | dict:
+def get_schema(
+    pydantic_object: pydantic.BaseModel | type[pydantic.BaseModel], empty: bool = False, json_output: bool = False
+) -> str | dict:
     """Returns schema of the BaseModel"""
     if isinstance(pydantic_object, type):
         # Handle class type by getting schema directly
@@ -160,7 +162,10 @@ class BaseEvaluator:
             raise ValueError("prompt must be provided")
 
         all_outputs = []
-        prompts = [self.prompt.format(**{**prompt_inputs, "schema": get_schema(self.pydantic_model)}) for prompt_inputs in inputs]
+        prompts = [
+            self.prompt.format(**{**prompt_inputs, "schema": get_schema(self.pydantic_model)})
+            for prompt_inputs in inputs
+        ]
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         llm = init_llm(parameters=BASE_LLM_PARAMETERS)
@@ -265,7 +270,10 @@ class AnswerSimilarityEvaluator(BaseEvaluator):
     def batch_evaluate_answer_similarity(self, inputs: list[dict[str, str]]) -> list[Any]:
         """Batch evaluate answer similarity with convenient input format."""
         # Convert list of dicts to the format expected by base class
-        base_inputs = [{"question": item["question"], "answer": item["answer"], "reference_answer": item["reference_answer"]} for item in inputs]
+        base_inputs = [
+            {"question": item["question"], "answer": item["answer"], "reference_answer": item["reference_answer"]}
+            for item in inputs
+        ]
         return self.batch_evaluate(base_inputs)
 
 

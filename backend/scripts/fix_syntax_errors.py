@@ -21,7 +21,10 @@ def fix_syntax_errors(content: str) -> str:
     content = re.sub(r"from tests\.fixtures\.unit import mock_user_service, mock_collection_service\n", "", content)
 
     # Fix missing integration_settings import
-    if "integration_settings" in content and "from tests.fixtures.integration import integration_settings" not in content:
+    if (
+        "integration_settings" in content
+        and "from tests.fixtures.integration import integration_settings" not in content
+    ):
         lines = content.split("\n")
         import_end = 0
         for i, line in enumerate(lines):

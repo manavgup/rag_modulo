@@ -73,7 +73,9 @@ class BaseCommand:
         """
         return CommandResult(success=True, data=data, message=message)
 
-    def _create_error_result(self, message: str, error_code: str | None = None, data: dict[str, Any] | None = None) -> CommandResult:
+    def _create_error_result(
+        self, message: str, error_code: str | None = None, data: dict[str, Any] | None = None
+    ) -> CommandResult:
         """Create an error command result.
 
         Args:
@@ -101,3 +103,31 @@ class BaseCommand:
             return self._create_error_result(message=str(error), error_code=getattr(error, "error_code", None))
         else:
             return self._create_error_result(message=f"Unexpected error: {error!s}", error_code="UNEXPECTED_ERROR")
+
+    def _is_dry_run(self) -> bool:
+        """Check if dry-run mode is enabled.
+
+        Returns:
+            True if dry-run mode is enabled
+        """
+        return getattr(self.config, "dry_run", False) if self.config else False
+
+    def _create_dry_run_result(self, operation: str, data: dict[str, Any] | None = None) -> CommandResult:
+        """Create a dry-run result indicating what would be done.
+
+        Args:
+            operation: Description of the operation that would be performed
+            data: Optional data about what would be affected
+
+        Returns:
+            CommandResult indicating dry-run mode
+        """
+        message = f"[DRY RUN] Would {operation}"
+        if data:
+            message += f" - {data}"
+
+        return CommandResult(
+            success=True,
+            data={"dry_run": True, "operation": operation, "affected_data": data},
+            message=message,
+        )

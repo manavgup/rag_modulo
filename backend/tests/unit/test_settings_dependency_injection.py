@@ -111,7 +111,7 @@ def test_no_import_time_settings_access():
         settings = get_settings()
         assert settings is not None
         # Should have default values
-        assert settings.rag_llm == "openai"
+        assert settings.rag_llm == "ibm/granite-3-3-8b-instruct"
 
     finally:
         # Restore original environment
@@ -135,7 +135,7 @@ def test_settings_validation_error_handling():
         settings = get_settings()
         # Should get default values
         assert settings.jwt_secret_key == "dev-secret-key-change-in-production-f8a7b2c1"
-        assert settings.rag_llm == "openai"
+        assert settings.rag_llm == "ibm/granite-3-3-8b-instruct"
 
 
 @pytest.mark.unit
@@ -330,10 +330,9 @@ def test_fastapi_route_dependency_injection_pattern():
     """Test the recommended FastAPI route dependency injection pattern."""
     from typing import Annotated
 
+    from core.config import Settings, get_settings
     from fastapi import Depends, FastAPI
     from fastapi.testclient import TestClient
-
-    from core.config import Settings, get_settings
 
     app = FastAPI()
 
@@ -547,6 +546,7 @@ def test_vector_stores_no_module_level_settings_access():
 def test_data_ingestion_dependency_injection():
     """Test that data ingestion classes properly use dependency injection."""
     from core.config import get_settings
+
     from rag_solution.data_ingestion.ingestion import DocumentStore
     from rag_solution.data_ingestion.pdf_processor import PdfProcessor
 
@@ -658,7 +658,7 @@ def test_watsonx_utils_dependency_injection():
         result = get_embeddings("test text", mock_settings)
 
         mock_get_client.assert_called_once_with(mock_settings)
-        mock_embed_client.embed_documents.assert_called_once_with(texts=["test text"], concurrency_limit=10)
+        mock_embed_client.embed_documents.assert_called_once_with(texts=["test text"], concurrency_limit=8)
         assert result == [[0.1, 0.2, 0.3]]
 
 
@@ -666,6 +666,7 @@ def test_watsonx_utils_dependency_injection():
 def test_base_processor_class_requires_settings():
     """Test that BaseProcessor requires settings injection and processors inherit it."""
     from core.config import get_settings
+
     from rag_solution.data_ingestion.base_processor import BaseProcessor
     from rag_solution.data_ingestion.excel_processor import ExcelProcessor
     from rag_solution.data_ingestion.txt_processor import TxtProcessor

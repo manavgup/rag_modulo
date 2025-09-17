@@ -61,7 +61,9 @@ class DocumentMetadata(BaseModel):
 
     def to_json_dict(self) -> dict[str, Any]:
         """Convert to dictionary suitable for JSON storage."""
-        return {k: v.isoformat() if isinstance(v, datetime) else v for k, v in self.model_dump(exclude_none=True).items()}
+        return {
+            k: v.isoformat() if isinstance(v, datetime) else v for k, v in self.model_dump(exclude_none=True).items()
+        }
 
     @classmethod
     def from_json_dict(cls, data: dict[str, Any]) -> DocumentMetadata:

@@ -53,7 +53,9 @@ class TestCLIAPIConnectivity:
             # Health endpoint should return some status information
             assert isinstance(result, dict)
         except (requests.exceptions.ConnectionError, APIError) as e:
-            if (isinstance(e, APIError) and "Connection refused" in str(e)) or isinstance(e, requests.exceptions.ConnectionError):
+            if (isinstance(e, APIError) and "Connection refused" in str(e)) or isinstance(
+                e, requests.exceptions.ConnectionError
+            ):
                 pytest.skip("Backend API not running - integration test requires live backend")
             else:
                 raise
@@ -82,7 +84,9 @@ class TestCLIAPIConnectivity:
             assert response["auth_url"].startswith("http")
 
         except (requests.exceptions.ConnectionError, APIError) as e:
-            if (isinstance(e, APIError) and "Connection refused" in str(e)) or isinstance(e, requests.exceptions.ConnectionError):
+            if (isinstance(e, APIError) and "Connection refused" in str(e)) or isinstance(
+                e, requests.exceptions.ConnectionError
+            ):
                 pytest.skip("Backend API not running - integration test requires live backend")
             elif isinstance(e, APIError) and e.status_code == 404:
                 pytest.fail("CLI auth endpoints not implemented in backend")
@@ -100,7 +104,9 @@ class TestCLIAPIConnectivity:
                 collections_commands.list_collections()
 
         except (requests.exceptions.ConnectionError, APIError) as e:
-            if (isinstance(e, APIError) and "Connection refused" in str(e)) or isinstance(e, requests.exceptions.ConnectionError):
+            if (isinstance(e, APIError) and "Connection refused" in str(e)) or isinstance(
+                e, requests.exceptions.ConnectionError
+            ):
                 pytest.skip("Backend API not running - integration test requires live backend")
             else:
                 raise

@@ -4,10 +4,11 @@ This module implements CLI commands for authentication operations,
 including login, logout, and profile management.
 """
 
+import uuid
+import webbrowser
+from datetime import datetime, timedelta
 from getpass import getpass
 
-from rag_solution.cli.client import RAGAPIClient
-from rag_solution.cli.config import RAGConfig
 from rag_solution.cli.exceptions import AuthenticationError
 
 from .base import BaseCommand, CommandResult
@@ -20,14 +21,6 @@ class AuthCommands(BaseCommand):
     providing methods for login, logout, and status checking.
     """
 
-    def __init__(self, api_client: RAGAPIClient, config: RAGConfig | None = None) -> None:
-        """Initialize authentication commands.
-
-        Args:
-            api_client: HTTP API client instance
-            config: Optional configuration settings
-        """
-        super().__init__(api_client, config)
 
     def login(
         self,
@@ -69,20 +62,22 @@ class AuthCommands(BaseCommand):
             response = self.api_client.post("/api/auth/login", data={"username": username, "password": password})
 
             # Extract token and save it
-            if "access_token" in response:
-                token = response["access_token"]
-                expires_at = response.get("expires_at")
-
-                # Save token to auth manager
-                self.api_client.set_auth_token(token, expires_at)
-
-                return self._create_success_result(data={"username": username, "authenticated": True}, message=f"Successfully logged in as {username}")
-            else:
+            if "access_token" not in response:
                 return self._create_error_result(message="Login failed - no token received", error_code="LOGIN_FAILED")
+
+            token = response["access_token"]
+            expires_at = response.get("expires_at")
+
+            # Save token to auth manager
+            self.api_client.set_auth_token(token, expires_at)
+
+            return self._create_success_result(
+                data={"username": username, "authenticated": True}, message=f"Successfully logged in as {username}"
+            )
 
         except AuthenticationError as e:
             return self._create_error_result(message=f"Authentication failed: {e}", error_code="AUTH_FAILED")
-        except Exception as e:
+        except (ConnectionError, ValueError, TypeError) as e:
             return self._handle_api_error(e)
 
     def _handle_oidc_login(self, provider: str, username: str | None = None) -> CommandResult:
@@ -95,8 +90,6 @@ class AuthCommands(BaseCommand):
         Returns:
             CommandResult with authentication status
         """
-        import uuid
-        import webbrowser
 
         try:
             if provider != "ibm":
@@ -120,7 +113,7 @@ class AuthCommands(BaseCommand):
             start_response = self.api_client.post("/api/auth/cli/start", data=cli_request)
 
             auth_url = start_response["auth_url"]
-            start_response["state"]  # State handled by browser
+            # State handled by browser
 
             print("\nOpening your browser for authentication...")
             print(f"If the browser doesn't open, visit: {auth_url}")
@@ -135,7 +128,9 @@ class AuthCommands(BaseCommand):
             jwt_token = input("Enter the JWT token from the callback page: ").strip()
 
             if not jwt_token:
-                return self._create_error_result(message="JWT token is required to complete authentication", error_code="MISSING_JWT_TOKEN")
+                return self._create_error_result(
+                    message="JWT token is required to complete authentication", error_code="MISSING_JWT_TOKEN"
+                )
 
             # Step 4: Validate the JWT token and get user info
             print("\nValidating JWT token...")
@@ -143,8 +138,8 @@ class AuthCommands(BaseCommand):
             # Set the token temporarily to validate it
             self.api_client.set_auth_token(jwt_token)
 
-            # Validate token by calling userinfo endpoint
-            user_response = self.api_client.get("/api/auth/userinfo")
+            # Validate token by calling me endpoint
+            user_response = self.api_client.get("/api/auth/me")
 
             # Step 5: Token is valid, user info retrieved
             access_token = jwt_token
@@ -165,8 +160,10 @@ class AuthCommands(BaseCommand):
 
         except AuthenticationError as e:
             return self._create_error_result(message=f"Authentication failed: {e}", error_code="AUTH_FAILED")
-        except Exception as e:
-            return self._create_error_result(message=f"Failed to complete OIDC authentication: {e}", error_code="OIDC_FAILED")
+        except (ConnectionError, ValueError, TypeError, AttributeError) as e:
+            return self._create_error_result(
+                message=f"Failed to complete OIDC authentication: {e}", error_code="OIDC_FAILED"
+            )
 
     def set_token(self, token: str, expires_in: int = 86400) -> CommandResult:
         """Set authentication token directly.
@@ -182,7 +179,6 @@ class AuthCommands(BaseCommand):
             CommandResult with status
         """
         try:
-            from datetime import datetime, timedelta
 
             # Calculate expiration
             expires_at = datetime.now() + timedelta(seconds=expires_in)
@@ -190,21 +186,21 @@ class AuthCommands(BaseCommand):
             # Save token
             self.api_client.set_auth_token(token, expires_at.isoformat())
 
-            # Verify token works by calling /api/auth/userinfo
+            # Verify token works by calling /api/auth/me
             try:
-                response = self.api_client.get("/api/auth/userinfo")
+                response = self.api_client.get("/api/auth/me")
                 username = response.get("email") or response.get("name") or "Unknown"
 
                 return self._create_success_result(
                     data={"username": username, "authenticated": True},
                     message=f"Token set successfully. Authenticated as {username}",
                 )
-            except Exception as e:
+            except (ConnectionError, ValueError, TypeError) as e:
                 # Token might be invalid
                 self.api_client.logout()  # Remove invalid token
                 return self._create_error_result(message=f"Token validation failed: {e}", error_code="INVALID_TOKEN")
 
-        except Exception as e:
+        except (ConnectionError, ValueError, TypeError) as e:
             return self._handle_api_error(e)
 
     def logout(self) -> CommandResult:
@@ -219,7 +215,7 @@ class AuthCommands(BaseCommand):
 
             return self._create_success_result(message="Successfully logged out")
 
-        except Exception as e:
+        except (ConnectionError, ValueError, TypeError) as e:
             return self._handle_api_error(e)
 
     def status(self) -> CommandResult:
@@ -235,14 +231,18 @@ class AuthCommands(BaseCommand):
                     response = self.api_client.get("/api/auth/me")
                     username = response.get("username", "Unknown")
 
-                    return self._create_success_result(data={"authenticated": True, "username": username}, message=f"Authenticated as {username}")
-                except Exception:
+                    return self._create_success_result(
+                        data={"authenticated": True, "username": username}, message=f"Authenticated as {username}"
+                    )
+                except (ConnectionError, ValueError, TypeError):
                     # Token might be expired or invalid
-                    return self._create_error_result(message="Authentication token is invalid or expired", error_code="TOKEN_INVALID")
+                    return self._create_error_result(
+                        message="Authentication token is invalid or expired", error_code="TOKEN_INVALID"
+                    )
             else:
                 return self._create_error_result(message="Not authenticated", error_code="NOT_AUTHENTICATED")
 
-        except Exception as e:
+        except (ConnectionError, ValueError, TypeError) as e:
             return self._handle_api_error(e)
 
     def list_profiles(self) -> CommandResult:

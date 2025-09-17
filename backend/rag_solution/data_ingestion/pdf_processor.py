@@ -1,3 +1,9 @@
+"""PDF document processor.
+
+This module provides comprehensive functionality for processing PDF documents,
+including text extraction, table detection, image extraction, and chunking.
+"""
+
 import concurrent.futures
 import hashlib
 import logging
@@ -11,19 +17,27 @@ from multiprocessing.managers import SyncManager
 from typing import Any
 
 import pymupdf  # type: ignore[import-untyped]
-
 from core.config import Settings, get_settings
 from core.custom_exceptions import DocumentProcessingError
+from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, DocumentMetadata, Embeddings, Source
+from vectordbs.utils.watsonx import get_embeddings, get_wx_embeddings_client, sublist
+
 from rag_solution.data_ingestion.base_processor import BaseProcessor
 from rag_solution.data_ingestion.chunking import get_chunking_method
 from rag_solution.doc_utils import clean_text
-from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, DocumentMetadata, Embeddings, Source
-from vectordbs.utils.watsonx import get_embeddings, get_wx_embeddings_client, sublist
 
 logger = logging.getLogger(__name__)
 
 
 class PdfProcessor(BaseProcessor):
+    """PDF document processor with advanced extraction capabilities.
+    
+    This processor handles PDF documents with support for:
+    - Text extraction with formatting preservation
+    - Table detection and extraction
+    - Image extraction and deduplication
+    - Semantic chunking with embeddings
+    """
     def __init__(self, manager: SyncManager | None = None, settings: Settings = get_settings()) -> None:
         super().__init__(settings)
         if manager is None:
@@ -31,8 +45,17 @@ class PdfProcessor(BaseProcessor):
         self.saved_image_hashes = set(manager.list())
 
     async def process(self, file_path: str, document_id: str) -> AsyncIterator[Document]:
-        logger.info(f"PdfProcessor: Attempting to process file: {file_path}")
-        logger.info(f"File exists: {os.path.exists(file_path)}")
+        """Process PDF document and yield Document objects.
+        
+        Args:
+            file_path: Path to the PDF file
+            document_id: Unique identifier for the document
+            
+        Yields:
+            Document objects with extracted content
+        """
+        logger.info("PdfProcessor: Attempting to process file: %s", file_path)
+        logger.info("File exists: %s", os.path.exists(file_path))
         # logger.info(f"Current working directory: {os.getcwd()}")
         # logger.info(f"Directory contents: {os.listdir(os.path.dirname(file_path))}")
 
@@ -43,12 +66,15 @@ class PdfProcessor(BaseProcessor):
         try:
             with pymupdf.open(file_path) as doc:
                 metadata: DocumentMetadata = self.extract_metadata(file_path)
-                logger.info(f"Extracted metadata from {file_path}: {metadata}")
+                logger.info("Extracted metadata from %s: %s", file_path, metadata)
 
                 total_chunks = 0
 
                 with concurrent.futures.ThreadPoolExecutor(max_workers=multiprocessing.cpu_count()) as executor:
-                    futures = [executor.submit(self.process_page, page_num, file_path, output_folder, document_id) for page_num in range(len(doc))]
+                    futures = [
+                        executor.submit(self.process_page, page_num, file_path, output_folder, document_id)
+                        for page_num in range(len(doc))
+                    ]
 
                     for future in concurrent.futures.as_completed(futures):
                         page_num = futures.index(future)
@@ -66,12 +92,27 @@ class PdfProcessor(BaseProcessor):
                                     metadata=metadata,
                                 )
                         except Exception as e:
-                            logger.error(f"Error processing page {page_num} of {file_path}: {e}", exc_info=True)
+                            logger.error("Error processing page %d of %s: %s", page_num, file_path, e, exc_info=True)
         except Exception as e:
-            logger.error(f"Error reading PDF file {file_path}: {e}", exc_info=True)
-            raise DocumentProcessingError(doc_id=file_path, error_type="DocumentProcessingError", message=f"Error processing PDF file {file_path}") from e
+            logger.error("Error reading PDF file %s: %s", file_path, e, exc_info=True)
+            raise DocumentProcessingError(
+                doc_id=file_path, error_type="DocumentProcessingError", message=f"Error processing PDF file {file_path}"
+            ) from e
 
-    def process_page(self, page_number: int, file_path: str, output_folder: str, document_id: str) -> list[DocumentChunk]:
+    def process_page(
+        self, page_number: int, file_path: str, output_folder: str, document_id: str
+    ) -> list[DocumentChunk]:
+        """Process a single PDF page and extract chunks.
+        
+        Args:
+            page_number: Page number to process
+            file_path: Path to the PDF file
+            output_folder: Folder for extracted images
+            document_id: Document identifier
+            
+        Returns:
+            List of document chunks from the page
+        """
         chunks: list[DocumentChunk] = []
         chunking_method = get_chunking_method()
         chunk_counter = 0  # Initialize counter at start of page
@@ -81,7 +122,7 @@ class PdfProcessor(BaseProcessor):
                 page: pymupdf.Page = doc.load_page(page_number)
                 # Check if the page contains text
                 if not page.get_text("text"):
-                    logger.warning(f"Skipping page {page.number + 1}: not a text page.")
+                    logger.warning("Skipping page %d: not a text page.", page.number + 1)
                     return chunks
 
                 page_content: list[dict[str, Any]] = self.extract_text_from_page(page)
@@ -111,7 +152,9 @@ class PdfProcessor(BaseProcessor):
                             "table_index": 0,  # Not a table
                             "image_index": 0,  # Not an image
                         }
-                        chunks.append(self.create_document_chunk(chunk_text, chunk_embeddings[ix], chunk_metadata, document_id))
+                        chunks.append(
+                            self.create_document_chunk(chunk_text, chunk_embeddings[ix], chunk_metadata, document_id)
+                        )
                         chunk_counter += 1
 
                 # Process tables
@@ -129,7 +172,9 @@ class PdfProcessor(BaseProcessor):
                                 "table_index": table_index,
                                 "image_index": 0,  # Not an image
                             }
-                            chunks.append(self.create_document_chunk(table_chunk, table_embedding[0], chunk_metadata, document_id))
+                            chunks.append(
+                                self.create_document_chunk(table_chunk, table_embedding[0], chunk_metadata, document_id)
+                            )
                             chunk_counter += 1
 
                 # Process images
@@ -145,14 +190,29 @@ class PdfProcessor(BaseProcessor):
                     }
                     image_text = f"Image: {img}"
                     image_embedding = get_embeddings(texts=image_text, embed_client=embed_client)
-                    chunks.append(self.create_document_chunk(image_text, image_embedding[0], chunk_metadata, document_id))
+                    chunks.append(
+                        self.create_document_chunk(image_text, image_embedding[0], chunk_metadata, document_id)
+                    )
                     chunk_counter += 1
 
         except Exception as e:
-            logger.error(f"Error processing page {page_number} of {file_path}: {e}", exc_info=True)
+            logger.error("Error processing page %d of %s: %s", page_number, file_path, e, exc_info=True)
         return chunks
 
-    def create_document_chunk(self, chunk_text: str, chunk_embedding: Embeddings, metadata: dict[str, Any], document_id: str) -> DocumentChunk:
+    def create_document_chunk(
+        self, chunk_text: str, chunk_embedding: Embeddings, metadata: dict[str, Any], document_id: str
+    ) -> DocumentChunk:
+        """Create a document chunk with embeddings.
+        
+        Args:
+            chunk_text: Text content of the chunk
+            chunk_embedding: Embedding vector for the chunk
+            metadata: Chunk metadata
+            document_id: Document identifier
+            
+        Returns:
+            DocumentChunk object
+        """
         chunk_id = str(uuid.uuid4())
         return DocumentChunk(
             chunk_id=chunk_id,
@@ -163,6 +223,14 @@ class PdfProcessor(BaseProcessor):
         )
 
     def extract_text_from_page(self, page: pymupdf.Page) -> list[dict[str, Any]]:
+        """Extract text blocks from a PDF page.
+        
+        Args:
+            page: PyMuPDF page object
+            
+        Returns:
+            List of text blocks with formatting information
+        """
         try:
             blocks: list[dict[str, Any]] = page.get_text("dict")["blocks"]
             page_text: list[dict[str, Any]] = []
@@ -201,17 +269,25 @@ class PdfProcessor(BaseProcessor):
 
             return page_text
         except Exception as e:
-            logger.error(f"Error extracting text from page {page.number}: {e}", exc_info=True)
+            logger.error("Error extracting text from page %d: %s", page.number, e, exc_info=True)
             return []
 
     def extract_tables_from_page(self, page: pymupdf.Page) -> list[list[list[str]]]:
+        """Extract tables from a PDF page using multiple methods.
+        
+        Args:
+            page: PyMuPDF page object
+            
+        Returns:
+            List of extracted tables
+        """
         tables: list[list[list[str]]] = []
 
         try:
             # First check if the page has any text content at all
             page_text = page.get_text("text").strip()
             if not page_text:
-                logger.warning(f"Skipping page {page.number + 1}: no text content found.")
+                logger.warning("Skipping page %d: no text content found.", page.number + 1)
                 return tables
 
             # Method 1: Use PyMuPDF's built-in table extraction with proper exception handling
@@ -219,19 +295,24 @@ class PdfProcessor(BaseProcessor):
                 built_in_tables = page.find_tables()
                 for table in built_in_tables:
                     extracted_table = table.extract()
-                    cleaned_table: list[list[str]] = [[clean_text(cell) if cell is not None else "" for cell in row] for row in extracted_table]
+                    cleaned_table: list[list[str]] = [
+                        [clean_text(cell) if cell is not None else "" for cell in row] for row in extracted_table
+                    ]
                     if any(cell for row in cleaned_table for cell in row):  # Only add non-empty tables
                         tables.append(cleaned_table)
                 if tables:
-                    logger.info(f"Successfully extracted {len(tables)} tables using PyMuPDF's built-in method")
+                    logger.info("Successfully extracted %d tables using PyMuPDF's built-in method", len(tables))
                     return tables
             except ValueError as ve:
                 if "not a textpage of this page" in str(ve):
-                    logger.info(f"Page {page.number + 1} doesn't support textpage extraction, falling back to alternative methods")
+                    logger.info(
+                        "Page %d doesn't support textpage extraction, falling back to alternative methods",
+                        page.number + 1
+                    )
                 else:
-                    logger.warning(f"Unexpected ValueError during table extraction on page {page.number + 1}: {ve}")
+                    logger.warning("Unexpected ValueError during table extraction on page %d: %s", page.number + 1, ve)
             except Exception as e:
-                logger.warning(f"Error during built-in table extraction on page {page.number + 1}: {e}")
+                logger.warning("Error during built-in table extraction on page %d: %s", page.number + 1, e)
 
             # Method 2: Use text blocks to identify potential tables
             try:
@@ -269,8 +350,14 @@ class PdfProcessor(BaseProcessor):
                                 current_y_position = block_y
 
                         # If we haven't started a new row, add to the current row
-                        if current_y_position is not None and abs(block_y - current_y_position) <= tolerance and potential_table:
-                            potential_table[-1].extend(cell.strip() for cell in re.split(r"\s{3,}", block["content"].strip()))
+                        if (
+                            current_y_position is not None
+                            and abs(block_y - current_y_position) <= tolerance
+                            and potential_table
+                        ):
+                            potential_table[-1].extend(
+                                cell.strip() for cell in re.split(r"\s{3,}", block["content"].strip())
+                            )
 
                 # Add the last table if it meets our criteria
                 if len(potential_table) > 1 and all(len(row) > 1 for row in potential_table):
@@ -278,7 +365,7 @@ class PdfProcessor(BaseProcessor):
                     logger.info("Successfully extracted table using text block analysis")
                     return tables
             except Exception as e:
-                logger.warning(f"Error during text block table extraction on page {page.number + 1}: {e}")
+                logger.warning("Error during text block table extraction on page %d: %s", page.number + 1, e)
 
             # Method 3: Look for grid-like structures
             try:
@@ -324,16 +411,16 @@ class PdfProcessor(BaseProcessor):
                         logger.info("Successfully extracted table using grid analysis")
                         return tables
             except Exception as e:
-                logger.warning(f"Error during grid-based table extraction on page {page.number + 1}: {e}")
+                logger.warning("Error during grid-based table extraction on page %d: %s", page.number + 1, e)
 
             # Log if no tables were found by any method
             if not tables:
-                logger.info(f"No tables found on page {page.number + 1} using any extraction method")
+                logger.info("No tables found on page %d using any extraction method", page.number + 1)
 
             return tables
 
         except Exception as e:
-            logger.error(f"Error in table extraction process for page {page.number + 1}: {e}", exc_info=True)
+            logger.error("Error in table extraction process for page %d: %s", page.number + 1, e, exc_info=True)
             return tables
 
     def _is_likely_table(self, table: list[list[str]]) -> bool:
@@ -363,6 +450,15 @@ class PdfProcessor(BaseProcessor):
         return non_empty_cells / total_cells >= 0.25  # At least 25% of cells should have content
 
     def extract_images_from_page(self, page: pymupdf.Page, output_folder: str) -> list[str]:
+        """Extract images from a PDF page.
+        
+        Args:
+            page: PyMuPDF page object
+            output_folder: Directory to save extracted images
+            
+        Returns:
+            List of paths to extracted images
+        """
         images: list[str] = []
 
         try:
@@ -378,21 +474,23 @@ class PdfProcessor(BaseProcessor):
 
                         if image_hash not in self.saved_image_hashes:
                             image_extension: str = base_image["ext"]
-                            image_filename: str = f"{output_folder}/image_{page.number + 1}_{img_index}.{image_extension}"
+                            image_filename: str = (
+                                f"{output_folder}/image_{page.number + 1}_{img_index}.{image_extension}"
+                            )
                             with open(image_filename, "wb") as img_file:
                                 img_file.write(image_bytes)
                             images.append(image_filename)
                             self.saved_image_hashes.add(image_hash)
-                            logger.info(f"Saved new image: {image_filename}")
+                            logger.info("Saved new image: %s", image_filename)
                         else:
-                            logger.info(f"Skipped duplicate image on page {page.number + 1}, image index {img_index}")
+                            logger.info("Skipped duplicate image on page %d, image index %d", page.number + 1, img_index)
                     else:
-                        logger.warning(f"Failed to extract image {xref} from page {page.number + 1}")
+                        logger.warning("Failed to extract image %d from page %d", xref, page.number + 1)
                 except Exception as e:
-                    logger.error(f"Error extracting image {xref} from page {page.number + 1}: {e}")
+                    logger.error("Error extracting image %d from page %d: %s", xref, page.number + 1, e)
 
         except Exception as e:
-            logger.error(f"Error extracting images from page {page.number}: {e}", exc_info=True)
+            logger.error("Error extracting images from page %d: %s", page.number, e, exc_info=True)
 
         return images
 
@@ -451,5 +549,5 @@ class PdfProcessor(BaseProcessor):
                     total_chunks=None,  # Will be set during processing
                 )
         except Exception as e:
-            logger.error(f"Error extracting PDF metadata: {e}", exc_info=True)
+            logger.error("Error extracting PDF metadata: %s", e, exc_info=True)
             return super().extract_metadata(file_path)
