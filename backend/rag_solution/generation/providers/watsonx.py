@@ -85,21 +85,20 @@ class WatsonXLLM(LLMBase):
     def _get_model(self, user_id: UUID4, model_parameters: LLMParametersInput | None = None) -> ModelInference:
         """Get a configured model instance."""
         model_id = self._model_id or self._get_default_model_id()
+
+        # Get parameters BEFORE creating model (like direct test script)
+        params = self._get_generation_params(user_id, model_parameters)
+
         model = ModelInference(
             model_id=str(model_id),
             project_id=str(self._provider.project_id),
             credentials=Credentials(
                 api_key=self._provider.api_key.get_secret_value(), url=str(self._provider.base_url)
             ),
+            params=params,  # Pass params during initialization like direct test
         )
         model.set_api_client(api_client=self.client)
 
-        # Initialize params dictionary
-        model.params = {}
-
-        # Get and update parameters
-        params = self._get_generation_params(user_id, model_parameters)
-        model.params.update(params)
         logger.info(f"Model ID: {model_id}")
         logger.info(f"Model parameters: {model.params}")
         return model
@@ -150,8 +149,8 @@ class WatsonXLLM(LLMBase):
     ) -> str | list[str]:
         """Generate text using WatsonX model."""
         try:
-            logger.info(
-                f"user_id: {user_id}, prompt: {prompt}, model_parameters: {model_parameters}, template: {template}, variables: {variables}"
+            logger.debug(
+                f"Generating text for user {user_id} with {len(prompt) if isinstance(prompt, str) else len(prompt)} prompt(s)"
             )
             self._ensure_client()
             model = self._get_model(user_id, model_parameters)
@@ -169,14 +168,14 @@ class WatsonXLLM(LLMBase):
                         raise ValueError("Template is required for batch generation")
                     formatted = self.prompt_template_service.format_prompt_with_template(template, prompt_variables)
                     formatted_prompts.append(formatted)
-                    logger.debug(f"Formatted prompt*******: {formatted}")  # Log first 200 chars
+                    logger.debug(f"Formatted prompt: {formatted[:200]}...")  # Log first 200 chars
 
                 response = model.generate_text(
                     prompt=formatted_prompts,
                     concurrency_limit=8,  # Max concurrency limit
                 )
 
-                logger.debug(f"Response: {response}")
+                logger.debug(f"Response from IBM watsonx: {response}")
                 if isinstance(response, dict) and "results" in response:
                     return [r["generated_text"].strip() for r in response["results"]]
                 elif isinstance(response, list):
@@ -193,7 +192,7 @@ class WatsonXLLM(LLMBase):
                     prompt_variables.update(variables)
 
                 formatted_prompt = self.prompt_template_service.format_prompt_with_template(template, prompt_variables)
-                logger.debug(f"Formatted single prompt: {formatted_prompt}...")
+                logger.debug(f"Formatted single prompt: {formatted_prompt[:200]}...")
 
                 response = model.generate_text(prompt=formatted_prompt)
                 logger.debug(f"Response from model: {response}")

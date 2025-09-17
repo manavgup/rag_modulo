@@ -170,10 +170,11 @@ class SearchService:
         return doc_metadata
 
     def _clean_generated_answer(self, answer: str) -> str:
-        # Remove AND prefixes and deduplicate
-        cleaned = " ".join([part.replace("AND", "").strip() for part in answer.split() if part.strip()])
-        # Remove duplicate words
-        cleaned = " ".join(dict.fromkeys(cleaned.split()))
+        # Only remove obvious artifacts, preserve the natural text flow
+        cleaned = answer.strip()
+        # Remove any obvious "AND" prefixes that might come from query rewriting artifacts
+        if cleaned.startswith("AND "):
+            cleaned = cleaned[4:].strip()
         return cleaned
 
     def _validate_search_input(self, search_input: SearchInput) -> None:
