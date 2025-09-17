@@ -12,6 +12,7 @@ from typing import Any
 import jwt
 from authlib.integrations.starlette_client import OAuth, OAuthError  # type: ignore[import-untyped]
 from core.config import get_settings
+from core.mock_auth import is_mock_token
 from fastapi import HTTPException, Request, Response, status
 
 # Get settings safely for auth
@@ -59,8 +60,8 @@ else:
 def verify_jwt_token(token: str) -> dict[str, Any]:
     """Verify JWT token and return payload."""
     try:
-        # Special handling for test token
-        if token == "mock_token_for_testing":
+        # Special handling for mock tokens
+        if is_mock_token(token):
             return {
                 "sub": "test_user_id",
                 "email": "test@example.com",

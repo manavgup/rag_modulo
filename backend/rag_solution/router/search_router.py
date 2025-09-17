@@ -1,3 +1,10 @@
+"""Search router for RAG Modulo API.
+
+This module provides FastAPI router endpoints for search operations,
+including RAG (Retrieval-Augmented Generation) queries that combine
+document retrieval with LLM-based answer generation.
+"""
+
 from typing import Annotated
 
 from core.config import Settings, get_settings

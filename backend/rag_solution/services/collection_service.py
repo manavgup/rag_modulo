@@ -27,6 +27,7 @@ from vectordbs.factory import VectorStoreFactory
 from rag_solution.data_ingestion.document_processor import DocumentProcessor
 from rag_solution.repository.collection_repository import CollectionRepository
 from rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput, CollectionStatus
+from rag_solution.schemas.file_schema import FileOutput
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
 from rag_solution.schemas.prompt_template_schema import PromptTemplateOutput, PromptTemplateType
 from rag_solution.services.file_management_service import FileManagementService
@@ -211,27 +212,11 @@ class CollectionService:
             )
             collection = self.create_collection(collection_input)
 
-            # Upload the files and create file records in the database
-            document_ids = []
-            for file in files:
-                document_id = str(uuid4())  # create unique document ID
-                self.file_management_service.upload_and_create_file_record(file, user_id, collection.id, document_id)
-                document_ids.append(document_id)
-
-            # Update status to PROCESSING
-            self.update_collection_status(collection.id, CollectionStatus.PROCESSING)
-
-            # Get file paths
-            file_paths = [
-                str(self.file_management_service.get_file_path(collection.id, file.filename))
-                for file in files
-                if file.filename is not None
-            ]
-
-            # Process documents and generate questions as a background task
-            background_tasks.add_task(
-                self.process_documents, file_paths, collection.id, collection.vector_db_name, document_ids, user_id
+            # Use shared processing logic for file upload and processing
+            self._upload_files_and_trigger_processing(
+                files, user_id, collection.id, collection.vector_db_name, background_tasks
             )
+
             logger.info(f"Collection with documents created successfully: {collection.id}")
 
             return collection
@@ -472,6 +457,104 @@ class CollectionService:
                 error_type="unexpected_error",
                 message=str(e),
             ) from e
+
+    def _upload_files_and_trigger_processing(
+        self,
+        files: list[UploadFile],
+        user_id: UUID4,
+        collection_id: UUID4,
+        collection_vector_db_name: str,
+        background_tasks: BackgroundTasks,
+    ) -> list[FileOutput]:
+        """
+        Shared method to upload files and trigger document processing.
+
+        This method contains the common logic used by both create_collection_with_documents
+        and upload_file_and_process to ensure consistent behavior.
+
+        Args:
+            files: List of files to upload
+            user_id: User uploading the files
+            collection_id: Collection to add files to
+            collection_vector_db_name: Vector DB collection name
+            background_tasks: Background tasks for processing
+
+        Returns:
+            List of FileOutput objects for uploaded files
+        """
+        try:
+            # Upload files and create file records
+            file_records = []
+            document_ids = []
+            file_paths = []
+
+            for file in files:
+                # Create unique document ID
+                document_id = str(uuid4())
+                document_ids.append(document_id)
+
+                # Upload file and create file record
+                file_record = self.file_management_service.upload_and_create_file_record(
+                    file, user_id, collection_id, document_id
+                )
+                file_records.append(file_record)
+
+                # Get file path for processing
+                if file.filename is None:
+                    raise ValueError("File must have a filename")
+
+                file_path = str(self.file_management_service.get_file_path(collection_id, file.filename))
+                file_paths.append(file_path)
+
+            # Update collection status to PROCESSING
+            self.update_collection_status(collection_id, CollectionStatus.PROCESSING)
+
+            # Process documents and generate questions as a background task
+            background_tasks.add_task(
+                self.process_documents, file_paths, collection_id, collection_vector_db_name, document_ids, user_id
+            )
+
+            logger.info(f"Files uploaded and processing started for collection: {collection_id}")
+
+            return file_records
+
+        except Exception as e:
+            logger.error(f"Error in _upload_files_and_trigger_processing: {e!s}")
+            raise
+
+    def upload_file_and_process(
+        self,
+        file: UploadFile,
+        user_id: UUID4,
+        collection_id: UUID4,
+        background_tasks: BackgroundTasks,
+    ) -> FileOutput:
+        """
+        Upload a file to an existing collection and trigger document processing.
+
+        Args:
+            file: File to upload
+            user_id: User uploading the file
+            collection_id: Existing collection to add file to
+            background_tasks: Background tasks for processing
+
+        Returns:
+            FileOutput object for the uploaded file
+        """
+        try:
+            # Verify collection exists
+            collection = self.get_collection(collection_id)
+
+            # Use shared processing logic
+            file_records = self._upload_files_and_trigger_processing(
+                [file], user_id, collection_id, collection.vector_db_name, background_tasks
+            )
+
+            return file_records[0]
+
+        except Exception as e:
+            logger.error(f"Error in upload_file_and_process: {e!s}")
+            raise
 
     def update_collection_status(self, collection_id: UUID4, status: CollectionStatus) -> None:
         """Update the status of a collection."""

@@ -43,7 +43,7 @@ class PipelineCommands(BaseCommand):
         try:
             # Get current user if not specified
             if not user_id:
-                current_user = self.api_client.get("/api/users/me")
+                current_user = self.api_client.get("/api/auth/me")
                 user_id = current_user["id"]
 
             response = self.api_client.get(f"/api/users/{user_id}/pipelines")

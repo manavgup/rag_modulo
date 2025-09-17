@@ -43,16 +43,44 @@ class SearchCommands(BaseCommand):
         self._require_authentication()
 
         try:
-            data = {"collection_id": collection_id, "query": query, "max_chunks": max_chunks}
+            # Get current user to obtain user_id
+            try:
+                current_user = self.api_client.get("/api/auth/me")
+                user_id = current_user.get("uuid") or current_user.get("id")
+            except Exception:
+                # If we can't get current user, search won't work with current backend
+                return self._create_error_result(
+                    "Failed to get current user. Search requires authenticated user context."
+                )
 
-            if pipeline_id:
-                data["pipeline_id"] = pipeline_id
+            # Get user's default pipeline if not provided
+            if not pipeline_id:
+                try:
+                    pipelines = self.api_client.get(f"/api/users/{user_id}/pipelines")
+                    if pipelines and len(pipelines) > 0:
+                        # Find default or use first
+                        for p in pipelines:
+                            if p.get("is_default"):
+                                pipeline_id = p["id"]
+                                break
+                        if not pipeline_id:
+                            pipeline_id = pipelines[0]["id"]
+                except Exception:
+                    pass  # Will fail at search if no pipeline
 
-            response = self.api_client.post("/api/search/query", data=data)
+            if not pipeline_id:
+                return self._create_error_result("No pipeline found. User may not be properly initialized.")
 
-            # Add pipeline_id to response if it was used
-            if pipeline_id:
-                response["pipeline_id"] = pipeline_id
+            # Call the correct /api/search endpoint with SearchInput schema
+            data = {
+                "question": query,  # SearchInput uses "question" not "query"
+                "collection_id": collection_id,
+                "user_id": user_id,
+                "pipeline_id": pipeline_id,
+                "config_metadata": {"max_chunks": max_chunks},
+            }
+
+            response = self.api_client.post("/api/search", data=data)
 
             return self._create_success_result(data=response, message="Search completed successfully")
 

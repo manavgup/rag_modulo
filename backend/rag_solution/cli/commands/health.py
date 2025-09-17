@@ -33,7 +33,7 @@ class HealthCommands(BaseCommand):
             CommandResult with system health status
         """
         try:
-            response = self.api_client.get("/health")
+            response = self.api_client.get("/api/health")
 
             status = response.get("status", "unknown")
             message = f"System status: {status}"

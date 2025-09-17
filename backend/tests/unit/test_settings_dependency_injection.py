@@ -111,7 +111,7 @@ def test_no_import_time_settings_access():
         settings = get_settings()
         assert settings is not None
         # Should have default values
-        assert settings.rag_llm == "openai"
+        assert settings.rag_llm == "ibm/granite-3-3-8b-instruct"
 
     finally:
         # Restore original environment
@@ -135,7 +135,7 @@ def test_settings_validation_error_handling():
         settings = get_settings()
         # Should get default values
         assert settings.jwt_secret_key == "dev-secret-key-change-in-production-f8a7b2c1"
-        assert settings.rag_llm == "openai"
+        assert settings.rag_llm == "ibm/granite-3-3-8b-instruct"
 
 
 @pytest.mark.unit
@@ -658,7 +658,7 @@ def test_watsonx_utils_dependency_injection():
         result = get_embeddings("test text", mock_settings)
 
         mock_get_client.assert_called_once_with(mock_settings)
-        mock_embed_client.embed_documents.assert_called_once_with(texts=["test text"], concurrency_limit=10)
+        mock_embed_client.embed_documents.assert_called_once_with(texts=["test text"], concurrency_limit=8)
         assert result == [[0.1, 0.2, 0.3]]
 
 

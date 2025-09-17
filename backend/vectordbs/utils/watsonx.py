@@ -156,7 +156,7 @@ def get_embeddings(
     try:
         # WatsonX embed_documents returns list[list[float]] but mypy sees it as Any
         # We know the actual return type from the library documentation
-        embedding_vectors = embed_client.embed_documents(texts=texts, concurrency_limit=10)
+        embedding_vectors = embed_client.embed_documents(texts=texts, concurrency_limit=8)
         # Explicitly type the result as EmbeddingsList
         result: EmbeddingsList = embedding_vectors
         return result

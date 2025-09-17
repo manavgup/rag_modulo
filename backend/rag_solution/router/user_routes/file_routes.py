@@ -4,7 +4,7 @@ import logging
 from typing import Annotated
 
 from core.config import Settings, get_settings
-from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
@@ -12,6 +12,7 @@ from rag_solution.core.dependencies import verify_user_access
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.file_schema import FileOutput
 from rag_solution.schemas.user_schema import UserOutput
+from rag_solution.services.collection_service import CollectionService
 from rag_solution.services.file_management_service import FileManagementService
 
 logger = logging.getLogger(__name__)
@@ -20,7 +21,7 @@ router = APIRouter()
 
 
 @router.post(
-    "/files",
+    "/{user_id}/files",
     response_model=FileOutput,
     summary="Upload a file",
     description="Upload a file to a user's collection",
@@ -34,22 +35,23 @@ router = APIRouter()
 async def upload_file(
     user_id: UUID4,
     file: UploadFile,
+    collection_id: UUID4,
     db: Annotated[Session, Depends(get_db)],
     user: Annotated[UserOutput, Depends(verify_user_access)],
     settings: Annotated[Settings, Depends(get_settings)],
-    collection_id: UUID4 | None = None,
+    background_tasks: BackgroundTasks,
 ) -> FileOutput:
-    """Upload a file to a user's collection."""
-    service = FileManagementService(db, settings)
+    """Upload a file to a user's collection and trigger document processing."""
+    collection_service = CollectionService(db, settings)
     try:
-        # Upload file and create file record
-        return service.upload_and_create_file_record(file, user_id, collection_id or user_id, str(user_id))
+        # Use the service method that handles both upload and processing
+        return collection_service.upload_file_and_process(file, user_id, collection_id, background_tasks)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to upload file: {e!s}") from e
 
 
 @router.delete(
-    "/files/{file_id}",
+    "/{user_id}/files/{file_id}",
     response_model=bool,
     summary="Delete a file",
     description="Delete a file from a user's collection",

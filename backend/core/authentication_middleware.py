@@ -17,7 +17,7 @@ from sqlalchemy.orm import sessionmaker
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from core.config import get_settings
-from core.mock_user_init import ensure_mock_user_exists
+from core.mock_auth import create_mock_user_data, ensure_mock_user_exists, is_bypass_mode_active, is_mock_token
 
 # Get settings safely for middleware
 settings = get_settings()
@@ -63,14 +63,15 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             "/api/auth/device/poll",  # Device flow polling
             "/api/auth/cli/start",  # CLI authentication initiation
             "/api/auth/cli/token",  # CLI token exchange
-            "/api/docs",
-            "/api/openapi.json",
-            "/api/redoc",
-            "/api/docs/oauth2-redirect",
-            "/api/docs/swagger-ui.css",
-            "/api/docs/swagger-ui-bundle.js",
-            "/api/docs/swagger-ui-standalone-preset.js",
-            "/api/docs/favicon.png",
+            # API Documentation endpoints (unprotected for developer experience)
+            "/docs",
+            "/openapi.json",
+            "/redoc",
+            "/docs/oauth2-redirect",
+            "/docs/swagger-ui.css",
+            "/docs/swagger-ui-bundle.js",
+            "/docs/swagger-ui-standalone-preset.js",
+            "/docs/favicon.png",
         }
 
     def _is_bypass_mode_active(self) -> bool:
@@ -79,10 +80,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         Returns:
             True if authentication should be bypassed.
         """
-        skip_auth = os.getenv("SKIP_AUTH", "false").lower() == "true"
-        development_mode = os.getenv("DEVELOPMENT_MODE", "false").lower() == "true"
-        testing_mode = os.getenv("TESTING", "false").lower() == "true"
-        return skip_auth or development_mode or testing_mode
+        return is_bypass_mode_active()
 
     def _create_mock_user_session(self) -> str | None:
         """Create a database session and ensure mock user exists.
@@ -109,9 +107,9 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             user_uuid = str(actual_user_id)
 
             session.close()
-            logger.debug("AuthMiddleware: Mock user ready with ID: %s", user_uuid)
+            logger.info("AuthMiddleware: Mock user ready with ID: %s", user_uuid)
             return user_uuid
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, ConnectionError) as e:
             logger.warning("AuthMiddleware: Could not ensure mock user initialization: %s", e)
             return None
 
@@ -122,13 +120,10 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             request: The FastAPI request object.
             user_uuid: The user UUID to set.
         """
-        request.state.user = {
-            "id": "test_user_id",
-            "email": "test@example.com",
-            "name": "Test User",
-            "uuid": user_uuid,
-            "role": request.headers.get("X-User-Role", "admin"),
-        }
+        mock_data = create_mock_user_data(user_uuid)
+        # Allow role override via header for testing
+        mock_data["role"] = request.headers.get("X-User-Role", mock_data["role"])
+        request.state.user = mock_data
 
     def _handle_bypass_mode(self, request: Request) -> bool:
         """Handle authentication bypass mode.
@@ -147,11 +142,17 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         )
 
         # Get or create mock user with full initialization
-        user_uuid = request.headers.get("X-User-UUID", "9bae4a21-718b-4c8b-bdd2-22857779a85b")
-
         mock_user_uuid = self._create_mock_user_session()
         if mock_user_uuid:
             user_uuid = mock_user_uuid
+            logger.info("AuthMiddleware: Using created mock user UUID: %s", user_uuid)
+        else:
+            # If mock user creation fails, use header UUID or fail gracefully
+            user_uuid = request.headers.get("X-User-UUID")
+            if not user_uuid:
+                logger.error("AuthMiddleware: Failed to create mock user and no X-User-UUID header provided")
+                return False
+            logger.warning("AuthMiddleware: Failed to create mock user, using header UUID: %s", user_uuid)
 
         self._set_mock_user_state(request, user_uuid)
         return True
@@ -173,7 +174,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             return True
         return False
 
-    def _handle_mock_token(self, request: Request, token: str) -> bool:  # noqa: ARG002
+    def _handle_mock_token(self, request: Request, token: str) -> bool:  # pylint: disable=unused-argument
         """Handle mock token authentication.
 
         Args:
@@ -186,11 +187,17 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         logger.info("AuthMiddleware: Detected mock token")
 
         # Get or create mock user with full initialization
-        user_uuid = request.headers.get("X-User-UUID", "9bae4a21-718b-4c8b-bdd2-22857779a85b")
-
         mock_user_uuid = self._create_mock_user_session()
         if mock_user_uuid:
             user_uuid = mock_user_uuid
+            logger.info("AuthMiddleware: Using created mock user UUID: %s", user_uuid)
+        else:
+            # If mock user creation fails, use header UUID or fail gracefully
+            user_uuid = request.headers.get("X-User-UUID")
+            if not user_uuid:
+                logger.error("AuthMiddleware: Failed to create mock user and no X-User-UUID header provided")
+                return False
+            logger.warning("AuthMiddleware: Failed to create mock user, using header UUID: %s", user_uuid)
 
         self._set_mock_user_state(request, user_uuid)
         logger.info("AuthMiddleware: Using mock test token")
@@ -207,8 +214,8 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             True if JWT token was handled successfully.
         """
         try:
-            # Special handling for test token
-            if token == "mock_token_for_testing" or token.startswith("mock_token_"):
+            # Check if this is a mock token using centralized function
+            if is_mock_token(token):
                 return self._handle_mock_token(request, token)
 
             # Verify JWT using the verify_jwt_token function

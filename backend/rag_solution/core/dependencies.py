@@ -21,7 +21,9 @@ from rag_solution.services.pipeline_service import PipelineService
 from rag_solution.services.question_service import QuestionService
 from rag_solution.services.search_service import SearchService
 from rag_solution.services.team_service import TeamService
+from rag_solution.services.user_collection_service import UserCollectionService
 from rag_solution.services.user_service import UserService
+from rag_solution.services.user_team_service import UserTeamService
 
 
 def get_current_user(request: Request) -> dict[Any, Any]:
@@ -128,8 +130,6 @@ def verify_collection_access(
         raise HTTPException(status_code=403, detail="Not authorized")
 
     # Check collection ownership (implement based on your business logic)
-    from rag_solution.services.user_collection_service import UserCollectionService
-
     user_collection_service = UserCollectionService(db)
 
     try:
@@ -171,8 +171,6 @@ def verify_team_access(
         raise HTTPException(status_code=403, detail="Not authorized")
 
     # Check team membership
-    from rag_solution.services.user_team_service import UserTeamService
-
     user_team_service = UserTeamService(db)
 
     try:
@@ -202,22 +200,16 @@ def get_file_service(
     db: Session = Depends(get_db), settings: Settings = Depends(get_settings)
 ) -> FileManagementService:
     """Get FileManagementService instance with proper dependency injection."""
-    from rag_solution.services.file_management_service import FileManagementService
-
     return FileManagementService(db, settings)
 
 
 def get_team_service(db: Session = Depends(get_db)) -> TeamService:
     """Get TeamService instance."""
-    from rag_solution.services.team_service import TeamService
-
     return TeamService(db)
 
 
 def get_pipeline_service(db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> PipelineService:
     """Get PipelineService instance with proper dependency injection."""
-    from rag_solution.services.pipeline_service import PipelineService
-
     return PipelineService(db, settings)
 
 
@@ -225,20 +217,14 @@ def get_llm_provider_service(
     db: Session = Depends(get_db), _settings: Settings = Depends(get_settings)
 ) -> LLMProviderService:
     """Get LLMProviderService instance."""
-    from rag_solution.services.llm_provider_service import LLMProviderService
-
     return LLMProviderService(db)
 
 
 def get_question_service(db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> QuestionService:
     """Get QuestionService instance with proper dependency injection."""
-    from rag_solution.services.question_service import QuestionService
-
     return QuestionService(db, settings)
 
 
 def get_search_service(db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> SearchService:
     """Get SearchService instance with proper dependency injection."""
-    from rag_solution.services.search_service import SearchService
-
     return SearchService(db, settings)

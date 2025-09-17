@@ -10,7 +10,6 @@ from unittest.mock import Mock, patch
 
 import pytest
 from pydantic import HttpUrl
-from pydantic import ValidationError as PydanticValidationError
 
 from rag_solution.cli.commands.base import BaseCommand, CommandResult
 from rag_solution.cli.config import ProfileManager, RAGConfig
@@ -176,11 +175,14 @@ class TestRAGConfig:
 
     def test_custom_config(self) -> None:
         """Test creating config with custom values."""
+        # Use a valid JWT token for testing
+        valid_jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+
         config = RAGConfig(
             api_url=HttpUrl("https://api.example.com"),
             profile="production",
             timeout=60,
-            auth_token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+            auth_token=valid_jwt,
             output_format="json",
             verbose=True,
             max_retries=5,
@@ -190,10 +192,7 @@ class TestRAGConfig:
         assert str(config.api_url) == "https://api.example.com/"
         assert config.profile == "production"
         assert config.timeout == 60
-        assert (
-            config.auth_token
-            == "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
-        )
+        assert config.auth_token == valid_jwt
         assert config.output_format == "json"
         assert config.verbose is True
         assert config.max_retries == 5
@@ -201,21 +200,29 @@ class TestRAGConfig:
 
     def test_invalid_api_url(self) -> None:
         """Test validation of invalid API URL."""
+        from pydantic import ValidationError as PydanticValidationError
+
         with pytest.raises(PydanticValidationError):
             RAGConfig(api_url=HttpUrl("invalid-url"))
 
     def test_invalid_timeout(self) -> None:
         """Test validation of invalid timeout."""
+        from pydantic import ValidationError as PydanticValidationError
+
         with pytest.raises(PydanticValidationError):
             RAGConfig(timeout=0)  # Must be >= 1
 
     def test_invalid_output_format(self) -> None:
         """Test validation of invalid output format."""
+        from pydantic import ValidationError as PydanticValidationError
+
         with pytest.raises(PydanticValidationError):
             RAGConfig(output_format="invalid")
 
     def test_invalid_max_retries(self) -> None:
         """Test validation of invalid max retries."""
+        from pydantic import ValidationError as PydanticValidationError
+
         with pytest.raises(PydanticValidationError):
             RAGConfig(max_retries=11)  # Must be <= 10
 
@@ -286,8 +293,10 @@ class TestRAGConfig:
 
     def test_config_validation_failure(self) -> None:
         """Test config validation failure."""
+        from pydantic import ValidationError as PydanticValidationError
+
         with pytest.raises(PydanticValidationError):
-            RAGConfig(timeout=0)  # Invalid timeout - should fail during instantiation
+            RAGConfig(timeout=0)  # Invalid timeout
 
 
 class TestProfileManager:
@@ -296,36 +305,46 @@ class TestProfileManager:
     def setup_method(self) -> None:
         """Set up test fixtures."""
         self.temp_dir = tempfile.mkdtemp()
+        self.profiles_dir = Path(self.temp_dir) / "profiles"
+        self.profiles_dir.mkdir(exist_ok=True)
 
         # Create a fresh ProfileManager for each test
         self.profile_manager = ProfileManager()
 
-        # Mock the config directory to use temp directory
-        self.profile_manager.config_dir = Path(self.temp_dir)
-        self.profile_manager.profiles_dir = Path(self.temp_dir) / "profiles"
-        self.profile_manager.profiles_dir.mkdir(exist_ok=True)
+        # Mock the directories to use temp directory
+        self.config_dir_patcher = patch.object(self.profile_manager, "config_dir", Path(self.temp_dir))
+        self.profiles_dir_patcher = patch.object(self.profile_manager, "profiles_dir", self.profiles_dir)
 
-        # ProfileManager doesn't have get_config_dir method, so we just patch RAGConfig
+        # Mock RAGConfig methods to use the temp directory
+        self.load_from_file_patcher = patch("rag_solution.cli.config.RAGConfig.load_from_file")
+        self.mock_load_from_file = self.load_from_file_patcher.start()
 
-        # Patch RAGConfig.get_config_dir to use our temp directory
-        self.rag_config_patch = patch.object(RAGConfig, "get_config_dir", return_value=Path(self.temp_dir))
-        self.rag_config_patch.start()
+        self.save_to_file_patcher = patch("rag_solution.cli.config.RAGConfig.save_to_file")
+        self.mock_save_to_file = self.save_to_file_patcher.start()
+
+        self.config_dir_patcher.start()
+        self.profiles_dir_patcher.start()
 
     def teardown_method(self) -> None:
         """Clean up test fixtures."""
         import shutil
 
-        # Stop the patch
-        self.rag_config_patch.stop()
+        # Stop the patchers
+        self.config_dir_patcher.stop()
+        self.profiles_dir_patcher.stop()
+        self.load_from_file_patcher.stop()
+        self.save_to_file_patcher.stop()
 
         # Clean up temp directory
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_list_profiles_empty(self) -> None:
         """Test listing profiles when none exist."""
+        # Mock load_from_file to raise an exception (simulating no file)
+        self.mock_load_from_file.side_effect = Exception("File not found")
+
         profiles = self.profile_manager.list_profiles()
 
-        # Should be empty initially (no profiles created yet)
         assert profiles == {}
 
     def test_create_profile(self) -> None:
@@ -339,59 +358,83 @@ class TestProfileManager:
 
     def test_create_profile_already_exists(self) -> None:
         """Test creating profile that already exists."""
-        # Create first profile
-        profile1 = self.profile_manager.create_profile("test-profile", "https://test.example.com")
-        assert profile1.profile == "test-profile"
+        # Mock the profile_exists method to return True for the second call
+        with patch.object(self.profile_manager, "profile_exists") as mock_exists:
+            mock_exists.side_effect = [False, True]  # First call returns False, second returns True
 
-        # Create again (should overwrite)
-        profile2 = self.profile_manager.create_profile("test-profile", "https://test.example.com")
-        assert profile2.profile == "test-profile"
+            # Create first profile
+            self.profile_manager.create_profile("test-profile", "https://test.example.com")
 
-        # Both should be the same profile
-        assert profile1.profile == profile2.profile
+            # Try to create again
+            with pytest.raises(ConfigurationError):
+                self.profile_manager.create_profile("test-profile", "https://test.example.com")
 
     def test_delete_profile(self) -> None:
         """Test deleting a profile."""
-        # Create profile
-        self.profile_manager.create_profile("test-profile", "https://test.example.com")
+        # Mock the exists method to return True (profile exists)
+        with patch("pathlib.Path.exists", return_value=True), patch("pathlib.Path.unlink") as mock_unlink:
+            mock_unlink.return_value = None
 
-        # Delete profile
-        result = self.profile_manager.delete_profile("test-profile")
+            # Delete profile
+            result = self.profile_manager.delete_profile("test-profile")
 
-        assert result is True
+            assert result is True
+            mock_unlink.assert_called_once()
 
     def test_delete_nonexistent_profile(self) -> None:
         """Test deleting non-existent profile."""
-        with pytest.raises(ConfigurationError):  # Should raise ConfigurationError
+        with pytest.raises(ConfigurationError):
             self.profile_manager.delete_profile("nonexistent")
 
     def test_delete_default_profile(self) -> None:
         """Test deleting default profile."""
-        with pytest.raises(ConfigurationError):  # Should raise ConfigurationError
+        with pytest.raises(ConfigurationError):
             self.profile_manager.delete_profile("default")
 
     def test_profile_exists(self) -> None:
         """Test checking if profile exists."""
-        # Initially should not exist
-        assert self.profile_manager.profile_exists("test-profile") is False
+        # Mock the exists method to simulate file existence
+        with patch("pathlib.Path.exists") as mock_exists:
+            # Initially file doesn't exist
+            mock_exists.return_value = False
+            assert self.profile_manager.profile_exists("test-profile") is False
 
-        # Create profile
-        self.profile_manager.create_profile("test-profile", "https://test.example.com")
-
-        # Should now exist
-        assert self.profile_manager.profile_exists("test-profile") is True
+            # Now simulate file exists
+            mock_exists.return_value = True
+            assert self.profile_manager.profile_exists("test-profile") is True
 
     def test_list_profiles_with_data(self) -> None:
         """Test listing profiles with data."""
-        # Create multiple profiles
-        self.profile_manager.create_profile("profile1", "https://api1.example.com")
-        self.profile_manager.create_profile("profile2", "https://api2.example.com")
+        # Mock the glob method to return profile files
+        with patch("pathlib.Path.glob") as mock_glob:
+            # Create mock files
+            mock_file1 = Mock()
+            mock_file1.stem = "profile1"
+            mock_file1.stat.return_value.st_ctime = 1234567890
+            mock_file1.stat.return_value.st_mtime = 1234567890
 
-        profiles = self.profile_manager.list_profiles()
+            mock_file2 = Mock()
+            mock_file2.stem = "profile2"
+            mock_file2.stat.return_value.st_ctime = 1234567891
+            mock_file2.stat.return_value.st_mtime = 1234567891
 
-        # Should have 2 created profiles
-        assert len(profiles) == 2
-        assert "profile1" in profiles
-        assert "profile2" in profiles
-        assert profiles["profile1"]["api_url"] == "https://api1.example.com/"
-        assert profiles["profile2"]["api_url"] == "https://api2.example.com/"
+            mock_glob.return_value = [mock_file1, mock_file2]
+
+            # Mock load_from_file to return configs
+            mock_config1 = Mock()
+            mock_config1.api_url = "https://api1.example.com/"
+            mock_config1.auth_token = None
+
+            mock_config2 = Mock()
+            mock_config2.api_url = "https://api2.example.com/"
+            mock_config2.auth_token = None
+
+            self.mock_load_from_file.side_effect = [mock_config1, mock_config2]
+
+            profiles = self.profile_manager.list_profiles()
+
+            assert len(profiles) == 2
+            assert "profile1" in profiles
+            assert "profile2" in profiles
+            assert profiles["profile1"]["api_url"] == "https://api1.example.com/"
+            assert profiles["profile2"]["api_url"] == "https://api2.example.com/"

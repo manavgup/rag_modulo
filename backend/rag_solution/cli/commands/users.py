@@ -181,7 +181,7 @@ class UserCommands(BaseCommand):
         self._require_authentication()
 
         try:
-            response = self.api_client.get("/api/users/me")
+            response = self.api_client.get("/api/auth/me")
 
             return self._create_success_result(data=response, message="Current user details retrieved")
 
