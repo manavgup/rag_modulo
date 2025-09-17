@@ -7,8 +7,6 @@ upload, listing, update, delete, and batch operations.
 from pathlib import Path
 from typing import Any
 
-from rag_solution.cli.client import RAGAPIClient  # pylint: disable=unused-import
-from rag_solution.cli.config import RAGConfig  # pylint: disable=unused-import
 from rag_solution.cli.exceptions import RAGCLIError
 
 from .base import BaseCommand, CommandResult

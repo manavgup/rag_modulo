@@ -919,7 +919,6 @@ def main_cli(args: Sequence[str] | None = None) -> CLIResult:  # pylint: disable
                     # Parse parameters if provided
                     parameters = None
                     if hasattr(parsed_args, "parameters") and parsed_args.parameters:
-
                         try:
                             parameters = json.loads(parsed_args.parameters)
                         except json.JSONDecodeError:
@@ -941,7 +940,6 @@ def main_cli(args: Sequence[str] | None = None) -> CLIResult:  # pylint: disable
                     # Parse parameters if provided
                     parameters = None
                     if hasattr(parsed_args, "parameters") and parsed_args.parameters:
-
                         try:
                             parameters = json.loads(parsed_args.parameters)
                         except json.JSONDecodeError:

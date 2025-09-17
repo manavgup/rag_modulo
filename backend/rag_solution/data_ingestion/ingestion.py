@@ -48,7 +48,7 @@ class DocumentStore:
             logger.info(
                 "Ingested and processed %d documents into collection: %s",
                 len(processed_documents),
-                self.collection_name
+                self.collection_name,
             )
             return processed_documents
         except Exception as e:

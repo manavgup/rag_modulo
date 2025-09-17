@@ -21,7 +21,6 @@ class AuthCommands(BaseCommand):
     providing methods for login, logout, and status checking.
     """
 
-
     def login(
         self,
         username: str | None = None,
@@ -179,7 +178,6 @@ class AuthCommands(BaseCommand):
             CommandResult with status
         """
         try:
-
             # Calculate expiration
             expires_at = datetime.now() + timedelta(seconds=expires_in)
 

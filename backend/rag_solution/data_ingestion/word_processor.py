@@ -9,9 +9,8 @@ import os
 import uuid
 from collections.abc import AsyncIterator
 
-from docx import Document as DocxDocument
-
 from core.custom_exceptions import DocumentProcessingError
+from docx import Document as DocxDocument
 from vectordbs.data_types import Document
 
 from rag_solution.data_ingestion.base_processor import BaseProcessor
@@ -28,7 +27,6 @@ class WordProcessor(BaseProcessor):
     Methods:
         process(file_path: str) -> AsyncIterable[Document]: Process the Word document and yield Document instances.
     """
-
 
     async def process(self, file_path: str, _document_id: str) -> AsyncIterator[Document]:
         """

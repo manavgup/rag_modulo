@@ -6,11 +6,10 @@ and service injection that can be used across all routers.
 
 from typing import Any
 
+from core.config import Settings, get_settings
 from fastapi import Depends, HTTPException, Request
 from pydantic import UUID4
 from sqlalchemy.orm import Session
-
-from core.config import Settings, get_settings
 
 from rag_solution.core.exceptions import NotFoundError
 from rag_solution.file_management.database import get_db

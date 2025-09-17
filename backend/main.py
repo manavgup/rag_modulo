@@ -11,11 +11,6 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI
-from fastapi.openapi.utils import get_openapi
-from sqlalchemy import inspect, text
-from starlette.middleware.sessions import SessionMiddleware
-
 # Middleware & Config
 from core.authentication_middleware import AuthenticationMiddleware
 from core.config import get_settings
@@ -23,6 +18,10 @@ from core.config import get_settings
 # Logging
 from core.logging_utils import get_logger, setup_logging
 from core.loggingcors_middleware import LoggingCORSMiddleware
+from fastapi import FastAPI
+from fastapi.openapi.utils import get_openapi
+from sqlalchemy import inspect, text
+from starlette.middleware.sessions import SessionMiddleware
 
 # Database
 from rag_solution.file_management.database import Base, engine, get_db
@@ -98,7 +97,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
             db = next(db_gen)
             system_init_service = SystemInitializationService(db, get_settings())
             providers = system_init_service.initialize_providers(raise_on_error=True)
-            logger.info("Initialized providers: %s", ', '.join(p.name for p in providers))
+            logger.info("Initialized providers: %s", ", ".join(p.name for p in providers))
         except StopIteration:
             logger.error("Failed to get database session")
             return

@@ -80,8 +80,7 @@ class RAGEvaluator:
         """
         if cosine_similarity is None:
             raise ImportError(
-                "scikit-learn is not installed. "
-                "Please install it to use cosine similarity evaluation."
+                "scikit-learn is not installed. " "Please install it to use cosine similarity evaluation."
             )
 
         relevance_score = self._calculate_relevance_score(query_text, document_list)
@@ -95,9 +94,7 @@ class RAGEvaluator:
             "overall_score": (relevance_score + coherence_score + faithfulness_score) / 3,
         }
 
-    def _calculate_relevance_score(
-        self, query_text: str, document_list: list[QueryResult]
-    ) -> float:
+    def _calculate_relevance_score(self, query_text: str, document_list: list[QueryResult]) -> float:
         """
         Calculate the relevance score of retrieved documents to the query.
 
@@ -136,9 +133,7 @@ class RAGEvaluator:
             return float(coherence.item())
         return float(coherence)
 
-    def _calculate_faithfulness_score(
-        self, response_text: str, document_list: list[QueryResult]
-    ) -> float:
+    def _calculate_faithfulness_score(self, response_text: str, document_list: list[QueryResult]) -> float:
         """
         Calculate the faithfulness score of the response to the retrieved documents.
 
@@ -166,9 +161,7 @@ class RAGEvaluator:
         try:
             llm = init_llm(parameters=BASE_LLM_PARAMETERS)
             results = await asyncio.gather(
-                self.faithfulness_evaluator.a_evaluate_faithfulness(
-                    context=context, answer=answer, llm=llm
-                ),
+                self.faithfulness_evaluator.a_evaluate_faithfulness(context=context, answer=answer, llm=llm),
                 self.answer_relevance_evaluator.a_evaluate_answer_relevance(
                     question=question_text, answer=answer, llm=llm
                 ),
@@ -178,15 +171,9 @@ class RAGEvaluator:
                 return_exceptions=True,
             )
             return {
-                "faithfulness": (
-                    results[0] if not isinstance(results[0], Exception) else f"Error: {results[0]}"
-                ),
-                "answer_relevance": (
-                    results[1] if not isinstance(results[1], Exception) else f"Error: {results[1]}"
-                ),
-                "context_relevance": (
-                    results[2] if not isinstance(results[2], Exception) else f"Error: {results[2]}"
-                ),
+                "faithfulness": (results[0] if not isinstance(results[0], Exception) else f"Error: {results[0]}"),
+                "answer_relevance": (results[1] if not isinstance(results[1], Exception) else f"Error: {results[1]}"),
+                "context_relevance": (results[2] if not isinstance(results[2], Exception) else f"Error: {results[2]}"),
             }
         except Exception as e:
             logger.error("Failed to run evaluations: %s", e, exc_info=True)
@@ -206,6 +193,7 @@ if __name__ == "__main__":
     # Import dependencies that may not be available
     try:
         from core.config import get_settings
+
         from rag_solution.file_management.database import get_db  # pylint: disable=ungrouped-imports
         from rag_solution.services.search_service import SearchService
         from rag_solution.services.user_collection_service import UserCollectionService
@@ -240,10 +228,7 @@ if __name__ == "__main__":
         QueryResult(
             chunk=DocumentChunkWithScore(
                 chunk_id="2",
-                text=(
-                    "The theory of relativity consists of two parts: "
-                    "special relativity and general relativity."
-                ),
+                text=("The theory of relativity consists of two parts: " "special relativity and general relativity."),
                 metadata=None,
                 score=0.8,
             ),
@@ -252,9 +237,7 @@ if __name__ == "__main__":
         ),
     ]
 
-    evaluation_results_cosine = evaluator.evaluate_cosine(
-        SAMPLE_QUERY, SAMPLE_RESPONSE, SAMPLE_RETRIEVED_DOCUMENTS
-    )
+    evaluation_results_cosine = evaluator.evaluate_cosine(SAMPLE_QUERY, SAMPLE_RESPONSE, SAMPLE_RETRIEVED_DOCUMENTS)
     print("Evaluation Results (Cosine Similarity):")
     for metric, score in evaluation_results_cosine.items():
         print(f"  {metric}: {score:.4f}")
@@ -268,10 +251,7 @@ if __name__ == "__main__":
     search_service = SearchService(db=db_session, settings=settings)
     pipeline = search_service._pipeline_service  # pylint: disable=protected-access
 
-    SAMPLE_QUESTION = (
-        "What were the major equity-related activities reported by IBM as "
-        "of December 31, 2023?"
-    )
+    SAMPLE_QUESTION = "What were the major equity-related activities reported by IBM as " "of December 31, 2023?"
     SAMPLE_RAG_RESPONSE = (
         "Based on the provided financial information, the major equity-"
         "related activities reported by IBM as of December 31, 2023 are:\n\n"
@@ -296,8 +276,6 @@ if __name__ == "__main__":
     SAMPLE_CONTEXTS = "\n****\n\n****\n".join([get_node_text(node=doc) for doc in context_data])
 
     evaluation_results_llm = asyncio.run(
-        evaluator.evaluate(
-            context=SAMPLE_CONTEXTS, answer=SAMPLE_RAG_RESPONSE, question_text=SAMPLE_QUESTION
-        )
+        evaluator.evaluate(context=SAMPLE_CONTEXTS, answer=SAMPLE_RAG_RESPONSE, question_text=SAMPLE_QUESTION)
     )
     print(f"Evaluation Results (LLM-as-a-Judge): {evaluation_results_llm}")
