@@ -1,21 +1,30 @@
 # Search Commands
 
-Search commands provide powerful querying capabilities across document collections, including semantic search, RAG (Retrieval-Augmented Generation) queries, and search analytics.
+Search commands provide powerful querying capabilities across document collections with automatic pipeline resolution. The system intelligently handles pipeline selection based on user context, eliminating the need for manual pipeline management.
 
 ## Overview
 
-The search system provides:
+The simplified search system provides:
+- **Automatic Pipeline Resolution**: Backend automatically selects appropriate pipelines
 - **Semantic Search**: Vector-based similarity matching
 - **RAG Queries**: AI-powered question answering with retrieved context
-- **Hybrid Search**: Combining keyword and semantic search
+- **Intelligent Configuration**: System-managed parameters with optional overrides
 - **Search Analytics**: Query performance and result analysis
 - **Search History**: Track and replay previous searches
+
+## Key Simplifications
+
+**Pipeline Management**: No longer need to specify pipeline IDs - the system automatically:
+- Resolves user's default pipeline
+- Creates a default pipeline if none exists
+- Uses the user's configured LLM provider
+- Handles all pipeline initialization automatically
 
 ## Commands Reference
 
 ### `rag-cli search query`
 
-Perform a RAG query to get AI-generated answers with supporting context.
+Perform a RAG query to get AI-generated answers with supporting context. The system automatically handles pipeline selection and configuration.
 
 #### Usage
 ```bash
@@ -33,13 +42,16 @@ Perform a RAG query to get AI-generated answers with supporting context.
 |--------|-------------|---------|
 | `--max-chunks MAX` | Maximum chunks to retrieve | `5` |
 | `--similarity-threshold THRESHOLD` | Minimum similarity score (0.0-1.0) | `0.7` |
-| `--model MODEL` | LLM model for answer generation | System default |
 | `--temperature TEMP` | Response creativity (0.0-1.0) | `0.1` |
 | `--max-tokens TOKENS` | Maximum response length | `512` |
 | `--format FORMAT` | Output format (`text`, `json`, `markdown`) | `text` |
 | `--include-sources` | Include source document references | `true` |
 | `--include-chunks` | Include retrieved text chunks | `false` |
 | `--save-query` | Save query to search history | `true` |
+
+**Removed Options** (now handled automatically):
+- `--model MODEL` - Uses user's default LLM provider/model
+- `--pipeline-id` - Automatically resolved based on user context
 
 #### Examples
 
@@ -68,7 +80,6 @@ Perform a RAG query to get AI-generated answers with supporting context.
 ```bash
 ./rag-cli search query col_research "What were the accuracy results in the CNN study?" \
   --similarity-threshold 0.8 \
-  --model "gpt-4" \
   --include-sources
 ```
 
@@ -134,10 +145,12 @@ Confidence: High (similarity scores: 0.89, 0.85, 0.83)
     }
   ],
   "metadata": {
-    "model_used": "gpt-3.5-turbo",
+    "pipeline_id": "pipe_abc123",
+    "model_used": "watsonx/granite-13b",
     "temperature": 0.1,
     "max_tokens": 512,
-    "timestamp": "2024-01-15T14:30:00Z"
+    "timestamp": "2024-01-15T14:30:00Z",
+    "pipeline_auto_resolved": true
   }
 }
 ```
@@ -432,6 +445,64 @@ Timestamp: 2024-01-15 14:30:00
 - Query is well-formed and specific
 - Consider adding more specific terms for narrower results
 - Current similarity threshold (0.7) is appropriate for this query
+```
+
+## Automatic Pipeline Resolution
+
+The search system automatically handles pipeline selection and configuration:
+
+### How It Works
+
+1. **Pipeline Resolution**: When you execute a search, the system:
+   - Checks if you have a default pipeline
+   - If no pipeline exists, creates one using your default LLM provider
+   - Uses the resolved pipeline for all search operations
+
+2. **First-Time Setup**: For new users:
+   ```bash
+   # First search automatically creates default pipeline
+   ./rag-cli search query col_123abc "What is machine learning?"
+
+   # System creates pipeline using your default LLM provider
+   # All subsequent searches use this pipeline
+   ```
+
+3. **Pipeline Management**: Backend automatically:
+   - Validates pipeline accessibility
+   - Handles pipeline initialization
+   - Manages pipeline configuration
+   - Provides error messages for configuration issues
+
+### Error Handling
+
+**No LLM Provider Configured**:
+```bash
+$ ./rag-cli search query col_123abc "test query"
+
+❌ Error: No LLM provider available for user.
+   Please configure an LLM provider before searching.
+
+   Fix: ./rag-cli providers create watsonx --api-key YOUR_KEY --project-id YOUR_PROJECT
+```
+
+**Collection Access Issues**:
+```bash
+$ ./rag-cli search query col_invalid "test query"
+
+❌ Error: Collection not found or access denied.
+   Collection ID: col_invalid
+
+   Fix: Check collection ID or verify access permissions
+```
+
+**Pipeline Creation Failed**:
+```bash
+$ ./rag-cli search query col_123abc "test query"
+
+❌ Error: Failed to create default pipeline.
+   Reason: Invalid LLM provider configuration
+
+   Fix: Update your LLM provider settings
 ```
 
 ## Advanced Search Features

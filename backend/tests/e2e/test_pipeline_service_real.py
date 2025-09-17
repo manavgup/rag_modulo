@@ -41,13 +41,12 @@ class TestPipelineServiceReal:
         search_input = SearchInput(
             question="",  # Empty query
             collection_id=uuid4(),
-            pipeline_id=uuid4(),
             user_id=uuid4(),
         )
 
         # Should raise validation error
         with pytest.raises(Exception) as exc_info:
-            await pipeline_service.execute_pipeline(search_input, "test_collection")
+            await pipeline_service.execute_pipeline(search_input, "test_collection", uuid4())
 
         # Error should be about empty query
         error_message = str(exc_info.value).lower()
@@ -61,7 +60,6 @@ class TestPipelineServiceReal:
             SearchInput(
                 question=None,  # None query - should fail Pydantic validation
                 collection_id=uuid4(),
-                pipeline_id=uuid4(),
                 user_id=uuid4(),
             )
 
@@ -77,13 +75,13 @@ class TestPipelineServiceReal:
         search_input = SearchInput(
             question="What is machine learning?",
             collection_id=uuid4(),  # Non-existent collection
-            pipeline_id=uuid4(),  # Non-existent pipeline
+            # Non-existent pipeline
             user_id=uuid4(),
         )
 
         # Should raise infrastructure error
         with pytest.raises(Exception) as exc_info:
-            await pipeline_service.execute_pipeline(search_input, "nonexistent_collection")
+            await pipeline_service.execute_pipeline(search_input, "nonexistent_collection", uuid4())
 
         # Error should be about missing collection or infrastructure
         error_message = str(exc_info.value).lower()

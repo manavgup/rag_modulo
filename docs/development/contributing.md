@@ -105,11 +105,11 @@ from pydantic import BaseModel, Field
 
 class UserModel(BaseModel):
     """User model with validation."""
-    
+
     id: str = Field(..., description="Unique user identifier")
     email: str = Field(..., description="User email address")
     name: Optional[str] = Field(None, description="User display name")
-    
+
     def get_display_name(self) -> str:
         """Get user display name."""
         return self.name or self.email.split('@')[0]
@@ -159,7 +159,7 @@ interface UserProps {
 
 const UserComponent: React.FC<UserProps> = ({ id, email, name }) => {
   const displayName = name || email.split('@')[0];
-  
+
   return (
     <div className="user-component">
       <h3>{displayName}</h3>
@@ -227,12 +227,12 @@ from rag_solution.services.user_service import UserService
 
 class TestUserService:
     """Test suite for UserService."""
-    
+
     @pytest.fixture
     def user_service(self):
         """Create UserService instance for testing."""
         return UserService()
-    
+
     @pytest.fixture
     def mock_user_data(self):
         """Mock user data for testing."""
@@ -241,25 +241,25 @@ class TestUserService:
             "email": "test@example.com",
             "name": "Test User"
         }
-    
+
     def test_create_user_success(self, user_service, mock_user_data):
         """Test successful user creation."""
         # Arrange
         expected_user = UserModel(**mock_user_data)
-        
+
         # Act
         result = user_service.create_user(mock_user_data)
-        
+
         # Assert
         assert result.id == expected_user.id
         assert result.email == expected_user.email
         assert result.name == expected_user.name
-    
+
     def test_create_user_validation_error(self, user_service):
         """Test user creation with invalid data."""
         # Arrange
         invalid_data = {"email": "invalid-email"}
-        
+
         # Act & Assert
         with pytest.raises(ValidationError):
             user_service.create_user(invalid_data)

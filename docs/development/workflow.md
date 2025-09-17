@@ -118,7 +118,7 @@ Contains development-specific settings:
 
 The Makefile includes comprehensive development targets:
 - **Automated building** with BuildKit support
-- **Environment validation** 
+- **Environment validation**
 - **Health checking**
 - **Status reporting**
 - **Log viewing**
@@ -127,7 +127,7 @@ The Makefile includes comprehensive development targets:
 
 When running, services are available at:
 - **Backend**: http://localhost:8000
-- **Frontend**: http://localhost:3000  
+- **Frontend**: http://localhost:3000
 - **MLflow**: http://localhost:5001
 
 ## Environment Variables

@@ -59,10 +59,7 @@ def is_mock_token(token: str) -> bool:
         return True
 
     # Check for dev tokens (new pattern)
-    if token.startswith("dev-"):
-        return True
-
-    return False
+    return bool(token.startswith("dev-"))
 
 
 def create_mock_user_data(user_uuid: str | None = None) -> dict[str, Any]:

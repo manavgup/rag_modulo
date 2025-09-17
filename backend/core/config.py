@@ -201,16 +201,13 @@ class Settings(BaseSettings):
     @classmethod
     def validate_jwt_secret(cls, v: str | None) -> str | None:
         """Validate JWT secret key and warn if using default in production."""
-        if v and "dev-secret-key" in v:
-            if os.getenv("ENVIRONMENT", "").lower() in ("production", "prod"):
-                try:
-                    logger = get_logger(__name__)
-                    logger.warning(
-                        "⚠️  Using default JWT secret in production! Set JWT_SECRET_KEY environment variable."
-                    )
-                except ImportError:
-                    # Fallback to print if logging utils not available
-                    print("⚠️  Using default JWT secret in production! Set JWT_SECRET_KEY environment variable.")
+        if v and "dev-secret-key" in v and os.getenv("ENVIRONMENT", "").lower() in ("production", "prod"):
+            try:
+                logger = get_logger(__name__)
+                logger.warning("⚠️  Using default JWT secret in production! Set JWT_SECRET_KEY environment variable.")
+            except ImportError:
+                # Fallback to print if logging utils not available
+                print("⚠️  Using default JWT secret in production! Set JWT_SECRET_KEY environment variable.")
         return v
 
     @field_validator("rag_llm")

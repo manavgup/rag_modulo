@@ -97,7 +97,7 @@ WATSONX_INSTANCE_ID=your-production-instance-id
 server {
     listen 443 ssl http2;
     server_name yourdomain.com;
-    
+
     ssl_certificate /path/to/certificate.crt;
     ssl_certificate_key /path/to/private.key;
     ssl_protocols TLSv1.2 TLSv1.3;
@@ -105,14 +105,14 @@ server {
     ssl_prefer_server_ciphers off;
     ssl_session_cache shared:SSL:10m;
     ssl_session_timeout 10m;
-    
+
     # Security headers
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
     add_header X-Content-Type-Options nosniff;
     add_header X-Frame-Options DENY;
     add_header X-XSS-Protection "1; mode=block";
     add_header Referrer-Policy "strict-origin-when-cross-origin";
-    
+
     location / {
         proxy_pass http://backend;
         proxy_set_header Host $host;
@@ -138,19 +138,19 @@ security = HTTPBearer()
 
 class SecurityConfig:
     """Production security configuration."""
-    
+
     JWT_SECRET_KEY: str = Field(env="JWT_SECRET_KEY")
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRATION_HOURS: int = 24
     MAX_LOGIN_ATTEMPTS: int = 5
     LOCKOUT_DURATION_MINUTES: int = 30
-    
+
     def verify_token(self, token: str) -> dict:
         """Verify JWT token with production security."""
         try:
             payload = jwt.decode(
-                token, 
-                self.JWT_SECRET_KEY, 
+                token,
+                self.JWT_SECRET_KEY,
                 algorithms=[self.JWT_ALGORITHM]
             )
             return payload
@@ -169,14 +169,14 @@ import re
 
 class ProductionInputValidator(BaseModel):
     """Production input validation."""
-    
+
     @validator('email')
     def validate_email(cls, v):
         """Validate email format."""
         if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', v):
             raise ValueError('Invalid email format')
         return v.lower()
-    
+
     @validator('password')
     def validate_password(cls, v):
         """Validate password strength."""
@@ -691,9 +691,9 @@ docker stats
 
 ```sql
 -- Check slow queries
-SELECT query, mean_time, calls 
-FROM pg_stat_statements 
-ORDER BY mean_time DESC 
+SELECT query, mean_time, calls
+FROM pg_stat_statements
+ORDER BY mean_time DESC
 LIMIT 10;
 
 -- Check connection usage
