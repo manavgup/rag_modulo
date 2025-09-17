@@ -74,7 +74,9 @@ class ValidationError(RAGCLIError):
     or missing required parameters.
     """
 
-    def __init__(self, message: str = "Validation failed", error_code: str | None = None, details: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self, message: str = "Validation failed", error_code: str | None = None, details: dict[str, Any] | None = None
+    ) -> None:
         """Initialize the ValidationError.
 
         Args:
@@ -119,7 +121,9 @@ class ConfigurationError(RAGCLIError):
     profile-related problems.
     """
 
-    def __init__(self, message: str = "Configuration error", error_code: str | None = None, details: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self, message: str = "Configuration error", error_code: str | None = None, details: dict[str, Any] | None = None
+    ) -> None:
         """Initialize the ConfigurationError.
 
         Args:

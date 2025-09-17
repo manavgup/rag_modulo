@@ -6,10 +6,10 @@ strict type boundaries and clean separation of concerns.
 
 from typing import Any
 
+from core.custom_exceptions import RepositoryError
 from pydantic import UUID4
 from sqlalchemy.orm import Session, joinedload
 
-from core.custom_exceptions import RepositoryError
 from rag_solution.core.exceptions import NotFoundError
 from rag_solution.models.pipeline import PipelineConfig
 from rag_solution.schemas.pipeline_schema import PipelineConfigInput, PipelineConfigOutput
@@ -72,7 +72,11 @@ class PipelineConfigRepository:
             RepositoryError: If database operation fails
         """
         try:
-            pipeline = self.db.query(PipelineConfig).filter(PipelineConfig.collection_id == collection_id, PipelineConfig.is_default.is_(True)).first()
+            pipeline = (
+                self.db.query(PipelineConfig)
+                .filter(PipelineConfig.collection_id == collection_id, PipelineConfig.is_default.is_(True))
+                .first()
+            )
             return PipelineConfigOutput.from_db_model(pipeline) if pipeline else None
         except Exception as e:
             raise RepositoryError(f"Failed to get collection default pipeline: {e!s}") from e
@@ -215,7 +219,9 @@ class PipelineConfigRepository:
             RepositoryError: If operation fails
         """
         try:
-            self.db.query(PipelineConfig).filter(PipelineConfig.collection_id == collection_id, PipelineConfig.is_default.is_(True)).update({"is_default": False})
+            self.db.query(PipelineConfig).filter(
+                PipelineConfig.collection_id == collection_id, PipelineConfig.is_default.is_(True)
+            ).update({"is_default": False})
             self.db.commit()
         except Exception as e:
             self.db.rollback()

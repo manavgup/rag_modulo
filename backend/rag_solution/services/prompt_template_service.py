@@ -2,10 +2,10 @@ import uuid
 from datetime import datetime
 from typing import Any
 
+from core.custom_exceptions import NotFoundError, PromptTemplateNotFoundError, ValidationError
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
-from core.custom_exceptions import NotFoundError, PromptTemplateNotFoundError, ValidationError
 from rag_solution.repository.prompt_template_repository import PromptTemplateRepository
 from rag_solution.schemas.prompt_template_schema import (
     PromptTemplateBase,

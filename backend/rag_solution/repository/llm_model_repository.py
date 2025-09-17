@@ -116,7 +116,13 @@ class LLMModelRepository:
     def clear_other_defaults(self, provider_id: UUID4, model_type: ModelType) -> None:
         """Clear default flag from other models of the same type and provider."""
         try:
-            (self.session.query(LLMModel).filter(LLMModel.provider_id == provider_id).filter(LLMModel.model_type == model_type).filter(LLMModel.is_default).update({"is_default": False}))
+            (
+                self.session.query(LLMModel)
+                .filter(LLMModel.provider_id == provider_id)
+                .filter(LLMModel.model_type == model_type)
+                .filter(LLMModel.is_default)
+                .update({"is_default": False})
+            )
             self.session.commit()
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise
@@ -131,9 +137,18 @@ class LLMModelRepository:
             NotFoundError: If no default model found
         """
         try:
-            model = self.session.query(LLMModel).filter(LLMModel.provider_id == provider_id).filter(LLMModel.model_type == model_type).filter(LLMModel.is_default).filter(LLMModel.is_active).first()
+            model = (
+                self.session.query(LLMModel)
+                .filter(LLMModel.provider_id == provider_id)
+                .filter(LLMModel.model_type == model_type)
+                .filter(LLMModel.is_default)
+                .filter(LLMModel.is_active)
+                .first()
+            )
             if not model:
-                raise NotFoundError(resource_type="LLMModel", identifier=f"default {model_type} for provider {provider_id}")
+                raise NotFoundError(
+                    resource_type="LLMModel", identifier=f"default {model_type} for provider {provider_id}"
+                )
             return LLMModelOutput.model_validate(model)
         except (NotFoundError, AlreadyExistsError, ValidationError):
             raise

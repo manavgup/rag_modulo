@@ -56,7 +56,9 @@ class TestRAGAPIClient:
             "Content-Type": "application/json",
             "User-Agent": "rag-cli/test",
         }
-        mock_get.assert_called_once_with("http://localhost:8000/api/collections", headers=expected_headers, params=None, timeout=30)
+        mock_get.assert_called_once_with(
+            "http://localhost:8000/api/collections", headers=expected_headers, params=None, timeout=30
+        )
 
         # Verify response handling
         assert result == {"success": True}
@@ -75,7 +77,9 @@ class TestRAGAPIClient:
             "Content-Type": "application/json",
             "User-Agent": "rag-cli/test",
         }
-        mock_post.assert_called_once_with("http://localhost:8000/api/collections", headers=expected_headers, json=data, timeout=30)
+        mock_post.assert_called_once_with(
+            "http://localhost:8000/api/collections", headers=expected_headers, json=data, timeout=30
+        )
 
         assert result == {"success": True}
 
@@ -93,7 +97,9 @@ class TestRAGAPIClient:
             "Content-Type": "application/json",
             "User-Agent": "rag-cli/test",
         }
-        mock_put.assert_called_once_with("http://localhost:8000/api/collections/123", headers=expected_headers, json=data, timeout=30)
+        mock_put.assert_called_once_with(
+            "http://localhost:8000/api/collections/123", headers=expected_headers, json=data, timeout=30
+        )
 
         assert result == {"success": True}
 
@@ -110,7 +116,9 @@ class TestRAGAPIClient:
             "Content-Type": "application/json",
             "User-Agent": "rag-cli/test",
         }
-        mock_delete.assert_called_once_with("http://localhost:8000/api/collections/123", params=None, headers=expected_headers, timeout=30)
+        mock_delete.assert_called_once_with(
+            "http://localhost:8000/api/collections/123", params=None, headers=expected_headers, timeout=30
+        )
 
         assert result == {"success": True}
 
@@ -164,7 +172,9 @@ class TestRAGAPIClient:
             "Content-Type": "application/json",
             "User-Agent": "rag-cli/test",
         }
-        mock_get.assert_called_once_with("http://localhost:8000/api/collections", headers=expected_headers, params=params, timeout=30)
+        mock_get.assert_called_once_with(
+            "http://localhost:8000/api/collections", headers=expected_headers, params=params, timeout=30
+        )
 
     def test_is_authenticated_with_token(self, api_client):
         """Test authentication check with valid token."""
@@ -251,7 +261,9 @@ class TestCLICommandWrapper:
         result = commands.create_user(email="test@example.com", name="Test User", role="user")
 
         # Verify API call
-        mock_api_client.post.assert_called_once_with("/api/users", data={"email": "test@example.com", "name": "Test User", "role": "user"})
+        mock_api_client.post.assert_called_once_with(
+            "/api/users", data={"email": "test@example.com", "name": "Test User", "role": "user"}
+        )
 
         # Verify CLI result structure
         assert result.success is True
@@ -261,7 +273,16 @@ class TestCLICommandWrapper:
         """Test search query command wrapper."""
         from rag_solution.cli.commands.search import SearchCommands
 
-        # Mock API response
+        # Mock the auth/me endpoint
+        mock_api_client.get.return_value = {"id": "user123", "uuid": "user123"}
+
+        # Mock the pipelines endpoint
+        mock_api_client.get.side_effect = [
+            {"id": "user123", "uuid": "user123"},  # First call to /api/auth/me
+            [{"id": "pipeline123", "is_default": True}],  # Second call to /api/users/{user_id}/pipelines
+        ]
+
+        # Mock API response for search
         mock_api_client.post.return_value = {
             "answer": "Test answer",
             "retrieved_chunks": [{"content": "Chunk 1", "score": 0.95}, {"content": "Chunk 2", "score": 0.87}],
@@ -273,8 +294,14 @@ class TestCLICommandWrapper:
 
         # Verify API call
         mock_api_client.post.assert_called_once_with(
-            "/api/search/query",
-            data={"collection_id": "collection123", "query": "What is machine learning?", "max_chunks": 5},
+            "/api/search",
+            data={
+                "question": "What is machine learning?",
+                "collection_id": "collection123",
+                "user_id": "user123",
+                "pipeline_id": "pipeline123",
+                "config_metadata": {"max_chunks": 5},
+            },
         )
 
         # Verify CLI result

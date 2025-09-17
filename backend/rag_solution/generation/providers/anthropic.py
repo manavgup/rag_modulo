@@ -6,10 +6,10 @@ import asyncio
 from typing import TYPE_CHECKING, Any
 
 import anthropic
-from tenacity import retry, stop_after_attempt, wait_exponential
-
 from core.custom_exceptions import LLMProviderError, NotFoundError, ValidationError
 from core.logging_utils import get_logger
+from tenacity import retry, stop_after_attempt, wait_exponential
+
 from rag_solution.schemas.llm_model_schema import ModelType
 
 from .base import LLMBase
@@ -18,10 +18,10 @@ if TYPE_CHECKING:
     from collections.abc import Generator, Sequence
 
     from pydantic import UUID4
+    from vectordbs.data_types import EmbeddingsList
 
     from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
     from rag_solution.schemas.prompt_template_schema import PromptTemplateBase
-    from vectordbs.data_types import EmbeddingsList
 
 logger = get_logger("llm.providers.anthropic")
 
@@ -49,7 +49,9 @@ class AnthropicLLM(LLMBase):
 
     def _initialize_default_model(self) -> None:
         """Initialize default model for generation."""
-        self._default_model = next((m for m in self._models if m.is_default and m.model_type == ModelType.GENERATION), None)
+        self._default_model = next(
+            (m for m in self._models if m.is_default and m.model_type == ModelType.GENERATION), None
+        )
 
         if not self._default_model:
             logger.warning("No default model configured, using claude-3-opus-20240229")
@@ -57,7 +59,9 @@ class AnthropicLLM(LLMBase):
         else:
             self._default_model_id = self._default_model.model_id
 
-    def _get_generation_params(self, user_id: UUID4, model_parameters: LLMParametersInput | None = None) -> dict[str, Any]:
+    def _get_generation_params(
+        self, user_id: UUID4, model_parameters: LLMParametersInput | None = None
+    ) -> dict[str, Any]:
         """Get validated generation parameters."""
         params = model_parameters or self.llm_parameters_service.get_latest_or_default_parameters(user_id)
         return {
@@ -93,7 +97,9 @@ class AnthropicLLM(LLMBase):
                 )
                 content: str | None = response.content[0].text
                 if content is None:
-                    raise LLMProviderError(provider="anthropic", error_type="generation_failed", message="Anthropic returned empty content")
+                    raise LLMProviderError(
+                        provider="anthropic", error_type="generation_failed", message="Anthropic returned empty content"
+                    )
                 return content.strip()
 
         except (ValidationError, NotFoundError) as e:
@@ -103,9 +109,13 @@ class AnthropicLLM(LLMBase):
                 message=str(e),
             ) from e
         except Exception as e:
-            raise LLMProviderError(provider="anthropic", error_type="generation_failed", message=f"Failed to generate text: {e!s}") from e
+            raise LLMProviderError(
+                provider="anthropic", error_type="generation_failed", message=f"Failed to generate text: {e!s}"
+            ) from e
 
-    def _format_prompt(self, prompt: str, template: PromptTemplateBase | None = None, variables: dict[str, Any] | None = None) -> str:
+    def _format_prompt(
+        self, prompt: str, template: PromptTemplateBase | None = None, variables: dict[str, Any] | None = None
+    ) -> str:
         """Format a prompt using a template and variables."""
         if template:
             vars_dict = dict(variables or {})
@@ -118,11 +128,17 @@ class AnthropicLLM(LLMBase):
 
         async def generate_single(prompt: str) -> str:
             # Create a new client for each request to avoid session conflicts
-            async with anthropic.AsyncAnthropic(api_key=str(self._provider.api_key), base_url=self._provider.base_url) as client:
-                response = await client.messages.create(model=model_id, messages=[{"role": "user", "content": prompt}], **generation_params)
+            async with anthropic.AsyncAnthropic(
+                api_key=str(self._provider.api_key), base_url=self._provider.base_url
+            ) as client:
+                response = await client.messages.create(
+                    model=model_id, messages=[{"role": "user", "content": prompt}], **generation_params
+                )
                 content: str | None = response.content[0].text
                 if content is None:
-                    raise LLMProviderError(provider="anthropic", error_type="generation_failed", message="Anthropic returned empty content")
+                    raise LLMProviderError(
+                        provider="anthropic", error_type="generation_failed", message="Anthropic returned empty content"
+                    )
                 return content.strip()
 
         # Process prompts concurrently with a semaphore to limit concurrency
@@ -183,7 +199,9 @@ class AnthropicLLM(LLMBase):
         Raises:
             LLMProviderError: Anthropic does not provide embeddings
         """
-        raise LLMProviderError(provider="anthropic", error_type="not_supported", message="Anthropic does not provide embeddings")
+        raise LLMProviderError(
+            provider="anthropic", error_type="not_supported", message="Anthropic does not provide embeddings"
+        )
 
     def close(self) -> None:
         """Clean up provider resources."""

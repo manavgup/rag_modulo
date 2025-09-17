@@ -45,7 +45,9 @@ class PromptTemplateRepository:
         try:
             template = self.db.query(PromptTemplate).filter_by(user_id=user_id, id=template_id).first()
             if not template:
-                raise NotFoundError(resource_type="PromptTemplate", identifier=f"template {template_id} for user {user_id}")
+                raise NotFoundError(
+                    resource_type="PromptTemplate", identifier=f"template {template_id} for user {user_id}"
+                )
 
             self.db.delete(template)
             self.db.commit()

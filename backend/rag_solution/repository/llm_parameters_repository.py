@@ -1,8 +1,8 @@
+from core.logging_utils import get_logger
 from pydantic import UUID4
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from core.logging_utils import get_logger
 from rag_solution.core.exceptions import AlreadyExistsError, NotFoundError, ValidationError
 from rag_solution.models.llm_parameters import LLMParameters
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput, LLMParametersOutput
@@ -156,7 +156,11 @@ class LLMParametersRepository:
         Returns:
             Optional[LLMParametersOutput]: Default parameters if they exist, None otherwise
         """
-        db_params = self.db.query(LLMParameters).filter(LLMParameters.user_id == user_id, LLMParameters.is_default.is_(True)).first()
+        db_params = (
+            self.db.query(LLMParameters)
+            .filter(LLMParameters.user_id == user_id, LLMParameters.is_default.is_(True))
+            .first()
+        )
         return LLMParametersOutput.model_validate(db_params) if db_params else None
 
     def reset_default_parameters(self, user_id: UUID4) -> int:
@@ -168,6 +172,10 @@ class LLMParametersRepository:
         Returns:
             int: Number of parameters updated
         """
-        updated_count = self.db.query(LLMParameters).filter(LLMParameters.user_id == user_id, LLMParameters.is_default.is_(True)).update({"is_default": False})
+        updated_count = (
+            self.db.query(LLMParameters)
+            .filter(LLMParameters.user_id == user_id, LLMParameters.is_default.is_(True))
+            .update({"is_default": False})
+        )
         self.db.commit()
         return updated_count

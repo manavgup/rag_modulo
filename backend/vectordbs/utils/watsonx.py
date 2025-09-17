@@ -6,6 +6,7 @@ from functools import lru_cache
 from typing import Any
 
 from chromadb.api.types import Documents, EmbeddingFunction
+from core.config import Settings, get_settings
 from dotenv import load_dotenv
 from ibm_watsonx_ai import APIClient, Credentials  # type: ignore[import-untyped]
 from ibm_watsonx_ai.foundation_models import Embeddings as wx_Embeddings  # type: ignore[import-untyped]
@@ -19,7 +20,6 @@ from tenacity import (
     wait_exponential,
 )
 
-from core.config import Settings, get_settings
 from vectordbs.data_types import EmbeddingsList
 
 # Configure logging
@@ -68,7 +68,9 @@ def get_wx_client(settings: Settings) -> APIClient:
     )
 
 
-def get_model(settings: Settings = get_settings(), generate_params: dict | None = None, model_id: str | None = None) -> ModelInference:
+def get_model(
+    settings: Settings = get_settings(), generate_params: dict | None = None, model_id: str | None = None
+) -> ModelInference:
     """Create a WatsonX model inference instance with dependency injection.
 
     Args:
@@ -129,7 +131,9 @@ def get_wx_embeddings_client(settings: Settings, embed_params: dict | None = Non
     )
 
 
-def get_embeddings(texts: str | list[str], settings: Settings = get_settings(), embed_client: wx_Embeddings | None = None) -> EmbeddingsList:
+def get_embeddings(
+    texts: str | list[str], settings: Settings = get_settings(), embed_client: wx_Embeddings | None = None
+) -> EmbeddingsList:
     """
     Get embeddings for a given text or a list of texts with dependency injection.
 
@@ -152,7 +156,7 @@ def get_embeddings(texts: str | list[str], settings: Settings = get_settings(), 
     try:
         # WatsonX embed_documents returns list[list[float]] but mypy sees it as Any
         # We know the actual return type from the library documentation
-        embedding_vectors = embed_client.embed_documents(texts=texts, concurrency_limit=10)
+        embedding_vectors = embed_client.embed_documents(texts=texts, concurrency_limit=8)
         # Explicitly type the result as EmbeddingsList
         result: EmbeddingsList = embedding_vectors
         return result
@@ -239,7 +243,9 @@ def clean_entities(entities: list[dict]) -> list[dict]:
     return cleaned
 
 
-def get_tokenization_and_embeddings(texts: str | list[str], settings: Settings | None = None) -> tuple[list[list[str]], EmbeddingsList]:
+def get_tokenization_and_embeddings(
+    texts: str | list[str], settings: Settings | None = None
+) -> tuple[list[list[str]], EmbeddingsList]:
     """
     Get both tokenization and embeddings for a given text or a list of texts.
 
@@ -409,7 +415,9 @@ def generate_text_stream(
     if settings is None:
         settings = get_settings()
 
-    logging.info(f"Generating text with parameters: max_tokens={max_tokens}, temperature={temperature}, timeout={timeout}, max_retries={max_retries}")
+    logging.info(
+        f"Generating text with parameters: max_tokens={max_tokens}, temperature={temperature}, timeout={timeout}, max_retries={max_retries}"
+    )
     logging.debug(f"Prompt: {prompt[:100]}...")  #
     model_inference = get_model(
         generate_params={

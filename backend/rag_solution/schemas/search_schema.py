@@ -3,7 +3,6 @@
 from typing import Any
 
 from pydantic import UUID4, BaseModel, ConfigDict
-
 from vectordbs.data_types import DocumentMetadata, QueryResult
 
 

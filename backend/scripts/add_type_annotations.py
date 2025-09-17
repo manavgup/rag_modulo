@@ -20,12 +20,20 @@ def add_function_type_annotations(content: str) -> str:
         # Check if this is a test function without type annotation
         if re.match(r"def test_.*\(.*\):", line) and "->" not in line:
             # Add -> None annotation
-            line = re.sub(r"(def test_.*\(self[^)]*\)):", r"\1 -> None:", line) if "self" in line else re.sub(r"(def test_.*\([^)]*\)):", r"\1 -> None:", line)
+            line = (
+                re.sub(r"(def test_.*\(self[^)]*\)):", r"\1 -> None:", line)
+                if "self" in line
+                else re.sub(r"(def test_.*\([^)]*\)):", r"\1 -> None:", line)
+            )
 
         # Check for other functions without type annotations
         elif re.match(r"def [^_].*\(.*\):", line) and "->" not in line and "def test_" not in line:
             # Add -> None annotation for non-test functions
-            line = re.sub(r"(def [^_].*\(self[^)]*\)):", r"\1 -> None:", line) if "self" in line else re.sub(r"(def [^_].*\([^)]*\)):", r"\1 -> None:", line)
+            line = (
+                re.sub(r"(def [^_].*\(self[^)]*\)):", r"\1 -> None:", line)
+                if "self" in line
+                else re.sub(r"(def [^_].*\([^)]*\)):", r"\1 -> None:", line)
+            )
 
         fixed_lines.append(line)
         i += 1

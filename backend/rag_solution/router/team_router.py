@@ -82,7 +82,9 @@ def create_team(team: TeamInput, db: Annotated[Session, Depends(get_db)]) -> Tea
         500: {"description": "Internal server error"},
     },
 )
-def update_user_role_in_team(team_id: UUID4, user_id: UUID4, role: str, db: Annotated[Session, Depends(get_db)]) -> UserTeamOutput | None:
+def update_user_role_in_team(
+    team_id: UUID4, user_id: UUID4, role: str, db: Annotated[Session, Depends(get_db)]
+) -> UserTeamOutput | None:
     """
     Update a user's role in a team.
 
@@ -245,7 +247,9 @@ def get_team_users(team_id: UUID4, db: Annotated[Session, Depends(get_db)]) -> l
         500: {"description": "Internal server error"},
     },
 )
-def add_user_to_team(team_id: UUID4, user_team_input: UserTeamInput, db: Annotated[Session, Depends(get_db)]) -> UserTeamOutput | None:
+def add_user_to_team(
+    team_id: UUID4, user_team_input: UserTeamInput, db: Annotated[Session, Depends(get_db)]
+) -> UserTeamOutput | None:
     """
     Add a user to a team.
 

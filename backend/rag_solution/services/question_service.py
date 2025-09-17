@@ -5,12 +5,12 @@ import re
 import time
 from typing import Any
 
-from pydantic import UUID4
-from sqlalchemy.orm import Session
-
 from core.config import Settings
 from core.custom_exceptions import NotFoundError, ValidationError
 from core.logging_utils import get_logger
+from pydantic import UUID4
+from sqlalchemy.orm import Session
+
 from rag_solution.generation.providers.factory import LLMProviderFactory
 from rag_solution.models.question import SuggestedQuestion
 from rag_solution.repository.question_repository import QuestionRepository
@@ -236,10 +236,14 @@ class QuestionService:
                 return []
 
             # Setup generation components
-            provider, combined_texts, generation_stats = self._setup_question_generation(texts, provider_name, template, parameters)
+            provider, combined_texts, generation_stats = self._setup_question_generation(
+                texts, provider_name, template, parameters
+            )
 
             # Generate questions from text chunks
-            all_questions = await self._generate_questions_from_texts(combined_texts, provider, user_id, template, parameters, num_questions, generation_stats)
+            all_questions = await self._generate_questions_from_texts(
+                combined_texts, provider, user_id, template, parameters, num_questions, generation_stats
+            )
 
             if not all_questions:
                 logger.warning("No valid questions were generated")
@@ -251,7 +255,10 @@ class QuestionService:
             # Store questions in database
             stored_questions = await self._store_questions(collection_id, final_questions)
 
-            logger.info(f"Generated {len(final_questions)} questions in {time.time() - start_time:.2f}s. " f"Stats: {generation_stats}")
+            logger.info(
+                f"Generated {len(final_questions)} questions in {time.time() - start_time:.2f}s. "
+                f"Stats: {generation_stats}"
+            )
             return stored_questions
 
         except ValidationError:
@@ -263,7 +270,9 @@ class QuestionService:
             logger.exception(e)
             raise
 
-    def _setup_question_generation(self, texts: list[str], provider_name: str, template: PromptTemplateBase, parameters: LLMParametersInput) -> tuple[object, list[str], dict]:
+    def _setup_question_generation(
+        self, texts: list[str], provider_name: str, template: PromptTemplateBase, parameters: LLMParametersInput
+    ) -> tuple[object, list[str], dict]:
         """Setup components for question generation."""
         logger.info(f"Using template: {template}")
         logger.info(f"Using parameters: {parameters}")
@@ -337,7 +346,9 @@ class QuestionService:
 
         return questions
 
-    def _process_generated_questions(self, all_questions: list[str], texts: list[str], num_questions: int | None) -> list[str]:
+    def _process_generated_questions(
+        self, all_questions: list[str], texts: list[str], num_questions: int | None
+    ) -> list[str]:
         """Process, filter, and rank generated questions."""
         # Filter valid questions
         valid_questions = [q for q in all_questions if self._validate_question(q, " ".join(texts))[0]]

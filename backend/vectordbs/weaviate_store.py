@@ -4,12 +4,14 @@ This module provides a Weaviate-based implementation of the VectorStore interfac
 enabling document storage, retrieval, and search operations using Weaviate.
 """
 
+# pylint: disable=no-member
+
 import logging
 from typing import Any
 
 import weaviate  # type: ignore[import-untyped]
-
 from core.config import Settings, get_settings
+
 from vectordbs.utils.watsonx import get_embeddings
 
 from .data_types import (
@@ -44,7 +46,12 @@ class WeaviateDataStore(VectorStore):
         # Initialize Weaviate client using v4 API
         auth_credentials = self._build_auth_credentials()
         try:
-            logging.debug("Connecting to weaviate instance at %s & %s with credential type %s", self.settings.weaviate_host, self.settings.weaviate_port, type(auth_credentials).__name__)
+            logging.debug(
+                "Connecting to weaviate instance at %s & %s with credential type %s",
+                self.settings.weaviate_host,
+                self.settings.weaviate_port,
+                type(auth_credentials).__name__,
+            )
             self.client = weaviate.connect_to_custom(
                 http_host=self.settings.weaviate_host or "localhost",
                 http_port=self.settings.weaviate_port or 8080,
@@ -61,9 +68,10 @@ class WeaviateDataStore(VectorStore):
     def _build_auth_credentials(self) -> Any:
         """Build authentication credentials for Weaviate."""
         if self.settings.weaviate_username and self.settings.weaviate_password:
-            return weaviate.auth.AuthClientPassword(self.settings.weaviate_username, self.settings.weaviate_password, self.settings.weaviate_scopes)
-        else:
-            return None
+            return weaviate.auth.AuthClientPassword(
+                self.settings.weaviate_username, self.settings.weaviate_password, self.settings.weaviate_scopes
+            )
+        return None
 
     def _create_schema(self, collection_name: str) -> None:
         """Create the schema for Weaviate collection."""
@@ -73,11 +81,19 @@ class WeaviateDataStore(VectorStore):
             "vectorizer": "none",  # We'll provide our own vectors
             "properties": [
                 {"name": "text", "dataType": ["text"], "description": "The text content of the document chunk"},
-                {"name": "document_id", "dataType": ["string"], "description": "The ID of the document this chunk belongs to"},
+                {
+                    "name": "document_id",
+                    "dataType": ["string"],
+                    "description": "The ID of the document this chunk belongs to",
+                },
                 {"name": "chunk_id", "dataType": ["string"], "description": "The unique ID of this chunk"},
                 {"name": "source", "dataType": ["string"], "description": "The source of the document"},
                 {"name": "page_number", "dataType": ["int"], "description": "The page number of the chunk"},
-                {"name": "chunk_number", "dataType": ["int"], "description": "The number of the chunk within the document"},
+                {
+                    "name": "chunk_number",
+                    "dataType": ["int"],
+                    "description": "The number of the chunk within the document",
+                },
             ],
         }
 
@@ -134,7 +150,9 @@ class WeaviateDataStore(VectorStore):
                     }
 
                     # Add to Weaviate with vector
-                    self.client.data_object.create(data_object=data_object, class_name=collection_name, vector=chunk.embeddings)  # type: ignore[attr-defined]
+                    self.client.data_object.create(  # type: ignore[attr-defined]
+                        data_object=data_object, class_name=collection_name, vector=chunk.embeddings
+                    )
 
                     document_ids.append(chunk.document_id)
 
@@ -165,12 +183,12 @@ class WeaviateDataStore(VectorStore):
         query_with_embedding = QueryWithEmbedding(text=query, embeddings=query_embeddings[0])
         return self.query(collection_name, query_with_embedding, number_of_results=number_of_results)
 
-    def query(
+    def query(  # pylint: disable=redefined-builtin
         self,
         collection_name: str,
         query: QueryWithEmbedding,
         number_of_results: int = 10,
-        metadata_filter: DocumentMetadataFilter | None = None,  # noqa: ARG002
+        filter: DocumentMetadataFilter | None = None,  # noqa: ARG002
     ) -> list[QueryResult]:
         """Query the Weaviate collection.
 
@@ -178,7 +196,7 @@ class WeaviateDataStore(VectorStore):
             collection_name: Name of the collection to query
             query: Query with embedding
             number_of_results: Maximum number of results to return
-            metadata_filter: Optional metadata filter
+            filter: Optional metadata filter
 
         Returns:
             List[QueryResult]: List of query results
@@ -189,7 +207,10 @@ class WeaviateDataStore(VectorStore):
         try:
             # Perform vector search
             results = (
-                self.client.query.get(class_name=collection_name, properties=["text", "document_id", "chunk_id", "source", "page_number", "chunk_number"])  # type: ignore[attr-defined]
+                self.client.query.get(  # type: ignore[attr-defined]
+                    class_name=collection_name,
+                    properties=["text", "document_id", "chunk_id", "source", "page_number", "chunk_number"],
+                )
                 .with_near_vector({"vector": query.embeddings[0]})
                 .with_limit(number_of_results)
                 .do()
@@ -231,7 +252,11 @@ class WeaviateDataStore(VectorStore):
         try:
             # Query for objects with the specified document_ids
             for doc_id in document_ids:
-                results = self.client.query.get(class_name=collection_name, properties=["document_id"]).with_where({"path": ["document_id"], "operator": "Equal", "valueString": doc_id}).do()  # type: ignore[attr-defined]
+                results = (
+                    self.client.query.get(class_name=collection_name, properties=["document_id"])  # type: ignore[attr-defined]
+                    .with_where({"path": ["document_id"], "operator": "Equal", "valueString": doc_id})
+                    .do()
+                )
 
                 # Delete each object
                 for obj in results["data"]["Get"][collection_name]:

@@ -98,7 +98,9 @@ class UserCommands(BaseCommand):
 
         try:
             # Check if identifier looks like an email
-            endpoint = f"/api/users/by-email/{user_identifier}" if "@" in user_identifier else f"/api/users/{user_identifier}"
+            endpoint = (
+                f"/api/users/by-email/{user_identifier}" if "@" in user_identifier else f"/api/users/{user_identifier}"
+            )
 
             response = self.api_client.get(endpoint)
 
@@ -107,7 +109,9 @@ class UserCommands(BaseCommand):
         except (APIError, AuthenticationError, RAGCLIError) as e:
             return self._handle_api_error(e)
 
-    def update_user(self, user_id: str, name: str | None = None, role: str | None = None, active: bool | None = None) -> CommandResult:
+    def update_user(
+        self, user_id: str, name: str | None = None, role: str | None = None, active: bool | None = None
+    ) -> CommandResult:
         """Update user details.
 
         Args:
@@ -152,6 +156,10 @@ class UserCommands(BaseCommand):
         """
         self._require_authentication()
 
+        # Check for dry-run mode
+        if self._is_dry_run():
+            return self._create_dry_run_result(f"delete user {user_id}", {"user_id": user_id, "force": force})
+
         try:
             params: dict[str, Any] = {}
             if force:
@@ -173,14 +181,16 @@ class UserCommands(BaseCommand):
         self._require_authentication()
 
         try:
-            response = self.api_client.get("/api/users/me")
+            response = self.api_client.get("/api/auth/me")
 
             return self._create_success_result(data=response, message="Current user details retrieved")
 
         except (APIError, AuthenticationError, RAGCLIError) as e:
             return self._handle_api_error(e)
 
-    def import_users(self, users_data: dict[str, Any], conflict_resolution: str = "skip", dry_run: bool = False) -> CommandResult:
+    def import_users(
+        self, users_data: dict[str, Any], conflict_resolution: str = "skip", dry_run: bool = False
+    ) -> CommandResult:
         """Import multiple users from data.
 
         Args:
@@ -217,7 +227,9 @@ class UserCommands(BaseCommand):
         except (APIError, AuthenticationError, RAGCLIError) as e:
             return self._handle_api_error(e)
 
-    def export_users(self, include_inactive: bool = False, teams: list[str] | None = None, roles: list[str] | None = None) -> CommandResult:
+    def export_users(
+        self, include_inactive: bool = False, teams: list[str] | None = None, roles: list[str] | None = None
+    ) -> CommandResult:
         """Export users data.
 
         Args:
@@ -241,7 +253,9 @@ class UserCommands(BaseCommand):
 
             response = self.api_client.get("/api/users/export", params=params)
 
-            return self._create_success_result(data=response, message=f"Exported {response.get('total_count', 0)} users")
+            return self._create_success_result(
+                data=response, message=f"Exported {response.get('total_count', 0)} users"
+            )
 
         except (APIError, AuthenticationError, RAGCLIError) as e:
             return self._handle_api_error(e)

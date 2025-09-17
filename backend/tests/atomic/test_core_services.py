@@ -101,7 +101,9 @@ class TestCoreServicesDataValidation:
         """Test CollectionInput schema validation."""
         # Valid collection input
         user_id = uuid4()
-        valid_collection = CollectionInput(name="Test Collection", is_private=True, users=[user_id], status=CollectionStatus.CREATED)
+        valid_collection = CollectionInput(
+            name="Test Collection", is_private=True, users=[user_id], status=CollectionStatus.CREATED
+        )
 
         assert valid_collection.name == "Test Collection"
         assert valid_collection.is_private is True
@@ -138,11 +140,15 @@ class TestCoreServicesDataValidation:
     def test_collection_privacy_validation(self):
         """Test collection privacy validation."""
         # Test private collection
-        private_collection = CollectionInput(name="Private Collection", is_private=True, users=[], status=CollectionStatus.CREATED)
+        private_collection = CollectionInput(
+            name="Private Collection", is_private=True, users=[], status=CollectionStatus.CREATED
+        )
         assert private_collection.is_private is True
 
         # Test public collection
-        public_collection = CollectionInput(name="Public Collection", is_private=False, users=[], status=CollectionStatus.CREATED)
+        public_collection = CollectionInput(
+            name="Public Collection", is_private=False, users=[], status=CollectionStatus.CREATED
+        )
         assert not public_collection.is_private
 
     def test_collection_status_validation(self):
@@ -162,7 +168,9 @@ class TestCoreServicesDataValidation:
     def test_core_services_serialization(self):
         """Test core services data serialization."""
         # Test user serialization
-        user = UserInput(email="serialization@test.com", ibm_id="serialization_user", name="Serialization User", role="user")
+        user = UserInput(
+            email="serialization@test.com", ibm_id="serialization_user", name="Serialization User", role="user"
+        )
 
         data = user.model_dump()
         assert isinstance(data, dict)
@@ -183,7 +191,9 @@ class TestCoreServicesDataValidation:
         assert data["name"] == "Serialization Team"
 
         # Test collection serialization
-        collection = CollectionInput(name="Serialization Collection", is_private=False, users=[], status=CollectionStatus.CREATED)
+        collection = CollectionInput(
+            name="Serialization Collection", is_private=False, users=[], status=CollectionStatus.CREATED
+        )
 
         data = collection.model_dump()
         assert isinstance(data, dict)

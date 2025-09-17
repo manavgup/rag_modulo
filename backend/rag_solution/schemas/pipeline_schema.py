@@ -7,9 +7,9 @@ from enum import Enum
 from typing import Any
 
 from pydantic import UUID4, BaseModel, ConfigDict, Field, field_validator, model_validator
+from vectordbs.data_types import QueryResult
 
 from rag_solution.models.pipeline import PipelineConfig as PipelineModel
-from vectordbs.data_types import QueryResult
 
 
 class ChunkingStrategy(str, Enum):
@@ -42,12 +42,18 @@ class PipelineConfigBase(BaseModel):
 
     name: str = Field(..., min_length=1, max_length=255, description="Name of the pipeline configuration")
     description: str | None = Field(None, max_length=1024, description="Description of the pipeline configuration")
-    chunking_strategy: ChunkingStrategy = Field(default=ChunkingStrategy.FIXED, description="Strategy for chunking text data")
+    chunking_strategy: ChunkingStrategy = Field(
+        default=ChunkingStrategy.FIXED, description="Strategy for chunking text data"
+    )
     embedding_model: str = Field(..., min_length=1, description="Embedding model to use for text data")
     retriever: RetrieverType = Field(default=RetrieverType.VECTOR, description="Retriever type for document search")
-    context_strategy: ContextStrategy = Field(default=ContextStrategy.PRIORITY, description="Strategy for handling context chunks")
+    context_strategy: ContextStrategy = Field(
+        default=ContextStrategy.PRIORITY, description="Strategy for handling context chunks"
+    )
     enable_logging: bool = Field(default=True, description="Enable or disable pipeline logging")
-    max_context_length: int | None = Field(default=2048, ge=128, le=8192, description="Maximum context length in tokens")
+    max_context_length: int | None = Field(
+        default=2048, ge=128, le=8192, description="Maximum context length in tokens"
+    )
     timeout: float | None = Field(default=30.0, ge=1.0, le=300.0, description="Timeout in seconds for pipeline tasks")
     config_metadata: dict[str, Any] | None = Field(default=None, description="Additional metadata for the pipeline")
     is_default: bool = Field(default=False, description="Whether this is the default pipeline")

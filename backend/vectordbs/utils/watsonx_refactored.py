@@ -7,6 +7,7 @@ import logging
 from collections.abc import Generator
 from typing import Any, ClassVar
 
+import numpy as np
 from chromadb.api.types import Documents, EmbeddingFunction
 from dotenv import load_dotenv
 from ibm_watsonx_ai import APIClient, Credentials  # type: ignore[import-untyped]
@@ -91,7 +92,7 @@ class WatsonXClient:
                 credentials=Credentials(api_key=self.settings.wx_api_key, url=self.settings.wx_url),
                 project_id=self.watsonx_instance_id,
             )
-            self._embeddings_client.set_api_client(api_client)
+            self._embeddings_client.set_api_client(api_client)  # pylint: disable=no-member
 
         return self._embeddings_client
 
@@ -138,7 +139,9 @@ def sublist(inputs: list, n: int) -> Generator[list, None, None]:
 
 
 # Updated functions with settings parameter
-def get_embeddings(texts: str | list[str], embed_client: wx_Embeddings | None = None, settings: Settings | None = None) -> EmbeddingsList:
+def get_embeddings(
+    texts: str | list[str], embed_client: wx_Embeddings | None = None, settings: Settings | None = None
+) -> EmbeddingsList:
     """
     Get embeddings for the given texts.
 
@@ -161,15 +164,17 @@ def get_embeddings(texts: str | list[str], embed_client: wx_Embeddings | None = 
         texts = [texts]
 
     try:
-        logger.info(f"Generating embeddings for {len(texts)} text(s)")
+        logger.info("Generating embeddings for %d text(s)", len(texts))
         embeddings = embed_client.embed_documents(texts=texts)
         return embeddings
     except Exception as e:
-        logger.error(f"Error generating embeddings: {e}")
+        logger.error("Error generating embeddings: %s", e)
         raise
 
 
-def get_model(generate_params: dict | None = None, model_id: str | None = None, settings: Settings | None = None) -> ModelInference:
+def get_model(
+    generate_params: dict | None = None, model_id: str | None = None, settings: Settings | None = None
+) -> ModelInference:
     """
     Get a model inference instance.
 
@@ -188,7 +193,9 @@ def get_model(generate_params: dict | None = None, model_id: str | None = None, 
     return wx_client.get_model(generate_params, model_id)
 
 
-def generate_text(prompt: str, wx_model: ModelInference | None = None, settings: Settings | None = None, **kwargs) -> str:
+def generate_text(
+    prompt: str, wx_model: ModelInference | None = None, settings: Settings | None = None, **kwargs
+) -> str:
     """
     Generate text using WatsonX.
 
@@ -211,7 +218,7 @@ def generate_text(prompt: str, wx_model: ModelInference | None = None, settings:
         response = wx_model.generate_text(prompt=prompt, **kwargs)
         return response
     except Exception as e:
-        logger.error(f"Error generating text: {e}")
+        logger.error("Error generating text: %s", e)
         raise
 
 
@@ -232,12 +239,11 @@ class ChromaEmbeddingFunction(EmbeddingFunction):
         self.settings = settings
         self.wx_client = WatsonXClient.get_instance(settings)
 
-    def __call__(self, input: Documents) -> list[Any]:
+    def __call__(self, input_docs: Documents) -> list[Any]:  # pylint: disable=redefined-builtin
         """Embed the input documents."""
         embed_client = self.wx_client.get_embeddings_client()
-        embeddings = embed_client.embed_documents(texts=input)
+        embeddings = embed_client.embed_documents(texts=input_docs)
         # Convert to the expected format for ChromaDB
-        import numpy as np
 
         return [np.array(embedding, dtype=np.float32) for embedding in embeddings]
 
@@ -279,28 +285,26 @@ def get_embedding_model() -> str:
 
 
 # Example of how to use in FastAPI routes
-"""
-from fastapi import APIRouter, Depends
-from typing import Annotated
-from core.config import Settings, get_settings
-
-router = APIRouter()
-
-@router.post("/embeddings")
-async def create_embeddings(
-    texts: list[str],
-    settings: Annotated[Settings, Depends(get_settings)]
-):
-    # Now settings is injected by FastAPI
-    embeddings = get_embeddings(texts, settings=settings)
-    return {"embeddings": embeddings}
-
-@router.post("/generate")
-async def generate(
-    prompt: str,
-    settings: Annotated[Settings, Depends(get_settings)]
-):
-    # Settings is injected
-    text = generate_text(prompt, settings=settings)
-    return {"generated": text}
-"""
+# Example usage:
+# from fastapi import APIRouter, Depends
+# from typing import Annotated
+# from core.config import Settings, get_settings
+# router = APIRouter()
+#
+# @router.post("/embeddings")
+# async def create_embeddings(
+#     texts: list[str],
+#     settings: Annotated[Settings, Depends(get_settings)]
+# ):
+#     # Now settings is injected by FastAPI
+#     embeddings = get_embeddings(texts, settings=settings)
+#     return {"embeddings": embeddings}
+#
+# @router.post("/generate")
+# async def generate(
+#     prompt: str,
+#     settings: Annotated[Settings, Depends(get_settings)]
+# ):
+#     # Settings is injected
+#     text = generate_text(prompt, settings=settings)
+#     return {"generated": text}

@@ -34,7 +34,9 @@ router = APIRouter()
         500: {"description": "Internal server error"},
     },
 )
-async def get_llm_parameters(user_id: UUID4, user: Annotated[UserOutput, Depends(verify_user_access)], db: Annotated[Session, Depends(get_db)]) -> list[LLMParametersOutput]:
+async def get_llm_parameters(
+    user_id: UUID4, user: Annotated[UserOutput, Depends(verify_user_access)], db: Annotated[Session, Depends(get_db)]
+) -> list[LLMParametersOutput]:
     """Retrieve all LLM parameters for a user."""
     service = LLMParametersService(db)
     try:
@@ -132,7 +134,9 @@ async def set_default_llm_parameters(
     summary="Get LLM providers",
     description="Retrieve all LLM providers for a user",
 )
-async def get_llm_providers(user_id: UUID4, user: Annotated[UserOutput, Depends(verify_user_access)], db: Annotated[Session, Depends(get_db)]) -> list[LLMProviderOutput]:
+async def get_llm_providers(
+    user_id: UUID4, user: Annotated[UserOutput, Depends(verify_user_access)], db: Annotated[Session, Depends(get_db)]
+) -> list[LLMProviderOutput]:
     """Retrieve all LLM providers for a user."""
     service = LLMProviderService(db)
     try:
@@ -211,7 +215,9 @@ async def delete_llm_provider(
     summary="Get provider models",
     description="Retrieve all available models from providers",
 )
-async def get_provider_models(user_id: UUID4, user: Annotated[UserOutput, Depends(verify_user_access)], db: Annotated[Session, Depends(get_db)]) -> list[LLMModelOutput]:
+async def get_provider_models(
+    user_id: UUID4, user: Annotated[UserOutput, Depends(verify_user_access)], db: Annotated[Session, Depends(get_db)]
+) -> list[LLMModelOutput]:
     """Retrieve all available models from providers."""
     service = LLMProviderService(db)
     try:

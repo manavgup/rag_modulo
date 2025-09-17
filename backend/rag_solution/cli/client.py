@@ -246,6 +246,7 @@ class RAGAPIClient:
         file_path: str | Path,
         data: dict[str, Any] | None = None,
         headers: dict[str, str] | None = None,
+        params: dict[str, Any] | None = None,
     ) -> Any:
         """Upload file via POST request.
 
@@ -280,7 +281,14 @@ class RAGAPIClient:
             with open(file_path, "rb") as file_obj:
                 files = {"file": (file_path.name, file_obj, "application/octet-stream")}
 
-                response = self.session.post(url, files=files, data=data or {}, headers=request_headers, timeout=self.config.timeout)
+                response = self.session.post(
+                    url,
+                    files=files,
+                    data=data or {},
+                    params=params or {},
+                    headers=request_headers,
+                    timeout=self.config.timeout,
+                )
 
             return self._handle_response(response)
 

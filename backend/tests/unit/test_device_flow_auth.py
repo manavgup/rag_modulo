@@ -151,7 +151,7 @@ class TestDeviceFlowBackend:
                 mock_user = Mock()
                 mock_user.id = 123
                 mock_user.email = "test@ibm.com"
-                mock_user.username = "test@ibm.com"
+                mock_user.name = "test@ibm.com"  # Use name instead of username
 
                 mock_user_service = Mock()
                 mock_user_service.get_or_create_user_by_fields.return_value = mock_user
@@ -159,7 +159,7 @@ class TestDeviceFlowBackend:
 
                 # Mock JWT creation
                 with patch("auth.oidc.create_access_token") as mock_create_token:
-                    mock_create_token.return_value = "jwt_token_123"
+                    mock_create_token.return_value = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjMiLCJlbWFpbCI6InRlc3RAaWJtLmNvbSIsInVzZXJuYW1lIjoidGVzdEBpYm0uY29tIiwidXVpZCI6IjEyMyIsInJvbGUiOiJ1c2VyIn0.test_signature"
 
                     mock_db = Mock()
                     request = DeviceFlowPollRequest(device_code="device_12345")

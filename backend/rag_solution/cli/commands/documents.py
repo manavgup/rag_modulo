@@ -7,8 +7,9 @@ upload, listing, update, delete, and batch operations.
 from pathlib import Path
 from typing import Any
 
-from rag_solution.cli.client import RAGAPIClient
-from rag_solution.cli.config import RAGConfig
+from rag_solution.cli.client import RAGAPIClient  # pylint: disable=unused-import
+from rag_solution.cli.config import RAGConfig  # pylint: disable=unused-import
+from rag_solution.cli.exceptions import RAGCLIError
 
 from .base import BaseCommand, CommandResult
 
@@ -20,16 +21,9 @@ class DocumentCommands(BaseCommand):
     providing methods to interact with the documents API.
     """
 
-    def __init__(self, api_client: RAGAPIClient, config: RAGConfig | None = None) -> None:
-        """Initialize document commands.
-
-        Args:
-            api_client: HTTP API client instance
-            config: Optional configuration settings
-        """
-        super().__init__(api_client, config)
-
-    def list_documents(self, collection_id: str | None = None, status: str | None = None, limit: int = 50) -> CommandResult:
+    def list_documents(
+        self, collection_id: str | None = None, status: str | None = None, limit: int = 50
+    ) -> CommandResult:
         """List documents in the system.
 
         Args:
@@ -43,8 +37,6 @@ class DocumentCommands(BaseCommand):
         self._require_authentication()
 
         try:
-            from typing import Any
-
             params: dict[str, Any] = {"limit": limit}
             if collection_id:
                 params["collection_id"] = collection_id
@@ -55,10 +47,12 @@ class DocumentCommands(BaseCommand):
 
             return self._create_success_result(data=response, message=f"Found {response.get('total', 0)} documents")
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             return self._handle_api_error(e)
 
-    def upload_document(self, file_path: str | Path, collection_id: str, metadata: dict[str, Any] | None = None) -> CommandResult:
+    def upload_document(
+        self, file_path: str | Path, collection_id: str, metadata: dict[str, Any] | None = None
+    ) -> CommandResult:
         """Upload a document to a collection.
 
         Args:
@@ -76,16 +70,30 @@ class DocumentCommands(BaseCommand):
             if not file_path.exists():
                 return self._create_error_result(message=f"File not found: {file_path}", error_code="FILE_NOT_FOUND")
 
-            data: dict[str, Any] = {"collection_id": collection_id}
+            # Get current user ID from auth middleware
+            try:
+                current_user = self.api_client.get("/api/auth/me")
+                user_id = current_user["uuid"]
+                if not user_id:
+                    raise RAGCLIError("No user UUID returned from authentication")
+            except (KeyError, TypeError, ValueError, RAGCLIError) as e:
+                raise RAGCLIError(f"Failed to get user ID from authentication: {e}") from e
+
+            # Send collection_id as query parameter according to the FastAPI route
+            params = {"collection_id": collection_id}
+            data: dict[str, Any] = {}
 
             if metadata:
-                data["metadata"] = metadata
+                data.update(metadata)
 
-            response = self.api_client.post_file("/api/files/upload", file_path, data=data)
+            # Use the correct API endpoint from user_routes/file_routes.py
+            response = self.api_client.post_file(f"/api/users/{user_id}/files", file_path, data=data, params=params)
 
-            return self._create_success_result(data=response, message=f"Document '{file_path.name}' uploaded successfully")
+            return self._create_success_result(
+                data=response, message=f"Document '{file_path.name}' uploaded successfully"
+            )
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             return self._handle_api_error(e)
 
     def get_document(self, document_id: str) -> CommandResult:
@@ -104,10 +112,12 @@ class DocumentCommands(BaseCommand):
 
             return self._create_success_result(data=response, message="Document details retrieved successfully")
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             return self._handle_api_error(e)
 
-    def update_document(self, document_id: str, name: str | None = None, metadata: dict[str, Any] | None = None) -> CommandResult:
+    def update_document(
+        self, document_id: str, name: str | None = None, metadata: dict[str, Any] | None = None
+    ) -> CommandResult:
         """Update document details.
 
         Args:
@@ -134,7 +144,7 @@ class DocumentCommands(BaseCommand):
 
             return self._create_success_result(data=response, message="Document updated successfully")
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             return self._handle_api_error(e)
 
     def delete_document(self, document_id: str, force: bool = False) -> CommandResult:
@@ -158,10 +168,12 @@ class DocumentCommands(BaseCommand):
 
             return self._create_success_result(data=response, message="Document deleted successfully")
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             return self._handle_api_error(e)
 
-    def batch_upload_documents(self, file_paths: list[str | Path], collection_id: str, parallel: bool = False) -> CommandResult:
+    def batch_upload_documents(
+        self, file_paths: list[str | Path], collection_id: str, parallel: bool = False
+    ) -> CommandResult:
         """Upload multiple documents in batch.
 
         Args:
@@ -180,9 +192,12 @@ class DocumentCommands(BaseCommand):
             for file_path in file_paths:
                 path_obj = Path(file_path)
                 if not path_obj.exists():
-                    return self._create_error_result(message=f"File not found: {file_path}", error_code="FILE_NOT_FOUND")
+                    return self._create_error_result(
+                        message=f"File not found: {file_path}", error_code="FILE_NOT_FOUND"
+                    )
                 valid_files.append(path_obj)
 
+            # pylint: disable=fixme
             # TODO: Implement proper file handling for batch upload
             # files = [("files", (file_path.name, file_path.open("rb"))) for file_path in valid_files]
 
@@ -199,7 +214,7 @@ class DocumentCommands(BaseCommand):
 
             return self._create_success_result(data=response, message=message)
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             return self._handle_api_error(e)
 
     def process_document(self, document_id: str, force_reprocess: bool = False) -> CommandResult:
@@ -221,7 +236,7 @@ class DocumentCommands(BaseCommand):
 
             return self._create_success_result(data=response, message="Document processing initiated successfully")
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             return self._handle_api_error(e)
 
     def get_processing_status(self, document_id: str) -> CommandResult:
@@ -240,7 +255,7 @@ class DocumentCommands(BaseCommand):
 
             return self._create_success_result(data=response, message="Processing status retrieved successfully")
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             return self._handle_api_error(e)
 
     def download_document(self, document_id: str, output_path: str | Path | None = None) -> CommandResult:
@@ -256,6 +271,7 @@ class DocumentCommands(BaseCommand):
         self._require_authentication()
 
         try:
+            # pylint: disable=fixme
             # TODO: Implement proper streaming download
             response = self.api_client.get(f"/api/files/{document_id}/download")
 
@@ -274,9 +290,11 @@ class DocumentCommands(BaseCommand):
                 for chunk in response.iter_content(chunk_size=8192):
                     f.write(chunk)
 
-            return self._create_success_result(data={"file_path": str(output_file)}, message=f"Document downloaded to {output_file}")
+            return self._create_success_result(
+                data={"file_path": str(output_file)}, message=f"Document downloaded to {output_file}"
+            )
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             return self._handle_api_error(e)
 
     def get_document_chunks(self, document_id: str, limit: int = 50) -> CommandResult:
@@ -296,7 +314,9 @@ class DocumentCommands(BaseCommand):
 
             response = self.api_client.get(f"/api/files/{document_id}/chunks", params=params)
 
-            return self._create_success_result(data=response, message=f"Retrieved {len(response.get('chunks', []))} chunks")
+            return self._create_success_result(
+                data=response, message=f"Retrieved {len(response.get('chunks', []))} chunks"
+            )
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             return self._handle_api_error(e)

@@ -246,7 +246,9 @@ class TestTeamServiceUnit:
 
         from rag_solution.schemas.user_team_schema import UserTeamOutput
 
-        mock_user_team = UserTeamOutput(user_id=user_id, team_id=team_id, role="member", joined_at="2024-01-01T00:00:00Z")
+        mock_user_team = UserTeamOutput(
+            user_id=user_id, team_id=team_id, role="member", joined_at="2024-01-01T00:00:00Z"
+        )
         service.user_team_service.add_user_to_team.return_value = mock_user_team
 
         result = service.add_user_to_team(user_id, team_id)
