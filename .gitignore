@@ -85,3 +85,4 @@ backend/tests_backup
 
 # Ignore history
 .history/
+backend/.env.backup
