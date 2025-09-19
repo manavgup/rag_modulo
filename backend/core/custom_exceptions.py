@@ -297,8 +297,8 @@ class LLMProviderError(BaseCustomError):
     def __init__(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         provider: str,
-        error_type: str,
-        message: str,
+        error_type: str | None = None,
+        message: str | None = None,
         operation: str | None = None,
         details: dict[str, Any] | None = None,
     ) -> None:
@@ -306,17 +306,29 @@ class LLMProviderError(BaseCustomError):
 
         Args:
             provider: Name of the LLM provider (e.g., watsonx, openai, anthropic)
+                      OR if this is the only argument, it's treated as the message for backward compatibility
             error_type: Type of error (e.g., initialization, authentication, rate_limit)
             message: Error message
             operation: Optional operation that failed (e.g., generate, embed)
             details: Additional error details
         """
+        # Handle backward compatibility - if error_type and message are None,
+        # treat provider as the message
+        if error_type is None and message is None:
+            actual_message = provider
+            actual_provider = "unknown"
+            actual_error_type = "general"
+        else:
+            actual_message = message or "Unknown error"
+            actual_provider = provider
+            actual_error_type = error_type or "general"
+
         super().__init__(
-            message,
+            actual_message,
             status_code=500,
             details={
-                "provider": provider,
-                "error_type": error_type,
+                "provider": actual_provider,
+                "error_type": actual_error_type,
                 **({"operation": operation} if operation else {}),
                 **(details or {}),
             },

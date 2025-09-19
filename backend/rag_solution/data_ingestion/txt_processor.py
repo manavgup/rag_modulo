@@ -11,10 +11,11 @@ from collections.abc import AsyncIterator
 
 import aiofiles
 from core.custom_exceptions import DocumentProcessingError
+
+# Embedding functionality inherited from BaseProcessor
 from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, Source
 
 from rag_solution.data_ingestion.base_processor import BaseProcessor
-from rag_solution.doc_utils import get_embeddings
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -54,11 +55,13 @@ class TxtProcessor(BaseProcessor):
 
                 # Create all chunks for this document
                 document_chunks = []
+
+                # Create chunks without embeddings (embeddings will be generated in ingestion.py)
                 for chunk_text in chunks:
                     chunk = DocumentChunk(
                         chunk_id=str(uuid.uuid4()),
                         text=chunk_text,
-                        embeddings=get_embeddings(chunk_text)[0],  # Extract first embedding from list
+                        embeddings=[],  # Empty embeddings
                         document_id=_document_id,
                         metadata=chunk_metadata,
                     )

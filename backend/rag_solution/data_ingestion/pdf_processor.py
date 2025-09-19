@@ -20,10 +20,11 @@ import pymupdf  # type: ignore[import-untyped]
 from core.config import Settings, get_settings
 from core.custom_exceptions import DocumentProcessingError
 from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, DocumentMetadata, Embeddings, Source
-from vectordbs.utils.watsonx import get_embeddings, get_wx_embeddings_client, sublist
 
 from rag_solution.data_ingestion.base_processor import BaseProcessor
 from rag_solution.data_ingestion.chunking import get_chunking_method
+
+# Embedding functionality will be accessed through provider factory
 from rag_solution.doc_utils import clean_text
 
 logger = logging.getLogger(__name__)
@@ -137,34 +138,39 @@ class PdfProcessor(BaseProcessor):
                 # Process main text
                 text_chunks = chunking_method(full_text)
                 current_position = 0  # Track position in full text
-                embed_client = get_wx_embeddings_client(self.settings)
-                for subset_chunks in sublist(inputs=text_chunks, n=5):
-                    chunk_embeddings = get_embeddings(texts=subset_chunks, embed_client=embed_client)
-                    for ix, chunk_text in enumerate(subset_chunks):
-                        start_idx = full_text.find(chunk_text, current_position)
-                        end_idx = start_idx + len(chunk_text)
-                        current_position = end_idx  # Update for next search
 
-                        chunk_metadata = {
-                            **page_metadata,
-                            "chunk_number": chunk_counter,
-                            "start_index": start_idx,
-                            "end_index": end_idx,
-                            "table_index": 0,  # Not a table
-                            "image_index": 0,  # Not an image
-                        }
-                        chunks.append(
-                            self.create_document_chunk(chunk_text, chunk_embeddings[ix], chunk_metadata, document_id)
-                        )
-                        chunk_counter += 1
+                # Create chunks without embeddings (embeddings will be generated in ingestion.py)
+                for chunk_text in text_chunks:
+                    start_idx = full_text.find(chunk_text, current_position)
+                    end_idx = start_idx + len(chunk_text)
+                    current_position = end_idx  # Update for next search
+
+                    chunk_metadata = {
+                        **page_metadata,
+                        "chunk_number": chunk_counter,
+                        "start_index": start_idx,
+                        "end_index": end_idx,
+                        "table_index": 0,  # Not a table
+                        "image_index": 0,  # Not an image
+                    }
+                    chunks.append(
+                        self.create_document_chunk(chunk_text, [], chunk_metadata, document_id)  # Empty embeddings
+                    )
+                    chunk_counter += 1
 
                 # Process tables
                 if tables:
+                    table_texts = []
+                    table_chunks_list = []
                     for table_index, table in enumerate(tables):
                         table_text = "\n".join([" | ".join(row) for row in table])
                         table_chunks = chunking_method(table_text)
-                        for table_chunk in table_chunks:
-                            table_embedding = get_embeddings(texts=table_chunk, embed_client=embed_client)
+                        table_texts.extend(table_chunks)
+                        table_chunks_list.extend([(table_index, chunk) for chunk in table_chunks])
+
+                    # Create table chunks without embeddings (embeddings will be generated in ingestion.py)
+                    if table_texts:
+                        for table_index, table_chunk in table_chunks_list:
                             chunk_metadata = {
                                 **page_metadata,
                                 "chunk_number": chunk_counter,
@@ -174,27 +180,30 @@ class PdfProcessor(BaseProcessor):
                                 "image_index": 0,  # Not an image
                             }
                             chunks.append(
-                                self.create_document_chunk(table_chunk, table_embedding[0], chunk_metadata, document_id)
+                                self.create_document_chunk(
+                                    table_chunk, [], chunk_metadata, document_id
+                                )  # Empty embeddings
                             )
                             chunk_counter += 1
 
                 # Process images
                 images: list[str] = self.extract_images_from_page(page, output_folder)
-                for img_index, img in enumerate(images):
-                    chunk_metadata = {
-                        **page_metadata,
-                        "chunk_number": chunk_counter,
-                        "start_index": 0,  # Images don't have character positions
-                        "end_index": 0,
-                        "table_index": 0,  # Not a table
-                        "image_index": img_index,
-                    }
-                    image_text = f"Image: {img}"
-                    image_embedding = get_embeddings(texts=image_text, embed_client=embed_client)
-                    chunks.append(
-                        self.create_document_chunk(image_text, image_embedding[0], chunk_metadata, document_id)
-                    )
-                    chunk_counter += 1
+                if images:
+                    # Create image chunks without embeddings (embeddings will be generated in ingestion.py)
+                    for img_index, img in enumerate(images):
+                        chunk_metadata = {
+                            **page_metadata,
+                            "chunk_number": chunk_counter,
+                            "start_index": 0,  # Images don't have character positions
+                            "end_index": 0,
+                            "table_index": 0,  # Not a table
+                            "image_index": img_index,
+                        }
+                        image_text = f"Image: {img}"
+                        chunks.append(
+                            self.create_document_chunk(image_text, [], chunk_metadata, document_id)  # Empty embeddings
+                        )
+                        chunk_counter += 1
 
         except Exception as e:
             logger.error("Error processing page %d of %s: %s", page_number, file_path, e, exc_info=True)

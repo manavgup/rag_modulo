@@ -15,6 +15,8 @@ from vectordbs.data_types import Document
 from vectordbs.vector_store import VectorStore
 
 from rag_solution.data_ingestion.document_processor import DocumentProcessor
+from rag_solution.file_management.database import create_session_factory
+from rag_solution.generation.providers.factory import LLMProviderFactory
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -39,11 +41,104 @@ class DocumentStore:
         self.vector_store = vector_store
         self.collection_name = collection_name
         self.documents: list[Document] = []
+        self._embedding_provider = None  # Cache provider instance
 
-    async def load_documents(self, data_source: list[str]) -> list[Document]:
-        """Load documents from the specified data source and ingest them into the vector store."""
+    def _get_embedding_provider(self):
+        """Get or create cached embedding provider instance."""
+        if self._embedding_provider is None:
+            logger.info("Creating new embedding provider instance")
+            session_factory = create_session_factory()
+            db = session_factory()
+            try:
+                factory = LLMProviderFactory(db)
+                logger.info("LLMProviderFactory created")
+
+                self._embedding_provider = factory.get_provider("watsonx")
+                logger.info("Created cached embedding provider instance: %s", type(self._embedding_provider))
+
+                # Test if the provider has an embeddings client
+                if hasattr(self._embedding_provider, "embeddings_client"):
+                    logger.info(
+                        "Provider has embeddings_client: %s", self._embedding_provider.embeddings_client is not None
+                    )
+                else:
+                    logger.warning("Provider does not have embeddings_client attribute")
+
+            except Exception as e:
+                logger.error("Error creating embedding provider: %s", e, exc_info=True)
+                raise
+            finally:
+                db.close()
+        else:
+            logger.info("Using cached embedding provider instance")
+
+        return self._embedding_provider
+
+    def _embed_documents_batch(self, documents: list[Document]) -> list[Document]:
+        """Embed all chunks from all documents in a single batch operation."""
+        if not documents:
+            return documents
+
+        # Collect all text chunks from all documents
+        all_texts = []
+        chunk_mapping = []  # Track which chunk belongs to which document
+
+        for doc_idx, document in enumerate(documents):
+            for chunk_idx, chunk in enumerate(document.chunks):
+                all_texts.append(chunk.text)
+                chunk_mapping.append((doc_idx, chunk_idx))
+
+        # Single embedding call for all texts
+        if all_texts:
+            logger.info("Generating embeddings for %d chunks across %d documents", len(all_texts), len(documents))
+            try:
+                provider = self._get_embedding_provider()
+                logger.info("Provider retrieved: %s", type(provider))
+
+                all_embeddings = provider.get_embeddings(all_texts)
+
+                logger.info("Received %d embeddings from provider", len(all_embeddings))
+
+                if not all_embeddings:
+                    logger.error("No embeddings returned from provider!")
+                    raise ValueError("No embeddings returned from provider")
+
+                if all_embeddings:
+                    logger.info("First embedding length: %d", len(all_embeddings[0]) if all_embeddings[0] else 0)
+                    logger.info("First embedding type: %s", type(all_embeddings[0]))
+
+                # Assign embeddings back to chunks
+                for embedding_idx, (doc_idx, chunk_idx) in enumerate(chunk_mapping):
+                    if embedding_idx < len(all_embeddings):
+                        if all_embeddings[embedding_idx]:
+                            documents[doc_idx].chunks[chunk_idx].embeddings = all_embeddings[embedding_idx]
+                            logger.debug(
+                                "Assigned embedding %d to document %d chunk %d", embedding_idx, doc_idx, chunk_idx
+                            )
+                        else:
+                            logger.error("Embedding %d is empty/None!", embedding_idx)
+                            raise ValueError(f"Embedding {embedding_idx} is empty/None")
+                    else:
+                        logger.error("No embedding available for index %d", embedding_idx)
+                        raise ValueError(f"No embedding available for index {embedding_idx}")
+
+                logger.info("Successfully embedded %d chunks", len(all_texts))
+
+            except Exception as e:
+                logger.error("Error during embedding generation: %s", e, exc_info=True)
+                raise ValueError(f"Embedding generation failed: {e}") from e
+
+        return documents
+
+    async def load_documents(self, data_source: list[str], document_ids: list[str] | None = None) -> list[Document]:
+        """Load documents from the specified data source and ingest them into the vector store.
+
+        Args:
+            data_source: List of file paths to process
+            document_ids: Optional list of document IDs to use (must match data_source length)
+        """
         try:
-            processed_documents = await self.ingest_documents(data_source)
+            processed_documents = await self.ingest_documents(data_source, document_ids)
             self.documents.extend(processed_documents)
             logger.info(
                 "Ingested and processed %d documents into collection: %s",
@@ -55,24 +150,48 @@ class DocumentStore:
             logger.error("Error ingesting documents: %s", e, exc_info=True)
             raise
 
-    async def ingest_documents(self, file_paths: list[str]) -> list[Document]:
-        """Ingest documents and store them in the vector store."""
+    async def ingest_documents(self, file_paths: list[str], document_ids: list[str] | None = None) -> list[Document]:
+        """Ingest documents and store them in the vector store.
+
+        Args:
+            file_paths: List of file paths to process
+            document_ids: Optional list of document IDs to use (must match file_paths length)
+        """
         processed_documents: list[Document] = []
+
+        # Validate document_ids if provided
+        if document_ids is not None and len(document_ids) != len(file_paths):
+            raise ValueError(
+                f"document_ids length ({len(document_ids)}) must match file_paths length ({len(file_paths)})"
+            )
+
+        # Phase 1: Process all documents (structure only, no embeddings)
         with multiprocessing.Manager() as manager:
             processor = DocumentProcessor(manager, self.settings)
 
-            for file_path in file_paths:
+            for i, file_path in enumerate(file_paths):
                 logger.info("Processing file: %s", file_path)
                 try:
-                    # Process the document
-                    documents_iterator = processor.process_document(file_path, str(uuid.uuid4()))
+                    # Use provided document_id or generate new one
+                    document_id = document_ids[i] if document_ids else str(uuid.uuid4())
+                    logger.info("Using document_id: %s for file: %s", document_id, file_path)
+
+                    # Process the document (without embeddings)
+                    documents_iterator = processor.process_document(file_path, document_id)
                     async for document in documents_iterator:
                         processed_documents.append(document)
-                        # Store document in vector store
-                        self.store_documents_in_vector_store([document])
                 except Exception as e:
                     logger.error("Error processing file %s: %s", file_path, e, exc_info=True)
                     raise e
+
+        # Phase 2: Generate embeddings for all documents at once
+        if processed_documents:
+            logger.info("Generating embeddings for %d documents", len(processed_documents))
+            processed_documents = self._embed_documents_batch(processed_documents)
+
+            # Phase 3: Store all documents with embeddings
+            self.store_documents_in_vector_store(processed_documents)
+
         return processed_documents
 
     def store_documents_in_vector_store(self, documents: list[Document]) -> None:

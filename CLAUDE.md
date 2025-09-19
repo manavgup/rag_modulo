@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 RAG Modulo is a modular Retrieval-Augmented Generation (RAG) solution with flexible vector database support, customizable embedding models, and document processing capabilities. The project uses a service-based architecture with clean separation of concerns.
 
+**Recent Update**: The system has been simplified with automatic pipeline resolution, eliminating client-side pipeline management complexity while maintaining full RAG functionality.
+
 ## Architecture
 
 ### Backend (Python/FastAPI)
@@ -138,10 +140,11 @@ make validate-ci
 ## Important Notes
 
 ### Current Status
-- ⚠️ Authentication system needs fixing (OIDC issues blocking testing)
+- ✅ **Simplified Pipeline Resolution**: Automatic pipeline selection implemented (GitHub Issue #222)
 - ✅ Infrastructure and containers working
-- ✅ Comprehensive test suite implemented (but untested)
-- ⚠️ Local pytest setup may have dependency issues
+- ✅ Comprehensive test suite implemented and passing
+- ✅ API documentation updated for simplified architecture
+- ⚠️ Authentication system needs fixing (OIDC issues blocking some features)
 
 ### Development Best Practices
 1. **Service Architecture**: Always implement features as services with dependency injection
@@ -200,9 +203,112 @@ cd backend && poetry lock
 find . -type d -name __pycache__ -exec rm -r {} +
 ```
 
+## API and Search System
+
+### Simplified Search Architecture
+
+The search system now uses automatic pipeline resolution:
+
+**Search Input Schema** (simplified):
+```python
+class SearchInput(BaseModel):
+    question: str
+    collection_id: UUID4
+    user_id: UUID4
+    config_metadata: dict[str, Any] | None = None
+    # pipeline_id removed - handled automatically
+```
+
+**Key Benefits**:
+- No client-side pipeline management required
+- Automatic pipeline creation for new users
+- Intelligent error handling for configuration issues
+- Simplified CLI and API interfaces
+
+### Search API Usage
+
+```python
+# Simple search request
+search_input = SearchInput(
+    question="What is machine learning?",
+    collection_id=collection_uuid,
+    user_id=user_uuid
+)
+
+# Backend automatically:
+# 1. Resolves user's default pipeline
+# 2. Creates pipeline if none exists
+# 3. Uses user's LLM provider settings
+# 4. Executes search and returns results
+```
+
+### CLI Search Commands
+
+```bash
+# Simple search - no pipeline management needed
+./rag-cli search query col_123abc "What is machine learning?"
+
+# System automatically handles:
+# - Pipeline resolution
+# - LLM provider selection
+# - Configuration management
+```
+
 ## Documentation References
 
-- Backend service documentation: `backend/rag_solution/docs/`
-- Test documentation: `backend/tests/README.md`
-- Local CI guide: `LOCAL_CI.md`
-- Main README: `README.md`
+### API Documentation
+- **API Overview**: `docs/api/index.md` - Complete API documentation
+- **Search API**: `docs/api/search_api.md` - Search system with automatic pipeline resolution
+- **Search Schemas**: `docs/api/search_schemas.md` - Data structures and validation
+- **Service Configuration**: `docs/api/service_configuration.md` - Backend service setup
+- **Provider Configuration**: `docs/api/provider_configuration.md` - LLM provider management
+
+### CLI Documentation
+- **CLI Overview**: `docs/cli/index.md` - Command-line interface guide
+- **Search Commands**: `docs/cli/commands/search.md` - Search operations
+- **Authentication**: `docs/cli/authentication.md` - CLI authentication setup
+- **Configuration**: `docs/cli/configuration.md` - CLI configuration management
+
+### Development Documentation
+- **Backend Development**: `docs/development/backend/index.md` - Backend development guidelines
+- **Development Workflow**: `docs/development/workflow.md` - Development process
+- **Contributing**: `docs/development/contributing.md` - Contribution guidelines
+- **Testing Guide**: `docs/testing/index.md` - Comprehensive testing documentation
+
+### Other References
+- **Installation**: `docs/installation.md` - Setup and installation guide
+- **Configuration**: `docs/configuration.md` - System configuration
+- **Getting Started**: `docs/getting-started.md` - Quick start guide
+- **Main README**: `README.md` - Project overview
+
+## Key Architecture Changes
+
+### Simplified Pipeline Resolution (GitHub Issue #222)
+
+**What Changed**:
+- Removed `pipeline_id` from `SearchInput` schema (`rag_solution/schemas/search_schema.py`)
+- Added automatic pipeline resolution in `SearchService` (`rag_solution/services/search_service.py`)
+- Simplified CLI search commands by removing pipeline parameters
+- Enhanced error handling for configuration issues
+
+**Implementation Details**:
+- `SearchService._resolve_user_default_pipeline()` method handles automatic pipeline selection
+- Creates default pipelines for new users using their LLM provider
+- Validates pipeline accessibility and handles errors gracefully
+- CLI commands simplified to only require collection_id and query
+
+**Testing**:
+- Unit tests: `tests/unit/test_search_service_pipeline_resolution.py`
+- Integration tests: `tests/integration/test_search_integration.py`
+- All tests passing with automatic pipeline resolution
+
+**Breaking Changes**:
+- SearchInput schema no longer accepts `pipeline_id` field
+- CLI search commands no longer require `--pipeline-id` parameter
+- API clients must update to use simplified schema
+
+# important-instruction-reminders
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.
+NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.

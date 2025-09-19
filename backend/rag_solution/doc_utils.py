@@ -4,11 +4,57 @@ This module provides utility functions for creating and manipulating
 document objects, including text cleaning and validation.
 """
 
+import logging
 import os
 import uuid
 
 from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, DocumentMetadata, Source
-from vectordbs.utils.watsonx import get_embeddings
+
+
+def _get_embeddings_for_doc_utils(text: str | list[str]) -> list[list[float]]:
+    """
+    Get embeddings using the provider-based approach with rate limiting.
+
+    This is a utility function for doc_utils.py to access embedding functionality
+    without requiring processor instantiation.
+
+    Args:
+        text: Single text string or list of text strings to embed
+
+    Returns:
+        List of embedding vectors
+
+    Raises:
+        LLMProviderError: If provider-related errors occur
+        SQLAlchemyError: If database-related errors occur
+        Exception: If other unexpected errors occur
+    """
+    # Import here to avoid circular imports
+    from core.custom_exceptions import LLMProviderError  # pylint: disable=import-outside-toplevel
+    from sqlalchemy.exc import SQLAlchemyError  # pylint: disable=import-outside-toplevel
+
+    from rag_solution.file_management.database import create_session_factory  # pylint: disable=import-outside-toplevel
+    from rag_solution.generation.providers.factory import LLMProviderFactory  # pylint: disable=import-outside-toplevel
+
+    # Create session and get embeddings in one clean flow
+    session_factory = create_session_factory()
+    db = session_factory()
+
+    try:
+        factory = LLMProviderFactory(db)
+        provider = factory.get_provider("watsonx")
+        return provider.get_embeddings(text)
+    except LLMProviderError as e:
+        logging.error("LLM provider error during embedding generation: %s", e)
+        raise
+    except SQLAlchemyError as e:
+        logging.error("Database error during embedding generation: %s", e)
+        raise
+    except Exception as e:
+        logging.error("Unexpected error during embedding generation: %s", e)
+        raise
+    finally:
+        db.close()
 
 
 def get_document(name: str, document_id: str, text: str, metadata: dict | None = None) -> Document:
@@ -58,6 +104,9 @@ def get_document(name: str, document_id: str, text: str, metadata: dict | None =
     if metadata:
         doc_metadata = DocumentMetadata(**metadata)
 
+    # Get embeddings using provider-based approach with rate limiting
+    embeddings = _get_embeddings_for_doc_utils(text)
+
     return Document(
         name=name,
         document_id=document_id,
@@ -65,7 +114,7 @@ def get_document(name: str, document_id: str, text: str, metadata: dict | None =
             DocumentChunk(
                 chunk_id=str(uuid.uuid4()),
                 text=text,
-                embeddings=get_embeddings(text)[0],  # Extract first embedding from list
+                embeddings=embeddings[0],  # Extract first embedding from list
                 document_id=document_id,
                 metadata=chunk_metadata,
             )

@@ -50,5 +50,6 @@ class SearchOutput(BaseModel):
     rewritten_query: str | None = None
     evaluation: dict[str, Any] | None = None
     execution_time: float | None = None
+    cot_output: dict[str, Any] | None = None  # Chain of Thought reasoning steps when requested
 
     model_config = ConfigDict(from_attributes=True)

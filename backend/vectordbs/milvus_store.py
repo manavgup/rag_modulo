@@ -185,8 +185,12 @@ class MilvusStore(VectorStore):
                     embeddings.append(chunk.embeddings)
                     chunk_ids.append(chunk.chunk_id)
                     sources.append(str(chunk.metadata.source) if chunk.metadata and chunk.metadata.source else "OTHER")
-                    page_numbers.append(chunk.metadata.page_number if chunk.metadata else 0)
-                    chunk_numbers.append(chunk.metadata.chunk_number if chunk.metadata else 0)
+                    page_numbers.append(
+                        chunk.metadata.page_number if chunk.metadata and chunk.metadata.page_number is not None else 0
+                    )
+                    chunk_numbers.append(
+                        chunk.metadata.chunk_number if chunk.metadata and chunk.metadata.chunk_number is not None else 0
+                    )
                     document_names.append(document.metadata.title if document.metadata else "")
 
             # Insert data

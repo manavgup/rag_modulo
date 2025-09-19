@@ -1,5 +1,12 @@
+"""
+Collection service module for managing collections and their associated documents.
+
+This module provides the CollectionService class which handles all operations
+related to collections, including creation, updating, deletion, and document
+processing.
+"""
+
 # collection_service.py
-import multiprocessing
 import re
 from uuid import uuid4
 
@@ -7,13 +14,11 @@ from core.config import Settings
 from core.custom_exceptions import (
     CollectionProcessingError,
     DocumentIngestionError,
-    DocumentProcessingError,
     DocumentStorageError,
     EmptyDocumentError,
     LLMProviderError,
     NotFoundError,
     QuestionGenerationError,
-    UnsupportedFileTypeError,
     ValidationError,
 )
 from core.logging_utils import get_logger
@@ -24,7 +29,7 @@ from vectordbs.data_types import Document
 from vectordbs.error_types import CollectionError
 from vectordbs.factory import VectorStoreFactory
 
-from rag_solution.data_ingestion.document_processor import DocumentProcessor
+from rag_solution.data_ingestion.ingestion import DocumentStore
 from rag_solution.repository.collection_repository import CollectionRepository
 from rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput, CollectionStatus
 from rag_solution.schemas.file_schema import FileOutput
@@ -49,7 +54,8 @@ class CollectionService:
     def __init__(self, db: Session, settings: Settings) -> None:
         """Initialize CollectionService with dependency injection.
 
-        Args:
+        Args
+        ----
             db: Database session
             settings: Configuration settings
         """
@@ -400,32 +406,31 @@ class CollectionService:
             DocumentStorageError: If storing in vector store fails
             DocumentIngestionError: For other ingestion-related errors
         """
-        processed_documents = []
-        with multiprocessing.Manager() as manager:
-            processor = DocumentProcessor(manager, self.settings)
+        # Use DocumentStore for complete pipeline (processing + embedding + storage)
+        try:
+            document_store = DocumentStore(
+                vector_store=self.vector_store, collection_name=vector_db_name, settings=self.settings
+            )
 
-            for file_path, document_id in zip(file_paths, document_ids, strict=False):
-                logger.info(f"Processing file: {file_path}")
-                try:
-                    # Process the document
-                    documents_iterator = processor.process_document(file_path, document_id)
-                    async for document in documents_iterator:
-                        processed_documents.append(document)
-                        try:
-                            # Store document in vector store
-                            self.store_documents_in_vector_store([document], vector_db_name)
-                        except DocumentStorageError as e:
-                            logger.error(f"Failed to store document {document_id} in vector store: {e!s}")
-                            raise DocumentIngestionError(
-                                doc_id=document_id, stage="vector_store", error_type="storage_failed", message=str(e)
-                            ) from e
-                except (UnsupportedFileTypeError, DocumentProcessingError) as e:
-                    logger.error(f"Error processing file {file_path}: {e!s}")
-                    raise DocumentIngestionError(
-                        doc_id=document_id, stage="processing", error_type="processing_failed", message=str(e)
-                    ) from e
-        logger.info("Document processing complete")
-        return processed_documents
+            processed_documents = await document_store.load_documents(file_paths, document_ids)
+            logger.info(f"Document processing complete using DocumentStore with document IDs: {document_ids}")
+            return processed_documents
+
+        except Exception as e:
+            logger.error(f"Error during document ingestion: {e!s}")
+            # Map to appropriate DocumentIngestionError
+            if "processing" in str(e).lower():
+                raise DocumentIngestionError(
+                    doc_id="batch", stage="processing", error_type="processing_failed", message=str(e)
+                ) from e
+            elif "storage" in str(e).lower() or "vector" in str(e).lower():
+                raise DocumentIngestionError(
+                    doc_id="batch", stage="vector_store", error_type="storage_failed", message=str(e)
+                ) from e
+            else:
+                raise DocumentIngestionError(
+                    doc_id="batch", stage="unknown", error_type="unexpected_error", message=str(e)
+                ) from e
 
     def store_documents_in_vector_store(self, documents: list[Document], collection_name: str) -> None:
         """Store documents in the vector store.

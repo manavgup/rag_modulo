@@ -4,14 +4,12 @@ Tests the ChainOfThoughtService business logic without external dependencies.
 These tests verify the core reasoning algorithms and service orchestration.
 """
 
-import pytest
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock
 from uuid import uuid4
-from typing import List, Dict, Any
 
+import pytest
 from core.config import Settings
-from core.custom_exceptions import ValidationError, LLMProviderError, ConfigurationError
+from core.custom_exceptions import LLMProviderError, ValidationError
 
 
 class TestChainOfThoughtServiceTDD:
@@ -29,7 +27,10 @@ class TestChainOfThoughtServiceTDD:
     @pytest.fixture
     def mock_llm_service(self):
         """Mock LLM service for testing."""
-        return AsyncMock()
+        mock = AsyncMock()
+        # Ensure the mock has the generate_text method
+        mock.generate_text = AsyncMock()
+        return mock
 
     @pytest.fixture
     def mock_search_service(self):
@@ -39,20 +40,21 @@ class TestChainOfThoughtServiceTDD:
     @pytest.fixture
     def cot_service(self, mock_settings, mock_llm_service, mock_search_service):
         """Create ChainOfThoughtService instance for testing."""
-        from rag_solution.services.  # type: ignorechain_of_thought_service import ChainOfThoughtService
+        from rag_solution.services.chain_of_thought_service import ChainOfThoughtService  # type: ignore
+
+        # Create a mock db session
+        mock_db = MagicMock()
 
         return ChainOfThoughtService(
-            settings=mock_settings,
-            llm_service=mock_llm_service,
-            search_service=mock_search_service
+            settings=mock_settings, llm_service=mock_llm_service, search_service=mock_search_service, db=mock_db
         )
 
     async def test_cot_service_initialization(self, cot_service):
         """Test CoT service initializes correctly."""
         assert cot_service is not None
-        assert hasattr(cot_service, 'settings')
-        assert hasattr(cot_service, 'llm_service')
-        assert hasattr(cot_service, 'search_service')
+        assert hasattr(cot_service, "settings")
+        assert hasattr(cot_service, "llm_service")
+        assert hasattr(cot_service, "search_service")
 
     async def test_question_classification_simple_question(self, cot_service):
         """Test classification of simple question that doesn't require CoT."""
@@ -110,37 +112,29 @@ class TestChainOfThoughtServiceTDD:
 
         assert len(decomposition.sub_questions) >= 2
         # Should break down into definition and causal components
-        definition_questions = [sq for sq in decomposition.sub_questions
-                              if sq.question_type == "definition"]
-        causal_questions = [sq for sq in decomposition.sub_questions
-                           if sq.question_type == "causal"]
+        definition_questions = [sq for sq in decomposition.sub_questions if sq.question_type == "definition"]
+        causal_questions = [sq for sq in decomposition.sub_questions if sq.question_type == "causal"]
 
         assert len(definition_questions) > 0
         assert len(causal_questions) > 0
 
     async def test_iterative_reasoning_execution(self, cot_service, mock_search_service):
         """Test iterative reasoning execution with context preservation."""
-        from rag_solution.schemas.chain_of_thought_schema import  # type: ignore (
+        from rag_solution.schemas.chain_of_thought_schema import (  # type: ignore
             ChainOfThoughtInput,
-            DecomposedQuestion,
-            ReasoningStep
         )
 
         # Setup mock search results
         mock_search_service.search_documents.return_value = {
             "documents": ["Machine learning definition", "ML applications"],
-            "relevance_scores": [0.9, 0.8]
+            "relevance_scores": [0.9, 0.8],
         }
 
         cot_input = ChainOfThoughtInput(
             question="What is machine learning and what are its applications?",
             collection_id=uuid4(),
             user_id=uuid4(),
-            cot_config={
-                "enabled": True,
-                "max_reasoning_depth": 3,
-                "reasoning_strategy": "iterative"
-            }
+            cot_config={"enabled": True, "max_reasoning_depth": 3, "reasoning_strategy": "iterative"},
         )
 
         result = await cot_service.execute_chain_of_thought(cot_input)
@@ -153,16 +147,13 @@ class TestChainOfThoughtServiceTDD:
 
     async def test_decomposition_reasoning_strategy(self, cot_service):
         """Test decomposition reasoning strategy."""
-        from rag_solution.schemas.chain_of_thought_schema import  # type: ignore ChainOfThoughtInput
+        from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
 
         cot_input = ChainOfThoughtInput(
             question="Compare machine learning and artificial intelligence",
             collection_id=uuid4(),
             user_id=uuid4(),
-            cot_config={
-                "enabled": True,
-                "reasoning_strategy": "decomposition"
-            }
+            cot_config={"enabled": True, "reasoning_strategy": "decomposition"},
         )
 
         result = await cot_service.execute_chain_of_thought(cot_input)
@@ -173,16 +164,13 @@ class TestChainOfThoughtServiceTDD:
 
     async def test_context_preservation_across_steps(self, cot_service):
         """Test context preservation across reasoning steps."""
-        from rag_solution.schemas.chain_of_thought_schema import  # type: ignore ChainOfThoughtInput
+        from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
 
         cot_input = ChainOfThoughtInput(
             question="How does backpropagation work and why is it important?",
             collection_id=uuid4(),
             user_id=uuid4(),
-            cot_config={
-                "enabled": True,
-                "context_preservation": True
-            }
+            cot_config={"enabled": True, "context_preservation": True},
         )
 
         result = await cot_service.execute_chain_of_thought(cot_input)
@@ -196,7 +184,7 @@ class TestChainOfThoughtServiceTDD:
 
     async def test_token_budget_management(self, cot_service, mock_settings):
         """Test token budget management with multiplier."""
-        from rag_solution.schemas.chain_of_thought_schema import  # type: ignore ChainOfThoughtInput
+        from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
 
         mock_settings.cot_token_multiplier = 2.5
 
@@ -204,10 +192,7 @@ class TestChainOfThoughtServiceTDD:
             question="Complex question requiring multiple reasoning steps",
             collection_id=uuid4(),
             user_id=uuid4(),
-            cot_config={
-                "enabled": True,
-                "token_budget_multiplier": 3.0
-            }
+            cot_config={"enabled": True, "token_budget_multiplier": 3.0},
         )
 
         result = await cot_service.execute_chain_of_thought(cot_input)
@@ -218,13 +203,13 @@ class TestChainOfThoughtServiceTDD:
 
     async def test_confidence_aggregation(self, cot_service):
         """Test confidence score aggregation across reasoning steps."""
-        from rag_solution.schemas.chain_of_thought_schema import  # type: ignore ChainOfThoughtInput
+        from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
 
         cot_input = ChainOfThoughtInput(
             question="Multi-step question for confidence testing",
             collection_id=uuid4(),
             user_id=uuid4(),
-            cot_config={"enabled": True}
+            cot_config={"enabled": True},
         )
 
         result = await cot_service.execute_chain_of_thought(cot_input)
@@ -232,8 +217,9 @@ class TestChainOfThoughtServiceTDD:
         assert 0 <= result.total_confidence <= 1
         # Total confidence should be reasonable aggregation of step confidences
         if result.reasoning_steps:
-            step_confidences = [step.confidence_score for step in result.reasoning_steps
-                              if step.confidence_score is not None]
+            step_confidences = [
+                step.confidence_score for step in result.reasoning_steps if step.confidence_score is not None
+            ]
             if step_confidences:
                 avg_confidence = sum(step_confidences) / len(step_confidences)
                 # Total confidence should be within reasonable range of average
@@ -241,19 +227,16 @@ class TestChainOfThoughtServiceTDD:
 
     async def test_cot_disabled_fallback(self, cot_service, mock_search_service):
         """Test fallback to regular search when CoT is disabled."""
-        from rag_solution.schemas.chain_of_thought_schema import  # type: ignore ChainOfThoughtInput
+        from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
 
         mock_search_service.search.return_value = {
             "answer": "Regular search result",
             "documents": [],
-            "execution_time": 1.0
+            "execution_time": 1.0,
         }
 
         cot_input = ChainOfThoughtInput(
-            question="Simple question",
-            collection_id=uuid4(),
-            user_id=uuid4(),
-            cot_config={"enabled": False}
+            question="Simple question", collection_id=uuid4(), user_id=uuid4(), cot_config={"enabled": False}
         )
 
         result = await cot_service.execute_chain_of_thought(cot_input)
@@ -264,7 +247,7 @@ class TestChainOfThoughtServiceTDD:
 
     async def test_max_depth_enforcement(self, cot_service, mock_settings):
         """Test enforcement of maximum reasoning depth."""
-        from rag_solution.schemas.chain_of_thought_schema import  # type: ignore ChainOfThoughtInput
+        from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
 
         mock_settings.cot_max_depth = 2
 
@@ -274,8 +257,8 @@ class TestChainOfThoughtServiceTDD:
             user_id=uuid4(),
             cot_config={
                 "enabled": True,
-                "max_reasoning_depth": 5  # Higher than settings limit
-            }
+                "max_reasoning_depth": 5,  # Higher than settings limit
+            },
         )
 
         result = await cot_service.execute_chain_of_thought(cot_input)
@@ -285,7 +268,7 @@ class TestChainOfThoughtServiceTDD:
 
     async def test_evaluation_threshold_filtering(self, cot_service, mock_settings):
         """Test filtering of low-confidence reasoning steps."""
-        from rag_solution.schemas.chain_of_thought_schema import  # type: ignore ChainOfThoughtInput
+        from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
 
         mock_settings.cot_evaluation_threshold = 0.8
 
@@ -293,7 +276,7 @@ class TestChainOfThoughtServiceTDD:
             question="Question that may produce low-confidence steps",
             collection_id=uuid4(),
             user_id=uuid4(),
-            cot_config={"enabled": True}
+            cot_config={"enabled": True},
         )
 
         result = await cot_service.execute_chain_of_thought(cot_input)
@@ -305,23 +288,21 @@ class TestChainOfThoughtServiceTDD:
 
     async def test_error_handling_llm_failure(self, cot_service, mock_llm_service):
         """Test error handling when LLM service fails."""
-        from rag_solution.schemas.chain_of_thought_schema import  # type: ignore ChainOfThoughtInput
+        from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
 
-        mock_llm_service.generate_response.side_effect = LLMProviderError("LLM service unavailable")
+        mock_llm_service.generate_text.side_effect = LLMProviderError("LLM service unavailable")
 
+        user_id = uuid4()
         cot_input = ChainOfThoughtInput(
-            question="Test question",
-            collection_id=uuid4(),
-            user_id=uuid4(),
-            cot_config={"enabled": True}
+            question="Test question", collection_id=uuid4(), user_id=user_id, cot_config={"enabled": True}
         )
 
         with pytest.raises(LLMProviderError):
-            await cot_service.execute_chain_of_thought(cot_input)
+            await cot_service.execute_chain_of_thought(cot_input, user_id=str(user_id))
 
     async def test_error_handling_invalid_configuration(self, cot_service):
         """Test error handling for invalid CoT configuration."""
-        from rag_solution.schemas.chain_of_thought_schema import  # type: ignore ChainOfThoughtInput
+        from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
 
         cot_input = ChainOfThoughtInput(
             question="Test question",
@@ -329,8 +310,8 @@ class TestChainOfThoughtServiceTDD:
             user_id=uuid4(),
             cot_config={
                 "enabled": True,
-                "max_reasoning_depth": -1  # Invalid
-            }
+                "max_reasoning_depth": -1,  # Invalid
+            },
         )
 
         with pytest.raises(ValidationError):
@@ -338,13 +319,13 @@ class TestChainOfThoughtServiceTDD:
 
     async def test_reasoning_step_execution_time_tracking(self, cot_service):
         """Test execution time tracking for individual reasoning steps."""
-        from rag_solution.schemas.chain_of_thought_schema import  # type: ignore ChainOfThoughtInput
+        from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
 
         cot_input = ChainOfThoughtInput(
             question="Question requiring multiple steps",
             collection_id=uuid4(),
             user_id=uuid4(),
-            cot_config={"enabled": True}
+            cot_config={"enabled": True},
         )
 
         result = await cot_service.execute_chain_of_thought(cot_input)
@@ -355,8 +336,7 @@ class TestChainOfThoughtServiceTDD:
             assert step.execution_time > 0
 
         # Total execution time should be sum of step times
-        step_times = [step.execution_time for step in result.reasoning_steps
-                     if step.execution_time is not None]
+        step_times = [step.execution_time for step in result.reasoning_steps if step.execution_time is not None]
         if step_times:
             assert result.total_execution_time >= sum(step_times)
 
@@ -367,7 +347,7 @@ class TestQuestionDecomposerTDD:
     @pytest.fixture
     def question_decomposer(self):
         """Create QuestionDecomposer instance for testing."""
-        from rag_solution.services.  # type: ignorequestion_decomposer import QuestionDecomposer
+        from rag_solution.services.question_decomposer import QuestionDecomposer  # type: ignore
 
         mock_llm_service = AsyncMock()
         return QuestionDecomposer(llm_service=mock_llm_service)
@@ -375,7 +355,7 @@ class TestQuestionDecomposerTDD:
     async def test_decomposer_initialization(self, question_decomposer):
         """Test question decomposer initializes correctly."""
         assert question_decomposer is not None
-        assert hasattr(question_decomposer, 'llm_service')
+        assert hasattr(question_decomposer, "llm_service")
 
     async def test_simple_question_no_decomposition(self, question_decomposer):
         """Test simple question returns single sub-question."""
@@ -442,7 +422,7 @@ class TestQuestionDecomposerTDD:
             ("How does gradient descent work?", "procedural"),
             ("Why is regularization important?", "causal"),
             ("Compare CNN and RNN architectures", "comparison"),
-            ("Analyze the impact of dropout on model performance", "analytical")
+            ("Analyze the impact of dropout on model performance", "analytical"),
         ]
 
         for question, expected_type in test_cases:
@@ -457,7 +437,7 @@ class TestAnswerSynthesizerTDD:
     @pytest.fixture
     def answer_synthesizer(self):
         """Create AnswerSynthesizer instance for testing."""
-        from rag_solution.services.  # type: ignoreanswer_synthesizer import AnswerSynthesizer
+        from rag_solution.services.answer_synthesizer import AnswerSynthesizer  # type: ignore
 
         mock_llm_service = AsyncMock()
         return AnswerSynthesizer(llm_service=mock_llm_service)
@@ -465,11 +445,11 @@ class TestAnswerSynthesizerTDD:
     async def test_synthesizer_initialization(self, answer_synthesizer):
         """Test answer synthesizer initializes correctly."""
         assert answer_synthesizer is not None
-        assert hasattr(answer_synthesizer, 'llm_service')
+        assert hasattr(answer_synthesizer, "llm_service")
 
     async def test_single_step_synthesis(self, answer_synthesizer):
         """Test synthesis from single reasoning step."""
-        from rag_solution.schemas.chain_of_thought_schema import  # type: ignore ReasoningStep
+        from rag_solution.schemas.chain_of_thought_schema import ReasoningStep  # type: ignore
 
         original_question = "What is machine learning?"
         reasoning_steps = [
@@ -477,13 +457,11 @@ class TestAnswerSynthesizerTDD:
                 step_number=1,
                 question="What is machine learning?",
                 intermediate_answer="Machine learning is a subset of AI that enables computers to learn without explicit programming",
-                confidence_score=0.9
+                confidence_score=0.9,
             )
         ]
 
-        result = await answer_synthesizer.synthesize_answer(
-            original_question, reasoning_steps
-        )
+        result = await answer_synthesizer.synthesize_answer(original_question, reasoning_steps)
 
         assert result.final_answer is not None
         assert len(result.final_answer) > 0
@@ -491,7 +469,7 @@ class TestAnswerSynthesizerTDD:
 
     async def test_multi_step_synthesis(self, answer_synthesizer):
         """Test synthesis from multiple reasoning steps."""
-        from rag_solution.schemas.chain_of_thought_schema import  # type: ignore ReasoningStep
+        from rag_solution.schemas.chain_of_thought_schema import ReasoningStep  # type: ignore
 
         original_question = "What is machine learning and how does it work?"
         reasoning_steps = [
@@ -499,19 +477,17 @@ class TestAnswerSynthesizerTDD:
                 step_number=1,
                 question="What is machine learning?",
                 intermediate_answer="Machine learning is a subset of AI",
-                confidence_score=0.9
+                confidence_score=0.9,
             ),
             ReasoningStep(
                 step_number=2,
                 question="How does machine learning work?",
                 intermediate_answer="It works by training algorithms on data",
-                confidence_score=0.8
-            )
+                confidence_score=0.8,
+            ),
         ]
 
-        result = await answer_synthesizer.synthesize_answer(
-            original_question, reasoning_steps
-        )
+        result = await answer_synthesizer.synthesize_answer(original_question, reasoning_steps)
 
         assert result.final_answer is not None
         # Should incorporate information from both steps
@@ -520,17 +496,15 @@ class TestAnswerSynthesizerTDD:
 
     async def test_confidence_aggregation_synthesis(self, answer_synthesizer):
         """Test confidence score aggregation during synthesis."""
-        from rag_solution.schemas.chain_of_thought_schema import  # type: ignore ReasoningStep
+        from rag_solution.schemas.chain_of_thought_schema import ReasoningStep  # type: ignore
 
         reasoning_steps = [
             ReasoningStep(step_number=1, question="Q1", intermediate_answer="A1", confidence_score=0.9),
             ReasoningStep(step_number=2, question="Q2", intermediate_answer="A2", confidence_score=0.7),
-            ReasoningStep(step_number=3, question="Q3", intermediate_answer="A3", confidence_score=0.8)
+            ReasoningStep(step_number=3, question="Q3", intermediate_answer="A3", confidence_score=0.8),
         ]
 
-        result = await answer_synthesizer.synthesize_answer(
-            "Test question", reasoning_steps
-        )
+        result = await answer_synthesizer.synthesize_answer("Test question", reasoning_steps)
 
         # Total confidence should be reasonable aggregation
         expected_range = (0.7, 0.9)  # Between min and max step confidence
@@ -538,7 +512,7 @@ class TestAnswerSynthesizerTDD:
 
     async def test_synthesis_with_context_preservation(self, answer_synthesizer):
         """Test synthesis preserves context across reasoning steps."""
-        from rag_solution.schemas.chain_of_thought_schema import  # type: ignore ReasoningStep
+        from rag_solution.schemas.chain_of_thought_schema import ReasoningStep  # type: ignore
 
         reasoning_steps = [
             ReasoningStep(
@@ -546,15 +520,15 @@ class TestAnswerSynthesizerTDD:
                 question="Define neural networks",
                 intermediate_answer="Neural networks are computational models inspired by biological neurons",
                 context_used=["Document about neural network basics"],
-                confidence_score=0.9
+                confidence_score=0.9,
             ),
             ReasoningStep(
                 step_number=2,
                 question="How do neural networks learn?",
                 intermediate_answer="They learn through backpropagation and gradient descent",
                 context_used=["Document about training algorithms", "Previous step answer"],
-                confidence_score=0.8
-            )
+                confidence_score=0.8,
+            ),
         ]
 
         result = await answer_synthesizer.synthesize_answer(
@@ -563,31 +537,23 @@ class TestAnswerSynthesizerTDD:
 
         # Should create coherent answer combining both steps
         assert "neural networks" in result.final_answer.lower()
-        assert ("backpropagation" in result.final_answer.lower() or
-                "gradient descent" in result.final_answer.lower())
+        assert "backpropagation" in result.final_answer.lower() or "gradient descent" in result.final_answer.lower()
 
     async def test_synthesis_handles_missing_confidence(self, answer_synthesizer):
         """Test synthesis handles missing confidence scores gracefully."""
-        from rag_solution.schemas.chain_of_thought_schema import  # type: ignore ReasoningStep
+        from rag_solution.schemas.chain_of_thought_schema import ReasoningStep  # type: ignore
 
         reasoning_steps = [
             ReasoningStep(
                 step_number=1,
                 question="Q1",
                 intermediate_answer="A1",
-                confidence_score=None  # Missing confidence
+                confidence_score=None,  # Missing confidence
             ),
-            ReasoningStep(
-                step_number=2,
-                question="Q2",
-                intermediate_answer="A2",
-                confidence_score=0.8
-            )
+            ReasoningStep(step_number=2, question="Q2", intermediate_answer="A2", confidence_score=0.8),
         ]
 
-        result = await answer_synthesizer.synthesize_answer(
-            "Test question", reasoning_steps
-        )
+        result = await answer_synthesizer.synthesize_answer("Test question", reasoning_steps)
 
         # Should still produce valid result
         assert result.final_answer is not None
@@ -595,9 +561,7 @@ class TestAnswerSynthesizerTDD:
 
     async def test_synthesis_empty_steps_fallback(self, answer_synthesizer):
         """Test synthesis handles empty reasoning steps."""
-        result = await answer_synthesizer.synthesize_answer(
-            "Test question", []
-        )
+        result = await answer_synthesizer.synthesize_answer("Test question", [])
 
         # Should provide fallback response
         assert result.final_answer is not None

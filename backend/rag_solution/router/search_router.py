@@ -64,7 +64,10 @@ async def search(
         HTTPException: With appropriate status code and error detail
     """
     try:
+        print(f"🔍 ROUTER: Received search request: {search_input.question}")
+        print(f"🔍 ROUTER: Config metadata: {search_input.config_metadata}")
         result: SearchOutput = await search_service.search(search_input)
+        print(f"🔍 ROUTER: Search completed, cot_output type: {type(result.cot_output)}")
         return result
     except HTTPException as he:
         raise he

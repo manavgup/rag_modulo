@@ -146,7 +146,11 @@
     "backend/tests/cli/test_search_commands_simplified.py",
     "backend/tests/integration/test_search_pipeline_resolution_integration.py",
     "backend/tests/unit/test_pipeline_service_signature_update.py",
-    "backend/tests/unit/test_search_service_pipeline_resolution.py"
+    "backend/tests/unit/test_search_service_pipeline_resolution.py",
+    "backend/tests/atomic/test_chain_of_thought_schemas.py",
+    "backend/tests/e2e/test_chain_of_thought_e2e.py",
+    "backend/tests/integration/test_chain_of_thought_integration.py",
+    "backend/tests/unit/test_chain_of_thought_service_tdd.py"
   ],
   "non_compliant_files": [
     "backend/tests/integration/conftest.py",
