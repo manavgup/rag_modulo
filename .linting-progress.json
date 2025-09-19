@@ -161,7 +161,6 @@
     "backend/dev_tests/manual/test_cot_with_documents.py",
     "backend/dev_tests/manual/test_cot_workflow.py",
     "backend/dev_tests/manual/test_regular_search.py",
-    "backend/rag_solution/schemas/chain_of_thought_schema.py",
     "backend/rag_solution/schemas/prompt_template_schema.py",
     "backend/rag_solution/services/answer_synthesizer.py",
     "backend/rag_solution/services/chain_of_thought_service.py",
@@ -216,7 +215,8 @@
     "backend/rag_solution/data_ingestion/ingestion.py",
     "backend/rag_solution/doc_utils.py",
     "backend/rag_solution/router/search_router.py",
-    "backend/rag_solution/schemas/search_schema.py"
+    "backend/rag_solution/schemas/search_schema.py",
+    "backend/rag_solution/schemas/chain_of_thought_schema.py"
   ],
   "new_files_requiring_compliance": [],
   "legacy_files_exempt": [
