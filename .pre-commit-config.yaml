@@ -37,6 +37,9 @@ repos:
           '--disable-error-code=misc',
           '--disable-error-code=unused-ignore',
           '--no-strict-optional',
+          '--exclude=backend/dev_tests/experiments/',
+          '--exclude=backend/debug_milvus.py',
+          '--exclude=backend/debug_retrieval.py',
           'backend/'
         ]
         additional_dependencies:

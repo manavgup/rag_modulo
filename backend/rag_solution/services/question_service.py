@@ -1,4 +1,4 @@
-"""Service for handling question suggestion functionality."""
+"""Service for handling question suggestion functionality with Chain of Thought support."""
 
 import asyncio
 import re
@@ -28,7 +28,7 @@ class QuestionService:
 
     def __init__(self, db: Session, settings: Settings) -> None:
         """
-        Initialize question service.
+        Initialize question service with Chain of Thought support.
 
         Args:
             db: Database session
@@ -43,6 +43,13 @@ class QuestionService:
         self._prompt_template_service: PromptTemplateService | None = None
         self._llm_parameters_service: LLMParametersService | None = None
         self._provider_factory = LLMProviderFactory(db)
+
+        # Enhanced configuration for better question generation
+        self.max_questions_per_collection = getattr(settings, "max_questions_per_collection", 15)
+        self.max_chunks_to_process = getattr(
+            settings, "max_chunks_for_questions", 8
+        )  # Increased from 5 to 8 for better coverage
+        self.cot_question_ratio = getattr(settings, "cot_question_ratio", 0.4)  # 40% CoT questions
 
     @property
     def question_repository(self) -> QuestionRepository:
@@ -174,13 +181,94 @@ class QuestionService:
 
         return unique_questions
 
+    def _select_representative_chunks(self, texts: list[str], max_chunks: int) -> list[str]:
+        """
+        Select representative chunks from across the document for better coverage.
+
+        Uses a combination of:
+        1. Stratified sampling (beginning, middle, end)
+        2. Content diversity (different topics/sections)
+        3. Length-based selection (prefer informative chunks)
+
+        Args:
+            texts: All available text chunks
+            max_chunks: Maximum number of chunks to select
+
+        Returns:
+            List of selected text chunks with good document coverage
+        """
+        if len(texts) <= max_chunks:
+            return texts
+
+        selected_chunks = []
+
+        # Strategy 1: Always include beginning and end for context
+        if max_chunks >= 2:
+            selected_chunks.append(texts[0])  # Beginning
+            if len(texts) > 1:
+                selected_chunks.append(texts[-1])  # End
+            remaining_slots = max_chunks - 2
+        else:
+            # If we can only take 1 chunk, take the longest one
+            longest_chunk = max(texts, key=len)
+            return [longest_chunk]
+
+        # Strategy 2: Stratified sampling from document sections
+        if remaining_slots > 0:
+            # Divide document into sections and sample from each
+            section_size = len(texts) // (remaining_slots + 1)
+
+            for i in range(remaining_slots):
+                # Sample from each section, avoiding already selected chunks
+                section_start = (i + 1) * section_size
+                section_end = min((i + 2) * section_size, len(texts) - 1)
+
+                if section_start < section_end:
+                    # Within each section, prefer chunks with good length and content diversity
+                    section_chunks = texts[section_start:section_end]
+
+                    # Score chunks by length and keyword diversity
+                    scored_chunks = []
+                    for chunk in section_chunks:
+                        if chunk not in selected_chunks:
+                            # Simple scoring: length + unique words
+                            words = set(chunk.lower().split())
+                            score = len(chunk) * 0.1 + len(words) * 2.0
+                            scored_chunks.append((score, chunk))
+
+                    if scored_chunks:
+                        # Select the highest scoring chunk from this section
+                        scored_chunks.sort(reverse=True)
+                        selected_chunks.append(scored_chunks[0][1])
+
+        # Strategy 3: Fill remaining slots with highest-quality chunks
+        while len(selected_chunks) < max_chunks and len(selected_chunks) < len(texts):
+            remaining_texts = [t for t in texts if t not in selected_chunks]
+            if not remaining_texts:
+                break
+
+            # Score remaining chunks for informativeness
+            best_chunk = max(remaining_texts, key=lambda x: len(x) + len(set(x.lower().split())) * 2)
+            selected_chunks.append(best_chunk)
+
+        logger.info(f"Selected {len(selected_chunks)} representative chunks using stratified sampling strategy")
+        return selected_chunks
+
     def _combine_text_chunks(self, texts: list[str], available_context_length: int) -> list[str]:
-        """Combine text chunks while respecting context length limits."""
+        """Combine text chunks while respecting context length limits and processing caps."""
+        # IMPROVED: Intelligent chunk sampling for better document coverage
+        limited_texts = self._select_representative_chunks(texts, self.max_chunks_to_process)
+
+        if len(texts) > self.max_chunks_to_process:
+            logger.info(
+                f"Sampled {self.max_chunks_to_process} representative chunks from {len(texts)} total chunks for better document coverage"
+            )
+
         combined_texts = []
         current_batch = []
         current_length = 0
 
-        for text in texts:
+        for text in limited_texts:
             # Truncate texts that are too long for the limit
             if len(text) > available_context_length:
                 text = text[:available_context_length]
@@ -209,6 +297,7 @@ class QuestionService:
         template: PromptTemplateBase,
         parameters: LLMParametersInput,
         num_questions: int | None = None,
+        force_regenerate: bool = False,
     ) -> list[SuggestedQuestion]:
         """Generate suggested questions based on the provided texts.
 
@@ -220,6 +309,7 @@ class QuestionService:
             template: Prompt template for question generation
             parameters: LLM parameters to use
             num_questions: Optional number of questions to generate
+            force_regenerate: If True, delete existing questions and regenerate all
 
         Returns:
             List of generated question models
@@ -232,6 +322,11 @@ class QuestionService:
         start_time = time.time()
 
         try:
+            # Handle force regenerate option
+            if force_regenerate:
+                logger.info(f"Force regenerate requested - deleting existing questions for collection {collection_id}")
+                self.question_repository.delete_questions_by_collection(collection_id)
+
             if not texts:
                 return []
 
@@ -301,34 +396,52 @@ class QuestionService:
         num_questions: int | None,
         stats: dict,
     ) -> list[str]:
-        """Generate questions from combined text chunks using LLM."""
+        """Generate both standard and Chain of Thought questions from combined text chunks."""
         all_questions = []
+        target_questions = num_questions or self.max_questions_per_collection
+
+        # Calculate how many questions to generate from each chunk
+        questions_per_chunk = max(1, target_questions // len(combined_texts)) if combined_texts else 3
+
+        logger.info(f"Generating {questions_per_chunk} questions per chunk from {len(combined_texts)} text chunks")
 
         # Process in batches respecting concurrency limit
         for i in range(0, len(combined_texts), self.settings.llm_concurrency):
             batch = combined_texts[i : i + self.settings.llm_concurrency]
 
             try:
-                # Generate questions for batch
-                variables = {"num_questions": str(num_questions if num_questions else 3)}
+                # Generate standard questions
+                standard_variables = {"num_questions": str(questions_per_chunk)}
 
                 responses = provider.generate_text(
                     user_id=user_id,
                     prompt=batch,
                     model_parameters=parameters,
                     template=template,
-                    variables=variables,
+                    variables=standard_variables,
                 )
 
                 batch_questions = self._extract_questions_from_responses(responses)
                 all_questions.extend(batch_questions)
                 stats["successful_generations"] += 1
 
+                # Early exit if we have enough questions
+                if len(all_questions) >= target_questions * 2:  # Generate extra for filtering
+                    logger.info(f"Generated sufficient questions ({len(all_questions)}), stopping early")
+                    break
+
             except Exception as e:
                 logger.error(f"Batch generation failed: {e!s}")
                 logger.exception(e)
                 stats["failed_generations"] += 1
                 continue
+
+        # Generate Chain of Thought questions if we have multiple text chunks
+        if len(combined_texts) > 1 and len(all_questions) > 0:
+            cot_questions = await self._generate_cot_questions(
+                combined_texts, provider, user_id, template, parameters, target_questions, stats
+            )
+            all_questions.extend(cot_questions)
 
         return all_questions
 
@@ -346,28 +459,159 @@ class QuestionService:
 
         return questions
 
+    async def _generate_cot_questions(
+        self,
+        combined_texts: list[str],
+        provider: Any,
+        user_id: UUID4,
+        template: PromptTemplateBase,
+        parameters: LLMParametersInput,
+        target_questions: int,
+        stats: dict,
+    ) -> list[str]:
+        """Generate Chain of Thought questions that require multi-step reasoning."""
+        if len(combined_texts) < 2:
+            return []
+
+        try:
+            # Calculate how many CoT questions to generate
+            cot_count = max(1, int(target_questions * self.cot_question_ratio))
+
+            # Create a comprehensive context from multiple chunks for cross-document reasoning
+            full_context = " ".join(combined_texts[:3])  # Use first 3 chunks for context
+
+            # Define CoT question templates
+            cot_templates = [
+                "Generate {num_questions} complex questions that require comparing information across multiple sections of this document. These questions should need multi-step reasoning to answer fully.",
+                "Create {num_questions} analytical questions that explore relationships, causes, and effects mentioned in this content. Focus on questions that require synthesis of multiple concepts.",
+                "Develop {num_questions} strategic questions that require understanding trends, patterns, or changes described across different parts of this document.",
+            ]
+
+            cot_questions: list[str] = []
+
+            for i, cot_template in enumerate(cot_templates):
+                if len(cot_questions) >= cot_count:
+                    break
+
+                try:
+                    # Format the CoT-specific template
+                    cot_prompt = cot_template.format(num_questions=max(1, cot_count // len(cot_templates)))
+
+                    # Use the full context as a single prompt with CoT instruction
+                    variables = {"context": full_context, "instruction": cot_prompt}
+
+                    # Generate CoT questions
+                    response = provider.generate_text(
+                        user_id=user_id,
+                        prompt=[full_context],  # Single comprehensive context
+                        model_parameters=parameters,
+                        template=template,
+                        variables=variables,
+                    )
+
+                    # Extract questions from response
+                    response_text = (response[0] if response else "") if isinstance(response, list) else response
+
+                    batch_cot_questions = [q.strip() for q in response_text.split("\n") if q.strip().endswith("?")]
+                    cot_questions.extend(batch_cot_questions)
+
+                    logger.info(f"Generated {len(batch_cot_questions)} CoT questions using template {i+1}")
+
+                except Exception as e:
+                    logger.warning(f"Failed to generate CoT questions with template {i+1}: {e}")
+                    continue
+
+            stats["cot_questions_generated"] = len(cot_questions)
+            logger.info(f"Generated total {len(cot_questions)} Chain of Thought questions")
+            return cot_questions
+
+        except Exception as e:
+            logger.error(f"Error generating CoT questions: {e}")
+            return []
+
     def _process_generated_questions(
         self, all_questions: list[str], texts: list[str], num_questions: int | None
     ) -> list[str]:
-        """Process, filter, and rank generated questions."""
+        """Process, filter, and rank generated questions with global limits."""
+        # CRITICAL FIX: Apply global limit early to prevent database bloat
+        target_questions = num_questions or self.max_questions_per_collection
+
         # Filter valid questions
         valid_questions = [q for q in all_questions if self._validate_question(q, " ".join(texts))[0]]
+
+        logger.info(f"Filtered {len(all_questions)} raw questions to {len(valid_questions)} valid questions")
 
         # Remove duplicates and rank
         unique_questions = self._filter_duplicate_questions(valid_questions)
         ranked_questions = self._rank_questions(questions=unique_questions, context=" ".join(texts))
 
-        # Limit to requested number
-        return ranked_questions[:num_questions] if num_questions else ranked_questions
+        # Apply strict global limit
+        final_questions = ranked_questions[:target_questions]
+
+        logger.info(f"Final question set: {len(final_questions)} questions (target: {target_questions})")
+        return final_questions
 
     async def _store_questions(self, collection_id: UUID4, final_questions: list[str]) -> list[SuggestedQuestion]:
-        """Store questions in the database."""
+        """
+        Store questions in the database with intelligent management for existing collections.
+
+        Handles:
+        1. Question limit enforcement across existing + new questions
+        2. Duplicate detection and removal
+        3. Quality-based replacement when at capacity
+        """
         if not final_questions:
             return []
 
-        questions = [SuggestedQuestion(collection_id=collection_id, question=question) for question in final_questions]
+        # Check existing questions for this collection
+        existing_questions = self.get_collection_questions(collection_id)
+        existing_question_texts = {q.question.strip().lower() for q in existing_questions}
 
-        return await asyncio.to_thread(self.question_repository.create_questions, collection_id, questions)
+        logger.info(f"Found {len(existing_questions)} existing questions for collection {collection_id}")
+
+        # Filter out duplicates from new questions
+        unique_new_questions = []
+        for question in final_questions:
+            normalized_question = question.strip().lower()
+            if normalized_question not in existing_question_texts:
+                unique_new_questions.append(question)
+                existing_question_texts.add(normalized_question)  # Prevent internal duplicates too
+
+        logger.info(f"Filtered {len(final_questions)} new questions to {len(unique_new_questions)} unique questions")
+
+        if not unique_new_questions:
+            logger.info("No new unique questions to add")
+            return existing_questions
+
+        # Calculate capacity for new questions
+        current_count = len(existing_questions)
+        available_slots = max(0, self.max_questions_per_collection - current_count)
+
+        if available_slots == 0:
+            logger.info(f"Collection at capacity ({current_count} questions). No new questions added.")
+            return existing_questions
+
+        # Limit new questions to available slots
+        questions_to_add = unique_new_questions[:available_slots]
+
+        if len(unique_new_questions) > available_slots:
+            logger.info(f"Limited {len(unique_new_questions)} new questions to {len(questions_to_add)} due to capacity")
+
+        # Create new question objects
+        new_question_objects = [
+            SuggestedQuestion(collection_id=collection_id, question=question) for question in questions_to_add
+        ]
+
+        # Store new questions
+        stored_questions = await asyncio.to_thread(
+            self.question_repository.create_questions, collection_id, new_question_objects
+        )
+
+        logger.info(
+            f"Added {len(stored_questions)} new questions to collection {collection_id}. Total: {current_count + len(stored_questions)}"
+        )
+
+        return stored_questions
 
     def create_question(self, question_input: QuestionInput) -> SuggestedQuestion:
         """

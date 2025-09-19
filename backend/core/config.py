@@ -46,11 +46,31 @@ class Settings(BaseSettings):
     chunk_overlap: Annotated[int, Field(default=10, alias="CHUNK_OVERLAP")]
     semantic_threshold: Annotated[float, Field(default=0.5, alias="SEMANTIC_THRESHOLD")]
 
+    # Chain of Thought (CoT) settings
+    cot_max_reasoning_depth: Annotated[int, Field(default=3, alias="COT_MAX_REASONING_DEPTH")]
+    cot_reasoning_strategy: Annotated[str, Field(default="decomposition", alias="COT_REASONING_STRATEGY")]
+    cot_token_budget_multiplier: Annotated[float, Field(default=2.0, alias="COT_TOKEN_BUDGET_MULTIPLIER")]
+
     # Embedding settings
     embedding_model: Annotated[str, Field(default="sentence-transformers/all-minilm-l6-v2", alias="EMBEDDING_MODEL")]
     embedding_dim: Annotated[int, Field(default=384, alias="EMBEDDING_DIM")]
     embedding_field: Annotated[str, Field(default="embedding", alias="EMBEDDING_FIELD")]
     upsert_batch_size: Annotated[int, Field(default=100, alias="UPSERT_BATCH_SIZE")]
+
+    # Embedding configuration - using WatsonX SDK native parameters
+    embedding_batch_size: Annotated[int, Field(default=5, alias="EMBEDDING_BATCH_SIZE")]  # Reduced from 10 to 5
+    embedding_concurrency_limit: Annotated[int, Field(default=1, alias="EMBEDDING_CONCURRENCY_LIMIT")]
+    embedding_max_retries: Annotated[int, Field(default=10, alias="EMBEDDING_MAX_RETRIES")]
+    embedding_delay_time: Annotated[
+        float, Field(default=1.0, alias="EMBEDDING_DELAY_TIME")
+    ]  # Increased from 0.5 to 1.0
+    embedding_request_delay: Annotated[
+        float, Field(default=0.5, alias="EMBEDDING_REQUEST_DELAY")
+    ]  # Increased from 0.2 to 0.5
+
+    # LLM configuration - using WatsonX SDK native parameters
+    llm_max_retries: Annotated[int, Field(default=10, alias="LLM_MAX_RETRIES")]
+    llm_delay_time: Annotated[float, Field(default=0.5, alias="LLM_DELAY_TIME")]
 
     # LLM settings
     max_new_tokens: Annotated[int, Field(default=500, alias="MAX_NEW_TOKENS")]
@@ -212,7 +232,7 @@ class Settings(BaseSettings):
 
     @field_validator("rag_llm")
     @classmethod
-    def validate_rag_llm(cls, v):
+    def validate_rag_llm(cls, v: str) -> str:
         """Validate RAG LLM model name."""
         # Accept any non-empty string as LLM model name
         if not v or not v.strip():
@@ -224,7 +244,7 @@ class Settings(BaseSettings):
             return "ibm/granite-3-3-8b-instruct"
         return v.strip()
 
-    def validate_production_settings(self):
+    def validate_production_settings(self) -> bool:
         """Validate settings for production deployment."""
         warnings = []
 

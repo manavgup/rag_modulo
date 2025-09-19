@@ -114,6 +114,23 @@ class LLMProviderService:
             logger.error(f"Error getting user provider: {e!s}")
             return None
 
+    def get_default_provider(self) -> LLMProviderOutput | None:
+        """Get the system default provider.
+
+        Returns:
+            Optional[LLMProviderOutput]: Default provider configuration if found
+        """
+        try:
+            default_provider = self.repository.get_default_provider()
+            return LLMProviderOutput.model_validate(default_provider) if default_provider else None
+        except Exception as e:
+            logger.warning(f"Error getting default provider, falling back to first active: {e!s}")
+            # Fall back to first active provider if no default
+            providers = self.repository.get_all_providers(is_active=True)
+            if providers:
+                return LLMProviderOutput.model_validate(providers[0])
+            return None
+
     def get_provider_models(self, provider_id: UUID4) -> list[LLMModelOutput]:
         """Get available models for a specific provider."""
         # For now, return predefined models based on provider

@@ -13,6 +13,7 @@ from pydantic import UUID4
 from sqlalchemy.orm import Session
 from vectordbs.data_types import DocumentMetadata, QueryResult
 
+from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput
 from rag_solution.schemas.collection_schema import CollectionStatus
 from rag_solution.schemas.search_schema import SearchInput, SearchOutput
 from rag_solution.services.collection_service import CollectionService
@@ -64,6 +65,7 @@ class SearchService:
         self._collection_service: CollectionService | None = None
         self._pipeline_service: PipelineService | None = None
         self._llm_provider_service: LLMProviderService | None = None
+        self._chain_of_thought_service: Any | None = None
 
     @property
     def file_service(self) -> FileManagementService:
@@ -96,6 +98,130 @@ class SearchService:
             logger.debug("Lazy initializing LLM provider service")
             self._llm_provider_service = LLMProviderService(self.db)
         return self._llm_provider_service
+
+    @property
+    def chain_of_thought_service(self) -> Any:
+        """Lazy initialization of Chain of Thought service."""
+        if self._chain_of_thought_service is None:
+            logger.debug("Lazy initializing Chain of Thought service")
+            from rag_solution.services.chain_of_thought_service import ChainOfThoughtService
+
+            # Get default LLM provider configuration for CoT
+            provider_config = self.llm_provider_service.get_default_provider()
+
+            # Create actual LLM provider instance if config is available
+            llm_service = None
+            if provider_config:
+                try:
+                    from rag_solution.generation.providers.factory import LLMProviderFactory
+
+                    # Use the factory to create the provider instance properly
+                    factory = LLMProviderFactory(self.db)
+                    llm_service = factory.get_provider(provider_config.name)
+                    logger.debug(f"Using {provider_config.name} LLM provider for CoT service")
+                except Exception as e:
+                    logger.warning(f"Failed to create LLM provider instance: {e}")
+            else:
+                logger.warning("No default provider configuration found for CoT service")
+
+            self._chain_of_thought_service = ChainOfThoughtService(
+                settings=self.settings, llm_service=llm_service, search_service=self, db=self.db
+            )
+        return self._chain_of_thought_service
+
+    def _should_use_chain_of_thought(self, search_input: SearchInput) -> bool:
+        """Automatically determine if Chain of Thought should be used for this search.
+
+        CoT is used for complex questions that benefit from reasoning:
+        - Multi-part questions (how, why, explain, compare, analyze)
+        - Questions with multiple clauses or conditions
+        - Long questions requiring deep analysis
+        - Questions explicitly asking for reasoning or explanations
+
+        Users can override with 'show_cot_steps' for visibility or 'cot_disabled' to disable.
+        """
+        # Debug logging with print (temporary)
+        print(f"🔍 CoT decision check for question: {search_input.question}")
+        print(f"🔍 Config metadata: {search_input.config_metadata}")
+        logger.error(f"CoT decision check for question: {search_input.question}")
+        logger.error(f"Config metadata: {search_input.config_metadata}")
+
+        # Allow explicit override to disable CoT
+        if search_input.config_metadata and search_input.config_metadata.get("cot_disabled"):
+            logger.info("CoT disabled by config")
+            return False
+
+        # Allow explicit override to enable CoT
+        if search_input.config_metadata and search_input.config_metadata.get("cot_enabled"):
+            print("🔍 CoT enabled by config")
+            logger.error("CoT enabled by config")
+            return True
+
+        # Automatic detection based on question complexity
+        question = search_input.question.lower()
+        question_length = len(search_input.question.split())
+
+        # Complex question indicators
+        complex_patterns = [
+            "how does",
+            "how do",
+            "why does",
+            "why do",
+            "explain",
+            "compare",
+            "analyze",
+            "what are the differences",
+            "what is the relationship",
+            "how can i",
+            "what are the steps",
+            "walk me through",
+            "break down",
+            "elaborate",
+            "pros and cons",
+            "advantages and disadvantages",
+            "benefits and drawbacks",
+        ]
+
+        # Check for complex patterns
+        has_complex_patterns = any(pattern in question for pattern in complex_patterns)
+
+        # Check for multiple questions (indicated by multiple question marks or 'and')
+        multiple_questions = question.count("?") > 1 or (" and " in question and "?" in question)
+
+        # Long questions likely need more reasoning
+        is_long_question = question_length > 15
+
+        # Questions asking for reasoning
+        asks_for_reasoning = any(
+            word in question for word in ["because", "reason", "rationale", "justify", "evidence", "support"]
+        )
+
+        # Use CoT if any complexity indicators are present
+        should_use_cot = has_complex_patterns or multiple_questions or is_long_question or asks_for_reasoning
+
+        logger.debug(
+            f"CoT decision: {should_use_cot} (patterns={has_complex_patterns}, "
+            f"multiple={multiple_questions}, long={is_long_question}, "
+            f"reasoning={asks_for_reasoning}, length={question_length})"
+        )
+
+        return should_use_cot
+
+    def _should_show_cot_steps(self, search_input: SearchInput) -> bool:
+        """Determine if Chain of Thought steps should be shown to the user."""
+        if not search_input.config_metadata:
+            return False
+        return search_input.config_metadata.get("show_cot_steps", False)
+
+    def _convert_to_cot_input(self, search_input: SearchInput) -> ChainOfThoughtInput:
+        """Convert SearchInput to ChainOfThoughtInput."""
+        return ChainOfThoughtInput(
+            question=search_input.question,
+            collection_id=search_input.collection_id,
+            user_id=search_input.user_id,
+            cot_config=search_input.config_metadata,
+            context_metadata=search_input.config_metadata,
+        )
 
     @handle_search_errors
     async def _initialize_pipeline(self, collection_id: UUID4) -> str:
@@ -170,12 +296,38 @@ class SearchService:
         return doc_metadata
 
     def _clean_generated_answer(self, answer: str) -> str:
-        # Only remove obvious artifacts, preserve the natural text flow
+        """
+        Clean generated answer by removing artifacts and duplicates.
+
+        Removes:
+        - " AND " artifacts from query rewriting
+        - Duplicate consecutive words
+        - Leading/trailing whitespace
+        """
+        import re
+
         cleaned = answer.strip()
-        # Remove any obvious "AND" prefixes that might come from query rewriting artifacts
-        if cleaned.startswith("AND "):
-            cleaned = cleaned[4:].strip()
-        return cleaned
+
+        # Remove " AND " artifacts that come from query rewriting
+        # Handle both middle "AND" and trailing "AND"
+        cleaned = re.sub(r"\s+AND\s+", " ", cleaned)  # Middle ANDs
+        cleaned = re.sub(r"\s+AND$", "", cleaned)  # Trailing AND
+
+        # Remove duplicate consecutive words
+        words = cleaned.split()
+        deduplicated_words = []
+        prev_word = None
+
+        for word in words:
+            if not prev_word or word.lower() != prev_word.lower():
+                deduplicated_words.append(word)
+            prev_word = word
+
+        # Join back and clean up any multiple spaces
+        result = " ".join(deduplicated_words)
+        result = re.sub(r"\s+", " ", result).strip()
+
+        return result
 
     def _validate_search_input(self, search_input: SearchInput) -> None:
         """Validate search input parameters."""
@@ -268,6 +420,111 @@ class SearchService:
         self._validate_search_input(search_input)
         self._validate_collection_access(search_input.collection_id, search_input.user_id)
 
+        # Check if Chain of Thought should be used
+        if self._should_use_chain_of_thought(search_input):
+            logger.info("Using Chain of Thought for enhanced reasoning")
+            try:
+                # IMPORTANT: CoT must use the same pipeline as regular search to access documents
+                # First, perform regular search to get document context
+                pipeline_id = self._resolve_user_default_pipeline(search_input.user_id)
+                self._validate_pipeline(pipeline_id)
+                collection_name = await self._initialize_pipeline(search_input.collection_id)
+
+                # Execute pipeline to get document context for CoT
+                pipeline_result = await self.pipeline_service.execute_pipeline(
+                    search_input=search_input, collection_name=collection_name, pipeline_id=pipeline_id
+                )
+
+                if not pipeline_result.success:
+                    logger.warning("Pipeline failed for CoT, falling back to regular search")
+                    # Fall through to regular search
+                else:
+                    # Convert to CoT input with document context
+                    cot_input = self._convert_to_cot_input(search_input)
+
+                    # Extract document context from pipeline results
+                    context_documents = []
+                    if pipeline_result.query_results:
+                        for result in pipeline_result.query_results:
+                            # Handle different result structures
+                            text_content = None
+                            if hasattr(result, "content") and result.content:
+                                text_content = result.content
+                            elif hasattr(result, "text") and result.text:
+                                text_content = result.text
+                            elif hasattr(result, "chunk") and result.chunk and hasattr(result.chunk, "text"):
+                                text_content = result.chunk.text
+                            elif isinstance(result, dict):
+                                if "content" in result and result["content"]:
+                                    text_content = result["content"]
+                                elif "text" in result and result["text"]:
+                                    text_content = result["text"]
+                                elif "chunk" in result and result["chunk"] and "text" in result["chunk"]:
+                                    text_content = result["chunk"]["text"]
+
+                            if text_content:
+                                context_documents.append(text_content)
+
+                    # Debug logging
+                    logger.info(f"CoT context extraction: Found {len(context_documents)} context documents")
+                    for i, doc in enumerate(context_documents[:2]):  # Log first 2 docs
+                        logger.info(f"Context doc {i+1}: {doc[:100]}...")
+
+                    # Execute CoT with document context
+                    logger.info(f"Executing CoT with question: {search_input.question}")
+                    cot_result = await self.chain_of_thought_service.execute_chain_of_thought(
+                        cot_input, context_documents, user_id=str(search_input.user_id)
+                    )
+
+                    # Generate document metadata from pipeline results
+                    document_metadata = self._generate_document_metadata(
+                        pipeline_result.query_results or [], search_input.collection_id
+                    )
+
+                    # Convert CoT output to SearchOutput
+                    execution_time = time.time() - start_time
+
+                    # Include CoT reasoning steps if user requested them
+                    cot_output = None
+                    if self._should_show_cot_steps(search_input):
+                        cot_output = {
+                            "original_question": cot_result.original_question,
+                            "reasoning_steps": [
+                                {
+                                    "step_number": step.step_number,
+                                    "step_question": step.question,
+                                    "intermediate_answer": step.intermediate_answer,
+                                    "confidence_score": step.confidence_score,
+                                    "reasoning_trace": step.reasoning_trace,
+                                    "execution_time": step.execution_time,
+                                    "context_used": step.context_used,
+                                }
+                                for step in cot_result.reasoning_steps
+                            ],
+                            "final_answer": cot_result.final_answer,
+                            "total_confidence": cot_result.total_confidence,
+                            "total_execution_time": cot_result.total_execution_time,
+                            "reasoning_strategy": cot_result.reasoning_strategy,
+                        }
+
+                    return SearchOutput(
+                        answer=cot_result.final_answer,
+                        documents=document_metadata,  # Use real document metadata
+                        query_results=pipeline_result.query_results or [],  # Use real query results
+                        rewritten_query=pipeline_result.rewritten_query,
+                        evaluation=pipeline_result.evaluation,
+                        execution_time=execution_time,
+                        cot_output=cot_output,
+                    )
+            except Exception as e:
+                logger.error(f"Chain of Thought failed, falling back to regular search: {e!s}")
+                logger.error(f"CoT exception details: {type(e).__name__}: {e}")
+                import traceback
+
+                logger.error(f"CoT traceback: {traceback.format_exc()}")
+                # Fall through to regular search
+
+        # Regular search pipeline
         # Resolve user's default pipeline
         pipeline_id = self._resolve_user_default_pipeline(search_input.user_id)
         self._validate_pipeline(pipeline_id)
@@ -304,4 +561,5 @@ class SearchService:
             rewritten_query=pipeline_result.rewritten_query,
             evaluation=pipeline_result.evaluation,
             execution_time=execution_time,
+            cot_output=None,  # No CoT output for regular search
         )

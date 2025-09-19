@@ -150,8 +150,8 @@ class TestSearchServiceReal:
         )
         assert valid_input.question == "What is machine learning?"
         assert isinstance(valid_input.collection_id, type(uuid4()))
-        assert isinstance(valid_input.pipeline_id, type(uuid4()))
         assert isinstance(valid_input.user_id, type(uuid4()))
+        # Note: pipeline_id is not part of SearchInput schema - pipeline selection is handled automatically
 
     def test_search_output_schema_validation(self):
         """Test SearchOutput schema validation."""

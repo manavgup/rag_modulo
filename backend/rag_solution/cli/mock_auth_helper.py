@@ -5,13 +5,14 @@ in CLI workflows and tests.
 """
 
 import logging
+from typing import Any
 
 from core.mock_auth import get_mock_token
 
 logger = logging.getLogger(__name__)
 
 
-def setup_mock_authentication(api_client, verbose: bool = False) -> str:
+def setup_mock_authentication(api_client: Any, verbose: bool = False) -> str:
     """Set up mock authentication for CLI testing.
 
     Args:
