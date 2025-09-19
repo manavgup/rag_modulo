@@ -4,14 +4,13 @@ import time
 from typing import Any
 from uuid import UUID
 
-from pydantic_core import ValidationError as PydanticValidationError
-from sqlalchemy.orm import Session
-
 from core.config import Settings
 from core.custom_exceptions import LLMProviderError, ValidationError
 from core.logging_utils import get_logger
+from pydantic_core import ValidationError as PydanticValidationError
+from sqlalchemy.orm import Session
+
 from rag_solution.generation.providers.base import LLMBase
-from rag_solution.services.search_service import SearchService
 from rag_solution.schemas.chain_of_thought_schema import (
     ChainOfThoughtConfig,
     ChainOfThoughtInput,
@@ -28,6 +27,7 @@ from rag_solution.services.answer_synthesizer import AnswerSynthesizer
 from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.prompt_template_service import PromptTemplateService
 from rag_solution.services.question_decomposer import QuestionDecomposer
+from rag_solution.services.search_service import SearchService
 from rag_solution.services.source_attribution_service import SourceAttributionService
 
 logger = get_logger(__name__)
@@ -36,13 +36,7 @@ logger = get_logger(__name__)
 class ChainOfThoughtService:
     """Service for Chain of Thought reasoning in RAG search."""
 
-    def __init__(
-        self,
-        settings: Settings,
-        llm_service: LLMBase,
-        search_service: SearchService,
-        db: Session
-    ) -> None:
+    def __init__(self, settings: Settings, llm_service: LLMBase, search_service: SearchService, db: Session) -> None:
         """Initialize Chain of Thought service."""
         self.db = db
         self.settings = settings
@@ -136,9 +130,9 @@ class ChainOfThoughtService:
 
         # Determine if CoT is needed
         requires_cot = (
-            question_type in ["multi_part", "comparison", "causal", "complex_analytical"] or
-            complexity_level in ["high", "very_high"] or
-            word_count > 30
+            question_type in ["multi_part", "comparison", "causal", "complex_analytical"]
+            or complexity_level in ["high", "very_high"]
+            or word_count > 30
         )
 
         # Estimate steps
@@ -157,7 +151,7 @@ class ChainOfThoughtService:
             requires_cot=requires_cot,
             estimated_steps=estimated_steps,
             confidence=0.85,
-            reasoning=f"Question classified as {question_type} with {complexity_level} complexity"
+            reasoning=f"Question classified as {question_type} with {complexity_level} complexity",
         )
 
     async def decompose_question(self, question: str, max_depth: int = 3) -> QuestionDecomposition:
@@ -214,7 +208,7 @@ class ChainOfThoughtService:
             template_format="{context}",  # Simple pass-through template
             input_variables={"context": "The reasoning prompt"},
             is_default=False,
-            max_context_length=4000  # Default context length
+            max_context_length=4000,  # Default context length
         )
 
     def _generate_llm_response(self, llm_service: LLMBase, question: str, context: list[str], user_id: str) -> str:
@@ -247,10 +241,12 @@ class ChainOfThoughtService:
                 user_id=UUID(user_id),
                 prompt=prompt,  # This will be passed as 'context' variable
                 template=cot_template,
-                variables={"context": prompt}  # Map prompt to context variable
+                variables={"context": prompt},  # Map prompt to context variable
             )
 
-            return str(llm_response) if llm_response else f"Based on the context, {question.lower().replace('?', '')}..."
+            return (
+                str(llm_response) if llm_response else f"Based on the context, {question.lower().replace('?', '')}..."
+            )
 
         except Exception as exc:
             # Re-raise LLMProviderError as-is, convert others
@@ -260,7 +256,7 @@ class ChainOfThoughtService:
             raise LLMProviderError(
                 provider="chain_of_thought",
                 error_type="reasoning_step",
-                message=f"Failed to execute reasoning step: {exc!s}"
+                message=f"Failed to execute reasoning step: {exc!s}",
             ) from exc
 
     async def execute_reasoning_step(
@@ -270,7 +266,7 @@ class ChainOfThoughtService:
         context: list[str],
         previous_answers: list[str],
         retrieved_documents: list[dict[str, str | int | float]] | None = None,
-        user_id: str | None = None
+        user_id: str | None = None,
     ) -> ReasoningStep:
         """Execute a single reasoning step.
 
@@ -315,9 +311,11 @@ class ChainOfThoughtService:
             # Create a more detailed answer based on the available context
             if full_context:
                 # Extract key information from context to create a meaningful answer
-                context_preview = (" ".join(full_context)[:300] + "..."
-                                 if len(" ".join(full_context)) > 300
-                                 else " ".join(full_context))
+                context_preview = (
+                    " ".join(full_context)[:300] + "..."
+                    if len(" ".join(full_context)) > 300
+                    else " ".join(full_context)
+                )
                 intermediate_answer = f"Based on the available context: {context_preview}"
             else:
                 intermediate_answer = f"Unable to answer '{question}' - no context available."
@@ -334,22 +332,17 @@ class ChainOfThoughtService:
             intermediate_answer=intermediate_answer,
             confidence_score=confidence_score,
             reasoning_trace=f"Step {step_number}: Analyzing {question}",
-            execution_time=time.time() - start_time
+            execution_time=time.time() - start_time,
         )
 
         # Enhance step with source attributions
         enhanced_step = self.source_attribution_service.enhance_reasoning_step_with_sources(
-            step=step,
-            retrieved_documents=retrieved_documents
+            step=step, retrieved_documents=retrieved_documents
         )
 
         return enhanced_step
 
-    def synthesize_answer(
-        self,
-        original_question: str,
-        reasoning_steps: list[ReasoningStep]
-    ) -> str:
+    def synthesize_answer(self, original_question: str, reasoning_steps: list[ReasoningStep]) -> str:
         """Synthesize a final answer from reasoning steps.
 
         Args:
@@ -362,10 +355,7 @@ class ChainOfThoughtService:
         return self.answer_synthesizer.synthesize(original_question, reasoning_steps)
 
     async def execute_chain_of_thought(
-        self,
-        cot_input: ChainOfThoughtInput,
-        context_documents: list[str] | None = None,
-        user_id: str | None = None
+        self, cot_input: ChainOfThoughtInput, context_documents: list[str] | None = None, user_id: str | None = None
     ) -> ChainOfThoughtOutput:
         """Execute the full Chain of Thought reasoning process.
 
@@ -392,14 +382,11 @@ class ChainOfThoughtService:
                 total_confidence=0.8,
                 token_usage=100,
                 total_execution_time=1.0,
-                reasoning_strategy="disabled"
+                reasoning_strategy="disabled",
             )
 
         # Decompose question
-        decomposition_result = await self.decompose_question(
-            cot_input.question,
-            config.max_reasoning_depth
-        )
+        decomposition_result = await self.decompose_question(cot_input.question, config.max_reasoning_depth)
         decomposed_questions = decomposition_result.sub_questions
 
         # Execute reasoning steps
@@ -413,7 +400,7 @@ class ChainOfThoughtService:
                 context=context_documents or [],
                 previous_answers=previous_answers,
                 retrieved_documents=None,  # Will be populated with actual search results in the future
-                user_id=user_id
+                user_id=user_id,
             )
             reasoning_steps.append(step)
             if step.intermediate_answer:
@@ -427,9 +414,7 @@ class ChainOfThoughtService:
 
         # Calculate overall confidence
         total_confidence = (
-            sum(s.confidence_score or 0.0 for s in reasoning_steps) / len(reasoning_steps)
-            if reasoning_steps
-            else 0.0
+            sum(s.confidence_score or 0.0 for s in reasoning_steps) / len(reasoning_steps) if reasoning_steps else 0.0
         )
 
         # Estimate token usage (mock calculation)
@@ -443,7 +428,7 @@ class ChainOfThoughtService:
             total_confidence=total_confidence,
             token_usage=token_usage,
             total_execution_time=time.time() - start_time,
-            reasoning_strategy=config.reasoning_strategy
+            reasoning_strategy=config.reasoning_strategy,
         )
 
     def _get_config_from_input(self, cot_input: ChainOfThoughtInput) -> ChainOfThoughtConfig:
@@ -475,7 +460,7 @@ class ChainOfThoughtService:
             enabled=True,
             max_reasoning_depth=self.settings.cot_max_reasoning_depth,
             reasoning_strategy=self.settings.cot_reasoning_strategy,
-            token_budget_multiplier=self.settings.cot_token_budget_multiplier
+            token_budget_multiplier=self.settings.cot_token_budget_multiplier,
         )
 
     def evaluate_reasoning_chain(self, output: ChainOfThoughtOutput) -> dict[str, str | int | float]:
@@ -496,5 +481,5 @@ class ChainOfThoughtService:
                 if output.token_usage and output.reasoning_steps
                 else 0.0
             ),
-            "answer_length": len(output.final_answer.split())
+            "answer_length": len(output.final_answer.split()),
         }

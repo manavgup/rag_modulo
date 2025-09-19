@@ -2,6 +2,7 @@
 
 
 from core.config import Settings, get_settings
+
 from rag_solution.generation.providers.base import LLMBase
 from rag_solution.schemas.chain_of_thought_schema import ReasoningStep, SynthesisResult
 
@@ -19,11 +20,7 @@ class AnswerSynthesizer:
         self.llm_service = llm_service
         self.settings = settings or get_settings()
 
-    def synthesize(
-        self,
-        original_question: str,
-        reasoning_steps: list[ReasoningStep]
-    ) -> str:
+    def synthesize(self, original_question: str, reasoning_steps: list[ReasoningStep]) -> str:
         """Synthesize a final answer from reasoning steps.
 
         Args:
@@ -37,11 +34,7 @@ class AnswerSynthesizer:
             return "Unable to generate an answer due to insufficient information."
 
         # Combine intermediate answers
-        intermediate_answers = [
-            step.intermediate_answer
-            for step in reasoning_steps
-            if step.intermediate_answer
-        ]
+        intermediate_answers = [step.intermediate_answer for step in reasoning_steps if step.intermediate_answer]
 
         if not intermediate_answers:
             return "Unable to synthesize an answer from the reasoning steps."
@@ -63,11 +56,7 @@ class AnswerSynthesizer:
 
         return synthesis
 
-    async def synthesize_answer(
-        self,
-        original_question: str,
-        reasoning_steps: list[ReasoningStep]
-    ) -> SynthesisResult:
+    async def synthesize_answer(self, original_question: str, reasoning_steps: list[ReasoningStep]) -> SynthesisResult:
         """Synthesize answer and return result object like tests expect.
 
         Args:
@@ -84,10 +73,7 @@ class AnswerSynthesizer:
         total_confidence = sum(confidences) / len(confidences) if confidences else 0.5
 
         # Return a proper SynthesisResult object
-        return SynthesisResult(
-            final_answer=final_answer,
-            total_confidence=total_confidence
-        )
+        return SynthesisResult(final_answer=final_answer, total_confidence=total_confidence)
 
     async def refine_answer(self, answer: str, context: list[str], user_id: str | None = None) -> str:
         """Refine an answer using additional context.
@@ -117,16 +103,14 @@ class AnswerSynthesizer:
             if hasattr(self.llm_service, "generate_text"):
                 # Standard LLM provider interface - convert user_id to UUID if needed
                 from uuid import UUID
+
                 if user_id is not None:
                     try:
                         user_uuid = UUID(user_id) if isinstance(user_id, str) else user_id
 
                         # Use templates for ALL providers for consistency
                         # WatsonX requires it, others benefit from structured prompting
-                        from rag_solution.schemas.prompt_template_schema import (
-                            PromptTemplateBase,
-                            PromptTemplateType
-                        )
+                        from rag_solution.schemas.prompt_template_schema import PromptTemplateBase, PromptTemplateType
 
                         refinement_template = PromptTemplateBase(
                             id=user_uuid,
@@ -136,14 +120,14 @@ class AnswerSynthesizer:
                             template_format="{context}",
                             input_variables={"context": "The refinement prompt"},
                             is_default=False,
-                            max_context_length=4000  # Default context length
+                            max_context_length=4000,  # Default context length
                         )
 
                         refined_response = await self.llm_service.generate_text(
                             user_id=user_uuid,
                             prompt=refinement_prompt,
                             template=refinement_template,
-                            variables={"context": refinement_prompt}
+                            variables={"context": refinement_prompt},
                         )
                         return refined_response if isinstance(refined_response, str) else str(refined_response)
                     except (ValueError, TypeError):

@@ -9,12 +9,14 @@ import sys
 backend_dir = os.path.abspath(os.path.dirname(__file__))
 sys.path.insert(0, backend_dir)
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from core.config import get_settings
 from core.database import get_database_url
-from rag_solution.services.search_service import SearchService
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
 from rag_solution.schemas.search_schema import SearchInput
+from rag_solution.services.search_service import SearchService
+
 
 async def main():
     """Debug retrieval for collection 40."""
@@ -33,7 +35,7 @@ async def main():
     search_input = SearchInput(
         question="What are the restrictions on the use and distribution of the information provided?",
         collection_id="af04fe36-ecd2-42c4-b7c6-a13a6e1327d2",
-        user_id="00000000-0000-0000-0000-000000000001"  # Mock user ID
+        user_id="00000000-0000-0000-0000-000000000001",  # Mock user ID
     )
 
     try:
@@ -87,10 +89,12 @@ async def main():
     except Exception as e:
         print(f"Error during debugging: {e}")
         import traceback
+
         traceback.print_exc()
 
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     asyncio.run(main())

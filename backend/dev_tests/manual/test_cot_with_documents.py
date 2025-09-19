@@ -4,7 +4,6 @@
 This script tests that CoT properly integrates with document retrieval from collections.
 """
 
-import json
 import os
 import sys
 from typing import Any
@@ -24,6 +23,7 @@ from rag_solution.cli.mock_auth_helper import setup_mock_authentication  # noqa:
 def setup_environment() -> tuple[Any, Any, str]:
     """Set up CLI configuration and authentication."""
     from pydantic import HttpUrl
+
     config = RAGConfig(
         api_url=HttpUrl("http://localhost:8000"),
         profile="test",
@@ -49,7 +49,7 @@ def get_user_info(api_client: Any, config: Any) -> str | None:
         user_data = user_result.data
         if user_data:
             print("✅ User information:")
-            user_id = user_data.get('id', 'N/A')
+            user_id = user_data.get("id", "N/A")
             print(f"   User ID: {user_id} (type: {type(user_id)})")
             print(f"   Name: {user_data.get('name', 'N/A')}")
             print(f"   Email: {user_data.get('email', 'N/A')}")
@@ -78,7 +78,7 @@ def ensure_user_has_pipeline(api_client: Any, config: Any, user_id: str) -> str 
             # Look for default pipeline
             default_pipeline = None
             for pipeline in pipelines:
-                if pipeline.get('is_default'):
+                if pipeline.get("is_default"):
                     default_pipeline = pipeline
                     break
 
@@ -87,8 +87,8 @@ def ensure_user_has_pipeline(api_client: Any, config: Any, user_id: str) -> str 
                 default_pipeline = pipelines[0]
 
             if default_pipeline:
-                pipeline_id = default_pipeline.get('id')
-                pipeline_name = default_pipeline.get('name', 'Unknown')
+                pipeline_id = default_pipeline.get("id")
+                pipeline_name = default_pipeline.get("name", "Unknown")
                 print(f"   Using pipeline: {pipeline_name} (ID: {pipeline_id})")
                 return pipeline_id
 
@@ -97,14 +97,11 @@ def ensure_user_has_pipeline(api_client: Any, config: Any, user_id: str) -> str 
         create_result = pipelines_cmd.create_pipeline(
             name="Default CoT Pipeline",
             llm_provider_id=None,  # Use default provider
-            parameters={
-                "retrieval": {"top_k": 10},
-                "generation": {"temperature": 0.7}
-            }
+            parameters={"retrieval": {"top_k": 10}, "generation": {"temperature": 0.7}},
         )
 
         if create_result.success and create_result.data:
-            pipeline_id = create_result.data.get('id')
+            pipeline_id = create_result.data.get("id")
             print(f"   ✅ Created pipeline with ID: {pipeline_id}")
             return pipeline_id
         else:
@@ -145,7 +142,9 @@ def list_collections(api_client: Any, config: Any) -> list[dict[str, Any]]:
         return []
 
 
-def run_search(api_client: Any, collection_id: str, question: str, user_id: str, cot_enabled: bool = False) -> dict[str, Any] | None:
+def run_search(
+    api_client: Any, collection_id: str, question: str, user_id: str, cot_enabled: bool = False
+) -> dict[str, Any] | None:
     """Run a search with or without CoT enabled."""
 
     # Get proper user_id from /api/auth/me
@@ -157,12 +156,7 @@ def run_search(api_client: Any, collection_id: str, question: str, user_id: str,
         api_user_id = user_id  # Fallback to provided user_id
 
     # Build payload
-    payload = {
-        "question": question,
-        "collection_id": collection_id,
-        "user_id": api_user_id,
-        "config_metadata": {}
-    }
+    payload = {"question": question, "collection_id": collection_id, "user_id": api_user_id, "config_metadata": {}}
 
     if cot_enabled:
         payload["config_metadata"] = {
@@ -171,8 +165,8 @@ def run_search(api_client: Any, collection_id: str, question: str, user_id: str,
             "cot_config": {
                 "max_reasoning_depth": 3,
                 "reasoning_strategy": "decomposition",
-                "token_budget_multiplier": 1.5
-            }
+                "token_budget_multiplier": 1.5,
+            },
         }
 
     try:
@@ -183,9 +177,11 @@ def run_search(api_client: Any, collection_id: str, question: str, user_id: str,
         return None
 
 
-def compare_search_results(api_client: Any, collection_id: str, question: str, user_id: str, pipeline_id: str | None) -> bool:
+def compare_search_results(
+    api_client: Any, collection_id: str, question: str, user_id: str, pipeline_id: str | None
+) -> bool:
     """Compare search results with CoT ON vs OFF."""
-    print(f"\n🔍 Comparing Search Results: CoT ON vs OFF")
+    print("\n🔍 Comparing Search Results: CoT ON vs OFF")
     print("=" * 70)
     print(f"Question: {question}")
     print(f"Collection: {collection_id}")
@@ -205,55 +201,57 @@ def compare_search_results(api_client: Any, collection_id: str, question: str, u
         return False
 
     # Extract key metrics
-    regular_answer = regular_response.get('answer', '')
-    cot_answer = cot_response.get('answer', '')
+    regular_answer = regular_response.get("answer", "")
+    cot_answer = cot_response.get("answer", "")
 
-    regular_time = regular_response.get('execution_time', 0)
-    cot_time = cot_response.get('execution_time', 0)
+    regular_time = regular_response.get("execution_time", 0)
+    cot_time = cot_response.get("execution_time", 0)
 
-    regular_chunks = len(regular_response.get('query_results', []))
-    cot_chunks = len(cot_response.get('query_results', []))
+    regular_chunks = len(regular_response.get("query_results", []))
+    cot_chunks = len(cot_response.get("query_results", []))
 
     # CoT-specific data
-    cot_output = cot_response.get('cot_output', {})
-    reasoning_steps = len(cot_output.get('reasoning_steps', []))
-    cot_confidence = cot_output.get('total_confidence', 'N/A')
+    cot_output = cot_response.get("cot_output", {})
+    reasoning_steps = len(cot_output.get("reasoning_steps", []))
+    cot_confidence = cot_output.get("total_confidence", "N/A")
 
     # Display comparison
     print("\n" + "=" * 70)
     print("📊 SEARCH COMPARISON RESULTS")
     print("=" * 70)
 
-    print(f"\n⏱️  PERFORMANCE:")
+    print("\n⏱️  PERFORMANCE:")
     print(f"   Regular Search Time: {regular_time:.2f}s")
     print(f"   CoT Search Time:     {cot_time:.2f}s")
-    print(f"   Time Difference:     +{cot_time - regular_time:.2f}s ({((cot_time/regular_time - 1) * 100):.1f}% slower)")
+    print(
+        f"   Time Difference:     +{cot_time - regular_time:.2f}s ({((cot_time/regular_time - 1) * 100):.1f}% slower)"
+    )
 
-    print(f"\n📄 DOCUMENT RETRIEVAL:")
+    print("\n📄 DOCUMENT RETRIEVAL:")
     print(f"   Regular Search Chunks: {regular_chunks}")
     print(f"   CoT Search Chunks:     {cot_chunks}")
     print(f"   Chunk Difference:      {cot_chunks - regular_chunks}")
 
-    print(f"\n📝 ANSWER ANALYSIS:")
+    print("\n📝 ANSWER ANALYSIS:")
     print(f"   Regular Answer Length: {len(regular_answer)} chars")
     print(f"   CoT Answer Length:     {len(cot_answer)} chars")
     print(f"   Length Difference:     +{len(cot_answer) - len(regular_answer)} chars")
 
     if reasoning_steps > 0:
-        print(f"\n🧠 COT REASONING:")
+        print("\n🧠 COT REASONING:")
         print(f"   Reasoning Steps:       {reasoning_steps}")
         print(f"   Overall Confidence:    {cot_confidence}")
 
     # Show answer previews
-    print(f"\n📖 ANSWER PREVIEWS:")
-    print(f"\n🔹 Regular Search Answer:")
+    print("\n📖 ANSWER PREVIEWS:")
+    print("\n🔹 Regular Search Answer:")
     print(f"   {regular_answer[:300]}{'...' if len(regular_answer) > 300 else ''}")
 
-    print(f"\n🧠 CoT Search Answer:")
+    print("\n🧠 CoT Search Answer:")
     print(f"   {cot_answer[:300]}{'...' if len(cot_answer) > 300 else ''}")
 
     # Quality assessment
-    print(f"\n🎯 QUALITY ASSESSMENT:")
+    print("\n🎯 QUALITY ASSESSMENT:")
 
     # Simple heuristics for answer quality
     regular_has_sources = "reference" in regular_answer.lower() or "source" in regular_answer.lower()
@@ -269,17 +267,17 @@ def compare_search_results(api_client: Any, collection_id: str, question: str, u
 
     # Show detailed CoT reasoning if available
     if reasoning_steps > 0:
-        print(f"\n🔍 DETAILED COT REASONING:")
-        for i, step in enumerate(cot_output.get('reasoning_steps', []), 1):
-            step_question = step.get('question', step.get('step_question', 'N/A'))
-            step_answer = step.get('intermediate_answer', 'N/A')
-            step_confidence = step.get('confidence_score', 'N/A')
+        print("\n🔍 DETAILED COT REASONING:")
+        for i, step in enumerate(cot_output.get("reasoning_steps", []), 1):
+            step_question = step.get("question", step.get("step_question", "N/A"))
+            step_answer = step.get("intermediate_answer", "N/A")
+            step_confidence = step.get("confidence_score", "N/A")
 
             print(f"   Step {i}: {step_question}")
             print(f"           {step_answer[:150]}{'...' if len(step_answer) > 150 else ''}")
             print(f"           Confidence: {step_confidence}")
 
-    print(f"\n🎉 COMPARISON COMPLETE!")
+    print("\n🎉 COMPARISON COMPLETE!")
     print(f"   CoT provides {'more detailed' if len(cot_answer) > len(regular_answer) else 'similar length'} answers")
     print(f"   CoT takes {cot_time/regular_time:.1f}x longer but adds reasoning transparency")
 
@@ -348,7 +346,9 @@ def main() -> None:
         print(f"   Files: {len(suitable_collection.get('files', []))}")
 
         # Test complex question that should trigger CoT
-        test_question = "How does IBM's business strategy work and what are the key components that drive their success?"
+        test_question = (
+            "How does IBM's business strategy work and what are the key components that drive their success?"
+        )
 
         success = compare_search_results(api_client, collection_id, test_question, user_id, pipeline_id)
 
@@ -362,6 +362,7 @@ def main() -> None:
     except Exception as e:
         print(f"❌ Test failed: {e}")
         import traceback
+
         traceback.print_exc()
 
 

@@ -29,6 +29,7 @@ from rag_solution.cli.mock_auth_helper import setup_mock_authentication  # noqa:
 def setup_environment() -> tuple[Any, Any, str]:
     """Set up CLI configuration and authentication."""
     from pydantic import HttpUrl
+
     config = RAGConfig(
         api_url=HttpUrl("http://localhost:8000"),
         profile="test",
@@ -127,7 +128,7 @@ def test_search_comparison(api_client: Any, config: Any, collection_id: str, que
     regular_payload = {
         "question": question,
         "collection_id": collection_id,
-        "config_metadata": {}  # No CoT enabled
+        "config_metadata": {},  # No CoT enabled
     }
 
     print("Request payload:")
@@ -158,9 +159,9 @@ def test_search_comparison(api_client: Any, config: Any, collection_id: str, que
             "cot_config": {
                 "max_reasoning_depth": 3,
                 "reasoning_strategy": "decomposition",
-                "token_budget_multiplier": 1.5
-            }
-        }
+                "token_budget_multiplier": 1.5,
+            },
+        },
     }
 
     print("Request payload:")
@@ -254,7 +255,7 @@ def main() -> None:
             "What is machine learning and how does it work?",
             "How do neural networks learn from data and what are the key components?",
             "What are the differences between supervised and unsupervised learning algorithms?",
-            "How does deep learning differ from traditional machine learning approaches?"
+            "How does deep learning differ from traditional machine learning approaches?",
         ]
 
         print("\n🤔 Available test questions:")
@@ -289,9 +290,9 @@ def main() -> None:
     except Exception as e:
         print(f"❌ Test failed: {e}")
         import traceback
+
         traceback.print_exc()
 
 
 if __name__ == "__main__":
     main()
-

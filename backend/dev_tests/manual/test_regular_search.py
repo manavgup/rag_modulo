@@ -19,6 +19,7 @@ from rag_solution.cli.mock_auth_helper import setup_mock_authentication  # noqa:
 def setup_environment() -> tuple[Any, Any, str]:
     """Set up CLI configuration and authentication."""
     from pydantic import HttpUrl
+
     config = RAGConfig(
         api_url=HttpUrl("http://localhost:8000"),
         profile="test",
@@ -37,7 +38,7 @@ def setup_environment() -> tuple[Any, Any, str]:
 
 def test_regular_search(api_client: Any, collection_id: str, question: str, user_id: str) -> bool:
     """Test regular search without CoT."""
-    print(f"\n🔍 Testing Regular Search (No CoT)")
+    print("\n🔍 Testing Regular Search (No CoT)")
     print("=" * 50)
     print(f"Question: {question}")
     print(f"Collection: {collection_id}")
@@ -56,7 +57,7 @@ def test_regular_search(api_client: Any, collection_id: str, question: str, user
         "question": question,
         "collection_id": collection_id,
         "user_id": api_user_id,
-        "config_metadata": {}
+        "config_metadata": {},
     }
 
     print("\n📝 Request payload:")
@@ -71,15 +72,15 @@ def test_regular_search(api_client: Any, collection_id: str, question: str, user
             print(f"Execution time: {response.get('execution_time', 'N/A')}s")
 
             # Check for document sources
-            query_results = response.get('query_results', [])
+            query_results = response.get("query_results", [])
             print(f"Query results: {len(query_results)} chunks")
 
-            documents = response.get('documents', [])
+            documents = response.get("documents", [])
             print(f"Documents: {len(documents)} document metadata entries")
 
             print("\n🔍 First few document chunks:")
             for i, result in enumerate(query_results[:3]):
-                chunk_text = result.get('chunk', {}).get('text', 'No text')
+                chunk_text = result.get("chunk", {}).get("text", "No text")
                 print(f"   Chunk {i+1}: {chunk_text[:150]}...")
 
             return True
@@ -108,7 +109,7 @@ def main() -> None:
         if user_result.success:
             user_data = user_result.data
             if user_data:
-                user_id = user_data.get('id', 'N/A')
+                user_id = user_data.get("id", "N/A")
                 print(f"✅ User ID: {user_id}")
             else:
                 print("❌ No user data")
@@ -119,7 +120,9 @@ def main() -> None:
 
         # Use the same collection and question as CoT test
         collection_id = "e641b71c-fb41-4e3b-9ff3-e2be6ea88b73"
-        test_question = "How does IBM's business strategy work and what are the key components that drive their success?"
+        test_question = (
+            "How does IBM's business strategy work and what are the key components that drive their success?"
+        )
 
         success = test_regular_search(api_client, collection_id, test_question, user_id)
 
@@ -131,6 +134,7 @@ def main() -> None:
     except Exception as e:
         print(f"❌ Test failed: {e}")
         import traceback
+
         traceback.print_exc()
 
 

@@ -136,9 +136,7 @@ class SourceAttributionService:
 
         return attributions
 
-    def aggregate_sources_across_steps(
-        self, reasoning_steps: list[ReasoningStep]
-    ) -> SourceSummary:
+    def aggregate_sources_across_steps(self, reasoning_steps: list[ReasoningStep]) -> SourceSummary:
         """Aggregate source attributions across all reasoning steps.
 
         Args:
@@ -172,10 +170,7 @@ class SourceAttributionService:
         all_sources_list.sort(key=lambda x: x.relevance_score, reverse=True)
 
         # Primary sources are top 3 or those with relevance > 0.7
-        primary_sources = [
-            source for source in all_sources_list
-            if source.relevance_score > 0.7
-        ][:3]
+        primary_sources = [source for source in all_sources_list if source.relevance_score > 0.7][:3]
 
         if not primary_sources and all_sources_list:
             # If no high-relevance sources, take top 3
@@ -220,7 +215,9 @@ class SourceAttributionService:
 
     def format_sources_for_display(
         self, source_summary: SourceSummary, include_excerpts: bool = True
-    ) -> dict[str, str | int | float | list[dict[str, str | int | float]] | dict[str, dict[str, str | int | list[str]]]]:
+    ) -> dict[
+        str, str | int | float | list[dict[str, str | int | float]] | dict[str, dict[str, str | int | list[str]]]
+    ]:
         """Format sources for user-friendly display.
 
         Args:
@@ -275,4 +272,3 @@ class SourceAttributionService:
 
 
 __all__ = ["SourceAttributionService"]
-

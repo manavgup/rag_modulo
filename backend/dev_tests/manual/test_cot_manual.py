@@ -13,10 +13,10 @@ os.environ["WATSONX_APIKEY"] = "test"
 os.environ["WATSONX_URL"] = "https://test.com"
 os.environ["MILVUS_HOST"] = "localhost"
 
+from core.config import Settings
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from core.config import Settings
 from rag_solution.schemas.search_schema import SearchInput
 from rag_solution.services.search_service import SearchService
 
@@ -42,7 +42,7 @@ async def test_cot_integration() -> None:
             question="What is machine learning?",
             collection_id=uuid4(),
             user_id=uuid4(),
-            config_metadata={}  # No CoT enabled
+            config_metadata={},  # No CoT enabled
         )
 
         try:
@@ -61,11 +61,8 @@ async def test_cot_integration() -> None:
             user_id=uuid4(),
             config_metadata={
                 "cot_enabled": True,
-                "cot_config": {
-                    "max_reasoning_depth": 3,
-                    "reasoning_strategy": "decomposition"
-                }
-            }
+                "cot_config": {"max_reasoning_depth": 3, "reasoning_strategy": "decomposition"},
+            },
         )
 
         print(f"   Question: {cot_input.question}")
@@ -90,4 +87,3 @@ async def test_cot_integration() -> None:
 
 if __name__ == "__main__":
     asyncio.run(test_cot_integration())
-

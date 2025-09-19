@@ -18,6 +18,7 @@ class SourceAttribution(BaseModel):
     @field_validator("relevance_score")
     @classmethod
     def validate_relevance_score(cls, v: float) -> float:
+        """Validate relevance score is between 0 and 1."""
         if v < 0 or v > 1:
             raise ValueError("relevance_score must be between 0 and 1")
         return v
@@ -29,8 +30,7 @@ class ChainOfThoughtConfig(BaseModel):
     enabled: bool = Field(default=False, description="Whether CoT is enabled")
     max_reasoning_depth: int = Field(default=3, description="Maximum reasoning steps")
     reasoning_strategy: str = Field(
-        default="decomposition",
-        description="Strategy: decomposition, iterative, hierarchical, causal"
+        default="decomposition", description="Strategy: decomposition, iterative, hierarchical, causal"
     )
     context_preservation: bool = Field(default=True, description="Preserve context across steps")
     token_budget_multiplier: float = Field(default=2.0, description="Token budget multiplier")
@@ -39,6 +39,7 @@ class ChainOfThoughtConfig(BaseModel):
     @field_validator("max_reasoning_depth")
     @classmethod
     def validate_max_depth(cls, v: int) -> int:
+        """Validate max reasoning depth is positive."""
         if v <= 0:
             raise ValueError("max_reasoning_depth must be greater than 0")
         return v
@@ -46,6 +47,7 @@ class ChainOfThoughtConfig(BaseModel):
     @field_validator("token_budget_multiplier")
     @classmethod
     def validate_token_multiplier(cls, v: float) -> float:
+        """Validate token budget multiplier is positive."""
         if v <= 0:
             raise ValueError("token_budget_multiplier must be greater than 0")
         return v
@@ -53,6 +55,7 @@ class ChainOfThoughtConfig(BaseModel):
     @field_validator("evaluation_threshold")
     @classmethod
     def validate_threshold(cls, v: float) -> float:
+        """Validate evaluation threshold is between 0 and 1."""
         if v < 0 or v > 1:
             raise ValueError("evaluation_threshold must be between 0 and 1")
         return v
@@ -60,6 +63,7 @@ class ChainOfThoughtConfig(BaseModel):
     @field_validator("reasoning_strategy")
     @classmethod
     def validate_strategy(cls, v: str) -> str:
+        """Validate reasoning strategy is supported."""
         valid_strategies = ["decomposition", "iterative", "hierarchical", "causal"]
         if v not in valid_strategies:
             raise ValueError(f"reasoning_strategy must be one of {valid_strategies}")
@@ -78,6 +82,7 @@ class DecomposedQuestion(BaseModel):
     @field_validator("reasoning_step")
     @classmethod
     def validate_step(cls, v: int) -> int:
+        """Validate reasoning step is positive."""
         if v <= 0:
             raise ValueError("reasoning_step must be greater than 0")
         return v
@@ -85,6 +90,7 @@ class DecomposedQuestion(BaseModel):
     @field_validator("complexity_score")
     @classmethod
     def validate_complexity(cls, v: float) -> float:
+        """Validate complexity score is between 0 and 1."""
         if v < 0 or v > 1:
             raise ValueError("complexity_score must be between 0 and 1")
         return v
@@ -92,6 +98,7 @@ class DecomposedQuestion(BaseModel):
     @field_validator("question_type")
     @classmethod
     def validate_question_type(cls, v: str | None) -> str | None:
+        """Validate question type is supported."""
         if v is None:
             return v
         valid_types = ["definition", "comparison", "causal", "procedural", "analytical"]
@@ -104,8 +111,7 @@ class QuestionDecomposition(BaseModel):
     """Result of question decomposition containing sub-questions."""
 
     sub_questions: list[DecomposedQuestion] = Field(
-        default_factory=list,
-        description="List of decomposed sub-questions"
+        default_factory=list, description="List of decomposed sub-questions"
     )
 
 
@@ -122,7 +128,9 @@ class ReasoningStep(BaseModel):
     step_number: int = Field(..., description="Step number")
     question: str = Field(..., description="Question for this step")
     context_used: list[str] = Field(default_factory=list, description="Context documents used (legacy)")
-    source_attributions: list[SourceAttribution] = Field(default_factory=list, description="Structured source attributions")
+    source_attributions: list[SourceAttribution] = Field(
+        default_factory=list, description="Structured source attributions"
+    )
     intermediate_answer: str | None = Field(None, description="Intermediate answer")
     confidence_score: float | None = Field(default=0.0, description="Confidence score 0-1")
     reasoning_trace: str | None = Field(None, description="Reasoning trace")
@@ -131,6 +139,7 @@ class ReasoningStep(BaseModel):
     @field_validator("step_number")
     @classmethod
     def validate_step_number(cls, v: int) -> int:
+        """Validate step number is positive."""
         if v <= 0:
             raise ValueError("step_number must be greater than 0")
         return v
@@ -138,6 +147,7 @@ class ReasoningStep(BaseModel):
     @field_validator("confidence_score")
     @classmethod
     def validate_confidence(cls, v: float | None) -> float | None:
+        """Validate confidence score is between 0 and 1."""
         if v is not None and (v < 0 or v > 1):
             raise ValueError("confidence_score must be between 0 and 1")
         return v
@@ -145,6 +155,7 @@ class ReasoningStep(BaseModel):
     @field_validator("execution_time")
     @classmethod
     def validate_execution_time(cls, v: float | None) -> float | None:
+        """Validate execution time is positive."""
         if v is not None and v <= 0:
             raise ValueError("execution_time must be greater than 0")
         return v
@@ -173,6 +184,7 @@ class ChainOfThoughtOutput(BaseModel):
     @field_validator("total_confidence")
     @classmethod
     def validate_total_confidence(cls, v: float) -> float:
+        """Validate total confidence is between 0 and 1."""
         if v < 0 or v > 1:
             raise ValueError("total_confidence must be between 0 and 1")
         return v
@@ -180,6 +192,7 @@ class ChainOfThoughtOutput(BaseModel):
     @field_validator("token_usage")
     @classmethod
     def validate_token_usage(cls, v: int | None) -> int | None:
+        """Validate token usage is positive."""
         if v is not None and v <= 0:
             raise ValueError("token_usage must be greater than 0")
         return v
@@ -187,6 +200,7 @@ class ChainOfThoughtOutput(BaseModel):
     @field_validator("total_execution_time")
     @classmethod
     def validate_total_execution_time(cls, v: float | None) -> float | None:
+        """Validate total execution time is positive."""
         if v is not None and v <= 0:
             raise ValueError("total_execution_time must be greater than 0")
         return v
@@ -215,6 +229,7 @@ class QuestionClassification(BaseModel):
     @field_validator("question_type")
     @classmethod
     def validate_question_type(cls, v: str) -> str:
+        """Validate question type is supported."""
         valid_types = ["simple", "multi_part", "comparison", "causal", "complex_analytical"]
         if v not in valid_types:
             raise ValueError(f"question_type must be one of {valid_types}")
@@ -223,6 +238,7 @@ class QuestionClassification(BaseModel):
     @field_validator("complexity_level")
     @classmethod
     def validate_complexity_level(cls, v: str) -> str:
+        """Validate complexity level is supported."""
         valid_levels = ["low", "medium", "high", "very_high"]
         if v not in valid_levels:
             raise ValueError(f"complexity_level must be one of {valid_levels}")
@@ -231,6 +247,7 @@ class QuestionClassification(BaseModel):
     @field_validator("confidence")
     @classmethod
     def validate_confidence(cls, v: float | None) -> float | None:
+        """Validate confidence is between 0 and 1."""
         if v is not None and (v < 0 or v > 1):
             raise ValueError("confidence must be between 0 and 1")
         return v
@@ -238,6 +255,7 @@ class QuestionClassification(BaseModel):
     @field_validator("estimated_steps")
     @classmethod
     def validate_estimated_steps(cls, v: int | None) -> int | None:
+        """Validate estimated steps is positive."""
         if v is not None and v <= 0:
             raise ValueError("estimated_steps must be greater than 0")
         return v

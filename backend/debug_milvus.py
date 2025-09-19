@@ -3,12 +3,12 @@
 
 import os
 import sys
+
 sys.path.append(os.path.join(os.path.dirname(__file__)))
 
-from pymilvus import connections, Collection, utility
 from core.config import get_settings
-from vectordbs.data_types import VectorQuery
-from vectordbs.factory import VectorStoreFactory
+from pymilvus import Collection, connections, utility
+
 
 def main():
     """Examine Milvus database content for collection 40."""
@@ -17,11 +17,7 @@ def main():
     settings = get_settings()
 
     # Connect to Milvus - use localhost since port is exposed
-    connections.connect(
-        alias="default",
-        host="localhost",
-        port=19530
-    )
+    connections.connect(alias="default", host="localhost", port=19530)
 
     print("Connected to Milvus")
 
@@ -50,10 +46,7 @@ def main():
     # Search for some sample documents
     query_vectors = [[0.1] * 384]  # Dummy vector for testing (384 dims)
 
-    search_params = {
-        "metric_type": "COSINE",
-        "params": {"nprobe": 10}
-    }
+    search_params = {"metric_type": "COSINE", "params": {"nprobe": 10}}
 
     # Get sample results
     results = collection.search(
@@ -62,7 +55,7 @@ def main():
         param=search_params,
         limit=10,
         expr=None,
-        output_fields=["text", "document_id", "chunk_id", "document_name", "page_number", "chunk_number"]
+        output_fields=["text", "document_id", "chunk_id", "document_name", "page_number", "chunk_number"],
     )
 
     print("\nSample chunks in the collection:")
@@ -74,12 +67,13 @@ def main():
             print(f"    Document Name: {hit.entity.get('document_name')}")
             print(f"    Chunk ID: {hit.entity.get('chunk_id')}")
             print(f"    Page: {hit.entity.get('page_number')}, Chunk: {hit.entity.get('chunk_number')}")
-            text = hit.entity.get('text') or ''
+            text = hit.entity.get("text") or ""
             print(f"    Text length: {len(text)}")
             print(f"    Text content: {text[:500]}...")
             if len(text) > 500:
                 print(f"    ... (truncated, full length: {len(text)})")
             print()
+
 
 if __name__ == "__main__":
     main()

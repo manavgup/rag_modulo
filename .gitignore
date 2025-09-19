@@ -43,6 +43,7 @@ my_chroma_data/
 # Ignore logs and shell scripts
 *.log
 *.sh
+backend/logs/
 
 # Project specific ignores
 chroma/

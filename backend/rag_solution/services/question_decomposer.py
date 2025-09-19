@@ -3,6 +3,7 @@
 import re
 
 from core.config import Settings
+
 from rag_solution.generation.providers.base import LLMBase
 from rag_solution.schemas.chain_of_thought_schema import DecomposedQuestion, QuestionDecomposition
 
@@ -50,8 +51,8 @@ class QuestionDecomposer:
             # Check for implicit multi-part structure
             if "how" in question.lower() and ("what" in question.lower() or "why" in question.lower()):
                 parts = [
-                    question[:question.lower().index("how")].strip(),
-                    question[question.lower().index("how"):].strip()
+                    question[: question.lower().index("how")].strip(),
+                    question[question.lower().index("how") :].strip(),
                 ]
             elif "?" in question and question.count("?") > 1:
                 parts = question.split("?")[:-1]  # Remove empty last element
@@ -61,17 +62,11 @@ class QuestionDecomposer:
                 if "why does" in question.lower():
                     # Extract the main concept and create sub-questions
                     base_question = question
-                    parts = [
-                        f"What is {self._extract_main_concept(question)}?",
-                        base_question
-                    ]
+                    parts = [f"What is {self._extract_main_concept(question)}?", base_question]
                 elif "how does" in question.lower():
                     # Similar decomposition for "how does" questions
                     base_question = question
-                    parts = [
-                        f"What is {self._extract_main_concept(question)}?",
-                        base_question
-                    ]
+                    parts = [f"What is {self._extract_main_concept(question)}?", base_question]
 
         # Create decomposed questions
         for i, part in enumerate(parts[:max_depth]):
@@ -91,23 +86,27 @@ class QuestionDecomposer:
                 else:
                     complexity_score = base_score
 
-                decomposed.append(DecomposedQuestion(
-                    sub_question=part.strip() if part.strip().endswith("?") else part.strip() + "?",
-                    reasoning_step=i + 1,
-                    dependency_indices=list(range(i)) if i > 0 else [],
-                    question_type=question_type,
-                    complexity_score=complexity_score
-                ))
+                decomposed.append(
+                    DecomposedQuestion(
+                        sub_question=part.strip() if part.strip().endswith("?") else part.strip() + "?",
+                        reasoning_step=i + 1,
+                        dependency_indices=list(range(i)) if i > 0 else [],
+                        question_type=question_type,
+                        complexity_score=complexity_score,
+                    )
+                )
 
         # If no decomposition possible, return the original question
         if not decomposed:
-            decomposed.append(DecomposedQuestion(
-                sub_question=question,
-                reasoning_step=1,
-                dependency_indices=[],
-                question_type="analytical",
-                complexity_score=0.5
-            ))
+            decomposed.append(
+                DecomposedQuestion(
+                    sub_question=question,
+                    reasoning_step=1,
+                    dependency_indices=[],
+                    question_type="analytical",
+                    complexity_score=0.5,
+                )
+            )
 
         # Return a proper QuestionDecomposition object
         return QuestionDecomposition(sub_questions=decomposed)

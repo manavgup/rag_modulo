@@ -6,26 +6,29 @@ import logging
 import os
 from uuid import uuid4
 
+from core.config import get_settings
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from core.config import get_settings
-from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput
 from rag_solution.services.search_service import SearchService
 
 # Configure logging to see debug messages
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+
 def setup_test_environment():
     """Set up minimal environment variables for testing."""
-    os.environ.update({
-        "JWT_SECRET_KEY": "test",
-        "RAG_LLM": "openai",
-        "WATSONX_INSTANCE_ID": "test",
-        "WATSONX_APIKEY": "test",
-        "WATSONX_URL": "https://test.com",
-    })
+    os.environ.update(
+        {
+            "JWT_SECRET_KEY": "test",
+            "RAG_LLM": "openai",
+            "WATSONX_INSTANCE_ID": "test",
+            "WATSONX_APIKEY": "test",
+            "WATSONX_URL": "https://test.com",
+        }
+    )
+
 
 async def test_cot_llm_integration():
     """Test that CoT service uses LLM provider instead of fallback templates."""
@@ -46,7 +49,9 @@ async def test_cot_llm_integration():
 
         # Test question classification
         logger.info("Testing question classification...")
-        classification = await cot_service.classify_question("How does machine learning compare to traditional programming?")
+        classification = await cot_service.classify_question(
+            "How does machine learning compare to traditional programming?"
+        )
         logger.info(f"Classification result: {classification}")
 
         # Test reasoning step execution with debug logging
@@ -56,7 +61,7 @@ async def test_cot_llm_integration():
             question="What is machine learning?",
             context=["Machine learning is a subset of artificial intelligence."],
             previous_answers=[],
-            user_id=str(uuid4())
+            user_id=str(uuid4()),
         )
 
         logger.info(f"Reasoning step result: {reasoning_step}")
@@ -73,6 +78,7 @@ async def test_cot_llm_integration():
 
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     result = asyncio.run(test_cot_llm_integration())

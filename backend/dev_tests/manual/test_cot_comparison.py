@@ -19,6 +19,7 @@ from rag_solution.cli.mock_auth_helper import setup_mock_authentication  # noqa:
 def setup_environment() -> tuple[Any, Any, str]:
     """Set up CLI configuration and authentication."""
     from pydantic import HttpUrl
+
     config = RAGConfig(
         api_url=HttpUrl("http://localhost:8000"),
         profile="test",
@@ -54,27 +55,25 @@ def run_search(api_client: Any, question: str, collection_id: str, user_id: str,
             "cot_config": {
                 "max_reasoning_depth": 3,
                 "reasoning_strategy": "decomposition",
-                "token_budget_multiplier": 1.5
-            }
+                "token_budget_multiplier": 1.5,
+            },
         }
         mode_name = "WITH CoT"
     else:
         # Disable CoT explicitly
-        config_metadata = {
-            "cot_disabled": True
-        }
+        config_metadata = {"cot_disabled": True}
         mode_name = "WITHOUT CoT (Regular Search)"
 
     search_payload = {
         "question": question,
         "collection_id": collection_id,
         "user_id": api_user_id,
-        "config_metadata": config_metadata
+        "config_metadata": config_metadata,
     }
 
     print(f"\n🔍 Testing Search {mode_name}")
     print("=" * 60)
-    print(f"Request payload:")
+    print("Request payload:")
     print(json.dumps(search_payload, indent=2))
 
     try:
@@ -86,16 +85,16 @@ def run_search(api_client: Any, question: str, collection_id: str, user_id: str,
             print(f"Execution time: {response.get('execution_time', 'N/A')}s")
 
             # Check for document sources
-            query_results = response.get('query_results', [])
+            query_results = response.get("query_results", [])
             print(f"Query results: {len(query_results)} chunks")
 
-            documents = response.get('documents', [])
+            documents = response.get("documents", [])
             print(f"Documents: {len(documents)} document metadata entries")
 
             # Check for CoT output
             if enable_cot and "cot_output" in response:
                 cot_output = response["cot_output"]
-                print(f"\n🧠 Chain of Thought Details:")
+                print("\n🧠 Chain of Thought Details:")
                 print(f"   Reasoning steps: {len(cot_output.get('reasoning_steps', []))}")
                 print(f"   Strategy: {cot_output.get('reasoning_strategy', 'N/A')}")
                 print(f"   Total confidence: {cot_output.get('total_confidence', 'N/A')}")
@@ -138,17 +137,21 @@ def compare_answers(regular_response: dict, cot_response: dict):
     print(f"Execution time: {cot_response.get('execution_time', 'N/A')}s")
 
     # Compare document retrieval
-    regular_chunks = len(regular_response.get('query_results', []))
-    cot_chunks = len(cot_response.get('query_results', []))
+    regular_chunks = len(regular_response.get("query_results", []))
+    cot_chunks = len(cot_response.get("query_results", []))
 
-    print(f"\n📚 DOCUMENT RETRIEVAL:")
+    print("\n📚 DOCUMENT RETRIEVAL:")
     print(f"Regular search: {regular_chunks} chunks")
     print(f"CoT search: {cot_chunks} chunks")
 
     # Quality assessment
-    print(f"\n🎯 QUALITY ASSESSMENT:")
-    print(f"Regular answer quality: {'Good' if len(regular_answer) > 100 and 'Based on the analysis' not in regular_answer else 'Poor'}")
-    print(f"CoT answer quality: {'Good' if len(cot_answer) > 100 and 'Based on the analysis' not in cot_answer else 'Poor'}")
+    print("\n🎯 QUALITY ASSESSMENT:")
+    print(
+        f"Regular answer quality: {'Good' if len(regular_answer) > 100 and 'Based on the analysis' not in regular_answer else 'Poor'}"
+    )
+    print(
+        f"CoT answer quality: {'Good' if len(cot_answer) > 100 and 'Based on the analysis' not in cot_answer else 'Poor'}"
+    )
 
     if "Based on the analysis" in cot_answer and "Based on the analysis" not in regular_answer:
         print("⚠️  CoT is adding redundant wrapper text that makes the answer worse!")
@@ -174,7 +177,7 @@ def main() -> None:
         if user_result.success:
             user_data = user_result.data
             if user_data:
-                user_id = user_data.get('id', 'N/A')
+                user_id = user_data.get("id", "N/A")
                 print(f"✅ User ID: {user_id}")
             else:
                 print("❌ No user data")
@@ -185,14 +188,16 @@ def main() -> None:
 
         # Use the same collection and question as previous tests
         collection_id = "e641b71c-fb41-4e3b-9ff3-e2be6ea88b73"
-        test_question = "How does IBM's business strategy work and what are the key components that drive their success?"
+        test_question = (
+            "How does IBM's business strategy work and what are the key components that drive their success?"
+        )
 
-        print(f"\n📋 Test Parameters:")
+        print("\n📋 Test Parameters:")
         print(f"   Collection ID: {collection_id}")
         print(f"   Question: {test_question}")
 
         # Run both searches
-        print(f"\n🚀 Running comparison tests...")
+        print("\n🚀 Running comparison tests...")
 
         # Test 1: Regular search (CoT disabled)
         regular_response = run_search(api_client, test_question, collection_id, user_id, enable_cot=False)
@@ -209,6 +214,7 @@ def main() -> None:
     except Exception as e:
         print(f"❌ Test failed: {e}")
         import traceback
+
         traceback.print_exc()
 
 
