@@ -111,3 +111,19 @@ class ConfigurationError(DomainError):
         self.issue = issue
         message = f"Configuration error in '{component}': {issue}"
         super().__init__(message, details)
+
+
+class SessionExpiredError(DomainError):
+    """Raised when a session has expired."""
+
+    def __init__(
+        self,
+        session_id: str | None = None,
+        message: str | None = None,
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        self.session_id = session_id
+        super().__init__(
+            message or f"Session expired: {session_id}",
+            details,
+        )

@@ -9,7 +9,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field, UUID4
+from pydantic import BaseModel, Field, UUID4, field_validator
 
 
 class SessionStatus(str, Enum):
@@ -54,7 +54,19 @@ class ConversationSessionInput(BaseModel):
     session_name: str = Field(..., min_length=1, max_length=255, description="Name of the session")
     context_window_size: int = Field(default=4000, ge=1000, le=8000, description="Size of context window")
     max_messages: int = Field(default=50, ge=10, le=200, description="Maximum number of messages")
+    is_archived: bool = Field(default=False, description="Whether the session is archived")
+    is_pinned: bool = Field(default=False, description="Whether the session is pinned")
     metadata: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Additional metadata")
+    
+    model_config = {"validate_assignment": True, "str_strip_whitespace": True, "extra": "forbid"}
+    
+    @field_validator('context_window_size', mode='before')
+    @classmethod
+    def round_context_window_size(cls, v):
+        """Round context window size to integer."""
+        if isinstance(v, float):
+            return int(v)  # Truncate instead of round
+        return v
 
 
 class ConversationSessionOutput(BaseModel):
@@ -78,6 +90,8 @@ class ConversationMessageInput(BaseModel):
     role: MessageRole = Field(..., description="Role of the message sender")
     message_type: MessageType = Field(..., description="Type of message")
     metadata: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Additional metadata")
+    
+    model_config = {"str_strip_whitespace": True}
 
 
 class ConversationMessageOutput(BaseModel):
@@ -94,7 +108,7 @@ class ConversationMessageOutput(BaseModel):
 class ConversationContext(BaseModel):
     """Schema for conversation context."""
     session_id: UUID4 = Field(..., description="ID of the session")
-    context_window: str = Field(..., description="Current context window content")
+    context_window: str = Field(..., min_length=1, max_length=50000, description="Current context window content")
     relevant_documents: List[str] = Field(default_factory=list, description="Relevant document IDs")
     context_metadata: Dict[str, Any] = Field(default_factory=dict, description="Context metadata")
 

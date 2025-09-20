@@ -5,7 +5,7 @@ data structures, validation rules, and basic operations.
 """
 
 from datetime import datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from pydantic import UUID4, ValidationError
@@ -295,8 +295,8 @@ class TestConversationAtomicTDD:
             session_name="Test",
         )
 
-        assert isinstance(session_input.user_id, UUID4)
-        assert isinstance(session_input.collection_id, UUID4)
+        assert isinstance(session_input.user_id, UUID)
+        assert isinstance(session_input.collection_id, UUID)
 
     @pytest.mark.atomic
     def test_datetime_serialization(self) -> None:
@@ -315,7 +315,7 @@ class TestConversationAtomicTDD:
             updated_at=now,
         )
 
-        json_data = session_output.model_dump()
+        json_data = session_output.model_dump(mode="json")
         assert "created_at" in json_data
         assert "updated_at" in json_data
         assert isinstance(json_data["created_at"], str)
