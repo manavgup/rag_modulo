@@ -169,7 +169,14 @@
     "backend/tests/unit/test_core_config.py",
     "backend/tests/e2e/test_seamless_workflow_tdd.py",
     "backend/tests/integration/test_context_flow_tdd.py",
-    "backend/tests/integration/test_seamless_integration_tdd.py"
+    "backend/tests/integration/test_seamless_integration_tdd.py",
+    "backend/tests/api/test_chat_router_tdd.py",
+    "backend/tests/atomic/test_conversation_atomic_tdd.py",
+    "backend/tests/e2e/test_conversation_e2e_tdd.py",
+    "backend/tests/integration/test_conversation_integration_tdd.py",
+    "backend/tests/unit/test_conversation_service_tdd.py",
+    "backend/tests/unit/test_conversation_session_models_tdd.py",
+    "backend/tests/unit/test_conversation_unit_tdd.py"
   ],
   "non_compliant_files": [
     "backend/tests/integration/conftest.py",

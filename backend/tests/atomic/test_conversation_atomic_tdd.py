@@ -4,21 +4,20 @@ Atomic tests focus on the smallest units of functionality - individual
 data structures, validation rules, and basic operations.
 """
 
-import pytest
 from datetime import datetime
-from pydantic import ValidationError
 from uuid import uuid4
-from pydantic import UUID4
+
+import pytest
+from pydantic import UUID4, ValidationError
 
 from rag_solution.schemas.conversation_schema import (
+    ConversationContext,
+    ConversationMessageInput,
     ConversationSessionInput,
     ConversationSessionOutput,
-    ConversationMessageInput,
-    ConversationMessageOutput,
-    ConversationContext,
-    SessionStatus,
     MessageRole,
     MessageType,
+    SessionStatus,
 )
 
 
@@ -26,7 +25,7 @@ class TestConversationAtomicTDD:
     """Atomic tests for conversation data structures and validation."""
 
     # ==================== ATOMIC TESTS ====================
-    
+
     @pytest.mark.atomic
     def test_session_status_enum_values(self) -> None:
         """Atomic: Test session status enum has correct string values."""
@@ -56,21 +55,17 @@ class TestConversationAtomicTDD:
         """Atomic: Test UUID4 validation in schemas."""
         valid_uuid = uuid4()
         invalid_uuid = "not-a-uuid"
-        
+
         # Valid UUID should work
-        session_input = ConversationSessionInput(
-            user_id=valid_uuid,
-            collection_id=valid_uuid,
-            session_name="Test"
-        )
+        session_input = ConversationSessionInput(user_id=valid_uuid, collection_id=valid_uuid, session_name="Test")
         assert session_input.user_id == valid_uuid
-        
+
         # Invalid UUID should raise ValidationError
         with pytest.raises(ValidationError):
             ConversationSessionInput(
                 user_id=invalid_uuid,  # type: ignore
                 collection_id=valid_uuid,
-                session_name="Test"
+                session_name="Test",
             )
 
     @pytest.mark.atomic
@@ -80,7 +75,7 @@ class TestConversationAtomicTDD:
             ConversationSessionInput(
                 user_id=uuid4(),
                 collection_id=uuid4(),
-                session_name=""  # Empty string should fail
+                session_name="",  # Empty string should fail
             )
 
     @pytest.mark.atomic
@@ -88,11 +83,7 @@ class TestConversationAtomicTDD:
         """Atomic: Test session name maximum length validation."""
         long_name = "x" * 256  # Assuming max length is 255
         with pytest.raises(ValidationError):
-            ConversationSessionInput(
-                user_id=uuid4(),
-                collection_id=uuid4(),
-                session_name=long_name
-            )
+            ConversationSessionInput(user_id=uuid4(), collection_id=uuid4(), session_name=long_name)
 
     @pytest.mark.atomic
     def test_context_window_size_validation_min(self) -> None:
@@ -102,7 +93,7 @@ class TestConversationAtomicTDD:
                 user_id=uuid4(),
                 collection_id=uuid4(),
                 session_name="Test",
-                context_window_size=0  # Should be > 0
+                context_window_size=0,  # Should be > 0
             )
 
     @pytest.mark.atomic
@@ -113,7 +104,7 @@ class TestConversationAtomicTDD:
                 user_id=uuid4(),
                 collection_id=uuid4(),
                 session_name="Test",
-                context_window_size=50000  # Assuming max is 10000
+                context_window_size=50000,  # Assuming max is 10000
             )
 
     @pytest.mark.atomic
@@ -124,7 +115,7 @@ class TestConversationAtomicTDD:
                 user_id=uuid4(),
                 collection_id=uuid4(),
                 session_name="Test",
-                max_messages=0  # Should be > 0
+                max_messages=0,  # Should be > 0
             )
 
     @pytest.mark.atomic
@@ -135,7 +126,7 @@ class TestConversationAtomicTDD:
                 user_id=uuid4(),
                 collection_id=uuid4(),
                 session_name="Test",
-                max_messages=1000  # Assuming max is 500
+                max_messages=1000,  # Assuming max is 500
             )
 
     @pytest.mark.atomic
@@ -146,7 +137,7 @@ class TestConversationAtomicTDD:
                 session_id=uuid4(),
                 content="",  # Empty content should fail
                 role=MessageRole.USER,
-                message_type=MessageType.QUESTION
+                message_type=MessageType.QUESTION,
             )
 
     @pytest.mark.atomic
@@ -155,10 +146,7 @@ class TestConversationAtomicTDD:
         long_content = "x" * 10001  # Assuming max length is 10000
         with pytest.raises(ValidationError):
             ConversationMessageInput(
-                session_id=uuid4(),
-                content=long_content,
-                role=MessageRole.USER,
-                message_type=MessageType.QUESTION
+                session_id=uuid4(), content=long_content, role=MessageRole.USER, message_type=MessageType.QUESTION
             )
 
     @pytest.mark.atomic
@@ -168,7 +156,7 @@ class TestConversationAtomicTDD:
             ConversationContext(
                 session_id=uuid4(),
                 context_window="",  # Empty context should fail
-                relevant_documents=[]
+                relevant_documents=[],
             )
 
     @pytest.mark.atomic
@@ -176,11 +164,7 @@ class TestConversationAtomicTDD:
         """Atomic: Test context window maximum length validation."""
         long_context = "x" * 50001  # Assuming max length is 50000
         with pytest.raises(ValidationError):
-            ConversationContext(
-                session_id=uuid4(),
-                context_window=long_context,
-                relevant_documents=[]
-            )
+            ConversationContext(session_id=uuid4(), context_window=long_context, relevant_documents=[])
 
     @pytest.mark.atomic
     def test_metadata_validation_type(self) -> None:
@@ -191,7 +175,7 @@ class TestConversationAtomicTDD:
                 content="Test message",
                 role=MessageRole.USER,
                 message_type=MessageType.QUESTION,
-                metadata="not-a-dict"  # type: ignore
+                metadata="not-a-dict",  # type: ignore
             )
 
     @pytest.mark.atomic
@@ -201,14 +185,14 @@ class TestConversationAtomicTDD:
             ConversationContext(
                 session_id=uuid4(),
                 context_window="Test context",
-                relevant_documents="not-a-list"  # type: ignore
+                relevant_documents="not-a-list",  # type: ignore
             )
 
     @pytest.mark.atomic
     def test_datetime_validation(self) -> None:
         """Atomic: Test datetime field validation."""
         invalid_datetime = "not-a-datetime"
-        
+
         with pytest.raises(ValidationError):
             ConversationSessionOutput(
                 id=uuid4(),
@@ -220,7 +204,7 @@ class TestConversationAtomicTDD:
                 max_messages=50,
                 message_count=0,
                 created_at=invalid_datetime,  # type: ignore
-                updated_at=datetime.now()
+                updated_at=datetime.now(),
             )
 
     @pytest.mark.atomic
@@ -228,34 +212,21 @@ class TestConversationAtomicTDD:
         """Atomic: Test required fields validation."""
         # Missing user_id
         with pytest.raises(ValidationError):
-            ConversationSessionInput(
-                collection_id=uuid4(),
-                session_name="Test"
-            )
-        
+            ConversationSessionInput(collection_id=uuid4(), session_name="Test")
+
         # Missing collection_id
         with pytest.raises(ValidationError):
-            ConversationSessionInput(
-                user_id=uuid4(),
-                session_name="Test"
-            )
-        
+            ConversationSessionInput(user_id=uuid4(), session_name="Test")
+
         # Missing session_name
         with pytest.raises(ValidationError):
-            ConversationSessionInput(
-                user_id=uuid4(),
-                collection_id=uuid4()
-            )
+            ConversationSessionInput(user_id=uuid4(), collection_id=uuid4())
 
     @pytest.mark.atomic
     def test_optional_fields_default_values(self) -> None:
         """Atomic: Test optional fields have correct default values."""
-        session_input = ConversationSessionInput(
-            user_id=uuid4(),
-            collection_id=uuid4(),
-            session_name="Test"
-        )
-        
+        session_input = ConversationSessionInput(user_id=uuid4(), collection_id=uuid4(), session_name="Test")
+
         assert session_input.context_window_size == 4000  # default
         assert session_input.max_messages == 50  # default
         assert session_input.metadata == {}  # default
@@ -264,41 +235,30 @@ class TestConversationAtomicTDD:
     def test_message_metadata_default_value(self) -> None:
         """Atomic: Test message metadata has correct default value."""
         message_input = ConversationMessageInput(
-            session_id=uuid4(),
-            content="Test message",
-            role=MessageRole.USER,
-            message_type=MessageType.QUESTION
+            session_id=uuid4(), content="Test message", role=MessageRole.USER, message_type=MessageType.QUESTION
         )
-        
+
         assert message_input.metadata == {}  # default
 
     @pytest.mark.atomic
     def test_context_metadata_default_value(self) -> None:
         """Atomic: Test context metadata has correct default value."""
-        context = ConversationContext(
-            session_id=uuid4(),
-            context_window="Test context",
-            relevant_documents=[]
-        )
-        
+        context = ConversationContext(session_id=uuid4(), context_window="Test context", relevant_documents=[])
+
         assert context.context_metadata == {}  # default
 
     @pytest.mark.atomic
     def test_model_config_settings(self) -> None:
         """Atomic: Test Pydantic model configuration settings."""
-        session_input = ConversationSessionInput(
-            user_id=uuid4(),
-            collection_id=uuid4(),
-            session_name="Test"
-        )
-        
+        session_input = ConversationSessionInput(user_id=uuid4(), collection_id=uuid4(), session_name="Test")
+
         # Test that extra fields are forbidden
         with pytest.raises(ValidationError):
             ConversationSessionInput(
                 user_id=uuid4(),
                 collection_id=uuid4(),
                 session_name="Test",
-                extra_field="not_allowed"  # type: ignore
+                extra_field="not_allowed",  # type: ignore
             )
 
     @pytest.mark.atomic
@@ -308,9 +268,9 @@ class TestConversationAtomicTDD:
             session_id=uuid4(),
             content="  Test message  ",  # Should be stripped
             role=MessageRole.USER,
-            message_type=MessageType.QUESTION
+            message_type=MessageType.QUESTION,
         )
-        
+
         assert message_input.content == "Test message"
 
     @pytest.mark.atomic
@@ -319,7 +279,7 @@ class TestConversationAtomicTDD:
         # These should work
         assert MessageRole.USER == "user"
         assert MessageRole.ASSISTANT == "assistant"
-        
+
         # These should not work
         assert MessageRole.USER != "USER"
         assert MessageRole.ASSISTANT != "ASSISTANT"
@@ -328,13 +288,13 @@ class TestConversationAtomicTDD:
     def test_uuid_string_conversion(self) -> None:
         """Atomic: Test UUID string to UUID4 conversion."""
         uuid_string = str(uuid4())
-        
+
         session_input = ConversationSessionInput(
             user_id=uuid_string,  # String should be converted to UUID4
             collection_id=uuid_string,
-            session_name="Test"
+            session_name="Test",
         )
-        
+
         assert isinstance(session_input.user_id, UUID4)
         assert isinstance(session_input.collection_id, UUID4)
 
@@ -352,9 +312,9 @@ class TestConversationAtomicTDD:
             max_messages=50,
             message_count=0,
             created_at=now,
-            updated_at=now
+            updated_at=now,
         )
-        
+
         json_data = session_output.model_dump()
         assert "created_at" in json_data
         assert "updated_at" in json_data
@@ -364,12 +324,8 @@ class TestConversationAtomicTDD:
     @pytest.mark.atomic
     def test_boolean_field_validation(self) -> None:
         """Atomic: Test boolean field validation and defaults."""
-        session_input = ConversationSessionInput(
-            user_id=uuid4(),
-            collection_id=uuid4(),
-            session_name="Test"
-        )
-        
+        session_input = ConversationSessionInput(user_id=uuid4(), collection_id=uuid4(), session_name="Test")
+
         # Test boolean field defaults
         assert session_input.is_archived is False  # default
         assert session_input.is_pinned is False  # default
@@ -381,9 +337,9 @@ class TestConversationAtomicTDD:
             user_id=uuid4(),
             collection_id=uuid4(),
             session_name="Test",
-            context_window_size=4000.7  # Should be rounded to int
+            context_window_size=4000.7,  # Should be rounded to int
         )
-        
+
         assert isinstance(session_input.context_window_size, int)
         assert session_input.context_window_size == 4000
 
@@ -391,11 +347,9 @@ class TestConversationAtomicTDD:
     def test_list_field_validation(self) -> None:
         """Atomic: Test list field validation."""
         context = ConversationContext(
-            session_id=uuid4(),
-            context_window="Test context",
-            relevant_documents=["doc1", "doc2", "doc3"]
+            session_id=uuid4(), context_window="Test context", relevant_documents=["doc1", "doc2", "doc3"]
         )
-        
+
         assert len(context.relevant_documents) == 3
         assert all(isinstance(doc, str) for doc in context.relevant_documents)
 
@@ -403,14 +357,14 @@ class TestConversationAtomicTDD:
     def test_dict_field_validation(self) -> None:
         """Atomic: Test dict field validation."""
         metadata = {"key1": "value1", "key2": 123, "key3": True}
-        
+
         message_input = ConversationMessageInput(
             session_id=uuid4(),
             content="Test message",
             role=MessageRole.USER,
             message_type=MessageType.QUESTION,
-            metadata=metadata
+            metadata=metadata,
         )
-        
+
         assert message_input.metadata == metadata
         assert isinstance(message_input.metadata, dict)

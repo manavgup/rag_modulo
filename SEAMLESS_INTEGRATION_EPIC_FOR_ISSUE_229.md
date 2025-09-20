@@ -29,18 +29,18 @@ graph TD
     A[ConversationService] --> B[ContextManagerService]
     A --> C[SearchService]
     A --> D[QuestionSuggestionService]
-    
+
     C --> E[PipelineService]
     C --> F[ChainOfThoughtService]
     C --> G[CollectionService]
-    
+
     F --> H[LLMProviderService]
     F --> I[AnswerSynthesizer]
-    
+
     B --> J[Context Enhancement]
     B --> K[Context Pruning]
     B --> L[Entity Extraction]
-    
+
     M[User Message] --> A
     A --> N[Enhanced Search]
     N --> O[CoT Reasoning]
@@ -116,46 +116,46 @@ cot_input = ChainOfThoughtInput(
 #### Question Enhancement
 ```python
 def enhance_question_with_conversation_context(
-    self, 
-    question: str, 
-    conversation_context: str, 
+    self,
+    question: str,
+    conversation_context: str,
     message_history: list[str]
 ) -> str:
     """Enhance question with conversation context for better search."""
-    
+
     # Extract entities from conversation
     entities = self.extract_entities_from_context(conversation_context)
-    
+
     # Build enhanced question
     if entities:
         entity_context = f" (in the context of {', '.join(entities)})"
         enhanced_question = f"{question}{entity_context}"
     else:
         enhanced_question = question
-    
+
     # Add conversation context if question is ambiguous
     if self.is_ambiguous_question(question):
         recent_context = " ".join(message_history[-3:])  # Last 3 messages
         enhanced_question = f"{question} (referring to: {recent_context})"
-    
+
     return enhanced_question
 ```
 
 #### Context Pruning
 ```python
 def prune_context_for_search(
-    self, 
-    context: str, 
+    self,
+    context: str,
     current_question: str
 ) -> str:
     """Prune conversation context to focus on relevant information."""
-    
+
     # Extract relevant sentences based on question
     relevant_sentences = self.extract_relevant_sentences(context, current_question)
-    
+
     # Limit context size to prevent token overflow
     pruned_context = self.limit_context_size(relevant_sentences, max_tokens=2000)
-    
+
     return pruned_context
 ```
 
@@ -164,30 +164,30 @@ def prune_context_for_search(
 #### Conversation-Aware Reasoning
 ```python
 async def execute_chain_of_thought_with_conversation(
-    self, 
-    cot_input: ChainOfThoughtInput, 
+    self,
+    cot_input: ChainOfThoughtInput,
     context_documents: list[str],
     user_id: str
 ) -> ChainOfThoughtOutput:
     """Execute CoT with conversation context awareness."""
-    
+
     # Extract conversation metadata
     conversation_context = cot_input.context_metadata.get("conversation_context", "")
     message_history = cot_input.context_metadata.get("message_history", [])
     conversation_entities = cot_input.context_metadata.get("conversation_entities", [])
-    
+
     # Build enhanced context
     enhanced_context = self._build_conversation_aware_context(
-        context_documents, 
-        conversation_context, 
+        context_documents,
+        conversation_context,
         message_history,
         conversation_entities
     )
-    
+
     # Execute reasoning with conversation awareness
     return await self._execute_conversation_aware_reasoning(
-        cot_input.question, 
-        enhanced_context, 
+        cot_input.question,
+        enhanced_context,
         user_id
     )
 ```
@@ -195,32 +195,32 @@ async def execute_chain_of_thought_with_conversation(
 #### Multi-turn Reasoning
 ```python
 def _build_conversation_aware_context(
-    self, 
-    context_documents: list[str], 
+    self,
+    context_documents: list[str],
     conversation_context: str,
     message_history: list[str],
     conversation_entities: list[str]
 ) -> list[str]:
     """Build context that considers conversation history."""
-    
+
     enhanced_context = []
-    
+
     # Add document context
     enhanced_context.extend(context_documents)
-    
+
     # Add conversation context
     if conversation_context:
         enhanced_context.append(f"Conversation context: {conversation_context}")
-    
+
     # Add entity context
     if conversation_entities:
         enhanced_context.append(f"Previously discussed: {', '.join(conversation_entities)}")
-    
+
     # Add recent message context
     if message_history:
         recent_context = " ".join(message_history[-2:])  # Last 2 messages
         enhanced_context.append(f"Recent discussion: {recent_context}")
-    
+
     return enhanced_context
 ```
 
@@ -236,7 +236,7 @@ class ConversationService:
         self._search_service: SearchService | None = None
         self._context_manager_service: ContextManagerService | None = None
         self._question_suggestion_service: QuestionSuggestionService | None = None
-    
+
     @property
     def search_service(self) -> SearchService:
         if self._search_service is None:
@@ -249,17 +249,17 @@ class ConversationService:
 class SearchService:
     async def search(self, search_input: SearchInput) -> SearchOutput:
         """Enhanced search with conversation context."""
-        
+
         # Check for conversation context
         conversation_context = search_input.config_metadata.get("conversation_context")
         if conversation_context:
             # Enhance question with conversation context
             search_input.question = self._enhance_question_with_conversation(
-                search_input.question, 
+                search_input.question,
                 conversation_context,
                 search_input.config_metadata.get("message_history", [])
             )
-        
+
         # Continue with existing search logic
         # ... existing implementation
 ```
@@ -268,27 +268,27 @@ class SearchService:
 ```python
 class ChainOfThoughtService:
     async def execute_chain_of_thought(
-        self, 
-        cot_input: ChainOfThoughtInput, 
+        self,
+        cot_input: ChainOfThoughtInput,
         context_documents: list[str],
         user_id: str
     ) -> ChainOfThoughtOutput:
         """Execute CoT with conversation awareness."""
-        
+
         # Check for conversation context
         conversation_context = cot_input.context_metadata.get("conversation_context")
         if conversation_context:
             # Use conversation-aware reasoning
             return await self._execute_conversation_aware_cot(
-                cot_input, 
-                context_documents, 
+                cot_input,
+                context_documents,
                 user_id
             )
         else:
             # Use standard CoT
             return await self._execute_standard_cot(
-                cot_input, 
-                context_documents, 
+                cot_input,
+                context_documents,
                 user_id
             )
 ```
@@ -301,50 +301,50 @@ class ContextManagerService:
     def __init__(self):
         self._context_cache: dict[str, ConversationContext] = {}
         self._cache_ttl = 300  # 5 minutes
-    
+
     async def build_context_from_messages(
-        self, 
-        session_id: UUID4, 
+        self,
+        session_id: UUID4,
         messages: list[ConversationMessageOutput]
     ) -> ConversationContext:
         """Build context with caching for performance."""
-        
+
         cache_key = f"{session_id}_{len(messages)}"
-        
+
         # Check cache
         if cache_key in self._context_cache:
             cached_context = self._context_cache[cache_key]
             if time.time() - cached_context.created_at < self._cache_ttl:
                 return cached_context
-        
+
         # Build new context
         context = await self._build_context_from_messages_impl(session_id, messages)
-        
+
         # Cache result
         self._context_cache[cache_key] = context
-        
+
         return context
 ```
 
 ### 2. Context Pruning
 ```python
 def prune_context_for_performance(
-    self, 
-    context: ConversationContext, 
+    self,
+    context: ConversationContext,
     current_question: str
 ) -> ConversationContext:
     """Prune context to maintain performance."""
-    
+
     # Calculate relevance scores
     relevance_scores = self._calculate_relevance_scores(context, current_question)
-    
+
     # Keep only highly relevant content
     pruned_content = self._keep_relevant_content(
-        context.context_window, 
-        relevance_scores, 
+        context.context_window,
+        relevance_scores,
         max_tokens=2000
     )
-    
+
     return ConversationContext(
         session_id=context.session_id,
         context_window=pruned_content,
@@ -406,7 +406,7 @@ conversation_history = [
 
 # Context pruning
 long_conversation = [
-    "What is AI?", "AI is...", "What is ML?", "ML is...", 
+    "What is AI?", "AI is...", "What is ML?", "ML is...",
     "What is deep learning?", "Deep learning is...",
     "How do they relate?"
 ]

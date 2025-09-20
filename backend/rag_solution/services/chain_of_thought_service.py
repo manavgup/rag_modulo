@@ -389,6 +389,12 @@ class ChainOfThoughtService:
         decomposition_result = await self.decompose_question(cot_input.question, config.max_reasoning_depth)
         decomposed_questions = decomposition_result.sub_questions
 
+        # Build conversation-aware context
+        enhanced_context = self._build_conversation_aware_context(
+            context_documents or [],
+            cot_input.context_metadata
+        )
+
         # Execute reasoning steps
         reasoning_steps = []
         previous_answers: list[str] = []
@@ -397,7 +403,7 @@ class ChainOfThoughtService:
             step = await self.execute_reasoning_step(
                 step_number=i + 1,
                 question=decomposed.sub_question,
-                context=context_documents or [],
+                context=enhanced_context,
                 previous_answers=previous_answers,
                 retrieved_documents=None,  # Will be populated with actual search results in the future
                 user_id=user_id,
@@ -462,6 +468,33 @@ class ChainOfThoughtService:
             reasoning_strategy=self.settings.cot_reasoning_strategy,
             token_budget_multiplier=self.settings.cot_token_budget_multiplier,
         )
+
+    def _build_conversation_aware_context(
+        self, 
+        context_documents: list[str], 
+        context_metadata: dict[str, Any] | None
+    ) -> list[str]:
+        """Build conversation-aware context for CoT reasoning."""
+        enhanced_context = list(context_documents)
+        
+        if context_metadata:
+            # Add conversation context if available
+            conversation_context = context_metadata.get("conversation_context")
+            if conversation_context:
+                enhanced_context.append(f"Conversation context: {conversation_context}")
+            
+            # Add conversation entities
+            conversation_entities = context_metadata.get("conversation_entities", [])
+            if conversation_entities:
+                enhanced_context.append(f"Previously discussed: {', '.join(conversation_entities)}")
+            
+            # Add message history
+            message_history = context_metadata.get("message_history", [])
+            if message_history:
+                recent_messages = message_history[-3:]  # Last 3 messages
+                enhanced_context.append(f"Recent discussion: {' '.join(recent_messages)}")
+        
+        return enhanced_context
 
     def evaluate_reasoning_chain(self, output: ChainOfThoughtOutput) -> dict[str, str | int | float]:
         """Evaluate the quality of a reasoning chain.

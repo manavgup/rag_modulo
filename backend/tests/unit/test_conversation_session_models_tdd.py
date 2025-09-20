@@ -4,20 +4,21 @@ These tests define the expected behavior for conversation session management
 without any implementation. All tests should fail initially.
 """
 
-import pytest
 from datetime import datetime
+from uuid import uuid4
+
+import pytest
 from pydantic import ValidationError
-from uuid import UUID4, uuid4
 
 from rag_solution.schemas.conversation_schema import (
-    ConversationSessionInput,
-    ConversationSessionOutput,
+    ConversationContext,
     ConversationMessageInput,
     ConversationMessageOutput,
-    ConversationContext,
-    SessionStatus,
+    ConversationSessionInput,
+    ConversationSessionOutput,
     MessageRole,
     MessageType,
+    SessionStatus,
 )
 
 
@@ -30,14 +31,12 @@ class TestConversationSessionModelsTDD:
         user_id = uuid4()
         collection_id = uuid4()
         session_name = "Test Chat Session"
-        
+
         # Act
         session_input = ConversationSessionInput(
-            user_id=user_id,
-            collection_id=collection_id,
-            session_name=session_name
+            user_id=user_id, collection_id=collection_id, session_name=session_name
         )
-        
+
         # Assert
         assert session_input.user_id == user_id
         assert session_input.collection_id == collection_id
@@ -53,16 +52,16 @@ class TestConversationSessionModelsTDD:
         session_name = "Custom Chat Session"
         context_window_size = 8000
         max_messages = 100
-        
+
         # Act
         session_input = ConversationSessionInput(
             user_id=user_id,
             collection_id=collection_id,
             session_name=session_name,
             context_window_size=context_window_size,
-            max_messages=max_messages
+            max_messages=max_messages,
         )
-        
+
         # Assert
         assert session_input.context_window_size == context_window_size
         assert session_input.max_messages == max_messages
@@ -71,29 +70,15 @@ class TestConversationSessionModelsTDD:
         """Test validation errors for conversation session input."""
         # Test empty session name
         with pytest.raises(ValidationError):
-            ConversationSessionInput(
-                user_id=uuid4(),
-                collection_id=uuid4(),
-                session_name=""
-            )
-        
+            ConversationSessionInput(user_id=uuid4(), collection_id=uuid4(), session_name="")
+
         # Test invalid context window size
         with pytest.raises(ValidationError):
-            ConversationSessionInput(
-                user_id=uuid4(),
-                collection_id=uuid4(),
-                session_name="Test",
-                context_window_size=0
-            )
-        
+            ConversationSessionInput(user_id=uuid4(), collection_id=uuid4(), session_name="Test", context_window_size=0)
+
         # Test invalid max messages
         with pytest.raises(ValidationError):
-            ConversationSessionInput(
-                user_id=uuid4(),
-                collection_id=uuid4(),
-                session_name="Test",
-                max_messages=0
-            )
+            ConversationSessionInput(user_id=uuid4(), collection_id=uuid4(), session_name="Test", max_messages=0)
 
     def test_conversation_session_output_creation(self) -> None:
         """Test creating a conversation session output with valid data."""
@@ -104,7 +89,7 @@ class TestConversationSessionModelsTDD:
         session_name = "Test Chat Session"
         created_at = datetime.now()
         updated_at = datetime.now()
-        
+
         # Act
         session_output = ConversationSessionOutput(
             id=session_id,
@@ -116,9 +101,9 @@ class TestConversationSessionModelsTDD:
             max_messages=50,
             message_count=0,
             created_at=created_at,
-            updated_at=updated_at
+            updated_at=updated_at,
         )
-        
+
         # Assert
         assert session_output.id == session_id
         assert session_output.user_id == user_id
@@ -134,15 +119,12 @@ class TestConversationSessionModelsTDD:
         content = "What is the main topic of this document?"
         role = MessageRole.USER
         message_type = MessageType.QUESTION
-        
+
         # Act
         message_input = ConversationMessageInput(
-            session_id=session_id,
-            content=content,
-            role=role,
-            message_type=message_type
+            session_id=session_id, content=content, role=role, message_type=message_type
         )
-        
+
         # Assert
         assert message_input.session_id == session_id
         assert message_input.content == content
@@ -160,18 +142,14 @@ class TestConversationSessionModelsTDD:
         metadata = {
             "previous_message_id": str(uuid4()),
             "context_references": ["doc1", "doc2"],
-            "confidence_score": 0.85
+            "confidence_score": 0.85,
         }
-        
+
         # Act
         message_input = ConversationMessageInput(
-            session_id=session_id,
-            content=content,
-            role=role,
-            message_type=message_type,
-            metadata=metadata
+            session_id=session_id, content=content, role=role, message_type=message_type, metadata=metadata
         )
-        
+
         # Assert
         assert message_input.metadata == metadata
 
@@ -184,7 +162,7 @@ class TestConversationSessionModelsTDD:
         role = MessageRole.ASSISTANT
         message_type = MessageType.ANSWER
         created_at = datetime.now()
-        
+
         # Act
         message_output = ConversationMessageOutput(
             id=message_id,
@@ -193,9 +171,9 @@ class TestConversationSessionModelsTDD:
             role=role,
             message_type=message_type,
             metadata={},
-            created_at=created_at
+            created_at=created_at,
         )
-        
+
         # Assert
         assert message_output.id == message_id
         assert message_output.session_id == session_id
@@ -209,20 +187,16 @@ class TestConversationSessionModelsTDD:
         session_id = uuid4()
         context_window = "Previous conversation about machine learning..."
         relevant_documents = ["doc1", "doc2", "doc3"]
-        context_metadata = {
-            "topic": "machine_learning",
-            "confidence": 0.9,
-            "last_updated": datetime.now().isoformat()
-        }
-        
+        context_metadata = {"topic": "machine_learning", "confidence": 0.9, "last_updated": datetime.now().isoformat()}
+
         # Act
         context = ConversationContext(
             session_id=session_id,
             context_window=context_window,
             relevant_documents=relevant_documents,
-            context_metadata=context_metadata
+            context_metadata=context_metadata,
         )
-        
+
         # Assert
         assert context.session_id == session_id
         assert context.context_window == context_window
@@ -260,20 +234,18 @@ class TestConversationSessionModelsTDD:
         collection_id = uuid4()
         session_name = "Test Session"
         session_input = ConversationSessionInput(
-            user_id=user_id,
-            collection_id=collection_id,
-            session_name=session_name
+            user_id=user_id, collection_id=collection_id, session_name=session_name
         )
-        
+
         # Act
         session_output = session_input.to_output(
             session_id=uuid4(),
             status=SessionStatus.ACTIVE,
             message_count=0,
             created_at=datetime.now(),
-            updated_at=datetime.now()
+            updated_at=datetime.now(),
         )
-        
+
         # Assert
         assert isinstance(session_output, ConversationSessionOutput)
         assert session_output.user_id == user_id
@@ -288,18 +260,12 @@ class TestConversationSessionModelsTDD:
         role = MessageRole.USER
         message_type = MessageType.QUESTION
         message_input = ConversationMessageInput(
-            session_id=session_id,
-            content=content,
-            role=role,
-            message_type=message_type
+            session_id=session_id, content=content, role=role, message_type=message_type
         )
-        
+
         # Act
-        message_output = message_input.to_output(
-            message_id=uuid4(),
-            created_at=datetime.now()
-        )
-        
+        message_output = message_input.to_output(message_id=uuid4(), created_at=datetime.now())
+
         # Assert
         assert isinstance(message_output, ConversationMessageOutput)
         assert message_output.session_id == session_id
@@ -311,18 +277,14 @@ class TestConversationSessionModelsTDD:
         """Test validation of conversation context."""
         # Test empty context window
         with pytest.raises(ValidationError):
-            ConversationContext(
-                session_id=uuid4(),
-                context_window="",
-                relevant_documents=[]
-            )
-        
+            ConversationContext(session_id=uuid4(), context_window="", relevant_documents=[])
+
         # Test context window too long
         with pytest.raises(ValidationError):
             ConversationContext(
                 session_id=uuid4(),
                 context_window="x" * 50000,  # Too long
-                relevant_documents=[]
+                relevant_documents=[],
             )
 
     def test_conversation_session_serialization(self) -> None:
@@ -338,12 +300,12 @@ class TestConversationSessionModelsTDD:
             max_messages=50,
             message_count=0,
             created_at=datetime.now(),
-            updated_at=datetime.now()
+            updated_at=datetime.now(),
         )
-        
+
         # Act
         json_data = session_output.model_dump()
-        
+
         # Assert
         assert isinstance(json_data, dict)
         assert "id" in json_data
@@ -361,12 +323,12 @@ class TestConversationSessionModelsTDD:
             role=MessageRole.USER,
             message_type=MessageType.QUESTION,
             metadata={},
-            created_at=datetime.now()
+            created_at=datetime.now(),
         )
-        
+
         # Act
         json_data = message_output.model_dump()
-        
+
         # Assert
         assert isinstance(json_data, dict)
         assert "id" in json_data

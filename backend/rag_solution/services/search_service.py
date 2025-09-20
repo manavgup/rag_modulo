@@ -515,6 +515,12 @@ class SearchService:
                         evaluation=pipeline_result.evaluation,
                         execution_time=execution_time,
                         cot_output=cot_output,
+                        metadata={
+                            "cot_used": True,
+                            "conversation_aware": True,
+                            "reasoning_strategy": cot_result.reasoning_strategy,
+                            "conversation_context_used": bool(search_input.config_metadata and search_input.config_metadata.get("conversation_context"))
+                        }
                     )
             except Exception as e:
                 logger.error(f"Chain of Thought failed, falling back to regular search: {e!s}")
@@ -562,4 +568,9 @@ class SearchService:
             evaluation=pipeline_result.evaluation,
             execution_time=execution_time,
             cot_output=None,  # No CoT output for regular search
+            metadata={
+                "cot_used": False,
+                "conversation_aware": bool(search_input.config_metadata and search_input.config_metadata.get("conversation_context")),
+                "conversation_context_used": bool(search_input.config_metadata and search_input.config_metadata.get("conversation_context"))
+            }
         )

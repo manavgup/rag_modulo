@@ -4,23 +4,23 @@ These tests define the expected behavior for conversation session management
 without any implementation. All tests should fail initially.
 """
 
-import pytest
-from datetime import datetime, timedelta
-from unittest.mock import Mock, patch
-from uuid import UUID4, uuid4
+from unittest.mock import Mock
+from uuid import uuid4
 
-from rag_solution.services.conversation_service import ConversationService
+import pytest
+
+from rag_solution.core.exceptions import NotFoundError, SessionExpiredError, ValidationError
 from rag_solution.schemas.conversation_schema import (
-    ConversationSessionInput,
-    ConversationSessionOutput,
+    ConversationContext,
     ConversationMessageInput,
     ConversationMessageOutput,
-    ConversationContext,
-    SessionStatus,
+    ConversationSessionInput,
+    ConversationSessionOutput,
     MessageRole,
     MessageType,
+    SessionStatus,
 )
-from rag_solution.core.exceptions import NotFoundError, ValidationError, SessionExpiredError
+from rag_solution.services.conversation_service import ConversationService
 
 
 class TestConversationServiceTDD:
@@ -51,14 +51,12 @@ class TestConversationServiceTDD:
         user_id = uuid4()
         collection_id = uuid4()
         session_input = ConversationSessionInput(
-            user_id=user_id,
-            collection_id=collection_id,
-            session_name="Test Chat Session"
+            user_id=user_id, collection_id=collection_id, session_name="Test Chat Session"
         )
-        
+
         # Act
         result = conversation_service.create_session(session_input)
-        
+
         # Assert
         assert isinstance(result, ConversationSessionOutput)
         assert result.user_id == user_id
@@ -75,12 +73,12 @@ class TestConversationServiceTDD:
             collection_id=uuid4(),
             session_name="Custom Session",
             context_window_size=6000,
-            max_messages=75
+            max_messages=75,
         )
-        
+
         # Act
         result = conversation_service.create_session(session_input)
-        
+
         # Assert
         assert result.context_window_size == 6000
         assert result.max_messages == 75
@@ -92,9 +90,9 @@ class TestConversationServiceTDD:
             user_id=uuid4(),
             collection_id=uuid4(),
             session_name="",  # Empty name should fail
-            context_window_size=50000  # Too large
+            context_window_size=50000,  # Too large
         )
-        
+
         # Act & Assert
         with pytest.raises(ValidationError):
             conversation_service.create_session(session_input)
@@ -104,10 +102,10 @@ class TestConversationServiceTDD:
         # Arrange
         session_id = uuid4()
         user_id = uuid4()
-        
+
         # Act
         result = conversation_service.get_session(session_id, user_id)
-        
+
         # Assert
         assert isinstance(result, ConversationSessionOutput)
         assert result.id == session_id
@@ -118,7 +116,7 @@ class TestConversationServiceTDD:
         # Arrange
         session_id = uuid4()
         user_id = uuid4()
-        
+
         # Act & Assert
         with pytest.raises(NotFoundError):
             conversation_service.get_session(session_id, user_id)
@@ -127,10 +125,10 @@ class TestConversationServiceTDD:
         """Test retrieving all sessions for a user."""
         # Arrange
         user_id = uuid4()
-        
+
         # Act
         result = conversation_service.get_user_sessions(user_id)
-        
+
         # Assert
         assert isinstance(result, list)
         assert all(isinstance(session, ConversationSessionOutput) for session in result)
@@ -140,10 +138,10 @@ class TestConversationServiceTDD:
         # Arrange
         user_id = uuid4()
         status = SessionStatus.ACTIVE
-        
+
         # Act
         result = conversation_service.get_user_sessions(user_id, status=status)
-        
+
         # Assert
         assert isinstance(result, list)
         assert all(session.status == status for session in result)
@@ -153,14 +151,11 @@ class TestConversationServiceTDD:
         # Arrange
         session_id = uuid4()
         user_id = uuid4()
-        updates = {
-            "session_name": "Updated Session Name",
-            "context_window_size": 6000
-        }
-        
+        updates = {"session_name": "Updated Session Name", "context_window_size": 6000}
+
         # Act
         result = conversation_service.update_session(session_id, user_id, updates)
-        
+
         # Assert
         assert isinstance(result, ConversationSessionOutput)
         assert result.session_name == "Updated Session Name"
@@ -172,7 +167,7 @@ class TestConversationServiceTDD:
         session_id = uuid4()
         user_id = uuid4()
         updates = {"session_name": "Updated Name"}
-        
+
         # Act & Assert
         with pytest.raises(NotFoundError):
             conversation_service.update_session(session_id, user_id, updates)
@@ -182,10 +177,10 @@ class TestConversationServiceTDD:
         # Arrange
         session_id = uuid4()
         user_id = uuid4()
-        
+
         # Act
         result = conversation_service.delete_session(session_id, user_id)
-        
+
         # Assert
         assert result is True
 
@@ -194,7 +189,7 @@ class TestConversationServiceTDD:
         # Arrange
         session_id = uuid4()
         user_id = uuid4()
-        
+
         # Act & Assert
         with pytest.raises(NotFoundError):
             conversation_service.delete_session(session_id, user_id)
@@ -207,12 +202,12 @@ class TestConversationServiceTDD:
             session_id=session_id,
             content="What is the main topic?",
             role=MessageRole.USER,
-            message_type=MessageType.QUESTION
+            message_type=MessageType.QUESTION,
         )
-        
+
         # Act
         result = conversation_service.add_message(message_input)
-        
+
         # Assert
         assert isinstance(result, ConversationMessageOutput)
         assert result.session_id == session_id
@@ -225,12 +220,9 @@ class TestConversationServiceTDD:
         # Arrange
         session_id = uuid4()
         message_input = ConversationMessageInput(
-            session_id=session_id,
-            content="Test message",
-            role=MessageRole.USER,
-            message_type=MessageType.QUESTION
+            session_id=session_id, content="Test message", role=MessageRole.USER, message_type=MessageType.QUESTION
         )
-        
+
         # Act & Assert
         with pytest.raises(NotFoundError):
             conversation_service.add_message(message_input)
@@ -240,12 +232,9 @@ class TestConversationServiceTDD:
         # Arrange
         session_id = uuid4()
         message_input = ConversationMessageInput(
-            session_id=session_id,
-            content="Test message",
-            role=MessageRole.USER,
-            message_type=MessageType.QUESTION
+            session_id=session_id, content="Test message", role=MessageRole.USER, message_type=MessageType.QUESTION
         )
-        
+
         # Act & Assert
         with pytest.raises(SessionExpiredError):
             conversation_service.add_message(message_input)
@@ -257,10 +246,10 @@ class TestConversationServiceTDD:
         user_id = uuid4()
         limit = 20
         offset = 0
-        
+
         # Act
         result = conversation_service.get_session_messages(session_id, user_id, limit, offset)
-        
+
         # Assert
         assert isinstance(result, list)
         assert all(isinstance(msg, ConversationMessageOutput) for msg in result)
@@ -273,10 +262,10 @@ class TestConversationServiceTDD:
         user_id = uuid4()
         limit = 10
         offset = 20
-        
+
         # Act
         result = conversation_service.get_session_messages(session_id, user_id, limit, offset)
-        
+
         # Assert
         assert isinstance(result, list)
         assert len(result) <= limit
@@ -286,10 +275,10 @@ class TestConversationServiceTDD:
         # Arrange
         session_id = uuid4()
         user_id = uuid4()
-        
+
         # Act
         result = conversation_service.get_session_context(session_id, user_id)
-        
+
         # Assert
         assert isinstance(result, ConversationContext)
         assert result.session_id == session_id
@@ -303,12 +292,12 @@ class TestConversationServiceTDD:
             session_id=session_id,
             context_window="Updated context window",
             relevant_documents=["doc1", "doc2"],
-            context_metadata={"topic": "AI"}
+            context_metadata={"topic": "AI"},
         )
-        
+
         # Act
         result = conversation_service.update_session_context(session_id, user_id, context)
-        
+
         # Assert
         assert isinstance(result, ConversationContext)
         assert result.context_window == "Updated context window"
@@ -317,7 +306,7 @@ class TestConversationServiceTDD:
         """Test cleaning up expired sessions."""
         # Act
         result = conversation_service.cleanup_expired_sessions()
-        
+
         # Assert
         assert isinstance(result, int)  # Number of sessions cleaned up
 
@@ -326,10 +315,10 @@ class TestConversationServiceTDD:
         # Arrange
         session_id = uuid4()
         user_id = uuid4()
-        
+
         # Act
         result = conversation_service.get_session_statistics(session_id, user_id)
-        
+
         # Assert
         assert isinstance(result, dict)
         assert "message_count" in result
@@ -342,10 +331,10 @@ class TestConversationServiceTDD:
         # Arrange
         session_id = uuid4()
         user_id = uuid4()
-        
+
         # Act
         result = conversation_service.archive_session(session_id, user_id)
-        
+
         # Assert
         assert isinstance(result, ConversationSessionOutput)
         assert result.status == SessionStatus.ARCHIVED
@@ -355,10 +344,10 @@ class TestConversationServiceTDD:
         # Arrange
         session_id = uuid4()
         user_id = uuid4()
-        
+
         # Act
         result = conversation_service.restore_session(session_id, user_id)
-        
+
         # Assert
         assert isinstance(result, ConversationSessionOutput)
         assert result.status == SessionStatus.ACTIVE
@@ -369,10 +358,10 @@ class TestConversationServiceTDD:
         session_id = uuid4()
         user_id = uuid4()
         export_format = "json"
-        
+
         # Act
         result = conversation_service.export_session(session_id, user_id, export_format)
-        
+
         # Assert
         assert isinstance(result, dict)
         assert "session_data" in result
@@ -385,7 +374,7 @@ class TestConversationServiceTDD:
         session_id = uuid4()
         user_id = uuid4()
         export_format = "unsupported_format"
-        
+
         # Act & Assert
         with pytest.raises(ValidationError):
             conversation_service.export_session(session_id, user_id, export_format)
@@ -395,10 +384,10 @@ class TestConversationServiceTDD:
         # Arrange
         user_id = uuid4()
         query = "machine learning"
-        
+
         # Act
         result = conversation_service.search_sessions(user_id, query)
-        
+
         # Assert
         assert isinstance(result, list)
         assert all(isinstance(session, ConversationSessionOutput) for session in result)
@@ -408,10 +397,10 @@ class TestConversationServiceTDD:
         # Arrange
         session_id = uuid4()
         user_id = uuid4()
-        
+
         # Act
         result = conversation_service.get_session_analytics(session_id, user_id)
-        
+
         # Assert
         assert isinstance(result, dict)
         assert "total_messages" in result
@@ -427,16 +416,14 @@ class TestConversationServiceTDD:
         user_id = uuid4()
         collection_id = uuid4()
         session_name = "Duplicate Session"
-        
+
         session_input = ConversationSessionInput(
-            user_id=user_id,
-            collection_id=collection_id,
-            session_name=session_name
+            user_id=user_id, collection_id=collection_id, session_name=session_name
         )
-        
+
         # Create first session
         conversation_service.create_session(session_input)
-        
+
         # Act & Assert
         # Should either allow duplicates or raise appropriate error
         # This depends on business requirements
@@ -448,10 +435,10 @@ class TestConversationServiceTDD:
         # Arrange
         session_id = uuid4()
         user_id = uuid4()
-        
+
         # Act
         result = conversation_service.check_session_timeout(session_id, user_id)
-        
+
         # Assert
         assert isinstance(result, bool)  # True if expired, False if still active
 
@@ -460,10 +447,10 @@ class TestConversationServiceTDD:
         # Arrange
         user_id = uuid4()
         session_ids = [uuid4() for _ in range(3)]
-        
+
         # Act
         result = conversation_service.bulk_archive_sessions(session_ids, user_id)
-        
+
         # Assert
         assert isinstance(result, list)
         assert len(result) == len(session_ids)

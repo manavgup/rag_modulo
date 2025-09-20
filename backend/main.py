@@ -31,6 +31,7 @@ from rag_solution.file_management.database import Base, engine, get_db
 from rag_solution.router.auth_router import router as auth_router
 
 # Routers
+from rag_solution.router.chat_router import router as chat_router
 from rag_solution.router.collection_router import router as collection_router
 from rag_solution.router.health_router import router as health_router
 from rag_solution.router.search_router import router as search_router
@@ -147,6 +148,7 @@ app.add_middleware(AuthenticationMiddleware)
 
 # Routers
 app.include_router(auth_router)
+app.include_router(chat_router)
 app.include_router(health_router)
 app.include_router(collection_router)
 app.include_router(user_router)

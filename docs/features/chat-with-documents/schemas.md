@@ -16,7 +16,7 @@ class ConversationSessionInput(BaseModel):
     context_window_size: int = Field(default=4000, ge=1000, le=10000)
     max_messages: int = Field(default=50, ge=10, le=500)
     metadata: Dict[str, Any] = Field(default_factory=dict)
-    
+
     model_config = ConfigDict(strict=True, extra="forbid")
 ```
 
@@ -49,7 +49,7 @@ class ConversationSessionOutput(BaseModel):
     message_count: int
     created_at: datetime
     updated_at: datetime
-    
+
     model_config = ConfigDict(from_attributes=True)
 ```
 
@@ -76,7 +76,7 @@ class ConversationMessageInput(BaseModel):
     role: MessageRole
     message_type: MessageType
     metadata: Dict[str, Any] = Field(default_factory=dict)
-    
+
     model_config = ConfigDict(strict=True, extra="forbid")
 ```
 
@@ -105,7 +105,7 @@ class ConversationMessageOutput(BaseModel):
     message_type: MessageType
     metadata: Dict[str, Any]
     created_at: datetime
-    
+
     model_config = ConfigDict(from_attributes=True)
 ```
 
@@ -130,7 +130,7 @@ class ConversationContext(BaseModel):
     context_window: str = Field(..., min_length=1, max_length=50000)
     relevant_documents: List[str] = Field(default_factory=list)
     context_metadata: Dict[str, Any] = Field(default_factory=dict)
-    
+
     model_config = ConfigDict(strict=True, extra="forbid")
 ```
 

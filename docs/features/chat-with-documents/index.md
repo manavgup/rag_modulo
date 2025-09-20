@@ -104,7 +104,7 @@ assistant_response = conversation_service.add_message(assistant_message)
 async def search_with_conversation(search_input: SearchInput, session_id: UUID4):
     # Perform RAG search
     search_result = await self.perform_rag_search(search_input)
-    
+
     # Add search result to conversation
     message = ConversationMessageInput(
         session_id=session_id,
@@ -113,7 +113,7 @@ async def search_with_conversation(search_input: SearchInput, session_id: UUID4)
         message_type=MessageType.ANSWER,
         metadata={"sources": search_result.sources}
     )
-    
+
     return await self.conversation_service.add_message(message)
 ```
 
@@ -125,7 +125,7 @@ curl -X POST "/api/chat/sessions" \
   -H "Content-Type: application/json" \
   -d '{
     "user_id": "user-uuid",
-    "collection_id": "collection-uuid", 
+    "collection_id": "collection-uuid",
     "session_name": "My Chat Session"
   }'
 
@@ -211,7 +211,7 @@ Assistant: Machine learning has applications in healthcare, finance, transportat
 ## Documentation Structure
 
 - **[Services](./services.md)** - Detailed service documentation
-- **[Schemas](./schemas.md)** - Data model specifications  
+- **[Schemas](./schemas.md)** - Data model specifications
 - **[Context Management](./context-management.md)** - Context handling system
 - **[API Reference](./api-reference.md)** - Complete API documentation
 - **[Examples](./examples.md)** - Usage examples and patterns

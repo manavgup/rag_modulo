@@ -196,8 +196,8 @@ suggestions = await suggestion_service.generate_suggestions_from_context(
     "This conversation is about machine learning and neural networks",
     max_suggestions=3
 )
-# Returns: ["What are the different types of neural networks?", 
-#           "How do neural networks learn?", 
+# Returns: ["What are the different types of neural networks?",
+#           "How do neural networks learn?",
 #           "What are the applications of neural networks?"]
 ```
 
@@ -277,19 +277,19 @@ Services integrate with existing RAG components:
 async def search_with_conversation_context(search_input: SearchInput, context: ConversationContext):
     # Enhance search with conversation context
     enhanced_query = await context_manager.enhance_query_with_context(
-        search_input.question, 
+        search_input.question,
         context
     )
-    
+
     # Perform RAG search
     search_result = await search_service.search(enhanced_query)
-    
+
     # Update context with search results
     updated_context = await context_manager.update_context_with_search_results(
-        context, 
+        context,
         search_result
     )
-    
+
     return search_result, updated_context
 ```
 

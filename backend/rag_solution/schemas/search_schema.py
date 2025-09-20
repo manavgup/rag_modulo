@@ -51,5 +51,6 @@ class SearchOutput(BaseModel):
     evaluation: dict[str, Any] | None = None
     execution_time: float | None = None
     cot_output: dict[str, Any] | None = None  # Chain of Thought reasoning steps when requested
+    metadata: dict[str, Any] | None = None  # Additional metadata including conversation context
 
     model_config = ConfigDict(from_attributes=True)
