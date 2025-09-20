@@ -166,7 +166,10 @@
     "backend/rag_solution/services/chain_of_thought_service.py",
     "backend/rag_solution/services/question_decomposer.py",
     "backend/rag_solution/services/source_attribution_service.py",
-    "backend/tests/unit/test_core_config.py"
+    "backend/tests/unit/test_core_config.py",
+    "backend/tests/e2e/test_seamless_workflow_tdd.py",
+    "backend/tests/integration/test_context_flow_tdd.py",
+    "backend/tests/integration/test_seamless_integration_tdd.py"
   ],
   "non_compliant_files": [
     "backend/tests/integration/conftest.py",
