@@ -4,14 +4,14 @@ This router provides REST API endpoints for the Chat with Documents feature,
 including session management, message handling, and conversation statistics.
 """
 
-from typing import List, Optional
+from typing import List
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from core.config import get_settings
-from core.database import get_db
+from rag_solution.file_management.database import get_db
 from rag_solution.schemas.conversation_schema import (
     ConversationMessageInput,
     ConversationMessageOutput,
@@ -200,14 +200,14 @@ async def get_question_suggestions(
         )
         
         # Generate suggestions
-        suggestions = await conversation_service.question_suggestion_service.generate_suggestions(
-            {
-                "session_id": session_id,
-                "current_message": current_message,
-                "context": context,
-                "max_suggestions": max_suggestions
-            }
+        from rag_solution.schemas.conversation_schema import QuestionSuggestionInput
+        suggestion_input = QuestionSuggestionInput(
+            session_id=session_id,
+            current_message=current_message,
+            context=context,
+            max_suggestions=max_suggestions
         )
+        suggestions = await conversation_service.question_suggestion_service.generate_suggestions(suggestion_input)
         
         return {
             "suggestions": suggestions.suggestions,

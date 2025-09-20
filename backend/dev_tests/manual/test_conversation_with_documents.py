@@ -98,9 +98,11 @@ def create_conversation_session(api_client: Any, user_id: str, collection_id: st
     """Create a new conversation session."""
     print(f"\n💬 Creating conversation session...")
     
+    from uuid import UUID
+    
     session_data = {
-        "user_id": user_id,
-        "collection_id": collection_id,
+        "user_id": str(UUID(user_id)) if user_id else str(UUID("00000000-0000-0000-0000-000000000000")),
+        "collection_id": str(UUID(collection_id)),
         "session_name": "CLI Test Conversation",
         "context_window_size": 4000,
         "max_messages": 50,
@@ -109,7 +111,7 @@ def create_conversation_session(api_client: Any, user_id: str, collection_id: st
     }
     
     try:
-        response = api_client.post("/api/chat/sessions", data=session_data)
+        response = api_client.post("/api/chat/sessions", json=session_data)
         if response and "id" in response:
             session_id = response["id"]
             print(f"   ✅ Created session: {session_id}")
@@ -126,15 +128,17 @@ def create_conversation_session(api_client: Any, user_id: str, collection_id: st
 
 def send_message(api_client: Any, session_id: str, content: str, role: str = "user") -> dict[str, Any] | None:
     """Send a message to the conversation session."""
+    from uuid import UUID
+    
     message_data = {
-        "session_id": session_id,
+        "session_id": str(UUID(session_id)),
         "content": content,
         "role": role,
         "message_type": "question" if role == "user" else "answer"
     }
     
     try:
-        response = api_client.post(f"/api/chat/sessions/{session_id}/process", data=message_data)
+        response = api_client.post(f"/api/chat/sessions/{session_id}/process", json=message_data)
         if response and "content" in response:
             return response
         else:
@@ -148,7 +152,8 @@ def send_message(api_client: Any, session_id: str, content: str, role: str = "us
 def get_session_messages(api_client: Any, session_id: str, user_id: str) -> list[dict[str, Any]]:
     """Get all messages from the conversation session."""
     try:
-        response = api_client.get(f"/api/chat/sessions/{session_id}/messages?user_id={user_id}")
+        from uuid import UUID
+        response = api_client.get(f"/api/chat/sessions/{str(UUID(session_id))}/messages?user_id={str(UUID(user_id))}")
         if response and isinstance(response, list):
             return response
         else:
@@ -162,7 +167,8 @@ def get_session_messages(api_client: Any, session_id: str, user_id: str) -> list
 def get_session_statistics(api_client: Any, session_id: str, user_id: str) -> dict[str, Any] | None:
     """Get conversation session statistics."""
     try:
-        response = api_client.get(f"/api/chat/sessions/{session_id}/statistics?user_id={user_id}")
+        from uuid import UUID
+        response = api_client.get(f"/api/chat/sessions/{str(UUID(session_id))}/statistics?user_id={str(UUID(user_id))}")
         if response and "message_count" in response:
             return response
         else:
@@ -261,9 +267,10 @@ def run_conversation_test(api_client: Any, user_id: str, collection_id: str) -> 
     # Step 5: Test question suggestions
     print(f"\n💡 Testing question suggestions...")
     try:
+        from uuid import UUID
         suggestions_response = api_client.get(
-            f"/api/chat/sessions/{session_id}/suggestions?"
-            f"user_id={user_id}&current_message=What else can you tell me?&max_suggestions=3"
+            f"/api/chat/sessions/{str(UUID(session_id))}/suggestions?"
+            f"user_id={str(UUID(user_id))}&current_message=What else can you tell me?&max_suggestions=3"
         )
         if suggestions_response and "suggestions" in suggestions_response:
             suggestions = suggestions_response["suggestions"]
@@ -278,7 +285,8 @@ def run_conversation_test(api_client: Any, user_id: str, collection_id: str) -> 
     # Step 6: Export conversation
     print(f"\n📤 Testing conversation export...")
     try:
-        export_response = api_client.get(f"/api/chat/sessions/{session_id}/export?user_id={user_id}&format=json")
+        from uuid import UUID
+        export_response = api_client.get(f"/api/chat/sessions/{str(UUID(session_id))}/export?user_id={str(UUID(user_id))}&format=json")
         if export_response and "session_data" in export_response:
             print(f"   ✅ Export successful")
             print(f"   Session: {export_response['session_data'].get('session_name', 'N/A')}")
@@ -292,7 +300,8 @@ def run_conversation_test(api_client: Any, user_id: str, collection_id: str) -> 
     # Step 7: Clean up - delete session
     print(f"\n🗑️  Cleaning up session...")
     try:
-        delete_response = api_client.delete(f"/api/chat/sessions/{session_id}?user_id={user_id}")
+        from uuid import UUID
+        delete_response = api_client.delete(f"/api/chat/sessions/{str(UUID(session_id))}?user_id={str(UUID(user_id))}")
         if delete_response and delete_response.get("message") == "Session deleted successfully":
             print(f"   ✅ Session deleted successfully")
         else:
