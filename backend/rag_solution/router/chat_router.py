@@ -7,9 +7,10 @@ including session management, message handling, and conversation statistics.
 from uuid import UUID
 
 from core.config import get_settings
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
+from rag_solution.core.dependencies import get_current_user
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.conversation_schema import (
     ContextSummarizationInput,
@@ -63,10 +64,12 @@ async def create_session(
 @router.get("/sessions/{session_id}", response_model=ConversationSessionOutput)
 async def get_session(
     session_id: UUID,
-    user_id: UUID = Query(..., description="User ID"),
+    request: Request,
+    current_user: dict = Depends(get_current_user),
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> ConversationSessionOutput:
     """Get a conversation session by ID."""
+    user_id = UUID(current_user["uuid"])
     session = await conversation_service.get_session(session_id, user_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -76,7 +79,8 @@ async def get_session(
 @router.put("/sessions/{session_id}", response_model=ConversationSessionOutput)
 async def update_session(
     session_id: UUID,
-    user_id: UUID = Query(..., description="User ID"),
+    _request: Request,
+    current_user: dict = Depends(get_current_user),
     updates: dict | None = None,
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> ConversationSessionOutput:
@@ -84,6 +88,7 @@ async def update_session(
     if updates is None:
         updates = {}
 
+    user_id = UUID(current_user["uuid"])
     session = await conversation_service.update_session(session_id, user_id, updates)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -93,10 +98,12 @@ async def update_session(
 @router.delete("/sessions/{session_id}")
 async def delete_session(
     session_id: UUID,
-    user_id: UUID = Query(..., description="User ID"),
+    _request: Request,
+    current_user: dict = Depends(get_current_user),
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> dict:
     """Delete a conversation session."""
+    user_id = UUID(current_user["uuid"])
     success = await conversation_service.delete_session(session_id, user_id)
     if not success:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -105,10 +112,12 @@ async def delete_session(
 
 @router.get("/sessions", response_model=list[ConversationSessionOutput])
 async def list_sessions(
-    user_id: UUID = Query(..., description="User ID"),
+    _request: Request,
+    current_user: dict = Depends(get_current_user),
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> list[ConversationSessionOutput]:
     """List all sessions for a user."""
+    user_id = UUID(current_user["uuid"])
     sessions = await conversation_service.list_sessions(user_id)
     return sessions
 
@@ -132,12 +141,14 @@ async def add_message(
 @router.get("/sessions/{session_id}/messages", response_model=list[ConversationMessageOutput])
 async def get_messages(
     session_id: UUID,
-    user_id: UUID = Query(..., description="User ID"),
+    _request: Request,
+    current_user: dict = Depends(get_current_user),
     limit: int = Query(50, ge=1, le=100, description="Number of messages to return"),
     offset: int = Query(0, ge=0, description="Number of messages to skip"),
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> list[ConversationMessageOutput]:
     """Get messages for a conversation session."""
+    user_id = UUID(current_user["uuid"])
     messages = await conversation_service.get_messages(session_id, user_id, limit, offset)
     return messages
 
@@ -163,11 +174,13 @@ async def process_user_message(
 @router.get("/sessions/{session_id}/statistics", response_model=SessionStatistics)
 async def get_session_statistics(
     session_id: UUID,
-    user_id: UUID = Query(..., description="User ID"),
+    request: Request,
+    current_user: dict = Depends(get_current_user),
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> SessionStatistics:
     """Get statistics for a conversation session."""
     try:
+        user_id = UUID(current_user["uuid"])
         stats = await conversation_service.get_session_statistics(session_id, user_id)
         return stats
     except ValueError as e:
@@ -179,13 +192,15 @@ async def get_session_statistics(
 @router.get("/sessions/{session_id}/export")
 async def export_session(
     session_id: UUID,
-    user_id: UUID = Query(..., description="User ID"),
-    format: ExportFormat = Query(ExportFormat.JSON, description="Export format"),
+    _request: Request,
+    current_user: dict = Depends(get_current_user),
+    export_format: ExportFormat = Query(ExportFormat.JSON, description="Export format"),
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> dict:
     """Export a conversation session."""
     try:
-        export_data = await conversation_service.export_session(session_id, user_id, format.value)
+        user_id = UUID(current_user["uuid"])
+        export_data = await conversation_service.export_session(session_id, user_id, export_format.value)
         return export_data
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
@@ -196,13 +211,15 @@ async def export_session(
 @router.get("/sessions/{session_id}/suggestions")
 async def get_question_suggestions(
     session_id: UUID,
-    user_id: UUID = Query(..., description="User ID"),
-    current_message: str = Query(..., description="Current message content"),
-    max_suggestions: int = Query(3, ge=1, le=10, description="Maximum number of suggestions"),
+    _request: Request,
+    current_user: dict = Depends(get_current_user),
+    _current_message: str = Query(..., description="Current message content"),
+    _max_suggestions: int = Query(3, ge=1, le=10, description="Maximum number of suggestions"),
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> dict:
     """Get question suggestions for a conversation."""
     try:
+        user_id = UUID(current_user["uuid"])
         # Get session and context
         session = await conversation_service.get_session(session_id, user_id)
         if not session:
@@ -229,7 +246,8 @@ async def get_question_suggestions(
 async def create_summary(
     session_id: UUID,
     summary_input: ConversationSummaryInput,
-    user_id: UUID = Query(..., description="User ID for authorization"),
+    _request: Request,
+    current_user: dict = Depends(get_current_user),
     summarization_service: ConversationSummarizationService = Depends(get_summarization_service),
 ) -> ConversationSummaryOutput:
     """Create a conversation summary for the specified session.
@@ -241,6 +259,7 @@ async def create_summary(
         # Ensure session_id matches the URL parameter
         summary_input.session_id = session_id
 
+        user_id = UUID(current_user["uuid"])
         summary = await summarization_service.create_summary(summary_input, user_id)
         return summary
     except ValueError as e:
@@ -252,7 +271,8 @@ async def create_summary(
 @router.get("/sessions/{session_id}/summaries", response_model=list[ConversationSummaryOutput])
 async def get_session_summaries(
     session_id: UUID,
-    user_id: UUID = Query(..., description="User ID for authorization"),
+    _request: Request,
+    current_user: dict = Depends(get_current_user),
     limit: int = Query(10, ge=1, le=50, description="Maximum number of summaries to return"),
     summarization_service: ConversationSummarizationService = Depends(get_summarization_service),
 ) -> list[ConversationSummaryOutput]:
@@ -262,6 +282,7 @@ async def get_session_summaries(
     ordered by creation date (newest first).
     """
     try:
+        user_id = UUID(current_user["uuid"])
         summaries = await summarization_service.get_session_summaries(session_id, user_id, limit)
         return summaries
     except ValueError as e:
@@ -274,7 +295,8 @@ async def get_session_summaries(
 async def summarize_for_context(
     session_id: UUID,
     summarization_input: ContextSummarizationInput,
-    user_id: UUID = Query(..., description="User ID for authorization"),
+    _request: Request,
+    current_user: dict = Depends(get_current_user),
     summarization_service: ConversationSummarizationService = Depends(get_summarization_service),
 ) -> ContextSummarizationOutput:
     """Perform context-aware summarization for conversation management.
@@ -295,7 +317,8 @@ async def summarize_for_context(
 @router.get("/sessions/{session_id}/context-threshold")
 async def check_context_threshold(
     session_id: UUID,
-    user_id: UUID = Query(..., description="User ID for authorization"),
+    _request: Request,
+    current_user: dict = Depends(get_current_user),
     config: SummarizationConfigInput = Depends(),
     summarization_service: ConversationSummarizationService = Depends(get_summarization_service),
 ) -> dict:
@@ -322,7 +345,7 @@ async def check_context_threshold(
 async def get_conversation_suggestions(
     session_id: UUID,
     suggestion_input: ConversationSuggestionInput,
-    conversation_service: ConversationService = Depends(get_conversation_service),
+    _conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> ConversationSuggestionOutput:
     """Get enhanced question suggestions based on conversation context.
 
@@ -354,6 +377,8 @@ async def get_conversation_suggestions(
 async def export_conversation_enhanced(
     session_id: UUID,
     export_input: ConversationExportInput,
+    _request: Request,
+    current_user: dict = Depends(get_current_user),
     conversation_service: ConversationService = Depends(get_conversation_service),
     summarization_service: ConversationSummarizationService = Depends(get_summarization_service),
 ) -> ConversationExportOutput:
@@ -366,30 +391,19 @@ async def export_conversation_enhanced(
         # Ensure session_id matches
         export_input.session_id = session_id
 
-        # Get basic session data - we need to extract user_id from session first
+        # Get authenticated user ID
+        user_id = UUID(current_user["uuid"])
+
+        # Get basic session data using authenticated user
         try:
-            # First get the session to extract user_id from database
-            from sqlalchemy import select
-
-            from rag_solution.models.conversation_session import ConversationSession
-
-            db_session = conversation_service.db
-            stmt = select(ConversationSession).where(ConversationSession.id == session_id)
-            result = db_session.execute(stmt)
-            db_session_obj = result.scalar_one_or_none()
-
-            if not db_session_obj:
+            session = await conversation_service.get_session(session_id, user_id)
+            if not session:
                 raise HTTPException(status_code=404, detail="Session not found")
-
-            # Convert to output model
-            session = ConversationSessionOutput.from_db_session(
-                db_session_obj, message_count=len(db_session_obj.messages) if hasattr(db_session_obj, "messages") else 0
-            )
         except Exception:
             # Fallback: create a dummy session for export with minimal data
             session = ConversationSessionOutput(
                 id=session_id,
-                user_id=session_id,  # Placeholder
+                user_id=user_id,
                 collection_id=session_id,  # Placeholder
                 session_name="Export Session",
                 status=SessionStatus.ACTIVE,
@@ -401,12 +415,12 @@ async def export_conversation_enhanced(
             )
 
         # Get messages
-        messages = await conversation_service.get_messages(session_id, session.user_id)
+        messages = await conversation_service.get_messages(session_id, user_id)
 
         # Get summaries if requested
         summaries = []
         if export_input.include_summaries:
-            summaries = await summarization_service.get_session_summaries(session_id, session.user_id, limit=50)
+            summaries = await summarization_service.get_session_summaries(session_id, user_id, limit=50)
 
         # Calculate export statistics
         total_tokens = sum(msg.token_count or 0 for msg in messages)
