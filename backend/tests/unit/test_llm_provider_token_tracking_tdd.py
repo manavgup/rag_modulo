@@ -11,9 +11,9 @@ from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import pytest
+from core.custom_exceptions import LLMProviderError
 from pydantic import UUID4
 
-from core.custom_exceptions import LLMProviderError
 from rag_solution.generation.providers.anthropic import AnthropicLLM
 from rag_solution.generation.providers.base import LLMBase
 from rag_solution.generation.providers.openai import OpenAILLM
@@ -452,7 +452,11 @@ class TestLLMProviderTokenTrackingTDD:
             provider.client = mock_client
 
             # Mock llm_parameters_service.get_latest_or_default_parameters method
-            with patch.object(provider.llm_parameters_service, "get_latest_or_default_parameters", return_value=Mock(max_new_tokens=150, temperature=0.7)):
+            with patch.object(
+                provider.llm_parameters_service,
+                "get_latest_or_default_parameters",
+                return_value=Mock(max_new_tokens=150, temperature=0.7),
+            ):
                 text, usage = await provider.generate_text_with_usage(
                     user_id=uuid4(), prompt="Test prompt", service_type=ServiceType.SEARCH, session_id="session_456"
                 )
@@ -510,9 +514,16 @@ class TestLLMProviderTokenTrackingTDD:
             provider.client = mock_client
 
             # Mock llm_parameters_service.get_latest_or_default_parameters method
-            with patch.object(provider.llm_parameters_service, "get_latest_or_default_parameters", return_value=Mock(max_new_tokens=150, temperature=0.7)):
+            with patch.object(
+                provider.llm_parameters_service,
+                "get_latest_or_default_parameters",
+                return_value=Mock(max_new_tokens=150, temperature=0.7),
+            ):
                 text, usage = await provider.generate_text_with_usage(
-                    user_id=uuid4(), prompt="Test prompt", service_type=ServiceType.CONVERSATION, session_id="session_789"
+                    user_id=uuid4(),
+                    prompt="Test prompt",
+                    service_type=ServiceType.CONVERSATION,
+                    session_id="session_789",
                 )
 
                 assert text == "Generated response from Claude"
@@ -548,7 +559,11 @@ class TestLLMProviderTokenTrackingTDD:
             provider.client = mock_client
 
             # Mock llm_parameters_service.get_latest_or_default_parameters method
-            with patch.object(provider.llm_parameters_service, "get_latest_or_default_parameters", return_value=Mock(max_new_tokens=150, temperature=0.7)):
+            with patch.object(
+                provider.llm_parameters_service,
+                "get_latest_or_default_parameters",
+                return_value=Mock(max_new_tokens=150, temperature=0.7),
+            ):
                 text, usage = await provider.generate_text_with_usage(
                     user_id=uuid4(),
                     prompt="Test prompt",

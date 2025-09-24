@@ -14,6 +14,7 @@ sys.path.insert(0, backend_dir)
 
 from core.config import get_settings
 from core.mock_auth import ensure_mock_user_exists
+
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.conversation_schema import ConversationMessageInput, MessageRole, MessageType
 from rag_solution.services.collection_service import CollectionService

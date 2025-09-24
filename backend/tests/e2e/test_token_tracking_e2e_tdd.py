@@ -5,19 +5,19 @@ to database, with real dependencies and full system integration.
 """
 
 import logging
+from collections.abc import Generator
 from datetime import datetime
-from typing import Generator
 from uuid import UUID
 
 import pytest
+from core.config import Settings, get_settings
+from core.mock_auth import ensure_mock_user_exists
 from fastapi import UploadFile
 from fastapi.testclient import TestClient
+from main import app
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from core.config import Settings, get_settings
-from core.mock_auth import ensure_mock_user_exists
-from main import app
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.collection_schema import CollectionStatus
 from rag_solution.services.collection_service import CollectionService
@@ -46,14 +46,18 @@ def create_mock_file(filename="test_doc.txt", content=None) -> UploadFile:
         """
 
     return UploadFile(
-            filename=filename,
-            file=BytesIO(content.encode("utf-8")),
-        )
+        filename=filename,
+        file=BytesIO(content.encode("utf-8")),
+    )
+
 
 # New helper function to wait for collection status, using the service layer
-def wait_for_collection_status(collection_service: CollectionService, collection_id: UUID, status: CollectionStatus, timeout=60, interval=2):
+def wait_for_collection_status(
+    collection_service: CollectionService, collection_id: UUID, status: CollectionStatus, timeout=60, interval=2
+):
     """Waits for a collection to reach a specific status by calling the service."""
     import time
+
     start_time = time.time()
     while time.time() - start_time < timeout:
         try:
@@ -85,6 +89,7 @@ def db_session(e2e_settings: Settings) -> Generator[Session, None, None]:
         # Override the dependency for the duration of the test session
         def override_get_db():
             yield db
+
         app.dependency_overrides[get_db] = override_get_db
         yield db
     finally:
@@ -119,6 +124,7 @@ class TestTokenTrackingE2ETDD:
     def e2e_settings(self):
         """Create a real settings object for E2E tests using actual environment variables."""
         from core.config import get_settings
+
         return get_settings()
 
     # The test_collection_id fixture is now correctly using the API endpoint
@@ -150,7 +156,9 @@ class TestTokenTrackingE2ETDD:
             files={"files": ("test_file.txt", BytesIO(file_content), "text/plain")},
         )
 
-        assert create_response.status_code == 200, f"API call failed with status {create_response.status_code} and response: {create_response.text}"
+        assert (
+            create_response.status_code == 200
+        ), f"API call failed with status {create_response.status_code} and response: {create_response.text}"
         collection = create_response.json()
         collection_id = UUID(collection["id"])
 
@@ -614,4 +622,3 @@ class TestTokenTrackingE2ETDD:
             logger.error(f"   📄 Error response: {process_response.text}")
 
         logger.info("🎉 Token usage model name test completed!")
-

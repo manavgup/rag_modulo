@@ -21,12 +21,14 @@ def fix_database_schema():
         with engine.connect() as connection:
             # Check if the columns exist
             result = connection.execute(
-                text("""
+                text(
+                    """
                 SELECT column_name
                 FROM information_schema.columns
                 WHERE table_name = 'conversation_messages'
                 AND column_name IN ('token_count', 'execution_time')
-            """)
+            """
+                )
             )
 
             existing_columns = [row[0] for row in result.fetchall()]
@@ -36,10 +38,12 @@ def fix_database_schema():
             if "token_count" not in existing_columns:
                 print("Adding token_count column...")
                 connection.execute(
-                    text("""
+                    text(
+                        """
                     ALTER TABLE conversation_messages
                     ADD COLUMN token_count INTEGER
-                """)
+                """
+                    )
                 )
                 connection.commit()
                 print("✅ Added token_count column")
@@ -50,10 +54,12 @@ def fix_database_schema():
             if "execution_time" not in existing_columns:
                 print("Adding execution_time column...")
                 connection.execute(
-                    text("""
+                    text(
+                        """
                     ALTER TABLE conversation_messages
                     ADD COLUMN execution_time FLOAT
-                """)
+                """
+                    )
                 )
                 connection.commit()
                 print("✅ Added execution_time column")
@@ -62,13 +68,15 @@ def fix_database_schema():
 
             # Verify the columns were added
             result = connection.execute(
-                text("""
+                text(
+                    """
                 SELECT column_name, data_type
                 FROM information_schema.columns
                 WHERE table_name = 'conversation_messages'
                 AND column_name IN ('token_count', 'execution_time')
                 ORDER BY column_name
-            """)
+            """
+                )
             )
 
             columns = result.fetchall()

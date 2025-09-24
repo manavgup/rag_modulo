@@ -4,9 +4,9 @@ from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
+from core.config import Settings, get_settings
 from pydantic import ValidationError as PydanticValidationError
 
-from core.config import Settings, get_settings
 from rag_solution.core.exceptions import ValidationError
 from rag_solution.schemas.conversation_schema import (
     ConversationSessionInput,
