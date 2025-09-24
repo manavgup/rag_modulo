@@ -5,6 +5,13 @@ import asyncio
 import os
 from uuid import uuid4
 
+from core.config import Settings
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from rag_solution.schemas.search_schema import SearchInput
+from rag_solution.services.search_service import SearchService
+
 # Set environment variables for testing
 os.environ["JWT_SECRET_KEY"] = "test"
 os.environ["RAG_LLM"] = "openai"
@@ -12,13 +19,6 @@ os.environ["WATSONX_INSTANCE_ID"] = "test"
 os.environ["WATSONX_APIKEY"] = "test"
 os.environ["WATSONX_URL"] = "https://test.com"
 os.environ["MILVUS_HOST"] = "localhost"
-
-from core.config import Settings
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
-from rag_solution.schemas.search_schema import SearchInput
-from rag_solution.services.search_service import SearchService
 
 
 async def test_cot_integration() -> None:

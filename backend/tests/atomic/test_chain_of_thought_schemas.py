@@ -286,7 +286,7 @@ class TestChainOfThoughtOutputSchema:
         with pytest.raises(ValidationError) as exc_info:
             ChainOfThoughtOutput(original_question="test", final_answer="test", reasoning_steps=[], token_usage=-100)
 
-        assert "greater than 0" in str(exc_info.value)
+        assert "non-negative" in str(exc_info.value)
 
     def test_cot_output_schema_execution_time_positive(self):
         """Test total_execution_time must be positive when provided."""

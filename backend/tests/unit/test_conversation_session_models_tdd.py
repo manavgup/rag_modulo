@@ -16,6 +16,7 @@ from rag_solution.schemas.conversation_schema import (
     ConversationMessageOutput,
     ConversationSessionInput,
     ConversationSessionOutput,
+    MessageMetadata,
     MessageRole,
     MessageType,
     SessionStatus,
@@ -130,20 +131,23 @@ class TestConversationSessionModelsTDD:
         assert message_input.content == content
         assert message_input.role == role
         assert message_input.message_type == message_type
-        assert message_input.metadata == {}  # default empty dict
+        assert message_input.metadata is None  # default is None for MessageMetadata
 
     def test_conversation_message_input_with_metadata(self) -> None:
         """Test creating a conversation message input with metadata."""
+        from rag_solution.schemas.conversation_schema import MessageMetadata
+
         # Arrange
         session_id = uuid4()
         content = "Tell me more about this topic"
         role = MessageRole.USER
         message_type = MessageType.FOLLOW_UP
-        metadata = {
-            "previous_message_id": str(uuid4()),
-            "context_references": ["doc1", "doc2"],
-            "confidence_score": 0.85,
-        }
+        metadata = MessageMetadata(
+            source_documents=["doc1", "doc2"],
+            cot_used=True,
+            conversation_aware=True,
+            confidence_score=0.85,
+        )
 
         # Act
         message_input = ConversationMessageInput(
@@ -152,6 +156,7 @@ class TestConversationSessionModelsTDD:
 
         # Assert
         assert message_input.metadata == metadata
+        assert isinstance(message_input.metadata, MessageMetadata)
 
     def test_conversation_message_output_creation(self) -> None:
         """Test creating a conversation message output with valid data."""
@@ -170,7 +175,7 @@ class TestConversationSessionModelsTDD:
             content=content,
             role=role,
             message_type=message_type,
-            metadata={},
+            metadata=MessageMetadata(),
             created_at=created_at,
         )
 
@@ -283,7 +288,7 @@ class TestConversationSessionModelsTDD:
         with pytest.raises(ValidationError):
             ConversationContext(
                 session_id=uuid4(),
-                context_window="x" * 50000,  # Too long
+                context_window="x" * 50001,  # Too long (50001 > 50000)
                 relevant_documents=[],
             )
 
@@ -322,7 +327,7 @@ class TestConversationSessionModelsTDD:
             content="Test message",
             role=MessageRole.USER,
             message_type=MessageType.QUESTION,
-            metadata={},
+            metadata=MessageMetadata(),
             created_at=datetime.now(),
         )
 

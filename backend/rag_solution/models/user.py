@@ -11,6 +11,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from rag_solution.file_management.database import Base
 
 if TYPE_CHECKING:
+    from rag_solution.models.conversation_session import ConversationSession
     from rag_solution.models.file import File
     from rag_solution.models.llm_parameters import LLMParameters
     from rag_solution.models.prompt_template import PromptTemplate
@@ -43,6 +44,9 @@ class User(Base):
     )
     prompt_templates: Mapped[list[PromptTemplate]] = relationship(
         "PromptTemplate", back_populates="user", cascade="all, delete-orphan"
+    )
+    conversation_sessions: Mapped[list[ConversationSession]] = relationship(
+        "ConversationSession", back_populates="user", cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:

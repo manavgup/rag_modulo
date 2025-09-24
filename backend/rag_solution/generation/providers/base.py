@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from collections.abc import Generator, Sequence
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -10,6 +11,7 @@ from vectordbs.data_types import EmbeddingsList
 
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
 from rag_solution.schemas.llm_provider_schema import LLMProviderConfig
+from rag_solution.schemas.llm_usage_schema import LLMUsage, ServiceType, TokenUsageStats
 from rag_solution.schemas.prompt_template_schema import PromptTemplateBase
 from rag_solution.services.llm_model_service import LLMModelService
 from rag_solution.services.llm_parameters_service import LLMParametersService
@@ -46,6 +48,9 @@ class LLMBase(ABC):
         self._model_id: str | None = None
         self._provider_name: str = self.__class__.__name__.lower()
         self.client: Any | None = None
+
+        # Token tracking storage
+        self._usage_history: list[LLMUsage] = []
 
         # Initialize client during provider creation
         self.initialize_client()
@@ -115,6 +120,59 @@ class LLMBase(ABC):
             return prompt
         return self.prompt_template_service.format_prompt_with_template(template, variables or {})
 
+    def track_usage(
+        self,
+        usage: LLMUsage,
+        user_id: UUID4 | None = None,
+        session_id: str | None = None,
+    ) -> None:
+        """Track token usage for this provider instance."""
+        # Update user_id and session_id if provided
+        if user_id is not None:
+            usage.user_id = str(user_id)
+        if session_id is not None:
+            usage.session_id = session_id
+
+        self._usage_history.append(usage)
+        self.logger.debug(f"Tracked usage: {usage.total_tokens} tokens for model {usage.model_name}")
+
+    def get_recent_usage(self, limit: int = 10) -> list[LLMUsage]:
+        """Get recent token usage records."""
+        return self._usage_history[-limit:] if self._usage_history else []
+
+    def get_total_usage(self) -> TokenUsageStats:
+        """Get aggregated token usage statistics."""
+        if not self._usage_history:
+            return TokenUsageStats()
+
+        total_prompt = sum(usage.prompt_tokens for usage in self._usage_history)
+        total_completion = sum(usage.completion_tokens for usage in self._usage_history)
+        total_tokens = sum(usage.total_tokens for usage in self._usage_history)
+        total_calls = len(self._usage_history)
+        avg_tokens = total_tokens / total_calls if total_calls > 0 else 0.0
+
+        # Group by service type
+        by_service: dict[ServiceType | str, int] = {}
+        for usage in self._usage_history:
+            service_key = usage.service_type
+            by_service[service_key] = by_service.get(service_key, 0) + usage.total_tokens
+
+        # Group by model
+        by_model: dict[str, int] = {}
+        for usage in self._usage_history:
+            model_key = usage.model_name
+            by_model[model_key] = by_model.get(model_key, 0) + usage.total_tokens
+
+        return TokenUsageStats(
+            total_prompt_tokens=total_prompt,
+            total_completion_tokens=total_completion,
+            total_tokens=total_tokens,
+            total_calls=total_calls,
+            average_tokens_per_call=avg_tokens,
+            by_service=by_service,
+            by_model=by_model,
+        )
+
     @abstractmethod
     def generate_text(
         self,
@@ -140,6 +198,41 @@ class LLMBase(ABC):
     @abstractmethod
     def get_embeddings(self, texts: str | Sequence[str]) -> EmbeddingsList:
         """Generate embeddings for texts."""
+
+    def generate_text_with_usage(
+        self,
+        user_id: UUID4,
+        prompt: str | Sequence[str],
+        service_type: ServiceType,
+        model_parameters: LLMParametersInput | None = None,
+        template: PromptTemplateBase | None = None,
+        variables: dict[str, Any] | None = None,
+        session_id: str | None = None,
+    ) -> tuple[str | list[str], LLMUsage]:
+        """Generate text and return both result and usage information.
+
+        Default implementation that wraps generate_text. Providers can override
+        for more accurate token tracking when API returns usage data.
+        """
+        # Get actual result using the provider's implementation
+        result = self.generate_text(user_id, prompt, model_parameters, template, variables)
+
+        # Create a placeholder usage record since we don't have actual token counts
+        # Providers should override this method to get real usage from their APIs
+        model_id = self._model_id or "unknown"
+        usage = LLMUsage(
+            prompt_tokens=0,  # Placeholder - actual providers should provide real counts
+            completion_tokens=0,  # Placeholder - actual providers should provide real counts
+            total_tokens=0,  # Placeholder - actual providers should provide real counts
+            model_name=model_id,
+            service_type=service_type,
+            timestamp=datetime.now(),
+            user_id=str(user_id),
+            session_id=session_id,
+        )
+
+        self.track_usage(usage)
+        return result, usage
 
     def close(self) -> None:
         """Clean up provider resources."""

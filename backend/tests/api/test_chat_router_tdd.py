@@ -18,6 +18,7 @@ from rag_solution.router.chat_router import router as chat_router
 from rag_solution.schemas.conversation_schema import (
     ConversationMessageOutput,
     ConversationSessionOutput,
+    MessageMetadata,
     MessageRole,
     MessageType,
     SessionStatus,
@@ -336,7 +337,7 @@ class TestChatRouterTDD:
             content="What is machine learning?",
             role=MessageRole.USER,
             message_type=MessageType.QUESTION,
-            metadata={},
+            metadata=MessageMetadata(),
             created_at=datetime.now(),
         )
 
@@ -402,7 +403,7 @@ class TestChatRouterTDD:
                 content="What is AI?",
                 role=MessageRole.USER,
                 message_type=MessageType.QUESTION,
-                metadata={},
+                metadata=MessageMetadata(),
                 created_at=datetime.now(),
             ),
             ConversationMessageOutput(
@@ -411,7 +412,7 @@ class TestChatRouterTDD:
                 content="AI is artificial intelligence...",
                 role=MessageRole.ASSISTANT,
                 message_type=MessageType.ANSWER,
-                metadata={},
+                metadata=MessageMetadata(),
                 created_at=datetime.now(),
             ),
         ]
@@ -438,7 +439,7 @@ class TestChatRouterTDD:
         limit = 10
         offset = 5
 
-        expected_messages = []
+        expected_messages: list[ConversationMessageOutput] = []
         mock_conversation_service.get_session_messages.return_value = expected_messages
 
         # Act
@@ -666,7 +667,7 @@ class TestChatRouterTDD:
             content="Test message",
             role=MessageRole.USER,
             message_type=MessageType.QUESTION,
-            metadata={},
+            metadata=MessageMetadata(),
             created_at=datetime.now(),
         )
 

@@ -1,4 +1,8 @@
-"""Service for handling question suggestion functionality with Chain of Thought support."""
+"""Service for handling question suggestion functionality with Chain of Thought support.
+
+This service handles both document-based question generation for collections
+and conversation-based question suggestions for chat interfaces.
+"""
 
 import asyncio
 import re
@@ -515,10 +519,10 @@ class QuestionService:
                     batch_cot_questions = [q.strip() for q in response_text.split("\n") if q.strip().endswith("?")]
                     cot_questions.extend(batch_cot_questions)
 
-                    logger.info(f"Generated {len(batch_cot_questions)} CoT questions using template {i+1}")
+                    logger.info(f"Generated {len(batch_cot_questions)} CoT questions using template {i + 1}")
 
                 except Exception as e:
-                    logger.warning(f"Failed to generate CoT questions with template {i+1}: {e}")
+                    logger.warning(f"Failed to generate CoT questions with template {i + 1}: {e}")
                     continue
 
             stats["cot_questions_generated"] = len(cot_questions)
@@ -735,3 +739,265 @@ class QuestionService:
         except Exception as e:
             logger.error(f"Error regenerating questions for collection {collection_id}: {e}")
             raise
+
+    async def generate_conversation_suggestions(
+        self,
+        conversation_context: str,
+        current_message: str,
+        user_id: UUID4,
+        max_suggestions: int = 3,
+        provider_name: str | None = None,
+        parameters: LLMParametersInput | None = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Generate follow-up question suggestions for a conversation.
+
+        Args:
+            conversation_context: Recent conversation history
+            current_message: The current message/question
+            user_id: User UUID for provider lookup
+            max_suggestions: Maximum number of suggestions to generate
+            provider_name: Optional specific LLM provider to use
+            parameters: Optional LLM parameters
+
+        Returns:
+            List of suggestion dicts with 'question' and 'confidence' keys
+
+        Note:
+            This method doesn't store questions in the database as they're
+            ephemeral suggestions for the current conversation state.
+        """
+        try:
+            # Extract entities and topics from conversation context
+            entities = self._extract_entities_from_text(conversation_context)
+            topics = self._extract_topics_from_text(conversation_context)
+
+            # Get or create provider
+            if not provider_name:
+                provider = await self._provider_factory.get_provider("default", str(user_id))
+                if not provider:
+                    logger.warning("No default provider found, using basic suggestions")
+                    return self._generate_basic_suggestions(current_message, entities, topics, max_suggestions)
+            else:
+                provider = await self._provider_factory.get_provider(provider_name, str(user_id))
+
+            # Use default parameters if not provided
+            if not parameters:
+                parameters_output = self.llm_parameters_service.get_latest_or_default_parameters(user_id)
+                parameters = parameters_output.to_input() if parameters_output else None
+
+            # Build context-aware prompt for conversation suggestions
+            prompt = self._build_conversation_suggestion_prompt(
+                conversation_context, current_message, entities, topics, max_suggestions
+            )
+
+            # Generate suggestions using LLM
+            response = await provider.generate(prompt, parameters.model_dump())
+
+            # Parse suggestions from response
+            suggestions = self._parse_conversation_suggestions(response)
+
+            # Score and rank suggestions
+            scored_suggestions = []
+            for suggestion in suggestions[:max_suggestions]:
+                score = self._score_conversation_suggestion(suggestion, current_message, conversation_context, entities)
+                scored_suggestions.append(
+                    {"question": suggestion, "confidence": score, "entities": entities, "topics": topics}
+                )
+
+            # Sort by confidence score
+            scored_suggestions.sort(key=lambda x: float(str(x["confidence"])), reverse=True)
+
+            return scored_suggestions
+
+        except Exception as e:
+            logger.warning(f"Error generating conversation suggestions: {e}")
+            # Fallback to basic suggestions
+            return self._generate_basic_suggestions(current_message, [], [], max_suggestions)
+
+    def _extract_entities_from_text(self, text: str) -> list[str]:
+        """Extract entities from text for context awareness."""
+        entities = []
+
+        # Common patterns to extract
+        patterns = {
+            "tech_terms": [
+                "machine learning",
+                "artificial intelligence",
+                "neural networks",
+                "deep learning",
+                "natural language processing",
+                "computer vision",
+                "IBM",
+                "Watson",
+                "cloud",
+                "API",
+                "database",
+                "Python",
+                "Java",
+            ],
+            "business_terms": [
+                "strategy",
+                "revenue",
+                "growth",
+                "market",
+                "customer",
+                "product",
+                "service",
+                "platform",
+                "solution",
+                "enterprise",
+                "performance",
+            ],
+        }
+
+        text_lower = text.lower()
+        for _category, terms in patterns.items():
+            for term in terms:
+                if term.lower() in text_lower:
+                    entities.append(term)
+
+        return list(set(entities))
+
+    def _extract_topics_from_text(self, text: str) -> list[str]:
+        """Extract main topics from text."""
+        topics = []
+
+        # Look for question patterns to identify topics
+        question_patterns = [
+            r"what is (.+?)\?",
+            r"how does (.+?) work",
+            r"explain (.+?)",
+            r"tell me about (.+?)",
+            r"describe (.+?)",
+        ]
+
+        for pattern in question_patterns:
+            matches = re.findall(pattern, text.lower(), re.IGNORECASE)
+            topics.extend(matches)
+
+        return list(set(topics))
+
+    def _build_conversation_suggestion_prompt(
+        self, context: str, current_message: str, entities: list[str], topics: list[str], max_suggestions: int
+    ) -> str:
+        """Build prompt for generating conversation suggestions."""
+        entity_str = ", ".join(entities) if entities else "general topics"
+        topic_str = ", ".join(topics) if topics else "the discussion"
+
+        return f"""Based on the following conversation context, generate {max_suggestions} relevant follow-up questions.
+
+Conversation Context:
+{context}
+
+Current Message: {current_message}
+
+Detected Entities: {entity_str}
+Main Topics: {topic_str}
+
+Generate {max_suggestions} insightful follow-up questions that:
+1. Build upon the current discussion
+2. Explore related aspects not yet covered
+3. Clarify or deepen understanding
+4. Are relevant to the entities and topics discussed
+
+Format each question on a new line starting with a number (1., 2., 3., etc.)
+Questions should be natural and conversational.
+"""
+
+    def _parse_conversation_suggestions(self, llm_response: str) -> list[str]:
+        """Parse suggestions from LLM response."""
+        suggestions = []
+
+        # Split by lines and look for numbered questions
+        lines = llm_response.split("\n")
+        for line in lines:
+            line = line.strip()
+            # Match numbered questions (1. Question, 2. Question, etc.)
+            if re.match(r"^\d+\.?\s+", line):
+                # Remove the number prefix
+                question = re.sub(r"^\d+\.?\s+", "", line).strip()
+                if question and len(question) > 10:  # Min length check
+                    suggestions.append(question)
+
+        # If no numbered format found, try to extract questions
+        if not suggestions:
+            for line in lines:
+                line = line.strip()
+                if line.endswith("?") and len(line) > 10:
+                    suggestions.append(line)
+
+        return suggestions
+
+    def _score_conversation_suggestion(
+        self, suggestion: str, current_message: str, context: str, entities: list[str]
+    ) -> float:
+        """Score a conversation suggestion based on relevance."""
+        score = 0.5  # Base score
+
+        # Check entity relevance
+        suggestion_lower = suggestion.lower()
+        for entity in entities:
+            if entity.lower() in suggestion_lower:
+                score += 0.1
+
+        # Check if it's a natural follow-up
+        current_words = set(current_message.lower().split())
+        suggestion_words = set(suggestion_lower.split())
+
+        # Some overlap is good (continuity), but not too much (redundancy)
+        overlap = len(current_words & suggestion_words)
+        if 1 <= overlap <= 3:
+            score += 0.2
+        elif overlap > 5:
+            score -= 0.1  # Too similar
+
+        # Prefer questions that explore new aspects
+        context_lower = context.lower()
+        new_concepts = 0
+        for word in suggestion_words:
+            if len(word) > 4 and word not in context_lower:
+                new_concepts += 1
+
+        if new_concepts >= 2:
+            score += 0.2
+
+        # Ensure score is between 0 and 1
+        return max(0.0, min(1.0, score))
+
+    def _generate_basic_suggestions(
+        self, _current_message: str, entities: list[str], topics: list[str], max_suggestions: int
+    ) -> list[dict[str, Any]]:
+        """Generate basic suggestions without LLM."""
+        suggestions = []
+
+        # Generic follow-up templates
+        templates = [
+            "Can you explain that in more detail?",
+            "What are the practical applications of this?",
+            "How does this relate to other concepts we've discussed?",
+            "What are the advantages and disadvantages?",
+            "Can you provide specific examples?",
+            "What are the next steps or implications?",
+            "How does this compare to alternatives?",
+            "What challenges might arise with this approach?",
+        ]
+
+        # Add entity-specific suggestions if entities detected
+        if entities:
+            for entity in entities[:2]:  # Use top 2 entities
+                suggestions.append(
+                    {
+                        "question": f"Can you tell me more about {entity}?",
+                        "confidence": 0.7,
+                        "entities": entities,
+                        "topics": topics,
+                    }
+                )
+
+        # Add remaining generic suggestions
+        remaining = max_suggestions - len(suggestions)
+        for template in templates[:remaining]:
+            suggestions.append({"question": template, "confidence": 0.5, "entities": entities, "topics": topics})
+
+        return suggestions[:max_suggestions]

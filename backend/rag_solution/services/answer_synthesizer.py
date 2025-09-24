@@ -1,6 +1,5 @@
 """Answer synthesizer component for Chain of Thought reasoning."""
 
-
 from core.config import Settings, get_settings
 
 from rag_solution.generation.providers.base import LLMBase

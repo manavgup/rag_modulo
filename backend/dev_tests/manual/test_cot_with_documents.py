@@ -211,9 +211,23 @@ def compare_search_results(
     cot_chunks = len(cot_response.get("query_results", []))
 
     # CoT-specific data
-    cot_output = cot_response.get("cot_output", {})
-    reasoning_steps = len(cot_output.get("reasoning_steps", []))
-    cot_confidence = cot_output.get("total_confidence", "N/A")
+    cot_output = cot_response.get("cot_output")
+    print(f"🔍 DEBUG: cot_output type: {type(cot_output)}")
+    print(f"🔍 DEBUG: cot_output value: {cot_output}")
+
+    if cot_output is None:
+        print("❌ ERROR: CoT output is None - CoT logic not triggered!")
+        reasoning_steps = 0
+        cot_confidence = "N/A"
+    else:
+        reasoning_steps = len(cot_output.get("reasoning_steps", []))
+        cot_confidence = cot_output.get("total_confidence", "N/A")
+
+    # Token information extraction
+    regular_tokens = regular_response.get("token_count", 0)
+    cot_tokens = cot_output.get("token_usage", 0) if cot_output else 0
+    regular_token_warning = regular_response.get("token_warning")
+    cot_token_warning = cot_response.get("token_warning")
 
     # Display comparison
     print("\n" + "=" * 70)
@@ -224,7 +238,7 @@ def compare_search_results(
     print(f"   Regular Search Time: {regular_time:.2f}s")
     print(f"   CoT Search Time:     {cot_time:.2f}s")
     print(
-        f"   Time Difference:     +{cot_time - regular_time:.2f}s ({((cot_time/regular_time - 1) * 100):.1f}% slower)"
+        f"   Time Difference:     +{cot_time - regular_time:.2f}s ({((cot_time / regular_time - 1) * 100):.1f}% slower)"
     )
 
     print("\n📄 DOCUMENT RETRIEVAL:")
@@ -237,10 +251,29 @@ def compare_search_results(
     print(f"   CoT Answer Length:     {len(cot_answer)} chars")
     print(f"   Length Difference:     +{len(cot_answer) - len(regular_answer)} chars")
 
+    print("\n🪙 TOKEN USAGE:")
+    print(f"   Regular Search Tokens: {regular_tokens}")
+    print(f"   CoT Search Tokens:     {cot_tokens}")
+    if cot_tokens > 0 and regular_tokens > 0:
+        token_increase = cot_tokens - regular_tokens
+        token_increase_pct = (token_increase / regular_tokens) * 100
+        print(f"   Token Increase:        +{token_increase} ({token_increase_pct:.1f}% more)")
+    elif cot_tokens > 0:
+        print(f"   Token Efficiency:      CoT used {cot_tokens} tokens vs {regular_tokens} regular")
+
+    # Token warnings
+    if regular_token_warning:
+        print(f"   Regular Warning:       {regular_token_warning}")
+    if cot_token_warning:
+        print(f"   CoT Warning:           {cot_token_warning}")
+
     if reasoning_steps > 0:
         print("\n🧠 COT REASONING:")
         print(f"   Reasoning Steps:       {reasoning_steps}")
         print(f"   Overall Confidence:    {cot_confidence}")
+        if cot_tokens > 0:
+            tokens_per_step = cot_tokens / reasoning_steps
+            print(f"   Tokens per Step:       {tokens_per_step:.1f} avg")
 
     # Show answer previews
     print("\n📖 ANSWER PREVIEWS:")
@@ -253,16 +286,25 @@ def compare_search_results(
     # Quality assessment
     print("\n🎯 QUALITY ASSESSMENT:")
 
-    # Simple heuristics for answer quality
-    regular_has_sources = "reference" in regular_answer.lower() or "source" in regular_answer.lower()
-    cot_has_sources = "reference" in cot_answer.lower() or "source" in cot_answer.lower()
+    # Check for actual source information in response metadata
+    regular_documents = regular_response.get("documents", [])
+    regular_query_results = regular_response.get("query_results", [])
+    regular_has_sources = len(regular_documents) > 0 or len(regular_query_results) > 0
+
+    cot_documents = cot_response.get("documents", [])
+    cot_query_results = cot_response.get("query_results", [])
+    cot_has_sources = len(cot_documents) > 0 or len(cot_query_results) > 0
 
     regular_has_structure = any(marker in regular_answer for marker in ["1.", "2.", "•", "*", "-"])
     cot_has_structure = any(marker in cot_answer for marker in ["1.", "2.", "•", "*", "-"])
 
-    print(f"   Regular - Has Sources:     {'✅' if regular_has_sources else '❌'}")
+    print(
+        f"   Regular - Has Sources:     {'✅' if regular_has_sources else '❌'} ({len(regular_documents)} docs, {len(regular_query_results)} chunks)"
+    )
     print(f"   Regular - Has Structure:   {'✅' if regular_has_structure else '❌'}")
-    print(f"   CoT - Has Sources:         {'✅' if cot_has_sources else '❌'}")
+    print(
+        f"   CoT - Has Sources:         {'✅' if cot_has_sources else '❌'} ({len(cot_documents)} docs, {len(cot_query_results)} chunks)"
+    )
     print(f"   CoT - Has Structure:       {'✅' if cot_has_structure else '❌'}")
 
     # Show detailed CoT reasoning if available
@@ -272,14 +314,31 @@ def compare_search_results(
             step_question = step.get("question", step.get("step_question", "N/A"))
             step_answer = step.get("intermediate_answer", "N/A")
             step_confidence = step.get("confidence_score", "N/A")
+            step_tokens = step.get("token_usage", "N/A")
+            step_time = step.get("execution_time", "N/A")
 
             print(f"   Step {i}: {step_question}")
             print(f"           {step_answer[:150]}{'...' if len(step_answer) > 150 else ''}")
-            print(f"           Confidence: {step_confidence}")
+            print(f"           Confidence: {step_confidence} | Tokens: {step_tokens} | Time: {step_time}s")
 
     print("\n🎉 COMPARISON COMPLETE!")
     print(f"   CoT provides {'more detailed' if len(cot_answer) > len(regular_answer) else 'similar length'} answers")
-    print(f"   CoT takes {cot_time/regular_time:.1f}x longer but adds reasoning transparency")
+    print(f"   CoT takes {cot_time / regular_time:.1f}x longer but adds reasoning transparency")
+    if cot_tokens > 0 and regular_tokens > 0:
+        print(f"   CoT uses {cot_tokens / regular_tokens:.1f}x more tokens for enhanced reasoning")
+
+    # Debug the data structures for token tracking
+    print("\n🔍 TOKEN TRACKING DEBUG:")
+    print(f"   Regular response keys: {list(regular_response.keys())}")
+    print(f"   CoT response keys: {list(cot_response.keys())}")
+    print(f"   CoT output keys: {list(cot_output.keys()) if cot_output else 'No cot_output'}")
+
+    if reasoning_steps > 0 and cot_output.get("reasoning_steps"):
+        first_step = cot_output.get("reasoning_steps")[0]
+        print(f"   First reasoning step keys: {list(first_step.keys())}")
+    else:
+        print(f"   No reasoning steps found (reasoning_steps={reasoning_steps})")
+        print(f"   CoT output reasoning_steps: {cot_output.get('reasoning_steps', 'None') if cot_output else 'None'}")
 
     return True
 

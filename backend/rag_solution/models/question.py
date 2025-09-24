@@ -62,11 +62,7 @@ class SuggestedQuestion(Base):
 
     def __repr__(self) -> str:
         """String representation of the question."""
-        return (
-            f"SuggestedQuestion(id='{self.id}', "
-            f"collection_id='{self.collection_id}', "
-            f"question='{self.question}')"
-        )
+        return f"SuggestedQuestion(id='{self.id}', collection_id='{self.collection_id}', question='{self.question}')"
 
     @property
     def is_valid(self) -> bool:

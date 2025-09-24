@@ -36,6 +36,7 @@ from rag_solution.router.collection_router import router as collection_router
 from rag_solution.router.health_router import router as health_router
 from rag_solution.router.search_router import router as search_router
 from rag_solution.router.team_router import router as team_router
+from rag_solution.router.token_warning_router import router as token_warning_router
 from rag_solution.router.user_router import router as user_router
 
 # Services
@@ -48,12 +49,15 @@ log_dir = Path("/app/logs") if os.getenv("CONTAINER_ENV") else Path(__file__).pa
 if not os.getenv("TESTING"):
     try:
         log_dir.mkdir(parents=True, exist_ok=True)
+        setup_logging(log_dir)
     except PermissionError:
         # Fallback to current directory if we can't create logs directory
         log_dir = Path.cwd() / "logs"
         log_dir.mkdir(parents=True, exist_ok=True)
-
-setup_logging(log_dir)
+        setup_logging(log_dir)
+else:
+    # In testing mode, just set up logging without creating directories
+    setup_logging(log_dir)
 logger = get_logger(__name__)
 
 
@@ -154,6 +158,7 @@ app.include_router(collection_router)
 app.include_router(user_router)
 app.include_router(team_router)
 app.include_router(search_router)
+app.include_router(token_warning_router)
 
 
 # -------------------------------------------

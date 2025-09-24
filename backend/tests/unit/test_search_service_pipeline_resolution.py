@@ -4,7 +4,7 @@ Tests the core business logic for resolving user default pipelines
 when no explicit pipeline_id is provided in SearchInput.
 """
 
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import pytest
@@ -60,11 +60,21 @@ class TestSearchServicePipelineResolution:
         assert resolved_pipeline_id == expected_pipeline_id
         search_service.pipeline_service.get_default_pipeline.assert_called_once_with(sample_search_input.user_id)
 
-    def test_resolve_user_default_pipeline_none_creates_default(self, search_service, sample_search_input):
+    @patch("rag_solution.services.user_service.UserService")
+    def test_resolve_user_default_pipeline_none_creates_default(
+        self, mock_user_service_class, search_service, sample_search_input
+    ):
         """Test that a default pipeline is created when user has none."""
         # Arrange
         created_pipeline_id = uuid4()
         provider_id = uuid4()
+
+        # Mock user service
+        mock_user_service = Mock()
+        mock_user = Mock()
+        mock_user.id = sample_search_input.user_id
+        mock_user_service.get_user.return_value = mock_user
+        mock_user_service_class.return_value = mock_user_service
 
         # Mock pipeline service - no default exists, then create one
         search_service._pipeline_service = Mock()
@@ -92,9 +102,19 @@ class TestSearchServicePipelineResolution:
             sample_search_input.user_id, provider_id
         )
 
-    def test_resolve_user_default_pipeline_no_provider_raises_error(self, search_service, sample_search_input):
+    @patch("rag_solution.services.user_service.UserService")
+    def test_resolve_user_default_pipeline_no_provider_raises_error(
+        self, mock_user_service_class, search_service, sample_search_input
+    ):
         """Test that ConfigurationError is raised when no LLM provider is available."""
         # Arrange
+        # Mock user service
+        mock_user_service = Mock()
+        mock_user = Mock()
+        mock_user.id = sample_search_input.user_id
+        mock_user_service.get_user.return_value = mock_user
+        mock_user_service_class.return_value = mock_user_service
+
         search_service._pipeline_service = Mock()
         search_service.pipeline_service.get_default_pipeline.return_value = None
 

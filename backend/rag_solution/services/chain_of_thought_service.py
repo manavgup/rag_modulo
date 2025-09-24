@@ -1,8 +1,11 @@
 """Chain of Thought (CoT) service for enhanced RAG search quality."""
 
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
+
+if TYPE_CHECKING:
+    from rag_solution.services.search_service import SearchService
 
 from core.config import Settings
 from core.custom_exceptions import LLMProviderError, ValidationError
@@ -27,8 +30,10 @@ from rag_solution.services.answer_synthesizer import AnswerSynthesizer
 from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.prompt_template_service import PromptTemplateService
 from rag_solution.services.question_decomposer import QuestionDecomposer
-from rag_solution.services.search_service import SearchService
+
+# SearchService imported above in TYPE_CHECKING block to avoid circular import
 from rag_solution.services.source_attribution_service import SourceAttributionService
+from rag_solution.services.token_tracking_service import TokenTrackingService
 
 logger = get_logger(__name__)
 
@@ -36,7 +41,7 @@ logger = get_logger(__name__)
 class ChainOfThoughtService:
     """Service for Chain of Thought reasoning in RAG search."""
 
-    def __init__(self, settings: Settings, llm_service: LLMBase, search_service: SearchService, db: Session) -> None:
+    def __init__(self, settings: Settings, llm_service: LLMBase, search_service: "SearchService", db: Session) -> None:
         """Initialize Chain of Thought service."""
         self.db = db
         self.settings = settings
@@ -47,6 +52,7 @@ class ChainOfThoughtService:
         self._source_attribution_service: SourceAttributionService | None = None
         self._llm_provider_service: LLMProviderService | None = None
         self._prompt_template_service: PromptTemplateService | None = None
+        self._token_tracking_service: TokenTrackingService | None = None
         self._cot_template_cache: dict[str, Any] = {}
 
     @property
@@ -83,6 +89,13 @@ class ChainOfThoughtService:
         if self._prompt_template_service is None:
             self._prompt_template_service = PromptTemplateService(self.db)
         return self._prompt_template_service
+
+    @property
+    def token_tracking_service(self) -> TokenTrackingService:
+        """Lazy initialization of token tracking service."""
+        if self._token_tracking_service is None:
+            self._token_tracking_service = TokenTrackingService(self.db, self.settings)
+        return self._token_tracking_service
 
     async def classify_question(self, question: str) -> QuestionClassification:
         """Classify a question to determine if CoT is needed.
@@ -211,7 +224,9 @@ class ChainOfThoughtService:
             max_context_length=4000,  # Default context length
         )
 
-    def _generate_llm_response(self, llm_service: LLMBase, question: str, context: list[str], user_id: str) -> str:
+    def _generate_llm_response(
+        self, llm_service: LLMBase, question: str, context: list[str], user_id: str
+    ) -> tuple[str, Any]:
         """Generate response using LLM service.
 
         Args:
@@ -226,26 +241,30 @@ class ChainOfThoughtService:
         Raises:
             LLMProviderError: If LLM generation fails.
         """
-        if not hasattr(llm_service, "generate_text"):
-            logger.warning("LLM service %s does not have generate_text method", type(llm_service))
-            return f"Based on the context, {question.lower().replace('?', '')}..."
+        if not hasattr(llm_service, "generate_text_with_usage"):
+            logger.warning("LLM service %s does not have generate_text_with_usage method", type(llm_service))
+            return f"Based on the context, {question.lower().replace('?', '')}...", None
 
         # Create a proper prompt with context
         prompt = f"Question: {question}\n\nContext: {' '.join(context)}\n\nAnswer:"
 
         try:
+            from rag_solution.schemas.llm_usage_schema import ServiceType
+
             cot_template = self._create_reasoning_template(user_id)
 
-            # Use template consistently for ALL providers
-            llm_response = llm_service.generate_text(
+            # Use template consistently for ALL providers with token tracking
+            llm_response, usage = llm_service.generate_text_with_usage(
                 user_id=UUID(user_id),
                 prompt=prompt,  # This will be passed as 'context' variable
+                service_type=ServiceType.SEARCH,
                 template=cot_template,
                 variables={"context": prompt},  # Map prompt to context variable
             )
 
             return (
-                str(llm_response) if llm_response else f"Based on the context, {question.lower().replace('?', '')}..."
+                str(llm_response) if llm_response else f"Based on the context, {question.lower().replace('?', '')}...",
+                usage,
             )
 
         except Exception as exc:
@@ -301,10 +320,13 @@ class ChainOfThoughtService:
         if llm_service and user_id:
             logger.info("✅ Using LLM service for reasoning step")
             try:
-                intermediate_answer = self._generate_llm_response(llm_service, question, full_context, user_id)
+                intermediate_answer, step_usage = self._generate_llm_response(
+                    llm_service, question, full_context, user_id
+                )
             except ValueError:
                 logger.warning("Invalid UUID format for user_id: %s", user_id)
                 intermediate_answer = f"Based on the context, {question.lower().replace('?', '')}..."
+                step_usage = None
         else:
             logger.warning("❌ NO LLM SERVICE - Using fallback template responses")
             # Generate intermediate answer (fallback when no LLM service)
@@ -319,10 +341,17 @@ class ChainOfThoughtService:
                 intermediate_answer = f"Based on the available context: {context_preview}"
             else:
                 intermediate_answer = f"Unable to answer '{question}' - no context available."
+            step_usage = None
 
         # Calculate confidence based on context availability and evaluation threshold
         base_confidence = 0.5 + len(context) * 0.1
         confidence_score = min(0.9, max(0.6, base_confidence))  # Ensure minimum 0.6 for threshold tests
+
+        # Extract token usage from step_usage
+        token_count = None
+        if step_usage and hasattr(step_usage, "total_tokens"):
+            token_count = step_usage.total_tokens
+            logger.info(f"🔍 DEBUG: Step {step_number} used {token_count} tokens")
 
         # Create reasoning step
         step = ReasoningStep(
@@ -333,7 +362,10 @@ class ChainOfThoughtService:
             confidence_score=confidence_score,
             reasoning_trace=f"Step {step_number}: Analyzing {question}",
             execution_time=time.time() - start_time,
+            token_usage=token_count,
         )
+
+        # Note: Token usage is now tracked both per step and accumulated at ChainOfThoughtOutput level
 
         # Enhance step with source attributions
         enhanced_step = self.source_attribution_service.enhance_reasoning_step_with_sources(
@@ -389,17 +421,26 @@ class ChainOfThoughtService:
         decomposition_result = await self.decompose_question(cot_input.question, config.max_reasoning_depth)
         decomposed_questions = decomposition_result.sub_questions
 
-        # Build conversation-aware context
-        enhanced_context = self._build_conversation_aware_context(
-            context_documents or [],
-            cot_input.context_metadata
-        )
+        # DEBUG: Log decomposition results
+        logger.info(f"🔍 DEBUG: Question decomposed into {len(decomposed_questions)} sub-questions")
+        for i, sub_q in enumerate(decomposed_questions):
+            logger.info(f"🔍 DEBUG: Sub-question {i + 1}: {sub_q}")
+        if not decomposed_questions:
+            logger.warning("🔍 DEBUG: No sub-questions generated - this will result in 0 CoT steps!")
 
-        # Execute reasoning steps
+        # Build conversation-aware context
+        enhanced_context = self._build_conversation_aware_context(context_documents or [], cot_input.context_metadata)
+
+        # Execute reasoning steps and collect token usage
         reasoning_steps = []
         previous_answers: list[str] = []
+        total_token_usage = 0
+
+        # DEBUG: Log before step execution
+        logger.info(f"🔍 DEBUG: About to execute {len(decomposed_questions)} reasoning steps")
 
         for i, decomposed in enumerate(decomposed_questions):
+            logger.info(f"🔍 DEBUG: Executing step {i + 1} for question: {decomposed}")
             step = await self.execute_reasoning_step(
                 step_number=i + 1,
                 question=decomposed.sub_question,
@@ -409,8 +450,14 @@ class ChainOfThoughtService:
                 user_id=user_id,
             )
             reasoning_steps.append(step)
+            logger.info(f"🔍 DEBUG: Step {i + 1} completed, reasoning_steps now has {len(reasoning_steps)} items")
+
             if step.intermediate_answer:
                 previous_answers.append(step.intermediate_answer)
+
+            # Collect token usage from the step (will be set by _generate_llm_response)
+            if hasattr(step, "token_usage") and step.token_usage:
+                total_token_usage += step.token_usage
 
         # Synthesize final answer
         final_answer = self.answer_synthesizer.synthesize(cot_input.question, reasoning_steps)
@@ -423,8 +470,17 @@ class ChainOfThoughtService:
             sum(s.confidence_score or 0.0 for s in reasoning_steps) / len(reasoning_steps) if reasoning_steps else 0.0
         )
 
-        # Estimate token usage (mock calculation)
-        token_usage = len(cot_input.question.split()) * 10 + len(reasoning_steps) * 100
+        # Use actual token usage from LLM calls
+        token_usage = (
+            total_token_usage
+            if total_token_usage > 0
+            else len(cot_input.question.split()) * 10 + len(reasoning_steps) * 100
+        )
+
+        # DEBUG: Log final reasoning steps
+        logger.info(f"🔍 DEBUG: Creating ChainOfThoughtOutput with {len(reasoning_steps)} reasoning steps")
+        for i, step in enumerate(reasoning_steps):
+            logger.info(f"🔍 DEBUG: Step {i + 1} content: {step.intermediate_answer[:100]}...")
 
         return ChainOfThoughtOutput(
             original_question=cot_input.question,
@@ -470,30 +526,28 @@ class ChainOfThoughtService:
         )
 
     def _build_conversation_aware_context(
-        self, 
-        context_documents: list[str], 
-        context_metadata: dict[str, Any] | None
+        self, context_documents: list[str], context_metadata: dict[str, Any] | None
     ) -> list[str]:
         """Build conversation-aware context for CoT reasoning."""
         enhanced_context = list(context_documents)
-        
+
         if context_metadata:
             # Add conversation context if available
             conversation_context = context_metadata.get("conversation_context")
             if conversation_context:
                 enhanced_context.append(f"Conversation context: {conversation_context}")
-            
+
             # Add conversation entities
             conversation_entities = context_metadata.get("conversation_entities", [])
             if conversation_entities:
                 enhanced_context.append(f"Previously discussed: {', '.join(conversation_entities)}")
-            
+
             # Add message history
             message_history = context_metadata.get("message_history", [])
             if message_history:
                 recent_messages = message_history[-3:]  # Last 3 messages
                 enhanced_context.append(f"Recent discussion: {' '.join(recent_messages)}")
-        
+
         return enhanced_context
 
     def evaluate_reasoning_chain(self, output: ChainOfThoughtOutput) -> dict[str, str | int | float]:

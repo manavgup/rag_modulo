@@ -36,8 +36,8 @@ async def test_cot_llm_integration():
 
     # Create a minimal database session (in-memory SQLite for testing)
     engine = create_engine("sqlite:///:memory:")
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    db = SessionLocal()
+    session_local = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    db = session_local()
 
     try:
         # Initialize SearchService which will create CoT service with LLM

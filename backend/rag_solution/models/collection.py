@@ -13,6 +13,7 @@ from rag_solution.file_management.database import Base
 from rag_solution.schemas.collection_schema import CollectionStatus
 
 if TYPE_CHECKING:
+    from rag_solution.models.conversation_session import ConversationSession
     from rag_solution.models.file import File
     from rag_solution.models.question import SuggestedQuestion
     from rag_solution.models.user_collection import UserCollection
@@ -49,6 +50,9 @@ class Collection(Base):
     users: Mapped[list[UserCollection]] = relationship("UserCollection", back_populates="collection", lazy="selectin")
     suggested_questions: Mapped[list[SuggestedQuestion]] = relationship(
         "SuggestedQuestion", back_populates="collection", cascade="all, delete-orphan"
+    )
+    conversation_sessions: Mapped[list[ConversationSession]] = relationship(
+        "ConversationSession", back_populates="collection", cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:

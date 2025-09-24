@@ -81,7 +81,7 @@ def test_regular_search(api_client: Any, collection_id: str, question: str, user
             print("\n🔍 First few document chunks:")
             for i, result in enumerate(query_results[:3]):
                 chunk_text = result.get("chunk", {}).get("text", "No text")
-                print(f"   Chunk {i+1}: {chunk_text[:150]}...")
+                print(f"   Chunk {i + 1}: {chunk_text[:150]}...")
 
             return True
         else:

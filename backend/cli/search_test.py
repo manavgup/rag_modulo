@@ -456,8 +456,8 @@ def _display_batch_summary(results: list[dict[str, Any]]) -> None:
     summary_table.add_column("Value", style="yellow")
 
     summary_table.add_row("Total Queries", str(total))
-    summary_table.add_row("Successful", f"{successful} ({successful/total*100:.1f}%)")
-    summary_table.add_row("Failed", f"{failed} ({failed/total*100:.1f}%)")
+    summary_table.add_row("Successful", f"{successful} ({successful / total * 100:.1f}%)")
+    summary_table.add_row("Failed", f"{failed} ({failed / total * 100:.1f}%)")
     summary_table.add_row("Avg Quality Score", f"{avg_quality:.1f}%")
     summary_table.add_row("Avg Documents Retrieved", f"{avg_docs:.1f}")
 

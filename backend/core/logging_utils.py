@@ -28,9 +28,12 @@ def setup_logging(log_dir: Path | None = None) -> None:
         if hasattr(log_level, "_mock_name") or not isinstance(log_level, str):
             log_level = "INFO"
         root_logger.setLevel(log_level)
+        # Debug: Print the log level being used
+        print(f"🔧 LOGGING SETUP: Using log level: {log_level}")
     except (ImportError, AttributeError, TypeError):
         # Fallback to INFO if settings cannot be loaded (e.g., during test isolation)
         root_logger.setLevel("INFO")
+        print("🔧 LOGGING SETUP: Using fallback log level: INFO")
 
     # Remove any existing handlers to avoid duplicates
     for handler in root_logger.handlers[:]:
@@ -43,14 +46,18 @@ def setup_logging(log_dir: Path | None = None) -> None:
 
     # File handler if log_dir is provided
     if log_dir:
-        log_dir.mkdir(parents=True, exist_ok=True)
-        file_handler = logging.handlers.RotatingFileHandler(
-            log_dir / "rag_modulo.log",
-            maxBytes=10485760,  # 10MB
-            backupCount=5,
-        )
-        file_handler.setFormatter(formatter)
-        root_logger.addHandler(file_handler)
+        try:
+            log_dir.mkdir(parents=True, exist_ok=True)
+            file_handler = logging.handlers.RotatingFileHandler(
+                log_dir / "rag_modulo.log",
+                maxBytes=10485760,  # 10MB
+                backupCount=5,
+            )
+            file_handler.setFormatter(formatter)
+            root_logger.addHandler(file_handler)
+        except (PermissionError, OSError) as e:
+            # If we can't create the log directory, just use console logging
+            logging.warning(f"Could not create log directory {log_dir}: {e}. Using console logging only.")
 
     # Configure third-party loggers
     logging.getLogger("ibm-watson-machine-learning").setLevel(logging.ERROR)

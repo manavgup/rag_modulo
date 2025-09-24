@@ -795,7 +795,7 @@ def _show_cot_evidence():
                         print("📊 CoT Test Summary:")
                         print(f"   Total silent tests: {total_tests}")
                         print(f"   CoT working: {cot_working_count}/{total_tests}")
-                        print(f"   Success rate: {(cot_working_count/total_tests)*100:.1f}%")
+                        print(f"   Success rate: {(cot_working_count / total_tests) * 100:.1f}%")
 
                     return cot_working_count > 0
     except Exception:

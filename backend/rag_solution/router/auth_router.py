@@ -463,7 +463,7 @@ async def start_cli_auth(
     callback_port = request.callback_port or 8080
     callback_uri = f"http://localhost:{callback_port}/callback"
 
-    auth_url = f"http://localhost:8000/api/auth/login?" f"redirect_uri={callback_uri}&" f"state={state}&" f"source=cli"
+    auth_url = f"http://localhost:8000/api/auth/login?redirect_uri={callback_uri}&state={state}&source=cli"
 
     return CLIAuthResponse(auth_url=auth_url, state=state)
 

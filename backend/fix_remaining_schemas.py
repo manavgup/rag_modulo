@@ -17,8 +17,8 @@ def fix_file(file_path: Path) -> None:
         doc_count = len(re.findall(r'\{[^}]*"id"[^}]*\}', match.group(0)))
         docs = []
         for i in range(doc_count):
-            docs.append(f'self.create_test_document_metadata("doc{i+1}.pdf", "Test Doc {i+1}")')
-        return f'documents=[\n                {",\n                ".join(docs)},\n            ]'
+            docs.append(f'self.create_test_document_metadata("doc{i + 1}.pdf", "Test Doc {i + 1}")')
+        return f"documents=[\n                {',\n                '.join(docs)},\n            ]"
 
     content = re.sub(old_docs_pattern, replace_docs, content, flags=re.DOTALL)
 
@@ -30,8 +30,8 @@ def fix_file(file_path: Path) -> None:
         result_count = len(re.findall(r'\{[^}]*"content"[^}]*\}', match.group(0)))
         results = []
         for i in range(result_count):
-            results.append(f'self.create_test_query_result("chunk{i+1}", "Test content {i+1}", 0.95)')
-        return f'query_results=[\n                {",\n                ".join(results)},\n            ]'
+            results.append(f'self.create_test_query_result("chunk{i + 1}", "Test content {i + 1}", 0.95)')
+        return f"query_results=[\n                {',\n                '.join(results)},\n            ]"
 
     content = re.sub(old_query_pattern, replace_query_results, content, flags=re.DOTALL)
 

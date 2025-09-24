@@ -135,6 +135,7 @@ class ReasoningStep(BaseModel):
     confidence_score: float | None = Field(default=0.0, description="Confidence score 0-1")
     reasoning_trace: str | None = Field(None, description="Reasoning trace")
     execution_time: float | None = Field(None, description="Execution time in seconds")
+    token_usage: int | None = Field(None, description="Tokens used for this step")
 
     @field_validator("step_number")
     @classmethod
@@ -158,6 +159,14 @@ class ReasoningStep(BaseModel):
         """Validate execution time is positive."""
         if v is not None and v <= 0:
             raise ValueError("execution_time must be greater than 0")
+        return v
+
+    @field_validator("token_usage")
+    @classmethod
+    def validate_token_usage(cls, v: int | None) -> int | None:
+        """Validate token usage is non-negative."""
+        if v is not None and v < 0:
+            raise ValueError("token_usage must be non-negative")
         return v
 
 
@@ -192,9 +201,9 @@ class ChainOfThoughtOutput(BaseModel):
     @field_validator("token_usage")
     @classmethod
     def validate_token_usage(cls, v: int | None) -> int | None:
-        """Validate token usage is positive."""
-        if v is not None and v <= 0:
-            raise ValueError("token_usage must be greater than 0")
+        """Validate token usage is non-negative."""
+        if v is not None and v < 0:
+            raise ValueError("token_usage must be non-negative")
         return v
 
     @field_validator("total_execution_time")

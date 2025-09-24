@@ -107,6 +107,7 @@ class TestSearchPipelineResolutionIntegration:
         call_args = mock_pipeline_service.execute_pipeline.call_args
         assert call_args[1]["pipeline_id"] == resolved_pipeline_id  # Should use resolved pipeline_id
 
+    @patch("rag_solution.services.user_service.UserService")
     @patch("rag_solution.services.search_service.CollectionService")
     @patch("rag_solution.services.search_service.PipelineService")
     @pytest.mark.asyncio
@@ -114,6 +115,7 @@ class TestSearchPipelineResolutionIntegration:
         self,
         mock_pipeline_service_class,
         mock_collection_service_class,
+        mock_user_service_class,
         mock_db,
         mock_settings,
         search_input_without_pipeline,
@@ -122,6 +124,20 @@ class TestSearchPipelineResolutionIntegration:
         # Arrange
         created_pipeline_id = uuid4()
         provider_id = uuid4()
+
+        # Mock UserService
+        mock_user_service = Mock()
+        mock_user = Mock()
+        mock_user.id = search_input_without_pipeline.user_id
+        mock_user.ibm_id = "test_user"
+        mock_user.email = "test@example.com"
+        mock_user.name = "Test User"
+        mock_user.role = "user"
+        mock_user.preferred_provider_id = provider_id
+        mock_user.created_at = "2023-01-01T00:00:00Z"
+        mock_user.updated_at = "2023-01-01T00:00:00Z"
+        mock_user_service.get_user.return_value = mock_user
+        mock_user_service_class.return_value = mock_user_service
 
         # Mock CollectionService
         mock_collection_service = Mock()

@@ -141,6 +141,7 @@ make validate-ci
 
 ### Current Status
 - ✅ **Simplified Pipeline Resolution**: Automatic pipeline selection implemented (GitHub Issue #222)
+- ✅ **Chain of Thought (CoT) Reasoning**: Enhanced RAG search quality implemented (GitHub Issue #136)
 - ✅ Infrastructure and containers working
 - ✅ Comprehensive test suite implemented and passing
 - ✅ API documentation updated for simplified architecture
@@ -235,11 +236,27 @@ search_input = SearchInput(
     user_id=user_uuid
 )
 
+# Chain of Thought (CoT) enhanced search
+search_input = SearchInput(
+    question="How does machine learning work and what are the key components?",
+    collection_id=collection_uuid,
+    user_id=user_uuid,
+    config_metadata={
+        "cot_enabled": True,  # Explicitly enable CoT
+        "show_cot_steps": True,  # Include reasoning steps in response
+        "cot_config": {
+            "max_reasoning_depth": 3,
+            "reasoning_strategy": "decomposition"
+        }
+    }
+)
+
 # Backend automatically:
 # 1. Resolves user's default pipeline
 # 2. Creates pipeline if none exists
 # 3. Uses user's LLM provider settings
-# 4. Executes search and returns results
+# 4. Detects complex questions and applies CoT reasoning
+# 5. Executes search and returns results with reasoning steps
 ```
 
 ### CLI Search Commands
@@ -248,10 +265,14 @@ search_input = SearchInput(
 # Simple search - no pipeline management needed
 ./rag-cli search query col_123abc "What is machine learning?"
 
+# Complex questions automatically trigger Chain of Thought reasoning
+./rag-cli search query col_123abc "How does machine learning work and what are the key components?"
+
 # System automatically handles:
 # - Pipeline resolution
 # - LLM provider selection
 # - Configuration management
+# - CoT reasoning for complex questions
 ```
 
 ## Documentation References
@@ -307,8 +328,45 @@ search_input = SearchInput(
 - CLI search commands no longer require `--pipeline-id` parameter
 - API clients must update to use simplified schema
 
+### Chain of Thought (CoT) Reasoning (GitHub Issue #136)
+
+**What Changed**:
+- Added comprehensive CoT reasoning system for enhanced RAG search quality
+- Implemented automatic question classification to detect when CoT is beneficial
+- Added conversation-aware context building for better reasoning
+- Integrated CoT seamlessly into existing search pipeline with fallback mechanisms
+
+**Implementation Details**:
+- `ChainOfThoughtService` - Core reasoning orchestration (500+ lines)
+- `QuestionDecomposer` - Breaks complex questions into sub-questions
+- `AnswerSynthesizer` - Combines reasoning steps into final answers
+- `SourceAttributionService` - Tracks and attributes sources across reasoning steps
+- Automatic CoT detection in `SearchService._should_use_chain_of_thought()`
+- Conversation-aware context enhancement with `_build_conversation_aware_context()`
+
+**CoT Features**:
+- **Automatic Detection**: Complex questions trigger CoT reasoning automatically
+- **Question Decomposition**: Multi-part questions broken into logical steps
+- **Iterative Reasoning**: Each step builds on previous context and answers
+- **Source Attribution**: Tracks document sources across all reasoning steps
+- **Fallback Handling**: Gracefully falls back to regular search if CoT fails
+- **Configurable**: Users can enable/disable CoT and control reasoning depth
+
+**Testing**:
+- Unit tests: `tests/unit/test_chain_of_thought_service_tdd.py` (31 tests)
+- Integration tests: `tests/integration/test_chain_of_thought_integration.py`
+- Manual test scripts: `dev_tests/manual/test_cot_*.py` for real-world validation
+
+**Usage**:
+- Automatic: Complex questions automatically use CoT
+- Explicit: Set `cot_enabled: true` in `config_metadata`
+- Transparent: Set `show_cot_steps: true` to see reasoning steps
+
 # important-instruction-reminders
 Do what has been asked; nothing more, nothing less.
 NEVER create files unless they're absolutely necessary for achieving your goal.
 ALWAYS prefer editing an existing file to creating a new one.
 NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
+- run tests via the targets specified in the Makefile in project root
+- run integration tests via make test-integration
+- run unit tests via make test-unit-fast

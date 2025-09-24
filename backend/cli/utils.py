@@ -17,7 +17,7 @@ console = Console()
 def format_duration(seconds: float) -> str:
     """Format duration in seconds to human-readable string."""
     if seconds < 1:
-        return f"{seconds*1000:.0f}ms"
+        return f"{seconds * 1000:.0f}ms"
     if seconds < 60:
         return f"{seconds:.1f}s"
     minutes = int(seconds // 60)
@@ -120,8 +120,8 @@ def _add_summary_section(report_lines: list[str], results: list[dict[str, Any]])
     report_lines.append("SUMMARY")
     report_lines.append("-" * 40)
     report_lines.append(f"Total Queries Tested: {total}")
-    report_lines.append(f"Successful: {successful} ({successful/total*100:.1f}%)")
-    report_lines.append(f"Failed: {failed} ({failed/total*100:.1f}%)")
+    report_lines.append(f"Successful: {successful} ({successful / total * 100:.1f}%)")
+    report_lines.append(f"Failed: {failed} ({failed / total * 100:.1f}%)")
     report_lines.append("")
 
 

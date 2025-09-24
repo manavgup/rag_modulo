@@ -163,9 +163,10 @@ class TestChainOfThoughtSearchIntegration:
         search_service = SearchService(db=db_session, settings=Settings())
 
         # Mock the pipeline service execute_pipeline method and file service
-        with patch.object(search_service.pipeline_service, "execute_pipeline") as mock_execute, patch.object(
-            search_service.file_service, "get_files_by_collection"
-        ) as mock_files:
+        with (
+            patch.object(search_service.pipeline_service, "execute_pipeline") as mock_execute,
+            patch.object(search_service.file_service, "get_files_by_collection") as mock_files,
+        ):
             mock_execute.return_value = mock_pipeline_result
             mock_files.return_value = []  # Return empty list for file metadata
             result = await search_service.search(search_input)
@@ -221,9 +222,10 @@ class TestChainOfThoughtSearchIntegration:
         search_service = SearchService(db=db_session, settings=Settings())
 
         # Mock the pipeline service execute_pipeline method and file service
-        with patch.object(search_service.pipeline_service, "execute_pipeline") as mock_execute, patch.object(
-            search_service.file_service, "get_files_by_collection"
-        ) as mock_files:
+        with (
+            patch.object(search_service.pipeline_service, "execute_pipeline") as mock_execute,
+            patch.object(search_service.file_service, "get_files_by_collection") as mock_files,
+        ):
             mock_execute.return_value = mock_pipeline_result
             mock_files.return_value = []  # Return empty list for file metadata
             result = await search_service.search(search_input)
@@ -277,9 +279,10 @@ class TestChainOfThoughtSearchIntegration:
         search_service = SearchService(db=db_session, settings=Settings())
 
         # Mock the pipeline service execute_pipeline method and file service
-        with patch.object(search_service.pipeline_service, "execute_pipeline") as mock_execute, patch.object(
-            search_service.file_service, "get_files_by_collection"
-        ) as mock_files:
+        with (
+            patch.object(search_service.pipeline_service, "execute_pipeline") as mock_execute,
+            patch.object(search_service.file_service, "get_files_by_collection") as mock_files,
+        ):
             mock_execute.return_value = mock_pipeline_result
             mock_files.return_value = []  # Return empty list for file metadata
             result = await search_service.search(search_input)
@@ -317,9 +320,10 @@ class TestChainOfThoughtSearchIntegration:
         search_service = SearchService(db=db_session, settings=Settings())
 
         # Mock the pipeline service execute_pipeline method and file service
-        with patch.object(search_service.pipeline_service, "execute_pipeline") as mock_execute, patch.object(
-            search_service.file_service, "get_files_by_collection"
-        ) as mock_files:
+        with (
+            patch.object(search_service.pipeline_service, "execute_pipeline") as mock_execute,
+            patch.object(search_service.file_service, "get_files_by_collection") as mock_files,
+        ):
             mock_execute.return_value = mock_pipeline_result
             mock_files.return_value = []  # Return empty list for file metadata
             result = await search_service.search(search_input)

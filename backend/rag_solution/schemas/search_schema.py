@@ -5,6 +5,8 @@ from typing import Any
 from pydantic import UUID4, BaseModel, ConfigDict
 from vectordbs.data_types import DocumentMetadata, QueryResult
 
+from rag_solution.schemas.llm_usage_schema import TokenWarning
+
 
 class SearchInput(BaseModel):
     """Input schema for search requests.
@@ -52,5 +54,6 @@ class SearchOutput(BaseModel):
     execution_time: float | None = None
     cot_output: dict[str, Any] | None = None  # Chain of Thought reasoning steps when requested
     metadata: dict[str, Any] | None = None  # Additional metadata including conversation context
+    token_warning: TokenWarning | None = None  # Token usage warning if approaching limits
 
     model_config = ConfigDict(from_attributes=True)

@@ -70,6 +70,7 @@ services:
       - test
     environment:
       - PYTHONPATH=/app
+      - CONTAINER_ENV=false
       - MILVUS_HOST=milvus-standalone
       - MILVUS_PORT=${MILVUS_PORT}
       - COLLECTIONDB_HOST=postgres

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 import anthropic
@@ -11,6 +12,7 @@ from core.logging_utils import get_logger
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from rag_solution.schemas.llm_model_schema import ModelType
+from rag_solution.schemas.llm_usage_schema import LLMUsage, ServiceType
 
 from .base import LLMBase
 
@@ -202,6 +204,65 @@ class AnthropicLLM(LLMBase):
         raise LLMProviderError(
             provider="anthropic", error_type="not_supported", message="Anthropic does not provide embeddings"
         )
+
+    def generate_text_with_usage(
+        self,
+        user_id: UUID4,
+        prompt: str | Sequence[str],
+        service_type: ServiceType,
+        model_parameters: LLMParametersInput | None = None,
+        template: PromptTemplateBase | None = None,
+        variables: dict[str, Any] | None = None,
+        session_id: str | None = None,
+    ) -> tuple[str | list[str], LLMUsage]:
+        """Generate text and return both result and accurate usage information from Anthropic API."""
+        try:
+            self._ensure_client()
+            model_id = self._model_id or self._default_model_id
+            generation_params = self._get_generation_params(user_id, model_parameters)
+
+            # For single prompt, get actual usage from API response
+            if not isinstance(prompt, list):
+                formatted_prompt = self._format_prompt(str(prompt), template, variables)
+                response = self.client.messages.create(  # type: ignore[union-attr]
+                    model=model_id, messages=[{"role": "user", "content": formatted_prompt}], **generation_params
+                )
+                content: str | None = response.content[0].text
+                if content is None:
+                    raise LLMProviderError(
+                        provider="anthropic", error_type="generation_failed", message="Anthropic returned empty content"
+                    )
+
+                # Create usage record with actual API data
+                usage = LLMUsage(
+                    prompt_tokens=response.usage.input_tokens if response.usage else 0,
+                    completion_tokens=response.usage.output_tokens if response.usage else 0,
+                    total_tokens=(response.usage.input_tokens + response.usage.output_tokens) if response.usage else 0,
+                    model_name=model_id,
+                    service_type=service_type,
+                    timestamp=datetime.now(),
+                    user_id=str(user_id),
+                    session_id=session_id,
+                )
+
+                self.track_usage(usage)
+                return content.strip(), usage
+            else:
+                # For batch, use default implementation since it's complex
+                return super().generate_text_with_usage(
+                    user_id, prompt, service_type, model_parameters, template, variables, session_id
+                )
+
+        except (ValidationError, NotFoundError) as e:
+            raise LLMProviderError(
+                provider="anthropic",
+                error_type="invalid_template" if isinstance(e, ValidationError) else "template_not_found",
+                message=str(e),
+            ) from e
+        except Exception as e:
+            raise LLMProviderError(
+                provider="anthropic", error_type="generation_failed", message=f"Failed to generate text: {e!s}"
+            ) from e
 
     def close(self) -> None:
         """Clean up provider resources."""

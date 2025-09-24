@@ -24,8 +24,10 @@ def create_database_url(settings: Settings | None = None) -> URL:
         settings = get_settings()
 
     host = os.environ.get("DB_HOST", settings.collectiondb_host)
-    if host == "postgres" and os.environ.get("PYTEST_CURRENT_TEST"):
-        host = "localhost"
+    # When running in Docker test container, use "postgres" as host
+    # When running locally, use "localhost" as host
+    if os.environ.get("PYTEST_CURRENT_TEST") and host == "localhost":
+        host = "postgres"
 
     database_url = URL.create(
         drivername="postgresql",

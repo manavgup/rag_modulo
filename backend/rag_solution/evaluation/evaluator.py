@@ -79,9 +79,7 @@ class RAGEvaluator:
             Dict[str, float]: A dictionary containing evaluation metrics.
         """
         if cosine_similarity is None:
-            raise ImportError(
-                "scikit-learn is not installed. " "Please install it to use cosine similarity evaluation."
-            )
+            raise ImportError("scikit-learn is not installed. Please install it to use cosine similarity evaluation.")
 
         relevance_score = self._calculate_relevance_score(query_text, document_list)
         coherence_score = self._calculate_coherence_score(query_text, response_text)
@@ -228,7 +226,7 @@ if __name__ == "__main__":
         QueryResult(
             chunk=DocumentChunkWithScore(
                 chunk_id="2",
-                text=("The theory of relativity consists of two parts: " "special relativity and general relativity."),
+                text=("The theory of relativity consists of two parts: special relativity and general relativity."),
                 metadata=None,
                 score=0.8,
             ),
@@ -251,7 +249,7 @@ if __name__ == "__main__":
     search_service = SearchService(db=db_session, settings=settings)
     pipeline = search_service._pipeline_service  # pylint: disable=protected-access
 
-    SAMPLE_QUESTION = "What were the major equity-related activities reported by IBM as " "of December 31, 2023?"
+    SAMPLE_QUESTION = "What were the major equity-related activities reported by IBM as of December 31, 2023?"
     SAMPLE_RAG_RESPONSE = (
         "Based on the provided financial information, the major equity-"
         "related activities reported by IBM as of December 31, 2023 are:\n\n"

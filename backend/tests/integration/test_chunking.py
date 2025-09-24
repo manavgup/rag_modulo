@@ -139,8 +139,7 @@ def test_semantic_chunking() -> None:
 def test_token_based_chunking() -> None:
     """Test token-aware text chunking."""
     text = (
-        "This is a test text. It has multiple sentences. "
-        "We want to ensure proper tokenization. And respect max tokens."
+        "This is a test text. It has multiple sentences. We want to ensure proper tokenization. And respect max tokens."
     )
 
     # Mock tokenization

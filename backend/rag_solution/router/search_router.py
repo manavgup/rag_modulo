@@ -31,7 +31,10 @@ def get_search_service(
     Returns:
         SearchService: Initialized search service instance
     """
-    return SearchService(db, settings)
+    print("🔍 ROUTER: Creating SearchService instance")
+    service = SearchService(db, settings)
+    print(f"🔍 ROUTER: SearchService created: {service}")
+    return service
 
 
 @router.post(
@@ -63,11 +66,19 @@ async def search(
     Raises:
         HTTPException: With appropriate status code and error detail
     """
+    print("🔍 ROUTER: search() function called!")
     try:
         print(f"🔍 ROUTER: Received search request: {search_input.question}")
         print(f"🔍 ROUTER: Config metadata: {search_input.config_metadata}")
+        print(f"🔍 ROUTER: Config metadata type: {type(search_input.config_metadata)}")
+        if search_input.config_metadata:
+            print(f"🔍 ROUTER: cot_enabled = {search_input.config_metadata.get('cot_enabled')}")
         result: SearchOutput = await search_service.search(search_input)
         print(f"🔍 ROUTER: Search completed, cot_output type: {type(result.cot_output)}")
+        print(f"🔍 ROUTER: Result metadata: {result.metadata}")
+        print(f"🔍 ROUTER: Result has cot_used: {'cot_used' in result.metadata if result.metadata else 'No metadata'}")
+        if result.metadata and "cot_used" in result.metadata:
+            print(f"🔍 ROUTER: cot_used = {result.metadata['cot_used']}")
         return result
     except HTTPException as he:
         raise he
