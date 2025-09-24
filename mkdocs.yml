@@ -1,5 +1,5 @@
-site_name: RAG Modulo Documentation
-site_description: Comprehensive documentation for RAG Modulo - AI-powered document processing and search platform
+site_name: RAG Modulo
+site_description: A robust, customizable Retrieval-Augmented Generation (RAG) solution with advanced AI capabilities
 site_author: RAG Modulo Team
 site_url: https://manavgup.github.io/rag_modulo
 
@@ -132,52 +132,69 @@ nav:
     - Quick Start: getting-started.md
     - Installation: installation.md
     - Configuration: configuration.md
+    - First Steps: first-steps.md
   - 🛠️ Development:
     - Overview: development/index.md
     - Environment Setup: development/environment-setup.md
     - Development Workflow: development/workflow.md
     - GitHub Codespaces: development/codespaces.md
     - Contributing: development/contributing.md
+    - Code Style: development/code-style.md
   - 🧪 Testing:
     - Overview: testing/index.md
+    - Test Strategy: testing/strategy.md
+    - Running Tests: testing/running.md
+    - Test Categories: testing/categories.md
     - Comprehensive Testing Guide: testing/COMPREHENSIVE_TESTING_GUIDE.md
     - Manual Validation Checklist: testing/MANUAL_VALIDATION_CHECKLIST.md
   - 🚀 Deployment:
     - Overview: deployment/index.md
     - Production: deployment/production.md
     - Cloud Deployment: deployment/cloud.md
+    - Kubernetes: deployment/kubernetes.md
     - Monitoring: deployment/monitoring.md
+    - Security: deployment/security.md
   - 🖥️ CLI:
     - Overview: cli/index.md
     - Installation: cli/installation.md
     - Authentication: cli/authentication.md
     - Commands: cli/commands/index.md
     - Configuration: cli/configuration.md
+    - Examples: cli/examples.md
     - Troubleshooting: cli/troubleshooting.md
   - 📚 API Reference:
-    - Overview: api/README.md
+    - Overview: api/index.md
     - Authentication: api/authentication.md
     - Endpoints: api/endpoints.md
     - Schemas: api/schemas.md
+    - Examples: api/examples.md
+    - Error Handling: api/error-handling.md
   - 🏗️ Architecture:
-    - Overview: architecture/README.md
+    - Overview: architecture/index.md
     - Components: architecture/components.md
     - Data Flow: architecture/data-flow.md
     - Security: architecture/security.md
-  - 🧪 Testing:
-    - Overview: tests/README.md
-    - Test Strategy: tests/strategy.md
-    - Running Tests: tests/running.md
-    - Test Data: tests/data.md
+    - Scalability: architecture/scalability.md
+    - Performance: architecture/performance.md
+  - 🧠 Features:
+    - Overview: features/index.md
+    - Chain of Thought: features/chain-of-thought/index.md
+    - Token Tracking: features/token-tracking.md
+    - Search & Retrieval: features/search-retrieval.md
+    - Document Processing: features/document-processing.md
+    - LLM Integration: features/llm-integration.md
   - 🔧 Troubleshooting:
-    - Common Issues: troubleshooting.md
-    - Debugging: debugging.md
-    - Performance: performance.md
+    - Common Issues: troubleshooting/common-issues.md
+    - Debugging: troubleshooting/debugging.md
+    - Performance: troubleshooting/performance.md
+    - Docker Issues: troubleshooting/docker.md
+    - Authentication: troubleshooting/authentication.md
   - 📖 Additional Resources:
     - Changelog: changelog.md
     - FAQ: faq.md
     - Glossary: glossary.md
-    - Contributing: CONTRIBUTING.md
+    - Contributing: contributing.md
+    - Roadmap: roadmap.md
 
 # Extra
 extra:
