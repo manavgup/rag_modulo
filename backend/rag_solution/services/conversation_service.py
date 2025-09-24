@@ -186,10 +186,6 @@ class ConversationService:
         if session.status == SessionStatus.EXPIRED:
             raise SessionExpiredError("Session has expired")
 
-        # Debug logging before database creation
-        logger.info(f"🔍 DEBUG: add_message() called with token_count={message_input.token_count}")
-        logger.info(f"🔍 DEBUG: message_input.role={message_input.role}, content length={len(message_input.content)}")
-
         # Convert MessageMetadata Pydantic object to dictionary for database storage
         metadata_dict: dict[str, Any] = {}
         if message_input.metadata:
@@ -208,16 +204,9 @@ class ConversationService:
             execution_time=message_input.execution_time,
         )
 
-        # Debug logging after model creation, before database commit
-        logger.info(f"🔍 DEBUG: ConversationMessage created with token_count={message.token_count}")
-
         self.db.add(message)
         self.db.commit()
         self.db.refresh(message)
-
-        # Debug logging after database commit and refresh
-        logger.info(f"🔍 DEBUG: After db.commit() and refresh: message.token_count={message.token_count}")
-        logger.info(f"🔍 DEBUG: message.id={message.id}, message.created_at={message.created_at}")
 
         # Ensure id and created_at are set (important for mocked database scenarios)
         # Ensure message has required fields
@@ -226,15 +215,7 @@ class ConversationService:
         if message.created_at is None:
             raise ValidationError("Message must have a creation timestamp")
 
-        # Debug logging before creating output
-        logger.info(f"🔍 DEBUG: Before from_db_message(): message.token_count={message.token_count}")
-
         output = ConversationMessageOutput.from_db_message(message)
-
-        # Debug logging after creating output
-        logger.info(f"🔍 DEBUG: After from_db_message(): output.token_count={output.token_count}")
-        logger.info(f"🔍 DEBUG: output.execution_time={output.execution_time}")
-        logger.info(f"🔍 DEBUG: output keys: {list(output.model_dump().keys())}")
 
         return output
 
@@ -339,20 +320,13 @@ class ConversationService:
         )
 
         # Execute search - this will automatically use CoT if appropriate
-        cot_enabled = search_input.config_metadata.get("cot_enabled") if search_input.config_metadata else None
-        logger.info(f"🔍 DEBUG: About to call search_service.search() with cot_enabled={cot_enabled}")
-        print("🔍 CONVERSATION SERVICE: About to call search_service.search()")
-        print(f"🔍 CONVERSATION SERVICE: search_input.question: {search_input.question}")
-        print(f"🔍 CONVERSATION SERVICE: search_input.config_metadata: {search_input.config_metadata}")
         search_result = await self.search_service.search(search_input)
-        logger.info(f"🔍 DEBUG: Search completed, result type: {type(search_result)}")
         logger.info(f"📊 CONVERSATION SERVICE: Search result has metadata: {hasattr(search_result, 'metadata')}")
         if hasattr(search_result, "metadata") and search_result.metadata:
             logger.info(f"📊 CONVERSATION SERVICE: Search metadata keys: {list(search_result.metadata.keys())}")
         logger.info(f"📊 CONVERSATION SERVICE: Search result has cot_output: {hasattr(search_result, 'cot_output')}")
         if hasattr(search_result, "cot_output") and search_result.cot_output:
             logger.info(f"📊 CONVERSATION SERVICE: CoT output type: {type(search_result.cot_output)}")
-        print(f"🔍 CONVERSATION SERVICE: Search completed, result type: {type(search_result)}")
 
         # Extract CoT information if it was used
         cot_used = False
@@ -503,8 +477,6 @@ class ConversationService:
         logger.info(f"🔢 User input tokens: {user_token_count}, Assistant response tokens: {assistant_response_tokens}")
 
         # Debug logging for token tracking
-        logger.info(f"🔍 DEBUG: Creating assistant_message_input with token_count={token_count}")
-        logger.info(f"🔍 DEBUG: User input: '{message_input.content[:100]}...' -> {user_token_count} tokens")
         logger.info(
             f"🔍 DEBUG: Assistant response: '{search_result.answer[:100]}...' -> {assistant_response_tokens} tokens"
         )
@@ -542,7 +514,6 @@ class ConversationService:
         )
 
         # Debug logging for ConversationMessageInput
-        logger.info(f"🔍 DEBUG: assistant_message_input.token_count = {assistant_message_input.token_count}")
 
         assistant_message = await self.add_message(assistant_message_input)
         logger.info(
