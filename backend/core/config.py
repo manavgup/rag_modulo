@@ -184,37 +184,6 @@ class Settings(BaseSettings):
     # JWT settings
     jwt_algorithm: Annotated[str, Field(default="HS256", alias="JWT_ALGORITHM")]
 
-    # Podcast Feature Configuration (Future Feature)
-    # Audio Processing
-    audio_sample_rate: Annotated[int, Field(default=44100, alias="AUDIO_SAMPLE_RATE")]
-    audio_bitrate: Annotated[int, Field(default=128, alias="AUDIO_BITRATE")]
-    audio_format: Annotated[str, Field(default="mp3", alias="AUDIO_FORMAT")]
-    audio_channels: Annotated[int, Field(default=2, alias="AUDIO_CHANNELS")]
-
-    # TTS Configuration
-    tts_provider: Annotated[str, Field(default="elevenlabs", alias="TTS_PROVIDER")]
-    elevenlabs_api_key: Annotated[str | None, Field(default=None, alias="ELEVENLABS_API_KEY")]
-    azure_speech_key: Annotated[str | None, Field(default=None, alias="AZURE_SPEECH_KEY")]
-    google_tts_credentials_path: Annotated[str | None, Field(default=None, alias="GOOGLE_TTS_CREDENTIALS_PATH")]
-
-    # Multi-modal AI Models
-    multimodal_model_provider: Annotated[str, Field(default="openai", alias="MULTIMODAL_MODEL_PROVIDER")]
-
-    # Audio/Video Processing
-    max_audio_file_size_mb: Annotated[int, Field(default=100, alias="MAX_AUDIO_FILE_SIZE_MB")]
-    max_video_file_size_mb: Annotated[int, Field(default=500, alias="MAX_VIDEO_FILE_SIZE_MB")]
-    audio_retention_days: Annotated[int, Field(default=30, alias="AUDIO_RETENTION_DAYS")]
-    video_retention_days: Annotated[int, Field(default=7, alias="VIDEO_RETENTION_DAYS")]
-
-    # Streaming Configuration
-    streaming_chunk_size: Annotated[int, Field(default=8192, alias="STREAMING_CHUNK_SIZE")]
-    streaming_cache_size_mb: Annotated[int, Field(default=100, alias="STREAMING_CACHE_SIZE_MB")]
-    streaming_timeout_seconds: Annotated[int, Field(default=30, alias="STREAMING_TIMEOUT_SECONDS")]
-
-    # Evaluation Settings
-    evaluation_model: Annotated[str, Field(default="gpt-4-vision-preview", alias="EVALUATION_MODEL")]
-    evaluation_timeout_seconds: Annotated[int, Field(default=60, alias="EVALUATION_TIMEOUT_SECONDS")]
-    max_concurrent_evaluations: Annotated[int, Field(default=5, alias="MAX_CONCURRENT_EVALUATIONS")]
 
     # RBAC settings
     rbac_mapping: Annotated[
