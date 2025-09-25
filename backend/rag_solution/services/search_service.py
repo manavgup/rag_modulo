@@ -863,16 +863,33 @@ class SearchService:
         Uses a rough approximation of 4 characters per token as a baseline.
         This provides a reasonable estimate when actual token counts aren't available.
         """
-        # Combine question and answer text
-        total_text = f"{question} {answer}"
+        # Get model name from provider
+        try:
+            provider = self.llm_provider_service.get_default_provider()
+            if provider and hasattr(provider, "_default_model_id"):
+                model_name = provider._default_model_id
+            else:
+                model_name = "gpt-3.5-turbo"  # Fallback
+        except Exception:
+            model_name = "gpt-3.5-turbo"  # Fallback
 
-        # Rough estimation: ~4 characters per token
-        estimated_tokens = len(total_text) // 4
+        # Use token_tracking_service for accurate counting
+        if self.token_tracking_service:
+            # Count tokens for question and answer separately for better accuracy
+            question_tokens = self.token_tracking_service.count_tokens(question, model_name)
+            answer_tokens = self.token_tracking_service.count_tokens(answer, model_name)
+            total_tokens = question_tokens + answer_tokens
 
-        # Add some baseline tokens for processing overhead
-        estimated_tokens += 50
+            # Add some baseline tokens for system prompts and processing overhead
+            total_tokens += 50
 
-        return max(50, estimated_tokens)  # Minimum 50 tokens
+            return max(50, total_tokens)
+        else:
+            # Fallback to estimation
+            total_text = f"{question} {answer}"
+            estimated_tokens = len(total_text) // 4
+            estimated_tokens += 50
+            return max(50, estimated_tokens)
 
     async def _track_token_usage(
         self, user_id: UUID4, tokens_used: int, session_id: str | None = None

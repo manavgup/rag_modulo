@@ -27,6 +27,7 @@ from vectordbs.data_types import EmbeddingsList
 
 from rag_solution.schemas.llm_model_schema import ModelType
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
+from rag_solution.schemas.llm_usage_schema import LLMUsage, ServiceType
 from rag_solution.schemas.prompt_template_schema import PromptTemplateBase
 
 from .base import LLMBase
@@ -280,6 +281,115 @@ class WatsonXLLM(LLMBase):
                 error_type="streaming_failed",
                 message=f"Failed to generate streaming text: {e!s}",
             ) from e
+
+    def generate_text_with_usage(
+        self,
+        user_id: UUID4,
+        prompt: str | Sequence[str],
+        service_type: ServiceType,
+        model_parameters: LLMParametersInput | None = None,
+        template: PromptTemplateBase | None = None,
+        variables: dict[str, Any] | None = None,
+        session_id: str | None = None,
+    ) -> tuple[str | list[str], LLMUsage]:
+        """Generate text and return both result and accurate usage information.
+
+        Since WatsonX doesn't provide token counts in the response, this method
+        uses the token_tracking_service to count tokens accurately using model-specific
+        tokenizers when available.
+
+        Args:
+            user_id: User ID
+            prompt: Prompt or list of prompts
+            service_type: Type of service (conversation, search, etc.)
+            model_parameters: Optional model parameters
+            template: Optional prompt template
+            variables: Optional template variables
+            session_id: Optional session ID
+
+        Returns:
+            Tuple of (generated text, usage data with accurate token counts)
+        """
+        from datetime import datetime
+
+        # Generate text using existing method
+        result = self.generate_text(user_id, prompt, model_parameters, template, variables)
+
+        # Get model ID
+        model_id = self._model_id or self._get_default_model_id()
+
+        # Count tokens using token_tracking_service
+        if self.token_tracking_service:
+            # Format prompts for token counting
+            if isinstance(prompt, list):
+                formatted_prompts = []
+                for text in prompt:
+                    prompt_variables = {"context": text}
+                    if variables:
+                        prompt_variables.update(variables)
+                    if template:
+                        formatted = self.prompt_template_service.format_prompt_with_template(template, prompt_variables)
+                        formatted_prompts.append(formatted)
+                    else:
+                        formatted_prompts.append(text)
+                # Count tokens for all prompts
+                prompt_tokens = sum(
+                    self.token_tracking_service.count_tokens(p, model_id)
+                    for p in formatted_prompts
+                )
+                # Count completion tokens
+                if isinstance(result, list):
+                    completion_tokens = sum(
+                        self.token_tracking_service.count_tokens(r, model_id)
+                        for r in result
+                    )
+                else:
+                    completion_tokens = self.token_tracking_service.count_tokens(result, model_id)
+            else:
+                # Single prompt
+                prompt_variables = {"context": prompt}
+                if variables:
+                    prompt_variables.update(variables)
+                if template:
+                    formatted_prompt = self.prompt_template_service.format_prompt_with_template(
+                        template, prompt_variables
+                    )
+                else:
+                    formatted_prompt = str(prompt)
+
+                prompt_tokens = self.token_tracking_service.count_tokens(formatted_prompt, model_id)
+                completion_tokens = self.token_tracking_service.count_tokens(
+                    result if isinstance(result, str) else str(result),
+                    model_id
+                )
+        else:
+            # Fallback to estimation if token_tracking_service is not available
+            logger.warning("Token tracking service not available, using estimation")
+            if isinstance(prompt, list):
+                prompt_tokens = sum(len(p) // 4 for p in prompt)
+                completion_tokens = sum(
+                    len(r) // 4 for r in (result if isinstance(result, list) else [result])
+                )
+            else:
+                prompt_tokens = len(str(prompt)) // 4
+                completion_tokens = len(str(result)) // 4
+
+        # Create usage record
+        usage = LLMUsage(
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=prompt_tokens + completion_tokens,
+            model_name=model_id,
+            service_type=service_type,
+            timestamp=datetime.now(),
+            user_id=user_id,
+            session_id=session_id,
+        )
+
+        # Track usage
+        self.track_usage(usage)
+
+        return result, usage
 
     def get_embeddings(self, texts: str | Sequence[str]) -> EmbeddingsList:
         """Generate embeddings for texts with robust retry mechanism."""

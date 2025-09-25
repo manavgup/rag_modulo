@@ -267,8 +267,18 @@ class ConversationService:
         # Calculate token count for user message if not provided
         user_token_count = message_input.token_count or 0
         if user_token_count == 0:
-            # Simple token estimation for user message
-            user_token_count = max(5, int(len(message_input.content.split()) * 1.3))  # Rough estimation
+            # Use accurate token counting from token_tracking_service
+            # Get the model being used (from LLM provider)
+            try:
+                model_name = self.llm_factory.get_provider().get_default_model()
+            except Exception:
+                model_name = "gpt-3.5-turbo"  # Fallback model for token counting
+
+            if self.token_tracking_service:
+                user_token_count = self.token_tracking_service.count_tokens(message_input.content, model_name)
+            else:
+                # Fallback to improved estimation
+                user_token_count = max(5, int(len(message_input.content.split()) * 1.3))
 
         # Create user message input with token count
         user_message_input = ConversationMessageInput(
@@ -383,28 +393,26 @@ class ConversationService:
         # Serialize search sources
         serialized_documents = serialize_documents(search_result.documents) if search_result.documents else []
 
-        # IMPROVED TOKEN TRACKING: Better estimation for assistant response
+        # IMPROVED TOKEN TRACKING: Use accurate token counting
         try:
-            # Get the LLM provider to count tokens properly
+            # Get the model being used
             provider = self.llm_provider_service.get_user_provider(user_id)
-
-            # Use the provider's tokenize method if available (WatsonX has this)
-            if provider and hasattr(provider, "client") and hasattr(provider.client, "tokenize"):
-                try:
-                    assistant_tokens_result = provider.client.tokenize(text=search_result.answer)
-                    assistant_response_tokens = len(assistant_tokens_result.get("result", []))
-                    logger.info(f"✅ Real token count from provider: assistant={assistant_response_tokens}")
-                except Exception as e:
-                    logger.info(f"Provider tokenize failed, using improved estimation: {e}")
-                    # Better estimation: roughly 1.3 tokens per word for most LLMs
-                    assistant_response_tokens = max(50, int(len(search_result.answer.split()) * 1.3))
+            if provider and hasattr(provider, "_default_model_id"):
+                model_name = provider._default_model_id
             else:
-                # Fallback to improved estimation
+                model_name = "gpt-3.5-turbo"  # Fallback
+
+            # Use token_tracking_service for accurate counting
+            if self.token_tracking_service:
+                assistant_response_tokens = self.token_tracking_service.count_tokens(search_result.answer, model_name)
+                logger.info(f"✅ Accurate token count: assistant={assistant_response_tokens}")
+            else:
+                # Fallback to estimation
                 assistant_response_tokens = max(50, int(len(search_result.answer.split()) * 1.3))
 
         except Exception as e:
-            logger.info(f"Using improved token estimation: {e}")
-            # Better estimation: roughly 1.3 tokens per word for most LLMs
+            logger.info(f"Using token estimation: {e}")
+            # Fallback estimation
             assistant_response_tokens = max(50, int(len(search_result.answer.split()) * 1.3))
 
         # Add CoT token usage to the total token count

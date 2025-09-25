@@ -451,6 +451,23 @@ Format your response as structured text that can be easily parsed."""
 - Time span: {messages[0].created_at} to {messages[-1].created_at}"""
 
     async def _estimate_tokens(self, text: str) -> int:
-        """Estimate token count for text."""
-        # Simple estimation: ~4 characters per token for English text
-        return len(text) // 4
+        """Estimate token count for text using accurate tokenization."""
+        # Get model name from provider
+        try:
+            if self.llm_factory:
+                provider = self.llm_factory.get_provider()
+                if provider and hasattr(provider, "_default_model_id"):
+                    model_name = provider._default_model_id
+                else:
+                    model_name = "gpt-3.5-turbo"  # Fallback
+            else:
+                model_name = "gpt-3.5-turbo"  # Fallback
+        except Exception:
+            model_name = "gpt-3.5-turbo"  # Fallback
+
+        # Use token_tracking_service for accurate counting if available
+        if hasattr(self, "token_tracking_service") and self.token_tracking_service:
+            return self.token_tracking_service.count_tokens(text, model_name)
+        else:
+            # Fallback to simple estimation
+            return len(text) // 4

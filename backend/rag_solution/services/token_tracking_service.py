@@ -1,14 +1,19 @@
 """Service for comprehensive token usage tracking and management.
 
-This service tracks all token usage (sent + received), accumulates usage statistics,
-manages token limits per model, and generates appropriate warnings when approaching
-or exceeding those limits. It provides the central hub for all token-related operations.
+This service provides:
+- Accurate token counting using model-specific tokenizers
+- Token usage tracking (sent + received) with real data from LLM APIs
+- Usage statistics accumulation per user and session
+- Token limit monitoring per LLM model
+- Warning generation when approaching limits (70%, 85%, 95% thresholds)
+- Centralized token operations for all services
 """
 
 from typing import Any
 from uuid import UUID
 
 from core.config import Settings
+from core.logging_utils import get_logger
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
@@ -20,23 +25,30 @@ from rag_solution.schemas.llm_usage_schema import (
     TokenWarningType,
 )
 from rag_solution.services.llm_model_service import LLMModelService
+from rag_solution.utils.tokenization_utils import TokenizationUtils
+
+logger = get_logger("token_tracking_service")
 
 
 class TokenTrackingService:
     """Service for comprehensive token usage tracking and management.
 
     This service provides:
+    - Accurate token counting using model-specific tokenizers (tiktoken for OpenAI, etc.)
+    - Real token usage extraction from LLM provider responses
     - Token usage tracking for all user interactions
     - Accumulation of token statistics per user and session
-    - Token limit monitoring per LLM model
+    - Token limit monitoring per LLM model with accurate context windows
     - Warning generation when approaching limits (70%, 85%, 95% thresholds)
     - Usage analytics and reporting
+    - Token estimation fallback when exact counting is not available
 
     Attributes:
         db: Database session
         settings: Application settings
         llm_model_service: Service for retrieving model configurations
         token_warning_repository: Repository for token warning data access
+        tokenization_utils: Utilities for accurate token counting
     """
 
     def __init__(self, db: Session, settings: Settings) -> None:
@@ -49,9 +61,13 @@ class TokenTrackingService:
         self.db = db
         self.settings = settings
         self.token_warning_repository = TokenWarningRepository(db)
+        self.tokenization_utils = TokenizationUtils()
 
         # Lazy initialization for LLM model service
         self._llm_model_service: LLMModelService | None = None
+
+        # Cache for token usage accumulation
+        self._usage_cache: dict[str, list[LLMUsage]] = {}
 
     @property
     def llm_model_service(self) -> LLMModelService:
@@ -79,11 +95,14 @@ class TokenTrackingService:
             # Try to parse as UUID first (for backward compatibility)
             model_uuid = UUID(current_usage.model_name)
             model = await self.llm_model_service.get_model_by_id(model_uuid)
-            context_limit = getattr(model, "context_window", 4096) if model else 4096
+            context_limit = getattr(model, "context_window", None)
+            if context_limit is None:
+                # If model doesn't have context_window, use tokenization utils
+                context_limit = self.get_context_window(current_usage.model_name)
         except ValueError:
             # model_name is not a UUID, it's a string like "ibm/granite-3-3-8b-instruct"
-            # Use default context window for now - this could be enhanced later
-            context_limit = 4096
+            # Use tokenization utils to get accurate context window
+            context_limit = self.get_context_window(current_usage.model_name)
 
         # Determine tokens to check against limit
         check_tokens = context_tokens if context_tokens is not None else current_usage.prompt_tokens
@@ -145,11 +164,14 @@ class TokenTrackingService:
         recent_prompt_tokens = sum(u.prompt_tokens for u in recent_messages)
 
         # Get model limits
-        model = await self.llm_model_service.get_model_by_id(UUID(model_name))
-        if not model:
-            return None
-
-        context_limit = getattr(model, "context_window", 4096)
+        try:
+            model = await self.llm_model_service.get_model_by_id(UUID(model_name))
+            context_limit = getattr(model, "context_window", None)
+            if context_limit is None:
+                context_limit = self.get_context_window(model_name)
+        except ValueError:
+            # model_name is not a UUID, use tokenization utils
+            context_limit = self.get_context_window(model_name)
 
         # Check if conversation is getting too long
         percentage = (recent_prompt_tokens / context_limit) * 100
@@ -317,10 +339,170 @@ class TokenTrackingService:
             Token usage statistics
         """
         stats = self.token_warning_repository.get_warning_stats_by_user(user_id)
+
+        # Calculate actual token statistics from cached usage
+        user_key = str(user_id)
+        usage_history = self._usage_cache.get(user_key, [])
+
+        total_tokens = sum(u.total_tokens for u in usage_history)
+        total_calls = len(usage_history)
+
+        # Aggregate by service
+        by_service = {}
+        for usage in usage_history:
+            service = usage.service_type.value if usage.service_type else "unknown"
+            if service not in by_service:
+                by_service[service] = {"tokens": 0, "calls": 0}
+            by_service[service]["tokens"] += usage.total_tokens
+            by_service[service]["calls"] += 1
+
+        # Aggregate by model
+        by_model = {}
+        for usage in usage_history:
+            model = usage.model_name or "unknown"
+            if model not in by_model:
+                by_model[model] = {"tokens": 0, "calls": 0}
+            by_model[model]["tokens"] += usage.total_tokens
+            by_model[model]["calls"] += 1
+
         return TokenUsageStats(
-            total_tokens=0,  # Would need to implement actual token tracking
-            total_calls=0,  # Would need to implement actual call tracking
-            by_service={},  # Would need to implement service-level tracking
-            by_model={},  # Would need to implement model-level tracking
+            total_tokens=total_tokens,
+            total_calls=total_calls,
+            by_service=by_service,
+            by_model=by_model,
             **stats,
+        )
+
+    def count_tokens(self, text: str, model_name: str) -> int:
+        """Count tokens for a given text and model using accurate tokenization.
+
+        This method uses model-specific tokenizers when available (tiktoken for OpenAI,
+        transformers for IBM/Meta models) and falls back to intelligent estimation
+        for models without available tokenizers.
+
+        Args:
+            text: Text to tokenize
+            model_name: Name of the model
+
+        Returns:
+            Accurate or estimated token count
+        """
+        return self.tokenization_utils.count_tokens(text, model_name)
+
+    def estimate_tokens(self, text: str, model_name: str | None = None) -> int:
+        """Estimate token count when exact tokenization is not available.
+
+        Uses model-specific heuristics for better accuracy:
+        - OpenAI models: ~4 characters per token
+        - Anthropic models: ~3.5 characters per token
+        - IBM/Meta models: ~3.8 characters per token
+
+        Args:
+            text: Text to estimate tokens for
+            model_name: Optional model name for model-specific estimation
+
+        Returns:
+            Estimated token count
+        """
+        return self.tokenization_utils.estimate_tokens(text, model_name)
+
+    def get_context_window(self, model_name: str) -> int:
+        """Get the context window size for a model.
+
+        Returns accurate context windows for known models:
+        - GPT-4: 8192 tokens (32k variant: 32768)
+        - GPT-3.5: 4096 tokens (16k variant: 16384)
+        - Claude 3: 200000 tokens
+        - Claude 2: 100000 tokens
+        - Granite models: 8192 tokens
+        - Llama 3: 8192 tokens
+        - Mixtral: 32768 tokens
+
+        Args:
+            model_name: Name of the model
+
+        Returns:
+            Context window size in tokens
+        """
+        return self.tokenization_utils.get_context_window(model_name)
+
+    def track_usage(self, usage: LLMUsage) -> None:
+        """Track token usage for a user.
+
+        Args:
+            usage: LLM usage data to track
+        """
+        if usage.user_id:
+            user_key = str(usage.user_id)
+            if user_key not in self._usage_cache:
+                self._usage_cache[user_key] = []
+            self._usage_cache[user_key].append(usage)
+
+            # Limit cache size per user
+            if len(self._usage_cache[user_key]) > 1000:
+                self._usage_cache[user_key] = self._usage_cache[user_key][-500:]
+
+    def extract_usage_from_response(
+        self,
+        response: Any,
+        model_name: str,
+        provider: str,
+        prompt: str | None = None,
+        completion: str | None = None,
+    ) -> LLMUsage:
+        """Extract actual token usage from LLM provider response.
+
+        Handles different response formats from various providers:
+        - OpenAI: response.usage.prompt_tokens, completion_tokens, total_tokens
+        - Anthropic: response.usage.input_tokens, output_tokens
+        - WatsonX: May need to count tokens manually
+
+        Args:
+            response: Response object from LLM provider
+            model_name: Name of the model used
+            provider: Provider name (openai, anthropic, watsonx)
+            prompt: Optional prompt text for fallback counting
+            completion: Optional completion text for fallback counting
+
+        Returns:
+            LLMUsage object with actual or estimated token counts
+        """
+        from datetime import datetime
+
+        prompt_tokens = 0
+        completion_tokens = 0
+        total_tokens = 0
+
+        # Extract based on provider
+        if provider.lower() == "openai" and hasattr(response, "usage"):
+            usage = response.usage
+            prompt_tokens = getattr(usage, "prompt_tokens", 0)
+            completion_tokens = getattr(usage, "completion_tokens", 0)
+            total_tokens = getattr(usage, "total_tokens", 0)
+        elif provider.lower() == "anthropic" and hasattr(response, "usage"):
+            usage = response.usage
+            prompt_tokens = getattr(usage, "input_tokens", 0)
+            completion_tokens = getattr(usage, "output_tokens", 0)
+            total_tokens = prompt_tokens + completion_tokens
+        elif provider.lower() == "watsonx":
+            # WatsonX doesn't provide token counts in response, need to count
+            if prompt:
+                prompt_tokens = self.count_tokens(prompt, model_name)
+            if completion:
+                completion_tokens = self.count_tokens(completion, model_name)
+            total_tokens = prompt_tokens + completion_tokens
+        else:
+            # Fallback to counting/estimation
+            if prompt:
+                prompt_tokens = self.count_tokens(prompt, model_name)
+            if completion:
+                completion_tokens = self.count_tokens(completion, model_name)
+            total_tokens = prompt_tokens + completion_tokens
+
+        return LLMUsage(
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+            model_name=model_name,
+            timestamp=datetime.now(),
         )
