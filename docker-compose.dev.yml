@@ -32,25 +32,46 @@ services:
       - DEVELOPMENT_MODE=true
       - COLLECTIONDB_HOST=postgres
       - WEB_CONCURRENCY=4
-      - MLFLOW_TRACKING_USERNAME=${MLFLOW_TRACKING_USERNAME}
-      - MLFLOW_TRACKING_PASSWORD=${MLFLOW_TRACKING_PASSWORD}
+
+      # Database settings with fallbacks
+      - COLLECTIONDB_NAME=${COLLECTIONDB_NAME:-rag_modulo}
+      - COLLECTIONDB_USER=${COLLECTIONDB_USER:-rag_user}
+      - COLLECTIONDB_PASS=${COLLECTIONDB_PASS:-rag_password}
+
+      # MinIO settings with fallbacks
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
+
+      # MLflow settings with fallbacks
+      - MLFLOW_TRACKING_USERNAME=${MLFLOW_TRACKING_USERNAME:-mlflow}
+      - MLFLOW_TRACKING_PASSWORD=${MLFLOW_TRACKING_PASSWORD:-mlflow123}
       - RUNTIME_EVAL=${RUNTIME_EVAL:-false}
-      # WatsonX credentials for development
-      - WATSONX_APIKEY=${WATSONX_APIKEY}
-      - WATSONX_URL=${WATSONX_URL}
-      - WATSONX_INSTANCE_ID=${WATSONX_INSTANCE_ID}
+
+      # JWT with development default
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-dev-secret-key-change-in-production-f8a7b2c1}
+
+      # OIDC settings with fallbacks
+      - OIDC_DISCOVERY_ENDPOINT=${OIDC_DISCOVERY_ENDPOINT:-http://localhost:8080/.well-known/openid_configuration}
+      - OIDC_AUTH_URL=${OIDC_AUTH_URL:-http://localhost:8080/auth}
+      - OIDC_TOKEN_URL=${OIDC_TOKEN_URL:-http://localhost:8080/token}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+
+      # IBM OIDC settings with fallbacks
+      - IBM_CLIENT_ID=${IBM_CLIENT_ID:-}
+      - IBM_CLIENT_SECRET=${IBM_CLIENT_SECRET:-}
+
+      # WatsonX credentials with fallbacks
+      - WATSONX_APIKEY=${WATSONX_APIKEY:-}
+      - WATSONX_URL=${WATSONX_URL:-https://us-south.ml.cloud.ibm.com}
+      - WATSONX_INSTANCE_ID=${WATSONX_INSTANCE_ID:-}
+
+      # Embedding settings with fallbacks
       - EMBEDDING_MODEL=${EMBEDDING_MODEL:-sentence-transformers/all-minilm-l6-v2}
       - EMBEDDING_DIM=${EMBEDDING_DIM:-384}
       - EMBEDDING_FIELD=${EMBEDDING_FIELD:-embedding}
-      # JWT for development
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
-      # IBM OIDC for development
-      - IBM_CLIENT_ID=${IBM_CLIENT_ID}
-      - IBM_CLIENT_SECRET=${IBM_CLIENT_SECRET}
-      - OIDC_DISCOVERY_ENDPOINT=${OIDC_DISCOVERY_ENDPOINT}
-      - OIDC_AUTH_URL=${OIDC_AUTH_URL}
-      - OIDC_TOKEN_URL=${OIDC_TOKEN_URL}
-      - FRONTEND_URL=${FRONTEND_URL}
+
+      # Milvus settings with fallbacks
+      - MILVUS_PORT=${MILVUS_PORT:-19530}
     env_file:
       - .env
     volumes:
@@ -111,21 +132,21 @@ services:
     environment:
       - PYTHONPATH=/app
       - MILVUS_HOST=milvus-standalone
-      - MILVUS_PORT=${MILVUS_PORT}
+      - MILVUS_PORT=${MILVUS_PORT:-19530}
       - COLLECTIONDB_HOST=postgres
       - COLLECTIONDB_PORT=5432
-      - COLLECTIONDB_NAME=${COLLECTIONDB_NAME}
-      - COLLECTIONDB_USER=${COLLECTIONDB_USER}
-      - COLLECTIONDB_PASS=${COLLECTIONDB_PASS}
-      - OIDC_DISCOVERY_ENDPOINT=${OIDC_DISCOVERY_ENDPOINT}
-      - OIDC_AUTH_URL=${OIDC_AUTH_URL}
-      - OIDC_TOKEN_URL=${OIDC_TOKEN_URL}
-      - FRONTEND_URL=${FRONTEND_URL}
-      - IBM_CLIENT_ID=${IBM_CLIENT_ID}
-      - IBM_CLIENT_SECRET=${IBM_CLIENT_SECRET}
-      - WATSONX_APIKEY=${WATSONX_APIKEY}
-      - WATSONX_URL=${WATSONX_URL}
-      - WATSONX_INSTANCE_ID=${WATSONX_INSTANCE_ID}
+      - COLLECTIONDB_NAME=${COLLECTIONDB_NAME:-rag_modulo}
+      - COLLECTIONDB_USER=${COLLECTIONDB_USER:-rag_user}
+      - COLLECTIONDB_PASS=${COLLECTIONDB_PASS:-rag_password}
+      - OIDC_DISCOVERY_ENDPOINT=${OIDC_DISCOVERY_ENDPOINT:-http://localhost:8080/.well-known/openid_configuration}
+      - OIDC_AUTH_URL=${OIDC_AUTH_URL:-http://localhost:8080/auth}
+      - OIDC_TOKEN_URL=${OIDC_TOKEN_URL:-http://localhost:8080/token}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - IBM_CLIENT_ID=${IBM_CLIENT_ID:-}
+      - IBM_CLIENT_SECRET=${IBM_CLIENT_SECRET:-}
+      - WATSONX_APIKEY=${WATSONX_APIKEY:-}
+      - WATSONX_URL=${WATSONX_URL:-https://us-south.ml.cloud.ibm.com}
+      - WATSONX_INSTANCE_ID=${WATSONX_INSTANCE_ID:-}
       - TESTING=true
       - SKIP_AUTH=true
       - DEVELOPMENT_MODE=true

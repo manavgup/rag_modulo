@@ -1,6 +1,5 @@
 """Configuration settings for the RAG Modulo application."""
 
-import os
 import tempfile
 from functools import lru_cache
 from typing import Annotated
@@ -166,8 +165,8 @@ class Settings(BaseSettings):
     python_version: Annotated[str, Field(default="3.11", alias="PYTHON_VERSION")]
 
     # Collection database settings
-    collectiondb_user: Annotated[str, Field(default="rag_modulo_user", alias="COLLECTIONDB_USER")]
-    collectiondb_pass: Annotated[str, Field(default="rag_modulo_password", alias="COLLECTIONDB_PASS")]
+    collectiondb_user: Annotated[str, Field(default="rag_user", alias="COLLECTIONDB_USER")]
+    collectiondb_pass: Annotated[str, Field(default="rag_password", alias="COLLECTIONDB_PASS")]
     collectiondb_host: Annotated[str, Field(default="localhost", alias="COLLECTIONDB_HOST")]
     collectiondb_port: Annotated[int, Field(default=5432, alias="COLLECTIONDB_PORT")]
     collectiondb_name: Annotated[str, Field(default="rag_modulo", alias="COLLECTIONDB_NAME")]
@@ -183,6 +182,38 @@ class Settings(BaseSettings):
 
     # JWT settings
     jwt_algorithm: Annotated[str, Field(default="HS256", alias="JWT_ALGORITHM")]
+
+    # Podcast Feature Configuration (Future Feature)
+    # Audio Processing
+    audio_sample_rate: Annotated[int, Field(default=44100, alias="AUDIO_SAMPLE_RATE")]
+    audio_bitrate: Annotated[int, Field(default=128, alias="AUDIO_BITRATE")]
+    audio_format: Annotated[str, Field(default="mp3", alias="AUDIO_FORMAT")]
+    audio_channels: Annotated[int, Field(default=2, alias="AUDIO_CHANNELS")]
+
+    # TTS Configuration
+    tts_provider: Annotated[str, Field(default="elevenlabs", alias="TTS_PROVIDER")]
+    elevenlabs_api_key: Annotated[str | None, Field(default=None, alias="ELEVENLABS_API_KEY")]
+    azure_speech_key: Annotated[str | None, Field(default=None, alias="AZURE_SPEECH_KEY")]
+    google_tts_credentials_path: Annotated[str | None, Field(default=None, alias="GOOGLE_TTS_CREDENTIALS_PATH")]
+
+    # Multi-modal AI Models
+    multimodal_model_provider: Annotated[str, Field(default="openai", alias="MULTIMODAL_MODEL_PROVIDER")]
+
+    # Audio/Video Processing
+    max_audio_file_size_mb: Annotated[int, Field(default=100, alias="MAX_AUDIO_FILE_SIZE_MB")]
+    max_video_file_size_mb: Annotated[int, Field(default=500, alias="MAX_VIDEO_FILE_SIZE_MB")]
+    audio_retention_days: Annotated[int, Field(default=30, alias="AUDIO_RETENTION_DAYS")]
+    video_retention_days: Annotated[int, Field(default=7, alias="VIDEO_RETENTION_DAYS")]
+
+    # Streaming Configuration
+    streaming_chunk_size: Annotated[int, Field(default=8192, alias="STREAMING_CHUNK_SIZE")]
+    streaming_cache_size_mb: Annotated[int, Field(default=100, alias="STREAMING_CACHE_SIZE_MB")]
+    streaming_timeout_seconds: Annotated[int, Field(default=30, alias="STREAMING_TIMEOUT_SECONDS")]
+
+    # Evaluation Settings
+    evaluation_model: Annotated[str, Field(default="gpt-4-vision-preview", alias="EVALUATION_MODEL")]
+    evaluation_timeout_seconds: Annotated[int, Field(default=60, alias="EVALUATION_TIMEOUT_SECONDS")]
+    max_concurrent_evaluations: Annotated[int, Field(default=5, alias="MAX_CONCURRENT_EVALUATIONS")]
 
     # RBAC settings
     rbac_mapping: Annotated[
@@ -221,13 +252,20 @@ class Settings(BaseSettings):
     @classmethod
     def validate_jwt_secret(cls, v: str | None) -> str | None:
         """Validate JWT secret key and warn if using default in production."""
-        if v and "dev-secret-key" in v and os.getenv("ENVIRONMENT", "").lower() in ("production", "prod"):
+        if not v or not v.strip():
             try:
                 logger = get_logger(__name__)
-                logger.warning("⚠️  Using default JWT secret in production! Set JWT_SECRET_KEY environment variable.")
+                logger.warning("⚠️  Empty JWT secret key. Using default for development.")
             except ImportError:
-                # Fallback to print if logging utils not available
-                print("⚠️  Using default JWT secret in production! Set JWT_SECRET_KEY environment variable.")
+                print("⚠️  Empty JWT secret key. Using default for development.")
+            return "dev-secret-key-change-in-production-f8a7b2c1"
+
+        if "dev-secret-key" in v:
+            try:
+                logger = get_logger(__name__)
+                logger.warning("⚠️  Using default JWT secret. Set JWT_SECRET_KEY for production.")
+            except ImportError:
+                print("⚠️  Using default JWT secret. Set JWT_SECRET_KEY for production.")
         return v
 
     @field_validator("rag_llm")

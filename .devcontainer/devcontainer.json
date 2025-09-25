@@ -113,5 +113,5 @@
   "shutdownAction": "stopCompose",
   "onCreateCommand": "echo 'Codespace environment ready!'",
   "updateContentCommand": "echo 'Updating Codespace environment...'",
-  "postCreateCommand": "mkdir -p /root/.vscode-server && chmod 755 /root/.vscode-server && apt-get update && apt-get install -y make curl && echo 'VS Code server directory created and make installed'"
+  "postCreateCommand": "mkdir -p /root/.vscode-server && chmod 755 /root/.vscode-server && apt-get update && apt-get install -y make curl && cp .env.example .env && echo 'VS Code server directory created, make installed, and environment configured with defaults'"
 }
