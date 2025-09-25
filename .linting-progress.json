@@ -251,7 +251,6 @@
     "backend/rag_solution/cli/commands/__init__.py",
     "backend/core/authentication_middleware.py",
     "backend/core/mock_auth.py",
-    "backend/core/config.py",
     "backend/core/custom_exceptions.py",
     "backend/rag_solution/cli/mock_auth_helper.py",
     "backend/rag_solution/data_ingestion/base_processor.py",
@@ -265,7 +264,8 @@
     "backend/rag_solution/router/search_router.py",
     "backend/rag_solution/router/token_warning_router.py",
     "backend/rag_solution/schemas/chain_of_thought_schema.py",
-    "backend/rag_solution/schemas/search_schema.py"
+    "backend/rag_solution/schemas/search_schema.py",
+    "backend/core/config.py"
   ],
   "new_files_requiring_compliance": [],
   "legacy_files_exempt": [

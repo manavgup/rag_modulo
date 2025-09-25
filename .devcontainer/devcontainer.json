@@ -108,10 +108,14 @@
     "PYTHONPATH": "/app:/app/rag_solution:/app/vectordbs",
     "DEVELOPMENT_MODE": "true",
     "TESTING": "true",
-    "SKIP_AUTH": "true"
+    "SKIP_AUTH": "true",
+    "WATSONX_APIKEY": "${localEnv:WATSONX_APIKEY}",
+    "WATSONX_INSTANCE_ID": "${localEnv:WATSONX_INSTANCE_ID}",
+    "IBM_CLIENT_ID": "${localEnv:IBM_CLIENT_ID}",
+    "IBM_CLIENT_SECRET": "${localEnv:IBM_CLIENT_SECRET}"
   },
   "shutdownAction": "stopCompose",
   "onCreateCommand": "echo 'Codespace environment ready!'",
   "updateContentCommand": "echo 'Updating Codespace environment...'",
-  "postCreateCommand": "mkdir -p /root/.vscode-server && chmod 755 /root/.vscode-server && apt-get update && apt-get install -y make curl && echo 'VS Code server directory created and make installed'"
+  "postCreateCommand": "mkdir -p /root/.vscode-server && chmod 755 /root/.vscode-server && apt-get update && apt-get install -y make curl && cp .env.example .env && echo 'VS Code server directory created, make installed, and environment configured. Repository secrets provide RAG functionality. Edit .env to override with personal credentials.'"
 }
