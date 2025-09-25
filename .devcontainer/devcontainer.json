@@ -2,7 +2,7 @@
   "name": "RAG Modulo Development",
   "dockerComposeFile": "../docker-compose.dev.yml",
   "service": "backend",
-  "workspaceFolder": "/workspace",
+  "workspaceFolder": "/workspaces/rag_modulo",
   "customizations": {
     "vscode": {
       "extensions": [
@@ -117,5 +117,5 @@
   "shutdownAction": "stopCompose",
   "onCreateCommand": "echo 'Codespace environment ready!'",
   "updateContentCommand": "echo 'Updating Codespace environment...'",
-  "postCreateCommand": "mkdir -p /root/.vscode-server && chmod 755 /root/.vscode-server && apt-get update && apt-get install -y make curl && cp .env.example .env && echo 'VS Code server directory created, make installed, and environment configured. Repository secrets provide RAG functionality. Edit .env to override with personal credentials.'"
+  "postCreateCommand": "mkdir -p /root/.vscode-server && chmod 755 /root/.vscode-server && apt-get update && apt-get install -y make curl && cd /workspaces/rag_modulo && cp .env.example .env && echo 'VS Code server directory created, make installed, and environment configured. Repository secrets provide RAG functionality. Edit .env to override with personal credentials.'"
 }

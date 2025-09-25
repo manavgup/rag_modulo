@@ -40,7 +40,7 @@ services:
       # Mount source code for development (hot reloading) - writable for VS Code server
       - ./backend:/app
       # Mount full project for Dev Container access
-      - ./:/workspace
+      - ./:/workspaces/rag_modulo
       # Create writable logs directory
       - ./logs:/app/logs
     healthcheck:
