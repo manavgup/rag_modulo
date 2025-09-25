@@ -166,8 +166,8 @@ class Settings(BaseSettings):
     python_version: Annotated[str, Field(default="3.11", alias="PYTHON_VERSION")]
 
     # Collection database settings
-    collectiondb_user: Annotated[str, Field(default="rag_user", alias="COLLECTIONDB_USER")]
-    collectiondb_pass: Annotated[str, Field(default="rag_password", alias="COLLECTIONDB_PASS")]
+    collectiondb_user: Annotated[str, Field(default="rag_modulo_user", alias="COLLECTIONDB_USER")]
+    collectiondb_pass: Annotated[str, Field(default="rag_modulo_password", alias="COLLECTIONDB_PASS")]
     collectiondb_host: Annotated[str, Field(default="localhost", alias="COLLECTIONDB_HOST")]
     collectiondb_port: Annotated[int, Field(default=5432, alias="COLLECTIONDB_PORT")]
     collectiondb_name: Annotated[str, Field(default="rag_modulo", alias="COLLECTIONDB_NAME")]
