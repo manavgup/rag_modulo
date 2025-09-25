@@ -1,5 +1,6 @@
 """Configuration settings for the RAG Modulo application."""
 
+import os
 import tempfile
 from functools import lru_cache
 from typing import Annotated
@@ -252,20 +253,13 @@ class Settings(BaseSettings):
     @classmethod
     def validate_jwt_secret(cls, v: str | None) -> str | None:
         """Validate JWT secret key and warn if using default in production."""
-        if not v or not v.strip():
+        if v and "dev-secret-key" in v and os.getenv("ENVIRONMENT", "").lower() in ("production", "prod"):
             try:
                 logger = get_logger(__name__)
-                logger.warning("⚠️  Empty JWT secret key. Using default for development.")
+                logger.warning("⚠️  Using default JWT secret in production! Set JWT_SECRET_KEY environment variable.")
             except ImportError:
-                print("⚠️  Empty JWT secret key. Using default for development.")
-            return "dev-secret-key-change-in-production-f8a7b2c1"
-
-        if "dev-secret-key" in v:
-            try:
-                logger = get_logger(__name__)
-                logger.warning("⚠️  Using default JWT secret. Set JWT_SECRET_KEY for production.")
-            except ImportError:
-                print("⚠️  Using default JWT secret. Set JWT_SECRET_KEY for production.")
+                # Fallback to print if logging utils not available
+                print("⚠️  Using default JWT secret in production! Set JWT_SECRET_KEY environment variable.")
         return v
 
     @field_validator("rag_llm")
