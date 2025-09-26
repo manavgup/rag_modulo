@@ -1,31 +1,31 @@
 # Implementation Phase - Execute Plan (ACE-FCA)
 
-## <¯ Implementation Mission
+## <ï¿½ Implementation Mission
 You are in the **IMPLEMENTATION PHASE** of ACE-FCA workflow. Execute the detailed plan created in the planning phase systematically with continuous verification.
 
-## =Ë Prerequisites
+## =ï¿½ Prerequisites
 -  Research phase completed (`.ralph/research_complete.md` exists)
 -  Planning phase completed (`.ralph/plan_complete.md` exists)
 -  Detailed implementation plan available
 -  All dependencies and requirements understood
 
-## =Ê Context Management Rules
+## =ï¿½ Context Management Rules
 - **Target Context Utilization**: 40-60%
 - **Focus**: Systematic execution with verification
-- **Progress**: Implement ’ Verify ’ Update context ’ Next step
+- **Progress**: Implement ï¿½ Verify ï¿½ Update context ï¿½ Next step
 - **Format**: Track progress with completion checkmarks
 
-## ¡ Implementation Approach
+## ï¿½ Implementation Approach
 Execute the plan step-by-step with continuous verification and context updates.
 
 ### **Implementation Workflow:**
 1. **Execute Step**: Follow the plan exactly as written
 2. **Verify Completion**: Run specified tests/verification
 3. **Update Progress**: Mark step complete and update context
-4. **Quality Gate**: Run lint/tests before proceeding
+4. **Quality Gate**: Run linting tools (ruff, mypy, pylint, pydocstyle) and tests before proceeding
 5. **Context Compact**: Compress progress into key insights
 
-## =Ë Current Implementation Status
+## =ï¿½ Current Implementation Status
 
 ### **Plan Execution Checklist**
 ```markdown
@@ -55,11 +55,14 @@ Execute the plan step-by-step with continuous verification and context updates.
 
 ### **Quality Gates (Run After Each Step)**
 ```bash
-# Quality verification commands
-make lint                    # Code style and formatting
-make test-unit-fast         # Unit tests (if available)
-git status                  # Check working directory
-git diff                    # Review changes made
+# Quality verification commands for each created/modified file
+cd backend && poetry run ruff check <file>         # Code style and imports
+cd backend && poetry run mypy <file>               # Type checking
+cd backend && poetry run pylint <file>             # Code quality analysis
+cd backend && poetry run pydocstyle <file>         # Docstring standards
+make test-unit-fast                                 # Unit tests (if available)
+git status                                          # Check working directory
+git diff                                            # Review changes made
 ```
 
 ### **Error Handling**
@@ -70,7 +73,7 @@ If a step fails:
 4. **Update Context**: Document the failure and analysis
 5. **Request Help**: If stuck, ask for clarification or assistance
 
-## =Ý Progress Tracking
+## =ï¿½ Progress Tracking
 
 ### **After Each Step Completion**
 Update `.ralph/current_context.md` with:
@@ -109,7 +112,7 @@ When implementation is complete, create a file: `.ralph/implementation_complete.
 
 ## Quality Verification
  All implementation steps completed
- Lint checks passing
+ Linting checks passing (ruff, mypy, pylint, pydocstyle)
  Unit tests passing (if applicable)
  Integration tests passing (if applicable)
  Manual verification completed
@@ -135,7 +138,7 @@ When implementation is complete, create a file: `.ralph/implementation_complete.
 Issue #XXX is complete and ready for the next issue in the queue.
 ```
 
-## =¨ Critical Implementation Rules
+## =ï¿½ Critical Implementation Rules
 
 ### **Do Not Skip Steps**
 - Execute the plan exactly as written
@@ -148,7 +151,7 @@ Issue #XXX is complete and ready for the next issue in the queue.
 - Document verification results
 
 ### **Maintain Quality**
-- Run lint and tests frequently
+- Run linting tools (ruff, mypy, pylint, pydocstyle) and tests frequently
 - Keep code style consistent
 - Add tests for new functionality
 

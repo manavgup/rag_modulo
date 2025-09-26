@@ -1,21 +1,21 @@
 # Planning Phase - Implementation Planning (ACE-FCA)
 
-## <¯ Planning Mission
+## <ï¿½ Planning Mission
 You are in the **PLANNING PHASE** of ACE-FCA workflow. Create a detailed, executable implementation plan based on completed research.
 
-## =Ë Prerequisites
+## =ï¿½ Prerequisites
 -  Research phase completed (`.ralph/research_complete.md` exists)
 -  Issue thoroughly understood from research phase
 -  Technical approach identified
 -  Dependencies and risks assessed
 
-## =Ê Context Management Rules
+## =ï¿½ Context Management Rules
 - **Target Context Utilization**: 40-60%
 - **Focus**: Precise, actionable implementation steps
 - **Output**: Detailed plan with verification points
 - **Format**: Step-by-step execution plan
 
-## <¯ Planning Objectives
+## <ï¿½ Planning Objectives
 Create a comprehensive implementation plan that can be executed systematically.
 
 ### **Plan Components Required:**
@@ -25,7 +25,7 @@ Create a comprehensive implementation plan that can be executed systematically.
 4. **Quality Gates**: Checkpoints and verification criteria
 5. **Rollback Plan**: How to undo changes if needed
 
-## =Ë Planning Output Requirements
+## =ï¿½ Planning Output Requirements
 
 ### **Executive Summary**
 - **Issue**: Clear statement of what's being implemented
@@ -70,7 +70,11 @@ Create a comprehensive implementation plan that can be executed systematically.
 - **Performance**: Expected performance characteristics
 
 **Step 3.2: Quality Assurance**
-- **Linting**: Run `make lint` and fix issues
+- **Linting**: Check each created/modified file with:
+  - `cd backend && poetry run ruff check <file>` (code style and imports)
+  - `cd backend && poetry run mypy <file>` (type checking)
+  - `cd backend && poetry run pylint <file>` (code quality)
+  - `cd backend && poetry run pydocstyle <file>` (docstring standards)
 - **Testing**: Run full test suite
 - **Documentation**: Update relevant docs
 - **Code Review**: Self-review checklist
@@ -133,14 +137,14 @@ Plan is detailed, executable, and ready for systematic implementation.
 Ready to proceed to IMPLEMENTATION phase.
 ```
 
-## <¯ Planning Best Practices
+## <ï¿½ Planning Best Practices
 - **Be Specific**: Exact files, functions, commands
 - **Be Systematic**: Logical step progression
 - **Be Verifiable**: Each step has clear success criteria
 - **Be Recoverable**: Clear rollback for each step
 - **Be Realistic**: Achievable steps with proper estimates
 
-## =Ý Human Review Required
+## =ï¿½ Human Review Required
 This is a **high human engagement phase**. Review the plan carefully before implementation:
 - Does the plan make sense technically?
 - Are all steps clearly defined?
