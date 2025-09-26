@@ -115,7 +115,7 @@
     "IBM_CLIENT_SECRET": "${localEnv:IBM_CLIENT_SECRET}"
   },
   "shutdownAction": "stopCompose",
-  "onCreateCommand": "echo 'Codespace environment ready!'",
+  "onCreateCommand": "cp .env.example .env && echo 'Environment file created from template'",
   "updateContentCommand": "echo 'Updating Codespace environment...'",
-  "postCreateCommand": "mkdir -p /root/.vscode-server && chmod 755 /root/.vscode-server && apt-get update && apt-get install -y make curl && cd /workspaces/rag_modulo && cp .env.example .env && echo 'VS Code server directory created, make installed, and environment configured. Repository secrets provide RAG functionality. Edit .env to override with personal credentials.'"
+  "postCreateCommand": "mkdir -p /root/.vscode-server && chmod 755 /root/.vscode-server && apt-get update && apt-get install -y make curl && echo 'VS Code server directory created, make installed, and environment configured. Repository secrets provide RAG functionality. Edit .env to override with personal credentials.'"
 }
