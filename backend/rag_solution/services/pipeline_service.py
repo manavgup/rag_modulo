@@ -5,15 +5,12 @@ import time
 import uuid
 from typing import Any
 
+from pydantic import UUID4
+from sqlalchemy.orm import Session
+
 from core.config import Settings
 from core.custom_exceptions import LLMProviderError
 from core.logging_utils import get_logger
-from pydantic import UUID4
-from sqlalchemy.orm import Session
-from vectordbs.data_types import QueryResult, VectorQuery
-from vectordbs.error_types import CollectionError
-from vectordbs.factory import VectorStoreFactory
-
 from rag_solution.core.exceptions import ConfigurationError, NotFoundError, ValidationError
 from rag_solution.data_ingestion.ingestion import DocumentStore
 from rag_solution.evaluation.evaluator import RAGEvaluator
@@ -39,6 +36,9 @@ from rag_solution.services.file_management_service import FileManagementService
 from rag_solution.services.llm_parameters_service import LLMParametersService
 from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.prompt_template_service import PromptTemplateService
+from vectordbs.data_types import QueryResult, VectorQuery
+from vectordbs.error_types import CollectionError
+from vectordbs.factory import VectorStoreFactory
 
 logger = get_logger("services.pipeline")
 

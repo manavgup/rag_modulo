@@ -13,13 +13,12 @@ from typing import Any
 
 from core.config import Settings, get_settings
 from core.custom_exceptions import DocumentProcessingError
-from vectordbs.data_types import Document, DocumentMetadata
-
 from rag_solution.data_ingestion.base_processor import BaseProcessor
 from rag_solution.data_ingestion.excel_processor import ExcelProcessor
 from rag_solution.data_ingestion.pdf_processor import PdfProcessor
 from rag_solution.data_ingestion.txt_processor import TxtProcessor
 from rag_solution.data_ingestion.word_processor import WordProcessor
+from vectordbs.data_types import Document, DocumentMetadata
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)

@@ -11,9 +11,9 @@ from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import pytest
-from core.custom_exceptions import LLMProviderError
 from pydantic import UUID4
 
+from core.custom_exceptions import LLMProviderError
 from rag_solution.generation.providers.anthropic import AnthropicLLM
 from rag_solution.generation.providers.base import LLMBase
 from rag_solution.generation.providers.openai import OpenAILLM

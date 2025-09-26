@@ -13,13 +13,13 @@ from typing import Annotated, Any
 
 import httpx
 import jwt
-from auth.oidc import create_access_token, oauth
-from core.config import Settings, get_settings
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel, HttpUrl
 from sqlalchemy.orm import Session
 
+from auth.oidc import create_access_token, oauth
+from core.config import Settings, get_settings
 from rag_solution.core.device_flow import (
     DeviceFlowConfig,
     DeviceFlowRecord,

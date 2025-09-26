@@ -1,11 +1,11 @@
 import logging
 from typing import Any
 
-from core.custom_exceptions import RepositoryError
 from pydantic import UUID4
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from core.custom_exceptions import RepositoryError
 from rag_solution.core.exceptions import AlreadyExistsError, NotFoundError, ValidationError
 from rag_solution.models.team import Team
 from rag_solution.schemas.team_schema import TeamInput, TeamOutput

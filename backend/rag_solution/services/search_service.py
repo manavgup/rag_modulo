@@ -8,14 +8,13 @@ from typing import TYPE_CHECKING, Any, ParamSpec, TypeVar
 if TYPE_CHECKING:
     from rag_solution.services.chain_of_thought_service import ChainOfThoughtService
 
-from core.config import Settings
-from core.custom_exceptions import ConfigurationError, LLMProviderError, NotFoundError, ValidationError
-from core.logging_utils import get_logger
 from fastapi import HTTPException
 from pydantic import UUID4
 from sqlalchemy.orm import Session
-from vectordbs.data_types import DocumentMetadata, QueryResult
 
+from core.config import Settings
+from core.custom_exceptions import ConfigurationError, LLMProviderError, NotFoundError, ValidationError
+from core.logging_utils import get_logger
 from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput
 from rag_solution.schemas.collection_schema import CollectionStatus
 from rag_solution.schemas.llm_usage_schema import TokenWarning
@@ -27,6 +26,7 @@ from rag_solution.services.file_management_service import FileManagementService
 from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.pipeline_service import PipelineService
 from rag_solution.services.token_tracking_service import TokenTrackingService
+from vectordbs.data_types import DocumentMetadata, QueryResult
 
 logger = get_logger("services.search")
 

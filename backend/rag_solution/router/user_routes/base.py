@@ -3,10 +3,10 @@
 import logging
 from typing import Annotated
 
-from core.authorization import authorize_decorator
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import UUID4
 
+from core.authorization import authorize_decorator
 from rag_solution.core.dependencies import get_user_service, verify_user_access
 from rag_solution.core.exceptions import AlreadyExistsError, NotFoundError, ValidationError
 from rag_solution.schemas.user_schema import UserInput, UserOutput

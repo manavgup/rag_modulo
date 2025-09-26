@@ -5,10 +5,10 @@ Real TDD tests for CollectionService - testing actual functionality to find real
 from uuid import uuid4
 
 import pytest
-from core.config import Settings
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
+from core.config import Settings
 from rag_solution.schemas.collection_schema import CollectionInput
 from rag_solution.services.collection_service import CollectionService
 
