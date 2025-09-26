@@ -477,7 +477,11 @@ Plan is detailed, executable, and ready for systematic implementation.
 - **Action**: Complete test suite execution
 - **Tests**:
   ```bash
-  make lint
+  # Check each created/modified file with:
+  cd backend && poetry run ruff check <file>         # Code style and imports
+  cd backend && poetry run mypy <file>               # Type checking
+  cd backend && poetry run pylint <file>             # Code quality
+  cd backend && poetry run pydocstyle <file>         # Docstring standards
   make test-unit-fast
   make test-integration
   make test-e2e
