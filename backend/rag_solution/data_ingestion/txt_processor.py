@@ -10,12 +10,12 @@ import uuid
 from collections.abc import AsyncIterator
 
 import aiofiles
+
 from core.custom_exceptions import DocumentProcessingError
+from rag_solution.data_ingestion.base_processor import BaseProcessor
 
 # Embedding functionality inherited from BaseProcessor
 from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, Source
-
-from rag_solution.data_ingestion.base_processor import BaseProcessor
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)

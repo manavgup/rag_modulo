@@ -2,12 +2,12 @@
 
 from typing import Any
 
-from core.custom_exceptions import RepositoryError
-from core.logging_utils import get_logger
 from pydantic import UUID4
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
+from core.custom_exceptions import RepositoryError
+from core.logging_utils import get_logger
 from rag_solution.core.exceptions import AlreadyExistsError, NotFoundError
 from rag_solution.models.conversation_message import ConversationMessage
 from rag_solution.schemas.conversation_schema import ConversationMessageInput, ConversationMessageOutput

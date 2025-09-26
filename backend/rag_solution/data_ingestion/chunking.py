@@ -12,6 +12,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 import numpy as np
+
 from core.config import Settings, get_settings
 from vectordbs.utils.watsonx import get_embeddings, get_tokenization
 

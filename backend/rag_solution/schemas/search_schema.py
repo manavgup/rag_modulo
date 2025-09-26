@@ -3,9 +3,9 @@
 from typing import Any
 
 from pydantic import UUID4, BaseModel, ConfigDict
-from vectordbs.data_types import DocumentMetadata, QueryResult
 
 from rag_solution.schemas.llm_usage_schema import TokenWarning
+from vectordbs.data_types import DocumentMetadata, QueryResult
 
 
 class SearchInput(BaseModel):

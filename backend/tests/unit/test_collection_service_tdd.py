@@ -4,19 +4,19 @@ from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import pytest
+from sqlalchemy.orm import Session
+
 from core.config import Settings
 
 # Import the custom exceptions from the correct module
 from core.custom_exceptions import DocumentStorageError, EmptyDocumentError, QuestionGenerationError
-from sqlalchemy.orm import Session
-from vectordbs.data_types import Document, DocumentChunk
-from vectordbs.error_types import CollectionError
-
 from rag_solution.core.exceptions import AlreadyExistsError
 from rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput, CollectionStatus
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
 from rag_solution.schemas.prompt_template_schema import PromptTemplateType
 from rag_solution.services.collection_service import CollectionService
+from vectordbs.data_types import Document, DocumentChunk
+from vectordbs.error_types import CollectionError
 
 
 @pytest.mark.unit

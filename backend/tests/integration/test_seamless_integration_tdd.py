@@ -13,9 +13,8 @@ from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import pytest
-from core.config import Settings, get_settings
-from vectordbs.data_types import DocumentMetadata
 
+from core.config import Settings, get_settings
 from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput, ChainOfThoughtOutput
 from rag_solution.schemas.conversation_schema import (
     ConversationContext,
@@ -30,6 +29,7 @@ from rag_solution.services.chain_of_thought_service import ChainOfThoughtService
 from rag_solution.services.conversation_service import ConversationService
 from rag_solution.services.question_service import QuestionService
 from rag_solution.services.search_service import SearchService
+from vectordbs.data_types import DocumentMetadata
 
 
 class TestSeamlessIntegrationTDD:

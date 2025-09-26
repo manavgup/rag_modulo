@@ -10,6 +10,10 @@ processing.
 import re
 from uuid import uuid4
 
+from fastapi import BackgroundTasks, UploadFile
+from pydantic import UUID4
+from sqlalchemy.orm import Session
+
 from core.config import Settings
 from core.custom_exceptions import (
     CollectionProcessingError,
@@ -22,13 +26,6 @@ from core.custom_exceptions import (
     ValidationError,
 )
 from core.logging_utils import get_logger
-from fastapi import BackgroundTasks, UploadFile
-from pydantic import UUID4
-from sqlalchemy.orm import Session
-from vectordbs.data_types import Document
-from vectordbs.error_types import CollectionError
-from vectordbs.factory import VectorStoreFactory
-
 from rag_solution.data_ingestion.ingestion import DocumentStore
 from rag_solution.repository.collection_repository import CollectionRepository
 from rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput, CollectionStatus
@@ -42,6 +39,9 @@ from rag_solution.services.prompt_template_service import PromptTemplateService
 from rag_solution.services.question_service import QuestionService
 from rag_solution.services.user_collection_service import UserCollectionService
 from rag_solution.services.user_provider_service import UserProviderService
+from vectordbs.data_types import Document
+from vectordbs.error_types import CollectionError
+from vectordbs.factory import VectorStoreFactory
 
 logger = get_logger("services.collection")
 
