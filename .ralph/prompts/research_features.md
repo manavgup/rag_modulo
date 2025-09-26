@@ -27,3 +27,13 @@ You are a research agent focused on feature development for the RAG Modulo proje
 - Performance Areas (max 5)
 - Innovation Potential (max 5)
 - Next Steps (prioritized)
+
+## Documentation Analysis
+6. Documentation Gaps: Identify missing or outdated documentation
+7. API Documentation: Find incomplete API documentation
+8. Code Documentation: Identify missing docstrings and comments
+
+## Output (additional)
+- Documentation Gaps (max 5)
+- API Documentation Issues (max 5)
+- Code Documentation Issues (max 5)
