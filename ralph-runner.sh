@@ -125,6 +125,35 @@ show_recent_activity() {
     echo ""
 }
 
+# Function to check if we should advance to next phase (ACE-FCA)
+check_phase_advancement() {
+    case "$CURRENT_PHASE" in
+        "research")
+            log "🔍 Research phase complete. Checking if ready for planning..."
+            if [ -f ".ralph/research_complete.md" ]; then
+                CURRENT_PHASE="plan"
+                echo "plan" > "$RALPH_PHASE_FILE"
+                log "➡️  Advancing to PLAN phase"
+            fi
+            ;;
+        "plan")
+            log "📋 Plan phase complete. Checking if ready for implementation..."
+            if [ -f ".ralph/plan_complete.md" ]; then
+                CURRENT_PHASE="implement"
+                echo "implement" > "$RALPH_PHASE_FILE"
+                log "➡️  Advancing to IMPLEMENT phase"
+            fi
+            ;;
+        "implement")
+            log "⚒️  Implementation phase. Checking if issue is complete..."
+            if [ -f ".ralph/implementation_complete.md" ]; then
+                log "✅ Issue #$CURRENT_ISSUE complete! Moving to next issue."
+                # Logic to advance to next issue would go here
+            fi
+            ;;
+    esac
+}
+
 # Main execution
 log " Starting Ralph with AGENTS.md integration"
 log "Press Ctrl+C to stop"
@@ -227,32 +256,3 @@ while :; do
     log "⏳ Waiting 15 seconds before next iteration (ACE-FCA rapid iteration)..."
     sleep 15
 done
-
-# Function to check if we should advance to next phase (ACE-FCA)
-check_phase_advancement() {
-    case "$CURRENT_PHASE" in
-        "research")
-            log "🔍 Research phase complete. Checking if ready for planning..."
-            if [ -f ".ralph/research_complete.md" ]; then
-                CURRENT_PHASE="plan"
-                echo "plan" > "$RALPH_PHASE_FILE"
-                log "➡️  Advancing to PLAN phase"
-            fi
-            ;;
-        "plan")
-            log "📋 Plan phase complete. Checking if ready for implementation..."
-            if [ -f ".ralph/plan_complete.md" ]; then
-                CURRENT_PHASE="implement"
-                echo "implement" > "$RALPH_PHASE_FILE"
-                log "➡️  Advancing to IMPLEMENT phase"
-            fi
-            ;;
-        "implement")
-            log "⚒️  Implementation phase. Checking if issue is complete..."
-            if [ -f ".ralph/implementation_complete.md" ]; then
-                log "✅ Issue #$CURRENT_ISSUE complete! Moving to next issue."
-                # Logic to advance to next issue would go here
-            fi
-            ;;
-    esac
-}
