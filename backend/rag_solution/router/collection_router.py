@@ -1,5 +1,11 @@
+"""Collection router for managing collection-related API endpoints."""
+
 from typing import Annotated
 
+from core.config import Settings, get_settings
+from core.custom_exceptions import NotFoundError, ValidationError
+from core.logging_utils import get_logger
+from core.mock_auth import ensure_mock_user_exists
 from fastapi import (
     APIRouter,
     BackgroundTasks,
@@ -15,9 +21,6 @@ from fastapi import (
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
-from core.config import Settings, get_settings
-from core.custom_exceptions import NotFoundError, ValidationError
-from core.logging_utils import get_logger
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput
 from rag_solution.schemas.file_schema import DocumentDelete, FileMetadata, FileOutput
@@ -44,10 +47,10 @@ async def debug_form_data(
     user_id = current_user.get("uuid")
 
     logger.debug("=== DEBUG FORM DATA ===")
-    logger.debug(f"Collection name: {collection_name}")
-    logger.debug(f"User ID from JWT: {user_id}")
-    logger.debug(f"Request URL: {request.url}")
-    logger.debug(f"Request query params: {dict(request.query_params)}")
+    logger.debug("Collection name: %s", collection_name)
+    logger.debug("User ID from JWT: %s", user_id)
+    logger.debug("Request URL: %s", request.url)
+    logger.debug("Request query params: %s", dict(request.query_params))
     logger.debug("=== END DEBUG FORM DATA ===")
 
     return {"collection_name": collection_name, "user_id": str(user_id), "query_params": dict(request.query_params)}
@@ -65,10 +68,10 @@ async def debug_form_data_with_db(
     user_id = current_user.get("uuid")
 
     logger.info("=== DEBUG FORM DATA WITH DB ===")
-    logger.info(f"Collection name: {collection_name}")
-    logger.info(f"User ID from JWT: {user_id}")
-    logger.info(f"Request URL: {request.url}")
-    logger.info(f"Request query params: {dict(request.query_params)}")
+    logger.info("Collection name: %s", collection_name)
+    logger.info("User ID from JWT: %s", user_id)
+    logger.info("Request URL: %s", request.url)
+    logger.info("Request query params: %s", dict(request.query_params))
     logger.info("=== END DEBUG FORM DATA WITH DB ===")
 
     return {
@@ -91,7 +94,6 @@ async def test_list_collections(
     """Test endpoint to list collections without authentication."""
     try:
         # Use a mock user ID for testing
-        from core.mock_auth import ensure_mock_user_exists
 
         settings = get_settings()
         mock_user_id = ensure_mock_user_exists(db, settings)
@@ -99,11 +101,11 @@ async def test_list_collections(
         user_collection_service = UserCollectionService(db)
         collections = user_collection_service.get_user_collections(mock_user_id)
 
-        logger.info(f"TEST: Retrieved {len(collections)} collections for mock user {mock_user_id}")
+        logger.info("TEST: Retrieved %d collections for mock user %s", len(collections), str(mock_user_id))
         return collections
 
     except Exception as e:
-        logger.error(f"TEST: Error listing collections: {e!s}", exc_info=True)
+        logger.error("TEST: Error listing collections: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error retrieving collections: {e!s}") from e
 
 
@@ -120,7 +122,6 @@ async def test_list_collections(
 async def list_collections(
     request: Request,
     db: Annotated[Session, Depends(get_db)],
-    settings: Annotated[Settings, Depends(get_settings)],
 ) -> list[CollectionOutput]:
     """List all collections for the authenticated user."""
     try:
@@ -134,11 +135,11 @@ async def list_collections(
         user_collection_service = UserCollectionService(db)
         collections = user_collection_service.get_user_collections(user_id)
 
-        logger.info(f"Retrieved {len(collections)} collections for user {user_id}")
+        logger.info("Retrieved %d collections for user %s", len(collections), user_id)
         return collections
 
     except Exception as e:
-        logger.error(f"Error listing collections: {e!s}", exc_info=True)
+        logger.error("Error listing collections: %s", str(e), exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error retrieving collections: {e!s}") from e
 
 
@@ -195,13 +196,13 @@ def create_collection(
         service = CollectionService(db, settings)
         return service.create_collection(collection_input)
     except ValidationError as e:
-        logger.error(f"Validation error creating collection: {e}")
+        logger.error("Validation error creating collection: %s", str(e))
         raise HTTPException(status_code=400, detail=str(e)) from e
     except NotFoundError as e:
-        logger.error(f"Not found error creating collection: {e}")
+        logger.error("Not found error creating collection: %s", str(e))
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
-        logger.error(f"Error creating collection: {e!s}")
+        logger.error("Error creating collection: %s", str(e))
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -219,7 +220,7 @@ def create_collection(
         500: {"description": "Internal server error"},
     },
 )
-async def create_collection_with_documents(
+async def create_collection_with_documents(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     request: Request,
     db: Annotated[Session, Depends(get_db)],
     settings: Annotated[Settings, Depends(get_settings)],
@@ -253,13 +254,13 @@ async def create_collection_with_documents(
     user_id = current_user.get("uuid")
 
     logger.info("=== COLLECTION ROUTER DEBUG ===")
-    logger.info(f"Creating collection with documents: {collection_name}")
-    logger.info(f"User ID from JWT: {user_id}")
-    logger.info(f"Files count: {len(files)}")
-    logger.info(f"Is private: {is_private}")
-    logger.info(f"Request URL: {request.url}")
-    logger.info(f"Request query params: {dict(request.query_params)}")
-    logger.info(f"Request headers: {dict(request.headers)}")
+    logger.info("Creating collection with documents: %s", collection_name)
+    logger.info("User ID from JWT: %s", user_id)
+    logger.info("Files count: %d", len(files))
+    logger.info("Is private: %s", is_private)
+    logger.info("Request URL: %s", request.url)
+    logger.info("Request query params: %s", dict(request.query_params))
+    logger.info("Request headers: %s", dict(request.headers))
     logger.info("=== END COLLECTION ROUTER DEBUG ===")
 
     try:
@@ -267,16 +268,16 @@ async def create_collection_with_documents(
         collection = collection_service.create_collection_with_documents(
             collection_name, is_private, user_id, files, background_tasks
         )
-        logger.info(f"Collection created successfully: {collection.id}")
+        logger.info("Collection created successfully: %s", str(collection.id))
         return collection
     except ValidationError as e:
-        logger.error(f"Validation error creating collection with documents: {e}")
+        logger.error("Validation error creating collection with documents: %s", str(e))
         raise HTTPException(status_code=400, detail=str(e)) from e
     except NotFoundError as e:
-        logger.error(f"Not found error creating collection with documents: {e}")
+        logger.error("Not found error creating collection with documents: %s", str(e))
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
-        logger.error(f"Error creating collection with documents: {e!s}")
+        logger.error("Error creating collection with documents: %s", str(e))
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -315,7 +316,7 @@ def get_collection(
         # Propagate the HTTPException (e.g., 404 for not found)
         raise e
     except Exception as e:
-        logger.error(f"Error getting collection: {e!s}")
+        logger.error("Error getting collection: %s", str(e))
         raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
@@ -362,7 +363,7 @@ def create_collection_question(
         # Propagate the HTTPException (e.g., 404 for not found)
         raise e
     except Exception as e:
-        logger.error(f"Error creating question for collection {collection_id}: {e}")
+        logger.error("Error creating question for collection %s: %s", str(collection_id), str(e))
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -399,10 +400,10 @@ def get_collection_questions(
         questions = question_service.get_collection_questions(collection_id)
         return [QuestionOutput.model_validate(q) for q in questions]
     except NotFoundError as e:
-        logger.error(f"Not found error getting questions: {e}")
+        logger.error("Not found error getting questions: %s", str(e))
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
-        logger.error(f"Error getting questions for collection {collection_id}: {e}")
+        logger.error("Error getting questions for collection %s: %s", str(collection_id), str(e))
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -439,10 +440,10 @@ def delete_collection_question(
         question_service.delete_question(question_id)
         return None
     except NotFoundError as e:
-        logger.error(f"Not found error deleting question: {e}")
+        logger.error("Not found error deleting question: %s", str(e))
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
-        logger.error(f"Error deleting question {question_id} from collection {collection_id}: {e}")
+        logger.error("Error deleting question %s from collection %s: %s", str(question_id), str(collection_id), str(e))
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -474,10 +475,10 @@ def delete_collection_questions(
         question_service.delete_questions_by_collection(collection_id)
         return Response(status_code=204)
     except NotFoundError as e:
-        logger.error(f"Not found error deleting questions: {e}")
+        logger.error("Not found error deleting questions: %s", str(e))
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
-        logger.error(f"Error deleting questions for collection {collection_id}: {e}")
+        logger.error("Error deleting questions for collection {collection_id}: %s", str(e))
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -512,10 +513,10 @@ def delete_collection(
         service.delete_collection(collection_id)
         return Response(status_code=204)
     except NotFoundError as e:
-        logger.error(f"Not found error deleting collection: {e}")
+        logger.error("Not found error deleting collection: %s", str(e))
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
-        logger.error(f"Error deleting collection: {e!s}")
+        logger.error("Error deleting collection: %s", str(e))
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -548,10 +549,10 @@ def get_collection_users(collection_id: UUID4, db: Annotated[Session, Depends(ge
         service = UserCollectionService(db)
         return service.get_collection_users(collection_id)
     except NotFoundError as e:
-        logger.error(f"Not found error getting collection users: {e}")
+        logger.error("Not found error getting collection users: %s", str(e))
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
-        logger.error(f"Error getting collection users: {e!s}")
+        logger.error("Error getting collection users: %s", str(e))
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -581,10 +582,10 @@ def remove_all_users_from_collection(collection_id: UUID4, db: Annotated[Session
         service.remove_all_users_from_collection(collection_id)
         return Response(status_code=204)
     except NotFoundError as e:
-        logger.error(f"Not found error removing users from collection: {e}")
+        logger.error("Not found error removing users from collection: %s", str(e))
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
-        logger.error(f"Error removing users from collection: {e!s}")
+        logger.error("Error removing users from collection: %s", str(e))
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -619,10 +620,10 @@ def get_collection_files(
         service = FileManagementService(db, settings)
         return service.get_files(collection_id)
     except NotFoundError as e:
-        logger.error(f"Not found error getting collection files: {e}")
+        logger.error("Not found error getting collection files: %s", str(e))
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
-        logger.error(f"Error getting collection files: {e!s}")
+        logger.error("Error getting collection files: %s", str(e))
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -660,14 +661,14 @@ def get_file_path(
         service = FileManagementService(db, settings)
         file_path = service.get_file_path(collection_id, filename)
         if not file_path.exists():
-            logger.error(f"File not found: {filename}")
+            logger.error("File not found: %s", filename)
             raise HTTPException(status_code=404, detail="File not found")
         return {"file_path": str(file_path)}
     except NotFoundError as e:
-        logger.error(f"Not found error getting file path: {e}")
+        logger.error("Not found error getting file path: %s", str(e))
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
-        logger.error(f"Error getting file path: {e!s}")
+        logger.error("Error getting file path: %s", str(e))
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -704,13 +705,13 @@ def delete_files(
         service = FileManagementService(db, settings)
         service.delete_files(collection_id, doc_delete.filenames)
     except ValidationError as e:
-        logger.error(f"Validation error deleting files: {e}")
+        logger.error("Validation error deleting files: %s", str(e))
         raise HTTPException(status_code=400, detail=str(e)) from e
     except NotFoundError as e:
-        logger.error(f"Not found error deleting files: {e}")
+        logger.error("Not found error deleting files: %s", str(e))
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
-        logger.error(f"Error deleting files: {e!s}")
+        logger.error("Error deleting files: %s", str(e))
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -753,11 +754,42 @@ def update_file_metadata(
         service = FileManagementService(db, settings)
         return service.update_file_metadata(collection_id, file_id, metadata)
     except ValidationError as e:
-        logger.error(f"Validation error updating file metadata: {e}")
+        logger.error("Validation error updating file metadata: %s", str(e))
         raise HTTPException(status_code=400, detail=str(e)) from e
     except NotFoundError as e:
-        logger.error(f"Not found error updating file metadata: {e}")
+        logger.error("Not found error updating file metadata: %s", str(e))
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
-        logger.error(f"Error updating file metadata: {e!s}")
+        logger.error("Error updating file metadata: %s", str(e))
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/cleanup-orphaned")
+async def cleanup_orphaned_collections(
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> dict:
+    """
+    Clean up orphaned collections from the vector database.
+
+    This endpoint identifies collections that exist in the vector database (Milvus)
+    but have no corresponding record in PostgreSQL, and removes them.
+
+    Args:
+        db (Session): The database session
+        settings (Settings): Application settings
+
+    Returns:
+        dict: Summary of the cleanup operation with counts
+
+    Raises:
+        HTTPException: If cleanup operation fails
+    """
+    try:
+        service = CollectionService(db, settings)
+        summary = service.cleanup_orphaned_vector_collections()
+        logger.info("Orphaned collection cleanup completed: %s", str(summary))
+        return summary
+    except Exception as e:
+        logger.error("Error during orphaned collection cleanup: %s", str(e))
+        raise HTTPException(status_code=500, detail=f"Cleanup failed: {e!s}") from e

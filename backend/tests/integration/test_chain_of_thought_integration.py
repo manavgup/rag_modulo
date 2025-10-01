@@ -8,10 +8,10 @@ from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
-from sqlalchemy.orm import Session
-
 from core.config import Settings
 from core.custom_exceptions import ValidationError
+from sqlalchemy.orm import Session
+
 from rag_solution.schemas.pipeline_schema import PipelineResult, QueryResult
 
 
@@ -236,10 +236,11 @@ class TestChainOfThoughtSearchIntegration:
 
     async def test_cot_vector_store_integration(self, test_collection, db_session):
         """Test CoT integration with vector store operations."""
+        from vectordbs.data_types import DocumentChunkMetadata, DocumentChunkWithScore, Source
+
         from rag_solution.schemas.pipeline_schema import PipelineResult, QueryResult
         from rag_solution.schemas.search_schema import SearchInput
         from rag_solution.services.search_service import SearchService  # type: ignore
-        from vectordbs.data_types import DocumentChunkMetadata, DocumentChunkWithScore, Source
 
         search_input = SearchInput(
             question="How do neural networks learn from data?",
@@ -620,9 +621,10 @@ class TestChainOfThoughtVectorStoreIntegration:
 
     async def test_cot_milvus_integration(self):
         """Test CoT with Milvus vector store."""
+        from vectordbs.milvus_store import MilvusStore
+
         from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
         from rag_solution.services.chain_of_thought_service import ChainOfThoughtService  # type: ignore
-        from vectordbs.milvus_store import MilvusStore
 
         mock_vector_store = AsyncMock(spec=MilvusStore)
         mock_vector_store.query.return_value = [

@@ -1,8 +1,8 @@
+from core.custom_exceptions import NotFoundException
+from core.logging_utils import get_logger
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
-from core.custom_exceptions import NotFoundException
-from core.logging_utils import get_logger
 from rag_solution.repository.llm_parameters_repository import LLMParametersRepository
 from rag_solution.schemas.llm_parameters_schema import (
     LLMParametersInput,

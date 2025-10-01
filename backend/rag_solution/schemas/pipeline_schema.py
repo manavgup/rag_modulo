@@ -7,9 +7,9 @@ from enum import Enum
 from typing import Any
 
 from pydantic import UUID4, BaseModel, ConfigDict, Field, field_validator, model_validator
+from vectordbs.data_types import QueryResult
 
 from rag_solution.models.pipeline import PipelineConfig as PipelineModel
-from vectordbs.data_types import QueryResult
 
 
 class ChunkingStrategy(str, Enum):

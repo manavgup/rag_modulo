@@ -33,11 +33,14 @@ from rag_solution.router.auth_router import router as auth_router
 # Routers
 from rag_solution.router.chat_router import router as chat_router
 from rag_solution.router.collection_router import router as collection_router
+from rag_solution.router.conversation_router import router as conversation_router
+from rag_solution.router.dashboard_router import router as dashboard_router
 from rag_solution.router.health_router import router as health_router
 from rag_solution.router.search_router import router as search_router
 from rag_solution.router.team_router import router as team_router
 from rag_solution.router.token_warning_router import router as token_warning_router
 from rag_solution.router.user_router import router as user_router
+from rag_solution.router.websocket_router import router as websocket_router
 
 # Services
 from rag_solution.services.system_initialization_service import SystemInitializationService
@@ -153,12 +156,22 @@ app.add_middleware(AuthenticationMiddleware)
 # Routers
 app.include_router(auth_router)
 app.include_router(chat_router)
+app.include_router(conversation_router)
+app.include_router(dashboard_router)
 app.include_router(health_router)
 app.include_router(collection_router)
 app.include_router(user_router)
 app.include_router(team_router)
 app.include_router(search_router)
 app.include_router(token_warning_router)
+app.include_router(websocket_router)
+
+
+# Root endpoint
+@app.get("/")
+async def root() -> dict[str, str]:
+    """Root endpoint that provides basic API information."""
+    return {"message": "RAG Modulo API", "version": "1.0.0", "docs": "/docs", "health": "/api/health"}
 
 
 # -------------------------------------------

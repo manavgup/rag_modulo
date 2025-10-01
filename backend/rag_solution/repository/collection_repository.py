@@ -1,3 +1,6 @@
+"""Collection repository for managing collection entities in the database."""
+
+import builtins
 import logging
 from typing import Any
 
@@ -71,10 +74,11 @@ class CollectionRepository:
                 raise NotFoundError(resource_type="Collection", resource_id="unknown")
             return self._collection_to_output(refreshed_collection)
         except (NotFoundError, AlreadyExistsError, ValidationError):
+            self.db.rollback()
             raise
         except SQLAlchemyError as e:
             self.db.rollback()
-            logger.error(f"Error creating collection: {e!s}")
+            logger.error("Error creating collection: %s", str(e))
             raise
 
     def get(self, collection_id: UUID4) -> CollectionOutput:
@@ -102,12 +106,24 @@ class CollectionRepository:
                 raise NotFoundError(resource_type="Collection", resource_id=str(collection_id))
             return self._collection_to_output(collection)
         except (NotFoundError, AlreadyExistsError, ValidationError):
+            self.db.rollback()
             raise
         except SQLAlchemyError as e:
-            logger.error(f"Error getting collection {collection_id}: {e!s}")
+            logger.error("Error getting collection %s: %s", str(collection_id), str(e))
             raise
 
     def get_user_collections(self, user_id: UUID4) -> list[CollectionOutput]:
+        """Get all collections for a specific user.
+
+        Args:
+            user_id: The UUID of the user
+
+        Returns:
+            List of CollectionOutput objects for the user
+
+        Raises:
+            SQLAlchemyError: If there's a database error
+        """
         try:
             collections = (
                 self.db.query(Collection)
@@ -118,9 +134,10 @@ class CollectionRepository:
             )
             return [self._collection_to_output(collection) for collection in collections]
         except (NotFoundError, AlreadyExistsError, ValidationError):
+            self.db.rollback()
             raise
         except SQLAlchemyError as e:
-            logger.error(f"Error getting collections for user {user_id}: {e!s}")
+            logger.error("Error getting collections for user %s: %s", str(user_id), str(e))
             raise
 
     def get_by_name(self, name: str) -> CollectionOutput | None:
@@ -143,7 +160,7 @@ class CollectionRepository:
                 return None
             return self._collection_to_output(collection)
         except SQLAlchemyError as e:
-            logger.error(f"Error getting collection by name {name}: {e!s}")
+            logger.error("Error getting collection by name %s: %s", name, str(e))
             raise
 
     def update(self, collection_id: UUID4, collection_update: dict) -> CollectionOutput:
@@ -184,9 +201,10 @@ class CollectionRepository:
                 raise NotFoundError(resource_type="Collection", resource_id=str(collection_id))
             return self._collection_to_output(collection)
         except (NotFoundError, AlreadyExistsError, ValidationError):
+            self.db.rollback()
             raise
         except SQLAlchemyError as e:
-            logger.error(f"Error updating collection {collection_id}: {e!s}")
+            logger.error("Error updating collection %s: %s", str(collection_id), str(e))
             self.db.rollback()
             raise
 
@@ -211,13 +229,26 @@ class CollectionRepository:
                 return True
             return False
         except (NotFoundError, AlreadyExistsError, ValidationError):
+            self.db.rollback()
             raise
         except SQLAlchemyError as e:
-            logger.error(f"Error deleting collection {collection_id}: {e!s}")
+            logger.error("Error deleting collection %s: %s", str(collection_id), str(e))
             self.db.rollback()
             raise
 
     def list(self, skip: int = 0, limit: int = 100) -> list[CollectionOutput]:
+        """List collections with pagination.
+
+        Args:
+            skip: Number of records to skip
+            limit: Maximum number of records to return
+
+        Returns:
+            List of CollectionOutput objects
+
+        Raises:
+            SQLAlchemyError: If there's a database error
+        """
         try:
             collections = (
                 self.db.query(Collection)
@@ -228,9 +259,28 @@ class CollectionRepository:
             )
             return [self._collection_to_output(collection) for collection in collections]
         except (NotFoundError, AlreadyExistsError, ValidationError):
+            self.db.rollback()
             raise
         except SQLAlchemyError as e:
-            logger.error(f"Error listing collections: {e!s}")
+            logger.error("Error listing collections: %s", str(e))
+            raise
+
+    def get_all_collections(self) -> builtins.list[Collection]:
+        """
+        Get all collections from the database.
+
+        Returns:
+            list[Collection]: List of all Collection entities
+
+        Raises:
+            SQLAlchemyError: If there's an error during database operations
+        """
+        try:
+            collections = self.db.query(Collection).all()
+            logger.info("Retrieved %d collections from database", len(collections))
+            return collections
+        except SQLAlchemyError as e:
+            logger.error("Error retrieving all collections: %s", str(e))
             raise
 
     @staticmethod

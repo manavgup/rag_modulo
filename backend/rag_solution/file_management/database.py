@@ -3,11 +3,10 @@ import logging
 import os
 from collections.abc import Generator
 
+from core.config import Settings, get_settings
 from sqlalchemy import URL, create_engine
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
-
-from core.config import Settings, get_settings
 
 # Configure logging only if not in test environment
 if not os.environ.get("PYTEST_CURRENT_TEST"):

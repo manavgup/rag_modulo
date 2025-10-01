@@ -28,9 +28,9 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Ignore node_modules, experiments and webui directory
+# Ignore node_modules, experiments and frontend directory
 node_modules/
-webui/
+frontend/
 experiments/
 
 # Ignore mypy cache

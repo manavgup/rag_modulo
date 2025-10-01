@@ -10,14 +10,14 @@ from datetime import datetime
 from uuid import UUID
 
 import pytest
+from core.config import Settings, get_settings
+from core.mock_auth import ensure_mock_user_exists
 from fastapi import UploadFile
 from fastapi.testclient import TestClient
+from main import app
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from core.config import Settings, get_settings
-from core.mock_auth import ensure_mock_user_exists
-from main import app
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.collection_schema import CollectionStatus
 from rag_solution.services.collection_service import CollectionService
@@ -135,7 +135,7 @@ class TestTokenTrackingE2ETDD:
         logger = logging.getLogger(__name__)
 
         # Create a mock file
-        mock_file = create_mock_file()
+        create_mock_file()
 
         # Use BytesIO for test isolation instead of file system access
         from io import BytesIO

@@ -233,7 +233,7 @@ class TestTokenTrackingServiceTDD:
         """Unit: Test conversation warning for long session history."""
         # Create history where recent 5 messages exceed 80% of context limit
         session_history = []
-        for i in range(7):  # 7 messages total
+        for _i in range(7):  # 7 messages total
             session_history.append(
                 LLMUsage(
                     prompt_tokens=700,  # Each message uses 700 tokens

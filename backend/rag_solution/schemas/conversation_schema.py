@@ -9,7 +9,10 @@ from enum import Enum
 from typing import Any
 from uuid import uuid4
 
+from core.logging_utils import get_logger
 from pydantic import UUID4, BaseModel, ConfigDict, Field, field_validator
+
+logger = get_logger("conversation.schema")
 
 
 class SessionStatus(str, Enum):
@@ -67,6 +70,32 @@ class ExportFormat(str, Enum):
     PDF = "pdf"
 
 
+class ConversationSessionCreateInput(BaseModel):
+    """Input schema for creating a conversation session (without user_id)."""
+
+    collection_id: UUID4 = Field(..., description="ID of the collection to chat with")
+    session_name: str = Field(..., min_length=1, max_length=255, description="Name of the session")
+    context_window_size: int = Field(default=4000, ge=1000, le=8000, description="Size of context window")
+    max_messages: int = Field(default=50, ge=10, le=200, description="Maximum number of messages")
+    is_archived: bool = Field(default=False, description="Whether the session is archived")
+    is_pinned: bool = Field(default=False, description="Whether the session is pinned")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
+
+    model_config = {"validate_assignment": True, "str_strip_whitespace": True, "extra": "forbid"}
+
+    @field_validator("context_window_size", mode="before")
+    @classmethod
+    def validate_context_window(cls, v: Any) -> int:
+        """Validate context window size."""
+        if isinstance(v, str):
+            try:
+                return int(v)
+            except ValueError as e:
+                msg = "Context window size must be a valid integer"
+                raise ValueError(msg) from e
+        return v
+
+
 class ConversationSessionInput(BaseModel):
     """Input schema for creating a conversation session."""
 
@@ -89,7 +118,7 @@ class ConversationSessionInput(BaseModel):
             return int(v)  # Truncate instead of round
         return v
 
-    def to_output(
+    def to_output(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         session_id: UUID4,
         status: SessionStatus = SessionStatus.ACTIVE,
@@ -138,9 +167,6 @@ class ConversationSessionOutput(BaseModel):
     @classmethod
     def model_validate(cls, obj: Any, **kwargs) -> "ConversationSessionOutput":
         """Override model_validate to handle ConversationSession database models."""
-        from core.logging_utils import get_logger
-
-        logger = get_logger("conversation.schema")
 
         # Check if the input is a ConversationSession database model
         if hasattr(obj, "__tablename__") and getattr(obj, "__tablename__", None) == "conversation_sessions":
@@ -152,20 +178,19 @@ class ConversationSessionOutput(BaseModel):
             )
 
         # Otherwise use default model validation
-        logger.info(f"🔍 SCHEMA DEBUG: model_validate() called with {type(obj)} - using default validation")
+        logger.info("🔍 SCHEMA DEBUG: model_validate() called with %s - using default validation", type(obj))
         return super().model_validate(obj, **kwargs)
 
     @classmethod
     def from_db_session(cls, session: Any, message_count: int = 0) -> "ConversationSessionOutput":
         """Create ConversationSessionOutput from database session model."""
-        from core.logging_utils import get_logger
-
-        logger = get_logger("conversation.schema")
         try:
             # Debug logging
             logger.info("🔍 SCHEMA DEBUG: from_db_session() called")
-            logger.info(f"🔍 SCHEMA DEBUG: session.id={session.id}, type={type(session.id)}")
-            logger.info(f"🔍 SCHEMA DEBUG: session.status={session.status}, type={type(session.status)}")
+            logger.info("🔍 SCHEMA DEBUG: session.id=%s", str(session.id))
+            logger.info("🔍 SCHEMA DEBUG: session.id type=%s", type(session.id))
+            logger.info("🔍 SCHEMA DEBUG: session.status=%s", str(session.status))
+            logger.info("🔍 SCHEMA DEBUG: session.status type=%s", type(session.status))
 
             # Ensure status is properly converted
             status_value = session.status
@@ -173,7 +198,8 @@ class ConversationSessionOutput(BaseModel):
                 # Convert string to SessionStatus enum
                 status_value = SessionStatus(status_value)
 
-            logger.info(f"🔍 SCHEMA DEBUG: status_value={status_value}, type={type(status_value)}")
+            logger.info("🔍 SCHEMA DEBUG: status_value=%s", str(status_value))
+            logger.info("🔍 SCHEMA DEBUG: status_value type=%s", type(status_value))
 
             return cls(
                 id=session.id,
@@ -190,10 +216,10 @@ class ConversationSessionOutput(BaseModel):
                 metadata=session.session_metadata or {},
                 message_count=message_count,
             )
-        except Exception as e:
-            logger.error(f"🔍 SCHEMA DEBUG: Error in from_db_session: {e}")
-            logger.error(f"🔍 SCHEMA DEBUG: Exception type: {type(e)}")
-            logger.error(f"🔍 SCHEMA DEBUG: session type: {type(session)}")
+        except (ValueError, KeyError, AttributeError) as e:
+            logger.error("🔍 SCHEMA DEBUG: Error in from_db_session: %s", str(e))
+            logger.error("🔍 SCHEMA DEBUG: Exception type: %s", type(e))
+            logger.error("🔍 SCHEMA DEBUG: session type: %s", type(session))
             logger.error(
                 f"🔍 SCHEMA DEBUG: session.__dict__: {session.__dict__ if hasattr(session, '__dict__') else 'No __dict__'}"
             )
@@ -243,17 +269,16 @@ class ConversationMessageOutput(BaseModel):
     def from_db_message(cls, message: Any) -> "ConversationMessageOutput":
         """Create ConversationMessageOutput from database message model."""
         # Debug logging for token count extraction
-        from core.logging_utils import get_logger
-
-        logger = get_logger("conversation.schema")
         logger.info("🔍 SCHEMA DEBUG: from_db_message() called")
-        logger.info(f"🔍 SCHEMA DEBUG: message.token_count={message.token_count} (type: {type(message.token_count)})")
-        logger.info(f"🔍 SCHEMA DEBUG: message.id={message.id}")
+        logger.info(
+            "🔍 SCHEMA DEBUG: message.token_count=%d (type: %s)", message.token_count, type(message.token_count)
+        )
+        logger.info("🔍 SCHEMA DEBUG: message.id=%s", str(message.id))
 
         # Handle metadata properly - it's stored as a dict in the database
         metadata_value = None
         if message.message_metadata:
-            logger.info(f"🔍 SCHEMA DEBUG: message.message_metadata type: {type(message.message_metadata)}")
+            logger.info("🔍 SCHEMA DEBUG: message.message_metadata type: %s", type(message.message_metadata))
             logger.info(
                 f"🔍 SCHEMA DEBUG: message.message_metadata keys: {list(message.message_metadata.keys()) if isinstance(message.message_metadata, dict) else 'Not a dict'}"
             )
@@ -265,16 +290,16 @@ class ConversationMessageOutput(BaseModel):
                     )
                     metadata_value = MessageMetadata(**message.message_metadata)
                     logger.info("🔍 SCHEMA DEBUG: Successfully created MessageMetadata")
-                except Exception as e:
-                    logger.error(f"Failed to create MessageMetadata from database dict: {e}")
-                    logger.error(f"Database metadata: {message.message_metadata}")
+                except (ValueError, KeyError, AttributeError) as e:
+                    logger.error("Failed to create MessageMetadata from database dict: %s", str(e))
+                    logger.error("Database metadata: %s", str(message.message_metadata))
                     metadata_value = None
             elif isinstance(message.message_metadata, MessageMetadata):
                 # It's already a MessageMetadata object
                 metadata_value = message.message_metadata
                 logger.info("🔍 SCHEMA DEBUG: Using existing MessageMetadata object")
             else:
-                logger.warning(f"Unexpected metadata type: {type(message.message_metadata)}")
+                logger.warning("Unexpected metadata type: %s", type(message.message_metadata))
 
         data = {
             "id": message.id,
@@ -288,11 +313,11 @@ class ConversationMessageOutput(BaseModel):
             "execution_time": message.execution_time,
         }
 
-        logger.info(f"🔍 SCHEMA DEBUG: data dict token_count={data['token_count']}")
+        logger.info("🔍 SCHEMA DEBUG: data dict token_count=%d", data["token_count"])
 
         result = cls.model_validate(data)
 
-        logger.info(f"🔍 SCHEMA DEBUG: result.token_count={result.token_count}")
+        logger.info("🔍 SCHEMA DEBUG: result.token_count=%d", result.token_count)
 
         return result
 

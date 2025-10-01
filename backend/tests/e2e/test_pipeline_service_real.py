@@ -5,10 +5,10 @@ Real TDD tests for PipelineService - testing actual functionality to find real b
 from uuid import uuid4
 
 import pytest
+from core.config import Settings
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from core.config import Settings
 from rag_solution.schemas.search_schema import SearchInput
 from rag_solution.services.pipeline_service import PipelineService
 

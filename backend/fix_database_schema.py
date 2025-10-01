@@ -8,9 +8,9 @@ import sys
 backend_dir = os.path.abspath(os.path.dirname(__file__))
 sys.path.insert(0, backend_dir)
 
-from sqlalchemy import text
+from sqlalchemy import text  # noqa: E402
 
-from rag_solution.file_management.database import engine
+from rag_solution.file_management.database import engine  # noqa: E402
 
 
 def fix_database_schema():

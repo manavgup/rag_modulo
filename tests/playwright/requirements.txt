@@ -1,0 +1,24 @@
+# Playwright test dependencies for RAG Modulo
+
+# Core testing framework
+pytest>=7.4.0
+pytest-playwright>=0.4.0
+pytest-timeout>=2.1.0
+pytest-xdist>=3.3.0  # For parallel test execution
+
+# Playwright browser automation
+playwright>=1.40.0
+
+# HTTP requests for API testing
+requests>=2.31.0
+
+# Test utilities
+pytest-mock>=3.11.0
+pytest-cov>=4.1.0  # For coverage reporting
+
+# Development and debugging
+pytest-html>=3.2.0  # HTML test reports
+pytest-json-report>=1.5.0  # JSON test reports
+
+# Environment and configuration
+python-dotenv>=1.0.0

@@ -1,0 +1,69 @@
+{
+  "name": "rag-modulo-agentic-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@babel/plugin-proposal-private-property-in-object": "^7.18.6",
+    "@headlessui/react": "^2.2.9",
+    "@heroicons/react": "^2.2.0",
+    "@testing-library/jest-dom": "^5.17.0",
+    "@testing-library/react": "^13.4.0",
+    "@testing-library/user-event": "^13.5.0",
+    "autoprefixer": "^10.4.21",
+    "axios": "^1.7.2",
+    "d3": "^7.8.5",
+    "jwt-decode": "^3.1.2",
+    "oidc-client": "^1.11.5",
+    "react": "^18.3.1",
+    "react-dnd": "^16.0.1",
+    "react-dnd-html5-backend": "^16.0.1",
+    "react-dom": "^18.3.1",
+    "react-flow-renderer": "^10.3.17",
+    "react-pdf": "^10.1.0",
+    "react-router-dom": "^6.24.0",
+    "react-scripts": "5.0.1",
+    "tailwindcss": "^3.4.17",
+    "web-vitals": "^2.1.4"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "DISABLE_ESLINT_PLUGIN=true react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "dev": "WDS_SOCKET_PORT=3000 CHOKIDAR_USEPOLLING=true WATCHPACK_POLLING=true FAST_REFRESH=false react-scripts start",
+    "audit": "npm audit",
+    "audit:fix": "npm audit fix",
+    "audit:fix-force": "npm audit fix --force",
+    "outdated": "npm outdated",
+    "update": "npm update",
+    "clean": "rm -rf node_modules package-lock.json && npm install"
+  },
+  "proxy": "http://backend:8000",
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "sass": "^1.77.6",
+    "sass-resources-loader": "^2.2.5"
+  },
+  "overrides": {
+    "nth-check": ">=2.0.1",
+    "postcss": ">=8.4.31",
+    "webpack-dev-server": "4.15.2"
+  }
+}

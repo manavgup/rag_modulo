@@ -5,17 +5,17 @@ from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import pytest
-from fastapi import HTTPException
-from sqlalchemy.orm import Session
-
 from core.config import Settings
 from core.custom_exceptions import ConfigurationError, LLMProviderError, NotFoundError, ValidationError
+from fastapi import HTTPException
+from sqlalchemy.orm import Session
+from vectordbs.data_types import DocumentChunk, QueryResult
+
 from rag_solution.schemas.collection_schema import CollectionOutput, CollectionStatus
 from rag_solution.schemas.file_schema import FileMetadata, FileOutput
 from rag_solution.schemas.pipeline_schema import PipelineResult
 from rag_solution.schemas.search_schema import SearchInput, SearchOutput
 from rag_solution.services.search_service import SearchService, handle_search_errors
-from vectordbs.data_types import DocumentChunk, QueryResult
 
 
 @pytest.mark.unit

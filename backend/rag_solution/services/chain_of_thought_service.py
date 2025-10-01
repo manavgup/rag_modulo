@@ -7,12 +7,12 @@ from uuid import UUID
 if TYPE_CHECKING:
     from rag_solution.services.search_service import SearchService
 
-from pydantic_core import ValidationError as PydanticValidationError
-from sqlalchemy.orm import Session
-
 from core.config import Settings
 from core.custom_exceptions import LLMProviderError, ValidationError
 from core.logging_utils import get_logger
+from pydantic_core import ValidationError as PydanticValidationError
+from sqlalchemy.orm import Session
+
 from rag_solution.generation.providers.base import LLMBase
 from rag_solution.schemas.chain_of_thought_schema import (
     ChainOfThoughtConfig,

@@ -9,12 +9,12 @@ import os
 import uuid
 from collections.abc import AsyncIterator
 
-from docx import Document as DocxDocument
-
 from core.custom_exceptions import DocumentProcessingError
+from docx import Document as DocxDocument
+from vectordbs.data_types import Document
+
 from rag_solution.data_ingestion.base_processor import BaseProcessor
 from rag_solution.doc_utils import get_document
-from vectordbs.data_types import Document
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)

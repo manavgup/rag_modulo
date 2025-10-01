@@ -4,9 +4,9 @@ from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
+from core.config import Settings, get_settings
 from pydantic import ValidationError as PydanticValidationError
 
-from core.config import Settings, get_settings
 from rag_solution.core.exceptions import ValidationError
 from rag_solution.schemas.conversation_schema import (
     ConversationSessionInput,
@@ -38,7 +38,7 @@ class TestConversationServiceSimple:
         assert service.db is not None
         assert service.settings is not None
 
-    def test_create_session_validates_empty_name(self, service: ConversationService) -> None:
+    def test_create_session_validates_empty_name(self, _service: ConversationService) -> None:
         """Test create_session validates empty session name at Pydantic level."""
         with pytest.raises(PydanticValidationError):  # Pydantic validation will raise
             ConversationSessionInput(

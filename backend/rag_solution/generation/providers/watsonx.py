@@ -6,6 +6,9 @@ import time
 from collections.abc import Generator, Sequence
 from typing import Any
 
+from core.config import get_settings
+from core.custom_exceptions import LLMProviderError, NotFoundError, ValidationError
+from core.logging_utils import get_logger
 from ibm_watsonx_ai import APIClient, Credentials  # type: ignore[import-untyped]
 from ibm_watsonx_ai.foundation_models import (  # type: ignore[import-untyped]
     Embeddings as wx_Embeddings,
@@ -20,14 +23,11 @@ from ibm_watsonx_ai.metanames import (
     GenTextParamsMetaNames as GenParams,
 )
 from pydantic import UUID4
+from vectordbs.data_types import EmbeddingsList
 
-from core.config import get_settings
-from core.custom_exceptions import LLMProviderError, NotFoundError, ValidationError
-from core.logging_utils import get_logger
 from rag_solution.schemas.llm_model_schema import ModelType
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
 from rag_solution.schemas.prompt_template_schema import PromptTemplateBase
-from vectordbs.data_types import EmbeddingsList
 
 from .base import LLMBase
 

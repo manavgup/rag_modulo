@@ -24,11 +24,17 @@ RAG Modulo is a production-ready Retrieval-Augmented Generation platform that pr
 
 <div align="center">
 
-| 🧠 **AI-Powered** | 🔍 **Advanced Search** | 🏗️ **Flexible Architecture** | 🚀 **Production Ready** |
+| 🧠 **AI-Powered** | 🔍 **Advanced Search** | 💬 **Interactive UI** | 🚀 **Production Ready** |
 |:---:|:---:|:---:|:---:|
-| Chain of Thought reasoning<br/>Token tracking & monitoring<br/>Multi-LLM provider support | Vector similarity search<br/>Hybrid search strategies<br/>Source attribution | Service-based design<br/>Repository pattern<br/>Dependency injection | Docker containerized<br/>CI/CD pipeline<br/>Comprehensive testing |
+| Chain of Thought reasoning<br/>Token tracking & monitoring<br/>Multi-LLM provider support | Vector similarity search<br/>Hybrid search strategies<br/>Source attribution | Chat interface with accordions<br/>Real-time WebSocket support<br/>Document source visualization | Docker containerized<br/>CI/CD pipeline<br/>Comprehensive testing |
 
 </div>
+
+#### 🎨 Frontend Features
+- **Enhanced Search Interface**: Interactive chat with document collections featuring visual accordions for sources, CoT reasoning, and token usage
+- **Real-time Communication**: WebSocket integration for live updates and streaming responses
+- **Smart Data Display**: Automatic document name resolution and chunk-level page attribution
+- **Responsive Design**: Tailwind CSS-based responsive layout with proper text wrapping and overflow handling
 
 ### 🎉 Current Status: **Production Ready**
 

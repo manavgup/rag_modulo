@@ -1,9 +1,9 @@
-from pydantic import UUID4, SecretStr
-from sqlalchemy.orm import Session
-
 from core.config import Settings
 from core.custom_exceptions import LLMProviderError
 from core.logging_utils import get_logger
+from pydantic import UUID4, SecretStr
+from sqlalchemy.orm import Session
+
 from rag_solution.schemas.llm_model_schema import LLMModelInput, ModelType
 from rag_solution.schemas.llm_provider_schema import (
     LLMProviderInput,

@@ -13,13 +13,19 @@ from typing import Annotated, Any
 
 import httpx
 import jwt
+from auth.oidc import create_access_token, oauth
+from core.config import Settings, get_settings
+from core.mock_auth import (
+    create_mock_user_data,
+    ensure_mock_user_exists,
+    is_bypass_mode_active,
+    is_mock_token,
+)
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel, HttpUrl
 from sqlalchemy.orm import Session
 
-from auth.oidc import create_access_token, oauth
-from core.config import Settings, get_settings
 from rag_solution.core.device_flow import (
     DeviceFlowConfig,
     DeviceFlowRecord,
@@ -247,9 +253,42 @@ async def logout(request: Request) -> JSONResponse:
 
 
 @router.get("/userinfo", response_model=UserInfo)
-async def get_userinfo(request: Request, settings: Annotated[Settings, Depends(get_settings)]) -> JSONResponse:
+async def get_userinfo(
+    request: Request, settings: Annotated[Settings, Depends(get_settings)], db: Session = Depends(get_db)
+) -> JSONResponse:
     """Retrieve the user information from the JWT Token."""
     logger.info("Received request for /userinfo")
+
+    # Check if authentication bypass is active
+
+    if is_bypass_mode_active():
+        logger.info("Authentication bypass mode active - returning mock user info")
+        try:
+            # Ensure mock user exists in database
+            user_uuid = ensure_mock_user_exists(db, settings)
+            user_data = create_mock_user_data(str(user_uuid))
+
+            user_info = UserInfo(
+                sub=user_data.get("id", "test_user_id"),
+                name=user_data.get("name", "Test User"),
+                email=user_data.get("email", "test@example.com"),
+                uuid=user_data.get("uuid", str(user_uuid)),
+                role=user_data.get("role", "admin"),
+            )
+            logger.info("Retrieved mock user info in bypass mode: %s", user_info.email)
+            return JSONResponse(content=user_info.model_dump())
+        except (ValueError, KeyError, AttributeError) as e:
+            logger.error("Failed to create mock user info: %s", e)
+            # Fallback to basic mock data
+            user_info = UserInfo(
+                sub="test_user_id",
+                name="Test User",
+                email="test@example.com",
+                uuid="1aa5093c-084e-4f20-905b-cf5e18301b1c",
+                role="admin",
+            )
+            return JSONResponse(content=user_info.model_dump())
+
     authorization = request.headers.get("Authorization")
     if not authorization:
         logger.warning("No Authorization header found")
@@ -262,7 +301,6 @@ async def get_userinfo(request: Request, settings: Annotated[Settings, Depends(g
             raise HTTPException(status_code=401, detail="Invalid authorization scheme")
 
         # Special handling for mock token (only in testing environments)
-        from core.mock_auth import is_mock_token
 
         if is_mock_token(token) and os.getenv("TESTING", "false").lower() == "true":
             logger.info("Using mock token for testing (testing environment only)")
@@ -278,8 +316,7 @@ async def get_userinfo(request: Request, settings: Annotated[Settings, Depends(g
                 )
                 logger.info("Retrieved mock user info: %s", user_info.email)
                 return JSONResponse(content=user_info.model_dump())
-            else:
-                raise HTTPException(status_code=401, detail="Mock user not properly initialized")
+            raise HTTPException(status_code=401, detail="Mock user not properly initialized")
 
         logger.info("Decoding JWT token")
         payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
@@ -463,7 +500,7 @@ async def start_cli_auth(
     callback_port = request.callback_port or 8080
     callback_uri = f"http://localhost:{callback_port}/callback"
 
-    auth_url = f"http://localhost:8000/api/auth/login?redirect_uri={callback_uri}&state={state}&source=cli"
+    auth_url = f"{settings.frontend_url}/api/auth/login?redirect_uri={callback_uri}&state={state}&source=cli"
 
     return CLIAuthResponse(auth_url=auth_url, state=state)
 

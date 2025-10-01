@@ -39,6 +39,14 @@ RAG Modulo is a production-ready Retrieval-Augmented Generation platform that pr
 
     [:octicons-arrow-right-24: Learn more](features/search-retrieval.md)
 
+-   :material-monitor:{ .lg .middle } **Interactive Frontend**
+
+    ---
+
+    Modern React interface with accordion displays for sources, reasoning, and token tracking
+
+    [:octicons-arrow-right-24: Learn more](features/frontend-interface.md)
+
 -   :material-cog:{ .lg .middle } **Flexible Architecture**
 
     ---

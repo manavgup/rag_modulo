@@ -1,0 +1,106 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+/* CSS Isolation for Lightweight Components */
+.lightweight-app {
+  /* Reset any Carbon Design System interference */
+  all: initial;
+  font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  line-height: 1.5;
+  color: theme('colors.gray-100');
+  background-color: theme('colors.gray-10');
+  min-height: 100vh;
+  display: block;
+}
+
+.lightweight-app * {
+  box-sizing: border-box;
+}
+
+/* Custom base styles inspired by IBM Carbon */
+@layer base {
+  .lightweight-app {
+    font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+    line-height: 1.5;
+    color: theme('colors.gray-100');
+    background-color: theme('colors.gray-10');
+  }
+}
+
+/* Custom component styles */
+@layer components {
+  .card {
+    @apply bg-white border border-gray-20 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200;
+  }
+
+  .btn-primary {
+    @apply bg-blue-60 hover:bg-blue-70 text-white font-medium px-4 py-2 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-60 focus:ring-offset-2;
+  }
+
+  .btn-secondary {
+    @apply bg-gray-20 hover:bg-gray-30 text-gray-100 font-medium px-4 py-2 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-60 focus:ring-offset-2;
+  }
+
+  .btn-ghost {
+    @apply text-gray-70 hover:text-gray-100 hover:bg-gray-20 font-medium px-3 py-2 rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-60 focus:ring-offset-2;
+  }
+
+  .input-field {
+    @apply border border-gray-40 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-60 focus:border-blue-60 transition-colors duration-200;
+  }
+
+  .status-ready {
+    @apply text-green-50;
+  }
+
+  .status-processing {
+    @apply text-yellow-30;
+  }
+
+  .status-error {
+    @apply text-red-50;
+  }
+
+  .tile {
+    @apply card p-6 cursor-pointer hover:border-blue-60;
+  }
+
+  .header-bar {
+    @apply bg-gray-100 text-white border-b border-gray-80;
+  }
+
+  .sidebar {
+    @apply bg-white border-r border-gray-20;
+  }
+
+  .icon-sm {
+    @apply w-4 h-4;
+  }
+
+  .icon-md {
+    @apply w-5 h-5;
+  }
+
+  .icon-lg {
+    @apply w-6 h-6;
+  }
+}
+
+/* Utility classes */
+@layer utilities {
+  .text-carbon-body {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+
+  .text-carbon-heading {
+    font-size: 1.125rem;
+    line-height: 1.5rem;
+    font-weight: 600;
+  }
+
+  .shadow-carbon {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  }
+}

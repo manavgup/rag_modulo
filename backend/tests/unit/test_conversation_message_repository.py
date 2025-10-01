@@ -275,7 +275,7 @@ class TestConversationMessageRepository:
         mock_db.commit.assert_called_once()
 
     @patch("sqlalchemy.func")
-    def test_get_token_usage_by_session(self, mock_func, repository, mock_db):
+    def test_get_token_usage_by_session(self, _mock_func, repository, mock_db):
         """Test retrieving token usage for a session."""
         session_id = uuid4()
         total_tokens = 150
@@ -293,7 +293,7 @@ class TestConversationMessageRepository:
         mock_db.query.assert_called_once()
 
     @patch("sqlalchemy.func")
-    def test_get_token_usage_by_session_none_result(self, mock_func, repository, mock_db):
+    def test_get_token_usage_by_session_none_result(self, _mock_func, repository, mock_db):
         """Test retrieving token usage when no messages exist."""
         session_id = uuid4()
 

@@ -1,0 +1,40 @@
+# Development Dockerfile for React with optimized hot reloading
+FROM node:18-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Install dependencies for hot reloading and file watching
+RUN apk add --no-cache git curl
+
+# Set environment variables for optimal React dev server performance
+ENV CHOKIDAR_USEPOLLING=true \
+    FAST_REFRESH=true \
+    WATCHPACK_POLLING=true \
+    WDS_SOCKET_HOST=localhost \
+    WDS_SOCKET_PORT=3000 \
+    REACT_APP_FAST_REFRESH=true
+
+# Copy package files first for better caching
+COPY package*.json ./
+
+# Install all dependencies (including dev dependencies)
+RUN npm install --verbose
+
+# Create directories that will be mounted
+RUN mkdir -p src public
+
+# Copy initial source code (this will be overridden by volume mounts in development)
+COPY . .
+
+# Expose development server port
+EXPOSE 3000
+
+# Add healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD curl -f http://localhost:3000 || exit 1
+
+# Start development server with hot reloading and polling
+# --host 0.0.0.0 allows external connections
+# polling ensures file changes are detected in Docker
+CMD ["npm", "start"]

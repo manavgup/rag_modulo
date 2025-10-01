@@ -1,3 +1,5 @@
+"""Collection model for RAG solution database."""
+
 from __future__ import annotations
 
 import uuid
@@ -19,7 +21,7 @@ if TYPE_CHECKING:
     from rag_solution.models.user_collection import UserCollection
 
 
-class Collection(Base):
+class Collection(Base):  # pylint: disable=too-few-public-methods
     """
     Represents a collection entity that groups resources and configurations.
     """
@@ -31,7 +33,9 @@ class Collection(Base):
 
     # ⚙️ Core Attributes
     name: Mapped[str] = mapped_column(String, index=True)
-    vector_db_name: Mapped[str] = mapped_column(String, nullable=False)
+    vector_db_name: Mapped[str] = mapped_column(
+        String, nullable=False
+    )  # Name of the collection in the vector database (e.g., Milvus)
     status: Mapped[CollectionStatus] = mapped_column(
         Enum(CollectionStatus, name="collectionstatus", create_type=False), default=CollectionStatus.CREATED
     )
@@ -57,3 +61,7 @@ class Collection(Base):
 
     def __repr__(self) -> str:
         return f"Collection(id='{self.id}', name='{self.name}', is_private={self.is_private})"
+
+    def is_accessible_by_user(self, user_id: uuid.UUID) -> bool:
+        """Check if a user has access to this collection."""
+        return not self.is_private or any(user_collection.user_id == user_id for user_collection in self.users)

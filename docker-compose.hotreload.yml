@@ -1,0 +1,269 @@
+# Development mode with hot reloading
+name: ${PROJECT_NAME:-rag-modulo}-hotreload
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev  # Use development Dockerfile
+      tags:
+        - rag-modulo/backend:dev-hotreload
+        - rag-modulo/backend:dev
+    ports:
+      - "8000:8000"
+    networks:
+      - app-network
+    restart: unless-stopped
+    working_dir: /app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      milvus-standalone:
+        condition: service_healthy
+      mlflow-server:
+       condition: service_started
+    environment:
+      # Development-specific overrides for hot reloading
+      - SKIP_AUTH=true
+      - COLLECTIONDB_HOST=postgres
+      - WEB_CONCURRENCY=1  # Single worker for development
+      - RUNTIME_EVAL=false
+      - PYTHONPATH=/app
+      - DEVELOPMENT_MODE=true
+      - UVICORN_RELOAD=true  # Explicit reload flag
+    env_file:
+      - .env
+    volumes:
+      - backend_data:/mnt/data
+      # Mount source code for development (READ-WRITE for hot reloading)
+      - ./backend:/app
+      # Mount full project for Dev Container access
+      - ./:/workspaces/rag_modulo
+      # Create writable logs directory
+      - ./logs:/app/logs
+      # Exclude __pycache__ to prevent conflicts
+      - /app/__pycache__
+      - /app/**/__pycache__
+    healthcheck:
+      test: ["CMD", "python", "healthcheck.py"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 5
+
+  frontend-dev:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev  # Optimized dev Dockerfile
+      tags:
+        - rag-modulo/frontend:dev-hotreload
+        - rag-modulo/frontend:dev
+    networks:
+      - app-network
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      # Optimized React development environment
+      - REACT_APP_BACKEND_URL=
+      - CHOKIDAR_USEPOLLING=true  # Enable file watching polling
+      - FAST_REFRESH=true         # Enable React Fast Refresh
+      - WATCHPACK_POLLING=true    # Enable webpack polling
+      - WDS_SOCKET_HOST=localhost # WebSocket host for HMR
+      - WDS_SOCKET_PORT=3000      # WebSocket port for HMR
+      - REACT_APP_FAST_REFRESH=true
+      - GENERATE_SOURCEMAP=true   # Source maps for debugging
+    volumes:
+      # Mount entire source directory for comprehensive hot reloading
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+      # Configuration files
+      - ./frontend/package.json:/app/package.json
+      - ./frontend/tsconfig.json:/app/tsconfig.json
+      - ./frontend/tailwind.config.js:/app/tailwind.config.js
+      - ./frontend/postcss.config.js:/app/postcss.config.js
+      # Additional config files that might change during development
+      - ./frontend/.env:/app/.env
+      - ./frontend/.env.local:/app/.env.local
+      # Exclude node_modules to prevent conflicts and improve performance
+      - /app/node_modules
+      # Exclude build directory
+      - /app/build
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s  # Increased for initial build
+      retries: 3
+
+  # Production frontend (commented out in development)
+  # frontend:
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile
+  #   ...
+
+  # Infrastructure services (without explicit container names to avoid conflicts)
+  postgres:
+    ports:
+      - "5432:5432"
+    image: postgres:13
+    networks:
+      - app-network
+    environment:
+      POSTGRES_DB: ${COLLECTIONDB_NAME}
+      POSTGRES_USER: ${COLLECTIONDB_USER}
+      POSTGRES_PASSWORD: ${COLLECTIONDB_PASS}
+      COLLECTIONDB_NAME: ${COLLECTIONDB_NAME}
+      COLLECTIONDB_USER: ${COLLECTIONDB_USER}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${COLLECTIONDB_USER} -d ${COLLECTIONDB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    ports:
+      - "9001:9001"
+    image: minio/minio:latest
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    volumes:
+      - minio_data:/data
+    command: minio server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - app-network
+
+  milvus-etcd:
+    image: quay.io/coreos/etcd:v3.5.9
+    environment:
+      - ETCD_NAME=etcd
+      - ETCD_DATA_DIR=/etcd-data
+      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
+      - ETCD_ADVERTISE_CLIENT_URLS=http://milvus-etcd:2379
+      - ETCD_LISTEN_PEER_URLS=http://0.0.0.0:2380
+      - ETCD_INITIAL_ADVERTISE_PEER_URLS=http://milvus-etcd:2380
+      - ETCD_INITIAL_CLUSTER=etcd=http://milvus-etcd:2380
+      - ETCD_INITIAL_CLUSTER_TOKEN=etcd-cluster
+      - ETCD_INITIAL_CLUSTER_STATE=new
+    volumes:
+      - etcd_data:/etcd-data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "etcdctl", "--endpoints=http://localhost:2379", "endpoint", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  milvus-standalone:
+    image: milvusdb/milvus:v2.4.4
+    command: ["milvus", "run", "standalone"]
+    ports:
+      - "19530:19530"
+    environment:
+      ETCD_ENDPOINTS: milvus-etcd:2379
+      MINIO_ADDRESS: minio:9000
+      MINIO_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      COMMON_STORAGETYPE: minio
+      MINIO_USE_SSL: false
+      ETCD_USE_SSL: false
+    volumes:
+      - milvus_data:/var/lib/milvus
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    depends_on:
+      milvus-etcd:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  createbuckets:
+    image: minio/mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc config host add myminio http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD;
+      /usr/bin/mc mb --ignore-existing myminio/rag-modulo-mlflow;
+      exit 0;
+      "
+    networks:
+      - app-network
+
+  mlflow-server:
+    ports:
+      - "5001:5000"
+    image: quay.io/mtykhenko/rag-modulo-mlflow:latest
+    environment:
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      MLFLOW_ARTIFACT_URI: s3://rag-modulo-mlflow
+      MLFLOW_BACKEND_STORE_URI: "postgresql+psycopg2://${COLLECTIONDB_USER}:${COLLECTIONDB_PASS}@postgres:5432/${COLLECTIONDB_NAME}"
+      MLFLOW_TRACKING_USERNAME: ${MLFLOW_TRACKING_USERNAME:-mlflow}
+      MLFLOW_TRACKING_PASSWORD: ${MLFLOW_TRACKING_PASSWORD:-mlflow123}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      createbuckets:
+        condition: service_completed_successfully
+    networks:
+      - app-network
+
+volumes:
+  backend_data:
+    driver_opts:
+      type: none
+      device: ${PWD}/volumes/backend
+      o: bind
+  postgres_data:
+    driver_opts:
+      type: none
+      device: ${PWD}/volumes/postgres
+      o: bind
+  etcd_data:
+    driver_opts:
+      type: none
+      device: ${PWD}/volumes/etcd
+      o: bind
+  minio_data:
+    driver_opts:
+      type: none
+      device: ${PWD}/volumes/minio
+      o: bind
+  milvus_data:
+    driver_opts:
+      type: none
+      device: ${PWD}/volumes/milvus
+      o: bind
+
+networks:
+  app-network:
+    driver: bridge
