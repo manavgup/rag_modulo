@@ -6,10 +6,10 @@ including session management, message handling, and conversation statistics.
 
 from uuid import UUID
 
+from core.config import get_settings
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
-from core.config import get_settings
 from rag_solution.core.dependencies import get_current_user
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.conversation_schema import (

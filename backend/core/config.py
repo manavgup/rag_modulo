@@ -184,7 +184,6 @@ class Settings(BaseSettings):
     # JWT settings
     jwt_algorithm: Annotated[str, Field(default="HS256", alias="JWT_ALGORITHM")]
 
-
     # RBAC settings
     rbac_mapping: Annotated[
         dict[str, dict[str, list[str]]],

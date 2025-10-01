@@ -17,15 +17,15 @@ from multiprocessing.managers import SyncManager
 from typing import Any
 
 import pymupdf  # type: ignore[import-untyped]
-
 from core.config import Settings, get_settings
 from core.custom_exceptions import DocumentProcessingError
+from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, DocumentMetadata, Embeddings, Source
+
 from rag_solution.data_ingestion.base_processor import BaseProcessor
 from rag_solution.data_ingestion.chunking import get_chunking_method
 
 # Embedding functionality will be accessed through provider factory
 from rag_solution.doc_utils import clean_text
-from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, DocumentMetadata, Embeddings, Source
 
 logger = logging.getLogger(__name__)
 

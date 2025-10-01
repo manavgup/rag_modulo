@@ -30,9 +30,9 @@ def _get_embeddings_for_doc_utils(text: str | list[str]) -> list[list[float]]:
         Exception: If other unexpected errors occur
     """
     # Import here to avoid circular imports
+    from core.custom_exceptions import LLMProviderError  # pylint: disable=import-outside-toplevel
     from sqlalchemy.exc import SQLAlchemyError  # pylint: disable=import-outside-toplevel
 
-    from core.custom_exceptions import LLMProviderError  # pylint: disable=import-outside-toplevel
     from rag_solution.file_management.database import create_session_factory  # pylint: disable=import-outside-toplevel
     from rag_solution.generation.providers.factory import LLMProviderFactory  # pylint: disable=import-outside-toplevel
 

@@ -43,7 +43,11 @@ services:
       retries: 5
 
   frontend:
-    image: ${FRONTEND_IMAGE:-ghcr.io/manavgup/rag_modulo/frontend:latest}
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    # Alternative: use pre-built image
+    # image: ${FRONTEND_IMAGE:-ghcr.io/manavgup/rag_modulo/frontend-tailwind:latest}
     networks:
       - app-network
     ports:
@@ -52,6 +56,13 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    environment:
+      - REACT_APP_BACKEND_URL=http://localhost:8000
+      - REACT_APP_WS_URL=ws://localhost:8000/ws
+    volumes:
+      # Mount for development - comment out for production
+      - ./frontend:/app
+      - /app/node_modules
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080"]
       interval: 30s

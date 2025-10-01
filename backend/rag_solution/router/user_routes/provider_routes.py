@@ -1,10 +1,10 @@
 from typing import Annotated
 
+from core.config import Settings, get_settings
 from fastapi import APIRouter, Depends
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
-from core.config import Settings, get_settings
 from rag_solution.file_management.database import get_db  # ✅ Import the session dependency
 from rag_solution.schemas.user_schema import UserOutput
 from rag_solution.services.user_service import UserService

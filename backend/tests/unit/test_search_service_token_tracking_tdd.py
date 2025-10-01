@@ -48,7 +48,7 @@ class TestSearchServiceTokenTrackingTDD:
 
         # Mock the generate_text_with_usage method
         async def mock_generate_with_usage(
-            prompt: str, service_type: ServiceType, user_id: str = None, session_id: str = None
+            prompt: str, service_type: ServiceType, user_id: str | None = None, session_id: str | None = None
         ):
             usage = LLMUsage(
                 prompt_tokens=1200,
@@ -118,7 +118,7 @@ class TestSearchServiceTokenTrackingTDD:
     @pytest.mark.skip(reason="TDD test - functionality not implemented yet")
     @pytest.mark.unit
     async def test_search_regular_includes_token_warning_in_metadata(
-        self, search_service: SearchService, mock_llm_provider: Mock
+        self, search_service: SearchService, _mock_llm_provider: Mock
     ) -> None:
         """Unit: Test regular search includes token warning in response metadata when present."""
         # Create a mock token warning
@@ -167,7 +167,7 @@ class TestSearchServiceTokenTrackingTDD:
     @pytest.mark.skip(reason="TDD test - functionality not implemented yet")
     @pytest.mark.unit
     async def test_search_regular_no_token_warning_when_none(
-        self, search_service: SearchService, mock_llm_provider: Mock, mock_token_warning_service: Mock
+        self, search_service: SearchService, _mock_llm_provider: Mock, mock_token_warning_service: Mock
     ) -> None:
         """Unit: Test regular search doesn't include token warning when none present."""
         # Mock dependencies (token warning service returns None by default)
@@ -198,7 +198,7 @@ class TestSearchServiceTokenTrackingTDD:
     @pytest.mark.skip(reason="TDD test - functionality not implemented yet")
     @pytest.mark.unit
     async def test_search_chain_of_thought_includes_aggregated_token_usage(
-        self, search_service: SearchService, mock_llm_provider: Mock, mock_token_warning_service: Mock
+        self, search_service: SearchService, _mock_llm_provider: Mock, mock_token_warning_service: Mock
     ) -> None:
         """Unit: Test CoT search includes aggregated token usage from all steps."""
         # Mock CoT service
@@ -276,7 +276,7 @@ class TestSearchServiceTokenTrackingTDD:
     @pytest.mark.skip(reason="TDD test - functionality not implemented yet")
     @pytest.mark.unit
     async def test_search_cot_includes_token_warning(
-        self, search_service: SearchService, mock_llm_provider: Mock
+        self, search_service: SearchService, _mock_llm_provider: Mock
     ) -> None:
         """Unit: Test CoT search includes token warning based on aggregated usage."""
         # Create a mock token warning for high usage
@@ -344,7 +344,7 @@ class TestSearchServiceTokenTrackingTDD:
     @pytest.mark.skip(reason="TDD test - functionality not implemented yet")
     @pytest.mark.unit
     async def test_search_uses_cot_when_should_use_chain_of_thought_returns_true(
-        self, search_service: SearchService, mock_llm_provider: Mock, mock_token_warning_service: Mock
+        self, search_service: SearchService, _mock_llm_provider: Mock, _mock_token_warning_service: Mock
     ) -> None:
         """Unit: Test search uses CoT with token tracking when should_use_chain_of_thought returns true."""
         # Mock _should_use_chain_of_thought to return True
@@ -378,7 +378,7 @@ class TestSearchServiceTokenTrackingTDD:
     @pytest.mark.skip(reason="TDD test - functionality not implemented yet")
     @pytest.mark.unit
     async def test_search_falls_back_to_regular_when_cot_fails(
-        self, search_service: SearchService, mock_llm_provider: Mock, mock_token_warning_service: Mock
+        self, search_service: SearchService, _mock_llm_provider: Mock, _mock_token_warning_service: Mock
     ) -> None:
         """Unit: Test search falls back to regular search when CoT fails."""
         # Mock _should_use_chain_of_thought to return True

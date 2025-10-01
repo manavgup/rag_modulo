@@ -89,13 +89,12 @@ def create_mock_user_data(user_uuid: str | None = None) -> dict[str, Any]:
 def is_bypass_mode_active() -> bool:
     """Check if authentication bypass mode is active.
 
+    When SKIP_AUTH=true, bypass IBM OIDC Provider but still assign mock token and user.
+
     Returns:
         bool: True if authentication should be bypassed
     """
-    skip_auth = os.getenv("SKIP_AUTH", "false").lower() == "true"
-    development_mode = os.getenv("DEVELOPMENT_MODE", "false").lower() == "true"
-    testing_mode = os.getenv("TESTING", "false").lower() == "true"
-    return skip_auth or development_mode or testing_mode
+    return os.getenv("SKIP_AUTH", "false").lower() == "true"
 
 
 def ensure_mock_user_exists(db: Session, settings: Settings, user_key: str = "default") -> UUID:  # pylint: disable=unused-argument

@@ -1,0 +1,51 @@
+# Development Dockerfile for Python with hot reloading
+FROM python:3.12-slim
+
+# Set environment variables for development
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    POETRY_VERSION=2.1.3 \
+    POETRY_HOME="/opt/poetry" \
+    POETRY_VIRTUALENVS_IN_PROJECT=false \
+    POETRY_VIRTUALENVS_CREATE=false \
+    POETRY_NO_INTERACTION=1 \
+    POETRY_CACHE_DIR="/opt/poetry/cache" \
+    PYTHONPATH=/app:/app/vectordbs:/app/rag_solution:/app/core \
+    CONTAINER_ENV=1 \
+    DEVELOPMENT_MODE=true
+
+ENV PATH="$POETRY_HOME/bin:$PATH"
+
+WORKDIR /app
+
+# Install system dependencies including build tools for development
+RUN apt-get update && \
+    apt-get install -y build-essential curl git && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install Rust (needed for some Python packages)
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Install Poetry
+RUN curl -sSL https://install.python-poetry.org | python3 -
+
+# Copy dependency files
+COPY pyproject.toml poetry.lock ./
+
+# Install ALL dependencies including dev dependencies for hot reloading
+RUN poetry install --with dev --no-root --no-cache
+
+# Create logs directory with proper permissions
+RUN mkdir -p /app/logs && chmod 777 /app/logs
+
+# Expose port
+EXPOSE 8000
+
+# Use uvicorn with hot reload and proper watching
+# --reload enables automatic reloading
+# --reload-dir specifies directories to watch
+# --host 0.0.0.0 allows external connections
+# --port 8000 sets the port
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app"]

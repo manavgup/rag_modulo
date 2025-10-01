@@ -1,9 +1,9 @@
 """Integration tests for SystemInitializationService with real database connections."""
 
 import pytest
+from core.config import get_settings
 from sqlalchemy.orm import Session
 
-from core.config import get_settings
 from rag_solution.schemas.llm_provider_schema import LLMProviderInput
 from rag_solution.services.system_initialization_service import SystemInitializationService
 

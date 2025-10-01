@@ -4,9 +4,9 @@ from typing import Any
 
 from sklearn.feature_extraction.text import TfidfVectorizer  # type: ignore[import-untyped]
 from sklearn.metrics.pairwise import cosine_similarity  # type: ignore[import-untyped]
+from vectordbs.data_types import Document, DocumentChunk, QueryResult, VectorQuery
 
 from rag_solution.data_ingestion.ingestion import DocumentStore
-from vectordbs.data_types import Document, DocumentChunk, QueryResult, VectorQuery
 
 logger = logging.getLogger(__name__)
 

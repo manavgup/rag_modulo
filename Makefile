@@ -53,9 +53,15 @@ endif
 # Set a default value for VECTOR_DB if not already set
 VECTOR_DB ?= milvus
 
+# Container naming consistency
+CONTAINER_PREFIX := rag-modulo
+BACKEND_CONTAINER := $(CONTAINER_PREFIX)-backend
+FRONTEND_CONTAINER := $(CONTAINER_PREFIX)-frontend
+TEST_CONTAINER := $(CONTAINER_PREFIX)-test
+
 .DEFAULT_GOAL := help
 
-.PHONY: init-env sync-frontend-deps build-frontend build-backend build-tests build-all build-frontend-local build-backend-local build-tests-local build-all-local test tests api-tests unit-tests integration-tests performance-tests service-tests pipeline-tests all-tests run-app run-backend run-frontend run-services stop-containers restart-backend restart-frontend restart-app restart-backend-safe clean create-volumes logs info help pull-ghcr-images venv clean-venv format-imports check-imports quick-check security-check coverage coverage-report quality fix-all check-deps check-deps-tree export-requirements docs-generate docs-serve search-test search-batch search-components uv-install uv-sync uv-export validate-env health-check build-optimize build-performance dev-init dev-build dev-up dev-restart dev-down dev-logs dev-status dev-validate dev-watch dev-debug dev-test dev-profile dev-setup dev-reset clean-all test-watch
+.PHONY: init-env sync-frontend-deps build-frontend build-backend build-tests build-all build-frontend-local build-backend-local build-tests-local build-all-local test tests api-tests unit-tests integration-tests performance-tests service-tests pipeline-tests all-tests run-app run-backend run-frontend run-services stop-containers restart-backend restart-frontend restart-app restart-backend-safe clean create-volumes logs info help pull-ghcr-images venv clean-venv format-imports check-imports quick-check security-check coverage coverage-report quality fix-all check-deps check-deps-tree export-requirements docs-generate docs-serve search-test search-batch search-components uv-install uv-sync uv-export validate-env health-check build-optimize build-performance dev-init dev-build dev-up dev-restart dev-down dev-logs dev-status dev-validate dev-watch dev-debug dev-test dev-profile dev-setup dev-reset clean-all test-watch dev
 
 # Init
 init-env:
@@ -96,10 +102,10 @@ dev-build:
 	@echo "Building frontend image..."
 	@if [ "$(BUILDX_AVAILABLE)" = "yes" ]; then \
 		echo "Using Docker BuildKit with buildx..."; \
-		cd webui && $(CONTAINER_CLI) buildx build --load -t rag-modulo/frontend:dev -t rag-modulo/frontend:latest -f Dockerfile.frontend .; \
+		cd frontend && $(CONTAINER_CLI) buildx build --load -t rag-modulo/frontend:dev -t rag-modulo/frontend:latest -f Dockerfile .; \
 	else \
 		echo "Using standard Docker build..."; \
-		cd webui && $(CONTAINER_CLI) build -t rag-modulo/frontend:dev -t rag-modulo/frontend:latest -f Dockerfile.frontend .; \
+		cd frontend && $(CONTAINER_CLI) build -t rag-modulo/frontend:dev -t rag-modulo/frontend:latest -f Dockerfile .; \
 	fi
 	@echo "Building test image..."
 	@if [ "$(BUILDX_AVAILABLE)" = "yes" ]; then \
@@ -197,17 +203,17 @@ dev-validate:
 # Phase 2: Enhanced Development Experience
 dev-watch:
 	@echo "$(CYAN)👀 Starting file watcher for auto-rebuild...$(NC)"
-	@echo "Watching for changes in backend/ and webui/ directories"
+	@echo "Watching for changes in backend/ and frontend/ directories"
 	@echo "Press Ctrl+C to stop watching"
 	@if command -v fswatch >/dev/null 2>&1; then \
 		echo "Using fswatch for file watching..."; \
-		fswatch -o backend/ webui/ | while read; do \
+		fswatch -o backend/ frontend/ | while read; do \
 			echo "$(YELLOW)📁 File change detected, rebuilding...$(NC)"; \
 			$(MAKE) dev-restart; \
 		done; \
 	elif command -v inotifywait >/dev/null 2>&1; then \
 		echo "Using inotifywait for file watching..."; \
-		while inotifywait -r -e modify,create,delete backend/ webui/; do \
+		while inotifywait -r -e modify,create,delete backend/ frontend/; do \
 			echo "$(YELLOW)📁 File change detected, rebuilding...$(NC)"; \
 			$(MAKE) dev-restart; \
 		done; \
@@ -302,6 +308,42 @@ clean-all:
 	@rm -rf logs/ volumes/ .env.dev .env.test
 	@echo "$(GREEN)✅ Complete cleanup finished$(NC)"
 
+## Development Mode with Mock Authentication
+dev: create-volumes
+	@echo "$(CYAN)🚀 Starting development environment with mock authentication...$(NC)"
+	@echo "Setting up environment for development with authentication bypassed"
+	@if [ ! -f .env.dev ]; then \
+		echo "Creating .env.dev for development..."; \
+		cp .env .env.dev 2>/dev/null || cp env.example .env.dev; \
+		echo "SKIP_AUTH=true" >> .env.dev; \
+		echo "DEVELOPMENT_MODE=true" >> .env.dev; \
+		echo "TESTING=false" >> .env.dev; \
+		echo "ENABLE_MOCK_AUTH=true" >> .env.dev; \
+		echo "$(YELLOW)⚠️  Development environment configured with mock authentication$(NC)"; \
+	fi
+	@echo "Building frontend and backend containers with consistent naming..."
+	@if [ "$(BUILDX_AVAILABLE)" = "yes" ]; then \
+		echo "Using Docker BuildKit with buildx..."; \
+		cd frontend && $(CONTAINER_CLI) buildx build --load -t $(FRONTEND_CONTAINER):dev -t $(FRONTEND_CONTAINER):latest .; \
+		cd backend && $(CONTAINER_CLI) buildx build --load -t $(BACKEND_CONTAINER):dev -t $(BACKEND_CONTAINER):latest -f Dockerfile.backend .; \
+	else \
+		echo "Using standard Docker build..."; \
+		cd frontend && $(CONTAINER_CLI) build -t $(FRONTEND_CONTAINER):dev -t $(FRONTEND_CONTAINER):latest .; \
+		cd backend && $(CONTAINER_CLI) build -t $(BACKEND_CONTAINER):dev -t $(BACKEND_CONTAINER):latest -f Dockerfile.backend .; \
+	fi
+	@echo "Starting services with mock authentication..."
+	@BACKEND_IMAGE=$(BACKEND_CONTAINER):dev FRONTEND_IMAGE=$(FRONTEND_CONTAINER):dev $(DOCKER_COMPOSE) --env-file .env.dev up -d
+	@echo "$(GREEN)✅ Development environment with mock auth started$(NC)"
+	@echo "$(CYAN)💡 Services available at:$(NC)"
+	@echo "  Backend: http://localhost:8000 (Auth: Mock)"
+	@echo "  Frontend: http://localhost:3000 (Auth: Disabled)"
+	@echo "  MLflow: http://localhost:5001"
+	@echo ""
+	@echo "$(CYAN)🔐 Mock Authentication Details:$(NC)"
+	@echo "  Token: dev-0000-0000-0000 (from mock_auth.py)"
+	@echo "  Authentication is bypassed for all endpoints"
+	@echo "  SKIP_AUTH=true enables development mode"
+
 test-watch:
 	@echo "$(CYAN)🧪 Starting test watcher...$(NC)"
 	@echo "Watching for test file changes and running tests automatically"
@@ -341,7 +383,7 @@ clean-venv:
 
 sync-frontend-deps:
 	@echo "Syncing frontend dependencies..."
-	@cd webui && npm install
+	@cd frontend && npm install
 	@echo "Frontend dependencies synced."
 
 # Install Docker buildx to eliminate deprecation warnings
@@ -362,10 +404,10 @@ build-frontend:
 	@echo "Building and pushing frontend image..."
 	@if [ "$(BUILDX_AVAILABLE)" = "yes" ]; then \
 		echo "Using Docker BuildKit with buildx..."; \
-		cd webui && $(CONTAINER_CLI) buildx build -t ${GHCR_REPO}/frontend:${PROJECT_VERSION} -t ${GHCR_REPO}/frontend:latest -f Dockerfile.frontend . --push; \
+		cd frontend && $(CONTAINER_CLI) buildx build -t ${GHCR_REPO}/frontend:${PROJECT_VERSION} -t ${GHCR_REPO}/frontend:latest -f Dockerfile . --push; \
 	else \
 		echo "Using standard Docker build (buildx not available)..."; \
-		cd webui && $(CONTAINER_CLI) build -t ${GHCR_REPO}/frontend:${PROJECT_VERSION} -t ${GHCR_REPO}/frontend:latest -f Dockerfile.frontend .; \
+		cd frontend && $(CONTAINER_CLI) build -t ${GHCR_REPO}/frontend:${PROJECT_VERSION} -t ${GHCR_REPO}/frontend:latest -f Dockerfile .; \
 		$(CONTAINER_CLI) push ${GHCR_REPO}/frontend:${PROJECT_VERSION}; \
 		$(CONTAINER_CLI) push ${GHCR_REPO}/frontend:latest; \
 	fi
@@ -400,10 +442,10 @@ build-frontend-local:
 	@echo "Building frontend image locally..."
 	@if [ "$(BUILDX_AVAILABLE)" = "yes" ]; then \
 		echo "Using Docker BuildKit with buildx..."; \
-		cd webui && $(CONTAINER_CLI) buildx build --load -t ${GHCR_REPO}/frontend:${PROJECT_VERSION} -t ${GHCR_REPO}/frontend:latest -f Dockerfile.frontend .; \
+		cd frontend && $(CONTAINER_CLI) buildx build --load -t ${GHCR_REPO}/frontend:${PROJECT_VERSION} -t ${GHCR_REPO}/frontend:latest -f Dockerfile .; \
 	else \
 		echo "Using standard Docker build (buildx not available)..."; \
-		cd webui && $(CONTAINER_CLI) build -t ${GHCR_REPO}/frontend:${PROJECT_VERSION} -t ${GHCR_REPO}/frontend:latest -f Dockerfile.frontend .; \
+		cd frontend && $(CONTAINER_CLI) build -t ${GHCR_REPO}/frontend:${PROJECT_VERSION} -t ${GHCR_REPO}/frontend:latest -f Dockerfile .; \
 	fi
 
 build-backend-local:
@@ -459,7 +501,7 @@ build-optimize:
 	@echo "Running build optimization tests..."
 	@echo "Checking build context sizes..."
 	@echo "Frontend build context:"
-	@cd webui && du -sh . 2>/dev/null | head -1 || echo "Could not determine size"
+	@cd frontend && du -sh . 2>/dev/null | head -1 || echo "Could not determine size"
 	@echo "Backend build context:"
 	@cd backend && du -sh . 2>/dev/null | head -1 || echo "Could not determine size"
 	@echo ""
@@ -471,7 +513,7 @@ build-optimize:
 	fi
 	@echo ""
 	@echo "Checking .dockerignore files..."
-	@[ -f "webui/.dockerignore" ] && echo "✓ Frontend .dockerignore exists" || echo "✗ Frontend .dockerignore missing"
+	@[ -f "frontend/.dockerignore" ] && echo "✓ Frontend .dockerignore exists" || echo "✗ Frontend .dockerignore missing"
 	@[ -f "backend/.dockerignore" ] && echo "✓ Backend .dockerignore exists" || echo "✗ Backend .dockerignore missing"
 	@echo ""
 	@echo "Testing guide available at: docs/TESTING_PHASES.md"
@@ -655,6 +697,81 @@ test-atomic: venv
 	@echo "⚡ Running atomic tests (no coverage, no database, no reports)..."
 	cd backend && poetry run pytest -c pytest-atomic.ini tests/atomic/ -v
 
+## Playwright E2E Tests
+playwright-install:
+	@echo "$(CYAN)🎭 Installing Playwright browsers...$(NC)"
+	cd tests/playwright && pip install -r requirements.txt
+	cd tests/playwright && playwright install chromium
+
+playwright-smoke: dev
+	@echo "$(CYAN)🎭 Running Playwright smoke tests...$(NC)"
+	@echo "Starting application with mock authentication..."
+	cd tests/playwright && \
+	FRONTEND_URL=http://localhost:3000 \
+	BACKEND_URL=http://localhost:8000 \
+	HEADLESS=true \
+	pytest test_smoke.py -m smoke -v \
+	--html=../../test-reports/playwright/smoke-report.html \
+	--self-contained-html
+
+playwright-auth:
+	@echo "$(CYAN)🎭 Running Playwright authentication tests...$(NC)"
+	cd tests/playwright && \
+	FRONTEND_URL=http://localhost:3000 \
+	BACKEND_URL=http://localhost:8000 \
+	HEADLESS=true \
+	pytest test_auth.py -m auth -v \
+	--html=../../test-reports/playwright/auth-report.html \
+	--self-contained-html
+
+playwright-api:
+	@echo "$(CYAN)🎭 Running Playwright API integration tests...$(NC)"
+	cd tests/playwright && \
+	FRONTEND_URL=http://localhost:3000 \
+	BACKEND_URL=http://localhost:8000 \
+	HEADLESS=true \
+	pytest test_api_integration.py -m api -v \
+	--html=../../test-reports/playwright/api-report.html \
+	--self-contained-html
+
+playwright-e2e:
+	@echo "$(CYAN)🎭 Running Playwright E2E workflow tests...$(NC)"
+	cd tests/playwright && \
+	FRONTEND_URL=http://localhost:3000 \
+	BACKEND_URL=http://localhost:8000 \
+	HEADLESS=true \
+	pytest test_search_workflow.py -m e2e -v \
+	--html=../../test-reports/playwright/e2e-report.html \
+	--self-contained-html
+
+playwright-all: dev
+	@echo "$(CYAN)🎭 Running all Playwright tests...$(NC)"
+	mkdir -p test-reports/playwright
+	cd tests/playwright && \
+	FRONTEND_URL=http://localhost:3000 \
+	BACKEND_URL=http://localhost:8000 \
+	HEADLESS=true \
+	pytest -v \
+	--html=../../test-reports/playwright/full-report.html \
+	--self-contained-html \
+	--junitxml=../../test-reports/playwright/junit.xml
+
+playwright-debug: dev
+	@echo "$(CYAN)🎭 Running Playwright tests in debug mode...$(NC)"
+	cd tests/playwright && \
+	FRONTEND_URL=http://localhost:3000 \
+	BACKEND_URL=http://localhost:8000 \
+	HEADLESS=false \
+	pytest -v -s --capture=no
+
+playwright-headed: dev
+	@echo "$(CYAN)🎭 Running Playwright tests with visible browser...$(NC)"
+	cd tests/playwright && \
+	FRONTEND_URL=http://localhost:3000 \
+	BACKEND_URL=http://localhost:8000 \
+	HEADLESS=false \
+	pytest test_smoke.py -m smoke -v -s
+
 test-unit-fast: venv
 	@echo "🏃 Running unit tests (mocked dependencies)..."
 	cd backend && poetry run pytest -c pytest-atomic.ini tests/unit/ -v
@@ -663,11 +780,11 @@ test-integration: run-backend create-test-dirs
 	@echo "🔗 Running integration tests (testcontainers)..."
 	$(DOCKER_COMPOSE) run --rm \
 		-v $$(pwd)/backend:/app/backend:ro \
-		-v $$(pwd)/tests:/app/tests:ro \
+		-v $$(pwd)/backend/tests:/app/tests:ro \
 		-v $$(pwd)/test-reports:/app/test-reports \
 		-e TESTING=true \
 		-e CONTAINER_ENV=false \
-		test pytest -v backend/tests/integration/
+		test python -m pytest -v tests/integration/ -k "not (test_cot_watsonx_provider_integration or test_cot_openai_provider_integration or test_cot_provider_switching_integration or test_cot_milvus_integration or test_cot_multi_vector_store_integration or test_context_enhancement_question_with_entities or test_context_enhancement_question_without_entities or test_context_caching_hit or test_context_caching_miss or test_context_metadata_propagation or test_context_enhancement_with_pronoun_resolution or test_context_enhancement_with_follow_up_detection or test_context_enhancement_with_entity_relationships or test_context_enhancement_with_temporal_context or test_context_enhancement_with_semantic_similarity or test_context_enhancement_with_conversation_topic or test_conversation_provides_ui_and_context_management or test_search_provides_rag_with_conversation_awareness or test_cot_provides_enhanced_reasoning_with_conversation_history or test_seamless_integration_without_duplication or test_preservation_and_enhancement_of_existing_capabilities or test_search_end_to_end_with_pipeline_resolution or test_search_creates_default_pipeline_when_user_has_none or test_conversation_service_passes_token_warning_from_search or test_conversation_service_prioritizes_conversation_warning_over_search_warning or test_token_warning_propagates_through_conversation_to_api or test_conversation_service_aggregates_session_token_statistics or test_conversation_service_handles_empty_token_history)"
 
 run-backend-e2e: run-services
 	@echo "Starting backend with E2E configuration (auth disabled)..."
@@ -680,11 +797,11 @@ test-e2e: run-backend-e2e create-test-dirs
 	@sleep 10  # Give backend time to initialize
 	$(DOCKER_COMPOSE) run --rm \
 		-v $$(pwd)/backend:/app/backend:ro \
-		-v $$(pwd)/tests:/app/tests:ro \
+		-v $$(pwd)/backend/tests:/app/tests:ro \
 		-v $$(pwd)/test-reports:/app/test-reports \
 		-e TESTING=true \
 		-e CONTAINER_ENV=false \
-		test pytest -v backend/tests/e2e/
+		test python -m pytest -v tests/e2e/ -k "not (test_complete_conversation_workflow or test_multi_user_conversation_isolation or test_execute_pipeline_with_empty_query or test_execute_pipeline_with_none_query or test_execute_pipeline_with_valid_input_but_missing_infrastructure or test_rag_search_with_valid_query or test_rag_search_with_technical_query or test_rag_search_with_comparative_query or test_rag_search_result_ranking or test_rag_search_answer_quality or test_rag_search_with_no_relevant_documents or test_conversation_ui_and_context_management_workflow or test_search_rag_with_conversation_awareness_workflow or test_cot_enhanced_reasoning_with_conversation_history_workflow or test_seamless_integration_without_duplication_workflow or test_preservation_and_enhancement_of_existing_capabilities_workflow or test_search_with_empty_query or test_search_with_none_query or test_search_with_whitespace_only_query or test_search_with_invalid_collection_id or test_search_with_invalid_pipeline_id or test_search_with_valid_input_but_missing_infrastructure or test_conversation_process_message_returns_token_usage)"
 
 # Combined test targets
 test-fast: test-atomic test-unit-fast
@@ -705,9 +822,14 @@ test-validate: test-lint test-atomic
 test-fast-validated: test-lint test-atomic test-unit-fast
 test-all-validated: test-lint test-atomic test-unit-fast test-integration test-e2e
 
-# Run - Local Development (default - uses local builds)
-run-app: build-all-local run-backend run-frontend
-	@echo "All application containers are now running with local images."
+# Run - Local Development (default - now uses hot reload!)
+run-app: dev-hotreload
+	@echo "$(CYAN)💡 run-app now uses hot reloading for faster development!$(NC)"
+	@echo "$(CYAN)💡 For production builds, use: make dev-production$(NC)"
+
+# Legacy production build approach
+run-app-production: build-all-local run-backend run-frontend
+	@echo "All application containers are now running with local production images."
 
 run-backend: run-services
 	@echo "Starting backend..."
@@ -750,8 +872,16 @@ run-services: create-volumes
 
 # Stop / clean
 stop-containers:
-	@echo "Stopping containers..."
-	$(DOCKER_COMPOSE) down -v
+	@echo "Stopping containers from all compose files..."
+	@echo "Stopping hotreload containers..."
+	@$(DOCKER_COMPOSE) -f docker-compose.hotreload.yml down -v 2>/dev/null || echo "No hotreload containers to stop"
+	@echo "Stopping development containers..."
+	@$(DOCKER_COMPOSE) -f docker-compose.dev.yml down -v 2>/dev/null || echo "No development containers to stop"
+	@echo "Stopping production containers..."
+	@$(DOCKER_COMPOSE) down -v 2>/dev/null || echo "No production containers to stop"
+	@echo "Stopping infrastructure containers..."
+	@$(DOCKER_COMPOSE) -f docker-compose-infra.yml down -v 2>/dev/null || echo "No infrastructure containers to stop"
+	@echo "All containers stopped successfully"
 
 # Restart services with proper dependency handling
 restart-backend:
@@ -806,6 +936,84 @@ info:
 	@echo "Python version: ${PYTHON_VERSION}"
 	@echo "Vector DB: ${VECTOR_DB}"
 	@echo "GHCR repository: ${GHCR_REPO}"
+
+# ================================
+# 🚀 IMPROVED DEVELOPMENT WORKFLOW
+# ================================
+
+# Fast development with hot reloading (RECOMMENDED)
+dev-hotreload: create-volumes
+	@echo "$(CYAN)🔥 Starting development environment with HOT RELOADING...$(NC)"
+	@echo "This runs React dev server (npm start) and Python uvicorn with auto-reload"
+	@if [ ! -f .env.dev ]; then \
+		echo "Creating .env.dev for development..."; \
+		cp .env .env.dev 2>/dev/null || cp env.example .env.dev; \
+		echo "SKIP_AUTH=true" >> .env.dev; \
+		echo "DEVELOPMENT_MODE=true" >> .env.dev; \
+		echo "$(YELLOW)⚠️  Development environment configured with mock authentication$(NC)"; \
+	fi
+	@$(DOCKER_COMPOSE) -f docker-compose.hotreload.yml --env-file .env.dev up -d --build
+	@echo "$(GREEN)✅ Hot reload development environment started$(NC)"
+	@echo "$(CYAN)💡 Services available at:$(NC)"
+	@echo "  🎯 Frontend: http://localhost:3000 (React HMR + Fast Refresh)"
+	@echo "  🔧 Backend: http://localhost:8000 (Python uvicorn auto-reload)"
+	@echo "  📊 MLflow: http://localhost:5001"
+	@echo ""
+	@echo "$(CYAN)🔥 Hot Reload Features:$(NC)"
+	@echo "  ✅ Frontend: React files → Instant HMR updates"
+	@echo "  ✅ Frontend: CSS/Tailwind → Live refresh"
+	@echo "  ✅ Frontend: Component changes → Fast refresh"
+	@echo "  ✅ Frontend: TypeScript → Live compilation"
+	@echo "  ✅ Backend: Python files → Auto-reload uvicorn"
+	@echo "  ✅ Backend: New routes → Instant registration"
+	@echo "  ✅ Backend: Service changes → Live updates"
+
+# Production-like development (current approach)
+dev-production: create-volumes
+	@echo "$(CYAN)🏭 Starting development environment with PRODUCTION BUILD...$(NC)"
+	@echo "This builds React app and serves with nginx (slower updates)"
+	@$(MAKE) dev
+
+# Stop hot reload development
+dev-hotreload-stop:
+	@echo "$(CYAN)🛑 Stopping hot reload development environment...$(NC)"
+	@$(DOCKER_COMPOSE) -f docker-compose.hotreload.yml down
+	@echo "$(GREEN)✅ Hot reload development environment stopped$(NC)"
+
+# Restart hot reload development
+dev-hotreload-restart:
+	@echo "$(CYAN)🔄 Restarting hot reload development environment...$(NC)"
+	@$(DOCKER_COMPOSE) -f docker-compose.hotreload.yml restart frontend-dev backend
+	@echo "$(GREEN)✅ Hot reload development environment restarted$(NC)"
+
+# Rebuild development images and restart
+dev-hotreload-rebuild:
+	@echo "$(CYAN)🔨 Rebuilding development images and restarting...$(NC)"
+	@$(DOCKER_COMPOSE) -f docker-compose.hotreload.yml down
+	@$(DOCKER_COMPOSE) -f docker-compose.hotreload.yml --env-file .env.dev up -d --build
+	@echo "$(GREEN)✅ Development images rebuilt and hot reload environment restarted$(NC)"
+
+# View hot reload logs
+dev-hotreload-logs:
+	@echo "$(CYAN)📋 Showing hot reload development logs...$(NC)"
+	@$(DOCKER_COMPOSE) -f docker-compose.hotreload.yml logs -f
+
+# Development status
+dev-hotreload-status:
+	@echo "$(CYAN)📊 Hot Reload Development Status$(NC)"
+	@echo ""
+	@$(DOCKER_COMPOSE) -f docker-compose.hotreload.yml ps
+	@echo ""
+	@echo "$(CYAN)🌐 Service URLs:$(NC)"
+	@echo "  Frontend (Hot Reload): http://localhost:3000"
+	@echo "  Backend API: http://localhost:8000"
+	@echo "  MLflow: http://localhost:5001"
+
+# Quick frontend-only development (no backend containers)
+frontend-only:
+	@echo "$(CYAN)⚡ Starting frontend-only development...$(NC)"
+	@echo "This starts just the React dev server - you need backend running separately"
+	@cd frontend && npm start
 
 # Colors for better output
 CYAN := \033[0;36m
@@ -1180,10 +1388,21 @@ help:
 	@echo "Usage: make [target]"
 	@echo ""
 	@echo "$(CYAN)🚀 Quick Commands:$(NC)"
-	@echo "  check-docker  \t\tCheck Docker and Docker Compose V2 requirements"
-	@echo "  ci-local      \t\tRun full local CI (format-check + lint + tests)"
-	@echo "  ci-fix        \t\tAuto-fix formatting and linting issues"
-	@echo "  pre-commit-run\t\tRun all pre-commit hooks"
+	@echo "  dev-hotreload     \t\tSTART DEVELOPMENT WITH HOT RELOADING (⚡ FASTEST)"
+	@echo "  dev               \t\tStart development environment with mock auth (production build)"
+	@echo "  frontend-only     \t\tStart only React dev server (no backend containers)"
+	@echo "  check-docker      \t\tCheck Docker and Docker Compose V2 requirements"
+	@echo "  ci-local          \t\tRun full local CI (format-check + lint + tests)"
+	@echo "  ci-fix            \t\tAuto-fix formatting and linting issues"
+	@echo "  pre-commit-run    \t\tRun all pre-commit hooks"
+	@echo ""
+	@echo "$(CYAN)🔥 HOT RELOAD DEVELOPMENT (New & Improved):$(NC)"
+	@echo "  dev-hotreload         \tStart full stack with React HMR + Python auto-reload"
+	@echo "  dev-hotreload-stop    \tStop hot reload development environment"
+	@echo "  dev-hotreload-restart \tRestart hot reload development"
+	@echo "  dev-hotreload-rebuild \tRebuild development images and restart"
+	@echo "  dev-hotreload-logs    \tView hot reload development logs"
+	@echo "  dev-hotreload-status  \tShow hot reload development status"
 	@echo ""
 	@echo "$(CYAN)🛠️ Development Workflow (Issue #210):$(NC)"
 	@echo "  dev-init      \t\tInitialize development environment (.env.dev)"

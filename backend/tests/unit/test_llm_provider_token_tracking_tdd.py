@@ -11,9 +11,9 @@ from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import pytest
+from core.custom_exceptions import LLMProviderError
 from pydantic import UUID4
 
-from core.custom_exceptions import LLMProviderError
 from rag_solution.generation.providers.anthropic import AnthropicLLM
 from rag_solution.generation.providers.base import LLMBase
 from rag_solution.generation.providers.openai import OpenAILLM
@@ -593,11 +593,13 @@ class TestLLMProviderTokenTrackingTDD:
             provider = OpenAILLM(*mock_provider_services)
             provider.model_id = "gpt-3.5-turbo"
             provider.client = mock_client
-            with patch.object(provider, "_get_parameters", return_value=Mock(max_new_tokens=150, temperature=0.7)):
-                with pytest.raises(LLMProviderError):  # Should raise LLMProviderError in actual implementation
-                    await provider.generate_text_with_usage(
-                        user_id=uuid4(), prompt="Test prompt", service_type=ServiceType.SEARCH
-                    )
+            with (
+                patch.object(provider, "_get_parameters", return_value=Mock(max_new_tokens=150, temperature=0.7)),
+                pytest.raises(LLMProviderError),  # Should raise LLMProviderError in actual implementation
+            ):
+                await provider.generate_text_with_usage(
+                    user_id=uuid4(), prompt="Test prompt", service_type=ServiceType.SEARCH
+                )
 
     @pytest.mark.unit
     async def test_anthropic_provider_error_handling(self, mock_provider_services) -> None:
@@ -610,11 +612,13 @@ class TestLLMProviderTokenTrackingTDD:
             provider = AnthropicLLM(*mock_provider_services)
             provider.model_id = "claude-3-sonnet"
             provider.client = mock_client
-            with patch.object(provider, "_get_parameters", return_value=Mock(max_new_tokens=150, temperature=0.7)):
-                with pytest.raises(LLMProviderError):  # Should raise LLMProviderError in actual implementation
-                    await provider.generate_text_with_usage(
-                        user_id=uuid4(), prompt="Test prompt", service_type=ServiceType.CONVERSATION
-                    )
+            with (
+                patch.object(provider, "_get_parameters", return_value=Mock(max_new_tokens=150, temperature=0.7)),
+                pytest.raises(LLMProviderError),  # Should raise LLMProviderError in actual implementation
+            ):
+                await provider.generate_text_with_usage(
+                    user_id=uuid4(), prompt="Test prompt", service_type=ServiceType.CONVERSATION
+                )
 
     @pytest.mark.unit
     async def test_watsonx_provider_error_handling(self, mock_provider_services) -> None:
@@ -627,11 +631,13 @@ class TestLLMProviderTokenTrackingTDD:
             provider = WatsonXLLM(*mock_provider_services)
             provider.model_id = "granite-13b"
             provider.client = mock_client
-            with patch.object(provider, "_get_parameters", return_value=Mock(max_new_tokens=150, temperature=0.7)):
-                with pytest.raises(LLMProviderError):  # Should raise LLMProviderError in actual implementation
-                    await provider.generate_text_with_usage(
-                        user_id=uuid4(), prompt="Test prompt", service_type=ServiceType.CHAIN_OF_THOUGHT
-                    )
+            with (
+                patch.object(provider, "_get_parameters", return_value=Mock(max_new_tokens=150, temperature=0.7)),
+                pytest.raises(LLMProviderError),  # Should raise LLMProviderError in actual implementation
+            ):
+                await provider.generate_text_with_usage(
+                    user_id=uuid4(), prompt="Test prompt", service_type=ServiceType.CHAIN_OF_THOUGHT
+                )
 
     # ==================== USAGE TRACKING INTEGRATION TESTS ====================
 

@@ -7,10 +7,10 @@ extract key insights, and preserve important conversation elements.
 import logging
 from typing import Any
 
+from core.config import Settings
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
-from core.config import Settings
 from rag_solution.core.exceptions import NotFoundError, ValidationError
 from rag_solution.repository.conversation_message_repository import ConversationMessageRepository
 from rag_solution.repository.conversation_session_repository import ConversationSessionRepository

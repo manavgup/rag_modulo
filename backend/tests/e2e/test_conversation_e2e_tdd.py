@@ -5,11 +5,11 @@ with real dependencies and full system integration.
 """
 
 import pytest
-from fastapi.testclient import TestClient
-
 from core.config import get_settings
 from core.mock_auth import ensure_mock_user_exists
+from fastapi.testclient import TestClient
 from main import app
+
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.collection_schema import CollectionInput
 from rag_solution.services.collection_service import CollectionService

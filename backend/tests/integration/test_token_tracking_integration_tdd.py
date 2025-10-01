@@ -10,8 +10,8 @@ from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import pytest
-
 from core.config import Settings, get_settings
+
 from rag_solution.schemas.conversation_schema import (
     ConversationMessageInput,
     MessageRole,
@@ -52,7 +52,7 @@ class TestTokenTrackingIntegrationTDD:  # type: ignore[misc]
         provider = Mock()
 
         async def mock_generate_with_usage(
-            prompt: str, service_type: ServiceType, user_id: str = None, session_id: str = None
+            prompt: str, service_type: ServiceType, user_id: str | None = None, session_id: str | None = None
         ):
             # Simulate high token usage approaching limit
             usage = LLMUsage(
@@ -517,7 +517,7 @@ class TestTokenTrackingIntegrationTDD:  # type: ignore[misc]
             {"prompt_tokens": 1200, "completion_tokens": 300, "total_tokens": 1500, "model_name": "gpt-4"},
         ]
 
-        for i, usage in enumerate(usage_data):
+        for _i, usage in enumerate(usage_data):
             message = Mock()
             message.session_id = uuid4()
             message.created_at = datetime.utcnow()

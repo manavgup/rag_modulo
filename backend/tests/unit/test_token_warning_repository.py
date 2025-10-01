@@ -298,7 +298,7 @@ class TestTokenWarningRepository:
         mock_db.commit.assert_called_once()
 
     @patch("sqlalchemy.func")
-    def test_get_warning_stats_by_user(self, mock_func, repository, mock_db):
+    def test_get_warning_stats_by_user(self, _mock_func, repository, mock_db):
         """Test retrieving warning statistics for a user."""
         user_id = uuid4()
 

@@ -10,9 +10,10 @@ from datetime import datetime, timedelta
 from typing import Any
 from uuid import UUID
 
+from core.config import Settings
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from core.config import Settings
 from rag_solution.core.exceptions import NotFoundError, SessionExpiredError, ValidationError
 from rag_solution.models.conversation_message import ConversationMessage
 from rag_solution.models.conversation_session import ConversationSession
@@ -25,6 +26,7 @@ from rag_solution.schemas.conversation_schema import (
     MessageMetadata,
     MessageRole,
     MessageType,
+    QuestionSuggestionOutput,
     SessionStatistics,
     SessionStatus,
 )
@@ -39,7 +41,7 @@ from rag_solution.services.token_tracking_service import TokenTrackingService
 logger = logging.getLogger(__name__)
 
 
-class ConversationService:
+class ConversationService:  # pylint: disable=too-many-instance-attributes,too-many-public-methods
     """Service for managing conversation sessions and messages."""
 
     def __init__(self, db: Session, settings: Settings):
@@ -165,6 +167,7 @@ class ConversationService:
 
     async def list_sessions(self, user_id: UUID) -> list[ConversationSessionOutput]:
         """List all sessions for a user."""
+
         sessions = (
             self.db.query(ConversationSession)
             .filter(ConversationSession.user_id == user_id)
@@ -172,7 +175,17 @@ class ConversationService:
             .all()
         )
 
-        return [ConversationSessionOutput.from_db_session(session) for session in sessions]
+        # Get message counts for each session
+        result = []
+        for session in sessions:
+            message_count = (
+                self.db.query(func.count(ConversationMessage.id))
+                .filter(ConversationMessage.session_id == session.id)
+                .scalar()
+            ) or 0
+            result.append(ConversationSessionOutput.from_db_session(session, message_count=message_count))
+
+        return result
 
     async def add_message(self, message_input: ConversationMessageInput) -> ConversationMessageOutput:
         """Add a message to a conversation session."""
@@ -248,12 +261,12 @@ class ConversationService:
 
         return [ConversationMessageOutput.from_db_message(message) for message in messages]
 
-    async def process_user_message(self, message_input: ConversationMessageInput) -> ConversationMessageOutput:
+    async def process_user_message(self, message_input: ConversationMessageInput) -> ConversationMessageOutput:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
         """Process a user message and generate a response using integrated Search and CoT services."""
         logger.info(
             f"🚀 CONVERSATION SERVICE: process_user_message() called with session_id={message_input.session_id}"
         )
-        logger.info(f"📝 CONVERSATION SERVICE: message content: {message_input.content[:100]}...")
+        logger.info("📝 CONVERSATION SERVICE: message content: %s...", message_input.content[:100])
 
         # First get the session to get the user_id
         session = self.db.query(ConversationSession).filter(ConversationSession.id == message_input.session_id).first()
@@ -321,12 +334,12 @@ class ConversationService:
 
         # Execute search - this will automatically use CoT if appropriate
         search_result = await self.search_service.search(search_input)
-        logger.info(f"📊 CONVERSATION SERVICE: Search result has metadata: {hasattr(search_result, 'metadata')}")
+        logger.info("📊 CONVERSATION SERVICE: Search result has metadata: %s", hasattr(search_result, "metadata"))
         if hasattr(search_result, "metadata") and search_result.metadata:
-            logger.info(f"📊 CONVERSATION SERVICE: Search metadata keys: {list(search_result.metadata.keys())}")
-        logger.info(f"📊 CONVERSATION SERVICE: Search result has cot_output: {hasattr(search_result, 'cot_output')}")
+            logger.info("📊 CONVERSATION SERVICE: Search metadata keys: %s", list(search_result.metadata.keys()))
+        logger.info("📊 CONVERSATION SERVICE: Search result has cot_output: %s", hasattr(search_result, "cot_output"))
         if hasattr(search_result, "cot_output") and search_result.cot_output:
-            logger.info(f"📊 CONVERSATION SERVICE: CoT output type: {type(search_result.cot_output)}")
+            logger.info("📊 CONVERSATION SERVICE: CoT output type: %s", type(search_result.cot_output))
 
         # Extract CoT information if it was used
         cot_used = False
@@ -335,7 +348,7 @@ class ConversationService:
         # Check both metadata and cot_output for CoT information
         if hasattr(search_result, "metadata") and search_result.metadata:
             cot_used = search_result.metadata.get("cot_used", False)
-            logger.info(f"🧠 CoT metadata: cot_used={cot_used}")
+            logger.info("🧠 CoT metadata: cot_used=%s", cot_used)
 
         # Extract CoT steps from cot_output (this is where the actual reasoning steps are)
         if hasattr(search_result, "cot_output") and search_result.cot_output:
@@ -354,13 +367,13 @@ class ConversationService:
                             "token_usage": step.get("token_usage", 0),
                         }
                         cot_steps.append(step_dict)
-                    logger.info(f"🧠 CoT steps extracted from cot_output: {len(cot_steps)} steps")
+                    logger.info("🧠 CoT steps extracted from cot_output: %d steps", len(cot_steps))
                 else:
                     logger.info("🧠 CoT output exists but no reasoning_steps found")
             else:
-                logger.info(f"🧠 CoT output exists but not a dict: {type(search_result.cot_output)}")
+                logger.info("🧠 CoT output exists but not a dict: %s", type(search_result.cot_output))
 
-        logger.info(f"🧠 Final CoT extraction: cot_used={cot_used}, cot_steps_count={len(cot_steps)}")
+        logger.info("🧠 Final CoT extraction: cot_used=%s, cot_steps_count=%d", cot_used, len(cot_steps))
 
         # Convert DocumentMetadata objects to dictionaries for JSON serialization
         def serialize_documents(documents):
@@ -393,17 +406,17 @@ class ConversationService:
                 try:
                     assistant_tokens_result = provider.client.tokenize(text=search_result.answer)
                     assistant_response_tokens = len(assistant_tokens_result.get("result", []))
-                    logger.info(f"✅ Real token count from provider: assistant={assistant_response_tokens}")
-                except Exception as e:
-                    logger.info(f"Provider tokenize failed, using improved estimation: {e}")
+                    logger.info("✅ Real token count from provider: assistant=%d", assistant_response_tokens)
+                except (ValueError, KeyError, AttributeError) as e:
+                    logger.info("Provider tokenize failed, using improved estimation: %s", str(e))
                     # Better estimation: roughly 1.3 tokens per word for most LLMs
                     assistant_response_tokens = max(50, int(len(search_result.answer.split()) * 1.3))
             else:
                 # Fallback to improved estimation
                 assistant_response_tokens = max(50, int(len(search_result.answer.split()) * 1.3))
 
-        except Exception as e:
-            logger.info(f"Using improved token estimation: {e}")
+        except (ValueError, KeyError, AttributeError) as e:
+            logger.info("Using improved token estimation: %s", str(e))
             # Better estimation: roughly 1.3 tokens per word for most LLMs
             assistant_response_tokens = max(50, int(len(search_result.answer.split()) * 1.3))
 
@@ -422,7 +435,7 @@ class ConversationService:
                 for step in reasoning_steps:
                     step_tokens = step.get("token_usage", 0) if isinstance(step, dict) else 0
                     cot_token_usage += step_tokens
-            logger.info(f"🔢 CoT token usage extracted: {cot_token_usage}")
+            logger.info("🔢 CoT token usage extracted: %s", cot_token_usage)
 
         # Total token count for the assistant response (includes assistant response + CoT tokens)
         token_count = assistant_response_tokens + cot_token_usage
@@ -463,9 +476,9 @@ class ConversationService:
                     "message": token_warning.message,
                     "suggested_action": token_warning.suggested_action,
                 }
-                logger.info(f"📊 Generated token warning: {token_warning_dict}")
-        except Exception as e:
-            logger.warning(f"Failed to generate token warning: {e}")
+                logger.info("📊 Generated token warning: %s", token_warning_dict)
+        except (ValueError, KeyError, AttributeError) as e:
+            logger.warning("Failed to generate token warning: %s", str(e))
             token_warning_dict = None
 
         logger.info(
@@ -473,8 +486,10 @@ class ConversationService:
         )
 
         # Debug logging
-        logger.info(f"🔢 Token tracking debug: assistant_token_count={token_count}")
-        logger.info(f"🔢 User input tokens: {user_token_count}, Assistant response tokens: {assistant_response_tokens}")
+        logger.info("🔢 Token tracking debug: assistant_token_count=%d", token_count)
+        logger.info(
+            "🔢 User input tokens: %d, Assistant response tokens: %d", user_token_count, assistant_response_tokens
+        )
 
         # Debug logging for token tracking
         logger.info(
@@ -585,7 +600,7 @@ class ConversationService:
         logger.info(
             f"🔢 Session stats - Total tokens: {total_tokens}, LLM calls: {total_llm_calls}, CoT tokens: {cot_token_count}"
         )
-        logger.info(f"🔢 Token breakdown - Prompt: {total_prompt_tokens}, Completion: {total_completion_tokens}")
+        logger.info("🔢 Token breakdown - Prompt: %d, Completion: %d", total_prompt_tokens, total_completion_tokens)
 
         # Calculate by_service and by_model breakdowns
         by_service: dict[str, int] = {}
@@ -648,7 +663,7 @@ class ConversationService:
         }
 
     # Context Management Methods (moved from ContextManagerService)
-    async def build_context_from_messages(
+    async def build_context_from_messages(  # pylint: disable=too-many-locals,too-many-branches
         self, session_id: UUID, messages: list[ConversationMessageOutput]
     ) -> ConversationContext:
         """Build conversation context from messages."""
@@ -1074,7 +1089,6 @@ class ConversationService:
 
     async def get_question_suggestions(self, session_id: UUID, user_id: UUID):
         """Get question suggestions for a conversation session."""
-        from rag_solution.schemas.conversation_schema import QuestionSuggestionOutput
 
         # Get session messages for context
         messages = await self.get_messages(session_id, user_id)
@@ -1107,3 +1121,390 @@ class ConversationService:
             confidence_scores=confidence_scores,
             reasoning="Generated based on conversation context and recent messages",
         )
+
+    async def generate_conversation_summary(self, session_id: UUID, user_id: UUID, summary_type: str = "brief") -> dict:  # pylint: disable=too-many-return-statements,too-many-branches
+        """Generate a summary of the conversation session.
+
+        Args:
+            session_id: The conversation session ID
+            user_id: The user ID
+            summary_type: Type of summary ('brief', 'detailed', 'key_points')
+
+        Returns:
+            Dictionary containing the conversation summary
+        """
+        # Get the session and messages
+        session = await self.get_session(session_id, user_id)
+        messages = await self.get_messages(session_id, user_id, limit=1000)  # Get all messages
+
+        if not messages:
+            return {
+                "summary": "No messages in this conversation yet.",
+                "summary_type": summary_type,
+                "message_count": 0,
+                "session_name": session.session_name,
+                "created_at": session.created_at.isoformat(),
+            }
+
+        # Extract conversation content
+        conversation_text = []
+        user_questions = []
+        assistant_responses = []
+        topics = set()
+
+        for msg in messages:
+            if msg.role == MessageRole.USER:
+                conversation_text.append(f"User: {msg.content}")
+                user_questions.append(msg.content)
+            elif msg.role == MessageRole.ASSISTANT:
+                conversation_text.append(f"Assistant: {msg.content}")
+                assistant_responses.append(msg.content)
+
+                # Extract topics from metadata if available
+                if msg.metadata and hasattr(msg.metadata, "search_metadata"):
+                    search_metadata = msg.metadata.search_metadata
+                    if isinstance(search_metadata, dict) and "conversation_entities" in search_metadata:
+                        for entity in search_metadata.get("conversation_entities", []):
+                            topics.add(entity)
+
+        # Generate different types of summaries
+        if summary_type == "brief":
+            summary = self._generate_brief_summary(user_questions, assistant_responses, list(topics))
+        elif summary_type == "detailed":
+            summary = self._generate_detailed_summary(
+                conversation_text, user_questions, assistant_responses, list(topics)
+            )
+        elif summary_type == "key_points":
+            summary = self._generate_key_points_summary(user_questions, assistant_responses, list(topics))
+        else:
+            summary = self._generate_brief_summary(user_questions, assistant_responses, list(topics))
+
+        # Calculate conversation statistics
+        stats = await self.get_session_statistics(session_id, user_id)
+
+        return {
+            "summary": summary,
+            "summary_type": summary_type,
+            "message_count": len(messages),
+            "user_messages": len(user_questions),
+            "assistant_messages": len(assistant_responses),
+            "session_name": session.session_name,
+            "created_at": session.created_at.isoformat(),
+            "topics": list(topics)[:10],  # Limit to top 10 topics
+            "total_tokens": stats.total_tokens,
+            "cot_usage_count": stats.cot_usage_count,
+            "generated_at": datetime.utcnow().isoformat(),
+        }
+
+    def _generate_brief_summary(
+        self, user_questions: list[str], assistant_responses: list[str], topics: list[str]
+    ) -> str:
+        """Generate a brief summary of the conversation."""
+        if not user_questions:
+            return "No user questions in this conversation."
+
+        # Extract main topics and themes
+        main_topics = topics[:3] if topics else ["general discussion"]
+
+        summary_parts = []
+        summary_parts.append(f"Conversation covering {len(user_questions)} questions")
+
+        if main_topics:
+            summary_parts.append(f"about {', '.join(main_topics)}")
+
+        # Add information about conversation style
+        if len(assistant_responses) > 0:
+            avg_response_length = sum(len(resp.split()) for resp in assistant_responses) / len(assistant_responses)
+            if avg_response_length > 100:
+                summary_parts.append("with detailed explanations")
+            elif avg_response_length > 50:
+                summary_parts.append("with moderate detail")
+            else:
+                summary_parts.append("with brief responses")
+
+        return ". ".join(summary_parts) + "."
+
+    def _generate_detailed_summary(
+        self,
+        _conversation_text: list[str],
+        user_questions: list[str],
+        assistant_responses: list[str],
+        topics: list[str],
+    ) -> str:
+        """Generate a detailed summary of the conversation."""
+        summary_parts = []
+
+        # Overview
+        summary_parts.append(
+            f"This conversation contains {len(user_questions)} user questions and {len(assistant_responses)} assistant responses."
+        )
+
+        # Main topics
+        if topics:
+            summary_parts.append(f"Key topics discussed include: {', '.join(topics[:5])}.")
+
+        # Question patterns
+        if user_questions:
+            # Analyze question types
+            how_questions = [q for q in user_questions if q.lower().startswith(("how", "how to", "how can", "how do"))]
+            what_questions = [q for q in user_questions if q.lower().startswith(("what", "what is", "what are"))]
+            why_questions = [q for q in user_questions if q.lower().startswith(("why", "why is", "why do"))]
+
+            if how_questions:
+                summary_parts.append(f"User asked {len(how_questions)} 'how' questions about processes and methods.")
+            if what_questions:
+                summary_parts.append(
+                    f"User asked {len(what_questions)} 'what' questions seeking definitions and explanations."
+                )
+            if why_questions:
+                summary_parts.append(f"User asked {len(why_questions)} 'why' questions exploring reasoning and causes.")
+
+        # Response characteristics
+        if assistant_responses:
+            total_words = sum(len(resp.split()) for resp in assistant_responses)
+            avg_words = total_words / len(assistant_responses)
+            summary_parts.append(f"Assistant provided responses averaging {avg_words:.0f} words each.")
+
+        return " ".join(summary_parts)
+
+    def _generate_key_points_summary(
+        self, user_questions: list[str], assistant_responses: list[str], topics: list[str]
+    ) -> str:
+        """Generate a key points summary of the conversation."""
+        key_points = []
+
+        # Extract key questions (first, last, and any containing important keywords)
+        important_keywords = ["important", "critical", "key", "main", "primary", "essential", "fundamental"]
+
+        if user_questions:
+            # Always include first question
+            key_points.append(
+                f'• Started with: "{user_questions[0][:100]}{'...' if len(user_questions[0]) > 100 else ''}"'
+            )
+
+            # Include questions with important keywords
+            important_questions = [
+                q for q in user_questions[1:-1] if any(keyword in q.lower() for keyword in important_keywords)
+            ]
+
+            for q in important_questions[:2]:  # Limit to 2 important questions
+                key_points.append(f'• Key question: "{q[:100]}{'...' if len(q) > 100 else ''}"')
+
+            # Include last question if different from first
+            if len(user_questions) > 1:
+                key_points.append(
+                    f'• Ended with: "{user_questions[-1][:100]}{'...' if len(user_questions[-1]) > 100 else ''}"'
+                )
+
+        # Add topic summary
+        if topics:
+            key_points.append(f"• Main topics: {', '.join(topics[:5])}")
+
+        # Add conversation metrics
+        key_points.append(f"• {len(user_questions)} questions answered across {len(assistant_responses)} responses")
+
+        return "\n".join(key_points)
+
+    async def generate_conversation_name(self, session_id: UUID, user_id: UUID) -> str:
+        """Generate a concise name for the conversation using LLM.
+
+        Args:
+            session_id: The conversation session ID
+            user_id: The user ID
+
+        Returns:
+            A short, concise conversation name
+        """
+        try:
+            # Get session messages for context
+            messages = await self.get_messages(session_id, user_id, limit=10)  # First 10 messages for context
+
+            if not messages:
+                return "New Conversation"
+
+            # Extract the first few questions/topics from the conversation
+            user_questions = []
+            for msg in messages[:5]:  # Look at first 5 messages
+                if msg.role == MessageRole.USER:
+                    user_questions.append(msg.content)
+
+            if not user_questions:
+                return "New Conversation"
+
+            # Get LLM provider to generate name
+            provider = self.llm_provider_service.get_default_provider()
+            if not provider:
+                # Fallback to simple name generation
+                return self._generate_simple_name_from_questions(user_questions)
+
+            # Create prompt for LLM to generate conversation name
+            questions_text = "\n".join([f"- {q}" for q in user_questions[:3]])
+
+            prompt = f"""Based on the following conversation questions, generate a short, concise conversation title (maximum 40 characters).
+The title should capture the main topic or theme. Respond with ONLY the title, no extra text.
+
+Questions:
+{questions_text}
+
+Title:"""
+
+            # Use the LLM to generate the name
+            try:
+                if hasattr(provider, "generate") and callable(provider.generate):
+                    response = await provider.generate(prompt, max_tokens=20, temperature=0.3)
+                elif hasattr(provider, "llm_base") and hasattr(provider.llm_base, "generate"):
+                    response = await provider.llm_base.generate(prompt, max_tokens=20, temperature=0.3)
+                else:
+                    # Fallback to simple name generation
+                    return self._generate_simple_name_from_questions(user_questions)
+
+                # Extract and clean the generated name
+                if isinstance(response, dict) and "text" in response:
+                    name = response["text"].strip()
+                elif isinstance(response, str):
+                    name = response.strip()
+                else:
+                    name = str(response).strip()
+
+                # Clean up the name
+                name = name.replace('"', "").replace("'", "").strip()
+                if len(name) > 40:
+                    name = name[:37] + "..."
+
+                return name if name else self._generate_simple_name_from_questions(user_questions)
+
+            except Exception as llm_error:
+                logger.warning("LLM name generation failed: %s", llm_error)
+                return self._generate_simple_name_from_questions(user_questions)
+
+        except (ValueError, KeyError, AttributeError) as e:
+            logger.error("Error generating conversation name: %s", str(e))
+            return "New Conversation"
+
+    def _generate_simple_name_from_questions(self, user_questions: list[str]) -> str:
+        """Generate a simple name from user questions without LLM."""
+        if not user_questions:
+            return "New Conversation"
+
+        # Take the first question and extract key words
+        first_question = user_questions[0]
+
+        # Simple keyword extraction
+        important_words = []
+
+        # Look for question words and important terms
+        words = first_question.lower().split()
+
+        # Skip common question words but keep topic words
+        skip_words = {
+            "what",
+            "how",
+            "why",
+            "when",
+            "where",
+            "who",
+            "is",
+            "are",
+            "does",
+            "do",
+            "can",
+            "will",
+            "should",
+            "would",
+            "the",
+            "a",
+            "an",
+            "and",
+            "or",
+            "but",
+            "in",
+            "on",
+            "at",
+            "to",
+            "for",
+            "of",
+            "with",
+            "by",
+        }
+
+        for word in words:
+            # Remove punctuation
+            clean_word = "".join(char for char in word if char.isalnum())
+            if len(clean_word) > 2 and clean_word not in skip_words:
+                important_words.append(clean_word.title())
+
+        # Create name from important words
+        if important_words:
+            name = " ".join(important_words[:4])  # Take first 4 important words
+            if len(name) > 40:
+                name = name[:37] + "..."
+            return name
+
+        # Fallback to time-based name
+        return f"Chat {datetime.now().strftime('%m/%d %H:%M')}"
+
+    async def update_conversation_name(self, session_id: UUID, user_id: UUID) -> str:
+        """Update conversation name using LLM and return the new name.
+
+        Args:
+            session_id: The conversation session ID
+            user_id: The user ID
+
+        Returns:
+            The newly generated conversation name
+        """
+        try:
+            # Generate new name
+            new_name = await self.generate_conversation_name(session_id, user_id)
+
+            # Update the session with the new name
+            await self.update_session(session_id, user_id, {"session_name": new_name})
+
+            logger.info("Updated conversation %s name to: %s", session_id, new_name)
+            return new_name
+        except (ValueError, KeyError, AttributeError) as e:
+            logger.error("Error updating conversation name: %s", str(e))
+            return "New Conversation"
+
+    async def update_all_conversation_names(self, user_id: UUID) -> dict:
+        """Update names for all conversations of a user.
+
+        Args:
+            user_id: The user ID
+
+        Returns:
+            Dictionary with results of the naming operation
+        """
+        try:
+            sessions = await self.list_sessions(user_id)
+            results = {"updated": 0, "failed": 0, "skipped": 0}
+
+            for session in sessions:
+                try:
+                    # Skip conversations that already have meaningful names (not auto-generated)
+                    if (
+                        session.session_name
+                        and not session.session_name.startswith("Chat with")
+                        and not session.session_name.startswith("New Conversation")
+                        and len(session.session_name.strip()) > 0
+                    ):
+                        results["skipped"] += 1
+                        continue
+
+                    # Generate new name
+                    new_name = await self.update_conversation_name(session.id, user_id)
+                    if new_name != "New Conversation":
+                        results["updated"] += 1
+                    else:
+                        results["failed"] += 1
+
+                except (ValueError, KeyError, AttributeError) as e:
+                    logger.error("Error updating name for session %s: %s", session.id, str(e))
+                    results["failed"] += 1
+
+            logger.info("Conversation naming results for user %s: %s", user_id, results)
+            return results
+
+        except (ValueError, KeyError, AttributeError) as e:
+            logger.error("Error updating all conversation names: %s", str(e))
+            return {"updated": 0, "failed": 1, "skipped": 0}

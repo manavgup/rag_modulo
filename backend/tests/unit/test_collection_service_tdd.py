@@ -4,19 +4,19 @@ from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import pytest
-from sqlalchemy.orm import Session
-
 from core.config import Settings
 
 # Import the custom exceptions from the correct module
 from core.custom_exceptions import DocumentStorageError, EmptyDocumentError, QuestionGenerationError
+from sqlalchemy.orm import Session
+from vectordbs.data_types import Document, DocumentChunk
+from vectordbs.error_types import CollectionError
+
 from rag_solution.core.exceptions import AlreadyExistsError
 from rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput, CollectionStatus
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
 from rag_solution.schemas.prompt_template_schema import PromptTemplateType
 from rag_solution.services.collection_service import CollectionService
-from vectordbs.data_types import Document, DocumentChunk
-from vectordbs.error_types import CollectionError
 
 
 @pytest.mark.unit
@@ -146,10 +146,10 @@ class TestCollectionServiceTDD:
 
         service.collection_repository.get_by_name.return_value = None
         service.collection_repository.create.return_value = expected_collection
-        service.vector_store.create_collection.side_effect = Exception("Vector store failed")
+        service.vector_store.create_collection.side_effect = ValueError("Vector store failed")
         service.vector_store.delete_collection.return_value = None
 
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(ValueError) as exc_info:
             service.create_collection(collection_input)
 
         assert "Vector store failed" in str(exc_info.value)
@@ -574,7 +574,7 @@ class TestCollectionServiceTDD:
         collection_id = uuid4()
         status = CollectionStatus.ERROR
 
-        service.collection_repository.update.side_effect = Exception("Database error")
+        service.collection_repository.update.side_effect = ValueError("Database error")
 
         # Should not raise exception - just log error
         try:

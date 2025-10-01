@@ -80,6 +80,44 @@ RAG Modulo provides a comprehensive set of features for building production-read
 
 </div>
 
+### 🎨 User Interface & Experience
+
+<div class="grid cards" markdown>
+
+-   :material-monitor:{ .lg .middle } **Interactive Frontend**
+
+    ---
+
+    Modern React interface with accordion displays for sources, token tracking, and reasoning
+
+    [:octicons-arrow-right-24: Learn more](frontend-interface.md)
+
+-   :material-chat:{ .lg .middle } **Enhanced Search Interface**
+
+    ---
+
+    Chat-like experience with real-time response streaming and smart data visualization
+
+    [:octicons-arrow-right-24: Learn more](frontend-interface.md)
+
+-   :material-responsive:{ .lg .middle } **Responsive Design**
+
+    ---
+
+    Tailwind CSS-powered responsive layout that works seamlessly across all devices
+
+    [:octicons-arrow-right-24: Learn more](frontend-interface.md)
+
+-   :material-connection:{ .lg .middle } **Real-time Communication**
+
+    ---
+
+    WebSocket integration for live updates with automatic fallback to REST API
+
+    [:octicons-arrow-right-24: Learn more](frontend-interface.md)
+
+</div>
+
 ### 🏗️ Architecture & Scalability
 
 <div class="grid cards" markdown>

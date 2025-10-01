@@ -5,11 +5,11 @@ from mimetypes import guess_type
 from pathlib import Path
 from typing import Any
 
+from core.config import Settings
 from fastapi import UploadFile
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
-from core.config import Settings
 from rag_solution.core.exceptions import NotFoundError, ValidationError
 from rag_solution.repository.file_repository import FileRepository
 from rag_solution.schemas.file_schema import FileInput, FileMetadata, FileOutput

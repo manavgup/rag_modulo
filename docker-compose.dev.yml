@@ -27,9 +27,7 @@ services:
        condition: service_started
     environment:
       # Development-specific overrides
-      - TESTING=true
       - SKIP_AUTH=true
-      - DEVELOPMENT_MODE=true
       - COLLECTIONDB_HOST=postgres
       - WEB_CONCURRENCY=4
       - RUNTIME_EVAL=false
@@ -52,8 +50,8 @@ services:
 
   frontend:
     build:
-      context: ./webui
-      dockerfile: Dockerfile.frontend
+      context: ./frontend
+      dockerfile: Dockerfile
       tags:
         - rag-modulo/frontend:dev
         - rag-modulo/frontend:latest
@@ -69,7 +67,7 @@ services:
       - REACT_APP_API_URL=http://localhost:8000
     volumes:
       # Mount source code for development (hot reloading)
-      - ./webui:/app:ro
+      - ./frontend:/app:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080"]
       interval: 30s
@@ -96,9 +94,7 @@ services:
       - MILVUS_HOST=milvus-standalone
       - COLLECTIONDB_HOST=postgres
       - COLLECTIONDB_PORT=5432
-      - TESTING=true
       - SKIP_AUTH=true
-      - DEVELOPMENT_MODE=true
     env_file:
       - .env
     volumes:

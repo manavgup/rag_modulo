@@ -4,9 +4,9 @@ from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import pytest
+from core.custom_exceptions import NotFoundError
 from sqlalchemy.orm import Session
 
-from core.custom_exceptions import NotFoundError
 from rag_solution.schemas.team_schema import TeamInput, TeamOutput
 from rag_solution.schemas.user_schema import UserOutput
 from rag_solution.schemas.user_team_schema import UserTeamOutput

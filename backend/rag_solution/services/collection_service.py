@@ -10,10 +10,6 @@ processing.
 import re
 from uuid import uuid4
 
-from fastapi import BackgroundTasks, UploadFile
-from pydantic import UUID4
-from sqlalchemy.orm import Session
-
 from core.config import Settings
 from core.custom_exceptions import (
     CollectionProcessingError,
@@ -26,6 +22,14 @@ from core.custom_exceptions import (
     ValidationError,
 )
 from core.logging_utils import get_logger
+from fastapi import BackgroundTasks, UploadFile
+from pydantic import UUID4
+from sqlalchemy.orm import Session
+from vectordbs.data_types import Document
+from vectordbs.error_types import CollectionError
+from vectordbs.factory import VectorStoreFactory
+
+from rag_solution.core.exceptions import AlreadyExistsError
 from rag_solution.data_ingestion.ingestion import DocumentStore
 from rag_solution.repository.collection_repository import CollectionRepository
 from rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput, CollectionStatus
@@ -39,14 +43,11 @@ from rag_solution.services.prompt_template_service import PromptTemplateService
 from rag_solution.services.question_service import QuestionService
 from rag_solution.services.user_collection_service import UserCollectionService
 from rag_solution.services.user_provider_service import UserProviderService
-from vectordbs.data_types import Document
-from vectordbs.error_types import CollectionError
-from vectordbs.factory import VectorStoreFactory
 
 logger = get_logger("services.collection")
 
 
-class CollectionService:
+class CollectionService:  # pylint: disable=too-many-instance-attributes
     """
     Service class for managing collections and their associated documents.
     """
@@ -95,26 +96,24 @@ class CollectionService:
         existing_collection = self.collection_repository.get_by_name(collection.name)
         if existing_collection:
             # Collection exists, raise error
-            from rag_solution.core.exceptions import AlreadyExistsError
-
             raise AlreadyExistsError(resource_type="Collection", field="name", value=collection.name)
 
         vector_db_name = self._generate_valid_collection_name()
         try:
-            logger.info(f"Creating collection: {collection.name} (Vector DB: {vector_db_name})")
+            logger.info("Creating collection: %s (Vector DB: %s)", collection.name, vector_db_name)
             # Create in both relational and vector databases
             new_collection = self.collection_repository.create(collection, vector_db_name)
             self.vector_store.create_collection(vector_db_name, {"is_private": collection.is_private})
-            logger.info(f"Collections created in both databases: {new_collection.id}")
+            logger.info("Collections created in both databases: %s", str(new_collection.id))
 
             return new_collection
-        except Exception as e:
+        except (ValueError, KeyError, AttributeError) as e:
             # Delete from vector database if it was created
             try:
                 self.vector_store.delete_collection(vector_db_name)
             except CollectionError as delete_exception:
-                logger.error(f"Failed to delete collection from vector store: {delete_exception!s}")
-            logger.error(f"Error creating collection: {e!s}")
+                logger.error("Failed to delete collection from vector store: %s", str(delete_exception))
+            logger.error("Error creating collection: %s", str(e))
             raise
 
     def get_collection(self, collection_id: UUID4) -> CollectionOutput:
@@ -132,12 +131,14 @@ class CollectionService:
             self.collection_repository.get(collection_id)
 
             # Fetch User instances corresponding to the UUIDs in collection_update.users
-            logger.info(f"Fetching users for collection: {collection_id}")
+            logger.info("Fetching users for collection: %s", str(collection_id))
             user_collection_outputs = self.user_collection_service.get_collection_users(collection_id)
-            logger.info(f"User instances fetched successfully: {len(user_collection_outputs)}")
+            logger.info("User instances fetched successfully: %d", len(user_collection_outputs))
 
             # Update the existing collection with the new data
-            logger.info(f"Updating collection with {collection_update.name} and {len(user_collection_outputs)} users")
+            logger.info(
+                "Updating collection with %s and %d users", collection_update.name, len(user_collection_outputs)
+            )
             update_data = {
                 "name": collection_update.name,
                 "is_private": collection_update.is_private,
@@ -149,22 +150,22 @@ class CollectionService:
             # Update user associations
             existing_user_ids = {uco.user_id for uco in user_collection_outputs}
             updated_user_ids = set(collection_update.users)
-            logger.info(f"Existing users: {existing_user_ids}, Updated users: {updated_user_ids}")
+            logger.info("Existing users: %s, Updated users: %s", str(existing_user_ids), str(updated_user_ids))
 
             users_to_add = updated_user_ids - existing_user_ids
             users_to_remove = existing_user_ids - updated_user_ids
 
-            logger.info(f"Adding {len(users_to_add)} users.")
+            logger.info("Adding %d users.", len(users_to_add))
             for user_id in users_to_add:
                 self.user_collection_service.add_user_to_collection(user_id, collection_id)
 
-            logger.info(f"Removing {len(users_to_remove)} users.")
+            logger.info("Removing %d users.", len(users_to_remove))
             for user_id in users_to_remove:
                 self.user_collection_service.remove_user_from_collection(user_id, collection_id)
 
             return self.collection_repository.get(collection_id)
-        except Exception as e:
-            logger.error(f"Error updating collection: {e!s}")
+        except (ValueError, KeyError, AttributeError) as e:
+            logger.error("Error updating collection: %s", str(e))
             raise
 
     def delete_collection(self, collection_id: UUID4) -> bool:
@@ -172,7 +173,7 @@ class CollectionService:
         Delete a collection by its ID.
         """
         try:
-            logger.info(f"Deleting collection: {collection_id}")
+            logger.info("Deleting collection: %s", str(collection_id))
             # This will raise NotFoundError if not found - no need to check
             collection = self.collection_repository.get(collection_id)
 
@@ -186,20 +187,20 @@ class CollectionService:
 
             # Delete from vector database
             self.vector_store.delete_collection(collection.vector_db_name)
-            logger.info(f"Collection {collection_id} deleted successfully")
+            logger.info("Collection %s deleted successfully", str(collection_id))
             return True
-        except Exception as e:
-            logger.error(f"Error deleting collection: {e!s}")
+        except (ValueError, KeyError, AttributeError) as e:
+            logger.error("Error deleting collection: %s", str(e))
             raise
 
     def get_user_collections(self, user_id: UUID4) -> list[CollectionOutput]:
         """
         Get all collections belonging to a user.
         """
-        logger.info(f"Fetching collections for user: {user_id}")
+        logger.info("Fetching collections for user: %s", user_id)
         return self.collection_repository.get_user_collections(user_id)
 
-    def create_collection_with_documents(
+    def create_collection_with_documents(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         collection_name: str,
         is_private: bool,
@@ -223,20 +224,20 @@ class CollectionService:
                 files, user_id, collection.id, collection.vector_db_name, background_tasks
             )
 
-            logger.info(f"Collection with documents created successfully: {collection.id}")
+            logger.info("Collection with documents created successfully: %s", collection.id)
 
             return collection
-        except Exception as e:
+        except (ValueError, KeyError, AttributeError) as e:
             # Delete from vector database if it was created
             if collection:
                 try:
                     self.vector_store.delete_collection(collection.vector_db_name)
                 except CollectionError as exc:
-                    logger.error(f"Error deleting collection from vector store: {exc!s}")
-            logger.error(f"Error in create_collection_with_documents: {e!s}")
+                    logger.error("Error deleting collection from vector store: %s", str(exc))
+            logger.error("Error in create_collection_with_documents: %s", str(e))
             raise
 
-    async def process_documents(
+    async def process_documents(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self, file_paths: list[str], collection_id: UUID4, vector_db_name: str, document_ids: list[str], user_id: UUID4
     ) -> None:
         """Process documents and generate questions for a collection.
@@ -270,8 +271,8 @@ class CollectionService:
         except (DocumentIngestionError, EmptyDocumentError, QuestionGenerationError):
             # These exceptions already have proper collection status updates
             raise
-        except Exception as e:
-            logger.error(f"Unexpected error processing documents for collection {collection_id}: {e!s}")
+        except (ValueError, KeyError, AttributeError) as e:
+            logger.error("Unexpected error processing documents for collection %s: %s", str(collection_id), str(e))
             self.update_collection_status(collection_id, CollectionStatus.ERROR)
             raise CollectionProcessingError(
                 collection_id=str(collection_id), stage="processing", error_type="unexpected_error", message=str(e)
@@ -284,7 +285,7 @@ class CollectionService:
         try:
             return await self.ingest_documents(file_paths, vector_db_name, document_ids)
         except DocumentIngestionError as e:
-            logger.error(f"Document ingestion failed: {e!s}")
+            logger.error("Document ingestion failed: %s", str(e))
             self.update_collection_status(collection_id, CollectionStatus.ERROR)
             raise CollectionProcessingError(
                 collection_id=str(collection_id), stage="ingestion", error_type="ingestion_failed", message=str(e)
@@ -300,7 +301,7 @@ class CollectionService:
                     document_texts.append(chunk.text)
 
         if not document_texts:
-            logger.error(f"No valid text chunks found in documents for collection {collection_id}")
+            logger.error("No valid text chunks found in documents for collection %s", str(collection_id))
             self.update_collection_status(collection_id, CollectionStatus.ERROR)
             raise EmptyDocumentError(collection_id=str(collection_id))
 
@@ -334,13 +335,13 @@ class CollectionService:
             )
 
             if not questions:
-                logger.warning(f"No questions were generated for collection {collection_id}")
+                logger.warning("No questions were generated for collection %s", str(collection_id))
                 self.update_collection_status(collection_id, CollectionStatus.ERROR)
                 raise QuestionGenerationError(
                     collection_id=str(collection_id), error_type="no_questions", message="No questions were generated"
                 )
 
-            logger.info(f"Generated {len(questions)} questions for collection {collection_id}")
+            logger.info("Generated %d questions for collection %s", len(questions), str(collection_id))
             self.update_collection_status(collection_id, CollectionStatus.COMPLETED)
 
         except (ValidationError, NotFoundError, LLMProviderError) as e:
@@ -351,13 +352,13 @@ class CollectionService:
                 if isinstance(e, NotFoundError)
                 else "provider_error"
             )
-            logger.error(f"Question generation failed ({error_type}): {e!s}")
+            logger.error("Question generation failed (%s): %s", error_type, str(e))
             self.update_collection_status(collection_id, CollectionStatus.ERROR)
             raise QuestionGenerationError(
                 collection_id=str(collection_id), error_type=error_type, message=str(e)
             ) from e
-        except Exception as e:
-            logger.error(f"Unexpected error during question generation: {e!s}")
+        except (ValueError, KeyError, AttributeError) as e:
+            logger.error("Unexpected error during question generation: %s", str(e))
             self.update_collection_status(collection_id, CollectionStatus.ERROR)
             raise QuestionGenerationError(
                 collection_id=str(collection_id), error_type="unexpected_error", message=str(e)
@@ -372,7 +373,7 @@ class CollectionService:
         """Get LLM parameters converted to input format."""
         logger.info("Attempting to get parameters")
         parameters = self.llm_parameters_service.get_latest_or_default_parameters(user_id)
-        logger.info(f"got parameters: {parameters}")
+        logger.info("got parameters: %s", parameters)
 
         if parameters is None:
             raise ValueError("No LLM parameters found for user")
@@ -413,17 +414,17 @@ class CollectionService:
             )
 
             processed_documents = await document_store.load_documents(file_paths, document_ids)
-            logger.info(f"Document processing complete using DocumentStore with document IDs: {document_ids}")
+            logger.info("Document processing complete using DocumentStore with document IDs: %s", document_ids)
             return processed_documents
 
-        except Exception as e:
-            logger.error(f"Error during document ingestion: {e!s}")
+        except (ValueError, KeyError, AttributeError) as e:
+            logger.error("Error during document ingestion: %s", str(e))
             # Map to appropriate DocumentIngestionError
             if "processing" in str(e).lower():
                 raise DocumentIngestionError(
                     doc_id="batch", stage="processing", error_type="processing_failed", message=str(e)
                 ) from e
-            elif "storage" in str(e).lower() or "vector" in str(e).lower():
+            if "storage" in str(e).lower() or "vector" in str(e).lower():
                 raise DocumentIngestionError(
                     doc_id="batch", stage="vector_store", error_type="storage_failed", message=str(e)
                 ) from e
@@ -443,19 +444,19 @@ class CollectionService:
             DocumentStorageError: If storing documents fails
         """
         try:
-            logger.info(f"Storing documents in collection {collection_name}")
+            logger.info("Storing documents in collection %s", collection_name)
             self.vector_store.add_documents(collection_name, documents)
-            logger.info(f"Successfully stored documents in collection {collection_name}")
+            logger.info("Successfully stored documents in collection %s", collection_name)
         except CollectionError as e:
-            logger.error(f"Vector store error: {e!s}")
+            logger.error("Vector store error: %s", str(e))
             raise DocumentStorageError(
                 doc_id=documents[0].id if documents else "unknown",
                 storage_path=collection_name,
                 error_type="vector_store_error",
                 message=str(e),
             ) from e
-        except Exception as e:
-            logger.error(f"Unexpected error storing documents: {e!s}")
+        except (ValueError, KeyError, AttributeError) as e:
+            logger.error("Unexpected error storing documents: %s", str(e))
             raise DocumentStorageError(
                 doc_id=documents[0].id if documents else "unknown",
                 storage_path=collection_name,
@@ -463,7 +464,7 @@ class CollectionService:
                 message=str(e),
             ) from e
 
-    def _upload_files_and_trigger_processing(
+    def _upload_files_and_trigger_processing(  # pylint: disable=too-many-arguments,too-many-positional-arguments
         self,
         files: list[UploadFile],
         user_id: UUID4,
@@ -519,12 +520,12 @@ class CollectionService:
                 self.process_documents, file_paths, collection_id, collection_vector_db_name, document_ids, user_id
             )
 
-            logger.info(f"Files uploaded and processing started for collection: {collection_id}")
+            logger.info("Files uploaded and processing started for collection: %s", str(collection_id))
 
             return file_records
 
-        except Exception as e:
-            logger.error(f"Error in _upload_files_and_trigger_processing: {e!s}")
+        except (ValueError, KeyError, AttributeError) as e:
+            logger.error("Error in _upload_files_and_trigger_processing: %s", str(e))
             raise
 
     def upload_file_and_process(
@@ -557,14 +558,77 @@ class CollectionService:
 
             return file_records[0]
 
-        except Exception as e:
-            logger.error(f"Error in upload_file_and_process: {e!s}")
+        except (ValueError, KeyError, AttributeError) as e:
+            logger.error("Error in upload_file_and_process: %s", str(e))
             raise
 
     def update_collection_status(self, collection_id: UUID4, status: CollectionStatus) -> None:
         """Update the status of a collection."""
         try:
             self.collection_repository.update(collection_id, {"status": status})
-            logger.info(f"Updated collection {collection_id} status to {status}")
-        except Exception as e:
-            logger.error(f"Error updating status for collection {collection_id}: {e!s}")
+            logger.info("Updated collection %s status to %s", str(collection_id), status)
+        except (ValueError, KeyError, AttributeError) as e:
+            logger.error("Error updating status for collection %s: %s", str(collection_id), str(e))
+
+    def cleanup_orphaned_vector_collections(self) -> dict[str, int]:
+        """
+        Clean up orphaned collections in the vector database.
+
+        Identifies collections that exist in the vector database (Milvus) but have no
+        corresponding record in the PostgreSQL collections table, and removes them.
+
+        Returns:
+            dict: Summary with counts of found and deleted collections
+
+        Raises:
+            CollectionError: If cleanup operation fails
+        """
+        try:
+            # Get all collections from vector database
+            if not hasattr(self.vector_store, "list_collections"):
+                logger.warning("Vector store does not support listing collections - skipping cleanup")
+                return {"found": 0, "deleted": 0, "errors": []}  # type: ignore[dict-item]
+
+            vector_db_collections = self.vector_store.list_collections()
+            logger.info("Found %d collections in vector database", len(vector_db_collections))
+
+            # Get all collection vector_db_names from PostgreSQL
+            pg_collections = self.collection_repository.get_all_collections()
+            valid_vector_db_names = {col.vector_db_name for col in pg_collections}
+            logger.info("Found %d valid collections in PostgreSQL", len(valid_vector_db_names))
+
+            # Find orphaned collections
+            orphaned_collections = []
+            for vector_collection in vector_db_collections:
+                if vector_collection not in valid_vector_db_names:
+                    orphaned_collections.append(vector_collection)
+
+            logger.info("Identified %d orphaned collections: %s", len(orphaned_collections), orphaned_collections)
+
+            # Delete orphaned collections
+            deleted_count = 0
+            errors = []
+
+            for orphaned_collection in orphaned_collections:
+                try:
+                    self.vector_store.delete_collection(orphaned_collection)
+                    deleted_count += 1
+                    logger.info("Deleted orphaned collection: %s", orphaned_collection)
+                except (ValueError, KeyError, AttributeError) as e:
+                    error_msg = f"Failed to delete collection {orphaned_collection}: {e!s}"
+                    logger.error(error_msg)
+                    errors.append(error_msg)
+
+            summary = {"found": len(orphaned_collections), "deleted": deleted_count, "errors": errors}  # type: ignore[dict-item]
+
+            logger.info("Cleanup complete: %s", summary)
+            return summary  # type: ignore[return-value]
+
+        except (ValueError, KeyError, AttributeError) as e:
+            logger.error("Error during orphaned collection cleanup: %s", str(e))
+            raise CollectionProcessingError(
+                collection_id="cleanup",
+                stage="orphan_cleanup",
+                error_type="cleanup_error",
+                message=f"Orphaned collection cleanup failed: {e!s}",
+            ) from e

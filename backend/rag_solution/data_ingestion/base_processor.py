@@ -12,8 +12,9 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from core.config import Settings
-from rag_solution.data_ingestion.chunking import get_chunking_method
 from vectordbs.data_types import Document, DocumentMetadata
+
+from rag_solution.data_ingestion.chunking import get_chunking_method
 
 if TYPE_CHECKING:
     pass

@@ -8,13 +8,16 @@ WORKDIR /app
 # Copy package files first for better layer caching
 COPY package*.json ./
 
-# Install dependencies with clean npm cache
-RUN npm ci --only=production && npm cache clean --force
+# Install all dependencies (including dev) for build
+RUN npm ci && npm cache clean --force
 
 # Copy source code
 COPY src/ ./src/
 COPY public/ ./public/
-COPY jsconfig.json ./
+COPY tailwind.config.js ./
+COPY postcss.config.js ./
+COPY tsconfig.json ./
+COPY default.conf ./
 
 # Build the application
 RUN npm run build
@@ -25,8 +28,8 @@ FROM nginx:alpine
 # Copy the build artifacts to the nginx html directory
 COPY --from=builder /app/build /usr/share/nginx/html
 
-# Copy the default.conf file
-COPY --chown=nginx:nginx default.conf /etc/nginx/conf.d/default.conf
+# Copy nginx config
+COPY --from=builder /app/default.conf /etc/nginx/conf.d/default.conf
 
 # Create a non-root user and group
 RUN sed -i 's,/run/nginx.pid,/tmp/nginx.pid,' /etc/nginx/nginx.conf && \

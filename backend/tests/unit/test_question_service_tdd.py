@@ -4,10 +4,10 @@ from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import pytest
-from sqlalchemy.orm import Session
-
 from core.config import Settings
 from core.custom_exceptions import NotFoundError
+from sqlalchemy.orm import Session
+
 from rag_solution.models.question import SuggestedQuestion
 from rag_solution.schemas.question_schema import QuestionInput
 from rag_solution.services.question_service import QuestionService

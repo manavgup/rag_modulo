@@ -3,10 +3,10 @@
 from typing import Annotated
 from uuid import UUID
 
+from core.config import Settings, get_settings
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from core.config import Settings, get_settings
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.llm_usage_schema import TokenUsageStats
 from rag_solution.services.token_tracking_service import TokenTrackingService

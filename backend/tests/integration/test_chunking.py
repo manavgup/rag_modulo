@@ -2,8 +2,8 @@ from unittest.mock import patch
 
 import numpy as np
 import pytest
-
 from core.config import get_settings
+
 from rag_solution.data_ingestion.chunking import (
     calculate_cosine_distances,
     combine_sentences,

@@ -301,6 +301,23 @@ class MilvusStore(VectorStore):
             logging.error("Failed to delete Milvus collection: %s", str(e))
             raise CollectionError(f"Failed to delete Milvus collection: {e}") from e
 
+    def list_collections(self) -> list[str]:
+        """List all collections in Milvus.
+
+        Returns:
+            List of collection names
+
+        Raises:
+            CollectionError: If listing fails
+        """
+        try:
+            collections = utility.list_collections()
+            logging.info("Listed %d collections from Milvus", len(collections))
+            return collections
+        except Exception as e:
+            logging.error("Failed to list Milvus collections: %s", str(e))
+            raise CollectionError(f"Failed to list Milvus collections: {e}") from e
+
     def delete_documents(self, collection_name: str, document_ids: list[str]) -> None:
         """Delete documents by their IDs from the Milvus collection.
 
