@@ -29,8 +29,8 @@ jobs:
       - name: Build and push frontend
         uses: docker/build-push-action@v5
         with:
-          context: ./webui
-          file: ./webui/Dockerfile.frontend
+          context: ./frontend
+          file: ./frontend/Dockerfile.frontend
           push: true
           tags: |
             ghcr.io/manavgup/rag_modulo/frontend:1.0.${{ github.run_number }}

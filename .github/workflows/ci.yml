@@ -168,7 +168,7 @@ jobs:
           docker build -t $BACKEND_TAG -f ./backend/Dockerfile.backend ./backend
 
           echo "Building frontend image..."
-          docker build -t $FRONTEND_TAG -f ./webui/Dockerfile.frontend ./webui
+          docker build -t $FRONTEND_TAG -f ./frontend/Dockerfile.frontend ./frontend
 
           echo "Images built successfully (not pushing on PRs)"
           echo "backend-image=$BACKEND_TAG" >> $GITHUB_OUTPUT
