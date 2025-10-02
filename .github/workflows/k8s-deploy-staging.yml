@@ -54,7 +54,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: ./frontend
-          file: ./frontend/Dockerfile
+          file: ./frontend/Dockerfile.frontend
           push: true
           tags: |
             ${{ env.GHCR_REPO }}/frontend:staging
