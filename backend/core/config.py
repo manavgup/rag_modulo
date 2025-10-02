@@ -40,11 +40,25 @@ class Settings(BaseSettings):
     anthropic_api_key: Annotated[str | None, Field(default=None, alias="ANTHROPIC_API_KEY")]
 
     # Chunking settings
+    # Options: fixed, semantic, hierarchical
     chunking_strategy: Annotated[str, Field(default="fixed", alias="CHUNKING_STRATEGY")]
     min_chunk_size: Annotated[int, Field(default=100, alias="MIN_CHUNK_SIZE")]
     max_chunk_size: Annotated[int, Field(default=400, alias="MAX_CHUNK_SIZE")]
     chunk_overlap: Annotated[int, Field(default=10, alias="CHUNK_OVERLAP")]
     semantic_threshold: Annotated[float, Field(default=0.5, alias="SEMANTIC_THRESHOLD")]
+
+    # Hierarchical chunking settings
+    hierarchical_parent_size: Annotated[int, Field(default=1500, alias="HIERARCHICAL_PARENT_SIZE")]
+    hierarchical_child_size: Annotated[int, Field(default=300, alias="HIERARCHICAL_CHILD_SIZE")]
+    hierarchical_levels: Annotated[int, Field(default=2, alias="HIERARCHICAL_LEVELS")]  # 2 or 3 levels
+    hierarchical_strategy: Annotated[
+        str, Field(default="size_based", alias="HIERARCHICAL_STRATEGY")
+    ]  # Options: size_based, sentence_based
+    hierarchical_sentences_per_child: Annotated[int, Field(default=3, alias="HIERARCHICAL_SENTENCES_PER_CHILD")]
+    hierarchical_children_per_parent: Annotated[int, Field(default=5, alias="HIERARCHICAL_CHILDREN_PER_PARENT")]
+    hierarchical_retrieval_mode: Annotated[
+        str, Field(default="child_with_parent", alias="HIERARCHICAL_RETRIEVAL_MODE")
+    ]  # Options: child_only, child_with_parent, full_hierarchy
 
     # Chain of Thought (CoT) settings
     cot_max_reasoning_depth: Annotated[int, Field(default=3, alias="COT_MAX_REASONING_DEPTH")]
@@ -94,6 +108,16 @@ class Settings(BaseSettings):
     vector_weight: Annotated[float, Field(default=0.7, alias="VECTOR_WEIGHT")]
     keyword_weight: Annotated[float, Field(default=0.3, alias="KEYWORD_WEIGHT")]
     hybrid_weight: Annotated[float, Field(default=0.5, alias="HYBRID_WEIGHT")]
+
+    # Reranking settings
+    enable_reranking: Annotated[bool, Field(default=True, alias="ENABLE_RERANKING")]
+    reranker_type: Annotated[str, Field(default="llm", alias="RERANKER_TYPE")]  # Options: llm, simple
+    reranker_top_k: Annotated[int | None, Field(default=None, alias="RERANKER_TOP_K")]  # None = rerank all results
+    reranker_batch_size: Annotated[int, Field(default=10, alias="RERANKER_BATCH_SIZE")]
+    reranker_score_scale: Annotated[int, Field(default=10, alias="RERANKER_SCORE_SCALE")]  # 0-10 scoring scale
+    reranker_prompt_template_name: Annotated[
+        str, Field(default="reranking", alias="RERANKER_PROMPT_TEMPLATE_NAME")
+    ]  # Template name for reranking prompts
 
     # Question suggestion settings
     question_suggestion_num: Annotated[int, Field(default=5, alias="QUESTION_SUGGESTION_NUM")]

@@ -6,14 +6,13 @@ extracting content and creating document chunks.
 
 import logging
 import os
-import uuid
 from collections.abc import AsyncIterator
 
 import aiofiles
 from core.custom_exceptions import DocumentProcessingError
 
 # Embedding functionality inherited from BaseProcessor
-from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, Source
+from vectordbs.data_types import Document, Source
 
 from rag_solution.data_ingestion.base_processor import BaseProcessor
 
@@ -29,6 +28,8 @@ class TxtProcessor(BaseProcessor):
         process(file_path: str) -> AsyncIterable[Document]: Process the text file and yield Document instances.
     """
 
+    # pylint: disable=invalid-overridden-method
+    # Justification: Base class will be updated to async in future, this is transitional
     async def process(self, file_path: str, _document_id: str) -> AsyncIterator[Document]:
         """
         Process the text file and yield Document instances.
@@ -46,26 +47,9 @@ class TxtProcessor(BaseProcessor):
         try:
             async with aiofiles.open(file_path, encoding="utf-8") as f:
                 text = await f.read()
-                chunks = self.chunking_method(text)
 
-                # Create one document with all chunks
-
-                # Create chunk metadata for source information
-                chunk_metadata = DocumentChunkMetadata(source=Source.OTHER, document_id=_document_id)
-
-                # Create all chunks for this document
-                document_chunks = []
-
-                # Create chunks without embeddings (embeddings will be generated in ingestion.py)
-                for chunk_text in chunks:
-                    chunk = DocumentChunk(
-                        chunk_id=str(uuid.uuid4()),
-                        text=chunk_text,
-                        embeddings=[],  # Empty embeddings
-                        document_id=_document_id,
-                        metadata=chunk_metadata,
-                    )
-                    document_chunks.append(chunk)
+                # Use the base processor's hierarchical-aware chunk creation
+                document_chunks = self.create_chunks_with_hierarchy(text, _document_id, Source.OTHER)
 
                 # Create one document with all chunks
                 document = Document(

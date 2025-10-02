@@ -717,6 +717,32 @@ class ApiClient {
     return response.data;
   }
 
+  async sendConversationMessage(sessionId: string, content: string): Promise<ConversationMessage> {
+    const payload = {
+      session_id: sessionId,
+      content: content,
+      role: 'user',
+      message_type: 'question'
+    };
+
+    const response: AxiosResponse<any> = await this.client.post(`/api/chat/sessions/${sessionId}/process`, payload);
+    const message = response.data;
+
+    return {
+      id: message.id,
+      session_id: message.session_id,
+      content: message.content,
+      role: message.role,
+      message_type: message.message_type,
+      created_at: new Date(message.created_at),
+      metadata: message.metadata,
+      token_count: message.token_count,
+      execution_time: message.execution_time,
+      token_warning: message.token_warning,
+      sources: message.sources
+    };
+  }
+
   async archiveConversation(sessionId: string): Promise<ConversationSession> {
     const response: AxiosResponse<any> = await this.client.post(`/api/conversations/${sessionId}/archive`);
     const conversation = response.data;
