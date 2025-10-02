@@ -46,6 +46,10 @@ class Settings(BaseSettings):
     chunk_overlap: Annotated[int, Field(default=10, alias="CHUNK_OVERLAP")]
     semantic_threshold: Annotated[float, Field(default=0.5, alias="SEMANTIC_THRESHOLD")]
 
+    # IBM Docling Feature Flags
+    enable_docling: Annotated[bool, Field(default=False, alias="ENABLE_DOCLING")]
+    docling_fallback_enabled: Annotated[bool, Field(default=True, alias="DOCLING_FALLBACK_ENABLED")]
+
     # Chain of Thought (CoT) settings
     cot_max_reasoning_depth: Annotated[int, Field(default=3, alias="COT_MAX_REASONING_DEPTH")]
     cot_reasoning_strategy: Annotated[str, Field(default="decomposition", alias="COT_REASONING_STRATEGY")]

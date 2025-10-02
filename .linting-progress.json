@@ -209,7 +209,12 @@
     "backend/tests/unit/test_token_warning_service_tdd.py",
     "backend/rag_solution/router/websocket_router.py",
     "backend/rag_solution/services/dashboard_service.py",
-    "backend/rag_solution/models/collection.py"
+    "backend/rag_solution/models/collection.py",
+    "backend/dev_tests/manual/test_docling_debug.py",
+    "backend/dev_tests/manual/test_pdf_comparison.py",
+    "backend/rag_solution/data_ingestion/docling_processor.py",
+    "backend/rag_solution/data_ingestion/document_processor.py",
+    "backend/tests/unit/test_docling_processor.py"
   ],
   "non_compliant_files": [
     "backend/tests/integration/conftest.py",
@@ -231,7 +236,6 @@
     "backend/rag_solution/cli/exceptions.py",
     "backend/rag_solution/core/dependencies.py",
     "backend/rag_solution/data_ingestion/chunking.py",
-    "backend/rag_solution/data_ingestion/document_processor.py",
     "backend/rag_solution/schemas/pipeline_schema.py",
     "backend/scripts/fix_datetime_imports.py",
     "backend/tests/fixtures/auth.py",
@@ -256,7 +260,6 @@
     "backend/rag_solution/router/token_warning_router.py",
     "backend/rag_solution/schemas/chain_of_thought_schema.py",
     "backend/rag_solution/schemas/search_schema.py",
-    "backend/core/config.py",
     "backend/auth/oidc.py",
     "backend/cli/search_test.py",
     "backend/core/authentication_middleware.py",
@@ -269,7 +272,8 @@
     "backend/rag_solution/router/dashboard_router.py",
     "backend/rag_solution/schemas/dashboard_schema.py",
     "backend/vectordbs/utils/watsonx_refactored.py",
-    "backend/vectordbs/weaviate_store.py"
+    "backend/vectordbs/weaviate_store.py",
+    "backend/core/config.py"
   ],
   "new_files_requiring_compliance": [],
   "legacy_files_exempt": [

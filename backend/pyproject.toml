@@ -49,6 +49,8 @@ dependencies = [
     "validators>=0.34.0",
     "pytest>=7.4.0",
     "psutil (>=7.0.0,<8.0.0)",
+    "docling (>=2.0.0)",
+    "transformers (>=4.46.0)",
 ]
 
 [tool.poetry]
