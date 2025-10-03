@@ -1,7 +1,0 @@
-User Type,Screen,Layout,Interactions,Navigation,Key Features
-End User,Search Page,Header with search bar; Results area; Sidebar for filters,Enter query; Click on results; Apply filters,Navigate to detailed view; Return to search,Advanced search capabilities; Real-time results
-End User,Document View,Header; Document content area; Sidebar with metadata,Scroll through document; Highlight text; Add notes,Return to search results; Navigate to related documents,Full text view; Note-taking; Related document suggestions
-Content Manager,Document Upload,Header; Upload form; Progress indicator,Select files; Submit upload; Monitor progress,Navigate to document management,Bulk upload; Progress tracking; Error handling
-System Administrator,Configuration Panel,Header; Sidebar with categories; Main configuration area,Adjust settings; Save configuration; Test connections,Navigate between configuration categories,Database configuration; Embedding model settings; User management
-API Developer,API Documentation,Header; Sidebar with endpoints; Main content area with details,Expand/collapse endpoint details; Try API calls,Navigate between endpoints; Search documentation,Interactive API console; Code samples; Authentication guide
-Data Analyst,Analytics Dashboard,Header; Overview charts; Detailed metrics tables,Filter data; Export reports; Drill down into metrics,Navigate between different analytics views,Usage trends; Query performance; User engagement metrics
