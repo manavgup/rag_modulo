@@ -36,6 +36,7 @@ from rag_solution.router.collection_router import router as collection_router
 from rag_solution.router.conversation_router import router as conversation_router
 from rag_solution.router.dashboard_router import router as dashboard_router
 from rag_solution.router.health_router import router as health_router
+from rag_solution.router.podcast_router import router as podcast_router
 from rag_solution.router.search_router import router as search_router
 from rag_solution.router.team_router import router as team_router
 from rag_solution.router.token_warning_router import router as token_warning_router
@@ -160,6 +161,7 @@ app.include_router(conversation_router)
 app.include_router(dashboard_router)
 app.include_router(health_router)
 app.include_router(collection_router)
+app.include_router(podcast_router)
 app.include_router(user_router)
 app.include_router(team_router)
 app.include_router(search_router)
