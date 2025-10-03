@@ -20,7 +20,6 @@ permissions:
 env:
   # Build metadata
   GITHUB_SHA: ${{ github.sha }}
-  CACHE_DIR: /tmp/.buildx-cache  # BuildKit layer cache directory
 
   # GitHub Container Registry
   GHCR_REPO: ghcr.io/${{ github.repository_owner }}/rag_modulo
@@ -53,15 +52,26 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       # -----------------------------------------------------------
-      # 2️⃣  Restore BuildKit layer cache
+      # 2️⃣  Free up disk space if needed
       # -----------------------------------------------------------
-      - name: ♻️  Restore Docker layer cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.CACHE_DIR }}
-          key: ${{ runner.os }}-buildx-${{ hashFiles('**/Dockerfile*') }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-
+      - name: 🧹 Free up disk space
+        run: |
+          echo "=== Disk space BEFORE cleanup ==="
+          df -h /
+
+          # Only clean if less than 25GB available
+          AVAILABLE=$(df / | awk 'NR==2 {print int($4/1024/1024)}')
+          if [ "$AVAILABLE" -lt 25 ]; then
+            echo "Low disk space ($AVAILABLE GB), cleaning up..."
+            sudo rm -rf /usr/share/dotnet
+            sudo rm -rf /usr/local/lib/android
+            sudo rm -rf /opt/ghc
+            sudo rm -rf /opt/hostedtoolcache/CodeQL
+            docker system prune -af --volumes || true
+          fi
+
+          echo "=== Disk space AFTER cleanup ==="
+          df -h /
 
       # -----------------------------------------------------------
       # 3️⃣  Login to GitHub Container Registry
@@ -95,8 +105,8 @@ jobs:
           tags: |
             ${{ env.GHCR_REPO }}/backend:staging
             ${{ env.GHCR_REPO }}/backend:staging-${{ env.GITHUB_SHA }}
-          cache-from: type=local,src=${{ env.CACHE_DIR }}
-          cache-to: type=local,dest=${{ env.CACHE_DIR }}-new,mode=min
+          cache-from: type=gha
+          cache-to: type=gha,mode=min
 
       # -----------------------------------------------------------
       # 6️⃣  Build and push frontend image
@@ -111,16 +121,8 @@ jobs:
           tags: |
             ${{ env.GHCR_REPO }}/frontend:staging
             ${{ env.GHCR_REPO }}/frontend:staging-${{ env.GITHUB_SHA }}
-          cache-from: type=local,src=${{ env.CACHE_DIR }}
-          cache-to: type=local,dest=${{ env.CACHE_DIR }}-new,mode=min
-
-      # -----------------------------------------------------------
-      # 7️⃣  Move cache (optimize for next run)
-      # -----------------------------------------------------------
-      - name: 🔄 Move Docker cache
-        run: |
-          rm -rf ${{ env.CACHE_DIR }}
-          mv ${{ env.CACHE_DIR }}-new ${{ env.CACHE_DIR }} || true
+          cache-from: type=gha
+          cache-to: type=gha,mode=min
 
   deploy-code-engine:
     name: 🚀 Deploy to IBM Code Engine
