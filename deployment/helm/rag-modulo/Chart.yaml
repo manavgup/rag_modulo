@@ -1,0 +1,23 @@
+apiVersion: v2
+name: rag-modulo
+description: A Helm chart for RAG Modulo - Modular RAG solution with flexible vector database support
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - rag
+  - vector-database
+  - llm
+  - ai
+  - machine-learning
+  - milvus
+  - openai
+  - watsonx
+home: https://github.com/manavgup/rag_modulo
+sources:
+  - https://github.com/manavgup/rag_modulo
+maintainers:
+  - name: RAG Modulo Team
+    email: maintainers@rag-modulo.com
+dependencies: []
+icon: https://raw.githubusercontent.com/manavgup/rag_modulo/main/docs/assets/logo.png

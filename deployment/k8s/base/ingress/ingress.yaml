@@ -1,0 +1,67 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rag-modulo-ingress
+  namespace: rag-modulo
+  labels:
+    app: rag-modulo
+  annotations:
+    # nginx ingress annotations
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+
+    # cert-manager annotations for automatic TLS
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+
+    # IBM Cloud annotations (uncomment if using IBM Cloud)
+    # ingress.bluemix.net/ALB-ID: "private-<alb-id>"
+    # ingress.bluemix.net/redirect-to-https: "True"
+
+    # OpenShift Route annotations (alternative for OpenShift)
+    # route.openshift.io/termination: "edge"
+spec:
+  ingressClassName: nginx  # or 'openshift-default' for OpenShift
+  tls:
+  - hosts:
+    - rag-modulo.example.com  # Replace with your domain
+    - api.rag-modulo.example.com
+    secretName: rag-modulo-tls
+  rules:
+  # Frontend
+  - host: rag-modulo.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend-service
+            port:
+              number: 8080
+
+  # Backend API
+  - host: api.rag-modulo.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: backend-service
+            port:
+              number: 8000
+
+  # MLFlow (optional - can restrict access)
+  - host: mlflow.rag-modulo.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: mlflow-service
+            port:
+              number: 5000

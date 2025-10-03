@@ -16,6 +16,7 @@ from core.custom_exceptions import DocumentProcessingError
 from vectordbs.data_types import Document, DocumentMetadata
 
 from rag_solution.data_ingestion.base_processor import BaseProcessor
+from rag_solution.data_ingestion.docling_processor import DoclingProcessor
 from rag_solution.data_ingestion.excel_processor import ExcelProcessor
 from rag_solution.data_ingestion.pdf_processor import PdfProcessor
 from rag_solution.data_ingestion.txt_processor import TxtProcessor
@@ -46,11 +47,44 @@ class DocumentProcessor:
             manager = multiprocessing.Manager()
         self.manager = manager
         self.settings = settings
-        self.processors: dict[str, BaseProcessor] = {
-            ".txt": TxtProcessor(settings),
-            ".pdf": PdfProcessor(self.manager, settings),
-            ".docx": WordProcessor(settings),
-            ".xlsx": ExcelProcessor(settings),
+
+        # Initialize legacy processors
+        legacy_pdf = PdfProcessor(self.manager, settings)
+        legacy_docx = WordProcessor(settings)
+
+        # Initialize Docling processor
+        docling_processor = DoclingProcessor(settings)
+
+        # Configure processors based on feature flag
+        if settings.enable_docling:
+            # Use Docling for all supported formats
+            self.processors: dict[str, BaseProcessor] = {
+                ".pdf": docling_processor,
+                ".docx": docling_processor,
+                ".pptx": docling_processor,  # NEW FORMAT
+                ".html": docling_processor,  # NEW FORMAT
+                ".htm": docling_processor,  # NEW FORMAT
+                ".png": docling_processor,  # NEW FORMAT
+                ".jpg": docling_processor,  # NEW FORMAT
+                ".jpeg": docling_processor,  # NEW FORMAT
+                ".tiff": docling_processor,  # NEW FORMAT
+                ".txt": TxtProcessor(settings),
+                ".xlsx": ExcelProcessor(settings),
+            }
+        else:
+            # Use legacy processors
+            self.processors = {
+                ".pdf": legacy_pdf,
+                ".docx": legacy_docx,
+                ".txt": TxtProcessor(settings),
+                ".xlsx": ExcelProcessor(settings),
+                # PPTX, HTML, images not supported without Docling
+            }
+
+        # Store legacy processors for fallback
+        self.legacy_processors = {
+            ".pdf": legacy_pdf,
+            ".docx": legacy_docx,
         }
 
     async def _process_async(self, processor: BaseProcessor, file_path: str, document_id: str) -> list[Document]:
@@ -72,10 +106,11 @@ class DocumentProcessor:
 
     async def process_document(self, file_path: str, document_id: str) -> AsyncGenerator[Document, None]:
         """
-        Process a document based on its file extension and generate suggested questions.
+        Process a document based on its file extension with fallback support.
 
         Args:
             file_path (str): The path to the file to be processed.
+            document_id (str): Unique identifier for the document.
 
         Yields:
             Document: A processed Document object.
@@ -91,12 +126,29 @@ class DocumentProcessor:
                 logger.warning("No processor found for file extension: %s", file_extension)
                 return
 
-            # Process the document asynchronously
-            documents = await self._process_async(processor, file_path, document_id)
+            # Try processing with the selected processor
+            try:
+                documents = await self._process_async(processor, file_path, document_id)
 
-            # Yield documents
-            for doc in documents:
-                yield doc
+                for doc in documents:
+                    yield doc
+
+            except Exception as docling_error:
+                # Fallback to legacy processor if enabled and available
+                if self.settings.docling_fallback_enabled and file_extension in self.legacy_processors:
+                    logger.warning(
+                        "Docling processing failed for %s, falling back to legacy processor: %s",
+                        file_path,
+                        docling_error,
+                    )
+
+                    legacy_processor = self.legacy_processors[file_extension]
+                    documents = await self._process_async(legacy_processor, file_path, document_id)
+
+                    for doc in documents:
+                        yield doc
+                else:
+                    raise
 
         except Exception as e:
             logger.error("Error processing document %s: %s", file_path, e, exc_info=True)
