@@ -49,6 +49,7 @@ class TestChainOfThoughtServiceTDD:
             settings=mock_settings, llm_service=mock_llm_service, search_service=mock_search_service, db=mock_db
         )
 
+    @pytest.mark.asyncio
     async def test_cot_service_initialization(self, cot_service):
         """Test CoT service initializes correctly."""
         assert cot_service is not None
@@ -56,6 +57,7 @@ class TestChainOfThoughtServiceTDD:
         assert hasattr(cot_service, "llm_service")
         assert hasattr(cot_service, "search_service")
 
+    @pytest.mark.asyncio
     async def test_question_classification_simple_question(self, cot_service):
         """Test classification of simple question that doesn't require CoT."""
         question = "What is Python?"
@@ -67,6 +69,7 @@ class TestChainOfThoughtServiceTDD:
         assert classification.requires_cot is False
         assert classification.estimated_steps <= 1
 
+    @pytest.mark.asyncio
     async def test_question_classification_complex_question(self, cot_service):
         """Test classification of complex question that requires CoT."""
         question = "How does machine learning differ from deep learning, and what are the practical applications of each in healthcare and finance?"
@@ -78,6 +81,7 @@ class TestChainOfThoughtServiceTDD:
         assert classification.requires_cot is True
         assert classification.estimated_steps >= 3
 
+    @pytest.mark.asyncio
     async def test_question_classification_comparison_question(self, cot_service):
         """Test classification of comparison-based question."""
         question = "Compare and contrast supervised and unsupervised learning algorithms"
@@ -88,6 +92,7 @@ class TestChainOfThoughtServiceTDD:
         assert classification.requires_cot is True
         assert classification.confidence > 0.7
 
+    @pytest.mark.asyncio
     async def test_question_decomposition_multi_part_question(self, cot_service):
         """Test decomposition of multi-part question into sub-questions."""
         question = "What is machine learning and how does it work in practice?"
@@ -104,6 +109,7 @@ class TestChainOfThoughtServiceTDD:
             if i > 0:
                 assert len(sub_q.dependency_indices) > 0
 
+    @pytest.mark.asyncio
     async def test_question_decomposition_causal_question(self, cot_service):
         """Test decomposition of causal reasoning question."""
         question = "Why does regularization prevent overfitting in neural networks?"
@@ -118,6 +124,7 @@ class TestChainOfThoughtServiceTDD:
         assert len(definition_questions) > 0
         assert len(causal_questions) > 0
 
+    @pytest.mark.asyncio
     async def test_iterative_reasoning_execution(self, cot_service, mock_search_service):
         """Test iterative reasoning execution with context preservation."""
         from rag_solution.schemas.chain_of_thought_schema import (  # type: ignore
@@ -145,6 +152,7 @@ class TestChainOfThoughtServiceTDD:
         assert result.total_confidence > 0
         assert result.reasoning_strategy == "iterative"
 
+    @pytest.mark.asyncio
     async def test_decomposition_reasoning_strategy(self, cot_service):
         """Test decomposition reasoning strategy."""
         from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
@@ -162,6 +170,7 @@ class TestChainOfThoughtServiceTDD:
         # Should have steps for defining each concept and then comparing
         assert len(result.reasoning_steps) >= 3
 
+    @pytest.mark.asyncio
     async def test_context_preservation_across_steps(self, cot_service):
         """Test context preservation across reasoning steps."""
         from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
@@ -182,6 +191,7 @@ class TestChainOfThoughtServiceTDD:
                 # Context should include information from previous steps
                 assert len(step.context_used) > 0
 
+    @pytest.mark.asyncio
     async def test_token_budget_management(self, cot_service, mock_settings):
         """Test token budget management with multiplier."""
         from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
@@ -201,6 +211,7 @@ class TestChainOfThoughtServiceTDD:
         assert result.token_usage is not None
         assert result.token_usage > 0
 
+    @pytest.mark.asyncio
     async def test_confidence_aggregation(self, cot_service):
         """Test confidence score aggregation across reasoning steps."""
         from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
@@ -225,6 +236,7 @@ class TestChainOfThoughtServiceTDD:
                 # Total confidence should be within reasonable range of average
                 assert abs(result.total_confidence - avg_confidence) <= 0.3
 
+    @pytest.mark.asyncio
     async def test_cot_disabled_fallback(self, cot_service, mock_search_service):
         """Test fallback to regular search when CoT is disabled."""
         from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
@@ -245,6 +257,7 @@ class TestChainOfThoughtServiceTDD:
         assert len(result.reasoning_steps) == 0
         assert result.final_answer == "Regular search result"
 
+    @pytest.mark.asyncio
     async def test_max_depth_enforcement(self, cot_service, mock_settings):
         """Test enforcement of maximum reasoning depth."""
         from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
@@ -266,6 +279,7 @@ class TestChainOfThoughtServiceTDD:
         # Should respect settings limit
         assert len(result.reasoning_steps) <= 2
 
+    @pytest.mark.asyncio
     async def test_evaluation_threshold_filtering(self, cot_service, mock_settings):
         """Test filtering of low-confidence reasoning steps."""
         from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
@@ -286,6 +300,7 @@ class TestChainOfThoughtServiceTDD:
             if step.confidence_score is not None:
                 assert step.confidence_score >= 0.6  # Some tolerance
 
+    @pytest.mark.asyncio
     async def test_error_handling_llm_failure(self, cot_service, mock_llm_service):
         """Test error handling when LLM service fails."""
         from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
@@ -300,6 +315,7 @@ class TestChainOfThoughtServiceTDD:
         with pytest.raises(LLMProviderError):
             await cot_service.execute_chain_of_thought(cot_input, user_id=str(user_id))
 
+    @pytest.mark.asyncio
     async def test_error_handling_invalid_configuration(self, cot_service):
         """Test error handling for invalid CoT configuration."""
         from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
@@ -317,6 +333,7 @@ class TestChainOfThoughtServiceTDD:
         with pytest.raises(ValidationError):
             await cot_service.execute_chain_of_thought(cot_input)
 
+    @pytest.mark.asyncio
     async def test_reasoning_step_execution_time_tracking(self, cot_service):
         """Test execution time tracking for individual reasoning steps."""
         from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
@@ -352,11 +369,13 @@ class TestQuestionDecomposerTDD:
         mock_llm_service = AsyncMock()
         return QuestionDecomposer(llm_service=mock_llm_service)
 
+    @pytest.mark.asyncio
     async def test_decomposer_initialization(self, question_decomposer):
         """Test question decomposer initializes correctly."""
         assert question_decomposer is not None
         assert hasattr(question_decomposer, "llm_service")
 
+    @pytest.mark.asyncio
     async def test_simple_question_no_decomposition(self, question_decomposer):
         """Test simple question returns single sub-question."""
         question = "What is Python?"
@@ -367,6 +386,7 @@ class TestQuestionDecomposerTDD:
         assert result.sub_questions[0].sub_question == question
         assert result.sub_questions[0].question_type == "definition"
 
+    @pytest.mark.asyncio
     async def test_multi_part_question_decomposition(self, question_decomposer):
         """Test multi-part question gets properly decomposed."""
         question = "What is machine learning and how is it different from artificial intelligence?"
@@ -379,6 +399,7 @@ class TestQuestionDecomposerTDD:
         assert "definition" in question_types
         assert "comparison" in question_types
 
+    @pytest.mark.asyncio
     async def test_causal_question_decomposition(self, question_decomposer):
         """Test causal question decomposition."""
         question = "Why does regularization prevent overfitting in neural networks?"
@@ -390,6 +411,7 @@ class TestQuestionDecomposerTDD:
         causal_steps = [sq for sq in result.sub_questions if sq.question_type == "causal"]
         assert len(causal_steps) > 0
 
+    @pytest.mark.asyncio
     async def test_dependency_tracking(self, question_decomposer):
         """Test dependency tracking between sub-questions."""
         question = "How does backpropagation work and why is it effective for training neural networks?"
@@ -403,6 +425,7 @@ class TestQuestionDecomposerTDD:
             for dep_idx in sub_q.dependency_indices:
                 assert dep_idx < i
 
+    @pytest.mark.asyncio
     async def test_complexity_scoring(self, question_decomposer):
         """Test complexity scoring for sub-questions."""
         question = "Compare supervised and unsupervised learning algorithms and their use cases"
@@ -415,6 +438,7 @@ class TestQuestionDecomposerTDD:
             if sub_q.question_type == "comparison":
                 assert sub_q.complexity_score > 0.5
 
+    @pytest.mark.asyncio
     async def test_question_type_classification(self, question_decomposer):
         """Test accurate question type classification."""
         test_cases = [
@@ -442,11 +466,13 @@ class TestAnswerSynthesizerTDD:
         mock_llm_service = AsyncMock()
         return AnswerSynthesizer(llm_service=mock_llm_service)
 
+    @pytest.mark.asyncio
     async def test_synthesizer_initialization(self, answer_synthesizer):
         """Test answer synthesizer initializes correctly."""
         assert answer_synthesizer is not None
         assert hasattr(answer_synthesizer, "llm_service")
 
+    @pytest.mark.asyncio
     async def test_single_step_synthesis(self, answer_synthesizer):
         """Test synthesis from single reasoning step."""
         from rag_solution.schemas.chain_of_thought_schema import ReasoningStep  # type: ignore
@@ -467,6 +493,7 @@ class TestAnswerSynthesizerTDD:
         assert len(result.final_answer) > 0
         assert result.total_confidence > 0
 
+    @pytest.mark.asyncio
     async def test_multi_step_synthesis(self, answer_synthesizer):
         """Test synthesis from multiple reasoning steps."""
         from rag_solution.schemas.chain_of_thought_schema import ReasoningStep  # type: ignore
@@ -494,6 +521,7 @@ class TestAnswerSynthesizerTDD:
         assert "machine learning" in result.final_answer.lower()
         assert "training" in result.final_answer.lower() or "algorithms" in result.final_answer.lower()
 
+    @pytest.mark.asyncio
     async def test_confidence_aggregation_synthesis(self, answer_synthesizer):
         """Test confidence score aggregation during synthesis."""
         from rag_solution.schemas.chain_of_thought_schema import ReasoningStep  # type: ignore
@@ -510,6 +538,7 @@ class TestAnswerSynthesizerTDD:
         expected_range = (0.7, 0.9)  # Between min and max step confidence
         assert expected_range[0] <= result.total_confidence <= expected_range[1]
 
+    @pytest.mark.asyncio
     async def test_synthesis_with_context_preservation(self, answer_synthesizer):
         """Test synthesis preserves context across reasoning steps."""
         from rag_solution.schemas.chain_of_thought_schema import ReasoningStep  # type: ignore
@@ -539,6 +568,7 @@ class TestAnswerSynthesizerTDD:
         assert "neural networks" in result.final_answer.lower()
         assert "backpropagation" in result.final_answer.lower() or "gradient descent" in result.final_answer.lower()
 
+    @pytest.mark.asyncio
     async def test_synthesis_handles_missing_confidence(self, answer_synthesizer):
         """Test synthesis handles missing confidence scores gracefully."""
         from rag_solution.schemas.chain_of_thought_schema import ReasoningStep  # type: ignore
@@ -559,6 +589,7 @@ class TestAnswerSynthesizerTDD:
         assert result.final_answer is not None
         assert 0 <= result.total_confidence <= 1
 
+    @pytest.mark.asyncio
     async def test_synthesis_empty_steps_fallback(self, answer_synthesizer):
         """Test synthesis handles empty reasoning steps."""
         result = await answer_synthesizer.synthesize_answer("Test question", [])

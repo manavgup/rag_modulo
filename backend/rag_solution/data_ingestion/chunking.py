@@ -15,6 +15,12 @@ import numpy as np
 from core.config import Settings, get_settings
 from vectordbs.utils.watsonx import get_embeddings, get_tokenization
 
+from rag_solution.data_ingestion.hierarchical_chunking import (
+    create_hierarchical_chunks,
+    create_sentence_based_hierarchical_chunks,
+    get_child_chunks,
+)
+
 if TYPE_CHECKING:
     from sklearn.metrics.pairwise import cosine_similarity  # type: ignore[import-untyped]
 else:
@@ -239,6 +245,42 @@ def semantic_chunker(text: str, settings: Settings = get_settings()) -> list[str
     )
 
 
+def hierarchical_chunker_wrapper(text: str, settings: Settings = get_settings()) -> list[str]:
+    """Wrapper for hierarchical chunking that returns only child chunk texts.
+
+    This wrapper extracts only the leaf (child) chunks from hierarchical chunking
+    for use in the standard ingestion pipeline. The hierarchy metadata is stored
+    separately during ingestion.
+
+    Args:
+        text: Input text to chunk
+        settings: Configuration settings
+
+    Returns:
+        List of child chunk texts
+    """
+    strategy = getattr(settings, "hierarchical_strategy", "size_based")
+
+    if strategy == "sentence_based":
+        all_chunks = create_sentence_based_hierarchical_chunks(
+            text,
+            sentences_per_child=getattr(settings, "hierarchical_sentences_per_child", 3),
+            children_per_parent=getattr(settings, "hierarchical_children_per_parent", 5),
+        )
+    else:
+        all_chunks = create_hierarchical_chunks(
+            text,
+            parent_chunk_size=getattr(settings, "hierarchical_parent_size", 1500),
+            child_chunk_size=getattr(settings, "hierarchical_child_size", 300),
+            overlap=settings.chunk_overlap,
+            levels=getattr(settings, "hierarchical_levels", 2),
+        )
+
+    # Extract only child chunks for indexing
+    child_chunks = get_child_chunks(all_chunks)
+    return [chunk.text for chunk in child_chunks]
+
+
 def get_chunking_method(settings: Settings = get_settings()) -> Callable[[str], list[str]]:
     """Get the appropriate chunking method based on settings.
 
@@ -248,6 +290,11 @@ def get_chunking_method(settings: Settings = get_settings()) -> Callable[[str], 
     Returns:
         Chunking function
     """
-    if settings.chunking_strategy.lower() == "semantic":
+    strategy = settings.chunking_strategy.lower()
+
+    if strategy == "semantic":
         return semantic_chunker
+    if strategy == "hierarchical":
+        return lambda text: hierarchical_chunker_wrapper(text, settings)
+
     return simple_chunker

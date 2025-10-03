@@ -49,6 +49,7 @@ dependencies = [
     "validators>=0.34.0",
     "pytest>=7.4.0",
     "psutil (>=7.0.0,<8.0.0)",
+    "pydub (>=0.25.1,<0.26.0)",
 ]
 
 [tool.poetry]

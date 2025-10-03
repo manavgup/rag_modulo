@@ -9,12 +9,14 @@ import os
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+from uuid import uuid4
 
 from core.config import Settings
-from vectordbs.data_types import Document, DocumentMetadata
+from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, DocumentMetadata
 
 from rag_solution.data_ingestion.chunking import get_chunking_method
+from rag_solution.data_ingestion.hierarchical_chunking import hierarchical_chunker
 
 if TYPE_CHECKING:
     pass
@@ -39,6 +41,7 @@ class BaseProcessor(ABC):
         self.max_chunk_size: int = settings.max_chunk_size
         self.semantic_threshold: float = settings.semantic_threshold
         self.chunking_method = get_chunking_method(settings)
+        self.use_hierarchical = settings.chunking_strategy.lower() == "hierarchical"
 
     def extract_metadata(self, file_path: str) -> DocumentMetadata:
         """
@@ -73,6 +76,65 @@ class BaseProcessor(ABC):
             total_pages=None,  # To be set by specific processors
             total_chunks=None,  # To be set after chunking
         )
+
+    def create_chunks_with_hierarchy(self, text: str, document_id: str, source: Any) -> list[Any]:
+        """Create document chunks with hierarchical metadata if enabled.
+
+        Args:
+            text: Text to chunk
+            document_id: Document ID
+            source: Source type for metadata
+
+        Returns:
+            List of DocumentChunk objects with hierarchy metadata
+        """
+        if self.use_hierarchical:
+            # Get all hierarchical chunks
+            hierarchical_chunks = hierarchical_chunker(text, self.settings)
+
+            # Convert to DocumentChunks with hierarchy metadata
+            document_chunks = []
+            for h_chunk in hierarchical_chunks:
+                chunk_metadata = DocumentChunkMetadata(
+                    source=source,
+                    document_id=document_id,
+                    start_index=h_chunk.start_index,
+                    end_index=h_chunk.end_index,
+                    parent_chunk_id=h_chunk.parent_id,
+                    child_chunk_ids=h_chunk.child_ids,
+                    level=h_chunk.level,
+                )
+
+                chunk = DocumentChunk(
+                    chunk_id=h_chunk.chunk_id,
+                    text=h_chunk.text,
+                    embeddings=[],
+                    document_id=document_id,
+                    metadata=chunk_metadata,
+                    parent_chunk_id=h_chunk.parent_id,
+                    child_chunk_ids=h_chunk.child_ids,
+                    level=h_chunk.level,
+                )
+                document_chunks.append(chunk)
+
+            return document_chunks
+
+        # Standard chunking
+        chunk_texts = self.chunking_method(text)
+        chunk_metadata = DocumentChunkMetadata(source=source, document_id=document_id)
+
+        document_chunks = []
+        for chunk_text in chunk_texts:
+            chunk = DocumentChunk(
+                chunk_id=str(uuid4()),
+                text=chunk_text,
+                embeddings=[],
+                document_id=document_id,
+                metadata=chunk_metadata,
+            )
+            document_chunks.append(chunk)
+
+        return document_chunks
 
     @abstractmethod
     def process(self, file_path: str, document_id: str) -> AsyncIterator[Document]:

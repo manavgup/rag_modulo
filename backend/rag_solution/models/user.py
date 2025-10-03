@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from rag_solution.models.conversation_session import ConversationSession
     from rag_solution.models.file import File
     from rag_solution.models.llm_parameters import LLMParameters
+    from rag_solution.models.podcast import Podcast
     from rag_solution.models.prompt_template import PromptTemplate
     from rag_solution.models.user_collection import UserCollection
     from rag_solution.models.user_team import UserTeam
@@ -48,6 +49,7 @@ class User(Base):
     conversation_sessions: Mapped[list[ConversationSession]] = relationship(
         "ConversationSession", back_populates="user", cascade="all, delete-orphan"
     )
+    podcasts: Mapped[list[Podcast]] = relationship("Podcast", back_populates="user", cascade="all, delete-orphan")
 
     def __repr__(self) -> str:
         return (

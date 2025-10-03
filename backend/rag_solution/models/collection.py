@@ -17,6 +17,7 @@ from rag_solution.schemas.collection_schema import CollectionStatus
 if TYPE_CHECKING:
     from rag_solution.models.conversation_session import ConversationSession
     from rag_solution.models.file import File
+    from rag_solution.models.podcast import Podcast
     from rag_solution.models.question import SuggestedQuestion
     from rag_solution.models.user_collection import UserCollection
 
@@ -57,6 +58,9 @@ class Collection(Base):  # pylint: disable=too-few-public-methods
     )
     conversation_sessions: Mapped[list[ConversationSession]] = relationship(
         "ConversationSession", back_populates="collection", cascade="all, delete-orphan"
+    )
+    podcasts: Mapped[list["Podcast"]] = relationship(
+        "Podcast", back_populates="collection", cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:

@@ -96,6 +96,9 @@ class DocumentChunkMetadata(BaseModel):
         end_index: Ending position in original text
         table_index: Index if chunk is from a table
         image_index: Index if chunk is from an image
+        parent_chunk_id: Reference to parent chunk (for hierarchical chunking)
+        child_chunk_ids: References to child chunks (for hierarchical chunking)
+        level: Hierarchy level (0=root, 1=parent, 2=child, etc.)
     """
 
     source: Source
@@ -110,6 +113,9 @@ class DocumentChunkMetadata(BaseModel):
     url: str | None = None
     created_at: str | None = None
     author: str | None = None
+    parent_chunk_id: str | None = None  # Hierarchical chunking support
+    child_chunk_ids: list[str] | None = None  # Hierarchical chunking support
+    level: int | None = None  # Hierarchy level
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -123,6 +129,9 @@ class DocumentChunk(BaseModel):
         embedding: Optional vector embedding of the text
         metadata: Associated chunk-level metadata
         document_id: Reference to parent document
+        parent_chunk_id: Reference to parent chunk (for hierarchical chunking)
+        child_chunk_ids: References to child chunks (for hierarchical chunking)
+        level: Hierarchy level (0=root, 1=parent, 2=child, etc.)
     """
 
     chunk_id: str | None = None
@@ -131,6 +140,9 @@ class DocumentChunk(BaseModel):
     vectors: Embeddings | None = None  # Alias for embeddings
     metadata: DocumentChunkMetadata | None = None
     document_id: str | None = None
+    parent_chunk_id: str | None = None  # Hierarchical chunking support
+    child_chunk_ids: list[str] | None = None  # Hierarchical chunking support
+    level: int | None = None  # Hierarchy level
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -143,6 +155,9 @@ class DocumentChunk(BaseModel):
             embeddings=data.get("embeddings"),
             metadata=DocumentChunkMetadata.model_validate(data["metadata"]) if data.get("metadata") else None,
             document_id=data.get("document_id"),
+            parent_chunk_id=data.get("parent_chunk_id"),
+            child_chunk_ids=data.get("child_chunk_ids"),
+            level=data.get("level"),
         )
 
 
@@ -269,7 +284,9 @@ class QueryResult(BaseModel):
     def __repr__(self) -> str:
         """Readable string representation."""
         if self.chunk:
-            return f"QueryResult(chunk_id={self.chunk.chunk_id}, score={self.score:.3f if self.score else 'None'}, text={self.chunk.text[:50] if self.chunk.text else ''}...)"
+            score_str = f"{self.score:.3f}" if self.score else "None"
+            text_preview = self.chunk.text[:50] if self.chunk.text else ""
+            return f"QueryResult(chunk_id={self.chunk.chunk_id}, score={score_str}, text={text_preview}...)"
         return "QueryResult(chunk=None)"
 
 

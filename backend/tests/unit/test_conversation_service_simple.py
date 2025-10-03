@@ -1,5 +1,8 @@
 """Simple unit tests for ConversationService to verify basic functionality."""
 
+# pylint: disable=import-error
+# Justification: import-error is false positive when pylint runs standalone
+
 from unittest.mock import Mock
 from uuid import uuid4
 
@@ -38,7 +41,7 @@ class TestConversationServiceSimple:
         assert service.db is not None
         assert service.settings is not None
 
-    def test_create_session_validates_empty_name(self, _service: ConversationService) -> None:
+    def test_create_session_validates_empty_name(self) -> None:
         """Test create_session validates empty session name at Pydantic level."""
         with pytest.raises(PydanticValidationError):  # Pydantic validation will raise
             ConversationSessionInput(
@@ -47,6 +50,7 @@ class TestConversationServiceSimple:
                 session_name="",  # Empty name should raise ValidationError
             )
 
+    @pytest.mark.asyncio
     async def test_export_session_validates_format(self, service: ConversationService) -> None:
         """Test export_session validates export format."""
         session_id = uuid4()
