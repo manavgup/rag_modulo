@@ -123,10 +123,28 @@ Required environment variables (see `env.example` for full list):
 
 ## CI/CD Pipeline
 
-### GitHub Actions Workflow
-1. **Lint and Unit Tests**: Fast feedback without infrastructure
-2. **Build Images**: Docker images built and pushed to GHCR
-3. **Integration Tests**: Full stack testing with all services
+### GitHub Actions Workflows
+1. **ci.yml**: Lint and unit tests on every PR
+2. **publish.yml**: Build and push images on merge to main
+3. **ibm-code-engine-staging.yml**: Deploy to IBM Code Engine staging
+
+### Testing Workflows Locally
+```bash
+# Install act (GitHub Actions local runner)
+brew install act  # macOS
+# OR
+curl https://raw.githubusercontent.com/nektos/act/master/install.sh | sudo bash  # Linux
+
+# Test all workflows before pushing
+./scripts/test-workflows.sh
+
+# Test specific workflow
+./scripts/test-workflows.sh ci
+./scripts/test-workflows.sh code-engine
+
+# See detailed guide
+cat docs/development/testing-workflows-locally.md
+```
 
 ### Local CI Validation
 ```bash
@@ -295,6 +313,12 @@ search_input = SearchInput(
 - **Development Workflow**: `docs/development/workflow.md` - Development process
 - **Contributing**: `docs/development/contributing.md` - Contribution guidelines
 - **Testing Guide**: `docs/testing/index.md` - Comprehensive testing documentation
+- **Testing Workflows Locally**: `docs/development/testing-workflows-locally.md` - Local GitHub Actions testing with act
+
+### Deployment Documentation
+- **IBM Code Engine Quick Start**: `docs/deployment/ibm-code-engine-quickstart.md` - Deploy to IBM Cloud in 1-2 hours
+- **Kubernetes/Helm**: `deployment/helm/` - Kubernetes deployment configs (for future production)
+- **Production Deployment**: `docs/deployment/production.md` - Production deployment guide (when available)
 
 ### Other References
 - **Installation**: `docs/installation.md` - Setup and installation guide
