@@ -1,0 +1,78 @@
+name: Test Disk Cleanup Strategy
+
+on:
+  workflow_dispatch:  # Manual trigger only
+
+jobs:
+  validate-disk-cleanup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Show initial disk space
+        run: |
+          echo "=== Initial Disk Space ==="
+          df -h
+          echo ""
+          echo "=== Directory Sizes Before Cleanup ==="
+          echo "dotnet: $(sudo du -sh /usr/share/dotnet 2>/dev/null || echo 'N/A')"
+          echo "android: $(sudo du -sh /usr/local/lib/android 2>/dev/null || echo 'N/A')"
+          echo "ghc: $(sudo du -sh /opt/ghc 2>/dev/null || echo 'N/A')"
+          echo "CodeQL: $(sudo du -sh /opt/hostedtoolcache/CodeQL 2>/dev/null || echo 'N/A')"
+
+      - name: Test disk cleanup
+        run: |
+          echo "=== Performing Cleanup ==="
+
+          # Remove unnecessary packages and files
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+
+          # Clean docker system
+          docker system prune -af --volumes || true
+
+      - name: Show disk space after cleanup
+        run: |
+          echo "=== Disk Space After Cleanup ==="
+          df -h
+          echo ""
+
+          # Calculate freed space
+          echo "=== Verification ==="
+          if [ ! -d "/usr/share/dotnet" ]; then
+            echo "✓ dotnet removed"
+          fi
+          if [ ! -d "/usr/local/lib/android" ]; then
+            echo "✓ android removed"
+          fi
+          if [ ! -d "/opt/ghc" ]; then
+            echo "✓ ghc removed"
+          fi
+          if [ ! -d "/opt/hostedtoolcache/CodeQL" ]; then
+            echo "✓ CodeQL removed"
+          fi
+
+      - name: Test Docker build with freed space
+        run: |
+          echo "=== Testing Docker Build ==="
+
+          # Create a simple test Dockerfile
+          cat > Dockerfile << 'EOF'
+          FROM python:3.12-slim
+          RUN apt-get update && apt-get install -y curl
+          RUN pip install fastapi uvicorn
+          EOF
+
+          # Try to build
+          docker build -t test-image .
+
+          echo "✓ Docker build succeeded with available space"
+
+      - name: Summary
+        run: |
+          echo ""
+          echo "=== Summary ==="
+          echo "Disk cleanup completed successfully!"
+          echo "Docker builds can proceed without space issues."
+          df -h / | grep -E "Filesystem|/$"
