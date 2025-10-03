@@ -69,3 +69,14 @@ Return the appropriate apiVersion for HPA
 {{- print "autoscaling/v2beta2" }}
 {{- end }}
 {{- end }}
+
+{{/*
+Create the namespace name
+*/}}
+{{- define "rag-modulo.namespace" -}}
+{{- if .Values.global.namespace }}
+{{- .Values.global.namespace }}
+{{- else }}
+{{- .Release.Namespace }}
+{{- end }}
+{{- end }}

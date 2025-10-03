@@ -1,0 +1,43 @@
+{{- if .Values.ingress.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "rag-modulo.fullname" . }}
+  namespace: {{ include "rag-modulo.namespace" . }}
+  labels:
+    {{- include "rag-modulo.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ingress
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+    - hosts:
+        - {{ .Values.ingress.hosts.frontend | quote }}
+        - {{ .Values.ingress.hosts.backend | quote }}
+      secretName: {{ .Values.ingress.tls.secretName }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.ingress.hosts.frontend | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "rag-modulo.fullname" . }}-frontend
+                port:
+                  number: 3000
+    - host: {{ .Values.ingress.hosts.backend | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "rag-modulo.fullname" . }}-backend
+                port:
+                  number: 8000
+{{- end }}
