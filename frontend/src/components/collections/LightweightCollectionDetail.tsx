@@ -15,11 +15,13 @@ import {
   ClockIcon,
   ExclamationTriangleIcon,
   MagnifyingGlassIcon,
+  MicrophoneIcon,
 } from '@heroicons/react/24/outline';
 import { useNotification } from '../../contexts/NotificationContext';
 
 // Import the API client and types
 import apiClient, { Collection, CollectionDocument } from '../../services/apiClient';
+import PodcastGenerationModal from '../podcasts/PodcastGenerationModal';
 
 // Use CollectionDocument type from apiClient instead of local CollectionFile
 type CollectionFile = CollectionDocument;
@@ -36,6 +38,7 @@ const LightweightCollectionDetail: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filesToUpload, setFilesToUpload] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [isPodcastModalOpen, setIsPodcastModalOpen] = useState(false);
 
   useEffect(() => {
     const loadCollection = async () => {
@@ -324,6 +327,14 @@ const LightweightCollectionDetail: React.FC = () => {
                 <ChatBubbleLeftIcon className="w-4 h-4" />
                 <span>Chat</span>
               </button>
+              <button
+                onClick={() => setIsPodcastModalOpen(true)}
+                disabled={collection.status !== 'ready' && collection.status !== 'completed'}
+                className="btn-primary flex items-center space-x-2 disabled:opacity-50 bg-purple-50 hover:bg-purple-40"
+              >
+                <MicrophoneIcon className="w-4 h-4" />
+                <span>Generate Podcast</span>
+              </button>
               <button className="btn-secondary flex items-center space-x-2">
                 <ShareIcon className="w-4 h-4" />
                 <span>Share</span>
@@ -541,6 +552,18 @@ const LightweightCollectionDetail: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Podcast Generation Modal */}
+        <PodcastGenerationModal
+          isOpen={isPodcastModalOpen}
+          onClose={() => setIsPodcastModalOpen(false)}
+          collectionId={collection.id}
+          collectionName={collection.name}
+          onPodcastCreated={(podcastId) => {
+            setIsPodcastModalOpen(false);
+            navigate(`/podcasts/${podcastId}`);
+          }}
+        />
       </div>
     </div>
   );

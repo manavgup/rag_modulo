@@ -119,6 +119,68 @@ class Settings(BaseSettings):
         str, Field(default="reranking", alias="RERANKER_PROMPT_TEMPLATE_NAME")
     ]  # Template name for reranking prompts
 
+    # Podcast Generation settings
+    # Environment: "development" uses FastAPI BackgroundTasks + local filesystem
+    #              "production" uses Celery + MinIO/S3
+    podcast_environment: Annotated[str, Field(default="development", alias="PODCAST_ENVIRONMENT")]
+
+    # Background task processing
+    podcast_task_backend: Annotated[
+        str, Field(default="fastapi", alias="PODCAST_TASK_BACKEND")
+    ]  # Options: fastapi, celery
+    celery_broker_url: Annotated[str | None, Field(default=None, alias="CELERY_BROKER_URL")]
+    celery_result_backend: Annotated[str | None, Field(default=None, alias="CELERY_RESULT_BACKEND")]
+
+    # Storage backend
+    podcast_storage_backend: Annotated[
+        str, Field(default="local", alias="PODCAST_STORAGE_BACKEND")
+    ]  # Options: local, minio, s3, r2
+
+    # Local filesystem storage (development)
+    podcast_local_storage_path: Annotated[str, Field(default="./data/podcasts", alias="PODCAST_LOCAL_STORAGE_PATH")]
+
+    # MinIO/S3 storage (production)
+    podcast_minio_endpoint: Annotated[str | None, Field(default=None, alias="PODCAST_MINIO_ENDPOINT")]
+    podcast_minio_access_key: Annotated[str | None, Field(default=None, alias="PODCAST_MINIO_ACCESS_KEY")]
+    podcast_minio_secret_key: Annotated[str | None, Field(default=None, alias="PODCAST_MINIO_SECRET_KEY")]
+    podcast_minio_bucket: Annotated[str, Field(default="rag-modulo-podcasts", alias="PODCAST_MINIO_BUCKET")]
+    podcast_minio_region: Annotated[str, Field(default="us-east-1", alias="PODCAST_MINIO_REGION")]
+
+    # Audio generation provider
+    podcast_audio_provider: Annotated[
+        str, Field(default="openai", alias="PODCAST_AUDIO_PROVIDER")
+    ]  # Options: openai, watsonx
+    podcast_fallback_audio_provider: Annotated[
+        str | None, Field(default=None, alias="PODCAST_FALLBACK_AUDIO_PROVIDER")
+    ]  # Optional fallback
+
+    # OpenAI TTS settings
+    openai_tts_model: Annotated[str, Field(default="tts-1-hd", alias="OPENAI_TTS_MODEL")]  # or "tts-1" for faster
+    openai_tts_default_voice: Annotated[
+        str, Field(default="alloy", alias="OPENAI_TTS_DEFAULT_VOICE")
+    ]  # alloy, echo, fable, onyx, nova, shimmer
+
+    # WatsonX TTS settings (fallback)
+    watsonx_tts_api_key: Annotated[str | None, Field(default=None, alias="WATSONX_TTS_API_KEY")]
+    watsonx_tts_url: Annotated[
+        str | None,
+        Field(default="https://api.us-south.text-to-speech.watson.cloud.ibm.com", alias="WATSONX_TTS_URL"),
+    ]
+    watsonx_tts_default_voice: Annotated[str, Field(default="en-US_AllisonV3Voice", alias="WATSONX_TTS_DEFAULT_VOICE")]
+
+    # Podcast validation and limits
+    podcast_min_documents: Annotated[int, Field(default=5, alias="PODCAST_MIN_DOCUMENTS")]
+    podcast_max_concurrent_per_user: Annotated[int, Field(default=3, alias="PODCAST_MAX_CONCURRENT_PER_USER")]
+    podcast_url_expiry_days: Annotated[int, Field(default=7, alias="PODCAST_URL_EXPIRY_DAYS")]
+
+    # Content retrieval for podcasts
+    podcast_retrieval_top_k_short: Annotated[int, Field(default=30, alias="PODCAST_RETRIEVAL_TOP_K_SHORT")]  # 5 min
+    podcast_retrieval_top_k_medium: Annotated[int, Field(default=50, alias="PODCAST_RETRIEVAL_TOP_K_MEDIUM")]  # 15 min
+    podcast_retrieval_top_k_long: Annotated[int, Field(default=75, alias="PODCAST_RETRIEVAL_TOP_K_LONG")]  # 30 min
+    podcast_retrieval_top_k_extended: Annotated[
+        int, Field(default=100, alias="PODCAST_RETRIEVAL_TOP_K_EXTENDED")
+    ]  # 60 min
+
     # Question suggestion settings
     question_suggestion_num: Annotated[int, Field(default=5, alias="QUESTION_SUGGESTION_NUM")]
     question_min_length: Annotated[int, Field(default=15, alias="QUESTION_MIN_LENGTH")]

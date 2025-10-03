@@ -14,8 +14,6 @@ from dataclasses import dataclass
 
 from core.config import Settings, get_settings
 
-from rag_solution.data_ingestion.chunking import simple_chunking, split_sentences
-
 logger = logging.getLogger(__name__)
 
 
@@ -73,6 +71,9 @@ def create_hierarchical_chunks(
     Returns:
         List of HierarchicalChunk objects with parent-child relationships.
     """
+    # Import here to avoid circular import
+    from rag_solution.data_ingestion.chunking import simple_chunking
+
     if not text:
         return []
 
@@ -189,6 +190,9 @@ def create_sentence_based_hierarchical_chunks(
     Returns:
         List of HierarchicalChunk objects.
     """
+    # Import here to avoid circular import
+    from rag_solution.data_ingestion.chunking import split_sentences
+
     if not text:
         return []
 

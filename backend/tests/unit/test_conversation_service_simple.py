@@ -50,6 +50,7 @@ class TestConversationServiceSimple:
                 session_name="",  # Empty name should raise ValidationError
             )
 
+    @pytest.mark.asyncio
     async def test_export_session_validates_format(self, service: ConversationService) -> None:
         """Test export_session validates export format."""
         session_id = uuid4()

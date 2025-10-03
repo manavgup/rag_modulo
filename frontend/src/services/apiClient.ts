@@ -193,6 +193,70 @@ interface UpdateConversationInput {
   metadata?: Record<string, any>;
 }
 
+// Podcast interfaces
+interface VoiceSettings {
+  voice_id: string;
+  gender?: 'male' | 'female' | 'neutral';
+  speed?: number;
+  pitch?: number;
+  language?: string;
+  name?: string;
+}
+
+interface PodcastGenerationInput {
+  user_id: string;
+  collection_id: string;
+  duration: 5 | 15 | 30 | 60;
+  voice_settings: VoiceSettings;
+  title?: string;
+  description?: string;
+  format: 'mp3' | 'wav' | 'ogg' | 'flac';
+  host_voice: string;
+  expert_voice: string;
+  include_intro?: boolean;
+  include_outro?: boolean;
+  music_background?: boolean;
+}
+
+interface PodcastStepDetails {
+  total_turns?: number;
+  completed_turns?: number;
+  current_speaker?: string;
+}
+
+interface Podcast {
+  podcast_id: string;
+  user_id: string;
+  collection_id: string;
+  status: 'queued' | 'generating' | 'completed' | 'failed' | 'cancelled';
+  duration: 5 | 15 | 30 | 60;
+  format: string;
+  title?: string;
+  audio_url?: string;
+  transcript?: string;
+  audio_size_bytes?: number;
+  error_message?: string;
+  progress_percentage: number;
+  current_step?: string;
+  step_details?: PodcastStepDetails;
+  estimated_time_remaining?: number;
+  created_at: string;
+  updated_at: string;
+  completed_at?: string;
+}
+
+interface PodcastListResponse {
+  podcasts: Podcast[];
+  total_count: number;
+}
+
+interface PodcastQuestionInjection {
+  podcast_id: string;
+  timestamp_seconds: number;
+  question: string;
+  user_id: string;
+}
+
 class ApiClient {
   private client: AxiosInstance;
 
@@ -788,6 +852,38 @@ class ApiClient {
     const response = await this.client.get('/api/health');
     return response.data;
   }
+
+  // Podcast API
+  async generatePodcast(input: PodcastGenerationInput): Promise<Podcast> {
+    const response: AxiosResponse<Podcast> = await this.client.post('/api/podcasts/generate', input);
+    return response.data;
+  }
+
+  async getPodcast(podcastId: string, userId: string): Promise<Podcast> {
+    const response: AxiosResponse<Podcast> = await this.client.get(
+      `/api/podcasts/${podcastId}?user_id=${userId}`
+    );
+    return response.data;
+  }
+
+  async listPodcasts(userId: string, limit: number = 100, offset: number = 0): Promise<PodcastListResponse> {
+    const response: AxiosResponse<PodcastListResponse> = await this.client.get(
+      `/api/podcasts/?user_id=${userId}&limit=${limit}&offset=${offset}`
+    );
+    return response.data;
+  }
+
+  async deletePodcast(podcastId: string, userId: string): Promise<void> {
+    await this.client.delete(`/api/podcasts/${podcastId}?user_id=${userId}`);
+  }
+
+  async injectQuestion(injection: PodcastQuestionInjection): Promise<Podcast> {
+    const response: AxiosResponse<Podcast> = await this.client.post(
+      `/api/podcasts/${injection.podcast_id}/inject-question`,
+      injection
+    );
+    return response.data;
+  }
 }
 
 // Create singleton instance
@@ -806,4 +902,10 @@ export type {
   SessionStatistics,
   CreateConversationInput,
   UpdateConversationInput,
+  Podcast,
+  PodcastGenerationInput,
+  PodcastListResponse,
+  PodcastQuestionInjection,
+  VoiceSettings,
+  PodcastStepDetails,
 };

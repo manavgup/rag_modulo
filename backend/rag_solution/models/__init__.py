@@ -13,6 +13,7 @@ from rag_solution.models.conversation_summary import ConversationSummary
 # Then File since it's referenced by Collection
 from rag_solution.models.file import File
 from rag_solution.models.llm_parameters import LLMParameters
+from rag_solution.models.podcast import Podcast
 from rag_solution.models.prompt_template import PromptTemplate
 from rag_solution.models.question import SuggestedQuestion
 
@@ -34,6 +35,7 @@ __all__ = [
     "ConversationSummary",
     "File",
     "LLMParameters",
+    "Podcast",
     "PromptTemplate",
     "SuggestedQuestion",
     "Team",
