@@ -1,10 +1,107 @@
-# RAG Modulo Agentic Development - Ralph + ACE-FCA Pattern
+# RAG Modulo - AI Agent Context
 
-Implementing Ralph pattern with Advanced Context Engineering (ACE-FCA) for systematic issue resolution.
+## 🤖 Instructions for AI Agents
 
-## 🎯 Current Mission: Agentic RAG Platform Development
-**Priority Issues:** #242 (Frontend Epic), #243 (Chat Interface), #244 (Agent Orchestration)
-**Next Phase:** Issue discovery and systematic implementation by priority
+**⚡ QUICK START**: This file is high-level overview only. **You MUST read module-specific AGENTS.md files before making changes.**
+
+### 🎯 Context Loading Protocol (CRITICAL)
+
+**DO THIS EVERY TIME**:
+```
+1. Read /AGENTS.md (this file) - Project overview
+2. Read relevant module AGENTS.md files - Specific patterns
+3. Implement following documented patterns
+4. Update AGENTS.md if you discover new patterns
+```
+
+**Example**: To add a search feature:
+- Read: `/AGENTS.md`, `backend/rag_solution/services/AGENTS.md`, `backend/rag_solution/router/AGENTS.md`, `backend/rag_solution/schemas/AGENTS.md`
+
+### AGENTS.md File Locations
+
+When working on specific parts of the codebase, **READ the corresponding AGENTS.md file first**:
+
+#### Backend
+- **Backend Overview**: `backend/AGENTS.md`
+- **Main Package**: `backend/rag_solution/AGENTS.md`
+- **Services Layer**: `backend/rag_solution/services/AGENTS.md` - Read before modifying ANY service
+- **Models Layer**: `backend/rag_solution/models/AGENTS.md` - Read before creating/modifying database models
+- **Schemas Layer**: `backend/rag_solution/schemas/AGENTS.md` - Read before creating API schemas
+- **Router Layer**: `backend/rag_solution/router/AGENTS.md` - Read before adding/modifying endpoints
+- **Repository Layer**: `backend/rag_solution/repository/AGENTS.md` - Read before database operations
+- **Generation Layer**: `backend/rag_solution/generation/AGENTS.md` - Read before LLM integration work
+- **Retrieval Layer**: `backend/rag_solution/retrieval/AGENTS.md` - Read before vector DB operations
+- **Data Ingestion**: `backend/rag_solution/data_ingestion/AGENTS.md` - Read before document processing
+- **Tests**: `backend/tests/AGENTS.md` - Read before writing tests
+
+#### Frontend
+- **Frontend Overview**: `frontend/AGENTS.md`
+- **Components**: `frontend/src/components/AGENTS.md` - Read before creating/modifying React components
+
+### Context Loading Strategy
+
+**IMPORTANT**: Always follow this pattern to avoid missing critical context:
+
+1. **Start Here**: Read this root AGENTS.md for project overview
+2. **Go Specific**: Read the relevant module's AGENTS.md before making changes
+3. **Check Dependencies**: If a module uses other modules, read their AGENTS.md files too
+
+**Example Workflow**:
+```
+Task: "Add a new search feature"
+1. Read: /AGENTS.md (this file) - Project overview
+2. Read: backend/rag_solution/services/AGENTS.md - Understand service patterns
+3. Read: backend/rag_solution/router/AGENTS.md - Understand router patterns
+4. Read: backend/rag_solution/schemas/AGENTS.md - Understand schema patterns
+5. Implement: Follow the patterns documented in those files
+```
+
+### When to Read Multiple AGENTS.md Files
+
+**For Full-Stack Features**:
+- Root AGENTS.md
+- `backend/rag_solution/services/AGENTS.md`
+- `backend/rag_solution/router/AGENTS.md`
+- `backend/rag_solution/schemas/AGENTS.md`
+- `frontend/src/components/AGENTS.md`
+
+**For Backend-Only Features**:
+- Root AGENTS.md
+- `backend/rag_solution/AGENTS.md`
+- Relevant layer AGENTS.md (services, models, etc.)
+
+**For Frontend-Only Features**:
+- Root AGENTS.md
+- `frontend/AGENTS.md`
+- `frontend/src/components/AGENTS.md`
+
+---
+
+## Project Overview
+
+RAG Modulo is a production-ready Retrieval-Augmented Generation platform providing enterprise-grade document processing, intelligent search, and AI-powered question answering with Chain of Thought reasoning.
+
+### Technology Stack
+- **Backend**: Python 3.12+ with FastAPI, SQLAlchemy, Poetry
+- **Frontend**: React 18 with Tailwind CSS
+- **Databases**: PostgreSQL (metadata), Milvus (vectors)
+- **Infrastructure**: Docker Compose, MinIO (storage), MLFlow (tracking)
+- **Testing**: pytest (92% coverage, 847/918 tests passing)
+
+### Architecture Pattern
+Service-based architecture with clean separation of concerns:
+- **Router Layer** → **Service Layer** → **Repository Layer** → **Models**
+- Dependency injection for testability
+- Lazy initialization for performance
+- Type hints throughout
+
+## 🎯 Current Development Status
+
+**Phase**: Post-Frontend Epic - Agentic Features & Stabilization
+**Recent Completions**:
+- ✅ Frontend Epic #242 (Search UI, WebSocket, Dashboard)
+- ✅ Conversation Management System #243 (Chat interface)
+- ✅ Chain of Thought Reasoning #136 (Enhanced RAG quality)
 
 ## 🧠 Context Management (ACE-FCA Rules)
 - **Context Utilization**: Keep between 40%-60% to maintain efficiency
@@ -13,11 +110,110 @@ Implementing Ralph pattern with Advanced Context Engineering (ACE-FCA) for syste
 - **Bad Research Warning**: Poor research leads to thousands of bad lines of code
 - **Verification**: Validate research before proceeding to implementation
 
-## 📋 Project Context Essentials
-- **Architecture**: Python FastAPI backend + React frontend + IBM Carbon Design
-- **Focus**: Transform basic RAG into agentic AI platform with agent orchestration
-- **Tech Stack**: IBM MCP Context Forge recommended for agent orchestration
-- **Quality Standards**: >90% test coverage, WCAG compliance, production-ready
+## 📂 Project Structure
+
+```
+rag_modulo/
+├── backend/                    # Python FastAPI application
+│   ├── rag_solution/          # Main application package
+│   │   ├── services/          # Business logic layer
+│   │   ├── models/            # SQLAlchemy database models
+│   │   ├── schemas/           # Pydantic validation schemas
+│   │   ├── router/            # FastAPI endpoint handlers
+│   │   ├── repository/        # Data access layer
+│   │   ├── generation/        # LLM provider integrations
+│   │   ├── retrieval/         # Vector database operations
+│   │   ├── data_ingestion/    # Document processing pipeline
+│   │   ├── pipeline/          # RAG pipeline orchestration
+│   │   ├── query_rewriting/   # Query enhancement
+│   │   └── utils/             # Utility functions
+│   └── tests/                 # Comprehensive test suite
+├── frontend/                   # React web application
+│   └── src/
+│       ├── components/        # React components (Tailwind CSS)
+│       ├── services/          # API client & WebSocket
+│       └── contexts/          # React context providers
+├── docs/                      # Project documentation
+├── deployment/                # Kubernetes & deployment configs
+└── scripts/                   # Automation scripts
+```
+
+## 🔑 Key Features & Capabilities
+
+### RAG Pipeline Features
+- **Chain of Thought (CoT) Reasoning**: Automatic complex question decomposition (#136)
+- **Automatic Pipeline Resolution**: No manual pipeline management required (#222)
+- **Multi-LLM Support**: WatsonX, OpenAI, Anthropic with provider abstraction
+- **Multiple Vector DBs**: Milvus (default), Elasticsearch, Pinecone, Weaviate, ChromaDB
+- **Token Tracking**: Comprehensive usage monitoring and cost tracking
+- **Source Attribution**: Document-level and chunk-level source tracking
+
+### Frontend Features
+- **Chat Interface**: WhatsApp-style conversation UI with WebSocket real-time updates
+- **Search Accordions**: Visual display of documents, CoT steps, token usage
+- **Dynamic Navigation**: Nested conversation menu with LLM-generated names
+- **Dashboard**: Real-time analytics for collections, users, and system health
+- **Document Management**: Upload, download, delete with status tracking
+
+### Document Processing
+- **Format Support**: PDF, TXT, DOCX, HTML with Docling integration
+- **Hierarchical Chunking**: Semantic chunking with configurable strategies
+- **Batch Processing**: Efficient multi-document ingestion
+- **Metadata Extraction**: Automatic document metadata and structure analysis
+
+## 🎯 Development Guidelines
+
+### Code Quality Standards
+- **Line Length**: 120 characters for Python
+- **Type Hints**: Required throughout codebase
+- **Test Coverage**: >90% required for new code
+- **Linting**: Must pass ruff, mypy, pylint, pydocstyle
+- **Formatting**: Use `make fix-all` before committing
+
+### Common Development Commands
+```bash
+# Quick start
+make run-ghcr                    # Run with pre-built images
+
+# Development
+make dev-hotreload               # Hot-reload for backend & frontend
+
+# Testing
+make test-unit-fast              # Fast unit tests
+make test-integration            # Integration tests
+make test testfile=path/to/test  # Specific test file
+
+# Code quality
+make quick-check                 # Fast format + lint check
+make fix-all                     # Auto-fix formatting issues
+make lint                        # Run all linters
+```
+
+### Service Layer Pattern (CRITICAL)
+Always follow the established service layer pattern:
+
+1. **Router** (`router/`) - HTTP endpoint handlers
+   - Minimal logic, delegate to services
+   - Handle request/response serialization
+   - Return appropriate HTTP status codes
+
+2. **Service** (`services/`) - Business logic
+   - Orchestrate operations across repositories
+   - Implement business rules and validation
+   - Use dependency injection for dependencies
+
+3. **Repository** (`repository/`) - Data access
+   - Database CRUD operations
+   - Query building and optimization
+   - Return domain models
+
+4. **Models** (`models/`) - SQLAlchemy ORM
+   - Database table definitions
+   - Relationships and constraints
+
+5. **Schemas** (`schemas/`) - Pydantic validation
+   - Request/response validation
+   - Data transformation and serialization
 
 ## 🔄 Ralph + ACE-FCA Workflow Structure
 
@@ -43,19 +239,36 @@ Implementing Ralph pattern with Advanced Context Engineering (ACE-FCA) for syste
 - **Execution Logs**: .ralph/logs/ (detailed execution history)
 - **Specialized Prompts**: .ralph/prompts/ (phase-specific instructions)
 
-## 🚀 Current Development Phase: Critical Fixes & Dashboard Implementation ✅
+## 🚀 Recent Major Features & Fixes
 
-### **Recent Major Accomplishments (September 30, 2025)**
-- **✅ COMPLETED**: Collection creation 422 error fixed (N+1 query optimization)
-- **✅ COMPLETED**: Chat functionality enhanced (search endpoint integration, icon updates)
-- **✅ COMPLETED**: Document management (delete/download operations implemented)
-- **✅ COMPLETED**: Dashboard system with real-time data (schema + service + router pattern)
-- **✅ COMPLETED**: Frontend API integration improvements
-- **✅ COMPLETED**: TypeScript compilation fixes and code linting
-- **✅ COMPLETED**: Dynamic Chat Menu with nested conversation navigation
-- **✅ COMPLETED**: LLM-based conversation naming and retroactive conversation updates
-- **✅ COMPLETED**: Clean chat interface (removed redundant conversation tiles)
-- **✅ COMPLETED**: Removed legacy Carbon Design System dependencies
+### Chain of Thought (CoT) Reasoning (#136)
+**Location**: `backend/rag_solution/services/chain_of_thought_service.py`
+- Automatic detection of complex questions requiring decomposition
+- Iterative reasoning with context building across steps
+- Source attribution across all reasoning steps
+- Configurable via `config_metadata` in search requests
+- 31 unit tests, full integration test coverage
+
+### Automatic Pipeline Resolution (#222)
+**Location**: `backend/rag_solution/services/search_service.py:_resolve_user_default_pipeline()`
+- Removed `pipeline_id` from SearchInput schema
+- Automatic pipeline creation for new users
+- Intelligent error handling for configuration issues
+- Simplified CLI and API interfaces
+
+### Conversation System
+**Components**:
+- `models/conversation_session.py`, `conversation_message.py`, `conversation_summary.py`
+- `services/conversation_service.py` - CRUD, naming, summarization
+- `router/conversation_router.py` - 10 REST endpoints
+- `router/websocket_router.py` - Real-time messaging
+- Frontend: Dynamic sidebar navigation with LLM-generated conversation names
+
+### Dashboard & Analytics
+**Location**: `services/dashboard_service.py`, `router/dashboard_router.py`
+- Real-time collection, user, file, and search statistics
+- Recent activity tracking
+- Frontend integration at `/dashboard`
 
 ### **Issue #242: Agentic RAG Frontend Epic** (Status: ✅ COMPLETE)
 - **✅ COMPLETED**: Enhanced Search Interface with accordion displays (documents, token tracking, CoT reasoning)
@@ -176,59 +389,57 @@ Implementing Ralph pattern with Advanced Context Engineering (ACE-FCA) for syste
 - **✅ Frontend Compilation**: No TypeScript errors, webpack compiling successfully
 - **✅ Backend Health**: uvicorn auto-reload active, all services healthy
 
-### **Latest Session Accomplishments (September 30, 2025) - Dynamic Chat Navigation**
+## ⚠️ Known Issues & Important Notes
 
-#### **Major Feature Implementation: Dynamic Chat Menu**
-1. **Dynamic Sidebar Navigation** (`frontend/src/components/layout/LightweightSidebar.tsx`)
-   - **Issue**: Conversations were standalone menu item without nested structure
-   - **Solution**: Moved conversations under Chat menu with expandable structure
-   - **Features**: Shows last 10 conversations, "All chats" option with ellipsis-horizontal-circle icon
-   - **Impact**: Improved navigation UX with organized conversation hierarchy
+### Current Known Issues
+1. **Authentication System** - OIDC integration needs fixing (blocking some admin features)
+2. **Test Failures** - 1 integration test failure in `test_router_registration_integration.py`
+3. **Podcast Router** - API prefix inconsistency (fixed in recent commits)
 
-2. **LLM-Based Conversation Naming** (`backend/rag_solution/services/conversation_service.py`)
-   - **Issue**: Too many conversations with generic names like "New Conversation"
-   - **Solution**: Added `generate_conversation_name()` using LLM to create concise titles
-   - **API**: Added endpoints for single and bulk conversation renaming
-   - **Impact**: Conversations now have meaningful names like "IBM Business Strategy"
+### Important Architecture Decisions
 
-3. **Clean Chat Interface** (`frontend/src/components/search/LightweightSearchInterface.tsx`)
-   - **Issue**: Redundant conversations tile on chat page after implementing sidebar navigation
-   - **Solution**: Removed conversations sidebar, changed grid from 4-column to single column
-   - **Impact**: Clean, focused chat interface without duplicate conversation management
+#### Multi-Database Pattern
+- **PostgreSQL**: User management, collections, conversations, metadata
+- **Milvus**: Vector embeddings and similarity search
+- **MinIO**: Document storage and file management
+- **Separation of Concerns**: Clear boundaries between operational and vector data
 
-4. **Conversation Navigation** (URL Parameter Support)
-   - **Issue**: Clicking conversations in sidebar didn't load that specific chat
-   - **Solution**: Added `?session=` URL parameter handling and `loadSpecificConversation()`
-   - **Features**: Loads conversation messages, collection info, and maintains state
-   - **Impact**: Seamless conversation switching from sidebar
+#### LLM Provider Abstraction
+**Location**: `backend/rag_solution/generation/providers/`
+- Common interface for all LLM providers
+- Provider-specific implementations for WatsonX, OpenAI, Anthropic
+- Automatic fallback and error handling
+- Token usage tracking across all providers
 
-5. **Modal Integration** (`frontend/src/components/modals/AllChatsModal.tsx`)
-   - **New Component**: Full modal for browsing all conversations with search functionality
-   - **Features**: Search filter, date formatting, conversation selection
-   - **Integration**: Connected to sidebar "All chats" option
+#### Lazy Initialization Pattern
+Used throughout service layer to avoid circular dependencies:
+```python
+@property
+def dependency_service(self) -> DependencyService:
+    if self._dependency_service is None:
+        self._dependency_service = DependencyService(self.db, self.settings)
+    return self._dependency_service
+```
 
-#### **Code Quality & Maintenance**
-1. **TypeScript Compilation Fixes**
-   - **Issue**: Type mismatches between `ConversationSession` and `Conversation` interfaces
-   - **Solution**: Aligned type definitions and fixed timestamp type from string to Date
-   - **Impact**: Clean compilation without type errors
+### Environment Variables
+**Critical**: Must be set in `.env` file
+- `COLLECTIONDB_*`: PostgreSQL connection
+- `VECTOR_DB`: Vector database type (default: milvus)
+- `MILVUS_*`: Milvus configuration
+- `WATSONX_*` or `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`: LLM provider credentials
+- `JWT_SECRET_KEY`: Authentication secret
 
-2. **Legacy Dependency Cleanup**
-   - **Issue**: Unused Carbon Design System components causing compilation errors
-   - **Solution**: Removed `AnalyticsDashboard.tsx` and `Dashboard.tsx` (old Carbon versions)
-   - **Outcome**: Only Lightweight components remain, no external design system dependencies
+### Testing Strategy
+**Test Markers**:
+- `@pytest.mark.unit`: Fast unit tests (no external dependencies)
+- `@pytest.mark.integration`: Integration tests (requires services)
+- `@pytest.mark.api`: API endpoint tests
+- `@pytest.mark.performance`: Performance benchmarks
 
-3. **API Client Integration**
-   - **Enhancement**: Used proper `apiClient.getConversations()` instead of generic `.get()`
-   - **Notification System**: Integrated with `useNotification` context for error handling
-   - **Impact**: Consistent API usage patterns throughout frontend
-
-#### **Implementation Quality**
-- **Architecture**: Followed existing service layer patterns and API conventions
-- **Error Handling**: Comprehensive error handling with user notifications
-- **Type Safety**: All TypeScript types properly aligned
-- **State Management**: Proper React state management with useEffect patterns
-- **Responsive Design**: Mobile-friendly with sidebar auto-close on small screens
+**Coverage Requirements**:
+- New code: >90% coverage
+- Critical paths (search, auth): 100% coverage
+- Use `make test-unit-fast` for rapid feedback
 
 ### **Next Phase Recommendations**
 1. **Test and validate** all implemented features end-to-end
@@ -374,9 +585,96 @@ ralph/
 ├── progress.md # Progress tracking
 └── current_context.md # Combined context for Claude
 
+## 📚 AGENTS.md Documentation System
+
+### Purpose
+AGENTS.md files provide contextual documentation for AI agents and human developers throughout the codebase. They ensure consistent understanding of module purposes, patterns, and best practices.
+
+### File Hierarchy
+```
+/AGENTS.md                                    # Project overview (this file)
+├── backend/AGENTS.md                         # Backend architecture
+│   └── rag_solution/AGENTS.md               # Main application package
+│       ├── services/AGENTS.md               # Service layer patterns
+│       ├── models/AGENTS.md                 # Database models
+│       ├── schemas/AGENTS.md                # API schemas
+│       ├── router/AGENTS.md                 # API endpoints
+│       ├── repository/AGENTS.md             # Data access
+│       ├── generation/AGENTS.md             # LLM providers
+│       ├── retrieval/AGENTS.md              # Vector search
+│       ├── data_ingestion/AGENTS.md         # Document processing
+│       ├── pipeline/AGENTS.md               # Pipeline orchestration
+│       ├── query_rewriting/AGENTS.md        # Query enhancement
+│       ├── file_management/AGENTS.md        # File operations
+│       ├── utils/AGENTS.md                  # Utilities
+│       └── tests/AGENTS.md                  # Testing guidelines
+└── frontend/AGENTS.md                        # Frontend architecture
+    └── src/components/AGENTS.md             # React components
+```
+
+### Version Control
+**YES - Commit AGENTS.md files to Git**
+
+These files should be version controlled because:
+1. **Team Consistency**: All developers and AI agents have consistent context
+2. **Living Documentation**: Evolves with the codebase
+3. **Onboarding**: New team members understand architecture quickly
+4. **Code Reviews**: Reviewers can reference documented patterns
+5. **AI Context**: GitHub Copilot, Claude Code, and other AI tools use them
+
+### Maintaining AGENTS.md Files
+
+**When to Update**:
+- Adding new modules/features
+- Changing architectural patterns
+- Discovering common pitfalls
+- Adding new best practices
+- Major refactoring
+
+**What to Include**:
+- Module purpose and responsibilities
+- Key files and their roles
+- Common patterns and examples
+- Best practices and conventions
+- Common pitfalls to avoid
+- Links to related AGENTS.md files
+
+**What NOT to Include**:
+- Detailed API documentation (use OpenAPI/Swagger)
+- Code that duplicates docstrings
+- Temporary implementation notes
+- Issue-specific details (use GitHub issues)
+
+### For AI Agents: Context Loading Protocol
+
+**Always follow this sequence**:
+1. Read root `/AGENTS.md` for project overview
+2. Identify which modules you'll be working with
+3. Read relevant module AGENTS.md files
+4. Follow the patterns documented in those files
+5. Update AGENTS.md if you discover new patterns or issues
+
+**Example**:
+```
+User asks: "Add user profile picture upload"
+
+Agent should read:
+1. /AGENTS.md - Project overview
+2. backend/rag_solution/AGENTS.md - Application structure
+3. backend/rag_solution/services/AGENTS.md - Service patterns
+4. backend/rag_solution/models/AGENTS.md - Model patterns
+5. backend/rag_solution/router/AGENTS.md - Endpoint patterns
+6. backend/rag_solution/schemas/AGENTS.md - Schema patterns
+7. frontend/src/components/AGENTS.md - Component patterns
+
+Then implement following documented patterns.
+```
+
 ## Usage Instructions
-- Start with this file (PROMPT_ISSUES.md) for issue implementation
-- Use specialized prompts in .ralph/prompts/ for specific tasks
-- Monitor progress in .ralph/progress.md
-- Check logs in .ralph/logs/ for execution details
-- Update context in .ralph/current_context.md as needed
+- Start with this file for project overview and context loading strategy
+- Read module-specific AGENTS.md files before making changes
+- Follow documented patterns strictly
+- Update AGENTS.md files when discovering new patterns
+- Update CHANGELOG.md in docs/
+- Update documentation in docs/ folder in mkdocs format.
+- Use plan.md for large changes.

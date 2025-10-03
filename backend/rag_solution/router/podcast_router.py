@@ -24,7 +24,7 @@ from rag_solution.services.search_service import SearchService
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/podcasts", tags=["podcasts"])
+router = APIRouter(prefix="/api/podcasts", tags=["podcasts"])
 
 
 # Dependency to get PodcastService
