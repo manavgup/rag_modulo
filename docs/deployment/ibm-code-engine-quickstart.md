@@ -27,17 +27,25 @@ curl -fsSL https://clis.cloud.ibm.com/install/linux | sh
 ibmcloud plugin install code-engine -f
 ```
 
+### Install code-engine plugin
+
+```bash
+ibmcloud plugin install code-engine
+```
+
 ### Login and Create Project
 
 ```bash
 # Login
-ibmcloud login
+ibmcloud login --sso
+
+# Set resource group
+ibmcloud target -g rg-rag-turbo-01
 
 # Create Code Engine project
-ibmcloud code-engine project create --name rag-modulo-staging --region us-south
+ibmcloud code-engine project create --name rag-modulo-staging
 
 # Select project
-ibmcloud code-engine project select --name rag-modulo-staging
 ```
 
 ### Create Secrets
@@ -58,6 +66,15 @@ ibmcloud code-engine secret create \
 
 **Application Secrets (environment variables):**
 
+**Option 1: Automatic from .env (Recommended)**
+
+```bash
+# Automatically creates secrets from your .env file
+./scripts/ibm-create-secrets.sh
+```
+
+**Option 2: Manual (if you don't have .env)**
+
 ```bash
 ibmcloud code-engine secret create \
   --name rag-modulo-secrets \
@@ -72,7 +89,9 @@ ibmcloud code-engine secret create \
   --from-literal JWT_SECRET_KEY=your-jwt-secret \
   --from-literal WATSONX_APIKEY=your-watsonx-key \
   --from-literal WATSONX_URL=https://us-south.ml.cloud.ibm.com \
-  --from-literal WATSONX_PROJECT_ID=your-project-id
+  --from-literal WATSONX_INSTANCE_ID=your-instance-id \
+  --from-literal OPENAI_API_KEY=your-openai-key \
+  --from-literal ANTHROPIC_API_KEY=your-anthropic-key
 ```
 
 ### Get API Key

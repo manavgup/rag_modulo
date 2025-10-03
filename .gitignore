@@ -90,3 +90,4 @@ backend/.env.backup
 # Ignore linting progress tracking files
 .linting-progress.json
 .secrets
+api-key.json
