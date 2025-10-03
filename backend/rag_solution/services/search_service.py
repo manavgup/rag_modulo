@@ -1,12 +1,11 @@
 """Service for handling search operations through the RAG pipeline."""
+# pylint: disable=too-many-lines
+# Justification: Search service orchestrates multiple complex search paths
 
 import time
 from collections.abc import Callable
 from functools import wraps
 from typing import TYPE_CHECKING, Any, ParamSpec, TypeVar
-
-if TYPE_CHECKING:
-    from rag_solution.services.chain_of_thought_service import ChainOfThoughtService
 
 from core.config import Settings
 from core.custom_exceptions import ConfigurationError, LLMProviderError, NotFoundError, ValidationError
@@ -20,13 +19,16 @@ from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput
 from rag_solution.schemas.collection_schema import CollectionStatus
 from rag_solution.schemas.llm_usage_schema import TokenWarning
 from rag_solution.schemas.search_schema import SearchInput, SearchOutput
-
-# ChainOfThoughtService imported above in TYPE_CHECKING block to avoid circular import
 from rag_solution.services.collection_service import CollectionService
 from rag_solution.services.file_management_service import FileManagementService
 from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.pipeline_service import PipelineService
 from rag_solution.services.token_tracking_service import TokenTrackingService
+
+# pylint: disable=wrong-import-position
+# Justification: TYPE_CHECKING import must come after regular imports to prevent circular import
+if TYPE_CHECKING:
+    from rag_solution.services.chain_of_thought_service import ChainOfThoughtService
 
 logger = get_logger("services.search")
 
@@ -42,24 +44,26 @@ def handle_search_errors(func: Callable[..., Any]) -> Callable[..., Any]:
         try:
             return await func(*args, **kwargs)
         except NotFoundError as e:
-            logger.error(f"Resource not found: {e!s}")
+            logger.error("Resource not found: %s", e)
             raise HTTPException(status_code=404, detail=str(e)) from e
         except ValidationError as e:
-            logger.error(f"Validation error: {e!s}")
+            logger.error("Validation error: %s", e)
             raise HTTPException(status_code=400, detail=str(e)) from e
         except LLMProviderError as e:
-            logger.error(f"LLM provider error: {e!s}")
+            logger.error("LLM provider error: %s", e)
             raise HTTPException(status_code=500, detail=str(e)) from e
         except ConfigurationError as e:
-            logger.error(f"Configuration error: {e!s}")
+            logger.error("Configuration error: %s", e)
             raise HTTPException(status_code=500, detail=str(e)) from e
         except Exception as e:
-            logger.error(f"Unexpected error during search: {e!s}")
+            logger.error("Unexpected error during search: %s", e)
             raise HTTPException(status_code=500, detail=f"Error processing search: {e!s}") from e
 
     return wrapper
 
 
+# pylint: disable=too-many-instance-attributes
+# Justification: Service class requires multiple dependencies for search orchestration
 class SearchService:
     """Service for handling search operations through the RAG pipeline."""
 
@@ -75,6 +79,7 @@ class SearchService:
         self._llm_provider_service: LLMProviderService | None = None
         self._chain_of_thought_service: Any | None = None
         self._token_tracking_service: TokenTrackingService | None = None
+        self._reranker: Any | None = None
 
     @property
     def file_service(self) -> FileManagementService:
@@ -113,28 +118,34 @@ class SearchService:
         """Lazy initialization of Chain of Thought service."""
         if self._chain_of_thought_service is None:
             logger.debug("Lazy initializing Chain of Thought service")
+            # pylint: disable=import-outside-toplevel
+            # Justification: Lazy import to avoid circular dependency with ChainOfThoughtService
             from rag_solution.services.chain_of_thought_service import ChainOfThoughtService
 
             # Get default LLM provider configuration for CoT
             try:
                 provider_config = self.llm_provider_service.get_default_provider()
-                logger.debug(f"Retrieved provider config: {provider_config}")
-            except Exception as e:
-                logger.exception(f"Failed to get default provider configuration: {e}")
+                logger.debug("Retrieved provider config: %s", provider_config)
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                # Justification: Fallback to None for any provider configuration error
+                logger.exception("Failed to get default provider configuration: %s", e)
                 provider_config = None
 
             # Create actual LLM provider instance if config is available
             llm_service = None
             if provider_config:
                 try:
+                    # pylint: disable=import-outside-toplevel
+                    # Justification: Lazy import to avoid circular dependency with LLMProviderFactory
                     from rag_solution.generation.providers.factory import LLMProviderFactory
 
                     # Use the factory to create the provider instance properly
                     factory = LLMProviderFactory(self.db)
                     llm_service = factory.get_provider(provider_config.name)
-                    logger.debug(f"Using {provider_config.name} LLM provider for CoT service")
-                except Exception as e:
-                    logger.exception(f"Failed to create LLM provider instance: {e}")
+                    logger.debug("Using %s LLM provider for CoT service", provider_config.name)
+                except Exception as e:  # pylint: disable=broad-exception-caught
+                    # Justification: Fallback to None for any provider creation error
+                    logger.exception("Failed to create LLM provider instance: %s", e)
                     logger.warning("Chain of Thought service will be created without LLM provider")
             else:
                 logger.warning("No default provider configuration found for CoT service")
@@ -146,7 +157,7 @@ class SearchService:
                 )
                 logger.debug("Chain of Thought service initialized successfully")
             except Exception as e:
-                logger.exception(f"Failed to initialize Chain of Thought service: {e}")
+                logger.exception("Failed to initialize Chain of Thought service: %s", e)
                 raise ConfigurationError(f"Failed to initialize Chain of Thought service: {e}") from e
         return self._chain_of_thought_service
 
@@ -157,6 +168,107 @@ class SearchService:
             logger.debug("Lazy initializing token tracking service")
             self._token_tracking_service = TokenTrackingService(self.db, self.settings)
         return self._token_tracking_service
+
+    def get_reranker(self, user_id: UUID4) -> Any:
+        """Get or create reranker instance for the given user.
+
+        Args:
+            user_id: User UUID for creating LLM-based reranker
+
+        Returns:
+            Reranker instance (LLMReranker or SimpleReranker)
+        """
+        if not self.settings.enable_reranking:
+            return None
+
+        if self._reranker is None:
+            logger.debug("Lazy initializing reranker")
+            # pylint: disable=import-outside-toplevel
+            # Justification: Lazy import to avoid circular dependency with reranker and services
+            from rag_solution.retrieval.reranker import LLMReranker, SimpleReranker
+            from rag_solution.services.prompt_template_service import PromptTemplateService
+
+            if self.settings.reranker_type == "llm":
+                try:
+                    # Get LLM provider
+                    provider_config = self.llm_provider_service.get_default_provider()
+                    if not provider_config:
+                        logger.warning("No LLM provider found, using simple reranker")
+                        self._reranker = SimpleReranker()
+                        return self._reranker
+
+                    # pylint: disable=import-outside-toplevel
+                    # Justification: Lazy import to avoid circular dependency with LLMProviderFactory
+                    from rag_solution.generation.providers.factory import LLMProviderFactory
+
+                    factory = LLMProviderFactory(self.db)
+                    llm_provider = factory.get_provider(provider_config.name)
+
+                    # Get reranking prompt template
+                    prompt_service = PromptTemplateService(self.db)
+                    try:
+                        # pylint: disable=import-outside-toplevel
+                        # Justification: Lazy import to avoid circular dependency with schema types
+                        from rag_solution.schemas.prompt_template_schema import PromptTemplateType
+
+                        template = prompt_service.get_by_type(user_id, PromptTemplateType.RERANKING)
+                    except Exception as e:  # pylint: disable=broad-exception-caught
+                        # Justification: Fallback to simple reranker if template loading fails
+                        logger.warning("Could not load reranking template: %s, using simple reranker", e)
+                        self._reranker = SimpleReranker()
+                        return self._reranker
+
+                    self._reranker = LLMReranker(
+                        llm_provider=llm_provider,
+                        user_id=user_id,
+                        prompt_template=template,
+                        batch_size=self.settings.reranker_batch_size,
+                        score_scale=self.settings.reranker_score_scale,
+                    )
+                    logger.debug("LLM reranker initialized successfully")
+                except Exception as e:  # pylint: disable=broad-exception-caught
+                    # Justification: Fallback to simple reranker for any initialization error
+                    logger.warning("Failed to initialize LLM reranker: %s, using simple reranker", e)
+                    self._reranker = SimpleReranker()
+            else:
+                self._reranker = SimpleReranker()
+                logger.debug("Simple reranker initialized")
+
+        return self._reranker
+
+    def _apply_reranking(self, query: str, results: list[QueryResult], user_id: UUID4) -> list[QueryResult]:
+        """Apply reranking to search results if enabled.
+
+        Args:
+            query: The search query
+            results: List of QueryResult objects from retrieval
+            user_id: User UUID
+
+        Returns:
+            Reranked list of QueryResult objects (or original if reranking disabled/failed)
+        """
+        if not self.settings.enable_reranking or not results:
+            return results
+
+        try:
+            reranker = self.get_reranker(user_id)
+            if reranker is None:
+                logger.debug("Reranking disabled, returning original results")
+                return results
+
+            logger.info("Applying reranking to %d results", len(results))
+            reranked_results = reranker.rerank(
+                query=query,
+                results=results,
+                top_k=self.settings.reranker_top_k,
+            )
+            logger.info("Reranking complete, returned %d results", len(reranked_results))
+            return reranked_results
+
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            # Justification: Fallback to original results for any reranking failure
+            logger.warning("Reranking failed: %s, returning original results", e)
+            return results
 
     def _should_use_chain_of_thought(self, search_input: SearchInput) -> bool:
         """Automatically determine if Chain of Thought should be used for this search.
@@ -170,10 +282,10 @@ class SearchService:
         Users can override with 'show_cot_steps' for visibility or 'cot_disabled' to disable.
         """
         # Debug logging
-        logger.info(f"🔍 CoT decision check for question: {search_input.question}")
-        logger.info(f"🔍 Config metadata: {search_input.config_metadata}")
-        logger.debug(f"CoT decision check for question: {search_input.question}")
-        logger.debug(f"Config metadata: {search_input.config_metadata}")
+        logger.info("🔍 CoT decision check for question: %s", search_input.question)
+        logger.info("🔍 Config metadata: %s", search_input.config_metadata)
+        logger.debug("CoT decision check for question: %s", search_input.question)
+        logger.debug("Config metadata: %s", search_input.config_metadata)
 
         # Allow explicit override to disable CoT
         if search_input.config_metadata and search_input.config_metadata.get("cot_disabled"):
@@ -231,9 +343,13 @@ class SearchService:
         should_use_cot = has_complex_patterns or multiple_questions or is_long_question or asks_for_reasoning
 
         logger.debug(
-            f"CoT decision: {should_use_cot} (patterns={has_complex_patterns}, "
-            f"multiple={multiple_questions}, long={is_long_question}, "
-            f"reasoning={asks_for_reasoning}, length={question_length})"
+            "CoT decision: %s (patterns=%s, multiple=%s, long=%s, reasoning=%s, length=%d)",
+            should_use_cot,
+            has_complex_patterns,
+            multiple_questions,
+            is_long_question,
+            asks_for_reasoning,
+            question_length,
         )
 
         return should_use_cot
@@ -274,7 +390,7 @@ class SearchService:
         except (NotFoundError, ConfigurationError):
             raise
         except Exception as e:
-            logger.error(f"Error initializing pipeline: {e!s}")
+            logger.error("Error initializing pipeline: %s", e)
             raise ConfigurationError(f"Pipeline initialization failed: {e!s}") from e
 
     def _generate_document_metadata(
@@ -323,7 +439,7 @@ class SearchService:
         for doc_id in doc_ids:
             doc_metadata.append(file_metadata_by_id[doc_id])
 
-        logger.debug(f"Generated metadata for {len(doc_metadata)} documents")
+        logger.debug("Generated metadata for %d documents", len(doc_metadata))
         return doc_metadata
 
     def _clean_generated_answer(self, answer: str) -> str:
@@ -335,6 +451,8 @@ class SearchService:
         - Duplicate consecutive words
         - Leading/trailing whitespace
         """
+        # pylint: disable=import-outside-toplevel
+        # Justification: Lazy import to avoid loading re module unless needed
         import re
 
         cleaned = answer.strip()
@@ -382,18 +500,17 @@ class SearchService:
                     raise ValidationError(
                         f"Collection {collection_id} is still processing documents. Please wait for processing to complete."
                     )
-                elif collection.status == CollectionStatus.CREATED:
+                if collection.status == CollectionStatus.CREATED:
                     raise ValidationError(
                         f"Collection {collection_id} has no documents. Please upload documents before searching."
                     )
-                elif collection.status == CollectionStatus.ERROR:
+                if collection.status == CollectionStatus.ERROR:
                     raise ValidationError(
                         f"Collection {collection_id} encountered errors during processing. Please check collection status."
                     )
-                else:
-                    raise ValidationError(
-                        f"Collection {collection_id} is not ready for search (status: {collection.status})."
-                    )
+                raise ValidationError(
+                    f"Collection {collection_id} is not ready for search (status: {collection.status})."
+                )
 
             if user_id and collection.is_private:
                 user_collections = self.collection_service.get_user_collections(user_id)
@@ -430,19 +547,22 @@ class SearchService:
             return default_pipeline.id
 
         # No default pipeline exists, check if user exists before creating one
-        logger.info(f"Creating default pipeline for user {user_id}")
+        logger.info("Creating default pipeline for user %s", user_id)
 
         # Check if user exists first to avoid foreign key constraint violations
         try:
             # Try to verify user exists by checking user service
+            # pylint: disable=import-outside-toplevel
+            # Justification: Lazy import to avoid circular dependency with UserService
             from rag_solution.services.user_service import UserService
 
             user_service = UserService(self.db, self.settings)
             user = user_service.get_user(user_id)
             if not user:
                 raise ConfigurationError(f"User {user_id} does not exist. Cannot create pipeline.")
-        except Exception as e:
-            logger.error(f"Failed to verify user {user_id} exists: {e}")
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            # Justification: Re-raise as ConfigurationError for any user verification failure
+            logger.error("Failed to verify user %s exists: %s", user_id, e)
             raise ConfigurationError(
                 f"User {user_id} does not exist or cannot be verified. Cannot create pipeline."
             ) from e
@@ -457,17 +577,19 @@ class SearchService:
             created_pipeline = self.pipeline_service.initialize_user_pipeline(user_id, default_provider.id)
             return created_pipeline.id
         except Exception as e:
-            logger.error(f"Failed to create pipeline for user {user_id}: {e}")
+            logger.error("Failed to create pipeline for user %s: %s", user_id, e)
             raise ConfigurationError(f"Failed to create default pipeline for user {user_id}: {e}") from e
 
+    # pylint: disable=too-many-locals,too-many-branches,too-many-statements,too-many-nested-blocks
+    # Justification: Search orchestration requires complex control flow for CoT and regular search paths
     @handle_search_errors
     async def search(self, search_input: SearchInput) -> SearchOutput:
         """Process a search query through the RAG pipeline."""
         logger.info("🔍 SEARCH SERVICE: METHOD ENTRY - search() called!")
         start_time = time.time()
         logger.info("Starting search operation")
-        logger.info(f"🔍 SEARCH SERVICE: search() called with question: {search_input.question}")
-        logger.info(f"🔍 SEARCH SERVICE: config_metadata: {search_input.config_metadata}")
+        logger.info("🔍 SEARCH SERVICE: search() called with question: %s", search_input.question)
+        logger.info("🔍 SEARCH SERVICE: config_metadata: %s", search_input.config_metadata)
         logger.info("🔍 SEARCH SERVICE: search() method STARTED")
 
         # Validate inputs
@@ -475,16 +597,16 @@ class SearchService:
             logger.debug("Validating search input")
             self._validate_search_input(search_input)
             logger.debug("Search input validation successful")
-        except Exception as e:
-            logger.exception(f"Search input validation failed: {e}")
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            logger.exception("Search input validation failed: %s", e)
             raise
 
         try:
             logger.debug("Validating collection access")
             self._validate_collection_access(search_input.collection_id, search_input.user_id)
             logger.debug("Collection access validation successful")
-        except Exception as e:
-            logger.exception(f"Collection access validation failed: {e}")
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            logger.exception("Collection access validation failed: %s", e)
             raise
 
         # Check if Chain of Thought should be used
@@ -492,8 +614,8 @@ class SearchService:
 
         # TEMPORARY FIX: Force CoT when explicitly enabled
         force_cot = search_input.config_metadata and search_input.config_metadata.get("cot_enabled")
-        logger.info(f"🔍 SEARCH SERVICE: force_cot = {force_cot}")
-        logger.info(f"🔍 SEARCH SERVICE: config_metadata = {search_input.config_metadata}")
+        logger.info("🔍 SEARCH SERVICE: force_cot = %s", force_cot)
+        logger.info("🔍 SEARCH SERVICE: config_metadata = %s", search_input.config_metadata)
 
         # FORCE CoT when explicitly enabled - bypass detection logic
         cot_should_be_used = force_cot
@@ -501,11 +623,11 @@ class SearchService:
             try:
                 logger.debug("Running CoT decision logic")
                 cot_should_be_used = self._should_use_chain_of_thought(search_input)
-                logger.debug(f"CoT decision logic returned: {cot_should_be_used}")
-            except Exception as e:
-                logger.exception(f"CoT decision logic failed: {e}")
+                logger.debug("CoT decision logic returned: %s", cot_should_be_used)
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                logger.exception("CoT decision logic failed: %s", e)
                 cot_should_be_used = False
-        logger.info(f"🔍 SEARCH SERVICE: _should_use_chain_of_thought returned: {cot_should_be_used}")
+        logger.info("🔍 SEARCH SERVICE: _should_use_chain_of_thought returned: %s", cot_should_be_used)
 
         if cot_should_be_used:
             logger.info("🔍 SEARCH SERVICE: CoT will be used!")
@@ -517,25 +639,25 @@ class SearchService:
                 try:
                     logger.debug("Resolving user default pipeline")
                     pipeline_id = self._resolve_user_default_pipeline(search_input.user_id)
-                    logger.debug(f"Resolved pipeline ID: {pipeline_id}")
-                except Exception as e:
-                    logger.exception(f"Failed to resolve user default pipeline: {e}")
+                    logger.debug("Resolved pipeline ID: %s", pipeline_id)
+                except Exception as e:  # pylint: disable=broad-exception-caught
+                    logger.exception("Failed to resolve user default pipeline: %s", e)
                     raise
 
                 try:
                     logger.debug("Validating pipeline")
                     self._validate_pipeline(pipeline_id)
                     logger.debug("Pipeline validation successful")
-                except Exception as e:
-                    logger.exception(f"Pipeline validation failed: {e}")
+                except Exception as e:  # pylint: disable=broad-exception-caught
+                    logger.exception("Pipeline validation failed: %s", e)
                     raise
 
                 try:
                     logger.debug("Initializing pipeline")
                     collection_name = await self._initialize_pipeline(search_input.collection_id)
-                    logger.debug(f"Pipeline initialized with collection: {collection_name}")
-                except Exception as e:
-                    logger.exception(f"Pipeline initialization failed: {e}")
+                    logger.debug("Pipeline initialized with collection: %s", collection_name)
+                except Exception as e:  # pylint: disable=broad-exception-caught
+                    logger.exception("Pipeline initialization failed: %s", e)
                     raise
 
                 # Execute pipeline to get document context for CoT
@@ -546,13 +668,14 @@ class SearchService:
                         search_input=search_input, collection_name=collection_name, pipeline_id=pipeline_id
                     )
                     logger.debug("Pipeline execution completed")
-                except Exception as e:
-                    logger.exception(f"Pipeline execution failed: {e}")
+                except Exception as e:  # pylint: disable=broad-exception-caught
+                    logger.exception("Pipeline execution failed: %s", e)
                     raise
 
-                logger.info(f"🔍 SEARCH SERVICE: Pipeline result - success: {pipeline_result.success}")
+                logger.info("🔍 SEARCH SERVICE: Pipeline result - success: %s", pipeline_result.success)
                 logger.info(
-                    f"🔍 SEARCH SERVICE: Pipeline result - query_results count: {len(pipeline_result.query_results) if pipeline_result.query_results else 0}"
+                    "🔍 SEARCH SERVICE: Pipeline result - query_results count: %d",
+                    len(pipeline_result.query_results) if pipeline_result.query_results else 0,
                 )
 
                 if not pipeline_result.success:
@@ -561,13 +684,20 @@ class SearchService:
                     # Fall through to regular search
                 else:
                     logger.info("🔍 SEARCH SERVICE: Pipeline SUCCESS, proceeding with CoT")
+                    # Apply reranking to retrieved results before CoT
+                    if pipeline_result.query_results:
+                        pipeline_result.query_results = self._apply_reranking(
+                            query=search_input.question,
+                            results=pipeline_result.query_results,
+                            user_id=search_input.user_id,
+                        )
                     # Convert to CoT input with document context
                     try:
                         logger.debug("Converting to CoT input")
                         cot_input = self._convert_to_cot_input(search_input)
                         logger.debug("CoT input conversion successful")
-                    except Exception as e:
-                        logger.exception(f"Failed to convert to CoT input: {e}")
+                    except Exception as e:  # pylint: disable=broad-exception-caught
+                        logger.exception("Failed to convert to CoT input: %s", e)
                         raise
 
                     # Extract document context from pipeline results
@@ -594,42 +724,48 @@ class SearchService:
 
                                 if text_content:
                                     context_documents.append(text_content)
-                        logger.debug(f"Extracted {len(context_documents)} context documents")
-                    except Exception as e:
-                        logger.exception(f"Failed to extract document context: {e}")
+                        logger.debug("Extracted %d context documents", len(context_documents))
+                    except Exception as e:  # pylint: disable=broad-exception-caught
+                        logger.exception("Failed to extract document context: %s", e)
                         raise
 
                     # Debug logging
-                    logger.info(f"CoT context extraction: Found {len(context_documents)} context documents")
+                    logger.info("CoT context extraction: Found %d context documents", len(context_documents))
                     for i, doc in enumerate(context_documents[:2]):  # Log first 2 docs
-                        logger.info(f"Context doc {i + 1}: {doc[:100]}...")
+                        logger.info("Context doc %d: %s...", i + 1, doc[:100])
 
                     # Execute CoT with document context
-                    logger.info(f"🔍 SEARCH SERVICE: About to execute CoT with {len(context_documents)} context docs")
-                    logger.info(f"Executing CoT with question: {search_input.question}")
+                    logger.info("🔍 SEARCH SERVICE: About to execute CoT with %d context docs", len(context_documents))
+                    logger.info("Executing CoT with question: %s", search_input.question)
                     try:
                         logger.debug("Starting CoT execution")
                         cot_result = await self.chain_of_thought_service.execute_chain_of_thought(
                             cot_input, context_documents, user_id=str(search_input.user_id)
                         )
                         logger.debug("CoT execution completed successfully")
-                        logger.info(f"🔍 SEARCH SERVICE: CoT execution SUCCESS - result type: {type(cot_result)}")
+                        logger.info("🔍 SEARCH SERVICE: CoT execution SUCCESS - result type: %s", type(cot_result))
                         logger.info(
-                            f"🔍 SEARCH SERVICE: CoT result has token_usage: {hasattr(cot_result, 'token_usage')}"
+                            "🔍 SEARCH SERVICE: CoT result has token_usage: %s", hasattr(cot_result, "token_usage")
                         )
                         if hasattr(cot_result, "token_usage"):
-                            logger.info(f"🔍 SEARCH SERVICE: CoT token_usage: {cot_result.token_usage}")
+                            logger.info("🔍 SEARCH SERVICE: CoT token_usage: %s", cot_result.token_usage)
                         logger.info(
-                            f"🔍 SEARCH SERVICE: CoT reasoning_steps count: {len(cot_result.reasoning_steps) if hasattr(cot_result, 'reasoning_steps') and cot_result.reasoning_steps else 0}"
+                            "🔍 SEARCH SERVICE: CoT reasoning_steps count: %d",
+                            len(cot_result.reasoning_steps)
+                            if hasattr(cot_result, "reasoning_steps") and cot_result.reasoning_steps
+                            else 0,
                         )
                         if hasattr(cot_result, "reasoning_steps") and cot_result.reasoning_steps:
                             for i, step in enumerate(cot_result.reasoning_steps):
                                 logger.info(
-                                    f"🔍 SEARCH SERVICE: Step {i + 1}: {step.step_number} - {step.question[:50]}..."
+                                    "🔍 SEARCH SERVICE: Step %d: %d - %s...",
+                                    i + 1,
+                                    step.step_number,
+                                    step.question[:50],
                                 )
                     except Exception as e:
-                        logger.info(f"🔍 SEARCH SERVICE: CoT execution FAILED: {e}")
-                        logger.exception(f"CoT execution failed: {e}")
+                        logger.info("🔍 SEARCH SERVICE: CoT execution FAILED: %s", e)
+                        logger.exception("CoT execution failed: %s", e)
                         raise
 
                     # Generate document metadata from pipeline results
@@ -638,9 +774,9 @@ class SearchService:
                         document_metadata = self._generate_document_metadata(
                             pipeline_result.query_results or [], search_input.collection_id
                         )
-                        logger.debug(f"Generated metadata for {len(document_metadata)} documents")
-                    except Exception as e:
-                        logger.exception(f"Failed to generate document metadata: {e}")
+                        logger.debug("Generated metadata for %d documents", len(document_metadata))
+                    except Exception as e:  # pylint: disable=broad-exception-caught
+                        logger.exception("Failed to generate document metadata: %s", e)
                         raise
 
                     # Convert CoT output to SearchOutput
@@ -665,12 +801,12 @@ class SearchService:
                                     session_id=session_id,
                                 )
                                 logger.debug("Token usage tracking completed")
-                            except Exception as e:
-                                logger.exception(f"Failed to track token usage: {e}")
+                            except Exception as e:  # pylint: disable=broad-exception-caught
+                                logger.exception("Failed to track token usage: %s", e)
                                 # Don't fail the search due to token tracking issues
                         logger.debug("CoT output conversion completed")
-                    except Exception as e:
-                        logger.exception(f"Failed to convert CoT output to SearchOutput: {e}")
+                    except Exception as e:  # pylint: disable=broad-exception-caught
+                        logger.exception("Failed to convert CoT output to SearchOutput: %s", e)
                         raise
 
                     # Include CoT reasoning steps if user requested them
@@ -678,9 +814,10 @@ class SearchService:
                         logger.debug("Preparing CoT output for response")
                         cot_output = None
                         logger.info(
-                            f"🔍 SEARCH SERVICE: _should_show_cot_steps result: {self._should_show_cot_steps(search_input)}"
+                            "🔍 SEARCH SERVICE: _should_show_cot_steps result: %s",
+                            self._should_show_cot_steps(search_input),
                         )
-                        logger.info(f"🔍 SEARCH SERVICE: config_metadata: {search_input.config_metadata}")
+                        logger.info("🔍 SEARCH SERVICE: config_metadata: %s", search_input.config_metadata)
                         if self._should_show_cot_steps(search_input):
                             cot_output = {
                                 "original_question": cot_result.original_question,
@@ -702,8 +839,8 @@ class SearchService:
                                 "reasoning_strategy": cot_result.reasoning_strategy,
                             }
                         logger.debug("CoT output preparation completed")
-                    except Exception as e:
-                        logger.exception(f"Failed to prepare CoT output: {e}")
+                    except Exception as e:  # pylint: disable=broad-exception-caught
+                        logger.exception("Failed to prepare CoT output: %s", e)
                         # Don't fail the search due to CoT output preparation issues
                         cot_output = None
 
@@ -730,15 +867,19 @@ class SearchService:
                         )
                         logger.debug("SearchOutput created successfully for CoT")
                         return search_output
-                    except Exception as e:
-                        logger.exception(f"Failed to create SearchOutput for CoT result: {e}")
+                    except Exception as e:  # pylint: disable=broad-exception-caught
+                        # Justification: Re-raise to be caught by outer handler
+                        logger.exception("Failed to create SearchOutput for CoT result: %s", e)
                         raise
-            except Exception as e:
-                logger.error(f"Chain of Thought failed, falling back to regular search: {e!s}")
-                logger.exception(f"CoT exception details: {type(e).__name__}: {e}")
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                # Justification: Fallback to regular search for any CoT failure
+                logger.error("Chain of Thought failed, falling back to regular search: %s", e)
+                logger.exception("CoT exception details: %s: %s", type(e).__name__, e)
+                # pylint: disable=import-outside-toplevel
+                # Justification: Lazy import for traceback logging only when needed
                 import traceback
 
-                logger.error(f"CoT traceback: {traceback.format_exc()}")
+                logger.error("CoT traceback: %s", traceback.format_exc())
                 # Fall through to regular search
 
         # Regular search pipeline
@@ -748,9 +889,9 @@ class SearchService:
             try:
                 logger.debug("Resolving user default pipeline for regular search")
                 pipeline_id = self._resolve_user_default_pipeline(search_input.user_id)
-                logger.debug(f"Resolved pipeline ID: {pipeline_id}")
+                logger.debug("Resolved pipeline ID: %s", pipeline_id)
             except Exception as e:
-                logger.exception(f"Failed to resolve user default pipeline for regular search: {e}")
+                logger.exception("Failed to resolve user default pipeline for regular search: %s", e)
                 raise
 
             try:
@@ -758,15 +899,15 @@ class SearchService:
                 self._validate_pipeline(pipeline_id)
                 logger.debug("Pipeline validation successful")
             except Exception as e:
-                logger.exception(f"Pipeline validation failed for regular search: {e}")
+                logger.exception("Pipeline validation failed for regular search: %s", e)
                 raise
 
             try:
                 logger.debug("Initializing pipeline for regular search")
                 collection_name = await self._initialize_pipeline(search_input.collection_id)
-                logger.debug(f"Pipeline initialized with collection: {collection_name}")
+                logger.debug("Pipeline initialized with collection: %s", collection_name)
             except Exception as e:
-                logger.exception(f"Pipeline initialization failed for regular search: {e}")
+                logger.exception("Pipeline initialization failed for regular search: %s", e)
                 raise
 
             try:
@@ -776,15 +917,23 @@ class SearchService:
                 )
                 logger.debug("Pipeline execution completed for regular search")
             except Exception as e:
-                logger.exception(f"Pipeline execution failed for regular search: {e}")
+                logger.exception("Pipeline execution failed for regular search: %s", e)
                 raise
         except Exception as e:
-            logger.exception(f"Regular search pipeline failed: {e}")
+            logger.exception("Regular search pipeline failed: %s", e)
             raise
 
         if not pipeline_result.success:
-            logger.error(f"Pipeline execution failed: {pipeline_result.error}")
+            logger.error("Pipeline execution failed: %s", pipeline_result.error)
             raise ConfigurationError(pipeline_result.error or "Pipeline execution failed")
+
+        # Apply reranking to retrieved results
+        if pipeline_result.query_results:
+            pipeline_result.query_results = self._apply_reranking(
+                query=search_input.question,
+                results=pipeline_result.query_results,
+                user_id=search_input.user_id,
+            )
 
         # Generate metadata
         try:
@@ -794,9 +943,10 @@ class SearchService:
             document_metadata = self._generate_document_metadata(
                 pipeline_result.query_results, search_input.collection_id
             )
-            logger.debug(f"Generated metadata for {len(document_metadata)} documents")
-        except Exception as e:
-            logger.exception(f"Failed to generate document metadata for regular search: {e}")
+            logger.debug("Generated metadata for %d documents", len(document_metadata))
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            # Justification: Re-raise to propagate critical metadata generation failure
+            logger.exception("Failed to generate document metadata for regular search: %s", e)
             raise
 
         # Clean answer
@@ -806,13 +956,14 @@ class SearchService:
                 pipeline_result.generated_answer = ""
             cleaned_answer = self._clean_generated_answer(pipeline_result.generated_answer)
             logger.debug("Answer cleaning completed")
-        except Exception as e:
-            logger.exception(f"Failed to clean generated answer: {e}")
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            # Justification: Use uncleaned answer if cleaning fails
+            logger.exception("Failed to clean generated answer: %s", e)
             raise
 
         # Calculate execution time
         execution_time = time.time() - start_time
-        logger.debug(f"Total execution time: {execution_time:.2f} seconds")
+        logger.debug("Total execution time: %.2f seconds", execution_time)
 
         # Track token usage for regular search (estimate based on content length)
         try:
@@ -823,8 +974,9 @@ class SearchService:
                 user_id=search_input.user_id, tokens_used=estimated_tokens, session_id=session_id
             )
             logger.debug("Token usage tracking completed")
-        except Exception as e:
-            logger.exception(f"Failed to track token usage for regular search: {e}")
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            # Justification: Return None to avoid failing search due to token tracking issues
+            logger.exception("Failed to track token usage for regular search: %s", e)
             # Don't fail the search due to token tracking issues
             token_warning = None
 
@@ -854,7 +1006,7 @@ class SearchService:
             logger.info("Search operation completed successfully")
             return regular_search_output
         except Exception as e:
-            logger.exception(f"Failed to create SearchOutput for regular search: {e}")
+            logger.exception("Failed to create SearchOutput for regular search: %s", e)
             raise
 
     def _estimate_token_usage(self, question: str, answer: str) -> int:
@@ -885,18 +1037,21 @@ class SearchService:
         3. Generate appropriate warnings when thresholds are exceeded
         """
         try:
-            logger.debug(f"Starting token usage tracking for user {user_id}, tokens: {tokens_used}")
+            logger.debug("Starting token usage tracking for user %s, tokens: %d", user_id, tokens_used)
 
             # Create LLMUsage object for token tracking
             try:
                 logger.debug("Importing required modules for token tracking")
+                # pylint: disable=import-outside-toplevel
+                # Justification: Lazy imports to avoid loading schemas unless needed
                 from datetime import datetime
 
                 from rag_solution.schemas.llm_usage_schema import LLMUsage, ServiceType
 
                 logger.debug("Modules imported successfully")
-            except Exception as e:
-                logger.exception(f"Failed to import required modules: {e}")
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                # Justification: Re-raise to propagate import failure
+                logger.exception("Failed to import required modules: %s", e)
                 raise
 
             # Create a mock LLMUsage object for token tracking
@@ -912,29 +1067,31 @@ class SearchService:
                     user_id=str(user_id) if user_id else None,
                     session_id=session_id,
                 )
-                logger.debug(f"LLMUsage object created: {llm_usage.total_tokens} total tokens")
+                logger.debug("LLMUsage object created: %d total tokens", llm_usage.total_tokens)
             except Exception as e:
-                logger.exception(f"Failed to create LLMUsage object: {e}")
+                logger.exception("Failed to create LLMUsage object: %s", e)
                 raise
 
             # Use TokenTrackingService to check for warnings
             try:
                 logger.debug("Checking usage warning with TokenTrackingService")
                 token_warning = await self.token_tracking_service.check_usage_warning(current_usage=llm_usage)
-                logger.debug(f"Token warning check completed, result: {token_warning is not None}")
-            except Exception as e:
-                logger.exception(f"Failed to check usage warning: {e}")
+                logger.debug("Token warning check completed, result: %s", token_warning is not None)
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                # Justification: Re-raise to propagate warning check failure
+                logger.exception("Failed to check usage warning: %s", e)
                 raise
 
             if token_warning:
-                logger.info(f"Token warning generated for user {user_id}: {token_warning.warning_type}")
-                logger.debug(f"Token warning details: {token_warning}")
+                logger.info("Token warning generated for user %s: %s", user_id, token_warning.warning_type)
+                logger.debug("Token warning details: %s", token_warning)
                 return token_warning
 
             logger.debug("No token warning generated")
             return None
 
-        except Exception as e:
-            logger.exception(f"Error tracking token usage: {e}")
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            # Justification: Return None to avoid failing search due to token tracking issues
+            logger.exception("Error tracking token usage: %s", e)
             # Don't fail search operation due to token tracking issues
             return None

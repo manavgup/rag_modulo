@@ -255,7 +255,7 @@ const LightweightSearchInterface: React.FC = () => {
     };
   }, [addNotification]);
 
-  const handleRestApiSearch = async (query: string, collectionId: string) => {
+  const handleRestApiSearch = async (query: string, collectionId: string, conversation?: ConversationSession | null) => {
     try {
       // Get user ID from auth endpoint
       let userId: string;
@@ -271,27 +271,52 @@ const LightweightSearchInterface: React.FC = () => {
         throw new Error('Authentication required. Please ensure you are logged in.');
       }
 
-      const searchResponse = await apiClient.search({
-        question: query,
-        collection_id: collectionId,
-        user_id: userId,
-        config_metadata: {
-          timestamp: new Date().toISOString(),
-          source: 'rest_api',
-          cot_enabled: true,
-          show_cot_steps: true,
-          referenced_message: referencedMessage ? {
-            id: referencedMessage.id,
-            content: referencedMessage.content,
-            timestamp: referencedMessage.timestamp.toISOString(),
-            type: referencedMessage.type
-          } : undefined,
-          conversation_context: currentConversation ? {
-            session_id: currentConversation.id,
-            session_name: currentConversation.session_name
-          } : undefined
-        }
-      });
+      let searchResponse: any;
+
+      // Use the passed conversation or fall back to state
+      const activeConversation = conversation || currentConversation;
+
+      // Use conversation endpoint if we have an active conversation (saves messages)
+      if (activeConversation) {
+        console.log('🔍 Using conversation endpoint to save message history...');
+        const conversationMessage = await apiClient.sendConversationMessage(activeConversation.id, query);
+
+        // Convert conversation message response to search response format
+        // Note: conversation endpoint returns sources directly, not query_results
+        searchResponse = {
+          answer: conversationMessage.content,
+          sources: conversationMessage.sources || [],
+          documents: conversationMessage.sources?.map((source: any) => ({
+            document_name: source.document_name,
+            content: source.content,
+            metadata: source.metadata
+          })) || [],
+          // Don't include query_results from conversation endpoint
+          metadata: conversationMessage.metadata,
+          token_warning: conversationMessage.token_warning,
+          cot_output: conversationMessage.metadata?.search_metadata?.cot_output
+        };
+      } else {
+        // Fallback to stateless search (does not save conversation)
+        console.log('🔍 No active conversation, using stateless search endpoint...');
+        searchResponse = await apiClient.search({
+          question: query,
+          collection_id: collectionId,
+          user_id: userId,
+          config_metadata: {
+            timestamp: new Date().toISOString(),
+            source: 'rest_api',
+            cot_enabled: true,
+            show_cot_steps: true,
+            referenced_message: referencedMessage ? {
+              id: referencedMessage.id,
+              content: referencedMessage.content,
+              timestamp: referencedMessage.timestamp.toISOString(),
+              type: referencedMessage.type
+            } : undefined
+          }
+        });
+      }
 
       // Map API response to ChatMessage format - handle both query_result and documents/sources
       let sources: Array<{
@@ -304,7 +329,7 @@ const LightweightSearchInterface: React.FC = () => {
       console.log('🔍 Query Results array:', searchResponse.query_results);
 
       // Prioritize query_results as they contain chunk-specific information with page numbers
-      if (searchResponse.query_results && Array.isArray(searchResponse.query_results)) {
+      if (searchResponse.query_results && Array.isArray(searchResponse.query_results) && searchResponse.query_results.length > 0) {
         // Create a mapping of document_id to document_name from the documents array
         // Since DocumentMetadata doesn't have document_id, we'll create a mapping based on the order
         // This is a temporary solution until the backend provides better document_id mapping
@@ -312,7 +337,7 @@ const LightweightSearchInterface: React.FC = () => {
 
         if (searchResponse.documents && searchResponse.documents.length > 0) {
           // Get all unique document IDs from query results
-          const uniqueDocIds = Array.from(new Set(searchResponse.query_results.map(r => r.chunk.document_id)));
+          const uniqueDocIds: string[] = Array.from(new Set(searchResponse.query_results.map((r: any) => r.chunk.document_id as string)));
           console.log(`🔍 Unique document IDs:`, uniqueDocIds);
           console.log(`🔍 Available documents:`, searchResponse.documents);
 
@@ -329,7 +354,7 @@ const LightweightSearchInterface: React.FC = () => {
         }
 
         // Use query_results chunks - contains chunk-specific information with page numbers
-        sources = searchResponse.query_results.map((result, index) => {
+        sources = searchResponse.query_results.map((result: any, index: number) => {
           console.log(`🔍 Query Result ${index}:`, result);
           console.log(`🔍 Looking for document_id: ${result.chunk.document_id}`);
 
@@ -584,6 +609,7 @@ const LightweightSearchInterface: React.FC = () => {
     }
 
     // Ensure we have a conversation for this collection
+    let activeConversation = currentConversation;
     if (!currentConversation) {
       // Create a new conversation automatically
       try {
@@ -601,6 +627,7 @@ const LightweightSearchInterface: React.FC = () => {
         };
 
         const newConversation = await apiClient.createConversation(conversationData);
+        activeConversation = newConversation;  // Use local variable
         setCurrentConversation(newConversation);
         setConversations(prev => [newConversation, ...prev]);
         addNotification('info', 'Conversation Created', `Created new conversation for your chat.`);
@@ -633,7 +660,7 @@ const LightweightSearchInterface: React.FC = () => {
     try {
       // Primary method: REST API (more reliable)
       console.log('🔍 Attempting REST API search...');
-      await handleRestApiSearch(query, collectionId);
+      await handleRestApiSearch(query, collectionId, activeConversation);
     } catch (restError) {
       console.error('REST API search failed, trying WebSocket fallback:', restError);
 

@@ -1,3 +1,5 @@
+"""Prompt template schemas for RAG system."""
+
 import re
 from datetime import datetime
 from enum import Enum
@@ -13,6 +15,7 @@ class PromptTemplateType(str, Enum):
     QUESTION_GENERATION = "QUESTION_GENERATION"
     RESPONSE_EVALUATION = "RESPONSE_EVALUATION"
     COT_REASONING = "COT_REASONING"
+    RERANKING = "RERANKING"
     CUSTOM = "CUSTOM"
 
 
@@ -50,7 +53,8 @@ class PromptTemplateBase(BaseModel):
     def validate_template_variables(self) -> "PromptTemplateBase":
         """Validate that all template variables are defined in input_variables."""
         variables = set(re.findall(r"\{(\w+)\}", self.template_format))
-        defined_vars = set(self.input_variables.keys())
+        defined_vars = set(self.input_variables.keys())  # pylint: disable=no-member
+        # Justification: Pydantic FieldInfo false positive
         missing = variables - defined_vars
 
         if missing:
@@ -85,6 +89,8 @@ class PromptTemplateBase(BaseModel):
     def format_prompt(self, **kwargs: Any) -> str:
         """Format the prompt template with the given variables."""
         try:
+            # pylint: disable=no-member
+            # Justification: Pydantic FieldInfo false positive
             return self.template_format.format(**kwargs)
         except KeyError as e:
             missing_var = str(e).strip("'")

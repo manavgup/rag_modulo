@@ -373,7 +373,7 @@ venv: $(VENVS_DIR)/bin/activate
 $(VENVS_DIR)/bin/activate:
 	@echo "Setting up Python virtual environment..."
 	@cd backend && $(POETRY) config virtualenvs.in-project true
-	@cd backend && $(POETRY) install --with dev
+	@cd backend && $(POETRY) install --with dev,test
 	@echo "Virtual environment ready."
 
 clean-venv:

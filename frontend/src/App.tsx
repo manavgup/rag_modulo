@@ -21,6 +21,8 @@ import LightweightAnalyticsDashboard from './components/analytics/LightweightAna
 import LightweightHelpCenter from './components/help/LightweightHelpCenter';
 import LightweightLoginPage from './components/auth/LightweightLoginPage';
 import LightweightNotFound from './components/errors/LightweightNotFound';
+import LightweightPodcasts from './components/podcasts/LightweightPodcasts';
+import LightweightPodcastDetail from './components/podcasts/LightweightPodcastDetail';
 
 const App: React.FC = () => {
   return (
@@ -48,6 +50,10 @@ const App: React.FC = () => {
                       <Route path="/collections" element={<LightweightCollections />} />
                       <Route path="/collections/:id" element={<LightweightCollectionDetail />} />
                       <Route path="/documents" element={<Navigate to="/collections" replace />} />
+
+                      {/* Podcast Routes */}
+                      <Route path="/podcasts" element={<LightweightPodcasts />} />
+                      <Route path="/podcasts/:id" element={<LightweightPodcastDetail />} />
 
                       {/* User Routes */}
                       <Route path="/profile" element={<LightweightUserProfile />} />
