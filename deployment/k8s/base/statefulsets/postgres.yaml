@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: rag-modulo
+  labels:
+    app: rag-modulo
+    component: postgres
+spec:
+  serviceName: postgres-service
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rag-modulo
+      component: postgres
+  template:
+    metadata:
+      labels:
+        app: rag-modulo
+        component: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: pgvector/pgvector:pg16
+        ports:
+        - containerPort: 5432
+          name: postgres
+        env:
+        - name: POSTGRES_DB
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: COLLECTIONDB_NAME
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: rag-modulo-secrets
+              key: COLLECTIONDB_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: rag-modulo-secrets
+              key: COLLECTIONDB_PASSWORD
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - $(POSTGRES_USER)
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - $(POSTGRES_USER)
+          initialDelaySeconds: 10
+          periodSeconds: 5
+      volumes:
+      - name: postgres-storage
+        persistentVolumeClaim:
+          claimName: postgres-storage

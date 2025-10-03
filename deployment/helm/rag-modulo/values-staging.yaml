@@ -1,0 +1,86 @@
+# Staging environment values
+# Override default values.yaml for staging deployment
+
+global:
+  namespace: rag-modulo-staging
+  environment: staging
+
+backend:
+  replicaCount: 2
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "750m"
+    limits:
+      memory: "3Gi"
+      cpu: "1500m"
+
+frontend:
+  replicaCount: 2
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 4
+  resources:
+    requests:
+      memory: "384Mi"
+      cpu: "200m"
+    limits:
+      memory: "768Mi"
+      cpu: "400m"
+
+postgresql:
+  persistence:
+    size: 30Gi
+  resources:
+    requests:
+      memory: "384Mi"
+      cpu: "350m"
+    limits:
+      memory: "1Gi"
+      cpu: "1000m"
+
+milvus:
+  persistence:
+    size: 50Gi
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "750m"
+    limits:
+      memory: "6Gi"
+      cpu: "3000m"
+
+minio:
+  persistence:
+    size: 50Gi
+  resources:
+    requests:
+      memory: "384Mi"
+      cpu: "350m"
+    limits:
+      memory: "1Gi"
+      cpu: "750m"
+
+etcd:
+  persistence:
+    size: 8Gi
+
+ingress:
+  enabled: true
+  tls:
+    enabled: true
+  hosts:
+    frontend: rag-modulo-staging.example.com
+    backend: api-staging.rag-modulo.example.com
+    mlflow: mlflow-staging.rag-modulo.example.com
+
+config:
+  logLevel: "INFO"
+  environment: "staging"
+  skipAuth: "false"
+  developmentMode: "false"

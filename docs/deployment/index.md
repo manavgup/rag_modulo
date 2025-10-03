@@ -1,26 +1,62 @@
 # Deployment Guide
 
-This guide covers deploying RAG Modulo in various environments, from local development to production.
+This guide covers deploying RAG Modulo in various environments, from local development to production Kubernetes/OpenShift clusters.
 
-## Table of Contents
-
-- [Deployment Overview](#deployment-overview)
-- [Prerequisites](#prerequisites)
-- [Local Deployment](#local-deployment)
-- [Production Deployment](#production-deployment)
-- [Cloud Deployment](#cloud-deployment)
-- [Configuration](#configuration)
-- [Monitoring](#monitoring)
-- [Troubleshooting](#troubleshooting)
-
-## Deployment Overview
+## Overview
 
 RAG Modulo is designed for containerized deployment with support for:
 
 - **Local Development**: Docker Compose with hot reload
-- **Production**: Optimized containers with security hardening
-- **Cloud Platforms**: Kubernetes, Docker Swarm, cloud services
+- **Production**: Kubernetes/OpenShift with auto-scaling and HA
+- **Cloud Platforms**: IBM Cloud, AWS, Azure, GCP
 - **CI/CD Integration**: Automated deployment pipelines
+
+!!! info "Quick Start Options"
+    - **5-minute setup**: See [Quick Start Guide](QUICKSTART.md)
+    - **Kubernetes deployment**: See [Kubernetes Guide](kubernetes.md)
+    - **Production setup**: See [Production Guide](production.md)
+
+## Deployment Options
+
+### 1. Kubernetes/OpenShift (Recommended for Production)
+
+Production-ready deployment with high availability, auto-scaling, and monitoring.
+
+**Quick Deploy:**
+```bash
+# Development
+make helm-install-dev
+
+# Production
+make helm-install-prod
+```
+
+📖 **Full Guide**: [Kubernetes/OpenShift Deployment](kubernetes.md)
+
+### 2. Docker Compose (Development/Testing)
+
+Fast local development with hot reload and easy debugging.
+
+**Quick Deploy:**
+```bash
+# Development with hot reload
+make dev-hotreload
+
+# Production-like build
+make run-ghcr
+```
+
+📖 **Full Guide**: [Docker Compose Deployment](#local-deployment)
+
+### 3. Cloud Platforms
+
+#### IBM Cloud
+```bash
+make ibmcloud-deploy CLUSTER_NAME=<cluster-name>
+```
+
+#### AWS/Azure/GCP
+See [Kubernetes Guide](kubernetes.md#cloud-providers) for cloud-specific instructions.
 
 ## Prerequisites
 

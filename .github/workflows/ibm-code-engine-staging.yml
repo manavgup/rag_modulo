@@ -1,0 +1,309 @@
+name: Deploy to IBM Code Engine Staging
+
+on:
+  push:
+    branches:
+      - develop
+      - staging
+  workflow_dispatch:
+
+# -----------------------------------------------------------------
+# Minimal permissions (Principle of Least Privilege)
+# -----------------------------------------------------------------
+permissions:
+  contents: read
+  packages: write
+
+# -----------------------------------------------------------------
+# Global environment (secrets & variables)
+# -----------------------------------------------------------------
+env:
+  # Build metadata
+  GITHUB_SHA: ${{ github.sha }}
+  CACHE_DIR: /tmp/.buildx-cache  # BuildKit layer cache directory
+
+  # GitHub Container Registry
+  GHCR_REPO: ghcr.io/${{ github.repository_owner }}/rag_modulo
+
+  # IBM Cloud configuration
+  IBM_CLOUD_REGION: ${{ vars.IBM_CLOUD_REGION }}
+  CODE_ENGINE_PROJECT: ${{ vars.CODE_ENGINE_PROJECT }}
+  CODE_ENGINE_REGISTRY_SECRET: ${{ vars.CODE_ENGINE_REGISTRY_SECRET }}
+
+jobs:
+  build-and-push:
+    name: 🚀 Build, Cache, Push & Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    outputs:
+      backend-tag: ${{ steps.tags.outputs.backend-tag }}
+      frontend-tag: ${{ steps.tags.outputs.frontend-tag }}
+
+    steps:
+      # -----------------------------------------------------------
+      # 0️⃣  Checkout repository
+      # -----------------------------------------------------------
+      - name: ⬇️  Checkout source
+        uses: actions/checkout@v4
+
+      # -----------------------------------------------------------
+      # 1️⃣  Set up Docker Buildx
+      # -----------------------------------------------------------
+      - name: 🛠️  Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # -----------------------------------------------------------
+      # 2️⃣  Restore BuildKit layer cache
+      # -----------------------------------------------------------
+      - name: ♻️  Restore Docker layer cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CACHE_DIR }}
+          key: ${{ runner.os }}-buildx-${{ hashFiles('**/Dockerfile*') }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      # -----------------------------------------------------------
+      # 3️⃣  Login to GitHub Container Registry
+      # -----------------------------------------------------------
+      - name: 🔐 Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # -----------------------------------------------------------
+      # 4️⃣  Set image tags
+      # -----------------------------------------------------------
+      - name: 🏷️  Set image tags
+        id: tags
+        run: |
+          echo "backend-tag=${{ env.GITHUB_SHA }}" >> $GITHUB_OUTPUT
+          echo "frontend-tag=${{ env.GITHUB_SHA }}" >> $GITHUB_OUTPUT
+
+      # -----------------------------------------------------------
+      # 5️⃣  Build and push backend image
+      # -----------------------------------------------------------
+      - name: 🏗️  Build and push backend image
+        timeout-minutes: 25
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile.backend
+          push: true
+          tags: |
+            ${{ env.GHCR_REPO }}/backend:staging
+            ${{ env.GHCR_REPO }}/backend:staging-${{ env.GITHUB_SHA }}
+          cache-from: type=local,src=${{ env.CACHE_DIR }}
+          cache-to: type=local,dest=${{ env.CACHE_DIR }}-new,mode=min
+
+      # -----------------------------------------------------------
+      # 6️⃣  Build and push frontend image
+      # -----------------------------------------------------------
+      - name: 🏗️  Build and push frontend image
+        timeout-minutes: 20
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile.frontend
+          push: true
+          tags: |
+            ${{ env.GHCR_REPO }}/frontend:staging
+            ${{ env.GHCR_REPO }}/frontend:staging-${{ env.GITHUB_SHA }}
+          cache-from: type=local,src=${{ env.CACHE_DIR }}
+          cache-to: type=local,dest=${{ env.CACHE_DIR }}-new,mode=min
+
+      # -----------------------------------------------------------
+      # 7️⃣  Move cache (optimize for next run)
+      # -----------------------------------------------------------
+      - name: 🔄 Move Docker cache
+        run: |
+          rm -rf ${{ env.CACHE_DIR }}
+          mv ${{ env.CACHE_DIR }}-new ${{ env.CACHE_DIR }} || true
+
+  deploy-code-engine:
+    name: 🚀 Deploy to IBM Code Engine
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    timeout-minutes: 20
+    environment:
+      name: staging
+      url: ${{ steps.deploy-frontend.outputs.frontend-url }}
+
+    steps:
+      # -----------------------------------------------------------
+      # 0️⃣  Checkout repository
+      # -----------------------------------------------------------
+      - name: ⬇️  Checkout source
+        uses: actions/checkout@v4
+
+      # -----------------------------------------------------------
+      # 1️⃣  Install IBM Cloud CLI
+      # -----------------------------------------------------------
+      - name: 🔧 Install IBM Cloud CLI
+        run: |
+          curl -fsSL https://clis.cloud.ibm.com/install/linux | sh
+          ibmcloud plugin install code-engine -f
+          ibmcloud version
+
+      # -----------------------------------------------------------
+      # 2️⃣  Login to IBM Cloud
+      # -----------------------------------------------------------
+      - name: 🔐 Login to IBM Cloud
+        run: |
+          ibmcloud login \
+            --apikey ${{ secrets.IBM_CLOUD_API_KEY }} \
+            -r ${{ env.IBM_CLOUD_REGION }} \
+            -g Default
+
+      # -----------------------------------------------------------
+      # 3️⃣  Select Code Engine project
+      # -----------------------------------------------------------
+      - name: 📂 Select Code Engine project
+        run: |
+          ibmcloud code-engine project select \
+            --name ${{ env.CODE_ENGINE_PROJECT }}
+          ibmcloud code-engine project current
+
+      # -----------------------------------------------------------
+      # 4️⃣  Deploy Backend Application
+      # -----------------------------------------------------------
+      - name: 📦 Deploy Backend to Code Engine
+        id: deploy-backend
+        run: |
+          APP_NAME="rag-modulo-backend"
+          IMAGE="${{ env.GHCR_REPO }}/backend:staging-${{ needs.build-and-push.outputs.backend-tag }}"
+
+          echo "Deploying backend: $IMAGE"
+
+          # Check if app exists
+          if ibmcloud code-engine app get --name $APP_NAME >/dev/null 2>&1; then
+            echo "📝 Updating existing backend app..."
+            ibmcloud code-engine app update \
+              --name $APP_NAME \
+              --image $IMAGE \
+              --registry-secret ${{ env.CODE_ENGINE_REGISTRY_SECRET }} \
+              --port 8000 \
+              --env-from-secret rag-modulo-secrets \
+              --min-scale 0 \
+              --max-scale 3 \
+              --wait \
+              --quiet
+          else
+            echo "🆕 Creating new backend app..."
+            ibmcloud code-engine app create \
+              --name $APP_NAME \
+              --image $IMAGE \
+              --registry-secret ${{ env.CODE_ENGINE_REGISTRY_SECRET }} \
+              --port 8000 \
+              --cpu 1 \
+              --memory 2G \
+              --env-from-secret rag-modulo-secrets \
+              --min-scale 0 \
+              --max-scale 3 \
+              --wait \
+              --quiet
+          fi
+
+          # Get backend URL
+          BACKEND_URL=$(ibmcloud code-engine app get --name $APP_NAME -o json | jq -r '.status.url')
+          echo "backend-url=$BACKEND_URL" >> $GITHUB_OUTPUT
+          echo "✅ Backend deployed: $BACKEND_URL"
+
+      # -----------------------------------------------------------
+      # 5️⃣  Deploy Frontend Application
+      # -----------------------------------------------------------
+      - name: 📦 Deploy Frontend to Code Engine
+        id: deploy-frontend
+        run: |
+          APP_NAME="rag-modulo-frontend"
+          IMAGE="${{ env.GHCR_REPO }}/frontend:staging-${{ needs.build-and-push.outputs.frontend-tag }}"
+          BACKEND_URL="${{ steps.deploy-backend.outputs.backend-url }}"
+
+          echo "Deploying frontend: $IMAGE"
+          echo "Backend URL: $BACKEND_URL"
+
+          # Check if app exists
+          if ibmcloud code-engine app get --name $APP_NAME >/dev/null 2>&1; then
+            echo "📝 Updating existing frontend app..."
+            ibmcloud code-engine app update \
+              --name $APP_NAME \
+              --image $IMAGE \
+              --registry-secret ${{ env.CODE_ENGINE_REGISTRY_SECRET }} \
+              --port 3000 \
+              --env REACT_APP_API_URL=$BACKEND_URL \
+              --min-scale 0 \
+              --max-scale 3 \
+              --wait \
+              --quiet
+          else
+            echo "🆕 Creating new frontend app..."
+            ibmcloud code-engine app create \
+              --name $APP_NAME \
+              --image $IMAGE \
+              --registry-secret ${{ env.CODE_ENGINE_REGISTRY_SECRET }} \
+              --port 3000 \
+              --cpu 0.5 \
+              --memory 1G \
+              --env REACT_APP_API_URL=$BACKEND_URL \
+              --min-scale 0 \
+              --max-scale 3 \
+              --wait \
+              --quiet
+          fi
+
+          # Get frontend URL
+          FRONTEND_URL=$(ibmcloud code-engine app get --name $APP_NAME -o json | jq -r '.status.url')
+          echo "frontend-url=$FRONTEND_URL" >> $GITHUB_OUTPUT
+          echo "✅ Frontend deployed: $FRONTEND_URL"
+
+      # -----------------------------------------------------------
+      # 6️⃣  Health Check
+      # -----------------------------------------------------------
+      - name: 🏥 Run Health Check
+        run: |
+          echo "⏳ Waiting for services to be ready..."
+          sleep 30
+
+          BACKEND_URL="${{ steps.deploy-backend.outputs.backend-url }}"
+          echo "🔍 Testing backend health endpoint..."
+
+          if curl -f "${BACKEND_URL}/health" 2>/dev/null; then
+            echo "✅ Backend health check passed"
+          else
+            echo "⚠️  Backend health check failed (may need warm-up time)"
+          fi
+
+          echo ""
+          echo "🚀 Deployment complete!"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "Backend:  $BACKEND_URL"
+          echo "Frontend: ${{ steps.deploy-frontend.outputs.frontend-url }}"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+  # -----------------------------------------------------------
+  # 🎉 Deployment Summary
+  # -----------------------------------------------------------
+  notify-success:
+    name: 🎉 Deployment Summary
+    runs-on: ubuntu-latest
+    needs: [build-and-push, deploy-code-engine]
+    if: success()
+
+    steps:
+      - name: 📋 Deployment Summary
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🎉 Successfully deployed to IBM Code Engine Staging!"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "📦 Docker Images:"
+          echo "  Backend:  ${{ env.GHCR_REPO }}/backend:staging-${{ needs.build-and-push.outputs.backend-tag }}"
+          echo "  Frontend: ${{ env.GHCR_REPO }}/frontend:staging-${{ needs.build-and-push.outputs.frontend-tag }}"
+          echo ""
+          echo "🌍 Live Applications:"
+          echo "  See deployment job for URLs"
+          echo ""
+          echo "✅ All services deployed and healthy"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

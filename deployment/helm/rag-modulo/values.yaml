@@ -1,0 +1,229 @@
+# Default values for rag-modulo
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Global settings
+global:
+  namespace: rag-modulo
+  environment: production
+
+# Image settings
+images:
+  backend:
+    repository: ghcr.io/manavgup/rag_modulo/backend
+    tag: latest
+    pullPolicy: Always
+  frontend:
+    repository: ghcr.io/manavgup/rag_modulo/frontend
+    tag: latest
+    pullPolicy: Always
+  mlflow:
+    repository: ghcr.io/mlflow/mlflow
+    tag: v2.9.2
+    pullPolicy: IfNotPresent
+  postgres:
+    repository: pgvector/pgvector
+    tag: pg16
+    pullPolicy: IfNotPresent
+  milvus:
+    repository: milvusdb/milvus
+    tag: v2.3.3
+    pullPolicy: IfNotPresent
+  minio:
+    repository: minio/minio
+    tag: latest
+    pullPolicy: IfNotPresent
+  etcd:
+    repository: quay.io/coreos/etcd
+    tag: v3.5.5
+    pullPolicy: IfNotPresent
+
+# Backend configuration
+backend:
+  enabled: true
+  replicaCount: 3
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+  resources:
+    requests:
+      memory: "2Gi"
+      cpu: "1000m"
+    limits:
+      memory: "4Gi"
+      cpu: "2000m"
+  service:
+    type: ClusterIP
+    port: 8000
+
+# Frontend configuration
+frontend:
+  enabled: true
+  replicaCount: 2
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "500m"
+  service:
+    type: ClusterIP
+    port: 8080
+
+# PostgreSQL configuration
+postgresql:
+  enabled: true
+  replicaCount: 1
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+      cpu: "2000m"
+  persistence:
+    enabled: true
+    size: 50Gi
+    # storageClassName: ""  # Set to your storage class
+  service:
+    type: ClusterIP
+    port: 5432
+
+# Milvus configuration
+milvus:
+  enabled: true
+  replicaCount: 1
+  resources:
+    requests:
+      memory: "2Gi"
+      cpu: "1000m"
+    limits:
+      memory: "8Gi"
+      cpu: "4000m"
+  persistence:
+    enabled: true
+    size: 100Gi
+  service:
+    type: ClusterIP
+    grpcPort: 19530
+    metricsPort: 9091
+
+# MinIO configuration
+minio:
+  enabled: true
+  replicaCount: 1
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+      cpu: "1000m"
+  persistence:
+    enabled: true
+    size: 100Gi
+  service:
+    type: ClusterIP
+    apiPort: 9000
+    consolePort: 9001
+
+# etcd configuration
+etcd:
+  enabled: true
+  replicaCount: 1
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "1000m"
+  persistence:
+    enabled: true
+    size: 10Gi
+  service:
+    type: ClusterIP
+    clientPort: 2379
+    peerPort: 2380
+
+# MLFlow configuration
+mlflow:
+  enabled: true
+  replicaCount: 1
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "500m"
+  service:
+    type: ClusterIP
+    port: 5000
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: nginx  # or 'openshift-default' for OpenShift
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+  tls:
+    enabled: true
+    secretName: rag-modulo-tls
+  hosts:
+    frontend: rag-modulo.example.com
+    backend: api.rag-modulo.example.com
+    mlflow: mlflow.rag-modulo.example.com
+
+# OpenShift-specific configuration
+openshift:
+  enabled: false
+  routes:
+    enabled: false
+
+# Secrets (these should be provided via --set-file or external secrets management)
+secrets:
+  # Database credentials
+  collectiondb:
+    user: "changeme"
+    password: "changeme"
+  # MinIO credentials
+  minio:
+    rootUser: "changeme"
+    rootPassword: "changeme"
+    accessKey: "changeme"
+    secretKey: "changeme"
+  # JWT configuration
+  jwt:
+    secretKey: "changeme"
+    algorithm: "HS256"
+  # LLM Provider API keys
+  llm:
+    watsonx:
+      apiKey: "changeme"
+      url: "changeme"
+      projectId: "changeme"
+    openai:
+      apiKey: "changeme"
+    anthropic:
+      apiKey: "changeme"
+
+# ConfigMap values
+config:
+  vectorDb: "milvus"
+  logLevel: "INFO"
+  environment: "production"
+  skipAuth: "false"
+  developmentMode: "false"

@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlflow-server
+  namespace: rag-modulo
+  labels:
+    app: rag-modulo
+    component: mlflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rag-modulo
+      component: mlflow
+  template:
+    metadata:
+      labels:
+        app: rag-modulo
+        component: mlflow
+    spec:
+      containers:
+      - name: mlflow
+        image: ghcr.io/mlflow/mlflow:v2.9.2
+        args:
+        - server
+        - --host=0.0.0.0
+        - --port=5000
+        - --backend-store-uri=postgresql://$(COLLECTIONDB_USER):$(COLLECTIONDB_PASSWORD)@postgres-service:5432/mlflow
+        - --default-artifact-root=s3://mlflow
+        ports:
+        - containerPort: 5000
+          name: http
+        env:
+        - name: COLLECTIONDB_USER
+          valueFrom:
+            secretKeyRef:
+              name: rag-modulo-secrets
+              key: COLLECTIONDB_USER
+        - name: COLLECTIONDB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: rag-modulo-secrets
+              key: COLLECTIONDB_PASSWORD
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: rag-modulo-secrets
+              key: MINIO_ACCESS_KEY
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: rag-modulo-secrets
+              key: MINIO_SECRET_KEY
+        - name: MLFLOW_S3_ENDPOINT_URL
+          value: "http://minio-service:9000"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 15
+          periodSeconds: 5
