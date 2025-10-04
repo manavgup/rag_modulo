@@ -90,8 +90,7 @@ jobs:
         run: |
           ibmcloud login \
             --apikey ${{ secrets.IBM_CLOUD_API_KEY }} \
-            -r ${{ env.IBM_CLOUD_REGION }} \
-            -g Default
+            -r ${{ env.IBM_CLOUD_REGION }}
 
       # -----------------------------------------------------------
       # 3️⃣  Select Code Engine project
