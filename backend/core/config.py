@@ -259,6 +259,7 @@ class Settings(BaseSettings):
     collectiondb_name: Annotated[str, Field(default="rag_modulo", alias="COLLECTIONDB_NAME")]
 
     # IBM OIDC settings
+    ibm_cloud_api_key: Annotated[str | None, Field(default=None, alias="IBM_CLOUD_API_KEY")]
     ibm_client_id: Annotated[str | None, Field(default=None, alias="IBM_CLIENT_ID")]
     ibm_client_secret: Annotated[str | None, Field(default=None, alias="IBM_CLIENT_SECRET")]
     oidc_discovery_endpoint: Annotated[str | None, Field(default=None, alias="OIDC_DISCOVERY_ENDPOINT")]

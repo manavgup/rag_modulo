@@ -152,6 +152,7 @@ nav:
     - Production: deployment/production.md
     - Cloud Deployment: deployment/cloud.md
     - Kubernetes: deployment/kubernetes.md
+    - IBM Cloud Code Engine: deployment/code_engine.md
     - Monitoring: deployment/monitoring.md
     - Security: deployment/security.md
   - 🖥️ CLI:
