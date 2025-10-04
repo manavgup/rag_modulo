@@ -29,7 +29,7 @@ RESOURCE_GROUP="${PROJECT_NAME}-${ENVIRONMENT}"
 VPC_NAME="${PROJECT_NAME}-${ENVIRONMENT}-vpc"
 SUBNET_NAME="${PROJECT_NAME}-${ENVIRONMENT}-subnet"
 CLUSTER_NAME="${PROJECT_NAME}-${ENVIRONMENT}"
-COS_INSTANCE="${PROJECT_NAME}-${ENVIRONMENT}-cos"
+COS_INSTANCE="rag-modulo-cos"  # Fixed name to avoid prompts
 
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${BLUE}🚀 RAG Modulo - OpenShift Infrastructure Setup${NC}"
