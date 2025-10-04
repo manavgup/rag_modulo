@@ -29,7 +29,6 @@ RESOURCE_GROUP="${PROJECT_NAME}-${ENVIRONMENT}"
 VPC_NAME="${PROJECT_NAME}-${ENVIRONMENT}-vpc"
 SUBNET_NAME="${PROJECT_NAME}-${ENVIRONMENT}-subnet"
 CLUSTER_NAME="${PROJECT_NAME}-${ENVIRONMENT}"
-COS_INSTANCE="${PROJECT_NAME}-${ENVIRONMENT}-cos"
 
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${BLUE}🚀 RAG Modulo - OpenShift Infrastructure Setup${NC}"
@@ -94,30 +93,11 @@ else
     echo -e "${GREEN}✓ Subnet created (ID: $SUBNET_ID)${NC}"
 fi
 
-# Step 5: Create Cloud Object Storage instance (required for OpenShift)
+# Step 5: OpenShift will use internal registry (skip COS)
 echo ""
-echo -e "${YELLOW}Step 5: Creating Cloud Object Storage instance...${NC}"
-COS_CRN=$(ibmcloud resource service-instances --service-name cloud-object-storage --output json | \
-    jq -r ".[] | select(.name==\"$COS_INSTANCE\") | .crn")
-
-if [ -n "$COS_CRN" ] && [ "$COS_CRN" != "null" ]; then
-    echo -e "${GREEN}✓ COS instance already exists${NC}"
-else
-    # Create COS instance with lite (free) plan
-    ibmcloud resource service-instance-create "$COS_INSTANCE" \
-        cloud-object-storage lite global \
-        -g "$RESOURCE_GROUP"
-
-    # Wait a moment for COS to be created
-    sleep 5
-
-    # Get the CRN
-    COS_CRN=$(ibmcloud resource service-instances --service-name cloud-object-storage --output json | \
-        jq -r ".[] | select(.name==\"$COS_INSTANCE\") | .crn")
-    echo -e "${GREEN}✓ COS instance created${NC}"
-fi
-
-echo -e "${BLUE}COS CRN: ${NC}$COS_CRN"
+echo -e "${YELLOW}Step 5: Configuring OpenShift registry...${NC}"
+echo -e "${BLUE}OpenShift will use its built-in internal registry${NC}"
+echo -e "${GREEN}✓ No external COS required for OpenShift${NC}"
 
 # Step 6: Check if cluster already exists
 echo ""
@@ -149,10 +129,7 @@ else
         --vpc-id "$VPC_ID" \
         --subnet-id "$SUBNET_ID" \
         --flavor "$FLAVOR" \
-        --workers "$WORKERS" \
-        --cos-instance "$COS_CRN" \
-        --entitlement cloud_pak \
-        --disable-public-service-endpoint
+        --workers "$WORKERS"
 
     echo -e "${GREEN}✓ Cluster creation initiated${NC}"
     echo ""
@@ -205,7 +182,6 @@ echo "  Resource Group: $RESOURCE_GROUP"
 echo "  VPC:            $VPC_NAME ($VPC_ID)"
 echo "  Subnet:         $SUBNET_NAME ($SUBNET_ID)"
 echo "  Cluster:        $CLUSTER_NAME"
-echo "  COS Instance:   $COS_INSTANCE"
 echo ""
 echo -e "${BLUE}Next steps:${NC}"
 echo "  1. Check deployment status:"
