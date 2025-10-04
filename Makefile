@@ -1576,6 +1576,14 @@ K8S_NAMESPACE ?= rag-modulo
 K8S_CONTEXT ?=
 HELM_RELEASE ?= rag-modulo
 
+# IBM Cloud OpenShift variables
+ENVIRONMENT ?= staging
+REGION ?= ca-tor
+ZONE ?= ca-tor-1
+WORKERS ?= 2
+FLAVOR ?= bx2.4x16
+CLUSTER_NAME ?= $(PROJECT_NAME)-$(ENVIRONMENT)
+
 # Kubernetes: Validate manifests
 k8s-validate:
 	@echo "$(CYAN)🔍 Validating Kubernetes manifests...$(NC)"
@@ -1751,6 +1759,79 @@ ibmcloud-deploy:
 		--set postgresql.persistence.storageClassName=ibmc-block-gold \
 		--set milvus.persistence.storageClassName=ibmc-block-gold
 	@echo "$(GREEN)✅ Deployed to IBM Cloud$(NC)"
+
+# IBM Cloud OpenShift - Complete Infrastructure Setup
+openshift-create-infra:
+	@echo "$(CYAN)🏗️  Creating OpenShift infrastructure on IBM Cloud...$(NC)"
+	@if [ -z "$(IBM_CLOUD_API_KEY)" ]; then \
+		echo "$(RED)Error: IBM_CLOUD_API_KEY must be set$(NC)"; \
+		echo "Usage: export IBM_CLOUD_API_KEY='your-api-key' && make openshift-create-infra"; \
+		exit 1; \
+	fi
+	@chmod +x deployment/scripts/setup-ibm-openshift.sh
+	@deployment/scripts/setup-ibm-openshift.sh $(PROJECT_NAME) $(ENVIRONMENT) $(REGION) $(ZONE) $(WORKERS) $(FLAVOR)
+
+# Deploy application to existing OpenShift cluster
+openshift-deploy-app:
+	@echo "$(CYAN)🚀 Deploying RAG Modulo to OpenShift cluster...$(NC)"
+	@if [ -z "$(CLUSTER_NAME)" ]; then \
+		echo "$(RED)Error: CLUSTER_NAME must be set$(NC)"; \
+		echo "Usage: make openshift-deploy-app CLUSTER_NAME=<cluster>"; \
+		exit 1; \
+	fi
+	@echo "$(CYAN)Configuring cluster access...$(NC)"
+	ibmcloud ks cluster config --cluster $(CLUSTER_NAME) --admin
+	@echo "$(CYAN)Deploying Helm chart...$(NC)"
+	helm upgrade --install $(HELM_RELEASE) deployment/helm/rag-modulo \
+		--namespace rag-modulo-$(ENVIRONMENT) \
+		--create-namespace \
+		--values deployment/helm/rag-modulo/values-$(ENVIRONMENT).yaml \
+		--set openshift.enabled=true \
+		--set openshift.routes.enabled=true \
+		--set ingress.enabled=false \
+		--set postgresql.persistence.storageClassName=ibmc-block-gold \
+		--set milvus.persistence.storageClassName=ibmc-block-gold \
+		--wait --timeout=15m
+	@echo "$(GREEN)✅ Application deployed to OpenShift$(NC)"
+	@echo ""
+	@echo "$(CYAN)Get application URLs:$(NC)"
+	@echo "  oc get routes -n rag-modulo-$(ENVIRONMENT)"
+	@echo ""
+	@echo "$(CYAN)Check pod status:$(NC)"
+	@echo "  oc get pods -n rag-modulo-$(ENVIRONMENT)"
+
+# Complete setup: Create infrastructure + Deploy application
+openshift-setup-complete:
+	@echo "$(CYAN)🎯 Complete OpenShift setup (Infrastructure + Application)...$(NC)"
+	@$(MAKE) openshift-create-infra
+	@echo ""
+	@echo "$(YELLOW)⏳ Waiting for cluster to be ready...$(NC)"
+	@echo "$(YELLOW)This can take 30-45 minutes. Checking every 2 minutes...$(NC)"
+	@while true; do \
+		STATE=$$(ibmcloud ks cluster get --cluster $(PROJECT_NAME)-$(ENVIRONMENT) --output json 2>/dev/null | jq -r '.state // "unknown"'); \
+		if [ "$$STATE" = "normal" ]; then \
+			echo "$(GREEN)✅ Cluster is ready!$(NC)"; \
+			break; \
+		else \
+			echo "$(YELLOW)Cluster state: $$STATE - waiting...$(NC)"; \
+			sleep 120; \
+		fi \
+	done
+	@$(MAKE) openshift-deploy-app CLUSTER_NAME=$(PROJECT_NAME)-$(ENVIRONMENT)
+
+# Cleanup OpenShift infrastructure
+openshift-cleanup:
+	@echo "$(CYAN)🧹 Cleaning up OpenShift infrastructure...$(NC)"
+	@echo "$(RED)⚠️  This will delete the cluster and all resources!$(NC)"
+	@echo "$(YELLOW)Press Ctrl+C to cancel, or Enter to continue...$(NC)"
+	@read -r confirmation
+	@echo "$(CYAN)Deleting cluster...$(NC)"
+	ibmcloud ks cluster rm --cluster $(PROJECT_NAME)-$(ENVIRONMENT) --force-delete-storage -f
+	@echo "$(CYAN)Deleting VPC...$(NC)"
+	-ibmcloud is vpc-delete $(PROJECT_NAME)-$(ENVIRONMENT)-vpc -f
+	@echo "$(CYAN)Deleting resource group...$(NC)"
+	-ibmcloud resource group-delete $(PROJECT_NAME)-$(ENVIRONMENT) -f
+	@echo "$(GREEN)✅ Cleanup complete$(NC)"
 
 # ================================
 # 📚 DOCUMENTATION
