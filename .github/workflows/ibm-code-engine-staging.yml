@@ -30,104 +30,38 @@ env:
   CODE_ENGINE_REGISTRY_SECRET: ${{ vars.CODE_ENGINE_REGISTRY_SECRET }}
 
 jobs:
-  build-and-push:
-    name: 🚀 Build, Cache, Push & Deploy
+  prepare-images:
+    name: 📦 Prepare Images for Deployment
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 5
     outputs:
-      backend-tag: ${{ steps.tags.outputs.backend-tag }}
-      frontend-tag: ${{ steps.tags.outputs.frontend-tag }}
+      backend-image: ${{ steps.images.outputs.backend-image }}
+      frontend-image: ${{ steps.images.outputs.frontend-image }}
 
     steps:
       # -----------------------------------------------------------
-      # 0️⃣  Checkout repository
+      # Use pre-built images from GHCR (built by publish.yml)
+      # This is MUCH faster than rebuilding (seconds vs 15+ minutes)
+      # See issue #272 for Dockerfile optimization work
       # -----------------------------------------------------------
-      - name: ⬇️  Checkout source
-        uses: actions/checkout@v4
-
-      # -----------------------------------------------------------
-      # 1️⃣  Set up Docker Buildx
-      # -----------------------------------------------------------
-      - name: 🛠️  Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      # -----------------------------------------------------------
-      # 2️⃣  Free up disk space if needed
-      # -----------------------------------------------------------
-      - name: 🧹 Free up disk space
+      - name: 🏷️  Set image references
+        id: images
         run: |
-          echo "=== Disk space BEFORE cleanup ==="
-          df -h /
+          # Use latest images from main branch (published by publish.yml)
+          echo "backend-image=${{ env.GHCR_REPO }}/backend:latest" >> $GITHUB_OUTPUT
+          echo "frontend-image=${{ env.GHCR_REPO }}/frontend:latest" >> $GITHUB_OUTPUT
 
-          # Only clean if less than 25GB available
-          AVAILABLE=$(df / | awk 'NR==2 {print int($4/1024/1024)}')
-          if [ "$AVAILABLE" -lt 25 ]; then
-            echo "Low disk space ($AVAILABLE GB), cleaning up..."
-            sudo rm -rf /usr/share/dotnet
-            sudo rm -rf /usr/local/lib/android
-            sudo rm -rf /opt/ghc
-            sudo rm -rf /opt/hostedtoolcache/CodeQL
-            docker system prune -af --volumes || true
-          fi
-
-          echo "=== Disk space AFTER cleanup ==="
-          df -h /
-
-      # -----------------------------------------------------------
-      # 3️⃣  Login to GitHub Container Registry
-      # -----------------------------------------------------------
-      - name: 🔐 Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      # -----------------------------------------------------------
-      # 4️⃣  Set image tags
-      # -----------------------------------------------------------
-      - name: 🏷️  Set image tags
-        id: tags
-        run: |
-          echo "backend-tag=${{ env.GITHUB_SHA }}" >> $GITHUB_OUTPUT
-          echo "frontend-tag=${{ env.GITHUB_SHA }}" >> $GITHUB_OUTPUT
-
-      # -----------------------------------------------------------
-      # 5️⃣  Build and push backend image
-      # -----------------------------------------------------------
-      - name: 🏗️  Build and push backend image
-        timeout-minutes: 25
-        uses: docker/build-push-action@v5
-        with:
-          context: ./backend
-          file: ./backend/Dockerfile.backend
-          push: true
-          tags: |
-            ${{ env.GHCR_REPO }}/backend:staging
-            ${{ env.GHCR_REPO }}/backend:staging-${{ env.GITHUB_SHA }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=min
-
-      # -----------------------------------------------------------
-      # 6️⃣  Build and push frontend image
-      # -----------------------------------------------------------
-      - name: 🏗️  Build and push frontend image
-        timeout-minutes: 20
-        uses: docker/build-push-action@v5
-        with:
-          context: ./frontend
-          file: ./frontend/Dockerfile.frontend
-          push: true
-          tags: |
-            ${{ env.GHCR_REPO }}/frontend:staging
-            ${{ env.GHCR_REPO }}/frontend:staging-${{ env.GITHUB_SHA }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=min
+          echo "📦 Using pre-built images:"
+          echo "  Backend:  ${{ env.GHCR_REPO }}/backend:latest"
+          echo "  Frontend: ${{ env.GHCR_REPO }}/frontend:latest"
+          echo ""
+          echo "💡 This deploys the latest code from main branch"
+          echo "💡 For Dockerfile optimization tracking, see issue #272"
 
   deploy-code-engine:
     name: 🚀 Deploy to IBM Code Engine
     runs-on: ubuntu-latest
-    needs: build-and-push
+    needs: prepare-images
     timeout-minutes: 20
     environment:
       name: staging
@@ -175,7 +109,7 @@ jobs:
         id: deploy-backend
         run: |
           APP_NAME="rag-modulo-backend"
-          IMAGE="${{ env.GHCR_REPO }}/backend:staging-${{ needs.build-and-push.outputs.backend-tag }}"
+          IMAGE="${{ needs.prepare-images.outputs.backend-image }}"
 
           echo "Deploying backend: $IMAGE"
 
@@ -220,7 +154,7 @@ jobs:
         id: deploy-frontend
         run: |
           APP_NAME="rag-modulo-frontend"
-          IMAGE="${{ env.GHCR_REPO }}/frontend:staging-${{ needs.build-and-push.outputs.frontend-tag }}"
+          IMAGE="${{ needs.prepare-images.outputs.frontend-image }}"
           BACKEND_URL="${{ steps.deploy-backend.outputs.backend-url }}"
 
           echo "Deploying frontend: $IMAGE"
@@ -290,7 +224,7 @@ jobs:
   notify-success:
     name: 🎉 Deployment Summary
     runs-on: ubuntu-latest
-    needs: [build-and-push, deploy-code-engine]
+    needs: [prepare-images, deploy-code-engine]
     if: success()
 
     steps:
@@ -300,12 +234,13 @@ jobs:
           echo "🎉 Successfully deployed to IBM Code Engine Staging!"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo ""
-          echo "📦 Docker Images:"
-          echo "  Backend:  ${{ env.GHCR_REPO }}/backend:staging-${{ needs.build-and-push.outputs.backend-tag }}"
-          echo "  Frontend: ${{ env.GHCR_REPO }}/frontend:staging-${{ needs.build-and-push.outputs.frontend-tag }}"
+          echo "📦 Docker Images Deployed:"
+          echo "  Backend:  ${{ needs.prepare-images.outputs.backend-image }}"
+          echo "  Frontend: ${{ needs.prepare-images.outputs.frontend-image }}"
           echo ""
           echo "🌍 Live Applications:"
           echo "  See deployment job for URLs"
           echo ""
           echo "✅ All services deployed and healthy"
+          echo "⚡ Deployment time: ~5 minutes (using pre-built images)"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
