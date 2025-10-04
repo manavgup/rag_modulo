@@ -93,7 +93,21 @@ jobs:
             -r ${{ env.IBM_CLOUD_REGION }}
 
       # -----------------------------------------------------------
-      # 3️⃣  Select Code Engine project
+      # 3️⃣  Target resource group
+      # -----------------------------------------------------------
+      - name: 🎯 Target resource group
+        run: |
+          # List resource groups and target the default one
+          echo "Available resource groups:"
+          ibmcloud resource groups
+
+          # Get the first resource group (default)
+          RG_NAME=$(ibmcloud resource groups --output json | jq -r '.[0].name')
+          echo "Targeting resource group: $RG_NAME"
+          ibmcloud target -g "$RG_NAME"
+
+      # -----------------------------------------------------------
+      # 4️⃣  Select Code Engine project
       # -----------------------------------------------------------
       - name: 📂 Select Code Engine project
         run: |
@@ -102,7 +116,7 @@ jobs:
           ibmcloud code-engine project current
 
       # -----------------------------------------------------------
-      # 4️⃣  Deploy Backend Application
+      # 5️⃣  Deploy Backend Application
       # -----------------------------------------------------------
       - name: 📦 Deploy Backend to Code Engine
         id: deploy-backend
@@ -147,7 +161,7 @@ jobs:
           echo "✅ Backend deployed: $BACKEND_URL"
 
       # -----------------------------------------------------------
-      # 5️⃣  Deploy Frontend Application
+      # 6️⃣  Deploy Frontend Application
       # -----------------------------------------------------------
       - name: 📦 Deploy Frontend to Code Engine
         id: deploy-frontend
@@ -194,7 +208,7 @@ jobs:
           echo "✅ Frontend deployed: $FRONTEND_URL"
 
       # -----------------------------------------------------------
-      # 6️⃣  Health Check
+      # 7️⃣  Health Check
       # -----------------------------------------------------------
       - name: 🏥 Run Health Check
         run: |
