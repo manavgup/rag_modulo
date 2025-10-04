@@ -90,15 +90,8 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         """
         try:
             current_settings = get_settings()
-            # Construct database URL from individual components
-            db_url = (
-                f"postgresql://{current_settings.collectiondb_user}:"
-                f"{current_settings.collectiondb_pass}@"
-                f"{current_settings.collectiondb_host}:"
-                f"{current_settings.collectiondb_port}/"
-                f"{current_settings.collectiondb_name}"
-            )
-            engine = create_engine(db_url)
+            # Use the centralized database_url from settings
+            engine = create_engine(str(current_settings.database_url))
             session_factory = sessionmaker(bind=engine)
             session = session_factory()
 
