@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-storage
+  namespace: rag-modulo
+  labels:
+    app: rag-modulo
+    component: postgres
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+  # Uncomment for IBM Cloud
+  # storageClassName: ibmc-block-gold
+  # Uncomment for AWS
+  # storageClassName: gp3
+  # Uncomment for GCP
+  # storageClassName: standard-rwo

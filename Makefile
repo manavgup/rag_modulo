@@ -1226,7 +1226,7 @@ docs-generate: venv
 	@cd backend && $(POETRY) run python -m pydoc -w rag_solution || echo "$(YELLOW)⚠️ pydoc generation completed with warnings$(NC)"
 	@echo "$(GREEN)✅ Documentation generated in backend/ directory$(NC)"
 
-docs-serve: venv
+docs-serve-pydoc: venv
 	@echo "$(CYAN)🌐 Serving documentation locally...$(NC)"
 	@cd backend && $(POETRY) run python -m http.server 8080 || echo "$(YELLOW)⚠️ Documentation server stopped$(NC)"
 	@echo "$(GREEN)✅ Documentation served at http://localhost:8080$(NC)"
@@ -1537,3 +1537,340 @@ help:
 	@echo "  setup-env     	Interactive environment setup"
 	@echo "  validate-env  	Validate environment configuration"
 	@echo "  env-help      	Show environment setup help"
+	@echo ""
+	@echo "$(CYAN)☸️  Kubernetes/OpenShift Deployment:$(NC)"
+	@echo "  k8s-validate       Validate K8s manifests"
+	@echo "  k8s-deploy-dev     Deploy to K8s dev environment"
+	@echo "  k8s-deploy-staging Deploy to K8s staging environment"
+	@echo "  k8s-deploy-prod    Deploy to K8s production environment"
+	@echo "  k8s-status         Show K8s deployment status"
+	@echo "  k8s-logs-backend   Stream backend logs from K8s"
+	@echo "  k8s-logs-frontend  Stream frontend logs from K8s"
+	@echo "  k8s-cleanup        Delete all K8s resources"
+	@echo ""
+	@echo "$(CYAN)⎈  Helm Deployment:$(NC)"
+	@echo "  helm-lint          Lint Helm chart"
+	@echo "  helm-install-dev   Install Helm chart to dev"
+	@echo "  helm-install-staging Install Helm chart to staging"
+	@echo "  helm-install-prod  Install Helm chart to production"
+	@echo "  helm-upgrade-dev   Upgrade Helm release in dev"
+	@echo "  helm-upgrade-staging Upgrade Helm release in staging"
+	@echo "  helm-upgrade-prod  Upgrade Helm release in production"
+	@echo "  helm-uninstall     Uninstall Helm release"
+	@echo "  helm-status        Show Helm release status"
+	@echo ""
+	@echo "$(CYAN)📚 Documentation:$(NC)"
+	@echo "  docs-install       Install documentation dependencies"
+	@echo "  docs-serve         Serve documentation locally (http://localhost:8000)"
+	@echo "  docs-build         Build static documentation site"
+	@echo "  docs-deploy        Deploy documentation to GitHub Pages"
+	@echo "  docs-validate      Validate documentation build"
+	@echo "  docs-clean         Clean documentation build artifacts"
+
+# ================================
+# ☸️  KUBERNETES DEPLOYMENT
+# ================================
+
+# Kubernetes variables
+K8S_NAMESPACE ?= rag-modulo
+K8S_CONTEXT ?=
+HELM_RELEASE ?= rag-modulo
+
+# IBM Cloud OpenShift variables
+ENVIRONMENT ?= staging
+REGION ?= ca-tor
+ZONE ?= ca-tor-1
+WORKERS ?= 2
+FLAVOR ?= bx2.4x16
+CLUSTER_NAME ?= $(PROJECT_NAME)-$(ENVIRONMENT)
+
+# Kubernetes: Validate manifests
+k8s-validate:
+	@echo "$(CYAN)🔍 Validating Kubernetes manifests...$(NC)"
+	kubectl apply --dry-run=client -f deployment/k8s/base/ -R
+	@echo "$(GREEN)✅ Kubernetes manifests are valid$(NC)"
+
+# Kubernetes: Deploy to environments
+k8s-deploy-dev:
+	@echo "$(CYAN)☸️  Deploying to Kubernetes DEV environment...$(NC)"
+	./deployment/scripts/deploy-k8s.sh dev
+	@echo "$(GREEN)✅ Deployed to DEV$(NC)"
+
+k8s-deploy-staging:
+	@echo "$(CYAN)☸️  Deploying to Kubernetes STAGING environment...$(NC)"
+	./deployment/scripts/deploy-k8s.sh staging
+	@echo "$(GREEN)✅ Deployed to STAGING$(NC)"
+
+k8s-deploy-prod:
+	@echo "$(CYAN)☸️  Deploying to Kubernetes PRODUCTION environment...$(NC)"
+	@echo "$(YELLOW)⚠️  WARNING: Deploying to PRODUCTION!$(NC)"
+	@read -p "Are you sure? (yes/no): " confirm && [ "$$confirm" = "yes" ] || exit 1
+	./deployment/scripts/deploy-k8s.sh prod
+	@echo "$(GREEN)✅ Deployed to PRODUCTION$(NC)"
+
+# Kubernetes: Status and logs
+k8s-status:
+	@echo "$(CYAN)📊 Kubernetes Deployment Status$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Pods:$(NC)"
+	kubectl get pods -n $(K8S_NAMESPACE)
+	@echo ""
+	@echo "$(YELLOW)Services:$(NC)"
+	kubectl get svc -n $(K8S_NAMESPACE)
+	@echo ""
+	@echo "$(YELLOW)Ingress:$(NC)"
+	kubectl get ingress -n $(K8S_NAMESPACE) 2>/dev/null || kubectl get routes -n $(K8S_NAMESPACE) 2>/dev/null || echo "No ingress/routes found"
+	@echo ""
+	@echo "$(YELLOW)HPA:$(NC)"
+	kubectl get hpa -n $(K8S_NAMESPACE) 2>/dev/null || echo "No HPA configured"
+
+k8s-logs-backend:
+	@echo "$(CYAN)📋 Streaming backend logs from Kubernetes...$(NC)"
+	kubectl logs -f deployment/rag-modulo-backend -n $(K8S_NAMESPACE)
+
+k8s-logs-frontend:
+	@echo "$(CYAN)📋 Streaming frontend logs from Kubernetes...$(NC)"
+	kubectl logs -f deployment/rag-modulo-frontend -n $(K8S_NAMESPACE)
+
+k8s-port-forward-backend:
+	@echo "$(CYAN)🔌 Port forwarding backend service...$(NC)"
+	kubectl port-forward -n $(K8S_NAMESPACE) svc/backend-service 8000:8000
+
+k8s-port-forward-frontend:
+	@echo "$(CYAN)🔌 Port forwarding frontend service...$(NC)"
+	kubectl port-forward -n $(K8S_NAMESPACE) svc/frontend-service 3000:8080
+
+k8s-shell-backend:
+	@echo "$(CYAN)🐚 Opening shell in backend pod...$(NC)"
+	kubectl exec -it -n $(K8S_NAMESPACE) deployment/rag-modulo-backend -- /bin/bash
+
+# Kubernetes: Cleanup
+k8s-cleanup:
+	@echo "$(CYAN)🧹 Cleaning up Kubernetes resources...$(NC)"
+	@echo "$(YELLOW)⚠️  This will delete all resources in namespace: $(K8S_NAMESPACE)$(NC)"
+	@read -p "Are you sure? (yes/no): " confirm && [ "$$confirm" = "yes" ] || exit 1
+	kubectl delete namespace $(K8S_NAMESPACE)
+	@echo "$(GREEN)✅ Cleanup complete$(NC)"
+
+# ================================
+# ⎈  HELM DEPLOYMENT
+# ================================
+
+# Helm: Lint chart
+helm-lint:
+	@echo "$(CYAN)🔍 Linting Helm chart...$(NC)"
+	helm lint deployment/helm/rag-modulo
+	@echo "$(GREEN)✅ Helm chart is valid$(NC)"
+
+# Helm: Install to environments
+helm-install-dev:
+	@echo "$(CYAN)⎈  Installing Helm chart to DEV...$(NC)"
+	./deployment/scripts/deploy-helm.sh dev install
+	@echo "$(GREEN)✅ Installed to DEV$(NC)"
+
+helm-install-staging:
+	@echo "$(CYAN)⎈  Installing Helm chart to STAGING...$(NC)"
+	./deployment/scripts/deploy-helm.sh staging install
+	@echo "$(GREEN)✅ Installed to STAGING$(NC)"
+
+helm-install-prod:
+	@echo "$(CYAN)⎈  Installing Helm chart to PRODUCTION...$(NC)"
+	@echo "$(YELLOW)⚠️  WARNING: Installing to PRODUCTION!$(NC)"
+	@read -p "Are you sure? (yes/no): " confirm && [ "$$confirm" = "yes" ] || exit 1
+	./deployment/scripts/deploy-helm.sh prod install
+	@echo "$(GREEN)✅ Installed to PRODUCTION$(NC)"
+
+# Helm: Upgrade releases
+helm-upgrade-dev:
+	@echo "$(CYAN)⎈  Upgrading Helm release in DEV...$(NC)"
+	./deployment/scripts/deploy-helm.sh dev upgrade
+	@echo "$(GREEN)✅ Upgraded DEV$(NC)"
+
+helm-upgrade-staging:
+	@echo "$(CYAN)⎈  Upgrading Helm release in STAGING...$(NC)"
+	./deployment/scripts/deploy-helm.sh staging upgrade
+	@echo "$(GREEN)✅ Upgraded STAGING$(NC)"
+
+helm-upgrade-prod:
+	@echo "$(CYAN)⎈  Upgrading Helm release in PRODUCTION...$(NC)"
+	@echo "$(YELLOW)⚠️  WARNING: Upgrading PRODUCTION!$(NC)"
+	@read -p "Are you sure? (yes/no): " confirm && [ "$$confirm" = "yes" ] || exit 1
+	./deployment/scripts/deploy-helm.sh prod upgrade
+	@echo "$(GREEN)✅ Upgraded PRODUCTION$(NC)"
+
+# Helm: Management
+helm-status:
+	@echo "$(CYAN)📊 Helm Release Status$(NC)"
+	helm status $(HELM_RELEASE) -n $(K8S_NAMESPACE)
+
+helm-uninstall:
+	@echo "$(CYAN)🗑️  Uninstalling Helm release...$(NC)"
+	@echo "$(YELLOW)⚠️  This will uninstall: $(HELM_RELEASE) from $(K8S_NAMESPACE)$(NC)"
+	@read -p "Are you sure? (yes/no): " confirm && [ "$$confirm" = "yes" ] || exit 1
+	helm uninstall $(HELM_RELEASE) -n $(K8S_NAMESPACE)
+	@echo "$(GREEN)✅ Uninstalled$(NC)"
+
+helm-rollback:
+	@echo "$(CYAN)⏮️  Rolling back Helm release...$(NC)"
+	helm rollback $(HELM_RELEASE) -n $(K8S_NAMESPACE)
+	@echo "$(GREEN)✅ Rollback complete$(NC)"
+
+helm-history:
+	@echo "$(CYAN)📜 Helm Release History$(NC)"
+	helm history $(HELM_RELEASE) -n $(K8S_NAMESPACE)
+
+helm-template:
+	@echo "$(CYAN)📄 Rendering Helm templates...$(NC)"
+	helm template $(HELM_RELEASE) deployment/helm/rag-modulo
+
+# OpenShift-specific targets
+openshift-login:
+	@echo "$(CYAN)🔐 Logging into OpenShift...$(NC)"
+	@if [ -z "$(OC_TOKEN)" ] || [ -z "$(OC_SERVER)" ]; then \
+		echo "$(RED)Error: OC_TOKEN and OC_SERVER must be set$(NC)"; \
+		echo "Usage: make openshift-login OC_TOKEN=<token> OC_SERVER=<server>"; \
+		exit 1; \
+	fi
+	oc login --token=$(OC_TOKEN) --server=$(OC_SERVER)
+	@echo "$(GREEN)✅ Logged in to OpenShift$(NC)"
+
+openshift-deploy:
+	@echo "$(CYAN)☸️  Deploying to OpenShift...$(NC)"
+	helm install $(HELM_RELEASE) deployment/helm/rag-modulo \
+		--namespace $(K8S_NAMESPACE) \
+		--create-namespace \
+		--set openshift.enabled=true \
+		--set openshift.routes.enabled=true \
+		--set ingress.enabled=false
+	@echo "$(GREEN)✅ Deployed to OpenShift$(NC)"
+
+# IBM Cloud-specific targets
+ibmcloud-deploy:
+	@echo "$(CYAN)☁️  Deploying to IBM Cloud Kubernetes...$(NC)"
+	@if [ -z "$(CLUSTER_NAME)" ]; then \
+		echo "$(RED)Error: CLUSTER_NAME must be set$(NC)"; \
+		echo "Usage: make ibmcloud-deploy CLUSTER_NAME=<cluster>"; \
+		exit 1; \
+	fi
+	ibmcloud ks cluster config --cluster $(CLUSTER_NAME)
+	helm install $(HELM_RELEASE) deployment/helm/rag-modulo \
+		--namespace $(K8S_NAMESPACE) \
+		--create-namespace \
+		--set postgresql.persistence.storageClassName=ibmc-block-gold \
+		--set milvus.persistence.storageClassName=ibmc-block-gold
+	@echo "$(GREEN)✅ Deployed to IBM Cloud$(NC)"
+
+# IBM Cloud OpenShift - Complete Infrastructure Setup
+openshift-create-infra:
+	@echo "$(CYAN)🏗️  Creating OpenShift infrastructure on IBM Cloud...$(NC)"
+	@if [ -z "$(IBM_CLOUD_API_KEY)" ]; then \
+		echo "$(RED)Error: IBM_CLOUD_API_KEY must be set$(NC)"; \
+		echo "Usage: export IBM_CLOUD_API_KEY='your-api-key' && make openshift-create-infra"; \
+		exit 1; \
+	fi
+	@chmod +x deployment/scripts/setup-ibm-openshift.sh
+	@deployment/scripts/setup-ibm-openshift.sh $(PROJECT_NAME) $(ENVIRONMENT) $(REGION) $(ZONE) $(WORKERS) $(FLAVOR)
+
+# Deploy application to existing OpenShift cluster
+openshift-deploy-app:
+	@echo "$(CYAN)🚀 Deploying RAG Modulo to OpenShift cluster...$(NC)"
+	@if [ -z "$(CLUSTER_NAME)" ]; then \
+		echo "$(RED)Error: CLUSTER_NAME must be set$(NC)"; \
+		echo "Usage: make openshift-deploy-app CLUSTER_NAME=<cluster>"; \
+		exit 1; \
+	fi
+	@echo "$(CYAN)Configuring cluster access...$(NC)"
+	ibmcloud ks cluster config --cluster $(CLUSTER_NAME) --admin
+	@echo "$(CYAN)Deploying Helm chart...$(NC)"
+	helm upgrade --install $(HELM_RELEASE) deployment/helm/rag-modulo \
+		--namespace rag-modulo-$(ENVIRONMENT) \
+		--create-namespace \
+		--values deployment/helm/rag-modulo/values-$(ENVIRONMENT).yaml \
+		--set openshift.enabled=true \
+		--set openshift.routes.enabled=true \
+		--set ingress.enabled=false \
+		--set postgresql.persistence.storageClassName=ibmc-block-gold \
+		--set milvus.persistence.storageClassName=ibmc-block-gold \
+		--wait --timeout=15m
+	@echo "$(GREEN)✅ Application deployed to OpenShift$(NC)"
+	@echo ""
+	@echo "$(CYAN)Get application URLs:$(NC)"
+	@echo "  oc get routes -n rag-modulo-$(ENVIRONMENT)"
+	@echo ""
+	@echo "$(CYAN)Check pod status:$(NC)"
+	@echo "  oc get pods -n rag-modulo-$(ENVIRONMENT)"
+
+# Complete setup: Create infrastructure + Deploy application
+openshift-setup-complete:
+	@echo "$(CYAN)🎯 Complete OpenShift setup (Infrastructure + Application)...$(NC)"
+	@$(MAKE) openshift-create-infra
+	@echo ""
+	@echo "$(YELLOW)⏳ Waiting for cluster to be ready...$(NC)"
+	@echo "$(YELLOW)This can take 30-45 minutes. Checking every 2 minutes...$(NC)"
+	@while true; do \
+		STATE=$$(ibmcloud ks cluster get --cluster $(PROJECT_NAME)-$(ENVIRONMENT) --output json 2>/dev/null | jq -r '.state // "unknown"'); \
+		if [ "$$STATE" = "normal" ]; then \
+			echo "$(GREEN)✅ Cluster is ready!$(NC)"; \
+			break; \
+		else \
+			echo "$(YELLOW)Cluster state: $$STATE - waiting...$(NC)"; \
+			sleep 120; \
+		fi \
+	done
+	@$(MAKE) openshift-deploy-app CLUSTER_NAME=$(PROJECT_NAME)-$(ENVIRONMENT)
+
+# Cleanup OpenShift infrastructure
+openshift-cleanup:
+	@echo "$(CYAN)🧹 Cleaning up OpenShift infrastructure...$(NC)"
+	@echo "$(RED)⚠️  This will delete the cluster and all resources!$(NC)"
+	@echo "$(YELLOW)Press Ctrl+C to cancel, or Enter to continue...$(NC)"
+	@read -r confirmation
+	@echo "$(CYAN)Deleting cluster...$(NC)"
+	ibmcloud ks cluster rm --cluster $(PROJECT_NAME)-$(ENVIRONMENT) --force-delete-storage -f
+	@echo "$(CYAN)Deleting VPC...$(NC)"
+	-ibmcloud is vpc-delete $(PROJECT_NAME)-$(ENVIRONMENT)-vpc -f
+	@echo "$(CYAN)Deleting resource group...$(NC)"
+	-ibmcloud resource group-delete $(PROJECT_NAME)-$(ENVIRONMENT) -f
+	@echo "$(GREEN)✅ Cleanup complete$(NC)"
+
+# ================================
+# 📚 DOCUMENTATION
+# ================================
+
+# Documentation: Install dependencies
+docs-install:
+	@echo "$(CYAN)📦 Installing documentation dependencies...$(NC)"
+	pip install -r docs/requirements.txt
+	@echo "$(GREEN)✅ Documentation dependencies installed$(NC)"
+
+# Documentation: Serve locally
+docs-serve:
+	@echo "$(CYAN)📖 Starting documentation server...$(NC)"
+	@echo "$(YELLOW)Documentation will be available at: http://localhost:8000$(NC)"
+	mkdocs serve
+
+# Documentation: Build static site
+docs-build:
+	@echo "$(CYAN)🔨 Building documentation site...$(NC)"
+	mkdocs build
+	@echo "$(GREEN)✅ Documentation built to site/ directory$(NC)"
+
+# Documentation: Deploy to GitHub Pages
+docs-deploy:
+	@echo "$(CYAN)🚀 Deploying documentation to GitHub Pages...$(NC)"
+	@echo "$(YELLOW)⚠️  This will deploy to gh-pages branch$(NC)"
+	@read -p "Are you sure? (yes/no): " confirm && [ "$$confirm" = "yes" ] || exit 1
+	mkdocs gh-deploy
+	@echo "$(GREEN)✅ Documentation deployed$(NC)"
+
+# Documentation: Validate and check
+docs-validate:
+	@echo "$(CYAN)🔍 Validating documentation...$(NC)"
+	mkdocs build --strict
+	@echo "$(GREEN)✅ Documentation validation passed$(NC)"
+
+# Documentation: Clean build artifacts
+docs-clean:
+	@echo "$(CYAN)🧹 Cleaning documentation build artifacts...$(NC)"
+	rm -rf site/
+	@echo "$(GREEN)✅ Documentation artifacts cleaned$(NC)"
