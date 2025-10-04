@@ -103,9 +103,13 @@ COS_CRN=$(ibmcloud resource service-instances --service-name cloud-object-storag
 if [ -n "$COS_CRN" ] && [ "$COS_CRN" != "null" ]; then
     echo -e "${GREEN}✓ COS instance already exists${NC}"
 else
+    # Create COS instance with lite (free) plan
     ibmcloud resource service-instance-create "$COS_INSTANCE" \
-        cloud-object-storage standard global \
+        cloud-object-storage lite global \
         -g "$RESOURCE_GROUP"
+
+    # Wait a moment for COS to be created
+    sleep 5
 
     # Get the CRN
     COS_CRN=$(ibmcloud resource service-instances --service-name cloud-object-storage --output json | \
