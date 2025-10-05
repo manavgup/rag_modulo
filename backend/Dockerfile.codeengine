@@ -1,0 +1,39 @@
+# Use a slim Python image as a base
+FROM python:3.11-slim as builder
+
+# Set the working directory
+WORKDIR /app
+
+# Install poetry
+RUN pip install poetry
+
+# Copy only the dependency files to leverage Docker cache
+COPY pyproject.toml poetry.lock ./
+
+# Install dependencies into a virtual environment
+RUN poetry config virtualenvs.in-project true && \
+    poetry install --only main --no-root
+
+# Copy the rest of the application code
+COPY . .
+
+# Final stage
+FROM python:3.11-slim
+
+# Set the working directory
+WORKDIR /app
+
+# Copy the virtual environment from the builder stage
+COPY --from=builder /app/.venv ./.venv
+
+# Copy the application code from the builder stage
+COPY --from=builder /app/ .
+
+# Activate the virtual environment
+ENV PATH="/app/.venv/bin:$PATH"
+
+# Expose the port the app runs on
+EXPOSE 8000
+
+# Run the application
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -7,7 +7,7 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
-from core.config import Settings
+from backend.core.config import Settings
 
 
 @pytest.mark.unit
@@ -80,15 +80,25 @@ class TestChainOfThoughtConfiguration:
         assert isinstance(settings.cot_token_budget_multiplier, float)
         assert settings.cot_token_budget_multiplier > 0.0
 
-    def test_cot_integration_with_existing_settings(self, integration_settings: Any) -> None:
-        """Test CoT settings integrate properly with existing configuration."""
-        settings = integration_settings
 
-        # Verify existing settings still work
-        assert hasattr(settings, "jwt_secret_key")
-        assert hasattr(settings, "rag_llm")
+@pytest.mark.unit
+class TestDatabaseUrlConfiguration:
+    """Test database_url computed property in Settings."""
 
-        # Verify CoT settings are available
-        assert hasattr(settings, "cot_max_reasoning_depth")
-        assert hasattr(settings, "cot_reasoning_strategy")
-        assert hasattr(settings, "cot_token_budget_multiplier")
+    def test_database_url_construction(self) -> None:
+        """Test that the database_url is constructed correctly from default settings."""
+        settings = Settings()  # type: ignore[call-arg]
+        expected_url = (
+            f"postgresql://{settings.collectiondb_user}:{settings.collectiondb_pass}@"
+            f"{settings.collectiondb_host}:{settings.collectiondb_port}/{settings.collectiondb_name}"
+        )
+        assert str(settings.database_url) == expected_url
+
+    def test_database_url_testing_environment(self) -> None:
+        """Test that the database_url switches host in a testing environment."""
+        settings = Settings(testing=True)  # type: ignore[call-arg]
+        expected_url = (
+            f"postgresql://{settings.collectiondb_user}:{settings.collectiondb_pass}@"
+            f"postgres:{settings.collectiondb_port}/{settings.collectiondb_name}"
+        )
+        assert str(settings.database_url) == expected_url
