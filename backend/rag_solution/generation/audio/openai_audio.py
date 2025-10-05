@@ -96,6 +96,46 @@ class OpenAIAudioProvider(AudioProviderBase):
         """Get list of available OpenAI voices."""
         return self.AVAILABLE_VOICES
 
+    async def generate_speech_from_text(
+        self,
+        text: str,
+        voice_id: str,
+        audio_format: AudioFormat = AudioFormat.MP3,
+    ) -> bytes:
+        """
+        Generate audio from a single text string using OpenAI TTS.
+        Args:
+            text: Text to convert to speech.
+            voice_id: OpenAI voice ID.
+            audio_format: Output audio format.
+        Returns:
+            Audio file bytes.
+        Raises:
+            AudioGenerationError: If API call fails.
+        """
+        try:
+            # Call OpenAI TTS API
+            response = await self.client.audio.speech.create(
+                model=self.model,
+                voice=voice_id,  # type: ignore
+                input=text,
+                response_format=audio_format.value,  # type: ignore
+            )
+            return response.content
+        except Exception as e:
+            logger.error(
+                "OpenAI TTS API error for voice=%s, text_length=%d: %s",
+                voice_id,
+                len(text),
+                e,
+            )
+            raise AudioGenerationError(
+                provider="openai",
+                error_type="api_error",
+                message=f"Failed to generate speech from text: {e}",
+                original_error=e,
+            ) from e
+
     async def generate_dialogue_audio(
         self,
         script: PodcastScript,
@@ -212,32 +252,15 @@ class OpenAIAudioProvider(AudioProviderBase):
         Raises:
             Exception: If API call fails
         """
-        try:
-            # Call OpenAI TTS API
-            response = await self.client.audio.speech.create(
-                model=self.model,
-                voice=voice_id,
-                input=text,
-                response_format=audio_format.value,  # type: ignore[arg-type]
-            )
-
-            # Convert response to AudioSegment
-            audio_bytes = response.content
-            segment = AudioSegment.from_file(
-                io.BytesIO(audio_bytes),
-                format=audio_format.value,
-            )
-
-            return segment
-
-        except Exception as e:
-            logger.error(
-                "OpenAI TTS API error for voice=%s, text_length=%d: %s",
-                voice_id,
-                len(text),
-                e,
-            )
-            raise
+        audio_bytes = await self.generate_speech_from_text(
+            text=text,
+            voice_id=voice_id,
+            audio_format=audio_format,
+        )
+        return AudioSegment.from_file(
+            io.BytesIO(audio_bytes),
+            format=audio_format.value,
+        )
 
     def _combine_segments(self, segments: list[AudioSegment]) -> AudioSegment:
         """

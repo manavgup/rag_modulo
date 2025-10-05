@@ -310,3 +310,62 @@ class TestPodcastServiceCustomization:
         mock_llm_provider.generate_text.assert_called_once()
         prompt = mock_llm_provider.generate_text.call_args[1]["prompt"]
         assert "Topic/Focus: General overview of the content" in prompt
+
+
+@pytest.mark.unit
+class TestPodcastServiceVoicePreview:
+    """Unit tests for voice preview functionality."""
+
+    @pytest.fixture
+    def mock_service(self) -> PodcastService:
+        """Fixture: Create mock PodcastService."""
+        session = Mock(spec=AsyncSession)
+        collection_service = Mock(spec=CollectionService)
+        search_service = Mock(spec=SearchService)
+
+        service = PodcastService(
+            session=session,
+            collection_service=collection_service,
+            search_service=search_service,
+        )
+        return service
+
+    @pytest.mark.asyncio
+    @patch("rag_solution.services.podcast_service.AudioProviderFactory")
+    async def test_generate_voice_preview_success(
+        self, mock_audio_factory: Mock, mock_service: PodcastService
+    ) -> None:
+        """Unit: generate_voice_preview returns audio bytes for valid voice."""
+        voice_id = "alloy"
+        expected_audio = b"fake_audio_bytes"
+
+        mock_audio_provider = mock_audio_factory.create_provider.return_value
+        mock_audio_provider.list_available_voices = AsyncMock(
+            return_value=[{"voice_id": "alloy"}, {"voice_id": "onyx"}]
+        )
+        mock_audio_provider.generate_speech_from_text = AsyncMock(return_value=expected_audio)
+
+        audio_bytes = await mock_service.generate_voice_preview(voice_id)
+
+        assert audio_bytes == expected_audio
+        mock_audio_provider.generate_speech_from_text.assert_called_once_with(
+            text=mock_service.VOICE_PREVIEW_TEXT,
+            voice_id=voice_id,
+            audio_format=AudioFormat.MP3,
+        )
+
+    @pytest.mark.asyncio
+    @patch("rag_solution.services.podcast_service.AudioProviderFactory")
+    async def test_generate_voice_preview_invalid_voice(
+        self, mock_audio_factory: Mock, mock_service: PodcastService
+    ) -> None:
+        """Unit: generate_voice_preview raises HTTPException for invalid voice."""
+        voice_id = "invalid_voice"
+
+        mock_audio_provider = mock_audio_factory.create_provider.return_value
+        mock_audio_provider.list_available_voices = AsyncMock(
+            return_value=[{"voice_id": "alloy"}, {"voice_id": "onyx"}]
+        )
+
+        with pytest.raises(Exception):
+            await mock_service.generate_voice_preview(voice_id)

@@ -194,6 +194,8 @@ interface UpdateConversationInput {
 }
 
 // Podcast interfaces
+export type VoiceId = 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer';
+
 interface VoiceSettings {
   voice_id: string;
   gender?: 'male' | 'female' | 'neutral';
@@ -881,6 +883,16 @@ class ApiClient {
     const response: AxiosResponse<Podcast> = await this.client.post(
       `/api/podcasts/${injection.podcast_id}/inject-question`,
       injection
+    );
+    return response.data;
+  }
+
+  async getVoicePreview(voiceId: VoiceId): Promise<Blob> {
+    const response: AxiosResponse<Blob> = await this.client.get(
+      `/api/podcasts/voice-preview/${voiceId}`,
+      {
+        responseType: 'blob',
+      }
     );
     return response.data;
   }

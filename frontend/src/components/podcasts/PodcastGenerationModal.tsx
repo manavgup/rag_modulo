@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { useNotification } from '../../contexts/NotificationContext';
 import apiClient, { PodcastGenerationInput } from '../../services/apiClient';
+import VoiceSelector from './VoiceSelector';
 
 interface PodcastGenerationModalProps {
   isOpen: boolean;
@@ -182,39 +183,19 @@ const PodcastGenerationModal: React.FC<PodcastGenerationModalProps> = ({
           </div>
 
           {/* Voice Settings */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-white mb-2">
-                Host Voice
-              </label>
-              <select
-                value={hostVoice}
-                onChange={(e) => setHostVoice(e.target.value)}
-                className="w-full px-4 py-2 bg-gray-90 border border-gray-30 rounded-lg text-white focus:outline-none focus:border-blue-50"
-              >
-                {VOICE_OPTIONS.map((voice) => (
-                  <option key={voice.id} value={voice.id}>
-                    {voice.name} - {voice.description}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-white mb-2">
-                Expert Voice
-              </label>
-              <select
-                value={expertVoice}
-                onChange={(e) => setExpertVoice(e.target.value)}
-                className="w-full px-4 py-2 bg-gray-90 border border-gray-30 rounded-lg text-white focus:outline-none focus:border-blue-50"
-              >
-                {VOICE_OPTIONS.map((voice) => (
-                  <option key={voice.id} value={voice.id}>
-                    {voice.name} - {voice.description}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <VoiceSelector
+              label="Host Voice"
+              selectedVoice={hostVoice}
+              onVoiceChange={setHostVoice}
+              voiceOptions={VOICE_OPTIONS}
+            />
+            <VoiceSelector
+              label="Expert Voice"
+              selectedVoice={expertVoice}
+              onVoiceChange={setExpertVoice}
+              voiceOptions={VOICE_OPTIONS}
+            />
           </div>
 
           {/* Advanced Options (Collapsible) */}

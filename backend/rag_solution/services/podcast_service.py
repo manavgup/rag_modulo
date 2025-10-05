@@ -45,6 +45,8 @@ logger = logging.getLogger(__name__)
 class PodcastService:
     """Service for podcast generation and management."""
 
+    VOICE_PREVIEW_TEXT = "Hello, you are listening to a preview of this voice."
+
     # Default podcast prompt template
     PODCAST_SCRIPT_PROMPT = """You are a professional podcast script writer. Create an engaging podcast dialogue between a HOST and an EXPERT.
 
@@ -592,3 +594,34 @@ Generate the complete dialogue script now:"""
 
         # Delete database record
         return await self.repository.delete(podcast_id)
+
+    async def generate_voice_preview(self, voice_id: str) -> bytes:
+        """
+        Generate a short voice preview.
+        Args:
+            voice_id: The voice to preview.
+        Returns:
+            Audio file bytes.
+        """
+        try:
+            audio_provider = AudioProviderFactory.create_provider(
+                provider_type=self.settings.podcast_audio_provider,
+                settings=self.settings,
+            )
+            available_voices = await audio_provider.list_available_voices()
+            voice_ids = {v["voice_id"] for v in available_voices}
+            if voice_id not in voice_ids:
+                raise HTTPException(status_code=400, detail=f"Invalid voice_id: {voice_id}")
+
+            audio_bytes = await audio_provider.generate_speech_from_text(
+                text=self.VOICE_PREVIEW_TEXT,
+                voice_id=voice_id,
+                audio_format=AudioFormat.MP3,
+            )
+            return audio_bytes
+        except Exception as e:
+            logger.exception("Failed to generate voice preview for voice_id=%s: %s", voice_id, e)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to generate voice preview: {e}",
+            ) from e

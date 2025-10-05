@@ -61,7 +61,24 @@ class AudioProviderBase(ABC):
             AudioGenerationError: If unable to fetch voices
         """
 
-    async def validate_voices(self, host_voice: str, expert_voice: str) -> bool:
+    @abstractmethod
+    async def generate_speech_from_text(
+        self,
+        text: str,
+        voice_id: str,
+        audio_format: AudioFormat = AudioFormat.MP3,
+    ) -> bytes:
+        """
+        Generate audio from a single text string.
+
+        Args:
+            text: The text to speak.
+            voice_id: The voice to use.
+            audio_format: Output audio format.
+
+        Returns:
+            Audio file bytes.
+        """
         """
         Validate that voice IDs are available.
 
