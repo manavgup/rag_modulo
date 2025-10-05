@@ -257,6 +257,12 @@ interface PodcastQuestionInjection {
   user_id: string;
 }
 
+export interface Agent {
+  id: string;
+  name: string;
+  description?: string;
+}
+
 class ApiClient {
   private client: AxiosInstance;
 
@@ -882,6 +888,20 @@ class ApiClient {
       `/api/podcasts/${injection.podcast_id}/inject-question`,
       injection
     );
+    return response.data;
+  }
+
+  // Agents API
+  async getAgents(): Promise<Agent[]> {
+    const response: AxiosResponse<Agent[]> = await this.client.get('/api/agents');
+    return response.data;
+  }
+
+  async invokeAgent(agentId: string, collectionId: string, params: Record<string, any>): Promise<any> {
+    const response: AxiosResponse<any> = await this.client.post(`/api/agents/${agentId}/invoke`, {
+      collection_id: collectionId,
+      params: params,
+    });
     return response.data;
   }
 }
