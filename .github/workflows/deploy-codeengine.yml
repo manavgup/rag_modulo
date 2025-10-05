@@ -1,0 +1,56 @@
+name: Deploy to IBM Cloud Code Engine
+
+on:
+  workflow_dispatch:
+    inputs:
+      IBM_CLOUD_REGION:
+        description: 'IBM Cloud region'
+        required: true
+        default: 'us-south'
+      IBM_CLOUD_RESOURCE_GROUP:
+        description: 'IBM Cloud resource group'
+        required: true
+        default: 'Default'
+      CE_PROJECT_NAME:
+        description: 'Code Engine project name'
+        required: true
+      CE_APP_NAME:
+        description: 'Code Engine app name'
+        required: true
+      DOCKER_IMAGE:
+        description: 'Docker image name'
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install IBM Cloud CLI
+        run: |
+          curl -fsSL https://clis.cloud.ibm.com/install/linux | sh
+          ibmcloud --version
+          ibmcloud plugin install -f code-engine
+
+      - name: Build and push Docker image
+        env:
+          IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}
+          IBM_CLOUD_REGION: ${{ github.event.inputs.IBM_CLOUD_REGION }}
+          DOCKER_IMAGE: ${{ github.event.inputs.DOCKER_IMAGE }}
+        run: |
+          ibmcloud login --apikey "$IBM_CLOUD_API_KEY" -r "$IBM_CLOUD_REGION"
+          ibmcloud cr login
+          docker build -t "$DOCKER_IMAGE" -f backend/Dockerfile.codeengine backend
+          docker push "$DOCKER_IMAGE"
+
+      - name: Deploy to Code Engine
+        env:
+          IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}
+          IBM_CLOUD_REGION: ${{ github.event.inputs.IBM_CLOUD_REGION }}
+          IBM_CLOUD_RESOURCE_GROUP: ${{ github.event.inputs.IBM_CLOUD_RESOURCE_GROUP }}
+          CE_PROJECT_NAME: ${{ github.event.inputs.CE_PROJECT_NAME }}
+          CE_APP_NAME: ${{ github.event.inputs.CE_APP_NAME }}
+          DOCKER_IMAGE: ${{ github.event.inputs.DOCKER_IMAGE }}
+        run: ./scripts/deploy_codeengine.sh

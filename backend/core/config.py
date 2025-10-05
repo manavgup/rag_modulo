@@ -5,9 +5,10 @@ import tempfile
 from functools import lru_cache
 from typing import Annotated
 
-from pydantic import field_validator
+from pydantic import computed_field, field_validator
 from pydantic.fields import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy import URL
 
 from core.logging_utils import get_logger
 
@@ -266,9 +267,30 @@ class Settings(BaseSettings):
     oidc_token_url: Annotated[str | None, Field(default=None, alias="OIDC_TOKEN_URL")]
     oidc_userinfo_endpoint: Annotated[str | None, Field(default=None, alias="OIDC_USERINFO_ENDPOINT")]
     oidc_introspection_endpoint: Annotated[str | None, Field(default=None, alias="OIDC_INTROSPECTION_ENDPOINT")]
+    ibm_cloud_api_key: Annotated[str | None, Field(default=None, alias="IBM_CLOUD_API_KEY")]
 
     # JWT settings
     jwt_algorithm: Annotated[str, Field(default="HS256", alias="JWT_ALGORITHM")]
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def database_url(self) -> URL:
+        """Construct database URL from components."""
+        host = self.collectiondb_host
+        # In a test environment, if the host is localhost, it's likely a local dev setup
+        # where the test container is running on a Docker network.
+        # The service name in docker-compose is 'postgres', so we switch to that.
+        if self.testing and host == "localhost":
+            host = os.environ.get("DB_HOST", "postgres")
+
+        return URL.create(
+            drivername="postgresql",
+            username=self.collectiondb_user,
+            password=self.collectiondb_pass,
+            host=host,
+            port=self.collectiondb_port,
+            database=self.collectiondb_name,
+        )
 
     # RBAC settings
     rbac_mapping: Annotated[

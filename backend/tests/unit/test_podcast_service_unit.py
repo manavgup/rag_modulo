@@ -12,7 +12,7 @@ from uuid import uuid4
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from rag_solution.schemas.podcast_schema import (
+from backend.rag_solution.schemas.podcast_schema import (
     AudioFormat,
     PodcastDuration,
     PodcastGenerationInput,
@@ -21,9 +21,9 @@ from rag_solution.schemas.podcast_schema import (
     VoiceGender,
     VoiceSettings,
 )
-from rag_solution.services.collection_service import CollectionService
-from rag_solution.services.podcast_service import PodcastService
-from rag_solution.services.search_service import SearchService
+from backend.rag_solution.services.collection_service import CollectionService
+from backend.rag_solution.services.podcast_service import PodcastService
+from backend.rag_solution.services.search_service import SearchService
 
 
 @pytest.mark.unit
@@ -103,13 +103,12 @@ class TestPodcastServiceGeneration:
         # Mock document count validation
         mock_service.collection_service.count_documents = AsyncMock(return_value=10)  # type: ignore[attr-defined]
 
-        # Mock active podcast count check
-        mock_service.repository.count_active_for_user = AsyncMock(return_value=0)  # type: ignore[method-assign]
+        with patch.object(mock_service.repository, "count_active_for_user", new=AsyncMock(return_value=0)), patch.object(
+            mock_service.repository, "create", new=AsyncMock(return_value=mock_podcast)
+        ) as mock_create:
+            background_tasks = Mock()
+            background_tasks.add_task = Mock()
 
-        background_tasks = Mock()
-        background_tasks.add_task = Mock()
-
-        with patch.object(mock_service.repository, "create", new=AsyncMock(return_value=mock_podcast)) as mock_create:
             result = await mock_service.generate_podcast(podcast_input, background_tasks)
 
             assert result is not None
@@ -138,12 +137,13 @@ class TestPodcastServiceGeneration:
         mock_podcast = Mock()
         mock_podcast.user_id = user_id
 
-        with patch.object(mock_service.repository, "get_by_id", new=AsyncMock(return_value=mock_podcast)) as mock_get:
-            with patch.object(mock_service.repository, "to_schema", return_value=mock_output):
-                result = await mock_service.get_podcast(podcast_id, user_id)
+        with patch.object(mock_service.repository, "get_by_id", new=AsyncMock(return_value=mock_podcast)) as mock_get, patch.object(
+            mock_service.repository, "to_schema", return_value=mock_output
+        ):
+            result = await mock_service.get_podcast(podcast_id, user_id)
 
-                assert result == mock_output
-                mock_get.assert_called_once_with(podcast_id)
+            assert result == mock_output
+            mock_get.assert_called_once_with(podcast_id)
 
     @pytest.mark.asyncio
     async def test_list_user_podcasts(self, mock_service: PodcastService) -> None:
@@ -165,12 +165,13 @@ class TestPodcastServiceGeneration:
         podcast_id = uuid4()
         user_id = uuid4()
 
-        with patch.object(mock_service.repository, "get_by_id", new=AsyncMock(return_value=Mock(user_id=user_id))):
-            with patch.object(mock_service.repository, "delete", new=AsyncMock(return_value=True)) as mock_delete:
-                result = await mock_service.delete_podcast(podcast_id, user_id)
+        with patch.object(
+            mock_service.repository, "get_by_id", new=AsyncMock(return_value=Mock(user_id=user_id))
+        ), patch.object(mock_service.repository, "delete", new=AsyncMock(return_value=True)) as mock_delete:
+            result = await mock_service.delete_podcast(podcast_id, user_id)
 
-                assert result is True
-                mock_delete.assert_called_once_with(podcast_id)
+            assert result is True
+            mock_delete.assert_called_once_with(podcast_id)
 
 
 @pytest.mark.unit
@@ -191,7 +192,7 @@ class TestPodcastServiceValidation:
         )
 
     @pytest.mark.asyncio
-    async def test_validate_podcast_input(self, mock_service: PodcastService) -> None:
+    async def test_validate_podcast_input(self) -> None:
         """Unit: Validates podcast input schema."""
         podcast_input = PodcastGenerationInput(
             user_id=uuid4(),
@@ -247,9 +248,7 @@ class TestPodcastServiceCustomization:
         assert description in search_input.question
 
     @pytest.mark.asyncio
-    async def test_retrieve_content_uses_generic_query_without_description(
-        self, mock_service: PodcastService
-    ) -> None:
+    async def test_retrieve_content_uses_generic_query_without_description(self, mock_service: PodcastService) -> None:
         """Unit: _retrieve_content uses generic query if no description."""
         podcast_input = PodcastGenerationInput(
             user_id=uuid4(),
@@ -267,7 +266,7 @@ class TestPodcastServiceCustomization:
         assert "Provide a comprehensive overview" in search_input.question
 
     @pytest.mark.asyncio
-    @patch("rag_solution.services.podcast_service.LLMProviderFactory")
+    @patch("backend.rag_solution.services.podcast_service.LLMProviderFactory")
     async def test_generate_script_uses_description_in_prompt(
         self, mock_llm_factory: Mock, mock_service: PodcastService
     ) -> None:
@@ -290,7 +289,7 @@ class TestPodcastServiceCustomization:
         assert f"Topic/Focus: {description}" in prompt
 
     @pytest.mark.asyncio
-    @patch("rag_solution.services.podcast_service.LLMProviderFactory")
+    @patch("backend.rag_solution.services.podcast_service.LLMProviderFactory")
     async def test_generate_script_uses_generic_topic_without_description(
         self, mock_llm_factory: Mock, mock_service: PodcastService
     ) -> None:

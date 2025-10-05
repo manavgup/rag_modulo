@@ -8,6 +8,7 @@ import logging
 import os
 import uuid
 
+from core.config import get_settings
 from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, DocumentMetadata, Source
 
 
@@ -30,6 +31,7 @@ def _get_embeddings_for_doc_utils(text: str | list[str]) -> list[list[float]]:
         Exception: If other unexpected errors occur
     """
     # Import here to avoid circular imports
+    from core.config import get_settings
     from core.custom_exceptions import LLMProviderError  # pylint: disable=import-outside-toplevel
     from sqlalchemy.exc import SQLAlchemyError  # pylint: disable=import-outside-toplevel
 
@@ -37,7 +39,8 @@ def _get_embeddings_for_doc_utils(text: str | list[str]) -> list[list[float]]:
     from rag_solution.generation.providers.factory import LLMProviderFactory  # pylint: disable=import-outside-toplevel
 
     # Create session and get embeddings in one clean flow
-    session_factory = create_session_factory()
+    settings = get_settings()
+    session_factory = create_session_factory(settings)
     db = session_factory()
 
     try:
