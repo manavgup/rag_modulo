@@ -164,18 +164,23 @@ const LightweightCollectionDetail: React.FC = () => {
   };
 
   const handleDownloadDocument = async (file: CollectionFile) => {
+    if (!collection) return;
+
     try {
-      // Create a temporary download link
-      const downloadUrl = `${process.env.REACT_APP_BACKEND_URL || ''}/api/collections/${collection?.id}/documents/${file.id}/download`;
+      const blob = await apiClient.downloadDocument(collection.id, file.id);
+      const blobUrl = window.URL.createObjectURL(blob);
 
       // Create temporary link element and trigger download
       const link = document.createElement('a');
-      link.href = downloadUrl;
+      link.href = blobUrl;
       link.download = file.name;
       link.style.display = 'none';
       document.body.appendChild(link);
       link.click();
+
+      // Clean up the temporary link and blob URL
       document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
 
       addNotification('success', 'Download Started', `Downloading ${file.name}...`);
     } catch (error) {
