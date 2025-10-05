@@ -44,6 +44,7 @@ my_chroma_data/
 *.log
 *.sh
 !deployment/scripts/*.sh
+logs/
 backend/logs/
 
 # Project specific ignores

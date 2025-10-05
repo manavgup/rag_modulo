@@ -1823,12 +1823,27 @@ openshift-setup-complete:
 openshift-cleanup:
 	@echo "$(CYAN)🧹 Cleaning up OpenShift infrastructure...$(NC)"
 	@echo "$(RED)⚠️  This will delete the cluster and all resources!$(NC)"
+	@echo "$(YELLOW)Resources to be deleted:$(NC)"
+	@echo "  - OpenShift cluster: $(PROJECT_NAME)-$(ENVIRONMENT)"
+	@echo "  - VPC: $(PROJECT_NAME)-$(ENVIRONMENT)-vpc"
+	@echo "  - Subnet: $(PROJECT_NAME)-$(ENVIRONMENT)-subnet"
+	@echo "  - Public Gateway: $(PROJECT_NAME)-$(ENVIRONMENT)-pgw"
+	@echo "  - COS Instance: rag-modulo-cos"
+	@echo "  - Resource Group: $(PROJECT_NAME)-$(ENVIRONMENT)"
+	@echo ""
 	@echo "$(YELLOW)Press Ctrl+C to cancel, or Enter to continue...$(NC)"
 	@read -r confirmation
-	@echo "$(CYAN)Deleting cluster...$(NC)"
-	ibmcloud ks cluster rm --cluster $(PROJECT_NAME)-$(ENVIRONMENT) --force-delete-storage -f
+	@echo "$(CYAN)Deleting cluster (this may take a few minutes)...$(NC)"
+	-ibmcloud ks cluster rm --cluster $(PROJECT_NAME)-$(ENVIRONMENT) --force-delete-storage -f
+	@echo "$(CYAN)Detaching and deleting public gateway...$(NC)"
+	-ibmcloud is subnet-update $(PROJECT_NAME)-$(ENVIRONMENT)-subnet --public-gateway-id "" || true
+	-ibmcloud is public-gateway-delete $(PROJECT_NAME)-$(ENVIRONMENT)-pgw -f
+	@echo "$(CYAN)Deleting subnet...$(NC)"
+	-ibmcloud is subnet-delete $(PROJECT_NAME)-$(ENVIRONMENT)-subnet -f
 	@echo "$(CYAN)Deleting VPC...$(NC)"
 	-ibmcloud is vpc-delete $(PROJECT_NAME)-$(ENVIRONMENT)-vpc -f
+	@echo "$(CYAN)Deleting COS instance...$(NC)"
+	-ibmcloud resource service-instance-delete rag-modulo-cos -f --recursive
 	@echo "$(CYAN)Deleting resource group...$(NC)"
 	-ibmcloud resource group-delete $(PROJECT_NAME)-$(ENVIRONMENT) -f
 	@echo "$(GREEN)✅ Cleanup complete$(NC)"

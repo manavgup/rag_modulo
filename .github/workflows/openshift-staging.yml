@@ -1,0 +1,265 @@
+name: Deploy to OpenShift Staging
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'deployment/**'
+      - '.github/workflows/openshift-staging.yml'
+  workflow_dispatch:
+    inputs:
+      force_deploy:
+        description: 'Force deployment even if disabled in settings'
+        type: boolean
+        default: false
+      skip_tests:
+        description: 'Skip running tests before deployment'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  GHCR_REPO: ghcr.io/${{ github.repository_owner }}/rag_modulo
+  ICR_NAMESPACE: rag-modulo
+  ICR_REGION: ca-tor
+  OPENSHIFT_NAMESPACE: rag-modulo-staging
+  HELM_RELEASE: rag-modulo
+
+jobs:
+  # Only run if deployment is enabled or manually forced
+  check-deployment-enabled:
+    runs-on: ubuntu-latest
+    outputs:
+      should_deploy: ${{ steps.check.outputs.deploy }}
+    steps:
+      - name: Check if OpenShift deployment enabled
+        id: check
+        run: |
+          # Deploy if: variable enabled OR manual force
+          if [[ "${{ vars.DEPLOY_TO_OPENSHIFT }}" == "true" ]] || [[ "${{ github.event.inputs.force_deploy }}" == "true" ]]; then
+            echo "✅ OpenShift deployment enabled"
+            echo "deploy=true" >> $GITHUB_OUTPUT
+          else
+            echo "⏭️  OpenShift deployment disabled (set DEPLOY_TO_OPENSHIFT=true in repo variables to enable)"
+            echo "deploy=false" >> $GITHUB_OUTPUT
+          fi
+
+  # Run tests unless skipped
+  test:
+    needs: [check-deployment-enabled]
+    if: needs.check-deployment-enabled.outputs.should_deploy == 'true' && github.event.inputs.skip_tests != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Install dependencies
+        run: cd backend && poetry install --with dev,test
+
+      - name: Run unit tests
+        run: |
+          export TESTING=true
+          export SKIP_AUTH=true
+          cd backend && poetry run pytest tests/ -m unit --tb=short -v
+
+  # Build and push images to both GHCR and ICR
+  build-and-push:
+    needs: [check-deployment-enabled, test]
+    if: |
+      always() &&
+      needs.check-deployment-enabled.outputs.should_deploy == 'true' &&
+      (needs.test.result == 'success' || needs.test.result == 'skipped')
+    runs-on: ubuntu-latest
+    outputs:
+      backend_tag: ${{ steps.tags.outputs.backend }}
+      frontend_tag: ${{ steps.tags.outputs.frontend }}
+      pgvector_tag: ${{ steps.tags.outputs.pgvector }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free up disk space
+        run: |
+          echo "Disk space before cleanup:"
+          df -h
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          docker system prune -af --volumes || true
+          echo "Disk space after cleanup:"
+          df -h
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to IBM Cloud
+        run: |
+          curl -fsSL https://clis.cloud.ibm.com/install/linux | sh
+          ibmcloud --version
+          ibmcloud login --apikey ${{ secrets.IBM_CLOUD_API_KEY }} -r ${{ env.ICR_REGION }}
+          ibmcloud cr region-set ${{ env.ICR_REGION }}
+          ibmcloud cr login
+
+      - name: Create ICR namespace if needed
+        run: |
+          if ! ibmcloud cr namespace-list | grep -q "^${{ env.ICR_NAMESPACE }}$"; then
+            echo "Creating ICR namespace: ${{ env.ICR_NAMESPACE }}"
+            ibmcloud cr namespace-add ${{ env.ICR_NAMESPACE }}
+          else
+            echo "ICR namespace already exists: ${{ env.ICR_NAMESPACE }}"
+          fi
+
+      - name: Set image tags
+        id: tags
+        run: |
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+
+          echo "backend=latest" >> $GITHUB_OUTPUT
+          echo "frontend=latest" >> $GITHUB_OUTPUT
+          echo "pgvector=pg16" >> $GITHUB_OUTPUT
+
+      - name: Build and push backend image
+        run: |
+          # Build for linux/amd64 (required for OpenShift)
+          docker buildx build --platform linux/amd64 \
+            -t ${{ env.GHCR_REPO }}/backend:latest \
+            -t ${{ env.GHCR_REPO }}/backend:${{ github.sha }} \
+            -f ./backend/Dockerfile.backend \
+            --push \
+            ./backend
+
+          # Pull and tag for ICR
+          docker pull --platform linux/amd64 ${{ env.GHCR_REPO }}/backend:latest
+          docker tag ${{ env.GHCR_REPO }}/backend:latest ca.icr.io/${{ env.ICR_NAMESPACE }}/backend:latest
+          docker push ca.icr.io/${{ env.ICR_NAMESPACE }}/backend:latest
+
+      - name: Build and push frontend image
+        run: |
+          docker buildx build --platform linux/amd64 \
+            -t ${{ env.GHCR_REPO }}/frontend:latest \
+            -t ${{ env.GHCR_REPO }}/frontend:${{ github.sha }} \
+            -f ./frontend/Dockerfile.frontend \
+            --push \
+            ./frontend
+
+          docker pull --platform linux/amd64 ${{ env.GHCR_REPO }}/frontend:latest
+          docker tag ${{ env.GHCR_REPO }}/frontend:latest ca.icr.io/${{ env.ICR_NAMESPACE }}/frontend:latest
+          docker push ca.icr.io/${{ env.ICR_NAMESPACE }}/frontend:latest
+
+      - name: Push database images to ICR
+        run: |
+          # Push pgvector
+          docker pull --platform linux/amd64 ankane/pgvector:pg16
+          docker tag ankane/pgvector:pg16 ca.icr.io/${{ env.ICR_NAMESPACE }}/pgvector:pg16
+          docker push ca.icr.io/${{ env.ICR_NAMESPACE }}/pgvector:pg16
+
+          # Push etcd
+          docker pull --platform linux/amd64 quay.io/coreos/etcd:v3.5.5
+          docker tag quay.io/coreos/etcd:v3.5.5 ca.icr.io/${{ env.ICR_NAMESPACE }}/etcd:v3.5.5
+          docker push ca.icr.io/${{ env.ICR_NAMESPACE }}/etcd:v3.5.5
+
+          # Push MinIO
+          docker pull --platform linux/amd64 minio/minio:latest
+          docker tag minio/minio:latest ca.icr.io/${{ env.ICR_NAMESPACE }}/minio:latest
+          docker push ca.icr.io/${{ env.ICR_NAMESPACE }}/minio:latest
+
+          # Push Milvus
+          docker pull --platform linux/amd64 milvusdb/milvus:v2.3.3
+          docker tag milvusdb/milvus:v2.3.3 ca.icr.io/${{ env.ICR_NAMESPACE }}/milvus:v2.3.3
+          docker push ca.icr.io/${{ env.ICR_NAMESPACE }}/milvus:v2.3.3
+
+  # Deploy to OpenShift
+  deploy:
+    needs: [build-and-push]
+    runs-on: ubuntu-latest
+    environment: openshift-staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install IBM Cloud CLI and plugins
+        run: |
+          curl -fsSL https://clis.cloud.ibm.com/install/linux | sh
+          ibmcloud plugin install container-service -f
+          ibmcloud plugin install container-registry -f
+
+      - name: Login to IBM Cloud and configure kubectl
+        run: |
+          ibmcloud login --apikey ${{ secrets.IBM_CLOUD_API_KEY }} -r ${{ env.ICR_REGION }}
+          ibmcloud ks cluster config --cluster ${{ vars.OPENSHIFT_CLUSTER_NAME || 'rag-modulo-staging' }}
+
+      - name: Deploy StatefulSets (PostgreSQL, etcd, MinIO, Milvus)
+        run: |
+          # Apply all StatefulSet manifests
+          kubectl apply -f deployment/openshift/postgresql.yaml -n ${{ env.OPENSHIFT_NAMESPACE }}
+          kubectl apply -f deployment/openshift/etcd.yaml -n ${{ env.OPENSHIFT_NAMESPACE }}
+          kubectl apply -f deployment/openshift/minio.yaml -n ${{ env.OPENSHIFT_NAMESPACE }}
+          kubectl apply -f deployment/openshift/milvus.yaml -n ${{ env.OPENSHIFT_NAMESPACE }}
+
+          # Wait for StatefulSets to be ready
+          echo "Waiting for databases to be ready..."
+          kubectl wait --for=condition=ready pod -l app=postgresql -n ${{ env.OPENSHIFT_NAMESPACE }} --timeout=5m
+          kubectl wait --for=condition=ready pod -l app=milvus-etcd -n ${{ env.OPENSHIFT_NAMESPACE }} --timeout=5m
+          kubectl wait --for=condition=ready pod -l app=minio -n ${{ env.OPENSHIFT_NAMESPACE }} --timeout=5m
+          kubectl wait --for=condition=ready pod -l app=milvus-standalone -n ${{ env.OPENSHIFT_NAMESPACE }} --timeout=5m
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'latest'
+
+      - name: Create backend service alias
+        run: |
+          kubectl apply -f deployment/openshift/backend-alias.yaml -n ${{ env.OPENSHIFT_NAMESPACE }}
+
+      - name: Deploy with Helm
+        run: |
+          helm upgrade --install ${{ env.HELM_RELEASE }} ./deployment/helm/rag-modulo \
+            --namespace ${{ env.OPENSHIFT_NAMESPACE }} \
+            --create-namespace \
+            --set images.registry=ca.icr.io/${{ env.ICR_NAMESPACE }} \
+            --set backend.image.tag=${{ needs.build-and-push.outputs.backend_tag }} \
+            --set frontend.image.tag=${{ needs.build-and-push.outputs.frontend_tag }} \
+            --wait --timeout 10m
+
+      - name: Create OpenShift routes
+        run: |
+          kubectl apply -f deployment/openshift/routes.yaml -n ${{ env.OPENSHIFT_NAMESPACE }}
+
+      - name: Verify deployment
+        run: |
+          echo "=== Deployment Status ==="
+          kubectl get pods -n ${{ env.OPENSHIFT_NAMESPACE }}
+          kubectl get svc -n ${{ env.OPENSHIFT_NAMESPACE }}
+          kubectl get routes -n ${{ env.OPENSHIFT_NAMESPACE }}
+
+      - name: Get application URLs
+        run: |
+          echo "=== Application URLs ==="
+          FRONTEND_URL=$(kubectl get route rag-modulo-frontend -n ${{ env.OPENSHIFT_NAMESPACE }} -o jsonpath='{.spec.host}')
+          BACKEND_URL=$(kubectl get route rag-modulo-backend -n ${{ env.OPENSHIFT_NAMESPACE }} -o jsonpath='{.spec.host}')
+          echo "Frontend: https://$FRONTEND_URL"
+          echo "Backend API: https://$BACKEND_URL"

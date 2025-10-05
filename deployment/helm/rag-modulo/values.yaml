@@ -9,12 +9,17 @@ global:
 
 # Image settings
 images:
+  # Container registry - override for specific environments
+  # Default: ghcr.io/manavgup/rag_modulo (standard K8s/OpenShift)
+  # IBM Cloud OpenShift: ca.icr.io/rag-modulo (required due to VPC networking)
+  registry: ghcr.io/manavgup/rag_modulo
+
   backend:
-    repository: ghcr.io/manavgup/rag_modulo/backend
+    repository: backend
     tag: latest
     pullPolicy: Always
   frontend:
-    repository: ghcr.io/manavgup/rag_modulo/frontend
+    repository: frontend
     tag: latest
     pullPolicy: Always
   mlflow:

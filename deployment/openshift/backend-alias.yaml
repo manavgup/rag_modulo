@@ -1,0 +1,10 @@
+# Service alias for frontend nginx configuration
+# Frontend nginx expects service named "backend" but Helm creates "rag-modulo-backend"
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: rag-modulo-staging
+spec:
+  type: ExternalName
+  externalName: rag-modulo-backend.rag-modulo-staging.svc.cluster.local

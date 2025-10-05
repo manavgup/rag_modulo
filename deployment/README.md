@@ -312,9 +312,98 @@ make k8s-shell-backend
 
 ## CI/CD Integration
 
-GitHub Actions workflows available:
-- `.github/workflows/k8s-deploy-production.yml` - Production deployment
-- `.github/workflows/k8s-deploy-staging.yml` - Staging deployment
+### Automated Deployments
+
+RAG Modulo uses GitHub Actions for automated deployments. Deployments are controlled via GitHub repository variables and can be enabled/disabled without code changes.
+
+**Available Workflows:**
+- `.github/workflows/openshift-staging.yml` - OpenShift on IBM Cloud (staging)
+- `.github/workflows/k8s-deploy-production.yml` - Kubernetes production
+- `.github/workflows/ibm-code-engine-staging.yml` - IBM Code Engine (future)
+
+### Enabling Automated Deployments
+
+#### Step 1: Configure GitHub Secrets
+
+Go to **Settings → Secrets and variables → Actions → Secrets** and add:
+
+```
+IBM_CLOUD_API_KEY         # IBM Cloud API key with cluster admin access
+```
+
+#### Step 2: Configure GitHub Variables
+
+Go to **Settings → Secrets and variables → Actions → Variables** and add:
+
+```
+DEPLOY_TO_OPENSHIFT       # Set to "true" to enable OpenShift deployment
+OPENSHIFT_CLUSTER_NAME    # Name of your OpenShift cluster (e.g., "rag-modulo-staging")
+```
+
+#### Step 3: Enable/Disable Deployments
+
+**To Enable OpenShift Deployment:**
+1. Set `DEPLOY_TO_OPENSHIFT = true` in repository variables
+2. Push to `main` branch → automatic deployment
+
+**To Disable:**
+1. Set `DEPLOY_TO_OPENSHIFT = false`
+2. Or delete the variable
+
+**Manual Deployment:**
+1. Go to **Actions** tab
+2. Select **Deploy to OpenShift Staging** workflow
+3. Click **Run workflow**
+4. Options:
+   - **Force deploy**: Deploy even if disabled in settings
+   - **Skip tests**: Skip tests before deployment
+
+### Deployment Configuration
+
+Configure deployment behavior in `.env.example`:
+
+```bash
+# Deployment environment: local | staging | production
+DEPLOYMENT_ENVIRONMENT=local
+
+# Enable deployment targets (set in GitHub repository variables)
+DEPLOY_TO_OPENSHIFT=false
+DEPLOY_TO_CODE_ENGINE=false
+
+# Cloud provider: aws | azure | ibm | gcp
+CLOUD_PROVIDER=
+
+# Container registry
+# - ghcr.io/manavgup/rag_modulo (default, standard K8s/OpenShift)
+# - ca.icr.io/rag-modulo (IBM Cloud OpenShift, required for VPC)
+CONTAINER_REGISTRY=ghcr.io/manavgup/rag_modulo
+```
+
+### Container Registry Strategy
+
+| Environment | Registry | Why |
+|-------------|----------|-----|
+| Standard K8s/OpenShift | `ghcr.io` | Public registry, works everywhere |
+| IBM Cloud OpenShift VPC | `ca.icr.io` | Required due to VPC networking restrictions |
+
+The Helm chart supports configurable registries:
+```bash
+helm install rag-modulo ./deployment/helm/rag-modulo \
+  --set images.registry=ca.icr.io/rag-modulo
+```
+
+### OpenShift on IBM Cloud Specifics
+
+The automated deployment includes these OpenShift-specific fixes:
+
+1. **Container Registry**: Pushes to ICR (`ca.icr.io`) instead of GHCR
+2. **Backend Health Check**: Uses `/api/health` (not `/health`)
+3. **Backend Environment**: Sets `COLLECTIONDB_PASS` (backend code requirement)
+4. **Frontend Port**: Uses container port 8080 (nginx default)
+5. **Frontend Volumes**: EmptyDir volumes for nginx writable directories
+6. **Service Names**: Creates backend service alias for frontend nginx
+
+All fixes are incorporated in the Helm chart and OpenShift manifests.
 
 ## Documentation
 

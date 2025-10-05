@@ -8,6 +8,7 @@ repos:
       - id: end-of-file-fixer
       - id: check-yaml
         args: ['--unsafe']  # Allow custom YAML tags in GitHub Actions
+        exclude: ^deployment/helm/.*/templates/.*\.yaml$  # Exclude Helm templates (Go templating syntax)
       - id: check-added-large-files
         args: ['--maxkb=1000']
       - id: check-merge-conflict

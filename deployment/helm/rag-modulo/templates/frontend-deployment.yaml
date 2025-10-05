@@ -18,19 +18,34 @@ spec:
         {{- include "rag-modulo.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: frontend
     spec:
+      volumes:
+        # Writable volumes for nginx (required for OpenShift security constraints)
+        - name: nginx-cache
+          emptyDir: {}
+        - name: nginx-run
+          emptyDir: {}
+        - name: nginx-tmp
+          emptyDir: {}
       containers:
         - name: frontend
-          image: "{{ .Values.images.frontend.repository }}:{{ .Values.images.frontend.tag | default .Chart.AppVersion }}"
+          image: "{{ .Values.images.registry }}/{{ .Values.images.frontend.repository }}:{{ .Values.images.frontend.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.images.frontend.pullPolicy | default "IfNotPresent" }}
           ports:
             - name: http
-              containerPort: 3000
+              containerPort: 8080
               protocol: TCP
           env:
             - name: REACT_APP_API_URL
               value: "http://{{ include "rag-modulo.fullname" . }}-backend:8000"
             - name: REACT_APP_WS_URL
               value: "ws://{{ include "rag-modulo.fullname" . }}-backend:8000"
+          volumeMounts:
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+            - name: nginx-run
+              mountPath: /var/run
+            - name: nginx-tmp
+              mountPath: /tmp
           resources:
             {{- toYaml .Values.frontend.resources | nindent 12 }}
           livenessProbe:

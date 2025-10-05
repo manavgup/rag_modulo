@@ -28,6 +28,7 @@ FLAVOR="${6:-bx2.4x16}"
 RESOURCE_GROUP="${PROJECT_NAME}-${ENVIRONMENT}"
 VPC_NAME="${PROJECT_NAME}-${ENVIRONMENT}-vpc"
 SUBNET_NAME="${PROJECT_NAME}-${ENVIRONMENT}-subnet"
+PGW_NAME="${PROJECT_NAME}-${ENVIRONMENT}-pgw"
 CLUSTER_NAME="${PROJECT_NAME}-${ENVIRONMENT}"
 COS_INSTANCE="rag-modulo-cos"  # Fixed name to avoid prompts
 
@@ -94,6 +95,29 @@ else
     echo -e "${GREEN}✓ Subnet created (ID: $SUBNET_ID)${NC}"
 fi
 
+# Step 4.5: Create Public Gateway (required for outbound internet access)
+echo ""
+echo -e "${YELLOW}Step 4.5: Creating public gateway '${PGW_NAME}'...${NC}"
+PGW_ID=$(ibmcloud is public-gateways --output json | jq -r ".[] | select(.name==\"$PGW_NAME\") | .id")
+if [ -n "$PGW_ID" ] && [ "$PGW_ID" != "null" ]; then
+    echo -e "${GREEN}✓ Public gateway already exists (ID: $PGW_ID)${NC}"
+else
+    PGW_ID=$(ibmcloud is public-gateway-create "$PGW_NAME" "$VPC_ID" "$ZONE" \
+        --resource-group-name "$RESOURCE_GROUP" \
+        --output json | jq -r '.id')
+    echo -e "${GREEN}✓ Public gateway created (ID: $PGW_ID)${NC}"
+fi
+
+# Attach public gateway to subnet
+echo -e "${YELLOW}Attaching public gateway to subnet...${NC}"
+CURRENT_PGW=$(ibmcloud is subnet "$SUBNET_ID" --output json | jq -r '.public_gateway.id // empty')
+if [ "$CURRENT_PGW" = "$PGW_ID" ]; then
+    echo -e "${GREEN}✓ Public gateway already attached${NC}"
+else
+    ibmcloud is subnet-update "$SUBNET_ID" --public-gateway-id "$PGW_ID" > /dev/null
+    echo -e "${GREEN}✓ Public gateway attached (enables outbound internet access)${NC}"
+fi
+
 # Step 5: Create Cloud Object Storage instance (required for OpenShift registry backup)
 echo ""
 echo -e "${YELLOW}Step 5: Creating Cloud Object Storage instance...${NC}"
@@ -105,7 +129,8 @@ if [ -n "$COS_CRN" ] && [ "$COS_CRN" != "null" ]; then
 else
     # Create COS instance with standard plan (required for OpenShift)
     # Note: This uses paid plan (~$0.02/GB/month for storage)
-    ibmcloud resource service-instance-create "$COS_INSTANCE" \
+    # Auto-select deployment option 2 (premium-global-deployment-iam) to avoid interactive prompt
+    echo "2" | ibmcloud resource service-instance-create "$COS_INSTANCE" \
         cloud-object-storage standard global \
         -p '{"HMAC":true}' \
         -g "$RESOURCE_GROUP"
@@ -201,11 +226,12 @@ echo -e "${GREEN}✅ Infrastructure setup and deployment complete!${NC}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 echo -e "${BLUE}Resource Summary:${NC}"
-echo "  Resource Group: $RESOURCE_GROUP"
-echo "  VPC:            $VPC_NAME ($VPC_ID)"
-echo "  Subnet:         $SUBNET_NAME ($SUBNET_ID)"
-echo "  COS Instance:   $COS_INSTANCE"
-echo "  Cluster:        $CLUSTER_NAME"
+echo "  Resource Group:  $RESOURCE_GROUP"
+echo "  VPC:             $VPC_NAME ($VPC_ID)"
+echo "  Subnet:          $SUBNET_NAME ($SUBNET_ID)"
+echo "  Public Gateway:  $PGW_NAME ($PGW_ID)"
+echo "  COS Instance:    $COS_INSTANCE"
+echo "  Cluster:         $CLUSTER_NAME"
 echo ""
 echo -e "${BLUE}Next steps:${NC}"
 echo "  1. Check deployment status:"
