@@ -78,10 +78,7 @@ def db_session(e2e_settings: Settings) -> Generator[Session, None, None]:
     # Determine the correct database host based on environment
     # When running via 'make test', we're in a Docker container, so use 'postgres'
     # When running locally, PostgreSQL might be accessible via localhost
-    db_host = e2e_settings.collectiondb_host
-
-    database_url = f"postgresql://{e2e_settings.collectiondb_user}:{e2e_settings.collectiondb_pass}@{db_host}:{e2e_settings.collectiondb_port}/{e2e_settings.collectiondb_name}"
-    engine = create_engine(database_url)
+    engine = create_engine(str(e2e_settings.database_url))
     testing_session_local = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
     db = testing_session_local()

@@ -1,0 +1,58 @@
+name: Deploy to IBM Cloud
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Deployment Target'
+        required: true
+        default: 'code-engine'
+        type: 'choice'
+        options:
+          - code-engine
+          # - kubernetes # This can be enabled when the Kubernetes deployment is ready
+
+jobs:
+  deploy-to-code-engine:
+    name: Deploy to IBM Cloud Code Engine
+    if: github.event.inputs.target == 'code-engine'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up IBM Cloud CLI
+        uses: ibm-cloud/sdk-action@v1.4.1
+        with:
+          api_key: ${{ secrets.IBM_CLOUD_API_KEY }}
+
+      - name: Install Code Engine CLI plugin
+        run: ibmcloud plugin install code-engine
+
+      - name: Set deployment script executable
+        run: chmod +x ./scripts/deploy_codeengine.sh
+
+      - name: Run Code Engine deployment script
+        env:
+          IBMCLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}
+          IBMCLOUD_REGION: ${{ secrets.IBM_CLOUD_REGION }}
+          RESOURCE_GROUP: ${{ secrets.RESOURCE_GROUP }}
+          CE_PROJECT_NAME: ${{ secrets.CE_PROJECT_NAME }}
+          REGISTRY_NAMESPACE: ${{ secrets.REGISTRY_NAMESPACE }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          WATSONX_APIKEY: ${{ secrets.WATSONX_APIKEY }}
+          WATSONX_INSTANCE_ID: ${{ secrets.WATSONX_INSTANCE_ID }}
+        run: ./scripts/deploy_codeengine.sh
+
+  # Placeholder for Kubernetes deployment job
+  # deploy-to-kubernetes:
+  #   name: Deploy to IBM Cloud Kubernetes Service
+  #   if: github.event.inputs.target == 'kubernetes'
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v4
+  #
+  #     - name: Run Kubernetes deployment script
+  #       run: echo "Kubernetes deployment script would run here."

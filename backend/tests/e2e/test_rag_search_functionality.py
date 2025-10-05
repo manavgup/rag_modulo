@@ -29,10 +29,7 @@ class TestRAGSearchFunctionality:
     def search_service(self, e2e_settings: Settings) -> SearchService:
         """Create a real SearchService with real database connection."""
         # Use real database connection for E2E tests - no mocks
-        engine = create_engine(
-            f"postgresql://{e2e_settings.collectiondb_user}:{e2e_settings.collectiondb_pass}@"
-            f"{e2e_settings.collectiondb_host}:{e2e_settings.collectiondb_port}/{e2e_settings.collectiondb_name}"
-        )
+        engine = create_engine(str(e2e_settings.database_url))
         session = Session(engine)
         return SearchService(session, e2e_settings)
 

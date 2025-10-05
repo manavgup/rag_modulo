@@ -84,8 +84,8 @@ class ElasticSearchStore(VectorStore):
                         "text": {"type": "text"},
                         "embeddings": {
                             "type": "dense_vector",
-                            "dims": 1536,
-                        },  # Adjust dims based on your embedding model
+                            "dims": self.settings.embedding_dim,
+                        },
                         "metadata": {"type": "object"},
                         "document_id": {"type": "keyword"},
                         "chunk_id": {"type": "keyword"},
