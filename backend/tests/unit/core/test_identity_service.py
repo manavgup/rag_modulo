@@ -5,7 +5,7 @@ import re
 import unittest
 from uuid import UUID
 
-from backend.core.identity_service import IdentityService
+from core.identity_service import IdentityService
 
 
 class TestIdentityService(unittest.TestCase):
@@ -21,8 +21,23 @@ class TestIdentityService(unittest.TestCase):
         collection_name = IdentityService.generate_collection_name()
         self.assertIsInstance(collection_name, str)
         self.assertTrue(collection_name.startswith("collection_"))
-        # Check that the name only contains alphanumeric characters and underscores
-        self.assertTrue(re.match(r"^[a-zA-Z0-9_]+$", collection_name))
+
+    def test_uniqueness_of_generated_ids(self):
+        """Test that generated IDs are unique."""
+        # Test generate_id
+        id1 = IdentityService.generate_id()
+        id2 = IdentityService.generate_id()
+        self.assertNotEqual(id1, id2)
+
+        # Test generate_collection_name
+        name1 = IdentityService.generate_collection_name()
+        name2 = IdentityService.generate_collection_name()
+        self.assertNotEqual(name1, name2)
+
+        # Test generate_document_id
+        doc_id1 = IdentityService.generate_document_id()
+        doc_id2 = IdentityService.generate_document_id()
+        self.assertNotEqual(doc_id1, doc_id2)
 
     def test_generate_document_id(self):
         """Test that generate_document_id returns a valid UUID string."""

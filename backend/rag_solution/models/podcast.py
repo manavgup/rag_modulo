@@ -6,7 +6,7 @@ Tracks podcast generation requests, status, progress, and results.
 
 from datetime import datetime
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from sqlalchemy import (
     JSON,
@@ -22,6 +22,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from core.identity_service import IdentityService
 from rag_solution.file_management.database import Base
 from rag_solution.schemas.podcast_schema import AudioFormat, PodcastDuration, PodcastStatus
 
@@ -35,7 +36,7 @@ class Podcast(Base):
     podcast_id: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True),
         primary_key=True,
-        default=uuid4,
+        default=IdentityService.generate_id,
         nullable=False,
         index=True,
     )

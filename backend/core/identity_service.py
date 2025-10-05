@@ -8,11 +8,8 @@ single point of control for ID generation.
 """
 
 import os
-import re
 import uuid
 from uuid import UUID
-
-from pydantic import UUID4
 
 
 class IdentityService:
@@ -40,9 +37,7 @@ class IdentityService:
         Returns:
             str: A valid collection name.
         """
-        raw_name = f"collection_{uuid.uuid4().hex}"
-        # Sanitize the name to be safe for vector databases
-        return re.sub(r"[^a-zA-Z0-9_]", "", raw_name)
+        return f"collection_{uuid.uuid4().hex}"
 
     @staticmethod
     def generate_document_id() -> str:
@@ -55,7 +50,7 @@ class IdentityService:
         return str(uuid.uuid4())
 
     @staticmethod
-    def get_mock_user_id() -> UUID4:
+    def get_mock_user_id() -> UUID:
         """
         Get the mock user ID from environment variables or generate a default.
 
@@ -65,7 +60,7 @@ class IdentityService:
         The environment variable `MOCK_USER_ID` is used to source the ID.
 
         Returns:
-            UUID4: The mock user ID.
+            UUID: The mock user ID.
         """
         mock_id_str = os.getenv("MOCK_USER_ID", "9bae4a21-718b-4c8b-bdd2-22857779a85b")
         try:

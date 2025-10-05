@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
-import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
+import uuid
 
 from sqlalchemy import Boolean, DateTime, Enum, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
+from core.identity_service import IdentityService
 from rag_solution.file_management.database import Base
 from rag_solution.schemas.collection_schema import CollectionStatus
 
@@ -22,7 +23,7 @@ if TYPE_CHECKING:
     from rag_solution.models.user_collection import UserCollection
 
 
-class Collection(Base):  # pylint: disable=too-few-public-methods
+class Collection(Base):  # pyl-nt: disable=too-few-public-methods
     """
     Represents a collection entity that groups resources and configurations.
     """
@@ -30,7 +31,7 @@ class Collection(Base):  # pylint: disable=too-few-public-methods
     __tablename__ = "collections"
 
     # 🆔 Identification
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=IdentityService.generate_id)
 
     # ⚙️ Core Attributes
     name: Mapped[str] = mapped_column(String, index=True)
