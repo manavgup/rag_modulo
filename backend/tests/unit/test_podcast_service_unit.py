@@ -206,3 +206,107 @@ class TestPodcastServiceValidation:
         assert podcast_input.user_id is not None
         assert podcast_input.duration == PodcastDuration.SHORT
         assert podcast_input.format == AudioFormat.MP3  # default
+
+
+@pytest.mark.unit
+class TestPodcastServiceCustomization:
+    """Unit tests for description-based customization."""
+
+    @pytest.fixture
+    def mock_service(self) -> PodcastService:
+        """Fixture: Create mock PodcastService."""
+        session = Mock(spec=AsyncSession)
+        collection_service = Mock(spec=CollectionService)
+        search_service = Mock(spec=SearchService)
+
+        service = PodcastService(
+            session=session,
+            collection_service=collection_service,
+            search_service=search_service,
+        )
+        service.search_service.search = AsyncMock()  # type: ignore[attr-defined]
+        return service
+
+    @pytest.mark.asyncio
+    async def test_retrieve_content_uses_description_in_query(self, mock_service: PodcastService) -> None:
+        """Unit: _retrieve_content uses description to build synthetic_query."""
+        description = "Test description"
+        podcast_input = PodcastGenerationInput(
+            user_id=uuid4(),
+            collection_id=uuid4(),
+            duration=PodcastDuration.SHORT,
+            voice_settings=VoiceSettings(voice_id="alloy"),
+            description=description,
+        )
+
+        await mock_service._retrieve_content(podcast_input)
+
+        mock_service.search_service.search.assert_called_once()  # type: ignore[attr-defined]
+        call_args = mock_service.search_service.search.call_args[0]  # type: ignore[attr-defined]
+        search_input = call_args[0]
+        assert description in search_input.question
+
+    @pytest.mark.asyncio
+    async def test_retrieve_content_uses_generic_query_without_description(
+        self, mock_service: PodcastService
+    ) -> None:
+        """Unit: _retrieve_content uses generic query if no description."""
+        podcast_input = PodcastGenerationInput(
+            user_id=uuid4(),
+            collection_id=uuid4(),
+            duration=PodcastDuration.SHORT,
+            voice_settings=VoiceSettings(voice_id="alloy"),
+            description=None,
+        )
+
+        await mock_service._retrieve_content(podcast_input)
+
+        mock_service.search_service.search.assert_called_once()  # type: ignore[attr-defined]
+        call_args = mock_service.search_service.search.call_args[0]  # type: ignore[attr-defined]
+        search_input = call_args[0]
+        assert "Provide a comprehensive overview" in search_input.question
+
+    @pytest.mark.asyncio
+    @patch("rag_solution.services.podcast_service.LLMProviderFactory")
+    async def test_generate_script_uses_description_in_prompt(
+        self, mock_llm_factory: Mock, mock_service: PodcastService
+    ) -> None:
+        """Unit: _generate_script includes description in prompt."""
+        description = "Custom topic"
+        podcast_input = PodcastGenerationInput(
+            user_id=uuid4(),
+            collection_id=uuid4(),
+            duration=PodcastDuration.SHORT,
+            voice_settings=VoiceSettings(voice_id="alloy"),
+            description=description,
+        )
+        mock_llm_provider = mock_llm_factory.create_provider.return_value
+        mock_llm_provider.generate_text = Mock(return_value="Script")
+
+        await mock_service._generate_script(podcast_input, "rag_results")
+
+        mock_llm_provider.generate_text.assert_called_once()
+        prompt = mock_llm_provider.generate_text.call_args[1]["prompt"]
+        assert f"Topic/Focus: {description}" in prompt
+
+    @pytest.mark.asyncio
+    @patch("rag_solution.services.podcast_service.LLMProviderFactory")
+    async def test_generate_script_uses_generic_topic_without_description(
+        self, mock_llm_factory: Mock, mock_service: PodcastService
+    ) -> None:
+        """Unit: _generate_script uses generic topic if no description."""
+        podcast_input = PodcastGenerationInput(
+            user_id=uuid4(),
+            collection_id=uuid4(),
+            duration=PodcastDuration.SHORT,
+            voice_settings=VoiceSettings(voice_id="alloy"),
+            description=None,
+        )
+        mock_llm_provider = mock_llm_factory.create_provider.return_value
+        mock_llm_provider.generate_text = Mock(return_value="Script")
+
+        await mock_service._generate_script(podcast_input, "rag_results")
+
+        mock_llm_provider.generate_text.assert_called_once()
+        prompt = mock_llm_provider.generate_text.call_args[1]["prompt"]
+        assert "Topic/Focus: General overview of the content" in prompt
