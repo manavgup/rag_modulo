@@ -46,7 +46,9 @@ class PodcastService:
     """Service for podcast generation and management."""
 
     # Default podcast prompt template
-    PODCAST_SCRIPT_PROMPT = """You are a professional podcast script writer. Create an engaging podcast dialogue between a HOST and an EXPERT discussing the following content.
+    PODCAST_SCRIPT_PROMPT = """You are a professional podcast script writer. Create an engaging podcast dialogue between a HOST and an EXPERT.
+
+Topic/Focus: {user_topic}
 
 Content from documents:
 {rag_results}
@@ -331,11 +333,17 @@ Generate the complete dialogue script now:"""
         top_k = top_k_map[podcast_input.duration]
 
         # Create synthetic query for comprehensive content
-        synthetic_query = (
-            "Provide a comprehensive overview of all key topics, main insights, "
-            "important concepts, and significant information from this collection "
-            "suitable for creating an educational podcast dialogue."
-        )
+        if podcast_input.description:
+            synthetic_query = (
+                f"{podcast_input.description}. "
+                f"Provide comprehensive information covering all aspects of this topic."
+            )
+        else:
+            synthetic_query = (
+                "Provide a comprehensive overview of all key topics, main insights, "
+                "important concepts, and significant information from this collection "
+                "suitable for creating an educational podcast dialogue."
+            )
 
         # Execute search
         search_input = SearchInput(
@@ -388,6 +396,7 @@ Generate the complete dialogue script now:"""
 
         # Format prompt
         prompt = self.PODCAST_SCRIPT_PROMPT.format(
+            user_topic=podcast_input.description or "General overview of the content",
             rag_results=rag_results,
             duration_minutes=duration_minutes,
             word_count=word_count,

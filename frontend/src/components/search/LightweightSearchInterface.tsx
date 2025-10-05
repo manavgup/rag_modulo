@@ -25,6 +25,7 @@ import {
   ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline';
 import { useNotification } from '../../contexts/NotificationContext';
+import SourceList from './SourceList';
 
 // Import API client and WebSocket client
 import apiClient, { Collection, CollectionDocument, ConversationSession, ConversationMessage, CreateConversationInput } from '../../services/apiClient';
@@ -792,25 +793,8 @@ const LightweightSearchInterface: React.FC = () => {
                               </button>
 
                               {showSources[message.id] && (
-                                <div className="border-t border-gray-30 p-3 space-y-2">
-                                  {message.sources.slice(0, 5).map((source, index) => (
-                                    <div key={`${source.document_name}-${index}`} className="bg-gray-10 rounded-md p-3">
-                                      <div className="flex items-start justify-between">
-                                        <div className="flex-1 min-w-0">
-                                          <h4 className="font-medium text-gray-100 text-sm break-words">{source.document_name}</h4>
-                                          <p className="text-xs text-gray-70 mt-1 break-words leading-relaxed">{source.content}</p>
-                                        </div>
-                                        <div className="flex space-x-1 ml-2">
-                                          <button className="p-1 hover:bg-gray-20 rounded">
-                                            <ShareIcon className="w-3 h-3 text-gray-60" />
-                                          </button>
-                                          <button className="p-1 hover:bg-gray-20 rounded">
-                                            <BookmarkIcon className="w-3 h-3 text-gray-60" />
-                                          </button>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  ))}
+                                <div className="border-t border-gray-30 p-3">
+                                  <SourceList sources={message.sources} />
                                 </div>
                               )}
                             </div>
