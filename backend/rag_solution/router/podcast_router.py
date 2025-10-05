@@ -14,6 +14,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from rag_solution.core.dependencies import get_current_user
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.podcast_schema import (
     PodcastGenerationInput,
@@ -244,6 +245,7 @@ VALID_VOICE_IDS = {"alloy", "echo", "fable", "onyx", "nova", "shimmer"}
 async def get_voice_preview(
     voice_id: str,
     podcast_service: Annotated[PodcastService, Depends(get_podcast_service)],
+    current_user: dict = Depends(get_current_user),
 ) -> StreamingResponse:
     """
     Get a voice preview.
@@ -251,6 +253,7 @@ async def get_voice_preview(
     Args:
         voice_id: The ID of the voice to preview. Must be one of: alloy, echo, fable, onyx, nova, shimmer.
         podcast_service: Injected podcast service.
+        current_user: Authenticated user (required for access control).
 
     Returns:
         A streaming response with the audio preview.
