@@ -431,6 +431,16 @@ class ApiClient {
     await this.client.delete(`/api/collections/${collectionId}/documents/${documentId}`);
   }
 
+  async downloadDocument(collectionId: string, documentId: string): Promise<Blob> {
+    const response: AxiosResponse<Blob> = await this.client.get(
+      `/api/collections/${collectionId}/documents/${documentId}/download`,
+      {
+        responseType: 'blob',
+      }
+    );
+    return response.data;
+  }
+
   // User API
   async getCurrentUser(): Promise<User> {
     // Use the correct auth endpoint that returns user info
