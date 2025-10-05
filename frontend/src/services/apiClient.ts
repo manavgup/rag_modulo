@@ -2,6 +2,9 @@ import axios, { AxiosInstance, AxiosResponse } from 'axios';
 
 const API_BASE_URL = process.env.REACT_APP_BACKEND_URL || '';
 
+// Valid OpenAI TTS voice IDs
+type VoiceId = 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer';
+
 interface SearchInput {
   question: string;
   collection_id: string;
@@ -885,7 +888,7 @@ class ApiClient {
     return response.data;
   }
 
-  async getVoicePreview(voiceId: string): Promise<Blob> {
+  async getVoicePreview(voiceId: VoiceId): Promise<Blob> {
     const response: AxiosResponse<Blob> = await this.client.get(
       `/api/podcasts/voice-preview/${voiceId}`,
       {
@@ -918,4 +921,5 @@ export type {
   PodcastQuestionInjection,
   VoiceSettings,
   PodcastStepDetails,
+  VoiceId,
 };

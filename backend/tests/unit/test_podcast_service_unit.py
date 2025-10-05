@@ -252,9 +252,7 @@ class TestPodcastServiceVoicePreview:
             )
 
     @pytest.mark.asyncio
-    async def test_generate_voice_preview_uses_constant_text(
-        self, mock_service: PodcastService
-    ) -> None:
+    async def test_generate_voice_preview_uses_constant_text(self, mock_service: PodcastService) -> None:
         """Unit: generate_voice_preview uses VOICE_PREVIEW_TEXT constant."""
         voice_id = "onyx"
 
@@ -270,17 +268,13 @@ class TestPodcastServiceVoicePreview:
             assert call_args.kwargs["text"] == PodcastService.VOICE_PREVIEW_TEXT
 
     @pytest.mark.asyncio
-    async def test_generate_voice_preview_raises_on_provider_error(
-        self, mock_service: PodcastService
-    ) -> None:
+    async def test_generate_voice_preview_raises_on_provider_error(self, mock_service: PodcastService) -> None:
         """Unit: generate_voice_preview raises HTTPException on provider error."""
         voice_id = "echo"
 
         with patch("rag_solution.services.podcast_service.AudioProviderFactory") as mock_factory:
             mock_provider = AsyncMock()
-            mock_provider.generate_single_turn_audio = AsyncMock(
-                side_effect=Exception("TTS API error")
-            )
+            mock_provider.generate_single_turn_audio = AsyncMock(side_effect=Exception("TTS API error"))
             mock_factory.create_provider.return_value = mock_provider
 
             # Should raise HTTPException
@@ -291,9 +285,7 @@ class TestPodcastServiceVoicePreview:
             assert exc_info.type.__name__ in ["HTTPException", "Exception"]
 
     @pytest.mark.asyncio
-    async def test_generate_voice_preview_all_valid_voices(
-        self, mock_service: PodcastService
-    ) -> None:
+    async def test_generate_voice_preview_all_valid_voices(self, mock_service: PodcastService) -> None:
         """Unit: generate_voice_preview works with all valid OpenAI voices."""
         valid_voices = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
 

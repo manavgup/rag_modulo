@@ -16,12 +16,12 @@ Orchestrates podcast generation from document collections:
 
 import logging
 
+from core.config import get_settings
+from core.custom_exceptions import NotFoundError, ValidationError
 from fastapi import BackgroundTasks, HTTPException
 from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.config import get_settings
-from core.custom_exceptions import NotFoundError, ValidationError
 from rag_solution.generation.audio.factory import AudioProviderFactory
 from rag_solution.generation.providers.factory import LLMProviderFactory
 from rag_solution.repository.podcast_repository import PodcastRepository

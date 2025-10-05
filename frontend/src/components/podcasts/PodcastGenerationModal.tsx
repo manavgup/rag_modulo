@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { useNotification } from '../../contexts/NotificationContext';
-import apiClient, { PodcastGenerationInput } from '../../services/apiClient';
+import apiClient, { PodcastGenerationInput, VoiceId } from '../../services/apiClient';
 import VoiceSelector from './VoiceSelector';
 
 interface PodcastGenerationModalProps {
@@ -12,7 +12,7 @@ interface PodcastGenerationModalProps {
   onPodcastCreated?: (podcastId: string) => void;
 }
 
-const VOICE_OPTIONS = [
+const VOICE_OPTIONS: Array<{id: VoiceId; name: string; gender: 'male' | 'female' | 'neutral'; description: string}> = [
   { id: 'alloy', name: 'Alloy', gender: 'neutral', description: 'Neutral, balanced voice' },
   { id: 'echo', name: 'Echo', gender: 'male', description: 'Warm, articulate male voice' },
   { id: 'fable', name: 'Fable', gender: 'neutral', description: 'Expressive, storytelling voice' },
@@ -58,7 +58,7 @@ const PodcastGenerationModal: React.FC<PodcastGenerationModalProps> = ({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUrlRef = useRef<string | null>(null);
 
-  const handlePlayPreview = async (voiceId: string) => {
+  const handlePlayPreview = async (voiceId: VoiceId) => {
     if (playingVoiceId === voiceId) {
       handleStopPreview();
       return;
@@ -87,7 +87,8 @@ const PodcastGenerationModal: React.FC<PodcastGenerationModalProps> = ({
       };
     } catch (error) {
       console.error('Error playing voice preview:', error);
-      addNotification('error', 'Preview Failed', 'Could not load voice preview.');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      addNotification('error', 'Preview Failed', `Could not load voice preview: ${errorMessage}`);
     }
   };
 

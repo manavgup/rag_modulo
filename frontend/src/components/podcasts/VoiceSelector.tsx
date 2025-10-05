@@ -1,8 +1,9 @@
 import React from 'react';
 import { PlayIcon, PauseIcon } from '@heroicons/react/24/solid';
+import { VoiceId } from '../../services/apiClient';
 
 interface VoiceOption {
-  id: string;
+  id: VoiceId;
   name: string;
   gender: 'male' | 'female' | 'neutral';
   description: string;
@@ -14,7 +15,7 @@ interface VoiceSelectorProps {
   selectedVoice: string;
   onSelectVoice: (voiceId: string) => void;
   playingVoiceId: string | null;
-  onPlayPreview: (voiceId: string) => void;
+  onPlayPreview: (voiceId: VoiceId) => void | Promise<void>;
   onStopPreview: () => void;
 }
 
