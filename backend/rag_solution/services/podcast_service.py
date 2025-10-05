@@ -16,12 +16,12 @@ Orchestrates podcast generation from document collections:
 
 import logging
 
-from core.config import get_settings
-from core.custom_exceptions import NotFoundError, ValidationError
 from fastapi import BackgroundTasks, HTTPException
 from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.config import get_settings
+from core.custom_exceptions import NotFoundError, ValidationError
 from rag_solution.generation.audio.factory import AudioProviderFactory
 from rag_solution.generation.providers.factory import LLMProviderFactory
 from rag_solution.repository.podcast_repository import PodcastRepository
@@ -77,6 +77,9 @@ Format your script as a natural conversation with these guidelines:
    - Include natural pauses and transitions
 
 Generate the complete dialogue script now:"""
+
+    # Voice preview text for TTS samples
+    VOICE_PREVIEW_TEXT = "Hello, you are listening to a preview of this voice."
 
     def __init__(
         self,
@@ -604,9 +607,8 @@ Generate the complete dialogue script now:"""
             )
 
             # Generate a short, generic audio preview
-            preview_text = "Hello, you are listening to a preview of this voice."
             audio_bytes = await audio_provider.generate_single_turn_audio(
-                text=preview_text,
+                text=self.VOICE_PREVIEW_TEXT,
                 voice=voice_id,
                 audio_format=AudioFormat.MP3,
             )

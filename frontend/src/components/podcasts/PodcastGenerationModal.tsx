@@ -56,6 +56,7 @@ const PodcastGenerationModal: React.FC<PodcastGenerationModalProps> = ({
 
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioUrlRef = useRef<string | null>(null);
 
   const handlePlayPreview = async (voiceId: string) => {
     if (playingVoiceId === voiceId) {
@@ -67,10 +68,16 @@ const PodcastGenerationModal: React.FC<PodcastGenerationModalProps> = ({
       const audioBlob = await apiClient.getVoicePreview(voiceId);
       const audioUrl = URL.createObjectURL(audioBlob);
 
+      // Clean up previous audio if exists
       if (audioRef.current) {
         audioRef.current.pause();
+        audioRef.current.src = '';
+      }
+      if (audioUrlRef.current) {
+        URL.revokeObjectURL(audioUrlRef.current);
       }
 
+      audioUrlRef.current = audioUrl;
       audioRef.current = new Audio(audioUrl);
       audioRef.current.play();
       setPlayingVoiceId(voiceId);
@@ -87,7 +94,12 @@ const PodcastGenerationModal: React.FC<PodcastGenerationModalProps> = ({
   const handleStopPreview = () => {
     if (audioRef.current) {
       audioRef.current.pause();
+      audioRef.current.src = '';
       audioRef.current = null;
+    }
+    if (audioUrlRef.current) {
+      URL.revokeObjectURL(audioUrlRef.current);
+      audioUrlRef.current = null;
     }
     setPlayingVoiceId(null);
   };

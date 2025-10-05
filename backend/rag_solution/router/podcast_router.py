@@ -4,25 +4,25 @@ Podcast generation API endpoints.
 Provides RESTful API for podcast generation, status checking, and management.
 """
 
+import io
 import logging
 from typing import Annotated
 
-from core.config import Settings, get_settings
-from fastapi import APIRouter, BackgroundTasks, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.config import Settings, get_settings
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.podcast_schema import (
     PodcastGenerationInput,
     PodcastGenerationOutput,
     PodcastListResponse,
 )
-import io
 from rag_solution.services.collection_service import CollectionService
 from rag_solution.services.podcast_service import PodcastService
 from rag_solution.services.search_service import SearchService
-from fastapi.responses import StreamingResponse
 
 logger = logging.getLogger(__name__)
 
@@ -231,6 +231,10 @@ async def delete_podcast(
     await podcast_service.delete_podcast(podcast_id, user_id)
 
 
+# Valid voice IDs for OpenAI TTS voices
+VALID_VOICE_IDS = {"alloy", "echo", "fable", "onyx", "nova", "shimmer"}
+
+
 @router.get(
     "/voice-preview/{voice_id}",
     summary="Get a voice preview",
@@ -245,11 +249,22 @@ async def get_voice_preview(
     Get a voice preview.
 
     Args:
-        voice_id: The ID of the voice to preview.
+        voice_id: The ID of the voice to preview. Must be one of: alloy, echo, fable, onyx, nova, shimmer.
         podcast_service: Injected podcast service.
 
     Returns:
         A streaming response with the audio preview.
+
+    Raises:
+        HTTPException 400: Invalid voice_id provided.
+        HTTPException 500: Failed to generate voice preview.
     """
+    # Validate voice_id
+    if voice_id not in VALID_VOICE_IDS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid voice_id '{voice_id}'. Must be one of: {', '.join(sorted(VALID_VOICE_IDS))}",
+        )
+
     audio_bytes = await podcast_service.generate_voice_preview(voice_id)
     return StreamingResponse(io.BytesIO(audio_bytes), media_type="audio/mpeg")
