@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     openai_api_key: Annotated[str | None, Field(default=None, alias="OPENAI_API_KEY")]
     anthropic_api_key: Annotated[str | None, Field(default=None, alias="ANTHROPIC_API_KEY")]
 
+    # External Agent MCP settings
+    external_agent_mcp_url: Annotated[str | None, Field(default=None, alias="EXTERNAL_AGENT_MCP_URL")]
+
     # Chunking settings
     # Options: fixed, semantic, hierarchical
     chunking_strategy: Annotated[str, Field(default="fixed", alias="CHUNKING_STRATEGY")]

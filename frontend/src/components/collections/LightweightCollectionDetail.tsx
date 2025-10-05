@@ -22,6 +22,7 @@ import { useNotification } from '../../contexts/NotificationContext';
 // Import the API client and types
 import apiClient, { Collection, CollectionDocument } from '../../services/apiClient';
 import PodcastGenerationModal from '../podcasts/PodcastGenerationModal';
+import AgentList from '../agents/AgentList';
 
 // Use CollectionDocument type from apiClient instead of local CollectionFile
 type CollectionFile = CollectionDocument;
@@ -478,6 +479,14 @@ const LightweightCollectionDetail: React.FC = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+
+        {/* Agents Section */}
+        <div className="card mt-6">
+          <div className="p-6">
+            <h2 className="text-lg font-semibold text-gray-100 mb-4">Available Agents</h2>
+            <AgentList collectionId={collection.id} />
           </div>
         </div>
 
