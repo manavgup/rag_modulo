@@ -1123,9 +1123,7 @@ format-check: venv
 ## Pre-commit targets
 pre-commit-run: venv
 	@echo "$(CYAN)🔧 Running pre-commit hooks on all files...$(NC)"
-	@$(VENVS_DIR)/bin/pre-commit run --all-files
-	@echo "$(CYAN)🔑 Running secret scanning as part of pre-commit...$(NC)"
-	@$(MAKE) scan-secrets
+	@cd backend && $(POETRY) run pre-commit run --all-files
 	@echo "$(GREEN)✅ Pre-commit run completed$(NC)"
 
 pre-commit-update:

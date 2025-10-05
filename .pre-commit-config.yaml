@@ -1,18 +1,129 @@
+# Pre-commit hooks configuration
 repos:
-  - repo: https://github.com/gitleaks/gitleaks
-    rev: v8.18.4
+  # Basic file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
     hooks:
-      - id: gitleaks
-        name: gitleaks
-        description: "Detect hardcoded secrets using Gitleaks"
-        entry: gitleaks protect --verbose -c .gitleaks.toml
-        stages: [commit]
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: ['--unsafe']  # Allow custom YAML tags in GitHub Actions
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-json
+      - id: debug-statements  # Find forgotten print/pdb statements
+      - id: mixed-line-ending
+        args: ['--fix=lf']
 
-  - repo: https://github.com/trufflesecurity/trufflehog
-    rev: v3.63.4
+  # Python linting and formatting - Ruff (fast, modern, handles both)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.11
     hooks:
+      - id: ruff
+        args: ['--fix', '--config', 'backend/pyproject.toml']
+        files: ^backend/
+      - id: ruff-format
+        args: ['--config', 'backend/pyproject.toml']
+        files: ^backend/
+
+  # Python type checking - MyPy
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.13.0
+    hooks:
+      - id: mypy
+        args: [
+          '--disable-error-code=misc',
+          '--disable-error-code=unused-ignore',
+          '--no-strict-optional',
+          '--exclude=backend/dev_tests/experiments/',
+          '--exclude=backend/debug_milvus.py',
+          '--exclude=backend/debug_retrieval.py',
+          '--exclude=backend/venv/',
+          'backend/'
+        ]
+        additional_dependencies:
+          - pydantic>=2.0
+          - types-setuptools
+          - types-PyYAML
+          - sqlalchemy>=2.0.0
+          - types-aiofiles
+          - types-PyJWT
+          - types-requests
+          - pandas-stubs
+          - types-click
+          - fastapi
+          - starlette
+          - pydantic-settings
+          - rich
+          - authlib
+          - scikit-learn
+          - pymupdf
+          - python-docx
+          - pytest
+          - chromadb
+          - ibm-watsonx-ai
+          - tenacity
+          - weaviate-client
+          - pinecone
+          - pymilvus
+          - elasticsearch
+          - openai
+          - anthropic
+          - json-repair
+          - validators
+          - httpx
+        files: ^backend/
+        pass_filenames: false
+
+  # GitHub Workflow validation
+  - repo: https://github.com/sirosen/check-jsonschema
+    rev: 0.28.0
+    hooks:
+      - id: check-github-workflows
+        args: ["--verbose"]
+
+  # Local validation
+  - repo: local
+    hooks:
+      - id: python-poetry-check
+        name: Check poetry configuration
+        entry: bash -c 'cd backend && poetry check'
+        language: system
+        files: ^backend/(pyproject\.toml|poetry\.lock)$
+        pass_filenames: false
+
+      - id: validate-ci-environment-fixes
+        name: Validate CI environment configuration
+        entry: python scripts/validate_ci_fixes.py
+        language: system
+        files: ^(backend/auth/oidc\.py|backend/core/authentication_middleware\.py|docker-compose\.yml|\.github/workflows/ci\.yml|\.env\.ci)$
+        pass_filenames: false
+
+      - id: check-test-isolation
+        name: Check test isolation violations
+        entry: python scripts/check_test_isolation.py
+        language: system
+        files: ^backend/tests/.*\.py$
+        pass_filenames: false
+
+      - id: check-strangler-compliance
+        name: Check strangler pattern compliance for new/modified files
+        entry: python scripts/check_strangler_compliance.py
+        language: system
+        files: ^(backend|scripts)/.*\.py$
+        pass_filenames: false
+
+      # Secret scanning hooks (gitleaks + trufflehog)
+      - id: gitleaks
+        name: Detect hardcoded secrets using Gitleaks
+        entry: gitleaks protect --verbose --redact -c .gitleaks.toml --staged
+        language: system
+        stages: [pre-commit]
+
       - id: trufflehog
-        name: trufflehog
-        description: "Detect hardcoded secrets using TruffleHog"
-        entry: trufflehog filesystem --directory .
-        stages: [commit]
+        name: Detect hardcoded secrets using TruffleHog
+        entry: trufflehog filesystem --directory . --only-verified
+        language: system
+        stages: [pre-commit]
