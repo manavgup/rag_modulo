@@ -4,10 +4,11 @@ This module implements CLI commands for authentication operations,
 including login, logout, and profile management.
 """
 
-import uuid
 import webbrowser
 from datetime import datetime, timedelta
 from getpass import getpass
+
+from core.identity_service import IdentityService
 
 from rag_solution.cli.exceptions import AuthenticationError
 
@@ -100,7 +101,7 @@ class AuthCommands(BaseCommand):
             # Step 1: Start CLI authentication to get authorization URL
             cli_request = {
                 "provider": provider,
-                "client_id": f"rag-cli-{uuid.uuid4().hex[:8]}",
+                "client_id": f"rag-cli-{IdentityService.generate_id().hex[:8]}",
                 "scope": "openid profile email",
             }
 

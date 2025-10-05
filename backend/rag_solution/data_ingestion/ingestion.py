@@ -6,11 +6,11 @@ and storing them in vector databases for retrieval.
 
 import logging
 import multiprocessing
-import uuid
 from typing import Any
 
 from core.config import Settings, get_settings
 from core.custom_exceptions import DocumentStorageError
+from core.identity_service import IdentityService
 from vectordbs.data_types import Document
 from vectordbs.vector_store import VectorStore
 
@@ -173,7 +173,7 @@ class DocumentStore:
                 logger.info("Processing file: %s", file_path)
                 try:
                     # Use provided document_id or generate new one
-                    document_id = document_ids[i] if document_ids else str(uuid.uuid4())
+                    document_id = document_ids[i] if document_ids else IdentityService.generate_document_id()
                     logger.info("Using document_id: %s for file: %s", document_id, file_path)
 
                     # Process the document (without embeddings)

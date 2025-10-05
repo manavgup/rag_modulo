@@ -10,7 +10,6 @@ import logging
 import multiprocessing
 import os
 import re
-import uuid
 from collections.abc import AsyncIterator
 from datetime import datetime
 from multiprocessing.managers import SyncManager
@@ -19,6 +18,7 @@ from typing import Any
 import pymupdf  # type: ignore[import-untyped]
 from core.config import Settings, get_settings
 from core.custom_exceptions import DocumentProcessingError
+from core.identity_service import IdentityService
 from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, DocumentMetadata, Embeddings, Source
 
 from rag_solution.data_ingestion.base_processor import BaseProcessor
@@ -223,7 +223,7 @@ class PdfProcessor(BaseProcessor):
         Returns:
             DocumentChunk object
         """
-        chunk_id = str(uuid.uuid4())
+        chunk_id = IdentityService.generate_document_id()
         return DocumentChunk(
             chunk_id=chunk_id,
             text=chunk_text,

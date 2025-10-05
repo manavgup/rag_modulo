@@ -1,7 +1,6 @@
 """Unit tests for the IdentityService."""
 
 import os
-import re
 import unittest
 from uuid import UUID
 
