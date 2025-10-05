@@ -18,9 +18,11 @@ from rag_solution.schemas.podcast_schema import (
     PodcastGenerationOutput,
     PodcastListResponse,
 )
+import io
 from rag_solution.services.collection_service import CollectionService
 from rag_solution.services.podcast_service import PodcastService
 from rag_solution.services.search_service import SearchService
+from fastapi.responses import StreamingResponse
 
 logger = logging.getLogger(__name__)
 
@@ -227,3 +229,27 @@ async def delete_podcast(
         HTTPException 403: Access denied
     """
     await podcast_service.delete_podcast(podcast_id, user_id)
+
+
+@router.get(
+    "/voice-preview/{voice_id}",
+    summary="Get a voice preview",
+    description="Generates and returns a short audio preview for a given voice ID.",
+    response_class=StreamingResponse,
+)
+async def get_voice_preview(
+    voice_id: str,
+    podcast_service: Annotated[PodcastService, Depends(get_podcast_service)],
+) -> StreamingResponse:
+    """
+    Get a voice preview.
+
+    Args:
+        voice_id: The ID of the voice to preview.
+        podcast_service: Injected podcast service.
+
+    Returns:
+        A streaming response with the audio preview.
+    """
+    audio_bytes = await podcast_service.generate_voice_preview(voice_id)
+    return StreamingResponse(io.BytesIO(audio_bytes), media_type="audio/mpeg")

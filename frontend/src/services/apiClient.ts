@@ -884,6 +884,16 @@ class ApiClient {
     );
     return response.data;
   }
+
+  async getVoicePreview(voiceId: string): Promise<Blob> {
+    const response: AxiosResponse<Blob> = await this.client.get(
+      `/api/podcasts/voice-preview/${voiceId}`,
+      {
+        responseType: 'blob',
+      }
+    );
+    return response.data;
+  }
 }
 
 // Create singleton instance
