@@ -1,0 +1,61 @@
+# .gitleaks.toml
+
+[allowlist]
+description = "Allowlist for paths and commits that are known to be safe."
+paths = [
+    '''gitleaks.toml''',
+    '''(.*?)(go.sum|go.mod|vendor)''',
+    '''(.*?)(package.json|package-lock.json|npm-shrinkwrap.json)''',
+    '''(.*?)(Pipfile|Pipfile.lock|poetry.lock)''',
+    '''(.*?)(Gemfile.lock|gems.locked)''',
+    '''(.*?)(Cargo.lock)''',
+    '''(.*?)(yarn.lock)''',
+    '''(.*?)(composer.lock)''',
+    '''(.*?)(.snap)''',
+]
+
+[rules]
+[rules.aws-access-token]
+    description = "AWS Access Token"
+    regex = '''(A3T[A-Z0-9]|AKIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}'''
+    tags = ["key", "AWS"]
+
+[rules.github-pat]
+    description = "GitHub Personal Access Token"
+    regex = '''ghp_[0-9a-zA-Z]{36}'''
+    tags = ["key", "GitHub"]
+
+[rules.github-fine-grained-pat]
+    description = "GitHub Fine-Grained Personal Access Token"
+    regex = '''github_pat_[0-9a-zA-Z]{22}_[0-9a-zA-Z]{59}'''
+    tags = ["key", "GitHub"]
+
+[rules.github-app-token]
+    description = "GitHub App Token"
+    regex = '''(ghu|ghs)_[0-9a-zA-Z]{36}'''
+    tags = ["key", "GitHub"]
+
+[rules.github-refresh-token]
+    description = "GitHub Refresh Token"
+    regex = '''ghr_[0-9a-zA-Z]{76}'''
+    tags = ["key", "GitHub"]
+
+[rules.slack-token]
+    description = "Slack Token"
+    regex = '''xox[baprs]-([0-9a-zA-Z-]{10,48})?'''
+    tags = ["key", "Slack"]
+
+[rules.stripe-sk]
+    description = "Stripe Secret Key"
+    regex = '''sk_live_[0-9a-zA-Z]{24}'''
+    tags = ["key", "Stripe"]
+
+[rules.stripe-rk]
+    description = "Stripe Restricted Key"
+    regex = '''rk_live_[0-9a-zA-Z]{24}'''
+    tags = ["key", "Stripe"]
+
+[rules.private-key]
+    description = "Private Key"
+    regex = '''-----BEGIN ((EC|PGP|OPENSSH|RSA|DSA) )?PRIVATE KEY( BLOCK)?-----'''
+    tags = ["key", "Asymmetric"]

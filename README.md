@@ -190,6 +190,9 @@ make lint
 # Security scanning
 make security-check
 
+# Secret scanning
+make scan-secrets
+
 # Coverage report
 make coverage
 ```

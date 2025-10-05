@@ -247,9 +247,7 @@ class TestPodcastServiceCustomization:
         assert description in search_input.question
 
     @pytest.mark.asyncio
-    async def test_retrieve_content_uses_generic_query_without_description(
-        self, mock_service: PodcastService
-    ) -> None:
+    async def test_retrieve_content_uses_generic_query_without_description(self, mock_service: PodcastService) -> None:
         """Unit: _retrieve_content uses generic query if no description."""
         podcast_input = PodcastGenerationInput(
             user_id=uuid4(),

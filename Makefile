@@ -1121,9 +1121,11 @@ format-check: venv
 	@echo "$(GREEN)✅ Format check completed$(NC)"
 
 ## Pre-commit targets
-pre-commit-run:
+pre-commit-run: venv
 	@echo "$(CYAN)🔧 Running pre-commit hooks on all files...$(NC)"
-	@cd backend && $(POETRY) run pre-commit run --all-files
+	@$(VENVS_DIR)/bin/pre-commit run --all-files
+	@echo "$(CYAN)🔑 Running secret scanning as part of pre-commit...$(NC)"
+	@$(MAKE) scan-secrets
 	@echo "$(GREEN)✅ Pre-commit run completed$(NC)"
 
 pre-commit-update:
@@ -1171,6 +1173,14 @@ security-check: venv
 	@cd backend && $(POETRY) run safety check --output json > safety-report.json || true
 	@cd backend && $(POETRY) run safety check || echo "$(YELLOW)⚠️  Some dependency vulnerabilities found$(NC)"
 	@echo "$(GREEN)✅ Security checks completed$(NC)"
+
+scan-secrets:
+	@echo "$(CYAN)🔑 Running secret scanning...$(NC)"
+	@echo "Running gitleaks..."
+	@docker run --rm -v $(CURDIR):/path gitleaks/gitleaks:latest detect --source /path --config /path/.gitleaks.toml --verbose
+	@echo "Running trufflehog..."
+	@docker run --rm -v $(CURDIR):/path trufflesecurity/trufflehog:latest filesystem /path
+	@echo "$(GREEN)✅ Secret scanning completed$(NC)"
 
 ## Coverage targets
 coverage: venv
