@@ -6,13 +6,13 @@ with configurable tokens and consistent behavior across the application.
 
 import logging
 import os
-import uuid
 from typing import Any
 from uuid import UUID
 
 from sqlalchemy.orm import Session
 
 from core.config import Settings, get_settings
+from core.identity_service import IdentityService
 from rag_solution.schemas.user_schema import UserInput
 from rag_solution.services.user_service import UserService
 
@@ -147,5 +147,5 @@ def ensure_mock_user_exists(db: Session, settings: Settings, user_key: str = "de
 
     except (ValueError, KeyError, AttributeError) as e:
         logger.error("Failed to ensure mock user exists: %s", str(e))
-        # Generate a random UUID if creation failed
-        return uuid.uuid4()
+        # Fallback to the mock user ID from IdentityService if creation fails
+        return IdentityService.get_mock_user_id()
