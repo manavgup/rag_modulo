@@ -22,6 +22,7 @@ import { useNotification } from '../../contexts/NotificationContext';
 // Import the API client and types
 import apiClient, { Collection, CollectionDocument } from '../../services/apiClient';
 import PodcastGenerationModal from '../podcasts/PodcastGenerationModal';
+import SuggestedQuestions from './SuggestedQuestions';
 
 // Use CollectionDocument type from apiClient instead of local CollectionFile
 type CollectionFile = CollectionDocument;
@@ -243,6 +244,11 @@ const LightweightCollectionDetail: React.FC = () => {
     setFilesToUpload([]);
   };
 
+  const handleSuggestedQuestionClick = (question: string) => {
+    setSearchQuery(question);
+    addNotification('info', 'Search Updated', 'Search query populated with suggested question.');
+  };
+
   const filteredDocuments = collection?.documents.filter(doc =>
     doc.name.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
@@ -344,6 +350,14 @@ const LightweightCollectionDetail: React.FC = () => {
               </button>
             </div>
           </div>
+        </div>
+
+        {/* Suggested Questions */}
+        <div className="mb-6">
+            <SuggestedQuestions
+                collectionId={collection.id}
+                onQuestionClick={handleSuggestedQuestionClick}
+            />
         </div>
 
         {/* Documents Table */}
