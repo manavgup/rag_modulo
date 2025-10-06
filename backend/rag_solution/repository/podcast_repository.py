@@ -36,6 +36,7 @@ class PodcastRepository:
             session: SQLAlchemy session (sync or async)
         """
         self.session = session
+        self.is_async = isinstance(session, AsyncSession)
 
     async def create(
         self,
@@ -83,8 +84,12 @@ class PodcastRepository:
             )
 
             self.session.add(podcast)
-            await self.session.commit()
-            await self.session.refresh(podcast)
+            if self.is_async:
+                await self.session.commit()
+                await self.session.refresh(podcast)
+            else:
+                self.session.commit()
+                self.session.refresh(podcast)
 
             logger.info(
                 "Created podcast %s for user %s, collection %s",
