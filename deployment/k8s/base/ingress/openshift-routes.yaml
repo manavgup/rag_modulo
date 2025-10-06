@@ -1,0 +1,68 @@
+# OpenShift Routes (alternative to Ingress for OpenShift deployments)
+# Use these instead of ingress.yaml when deploying to OpenShift
+
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: rag-modulo-frontend
+  namespace: rag-modulo
+  labels:
+    app: rag-modulo
+    component: frontend
+spec:
+  host: rag-modulo.apps.your-cluster.com  # Replace with your OpenShift cluster domain
+  to:
+    kind: Service
+    name: frontend-service
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None
+
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: rag-modulo-backend
+  namespace: rag-modulo
+  labels:
+    app: rag-modulo
+    component: backend
+spec:
+  host: api.rag-modulo.apps.your-cluster.com
+  to:
+    kind: Service
+    name: backend-service
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None
+
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: rag-modulo-mlflow
+  namespace: rag-modulo
+  labels:
+    app: rag-modulo
+    component: mlflow
+spec:
+  host: mlflow.rag-modulo.apps.your-cluster.com
+  to:
+    kind: Service
+    name: mlflow-service
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None

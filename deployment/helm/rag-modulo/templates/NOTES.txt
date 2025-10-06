@@ -1,0 +1,56 @@
+Thank you for installing {{ .Chart.Name }}!
+
+Your release is named {{ .Release.Name }}.
+
+To learn more about the release, try:
+
+  $ helm status {{ .Release.Name }} -n {{ .Release.Namespace }}
+  $ helm get all {{ .Release.Name }} -n {{ .Release.Namespace }}
+
+RAG Modulo has been deployed to namespace: {{ .Release.Namespace }}
+
+{{- if .Values.ingress.enabled }}
+
+Application URLs:
+  Frontend:  https://{{ .Values.ingress.hosts.frontend }}
+  Backend:   https://{{ .Values.ingress.hosts.backend }}
+  MLFlow:    https://{{ .Values.ingress.hosts.mlflow }}
+
+{{- else }}
+
+The application is not exposed via Ingress. To access it locally:
+
+  Backend:
+    $ kubectl port-forward svc/backend-service 8000:8000 -n {{ .Release.Namespace }}
+    Visit: http://localhost:8000
+
+  Frontend:
+    $ kubectl port-forward svc/frontend-service 8080:8080 -n {{ .Release.Namespace }}
+    Visit: http://localhost:8080
+
+{{- end }}
+
+Check deployment status:
+  $ kubectl get pods -n {{ .Release.Namespace }}
+  $ kubectl get svc -n {{ .Release.Namespace }}
+
+View logs:
+  Backend:  $ kubectl logs -f deployment/rag-modulo-backend -n {{ .Release.Namespace }}
+  Frontend: $ kubectl logs -f deployment/rag-modulo-frontend -n {{ .Release.Namespace }}
+
+{{- if .Values.backend.autoscaling.enabled }}
+
+Auto-scaling is enabled for backend:
+  Min replicas: {{ .Values.backend.autoscaling.minReplicas }}
+  Max replicas: {{ .Values.backend.autoscaling.maxReplicas }}
+
+Check HPA status:
+  $ kubectl get hpa -n {{ .Release.Namespace }}
+
+{{- end }}
+
+For more information, visit:
+  https://github.com/manavgup/rag_modulo
+
+⚠️  IMPORTANT: Make sure to configure secrets before use:
+  $ kubectl create secret generic rag-modulo-secrets --from-env-file=.env -n {{ .Release.Namespace }}
