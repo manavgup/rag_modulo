@@ -131,6 +131,23 @@ jobs:
 
         echo "✅ All volume directories created"
 
+    - name: Free Up Disk Space
+      run: |
+        echo "Freeing up disk space before building images..."
+        df -h
+
+        # Remove unnecessary packages and files
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /opt/ghc
+        sudo rm -rf /usr/local/share/boost
+        sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+
+        # Clean Docker build cache
+        docker system prune -af --volumes || true
+
+        df -h
+        echo "✅ Disk space freed"
+
     - name: Build Development Images
       run: |
         echo "Building development Docker images..."
