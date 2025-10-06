@@ -60,6 +60,10 @@ class Settings(BaseSettings):
         str, Field(default="child_with_parent", alias="HIERARCHICAL_RETRIEVAL_MODE")
     ]  # Options: child_only, child_with_parent, full_hierarchy
 
+    # IBM Docling Feature Flags
+    enable_docling: Annotated[bool, Field(default=False, alias="ENABLE_DOCLING")]
+    docling_fallback_enabled: Annotated[bool, Field(default=True, alias="DOCLING_FALLBACK_ENABLED")]
+
     # Chain of Thought (CoT) settings
     cot_max_reasoning_depth: Annotated[int, Field(default=3, alias="COT_MAX_REASONING_DEPTH")]
     cot_reasoning_strategy: Annotated[str, Field(default="decomposition", alias="COT_REASONING_STRATEGY")]
