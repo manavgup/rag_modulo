@@ -80,6 +80,9 @@ Format your script as a natural conversation with these guidelines:
 
 Generate the complete dialogue script now:"""
 
+    # Voice preview text for TTS samples
+    VOICE_PREVIEW_TEXT = "Hello, you are listening to a preview of this voice."
+
     def __init__(
         self,
         session: AsyncSession,
@@ -592,3 +595,38 @@ Generate the complete dialogue script now:"""
 
         # Delete database record
         return await self.repository.delete(podcast_id)
+
+    async def generate_voice_preview(self, voice_id: str) -> bytes:
+        """
+        Generate a short audio preview for a specific voice.
+
+        Args:
+            voice_id: The ID of the voice to preview.
+
+        Returns:
+            The audio data as bytes.
+        """
+        try:
+            logger.info("Generating voice preview for voice_id: %s", voice_id)
+
+            # Create audio provider
+            audio_provider = AudioProviderFactory.create_provider(
+                provider_type=self.settings.podcast_audio_provider,
+                settings=self.settings,
+            )
+
+            # Generate a short, generic audio preview
+            audio_bytes = await audio_provider.generate_single_turn_audio(
+                text=self.VOICE_PREVIEW_TEXT,
+                voice=voice_id,
+                audio_format=AudioFormat.MP3,
+            )
+
+            return audio_bytes
+
+        except Exception as e:
+            logger.exception("Failed to generate voice preview for voice_id: %s", voice_id)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to generate voice preview: {e}",
+            ) from e

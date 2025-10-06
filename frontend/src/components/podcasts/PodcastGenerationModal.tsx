@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { useNotification } from '../../contexts/NotificationContext';
-import apiClient, { PodcastGenerationInput } from '../../services/apiClient';
+import apiClient, { PodcastGenerationInput, VoiceId } from '../../services/apiClient';
+import VoiceSelector from './VoiceSelector';
 
 interface PodcastGenerationModalProps {
   isOpen: boolean;
@@ -11,7 +12,7 @@ interface PodcastGenerationModalProps {
   onPodcastCreated?: (podcastId: string) => void;
 }
 
-const VOICE_OPTIONS = [
+const VOICE_OPTIONS: Array<{id: VoiceId; name: string; gender: 'male' | 'female' | 'neutral'; description: string}> = [
   { id: 'alloy', name: 'Alloy', gender: 'neutral', description: 'Neutral, balanced voice' },
   { id: 'echo', name: 'Echo', gender: 'male', description: 'Warm, articulate male voice' },
   { id: 'fable', name: 'Fable', gender: 'neutral', description: 'Expressive, storytelling voice' },
@@ -52,6 +53,65 @@ const PodcastGenerationModal: React.FC<PodcastGenerationModalProps> = ({
   const [includeIntro, setIncludeIntro] = useState(false);
   const [includeOutro, setIncludeOutro] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioUrlRef = useRef<string | null>(null);
+
+  const handlePlayPreview = async (voiceId: VoiceId) => {
+    if (playingVoiceId === voiceId) {
+      handleStopPreview();
+      return;
+    }
+
+    try {
+      const audioBlob = await apiClient.getVoicePreview(voiceId);
+      const audioUrl = URL.createObjectURL(audioBlob);
+
+      // Clean up previous audio if exists
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = '';
+      }
+      if (audioUrlRef.current) {
+        URL.revokeObjectURL(audioUrlRef.current);
+      }
+
+      audioUrlRef.current = audioUrl;
+      audioRef.current = new Audio(audioUrl);
+      audioRef.current.play();
+      setPlayingVoiceId(voiceId);
+
+      audioRef.current.onended = () => {
+        setPlayingVoiceId(null);
+      };
+    } catch (error) {
+      console.error('Error playing voice preview:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      addNotification('error', 'Preview Failed', `Could not load voice preview: ${errorMessage}`);
+    }
+  };
+
+  const handleStopPreview = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = '';
+      audioRef.current = null;
+    }
+    if (audioUrlRef.current) {
+      URL.revokeObjectURL(audioUrlRef.current);
+      audioUrlRef.current = null;
+    }
+    setPlayingVoiceId(null);
+  };
+
+  useEffect(() => {
+    return () => {
+      // Cleanup audio on component unmount
+      handleStopPreview();
+    };
+  }, []);
+
 
   const selectedDuration = DURATION_OPTIONS.find(d => d.value === duration);
   const estimatedCost = selectedDuration?.cost || 0;
@@ -183,38 +243,24 @@ const PodcastGenerationModal: React.FC<PodcastGenerationModalProps> = ({
 
           {/* Voice Settings */}
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-white mb-2">
-                Host Voice
-              </label>
-              <select
-                value={hostVoice}
-                onChange={(e) => setHostVoice(e.target.value)}
-                className="w-full px-4 py-2 bg-gray-90 border border-gray-30 rounded-lg text-white focus:outline-none focus:border-blue-50"
-              >
-                {VOICE_OPTIONS.map((voice) => (
-                  <option key={voice.id} value={voice.id}>
-                    {voice.name} - {voice.description}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-white mb-2">
-                Expert Voice
-              </label>
-              <select
-                value={expertVoice}
-                onChange={(e) => setExpertVoice(e.target.value)}
-                className="w-full px-4 py-2 bg-gray-90 border border-gray-30 rounded-lg text-white focus:outline-none focus:border-blue-50"
-              >
-                {VOICE_OPTIONS.map((voice) => (
-                  <option key={voice.id} value={voice.id}>
-                    {voice.name} - {voice.description}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <VoiceSelector
+              label="Host Voice"
+              options={VOICE_OPTIONS}
+              selectedVoice={hostVoice}
+              onSelectVoice={setHostVoice}
+              playingVoiceId={playingVoiceId}
+              onPlayPreview={handlePlayPreview}
+              onStopPreview={handleStopPreview}
+            />
+            <VoiceSelector
+              label="Expert Voice"
+              options={VOICE_OPTIONS}
+              selectedVoice={expertVoice}
+              onSelectVoice={setExpertVoice}
+              playingVoiceId={playingVoiceId}
+              onPlayPreview={handlePlayPreview}
+              onStopPreview={handleStopPreview}
+            />
           </div>
 
           {/* Advanced Options (Collapsible) */}
