@@ -139,36 +139,45 @@ nav:
     - Development Workflow: development/workflow.md
     - GitHub Codespaces: development/codespaces.md
     - Contributing: development/contributing.md
-    - Code Style: development/code-style.md
+    - Backend Development:
+      - Overview: development/backend/index.md
+      - Development Prompts: development/backend/development_prompt.md
+      - TODO: development/backend/todo.md
   - 🧪 Testing:
     - Overview: testing/index.md
-    - Test Strategy: testing/strategy.md
-    - Running Tests: testing/running.md
-    - Test Categories: testing/categories.md
-    - Comprehensive Testing Guide: testing/COMPREHENSIVE_TESTING_GUIDE.md
-    - Manual Validation Checklist: testing/MANUAL_VALIDATION_CHECKLIST.md
+    - Test Strategy: testing/TESTING_STRATEGY.md
+    - Comprehensive Guide: testing/COMPREHENSIVE_TESTING_GUIDE.md
+    - Manual Validation: testing/MANUAL_VALIDATION_CHECKLIST.md
+    - Makefile Testing: testing/makefile-testing.md
   - 🚀 Deployment:
     - Overview: deployment/index.md
-    - Production: deployment/production.md
+    - Quick Start: deployment/QUICKSTART.md
+    - Kubernetes/OpenShift: deployment/kubernetes.md
+    - Production Setup: deployment/production.md
     - Cloud Deployment: deployment/cloud.md
-    - Kubernetes: deployment/kubernetes.md
     - Monitoring: deployment/monitoring.md
     - Security: deployment/security.md
   - 🖥️ CLI:
     - Overview: cli/index.md
     - Installation: cli/installation.md
     - Authentication: cli/authentication.md
-    - Commands: cli/commands/index.md
     - Configuration: cli/configuration.md
-    - Examples: cli/examples.md
+    - Commands:
+      - Overview: cli/commands/index.md
+      - Authentication: cli/commands/auth.md
+      - Collections: cli/commands/collections.md
+      - Documents: cli/commands/documents.md
+      - Search: cli/commands/search.md
+      - Users: cli/commands/users.md
     - Troubleshooting: cli/troubleshooting.md
   - 📚 API Reference:
     - Overview: api/index.md
-    - Authentication: api/authentication.md
-    - Endpoints: api/endpoints.md
-    - Schemas: api/schemas.md
-    - Examples: api/examples.md
-    - Error Handling: api/error-handling.md
+    - Search API: api/search_api.md
+    - Search Schemas: api/search_schemas.md
+    - Service Configuration: api/service_configuration.md
+    - Provider Configuration: api/provider_configuration.md
+    - Prompt Templates: api/prompt_templates.md
+    - Question Suggestions: api/question_suggestion.md
   - 🏗️ Architecture:
     - Overview: architecture/index.md
     - Components: architecture/components.md
@@ -178,11 +187,20 @@ nav:
     - Performance: architecture/performance.md
   - 🧠 Features:
     - Overview: features/index.md
-    - Chain of Thought: features/chain-of-thought/index.md
-    - Token Tracking: features/token-tracking.md
-    - Search & Retrieval: features/search-retrieval.md
-    - Document Processing: features/document-processing.md
-    - LLM Integration: features/llm-integration.md
+    - Frontend Interface: features/frontend-interface.md
+    - Chain of Thought:
+      - Overview: features/chain-of-thought/index.md
+      - Configuration: features/chain-of-thought/configuration.md
+      - Services: features/chain-of-thought/services.md
+      - API Reference: features/chain-of-thought/api-reference.md
+      - Schemas: features/chain-of-thought/schemas.md
+      - Source Attribution: features/chain-of-thought/source-attribution.md
+      - Examples: features/chain-of-thought/examples.md
+      - Testing: features/chain-of-thought/testing.md
+    - Chat with Documents:
+      - Overview: features/chat-with-documents/index.md
+      - Services: features/chat-with-documents/services.md
+      - Schemas: features/chat-with-documents/schemas.md
   - 🔧 Troubleshooting:
     - Common Issues: troubleshooting/common-issues.md
     - Debugging: troubleshooting/debugging.md
@@ -190,11 +208,18 @@ nav:
     - Docker Issues: troubleshooting/docker.md
     - Authentication: troubleshooting/authentication.md
   - 📖 Additional Resources:
+    - Roadmap: roadmap.md
+    - Epics & Architecture:
+      - Overview: issues/AGENTIC_RAG_EPICS_SUMMARY.md
+      - Agent Orchestration: issues/EPIC-001-agent-orchestration-framework.md
+      - Workflow Engine: issues/EPIC-002-workflow-engine.md
+      - Memory & Context: issues/EPIC-003-memory-context-management.md
+      - Chain of Thought: issues/EPIC-004-chain-of-thought-reasoning.md
+      - Knowledge Graph: issues/EPIC-005-knowledge-graph-integration.md
     - Changelog: changelog.md
     - FAQ: faq.md
     - Glossary: glossary.md
     - Contributing: contributing.md
-    - Roadmap: roadmap.md
 
 # Extra
 extra:

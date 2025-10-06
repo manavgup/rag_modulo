@@ -47,6 +47,10 @@ class Settings(BaseSettings):
     chunk_overlap: Annotated[int, Field(default=10, alias="CHUNK_OVERLAP")]
     semantic_threshold: Annotated[float, Field(default=0.5, alias="SEMANTIC_THRESHOLD")]
 
+    # IBM Docling Feature Flags
+    enable_docling: Annotated[bool, Field(default=False, alias="ENABLE_DOCLING")]
+    docling_fallback_enabled: Annotated[bool, Field(default=True, alias="DOCLING_FALLBACK_ENABLED")]
+
     # Hierarchical chunking settings
     hierarchical_parent_size: Annotated[int, Field(default=1500, alias="HIERARCHICAL_PARENT_SIZE")]
     hierarchical_child_size: Annotated[int, Field(default=300, alias="HIERARCHICAL_CHILD_SIZE")]
