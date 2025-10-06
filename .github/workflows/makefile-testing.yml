@@ -5,8 +5,8 @@ on:
     branches: [ main, develop ]
     paths:
       - 'Makefile'
-      - 'tests/**'
-      - 'backend/**'
+      # Removed 'tests/**' and 'backend/**' to prevent unnecessary runs
+      # This workflow only tests Makefile targets, not feature changes
   workflow_dispatch:
 
 jobs:
