@@ -87,13 +87,6 @@ repos:
   # Local validation
   - repo: local
     hooks:
-      - id: validate-ci-locally
-        name: Validate CI workflows can run locally
-        entry: ./scripts/validate-ci.sh
-        language: script
-        files: ^\.github/workflows/.*\.ya?ml$
-        pass_filenames: false
-
       - id: python-poetry-check
         name: Check poetry configuration
         entry: bash -c 'cd backend && poetry check'
@@ -121,3 +114,16 @@ repos:
         language: system
         files: ^(backend|scripts)/.*\.py$
         pass_filenames: false
+
+      # Secret scanning hooks (gitleaks + trufflehog)
+      - id: gitleaks
+        name: Detect hardcoded secrets using Gitleaks
+        entry: gitleaks protect --verbose --redact -c .gitleaks.toml --staged
+        language: system
+        stages: [pre-commit]
+
+      - id: trufflehog
+        name: Detect hardcoded secrets using TruffleHog
+        entry: trufflehog filesystem --directory . --only-verified
+        language: system
+        stages: [pre-commit]

@@ -1,0 +1,62 @@
+name: Security Scan
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  gitleaks:
+    name: gitleaks
+    runs-on: ubuntu-latest
+    continue-on-error: true  # Don't block PR on false positives
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITLEAKS_CONFIG: .gitleaks.toml
+          GITLEAKS_ENABLE_UPLOAD: false
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Report gitleaks status
+        if: failure()
+        run: |
+          echo "⚠️ Gitleaks detected potential secrets. Please review the findings above."
+          echo "If these are false positives, update .gitleaks.toml allowlist."
+          exit 0
+
+  trufflehog:
+    name: trufflehog
+    runs-on: ubuntu-latest
+    continue-on-error: true  # Don't block PR on false positives
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run trufflehog
+        uses: trufflesecurity/trufflehog@v3.63.4
+        with:
+          path: ./
+          base: ${{ github.event.pull_request.base.sha }}
+          head: ${{ github.event.pull_request.head.sha }}
+          extra_args: --only-verified
+        continue-on-error: true
+
+      - name: Report trufflehog status
+        if: failure()
+        run: |
+          echo "⚠️ TruffleHog detected verified secrets. Please review the findings above."
+          echo "Remove any real secrets and rotate compromised credentials immediately."
+          exit 0

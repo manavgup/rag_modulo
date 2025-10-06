@@ -138,12 +138,14 @@ class TestPodcastServiceGeneration:
         mock_podcast = Mock()
         mock_podcast.user_id = user_id
 
-        with patch.object(mock_service.repository, "get_by_id", new=AsyncMock(return_value=mock_podcast)) as mock_get:
-            with patch.object(mock_service.repository, "to_schema", return_value=mock_output):
-                result = await mock_service.get_podcast(podcast_id, user_id)
+        with (
+            patch.object(mock_service.repository, "get_by_id", new=AsyncMock(return_value=mock_podcast)) as mock_get,
+            patch.object(mock_service.repository, "to_schema", return_value=mock_output),
+        ):
+            result = await mock_service.get_podcast(podcast_id, user_id)
 
-                assert result == mock_output
-                mock_get.assert_called_once_with(podcast_id)
+            assert result == mock_output
+            mock_get.assert_called_once_with(podcast_id)
 
     @pytest.mark.asyncio
     async def test_list_user_podcasts(self, mock_service: PodcastService) -> None:
@@ -165,12 +167,14 @@ class TestPodcastServiceGeneration:
         podcast_id = uuid4()
         user_id = uuid4()
 
-        with patch.object(mock_service.repository, "get_by_id", new=AsyncMock(return_value=Mock(user_id=user_id))):
-            with patch.object(mock_service.repository, "delete", new=AsyncMock(return_value=True)) as mock_delete:
-                result = await mock_service.delete_podcast(podcast_id, user_id)
+        with (
+            patch.object(mock_service.repository, "get_by_id", new=AsyncMock(return_value=Mock(user_id=user_id))),
+            patch.object(mock_service.repository, "delete", new=AsyncMock(return_value=True)) as mock_delete,
+        ):
+            result = await mock_service.delete_podcast(podcast_id, user_id)
 
-                assert result is True
-                mock_delete.assert_called_once_with(podcast_id)
+            assert result is True
+            mock_delete.assert_called_once_with(podcast_id)
 
 
 @pytest.mark.unit
@@ -224,7 +228,7 @@ class TestPodcastServiceCustomization:
             collection_service=collection_service,
             search_service=search_service,
         )
-        service.search_service.search = AsyncMock()  # type: ignore[attr-defined]
+        service.search_service.search = AsyncMock()  # type: ignore[method-assign,attr-defined]
         return service
 
     @pytest.mark.asyncio
@@ -247,9 +251,7 @@ class TestPodcastServiceCustomization:
         assert description in search_input.question
 
     @pytest.mark.asyncio
-    async def test_retrieve_content_uses_generic_query_without_description(
-        self, mock_service: PodcastService
-    ) -> None:
+    async def test_retrieve_content_uses_generic_query_without_description(self, mock_service: PodcastService) -> None:
         """Unit: _retrieve_content uses generic query if no description."""
         podcast_input = PodcastGenerationInput(
             user_id=uuid4(),

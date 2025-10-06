@@ -13,6 +13,7 @@ __pycache__/
 venv/
 env/
 .venv/
+backend/.venv/
 
 # Ignore version control files and directories
 .git/
