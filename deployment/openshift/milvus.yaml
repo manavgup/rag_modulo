@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: milvus-standalone
+  namespace: rag-modulo-staging
+spec:
+  ports:
+  - port: 19530
+    name: grpc
+    targetPort: 19530
+  - port: 9091
+    name: metrics
+    targetPort: 9091
+  clusterIP: None
+  selector:
+    app: milvus-standalone
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: milvus-standalone
+  namespace: rag-modulo-staging
+spec:
+  serviceName: milvus-standalone
+  replicas: 1
+  selector:
+    matchLabels:
+      app: milvus-standalone
+  template:
+    metadata:
+      labels:
+        app: milvus-standalone
+    spec:
+      imagePullSecrets:
+      - name: icr-secret
+      containers:
+      - name: milvus
+        image: ca.icr.io/rag-modulo/milvus:v2.3.3
+        command: ["milvus", "run", "standalone"]
+        ports:
+        - containerPort: 19530
+          name: grpc
+        - containerPort: 9091
+          name: metrics
+        env:
+        - name: ETCD_ENDPOINTS
+          value: milvus-etcd:2379
+        - name: MINIO_ADDRESS
+          value: minio:9000
+        - name: MINIO_ACCESS_KEY_ID
+          value: minioadmin
+        - name: MINIO_SECRET_ACCESS_KEY
+          value: minioadmin
+        - name: COMMON_STORAGETYPE
+          value: minio
+        - name: MINIO_USE_SSL
+          value: "false"
+        - name: ETCD_USE_SSL
+          value: "false"
+        volumeMounts:
+        - name: milvus-data
+          mountPath: /var/lib/milvus
+  volumeClaimTemplates:
+  - metadata:
+      name: milvus-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: ibmc-vpc-block-10iops-tier
+      resources:
+        requests:
+          storage: 10Gi

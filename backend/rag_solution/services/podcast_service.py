@@ -422,7 +422,7 @@ Generate the complete dialogue script now:"""
 
     async def _generate_audio(
         self,
-        podcast_id: UUID4,
+        _podcast_id: UUID4,
         podcast_script,
         podcast_input: PodcastGenerationInput,
     ) -> bytes:
@@ -430,7 +430,7 @@ Generate the complete dialogue script now:"""
         Generate audio from parsed script with progress tracking.
 
         Args:
-            podcast_id: Podcast ID for progress updates
+            _podcast_id: Podcast ID for progress updates (reserved for future use)
             podcast_script: Parsed PodcastScript
             podcast_input: Original request
 

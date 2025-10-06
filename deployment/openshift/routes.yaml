@@ -1,0 +1,29 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: rag-modulo-frontend
+  namespace: rag-modulo-staging
+spec:
+  to:
+    kind: Service
+    name: rag-modulo-frontend
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: rag-modulo-backend
+  namespace: rag-modulo-staging
+spec:
+  to:
+    kind: Service
+    name: rag-modulo-backend
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "rag-modulo.fullname" . }}-config
+  namespace: {{ include "rag-modulo.namespace" . }}
+  labels:
+    {{- include "rag-modulo.labels" . | nindent 4 }}
+    app.kubernetes.io/component: config
+data:
+  COLLECTIONDB_HOST: "{{ .Values.postgresql.host | default "postgresql" }}"
+  COLLECTIONDB_PORT: "{{ .Values.postgresql.port | default "5432" }}"
+  COLLECTIONDB_NAME: "{{ .Values.postgresql.database | default "collectiondb" }}"
+  MILVUS_HOST: "{{ .Values.milvus.host | default "milvus" }}"
+  MILVUS_PORT: "{{ .Values.milvus.port | default "19530" }}"
+  MINIO_ENDPOINT: "{{ .Values.minio.endpoint | default "minio:9000" }}"
+  MLFLOW_TRACKING_URI: "{{ .Values.mlflow.trackingUri | default "http://mlflow:5000" }}"
+  LOG_LEVEL: "{{ .Values.config.logLevel | default "INFO" }}"
+  ENVIRONMENT: "{{ .Values.config.environment | default "production" }}"
+  SKIP_AUTH: "{{ .Values.config.skipAuth | default "false" }}"
+  DEVELOPMENT_MODE: "{{ .Values.config.developmentMode | default "false" }}"

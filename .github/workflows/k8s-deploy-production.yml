@@ -1,0 +1,236 @@
+name: Deploy to Kubernetes Production
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'deployment/**'
+      - '.github/workflows/k8s-deploy-production.yml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+
+env:
+  GHCR_REPO: ghcr.io/${{ github.repository_owner }}/rag_modulo
+  HELM_RELEASE: rag-modulo
+
+jobs:
+  build-and-push:
+    name: Build and Push Docker Images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tags }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Free up disk space
+        run: |
+          echo "Disk space before cleanup:"
+          df -h
+
+          # Remove unnecessary packages and files
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+
+          # Clean docker system
+          docker system prune -af --volumes || true
+
+          echo "Disk space after cleanup:"
+          df -h
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for backend
+        id: meta-backend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.GHCR_REPO }}/backend
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile.backend
+          push: true
+          tags: ${{ steps.meta-backend.outputs.tags }}
+          labels: ${{ steps.meta-backend.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Extract metadata for frontend
+        id: meta-frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.GHCR_REPO }}/frontend
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile.frontend
+          push: true
+          tags: ${{ steps.meta-frontend.outputs.tags }}
+          labels: ${{ steps.meta-frontend.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy-helm:
+    name: Deploy with Helm
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    environment:
+      name: ${{ github.event.inputs.environment || 'production' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'latest'
+
+      - name: Configure kubectl context
+        run: |
+          # This step depends on your K8s provider
+          # For IBM Cloud:
+          # ibmcloud ks cluster config --cluster ${{ secrets.CLUSTER_NAME }}
+
+          # For AWS EKS:
+          # aws eks update-kubeconfig --name ${{ secrets.CLUSTER_NAME }}
+
+          # For GKE:
+          # gcloud container clusters get-credentials ${{ secrets.CLUSTER_NAME }}
+
+          # For generic K8s (using kubeconfig secret):
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Set environment variables
+        id: env
+        run: |
+          if [ "${{ github.event.inputs.environment }}" = "development" ]; then
+            echo "namespace=rag-modulo-dev" >> $GITHUB_OUTPUT
+            echo "values_file=values-dev.yaml" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.inputs.environment }}" = "staging" ]; then
+            echo "namespace=rag-modulo-staging" >> $GITHUB_OUTPUT
+            echo "values_file=values-staging.yaml" >> $GITHUB_OUTPUT
+          else
+            echo "namespace=rag-modulo" >> $GITHUB_OUTPUT
+            echo "values_file=values-prod.yaml" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create namespace
+        run: |
+          kubectl create namespace ${{ steps.env.outputs.namespace }} --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Create secrets
+        run: |
+          kubectl create secret generic rag-modulo-secrets \
+            --namespace=${{ steps.env.outputs.namespace }} \
+            --from-literal=COLLECTIONDB_USER=${{ secrets.DB_USER }} \
+            --from-literal=COLLECTIONDB_PASSWORD=${{ secrets.DB_PASSWORD }} \
+            --from-literal=MINIO_ROOT_USER=${{ secrets.MINIO_USER }} \
+            --from-literal=MINIO_ROOT_PASSWORD=${{ secrets.MINIO_PASSWORD }} \
+            --from-literal=MINIO_ACCESS_KEY=${{ secrets.MINIO_ACCESS_KEY }} \
+            --from-literal=MINIO_SECRET_KEY=${{ secrets.MINIO_SECRET_KEY }} \
+            --from-literal=JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }} \
+            --from-literal=WATSONX_APIKEY=${{ secrets.WATSONX_APIKEY }} \
+            --from-literal=WATSONX_URL=${{ secrets.WATSONX_URL }} \
+            --from-literal=WATSONX_PROJECT_ID=${{ secrets.WATSONX_PROJECT_ID }} \
+            --from-literal=OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} \
+            --from-literal=ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Lint Helm chart
+        run: |
+          helm lint deployment/helm/rag-modulo
+
+      - name: Deploy with Helm
+        run: |
+          helm upgrade --install ${{ env.HELM_RELEASE }} \
+            ./deployment/helm/rag-modulo \
+            --namespace ${{ steps.env.outputs.namespace }} \
+            --values ./deployment/helm/rag-modulo/${{ steps.env.outputs.values_file }} \
+            --set images.backend.tag=latest \
+            --set images.frontend.tag=latest \
+            --wait \
+            --timeout 10m
+
+      - name: Verify deployment
+        run: |
+          kubectl rollout status deployment/rag-modulo-backend -n ${{ steps.env.outputs.namespace }}
+          kubectl rollout status deployment/rag-modulo-frontend -n ${{ steps.env.outputs.namespace }}
+          kubectl get pods -n ${{ steps.env.outputs.namespace }}
+          kubectl get svc -n ${{ steps.env.outputs.namespace }}
+
+      - name: Run smoke tests
+        run: |
+          # Wait for services to be ready
+          sleep 30
+
+          # Get service URLs
+          BACKEND_URL=$(kubectl get svc backend-service -n ${{ steps.env.outputs.namespace }} -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+
+          # Run basic health checks
+          curl -f http://${BACKEND_URL}:8000/health || exit 1
+
+          echo "✅ Smoke tests passed"
+
+  notify:
+    name: Notify Deployment Status
+    runs-on: ubuntu-latest
+    needs: [build-and-push, deploy-helm]
+    if: always()
+
+    steps:
+      - name: Deployment Success
+        if: ${{ needs.deploy-helm.result == 'success' }}
+        run: |
+          echo "🎉 Deployment to ${{ github.event.inputs.environment || 'production' }} successful!"
+
+      - name: Deployment Failure
+        if: ${{ needs.deploy-helm.result == 'failure' }}
+        run: |
+          echo "❌ Deployment to ${{ github.event.inputs.environment || 'production' }} failed!"
+          exit 1

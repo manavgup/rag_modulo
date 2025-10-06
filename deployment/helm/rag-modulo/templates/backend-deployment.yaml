@@ -1,0 +1,143 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "rag-modulo.fullname" . }}-backend
+  namespace: {{ include "rag-modulo.namespace" . }}
+  labels:
+    {{- include "rag-modulo.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+spec:
+  replicas: {{ .Values.backend.replicaCount | default 3 }}
+  selector:
+    matchLabels:
+      {{- include "rag-modulo.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: backend
+  template:
+    metadata:
+      labels:
+        {{- include "rag-modulo.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: backend
+    spec:
+      containers:
+        - name: backend
+          image: "{{ .Values.images.registry }}/{{ .Values.images.backend.repository }}:{{ .Values.images.backend.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.images.backend.pullPolicy | default "IfNotPresent" }}
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          env:
+            - name: COLLECTIONDB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "rag-modulo.fullname" . }}-config
+                  key: COLLECTIONDB_HOST
+            - name: COLLECTIONDB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "rag-modulo.fullname" . }}-config
+                  key: COLLECTIONDB_PORT
+            - name: COLLECTIONDB_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "rag-modulo.fullname" . }}-config
+                  key: COLLECTIONDB_NAME
+            - name: COLLECTIONDB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name | default "rag-modulo-secrets" }}
+                  key: COLLECTIONDB_USER
+            - name: COLLECTIONDB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name | default "rag-modulo-secrets" }}
+                  key: COLLECTIONDB_PASSWORD
+            - name: COLLECTIONDB_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name | default "rag-modulo-secrets" }}
+                  key: COLLECTIONDB_PASSWORD
+            - name: MILVUS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "rag-modulo.fullname" . }}-config
+                  key: MILVUS_HOST
+            - name: MILVUS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "rag-modulo.fullname" . }}-config
+                  key: MILVUS_PORT
+            - name: MINIO_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "rag-modulo.fullname" . }}-config
+                  key: MINIO_ENDPOINT
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name | default "rag-modulo-secrets" }}
+                  key: MINIO_ROOT_USER
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name | default "rag-modulo-secrets" }}
+                  key: MINIO_ROOT_PASSWORD
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name | default "rag-modulo-secrets" }}
+                  key: JWT_SECRET_KEY
+            - name: WATSONX_APIKEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name | default "rag-modulo-secrets" }}
+                  key: WATSONX_APIKEY
+                  optional: true
+            - name: WATSONX_PROJECT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name | default "rag-modulo-secrets" }}
+                  key: WATSONX_PROJECT_ID
+                  optional: true
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name | default "rag-modulo-secrets" }}
+                  key: OPENAI_API_KEY
+                  optional: true
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name | default "rag-modulo-secrets" }}
+                  key: ANTHROPIC_API_KEY
+                  optional: true
+          resources:
+            {{- toYaml .Values.backend.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+      {{- with .Values.backend.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.backend.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.backend.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

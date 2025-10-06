@@ -1,0 +1,160 @@
+/* Custom styles for RAG Modulo documentation */
+
+/* Brand colors */
+:root {
+  --rag-primary: #3f51b5;
+  --rag-accent: #ff4081;
+  --rag-success: #4caf50;
+  --rag-warning: #ff9800;
+  --rag-error: #f44336;
+}
+
+/* Custom admonition styles */
+.md-typeset .admonition.deployment {
+  border-left-color: var(--rag-primary);
+}
+
+.md-typeset .admonition.deployment > .admonition-title {
+  background-color: rgba(63, 81, 181, 0.1);
+}
+
+.md-typeset .admonition.deployment > .admonition-title::before {
+  background-color: var(--rag-primary);
+  -webkit-mask-image: var(--md-admonition-icon--note);
+  mask-image: var(--md-admonition-icon--note);
+}
+
+/* Code block enhancements */
+.highlight {
+  border-radius: 0.2rem;
+}
+
+/* Table styling */
+.md-typeset table:not([class]) {
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.2rem;
+}
+
+.md-typeset table:not([class]) th {
+  background-color: var(--md-default-fg-color--lightest);
+  font-weight: 600;
+}
+
+/* Command examples */
+.md-typeset code {
+  background-color: var(--md-code-bg-color);
+  border-radius: 0.2rem;
+  padding: 0.1rem 0.3rem;
+}
+
+/* Deployment badges */
+.deployment-badge {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.2rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-right: 0.5rem;
+}
+
+.deployment-badge.k8s {
+  background-color: #326ce5;
+  color: white;
+}
+
+.deployment-badge.docker {
+  background-color: #2496ed;
+  color: white;
+}
+
+.deployment-badge.helm {
+  background-color: #0f1689;
+  color: white;
+}
+
+/* Responsive tables */
+@media screen and (max-width: 76.1875em) {
+  .md-typeset table:not([class]) {
+    display: block;
+    overflow-x: auto;
+  }
+}
+
+/* Command output styling */
+.command-output {
+  background-color: var(--md-code-bg-color);
+  border-left: 4px solid var(--rag-success);
+  padding: 1rem;
+  border-radius: 0.2rem;
+  margin: 1rem 0;
+  font-family: var(--md-code-font-family);
+  font-size: 0.85rem;
+}
+
+/* Version badge */
+.version-badge {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  background-color: var(--rag-primary);
+  color: white;
+  border-radius: 0.2rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-left: 0.5rem;
+}
+
+/* Enhanced navigation */
+.md-nav__link--active {
+  font-weight: 600;
+}
+
+/* Code copy button enhancement */
+.md-clipboard {
+  border-radius: 0.2rem;
+}
+
+/* Custom container for deployment options */
+.deployment-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+  margin: 2rem 0;
+}
+
+.deployment-option {
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.deployment-option:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.deployment-option h3 {
+  margin-top: 0;
+  color: var(--rag-primary);
+}
+
+/* Status indicators */
+.status-indicator {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 0.5rem;
+}
+
+.status-indicator.running {
+  background-color: var(--rag-success);
+}
+
+.status-indicator.stopped {
+  background-color: var(--rag-error);
+}
+
+.status-indicator.pending {
+  background-color: var(--rag-warning);
+}

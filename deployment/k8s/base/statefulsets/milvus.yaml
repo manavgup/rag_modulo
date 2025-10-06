@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: milvus-standalone
+  namespace: rag-modulo
+  labels:
+    app: rag-modulo
+    component: milvus
+spec:
+  serviceName: milvus-service
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rag-modulo
+      component: milvus
+  template:
+    metadata:
+      labels:
+        app: rag-modulo
+        component: milvus
+    spec:
+      containers:
+      - name: milvus
+        image: milvusdb/milvus:v2.3.3
+        args:
+        - milvus
+        - run
+        - standalone
+        ports:
+        - containerPort: 19530
+          name: grpc
+        - containerPort: 9091
+          name: metrics
+        env:
+        - name: ETCD_ENDPOINTS
+          value: "milvus-etcd:2379"
+        - name: MINIO_ADDRESS
+          value: "minio-service:9000"
+        - name: MINIO_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: rag-modulo-secrets
+              key: MINIO_ACCESS_KEY
+        - name: MINIO_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: rag-modulo-secrets
+              key: MINIO_SECRET_KEY
+        volumeMounts:
+        - name: milvus-storage
+          mountPath: /var/lib/milvus
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "8Gi"
+            cpu: "4000m"
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 9091
+          initialDelaySeconds: 90
+          periodSeconds: 30
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 9091
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+      volumes:
+      - name: milvus-storage
+        persistentVolumeClaim:
+          claimName: milvus-storage

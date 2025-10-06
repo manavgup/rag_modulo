@@ -40,9 +40,11 @@ data/
 volumes/
 my_chroma_data/
 
-# Ignore logs and shell scripts
+# Ignore logs and shell scripts (except deployment scripts)
 *.log
 *.sh
+!deployment/scripts/*.sh
+logs/
 backend/logs/
 
 # Project specific ignores
@@ -89,3 +91,5 @@ backend/.env.backup
 
 # Ignore linting progress tracking files
 .linting-progress.json
+.secrets
+api-key.json
