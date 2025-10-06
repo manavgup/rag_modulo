@@ -31,6 +31,14 @@ WORKDIR /app
 # Copy dependency files first for better layer caching
 COPY pyproject.toml poetry.lock ./
 
+# Install CPU-only PyTorch first to avoid CUDA dependencies (~6GB savings)
+# This must be done before Poetry installs docling (which depends on torch)
+# Using torch 2.5.0 to match torchvision 0.20.0 compatibility
+RUN pip install --no-cache-dir \
+    torch==2.5.0+cpu \
+    torchvision==0.20.0+cpu \
+    --index-url https://download.pytorch.org/whl/cpu
+
 # Install python dependencies directly to system Python (no virtual environment)
 # Note: Removed --no-update flag as it's deprecated in Poetry 2.x
 RUN poetry install --only main --no-root --no-cache && \
