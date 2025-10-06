@@ -13,6 +13,7 @@ from uuid import UUID
 from sqlalchemy import and_, desc, select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from rag_solution.models.podcast import Podcast
 from rag_solution.schemas.podcast_schema import (
@@ -27,12 +28,12 @@ logger = logging.getLogger(__name__)
 class PodcastRepository:
     """Repository for podcast data access operations."""
 
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: Session | AsyncSession):
         """
         Initialize podcast repository.
 
         Args:
-            session: SQLAlchemy async session
+            session: SQLAlchemy session (sync or async)
         """
         self.session = session
 
@@ -177,7 +178,7 @@ class PodcastRepository:
             )
             raise
 
-    async def count_active_for_user(self, user_id: UUID) -> int:
+    def count_active_for_user(self, user_id: UUID) -> int:
         """
         Count active (QUEUED or GENERATING) podcasts for user.
 
@@ -188,15 +189,18 @@ class PodcastRepository:
             Count of active podcasts
         """
         try:
-            result = await self.session.execute(
-                select(Podcast).where(
+            # Use sync session query instead of async execute
+            result = (
+                self.session.query(Podcast)
+                .filter(
                     and_(
                         Podcast.user_id == user_id,
                         Podcast.status.in_([PodcastStatus.QUEUED, PodcastStatus.GENERATING]),
                     )
                 )
+                .count()
             )
-            return len(result.scalars().all())
+            return result
         except SQLAlchemyError as e:
             logger.error("Error counting active podcasts for user %s: %s", user_id, e)
             raise

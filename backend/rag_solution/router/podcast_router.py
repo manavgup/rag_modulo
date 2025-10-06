@@ -13,7 +13,7 @@ from core.custom_exceptions import ValidationError
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import UUID4
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from rag_solution.file_management.database import get_db
 from rag_solution.generation.audio.base import AudioGenerationError
@@ -33,7 +33,7 @@ router = APIRouter(prefix="/api/podcasts", tags=["podcasts"])
 
 # Dependency to get PodcastService
 async def get_podcast_service(
-    session: Annotated[AsyncSession, Depends(get_db)],
+    session: Annotated[Session, Depends(get_db)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> PodcastService:
     """

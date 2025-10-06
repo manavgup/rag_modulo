@@ -20,7 +20,7 @@ from core.config import get_settings
 from core.custom_exceptions import NotFoundError, ValidationError
 from fastapi import BackgroundTasks, HTTPException
 from pydantic import UUID4
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from rag_solution.generation.audio.base import AudioGenerationError
 from rag_solution.generation.audio.factory import AudioProviderFactory
@@ -85,7 +85,7 @@ Generate the complete dialogue script now:"""
 
     def __init__(
         self,
-        session: AsyncSession,
+        session: Session,
         collection_service: CollectionService,
         search_service: SearchService,
     ):
@@ -93,7 +93,7 @@ Generate the complete dialogue script now:"""
         Initialize podcast service.
 
         Args:
-            session: Database session
+            session: Database session (sync)
             collection_service: Collection service for validation
             search_service: Search service for RAG content retrieval
         """
@@ -200,7 +200,7 @@ Generate the complete dialogue script now:"""
         # If collection doesn't exist, the search will fail with appropriate error
 
         # Check user's active podcast limit
-        active_count = await self.repository.count_active_for_user(podcast_input.user_id)
+        active_count = self.repository.count_active_for_user(podcast_input.user_id)
         max_concurrent = self.settings.podcast_max_concurrent_per_user
 
         if active_count >= max_concurrent:
