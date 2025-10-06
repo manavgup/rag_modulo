@@ -9,10 +9,10 @@ This module implements hierarchical chunking where:
 from __future__ import annotations
 
 import logging
-import uuid
 from dataclasses import dataclass
 
 from core.config import Settings, get_settings
+from core.identity_service import IdentityService
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +82,7 @@ def create_hierarchical_chunks(
     # Level 0: Create root chunk (entire document or very large section)
     if levels >= 3:
         root_chunk = HierarchicalChunk(
-            chunk_id=f"root-{uuid.uuid4().hex[:8]}",
+            chunk_id=f"root-{IdentityService.generate_id().hex[:8]}",
             text=text,
             parent_id=None,
             level=0,
@@ -103,7 +103,7 @@ def create_hierarchical_chunks(
     current_pos = 0
 
     for parent_text in parent_texts:
-        parent_id = f"parent-{uuid.uuid4().hex[:8]}"
+        parent_id = f"parent-{IdentityService.generate_id().hex[:8]}"
         start_index = text.find(parent_text, current_pos)
         if start_index == -1:
             start_index = current_pos
@@ -141,7 +141,7 @@ def create_hierarchical_chunks(
         child_current_pos = 0
 
         for child_text in child_texts:
-            child_id = f"child-{uuid.uuid4().hex[:8]}"
+            child_id = f"child-{IdentityService.generate_id().hex[:8]}"
             child_start_in_parent = parent_chunk.text.find(child_text, child_current_pos)
             if child_start_in_parent == -1:
                 child_start_in_parent = child_current_pos
@@ -213,7 +213,7 @@ def create_sentence_based_hierarchical_chunks(
         # Create parent chunk
         parent_sentences = sentences[sentence_idx : sentence_idx + sentences_per_parent]
         parent_text = " ".join(parent_sentences)
-        parent_id = f"parent-{uuid.uuid4().hex[:8]}"
+        parent_id = f"parent-{IdentityService.generate_id().hex[:8]}"
 
         parent_start = text.find(parent_sentences[0], current_pos)
         if parent_start == -1:
@@ -238,7 +238,7 @@ def create_sentence_based_hierarchical_chunks(
                 break
 
             child_text = " ".join(child_sentences)
-            child_id = f"child-{uuid.uuid4().hex[:8]}"
+            child_id = f"child-{IdentityService.generate_id().hex[:8]}"
 
             child_start = parent_text.find(child_sentences[0])
             if child_start == -1:

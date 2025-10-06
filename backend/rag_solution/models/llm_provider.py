@@ -7,6 +7,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
+from core.identity_service import IdentityService
 from rag_solution.file_management.database import Base
 
 if TYPE_CHECKING:
@@ -16,7 +17,9 @@ if TYPE_CHECKING:
 class LLMProvider(Base):
     __tablename__ = "llm_providers"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=IdentityService.generate_id, nullable=False
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     base_url: Mapped[str] = mapped_column(String(1024), nullable=False)
     api_key: Mapped[str] = mapped_column(String(1024), nullable=False)

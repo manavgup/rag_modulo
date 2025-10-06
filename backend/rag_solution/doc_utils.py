@@ -6,8 +6,8 @@ document objects, including text cleaning and validation.
 
 import logging
 import os
-import uuid
 
+from core.identity_service import IdentityService
 from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, DocumentMetadata, Source
 
 
@@ -112,7 +112,7 @@ def get_document(name: str, document_id: str, text: str, metadata: dict | None =
         document_id=document_id,
         chunks=[
             DocumentChunk(
-                chunk_id=str(uuid.uuid4()),
+                chunk_id=IdentityService.generate_document_id(),
                 text=text,
                 embeddings=embeddings[0],  # Extract first embedding from list
                 document_id=document_id,

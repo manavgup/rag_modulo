@@ -10,9 +10,9 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
-from uuid import uuid4
 
 from core.config import Settings
+from core.identity_service import IdentityService
 from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, DocumentMetadata
 
 from rag_solution.data_ingestion.chunking import get_chunking_method
@@ -126,7 +126,7 @@ class BaseProcessor(ABC):
         document_chunks = []
         for chunk_text in chunk_texts:
             chunk = DocumentChunk(
-                chunk_id=str(uuid4()),
+                chunk_id=IdentityService.generate_document_id(),
                 text=chunk_text,
                 embeddings=[],
                 document_id=document_id,

@@ -6,11 +6,11 @@ extracting data from all sheets and converting to document chunks.
 
 import logging
 import os
-import uuid
 from collections.abc import AsyncIterator
 
 import pandas as pd
 from core.custom_exceptions import DocumentProcessingError
+from core.identity_service import IdentityService
 from vectordbs.data_types import Document
 
 from rag_solution.data_ingestion.base_processor import BaseProcessor
@@ -57,7 +57,7 @@ class ExcelProcessor(BaseProcessor):
             for chunk in chunks:
                 yield get_document(
                     name=os.path.basename(file_path),
-                    document_id=str(uuid.uuid4()),
+                    document_id=IdentityService.generate_document_id(),
                     text=chunk,
                 )
         except Exception as e:

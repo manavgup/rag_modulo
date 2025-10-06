@@ -8,9 +8,9 @@ processing.
 
 # collection_service.py
 import re
-from uuid import uuid4
 
 from core.config import Settings
+from core.identity_service import IdentityService
 from core.custom_exceptions import (
     CollectionProcessingError,
     DocumentIngestionError,
@@ -82,13 +82,7 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
     @staticmethod
     def _generate_valid_collection_name() -> str:
         """Generate a valid and unique collection name that works for vectordbs"""
-        # Generate a UUID-based name
-        raw_name = f"collection_{uuid4().hex}"
-
-        # Ensure the name contains only numbers, letters, and underscores
-        valid_name = re.sub(r"[^a-zA-Z0-9_]", "", raw_name)
-
-        return valid_name
+        return IdentityService.generate_collection_name()
 
     def create_collection(self, collection: CollectionInput) -> CollectionOutput:
         """Create a new collection in the database and vectordb"""
@@ -496,7 +490,7 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
 
             for file in files:
                 # Create unique document ID
-                document_id = str(uuid4())
+                document_id = IdentityService.generate_document_id()
                 document_ids.append(document_id)
 
                 # Upload file and create file record
