@@ -18,6 +18,7 @@ from fastapi import (
     Response,
     UploadFile,
 )
+from fastapi.responses import FileResponse
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
@@ -404,6 +405,59 @@ def get_collection_questions(
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         logger.error("Error getting questions for collection %s: %s", str(collection_id), str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.get(
+    "/{collection_id}/files/{filename}/download",
+    summary="Download a file",
+    description="Download a specific file from a collection.",
+    response_class=FileResponse,
+    responses={
+        200: {"description": "File downloaded successfully"},
+        404: {"description": "File not found"},
+        500: {"description": "Internal server error"},
+    },
+)
+def download_file(
+    collection_id: UUID4,
+    filename: str,
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> FileResponse:
+    """
+    Download a specific file from a collection.
+
+    Args:
+        collection_id (UUID): The ID of the collection.
+        filename (str): The name of the file.
+        db (Session): The database session.
+        settings (Settings): The application settings.
+
+    Returns:
+        FileResponse: The file to be downloaded.
+
+    Raises:
+        HTTPException: If the file is not found.
+    """
+    try:
+        service = FileManagementService(db, settings)
+        file_path = service.get_file_path(collection_id, filename)
+
+        if not file_path.exists():
+            logger.error("File not found at path: %s", file_path)
+            raise HTTPException(status_code=404, detail="File not found")
+
+        return FileResponse(
+            path=file_path,
+            filename=filename,
+            media_type="application/octet-stream",
+        )
+    except NotFoundError as e:
+        logger.error("Not found error downloading file: %s", str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        logger.error("Error downloading file: %s", str(e))
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 

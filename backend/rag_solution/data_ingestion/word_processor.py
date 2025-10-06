@@ -6,10 +6,10 @@ extracting text content and creating document chunks.
 
 import logging
 import os
-import uuid
 from collections.abc import AsyncIterator
 
 from core.custom_exceptions import DocumentProcessingError
+from core.identity_service import IdentityService
 from docx import Document as DocxDocument
 from vectordbs.data_types import Document
 
@@ -53,7 +53,9 @@ class WordProcessor(BaseProcessor):
             chunks = self.chunking_method(text)
 
             for chunk in chunks:
-                yield get_document(name=os.path.basename(file_path), document_id=str(uuid.uuid4()), text=chunk)
+                yield get_document(
+                    name=os.path.basename(file_path), document_id=IdentityService.generate_document_id(), text=chunk
+                )
         except Exception as e:
             logger.error("Error reading Word file %s: %s", file_path, e, exc_info=True)
             raise DocumentProcessingError(

@@ -15,9 +15,43 @@ const SuggestedQuestions: React.FC<SuggestedQuestionsProps> = ({ collectionId, o
   const [error, setError] = useState<string | null>(null);
   const { addNotification } = useNotification();
 
-  const fetchQuestions = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchQuestionsWithCleanup = async () => {
+      if (!isMounted) return;
+
+      setIsLoading(true);
+      setError(null);
+      try {
+        const fetchedQuestions = await apiClient.getSuggestedQuestions(collectionId);
+        if (isMounted) {
+          setQuestions(fetchedQuestions);
+        }
+      } catch (err) {
+        if (isMounted) {
+          const errorMessage = err instanceof Error ? err.message : 'Failed to load suggested questions.';
+          console.error('Error fetching suggested questions:', err);
+          setError(errorMessage);
+          addNotification('error', 'Error', `Could not fetch suggested questions: ${errorMessage}`);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchQuestionsWithCleanup();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [collectionId, addNotification]);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
     try {
       const fetchedQuestions = await apiClient.getSuggestedQuestions(collectionId);
       setQuestions(fetchedQuestions);
@@ -26,19 +60,6 @@ const SuggestedQuestions: React.FC<SuggestedQuestionsProps> = ({ collectionId, o
       console.error('Error fetching suggested questions:', err);
       setError(errorMessage);
       addNotification('error', 'Error', `Could not fetch suggested questions: ${errorMessage}`);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [collectionId, addNotification]);
-
-  useEffect(() => {
-    fetchQuestions();
-  }, [fetchQuestions]);
-
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    try {
-      await fetchQuestions();
     } finally {
       setIsRefreshing(false);
     }

@@ -8,6 +8,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
+from core.identity_service import IdentityService
 from rag_solution.file_management.database import Base
 from rag_solution.schemas.prompt_template_schema import PromptTemplateType
 
@@ -20,7 +21,9 @@ class PromptTemplate(Base):
 
     __tablename__ = "prompt_templates"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=IdentityService.generate_id, nullable=False
+    )
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )

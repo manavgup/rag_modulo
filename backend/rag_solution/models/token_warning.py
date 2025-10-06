@@ -7,6 +7,7 @@ from sqlalchemy import DateTime, Float, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
+from core.identity_service import IdentityService
 from rag_solution.file_management.database import Base
 
 
@@ -19,7 +20,9 @@ class TokenWarning(Base):
 
     __tablename__ = "token_warnings"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=IdentityService.generate_id
+    )
     user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
     session_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     warning_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)

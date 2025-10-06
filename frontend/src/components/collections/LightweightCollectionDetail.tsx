@@ -165,11 +165,10 @@ const LightweightCollectionDetail: React.FC = () => {
   };
 
   const handleDownloadDocument = async (file: CollectionFile) => {
+    if (!collection) return;
     try {
-      // Create a temporary download link
-      const downloadUrl = `${process.env.REACT_APP_BACKEND_URL || ''}/api/collections/${collection?.id}/documents/${file.id}/download`;
+      const downloadUrl = `${process.env.REACT_APP_BACKEND_URL || ''}/api/collections/${collection.id}/files/${file.name}/download`;
 
-      // Create temporary link element and trigger download
       const link = document.createElement('a');
       link.href = downloadUrl;
       link.download = file.name;
