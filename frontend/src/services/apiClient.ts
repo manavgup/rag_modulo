@@ -194,7 +194,7 @@ interface UpdateConversationInput {
 }
 
 // Podcast interfaces
-export type VoiceId = 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer';
+export type VoiceId = string;
 
 interface VoiceSettings {
   voice_id: string;
