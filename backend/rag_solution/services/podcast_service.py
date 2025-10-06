@@ -196,14 +196,13 @@ Generate the complete dialogue script now:"""
             ValidationError: If validation fails
         """
         # Check collection exists and user has access
-        collection = await self.collection_service.get_by_id(  # type: ignore[attr-defined]
-            collection_id=podcast_input.collection_id,
-            user_id=podcast_input.user_id,
-        )
+        collection = self.collection_service.get_collection(collection_id=podcast_input.collection_id)
 
         if not collection:
-            raise NotFoundError(  # type: ignore[call-arg]
-                f"Collection {podcast_input.collection_id} not found or not accessible"
+            raise NotFoundError(
+                resource_type="Collection",
+                resource_id=podcast_input.collection_id,
+                message="Collection not found or not accessible",
             )
 
         # Check collection has sufficient documents
