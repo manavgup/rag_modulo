@@ -206,9 +206,7 @@ Generate the complete dialogue script now:"""
             )
 
         # Check collection has sufficient documents
-        doc_count = await self.collection_service.count_documents(  # type: ignore[attr-defined]
-            podcast_input.collection_id
-        )
+        doc_count = len(collection.files)
         min_docs = self.settings.podcast_min_documents
 
         if doc_count < min_docs:
