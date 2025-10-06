@@ -22,6 +22,7 @@ import { useNotification } from '../../contexts/NotificationContext';
 // Import the API client and types
 import apiClient, { Collection, CollectionDocument } from '../../services/apiClient';
 import PodcastGenerationModal from '../podcasts/PodcastGenerationModal';
+import SuggestedQuestions from './SuggestedQuestions';
 
 // Use CollectionDocument type from apiClient instead of local CollectionFile
 type CollectionFile = CollectionDocument;
@@ -242,6 +243,22 @@ const LightweightCollectionDetail: React.FC = () => {
     setFilesToUpload([]);
   };
 
+  const handleSuggestedQuestionClick = (question: string) => {
+    // Navigate to RAG search page with the collection and question
+    if (collection?.status === 'ready' || collection?.status === 'completed') {
+      navigate('/search', {
+        state: {
+          collectionId: collection.id,
+          collectionName: collection.name,
+          collectionDescription: collection.description,
+          initialQuery: question
+        }
+      });
+    } else {
+      addNotification('warning', 'Collection Not Ready', 'This collection is not ready for searching yet.');
+    }
+  };
+
   const filteredDocuments = collection?.documents.filter(doc =>
     doc.name.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
@@ -343,6 +360,14 @@ const LightweightCollectionDetail: React.FC = () => {
               </button>
             </div>
           </div>
+        </div>
+
+        {/* Suggested Questions */}
+        <div className="mb-6">
+            <SuggestedQuestions
+                collectionId={collection.id}
+                onQuestionClick={handleSuggestedQuestionClick}
+            />
         </div>
 
         {/* Documents Table */}

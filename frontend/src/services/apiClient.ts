@@ -260,6 +260,13 @@ interface PodcastQuestionInjection {
   user_id: string;
 }
 
+interface SuggestedQuestion {
+  id: string;
+  collection_id: string;
+  question: string;
+  created_at: string;
+}
+
 class ApiClient {
   private client: AxiosInstance;
 
@@ -401,6 +408,13 @@ class ApiClient {
 
   async deleteCollection(id: string): Promise<void> {
     await this.client.delete(`/api/collections/${id}`);
+  }
+
+  async getSuggestedQuestions(collectionId: string): Promise<SuggestedQuestion[]> {
+    const response: AxiosResponse<SuggestedQuestion[]> = await this.client.get(
+      `/api/collections/${collectionId}/questions`
+    );
+    return response.data;
   }
 
   // Document API
@@ -921,5 +935,6 @@ export type {
   PodcastQuestionInjection,
   VoiceSettings,
   PodcastStepDetails,
+  SuggestedQuestion,
   VoiceId,
 };
