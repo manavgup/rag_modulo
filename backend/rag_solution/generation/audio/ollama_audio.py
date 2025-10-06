@@ -110,6 +110,60 @@ class OllamaAudioProvider(AudioProviderBase):
             pause_duration_ms,
         )
 
+    async def generate_speech_from_text(
+        self,
+        text: str,
+        voice_id: str,
+        audio_format: AudioFormat = AudioFormat.MP3,
+    ) -> bytes:
+        """
+        Generate audio from a single text string using Ollama TTS.
+
+        Args:
+            text: Text to convert to speech.
+            voice_id: Ollama voice ID.
+            audio_format: Output audio format.
+
+        Returns:
+            Audio file bytes.
+
+        Raises:
+            AudioGenerationError: If TTS generation fails.
+        """
+        try:
+            # Call Ollama TTS API
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"{self.base_url}/api/generate",
+                    json={
+                        "model": self.model,
+                        "prompt": f"[{voice_id}] {text}",
+                        "stream": False,
+                    },
+                    timeout=60.0,
+                )
+                response.raise_for_status()
+
+            # Convert response to audio bytes
+            audio_segment = AudioSegment.from_file(
+                io.BytesIO(response.content),
+                format="wav",  # Ollama typically outputs WAV
+            )
+
+            # Export to requested format
+            output = io.BytesIO()
+            audio_segment.export(output, format=audio_format.value)
+            return output.getvalue()
+
+        except Exception as e:
+            logger.error("Ollama TTS error for voice=%s, text_length=%d: %s", voice_id, len(text), e)
+            raise AudioGenerationError(
+                provider="ollama",
+                error_type="api_error",
+                message=f"Failed to generate speech from text: {e}",
+                original_error=e,
+            ) from e
+
     async def list_available_voices(self) -> list[dict[str, Any]]:
         """Get list of available voices for current model."""
         # TODO: Could be extended based on model type

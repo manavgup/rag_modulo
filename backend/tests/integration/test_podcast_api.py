@@ -1,9 +1,12 @@
+"""Integration tests for podcast API endpoints."""
+
 import pytest
 from httpx import AsyncClient
 
 
 @pytest.mark.integration
 class TestPodcastApi:
+    """Integration tests for podcast voice preview API."""
     @pytest.mark.asyncio
     async def test_get_voice_preview_success(self, client: AsyncClient) -> None:
         """Integration: Test /voice-preview endpoint returns audio for a valid voice."""

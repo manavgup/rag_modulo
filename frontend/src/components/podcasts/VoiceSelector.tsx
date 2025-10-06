@@ -30,6 +30,10 @@ const VoiceSelector: React.FC<VoiceSelectorProps> = ({
     // Cleanup audio on component unmount
     return () => {
       if (audioRef.current) {
+        // Revoke blob URL to prevent memory leak
+        if (audioRef.current.src && audioRef.current.src.startsWith('blob:')) {
+          URL.revokeObjectURL(audioRef.current.src);
+        }
         audioRef.current.pause();
         audioRef.current.src = '';
         audioRef.current = null;
@@ -46,6 +50,10 @@ const VoiceSelector: React.FC<VoiceSelectorProps> = ({
 
     if (audioRef.current) {
       audioRef.current.pause();
+      // Revoke previous blob URL to prevent memory leak
+      if (audioRef.current.src && audioRef.current.src.startsWith('blob:')) {
+        URL.revokeObjectURL(audioRef.current.src);
+      }
     }
 
     setPlayingVoice(voiceId);
@@ -63,6 +71,12 @@ const VoiceSelector: React.FC<VoiceSelectorProps> = ({
       audioRef.current.onended = () => {
         setPlayingVoice(null);
         URL.revokeObjectURL(audioUrl);
+      };
+
+      audioRef.current.onerror = () => {
+        setPlayingVoice(null);
+        URL.revokeObjectURL(audioUrl);
+        addNotification('error', 'Playback Failed', 'Failed to play voice preview');
       };
     } catch (error) {
       console.error('Error playing voice preview:', error);
@@ -96,6 +110,9 @@ const VoiceSelector: React.FC<VoiceSelectorProps> = ({
             <button
               onClick={() => handlePreview(voice.id)}
               className="p-2 rounded-full hover:bg-gray-800 transition-colors"
+              aria-label={playingVoice === voice.id ? `Pause ${voice.name} preview` : `Play ${voice.name} preview`}
+              aria-pressed={playingVoice === voice.id}
+              title={playingVoice === voice.id ? `Pause ${voice.name} preview` : `Play ${voice.name} preview`}
             >
               {playingVoice === voice.id ? (
                 <PauseIcon className="w-5 h-5 text-white" />

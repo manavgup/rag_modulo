@@ -78,7 +78,12 @@ class AudioProviderBase(ABC):
 
         Returns:
             Audio file bytes.
+
+        Raises:
+            AudioGenerationError: If speech generation fails.
         """
+
+    async def validate_voices(self, host_voice: str, expert_voice: str) -> bool:
         """
         Validate that voice IDs are available.
 

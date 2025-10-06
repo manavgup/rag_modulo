@@ -9,13 +9,14 @@ import logging
 from typing import Annotated
 
 from core.config import Settings, get_settings
+from core.custom_exceptions import ValidationError
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from rag_solution.file_management.database import get_db
-from rag_solution.generation.audio.factory import AudioProviderFactory
+from rag_solution.generation.audio.base import AudioGenerationError
 from rag_solution.schemas.podcast_schema import (
     PodcastGenerationInput,
     PodcastGenerationOutput,
@@ -241,31 +242,30 @@ async def delete_podcast(
 async def get_voice_preview(
     voice_id: str,
     podcast_service: Annotated[PodcastService, Depends(get_podcast_service)],
-    settings: Annotated[Settings, Depends(get_settings)],
 ) -> StreamingResponse:
     """
     Get a voice preview.
+
     Args:
         voice_id: The ID of the voice to preview.
         podcast_service: Injected podcast service.
-        settings: Application settings.
+
     Returns:
         A streaming response with the audio preview.
+
+    Raises:
+        HTTPException 400: Invalid voice_id
+        HTTPException 500: Audio generation failed
     """
-    audio_provider = AudioProviderFactory.create_provider(
-        provider_type=settings.podcast_audio_provider,
-        settings=settings,
-    )
-    available_voices = await audio_provider.list_available_voices()
-    valid_voice_ids = [v["voice_id"] for v in available_voices]
-    if voice_id not in valid_voice_ids:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid voice_id. Must be one of: {valid_voice_ids}",
-        )
     try:
         audio_bytes = await podcast_service.generate_voice_preview(voice_id)
         return StreamingResponse(io.BytesIO(audio_bytes), media_type="audio/mpeg")
+    except ValidationError as e:
+        logger.warning("Invalid voice_id: %s - %s", voice_id, e)
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except AudioGenerationError as e:
+        logger.error("Audio generation error for voice_id=%s: %s", voice_id, e)
+        raise HTTPException(status_code=500, detail=f"Failed to generate audio preview: {e.message}") from e
     except Exception as e:
-        logger.error(f"Error generating voice preview: {e}")
-        raise HTTPException(status_code=500, detail="Error generating voice preview")
+        logger.exception("Unexpected error generating voice preview for voice_id=%s: %s", voice_id, e)
+        raise HTTPException(status_code=500, detail="An unexpected error occurred while generating preview") from e

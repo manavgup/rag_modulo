@@ -22,6 +22,7 @@ from fastapi import BackgroundTasks, HTTPException
 from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from rag_solution.generation.audio.base import AudioGenerationError
 from rag_solution.generation.audio.factory import AudioProviderFactory
 from rag_solution.generation.providers.factory import LLMProviderFactory
 from rag_solution.repository.podcast_repository import PodcastRepository
@@ -598,30 +599,42 @@ Generate the complete dialogue script now:"""
     async def generate_voice_preview(self, voice_id: str) -> bytes:
         """
         Generate a short voice preview.
+
         Args:
             voice_id: The voice to preview.
+
         Returns:
             Audio file bytes.
-        """
-        try:
-            audio_provider = AudioProviderFactory.create_provider(
-                provider_type=self.settings.podcast_audio_provider,
-                settings=self.settings,
-            )
-            available_voices = await audio_provider.list_available_voices()
-            voice_ids = {v["voice_id"] for v in available_voices}
-            if voice_id not in voice_ids:
-                raise HTTPException(status_code=400, detail=f"Invalid voice_id: {voice_id}")
 
+        Raises:
+            ValidationError: If voice_id is invalid.
+            AudioGenerationError: If audio generation fails.
+        """
+        audio_provider = AudioProviderFactory.create_provider(
+            provider_type=self.settings.podcast_audio_provider,
+            settings=self.settings,
+        )
+        available_voices = await audio_provider.list_available_voices()
+        voice_ids = {v["voice_id"] for v in available_voices}
+
+        if voice_id not in voice_ids:
+            raise ValidationError(f"Invalid voice_id: {voice_id}. Valid voices: {sorted(voice_ids)}")
+
+        try:
             audio_bytes = await audio_provider.generate_speech_from_text(
                 text=self.VOICE_PREVIEW_TEXT,
                 voice_id=voice_id,
                 audio_format=AudioFormat.MP3,
             )
             return audio_bytes
+        except AudioGenerationError:
+            # Re-raise audio generation errors as-is
+            raise
         except Exception as e:
             logger.exception("Failed to generate voice preview for voice_id=%s: %s", voice_id, e)
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to generate voice preview: {e}",
+            raise AudioGenerationError(
+                provider=self.settings.podcast_audio_provider,
+                error_type="preview_failed",
+                message=f"Failed to generate voice preview: {e}",
+                original_error=e,
             ) from e
