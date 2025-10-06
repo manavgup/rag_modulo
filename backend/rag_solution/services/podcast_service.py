@@ -210,9 +210,8 @@ Generate the complete dialogue script now:"""
             )
 
         logger.debug(
-            "Validation passed: collection=%s, documents=%d, active_podcasts=%d",
+            "Validation passed: collection=%s, active_podcasts=%d",
             podcast_input.collection_id,
-            doc_count,
             active_count,
         )
 
