@@ -11,6 +11,7 @@ interface SuggestedQuestionsProps {
 const SuggestedQuestions: React.FC<SuggestedQuestionsProps> = ({ collectionId, onQuestionClick }) => {
   const [questions, setQuestions] = useState<SuggestedQuestion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { addNotification } = useNotification();
 
@@ -21,8 +22,10 @@ const SuggestedQuestions: React.FC<SuggestedQuestionsProps> = ({ collectionId, o
       const fetchedQuestions = await apiClient.getSuggestedQuestions(collectionId);
       setQuestions(fetchedQuestions);
     } catch (err) {
-      setError('Failed to load suggested questions.');
-      addNotification('error', 'Error', 'Could not fetch suggested questions.');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load suggested questions.';
+      console.error('Error fetching suggested questions:', err);
+      setError(errorMessage);
+      addNotification('error', 'Error', `Could not fetch suggested questions: ${errorMessage}`);
     } finally {
       setIsLoading(false);
     }
@@ -32,8 +35,13 @@ const SuggestedQuestions: React.FC<SuggestedQuestionsProps> = ({ collectionId, o
     fetchQuestions();
   }, [fetchQuestions]);
 
-  const handleRefresh = () => {
-    fetchQuestions();
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await fetchQuestions();
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   if (isLoading) {
@@ -73,8 +81,10 @@ const SuggestedQuestions: React.FC<SuggestedQuestionsProps> = ({ collectionId, o
                 </div>
                 <button
                 onClick={handleRefresh}
-                className="p-1 text-gray-60 hover:text-gray-90"
+                disabled={isRefreshing}
+                className={`p-1 text-gray-60 hover:text-gray-90 ${isRefreshing ? 'animate-spin' : ''}`}
                 title="Refresh suggested questions"
+                aria-label="Refresh suggested questions"
                 >
                 <ArrowPathIcon className="w-4 h-4" />
                 </button>
@@ -93,8 +103,10 @@ const SuggestedQuestions: React.FC<SuggestedQuestionsProps> = ({ collectionId, o
         </div>
         <button
           onClick={handleRefresh}
-          className="p-1 text-gray-60 hover:text-gray-90"
+          disabled={isRefreshing}
+          className={`p-1 text-gray-60 hover:text-gray-90 ${isRefreshing ? 'animate-spin' : ''}`}
           title="Refresh suggested questions"
+          aria-label="Refresh suggested questions"
         >
           <ArrowPathIcon className="w-4 h-4" />
         </button>
@@ -105,6 +117,7 @@ const SuggestedQuestions: React.FC<SuggestedQuestionsProps> = ({ collectionId, o
             key={q.id}
             onClick={() => onQuestionClick(q.question)}
             className="px-3 py-1.5 bg-blue-10 text-blue-70 rounded-full hover:bg-blue-20 text-sm transition-colors"
+            aria-label={`Use suggested question: ${q.question}`}
           >
             {q.question}
           </button>

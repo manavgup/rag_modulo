@@ -245,8 +245,19 @@ const LightweightCollectionDetail: React.FC = () => {
   };
 
   const handleSuggestedQuestionClick = (question: string) => {
-    setSearchQuery(question);
-    addNotification('info', 'Search Updated', 'Search query populated with suggested question.');
+    // Navigate to RAG search page with the collection and question
+    if (collection?.status === 'ready' || collection?.status === 'completed') {
+      navigate('/search', {
+        state: {
+          collectionId: collection.id,
+          collectionName: collection.name,
+          collectionDescription: collection.description,
+          initialQuery: question
+        }
+      });
+    } else {
+      addNotification('warning', 'Collection Not Ready', 'This collection is not ready for searching yet.');
+    }
   };
 
   const filteredDocuments = collection?.documents.filter(doc =>
