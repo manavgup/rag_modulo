@@ -137,64 +137,13 @@ jobs:
             --tb=short
         continue-on-error: true  # Don't fail on coverage threshold initially
 
-  # Build images once
-  build:
-    runs-on: ubuntu-latest
-    outputs:
-      backend-image: ${{ steps.build.outputs.backend-image }}
-      frontend-image: ${{ steps.build.outputs.frontend-image }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Free Up Disk Space
-        run: |
-          echo "Freeing up disk space before Docker builds..."
-          df -h
-
-          # Remove unnecessary packages and files (~14GB)
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /usr/local/share/boost
-          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
-
-          # Clean Docker build cache
-          docker system prune -af --volumes || true
-
-          df -h
-          echo "✅ Disk space freed"
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Cache Docker layers
-        uses: actions/cache@v4
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-
-
-      - name: Build images (no push on PRs)
-        id: build
-        run: |
-          # Build with commit SHA for uniqueness
-          BACKEND_TAG="ghcr.io/manavgup/rag_modulo/backend:${{ github.sha }}"
-          FRONTEND_TAG="ghcr.io/manavgup/rag_modulo/frontend:${{ github.sha }}"
-
-          echo "Building backend image..."
-          docker build -t $BACKEND_TAG -f ./backend/Dockerfile.backend ./backend
-
-          echo "Building frontend image..."
-          docker build -t $FRONTEND_TAG -f ./frontend/Dockerfile.frontend ./frontend
-
-          echo "Images built successfully (not pushing on PRs)"
-          echo "backend-image=$BACKEND_TAG" >> $GITHUB_OUTPUT
-          echo "frontend-image=$FRONTEND_TAG" >> $GITHUB_OUTPUT
-
+  # NOTE: Build job removed - now handled by 03-build-secure.yml workflow
+  # This eliminates duplicate builds (was building in both ci.yml and 03-build-secure.yml)
+  # Security scanning workflow (03-build-secure.yml) now handles both building AND scanning
 
   # Simple reporting without complex XML parsing
   report:
-    needs: [lint-and-unit, build]
+    needs: [lint-and-unit]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -202,11 +151,13 @@ jobs:
         run: |
           echo "## CI/CD Results"
           echo "- Lint and Unit Tests: ${{ needs.lint-and-unit.result }}"
-          echo "- Build: ${{ needs.build.result }}"
+          echo ""
+          echo "Note: Docker builds handled by 'Secure Docker Build & Scan' workflow"
+          echo "This eliminates duplicate builds and ensures all images are security scanned"
 
-          if [[ "${{ needs.lint-and-unit.result }}" == "failure" || "${{ needs.build.result }}" == "failure" ]]; then
-            echo "❌ Critical jobs failed"
+          if [[ "${{ needs.lint-and-unit.result }}" == "failure" ]]; then
+            echo "❌ Lint/unit tests failed"
             exit 1
           else
-            echo "✅ Core jobs passed"
+            echo "✅ Lint and unit tests passed"
           fi
