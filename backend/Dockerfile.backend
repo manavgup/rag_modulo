@@ -39,8 +39,11 @@ RUN pip install --no-cache-dir \
     torchvision==0.20.0+cpu \
     --index-url https://download.pytorch.org/whl/cpu
 
+# Configure pip to use CPU-only PyTorch index for any additional torch packages
+RUN pip config set global.extra-index-url https://download.pytorch.org/whl/cpu
+
 # Install python dependencies directly to system Python (no virtual environment)
-# Note: Removed --no-update flag as it's deprecated in Poetry 2.x
+# Poetry will use already-installed CPU-only torch instead of downloading CUDA version
 RUN poetry install --only main --no-root --no-cache && \
     poetry cache clear --all pypi && \
     pip cache purge

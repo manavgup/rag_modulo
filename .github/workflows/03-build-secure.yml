@@ -31,16 +31,38 @@ jobs:
             dockerfile: backend/Dockerfile.backend
             context: backend
             image_name: rag-modulo-backend
+            ghcr_image: ghcr.io/manavgup/rag_modulo/backend
           - service: frontend
             dockerfile: frontend/Dockerfile.frontend
             context: frontend
             image_name: rag-modulo-frontend
+            ghcr_image: ghcr.io/manavgup/rag_modulo/frontend
 
     name: 🔒 Security Scan - ${{ matrix.service }}
 
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
+
+      - name: 🧹 Free Up Disk Space
+        run: |
+          echo "=== Initial Disk Space ==="
+          df -h
+
+          echo "=== Removing unnecessary packages (~14GB) ==="
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /usr/share/swift
+
+          echo "=== Cleaning Docker ==="
+          docker system prune -af --volumes || true
+
+          echo "=== Final Disk Space ==="
+          df -h
+          echo "✅ Disk space cleanup completed"
 
       - name: 🐳 Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -61,7 +83,7 @@ jobs:
           sarif_file: hadolint-${{ matrix.service }}.sarif
           category: hadolint-${{ matrix.service }}
 
-      # ===== STAGE 2: Build Docker Image =====
+      # ===== STAGE 2: Build Docker Image with Optimizations =====
       - name: 🏗️ Build Docker Image
         uses: docker/build-push-action@v5
         with:
@@ -74,6 +96,13 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
           build-args: |
             BUILDKIT_INLINE_CACHE=1
+
+      # Clean up build cache immediately to free space
+      - name: 🧹 Clean Build Cache
+        if: always()
+        run: |
+          docker builder prune -af --filter "until=1h" || true
+          echo "Build cache cleaned"
 
       # ===== STAGE 3: Container Security (Dockle) =====
       - name: 🛡️ Dockle - Container Security Scan
