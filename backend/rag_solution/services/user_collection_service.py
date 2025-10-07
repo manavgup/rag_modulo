@@ -2,10 +2,10 @@
 
 from typing import Any
 
+from core.logging_utils import get_logger
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
-from core.logging_utils import get_logger
 from rag_solution.core.exceptions import NotFoundError
 from rag_solution.models.collection import Collection
 from rag_solution.repository.user_collection_repository import UserCollectionRepository

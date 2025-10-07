@@ -13,9 +13,10 @@ from typing import TYPE_CHECKING, Any
 
 from core.config import Settings
 from core.identity_service import IdentityService
+from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, DocumentMetadata
+
 from rag_solution.data_ingestion.chunking import get_chunking_method
 from rag_solution.data_ingestion.hierarchical_chunking import hierarchical_chunker
-from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, DocumentMetadata
 
 if TYPE_CHECKING:
     pass

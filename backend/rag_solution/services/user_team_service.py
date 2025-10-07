@@ -1,9 +1,9 @@
 from typing import Any
 
+from core.logging_utils import get_logger
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
-from core.logging_utils import get_logger
 from rag_solution.repository.user_team_repository import UserTeamRepository
 from rag_solution.schemas.user_team_schema import UserTeamOutput
 

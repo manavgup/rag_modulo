@@ -7,10 +7,10 @@ related to dashboard statistics and recent activity tracking.
 
 from datetime import UTC, datetime, timedelta
 
+from core.logging_utils import get_logger
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from core.logging_utils import get_logger
 from rag_solution.models.collection import Collection
 from rag_solution.models.conversation_message import ConversationMessage
 from rag_solution.models.conversation_session import ConversationSession

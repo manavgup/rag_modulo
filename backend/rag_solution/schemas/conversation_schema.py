@@ -9,9 +9,8 @@ from enum import Enum
 from typing import Any
 from uuid import uuid4
 
-from pydantic import UUID4, BaseModel, ConfigDict, Field, field_validator
-
 from core.logging_utils import get_logger
+from pydantic import UUID4, BaseModel, ConfigDict, Field, field_validator
 
 logger = get_logger("conversation.schema")
 

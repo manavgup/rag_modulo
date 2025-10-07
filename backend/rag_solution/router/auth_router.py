@@ -13,11 +13,6 @@ from typing import Annotated, Any
 
 import httpx
 import jwt
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from fastapi.responses import JSONResponse, RedirectResponse
-from pydantic import BaseModel, HttpUrl
-from sqlalchemy.orm import Session
-
 from auth.oidc import create_access_token, oauth
 from core.config import Settings, get_settings
 from core.mock_auth import (
@@ -26,6 +21,11 @@ from core.mock_auth import (
     is_bypass_mode_active,
     is_mock_token,
 )
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi.responses import JSONResponse, RedirectResponse
+from pydantic import BaseModel, HttpUrl
+from sqlalchemy.orm import Session
+
 from rag_solution.core.device_flow import (
     DeviceFlowConfig,
     DeviceFlowRecord,

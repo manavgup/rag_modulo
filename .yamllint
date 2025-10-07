@@ -34,5 +34,3 @@ rules:
   # Comments can have any spacing
   comments:
     min-spaces-from-content: 1
-
-

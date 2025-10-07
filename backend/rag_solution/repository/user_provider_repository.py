@@ -1,11 +1,11 @@
 from typing import Any
 
+from core.custom_exceptions import RepositoryError
+from core.logging_utils import get_logger
 from pydantic import UUID4
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from core.custom_exceptions import RepositoryError
-from core.logging_utils import get_logger
 from rag_solution.core.exceptions import NotFoundError
 from rag_solution.models.llm_provider import LLMProvider
 from rag_solution.models.user import User

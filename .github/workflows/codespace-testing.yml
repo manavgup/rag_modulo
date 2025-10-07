@@ -68,10 +68,14 @@ jobs:
           echo "Setting up development environment in Codespace..."
 
           # Initialize development environment
-          gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} -- "cd /workspace && make dev-init"
+          gh codespace ssh \
+            --codespace ${{ steps.create-codespace.outputs.codespace-name }} \
+            -- "cd /workspace && make dev-init"
 
           # Build development images
-          gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} -- "cd /workspace && make dev-build"
+          gh codespace ssh \
+            --codespace ${{ steps.create-codespace.outputs.codespace-name }} \
+            -- "cd /workspace && make dev-build"
 
       - name: Start Services
         if: steps.create-codespace.outputs.codespace-available == 'true'
@@ -79,10 +83,14 @@ jobs:
           echo "Starting development services..."
 
           # Start development environment
-          gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} -- "cd /workspace && make dev-up"
+          gh codespace ssh \
+            --codespace ${{ steps.create-codespace.outputs.codespace-name }} \
+            -- "cd /workspace && make dev-up"
 
           # Wait for services to be healthy
-          gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} -- "cd /workspace && make dev-validate"
+          gh codespace ssh \
+            --codespace ${{ steps.create-codespace.outputs.codespace-name }} \
+            -- "cd /workspace && make dev-validate"
 
       - name: Run Tests
         if: steps.create-codespace.outputs.codespace-available == 'true'
@@ -90,7 +98,9 @@ jobs:
           echo "Running tests in Codespace environment..."
 
           # Run atomic tests
-          gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} -- "cd /workspace && make test-atomic"
+          gh codespace ssh \
+            --codespace ${{ steps.create-codespace.outputs.codespace-name }} \
+            -- "cd /workspace && make test-atomic"
 
           # Run unit tests
           gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} -- "cd /workspace && make test-unit"

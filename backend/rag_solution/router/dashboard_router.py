@@ -1,9 +1,9 @@
 """Dashboard router for API endpoints related to dashboard statistics and recent activity."""
 
+from core.logging_utils import get_logger
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from core.logging_utils import get_logger
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.dashboard_schema import (
     DashboardStats,

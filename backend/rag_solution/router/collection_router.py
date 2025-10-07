@@ -2,6 +2,10 @@
 
 from typing import Annotated
 
+from core.config import Settings, get_settings
+from core.custom_exceptions import NotFoundError, ValidationError
+from core.logging_utils import get_logger
+from core.mock_auth import ensure_mock_user_exists
 from fastapi import (
     APIRouter,
     BackgroundTasks,
@@ -18,10 +22,6 @@ from fastapi.responses import FileResponse
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
-from core.config import Settings, get_settings
-from core.custom_exceptions import NotFoundError, ValidationError
-from core.logging_utils import get_logger
-from core.mock_auth import ensure_mock_user_exists
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput
 from rag_solution.schemas.file_schema import DocumentDelete, FileMetadata, FileOutput

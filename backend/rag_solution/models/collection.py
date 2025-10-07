@@ -6,12 +6,12 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from core.identity_service import IdentityService
 from sqlalchemy import Boolean, DateTime, Enum, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
-from core.identity_service import IdentityService
 from rag_solution.file_management.database import Base
 from rag_solution.schemas.collection_schema import CollectionStatus
 

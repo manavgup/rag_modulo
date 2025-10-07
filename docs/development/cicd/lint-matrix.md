@@ -542,4 +542,3 @@ jobs:
         pip install new-linter
         new-linter check rag_solution/
     ```
-

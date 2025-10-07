@@ -1,15 +1,15 @@
 import os
 from typing import Annotated, Any
 
+from core.config import Settings, get_settings
+from core.logging_utils import get_logger
 from fastapi import APIRouter, Depends, HTTPException
 from ibm_watsonx_ai import APIClient, Credentials
 from sqlalchemy import text
 from sqlalchemy.orm import Session
-
-from core.config import Settings, get_settings
-from core.logging_utils import get_logger
-from rag_solution.file_management.database import get_db
 from vectordbs.factory import VectorStoreFactory
+
+from rag_solution.file_management.database import get_db
 
 logger = get_logger(__name__)
 

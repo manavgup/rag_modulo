@@ -20,24 +20,24 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-    - name: Validate Dev Container JSON
-      run: |
-        echo "Validating .devcontainer/devcontainer.json..."
-        if [ ! -f ".devcontainer/devcontainer.json" ]; then
-          echo "❌ .devcontainer/devcontainer.json not found"
-          exit 1
-        fi
+      - name: Validate Dev Container JSON
+        run: |
+          echo "Validating .devcontainer/devcontainer.json..."
+          if [ ! -f ".devcontainer/devcontainer.json" ]; then
+            echo "❌ .devcontainer/devcontainer.json not found"
+            exit 1
+          fi
 
-        # Check if JSON is valid
-        python3 -m json.tool .devcontainer/devcontainer.json > /dev/null
-        if [ $? -eq 0 ]; then
-          echo "✅ Dev Container configuration is valid JSON"
-        else
-          echo "❌ Dev Container configuration has invalid JSON"
-          exit 1
+          # Check if JSON is valid
+          python3 -m json.tool .devcontainer/devcontainer.json > /dev/null
+          if [ $? -eq 0 ]; then
+            echo "✅ Dev Container configuration is valid JSON"
+          else
+            echo "❌ Dev Container configuration has invalid JSON"
+            exit 1
         fi
 
     - name: Setup Environment Files

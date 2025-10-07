@@ -3,11 +3,11 @@
 import uuid
 from datetime import datetime
 
+from core.identity_service import IdentityService
 from sqlalchemy import DateTime, Float, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from core.identity_service import IdentityService
 from rag_solution.file_management.database import Base
 
 
