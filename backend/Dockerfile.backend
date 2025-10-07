@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Build stage: build rust, install poetry and python dependencies
 FROM python:3.12-slim AS builder
 
@@ -32,18 +33,27 @@ WORKDIR /app
 COPY pyproject.toml poetry.lock ./
 
 # Install CPU-only PyTorch first to avoid CUDA dependencies (~6GB savings)
-# This must be done before Poetry installs docling (which depends on torch)
 # Using torch 2.5.0 to match torchvision 0.20.0 compatibility
-RUN pip install --no-cache-dir \
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir \
     torch==2.5.0+cpu \
     torchvision==0.20.0+cpu \
     --index-url https://download.pytorch.org/whl/cpu
 
-# Install python dependencies directly to system Python (no virtual environment)
-# Note: Removed --no-update flag as it's deprecated in Poetry 2.x
-RUN poetry install --only main --no-root --no-cache && \
-    poetry cache clear --all pypi && \
-    pip cache purge
+# Configure pip globally to prevent any CUDA torch reinstalls
+RUN pip config set global.extra-index-url https://download.pytorch.org/whl/cpu
+
+# Install docling without dependencies first (prevents CUDA torch pull)
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir --no-deps docling
+
+# Now install all dependencies via Poetry, which will:
+# - Skip torch/torchvision (already installed)
+# - Skip docling (already installed)
+# - Install everything else
+RUN --mount=type=cache,target=/root/.cache/pip \
+    --mount=type=cache,target=/root/.cache/pypoetry \
+    poetry install --only main --no-root --no-cache
 
 # Clean up system Python installation
 RUN find /usr/local -name "*.pyc" -delete && \

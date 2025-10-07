@@ -151,9 +151,9 @@ graph TB
 
 [Learn more →](testing.md)
 
-#### 03-build-secure.yml 🔄 (Planned)
+#### 03-build-secure.yml ✅ (Implemented)
 
-**Purpose**: Secure Docker build pipeline
+**Purpose**: Secure Docker build pipeline with optimizations
 
 **Security Tools**:
 
@@ -161,9 +161,15 @@ graph TB
 2. **Dockle** - Container image security → SARIF
 3. **Trivy** - CVE scanning (CRITICAL/HIGH) → SARIF
 4. **Syft** - SBOM generation → Artifact
-5. **Cosign** - Image signing (main branch only)
 
-[Learn more →](security-pipeline.md)
+**Optimizations**:
+
+- ✅ **Disk Space Management** (~20GB freed before builds)
+- ✅ **CPU-only PyTorch** (~6GB savings per image)
+- ✅ **Build Cache Cleanup** (Prevents accumulation)
+- ✅ **GitHub Actions Cache** (Speeds up repeated builds)
+
+[Learn more →](build-optimizations.md)
 
 ---
 
@@ -257,19 +263,23 @@ graph TB
 
 **Status**: 🔄 In Progress
 
-### 🔄 Phase 2: Security (Week 2)
+### ✅ Phase 2: Security (Week 2)
 
 **Goal**: Comprehensive security scanning
 
 **Tasks**:
 
-- [ ] Create 03-build-secure.yml
-- [ ] Add Hadolint + Dockle
-- [ ] Add Trivy CVE scanning
-- [ ] Add Syft SBOM generation
-- [ ] Configure SARIF uploads
-- [ ] Add weekly CVE cron
+- [x] Create 03-build-secure.yml (PR #324)
+- [x] Add Hadolint + Dockle (PR #324)
+- [x] Add Trivy CVE scanning (PR #324)
+- [x] Add Syft SBOM generation (PR #324)
+- [x] Configure SARIF uploads (PR #324)
+- [x] Add weekly CVE cron (PR #324)
+- [x] Optimize disk space (~20GB freed) (PR #329)
+- [x] CPU-only PyTorch (~6GB savings) (PR #329)
 - [ ] Increase coverage to 65%
+
+**Status**: ✅ Complete (except coverage increase)
 
 ### 📝 Phase 3: Testing (Week 3)
 
@@ -299,7 +309,8 @@ graph TB
 ## Quick Links
 
 - [Lint Matrix Strategy](lint-matrix.md) - Matrix linting implementation
-- [Security Pipeline](security-pipeline.md) - Comprehensive security scanning
+- [Build Optimizations](build-optimizations.md) - Disk space & PyTorch optimization ✨ **NEW**
+- [Security Pipeline](ci-cd-security.md) - Comprehensive security scanning
 - [Testing Strategy](testing.md) - Unit and integration testing
 - [Integration Tests](integration-tests.md) - End-to-end validation
 - [Troubleshooting](troubleshooting.md) - Common CI/CD issues
