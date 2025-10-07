@@ -140,6 +140,8 @@ nav:
     - GitHub Codespaces: development/codespaces.md
     - Contributing: development/contributing.md
     - Code Style: development/code-style.md
+    - CI/CD Pipeline:
+      - Security Pipeline: development/ci-cd-security.md
   - 🧪 Testing:
     - Overview: testing/index.md
     - Test Strategy: testing/strategy.md
