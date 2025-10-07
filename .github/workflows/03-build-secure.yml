@@ -4,16 +4,22 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'backend/**'
-      - 'frontend/**'
+      # Only run on PR if Dockerfiles or dependencies change
+      - 'backend/Dockerfile.backend'
+      - 'backend/pyproject.toml'
+      - 'backend/poetry.lock'
+      - 'frontend/Dockerfile.frontend'
+      - 'frontend/package*.json'
       - 'docker-compose*.yml'
       - '.github/workflows/03-build-secure.yml'
   push:
     branches: [main]
+    # Always scan on merge to main
   schedule:
     # Weekly CVE scan every Tuesday at 6:17 PM UTC
     - cron: '17 18 * * 2'
   workflow_dispatch:
+    # Manual trigger option
 
 permissions:
   contents: read
@@ -44,22 +50,32 @@ jobs:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
 
-      - name: 🧹 Free Up Disk Space
+      - name: 🧹 Free Up Disk Space (if needed)
         run: |
-          echo "Initial: $(df -h / | awk 'NR==2 {print $4}') available"
+          # Check available space (in GB)
+          AVAILABLE_GB=$(df / | awk 'NR==2 {print int($4/1024/1024)}')
+          echo "Available space: ${AVAILABLE_GB}GB"
 
-          # Run removals in parallel for speed
-          sudo rm -rf /usr/share/dotnet &
-          sudo rm -rf /opt/ghc &
-          sudo rm -rf /usr/local/share/boost &
-          sudo rm -rf "$AGENT_TOOLSDIRECTORY" &
-          sudo rm -rf /usr/local/lib/android &
-          sudo rm -rf /usr/share/swift &
-          wait
+          # Only cleanup if less than 10GB available
+          if [ "$AVAILABLE_GB" -lt 10 ]; then
+            echo "Low disk space detected - cleaning up..."
 
-          docker system prune -af --volumes || true
+            # Run removals in parallel for speed
+            sudo rm -rf /usr/share/dotnet &
+            sudo rm -rf /opt/ghc &
+            sudo rm -rf /usr/local/share/boost &
+            sudo rm -rf "$AGENT_TOOLSDIRECTORY" &
+            sudo rm -rf /usr/local/lib/android &
+            sudo rm -rf /usr/share/swift &
+            wait
 
-          echo "After cleanup: $(df -h / | awk 'NR==2 {print $4}') available"
+            docker system prune -af --volumes || true
+
+            AVAILABLE_AFTER=$(df / | awk 'NR==2 {print int($4/1024/1024)}')
+            echo "After cleanup: ${AVAILABLE_AFTER}GB available"
+          else
+            echo "Sufficient space available - skipping cleanup"
+          fi
 
       - name: 🐳 Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
