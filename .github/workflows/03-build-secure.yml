@@ -70,17 +70,26 @@ jobs:
       # ===== STAGE 1: Dockerfile Security (Hadolint) =====
       - name: 🔍 Hadolint - Dockerfile Security Scan
         id: hadolint
-        uses: hadolint/hadolint-action@v3.1.0
         continue-on-error: true
-        with:
-          dockerfile: ${{ matrix.dockerfile }}
-          format: sarif
-          output-file: hadolint-${{ matrix.service }}.sarif
-          no-fail: true  # Don't fail the build, just report
+        run: |
+          # Use hadolint directly instead of the action (which has Docker issues)
+          docker run --rm -i hadolint/hadolint:latest hadolint \
+            --format sarif \
+            --no-fail \
+            - < ${{ matrix.dockerfile }} > hadolint-${{ matrix.service }}.sarif || true
+
+          # Check if file was created and has content
+          if [ -f "hadolint-${{ matrix.service }}.sarif" ] && [ -s "hadolint-${{ matrix.service }}.sarif" ]; then
+            echo "✅ Hadolint scan completed"
+            echo "hadolint_success=true" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ Hadolint scan failed or produced no output"
+            echo "hadolint_success=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: 📤 Upload Hadolint SARIF
         uses: github/codeql-action/upload-sarif@v3
-        if: always() && hashFiles('hadolint-${{ matrix.service }}.sarif') != ''
+        if: always() && steps.hadolint.outputs.hadolint_success == 'true'
         with:
           sarif_file: hadolint-${{ matrix.service }}.sarif
           category: hadolint-${{ matrix.service }}
@@ -118,9 +127,19 @@ jobs:
           report-format: sarif
           report-name: dockle-${{ matrix.service }}
 
+      - name: Check Dockle Output
+        id: check-dockle
+        if: always()
+        run: |
+          if [ -f "dockle-${{ matrix.service }}.sarif" ] && [ -s "dockle-${{ matrix.service }}.sarif" ]; then
+            echo "dockle_success=true" >> $GITHUB_OUTPUT
+          else
+            echo "dockle_success=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: 📤 Upload Dockle SARIF
         uses: github/codeql-action/upload-sarif@v3
-        if: always() && hashFiles('dockle-${{ matrix.service }}.sarif') != ''
+        if: always() && steps.check-dockle.outputs.dockle_success == 'true'
         with:
           sarif_file: dockle-${{ matrix.service }}.sarif
           category: dockle-${{ matrix.service }}
@@ -138,9 +157,19 @@ jobs:
           exit-code: '0'  # Report but don't fail on vulnerabilities
           ignore-unfixed: true
 
+      - name: Check Trivy Output
+        id: check-trivy
+        if: always()
+        run: |
+          if [ -f "trivy-${{ matrix.service }}.sarif" ] && [ -s "trivy-${{ matrix.service }}.sarif" ]; then
+            echo "trivy_success=true" >> $GITHUB_OUTPUT
+          else
+            echo "trivy_success=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: 📤 Upload Trivy SARIF
         uses: github/codeql-action/upload-sarif@v3
-        if: always() && hashFiles('trivy-${{ matrix.service }}.sarif') != ''
+        if: always() && steps.check-trivy.outputs.trivy_success == 'true'
         with:
           sarif_file: trivy-${{ matrix.service }}.sarif
           category: trivy-${{ matrix.service }}
@@ -166,9 +195,19 @@ jobs:
           format: spdx-json
           output-file: sbom-${{ matrix.service }}.spdx.json
 
+      - name: Check SBOM Output
+        id: check-sbom
+        if: always()
+        run: |
+          if [ -f "sbom-${{ matrix.service }}.spdx.json" ] && [ -s "sbom-${{ matrix.service }}.spdx.json" ]; then
+            echo "sbom_success=true" >> $GITHUB_OUTPUT
+          else
+            echo "sbom_success=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: 📤 Upload SBOM Artifact
         uses: actions/upload-artifact@v4
-        if: always() && hashFiles('sbom-${{ matrix.service }}.spdx.json') != ''
+        if: always() && steps.check-sbom.outputs.sbom_success == 'true'
         with:
           name: sbom-${{ matrix.service }}
           path: sbom-${{ matrix.service }}.spdx.json
@@ -187,9 +226,19 @@ jobs:
           severity: 'CRITICAL,HIGH'
           exit-code: '0'
 
+      - name: Check Trivy Filesystem Output
+        id: check-trivy-fs
+        if: always()
+        run: |
+          if [ -f "trivy-fs-${{ matrix.service }}.sarif" ] && [ -s "trivy-fs-${{ matrix.service }}.sarif" ]; then
+            echo "trivy_fs_success=true" >> $GITHUB_OUTPUT
+          else
+            echo "trivy_fs_success=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: 📤 Upload Trivy Filesystem SARIF
         uses: github/codeql-action/upload-sarif@v3
-        if: always() && hashFiles('trivy-fs-${{ matrix.service }}.sarif') != ''
+        if: always() && steps.check-trivy-fs.outputs.trivy_fs_success == 'true'
         with:
           sarif_file: trivy-fs-${{ matrix.service }}.sarif
           category: trivy-fs-${{ matrix.service }}
