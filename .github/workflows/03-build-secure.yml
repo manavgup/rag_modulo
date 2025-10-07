@@ -46,23 +46,20 @@ jobs:
 
       - name: 🧹 Free Up Disk Space
         run: |
-          echo "=== Initial Disk Space ==="
-          df -h
+          echo "Initial: $(df -h / | awk 'NR==2 {print $4}') available"
 
-          echo "=== Removing unnecessary packages (~14GB) ==="
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /usr/local/share/boost
-          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /usr/share/swift
+          # Run removals in parallel for speed
+          sudo rm -rf /usr/share/dotnet &
+          sudo rm -rf /opt/ghc &
+          sudo rm -rf /usr/local/share/boost &
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY" &
+          sudo rm -rf /usr/local/lib/android &
+          sudo rm -rf /usr/share/swift &
+          wait
 
-          echo "=== Cleaning Docker ==="
           docker system prune -af --volumes || true
 
-          echo "=== Final Disk Space ==="
-          df -h
-          echo "✅ Disk space cleanup completed"
+          echo "After cleanup: $(df -h / | awk 'NR==2 {print $4}') available"
 
       - name: 🐳 Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
