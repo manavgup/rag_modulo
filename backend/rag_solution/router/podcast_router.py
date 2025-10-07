@@ -8,12 +8,12 @@ import io
 import logging
 from typing import Annotated
 
-from core.config import Settings, get_settings
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.config import Settings, get_settings
 from rag_solution.core.dependencies import get_current_user
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.podcast_schema import (

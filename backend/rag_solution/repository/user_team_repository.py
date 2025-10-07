@@ -1,10 +1,10 @@
 from typing import Any
 
-from core.logging_utils import get_logger
 from pydantic import UUID4
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from core.logging_utils import get_logger
 from rag_solution.core.exceptions import NotFoundError
 from rag_solution.models.user_team import UserTeam
 from rag_solution.schemas.user_team_schema import UserTeamOutput

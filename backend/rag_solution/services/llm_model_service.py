@@ -1,10 +1,10 @@
 import logging
 from typing import Any
 
-from core.custom_exceptions import LLMProviderError, ModelConfigError, ModelValidationError
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
+from core.custom_exceptions import LLMProviderError, ModelConfigError, ModelValidationError
 from rag_solution.repository.llm_model_repository import LLMModelRepository
 from rag_solution.repository.llm_provider_repository import LLMProviderRepository
 from rag_solution.schemas.llm_model_schema import LLMModelInput, LLMModelOutput, ModelType

@@ -11,6 +11,9 @@ from typing import Any
 from uuid import UUID
 
 import jwt
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
+from sqlalchemy.orm import Session
+
 from auth.oidc import verify_jwt_token
 from core.config import get_settings
 from core.mock_auth import (
@@ -19,9 +22,6 @@ from core.mock_auth import (
     is_bypass_mode_active,
     is_mock_token,
 )
-from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
-from sqlalchemy.orm import Session
-
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.conversation_schema import (
     ConversationMessageInput,

@@ -13,9 +13,8 @@ from datetime import datetime
 from typing import Any
 
 from core.config import Settings
-from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, DocumentMetadata
-
 from rag_solution.data_ingestion.base_processor import BaseProcessor
+from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, DocumentMetadata
 
 logger = logging.getLogger(__name__)
 

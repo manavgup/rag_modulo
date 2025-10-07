@@ -4,11 +4,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from pydantic import UUID4
+
 from core.custom_exceptions import LLMProviderError
 from core.logging_utils import get_logger, setup_logging
-from pydantic import UUID4
-from vectordbs.data_types import EmbeddingsList
-
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
 from rag_solution.schemas.llm_provider_schema import LLMProviderConfig
 from rag_solution.schemas.llm_usage_schema import LLMUsage, ServiceType, TokenUsageStats
@@ -17,6 +16,7 @@ from rag_solution.services.llm_model_service import LLMModelService
 from rag_solution.services.llm_parameters_service import LLMParametersService
 from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.prompt_template_service import PromptTemplateService
+from vectordbs.data_types import EmbeddingsList
 
 setup_logging(Path("logs"))
 logger = get_logger("llm.providers")

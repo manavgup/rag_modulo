@@ -7,10 +7,10 @@ message history retrieval, and conversation management functionality.
 import logging
 from uuid import UUID
 
-from core.config import get_settings
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from core.config import get_settings
 from rag_solution.core.dependencies import get_current_user
 from rag_solution.core.exceptions import NotFoundError, ValidationError
 from rag_solution.file_management.database import get_db

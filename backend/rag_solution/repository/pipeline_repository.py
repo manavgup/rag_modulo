@@ -6,10 +6,10 @@ strict type boundaries and clean separation of concerns.
 
 from typing import Any
 
-from core.custom_exceptions import RepositoryError
 from pydantic import UUID4
 from sqlalchemy.orm import Session, joinedload
 
+from core.custom_exceptions import RepositoryError
 from rag_solution.core.exceptions import NotFoundError
 from rag_solution.models.pipeline import PipelineConfig
 from rag_solution.schemas.pipeline_schema import PipelineConfigInput, PipelineConfigOutput

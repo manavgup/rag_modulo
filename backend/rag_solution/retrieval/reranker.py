@@ -11,10 +11,10 @@ import re
 from abc import ABC, abstractmethod
 
 from pydantic import UUID4
-from vectordbs.data_types import QueryResult
 
 from rag_solution.generation.providers.base import LLMBase
 from rag_solution.schemas.prompt_template_schema import PromptTemplateBase
+from vectordbs.data_types import QueryResult
 
 logger = logging.getLogger(__name__)
 

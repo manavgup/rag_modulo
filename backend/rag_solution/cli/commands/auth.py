@@ -9,7 +9,6 @@ from datetime import datetime, timedelta
 from getpass import getpass
 
 from core.identity_service import IdentityService
-
 from rag_solution.cli.exceptions import AuthenticationError
 
 from .base import BaseCommand, CommandResult

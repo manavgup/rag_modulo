@@ -4,13 +4,12 @@ from typing import Any
 
 import json_repair
 import pydantic
-from core.logging_utils import get_logger
 from dotenv import find_dotenv, load_dotenv
 from ibm_watsonx_ai.foundation_models import ModelInference
 from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams
 from pydantic import BaseModel
-from vectordbs.utils.watsonx import generate_batch, generate_text, get_model
 
+from core.logging_utils import get_logger
 from rag_solution.evaluation.metrics import AnswerRelevance, AnswerSimilarity, ContextRelevance, Faithfulness
 from rag_solution.evaluation.prompts import (
     ANSWER_RELEVANCE_PROMPT_LLAMA3,
@@ -18,6 +17,7 @@ from rag_solution.evaluation.prompts import (
     CONTEXT_RELEVANCY_PROMPT_LLAMA3,
     FAITHFULNESS_PROMPT_LLAMA3,
 )
+from vectordbs.utils.watsonx import generate_batch, generate_text, get_model
 
 logger = get_logger(__name__)
 

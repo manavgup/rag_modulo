@@ -6,11 +6,11 @@ import asyncio
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from core.custom_exceptions import LLMProviderError, NotFoundError, ValidationError
-from core.logging_utils import get_logger
 from openai import AsyncOpenAI, OpenAI
 from tenacity import retry, stop_after_attempt, wait_exponential
 
+from core.custom_exceptions import LLMProviderError, NotFoundError, ValidationError
+from core.logging_utils import get_logger
 from rag_solution.schemas.llm_model_schema import ModelType
 from rag_solution.schemas.llm_usage_schema import LLMUsage, ServiceType
 
@@ -20,10 +20,10 @@ if TYPE_CHECKING:
     from collections.abc import Generator, Sequence
 
     from pydantic import UUID4
-    from vectordbs.data_types import EmbeddingsList
 
     from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
     from rag_solution.schemas.prompt_template_schema import PromptTemplateBase
+    from vectordbs.data_types import EmbeddingsList
 
 logger = get_logger("llm.providers.openai")
 
