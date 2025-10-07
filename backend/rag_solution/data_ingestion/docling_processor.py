@@ -13,9 +13,8 @@ from datetime import datetime
 from typing import Any
 
 from core.config import Settings
-from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, DocumentMetadata
-
 from rag_solution.data_ingestion.base_processor import BaseProcessor
+from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, DocumentMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +36,7 @@ class DoclingProcessor(BaseProcessor):
 
         # Import Docling here to avoid import errors when not installed
         try:
-            from docling.document_converter import DocumentConverter  # type: ignore[import-not-found]
+            from docling.document_converter import DocumentConverter
 
             self.converter = DocumentConverter()
             logger.info("DoclingProcessor initialized successfully")

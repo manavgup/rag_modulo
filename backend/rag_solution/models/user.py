@@ -24,9 +24,7 @@ if TYPE_CHECKING:
 class User(Base):
     __tablename__ = "users"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=IdentityService.generate_id
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=IdentityService.generate_id)
     ibm_id: Mapped[str] = mapped_column(String, unique=True, index=True)
     email: Mapped[str] = mapped_column(String, index=True)
     name: Mapped[str] = mapped_column(String)

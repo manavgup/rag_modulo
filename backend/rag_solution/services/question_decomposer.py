@@ -3,7 +3,6 @@
 import re
 
 from core.config import Settings
-
 from rag_solution.generation.providers.base import LLMBase
 from rag_solution.schemas.chain_of_thought_schema import DecomposedQuestion, QuestionDecomposition
 

@@ -21,9 +21,7 @@ class PipelineConfig(Base):
     __tablename__ = "pipeline_configs"
 
     # Identifiers
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=IdentityService.generate_id
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=IdentityService.generate_id)
     user_id: Mapped[uuid.UUID] = mapped_column(  # Add user ownership
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )

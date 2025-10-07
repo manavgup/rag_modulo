@@ -11,12 +11,11 @@ from typing import Any
 from core.config import Settings, get_settings
 from core.custom_exceptions import DocumentStorageError
 from core.identity_service import IdentityService
-from vectordbs.data_types import Document
-from vectordbs.vector_store import VectorStore
-
 from rag_solution.data_ingestion.document_processor import DocumentProcessor
 from rag_solution.file_management.database import create_session_factory
 from rag_solution.generation.providers.factory import LLMProviderFactory
+from vectordbs.data_types import Document
+from vectordbs.vector_store import VectorStore
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

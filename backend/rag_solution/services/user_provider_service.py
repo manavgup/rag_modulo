@@ -2,11 +2,11 @@
 
 from typing import Any
 
-from core.config import Settings
-from core.logging_utils import get_logger
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
+from core.config import Settings
+from core.logging_utils import get_logger
 from rag_solution.core.exceptions import ValidationError
 from rag_solution.repository.user_provider_repository import UserProviderRepository
 from rag_solution.schemas.llm_parameters_schema import LLMParametersOutput

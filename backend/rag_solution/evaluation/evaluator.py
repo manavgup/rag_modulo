@@ -11,7 +11,7 @@ import sys
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from sklearn.metrics.pairwise import cosine_similarity  # type: ignore[import-untyped]
+    from sklearn.metrics.pairwise import cosine_similarity
 else:
     try:
         from sklearn.metrics.pairwise import (
@@ -191,7 +191,6 @@ if __name__ == "__main__":
     # Import dependencies that may not be available
     try:
         from core.config import get_settings
-
         from rag_solution.file_management.database import get_db  # pylint: disable=ungrouped-imports
         from rag_solution.services.search_service import SearchService
         from rag_solution.services.user_collection_service import UserCollectionService

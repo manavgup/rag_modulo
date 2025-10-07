@@ -7,10 +7,10 @@ podcast audio generation. Provides zero-cost alternative to API-based TTS.
 
 import io
 import logging
-from typing import Any
+from typing import Any, ClassVar
 
 import httpx
-from pydub import AudioSegment  # type: ignore[import-not-found]
+from pydub import AudioSegment
 
 from rag_solution.schemas.podcast_schema import AudioFormat, PodcastScript, Speaker
 
@@ -23,7 +23,7 @@ class OllamaAudioProvider(AudioProviderBase):
     """Ollama TTS provider for self-hosted podcast audio generation."""
 
     # Orpheus voices (8 available in Orpheus model)
-    ORPHEUS_VOICES = [
+    ORPHEUS_VOICES: ClassVar[list[dict[str, Any]]] = [
         {
             "voice_id": "voice_1",
             "name": "Voice 1",

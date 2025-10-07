@@ -7,6 +7,7 @@ with HOST and EXPERT turns for multi-voice audio generation.
 
 import logging
 import re
+from typing import ClassVar
 
 from rag_solution.schemas.podcast_schema import (
     PodcastScript,
@@ -26,14 +27,14 @@ class PodcastScriptParser:
     """Parser for converting LLM-generated scripts into structured dialogue."""
 
     # Patterns for detecting speaker turns
-    HOST_PATTERNS = [
+    HOST_PATTERNS: ClassVar[list[str]] = [
         r"^HOST:\s*(.+)$",
         r"^Host:\s*(.+)$",
         r"^H:\s*(.+)$",
         r"^\[HOST\]\s*(.+)$",
     ]
 
-    EXPERT_PATTERNS = [
+    EXPERT_PATTERNS: ClassVar[list[str]] = [
         r"^EXPERT:\s*(.+)$",
         r"^Expert:\s*(.+)$",
         r"^E:\s*(.+)$",

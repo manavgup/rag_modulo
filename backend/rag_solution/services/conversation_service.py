@@ -10,10 +10,10 @@ from datetime import datetime, timedelta
 from typing import Any
 from uuid import UUID
 
-from core.config import Settings
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from core.config import Settings
 from rag_solution.core.exceptions import NotFoundError, SessionExpiredError, ValidationError
 from rag_solution.models.conversation_message import ConversationMessage
 from rag_solution.models.conversation_session import ConversationSession

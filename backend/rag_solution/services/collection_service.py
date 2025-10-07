@@ -7,10 +7,12 @@ processing.
 """
 
 # collection_service.py
-import re
+
+from fastapi import BackgroundTasks, UploadFile
+from pydantic import UUID4
+from sqlalchemy.orm import Session
 
 from core.config import Settings
-from core.identity_service import IdentityService
 from core.custom_exceptions import (
     CollectionProcessingError,
     DocumentIngestionError,
@@ -21,14 +23,8 @@ from core.custom_exceptions import (
     QuestionGenerationError,
     ValidationError,
 )
+from core.identity_service import IdentityService
 from core.logging_utils import get_logger
-from fastapi import BackgroundTasks, UploadFile
-from pydantic import UUID4
-from sqlalchemy.orm import Session
-from vectordbs.data_types import Document
-from vectordbs.error_types import CollectionError
-from vectordbs.factory import VectorStoreFactory
-
 from rag_solution.core.exceptions import AlreadyExistsError
 from rag_solution.data_ingestion.ingestion import DocumentStore
 from rag_solution.repository.collection_repository import CollectionRepository
@@ -43,6 +39,9 @@ from rag_solution.services.prompt_template_service import PromptTemplateService
 from rag_solution.services.question_service import QuestionService
 from rag_solution.services.user_collection_service import UserCollectionService
 from rag_solution.services.user_provider_service import UserProviderService
+from vectordbs.data_types import Document
+from vectordbs.error_types import CollectionError
+from vectordbs.factory import VectorStoreFactory
 
 logger = get_logger("services.collection")
 
@@ -613,7 +612,7 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
                     logger.error(error_msg)
                     errors.append(error_msg)
 
-            summary = {"found": len(orphaned_collections), "deleted": deleted_count, "errors": errors}  # type: ignore[dict-item]
+            summary = {"found": len(orphaned_collections), "deleted": deleted_count, "errors": errors}
 
             logger.info("Cleanup complete: %s", summary)
             return summary  # type: ignore[return-value]

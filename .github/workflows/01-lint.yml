@@ -1,0 +1,144 @@
+name: Lint & Static Analysis
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false  # Show all linter failures, not just the first
+      matrix:
+        include:
+          # Configuration file linting
+          - id: yamllint
+            name: "YAML Lint"
+            blocking: true
+            cmd: |
+              pip install yamllint
+              yamllint .github/
+
+          - id: jsonlint
+            name: "JSON Lint"
+            blocking: true
+            cmd: |
+              find . -name '*.json' -not -path './node_modules/*' -not -path './.git/*' -exec jq empty {} \; || exit 1
+
+          - id: toml-check
+            name: "TOML Lint"
+            blocking: true
+            cmd: |
+              pip install toml
+              python -c "import toml; toml.load(open('backend/pyproject.toml'))"
+
+          # Python backend linting (blocking)
+          - id: ruff-check
+            name: "Ruff Check"
+            working-directory: backend
+            blocking: true
+            cmd: |
+              pip install poetry
+              poetry install --only dev
+              poetry run ruff check rag_solution/ --line-length 120
+
+          - id: ruff-format
+            name: "Ruff Format Check"
+            working-directory: backend
+            blocking: true
+            cmd: |
+              pip install poetry
+              poetry install --only dev
+              poetry run ruff format --check rag_solution/
+
+          # Python type/quality checking (non-blocking / informational)
+          - id: mypy
+            name: "MyPy Type Check (150 errors - Informational)"
+            working-directory: backend
+            blocking: false
+            cmd: |
+              pip install poetry
+              poetry install --only dev
+              poetry run mypy rag_solution/ vectordbs/ auth/ --ignore-missing-imports --show-error-codes || true
+
+          - id: pylint
+            name: "Pylint Quality (Informational)"
+            working-directory: backend
+            blocking: false
+            cmd: |
+              pip install poetry
+              poetry install --only dev
+              poetry run pylint rag_solution/ || true
+
+          - id: pydocstyle
+            name: "Docstring Style (Informational)"
+            working-directory: backend
+            blocking: false
+            cmd: |
+              pip install poetry
+              poetry install --only dev
+              poetry run pydocstyle rag_solution/ --count || true
+
+    name: ${{ matrix.name }}
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python 3.12
+        if: |
+          contains(matrix.id, 'ruff') || contains(matrix.id, 'mypy') || 
+          contains(matrix.id, 'pylint') || contains(matrix.id, 'pydocstyle') || 
+          contains(matrix.id, 'toml')
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: 🔍 Install jq for JSON linting
+        if: matrix.id == 'jsonlint'
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: 🚀 Run ${{ matrix.name }}
+        working-directory: ${{ matrix.working-directory || '.' }}
+        run: ${{ matrix.cmd }}
+        continue-on-error: ${{ !matrix.blocking }}
+
+      - name: ✅ ${{ matrix.name }} passed
+        if: success()
+        run: echo "::notice::${{ matrix.name }} completed successfully"
+
+      - name: ⚠️ ${{ matrix.name }} failed
+        if: failure() && !matrix.blocking
+        run: echo "::warning::${{ matrix.name }} found issues (non-blocking)"
+
+      - name: ❌ ${{ matrix.name }} failed
+        if: failure() && matrix.blocking
+        run: echo "::error::${{ matrix.name }} found issues (blocking)"
+
+  lint-summary:
+    runs-on: ubuntu-latest
+    needs: lint
+    if: always()
+
+    steps:
+      - name: 📊 Lint Summary
+        run: |
+          echo "## 📊 Lint Results Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All lint checks completed. Check individual jobs for details." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Benefits of Matrix Linting" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **Parallel Execution**: All linters run simultaneously" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **Clear Visibility**: Each linter shown separately in GitHub UI" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **Fail-Fast Disabled**: See all failures, not just the first" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **Easy Retry**: Can re-run individual linters" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Blocking vs Informational" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔴 **Blocking**: YAML, JSON, TOML, Ruff Check, Ruff Format" >> $GITHUB_STEP_SUMMARY
+          echo "- 🟡 **Informational**: MyPy, Pylint, Pydocstyle" >> $GITHUB_STEP_SUMMARY

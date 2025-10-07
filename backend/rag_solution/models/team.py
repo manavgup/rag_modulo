@@ -18,9 +18,7 @@ if TYPE_CHECKING:
 class Team(Base):
     __tablename__ = "teams"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=IdentityService.generate_id
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=IdentityService.generate_id)
     name: Mapped[str] = mapped_column(String, index=True, nullable=False)
     description: Mapped[str] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, nullable=False)

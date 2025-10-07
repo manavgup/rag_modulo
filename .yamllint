@@ -1,0 +1,38 @@
+---
+# YAML Lint Configuration for RAG Modulo
+# Configured for GitHub Actions workflows
+
+extends: default
+
+rules:
+  # Allow longer lines (workflows often have long commands)
+  line-length:
+    max: 120
+    level: warning
+
+  # Don't require document start markers
+  document-start: disable
+
+  # Allow "on" keyword in GitHub Actions
+  truthy:
+    allowed-values: ['true', 'false', 'on', 'off']
+
+  # Relax bracket spacing rules
+  brackets:
+    max-spaces-inside: 1
+
+  # Standard indentation
+  indentation:
+    spaces: 2
+    indent-sequences: consistent
+
+  # Allow empty values
+  empty-values:
+    forbid-in-block-mappings: false
+    forbid-in-flow-mappings: false
+
+  # Comments can have any spacing
+  comments:
+    min-spaces-from-content: 1
+
+

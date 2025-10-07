@@ -150,7 +150,7 @@ class ChromaDBStore(VectorStore):
 
         try:
             # ChromaDB expects embeddings as list[float], not list[list[float]]
-            query_embeddings = query.embeddings[0]  # type: ignore[unreachable]
+            query_embeddings = query.embeddings[0]
             response = collection.query(
                 query_embeddings=query_embeddings,  # type: ignore[arg-type]
                 n_results=number_of_results,  # ChromaDB API uses n_results, but we maintain our consistent interface

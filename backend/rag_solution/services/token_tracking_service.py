@@ -8,10 +8,10 @@ or exceeding those limits. It provides the central hub for all token-related ope
 from typing import Any
 from uuid import UUID
 
-from core.config import Settings
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
+from core.config import Settings
 from rag_solution.repository.token_warning_repository import TokenWarningRepository
 from rag_solution.schemas.llm_usage_schema import (
     LLMUsage,

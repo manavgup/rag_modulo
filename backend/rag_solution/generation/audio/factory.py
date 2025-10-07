@@ -6,6 +6,7 @@ Similar pattern to LLMProviderFactory but simpler (no database dependencies).
 """
 
 import logging
+from typing import ClassVar
 
 from core.config import Settings
 
@@ -20,7 +21,7 @@ class AudioProviderFactory:
     """Factory for creating audio generation providers."""
 
     # Registry of available providers
-    _providers: dict[str, type[AudioProviderBase]] = {
+    _providers: ClassVar[dict[str, type[AudioProviderBase]]] = {
         "openai": OpenAIAudioProvider,
         "ollama": OllamaAudioProvider,
     }
@@ -50,8 +51,6 @@ class AudioProviderFactory:
         if provider_type not in cls._providers:
             available = ", ".join(cls._providers.keys())
             raise ValueError(f"Unsupported audio provider: '{provider_type}'. " f"Available providers: {available}")
-
-        provider_class = cls._providers[provider_type]
 
         try:
             if provider_type == "openai":

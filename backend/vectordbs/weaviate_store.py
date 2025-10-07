@@ -9,7 +9,7 @@ enabling document storage, retrieval, and search operations using Weaviate.
 import logging
 from typing import Any
 
-import weaviate  # type: ignore[import-untyped]
+import weaviate
 from core.config import Settings, get_settings
 
 from vectordbs.utils.watsonx import get_embeddings

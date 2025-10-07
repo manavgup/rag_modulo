@@ -9,12 +9,12 @@ import os
 from collections.abc import AsyncIterator
 
 import pandas as pd
+
 from core.custom_exceptions import DocumentProcessingError
 from core.identity_service import IdentityService
-from vectordbs.data_types import Document
-
 from rag_solution.data_ingestion.base_processor import BaseProcessor
 from rag_solution.doc_utils import get_document
+from vectordbs.data_types import Document
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
