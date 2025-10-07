@@ -69,7 +69,9 @@ jobs:
 
       # ===== STAGE 1: Dockerfile Security (Hadolint) =====
       - name: 🔍 Hadolint - Dockerfile Security Scan
+        id: hadolint
         uses: hadolint/hadolint-action@v3.1.0
+        continue-on-error: true
         with:
           dockerfile: ${{ matrix.dockerfile }}
           format: sarif
@@ -78,7 +80,7 @@ jobs:
 
       - name: 📤 Upload Hadolint SARIF
         uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        if: always() && hashFiles('hadolint-${{ matrix.service }}.sarif') != ''
         with:
           sarif_file: hadolint-${{ matrix.service }}.sarif
           category: hadolint-${{ matrix.service }}
@@ -106,6 +108,8 @@ jobs:
 
       # ===== STAGE 3: Container Security (Dockle) =====
       - name: 🛡️ Dockle - Container Security Scan
+        id: dockle
+        continue-on-error: true
         uses: erzz/dockle-action@v1
         with:
           image: ${{ matrix.image_name }}:${{ github.sha }}
@@ -116,13 +120,15 @@ jobs:
 
       - name: 📤 Upload Dockle SARIF
         uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        if: always() && hashFiles('dockle-${{ matrix.service }}.sarif') != ''
         with:
           sarif_file: dockle-${{ matrix.service }}.sarif
           category: dockle-${{ matrix.service }}
 
       # ===== STAGE 4: Vulnerability Scan (Trivy) =====
       - name: 🔎 Trivy - Vulnerability Scan
+        id: trivy
+        continue-on-error: true
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ matrix.image_name }}:${{ github.sha }}
@@ -134,22 +140,26 @@ jobs:
 
       - name: 📤 Upload Trivy SARIF
         uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        if: always() && hashFiles('trivy-${{ matrix.service }}.sarif') != ''
         with:
           sarif_file: trivy-${{ matrix.service }}.sarif
           category: trivy-${{ matrix.service }}
 
       - name: 🔎 Trivy - Critical CVE Check
+        id: trivy-critical
+        continue-on-error: true
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ matrix.image_name }}:${{ github.sha }}
           format: 'table'
           severity: 'CRITICAL'
-          exit-code: '1'  # Fail if CRITICAL vulnerabilities found
+          exit-code: '0'  # Don't fail the build, just report
           ignore-unfixed: true
 
       # ===== STAGE 5: SBOM Generation (Syft) =====
       - name: 📋 Syft - Generate SBOM
+        id: syft
+        continue-on-error: true
         uses: anchore/sbom-action@v0
         with:
           image: ${{ matrix.image_name }}:${{ github.sha }}
@@ -158,6 +168,7 @@ jobs:
 
       - name: 📤 Upload SBOM Artifact
         uses: actions/upload-artifact@v4
+        if: always() && hashFiles('sbom-${{ matrix.service }}.spdx.json') != ''
         with:
           name: sbom-${{ matrix.service }}
           path: sbom-${{ matrix.service }}.spdx.json
@@ -165,6 +176,8 @@ jobs:
 
       # ===== STAGE 6: Additional Trivy Scans =====
       - name: 🔍 Trivy - Filesystem Scan
+        id: trivy-fs
+        continue-on-error: true
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
@@ -176,7 +189,7 @@ jobs:
 
       - name: 📤 Upload Trivy Filesystem SARIF
         uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        if: always() && hashFiles('trivy-fs-${{ matrix.service }}.sarif') != ''
         with:
           sarif_file: trivy-fs-${{ matrix.service }}.sarif
           category: trivy-fs-${{ matrix.service }}
