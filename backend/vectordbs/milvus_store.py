@@ -10,7 +10,7 @@ import time
 from typing import Any
 
 from core.config import Settings, get_settings
-from pymilvus import (  # type: ignore[import-untyped]
+from pymilvus import (
     Collection,
     CollectionSchema,
     DataType,

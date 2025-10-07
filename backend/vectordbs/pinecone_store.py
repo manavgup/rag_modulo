@@ -8,7 +8,7 @@ import logging
 from typing import Any
 
 from core.config import Settings, get_settings
-from pinecone import Pinecone, ServerlessSpec  # type: ignore[import-untyped]
+from pinecone import Pinecone, ServerlessSpec
 
 from vectordbs.utils.watsonx import get_embeddings
 

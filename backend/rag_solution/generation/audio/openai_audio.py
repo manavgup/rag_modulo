@@ -7,10 +7,10 @@ Implements turn-by-turn audio generation and combines segments with pauses.
 
 import io
 import logging
-from typing import Any
+from typing import Any, ClassVar
 
 from openai import AsyncOpenAI
-from pydub import AudioSegment  # type: ignore[import-not-found]
+from pydub import AudioSegment
 
 from rag_solution.schemas.podcast_schema import AudioFormat, PodcastScript, Speaker
 
@@ -23,7 +23,7 @@ class OpenAIAudioProvider(AudioProviderBase):
     """OpenAI TTS provider for podcast audio generation."""
 
     # Available OpenAI voices with metadata
-    AVAILABLE_VOICES = [
+    AVAILABLE_VOICES: ClassVar[list[dict[str, Any]]] = [
         {
             "voice_id": "alloy",
             "name": "Alloy",

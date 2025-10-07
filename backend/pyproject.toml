@@ -98,6 +98,8 @@ pytest-timeout = "^2.2.0"
 bandit = "^1.7.5"
 safety = "^3.0.0"
 types-aiofiles = "^24.1.0.20250822"
+types-requests = "^2.31.0"
+types-PyYAML = "^6.0.12"
 pytest-asyncio = "^0.21.0"
 
 [tool.deptry.package_module_name_map]

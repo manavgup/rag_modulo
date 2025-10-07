@@ -15,133 +15,143 @@ jobs:
     name: Run Tests in Codespace Environment
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Setup GitHub CLI
-      run: |
-        # GitHub CLI is already installed in GitHub Actions runners
-        gh --version
+      - name: Setup GitHub CLI
+        run: |
+          # GitHub CLI is already installed in GitHub Actions runners
+          gh --version
 
-        # Authenticate GitHub CLI using the GITHUB_TOKEN
-        echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
+          # Authenticate GitHub CLI using the GITHUB_TOKEN
+          echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
 
-    - name: Create Codespace
-      id: create-codespace
-      continue-on-error: true
-      run: |
-        echo "Creating Codespace for testing..."
-        CODESPACE_NAME="testing-${{ github.run_number }}"
-        echo "codespace-name=$CODESPACE_NAME" >> $GITHUB_OUTPUT
+      - name: Create Codespace
+        id: create-codespace
+        continue-on-error: true
+        run: |
+          echo "Creating Codespace for testing..."
+          CODESPACE_NAME="testing-${{ github.run_number }}"
+          echo "codespace-name=$CODESPACE_NAME" >> $GITHUB_OUTPUT
 
-        # Check if codespaces are available
-        if ! gh codespace list > /dev/null 2>&1; then
-          echo "❌ Codespaces not available for this repository or account"
-          echo "codespace-available=false" >> $GITHUB_OUTPUT
-          exit 0
-        fi
+          # Check if codespaces are available
+          if ! gh codespace list > /dev/null 2>&1; then
+            echo "❌ Codespaces not available for this repository or account"
+            echo "codespace-available=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
 
-        # Create Codespace using GitHub CLI
-        if gh codespace create \
-          --repo ${{ github.repository }} \
-          --branch ${{ github.head_ref || github.ref_name }} \
-          --machine basicLinux32gb \
-          --display-name "$CODESPACE_NAME" \
-          --idle-timeout 15m; then
-          echo "codespace-available=true" >> $GITHUB_OUTPUT
-          echo "Codespace created: $CODESPACE_NAME"
-        else
-          echo "❌ Failed to create codespace"
-          echo "codespace-available=false" >> $GITHUB_OUTPUT
-          exit 0
-        fi
+          # Create Codespace using GitHub CLI
+          if gh codespace create \
+            --repo ${{ github.repository }} \
+            --branch ${{ github.head_ref || github.ref_name }} \
+            --machine basicLinux32gb \
+            --display-name "$CODESPACE_NAME" \
+            --idle-timeout 15m; then
+            echo "codespace-available=true" >> $GITHUB_OUTPUT
+            echo "Codespace created: $CODESPACE_NAME"
+          else
+            echo "❌ Failed to create codespace"
+            echo "codespace-available=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
 
-    - name: Wait for Codespace to be ready
-      if: steps.create-codespace.outputs.codespace-available == 'true'
-      run: |
-        echo "Waiting for Codespace to be ready..."
-        sleep 30
+      - name: Wait for Codespace to be ready
+        if: steps.create-codespace.outputs.codespace-available == 'true'
+        run: |
+          echo "Waiting for Codespace to be ready..."
+          sleep 30
 
-    - name: Setup Development Environment
-      if: steps.create-codespace.outputs.codespace-available == 'true'
-      run: |
-        echo "Setting up development environment in Codespace..."
+      - name: Setup Development Environment
+        if: steps.create-codespace.outputs.codespace-available == 'true'
+        run: |
+          echo "Setting up development environment in Codespace..."
 
-        # Initialize development environment
-        gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} -- "cd /workspace && make dev-init"
+          # Initialize development environment
+          gh codespace ssh \
+            --codespace ${{ steps.create-codespace.outputs.codespace-name }} \
+            -- "cd /workspace && make dev-init"
 
-        # Build development images
-        gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} -- "cd /workspace && make dev-build"
+          # Build development images
+          gh codespace ssh \
+            --codespace ${{ steps.create-codespace.outputs.codespace-name }} \
+            -- "cd /workspace && make dev-build"
 
-    - name: Start Services
-      if: steps.create-codespace.outputs.codespace-available == 'true'
-      run: |
-        echo "Starting development services..."
+      - name: Start Services
+        if: steps.create-codespace.outputs.codespace-available == 'true'
+        run: |
+          echo "Starting development services..."
 
-        # Start development environment
-        gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} -- "cd /workspace && make dev-up"
+          # Start development environment
+          gh codespace ssh \
+            --codespace ${{ steps.create-codespace.outputs.codespace-name }} \
+            -- "cd /workspace && make dev-up"
 
-        # Wait for services to be healthy
-        gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} -- "cd /workspace && make dev-validate"
+          # Wait for services to be healthy
+          gh codespace ssh \
+            --codespace ${{ steps.create-codespace.outputs.codespace-name }} \
+            -- "cd /workspace && make dev-validate"
 
-    - name: Run Tests
-      if: steps.create-codespace.outputs.codespace-available == 'true'
-      run: |
-        echo "Running tests in Codespace environment..."
+      - name: Run Tests
+        if: steps.create-codespace.outputs.codespace-available == 'true'
+        run: |
+          echo "Running tests in Codespace environment..."
 
-        # Run atomic tests
-        gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} -- "cd /workspace && make test-atomic"
+          # Run atomic tests
+          gh codespace ssh \
+            --codespace ${{ steps.create-codespace.outputs.codespace-name }} \
+            -- "cd /workspace && make test-atomic"
 
-        # Run unit tests
-        gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} -- "cd /workspace && make test-unit"
+          # Run unit tests
+          gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} -- "cd /workspace && make test-unit"
 
-        # Run integration tests
-        gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} -- "cd /workspace && make test-integration"
+          # Run integration tests
+          gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} -- "cd /workspace && make test-integration"
 
-    - name: Test Hot Reloading
-      if: steps.create-codespace.outputs.codespace-available == 'true'
-      run: |
-        echo "Testing hot reloading functionality..."
+      - name: Test Hot Reloading
+        if: steps.create-codespace.outputs.codespace-available == 'true'
+        run: |
+          echo "Testing hot reloading functionality..."
 
-        # Create a test file change
-        gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} -- "cd /workspace/backend && echo '# Test change' >> test_hot_reload.py"
+          # Create a test file change
+          gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} -- "cd /workspace/backend && echo '# Test change' >> test_hot_reload.py"
 
-        # Verify the change is reflected
-        gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} -- "cd /workspace && ls backend/test_hot_reload.py"
+          # Verify the change is reflected
+          gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} -- "cd /workspace && ls backend/test_hot_reload.py"
 
-        # Clean up test file
-        gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} -- "cd /workspace/backend && rm test_hot_reload.py"
+          # Clean up test file
+          gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} -- "cd /workspace/backend && rm test_hot_reload.py"
 
-    - name: Test CLI Commands
-      if: steps.create-codespace.outputs.codespace-available == 'true'
-      run: |
-        echo "Testing CLI commands..."
+      - name: Test CLI Commands
+        if: steps.create-codespace.outputs.codespace-available == 'true'
+        run: |
+          echo "Testing CLI commands..."
 
-        # Test CLI help
-        gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} -- "cd /workspace && poetry run python -m rag_solution.cli.main --help"
+          # Test CLI help
+          gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} -- "cd /workspace && poetry run python -m rag_solution.cli.main --help"
 
-        # Test health check
-        gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} -- "cd /workspace && poetry run python -m rag_solution.cli.main health check"
+          # Test health check
+          gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} -- "cd /workspace && poetry run python -m rag_solution.cli.main health check"
 
-    - name: Cleanup Services
-      if: always() && steps.create-codespace.outputs.codespace-available == 'true'
-      run: |
-        echo "Cleaning up services..."
-        gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} -- "cd /workspace && make dev-down"
+      - name: Cleanup Services
+        if: always() && steps.create-codespace.outputs.codespace-available == 'true'
+        run: |
+          echo "Cleaning up services..."
+          gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} -- "cd /workspace && make dev-down"
 
-    - name: Cleanup Codespace
-      if: always() && steps.create-codespace.outputs.codespace-available == 'true'
-      run: |
-        echo "Cleaning up Codespace..."
-        gh codespace delete --codespace ${{ steps.create-codespace.outputs.codespace-name }} --force
+      - name: Cleanup Codespace
+        if: always() && steps.create-codespace.outputs.codespace-available == 'true'
+        run: |
+          echo "Cleaning up Codespace..."
+          gh codespace delete --codespace ${{ steps.create-codespace.outputs.codespace-name }} --force
 
-    - name: Test Results
-      run: |
-        if [[ "${{ steps.create-codespace.outputs.codespace-available }}" == "true" ]]; then
-          echo "✅ Codespace testing completed successfully!"
-          echo "All tests passed in Codespace environment."
-        else
-          echo "ℹ️ Codespace testing was skipped"
-          echo "Codespaces are not available for this repository or account."
-          echo "This is expected for certain repository types or account limitations."
-        fi
+      - name: Test Results
+        run: |
+          if [[ "${{ steps.create-codespace.outputs.codespace-available }}" == "true" ]]; then
+            echo "✅ Codespace testing completed successfully!"
+            echo "All tests passed in Codespace environment."
+          else
+            echo "ℹ️ Codespace testing was skipped"
+            echo "Codespaces are not available for this repository or account."
+            echo "This is expected for certain repository types or account limitations."
+          fi

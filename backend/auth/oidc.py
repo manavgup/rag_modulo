@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 import jwt
-from authlib.integrations.starlette_client import OAuth, OAuthError  # type: ignore[import-untyped]
+from authlib.integrations.starlette_client import OAuth, OAuthError
 from core.config import get_settings
 from core.mock_auth import is_mock_token
 from fastapi import HTTPException, Request, Response, status

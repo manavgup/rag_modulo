@@ -12,17 +12,17 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 import numpy as np
-from core.config import Settings, get_settings
-from vectordbs.utils.watsonx import get_embeddings, get_tokenization
 
+from core.config import Settings, get_settings
 from rag_solution.data_ingestion.hierarchical_chunking import (
     create_hierarchical_chunks,
     create_sentence_based_hierarchical_chunks,
     get_child_chunks,
 )
+from vectordbs.utils.watsonx import get_embeddings, get_tokenization
 
 if TYPE_CHECKING:
-    from sklearn.metrics.pairwise import cosine_similarity  # type: ignore[import-untyped]
+    from sklearn.metrics.pairwise import cosine_similarity
 else:
     try:
         from sklearn.metrics.pairwise import cosine_similarity  # type: ignore[import-untyped]

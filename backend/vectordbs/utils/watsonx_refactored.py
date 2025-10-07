@@ -11,11 +11,11 @@ import numpy as np
 from chromadb.api.types import Documents, EmbeddingFunction
 from core.config import Settings, get_settings
 from dotenv import load_dotenv
-from ibm_watsonx_ai import APIClient, Credentials  # type: ignore[import-untyped]
-from ibm_watsonx_ai.foundation_models import Embeddings as wx_Embeddings  # type: ignore[import-untyped]
-from ibm_watsonx_ai.foundation_models import ModelInference  # type: ignore[import-untyped]
-from ibm_watsonx_ai.metanames import EmbedTextParamsMetaNames as EmbedParams  # type: ignore[import-untyped]
-from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams  # type: ignore[import-untyped]
+from ibm_watsonx_ai import APIClient, Credentials
+from ibm_watsonx_ai.foundation_models import Embeddings as wx_Embeddings
+from ibm_watsonx_ai.foundation_models import ModelInference
+from ibm_watsonx_ai.metanames import EmbedTextParamsMetaNames as EmbedParams
+from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams
 
 from vectordbs.data_types import EmbeddingsList
 

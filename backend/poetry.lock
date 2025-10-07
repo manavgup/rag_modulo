@@ -7230,6 +7230,33 @@ files = [
 ]
 
 [[package]]
+name = "types-pyyaml"
+version = "6.0.12.20250915"
+description = "Typing stubs for PyYAML"
+optional = false
+python-versions = ">=3.9"
+groups = ["dev"]
+files = [
+    {file = "types_pyyaml-6.0.12.20250915-py3-none-any.whl", hash = "sha256:e7d4d9e064e89a3b3cae120b4990cd370874d2bf12fa5f46c97018dd5d3c9ab6"},
+    {file = "types_pyyaml-6.0.12.20250915.tar.gz", hash = "sha256:0f8b54a528c303f0e6f7165687dd33fafa81c807fcac23f632b63aa624ced1d3"},
+]
+
+[[package]]
+name = "types-requests"
+version = "2.32.4.20250913"
+description = "Typing stubs for requests"
+optional = false
+python-versions = ">=3.9"
+groups = ["dev"]
+files = [
+    {file = "types_requests-2.32.4.20250913-py3-none-any.whl", hash = "sha256:78c9c1fffebbe0fa487a418e0fa5252017e9c60d1a2da394077f1780f655d7e1"},
+    {file = "types_requests-2.32.4.20250913.tar.gz", hash = "sha256:abd6d4f9ce3a9383f269775a9835a4c24e5cd6b9f647d64f88aa4613c33def5d"},
+]
+
+[package.dependencies]
+urllib3 = ">=2"
+
+[[package]]
 name = "typing-extensions"
 version = "4.12.2"
 description = "Backported and Experimental Type Hints for Python 3.8+"
@@ -7767,4 +7794,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.13"
-content-hash = "d562e01d84e9b6f7c38b7f64d518ab9f7d62525b6468752f03c07b876ce0de8f"
+content-hash = "8d328ef1cae984029dca20d7440dd215e813618afa34e094badf1022bdd667c1"

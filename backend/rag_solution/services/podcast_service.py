@@ -16,12 +16,12 @@ Orchestrates podcast generation from document collections:
 
 import logging
 
-from core.config import get_settings
-from core.custom_exceptions import NotFoundError, ValidationError
 from fastapi import BackgroundTasks, HTTPException
 from pydantic import UUID4
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.config import get_settings
+from core.custom_exceptions import NotFoundError, ValidationError
 from rag_solution.generation.audio.factory import AudioProviderFactory
 from rag_solution.generation.providers.factory import LLMProviderFactory
 from rag_solution.repository.podcast_repository import PodcastRepository
@@ -425,7 +425,7 @@ Generate the complete dialogue script now:"""
 
     async def _generate_audio(
         self,
-        podcast_id: UUID4,
+        _podcast_id: UUID4,
         podcast_script,
         podcast_input: PodcastGenerationInput,
     ) -> bytes:
@@ -433,7 +433,7 @@ Generate the complete dialogue script now:"""
         Generate audio from parsed script with progress tracking.
 
         Args:
-            podcast_id: Podcast ID for progress updates
+            _podcast_id: Podcast ID for progress updates (currently unused, reserved for future)
             podcast_script: Parsed PodcastScript
             podcast_input: Original request
 

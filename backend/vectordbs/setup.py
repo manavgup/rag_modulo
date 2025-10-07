@@ -1,4 +1,4 @@
-from setuptools import find_packages, setup  # type: ignore[import-untyped]
+from setuptools import find_packages, setup
 
 setup(
     name="vectordbs",

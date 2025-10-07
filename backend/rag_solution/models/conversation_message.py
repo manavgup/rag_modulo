@@ -12,9 +12,7 @@ from rag_solution.file_management.database import Base
 class ConversationMessage(Base):
     __tablename__ = "conversation_messages"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=IdentityService.generate_id
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=IdentityService.generate_id)
     session_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("conversation_sessions.id", ondelete="CASCADE"), nullable=False, index=True
     )

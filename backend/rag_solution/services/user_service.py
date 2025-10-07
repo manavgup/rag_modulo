@@ -1,10 +1,10 @@
 from typing import Any
 
-from core.config import Settings
-from core.logging_utils import get_logger
 from pydantic import UUID4, EmailStr
 from sqlalchemy.orm import Session
 
+from core.config import Settings
+from core.logging_utils import get_logger
 from rag_solution.core.exceptions import NotFoundError, ValidationError
 from rag_solution.repository.user_repository import UserRepository
 from rag_solution.schemas.user_schema import UserInput, UserOutput

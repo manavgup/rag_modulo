@@ -3,12 +3,12 @@
 from datetime import datetime
 from typing import Any
 
-from core.custom_exceptions import RepositoryError
-from core.logging_utils import get_logger
 from pydantic import UUID4
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from core.custom_exceptions import RepositoryError
+from core.logging_utils import get_logger
 from rag_solution.core.exceptions import AlreadyExistsError, NotFoundError
 from rag_solution.models.token_warning import TokenWarning
 from rag_solution.schemas.llm_usage_schema import TokenWarning as TokenWarningSchema
