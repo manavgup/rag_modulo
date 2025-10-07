@@ -120,7 +120,7 @@ jobs:
         with:
           image: ${{ matrix.image_name }}:${{ github.sha }}
           exit-code: '0'  # Don't fail, just report
-          exit-level: warn
+          failure-threshold: warn  # Correct parameter name
           report-format: sarif
           report-name: dockle-${{ matrix.service }}
 

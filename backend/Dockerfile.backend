@@ -33,7 +33,6 @@ WORKDIR /app
 COPY pyproject.toml poetry.lock ./
 
 # Install CPU-only PyTorch first to avoid CUDA dependencies (~6GB savings)
-# This must be done before Poetry installs docling (which depends on torch)
 # Using torch 2.5.0 to match torchvision 0.20.0 compatibility
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir \
@@ -41,15 +40,17 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     torchvision==0.20.0+cpu \
     --index-url https://download.pytorch.org/whl/cpu
 
-# Configure pip to use CPU-only PyTorch index for any additional torch packages
-RUN pip config set global.extra-index-url https://download.pytorch.org/whl/cpu
-
-# Install python dependencies directly to system Python (no virtual environment)
-# Poetry will use already-installed CPU-only torch instead of downloading CUDA version
-# Use BuildKit cache mount for faster rebuilds
+# Install docling without dependencies (it pulls CUDA torch otherwise)
+# Then Poetry will install the rest, skipping already-installed packages
 RUN --mount=type=cache,target=/root/.cache/pip \
-    --mount=type=cache,target=/root/.cache/pypoetry \
-    poetry install --only main --no-root --no-cache
+    pip install --no-cache-dir --no-deps docling
+
+# Export Poetry dependencies to requirements.txt, excluding docling (already installed)
+RUN poetry export -f requirements.txt --without-hashes --output requirements.txt --only main
+
+# Install remaining dependencies via pip (skips torch, torchvision, docling - already installed)
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir -r requirements.txt
 
 # Clean up system Python installation
 RUN find /usr/local -name "*.pyc" -delete && \
