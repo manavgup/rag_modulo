@@ -19,7 +19,7 @@ repos:
 
   # Python linting and formatting - Ruff (fast, modern, handles both)
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.1.11
+    rev: v0.14.0
     hooks:
       - id: ruff
         args: ['--fix', '--config', 'backend/pyproject.toml']
@@ -30,7 +30,7 @@ repos:
 
   # Python type checking - MyPy (runs on push only for speed)
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.13.0
+    rev: v1.15.0
     hooks:
       - id: mypy
         stages: [push]  # Only run on push, not commit (too slow)

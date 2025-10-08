@@ -37,7 +37,7 @@ jobs:
               pip install toml
               python -c "import toml; toml.load(open('backend/pyproject.toml'))"
 
-          # Python backend linting (blocking)
+          # Python backend linting (blocking) - Check ALL backend Python files
           - id: ruff-check
             name: "Ruff Check"
             working-directory: backend
@@ -45,7 +45,7 @@ jobs:
             cmd: |
               pip install poetry
               poetry install --only dev
-              poetry run ruff check rag_solution/ --line-length 120
+              poetry run ruff check . --config pyproject.toml
 
           - id: ruff-format
             name: "Ruff Format Check"
@@ -54,17 +54,17 @@ jobs:
             cmd: |
               pip install poetry
               poetry install --only dev
-              poetry run ruff format --check rag_solution/
+              poetry run ruff format --check . --config pyproject.toml
 
           # Python type/quality checking (non-blocking / informational)
           - id: mypy
-            name: "MyPy Type Check (150 errors - Informational)"
+            name: "MyPy Type Check (Informational)"
             working-directory: backend
             blocking: false
             cmd: |
               pip install poetry
               poetry install --only dev
-              poetry run mypy rag_solution/ vectordbs/ auth/ --ignore-missing-imports --show-error-codes || true
+              poetry run mypy . --config-file pyproject.toml --ignore-missing-imports --show-error-codes || true
 
           - id: pylint
             name: "Pylint Quality (Informational)"
@@ -73,7 +73,7 @@ jobs:
             cmd: |
               pip install poetry
               poetry install --only dev
-              poetry run pylint rag_solution/ || true
+              poetry run pylint rag_solution/ vectordbs/ core/ auth/ --rcfile=pyproject.toml || true
 
           - id: pydocstyle
             name: "Docstring Style (Informational)"
@@ -82,7 +82,7 @@ jobs:
             cmd: |
               pip install poetry
               poetry install --only dev
-              poetry run pydocstyle rag_solution/ --count || true
+              poetry run pydocstyle rag_solution/ vectordbs/ core/ auth/ --config=pyproject.toml --count || true
 
     name: ${{ matrix.name }}
 

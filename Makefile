@@ -1153,8 +1153,8 @@ lint: lint-ruff lint-mypy lint-pylint
 	@echo "$(GREEN)✅ All linting checks completed$(NC)"
 
 lint-ruff: venv
-	@echo "$(CYAN)🔍 Running Ruff linter...$(NC)"
-	@cd backend && $(POETRY) run ruff check rag_solution/ tests/ --config pyproject.toml
+	@echo "$(CYAN)🔍 Running Ruff linter on ALL backend Python files...$(NC)"
+	@cd backend && $(POETRY) run ruff check . --config pyproject.toml
 	@echo "$(GREEN)✅ Ruff checks passed$(NC)"
 
 lint-mypy: venv
