@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from core.config import Settings, get_settings
 from core.identity_service import IdentityService
+from rag_solution.core.exceptions import NotFoundError
 from rag_solution.schemas.user_schema import UserInput
 from rag_solution.services.user_service import UserService
 
@@ -130,7 +131,7 @@ def ensure_mock_user_exists(db: Session, settings: Settings, user_key: str = "de
             existing_user = user_service.user_repository.get_by_ibm_id(str(config["ibm_id"]))
             logger.debug("Mock user already exists: %s", existing_user.id)
             return existing_user.id
-        except (ValueError, AttributeError, TypeError):
+        except (NotFoundError, ValueError, AttributeError, TypeError):
             # User doesn't exist, proceed to create
             pass
 
