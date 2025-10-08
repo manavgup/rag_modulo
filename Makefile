@@ -326,6 +326,7 @@ local-dev-setup:
 
 local-dev-infra:
 	@echo "$(CYAN)🏗️  Starting infrastructure services (Postgres, Milvus, MinIO, MLFlow)...$(NC)"
+	@mkdir -p volumes/postgres volumes/etcd volumes/minio
 	@$(DOCKER_COMPOSE) -f docker-compose-infra.yml up -d
 	@echo "$(GREEN)✅ Infrastructure services started$(NC)"
 	@echo ""
