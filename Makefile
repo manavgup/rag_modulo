@@ -338,10 +338,11 @@ local-dev-infra:
 local-dev-backend:
 	@echo "$(CYAN)🐍 Starting backend locally (Poetry + Uvicorn)...$(NC)"
 	@echo "$(YELLOW)⚠️  Make sure infrastructure is running: make local-dev-infra$(NC)"
-	@cd backend && $(POETRY) run uvicorn main:app --reload --host 0.0.0.0 --port 8000
+	@echo "$(CYAN)📋 Logs: tail -F /tmp/rag-backend.log$(NC)"
+	@cd backend && $(POETRY) run uvicorn main:app --reload --host 0.0.0.0 --port 8000 > /tmp/rag-backend.log 2>&1
 
 local-dev-frontend:
-	@echo "$(CYAN)⚛️  Starting frontend locally (npm + Vite)...$(NC)"
+	@echo "$(CYAN)⚛️  Starting frontend locally (npm + react-scripts)...$(NC)"
 	@cd frontend && npm run dev
 
 local-dev-all:
@@ -393,8 +394,8 @@ local-dev-status:
 	fi
 	@echo ""
 	@echo "$(CYAN)⚛️  Frontend Status:$(NC)"
-	@if pgrep -f "vite" > /dev/null; then \
-		echo "$(GREEN)✅ Frontend running (PID: $$(pgrep -f 'vite'))$(NC)"; \
+	@if pgrep -f "react-scripts" > /dev/null; then \
+		echo "$(GREEN)✅ Frontend running (PID: $$(pgrep -f 'react-scripts'))$(NC)"; \
 	else \
 		echo "$(RED)❌ Frontend not running$(NC)"; \
 	fi
@@ -1668,3 +1669,33 @@ help:
 	@echo "  setup-env     	Interactive environment setup"
 	@echo "  validate-env  	Validate environment configuration"
 	@echo "  env-help      	Show environment setup help"
+
+# =============================================================================
+# PRODUCTION DEPLOYMENT (All containers)
+# =============================================================================
+
+.PHONY: prod-start prod-stop prod-restart prod-logs prod-status
+
+prod-start:
+	@echo "$(CYAN)🚀 Starting production environment (all containers)...$(NC)"
+	@$(DOCKER_COMPOSE) -f docker-compose.production.yml up -d
+	@echo "$(GREEN)✅ Production environment started$(NC)"
+	@echo ""
+	@echo "$(CYAN)💡 Services available at:$(NC)"
+	@echo "  Frontend: http://localhost:3000"
+	@echo "  Backend API: http://localhost:8000"
+	@echo "  MLFlow: http://localhost:5001"
+
+prod-stop:
+	@echo "$(CYAN)🛑 Stopping production environment...$(NC)"
+	@$(DOCKER_COMPOSE) -f docker-compose.production.yml down
+	@echo "$(GREEN)✅ Production environment stopped$(NC)"
+
+prod-restart: prod-stop prod-start
+
+prod-logs:
+	@$(DOCKER_COMPOSE) -f docker-compose.production.yml logs -f
+
+prod-status:
+	@echo "$(CYAN)📊 Production Environment Status$(NC)"
+	@$(DOCKER_COMPOSE) -f docker-compose.production.yml ps

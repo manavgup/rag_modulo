@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   XMarkIcon,
   DocumentIcon,
@@ -28,6 +28,7 @@ interface UploadedFile {
   type: string;
   status: 'pending' | 'uploading' | 'complete' | 'error';
   progress: number;
+  file: File; // Store the actual File object
 }
 
 const LightweightCreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
@@ -38,6 +39,7 @@ const LightweightCreateCollectionModal: React.FC<CreateCollectionModalProps> = (
   const { addNotification } = useNotification();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const submittingRef = useRef(false); // Prevent double-submission
 
   const [formData, setFormData] = useState<FormData>({
     name: '',
@@ -73,39 +75,13 @@ const LightweightCreateCollectionModal: React.FC<CreateCollectionModalProps> = (
         name: file.name,
         size: file.size,
         type: file.type,
-        status: 'pending',
-        progress: 0,
+        status: 'complete', // Mark as complete immediately since we'll upload on submit
+        progress: 100,
+        file: file, // Store the actual File object
       };
 
       setUploadedFiles(prev => [...prev, uploadedFile]);
-
-      // Simulate upload progress
-      simulateUpload(uploadedFile.id);
     });
-  };
-
-  const simulateUpload = (fileId: string) => {
-    setUploadedFiles(prev => prev.map(file =>
-      file.id === fileId ? { ...file, status: 'uploading' } : file
-    ));
-
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += Math.random() * 20;
-
-      if (progress >= 100) {
-        progress = 100;
-        clearInterval(interval);
-
-        setUploadedFiles(prev => prev.map(file =>
-          file.id === fileId ? { ...file, status: 'complete', progress: 100 } : file
-        ));
-      } else {
-        setUploadedFiles(prev => prev.map(file =>
-          file.id === fileId ? { ...file, progress } : file
-        ));
-      }
-    }, 200);
   };
 
   const removeFile = (fileId: string) => {
@@ -127,22 +103,49 @@ const LightweightCreateCollectionModal: React.FC<CreateCollectionModalProps> = (
   const handleSubmit = async () => {
     if (!validateForm()) return;
 
+    // Prevent double-submission
+    if (submittingRef.current) {
+      return;
+    }
+
+    submittingRef.current = true;
     setIsSubmitting(true);
 
     try {
-      const newCollection = await apiClient.createCollection({
-        name: formData.name,
-        description: `Collection with ${formData.visibility} visibility`
-      });
+      let newCollection;
+
+      // Use different endpoints based on whether files are present
+      if (uploadedFiles.length > 0) {
+        const files = uploadedFiles.map(f => f.file);
+        newCollection = await apiClient.createCollectionWithFiles({
+          name: formData.name,
+          is_private: formData.visibility === 'private',
+          files: files
+        });
+      } else {
+        newCollection = await apiClient.createCollection({
+          name: formData.name,
+          description: `Collection with ${formData.visibility} visibility`,
+          is_private: formData.visibility === 'private'
+        });
+      }
 
       onCollectionCreated(newCollection);
-      addNotification('success', 'Collection Created', `"${formData.name}" has been created successfully.`);
+      addNotification('success', 'Collection Created', `"${formData.name}" has been created successfully${uploadedFiles.length > 0 ? ` with ${uploadedFiles.length} file(s)` : ''}.`);
       handleClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating collection:', error);
-      addNotification('error', 'Creation Failed', 'Failed to create collection. Please try again.');
+      const errorMessage = error?.response?.data?.detail || error?.message || 'Failed to create collection. Please try again.';
+
+      // Check if it's a duplicate name error
+      if (errorMessage.includes('already exists')) {
+        addNotification('error', 'Name Already Exists', `A collection named "${formData.name}" already exists. Please choose a different name.`);
+      } else {
+        addNotification('error', 'Creation Failed', errorMessage);
+      }
     } finally {
       setIsSubmitting(false);
+      submittingRef.current = false;
     }
   };
 
@@ -237,9 +240,19 @@ const LightweightCreateCollectionModal: React.FC<CreateCollectionModalProps> = (
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => {
                 e.preventDefault();
-                const files = Array.from(e.dataTransfer.files);
-                const event = { target: { files } } as any;
-                handleFileUpload(event);
+                const droppedFiles = Array.from(e.dataTransfer.files) as File[];
+                droppedFiles.forEach(file => {
+                  const uploadedFile: UploadedFile = {
+                    id: Date.now().toString() + Math.random().toString(36),
+                    name: file.name,
+                    size: file.size,
+                    type: file.type,
+                    status: 'complete',
+                    progress: 100,
+                    file: file,
+                  };
+                  setUploadedFiles(prev => [...prev, uploadedFile]);
+                });
               }}
             >
               <CloudArrowUpIcon className="w-12 h-12 text-gray-60 mx-auto mb-4" />

@@ -358,8 +358,49 @@ class ApiClient {
     };
   }
 
-  async createCollection(data: { name: string; description?: string }): Promise<Collection> {
-    const response: AxiosResponse<any> = await this.client.post('/api/collections', data);
+  async createCollection(data: { name: string; description?: string; is_private?: boolean }): Promise<Collection> {
+    const payload = {
+      name: data.name,
+      is_private: data.is_private ?? false
+    };
+    const response: AxiosResponse<any> = await this.client.post('/api/collections', payload);
+    const collection = response.data;
+    return {
+      id: collection.id,
+      name: collection.name,
+      description: collection.description || '',
+      status: collection.status || 'ready',
+      documents: (collection.files || []).map((file: any) => ({
+        id: file.id,
+        name: file.filename || file.name,
+        type: file.type || 'unknown',
+        size: file.size || 0,
+        uploadedAt: new Date(file.uploaded_at || file.uploadedAt || new Date()),
+        status: file.status || 'ready',
+        chunks: file.chunks || 0,
+        vectorized: file.vectorized || false
+      })),
+      createdAt: new Date(collection.created_at || collection.createdAt),
+      updatedAt: new Date(collection.updated_at || collection.updatedAt),
+      documentCount: (collection.files || []).length
+    };
+  }
+
+  async createCollectionWithFiles(data: { name: string; is_private: boolean; files: File[] }): Promise<Collection> {
+    const formData = new FormData();
+    formData.append('collection_name', data.name);
+    formData.append('is_private', String(data.is_private));
+
+    data.files.forEach(file => {
+      formData.append('files', file);
+    });
+
+    const response: AxiosResponse<any> = await this.client.post('/api/collections/with-files', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
     const collection = response.data;
     return {
       id: collection.id,
