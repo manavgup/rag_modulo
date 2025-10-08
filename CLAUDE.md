@@ -33,19 +33,46 @@ RAG Modulo is a modular Retrieval-Augmented Generation (RAG) solution with flexi
 ## Common Development Commands
 
 ### Running the Application
+
+#### **Local Development (No Containers) - Fastest Iteration** ⚡
 ```bash
-# Quick start with pre-built images (recommended)
+# One-time setup
+make local-dev-setup         # Install dependencies (backend + frontend)
+
+# Start development (recommended for daily work)
+make local-dev-infra         # Start infrastructure only (Postgres, Milvus, etc.)
+make local-dev-backend       # In terminal 1: Start backend with hot-reload
+make local-dev-frontend      # In terminal 2: Start frontend with HMR
+
+# OR start everything in background
+make local-dev-all           # Start all services in background
+make local-dev-status        # Check status
+make local-dev-stop          # Stop all services
+
+# Benefits:
+# - Instant hot-reload (no container rebuilds)
+# - Faster commits (pre-commit hooks optimized)
+# - Native debugging
+# - Poetry/npm caches work locally
+```
+
+#### **Container Development - Production-like Environment** 🐳
+```bash
+# Quick start with pre-built images (for testing deployment)
 make run-ghcr
 
 # Build and run locally
 make build-all
 make run-app
 
-# Access points
+# Access points (same for both methods)
 # Frontend: http://localhost:3000
 # Backend API: http://localhost:8000
 # MLFlow: http://localhost:5001
 ```
+
+**When to use local dev**: Feature development, bug fixes, rapid iteration
+**When to use containers**: Testing deployment, CI/CD validation, production-like testing
 
 ### Testing
 ```bash
@@ -79,7 +106,17 @@ cd backend && poetry run mypy rag_solution/ --ignore-missing-imports
 
 # Security checks
 make security-check
+
+# Pre-commit hooks (optimized for velocity)
+git commit -m "your message"  # Fast hooks run on commit (5-10 sec)
+git push                       # Slow hooks run on push (mypy, security scans)
+git commit --no-verify        # Skip hooks for rapid iteration (use sparingly)
 ```
+
+**Note**: Pre-commit hooks are optimized for developer velocity:
+- **On commit** (fast, 5-10 sec): ruff, trailing-whitespace, yaml checks
+- **On push** (slow, 30-60 sec): mypy, pylint, security scans, strangler pattern
+- **In CI**: All checks run regardless (ensures quality)
 
 ### Dependency Management
 ```bash
