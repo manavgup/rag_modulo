@@ -13,7 +13,7 @@ services:
       COLLECTIONDB_NAME: ${COLLECTIONDB_NAME}
       COLLECTIONDB_USER: ${COLLECTIONDB_USER}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ./volumes/postgres:/var/lib/postgresql/data
     healthcheck:
       test:
         [
@@ -143,26 +143,9 @@ services:
       - app-network
 
 volumes:
-  postgres_data:
-    driver_opts:
-      type: none
-      device: ${PWD}/volumes/postgres
-      o: bind
   etcd_data:
-    driver_opts:
-      type: none
-      device: ${PWD}/volumes/etcd
-      o: bind
   minio_data:
-    driver_opts:
-      type: none
-      device: ${PWD}/volumes/minio
-      o: bind
   milvus_data:
-    driver_opts:
-      type: none
-      device: ${PWD}/volumes/milvus
-      o: bind
 
 networks:
   app-network:

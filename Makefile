@@ -314,7 +314,7 @@ local-dev-setup:
 	@echo "$(GREEN)✅ Backend dependencies installed$(NC)"
 	@echo ""
 	@echo "$(CYAN)📦 Installing frontend dependencies...$(NC)"
-	@cd webui && npm install
+	@cd frontend && npm install
 	@echo "$(GREEN)✅ Frontend dependencies installed$(NC)"
 	@echo ""
 	@echo "$(CYAN)💡 Next steps:$(NC)"
@@ -326,6 +326,7 @@ local-dev-setup:
 
 local-dev-infra:
 	@echo "$(CYAN)🏗️  Starting infrastructure services (Postgres, Milvus, MinIO, MLFlow)...$(NC)"
+	@mkdir -p volumes/postgres volumes/etcd volumes/minio volumes/milvus
 	@$(DOCKER_COMPOSE) -f docker-compose-infra.yml up -d
 	@echo "$(GREEN)✅ Infrastructure services started$(NC)"
 	@echo ""
@@ -342,7 +343,7 @@ local-dev-backend:
 
 local-dev-frontend:
 	@echo "$(CYAN)⚛️  Starting frontend locally (npm + Vite)...$(NC)"
-	@cd webui && npm run dev
+	@cd frontend && npm run dev
 
 local-dev-all:
 	@echo "$(CYAN)🚀 Starting full local development environment...$(NC)"
@@ -353,7 +354,7 @@ local-dev-all:
 	@echo "Backend PID: $$!"
 	@echo ""
 	@echo "$(CYAN)⚛️  Starting frontend in background...$(NC)"
-	@cd webui && npm run dev > /tmp/rag-frontend.log 2>&1 &
+	@cd frontend && npm run dev > /tmp/rag-frontend.log 2>&1 &
 	@echo "Frontend PID: $$!"
 	@echo ""
 	@echo "$(GREEN)✅ Local development environment started$(NC)"
