@@ -84,6 +84,7 @@ report.html
 
 #backup or deprecated files
 backend/tests_backup
+webui/  # Obsolete frontend directory (moved to frontend/)
 
 # Ignore history
 .history/
