@@ -7,9 +7,9 @@ enabling document storage, retrieval, and search operations using Elasticsearch.
 import logging
 from typing import Any
 
-from core.config import Settings, get_settings
 from elasticsearch import Elasticsearch, NotFoundError
 
+from core.config import Settings, get_settings
 from vectordbs.utils.watsonx import get_embeddings
 
 from .data_types import (

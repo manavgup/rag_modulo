@@ -11,9 +11,10 @@ from typing import Any
 
 import jwt
 from authlib.integrations.starlette_client import OAuth, OAuthError
+from fastapi import HTTPException, Request, Response, status
+
 from core.config import get_settings
 from core.mock_auth import is_mock_token
-from fastapi import HTTPException, Request, Response, status
 
 # Get settings safely for auth
 settings = get_settings()

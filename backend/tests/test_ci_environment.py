@@ -9,10 +9,11 @@ from collections.abc import Generator
 from unittest.mock import MagicMock
 
 import pytest
-from auth.oidc import verify_jwt_token
-from core.authentication_middleware import AuthenticationMiddleware
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
+
+from auth.oidc import verify_jwt_token
+from core.authentication_middleware import AuthenticationMiddleware
 
 
 @pytest.mark.api

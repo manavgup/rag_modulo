@@ -28,7 +28,6 @@ class TestSeamlessWorkflowTDD:
         # We need to create the same user that the middleware will create
         from core.config import get_settings
         from core.mock_auth import ensure_mock_user_exists
-
         from rag_solution.file_management.database import get_db
 
         # Get database session
@@ -48,7 +47,6 @@ class TestSeamlessWorkflowTDD:
         from uuid import UUID
 
         from core.config import get_settings
-
         from rag_solution.file_management.database import get_db
         from rag_solution.schemas.collection_schema import CollectionInput
         from rag_solution.services.collection_service import CollectionService
