@@ -2,6 +2,10 @@
 
 from typing import Annotated
 
+from core.config import Settings, get_settings
+from core.custom_exceptions import NotFoundError, ValidationError
+from core.logging_utils import get_logger
+from core.mock_auth import ensure_mock_user_exists
 from fastapi import (
     APIRouter,
     BackgroundTasks,
@@ -18,10 +22,7 @@ from fastapi.responses import FileResponse
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
-from core.config import Settings, get_settings
-from core.custom_exceptions import NotFoundError, ValidationError
-from core.logging_utils import get_logger
-from core.mock_auth import ensure_mock_user_exists
+from rag_solution.core.exceptions import AlreadyExistsError
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput
 from rag_solution.schemas.file_schema import DocumentDelete, FileMetadata, FileOutput
@@ -196,6 +197,9 @@ def create_collection(
 
         service = CollectionService(db, settings)
         return service.create_collection(collection_input)
+    except AlreadyExistsError as e:
+        logger.error("Collection already exists: %s", str(e))
+        raise HTTPException(status_code=409, detail=str(e)) from e
     except ValidationError as e:
         logger.error("Validation error creating collection: %s", str(e))
         raise HTTPException(status_code=400, detail=str(e)) from e
@@ -640,6 +644,79 @@ def remove_all_users_from_collection(collection_id: UUID4, db: Annotated[Session
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
         logger.error("Error removing users from collection: %s", str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post(
+    "/{collection_id}/documents",
+    summary="Upload documents to an existing collection",
+    response_model=list[FileOutput],
+    description="Upload one or more documents to an existing collection",
+    responses={
+        200: {"description": "Documents uploaded successfully"},
+        400: {"description": "Business validation error"},
+        403: {"description": "Not authorized to access this resource"},
+        404: {"description": "Collection not found"},
+        422: {"description": "Request validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def upload_documents_to_collection(
+    request: Request,
+    collection_id: UUID4,
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+    files: list[UploadFile] = File(...),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
+) -> list[FileOutput]:
+    """
+    Upload documents to an existing collection.
+
+    Args:
+        request (Request): The HTTP request object containing user authentication.
+        collection_id (UUID4): The ID of the collection.
+        files (List[UploadFile]): The list of files to be added to the collection.
+        background_tasks (BackgroundTasks): Background tasks for processing.
+        db (Session): The database session.
+        settings (Settings): Application settings.
+
+    Returns:
+        List[FileOutput]: The uploaded file records.
+
+    Raises:
+        HTTPException: If validation fails or upload fails
+    """
+    # Verify authentication and authorization
+    if not request or not hasattr(request.state, "user"):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    current_user = request.state.user
+    user_id = current_user.get("uuid")
+
+    logger.info("Uploading %d documents to collection %s by user %s", len(files), str(collection_id), str(user_id))
+
+    try:
+        collection_service = CollectionService(db, settings)
+
+        # Verify collection exists
+        collection = collection_service.get_collection(collection_id)
+
+        # Use shared processing logic
+        file_records = collection_service._upload_files_and_trigger_processing(
+            files, user_id, collection_id, collection.vector_db_name, background_tasks
+        )
+
+        logger.info("Successfully uploaded %d documents to collection %s", len(file_records), str(collection_id))
+        return file_records
+
+    except ValidationError as e:
+        logger.error("Validation error uploading documents: %s", str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except NotFoundError as e:
+        logger.error("Not found error uploading documents: %s", str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        logger.error("Error uploading documents to collection: %s", str(e))
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
