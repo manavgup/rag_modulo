@@ -245,8 +245,7 @@ Workflow: `.github/workflows/01-lint.yml`
 | Check | Layer 1: Local | Layer 2: Pre-commit | Layer 3: CI/CD | Blocking |
 |-------|---------------|--------------------|--------------------|----------|
 | **Backend** |
-| Ruff Check | `make lint-ruff` | ✅ Auto-runs | ✅ Parallel job | ✅ Yes |
-| Ruff Format | `make format-check` | ✅ Auto-runs | ✅ Parallel job | ✅ Yes |
+| Ruff (Lint + Format) | `make lint-ruff` | ✅ Auto-runs | ✅ Combined job | ✅ Yes |
 | MyPy | `make lint-mypy` | ✅ On push only | ✅ Parallel job | ⚠️ No |
 | Pylint | `make lint-pylint` | ❌ Manual | ✅ Parallel job | ⚠️ No |
 | Pydocstyle | Manual | ❌ Manual | ✅ Parallel job | ⚠️ No |
@@ -278,8 +277,7 @@ rag_modulo/
 ### Blocking Checks (Must Pass)
 These **block PR merges** and **commits**:
 
-- ✅ Ruff Check (syntax, imports, style)
-- ✅ Ruff Format (code formatting)
+- ✅ Ruff (linting + formatting combined)
 - ✅ ESLint (TypeScript/JavaScript)
 - ✅ Prettier (formatting)
 - ✅ YAML/JSON/TOML syntax

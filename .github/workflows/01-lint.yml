@@ -38,22 +38,16 @@ jobs:
               python -c "import toml; toml.load(open('backend/pyproject.toml'))"
 
           # Python backend linting (blocking) - Check ALL backend Python files
-          - id: ruff-check
-            name: "Ruff Check"
+          - id: ruff
+            name: "Ruff (Lint + Format)"
             working-directory: backend
             blocking: true
             cmd: |
               pip install poetry
               poetry install --only dev
+              echo "Running Ruff linting..."
               poetry run ruff check . --config pyproject.toml
-
-          - id: ruff-format
-            name: "Ruff Format Check"
-            working-directory: backend
-            blocking: true
-            cmd: |
-              pip install poetry
-              poetry install --only dev
+              echo "Running Ruff formatting check..."
               poetry run ruff format --check . --config pyproject.toml
 
           # Python type/quality checking (non-blocking / informational)
@@ -140,5 +134,5 @@ jobs:
           echo "- ✅ **Easy Retry**: Can re-run individual linters" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Blocking vs Informational" >> $GITHUB_STEP_SUMMARY
-          echo "- 🔴 **Blocking**: YAML, JSON, TOML, Ruff Check, Ruff Format" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔴 **Blocking**: YAML, JSON, TOML, Ruff (Lint + Format)" >> $GITHUB_STEP_SUMMARY
           echo "- 🟡 **Informational**: MyPy, Pylint, Pydocstyle" >> $GITHUB_STEP_SUMMARY
