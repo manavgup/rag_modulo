@@ -9,7 +9,6 @@ import logging
 import time
 from typing import Any
 
-from core.config import Settings, get_settings
 from pymilvus import (
     Collection,
     CollectionSchema,
@@ -20,6 +19,7 @@ from pymilvus import (
     utility,
 )
 
+from core.config import Settings, get_settings
 from vectordbs.utils.watsonx import get_embeddings
 
 from .data_types import (

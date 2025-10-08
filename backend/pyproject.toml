@@ -247,7 +247,7 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 # Import sorting configuration
 [tool.ruff.lint.isort]
-known-first-party = ["rag_solution"]
+known-first-party = ["rag_solution", "core", "auth", "vectordbs"]
 
 # Formatting configuration
 [tool.ruff.format]
