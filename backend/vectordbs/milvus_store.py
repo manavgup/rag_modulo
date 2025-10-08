@@ -82,6 +82,13 @@ class MilvusStore(VectorStore):
         host = self.settings.milvus_host or "localhost"
         port = self.settings.milvus_port or 19530
 
+        # Disconnect any existing connection first to avoid using cached connection with old host
+        try:
+            connections.disconnect("default")
+            logging.info("Disconnected existing Milvus connection")
+        except Exception:
+            pass  # No existing connection, continue
+
         for attempt in range(attempts):
             try:
                 connections.connect("default", host=host, port=port)
