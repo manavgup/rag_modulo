@@ -1,0 +1,75 @@
+name: Unit Tests
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  # CI Environment Variables
+  TESTING: true
+  SKIP_AUTH: true
+  DEVELOPMENT_MODE: true
+  # Test environment variables
+  JWT_SECRET_KEY: test-secret-key-for-ci
+  RAG_LLM: openai
+  WATSONX_INSTANCE_ID: test-instance-id
+  WATSONX_APIKEY: test-api-key
+  WATSONX_URL: https://test.watsonx.com
+  VECTOR_DB: milvus
+  MILVUS_HOST: milvus-standalone
+  MILVUS_PORT: 19530
+  EMBEDDING_MODEL: sentence-transformers/all-minilm-l6-v2
+  DATA_DIR: /tmp/test-data
+
+jobs:
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: 📦 Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: 📚 Cache Poetry dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pypoetry
+            backend/.venv
+          key: ${{ runner.os }}-poetry-${{ hashFiles('backend/poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-poetry-
+
+      - name: 📥 Install dependencies
+        run: cd backend && poetry install --with dev,test
+
+      - name: 🧪 Run unit tests
+        run: |
+          cd backend
+          poetry run pytest tests/ -m "unit or atomic" --tb=short -v --maxfail=5
+
+      - name: 📊 Run tests with coverage
+        if: success()
+        run: |
+          cd backend
+          poetry run pytest tests/ -m "unit or atomic" \
+            --cov=rag_solution \
+            --cov-report=term-missing \
+            --cov-report=html \
+            --tb=short

@@ -1,9 +1,8 @@
 name: Security Scan
 
 on:
-  # Disabled for PRs - now handled by pr-fast-check.yml for faster feedback
-  # pull_request:
-  #   branches: [ main ]
+  pull_request:
+    branches: [ main ]
   push:
     branches: [ main ]
   workflow_dispatch:
