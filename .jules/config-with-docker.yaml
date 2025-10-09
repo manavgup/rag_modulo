@@ -1,0 +1,99 @@
+# =============================================================================
+# Jules Configuration for RAG Modulo (WITH Docker)
+# =============================================================================
+# This configuration installs Docker in Jules and runs infrastructure locally.
+#
+# Use this if:
+# - Jules environment supports Docker installation
+# - You have sudo/root access
+# - You want full local control (no external services)
+#
+# For simpler setup without Docker, see: config.yaml
+# =============================================================================
+
+setup:
+  # Run Docker setup script (installs Docker + dependencies + starts services)
+  script: .jules/setup-with-docker.sh
+
+  # Alternative: Use inline commands
+  # commands:
+  #   - sudo apt-get update && sudo apt-get install -y docker.io docker-compose-plugin
+  #   - sudo systemctl start docker
+  #   - sudo usermod -aG docker $USER
+  #   - sudo chmod 666 /var/run/docker.sock
+  #   - cp env.example .env
+  #   - make local-dev-setup
+  #   - docker compose -f docker-compose-infra.yml up -d
+
+environment:
+  JULES_ENVIRONMENT: "true"
+  DEVELOPMENT_MODE: "true"
+  DOCKER_ENABLED: "true"
+
+  # Docker Hub Authentication (to avoid rate limits)
+  # Set these as Jules secrets for security:
+  DOCKER_HUB_USERNAME: "your-docker-hub-username"
+  DOCKER_HUB_TOKEN: "your-docker-hub-token-here"
+
+  # All infrastructure runs locally via Docker
+  POSTGRES_HOST: "localhost"
+  POSTGRES_PORT: "5432"
+  MILVUS_HOST: "localhost"
+  MILVUS_PORT: "19530"
+  MINIO_ENDPOINT: "localhost:9000"
+  MLFLOW_TRACKING_URI: "http://localhost:5001"
+
+notes: |
+  🐳 RAG Modulo Setup Complete (with Docker)!
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  📋 INFRASTRUCTURE SERVICES RUNNING:
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ✅ PostgreSQL:  localhost:5432
+  ✅ Milvus:      localhost:19530
+  ✅ MinIO:       localhost:9001
+  ✅ MLFlow:      localhost:5001
+
+  Check status: docker compose -f docker-compose-infra.yml ps
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  📋 NEXT STEPS:
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  1️⃣  Configure API keys in /app/.env
+      Required:
+      - WATSONX_APIKEY
+      - WATSONX_INSTANCE_ID
+      - OPENAI_API_KEY (optional, for podcasts)
+
+  2️⃣  Start backend:
+      make local-dev-backend
+      → Available at http://localhost:8000
+
+  3️⃣  Start frontend (if multiple terminals available):
+      make local-dev-frontend
+      → Available at http://localhost:3000
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  📋 USEFUL COMMANDS:
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Check infrastructure:  docker compose -f docker-compose-infra.yml ps
+  View logs:             docker compose -f docker-compose-infra.yml logs
+  Restart services:      docker compose -f docker-compose-infra.yml restart
+  Stop services:         docker compose -f docker-compose-infra.yml down
+
+  Check app status:      make local-dev-status
+  Stop application:      make local-dev-stop
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  📚 DOCUMENTATION:
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Docker Setup Guide:  /app/.jules/DOCKER_SETUP.md
+  Troubleshooting:     /app/.jules/DOCKER_SETUP.md#-troubleshooting-docker-in-jules
+  Main README:         /app/README.md
+  API Docs:            http://localhost:8000/docs (after backend starts)
+
+  ⚠️  If Docker setup failed, see: /app/JULES_SETUP.md for remote infrastructure option

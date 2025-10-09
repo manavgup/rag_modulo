@@ -1,0 +1,61 @@
+# =============================================================================
+# Jules Configuration for RAG Modulo
+# =============================================================================
+# Copy this configuration to: https://jules.google.com/repo/github/manavgup/rag_modulo/config
+#
+# This configuration:
+# 1. Installs dependencies (Poetry + npm) ONLY
+# 2. Does NOT attempt to start Docker services
+# 3. Requires remote infrastructure (see JULES_SETUP.md)
+# =============================================================================
+
+setup:
+  # Run custom setup script
+  script: .jules/setup.sh
+
+  # Or use inline commands (alternative to script):
+  # commands:
+  #   - cp env.jules.example .env
+  #   - make local-dev-setup
+
+environment:
+  # Flag to indicate Jules environment (can be used in code)
+  JULES_ENVIRONMENT: "true"
+  DEVELOPMENT_MODE: "true"
+
+  # Note: Add your actual credentials via Jules secrets UI, not here
+  # These are just placeholders to show what's needed
+
+notes: |
+  🚀 RAG Modulo Setup Complete!
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  📋 NEXT STEPS:
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  1️⃣  Set up remote infrastructure (see /app/JULES_SETUP.md)
+      Recommended: Supabase + Pinecone + Backblaze B2 (free tier)
+
+  2️⃣  Configure /app/.env with your remote service URLs
+      Required variables:
+      - POSTGRES_HOST, POSTGRES_PORT, COLLECTIONDB_*
+      - PINECONE_API_KEY (or MILVUS_HOST/PORT)
+      - MINIO_ENDPOINT, MINIO_ROOT_USER, MINIO_ROOT_PASSWORD
+      - WATSONX_APIKEY, WATSONX_INSTANCE_ID
+
+  3️⃣  Verify connections:
+      make verify-remote-connections
+
+  4️⃣  Start services:
+      Terminal 1: make local-dev-backend
+      Terminal 2: make local-dev-frontend
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  📚 DOCUMENTATION:
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Quick Start:  /app/JULES_SETUP.md
+  Full Guide:   /app/docs/deployment/jules-setup.md
+  API Docs:     http://localhost:8000/docs (after backend starts)
+
+  Need help? Check /app/docs/troubleshooting/ or GitHub Issues

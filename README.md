@@ -8,6 +8,11 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=flat&logo=fastapi)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/react-%2320232a.svg?style=flat&logo=react&logoColor=%2361DAFB)](https://reactjs.org/)
 
+[![Lint & Static Analysis](https://github.com/manavgup/rag_modulo/actions/workflows/01-lint.yml/badge.svg)](https://github.com/manavgup/rag_modulo/actions/workflows/01-lint.yml)
+[![Security Scan](https://github.com/manavgup/rag_modulo/actions/workflows/02-security.yml/badge.svg)](https://github.com/manavgup/rag_modulo/actions/workflows/02-security.yml)
+[![Docker Security](https://github.com/manavgup/rag_modulo/actions/workflows/03-build-secure.yml/badge.svg)](https://github.com/manavgup/rag_modulo/actions/workflows/03-build-secure.yml)
+[![Unit Tests](https://github.com/manavgup/rag_modulo/actions/workflows/04-pytest.yml/badge.svg)](https://github.com/manavgup/rag_modulo/actions/workflows/04-pytest.yml)
+
 **A production-ready, modular Retrieval-Augmented Generation (RAG) platform with Chain of Thought reasoning, multi-LLM support, and enterprise-grade features**
 
 [🚀 Quick Start](#-quick-start) • [📚 Documentation](https://manavgup.github.io/rag_modulo) • [🛠️ Development](#️-development-workflow) • [✨ Features](#-features--capabilities) • [🤝 Contributing](#-contributing)
@@ -85,6 +90,8 @@ RAG Modulo is a production-ready Retrieval-Augmented Generation platform that pr
 | **Node.js** | 18+ | Frontend development |
 | **Docker** | Latest | Infrastructure services |
 | **Docker Compose** | V2 | Orchestration |
+
+> **☁️ Cloud IDE (Jules/Codespaces)?** Docker not available? See **[JULES_SETUP.md](JULES_SETUP.md)** for remote infrastructure setup.
 
 ### Option 1: Local Development (⚡ Fastest - Recommended)
 

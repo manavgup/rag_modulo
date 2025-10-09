@@ -392,6 +392,66 @@ local-dev-status:
 	else \
 		echo "$(RED)❌ Backend not running$(NC)"; \
 	fi
+
+verify-remote-connections:
+	@echo "$(CYAN)🔍 Verifying remote infrastructure connections...$(NC)"
+	@echo ""
+	@echo "$(CYAN)Testing PostgreSQL connection...$(NC)"
+	@cd backend && $(POETRY) run python -c "\
+		import asyncio; \
+		import asyncpg; \
+		import os; \
+		async def test(): \
+			try: \
+				conn = await asyncpg.connect( \
+					host=os.getenv('POSTGRES_HOST', 'localhost'), \
+					port=int(os.getenv('POSTGRES_PORT', '5432')), \
+					user=os.getenv('COLLECTIONDB_USER', 'rag_user'), \
+					password=os.getenv('COLLECTIONDB_PASS', 'rag_password'), \
+					database=os.getenv('COLLECTIONDB_NAME', 'rag_modulo') \
+				); \
+				await conn.close(); \
+				print('✅ PostgreSQL connected successfully'); \
+			except Exception as e: \
+				print(f'❌ PostgreSQL connection failed: {e}'); \
+		asyncio.run(test())" 2>&1 || echo "$(RED)❌ PostgreSQL verification failed$(NC)"
+	@echo ""
+	@echo "$(CYAN)Testing Milvus connection...$(NC)"
+	@cd backend && $(POETRY) run python -c "\
+		from pymilvus import connections; \
+		import os; \
+		try: \
+			connections.connect( \
+				alias='verify', \
+				host=os.getenv('MILVUS_HOST', 'localhost'), \
+				port=os.getenv('MILVUS_PORT', '19530'), \
+				user=os.getenv('MILVUS_USER', ''), \
+				password=os.getenv('MILVUS_PASSWORD', '') \
+			); \
+			connections.disconnect('verify'); \
+			print('✅ Milvus connected successfully'); \
+		except Exception as e: \
+			print(f'❌ Milvus connection failed: {e}');" 2>&1 || echo "$(RED)❌ Milvus verification failed$(NC)"
+	@echo ""
+	@echo "$(CYAN)Testing MinIO/S3 connection...$(NC)"
+	@cd backend && $(POETRY) run python -c "\
+		from minio import Minio; \
+		import os; \
+		try: \
+			endpoint = os.getenv('MINIO_ENDPOINT', 'localhost:9000'); \
+			client = Minio( \
+				endpoint.replace('http://', '').replace('https://', ''), \
+				access_key=os.getenv('MINIO_ROOT_USER', 'minioadmin'), \
+				secret_key=os.getenv('MINIO_ROOT_PASSWORD', 'minioadmin'), \
+				secure=os.getenv('MINIO_SECURE', 'false').lower() == 'true' \
+			); \
+			client.list_buckets(); \
+			print('✅ MinIO/S3 connected successfully'); \
+		except Exception as e: \
+			print(f'❌ MinIO/S3 connection failed: {e}');" 2>&1 || echo "$(RED)❌ MinIO/S3 verification failed$(NC)"
+	@echo ""
+	@echo "$(GREEN)✅ Remote connection verification complete!$(NC)"
+	@echo "$(CYAN)💡 If any checks failed, verify your .env configuration$(NC)"
 	@echo ""
 	@echo "$(CYAN)⚛️  Frontend Status:$(NC)"
 	@if pgrep -f "react-scripts" > /dev/null; then \
