@@ -38,15 +38,13 @@ def get_current_user(
     In development mode with SKIP_AUTH=true, returns a mock user.
     """
     # Check if authentication is skipped (development mode)
-    skip_auth = getattr(settings, "skip_auth", False)
-    if skip_auth:
-        # Return mock user for development
-        mock_token = getattr(settings, "mock_token", "dev-0000-0000-0000")
+    if settings.skip_auth:
+        # Return mock user for development (all values from config)
         return {
-            "user_id": mock_token,
-            "uuid": mock_token,
-            "email": "dev@example.com",
-            "name": "Development User",
+            "user_id": settings.mock_token,
+            "uuid": settings.mock_token,
+            "email": settings.mock_user_email,
+            "name": settings.mock_user_name,
         }
 
     # Production: require authentication
