@@ -18,7 +18,7 @@ import logging
 
 from fastapi import BackgroundTasks, HTTPException
 from pydantic import UUID4
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from core.config import get_settings
 from core.custom_exceptions import NotFoundError, ValidationError
@@ -46,6 +46,7 @@ class PodcastService:
     """Service for podcast generation and management."""
 
     # Default podcast prompt template
+    # pylint: disable=line-too-long
     PODCAST_SCRIPT_PROMPT = """You are a professional podcast script writer. Create an engaging podcast dialogue between a HOST and an EXPERT.
 
 Topic/Focus: {user_topic}
@@ -85,7 +86,7 @@ Generate the complete dialogue script now:"""
 
     def __init__(
         self,
-        session: AsyncSession,
+        session: Session,
         collection_service: CollectionService,
         search_service: SearchService,
     ):
@@ -119,9 +120,9 @@ Generate the complete dialogue script now:"""
             storage_path = self.settings.podcast_local_storage_path
             logger.info("Using local file storage: %s", storage_path)
             return LocalFileStorage(base_path=storage_path)
-        else:
-            # Future: MinIO, S3, R2
-            raise NotImplementedError(f"Storage backend '{storage_backend}' not yet implemented")
+
+        # Future: MinIO, S3, R2
+        raise NotImplementedError(f"Storage backend '{storage_backend}' not yet implemented")
 
     async def generate_podcast(
         self,
@@ -146,7 +147,7 @@ Generate the complete dialogue script now:"""
             await self._validate_podcast_request(podcast_input)
 
             # 2. Create podcast record
-            podcast = await self.repository.create(
+            podcast = self.repository.create(
                 user_id=podcast_input.user_id,
                 collection_id=podcast_input.collection_id,
                 duration=podcast_input.duration.value,
@@ -193,23 +194,21 @@ Generate the complete dialogue script now:"""
 
         Raises:
             NotFoundError: If collection not found
-            ValidationError: If validation fails
+            ValidationError: If validation fails or access denied
         """
-        # Check collection exists and user has access
-        collection = await self.collection_service.get_by_id(  # type: ignore[attr-defined]
-            collection_id=podcast_input.collection_id,
-            user_id=podcast_input.user_id,
-        )
-
-        if not collection:
-            raise NotFoundError(  # type: ignore[call-arg]
-                f"Collection {podcast_input.collection_id} not found or not accessible"
-            )
+        # Check collection exists and retrieve it
+        # get_collection() raises NotFoundError if collection doesn't exist
+        try:
+            collection = self.collection_service.get_collection(collection_id=podcast_input.collection_id)
+        except NotFoundError as e:
+            raise NotFoundError(
+                resource_type="Collection",
+                resource_id=str(podcast_input.collection_id),
+                message=f"Collection {podcast_input.collection_id} not found",
+            ) from e
 
         # Check collection has sufficient documents
-        doc_count = await self.collection_service.count_documents(  # type: ignore[attr-defined]
-            podcast_input.collection_id
-        )
+        doc_count = len(collection.files) if collection.files else 0
         min_docs = self.settings.podcast_min_documents
 
         if doc_count < min_docs:
@@ -218,7 +217,7 @@ Generate the complete dialogue script now:"""
             )
 
         # Check user's active podcast limit
-        active_count = await self.repository.count_active_for_user(podcast_input.user_id)
+        active_count = self.repository.count_active_for_user(podcast_input.user_id)
         max_concurrent = self.settings.podcast_max_concurrent_per_user
 
         if active_count >= max_concurrent:
@@ -291,7 +290,7 @@ Generate the complete dialogue script now:"""
             audio_url = await self._store_audio(podcast_id, podcast_input.user_id, audio_bytes, podcast_input.format)
 
             # Step 6: Mark complete (100%)
-            await self.repository.mark_completed(
+            self.repository.mark_completed(
                 podcast_id=podcast_id,
                 audio_url=audio_url,
                 transcript=script_text,
@@ -307,7 +306,7 @@ Generate the complete dialogue script now:"""
 
         except Exception as e:
             logger.exception("Podcast generation failed for %s: %s", podcast_id, e)
-            await self.repository.update_status(
+            self.repository.update_status(
                 podcast_id=podcast_id,
                 status=PodcastStatus.FAILED,
                 error_message=str(e),
@@ -359,9 +358,13 @@ Generate the complete dialogue script now:"""
 
         search_result = await self.search_service.search(search_input)
 
-        # Format results for prompt
+        # Format results for prompt using query_results which contain the actual text
         formatted_results = "\n\n".join(
-            [f"[Document {i + 1}]: {doc.chunk_text}" for i, doc in enumerate(search_result.documents)]
+            [
+                f"[Document {i + 1}]: {result.chunk.text if result.chunk else ''}"
+                for i, result in enumerate(search_result.query_results)
+                if result.chunk
+            ]
         )
 
         logger.info(
@@ -401,17 +404,26 @@ Generate the complete dialogue script now:"""
             word_count=word_count,
         )
 
-        # Generate via LLM
-        # TODO: Get LLM provider from user preferences
-        # For now, use default provider
-        llm_provider = LLMProviderFactory.create_provider(  # type: ignore[attr-defined]
-            provider_name="watsonx",  # or from user config
-            session=self.session,
+        # Generate via LLM using configured provider
+        factory = LLMProviderFactory(self.session)
+        llm_provider = factory.get_provider(self.settings.llm_provider)
+
+        # Create simple template for podcast generation
+        from rag_solution.schemas.prompt_template_schema import PromptTemplateBase, PromptTemplateType
+
+        podcast_template = PromptTemplateBase(
+            name="podcast_script_generation",
+            user_id=podcast_input.user_id,
+            template_type=PromptTemplateType.CUSTOM,
+            template_format="{prompt}",  # Simple pass-through template
+            input_variables={"prompt": "The podcast script prompt"},
         )
 
         script_text = llm_provider.generate_text(
             user_id=podcast_input.user_id,
             prompt=prompt,
+            template=podcast_template,
+            variables={"prompt": prompt},
         )
 
         logger.info(
@@ -440,10 +452,16 @@ Generate the complete dialogue script now:"""
             Audio file bytes
         """
         # Create audio provider
+        # Default to openai if not configured
+        audio_provider_type = getattr(self.settings, "podcast_audio_provider", "openai")
+        logger.info("Creating audio provider: type=%s", audio_provider_type)
+
         audio_provider = AudioProviderFactory.create_provider(
-            provider_type=self.settings.podcast_audio_provider,
+            provider_type=audio_provider_type,
             settings=self.settings,
         )
+
+        logger.info("Audio provider created successfully: %s", audio_provider.__class__.__name__)
 
         # Generate audio with turn-by-turn progress
         # Note: OpenAIAudioProvider handles turn iteration internally
@@ -503,7 +521,7 @@ Generate the complete dialogue script now:"""
             status: Optional status update
             step_details: Optional step details
         """
-        await self.repository.update_progress(
+        self.repository.update_progress(
             podcast_id=podcast_id,
             progress_percentage=progress,
             current_step=step,
@@ -511,7 +529,7 @@ Generate the complete dialogue script now:"""
         )
 
         if status:
-            await self.repository.update_status(
+            self.repository.update_status(
                 podcast_id=podcast_id,
                 status=status,
             )
@@ -530,7 +548,7 @@ Generate the complete dialogue script now:"""
         Raises:
             HTTPException: If not found or access denied
         """
-        podcast = await self.repository.get_by_id(podcast_id)
+        podcast = self.repository.get_by_id(podcast_id)
 
         if not podcast:
             raise HTTPException(status_code=404, detail="Podcast not found")
@@ -552,7 +570,7 @@ Generate the complete dialogue script now:"""
         Returns:
             PodcastListResponse
         """
-        podcasts = await self.repository.get_by_user(user_id=user_id, limit=limit, offset=offset)
+        podcasts = self.repository.get_by_user(user_id=user_id, limit=limit, offset=offset)
 
         return PodcastListResponse(
             podcasts=[self.repository.to_schema(p) for p in podcasts],
@@ -574,7 +592,7 @@ Generate the complete dialogue script now:"""
             HTTPException: If not found or access denied
         """
         # Verify ownership
-        podcast = await self.repository.get_by_id(podcast_id)
+        podcast = self.repository.get_by_id(podcast_id)
 
         if not podcast:
             raise HTTPException(status_code=404, detail="Podcast not found")
@@ -593,7 +611,7 @@ Generate the complete dialogue script now:"""
                 logger.warning("Failed to delete audio file: %s", e)
 
         # Delete database record
-        return await self.repository.delete(podcast_id)
+        return self.repository.delete(podcast_id)
 
     async def generate_voice_preview(self, voice_id: str) -> bytes:
         """

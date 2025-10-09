@@ -92,11 +92,15 @@ class AudioProviderFactory:
             else str(settings.openai_api_key)
         )
 
+        # Strip any whitespace
+        api_key = api_key.strip()
+
         model = getattr(settings, "openai_tts_model", "tts-1-hd")
 
         logger.info(
-            "Creating OpenAI audio provider with model=%s",
+            "Creating OpenAI audio provider with model=%s, api_key_length=%d",
             model,
+            len(api_key),
         )
 
         return OpenAIAudioProvider(

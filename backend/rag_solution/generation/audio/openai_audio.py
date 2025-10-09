@@ -123,11 +123,13 @@ class OpenAIAudioProvider(AudioProviderBase):
             await self.validate_voices(host_voice, expert_voice)
 
             logger.info(
-                "Generating audio for %d turns (HOST=%s, EXPERT=%s)",
+                "Generating audio for %d turns (HOST=%s, EXPERT=%s, model=%s)",
                 len(script.turns),
                 host_voice,
                 expert_voice,
+                self.model,
             )
+            logger.info("OpenAI client configured: %s", self.client is not None)
 
             # Generate audio for each turn
             audio_segments = []
@@ -214,12 +216,17 @@ class OpenAIAudioProvider(AudioProviderBase):
         """
         try:
             # Call OpenAI TTS API
+            logger.info("Calling OpenAI TTS: voice=%s, text_len=%d, model=%s", voice_id, len(text), self.model)
+            logger.debug("OpenAI API key configured: %s", self.client.api_key is not None)
+
             response = await self.client.audio.speech.create(
                 model=self.model,
                 voice=voice_id,
                 input=text,
                 response_format=audio_format.value,  # type: ignore[arg-type]
             )
+
+            logger.info("OpenAI TTS response received successfully")
 
             # Convert response to AudioSegment
             audio_bytes = response.content

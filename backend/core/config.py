@@ -32,7 +32,8 @@ class Settings(BaseSettings):
     vector_db: Annotated[str, Field(default="milvus", alias="VECTOR_DB")]
     collection_name: Annotated[str | None, Field(default=None, alias="COLLECTION_NAME")]
 
-    # LLM Provider credentials with defaults
+    # LLM Provider selection and credentials
+    llm_provider: Annotated[str, Field(default="watsonx", alias="LLM_PROVIDER")]  # Options: watsonx, openai, anthropic
     wx_project_id: Annotated[str, Field(default="", alias="WATSONX_INSTANCE_ID")]
     wx_api_key: Annotated[str, Field(default="", alias="WATSONX_APIKEY")]
     wx_url: Annotated[str, Field(default="https://us-south.ml.cloud.ibm.com", alias="WATSONX_URL")]
@@ -173,7 +174,7 @@ class Settings(BaseSettings):
     watsonx_tts_default_voice: Annotated[str, Field(default="en-US_AllisonV3Voice", alias="WATSONX_TTS_DEFAULT_VOICE")]
 
     # Podcast validation and limits
-    podcast_min_documents: Annotated[int, Field(default=5, alias="PODCAST_MIN_DOCUMENTS")]
+    podcast_min_documents: Annotated[int, Field(default=1, alias="PODCAST_MIN_DOCUMENTS")]
     podcast_max_concurrent_per_user: Annotated[int, Field(default=3, alias="PODCAST_MAX_CONCURRENT_PER_USER")]
     podcast_url_expiry_days: Annotated[int, Field(default=7, alias="PODCAST_URL_EXPIRY_DAYS")]
 

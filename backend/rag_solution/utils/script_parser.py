@@ -27,18 +27,19 @@ class PodcastScriptParser:
     """Parser for converting LLM-generated scripts into structured dialogue."""
 
     # Patterns for detecting speaker turns
+    # Changed .+ to .* to allow speaker labels on their own line
     HOST_PATTERNS: ClassVar[list[str]] = [
-        r"^HOST:\s*(.+)$",
-        r"^Host:\s*(.+)$",
-        r"^H:\s*(.+)$",
-        r"^\[HOST\]\s*(.+)$",
+        r"^HOST:\s*(.*)$",
+        r"^Host:\s*(.*)$",
+        r"^H:\s*(.*)$",
+        r"^\[HOST\]\s*(.*)$",
     ]
 
     EXPERT_PATTERNS: ClassVar[list[str]] = [
-        r"^EXPERT:\s*(.+)$",
-        r"^Expert:\s*(.+)$",
-        r"^E:\s*(.+)$",
-        r"^\[EXPERT\]\s*(.+)$",
+        r"^EXPERT:\s*(.*)$",
+        r"^Expert:\s*(.*)$",
+        r"^E:\s*(.*)$",
+        r"^\[EXPERT\]\s*(.*)$",
     ]
 
     def __init__(self, average_wpm: int = 150):

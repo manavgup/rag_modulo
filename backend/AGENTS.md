@@ -52,10 +52,11 @@ backend/
 
 ### AI & ML
 - **IBM WatsonX**: Primary LLM provider
-- **OpenAI**: Alternative LLM provider
+- **OpenAI**: Alternative LLM provider (also used for TTS)
 - **Anthropic**: Alternative LLM provider
 - **Docling**: Advanced document processing
 - **Transformers**: HuggingFace models for embeddings
+- **OpenAI TTS**: Text-to-speech for podcast generation
 
 ### Testing
 - **pytest**: Test framework with extensive plugins

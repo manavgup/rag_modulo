@@ -12,7 +12,7 @@ from uuid import UUID
 
 from sqlalchemy import and_, desc, select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from rag_solution.models.podcast import Podcast
 from rag_solution.schemas.podcast_schema import (
@@ -27,16 +27,16 @@ logger = logging.getLogger(__name__)
 class PodcastRepository:
     """Repository for podcast data access operations."""
 
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: Session):
         """
         Initialize podcast repository.
 
         Args:
-            session: SQLAlchemy async session
+            session: SQLAlchemy session
         """
         self.session = session
 
-    async def create(
+    def create(
         self,
         user_id: UUID,
         collection_id: UUID,
@@ -82,8 +82,8 @@ class PodcastRepository:
             )
 
             self.session.add(podcast)
-            await self.session.commit()
-            await self.session.refresh(podcast)
+            self.session.commit()
+            self.session.refresh(podcast)
 
             logger.info(
                 "Created podcast %s for user %s, collection %s",
@@ -95,15 +95,15 @@ class PodcastRepository:
             return podcast
 
         except IntegrityError as e:
-            await self.session.rollback()
+            self.session.rollback()
             logger.error("Integrity error creating podcast: %s", e)
             raise
         except SQLAlchemyError as e:
-            await self.session.rollback()
+            self.session.rollback()
             logger.error("Database error creating podcast: %s", e)
             raise
 
-    async def get_by_id(self, podcast_id: UUID) -> Podcast | None:
+    def get_by_id(self, podcast_id: UUID) -> Podcast | None:
         """
         Get podcast by ID.
 
@@ -114,13 +114,13 @@ class PodcastRepository:
             Podcast model or None if not found
         """
         try:
-            result = await self.session.execute(select(Podcast).where(Podcast.podcast_id == podcast_id))
+            result = self.session.execute(select(Podcast).where(Podcast.podcast_id == podcast_id))
             return result.scalar_one_or_none()
         except SQLAlchemyError as e:
             logger.error("Error fetching podcast %s: %s", podcast_id, e)
             raise
 
-    async def get_by_user(self, user_id: UUID, limit: int = 100, offset: int = 0) -> list[Podcast]:
+    def get_by_user(self, user_id: UUID, limit: int = 100, offset: int = 0) -> list[Podcast]:
         """
         Get all podcasts for a user.
 
@@ -133,7 +133,7 @@ class PodcastRepository:
             List of Podcast models
         """
         try:
-            result = await self.session.execute(
+            result = self.session.execute(
                 select(Podcast)
                 .where(Podcast.user_id == user_id)
                 .order_by(desc(Podcast.created_at))
@@ -145,7 +145,7 @@ class PodcastRepository:
             logger.error("Error fetching podcasts for user %s: %s", user_id, e)
             raise
 
-    async def get_by_user_and_collection(self, user_id: UUID, collection_id: UUID) -> list[Podcast]:
+    def get_by_user_and_collection(self, user_id: UUID, collection_id: UUID) -> list[Podcast]:
         """
         Get podcasts for specific user and collection.
 
@@ -157,7 +157,7 @@ class PodcastRepository:
             List of Podcast models
         """
         try:
-            result = await self.session.execute(
+            result = self.session.execute(
                 select(Podcast)
                 .where(
                     and_(
@@ -177,7 +177,7 @@ class PodcastRepository:
             )
             raise
 
-    async def count_active_for_user(self, user_id: UUID) -> int:
+    def count_active_for_user(self, user_id: UUID) -> int:
         """
         Count active (QUEUED or GENERATING) podcasts for user.
 
@@ -188,7 +188,7 @@ class PodcastRepository:
             Count of active podcasts
         """
         try:
-            result = await self.session.execute(
+            result = self.session.execute(
                 select(Podcast).where(
                     and_(
                         Podcast.user_id == user_id,
@@ -201,7 +201,7 @@ class PodcastRepository:
             logger.error("Error counting active podcasts for user %s: %s", user_id, e)
             raise
 
-    async def update_progress(
+    def update_progress(
         self,
         podcast_id: UUID,
         progress_percentage: int,
@@ -221,7 +221,7 @@ class PodcastRepository:
             Updated Podcast model or None if not found
         """
         try:
-            podcast = await self.get_by_id(podcast_id)
+            podcast = self.get_by_id(podcast_id)
             if not podcast:
                 logger.warning("Podcast %s not found for progress update", podcast_id)
                 return None
@@ -231,8 +231,8 @@ class PodcastRepository:
             podcast.step_details = step_details
             podcast.updated_at = datetime.utcnow()
 
-            await self.session.commit()
-            await self.session.refresh(podcast)
+            self.session.commit()
+            self.session.refresh(podcast)
 
             logger.debug(
                 "Updated progress for podcast %s: %d%% - %s",
@@ -244,11 +244,11 @@ class PodcastRepository:
             return podcast
 
         except SQLAlchemyError as e:
-            await self.session.rollback()
+            self.session.rollback()
             logger.error("Error updating podcast %s progress: %s", podcast_id, e)
             raise
 
-    async def update_status(
+    def update_status(
         self, podcast_id: UUID, status: PodcastStatus, error_message: str | None = None
     ) -> Podcast | None:
         """
@@ -263,7 +263,7 @@ class PodcastRepository:
             Updated Podcast model or None if not found
         """
         try:
-            podcast = await self.get_by_id(podcast_id)
+            podcast = self.get_by_id(podcast_id)
             if not podcast:
                 logger.warning("Podcast %s not found for status update", podcast_id)
                 return None
@@ -277,19 +277,19 @@ class PodcastRepository:
             elif status == PodcastStatus.COMPLETED:
                 podcast.completed_at = datetime.utcnow()
 
-            await self.session.commit()
-            await self.session.refresh(podcast)
+            self.session.commit()
+            self.session.refresh(podcast)
 
             logger.info("Updated podcast %s status to %s", podcast_id, status.value)
 
             return podcast
 
         except SQLAlchemyError as e:
-            await self.session.rollback()
+            self.session.rollback()
             logger.error("Error updating podcast %s status: %s", podcast_id, e)
             raise
 
-    async def mark_completed(
+    def mark_completed(
         self,
         podcast_id: UUID,
         audio_url: str,
@@ -309,7 +309,7 @@ class PodcastRepository:
             Updated Podcast model or None if not found
         """
         try:
-            podcast = await self.get_by_id(podcast_id)
+            podcast = self.get_by_id(podcast_id)
             if not podcast:
                 logger.warning("Podcast %s not found for completion", podcast_id)
                 return None
@@ -324,19 +324,19 @@ class PodcastRepository:
             podcast.completed_at = datetime.utcnow()
             podcast.updated_at = datetime.utcnow()
 
-            await self.session.commit()
-            await self.session.refresh(podcast)
+            self.session.commit()
+            self.session.refresh(podcast)
 
             logger.info("Marked podcast %s as completed", podcast_id)
 
             return podcast
 
         except SQLAlchemyError as e:
-            await self.session.rollback()
+            self.session.rollback()
             logger.error("Error marking podcast %s completed: %s", podcast_id, e)
             raise
 
-    async def delete(self, podcast_id: UUID) -> bool:
+    def delete(self, podcast_id: UUID) -> bool:
         """
         Delete podcast by ID.
 
@@ -347,20 +347,20 @@ class PodcastRepository:
             True if deleted, False if not found
         """
         try:
-            podcast = await self.get_by_id(podcast_id)
+            podcast = self.get_by_id(podcast_id)
             if not podcast:
                 logger.warning("Podcast %s not found for deletion", podcast_id)
                 return False
 
-            await self.session.delete(podcast)
-            await self.session.commit()
+            self.session.delete(podcast)
+            self.session.commit()
 
             logger.info("Deleted podcast %s", podcast_id)
 
             return True
 
         except SQLAlchemyError as e:
-            await self.session.rollback()
+            self.session.rollback()
             logger.error("Error deleting podcast %s: %s", podcast_id, e)
             raise
 

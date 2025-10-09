@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Podcast Generation Endpoint** (PR #TBD): Fixed complete podcast generation pipeline
+  - Fixed API route prefix from `/podcasts` to `/api/podcasts` (404 → 202)
+  - Converted `PodcastRepository` from `AsyncSession` to `Session` (matching codebase pattern)
+  - Updated `PodcastService` to use synchronous database operations
+  - Fixed content retrieval to use `result.chunk.text` instead of `doc.chunk_text`
+  - Fixed `LLMProviderFactory` usage (static method → instance method pattern)
+  - Added required template parameter for WatsonX script generation
+  - Updated script parser regex patterns to handle multiline speaker labels
+  - Added `.strip()` to OpenAI API key to prevent "Illegal header value" errors
+  - Reduced minimum document requirement from 5 to 1 (`PODCAST_MIN_DOCUMENTS`)
+  - Successfully generates podcasts with RAG → LLM → TTS pipeline (0% → 100%)
+
 ### Added
 
 - **CI/CD Pipeline Optimization** (#349, PR #354): Significantly improved GitHub Actions workflow efficiency

@@ -16,6 +16,26 @@ from uuid import UUID
 from pydantic import BaseModel, Field, field_validator
 
 
+def validate_non_empty_string(value: str, field_name: str) -> str:
+    """
+    Validate that a string is not empty or whitespace-only.
+
+    Args:
+        value: String to validate
+        field_name: Name of field for error messages
+
+    Returns:
+        Stripped string value
+
+    Raises:
+        ValueError: If string is empty or whitespace-only
+    """
+    stripped = value.strip() if value else ""
+    if not stripped:
+        raise ValueError(f"{field_name} cannot be empty or whitespace-only")
+    return stripped
+
+
 class PodcastStatus(str, Enum):
     """Status of podcast generation process."""
 
@@ -93,9 +113,7 @@ class VoiceSettings(BaseModel):
     @classmethod
     def validate_voice_id(cls, v: str) -> str:
         """Ensure voice_id is not empty."""
-        if not v or not v.strip():
-            raise ValueError("voice_id cannot be empty")
-        return v.strip()
+        return validate_non_empty_string(v, "voice_id")
 
 
 class PodcastTurn(BaseModel):
@@ -109,9 +127,7 @@ class PodcastTurn(BaseModel):
     @classmethod
     def validate_text(cls, v: str) -> str:
         """Ensure text is not empty."""
-        if not v or not v.strip():
-            raise ValueError("turn text cannot be empty")
-        return v.strip()
+        return validate_non_empty_string(v, "turn text")
 
 
 class PodcastScript(BaseModel):
@@ -176,20 +192,22 @@ class PodcastGenerationInput(BaseModel):
     def validate_title(cls, v: str | None) -> str | None:
         """Validate and clean title."""
         if v is not None:
-            v = v.strip()
-            if not v:
+            stripped = v.strip()
+            if not stripped:
                 return None
-        return v
+            return stripped
+        return None
 
     @field_validator("description")
     @classmethod
     def validate_description(cls, v: str | None) -> str | None:
         """Validate and clean description."""
         if v is not None:
-            v = v.strip()
-            if not v:
+            stripped = v.strip()
+            if not stripped:
                 return None
-        return v
+            return stripped
+        return None
 
 
 class PodcastGenerationOutput(BaseModel):

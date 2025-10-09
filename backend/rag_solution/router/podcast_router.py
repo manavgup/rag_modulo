@@ -11,7 +11,7 @@ from typing import Annotated
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import UUID4
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from core.config import Settings, get_settings
 from rag_solution.core.dependencies import get_current_user
@@ -27,12 +27,12 @@ from rag_solution.services.search_service import SearchService
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/podcasts", tags=["podcasts"])
+router = APIRouter(prefix="/api/podcasts", tags=["podcasts"])
 
 
 # Dependency to get PodcastService
-async def get_podcast_service(
-    session: Annotated[AsyncSession, Depends(get_db)],
+def get_podcast_service(
+    session: Annotated[Session, Depends(get_db)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> PodcastService:
     """
@@ -45,10 +45,9 @@ async def get_podcast_service(
     Returns:
         Configured PodcastService
     """
-    # TODO: Inject services properly via dependency injection
-    # For now, create inline (will need refactoring)
-    collection_service = CollectionService(session, settings)  # type: ignore[arg-type]
-    search_service = SearchService(session, settings)  # type: ignore[arg-type]
+    # Create service dependencies
+    collection_service = CollectionService(session, settings)
+    search_service = SearchService(session, settings)
 
     return PodcastService(
         session=session,
@@ -86,6 +85,7 @@ async def generate_podcast(
     podcast_input: PodcastGenerationInput,
     background_tasks: BackgroundTasks,
     podcast_service: Annotated[PodcastService, Depends(get_podcast_service)],
+    current_user: Annotated[dict, Depends(get_current_user)],
 ) -> PodcastGenerationOutput:
     """
     Generate podcast from collection (async).
@@ -94,15 +94,26 @@ async def generate_podcast(
         podcast_input: Podcast generation request
         background_tasks: FastAPI background tasks
         podcast_service: Injected podcast service
+        current_user: Authenticated user from JWT token
 
     Returns:
         PodcastGenerationOutput with QUEUED status and podcast_id
 
     Raises:
         HTTPException 400: Validation failed
+        HTTPException 401: Unauthorized
+        HTTPException 403: User doesn't own collection
         HTTPException 404: Collection not found
         HTTPException 500: Internal error
     """
+    # Validate that authenticated user matches request user_id
+    user_id_from_token = current_user.get("user_id")
+    if str(podcast_input.user_id) != str(user_id_from_token):
+        raise HTTPException(
+            status_code=403,
+            detail="Cannot generate podcast for another user",
+        )
+
     return await podcast_service.generate_podcast(podcast_input, background_tasks)
 
 
@@ -128,27 +139,26 @@ async def generate_podcast(
 )
 async def get_podcast(
     podcast_id: UUID4,
-    user_id: Annotated[
-        UUID4,
-        Query(description="User ID for access control"),
-    ],
     podcast_service: Annotated[PodcastService, Depends(get_podcast_service)],
+    current_user: Annotated[dict, Depends(get_current_user)],
 ) -> PodcastGenerationOutput:
     """
     Get podcast by ID.
 
     Args:
         podcast_id: Podcast UUID
-        user_id: Requesting user UUID
         podcast_service: Injected podcast service
+        current_user: Authenticated user from JWT token
 
     Returns:
         PodcastGenerationOutput with current status
 
     Raises:
-        HTTPException 404: Podcast not found
+        HTTPException 401: Unauthorized
         HTTPException 403: Access denied
+        HTTPException 404: Podcast not found
     """
+    user_id = current_user.get("user_id")
     return await podcast_service.get_podcast(podcast_id, user_id)
 
 
@@ -157,16 +167,14 @@ async def get_podcast(
     response_model=PodcastListResponse,
     summary="List user's podcasts",
     description="""
-    List all podcasts for a user, ordered by creation date (newest first).
+    List all podcasts for the authenticated user, ordered by creation date (newest first).
 
     Supports pagination via limit and offset parameters.
     """,
 )
 async def list_podcasts(
-    user_id: Annotated[
-        UUID4,
-        Query(description="User ID to list podcasts for"),
-    ],
+    podcast_service: Annotated[PodcastService, Depends(get_podcast_service)],
+    current_user: Annotated[dict, Depends(get_current_user)],
     limit: Annotated[
         int,
         Query(ge=1, le=100, description="Maximum number of results"),
@@ -175,20 +183,23 @@ async def list_podcasts(
         int,
         Query(ge=0, description="Pagination offset"),
     ] = 0,
-    podcast_service: PodcastService = Depends(get_podcast_service),
 ) -> PodcastListResponse:
     """
-    List user's podcasts.
+    List authenticated user's podcasts.
 
     Args:
-        user_id: User UUID
         limit: Maximum results (1-100)
         offset: Pagination offset
         podcast_service: Injected podcast service
+        current_user: Authenticated user from JWT token
 
     Returns:
         PodcastListResponse with list of podcasts
+
+    Raises:
+        HTTPException 401: Unauthorized
     """
+    user_id = current_user.get("user_id")
     return await podcast_service.list_user_podcasts(user_id, limit, offset)
 
 
@@ -208,27 +219,26 @@ async def list_podcasts(
 )
 async def delete_podcast(
     podcast_id: UUID4,
-    user_id: Annotated[
-        UUID4,
-        Query(description="User ID for access control"),
-    ],
     podcast_service: Annotated[PodcastService, Depends(get_podcast_service)],
+    current_user: Annotated[dict, Depends(get_current_user)],
 ) -> None:
     """
     Delete podcast.
 
     Args:
         podcast_id: Podcast UUID
-        user_id: Requesting user UUID
         podcast_service: Injected podcast service
+        current_user: Authenticated user from JWT token
 
     Returns:
         None (204 No Content)
 
     Raises:
-        HTTPException 404: Podcast not found
+        HTTPException 401: Unauthorized
         HTTPException 403: Access denied
+        HTTPException 404: Podcast not found
     """
+    user_id = current_user.get("user_id")
     await podcast_service.delete_podcast(podcast_id, user_id)
 
 

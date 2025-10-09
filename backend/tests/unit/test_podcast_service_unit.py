@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from rag_solution.schemas.podcast_schema import (
     AudioFormat,
@@ -32,7 +32,7 @@ class TestPodcastServiceInitialization:
 
     def test_service_initialization_with_dependencies(self) -> None:
         """Unit: PodcastService initializes with required dependencies."""
-        session = Mock(spec=AsyncSession)
+        session = Mock(spec=Session)
         collection_service = Mock(spec=CollectionService)
         search_service = Mock(spec=SearchService)
 
@@ -58,7 +58,7 @@ class TestPodcastServiceGeneration:
     @pytest.fixture
     def mock_service(self) -> PodcastService:
         """Fixture: Create mock PodcastService."""
-        session = Mock(spec=AsyncSession)
+        session = Mock(spec=Session)
         collection_service = Mock(spec=CollectionService)
         search_service = Mock(spec=SearchService)
 
@@ -68,13 +68,17 @@ class TestPodcastServiceGeneration:
             search_service=search_service,
         )
 
-        # Mock repository
+        # Mock repository (synchronous methods)
         service.repository = Mock()
-        service.repository.create = AsyncMock()
-        service.repository.get_by_id = AsyncMock()
-        service.repository.update_progress = AsyncMock()
-        service.repository.mark_completed = AsyncMock()
-        service.repository.update_status = AsyncMock()
+        service.repository.create = Mock()
+        service.repository.get_by_id = Mock()
+        service.repository.get_by_user = Mock()
+        service.repository.delete = Mock()
+        service.repository.update_progress = Mock()
+        service.repository.mark_completed = Mock()
+        service.repository.update_status = Mock()
+        service.repository.count_active_for_user = Mock()
+        service.repository.to_schema = Mock()
 
         return service
 
@@ -95,26 +99,26 @@ class TestPodcastServiceGeneration:
         mock_podcast.podcast_id = uuid4()
         mock_podcast.status = PodcastStatus.QUEUED
 
-        # Mock collection validation
+        # Mock collection validation with proper files attribute
         mock_collection = Mock()
         mock_collection.id = podcast_input.collection_id
-        mock_service.collection_service.get_by_id = AsyncMock(return_value=mock_collection)  # type: ignore[attr-defined]
+        mock_collection.files = [Mock(), Mock(), Mock()]  # Mock list with 3 files
+        mock_service.collection_service.get_collection = Mock(return_value=mock_collection)  # type: ignore[attr-defined]
 
-        # Mock document count validation
-        mock_service.collection_service.count_documents = AsyncMock(return_value=10)  # type: ignore[attr-defined]
-
-        # Mock active podcast count check
-        mock_service.repository.count_active_for_user = AsyncMock(return_value=0)  # type: ignore[method-assign]
+        # Mock active podcast count check (synchronous)
+        mock_service.repository.count_active_for_user.return_value = 0
 
         background_tasks = Mock()
         background_tasks.add_task = Mock()
 
-        with patch.object(mock_service.repository, "create", new=AsyncMock(return_value=mock_podcast)) as mock_create:
-            result = await mock_service.generate_podcast(podcast_input, background_tasks)
+        # Mock repository create (synchronous)
+        mock_service.repository.create.return_value = mock_podcast
 
-            assert result is not None
-            mock_create.assert_called_once()
-            background_tasks.add_task.assert_called_once()
+        result = await mock_service.generate_podcast(podcast_input, background_tasks)
+
+        assert result is not None
+        mock_service.repository.create.assert_called_once()
+        background_tasks.add_task.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_get_podcast_returns_output(self, mock_service: PodcastService) -> None:
@@ -138,28 +142,29 @@ class TestPodcastServiceGeneration:
         mock_podcast = Mock()
         mock_podcast.user_id = user_id
 
-        with (
-            patch.object(mock_service.repository, "get_by_id", new=AsyncMock(return_value=mock_podcast)) as mock_get,
-            patch.object(mock_service.repository, "to_schema", return_value=mock_output),
-        ):
-            result = await mock_service.get_podcast(podcast_id, user_id)
+        # Repository methods are synchronous
+        mock_service.repository.get_by_id.return_value = mock_podcast
+        mock_service.repository.to_schema.return_value = mock_output
 
-            assert result == mock_output
-            mock_get.assert_called_once_with(podcast_id)
+        result = await mock_service.get_podcast(podcast_id, user_id)
+
+        assert result == mock_output
+        mock_service.repository.get_by_id.assert_called_once_with(podcast_id)
 
     @pytest.mark.asyncio
     async def test_list_user_podcasts(self, mock_service: PodcastService) -> None:
         """Unit: list_user_podcasts returns user's podcasts."""
         user_id = uuid4()
 
-        # Service calls repository.get_by_user and converts to schemas
-        with patch.object(mock_service.repository, "get_by_user", new=AsyncMock(return_value=[])) as mock_get_by_user:
-            result = await mock_service.list_user_podcasts(user_id, limit=10, offset=0)
+        # Repository methods are synchronous
+        mock_service.repository.get_by_user.return_value = []
 
-            assert result is not None
-            assert result.podcasts == []
-            assert result.total_count == 0
-            mock_get_by_user.assert_called_once_with(user_id=user_id, limit=10, offset=0)
+        result = await mock_service.list_user_podcasts(user_id, limit=10, offset=0)
+
+        assert result is not None
+        assert result.podcasts == []
+        assert result.total_count == 0
+        mock_service.repository.get_by_user.assert_called_once_with(user_id=user_id, limit=10, offset=0)
 
     @pytest.mark.asyncio
     async def test_delete_podcast(self, mock_service: PodcastService) -> None:
@@ -167,14 +172,17 @@ class TestPodcastServiceGeneration:
         podcast_id = uuid4()
         user_id = uuid4()
 
-        with (
-            patch.object(mock_service.repository, "get_by_id", new=AsyncMock(return_value=Mock(user_id=user_id))),
-            patch.object(mock_service.repository, "delete", new=AsyncMock(return_value=True)) as mock_delete,
-        ):
-            result = await mock_service.delete_podcast(podcast_id, user_id)
+        mock_podcast = Mock()
+        mock_podcast.user_id = user_id
 
-            assert result is True
-            mock_delete.assert_called_once_with(podcast_id)
+        # Repository methods are synchronous
+        mock_service.repository.get_by_id.return_value = mock_podcast
+        mock_service.repository.delete.return_value = True
+
+        result = await mock_service.delete_podcast(podcast_id, user_id)
+
+        assert result is True
+        mock_service.repository.delete.assert_called_once_with(podcast_id)
 
 
 @pytest.mark.unit
@@ -184,7 +192,7 @@ class TestPodcastServiceValidation:
     @pytest.fixture
     def mock_service(self) -> PodcastService:
         """Fixture: Create mock PodcastService."""
-        session = Mock(spec=AsyncSession)
+        session = Mock(spec=Session)
         collection_service = Mock(spec=CollectionService)
         search_service = Mock(spec=SearchService)
 
@@ -219,7 +227,7 @@ class TestPodcastServiceCustomization:
     @pytest.fixture
     def mock_service(self) -> PodcastService:
         """Fixture: Create mock PodcastService."""
-        session = Mock(spec=AsyncSession)
+        session = Mock(spec=Session)
         collection_service = Mock(spec=CollectionService)
         search_service = Mock(spec=SearchService)
 
@@ -282,8 +290,14 @@ class TestPodcastServiceCustomization:
             voice_settings=VoiceSettings(voice_id="alloy"),
             description=description,
         )
-        mock_llm_provider = mock_llm_factory.create_provider.return_value
+        # Mock LLM provider
+        mock_llm_provider = Mock()
         mock_llm_provider.generate_text = Mock(return_value="Script")
+
+        # Mock factory instance and its get_provider method
+        mock_factory_instance = Mock()
+        mock_factory_instance.get_provider = Mock(return_value=mock_llm_provider)
+        mock_llm_factory.return_value = mock_factory_instance
 
         await mock_service._generate_script(podcast_input, "rag_results")
 
@@ -304,8 +318,14 @@ class TestPodcastServiceCustomization:
             voice_settings=VoiceSettings(voice_id="alloy"),
             description=None,
         )
-        mock_llm_provider = mock_llm_factory.create_provider.return_value
+        # Mock LLM provider
+        mock_llm_provider = Mock()
         mock_llm_provider.generate_text = Mock(return_value="Script")
+
+        # Mock factory instance and its get_provider method
+        mock_factory_instance = Mock()
+        mock_factory_instance.get_provider = Mock(return_value=mock_llm_provider)
+        mock_llm_factory.return_value = mock_factory_instance
 
         await mock_service._generate_script(podcast_input, "rag_results")
 
@@ -321,7 +341,7 @@ class TestPodcastServiceVoicePreview:
     @pytest.fixture
     def mock_service(self) -> PodcastService:
         """Fixture: Create mock PodcastService."""
-        session = Mock(spec=AsyncSession)
+        session = Mock(spec=Session)
         collection_service = Mock(spec=CollectionService)
         search_service = Mock(spec=SearchService)
 
