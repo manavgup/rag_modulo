@@ -56,14 +56,73 @@ RAG Modulo is a production-ready Retrieval-Augmented Generation platform that pr
 
 ### Prerequisites
 
-- **Docker & Docker Compose V2** - [Install Docker Desktop](https://www.docker.com/products/docker-desktop)
-- **Python 3.12+** (for local development)
-- **Node.js 18+** (for frontend development)
+| Requirement | Version | Purpose |
+|:---|:---:|:---|
+| **Python** | 3.12+ | Backend development |
+| **Poetry** | Latest | Python dependency management |
+| **Node.js** | 18+ | Frontend development |
+| **Docker** | Latest | Infrastructure services |
+| **Docker Compose** | V2 | Orchestration |
 
-### Option 1: Docker (Recommended)
+### Option 1: Local Development (⚡ Fastest - Recommended)
+
+**Best for**: Daily development, feature work, rapid iteration
 
 ```bash
-# Clone the repository
+# 1. Clone repository
+git clone https://github.com/manavgup/rag-modulo.git
+cd rag-modulo
+
+# 2. Set up environment
+cp env.example .env
+# Edit .env with your API keys (WatsonX, OpenAI, etc.)
+
+# 3. Create Python virtual environment and install dependencies
+make venv
+
+# 4. Install frontend dependencies
+cd frontend && npm install && cd ..
+
+# 5. Start infrastructure services (Postgres, Milvus, MinIO, MLFlow)
+make run-infra
+# OR: docker compose -f docker-compose-infra.yml up -d
+
+# 6. Activate virtual environment
+source backend/.venv/bin/activate
+
+# 7. Start backend (Terminal 1)
+cd backend
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+# 8. Start frontend (Terminal 2)
+cd frontend
+npm run dev
+```
+
+**Access Points:**
+- 🌐 **Frontend**: http://localhost:3000
+- 🔧 **Backend API**: http://localhost:8000/docs (Swagger UI)
+- 📊 **MLFlow**: http://localhost:5001
+- 💾 **MinIO Console**: http://localhost:9001
+
+**Benefits:**
+- ⚡ **Instant reload** - Python/TypeScript changes reflected immediately
+- 🐛 **Native debugging** - Use PyCharm, VS Code debugger directly
+- 📦 **Local caching** - Poetry/npm caches work natively
+- 🔥 **Fastest commits** - No container rebuilds
+
+**When to use:**
+- ✅ Daily development work
+- ✅ Feature development and bug fixes
+- ✅ Rapid iteration and testing
+- ✅ Debugging with breakpoints
+
+### Option 2: Production Mode (🐳 Docker)
+
+**Best for**: Production-like testing, deployment validation
+
+```bash
+# Clone repository
 git clone https://github.com/manavgup/rag-modulo.git
 cd rag-modulo
 
@@ -71,71 +130,34 @@ cd rag-modulo
 cp env.example .env
 # Edit .env with your API keys
 
-# Start with pre-built images
+# Start with pre-built images from GHCR
 make run-ghcr
+
+# OR build and run locally
+make build-all-local
+docker compose up -d
 ```
-
-**Access Points:**
-- 🌐 **Frontend**: http://localhost:3000
-- 🔧 **Backend API**: http://localhost:8000
-- 📊 **MLFlow**: http://localhost:5001
-- 💾 **MinIO Console**: http://localhost:9001
-
-### Option 2: Local Development (Recommended for Development) ⚡
-
-The fastest way to develop with instant hot-reload and no container rebuilds:
-
-```bash
-# One-time setup: Install dependencies
-make local-dev-setup
-
-# Start infrastructure only (Postgres, Milvus, MLFlow, MinIO)
-make local-dev-infra
-
-# In terminal 1: Start backend with hot-reload
-make local-dev-backend
-
-# In terminal 2: Start frontend with HMR
-make local-dev-frontend
-
-# OR start everything in background
-make local-dev-all        # Start all services
-make local-dev-status     # Check status
-make local-dev-stop       # Stop all services
-```
-
-**Benefits:**
-- ⚡ **Instant hot-reload** - No container rebuilds needed
-- 🔥 **Faster commits** - Pre-commit hooks optimized for velocity
-- 🐛 **Native debugging** - Use your IDE's debugger directly
-- 📦 **Local caching** - Poetry/npm caches work natively
 
 **When to use:**
-- Daily development work
-- Feature development and bug fixes
-- Rapid iteration and testing
+- ✅ Testing production configurations
+- ✅ Validating Docker builds
+- ✅ Deployment rehearsal
+- ✅ Performance benchmarking
 
-### Option 3: Container Development (Production-like)
+### Option 3: GitHub Codespaces (☁️ Cloud)
 
-For testing deployment configurations:
-
-```bash
-# Initialize development environment
-make dev-init
-
-# Build and start development environment
-make dev-build
-make dev-up
-
-# Validate everything is working
-make dev-validate
-```
-
-### Option 3: GitHub Codespaces
+**Best for**: Quick experimentation, onboarding, cloud development
 
 1. **Go to repository** → "Code" → "Codespaces"
 2. **Click "Create codespace"** on your branch
-3. **Start coding** in browser-based VS Code!
+3. **Start coding** in browser-based VS Code
+4. **Run**: `make venv && make run-infra`
+
+**When to use:**
+- ✅ No local setup required
+- ✅ Consistent development environment
+- ✅ Work from any device
+- ✅ Team onboarding
 
 ---
 
@@ -191,46 +213,83 @@ graph TB
 
 ## 🛠️ Development Workflow
 
-### Quick Development Commands
+### 🎯 Recommended Daily Workflow
 
-| Command | Description |
-|:---:|:---|
-| `make dev-init` | Initialize development environment |
-| `make dev-build` | Build local development images |
-| `make dev-up` | Start development environment |
-| `make dev-restart` | Rebuild and restart with latest changes |
-| `make dev-down` | Stop development environment |
-| `make dev-status` | Show development environment status |
-| `make dev-validate` | Validate development environment health |
-
-### Development Benefits
-
-- ✅ **Local builds by default** - No more remote image confusion
-- ✅ **Automatic environment setup** - Development variables configured
-- ✅ **Fast iteration** - Changes visible immediately
-- ✅ **Health validation** - Know when everything is working
-- ✅ **Consistent workflow** - Same setup for all developers
-
-### Testing & Quality
+**Philosophy**: Develop locally without containers for maximum speed, deploy with containers for production.
 
 ```bash
-# Quick quality checks
+# Morning setup (once per day)
+cd rag-modulo
+source backend/.venv/bin/activate  # Activate Python environment
+make run-infra                      # Start infrastructure (Postgres, Milvus, etc.)
+
+# Terminal 1: Backend with auto-reload
+cd backend
+uvicorn main:app --reload --port 8000
+
+# Terminal 2: Frontend with HMR
+cd frontend
+npm run dev
+
+# Development cycle
+# 1. Make code changes
+# 2. See changes instantly (auto-reload)
+# 3. Test manually via http://localhost:3000
+# 4. Run quick checks before commit
 make quick-check
 
-# Comprehensive testing
-make test-all
+# End of day cleanup
+make local-dev-stop  # Stop infrastructure containers
+deactivate           # Deactivate Python venv
+```
 
-# Code quality
-make lint
+### 🔧 Essential Development Commands
 
-# Security scanning
-make security-check
+| Command | Description | When to Use |
+|:---|:---|:---|
+| `make venv` | Create Python venv + install deps | First time setup |
+| `make run-infra` | Start Postgres, Milvus, MinIO | Daily (infrastructure only) |
+| `make lint` | Run all linters | Before commit |
+| `make format` | Auto-fix code formatting | Fix style issues |
+| `make test-unit-fast` | Run unit tests (no containers) | Frequent validation |
+| `make quick-check` | Lint + format check | Pre-commit check |
+| `make clean` | Stop all containers | Clean slate restart |
 
-# Secret scanning
-make scan-secrets
+### 🧪 Testing & Quality
 
-# Coverage report
-make coverage
+```bash
+# Fast local testing (no containers)
+source backend/.venv/bin/activate
+cd backend
+pytest tests/unit/ -v              # Unit tests only
+pytest tests/integration/ -v       # Integration tests
+
+# Or use Makefile targets
+make test-unit-fast                # Fast unit tests
+make test-integration              # Integration tests (needs infra)
+
+# Quality checks
+make quick-check                   # Fast: format + lint
+make lint                          # All linters
+make format                        # Auto-fix formatting
+make security-check                # Security scans
+make coverage                      # Test coverage report
+```
+
+### 🐳 Container Development (When Needed)
+
+Only for production-like testing or deployment validation:
+
+```bash
+# Build production images
+make build-backend
+make build-frontend
+
+# Start production environment
+make prod-start
+
+# Or use pre-built GHCR images
+make run-ghcr
 ```
 
 ---
@@ -569,16 +628,73 @@ We welcome contributions! Please see our [Contributing Guide](docs/development/c
 ### Common Issues
 
 <details>
+<summary><strong>🐍 Virtual Environment Issues</strong></summary>
+
+**Problem**: `make venv` doesn't create virtual environment
+
+```bash
+# Manual setup
+cd backend
+poetry config virtualenvs.in-project true
+poetry install --with dev,test
+
+# Verify it worked
+ls -la .venv/
+source .venv/bin/activate
+python --version  # Should show 3.12+
+```
+
+**Problem**: Wrong tool versions (e.g., Ruff 0.5.7 instead of 0.14.0)
+
+```bash
+# You're using system Python, not venv
+which python  # Shows /usr/bin/python or similar
+
+# FIX: Activate the venv
+source backend/.venv/bin/activate
+which python  # Should show backend/.venv/bin/python
+ruff --version  # Should show 0.14.0
+```
+
+**Problem**: `poetry install` fails
+
+```bash
+# Update Poetry itself
+poetry self update
+
+# Clear cache and reinstall
+poetry cache clear . --all
+poetry install --with dev,test --sync
+```
+</details>
+
+<details>
 <summary><strong>🐳 Docker Issues</strong></summary>
 
-**Problem**: Services fail to start
+**Problem**: Infrastructure services fail to start
+
 ```bash
 # Check service logs
-make logs
+docker compose -f docker-compose-infra.yml logs
 
 # Restart services
+docker compose -f docker-compose-infra.yml down
+docker compose -f docker-compose-infra.yml up -d
+
+# Check status
+docker compose -f docker-compose-infra.yml ps
+```
+
+**Problem**: Port already in use
+
+```bash
+# Find what's using the port
+lsof -i :8000  # Backend
+lsof -i :3000  # Frontend
+lsof -i :5432  # Postgres
+
+# Kill the process or stop containers
 make stop-containers
-make run-services
 ```
 </details>
 
@@ -586,21 +702,57 @@ make run-services
 <summary><strong>🔐 Authentication Issues</strong></summary>
 
 **Problem**: Login attempts fail
+
 - Ensure OIDC configuration is correct in `.env`
 - Check IBM Cloud credentials
 - Verify redirect URLs match your setup
+
+**Development Mode**: Use mock authentication
+
+```bash
+# In .env or .env.dev
+SKIP_AUTH=true
+DEVELOPMENT_MODE=true
+ENABLE_MOCK_AUTH=true
+```
 </details>
 
 <details>
 <summary><strong>🧪 Test Failures</strong></summary>
 
 **Problem**: Tests failing locally
-```bash
-# Run tests in Docker
-make test testfile=tests/unit/test_example.py
 
-# Or use development environment
-make dev-test
+```bash
+# Ensure you're in venv
+source backend/.venv/bin/activate
+
+# Run specific test
+cd backend
+pytest tests/unit/test_example.py -v
+
+# Run with more details
+pytest tests/unit/test_example.py -vv -s
+
+# Check test dependencies
+poetry install --with test --sync
+```
+</details>
+
+<details>
+<summary><strong>📦 Dependency Issues</strong></summary>
+
+**Problem**: Import errors or missing modules
+
+```bash
+# Reinstall all dependencies
+cd backend
+poetry install --with dev,test --sync
+
+# Check what's installed
+poetry show
+
+# Verify Python path
+python -c "import sys; print(sys.path)"
 ```
 </details>
 
@@ -609,6 +761,7 @@ make dev-test
 1. **📚 Check Documentation**: [Full docs](https://manavgup.github.io/rag_modulo)
 2. **🐛 Report Issues**: [GitHub Issues](https://github.com/manavgup/rag_modulo/issues)
 3. **💬 Discussions**: [GitHub Discussions](https://github.com/manavgup/rag_modulo/discussions)
+4. **📖 See**: `IMMEDIATE_FIX.md` for common development issues
 
 ---
 
