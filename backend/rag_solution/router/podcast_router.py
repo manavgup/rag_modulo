@@ -11,7 +11,7 @@ from typing import Annotated
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import UUID4
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from core.config import Settings, get_settings
 from rag_solution.core.dependencies import get_current_user
@@ -27,12 +27,12 @@ from rag_solution.services.search_service import SearchService
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/podcasts", tags=["podcasts"])
+router = APIRouter(prefix="/api/podcasts", tags=["podcasts"])
 
 
 # Dependency to get PodcastService
-async def get_podcast_service(
-    session: Annotated[AsyncSession, Depends(get_db)],
+def get_podcast_service(
+    session: Annotated[Session, Depends(get_db)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> PodcastService:
     """

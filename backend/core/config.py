@@ -173,7 +173,7 @@ class Settings(BaseSettings):
     watsonx_tts_default_voice: Annotated[str, Field(default="en-US_AllisonV3Voice", alias="WATSONX_TTS_DEFAULT_VOICE")]
 
     # Podcast validation and limits
-    podcast_min_documents: Annotated[int, Field(default=5, alias="PODCAST_MIN_DOCUMENTS")]
+    podcast_min_documents: Annotated[int, Field(default=1, alias="PODCAST_MIN_DOCUMENTS")]
     podcast_max_concurrent_per_user: Annotated[int, Field(default=3, alias="PODCAST_MAX_CONCURRENT_PER_USER")]
     podcast_url_expiry_days: Annotated[int, Field(default=7, alias="PODCAST_URL_EXPIRY_DAYS")]
 

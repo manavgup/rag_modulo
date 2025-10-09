@@ -18,7 +18,7 @@ import logging
 
 from fastapi import BackgroundTasks, HTTPException
 from pydantic import UUID4
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from core.config import get_settings
 from core.custom_exceptions import NotFoundError, ValidationError
@@ -85,7 +85,7 @@ Generate the complete dialogue script now:"""
 
     def __init__(
         self,
-        session: AsyncSession,
+        session: Session,
         collection_service: CollectionService,
         search_service: SearchService,
     ):
@@ -146,7 +146,7 @@ Generate the complete dialogue script now:"""
             await self._validate_podcast_request(podcast_input)
 
             # 2. Create podcast record
-            podcast = await self.repository.create(
+            podcast = self.repository.create(
                 user_id=podcast_input.user_id,
                 collection_id=podcast_input.collection_id,
                 duration=podcast_input.duration.value,
@@ -196,10 +196,7 @@ Generate the complete dialogue script now:"""
             ValidationError: If validation fails
         """
         # Check collection exists and user has access
-        collection = await self.collection_service.get_by_id(  # type: ignore[attr-defined]
-            collection_id=podcast_input.collection_id,
-            user_id=podcast_input.user_id,
-        )
+        collection = self.collection_service.get_collection(collection_id=podcast_input.collection_id)
 
         if not collection:
             raise NotFoundError(  # type: ignore[call-arg]
@@ -207,9 +204,7 @@ Generate the complete dialogue script now:"""
             )
 
         # Check collection has sufficient documents
-        doc_count = await self.collection_service.count_documents(  # type: ignore[attr-defined]
-            podcast_input.collection_id
-        )
+        doc_count = len(collection.files) if collection.files else 0
         min_docs = self.settings.podcast_min_documents
 
         if doc_count < min_docs:
@@ -218,7 +213,7 @@ Generate the complete dialogue script now:"""
             )
 
         # Check user's active podcast limit
-        active_count = await self.repository.count_active_for_user(podcast_input.user_id)
+        active_count = self.repository.count_active_for_user(podcast_input.user_id)
         max_concurrent = self.settings.podcast_max_concurrent_per_user
 
         if active_count >= max_concurrent:
@@ -291,7 +286,7 @@ Generate the complete dialogue script now:"""
             audio_url = await self._store_audio(podcast_id, podcast_input.user_id, audio_bytes, podcast_input.format)
 
             # Step 6: Mark complete (100%)
-            await self.repository.mark_completed(
+            self.repository.mark_completed(
                 podcast_id=podcast_id,
                 audio_url=audio_url,
                 transcript=script_text,
@@ -307,7 +302,7 @@ Generate the complete dialogue script now:"""
 
         except Exception as e:
             logger.exception("Podcast generation failed for %s: %s", podcast_id, e)
-            await self.repository.update_status(
+            self.repository.update_status(
                 podcast_id=podcast_id,
                 status=PodcastStatus.FAILED,
                 error_message=str(e),
@@ -503,7 +498,7 @@ Generate the complete dialogue script now:"""
             status: Optional status update
             step_details: Optional step details
         """
-        await self.repository.update_progress(
+        self.repository.update_progress(
             podcast_id=podcast_id,
             progress_percentage=progress,
             current_step=step,
@@ -511,7 +506,7 @@ Generate the complete dialogue script now:"""
         )
 
         if status:
-            await self.repository.update_status(
+            self.repository.update_status(
                 podcast_id=podcast_id,
                 status=status,
             )
@@ -530,7 +525,7 @@ Generate the complete dialogue script now:"""
         Raises:
             HTTPException: If not found or access denied
         """
-        podcast = await self.repository.get_by_id(podcast_id)
+        podcast = self.repository.get_by_id(podcast_id)
 
         if not podcast:
             raise HTTPException(status_code=404, detail="Podcast not found")
@@ -552,7 +547,7 @@ Generate the complete dialogue script now:"""
         Returns:
             PodcastListResponse
         """
-        podcasts = await self.repository.get_by_user(user_id=user_id, limit=limit, offset=offset)
+        podcasts = self.repository.get_by_user(user_id=user_id, limit=limit, offset=offset)
 
         return PodcastListResponse(
             podcasts=[self.repository.to_schema(p) for p in podcasts],
@@ -574,7 +569,7 @@ Generate the complete dialogue script now:"""
             HTTPException: If not found or access denied
         """
         # Verify ownership
-        podcast = await self.repository.get_by_id(podcast_id)
+        podcast = self.repository.get_by_id(podcast_id)
 
         if not podcast:
             raise HTTPException(status_code=404, detail="Podcast not found")
@@ -593,7 +588,7 @@ Generate the complete dialogue script now:"""
                 logger.warning("Failed to delete audio file: %s", e)
 
         # Delete database record
-        return await self.repository.delete(podcast_id)
+        return self.repository.delete(podcast_id)
 
     async def generate_voice_preview(self, voice_id: str) -> bytes:
         """
