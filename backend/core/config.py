@@ -32,7 +32,8 @@ class Settings(BaseSettings):
     vector_db: Annotated[str, Field(default="milvus", alias="VECTOR_DB")]
     collection_name: Annotated[str | None, Field(default=None, alias="COLLECTION_NAME")]
 
-    # LLM Provider credentials with defaults
+    # LLM Provider selection and credentials
+    llm_provider: Annotated[str, Field(default="watsonx", alias="LLM_PROVIDER")]  # Options: watsonx, openai, anthropic
     wx_project_id: Annotated[str, Field(default="", alias="WATSONX_INSTANCE_ID")]
     wx_api_key: Annotated[str, Field(default="", alias="WATSONX_APIKEY")]
     wx_url: Annotated[str, Field(default="https://us-south.ml.cloud.ibm.com", alias="WATSONX_URL")]

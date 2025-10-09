@@ -194,16 +194,22 @@ Generate the complete dialogue script now:"""
 
         Raises:
             NotFoundError: If collection not found
-            ValidationError: If validation fails
+            ValidationError: If validation fails or access denied
         """
-        # Check collection exists and user has access
-        collection = self.collection_service.get_collection(collection_id=podcast_input.collection_id)
-
-        if not collection:
+        # Check collection exists (raises NotFoundError if not found)
+        try:
+            collection = self.collection_service.get_collection(collection_id=podcast_input.collection_id)
+        except NotFoundError as e:
             raise NotFoundError(
                 resource_type="Collection",
                 resource_id=str(podcast_input.collection_id),
-                message=f"Collection {podcast_input.collection_id} not found or not accessible",
+                message=f"Collection {podcast_input.collection_id} not found",
+            ) from e
+
+        # Verify collection is accessible (has data)
+        if not collection:
+            raise ValidationError(
+                f"Collection {podcast_input.collection_id} exists but is not accessible or has no data"
             )
 
         # Check collection has sufficient documents
@@ -403,11 +409,9 @@ Generate the complete dialogue script now:"""
             word_count=word_count,
         )
 
-        # Generate via LLM
-        # TODO: Get LLM provider from user preferences
-        # For now, use default provider
+        # Generate via LLM using configured provider
         factory = LLMProviderFactory(self.session)
-        llm_provider = factory.get_provider("watsonx")  # or from user config
+        llm_provider = factory.get_provider(self.settings.llm_provider)
 
         # Create simple template for podcast generation
         from rag_solution.schemas.prompt_template_schema import PromptTemplateBase, PromptTemplateType

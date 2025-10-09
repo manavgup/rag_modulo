@@ -93,9 +93,10 @@ class VoiceSettings(BaseModel):
     @classmethod
     def validate_voice_id(cls, v: str) -> str:
         """Ensure voice_id is not empty."""
-        if not v or not v.strip():
-            raise ValueError("voice_id cannot be empty")
-        return v.strip()
+        stripped = v.strip() if v else ""
+        if not stripped:
+            raise ValueError("voice_id cannot be empty or whitespace-only")
+        return stripped
 
 
 class PodcastTurn(BaseModel):
@@ -109,9 +110,10 @@ class PodcastTurn(BaseModel):
     @classmethod
     def validate_text(cls, v: str) -> str:
         """Ensure text is not empty."""
-        if not v or not v.strip():
-            raise ValueError("turn text cannot be empty")
-        return v.strip()
+        stripped = v.strip() if v else ""
+        if not stripped:
+            raise ValueError("turn text cannot be empty or whitespace-only")
+        return stripped
 
 
 class PodcastScript(BaseModel):
@@ -176,20 +178,22 @@ class PodcastGenerationInput(BaseModel):
     def validate_title(cls, v: str | None) -> str | None:
         """Validate and clean title."""
         if v is not None:
-            v = v.strip()
-            if not v:
+            stripped = v.strip()
+            if not stripped:
                 return None
-        return v
+            return stripped
+        return None
 
     @field_validator("description")
     @classmethod
     def validate_description(cls, v: str | None) -> str | None:
         """Validate and clean description."""
         if v is not None:
-            v = v.strip()
-            if not v:
+            stripped = v.strip()
+            if not stripped:
                 return None
-        return v
+            return stripped
+        return None
 
 
 class PodcastGenerationOutput(BaseModel):
