@@ -5,13 +5,13 @@ on:
     branches: [main]
     paths:
       # Only run on PR if Dockerfiles or dependencies change
+      # NOTE: Do NOT include workflow file itself to avoid expensive builds on CI/CD changes
       - 'backend/Dockerfile.backend'
       - 'backend/pyproject.toml'
       - 'backend/poetry.lock'
       - 'frontend/Dockerfile.frontend'
       - 'frontend/package*.json'
       - 'docker-compose*.yml'
-      - '.github/workflows/03-build-secure.yml'
   push:
     branches: [main]
     # Always scan on merge to main
