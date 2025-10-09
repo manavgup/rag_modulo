@@ -5,9 +5,8 @@ name: Lint & Static Analysis
 # Tool versions: Ruff ^0.14.0, MyPy ^1.15.0, Pylint ^3.3.8, Pydocstyle ^6.3.0
 
 on:
-  # Disabled for PRs - now handled by pr-fast-check.yml for faster feedback
-  # pull_request:
-  #   branches: [main]
+  pull_request:
+    branches: [main]
   push:
     branches: [main]
 
