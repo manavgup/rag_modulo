@@ -1,0 +1,52 @@
+name: Frontend Lint
+
+# 📋 Purpose
+# Lint frontend code (React/TypeScript) for code quality
+# Runs ESLint on the webui/ directory
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - 'webui/**'
+      - '.github/workflows/07-frontend-lint.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - 'webui/**'
+
+# 🔄 Concurrency Control
+# Cancel outdated workflow runs when new commits are pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: 🎨 Frontend Lint
+    runs-on: ubuntu-latest
+    steps:
+      # 0️⃣ Checkout source code
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      # 1️⃣ Setup Node.js environment
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+
+      # 2️⃣ Install dependencies
+      - name: 📥 Install dependencies
+        run: cd frontend && npm ci
+
+      # 3️⃣ Run ESLint
+      - name: 🔍 Run ESLint
+        run: cd frontend && npm run lint
