@@ -40,6 +40,14 @@ RAG Modulo provides a comprehensive set of features for building production-read
 
     [:octicons-arrow-right-24: Learn more](context-management.md)
 
+-   :material-podcast:{ .lg .middle } **Podcast Generation**
+
+    ---
+
+    AI-powered podcast creation from documents with multi-voice text-to-speech
+
+    [:octicons-arrow-right-24: Learn more](podcast-generation.md)
+
 </div>
 
 ### 🔍 Search & Retrieval
@@ -326,6 +334,7 @@ make run-ghcr
 - **[🔍 Search & Retrieval](search-retrieval.md)** - Intelligent search
 - **[📄 Document Processing](document-processing.md)** - Document handling
 - **[🤖 LLM Integration](llm-integration.md)** - Model providers
+- **[🎙️ Podcast Generation](podcast-generation.md)** - AI-powered podcasts from documents
 
 ### 3. Try Examples
 

@@ -71,6 +71,7 @@ The package orchestrates the complete RAG workflow:
   - ConversationService: Chat & conversation management
   - ChainOfThoughtService: Complex reasoning
   - PipelineService: Pipeline configuration
+  - PodcastService: Podcast generation (RAG → LLM → TTS)
 
 ## Architecture Patterns
 
@@ -153,6 +154,7 @@ app.include_router(conversation_router, prefix="/api/v1/conversations", tags=["c
 - `llm_provider_service.py`: LLM provider management
 - `token_tracking_service.py`: Token usage tracking
 - `dashboard_service.py`: Analytics & metrics
+- `podcast_service.py`: Podcast generation (RAG → LLM → TTS pipeline)
 
 **Pattern**: Services orchestrate operations across repositories and external services
 
@@ -189,6 +191,7 @@ app.include_router(conversation_router, prefix="/api/v1/conversations", tags=["c
 - `websocket_router.py`: Real-time messaging
 - `dashboard_router.py`: Analytics endpoints
 - `auth_router.py`: Authentication
+- `podcast_router.py`: Podcast generation endpoints
 
 **Pattern**: Minimal logic, delegates to services
 
@@ -200,23 +203,29 @@ app.include_router(conversation_router, prefix="/api/v1/conversations", tags=["c
 - `conversation_repository.py`: Conversation queries
 - `user_collection_repository.py`: User-collection relations
 - `llm_provider_repository.py`: Provider config queries
+- `podcast_repository.py`: Podcast generation tracking
 
-**Pattern**: Clean data access abstraction
+**Pattern**: Clean data access abstraction (uses synchronous Session)
 
 ### generation/
-**Purpose**: LLM provider integration
+**Purpose**: LLM and audio provider integration
 **Structure**:
 ```
 generation/
-├── providers/          # Provider implementations
+├── providers/          # LLM provider implementations
 │   ├── factory.py      # Provider factory
 │   ├── watsonx_provider.py
 │   ├── openai_provider.py
 │   └── anthropic_provider.py
-└── base_generator.py   # Base interface
+├── audio/              # Audio/TTS provider implementations
+│   ├── factory.py      # Audio provider factory
+│   ├── openai_audio.py # OpenAI TTS provider
+│   ├── ollama_audio.py # Ollama TTS provider
+│   └── base.py         # Base audio interface
+└── base_generator.py   # Base LLM interface
 ```
 
-**Pattern**: Common interface for all LLM providers
+**Pattern**: Common interface for all providers (LLM and TTS)
 
 ### retrieval/
 **Purpose**: Vector database operations
