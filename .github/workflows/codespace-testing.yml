@@ -6,7 +6,8 @@ on:
     paths:
       - 'backend/**'
       - 'tests/**'
-      - '.devcontainer/**'
+      # Temporarily disabled for .devcontainer changes until Codespaces are available
+      # - '.devcontainer/**'
   workflow_dispatch:
 
 jobs:
