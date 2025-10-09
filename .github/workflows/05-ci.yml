@@ -1,10 +1,12 @@
-name: CI/CD Pipeline
+name: Main - Integration Tests & Build
+
+# This workflow runs full integration tests and builds containers
+# For fast PR checks, see pr-fast-check.yml
 
 on:
-  pull_request:
-    branches: [main]
   push:
-    branches: [main]
+    branches: [main]  # Only on merge to main
+  workflow_dispatch:  # Manual trigger
 
 permissions:
   contents: read

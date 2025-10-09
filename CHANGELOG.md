@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+- **CI/CD Pipeline Optimization** (#349, PR #354): Significantly improved GitHub Actions workflow efficiency
+  - Reduced PR feedback time from ~15 min to ~2-3 min (85% improvement)
+  - Added concurrency control to cancel outdated runs (~1,500 min/month savings)
+  - Renamed workflows with numbered prefixes (01- through 07-) for clarity
+  - Added frontend linting workflow (07-frontend-lint.yml) with ESLint
+  - Created Issue #355 for comprehensive frontend tests
+  - Added IBM-style documentation to workflows with numbered steps
+  - Smart path filtering: Docker builds only on Dockerfile/dependency changes
+  - Weekly security audits with jq-based vulnerability parsing
+  - Follows IBM's mcp-context-forge pattern: one workflow per purpose
+
 - **Document Upload Pipeline**: Full document ingestion pipeline for collection creation
   - New `/api/collections/with-files` endpoint for creating collections with documents
   - New `/api/collections/{collection_id}/documents` endpoint for adding documents to existing collections

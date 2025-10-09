@@ -5,13 +5,13 @@ on:
     branches: [main]
     paths:
       # Only run on PR if Dockerfiles or dependencies change
+      # NOTE: Do NOT include workflow file itself to avoid expensive builds on CI/CD changes
       - 'backend/Dockerfile.backend'
       - 'backend/pyproject.toml'
       - 'backend/poetry.lock'
       - 'frontend/Dockerfile.frontend'
       - 'frontend/package*.json'
       - 'docker-compose*.yml'
-      - '.github/workflows/03-build-secure.yml'
   push:
     branches: [main]
     # Always scan on merge to main
@@ -20,6 +20,11 @@ on:
     - cron: '17 18 * * 2'
   workflow_dispatch:
     # Manual trigger option
+
+# Cancel outdated workflow runs for the same PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read

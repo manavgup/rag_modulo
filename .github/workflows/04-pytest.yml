@@ -1,0 +1,92 @@
+name: Unit Tests
+
+# 📋 Purpose
+# Run Python unit tests with pytest
+# Validates atomic/unit tests without requiring infrastructure
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# 🔄 Concurrency Control
+# Cancel outdated workflow runs when new commits are pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # CI Environment Variables
+  TESTING: true
+  SKIP_AUTH: true
+  DEVELOPMENT_MODE: true
+  # Test environment variables
+  JWT_SECRET_KEY: test-secret-key-for-ci
+  RAG_LLM: openai
+  WATSONX_INSTANCE_ID: test-instance-id
+  WATSONX_APIKEY: test-api-key
+  WATSONX_URL: https://test.watsonx.com
+  VECTOR_DB: milvus
+  MILVUS_HOST: milvus-standalone
+  MILVUS_PORT: 19530
+  EMBEDDING_MODEL: sentence-transformers/all-minilm-l6-v2
+  DATA_DIR: /tmp/test-data
+
+jobs:
+  unit-tests:
+    name: 🧪 Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      # 0️⃣ Checkout source code
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      # 1️⃣ Setup Python environment
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      # 2️⃣ Install Poetry package manager
+      - name: 📦 Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      # 3️⃣ Cache Poetry dependencies for faster builds
+      - name: 📚 Cache Poetry dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pypoetry
+            backend/.venv
+          key: ${{ runner.os }}-poetry-${{ hashFiles('backend/poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-poetry-
+
+      # 4️⃣ Install Python dependencies
+      - name: 📥 Install dependencies
+        run: cd backend && poetry install --with dev,test
+
+      # 5️⃣ Run unit/atomic tests
+      - name: 🧪 Run unit tests
+        run: |
+          cd backend
+          poetry run pytest tests/ -m "unit or atomic" --tb=short -v --maxfail=5
+
+      # 6️⃣ Generate coverage report (optional)
+      - name: 📊 Run tests with coverage
+        if: success()
+        run: |
+          cd backend
+          poetry run pytest tests/ -m "unit or atomic" \
+            --cov=rag_solution \
+            --cov-report=term-missing \
+            --cov-report=html \
+            --tb=short
