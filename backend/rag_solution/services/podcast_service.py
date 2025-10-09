@@ -403,10 +403,8 @@ Generate the complete dialogue script now:"""
         # Generate via LLM
         # TODO: Get LLM provider from user preferences
         # For now, use default provider
-        llm_provider = LLMProviderFactory.create_provider(  # type: ignore[attr-defined]
-            provider_name="watsonx",  # or from user config
-            session=self.session,
-        )
+        factory = LLMProviderFactory(self.session)
+        llm_provider = factory.get_provider("watsonx")  # or from user config
 
         script_text = llm_provider.generate_text(
             user_id=podcast_input.user_id,
