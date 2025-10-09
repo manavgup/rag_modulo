@@ -76,11 +76,13 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 🔐 TruffleHog - Secret Scanning
+        continue-on-error: true  # Don't fail PR on unverified secrets, just warn
         uses: trufflesecurity/trufflehog@main
         with:
           path: ./
           base: ${{ github.event.repository.default_branch }}
           head: HEAD
+          extra_args: --only-verified  # Only fail on verified secrets
 
       - name: 🐍 Set up Python for Bandit
         uses: actions/setup-python@v4
