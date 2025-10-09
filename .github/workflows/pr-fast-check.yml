@@ -65,6 +65,14 @@ jobs:
         continue-on-error: true
         run: cd backend && poetry run mypy rag_solution/ --ignore-missing-imports
 
+      - name: 🔍 Run Pylint (informational)
+        continue-on-error: true
+        run: cd backend && poetry run pylint rag_solution/ vectordbs/ core/ auth/ --rcfile=pyproject.toml || true
+
+      - name: 📝 Run Pydocstyle (informational)
+        continue-on-error: true
+        run: cd backend && poetry run pydocstyle rag_solution/ vectordbs/ core/ auth/ --config=pyproject.toml --count || true
+
   # Code-level security scans (30-45 seconds)
   code-security:
     name: 🔒 Code Security
