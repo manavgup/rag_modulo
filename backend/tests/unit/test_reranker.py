@@ -9,11 +9,11 @@ from unittest.mock import Mock, create_autospec
 
 import pytest
 from pydantic import UUID4
-from vectordbs.data_types import DocumentChunkWithScore, QueryResult
 
 from rag_solution.generation.providers.base import LLMBase
 from rag_solution.retrieval.reranker import LLMReranker, SimpleReranker
 from rag_solution.schemas.prompt_template_schema import PromptTemplateBase, PromptTemplateType
+from vectordbs.data_types import DocumentChunkWithScore, QueryResult
 
 
 @pytest.fixture

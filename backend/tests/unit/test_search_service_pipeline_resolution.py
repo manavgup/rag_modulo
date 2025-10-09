@@ -8,8 +8,8 @@ from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import pytest
-from core.custom_exceptions import ConfigurationError
 
+from core.custom_exceptions import ConfigurationError
 from rag_solution.schemas.search_schema import SearchInput
 from rag_solution.services.search_service import SearchService
 

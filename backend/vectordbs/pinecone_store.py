@@ -7,9 +7,9 @@ enabling document storage, retrieval, and search operations using Pinecone.
 import logging
 from typing import Any
 
-from core.config import Settings, get_settings
 from pinecone import Pinecone, ServerlessSpec
 
+from core.config import Settings, get_settings
 from vectordbs.utils.watsonx import get_embeddings
 
 from .data_types import (

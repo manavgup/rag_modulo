@@ -15,7 +15,6 @@ import multiprocessing
 from pathlib import Path
 
 from core.config import get_settings
-
 from rag_solution.data_ingestion.docling_processor import DoclingProcessor
 from rag_solution.data_ingestion.pdf_processor import PdfProcessor
 
@@ -51,7 +50,7 @@ async def process_with_legacy(pdf_path: str, settings):
     # Show first 3 chunks
     print("\n📝 First 3 chunks:")
     for i, chunk in enumerate(doc.chunks[:3]):
-        print(f"\n--- Chunk {i+1} ---")
+        print(f"\n--- Chunk {i + 1} ---")
         print(f"Page: {chunk.metadata.page_number}")
         print(f"Length: {len(chunk.text)} chars")
         print(f"Text preview: {chunk.text[:200]}...")
@@ -98,7 +97,7 @@ async def process_with_docling(pdf_path: str, settings):
     # Show first 3 chunks
     print("\n📝 First 3 chunks:")
     for i, chunk in enumerate(doc.chunks[:3]):
-        print(f"\n--- Chunk {i+1} ---")
+        print(f"\n--- Chunk {i + 1} ---")
         print(f"Page: {chunk.metadata.page_number}")
         print(f"Length: {len(chunk.text)} chars")
         print(f"Text preview: {chunk.text[:200]}...")
@@ -140,7 +139,7 @@ async def compare_results(legacy_doc, docling_doc):
     print(f"   Legacy:  {len(legacy_doc.chunks)} chunks")
     print(f"   Docling: {len(docling_doc.chunks)} chunks")
     diff = len(docling_doc.chunks) - len(legacy_doc.chunks)
-    print(f"   Diff:    {diff:+d} chunks ({diff/len(legacy_doc.chunks)*100:+.1f}%)")
+    print(f"   Diff:    {diff:+d} chunks ({diff / len(legacy_doc.chunks) * 100:+.1f}%)")
 
     # Table extraction comparison
     legacy_tables = [c for c in legacy_doc.chunks if c.metadata.table_index and c.metadata.table_index > 0]

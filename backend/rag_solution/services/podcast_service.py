@@ -335,8 +335,7 @@ Generate the complete dialogue script now:"""
         # Create synthetic query for comprehensive content
         if podcast_input.description:
             synthetic_query = (
-                f"{podcast_input.description}. "
-                f"Provide comprehensive information covering all aspects of this topic."
+                f"{podcast_input.description}. Provide comprehensive information covering all aspects of this topic."
             )
         else:
             synthetic_query = (
@@ -362,7 +361,7 @@ Generate the complete dialogue script now:"""
 
         # Format results for prompt
         formatted_results = "\n\n".join(
-            [f"[Document {i+1}]: {doc.chunk_text}" for i, doc in enumerate(search_result.documents)]
+            [f"[Document {i + 1}]: {doc.chunk_text}" for i, doc in enumerate(search_result.documents)]
         )
 
         logger.info(

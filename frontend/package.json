@@ -40,7 +40,7 @@
     "update": "npm update",
     "clean": "rm -rf node_modules package-lock.json && npm install"
   },
-  "proxy": "http://backend:8000",
+  "proxy": "http://localhost:8000",
   "eslintConfig": {
     "extends": [
       "react-app",

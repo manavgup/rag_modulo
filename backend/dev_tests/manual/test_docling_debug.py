@@ -47,7 +47,7 @@ def main():
 
             print("\n🔎 First 5 items (checking page info):")
             for i, item_data in enumerate(items[:5]):
-                print(f"\n   --- Item {i+1} ---")
+                print(f"\n   --- Item {i + 1} ---")
 
                 # Extract actual item from tuple
                 if isinstance(item_data, tuple):

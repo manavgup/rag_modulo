@@ -152,7 +152,7 @@ def main():
 
     try:
         # Setup environment
-        config, api_client, mock_token = setup_environment()
+        config, api_client, _mock_token = setup_environment()
 
         # Get user info
         user_id = get_user_info(api_client, config)

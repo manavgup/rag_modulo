@@ -9,7 +9,6 @@ from typing import Any, ClassVar
 
 import numpy as np
 from chromadb.api.types import Documents, EmbeddingFunction
-from core.config import Settings, get_settings
 from dotenv import load_dotenv
 from ibm_watsonx_ai import APIClient, Credentials
 from ibm_watsonx_ai.foundation_models import Embeddings as wx_Embeddings
@@ -17,6 +16,7 @@ from ibm_watsonx_ai.foundation_models import ModelInference
 from ibm_watsonx_ai.metanames import EmbedTextParamsMetaNames as EmbedParams
 from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams
 
+from core.config import Settings, get_settings
 from vectordbs.data_types import EmbeddingsList
 
 # Configure logging

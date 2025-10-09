@@ -10,9 +10,9 @@ def test_env_vars_loaded():
     """Verify critical environment variables are loaded from .env file."""
     # These should be loaded from ../.env via pytest-env
     assert os.getenv("VECTOR_DB") == "milvus", f"VECTOR_DB={os.getenv('VECTOR_DB')}"
-    assert (
-        os.getenv("MILVUS_HOST") == "localhost"
-    ), f"MILVUS_HOST={os.getenv('MILVUS_HOST')} (should be overridden to localhost)"
+    assert os.getenv("MILVUS_HOST") == "localhost", (
+        f"MILVUS_HOST={os.getenv('MILVUS_HOST')} (should be overridden to localhost)"
+    )
     assert os.getenv("MILVUS_PORT") == "19530", f"MILVUS_PORT={os.getenv('MILVUS_PORT')}"
 
     # WatsonX credentials should be loaded

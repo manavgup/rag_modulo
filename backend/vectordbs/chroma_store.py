@@ -10,8 +10,8 @@ from typing import Any
 
 import numpy as np
 from chromadb import ClientAPI, chromadb
-from core.config import Settings, get_settings
 
+from core.config import Settings, get_settings
 from vectordbs.utils.watsonx import get_embeddings
 
 from .data_types import (

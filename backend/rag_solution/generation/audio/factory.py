@@ -50,7 +50,7 @@ class AudioProviderFactory:
 
         if provider_type not in cls._providers:
             available = ", ".join(cls._providers.keys())
-            raise ValueError(f"Unsupported audio provider: '{provider_type}'. " f"Available providers: {available}")
+            raise ValueError(f"Unsupported audio provider: '{provider_type}'. Available providers: {available}")
 
         try:
             if provider_type == "openai":

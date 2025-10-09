@@ -83,9 +83,9 @@ optional = true
 
 [tool.poetry.group.dev.dependencies]
 deptry = "^0.20.0"
-ruff = "^0.5.0"
+ruff = "^0.14.0"
 black = "*"
-mypy = "*"
+mypy = "^1.15.0"
 pydocstyle = "^6.3.0"
 pytest-env = "^1.1.5"
 pytest-xdist = "^3.5.0"
@@ -247,7 +247,7 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 # Import sorting configuration
 [tool.ruff.lint.isort]
-known-first-party = ["rag_solution"]
+known-first-party = ["main", "rag_solution", "core", "auth", "vectordbs"]
 
 # Formatting configuration
 [tool.ruff.format]
