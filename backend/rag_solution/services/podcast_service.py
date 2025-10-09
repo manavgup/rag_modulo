@@ -196,7 +196,8 @@ Generate the complete dialogue script now:"""
             NotFoundError: If collection not found
             ValidationError: If validation fails or access denied
         """
-        # Check collection exists (raises NotFoundError if not found)
+        # Check collection exists and retrieve it
+        # get_collection() raises NotFoundError if collection doesn't exist
         try:
             collection = self.collection_service.get_collection(collection_id=podcast_input.collection_id)
         except NotFoundError as e:
@@ -205,12 +206,6 @@ Generate the complete dialogue script now:"""
                 resource_id=str(podcast_input.collection_id),
                 message=f"Collection {podcast_input.collection_id} not found",
             ) from e
-
-        # Verify collection is accessible (has data)
-        if not collection:
-            raise ValidationError(
-                f"Collection {podcast_input.collection_id} exists but is not accessible or has no data"
-            )
 
         # Check collection has sufficient documents
         doc_count = len(collection.files) if collection.files else 0

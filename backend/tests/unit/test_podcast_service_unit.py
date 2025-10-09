@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from rag_solution.schemas.podcast_schema import (
     AudioFormat,
@@ -32,7 +32,7 @@ class TestPodcastServiceInitialization:
 
     def test_service_initialization_with_dependencies(self) -> None:
         """Unit: PodcastService initializes with required dependencies."""
-        session = Mock(spec=AsyncSession)
+        session = Mock(spec=Session)
         collection_service = Mock(spec=CollectionService)
         search_service = Mock(spec=SearchService)
 
@@ -58,7 +58,7 @@ class TestPodcastServiceGeneration:
     @pytest.fixture
     def mock_service(self) -> PodcastService:
         """Fixture: Create mock PodcastService."""
-        session = Mock(spec=AsyncSession)
+        session = Mock(spec=Session)
         collection_service = Mock(spec=CollectionService)
         search_service = Mock(spec=SearchService)
 
@@ -192,7 +192,7 @@ class TestPodcastServiceValidation:
     @pytest.fixture
     def mock_service(self) -> PodcastService:
         """Fixture: Create mock PodcastService."""
-        session = Mock(spec=AsyncSession)
+        session = Mock(spec=Session)
         collection_service = Mock(spec=CollectionService)
         search_service = Mock(spec=SearchService)
 
@@ -227,7 +227,7 @@ class TestPodcastServiceCustomization:
     @pytest.fixture
     def mock_service(self) -> PodcastService:
         """Fixture: Create mock PodcastService."""
-        session = Mock(spec=AsyncSession)
+        session = Mock(spec=Session)
         collection_service = Mock(spec=CollectionService)
         search_service = Mock(spec=SearchService)
 
@@ -341,7 +341,7 @@ class TestPodcastServiceVoicePreview:
     @pytest.fixture
     def mock_service(self) -> PodcastService:
         """Fixture: Create mock PodcastService."""
-        session = Mock(spec=AsyncSession)
+        session = Mock(spec=Session)
         collection_service = Mock(spec=CollectionService)
         search_service = Mock(spec=SearchService)
 

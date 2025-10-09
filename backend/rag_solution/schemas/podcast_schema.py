@@ -16,6 +16,26 @@ from uuid import UUID
 from pydantic import BaseModel, Field, field_validator
 
 
+def validate_non_empty_string(value: str, field_name: str) -> str:
+    """
+    Validate that a string is not empty or whitespace-only.
+
+    Args:
+        value: String to validate
+        field_name: Name of field for error messages
+
+    Returns:
+        Stripped string value
+
+    Raises:
+        ValueError: If string is empty or whitespace-only
+    """
+    stripped = value.strip() if value else ""
+    if not stripped:
+        raise ValueError(f"{field_name} cannot be empty or whitespace-only")
+    return stripped
+
+
 class PodcastStatus(str, Enum):
     """Status of podcast generation process."""
 
@@ -93,10 +113,7 @@ class VoiceSettings(BaseModel):
     @classmethod
     def validate_voice_id(cls, v: str) -> str:
         """Ensure voice_id is not empty."""
-        stripped = v.strip() if v else ""
-        if not stripped:
-            raise ValueError("voice_id cannot be empty or whitespace-only")
-        return stripped
+        return validate_non_empty_string(v, "voice_id")
 
 
 class PodcastTurn(BaseModel):
@@ -110,10 +127,7 @@ class PodcastTurn(BaseModel):
     @classmethod
     def validate_text(cls, v: str) -> str:
         """Ensure text is not empty."""
-        stripped = v.strip() if v else ""
-        if not stripped:
-            raise ValueError("turn text cannot be empty or whitespace-only")
-        return stripped
+        return validate_non_empty_string(v, "turn text")
 
 
 class PodcastScript(BaseModel):
