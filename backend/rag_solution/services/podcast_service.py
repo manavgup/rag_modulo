@@ -354,9 +354,13 @@ Generate the complete dialogue script now:"""
 
         search_result = await self.search_service.search(search_input)
 
-        # Format results for prompt
+        # Format results for prompt using query_results which contain the actual text
         formatted_results = "\n\n".join(
-            [f"[Document {i + 1}]: {doc.chunk_text}" for i, doc in enumerate(search_result.documents)]
+            [
+                f"[Document {i + 1}]: {result.chunk.text if result.chunk else ''}"
+                for i, result in enumerate(search_result.query_results)
+                if result.chunk
+            ]
         )
 
         logger.info(
