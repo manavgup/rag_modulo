@@ -1,8 +1,7 @@
 {
   "name": "RAG Modulo Development",
-  "dockerComposeFile": "../docker-compose.dev.yml",
-  "service": "backend",
-  "workspaceFolder": "/workspaces/rag_modulo",
+  "image": "mcr.microsoft.com/devcontainers/python:1-3.12-bullseye",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
   "customizations": {
     "vscode": {
       "extensions": [
@@ -69,14 +68,20 @@
   "features": {
     "ghcr.io/devcontainers/features/git:1": {},
     "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "version": "latest",
+      "dockerDashComposeVersion": "v2"
+    },
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "lts"
+    },
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.12"
+    },
     "ghcr.io/devcontainers/features/common-utils:2": {
-      "installZsh": false,
-      "installOhMyZsh": false,
-      "upgradePackages": true,
-      "username": "root",
-      "uid": "0",
-      "gid": "0",
-      "installTools": "make,curl,wget,git,unzip,ca-certificates"
+      "installZsh": true,
+      "installOhMyZsh": true,
+      "upgradePackages": true
     }
   },
   "forwardPorts": [8000, 3000, 5001, 5432, 19530],
@@ -102,10 +107,8 @@
       "onAutoForward": "silent"
     }
   },
-  "postStartCommand": "echo 'RAG Modulo development environment ready!'",
-  "remoteUser": "root",
   "remoteEnv": {
-    "PYTHONPATH": "/app:/app/rag_solution:/app/vectordbs",
+    "PYTHONPATH": "/workspaces/${localWorkspaceFolderBasename}/backend:/workspaces/${localWorkspaceFolderBasename}/backend/rag_solution:/workspaces/${localWorkspaceFolderBasename}/backend/vectordbs",
     "DEVELOPMENT_MODE": "true",
     "TESTING": "true",
     "SKIP_AUTH": "true",
@@ -114,8 +117,8 @@
     "IBM_CLIENT_ID": "${localEnv:IBM_CLIENT_ID}",
     "IBM_CLIENT_SECRET": "${localEnv:IBM_CLIENT_SECRET}"
   },
-  "shutdownAction": "stopCompose",
-  "onCreateCommand": "cp .env.example .env && echo 'Environment file created from template'",
-  "updateContentCommand": "echo 'Updating Codespace environment...'",
-  "postCreateCommand": "mkdir -p /root/.vscode-server && chmod 755 /root/.vscode-server && apt-get update && apt-get install -y make curl && echo 'VS Code server directory created, make installed, and environment configured. Repository secrets provide RAG functionality. Edit .env to override with personal credentials.'"
+  "onCreateCommand": "bash -c 'cp .env.example .env && echo \"✅ Environment file created from .env.example\"'",
+  "postCreateCommand": "bash -c 'curl -sSL https://install.python-poetry.org | python3 - && export PATH=\"$HOME/.local/bin:$PATH\" && cd backend && poetry config virtualenvs.in-project true && poetry install --with dev,test && cd ../frontend && npm install && echo \"✅ Dependencies installed (Poetry + npm)\"'",
+  "postStartCommand": "bash -c 'docker compose -f docker-compose-infra.yml up -d && echo \"✅ Infrastructure containers started (Postgres, Milvus, MinIO, MLFlow)\"'",
+  "postAttachCommand": "bash -c 'echo \"\" && echo \"🚀 RAG Modulo Codespace Ready!\" && echo \"\" && echo \"Quick Start:\" && echo \"  Terminal 1: make local-dev-backend\" && echo \"  Terminal 2: make local-dev-frontend\" && echo \"\" && echo \"Or run: make local-dev-all (starts everything in background)\" && echo \"\"'"
 }
