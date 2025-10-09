@@ -156,9 +156,9 @@ class TestTokenTrackingE2ETDD:
             files={"files": ("test_file.txt", BytesIO(file_content), "text/plain")},
         )
 
-        assert (
-            create_response.status_code == 200
-        ), f"API call failed with status {create_response.status_code} and response: {create_response.text}"
+        assert create_response.status_code == 200, (
+            f"API call failed with status {create_response.status_code} and response: {create_response.text}"
+        )
         collection = create_response.json()
         collection_id = UUID(collection["id"])
 

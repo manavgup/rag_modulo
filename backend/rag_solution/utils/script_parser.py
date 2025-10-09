@@ -68,7 +68,7 @@ class PodcastScriptParser:
 
             if not turns:
                 raise ScriptParsingError(
-                    "No dialogue turns found in script. " "Expected format: 'HOST: ...' and 'EXPERT: ...'"
+                    "No dialogue turns found in script. Expected format: 'HOST: ...' and 'EXPERT: ...'"
                 )
 
             # Calculate totals
