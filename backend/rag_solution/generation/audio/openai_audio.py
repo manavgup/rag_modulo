@@ -123,11 +123,13 @@ class OpenAIAudioProvider(AudioProviderBase):
             await self.validate_voices(host_voice, expert_voice)
 
             logger.info(
-                "Generating audio for %d turns (HOST=%s, EXPERT=%s)",
+                "Generating audio for %d turns (HOST=%s, EXPERT=%s, model=%s)",
                 len(script.turns),
                 host_voice,
                 expert_voice,
+                self.model,
             )
+            logger.info("OpenAI client configured: %s", self.client is not None)
 
             # Generate audio for each turn
             audio_segments = []

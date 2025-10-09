@@ -46,6 +46,7 @@ class PodcastService:
     """Service for podcast generation and management."""
 
     # Default podcast prompt template
+    # pylint: disable=line-too-long
     PODCAST_SCRIPT_PROMPT = """You are a professional podcast script writer. Create an engaging podcast dialogue between a HOST and an EXPERT.
 
 Topic/Focus: {user_topic}
@@ -119,9 +120,9 @@ Generate the complete dialogue script now:"""
             storage_path = self.settings.podcast_local_storage_path
             logger.info("Using local file storage: %s", storage_path)
             return LocalFileStorage(base_path=storage_path)
-        else:
-            # Future: MinIO, S3, R2
-            raise NotImplementedError(f"Storage backend '{storage_backend}' not yet implemented")
+
+        # Future: MinIO, S3, R2
+        raise NotImplementedError(f"Storage backend '{storage_backend}' not yet implemented")
 
     async def generate_podcast(
         self,
@@ -199,8 +200,10 @@ Generate the complete dialogue script now:"""
         collection = self.collection_service.get_collection(collection_id=podcast_input.collection_id)
 
         if not collection:
-            raise NotFoundError(  # type: ignore[call-arg]
-                f"Collection {podcast_input.collection_id} not found or not accessible"
+            raise NotFoundError(
+                resource_type="Collection",
+                resource_id=str(podcast_input.collection_id),
+                message=f"Collection {podcast_input.collection_id} not found or not accessible",
             )
 
         # Check collection has sufficient documents
@@ -450,10 +453,16 @@ Generate the complete dialogue script now:"""
             Audio file bytes
         """
         # Create audio provider
+        # Default to openai if not configured
+        audio_provider_type = getattr(self.settings, "podcast_audio_provider", "openai")
+        logger.info("Creating audio provider: type=%s", audio_provider_type)
+
         audio_provider = AudioProviderFactory.create_provider(
-            provider_type=self.settings.podcast_audio_provider,
+            provider_type=audio_provider_type,
             settings=self.settings,
         )
+
+        logger.info("Audio provider created successfully: %s", audio_provider.__class__.__name__)
 
         # Generate audio with turn-by-turn progress
         # Note: OpenAIAudioProvider handles turn iteration internally
