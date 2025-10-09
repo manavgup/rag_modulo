@@ -407,14 +407,14 @@ Generate the complete dialogue script now:"""
         llm_provider = factory.get_provider("watsonx")  # or from user config
 
         # Create simple template for podcast generation
-        from rag_solution.schemas.prompt_template_schema import PromptTemplateBase
+        from rag_solution.schemas.prompt_template_schema import PromptTemplateBase, PromptTemplateType
 
         podcast_template = PromptTemplateBase(
             name="podcast_script_generation",
-            template_type="CUSTOM",
-            template_text="{prompt}",  # Simple pass-through template
-            variables=["prompt"],
-            description="Template for podcast script generation",
+            user_id=podcast_input.user_id,
+            template_type=PromptTemplateType.CUSTOM,
+            template_format="{prompt}",  # Simple pass-through template
+            input_variables={"prompt": "The podcast script prompt"},
         )
 
         script_text = llm_provider.generate_text(
