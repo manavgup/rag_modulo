@@ -157,7 +157,10 @@ class ProgressStepDetails(BaseModel):
 class PodcastGenerationInput(BaseModel):
     """Input schema for podcast generation request."""
 
-    user_id: UUID = Field(..., description="User requesting podcast generation")
+    user_id: UUID | None = Field(
+        default=None,
+        description="User requesting podcast generation (auto-filled from authenticated session if not provided)",
+    )
     collection_id: UUID = Field(..., description="Document collection to generate podcast from")
     duration: PodcastDuration = Field(..., description="Target podcast duration")
     voice_settings: VoiceSettings = Field(..., description="Voice configuration for TTS")

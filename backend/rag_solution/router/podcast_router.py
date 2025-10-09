@@ -106,15 +106,20 @@ async def generate_podcast(
         HTTPException 404: Collection not found
         HTTPException 500: Internal error
     """
-    # Validate that authenticated user matches request user_id
+    # Set user_id from authenticated session (security best practice)
+    # Never trust user_id from request body - always use authenticated session
     user_id_from_token = current_user.get("user_id")
-    if str(podcast_input.user_id) != str(user_id_from_token):
+
+    if not user_id_from_token:
         raise HTTPException(
-            status_code=403,
-            detail="Cannot generate podcast for another user",
+            status_code=401,
+            detail="User ID not found in authentication token",
         )
 
-    return await podcast_service.generate_podcast(podcast_input, background_tasks)
+    # Create validated input with authenticated user_id (ensures user_id is never None)
+    validated_input = podcast_input.model_copy(update={"user_id": user_id_from_token})
+
+    return await podcast_service.generate_podcast(validated_input, background_tasks)
 
 
 @router.get(
