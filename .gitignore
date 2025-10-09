@@ -31,6 +31,20 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# Environment Files (SECURITY)
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+.env.test
+
+# OS / Editor Files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
 # Temporary / Experimental Docs
 *_analysis*.md
 *_investigation*.md
@@ -45,8 +59,6 @@ backend/TOKEN_TRACKING_*.md
 backend/fixture_analysis_report.md
 backend/rag_quality_analysis_issue_227.md
 
-# Environment Files
-.env
-.env.local
-.env.*.local
-# Keep only official templates (env.example and .env.ci)
+# Keep only official templates
+.env.example
+.env.ci
