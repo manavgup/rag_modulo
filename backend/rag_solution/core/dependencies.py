@@ -26,12 +26,30 @@ from rag_solution.services.user_service import UserService
 from rag_solution.services.user_team_service import UserTeamService
 
 
-def get_current_user(request: Request) -> dict[Any, Any]:
+def get_current_user(
+    request: Request,
+    settings: Settings = Depends(get_settings),
+) -> dict[Any, Any]:
     """Extract current user from request state.
 
     This assumes authentication middleware has already validated the user
     and added user info to request.state.
+
+    In development mode with SKIP_AUTH=true, returns a mock user.
     """
+    # Check if authentication is skipped (development mode)
+    skip_auth = getattr(settings, "skip_auth", False)
+    if skip_auth:
+        # Return mock user for development
+        mock_token = getattr(settings, "mock_token", "dev-0000-0000-0000")
+        return {
+            "user_id": mock_token,
+            "uuid": mock_token,
+            "email": "dev@example.com",
+            "name": "Development User",
+        }
+
+    # Production: require authentication
     if not hasattr(request.state, "user"):
         raise HTTPException(status_code=401, detail="Not authenticated")
     return request.state.user  # type: ignore[no-any-return]
