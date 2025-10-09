@@ -143,7 +143,7 @@ try:
     from core.config import settings, get_settings
     # Test that defaults work
     assert settings.jwt_secret_key.startswith('dev-secret-key')
-    assert settings.rag_llm == 'openai'
+    assert settings.rag_llm == 'ibm/granite-3-3-8b-instruct'  # Updated to match actual default
     assert get_settings() is not None
     print('✓ Settings work in atomic test context')
     exit(0)
