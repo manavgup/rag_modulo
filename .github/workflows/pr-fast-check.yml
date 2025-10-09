@@ -6,6 +6,11 @@ on:
     # Run for all PRs - this is our fast feedback loop
     # Container builds are handled separately in 03-build-secure.yml with path filters
 
+# Cancel outdated workflow runs for the same PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
   pull-requests: write
@@ -76,13 +81,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 🔐 TruffleHog - Secret Scanning
-        continue-on-error: true  # Don't fail PR on unverified secrets, just warn
         uses: trufflesecurity/trufflehog@main
         with:
           path: ./
           base: ${{ github.event.repository.default_branch }}
           head: HEAD
-          extra_args: --only-verified  # Only fail on verified secrets
+          extra_args: --only-verified --fail
 
       - name: 🐍 Set up Python for Bandit
         uses: actions/setup-python@v4

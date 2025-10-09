@@ -21,6 +21,11 @@ on:
   workflow_dispatch:
     # Manual trigger option
 
+# Cancel outdated workflow runs for the same PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
   security-events: write  # For SARIF uploads
