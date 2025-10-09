@@ -102,7 +102,6 @@ class AudioProviderFactory:
             model,
             len(api_key),
         )
-        logger.debug("API key first/last chars: %s...%s", api_key[:10], api_key[-10:])
 
         return OpenAIAudioProvider(
             api_key=api_key,
