@@ -62,6 +62,7 @@ def verify_user_access(
         user_id: The user ID being accessed
         request: The FastAPI request object
         db: Session
+        settings: Application settings
 
     Returns:
         UserOutput object if access is granted
@@ -69,7 +70,7 @@ def verify_user_access(
     Raises:
         HTTPException: 401 if not authenticated, 403 if not authorized
     """
-    current_user = get_current_user(request)
+    current_user = get_current_user(request, settings)
 
     # Check if user is accessing their own resources
     current_user_id = current_user.get("uuid")
@@ -93,6 +94,7 @@ def verify_admin_access(
     Args:
         request: The FastAPI request object
         db: Database session
+        settings: Application settings
 
     Returns:
         Current user if admin
@@ -100,7 +102,7 @@ def verify_admin_access(
     Raises:
         HTTPException: 401 if not authenticated, 403 if not admin
     """
-    current_user_data = get_current_user(request)
+    current_user_data = get_current_user(request, settings)
 
     # Get the full user object to check role
     try:
@@ -122,7 +124,7 @@ def verify_collection_access(
     user_id: UUID4,
     request: Request,
     db: Session = Depends(get_db),
-    _settings: Settings = Depends(get_settings),
+    settings: Settings = Depends(get_settings),
 ) -> bool:
     """Verify that a user has access to a specific collection.
 
@@ -131,6 +133,7 @@ def verify_collection_access(
         user_id: The user ID requesting access
         request: The FastAPI request object
         db: Database session
+        settings: Application settings
 
     Returns:
         True if access is granted
@@ -138,7 +141,7 @@ def verify_collection_access(
     Raises:
         HTTPException: 401 if not authenticated, 403 if not authorized
     """
-    current_user = get_current_user(request)
+    current_user = get_current_user(request, settings)
 
     # Verify user is accessing their own resources
     current_user_id = current_user.get("uuid")
@@ -163,7 +166,7 @@ def verify_team_access(
     user_id: UUID4,
     request: Request,
     db: Session = Depends(get_db),
-    _settings: Settings = Depends(get_settings),
+    settings: Settings = Depends(get_settings),
 ) -> bool:
     """Verify that a user has access to a specific team.
 
@@ -172,6 +175,7 @@ def verify_team_access(
         user_id: The user ID requesting access
         request: The FastAPI request object
         db: Database session
+        settings: Application settings
 
     Returns:
         True if access is granted
@@ -179,7 +183,7 @@ def verify_team_access(
     Raises:
         HTTPException: 401 if not authenticated, 403 if not authorized
     """
-    current_user = get_current_user(request)
+    current_user = get_current_user(request, settings)
 
     # Verify user is accessing their own resources
     current_user_id = current_user.get("uuid")
