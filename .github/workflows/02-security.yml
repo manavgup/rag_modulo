@@ -1,5 +1,9 @@
 name: Security Scan
 
+# 📋 Purpose
+# Scan codebase for secrets and credentials using Gitleaks and TruffleHog
+# Runs on every PR and push to main to catch leaked secrets early
+
 on:
   pull_request:
     branches: [ main ]
@@ -19,16 +23,18 @@ permissions:
 
 jobs:
   gitleaks:
-    name: gitleaks
+    name: 🔐 Gitleaks Secret Scanning
     runs-on: ubuntu-latest
     continue-on-error: true  # Don't block PR on false positives
     steps:
-      - name: Checkout code
+      # 0️⃣ Checkout source code with full history for secret scanning
+      - name: 📥 Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # Need full history to scan all commits
 
-      - name: Run gitleaks
+      # 1️⃣ Run Gitleaks to detect secrets in git history
+      - name: 🔍 Run Gitleaks
         uses: gitleaks/gitleaks-action@v2
         env:
           GITLEAKS_CONFIG: .gitleaks.toml
@@ -36,7 +42,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         continue-on-error: true
 
-      - name: Report gitleaks status
+      # 2️⃣ Report findings if secrets detected
+      - name: 📊 Report Gitleaks status
         if: failure()
         run: |
           echo "⚠️ Gitleaks detected potential secrets. Please review the findings above."
@@ -44,25 +51,28 @@ jobs:
           exit 0
 
   trufflehog:
-    name: trufflehog
+    name: 🐷 TruffleHog Secret Scanning
     runs-on: ubuntu-latest
     continue-on-error: true  # Don't block PR on false positives
     steps:
-      - name: Checkout code
+      # 0️⃣ Checkout source code with full history
+      - name: 📥 Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # Need full history for differential scanning
 
-      - name: Run trufflehog
+      # 1️⃣ Run TruffleHog to detect verified secrets
+      - name: 🔍 Run TruffleHog
         uses: trufflesecurity/trufflehog@v3.63.4
         with:
           path: ./
           base: ${{ github.event.pull_request.base.sha }}
           head: ${{ github.event.pull_request.head.sha }}
-          extra_args: --only-verified
+          extra_args: --only-verified  # Only flag verified secrets
         continue-on-error: true
 
-      - name: Report trufflehog status
+      # 2️⃣ Report findings if verified secrets detected
+      - name: 📊 Report TruffleHog status
         if: failure()
         run: |
           echo "⚠️ TruffleHog detected verified secrets. Please review the findings above."

@@ -1,5 +1,9 @@
 name: Unit Tests
 
+# 📋 Purpose
+# Run Python unit tests with pytest
+# Validates atomic/unit tests without requiring infrastructure
+
 on:
   pull_request:
     branches: [main]
@@ -34,17 +38,20 @@ env:
 
 jobs:
   unit-tests:
-    name: Unit Tests
+    name: 🧪 Unit Tests
     runs-on: ubuntu-latest
     steps:
+      # 0️⃣ Checkout source code
       - name: 📥 Checkout code
         uses: actions/checkout@v4
 
+      # 1️⃣ Setup Python environment
       - name: 🐍 Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.12'
 
+      # 2️⃣ Install Poetry package manager
       - name: 📦 Install Poetry
         uses: snok/install-poetry@v1
         with:
@@ -52,6 +59,7 @@ jobs:
           virtualenvs-create: true
           virtualenvs-in-project: true
 
+      # 3️⃣ Cache Poetry dependencies for faster builds
       - name: 📚 Cache Poetry dependencies
         uses: actions/cache@v4
         with:
@@ -62,14 +70,17 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-poetry-
 
+      # 4️⃣ Install Python dependencies
       - name: 📥 Install dependencies
         run: cd backend && poetry install --with dev,test
 
+      # 5️⃣ Run unit/atomic tests
       - name: 🧪 Run unit tests
         run: |
           cd backend
           poetry run pytest tests/ -m "unit or atomic" --tb=short -v --maxfail=5
 
+      # 6️⃣ Generate coverage report (optional)
       - name: 📊 Run tests with coverage
         if: success()
         run: |
