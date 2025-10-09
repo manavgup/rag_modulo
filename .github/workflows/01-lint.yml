@@ -1,5 +1,9 @@
 name: Lint & Static Analysis
 
+# This workflow uses tool versions and configurations from backend/pyproject.toml
+# All linting tools (Ruff, MyPy, Pylint, Pydocstyle) reference pyproject.toml as single source of truth
+# Tool versions: Ruff ^0.14.0, MyPy ^1.15.0, Pylint ^3.3.8, Pydocstyle ^6.3.0
+
 on:
   pull_request:
     branches: [main]

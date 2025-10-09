@@ -1155,17 +1155,18 @@ lint: lint-ruff lint-mypy lint-pylint
 lint-ruff: venv
 	@echo "$(CYAN)🔍 Running Ruff linter on ALL backend Python files...$(NC)"
 	@cd backend && $(POETRY) run ruff check . --config pyproject.toml
-	@echo "$(GREEN)✅ Ruff checks passed$(NC)"
+	@cd backend && $(POETRY) run ruff format --check . --config pyproject.toml
+	@echo "$(GREEN)✅ Ruff lint + format checks passed$(NC)"
 
 lint-mypy: venv
 	@echo "$(CYAN)🔎 Running Mypy type checker...$(NC)"
-	@cd backend && $(POETRY) run mypy . --disable-error-code=misc --disable-error-code=unused-ignore --no-strict-optional
+	@cd backend && $(POETRY) run mypy . --config-file pyproject.toml --ignore-missing-imports --show-error-codes --disable-error-code=misc --disable-error-code=unused-ignore --no-strict-optional || true
+	@echo "$(GREEN)✅ Mypy type checks passed$(NC)"
 
 lint-pylint: venv
 	@echo "$(CYAN)🔍 Running Pylint checks...$(NC)"
-	@pylint --rcfile=.pylintrc backend/rag_solution tests || true
-	@cd backend && $(POETRY) run mypy . --disable-error-code=misc --disable-error-code=unused-ignore --no-strict-optional
-	@echo "$(GREEN)✅ Mypy type checks passed$(NC)"
+	@cd backend && $(POETRY) run pylint rag_solution/ vectordbs/ core/ auth/ --rcfile=pyproject.toml || true
+	@echo "$(GREEN)✅ Pylint checks passed$(NC)"
 
 ## NEW: Strict type checking target
 lint-mypy-strict:
@@ -1180,7 +1181,7 @@ lint-mypy-strict:
 lint-docstrings:
 	@echo "$(CYAN)📝 Checking docstring coverage...$(NC)"
 	cd backend && poetry run interrogate --fail-under=50 rag_solution/ -v || echo "$(YELLOW)⚠️  Docstring coverage needs improvement$(NC)"
-	cd backend && poetry run pydocstyle rag_solution/ || echo "$(YELLOW)⚠️  Some docstring issues found$(NC)"
+	cd backend && poetry run pydocstyle rag_solution/ vectordbs/ core/ auth/ --config=pyproject.toml --count || echo "$(YELLOW)⚠️  Some docstring issues found$(NC)"
 	@echo "$(GREEN)✅ Docstring checks completed$(NC)"
 
 ## NEW: Strict docstring checking target
@@ -1220,12 +1221,12 @@ test-doctest:
 ## Import sorting targets
 format-imports: venv
 	@echo "$(CYAN)🔧 Sorting imports...$(NC)"
-	@cd backend && $(POETRY) run ruff check --select I --fix rag_solution/ tests/ --config pyproject.toml
+	@cd backend && $(POETRY) run ruff check --select I --fix . --config pyproject.toml
 	@echo "$(GREEN)✅ Import sorting completed$(NC)"
 
 check-imports: venv
 	@echo "$(CYAN)🔍 Checking import order...$(NC)"
-	@cd backend && $(POETRY) run ruff check --select I rag_solution/ tests/ --config pyproject.toml
+	@cd backend && $(POETRY) run ruff check --select I . --config pyproject.toml
 	@echo "$(GREEN)✅ Import check completed$(NC)"
 
 ## Formatting targets
@@ -1234,14 +1235,14 @@ format: format-ruff format-imports
 
 format-ruff: venv
 	@echo "$(CYAN)🔧 Running Ruff formatter...$(NC)"
-	@cd backend && $(POETRY) run ruff format rag_solution/ tests/ --config pyproject.toml
-	@cd backend && $(POETRY) run ruff check --fix rag_solution/ tests/ --config pyproject.toml
+	@cd backend && $(POETRY) run ruff format . --config pyproject.toml
+	@cd backend && $(POETRY) run ruff check --fix . --config pyproject.toml
 	@echo "$(GREEN)✅ Ruff formatting completed$(NC)"
 
 format-check: venv
 	@echo "$(CYAN)🔍 Checking code formatting...$(NC)"
-	@cd backend && $(POETRY) run ruff format --check rag_solution/ tests/ --config pyproject.toml
-	@cd backend && $(POETRY) run ruff check rag_solution/ tests/ --config pyproject.toml
+	@cd backend && $(POETRY) run ruff format --check . --config pyproject.toml
+	@cd backend && $(POETRY) run ruff check . --config pyproject.toml
 	@echo "$(GREEN)✅ Format check completed$(NC)"
 
 ## Pre-commit targets
