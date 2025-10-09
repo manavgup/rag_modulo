@@ -216,12 +216,17 @@ class OpenAIAudioProvider(AudioProviderBase):
         """
         try:
             # Call OpenAI TTS API
+            logger.info("Calling OpenAI TTS: voice=%s, text_len=%d, model=%s", voice_id, len(text), self.model)
+            logger.debug("OpenAI API key configured: %s", self.client.api_key is not None)
+
             response = await self.client.audio.speech.create(
                 model=self.model,
                 voice=voice_id,
                 input=text,
                 response_format=audio_format.value,  # type: ignore[arg-type]
             )
+
+            logger.info("OpenAI TTS response received successfully")
 
             # Convert response to AudioSegment
             audio_bytes = response.content
