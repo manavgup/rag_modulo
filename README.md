@@ -81,7 +81,43 @@ make run-ghcr
 - 📊 **MLFlow**: http://localhost:5001
 - 💾 **MinIO Console**: http://localhost:9001
 
-### Option 2: Local Development
+### Option 2: Local Development (Recommended for Development) ⚡
+
+The fastest way to develop with instant hot-reload and no container rebuilds:
+
+```bash
+# One-time setup: Install dependencies
+make local-dev-setup
+
+# Start infrastructure only (Postgres, Milvus, MLFlow, MinIO)
+make local-dev-infra
+
+# In terminal 1: Start backend with hot-reload
+make local-dev-backend
+
+# In terminal 2: Start frontend with HMR
+make local-dev-frontend
+
+# OR start everything in background
+make local-dev-all        # Start all services
+make local-dev-status     # Check status
+make local-dev-stop       # Stop all services
+```
+
+**Benefits:**
+- ⚡ **Instant hot-reload** - No container rebuilds needed
+- 🔥 **Faster commits** - Pre-commit hooks optimized for velocity
+- 🐛 **Native debugging** - Use your IDE's debugger directly
+- 📦 **Local caching** - Poetry/npm caches work natively
+
+**When to use:**
+- Daily development work
+- Feature development and bug fixes
+- Rapid iteration and testing
+
+### Option 3: Container Development (Production-like)
+
+For testing deployment configurations:
 
 ```bash
 # Initialize development environment
@@ -249,34 +285,203 @@ make coverage
 
 ---
 
-## 🚀 Deployment Options
+## 🚀 Deployment & Packaging
 
-### Docker Deployment
+### Production Deployment
+
+RAG Modulo supports multiple deployment strategies:
+
+#### 1. Docker Compose (Recommended)
 
 ```bash
-# Production deployment with GHCR images
+# Start production environment (all containers)
+make prod-start
+
+# Check status
+make prod-status
+
+# View logs
+make prod-logs
+
+# Stop production environment
+make prod-stop
+```
+
+#### 2. Pre-built Images from GHCR
+
+```bash
+# Pull and run latest images from GitHub Container Registry
 make run-ghcr
-
-# Custom deployment
-docker-compose up -d
 ```
 
-### Cloud Deployment
+**Available Images:**
+- `ghcr.io/manavgup/rag_modulo/backend:latest`
+- `ghcr.io/manavgup/rag_modulo/frontend:latest`
 
-- **AWS**: ECS, EKS, or EC2 with Docker
-- **Azure**: Container Instances or AKS
-- **GCP**: Cloud Run or GKE
-- **IBM Cloud**: Code Engine or IKS
-
-### Kubernetes
+#### 3. Custom Docker Deployment
 
 ```bash
-# Deploy with Helm
-helm install rag-modulo ./charts/rag-modulo
+# Build local images
+make build-all
 
-# Or with kubectl
-kubectl apply -f deployment/k8s/
+# Start services
+make run-app
 ```
+
+### Cloud Deployment Options
+
+<details>
+<summary><b>AWS Deployment</b></summary>
+
+- **ECS (Elastic Container Service)**: Use docker-compose.production.yml
+- **EKS (Kubernetes)**: Deploy with Kubernetes manifests
+- **EC2**: Docker Compose or standalone containers
+- **Lambda**: Serverless functions for specific services
+
+</details>
+
+<details>
+<summary><b>Azure Deployment</b></summary>
+
+- **Azure Container Instances**: Quick container deployment
+- **AKS (Azure Kubernetes Service)**: Production-grade orchestration
+- **Azure Container Apps**: Serverless container hosting
+
+</details>
+
+<details>
+<summary><b>Google Cloud Deployment</b></summary>
+
+- **Cloud Run**: Fully managed serverless platform
+- **GKE (Google Kubernetes Engine)**: Kubernetes orchestration
+- **Compute Engine**: VM-based deployment with Docker
+
+</details>
+
+<details>
+<summary><b>IBM Cloud Deployment</b></summary>
+
+- **Code Engine**: Serverless container platform
+- **IKS (IBM Kubernetes Service)**: Enterprise Kubernetes
+- **Red Hat OpenShift**: Advanced container platform
+
+</details>
+
+### Kubernetes Deployment
+
+```bash
+# Apply Kubernetes manifests
+kubectl apply -f deployment/k8s/
+
+# Or deploy with Helm (if charts exist)
+helm install rag-modulo ./charts/rag-modulo
+```
+
+---
+
+## 🔄 CI/CD Pipeline
+
+### GitHub Actions Workflows
+
+RAG Modulo uses a comprehensive CI/CD pipeline with multiple stages:
+
+#### 1. Code Quality & Testing (`.github/workflows/ci.yml`)
+
+**Triggers:** Push to `main`, Pull Requests
+
+**Stages:**
+1. **Lint and Unit Tests** (No infrastructure)
+   - Ruff linting (120 char line length)
+   - MyPy type checking
+   - Unit tests with pytest
+   - Fast feedback (~5-10 minutes)
+
+2. **Build Docker Images**
+   - Backend image build
+   - Frontend image build
+   - Push to GitHub Container Registry (GHCR)
+   - Tagged with: `latest`, `sha-<commit>`, branch name
+
+3. **Integration Tests**
+   - Full stack deployment
+   - PostgreSQL, Milvus, MLFlow, MinIO
+   - API tests, integration tests
+   - End-to-end validation
+
+**Status Badges:**
+```markdown
+[![CI Pipeline](https://github.com/manavgup/rag_modulo/workflows/CI/badge.svg)](https://github.com/manavgup/rag_modulo/actions)
+```
+
+#### 2. Security Scanning (`.github/workflows/security.yml`)
+
+**Triggers:** Push to `main`, Pull Requests, Weekly schedule
+
+**Scans:**
+- **Trivy**: Container vulnerability scanning
+- **Bandit**: Python security linting
+- **Gitleaks**: Secret detection
+- **Safety**: Python dependency vulnerabilities
+- **Semgrep**: SAST code analysis
+
+#### 3. Documentation (`.github/workflows/docs.yml`)
+
+**Triggers:** Push to `main`, Pull Requests to `docs/`
+
+**Actions:**
+- Build MkDocs site
+- Deploy to GitHub Pages
+- API documentation generation
+
+### Local CI Validation
+
+Test CI pipeline locally before pushing:
+
+```bash
+# Run same checks as CI
+make ci-local
+
+# Validate CI workflows
+make validate-ci
+
+# Security checks
+make security-check
+make scan-secrets
+```
+
+### Pre-commit Hooks
+
+Optimized for developer velocity:
+
+**On Commit** (fast, 5-10 sec):
+- Ruff formatting
+- Trailing whitespace
+- YAML syntax
+- File size limits
+
+**On Push** (slow, 30-60 sec):
+- MyPy type checking
+- Pylint analysis
+- Security scans
+- Strangler pattern checks
+
+**In CI** (comprehensive):
+- All checks run regardless
+- Ensures quality gates
+
+### Container Registry
+
+**GitHub Container Registry (GHCR)**:
+- Automatic image builds on push
+- Multi-architecture support (amd64, arm64)
+- Image signing and verification
+- Retention policies
+
+**Image Tags:**
+- `latest`: Latest main branch build
+- `sha-<commit>`: Specific commit
+- `<branch>`: Branch-specific builds
+- `v<version>`: Release tags
 
 ---
 

@@ -87,28 +87,30 @@ class TestPodcastGenerationIntegration:
         background_tasks.add_task = Mock()
 
         # Generate podcast with mocked create
-        with patch.object(mock_service.repository, "create", new=AsyncMock(return_value=mock_podcast)) as mock_create:
-            with patch.object(mock_service.repository, "to_schema") as mock_to_schema:
-                mock_output = PodcastGenerationOutput(
-                    podcast_id=mock_podcast.podcast_id,
-                    user_id=podcast_input.user_id,
-                    collection_id=podcast_input.collection_id,
-                    status=PodcastStatus.QUEUED,
-                    duration=PodcastDuration.SHORT,
-                    format=AudioFormat.MP3,
-                    progress_percentage=0,
-                    created_at=datetime.utcnow(),
-                    updated_at=datetime.utcnow(),
-                )
-                mock_to_schema.return_value = mock_output
+        with (
+            patch.object(mock_service.repository, "create", new=AsyncMock(return_value=mock_podcast)) as mock_create,
+            patch.object(mock_service.repository, "to_schema") as mock_to_schema,
+        ):
+            mock_output = PodcastGenerationOutput(
+                podcast_id=mock_podcast.podcast_id,
+                user_id=podcast_input.user_id,
+                collection_id=podcast_input.collection_id,
+                status=PodcastStatus.QUEUED,
+                duration=PodcastDuration.SHORT,
+                format=AudioFormat.MP3,
+                progress_percentage=0,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
+            )
+            mock_to_schema.return_value = mock_output
 
-                result = await mock_service.generate_podcast(podcast_input, background_tasks)
+            result = await mock_service.generate_podcast(podcast_input, background_tasks)
 
-                # Verify podcast was created
-                assert result is not None
-                assert result.status == PodcastStatus.QUEUED
-                mock_create.assert_called_once()
-                background_tasks.add_task.assert_called_once()
+            # Verify podcast was created
+            assert result is not None
+            assert result.status == PodcastStatus.QUEUED
+            mock_create.assert_called_once()
+            background_tasks.add_task.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_get_podcast_by_id(self, mock_service: PodcastService) -> None:
@@ -121,26 +123,28 @@ class TestPodcastGenerationIntegration:
         mock_podcast.user_id = user_id  # Must match requesting user_id
         mock_podcast.status = PodcastStatus.COMPLETED
 
-        with patch.object(mock_service.repository, "get_by_id", new=AsyncMock(return_value=mock_podcast)) as mock_get:
-            with patch.object(mock_service.repository, "to_schema") as mock_to_schema:
-                mock_output = PodcastGenerationOutput(
-                    podcast_id=podcast_id,
-                    user_id=user_id,
-                    collection_id=uuid4(),
-                    status=PodcastStatus.COMPLETED,
-                    duration=PodcastDuration.MEDIUM,
-                    format=AudioFormat.MP3,
-                    progress_percentage=100,
-                    created_at=datetime.utcnow(),
-                    updated_at=datetime.utcnow(),
-                )
-                mock_to_schema.return_value = mock_output
+        with (
+            patch.object(mock_service.repository, "get_by_id", new=AsyncMock(return_value=mock_podcast)) as mock_get,
+            patch.object(mock_service.repository, "to_schema") as mock_to_schema,
+        ):
+            mock_output = PodcastGenerationOutput(
+                podcast_id=podcast_id,
+                user_id=user_id,
+                collection_id=uuid4(),
+                status=PodcastStatus.COMPLETED,
+                duration=PodcastDuration.MEDIUM,
+                format=AudioFormat.MP3,
+                progress_percentage=100,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
+            )
+            mock_to_schema.return_value = mock_output
 
-                result = await mock_service.get_podcast(podcast_id, user_id)
+            result = await mock_service.get_podcast(podcast_id, user_id)
 
-                assert result is not None
-                assert result.podcast_id == podcast_id
-                mock_get.assert_called_once_with(podcast_id)
+            assert result is not None
+            assert result.podcast_id == podcast_id
+            mock_get.assert_called_once_with(podcast_id)
 
     @pytest.mark.asyncio
     async def test_list_user_podcasts_with_pagination(self, mock_service: PodcastService) -> None:
@@ -177,20 +181,22 @@ class TestPodcastGenerationIntegration:
         mock_podcast_1 = Mock()
         mock_podcast_2 = Mock()
 
-        with patch.object(
-            mock_service.repository, "get_by_user", new=AsyncMock(return_value=[mock_podcast_1, mock_podcast_2])
-        ) as mock_get:
-            with patch.object(mock_service.repository, "to_schema") as mock_to_schema:
-                mock_to_schema.side_effect = [mock_output_1, mock_output_2]
+        with (
+            patch.object(
+                mock_service.repository, "get_by_user", new=AsyncMock(return_value=[mock_podcast_1, mock_podcast_2])
+            ) as mock_get,
+            patch.object(mock_service.repository, "to_schema") as mock_to_schema,
+        ):
+            mock_to_schema.side_effect = [mock_output_1, mock_output_2]
 
-                result = await mock_service.list_user_podcasts(user_id, limit=10, offset=0)
+            result = await mock_service.list_user_podcasts(user_id, limit=10, offset=0)
 
-                assert result is not None
-                assert result.total_count == 2
-                assert len(result.podcasts) == 2
-                assert result.podcasts[0].podcast_id == podcast_id_1
-                assert result.podcasts[1].podcast_id == podcast_id_2
-                mock_get.assert_called_once_with(user_id=user_id, limit=10, offset=0)
+            assert result is not None
+            assert result.total_count == 2
+            assert len(result.podcasts) == 2
+            assert result.podcasts[0].podcast_id == podcast_id_1
+            assert result.podcasts[1].podcast_id == podcast_id_2
+            mock_get.assert_called_once_with(user_id=user_id, limit=10, offset=0)
 
     @pytest.mark.asyncio
     async def test_delete_podcast_removes_record(self, mock_service: PodcastService) -> None:
@@ -202,12 +208,14 @@ class TestPodcastGenerationIntegration:
         mock_podcast.podcast_id = podcast_id
         mock_podcast.user_id = user_id
 
-        with patch.object(mock_service.repository, "get_by_id", new=AsyncMock(return_value=mock_podcast)):
-            with patch.object(mock_service.repository, "delete", new=AsyncMock(return_value=True)) as mock_delete:
-                result = await mock_service.delete_podcast(podcast_id, user_id)
+        with (
+            patch.object(mock_service.repository, "get_by_id", new=AsyncMock(return_value=mock_podcast)),
+            patch.object(mock_service.repository, "delete", new=AsyncMock(return_value=True)) as mock_delete,
+        ):
+            result = await mock_service.delete_podcast(podcast_id, user_id)
 
-                assert result is True
-                mock_delete.assert_called_once_with(podcast_id)
+            assert result is True
+            mock_delete.assert_called_once_with(podcast_id)
 
     @pytest.mark.asyncio
     async def test_delete_podcast_unauthorized(self, mock_service: PodcastService) -> None:
@@ -220,16 +228,18 @@ class TestPodcastGenerationIntegration:
         mock_podcast.podcast_id = podcast_id
         mock_podcast.user_id = different_user_id  # Different user
 
-        with patch.object(mock_service.repository, "get_by_id", new=AsyncMock(return_value=mock_podcast)):
-            with patch.object(mock_service.repository, "delete", new=AsyncMock()) as mock_delete:
-                # Service raises HTTPException, not PermissionError
-                from fastapi import HTTPException
+        with (
+            patch.object(mock_service.repository, "get_by_id", new=AsyncMock(return_value=mock_podcast)),
+            patch.object(mock_service.repository, "delete", new=AsyncMock()) as mock_delete,
+        ):
+            # Service raises HTTPException, not PermissionError
+            from fastapi import HTTPException
 
-                with pytest.raises(HTTPException) as exc_info:
-                    await mock_service.delete_podcast(podcast_id, user_id)
+            with pytest.raises(HTTPException) as exc_info:
+                await mock_service.delete_podcast(podcast_id, user_id)
 
-                assert exc_info.value.status_code == 403
-                mock_delete.assert_not_called()
+            assert exc_info.value.status_code == 403
+            mock_delete.assert_not_called()
 
 
 @pytest.mark.integration

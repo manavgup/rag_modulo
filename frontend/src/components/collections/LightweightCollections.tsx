@@ -48,18 +48,10 @@ const LightweightCollections: React.FC = () => {
     loadCollections();
   }, []);
 
-  const handleCollectionCreated = async (collectionData: { name: string; description?: string }) => {
-    try {
-      // REAL API CALL FOR COLLECTION CREATION
-      const newCollection = await apiClient.createCollection(collectionData);
-
-      setCollections(prev => [...prev, newCollection]);
-      setIsCreateModalOpen(false);
-      addNotification('success', 'Collection Created', `${newCollection.name} has been created successfully.`);
-    } catch (error) {
-      console.error('Error creating collection:', error);
-      addNotification('error', 'Creation Error', 'Failed to create collection.');
-    }
+  const handleCollectionCreated = (newCollection: any) => {
+    // Modal already created the collection, just add it to the list
+    setCollections(prev => [...prev, newCollection]);
+    setIsCreateModalOpen(false);
   };
 
   const getStatusIcon = (status: string) => {

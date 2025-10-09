@@ -6,10 +6,10 @@ import logging
 import os
 from uuid import uuid4
 
-from core.config import get_settings
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from core.config import get_settings
 from rag_solution.services.search_service import SearchService
 
 # Configure logging to see debug messages

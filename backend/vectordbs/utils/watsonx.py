@@ -6,7 +6,6 @@ from functools import lru_cache
 from typing import Any
 
 from chromadb.api.types import Documents, EmbeddingFunction
-from core.config import Settings, get_settings
 from dotenv import load_dotenv
 from ibm_watsonx_ai import APIClient, Credentials
 from ibm_watsonx_ai.foundation_models import Embeddings as wx_Embeddings
@@ -20,6 +19,7 @@ from tenacity import (
     wait_exponential,
 )
 
+from core.config import Settings, get_settings
 from vectordbs.data_types import EmbeddingsList
 
 # Configure logging

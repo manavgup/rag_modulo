@@ -10,8 +10,8 @@ from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import pytest
-from core.config import Settings, get_settings
 
+from core.config import Settings, get_settings
 from rag_solution.schemas.conversation_schema import (
     ConversationMessageInput,
     MessageRole,
@@ -270,7 +270,7 @@ class TestTokenTrackingIntegrationTDD:  # type: ignore[misc]
             )
 
             result = await conversation_service.process_user_message(message_input)
-            assistant_message, token_warning = result  # type: ignore
+            _assistant_message, token_warning = result  # type: ignore
 
             # Verify conversation warning was prioritized (critical vs info)
             assert token_warning is not None

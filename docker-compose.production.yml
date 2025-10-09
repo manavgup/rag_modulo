@@ -1,0 +1,58 @@
+# Production docker-compose - Everything containerized
+version: '3.8'
+
+services:
+  # Extend infrastructure services
+  postgres:
+    extends:
+      file: docker-compose-infra.yml
+      service: postgres
+
+  milvus-standalone:
+    extends:
+      file: docker-compose-infra.yml
+      service: milvus-standalone
+
+  minio:
+    extends:
+      file: docker-compose-infra.yml
+      service: minio
+
+  mlflow-server:
+    extends:
+      file: docker-compose-infra.yml
+      service: mlflow-server
+
+  # Production backend
+  backend:
+    image: ${BACKEND_IMAGE:-ghcr.io/manavgup/rag_modulo/backend:latest}
+    container_name: rag-modulo-backend
+    env_file: .env
+    environment:
+      - MILVUS_HOST=milvus-standalone
+      - COLLECTIONDB_HOST=postgres
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+      - milvus-standalone
+      - minio
+    networks:
+      - rag-network
+
+  # Production frontend
+  frontend:
+    image: ${FRONTEND_IMAGE:-ghcr.io/manavgup/rag_modulo/frontend:latest}
+    container_name: rag-modulo-frontend
+    environment:
+      - REACT_APP_BACKEND_URL=http://backend:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - rag-network
+
+networks:
+  rag-network:
+    driver: bridge

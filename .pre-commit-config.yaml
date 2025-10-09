@@ -18,29 +18,34 @@ repos:
         args: ['--fix=lf']
 
   # Python linting and formatting - Ruff (fast, modern, handles both)
+  # Version matches backend/pyproject.toml: ruff = "^0.14.0"
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.1.11
+    rev: v0.14.0
     hooks:
       - id: ruff
+        name: Ruff Lint
         args: ['--fix', '--config', 'backend/pyproject.toml']
         files: ^backend/
       - id: ruff-format
+        name: Ruff Format
         args: ['--config', 'backend/pyproject.toml']
         files: ^backend/
 
-  # Python type checking - MyPy
+  # Python type checking - MyPy (runs on push only for speed)
+  # Version matches backend/pyproject.toml: mypy = "^1.15.0"
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.13.0
+    rev: v1.15.0
     hooks:
       - id: mypy
+        name: MyPy Type Check
+        stages: [push]  # Only run on push, not commit (too slow)
         args: [
+          '--config-file=backend/pyproject.toml',
+          '--ignore-missing-imports',
+          '--show-error-codes',
           '--disable-error-code=misc',
           '--disable-error-code=unused-ignore',
           '--no-strict-optional',
-          '--exclude=backend/dev_tests/experiments/',
-          '--exclude=backend/debug_milvus.py',
-          '--exclude=backend/debug_retrieval.py',
-          '--exclude=backend/venv/',
           'backend/'
         ]
         additional_dependencies:
@@ -114,16 +119,17 @@ repos:
         language: system
         files: ^(backend|scripts)/.*\.py$
         pass_filenames: false
+        stages: [push]  # Only run on push, not commit (can be annoying)
 
-      # Secret scanning hooks (gitleaks + trufflehog)
+      # Secret scanning hooks (gitleaks + trufflehog) - runs on push only
       - id: gitleaks
         name: Detect hardcoded secrets using Gitleaks
         entry: gitleaks protect --verbose --redact -c .gitleaks.toml --staged
         language: system
-        stages: [pre-commit]
+        stages: [push]  # Only run on push, not every commit
 
       - id: trufflehog
         name: Detect hardcoded secrets using TruffleHog
         entry: trufflehog filesystem --directory . --only-verified
         language: system
-        stages: [pre-commit]
+        stages: [push]  # Only run on push, not every commit

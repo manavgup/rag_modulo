@@ -79,10 +79,10 @@ class AudioProviderBase(ABC):
         voice_ids = {v["voice_id"] for v in available_voices}
 
         if host_voice not in voice_ids:
-            raise ValueError(f"Invalid host_voice '{host_voice}'. " f"Available voices: {sorted(voice_ids)}")
+            raise ValueError(f"Invalid host_voice '{host_voice}'. Available voices: {sorted(voice_ids)}")
 
         if expert_voice not in voice_ids:
-            raise ValueError(f"Invalid expert_voice '{expert_voice}'. " f"Available voices: {sorted(voice_ids)}")
+            raise ValueError(f"Invalid expert_voice '{expert_voice}'. Available voices: {sorted(voice_ids)}")
 
         return True
 

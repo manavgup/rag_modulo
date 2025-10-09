@@ -10,14 +10,14 @@ from datetime import datetime
 from uuid import UUID
 
 import pytest
-from core.config import Settings, get_settings
-from core.mock_auth import ensure_mock_user_exists
 from fastapi import UploadFile
 from fastapi.testclient import TestClient
-from main import app
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from core.config import Settings, get_settings
+from core.mock_auth import ensure_mock_user_exists
+from main import app
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.collection_schema import CollectionStatus
 from rag_solution.services.collection_service import CollectionService
@@ -156,9 +156,9 @@ class TestTokenTrackingE2ETDD:
             files={"files": ("test_file.txt", BytesIO(file_content), "text/plain")},
         )
 
-        assert (
-            create_response.status_code == 200
-        ), f"API call failed with status {create_response.status_code} and response: {create_response.text}"
+        assert create_response.status_code == 200, (
+            f"API call failed with status {create_response.status_code} and response: {create_response.text}"
+        )
         collection = create_response.json()
         collection_id = UUID(collection["id"])
 

@@ -310,7 +310,7 @@ class ConversationSummarizationService:
             llm_provider = factory.get_provider(provider_config.name)
 
             # Generate summary
-            response, usage = await llm_provider.generate_text_with_usage(
+            response, _usage = await llm_provider.generate_text_with_usage(
                 user_id=user_id,
                 prompt=prompt,
                 service_type=ServiceType.CONVERSATION,  # type: ignore

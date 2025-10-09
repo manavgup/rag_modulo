@@ -40,10 +40,8 @@ dependencies = [
     "itsdangerous>=2.1.2",
     "ibm-watsonx-ai>=1.1.22",
     "json-repair>=0.30.3",
-    "pylint>=3.3.8",
-    "autoflake>=2.3.1",
+    "flatdict>=4.0.1",
     "validators>=0.34.0",
-    "pytest>=7.4.0",
     "psutil (>=7.0.0,<8.0.0)",
     "docling (>=2.0.0)",
     "transformers (>=4.46.0)",
@@ -82,9 +80,9 @@ optional = true
 
 [tool.poetry.group.dev.dependencies]
 deptry = "^0.20.0"
-ruff = "^0.5.0"
+ruff = "^0.14.0"
 black = "*"
-mypy = "*"
+mypy = "^1.15.0"
 pydocstyle = "^6.3.0"
 pytest-env = "^1.1.5"
 pytest-xdist = "^3.5.0"
@@ -97,6 +95,8 @@ types-aiofiles = "^24.1.0.20250822"
 types-requests = "^2.31.0"
 types-PyYAML = "^6.0.12"
 pytest-asyncio = "^0.21.0"
+pylint = "^3.3.8"
+autoflake = "^2.3.1"
 
 [tool.deptry.package_module_name_map]
 ibm-generative-ai = "genai"
@@ -244,7 +244,7 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 # Import sorting configuration
 [tool.ruff.lint.isort]
-known-first-party = ["rag_solution"]
+known-first-party = ["main", "rag_solution", "core", "auth", "vectordbs"]
 
 # Formatting configuration
 [tool.ruff.format]

@@ -9,8 +9,8 @@ from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import pytest
-from core.config import Settings, get_settings
 
+from core.config import Settings, get_settings
 from rag_solution.schemas.conversation_schema import (
     ConversationContext,
     ConversationMessageInput,

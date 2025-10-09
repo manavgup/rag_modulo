@@ -194,9 +194,9 @@ class TestPreCommitHooks:
 
                 # Should not crash due to missing env vars
                 # (might fail for other reasons like missing --help, but not ValidationError)
-                assert (
-                    "ValidationError" not in result.stderr
-                ), f"{script} should not fail with ValidationError: {result.stderr}"
+                assert "ValidationError" not in result.stderr, (
+                    f"{script} should not fail with ValidationError: {result.stderr}"
+                )
 
     def test_precommit_mypy_check(self):
         """MyPy should be able to type-check files that import config.
@@ -229,9 +229,9 @@ def use_settings() -> str:
             )
 
             # Should not have import errors
-            assert (
-                "cannot import" not in result.stdout.lower()
-            ), f"MyPy should be able to import config: {result.stdout}"
+            assert "cannot import" not in result.stdout.lower(), (
+                f"MyPy should be able to import config: {result.stdout}"
+            )
         finally:
             os.unlink(temp_file)
 

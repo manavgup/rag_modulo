@@ -9,7 +9,6 @@ import logging
 import time
 from typing import Any
 
-from core.config import Settings, get_settings
 from pymilvus import (
     Collection,
     CollectionSchema,
@@ -20,6 +19,7 @@ from pymilvus import (
     utility,
 )
 
+from core.config import Settings, get_settings
 from vectordbs.utils.watsonx import get_embeddings
 
 from .data_types import (
@@ -81,6 +81,13 @@ class MilvusStore(VectorStore):
         """Connect to Milvus with retry logic."""
         host = self.settings.milvus_host or "localhost"
         port = self.settings.milvus_port or 19530
+
+        # Disconnect any existing connection first to avoid using cached connection with old host
+        try:
+            connections.disconnect("default")
+            logging.info("Disconnected existing Milvus connection")
+        except Exception:
+            pass  # No existing connection, continue
 
         for attempt in range(attempts):
             try:

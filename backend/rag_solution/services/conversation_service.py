@@ -1279,7 +1279,7 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
         if user_questions:
             # Always include first question
             key_points.append(
-                f'• Started with: "{user_questions[0][:100]}{'...' if len(user_questions[0]) > 100 else ''}"'
+                f'• Started with: "{user_questions[0][:100]}{"..." if len(user_questions[0]) > 100 else ""}"'
             )
 
             # Include questions with important keywords
@@ -1288,12 +1288,12 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
             ]
 
             for q in important_questions[:2]:  # Limit to 2 important questions
-                key_points.append(f'• Key question: "{q[:100]}{'...' if len(q) > 100 else ''}"')
+                key_points.append(f'• Key question: "{q[:100]}{"..." if len(q) > 100 else ""}"')
 
             # Include last question if different from first
             if len(user_questions) > 1:
                 key_points.append(
-                    f'• Ended with: "{user_questions[-1][:100]}{'...' if len(user_questions[-1]) > 100 else ''}"'
+                    f'• Ended with: "{user_questions[-1][:100]}{"..." if len(user_questions[-1]) > 100 else ""}"'
                 )
 
         # Add topic summary

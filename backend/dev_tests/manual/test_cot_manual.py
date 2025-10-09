@@ -5,10 +5,10 @@ import asyncio
 import os
 from uuid import uuid4
 
-from core.config import Settings
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from core.config import Settings
 from rag_solution.schemas.search_schema import SearchInput
 from rag_solution.services.search_service import SearchService
 

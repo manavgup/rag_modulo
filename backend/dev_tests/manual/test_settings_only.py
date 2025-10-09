@@ -25,9 +25,9 @@ def test_settings_import_without_env_vars():
         from core.config import get_settings, settings
 
         # Validate defaults work
-        assert settings.jwt_secret_key.startswith(
-            "dev-secret-key"
-        ), f"Expected dev-secret-key, got {settings.jwt_secret_key[:20]}"
+        assert settings.jwt_secret_key.startswith("dev-secret-key"), (
+            f"Expected dev-secret-key, got {settings.jwt_secret_key[:20]}"
+        )
         assert settings.rag_llm == "openai", f"Expected openai, got {settings.rag_llm}"
         assert settings.wx_project_id == "", f"Expected empty string, got {settings.wx_project_id}"
         assert settings.wx_api_key == "", f"Expected empty string, got {settings.wx_api_key}"
