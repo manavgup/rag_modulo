@@ -37,6 +37,41 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Check for Branch Collision
+        run: |
+          BRANCH="fix/issue-${{ github.event.issue.number }}"
+
+          # Check if branch exists on remote
+          if git ls-remote --heads origin "$BRANCH" | grep -q "$BRANCH"; then
+            echo "⚠️ Branch $BRANCH already exists on remote!"
+
+            gh issue comment ${{ github.event.issue.number }} --body "## ❌ Implementation Blocked: Branch Already Exists
+
+            The branch \`$BRANCH\` already exists in the repository.
+
+            **This usually means:**
+            1. A previous AI implementation attempt for this issue exists
+            2. Someone manually created this branch
+            3. An old PR was closed without deleting the branch
+
+            **To resolve:**
+            1. Check if there's an existing PR for this issue
+            2. If the PR is closed/merged, delete the branch:
+               \`\`\`bash
+               git push origin --delete $BRANCH
+               \`\`\`
+            3. If you want to keep the existing branch, use a different issue number
+            4. After cleanup, remove and re-add the \`plan-approved\` label to retry
+
+            **Workflow stopped to prevent conflicts.**"
+
+            exit 1
+          fi
+
+          echo "✅ Branch $BRANCH is available"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Gemini Implements Fix
         uses: google-github-actions/run-gemini-cli@v1
         with:
