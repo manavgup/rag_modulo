@@ -102,21 +102,10 @@ jobs:
 
           # Test basic make commands
           make help
-          make info
           make check-docker
 
-      - name: Initialize Development Environment
-        run: |
-          echo "Initializing development environment..."
-          make dev-init
-
-          # Check if .env.dev was created
-          if [ -f ".env.dev" ]; then
-            echo "✅ .env.dev created successfully"
-          else
-            echo "❌ .env.dev creation failed"
-            exit 1
-          fi
+          echo "Note: Makefile streamlined (Issue #348) - old dev-* targets removed"
+          echo "New workflow: make local-dev-setup, make local-dev-infra, make local-dev-all"
 
       - name: Prepare Volume Directories
         run: |

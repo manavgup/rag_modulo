@@ -29,24 +29,37 @@ const LightweightPodcasts: React.FC = () => {
   const [filterTab, setFilterTab] = useState<'all' | 'in-progress' | 'completed' | 'favorites'>('all');
   const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
   const [selectedCollectionForGeneration, setSelectedCollectionForGeneration] = useState<{id: string; name: string} | null>(null);
+  const [pollingInterval, setPollingInterval] = useState(5000); // Start with 5 seconds
 
   useEffect(() => {
     loadPodcasts();
     loadCollections();
   }, []);
 
-  // Separate useEffect for polling generating podcasts
+  // Separate useEffect for polling generating podcasts with exponential backoff
   useEffect(() => {
     const hasGenerating = podcasts.some(p => p.status === 'generating' || p.status === 'queued');
 
-    if (!hasGenerating) return;
+    if (!hasGenerating) {
+      // Reset polling interval when no podcasts are generating
+      setPollingInterval(5000);
+      return;
+    }
 
     const interval = setInterval(() => {
       loadPodcasts(true); // Silent reload
-    }, 5000);
+
+      // Exponential backoff: 5s -> 10s -> 30s -> 60s (max)
+      setPollingInterval(prev => {
+        if (prev < 10000) return 10000;  // 5s -> 10s
+        if (prev < 30000) return 30000;  // 10s -> 30s
+        if (prev < 60000) return 60000;  // 30s -> 60s
+        return 60000; // Stay at 60s max
+      });
+    }, pollingInterval);
 
     return () => clearInterval(interval);
-  }, [podcasts]);
+  }, [podcasts, pollingInterval]);
 
   const loadPodcasts = async (silent: boolean = false) => {
     if (!silent) setIsLoading(true);
@@ -73,6 +86,11 @@ const LightweightPodcasts: React.FC = () => {
       setCollections(collectionsData);
     } catch (error) {
       console.error('Error loading collections:', error);
+      addNotification(
+        'error',
+        'Collections Load Error',
+        'Failed to load collections. Please refresh the page or contact support if the problem persists.'
+      );
       setCollections([]);
     } finally {
       setIsLoadingCollections(false);

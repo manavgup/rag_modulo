@@ -35,12 +35,20 @@ def get_current_user(
     This assumes authentication middleware has already validated the user
     and added user info to request.state.
 
-    In development mode with SKIP_AUTH=true, the middleware sets up request.state.user
-    with the mock user, so we use that.
-
+    In development mode with SKIP_AUTH=true, returns a mock user.
     Returns user_id as UUID object for consistency with database models.
     """
-    # Authentication middleware always sets request.state.user (even in SKIP_AUTH mode)
+    # Check if authentication is skipped (development mode)
+    if settings.skip_auth:
+        # Return mock user for development (all values from config)
+        return {
+            "user_id": settings.mock_token,
+            "uuid": settings.mock_token,
+            "email": settings.mock_user_email,
+            "name": settings.mock_user_name,
+        }
+
+    # Production: require authentication
     if not hasattr(request.state, "user"):
         raise HTTPException(status_code=401, detail="Not authenticated")
 

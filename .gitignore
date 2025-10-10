@@ -72,6 +72,7 @@ experiments/
 # local dev files
 dev-env/
 webui/default.conf-dev
+.dev-pids/  # PID files for local development processes
 
 # ignore nektos act folder
 .act/
