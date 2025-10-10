@@ -25,7 +25,7 @@ jobs:
         uses: openai/codex-action@v1
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
-          safety-strategy: read-only  # Planning is read-only, no file changes
+          safety-strategy: drop-sudo  # Can run gh commands but no file changes or sudo
           prompt: |
             You are a senior software engineer analyzing GitHub issue #${{ github.event.issue.number }}.
 
