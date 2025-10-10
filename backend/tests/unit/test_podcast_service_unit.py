@@ -236,7 +236,33 @@ class TestPodcastServiceCustomization:
             collection_service=collection_service,
             search_service=search_service,
         )
-        service.search_service.search = AsyncMock()  # type: ignore[method-assign,attr-defined]
+
+        # Mock search_service.search to return sufficient documents
+        from rag_solution.schemas.pipeline_schema import QueryResult
+        from rag_solution.schemas.search_schema import SearchOutput
+        from vectordbs.data_types import DocumentChunkWithScore, DocumentMetadata
+
+        # Create mock search result with enough documents
+        mock_query_results = [
+            QueryResult(
+                chunk=DocumentChunkWithScore(
+                    id=f"doc_{i}",
+                    text=f"Document {i} content",
+                    score=0.9 - (i * 0.1),
+                    metadata={"source": "pdf"},  # Must be one of: website, pdf, word, ppt, other
+                ),
+                collection_name="test_collection",
+            )
+            for i in range(10)  # Return 10 documents (> minimum required)
+        ]
+
+        mock_documents = [DocumentMetadata(source="pdf", file_name=f"doc_{i}.pdf") for i in range(10)]
+
+        mock_search_result = SearchOutput(
+            query_results=mock_query_results, answer="Mock answer", documents=mock_documents, execution_time=100.0
+        )
+
+        service.search_service.search = AsyncMock(return_value=mock_search_result)  # type: ignore[method-assign,attr-defined]
         return service
 
     @pytest.mark.asyncio
@@ -277,9 +303,10 @@ class TestPodcastServiceCustomization:
         assert "Provide a comprehensive overview" in search_input.question
 
     @pytest.mark.asyncio
+    @patch("rag_solution.services.prompt_template_service.PromptTemplateService")
     @patch("rag_solution.services.podcast_service.LLMProviderFactory")
     async def test_generate_script_uses_description_in_prompt(
-        self, mock_llm_factory: Mock, mock_service: PodcastService
+        self, mock_llm_factory: Mock, mock_template_service_class: Mock, mock_service: PodcastService
     ) -> None:
         """Unit: _generate_script includes description in prompt."""
         description = "Custom topic"
@@ -290,6 +317,32 @@ class TestPodcastServiceCustomization:
             voice_settings=VoiceSettings(voice_id="alloy"),
             description=description,
         )
+
+        # Mock PromptTemplateService to return a valid template
+        from datetime import datetime
+
+        from rag_solution.schemas.prompt_template_schema import PromptTemplateOutput, PromptTemplateType
+
+        mock_template = PromptTemplateOutput(
+            id=uuid4(),
+            user_id=podcast_input.user_id,
+            name="test_podcast_template",
+            template_type=PromptTemplateType.PODCAST_GENERATION,
+            system_prompt="You are a podcast script writer",
+            template_format="Topic: {user_topic}\nContent: {rag_results}\nDuration: {duration_minutes} min",
+            input_variables={
+                "user_topic": "The main topic",
+                "rag_results": "RAG content",
+                "duration_minutes": "Duration in minutes",
+            },
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+        )
+
+        mock_template_service = Mock()
+        mock_template_service.get_by_type = Mock(return_value=mock_template)
+        mock_template_service_class.return_value = mock_template_service
+
         # Mock LLM provider
         mock_llm_provider = Mock()
         mock_llm_provider.generate_text = Mock(return_value="Script")
@@ -302,13 +355,15 @@ class TestPodcastServiceCustomization:
         await mock_service._generate_script(podcast_input, "rag_results")
 
         mock_llm_provider.generate_text.assert_called_once()
-        prompt = mock_llm_provider.generate_text.call_args[1]["prompt"]
-        assert f"Topic/Focus: {description}" in prompt
+        call_kwargs = mock_llm_provider.generate_text.call_args[1]
+        variables = call_kwargs["variables"]
+        assert variables["user_topic"] == description
 
     @pytest.mark.asyncio
+    @patch("rag_solution.services.prompt_template_service.PromptTemplateService")
     @patch("rag_solution.services.podcast_service.LLMProviderFactory")
     async def test_generate_script_uses_generic_topic_without_description(
-        self, mock_llm_factory: Mock, mock_service: PodcastService
+        self, mock_llm_factory: Mock, mock_template_service_class: Mock, mock_service: PodcastService
     ) -> None:
         """Unit: _generate_script uses generic topic if no description."""
         podcast_input = PodcastGenerationInput(
@@ -318,6 +373,32 @@ class TestPodcastServiceCustomization:
             voice_settings=VoiceSettings(voice_id="alloy"),
             description=None,
         )
+
+        # Mock PromptTemplateService to return a valid template
+        from datetime import datetime
+
+        from rag_solution.schemas.prompt_template_schema import PromptTemplateOutput, PromptTemplateType
+
+        mock_template = PromptTemplateOutput(
+            id=uuid4(),
+            user_id=podcast_input.user_id,
+            name="test_podcast_template",
+            template_type=PromptTemplateType.PODCAST_GENERATION,
+            system_prompt="You are a podcast script writer",
+            template_format="Topic: {user_topic}\nContent: {rag_results}\nDuration: {duration_minutes} min",
+            input_variables={
+                "user_topic": "The main topic",
+                "rag_results": "RAG content",
+                "duration_minutes": "Duration in minutes",
+            },
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+        )
+
+        mock_template_service = Mock()
+        mock_template_service.get_by_type = Mock(return_value=mock_template)
+        mock_template_service_class.return_value = mock_template_service
+
         # Mock LLM provider
         mock_llm_provider = Mock()
         mock_llm_provider.generate_text = Mock(return_value="Script")
@@ -330,8 +411,9 @@ class TestPodcastServiceCustomization:
         await mock_service._generate_script(podcast_input, "rag_results")
 
         mock_llm_provider.generate_text.assert_called_once()
-        prompt = mock_llm_provider.generate_text.call_args[1]["prompt"]
-        assert "Topic/Focus: General overview of the content" in prompt
+        call_kwargs = mock_llm_provider.generate_text.call_args[1]
+        variables = call_kwargs["variables"]
+        assert variables["user_topic"] == "General overview of the content"
 
 
 @pytest.mark.unit
