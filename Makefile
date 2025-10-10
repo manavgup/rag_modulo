@@ -120,39 +120,40 @@ local-dev-frontend:
 
 local-dev-all:
 	@echo "$(CYAN)🚀 Starting full local development stack...$(NC)"
-	@mkdir -p .dev-pids logs
-	@$(MAKE) local-dev-infra
-	@echo "$(CYAN)🐍 Starting backend in background...$(NC)"
-	@cd backend && $(POETRY) run uvicorn main:app --reload --host 0.0.0.0 --port 8000 > ../logs/backend.log 2>&1 & echo $$! > ../.dev-pids/backend.pid
-	@sleep 2
-	@if [ -f .dev-pids/backend.pid ]; then \
-		if kill -0 $$(cat .dev-pids/backend.pid) 2>/dev/null; then \
-			echo "$(GREEN)✅ Backend started (PID: $$(cat .dev-pids/backend.pid))$(NC)"; \
+	@PROJECT_ROOT=$$(pwd); \
+	mkdir -p $$PROJECT_ROOT/.dev-pids $$PROJECT_ROOT/logs; \
+	$(MAKE) local-dev-infra; \
+	echo "$(CYAN)🐍 Starting backend in background...$(NC)"; \
+	cd backend && $(POETRY) run uvicorn main:app --reload --host 0.0.0.0 --port 8000 > $$PROJECT_ROOT/logs/backend.log 2>&1 & echo $$! > $$PROJECT_ROOT/.dev-pids/backend.pid; \
+	sleep 2; \
+	if [ -f $$PROJECT_ROOT/.dev-pids/backend.pid ]; then \
+		if kill -0 $$(cat $$PROJECT_ROOT/.dev-pids/backend.pid) 2>/dev/null; then \
+			echo "$(GREEN)✅ Backend started (PID: $$(cat $$PROJECT_ROOT/.dev-pids/backend.pid))$(NC)"; \
 		else \
 			echo "$(RED)❌ Backend failed to start - check logs/backend.log$(NC)"; \
 			exit 1; \
 		fi; \
-	fi
-	@echo "$(CYAN)⚛️  Starting frontend in background...$(NC)"
-	@cd frontend && npm run dev > ../logs/frontend.log 2>&1 & echo $$! > ../.dev-pids/frontend.pid
-	@sleep 2
-	@if [ -f .dev-pids/frontend.pid ]; then \
-		if kill -0 $$(cat .dev-pids/frontend.pid) 2>/dev/null; then \
-			echo "$(GREEN)✅ Frontend started (PID: $$(cat .dev-pids/frontend.pid))$(NC)"; \
+	fi; \
+	echo "$(CYAN)⚛️  Starting frontend in background...$(NC)"; \
+	cd frontend && npm run dev > $$PROJECT_ROOT/logs/frontend.log 2>&1 & echo $$! > $$PROJECT_ROOT/.dev-pids/frontend.pid; \
+	sleep 2; \
+	if [ -f $$PROJECT_ROOT/.dev-pids/frontend.pid ]; then \
+		if kill -0 $$(cat $$PROJECT_ROOT/.dev-pids/frontend.pid) 2>/dev/null; then \
+			echo "$(GREEN)✅ Frontend started (PID: $$(cat $$PROJECT_ROOT/.dev-pids/frontend.pid))$(NC)"; \
 		else \
 			echo "$(RED)❌ Frontend failed to start - check logs/frontend.log$(NC)"; \
 			exit 1; \
 		fi; \
-	fi
-	@echo "$(GREEN)✅ Local development environment running!$(NC)"
-	@echo "$(CYAN)💡 Services:$(NC)"
-	@echo "  Frontend:  http://localhost:3000"
-	@echo "  Backend:   http://localhost:8000"
-	@echo "  MLFlow:    http://localhost:5001"
-	@echo "$(CYAN)📋 Logs:$(NC)"
-	@echo "  Backend:   tail -f logs/backend.log"
-	@echo "  Frontend:  tail -f logs/frontend.log"
-	@echo "$(CYAN)🛑 Stop:$(NC) make local-dev-stop"
+	fi; \
+	echo "$(GREEN)✅ Local development environment running!$(NC)"; \
+	echo "$(CYAN)💡 Services:$(NC)"; \
+	echo "  Frontend:  http://localhost:3000"; \
+	echo "  Backend:   http://localhost:8000"; \
+	echo "  MLFlow:    http://localhost:5001"; \
+	echo "$(CYAN)📋 Logs:$(NC)"; \
+	echo "  Backend:   tail -f logs/backend.log"; \
+	echo "  Frontend:  tail -f logs/frontend.log"; \
+	echo "$(CYAN)🛑 Stop:$(NC) make local-dev-stop"
 
 local-dev-stop:
 	@echo "$(CYAN)🛑 Stopping local development services...$(NC)"
