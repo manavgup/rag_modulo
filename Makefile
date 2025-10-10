@@ -120,26 +120,60 @@ local-dev-frontend:
 
 local-dev-all:
 	@echo "$(CYAN)🚀 Starting full local development stack...$(NC)"
+	@mkdir -p .dev-pids logs
 	@$(MAKE) local-dev-infra
 	@echo "$(CYAN)🐍 Starting backend in background...$(NC)"
-	@cd backend && $(POETRY) run uvicorn main:app --reload --host 0.0.0.0 --port 8000 > /tmp/rag-backend.log 2>&1 &
+	@cd backend && $(POETRY) run uvicorn main:app --reload --host 0.0.0.0 --port 8000 > ../logs/backend.log 2>&1 & echo $$! > ../.dev-pids/backend.pid
+	@sleep 2
+	@if [ -f .dev-pids/backend.pid ]; then \
+		if kill -0 $$(cat .dev-pids/backend.pid) 2>/dev/null; then \
+			echo "$(GREEN)✅ Backend started (PID: $$(cat .dev-pids/backend.pid))$(NC)"; \
+		else \
+			echo "$(RED)❌ Backend failed to start - check logs/backend.log$(NC)"; \
+			exit 1; \
+		fi; \
+	fi
 	@echo "$(CYAN)⚛️  Starting frontend in background...$(NC)"
-	@cd frontend && npm run dev > /tmp/rag-frontend.log 2>&1 &
+	@cd frontend && npm run dev > ../logs/frontend.log 2>&1 & echo $$! > ../.dev-pids/frontend.pid
+	@sleep 2
+	@if [ -f .dev-pids/frontend.pid ]; then \
+		if kill -0 $$(cat .dev-pids/frontend.pid) 2>/dev/null; then \
+			echo "$(GREEN)✅ Frontend started (PID: $$(cat .dev-pids/frontend.pid))$(NC)"; \
+		else \
+			echo "$(RED)❌ Frontend failed to start - check logs/frontend.log$(NC)"; \
+			exit 1; \
+		fi; \
+	fi
 	@echo "$(GREEN)✅ Local development environment running!$(NC)"
 	@echo "$(CYAN)💡 Services:$(NC)"
 	@echo "  Frontend:  http://localhost:3000"
 	@echo "  Backend:   http://localhost:8000"
 	@echo "  MLFlow:    http://localhost:5001"
 	@echo "$(CYAN)📋 Logs:$(NC)"
-	@echo "  Backend:   tail -f /tmp/rag-backend.log"
-	@echo "  Frontend:  tail -f /tmp/rag-frontend.log"
+	@echo "  Backend:   tail -f logs/backend.log"
+	@echo "  Frontend:  tail -f logs/frontend.log"
 	@echo "$(CYAN)🛑 Stop:$(NC) make local-dev-stop"
 
 local-dev-stop:
 	@echo "$(CYAN)🛑 Stopping local development services...$(NC)"
-	@pkill -f "uvicorn main:app" || echo "Backend not running"
-	@pkill -f "vite" || echo "Frontend not running"
+	@if [ -f .dev-pids/backend.pid ]; then \
+		if kill -0 $$(cat .dev-pids/backend.pid) 2>/dev/null; then \
+			kill $$(cat .dev-pids/backend.pid) && echo "$(GREEN)✅ Backend stopped$(NC)"; \
+		fi; \
+		rm -f .dev-pids/backend.pid; \
+	else \
+		echo "Backend not running (no PID file)"; \
+	fi
+	@if [ -f .dev-pids/frontend.pid ]; then \
+		if kill -0 $$(cat .dev-pids/frontend.pid) 2>/dev/null; then \
+			kill $$(cat .dev-pids/frontend.pid) && echo "$(GREEN)✅ Frontend stopped$(NC)"; \
+		fi; \
+		rm -f .dev-pids/frontend.pid; \
+	else \
+		echo "Frontend not running (no PID file)"; \
+	fi
 	@$(DOCKER_COMPOSE) -f docker-compose-infra.yml down
+	@rm -rf .dev-pids
 	@echo "$(GREEN)✅ Local development stopped$(NC)"
 
 local-dev-status:
@@ -149,15 +183,25 @@ local-dev-status:
 	@$(DOCKER_COMPOSE) -f docker-compose-infra.yml ps
 	@echo ""
 	@echo "$(CYAN)🐍 Backend:$(NC)"
-	@if pgrep -f "uvicorn main:app" > /dev/null; then \
-		echo "$(GREEN)✅ Running (PID: $$(pgrep -f 'uvicorn main:app'))$(NC)"; \
+	@if [ -f .dev-pids/backend.pid ]; then \
+		if kill -0 $$(cat .dev-pids/backend.pid) 2>/dev/null; then \
+			echo "$(GREEN)✅ Running (PID: $$(cat .dev-pids/backend.pid))$(NC)"; \
+		else \
+			echo "$(RED)❌ PID file exists but process is dead$(NC)"; \
+			rm -f .dev-pids/backend.pid; \
+		fi; \
 	else \
 		echo "$(RED)❌ Not running$(NC)"; \
 	fi
 	@echo ""
 	@echo "$(CYAN)⚛️  Frontend:$(NC)"
-	@if pgrep -f "vite" > /dev/null; then \
-		echo "$(GREEN)✅ Running (PID: $$(pgrep -f 'vite'))$(NC)"; \
+	@if [ -f .dev-pids/frontend.pid ]; then \
+		if kill -0 $$(cat .dev-pids/frontend.pid) 2>/dev/null; then \
+			echo "$(GREEN)✅ Running (PID: $$(cat .dev-pids/frontend.pid))$(NC)"; \
+		else \
+			echo "$(RED)❌ PID file exists but process is dead$(NC)"; \
+			rm -f .dev-pids/frontend.pid; \
+		fi; \
 	else \
 		echo "$(RED)❌ Not running$(NC)"; \
 	fi
@@ -168,12 +212,34 @@ local-dev-status:
 
 build-backend:
 	@echo "$(CYAN)🔨 Building backend image...$(NC)"
-	@cd backend && $(CONTAINER_CLI) build -t $(GHCR_REPO)/backend:$(PROJECT_VERSION) -t $(GHCR_REPO)/backend:latest -f Dockerfile.backend .
+	@if [ "$(BUILDX_AVAILABLE)" = "yes" ]; then \
+		echo "Using Docker BuildKit with buildx..."; \
+		cd backend && $(CONTAINER_CLI) buildx build --load \
+			-t $(GHCR_REPO)/backend:$(PROJECT_VERSION) \
+			-t $(GHCR_REPO)/backend:latest \
+			-f Dockerfile.backend .; \
+	else \
+		echo "Using standard Docker build..."; \
+		cd backend && $(CONTAINER_CLI) build \
+			-t $(GHCR_REPO)/backend:$(PROJECT_VERSION) \
+			-t $(GHCR_REPO)/backend:latest \
+			-f Dockerfile.backend .; \
+	fi
 	@echo "$(GREEN)✅ Backend image built$(NC)"
 
 build-frontend:
 	@echo "$(CYAN)🔨 Building frontend image...$(NC)"
-	@cd frontend && $(CONTAINER_CLI) build -t $(GHCR_REPO)/frontend:$(PROJECT_VERSION) -t $(GHCR_REPO)/frontend:latest .
+	@if [ "$(BUILDX_AVAILABLE)" = "yes" ]; then \
+		echo "Using Docker BuildKit with buildx..."; \
+		cd frontend && $(CONTAINER_CLI) buildx build --load \
+			-t $(GHCR_REPO)/frontend:$(PROJECT_VERSION) \
+			-t $(GHCR_REPO)/frontend:latest .; \
+	else \
+		echo "Using standard Docker build..."; \
+		cd frontend && $(CONTAINER_CLI) build \
+			-t $(GHCR_REPO)/frontend:$(PROJECT_VERSION) \
+			-t $(GHCR_REPO)/frontend:latest .; \
+	fi
 	@echo "$(GREEN)✅ Frontend image built$(NC)"
 
 build-all: build-backend build-frontend
@@ -181,6 +247,12 @@ build-all: build-backend build-frontend
 
 # ============================================================================
 # TESTING
+# ============================================================================
+# Test Strategy:
+# - test-atomic: Fast schema/data structure tests (local, no DB, no coverage)
+# - test-unit-fast: Unit tests with mocked dependencies (local, no containers)
+# - test-integration: Integration tests with real services (Docker containers)
+# - test-all: Runs all test categories in sequence
 # ============================================================================
 
 test-atomic: venv
@@ -193,7 +265,7 @@ test-unit-fast: venv
 	@cd backend && $(POETRY) run pytest -c pytest-atomic.ini tests/unit/ -v
 	@echo "$(GREEN)✅ Unit tests passed$(NC)"
 
-test-integration: local-dev-infra
+test-integration: venv local-dev-infra
 	@echo "$(CYAN)🔗 Running integration tests...$(NC)"
 	@$(DOCKER_COMPOSE) run --rm \
 		-v $$(pwd)/backend:/app/backend:ro \
@@ -289,8 +361,16 @@ clean:
 
 clean-all: clean local-dev-stop
 	@echo "$(CYAN)🧹 Deep cleaning (containers, volumes, images)...$(NC)"
-	@docker system prune -af --volumes
-	@echo "$(GREEN)✅ Deep cleanup complete$(NC)"
+	@echo "$(RED)⚠️  WARNING: This will remove ALL Docker containers, volumes, and images!$(NC)"
+	@echo "$(YELLOW)This is a DESTRUCTIVE operation that cannot be undone.$(NC)"
+	@read -p "Are you sure you want to continue? (yes/no): " confirm && \
+		if [ "$$confirm" = "yes" ]; then \
+			docker system prune -af --volumes && \
+			echo "$(GREEN)✅ Deep cleanup complete$(NC)"; \
+		else \
+			echo "$(YELLOW)Cleanup cancelled$(NC)"; \
+			exit 1; \
+		fi
 
 logs:
 	@$(DOCKER_COMPOSE) -f docker-compose-infra.yml logs -f
