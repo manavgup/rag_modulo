@@ -78,42 +78,106 @@ RAG Modulo is a production-ready Retrieval-Augmented Generation platform that pr
 
 ### Prerequisites
 
-| Requirement | Version | Purpose |
-|:---|:---:|:---|
-| **Python** | 3.12+ | Backend development |
-| **Poetry** | Latest | Python dependency management |
-| **Node.js** | 18+ | Frontend development |
-| **Docker** | Latest | Infrastructure services |
-| **Docker Compose** | V2 | Orchestration |
+<table>
+<tr>
+<th>Tool</th>
+<th>Version</th>
+<th>Installation</th>
+<th>Purpose</th>
+</tr>
+<tr>
+<td><strong>Python</strong></td>
+<td>3.12+</td>
+<td><code>brew install python@3.12</code> (macOS)<br/><code>apt install python3.12</code> (Ubuntu)</td>
+<td>Backend runtime</td>
+</tr>
+<tr>
+<td><strong>Poetry</strong></td>
+<td>Latest</td>
+<td><code>make venv</code> (auto-installs)<br/>or <code>curl -sSL https://install.python-poetry.org | python3 -</code></td>
+<td>Python dependency management</td>
+</tr>
+<tr>
+<td><strong>Node.js</strong></td>
+<td>18+</td>
+<td><code>brew install node</code> (macOS)<br/><code>nvm install 18</code> (Linux/macOS)</td>
+<td>Frontend development</td>
+</tr>
+<tr>
+<td><strong>Docker</strong></td>
+<td>Latest</td>
+<td><a href="https://www.docker.com/products/docker-desktop">Docker Desktop</a></td>
+<td>Infrastructure containers</td>
+</tr>
+<tr>
+<td><strong>Docker Compose</strong></td>
+<td>V2</td>
+<td>Included with Docker Desktop<br/><code>apt install docker-compose-plugin</code> (Linux)</td>
+<td>Service orchestration</td>
+</tr>
+</table>
+
+> **📋 Verify Installation**: Run `make check-docker` to verify Docker requirements
 
 ### Option 1: Local Development (⚡ Fastest - Recommended)
 
 **Best for**: Daily development, feature work, rapid iteration
+
+<details open>
+<summary><strong>🎯 Step-by-Step Setup</strong></summary>
 
 ```bash
 # 1. Clone repository
 git clone https://github.com/manavgup/rag-modulo.git
 cd rag-modulo
 
-# 2. Set up environment
+# 2. Set up environment variables
 cp env.example .env
-# Edit .env with your API keys (WatsonX, OpenAI, etc.)
+# Edit .env with your API keys (WatsonX, OpenAI, Anthropic)
 
-# 3. Install dependencies
-make local-dev-setup  # Installs both backend (Poetry) and frontend (npm)
+# 3. Install all dependencies (one command!)
+make local-dev-setup
+# This creates Python venv + installs backend (Poetry) + frontend (npm)
 
-# 4. Start infrastructure (Postgres, Milvus, MinIO, MLFlow)
+# 4. Start infrastructure only (Postgres, Milvus, MinIO, MLFlow)
 make local-dev-infra
 
-# 5. Start backend (Terminal 1)
+# 5a. Option A: Start backend and frontend in separate terminals
+# Terminal 1:
 make local-dev-backend
 
-# 6. Start frontend (Terminal 2)
+# Terminal 2:
 make local-dev-frontend
 
-# OR start everything in background
+# 5b. Option B: Start everything in background (easier!)
 make local-dev-all
 ```
+
+</details>
+
+<details>
+<summary><strong>🔍 What Gets Installed</strong></summary>
+
+**Backend (Python/Poetry)**:
+- FastAPI and dependencies
+- LLM providers (WatsonX, OpenAI, Anthropic)
+- Vector DB clients (Milvus, Elasticsearch, etc.)
+- Testing frameworks (pytest, coverage)
+- Code quality tools (ruff, mypy, bandit)
+
+**Frontend (npm)**:
+- React 18 + Vite
+- Tailwind CSS + Carbon Design
+- TypeScript dependencies
+- Testing libraries
+
+**Infrastructure (Docker)**:
+- PostgreSQL (metadata)
+- Milvus (vector storage)
+- MinIO (object storage)
+- MLFlow (model tracking)
+
+</details>
 
 **Access Points:**
 - 🌐 **Frontend**: http://localhost:3000
@@ -231,83 +295,207 @@ graph TB
 
 ### 🎯 Recommended Daily Workflow
 
-**Philosophy**: Develop locally without containers for maximum speed, deploy with containers for production.
+**Philosophy**: Develop locally without containers for maximum speed, use containers only for infrastructure and production.
+
+<details open>
+<summary><strong>💻 Daily Development Routine</strong></summary>
 
 ```bash
-# Morning setup (once per day)
-cd rag-modulo
-source backend/.venv/bin/activate  # Activate Python environment
-make run-infra                      # Start infrastructure (Postgres, Milvus, etc.)
+# ============================================================
+# ONE-TIME SETUP (First Day Only)
+# ============================================================
+make local-dev-setup    # Creates venv + installs all dependencies
 
-# Terminal 1: Backend with auto-reload
-cd backend
-uvicorn main:app --reload --port 8000
+# ============================================================
+# DAILY ROUTINE (Every Day)
+# ============================================================
 
-# Terminal 2: Frontend with HMR
-cd frontend
-npm run dev
+# Option A: Manual Start (Recommended for debugging)
+# ---------------------------------------------------
+make local-dev-infra              # Start infrastructure
 
-# Development cycle
-# 1. Make code changes
-# 2. See changes instantly (auto-reload)
-# 3. Test manually via http://localhost:3000
-# 4. Run quick checks before commit
+# Terminal 1: Backend
+make local-dev-backend            # Auto-reload enabled
+
+# Terminal 2: Frontend
+make local-dev-frontend           # Hot Module Replacement (HMR)
+
+# Option B: Background Start (Faster)
+# ---------------------------------------------------
+make local-dev-all                # Everything runs in background
+make local-dev-status             # Check what's running
+
+# ============================================================
+# DEVELOPMENT CYCLE
+# ============================================================
+# 1. Make code changes in your editor
+# 2. See changes instantly (auto-reload for both backend/frontend)
+# 3. Test via http://localhost:3000
+# 4. Run quality checks before commit
 make quick-check
 
-# End of day cleanup
-make local-dev-stop  # Stop infrastructure containers
-deactivate           # Deactivate Python venv
+# ============================================================
+# END OF DAY
+# ============================================================
+make local-dev-stop               # Stop all services
 ```
 
-### 🔧 Essential Development Commands
+</details>
 
-| Command | Description | When to Use |
-|:---|:---|:---|
-| `make local-dev-setup` | Install all dependencies (backend + frontend) | First time setup |
-| `make local-dev-infra` | Start infrastructure containers only | Daily (Postgres, Milvus, MinIO, MLFlow) |
-| `make local-dev-backend` | Start backend with hot-reload | Development (Terminal 1) |
-| `make local-dev-frontend` | Start frontend with HMR | Development (Terminal 2) |
-| `make local-dev-all` | Start everything in background | Quick full stack startup |
-| `make quick-check` | Fast lint + format check | Pre-commit validation |
-| `make test-unit-fast` | Run unit tests locally | Rapid testing without containers |
-| `make local-dev-stop` | Stop all services | Clean shutdown |
+<details>
+<summary><strong>⚡ One-Command Quick Start</strong></summary>
+
+For the impatient developer:
+
+```bash
+# First time ever
+make local-dev-setup && make local-dev-all
+
+# Every day after
+make local-dev-all
+```
+
+Done! Services running at:
+- Frontend: http://localhost:3000
+- Backend: http://localhost:8000
+- MLFlow: http://localhost:5001
+
+</details>
+
+### 🔧 Essential Commands Reference
+
+<table>
+<tr>
+<th>Command</th>
+<th>What It Does</th>
+<th>When to Use</th>
+</tr>
+<tr>
+<td><code>make venv</code></td>
+<td>Creates Python virtual environment (auto-installs Poetry if missing)</td>
+<td>First time setup or after clean</td>
+</tr>
+<tr>
+<td><code>make local-dev-setup</code></td>
+<td>Installs ALL dependencies (backend + frontend)</td>
+<td>First time setup or dependency updates</td>
+</tr>
+<tr>
+<td><code>make local-dev-infra</code></td>
+<td>Starts infrastructure only (Postgres, Milvus, MinIO, MLFlow)</td>
+<td>Every day before development</td>
+</tr>
+<tr>
+<td><code>make local-dev-all</code></td>
+<td>Starts full stack in background</td>
+<td>Quick startup, background development</td>
+</tr>
+<tr>
+<td><code>make local-dev-status</code></td>
+<td>Shows what's running (infrastructure + backend + frontend)</td>
+<td>Verify services are up</td>
+</tr>
+<tr>
+<td><code>make local-dev-stop</code></td>
+<td>Stops ALL services (infra + backend + frontend)</td>
+<td>End of day cleanup</td>
+</tr>
+<tr>
+<td><code>make quick-check</code></td>
+<td>Fast lint + format validation</td>
+<td>Before every commit</td>
+</tr>
+</table>
 
 ### 🧪 Testing & Quality
 
+<details>
+<summary><strong>🏃 Fast Testing (No Containers)</strong></summary>
+
 ```bash
-# Fast local testing (no containers)
-source backend/.venv/bin/activate
-cd backend
-pytest tests/unit/ -v              # Unit tests only
-pytest tests/integration/ -v       # Integration tests
+# Atomic tests (fastest - no DB, no coverage)
+make test-atomic
 
-# Or use Makefile targets
-make test-unit-fast                # Fast unit tests
-make test-integration              # Integration tests (needs infra)
+# Unit tests (mocked dependencies)
+make test-unit-fast
 
-# Quality checks
-make quick-check                   # Fast: format + lint
-make lint                          # All linters
-make format                        # Auto-fix formatting
-make security-check                # Security scans
-make coverage                      # Test coverage report
+# All local tests
+make test-atomic && make test-unit-fast
 ```
 
-### 🐳 Container Development (When Needed)
+</details>
+
+<details>
+<summary><strong>🔗 Integration Testing (Requires Infrastructure)</strong></summary>
+
+```bash
+# Ensure infrastructure is running
+make local-dev-infra
+
+# Run integration tests
+make test-integration
+
+# Full test suite
+make test-all    # atomic + unit + integration
+```
+
+</details>
+
+<details>
+<summary><strong>🎨 Code Quality Checks</strong></summary>
+
+```bash
+make quick-check       # Fast: format + lint (use before commit)
+make lint              # Full linting (ruff + mypy)
+make format            # Auto-fix formatting issues
+make security-check    # Security scans (bandit + safety)
+make coverage          # Generate coverage report (60% threshold)
+```
+
+</details>
+
+### 🐳 Production & Container Workflows
+
+<details>
+<summary><strong>🏭 Production Deployment</strong></summary>
 
 Only for production-like testing or deployment validation:
 
 ```bash
-# Build production images
-make build-backend
-make build-frontend
+# Build production images locally
+make build-all
 
 # Start production environment
 make prod-start
 
-# Or use pre-built GHCR images
-make run-ghcr
+# Check status
+make prod-status
+
+# View logs
+make prod-logs
+
+# Stop production
+make prod-stop
 ```
+
+</details>
+
+<details>
+<summary><strong>📦 Pre-built Images (Fastest)</strong></summary>
+
+Use pre-built images from GitHub Container Registry:
+
+```bash
+# Pull latest images and start
+docker compose -f docker-compose.production.yml pull
+make prod-start
+```
+
+Available images:
+- `ghcr.io/manavgup/rag_modulo/backend:latest`
+- `ghcr.io/manavgup/rag_modulo/frontend:latest`
+
+</details>
 
 ---
 
@@ -688,146 +876,386 @@ We welcome contributions! Please see our [Contributing Guide](docs/development/c
 
 ## 🆘 Troubleshooting
 
-### Common Issues
+### Quick Diagnostic Commands
 
-<details>
-<summary><strong>🐍 Virtual Environment Issues</strong></summary>
-
-**Problem**: Dependencies not installing
+Run these first to identify issues:
 
 ```bash
-# Use the Makefile (recommended)
+make check-docker          # Verify Docker installation
+make local-dev-status      # Check what's running
+make venv                  # Ensure Python environment is set up
+docker compose -f docker-compose-infra.yml ps  # Check infrastructure
+```
+
+### Common Issues & Solutions
+
+<details>
+<summary><strong>🚨 Quick Fixes (Try These First)</strong></summary>
+
+**Most Common Problems:**
+
+```bash
+# Problem: "Command not found" errors
+make venv                    # Creates Python venv (auto-installs Poetry)
+source backend/.venv/bin/activate
+
+# Problem: Services won't start
+make local-dev-stop          # Stop everything cleanly
+make check-docker            # Verify Docker requirements
+make local-dev-infra         # Restart infrastructure only
+
+# Problem: Port conflicts
+make local-dev-stop          # Stops all services and containers
+lsof -i :8000 && kill $(lsof -t -i:8000)  # Kill backend on port 8000
+lsof -i :3000 && kill $(lsof -t -i:3000)  # Kill frontend on port 3000
+
+# Problem: Weird behavior after updates
+make clean-venv              # Remove Python venv
+make local-dev-setup         # Fresh install
+make clean-all               # Nuclear option: clean everything
+```
+
+</details>
+
+<details>
+<summary><strong>🐍 Python & Virtual Environment Issues</strong></summary>
+
+#### Poetry Not Installed
+
+```bash
+# Makefile auto-installs Poetry (recommended)
+make venv
+
+# OR install manually
+curl -sSL https://install.python-poetry.org | python3 -
+```
+
+#### Wrong Python Version
+
+```bash
+# Check Python version
+python --version    # Should be 3.12+
+
+# macOS: Install Python 3.12
+brew install python@3.12
+
+# Ubuntu/Debian: Install Python 3.12
+sudo apt update
+sudo apt install python3.12 python3.12-venv
+```
+
+#### Dependencies Not Installing
+
+```bash
+# Method 1: Use Makefile (recommended)
+make clean-venv
 make local-dev-setup
 
-# OR manually:
+# Method 2: Manual Poetry setup
 cd backend
 poetry config virtualenvs.in-project true
-poetry install --with dev,test
-source .venv/bin/activate
-
-# Frontend
-cd ../frontend
-npm install
-```
-
-**Problem**: Wrong tool versions (e.g., Ruff 0.5.7 instead of 0.14.0)
-
-```bash
-# Ensure you're in the Poetry virtual environment
-cd backend
-source .venv/bin/activate
-which python  # Should show backend/.venv/bin/python
-ruff --version  # Should show 0.14.0
-```
-
-**Problem**: `poetry install` fails
-
-```bash
-# Update Poetry and retry
-poetry self update
 poetry cache clear . --all
 poetry install --with dev,test --sync
+source .venv/bin/activate
 ```
+
+#### Wrong Tool Versions (e.g., Ruff 0.5.7 instead of 0.14.0)
+
+```bash
+# Ensure you're in Poetry venv
+cd backend
+source .venv/bin/activate
+which python    # Should show: backend/.venv/bin/python
+which ruff      # Should show: backend/.venv/bin/ruff
+ruff --version  # Should be 0.14.0+
+
+# If wrong version, reinstall
+poetry install --with dev,test --sync
+```
+
+#### Import Errors
+
+```bash
+# Verify PYTHONPATH and reinstall
+cd backend
+source .venv/bin/activate
+poetry install --with dev,test --sync
+python -c "import sys; print('\n'.join(sys.path))"
+```
+
 </details>
 
 <details>
-<summary><strong>🐳 Docker Issues</strong></summary>
+<summary><strong>🐳 Docker & Container Issues</strong></summary>
 
-**Problem**: Infrastructure services fail to start
+#### Docker Not Installed
 
 ```bash
-# Use Makefile commands (recommended)
-make local-dev-stop    # Stop everything
-make local-dev-infra   # Restart infrastructure
+# Check if Docker is installed
+docker --version
+docker compose version
 
-# OR manually:
-docker compose -f docker-compose-infra.yml down
-docker compose -f docker-compose-infra.yml up -d
-
-# Check logs
-make logs
+# If missing, install:
+# macOS: brew install --cask docker
+# Or download Docker Desktop: https://www.docker.com/products/docker-desktop
 ```
 
-**Problem**: Port already in use
+#### Docker Compose V2 Missing
 
 ```bash
-# Find what's using the port
-lsof -i :8000  # Backend
-lsof -i :3000  # Frontend
-lsof -i :5432  # Postgres
+# Ubuntu/Debian
+sudo apt update
+sudo apt install docker-compose-plugin
 
-# Stop all services
+# Verify
+docker compose version
+```
+
+#### Infrastructure Services Fail to Start
+
+```bash
+# Clean restart
+make local-dev-stop
+docker system prune -f
+make local-dev-infra
+
+# Check what failed
+docker compose -f docker-compose-infra.yml ps
+docker compose -f docker-compose-infra.yml logs
+
+# Common fixes
+docker volume prune -f        # Clear old volumes
+make clean-all                # Nuclear option
+```
+
+#### Port Already in Use
+
+```bash
+# Find what's using ports
+lsof -i :8000   # Backend
+lsof -i :3000   # Frontend
+lsof -i :5432   # PostgreSQL
+lsof -i :19530  # Milvus
+
+# Stop conflicting services
 make local-dev-stop
 
-# OR kill specific service
+# Kill specific port (if needed)
 kill $(lsof -t -i:8000)
 ```
+
+#### Container Permission Issues
+
+```bash
+# Fix volume permissions
+chmod -R 777 ./volumes
+docker compose -f docker-compose-infra.yml down -v
+make local-dev-infra
+```
+
 </details>
 
 <details>
-<summary><strong>🔐 Authentication Issues</strong></summary>
+<summary><strong>🧪 Testing Issues</strong></summary>
 
-**Problem**: Login attempts fail
-
-- Ensure OIDC configuration is correct in `.env`
-- Check IBM Cloud credentials
-- Verify redirect URLs match your setup
-
-**Development Mode**: Use mock authentication
+#### Tests Fail to Run
 
 ```bash
-# In .env or .env.dev
+# Ensure venv is activated
+source backend/.venv/bin/activate
+
+# Install test dependencies
+cd backend
+poetry install --with test --sync
+
+# Run specific test with verbose output
+pytest tests/unit/test_example.py -vv -s
+```
+
+#### Database Connection Errors in Tests
+
+```bash
+# Ensure infrastructure is running
+make local-dev-infra
+make local-dev-status
+
+# Wait for services to be ready
+sleep 10
+
+# Run tests
+make test-integration
+```
+
+#### Import Errors in Tests
+
+```bash
+# Check PYTHONPATH
+cd backend
+source .venv/bin/activate
+pytest tests/ --collect-only  # See what tests are collected
+
+# If imports fail, reinstall
+poetry install --with dev,test --sync
+```
+
+</details>
+
+<details>
+<summary><strong>🔐 Authentication & API Issues</strong></summary>
+
+#### Login Fails
+
+**Development Mode** (bypass authentication):
+
+```bash
+# Add to .env
 SKIP_AUTH=true
 DEVELOPMENT_MODE=true
 ENABLE_MOCK_AUTH=true
+
+# Restart backend
+make local-dev-stop
+make local-dev-backend
 ```
+
+**Production Mode** (fix OIDC):
+
+- Verify `.env` has correct OIDC settings
+- Check IBM Cloud credentials are valid
+- Ensure redirect URLs match your setup
+- Check logs: `tail -f /tmp/rag-backend.log`
+
+#### API Returns 500 Errors
+
+```bash
+# Check backend logs
+tail -f /tmp/rag-backend.log
+
+# Restart backend with debug
+cd backend
+source .venv/bin/activate
+LOG_LEVEL=DEBUG uvicorn main:app --reload --port 8000
+```
+
 </details>
 
 <details>
-<summary><strong>🧪 Test Failures</strong></summary>
+<summary><strong>📦 Frontend Issues</strong></summary>
 
-**Problem**: Tests failing locally
+#### npm install Fails
 
 ```bash
-# Ensure you're in venv
-source backend/.venv/bin/activate
-
-# Run specific test
-cd backend
-pytest tests/unit/test_example.py -v
-
-# Run with more details
-pytest tests/unit/test_example.py -vv -s
-
-# Check test dependencies
-poetry install --with test --sync
+# Clear cache and retry
+cd frontend
+rm -rf node_modules package-lock.json
+npm cache clean --force
+npm install
 ```
+
+#### Frontend Won't Start
+
+```bash
+# Check Node version
+node --version    # Should be 18+
+
+# Update Node (macOS)
+brew upgrade node
+
+# Update Node (Linux - using nvm)
+nvm install 18
+nvm use 18
+
+# Reinstall and start
+cd frontend
+rm -rf node_modules
+npm install
+npm run dev
+```
+
+#### Build Errors
+
+```bash
+# Clear build cache
+cd frontend
+rm -rf dist .vite
+npm run dev
+```
+
 </details>
 
 <details>
-<summary><strong>📦 Dependency Issues</strong></summary>
+<summary><strong>🔧 Performance Issues</strong></summary>
 
-**Problem**: Import errors or missing modules
+#### Slow Backend Response
 
 ```bash
-# Reinstall all dependencies
-cd backend
-poetry install --with dev,test --sync
+# Check if infrastructure is running locally
+make local-dev-status
 
-# Check what's installed
-poetry show
+# Monitor resource usage
+docker stats
 
-# Verify Python path
-python -c "import sys; print(sys.path)"
+# Check logs for bottlenecks
+tail -f /tmp/rag-backend.log | grep -i "slow\|timeout\|error"
 ```
+
+#### High Memory Usage
+
+```bash
+# Restart services to clear memory
+make local-dev-stop
+docker system prune -f
+make local-dev-infra
+```
+
 </details>
 
-### Getting Help
+### 🆘 Getting Help
 
-1. **📚 Check Documentation**: [Full docs](https://manavgup.github.io/rag_modulo)
-2. **🐛 Report Issues**: [GitHub Issues](https://github.com/manavgup/rag_modulo/issues)
-3. **💬 Discussions**: [GitHub Discussions](https://github.com/manavgup/rag_modulo/discussions)
-4. **📖 See**: `IMMEDIATE_FIX.md` for common development issues
+<table>
+<tr>
+<th>Resource</th>
+<th>When to Use</th>
+<th>Link</th>
+</tr>
+<tr>
+<td>📚 <strong>Full Documentation</strong></td>
+<td>Comprehensive guides and API reference</td>
+<td><a href="https://manavgup.github.io/rag_modulo">docs site</a></td>
+</tr>
+<tr>
+<td>🐛 <strong>GitHub Issues</strong></td>
+<td>Report bugs or request features</td>
+<td><a href="https://github.com/manavgup/rag_modulo/issues">issues</a></td>
+</tr>
+<tr>
+<td>💬 <strong>Discussions</strong></td>
+<td>Ask questions, share ideas</td>
+<td><a href="https://github.com/manavgup/rag_modulo/discussions">discussions</a></td>
+</tr>
+<tr>
+<td>📖 <strong>IMMEDIATE_FIX.md</strong></td>
+<td>Quick fixes for common development issues</td>
+<td>See project root</td>
+</tr>
+<tr>
+<td>🔧 <strong>CLAUDE.md</strong></td>
+<td>Development best practices and architecture</td>
+<td>See project root</td>
+</tr>
+</table>
+
+### Still Stuck?
+
+1. **Check service status**: `make local-dev-status`
+2. **View logs**: `tail -f /tmp/rag-backend.log` or `make logs`
+3. **Try clean restart**: `make local-dev-stop && make clean && make local-dev-all`
+4. **Nuclear option**: `make clean-all` (removes everything - be careful!)
+5. **Ask for help**: [Open an issue](https://github.com/manavgup/rag_modulo/issues/new) with:
+   - Error message
+   - Output of `make local-dev-status`
+   - OS and Docker version
+   - Steps to reproduce
 
 ---
 
