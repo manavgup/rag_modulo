@@ -12,6 +12,7 @@ from pydantic import UUID4
 from sqlalchemy.orm import Session
 
 from core.config import Settings, get_settings
+from core.identity_service import IdentityService
 from rag_solution.core.exceptions import NotFoundError
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.user_schema import UserOutput
@@ -41,10 +42,12 @@ def get_current_user(
     """
     # Check if authentication is skipped (development mode)
     if settings.skip_auth:
+        # Get proper UUID for mock user instead of using token string
+        mock_user_uuid = IdentityService.get_mock_user_id()
         # Return mock user for development (all values from config)
         return {
-            "user_id": settings.mock_token,
-            "uuid": settings.mock_token,
+            "user_id": mock_user_uuid,
+            "uuid": str(mock_user_uuid),
             "email": settings.mock_user_email,
             "name": settings.mock_user_name,
         }
