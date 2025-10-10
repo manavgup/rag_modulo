@@ -29,6 +29,17 @@ jobs:
           prompt: |
             You are a senior software engineer analyzing GitHub issue #${{ github.event.issue.number }}.
 
+            ## 📋 Issue Details
+
+            **Title:** ${{ github.event.issue.title }}
+
+            **Issue Body:**
+            ${{ github.event.issue.body }}
+
+            **Labels:** ${{ join(github.event.issue.labels.*.name, ', ') }}
+
+            ---
+
             ## 🛡️ STEP 1: COMPLEXITY ASSESSMENT (MANDATORY FIRST STEP)
 
             Before creating any implementation plan, you MUST assess complexity:
