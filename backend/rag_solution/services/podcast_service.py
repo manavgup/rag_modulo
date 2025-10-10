@@ -320,6 +320,10 @@ Generate the complete dialogue script now:"""
             await self._cleanup_failed_podcast(podcast_id, podcast_input.user_id, audio_stored, error_msg)
 
         except Exception as e:
+            # TODO: Use more specific exception types (e.g., LLMError, AudioGenerationError, StorageError)
+            # and implement retry logic for transient failures. Sanitize error messages before
+            # storing to avoid information leakage. See follow-up issue for exception hierarchy.
+
             # Unexpected errors - log full traceback and clean up
             error_msg = f"Generation failed: {e}"
             logger.exception("Podcast generation failed for %s: %s", podcast_id, e)

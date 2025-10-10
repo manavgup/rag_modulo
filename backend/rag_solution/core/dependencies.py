@@ -5,6 +5,7 @@ and service injection that can be used across all routers.
 """
 
 from typing import Any
+from uuid import UUID
 
 from fastapi import Depends, HTTPException, Request
 from pydantic import UUID4
@@ -54,15 +55,15 @@ def get_current_user(
 
     user_data = request.state.user.copy()  # Create copy to avoid mutating original
 
+    # TODO: Standardize on single UUID field name (either 'user_id' or 'uuid') throughout codebase
+    # Current dual-field pattern adds type conversion overhead and potential confusion
+    # Tracked in follow-up issue for codebase-wide standardization
+
     # Ensure user_id is set as UUID object (some code expects it alongside uuid)
     if "user_id" not in user_data and "uuid" in user_data:
-        from uuid import UUID
-
         # Convert string UUID to UUID object for consistency with database
         user_data["user_id"] = UUID(user_data["uuid"]) if isinstance(user_data["uuid"], str) else user_data["uuid"]
     elif isinstance(user_data.get("user_id"), str):
-        from uuid import UUID
-
         user_data["user_id"] = UUID(user_data["user_id"])
 
     return user_data  # type: ignore[no-any-return]

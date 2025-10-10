@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   PlayIcon,
@@ -36,9 +36,17 @@ const LightweightPodcasts: React.FC = () => {
     loadCollections();
   }, []);
 
+  // Compute IDs of generating podcasts to avoid unnecessary re-renders
+  const generatingPodcastIds = useMemo(() => {
+    return podcasts
+      .filter(p => p.status === 'generating' || p.status === 'queued')
+      .map(p => p.podcast_id)
+      .join(',');
+  }, [podcasts]);
+
   // Separate useEffect for polling generating podcasts with exponential backoff
   useEffect(() => {
-    const hasGenerating = podcasts.some(p => p.status === 'generating' || p.status === 'queued');
+    const hasGenerating = generatingPodcastIds.length > 0;
 
     if (!hasGenerating) {
       // Reset polling interval when no podcasts are generating
@@ -59,7 +67,7 @@ const LightweightPodcasts: React.FC = () => {
     }, pollingInterval);
 
     return () => clearInterval(interval);
-  }, [podcasts, pollingInterval]);
+  }, [generatingPodcastIds, pollingInterval]);
 
   const loadPodcasts = async (silent: boolean = false) => {
     if (!silent) setIsLoading(true);
