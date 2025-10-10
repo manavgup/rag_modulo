@@ -1,0 +1,135 @@
+name: "Stage 2: Gemini Implementation"
+
+# Triggers when the "plan-approved" label is added (human approval)
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  implement-fix:
+    # Only run when the "plan-approved" label is added
+    if: github.event.label.name == 'plan-approved'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Gemini Implements Fix
+        uses: google-github-actions/run-gemini-cli@v1
+        with:
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          prompt: |
+            You are implementing the approved plan for GitHub issue #${{ github.event.issue.number }}.
+
+            **Your Task:**
+            1. Read the approved plan from the issue comments
+            2. Create a new branch: `fix/issue-${{ github.event.issue.number }}`
+            3. Implement the changes according to the plan
+            4. Write/update tests as specified in the plan
+            5. Ensure code follows the project's standards (CLAUDE.md)
+            6. Run local quality checks if possible
+            7. Commit changes with descriptive messages (include DCO sign-off)
+            8. Push the branch
+            9. Create a pull request with:
+               - Title: "fix: [Brief description from issue]"
+               - Body: Reference to issue, summary of changes, testing done
+               - Link to the original issue
+
+            **Branch Workflow:**
+            ```bash
+            # Create and checkout new branch
+            git checkout -b fix/issue-${{ github.event.issue.number }}
+
+            # After making changes, commit with DCO
+            git add .
+            git commit -s -m "fix: [descriptive message]
+
+            Fixes #${{ github.event.issue.number }}
+
+            [Detailed description of what was changed and why]"
+
+            # Push branch
+            git push -u origin fix/issue-${{ github.event.issue.number }}
+
+            # Create PR
+            gh pr create \
+              --title "fix: [Brief description]" \
+              --body "$(cat <<'PREOF'
+            Fixes #${{ github.event.issue.number }}
+
+            ## Changes Made
+            [List your changes]
+
+            ## Testing
+            [How you tested]
+
+            ## Checklist
+            - [ ] Code follows project style guidelines
+            - [ ] Tests added/updated
+            - [ ] Documentation updated if needed
+            - [ ] All CI checks pass
+            PREOF
+            )" \
+              --label "ai-generated"
+            ```
+
+            **Quality Guidelines:**
+            - Follow existing code patterns
+            - Add comprehensive error handling
+            - Include docstrings and type hints (Python)
+            - Write clear commit messages
+            - Keep changes focused on the issue
+
+            **Important:**
+            - Do NOT use --yolo mode for destructive operations
+            - Ask before making breaking changes
+            - Test changes locally when possible
+            - Follow the approved plan - don't deviate
+
+          # Allow file operations and git/gh commands
+          # Note: We're NOT using --yolo here for safety
+          cli_args: '--allowed-tools "Read,Write,Edit,Glob,Grep,Bash(git:*),Bash(gh pr:*),Bash(gh issue:*),Bash(poetry:*),Bash(npm:*),Bash(make test-unit-fast:*),Bash(make lint:*)"'
+
+      - name: Comment on Issue
+        if: success()
+        run: |
+          # Get the PR number that was just created
+          PR_NUM=$(gh pr list --head fix/issue-${{ github.event.issue.number }} --json number --jq '.[0].number')
+          gh issue comment ${{ github.event.issue.number }} --body "✅ Implementation complete! Pull request created: #${PR_NUM}
+
+          The PR will now be automatically reviewed by Claude Code Review.
+          Please review the changes and merge if everything looks good."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Notify on Failure
+        if: failure()
+        run: |
+          gh issue comment ${{ github.event.issue.number }} --body "❌ Implementation failed. Please check the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.
+
+          You may need to implement this manually."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

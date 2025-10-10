@@ -1,0 +1,98 @@
+name: "Stage 1: Gemini Issue Analysis & Planning"
+
+# Triggers when an issue is labeled with "ai-assist"
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  analyze-and-plan:
+    # Only run when the "ai-assist" label is added
+    if: github.event.label.name == 'ai-assist'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gemini Analyzes Issue and Creates Plan
+        uses: google-github-actions/run-gemini-cli@v1
+        with:
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          prompt: |
+            You are a senior software engineer analyzing GitHub issue #${{ github.event.issue.number }}.
+
+            **Your Task:**
+            1. Read the issue content carefully
+            2. Analyze the codebase to understand the context
+            3. Develop a detailed implementation plan including:
+               - Root cause analysis
+               - Proposed solution approach
+               - Files that need to be changed
+               - Testing strategy
+               - Potential risks and edge cases
+               - Estimated complexity (simple/moderate/complex)
+
+            **Output Format:**
+            Post your plan as a comment on the issue using:
+            ```bash
+            gh issue comment ${{ github.event.issue.number }} --body "$(cat <<'EOF'
+            ## 🤖 AI Implementation Plan
+
+            ### Root Cause Analysis
+            [Your analysis here]
+
+            ### Proposed Solution
+            [Your solution approach]
+
+            ### Files to Change
+            - `path/to/file1.py` - [what changes]
+            - `path/to/file2.py` - [what changes]
+
+            ### Testing Strategy
+            [How to test this]
+
+            ### Risks & Edge Cases
+            [What could go wrong]
+
+            ### Complexity
+            - [ ] Simple (< 100 lines)
+            - [ ] Moderate (100-300 lines)
+            - [ ] Complex (> 300 lines)
+
+            ---
+            **Next Steps:**
+            - Review this plan carefully
+            - If approved, add the \`plan-approved\` label to trigger implementation
+            - If changes needed, comment with feedback and remove the \`ai-assist\` label
+            EOF
+            )"
+            ```
+
+            **Important Guidelines:**
+            - Follow the project's coding standards from CLAUDE.md
+            - Consider the existing CI/CD setup (linting, testing, security)
+            - Be specific about implementation details
+            - Identify dependencies and prerequisites
+
+          # Allow read-only operations and GitHub CLI
+          cli_args: '--allowed-tools "Read,Glob,Grep,Bash(gh issue:*),Bash(gh search:*)"'
+
+      - name: Add Planning Complete Label
+        if: success()
+        run: gh issue edit ${{ github.event.issue.number }} --add-label "plan-ready"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Notify on Failure
+        if: failure()
+        run: |
+          gh issue comment ${{ github.event.issue.number }} --body "⚠️ AI planning failed. Please check the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
