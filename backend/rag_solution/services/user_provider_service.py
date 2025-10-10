@@ -49,6 +49,7 @@ class UserProviderService:
             # Existing template initialization
             rag_template = self._create_default_rag_template(user_id)
             question_template = self._create_default_question_template(user_id)
+            podcast_template = self._create_default_podcast_template(user_id)
 
             # Add parameters initialization
             parameters_service = LLMParametersService(self.db)
@@ -65,7 +66,7 @@ class UserProviderService:
             pipeline_service.initialize_user_pipeline(user_id, provider.id)
 
             self.db.commit()
-            return provider, [rag_template, question_template], default_parameters
+            return provider, [rag_template, question_template, podcast_template], default_parameters
 
         except Exception as e:
             logger.error(f"Initialization error: {e!s}")
@@ -116,7 +117,9 @@ class UserProviderService:
                 name="default-rag-template",
                 user_id=user_id,
                 template_type=PromptTemplateType.RAG_QUERY,
-                system_prompt="You are a helpful AI assistant specializing in answering questions based on the given context.",
+                system_prompt=(
+                    "You are a helpful AI assistant specializing in answering questions based on the given context."
+                ),
                 template_format="{context}\n\n{question}",
                 input_variables={
                     "context": "Retrieved context for answering the question",
@@ -167,6 +170,78 @@ class UserProviderService:
                     "model": "PromptVariables",
                     "fields": {"context": {"type": "str", "min_length": 1}, "num_questions": {"type": "int", "gt": 0}},
                     "required": ["context", "num_questions"],
+                },
+            )
+        )
+
+    def _create_default_podcast_template(self, user_id: UUID4) -> PromptTemplateOutput:
+        """Create default podcast script generation template for user."""
+        return self.prompt_template_service.create_template(
+            PromptTemplateInput(
+                name="default-podcast-template",
+                user_id=user_id,
+                template_type=PromptTemplateType.PODCAST_GENERATION,
+                system_prompt=(
+                    "You are a professional podcast script writer. Create engaging podcast dialogues "
+                    "between a HOST and an EXPERT in a conversational, educational style."
+                ),
+                template_format=(
+                    "Topic/Focus: {user_topic}\n\n"
+                    "Content from documents:\n{rag_results}\n\n"
+                    "Duration: {duration_minutes} minutes (approximately {word_count} words at 150 words/minute)\n\n"
+                    "DURATION REQUIREMENT (CRITICAL):\n"
+                    "Your script MUST be between {min_word_count} and {max_word_count} words.\n"
+                    "If you generate too few words, the podcast will be too short.\n"
+                    "If you generate too many words, the podcast will exceed the requested duration.\n\n"
+                    "Format your script as a natural conversation:\n\n"
+                    "1. **Structure:**\n"
+                    "   - HOST asks insightful questions to guide the conversation\n"
+                    "   - EXPERT provides detailed, engaging answers with examples\n"
+                    "   - Include natural transitions and follow-up questions\n"
+                    "   - Start with a brief introduction from HOST\n"
+                    "   - End with a conclusion from HOST\n\n"
+                    "2. **Script Format (IMPORTANT):**\n"
+                    "   Use this exact format for each turn:\n\n"
+                    "   HOST: [Question or introduction]\n"
+                    "   EXPERT: [Detailed answer with examples]\n"
+                    "   HOST: [Follow-up or transition]\n"
+                    "   EXPERT: [Further explanation]\n\n"
+                    "3. **Content Guidelines:**\n"
+                    "   - Make it conversational and engaging\n"
+                    "   - Use examples and analogies to clarify complex topics\n"
+                    "   - Keep language accessible but informative\n"
+                    "   - Include natural pauses and transitions\n\n"
+                    "Generate the complete dialogue script now:"
+                ),
+                input_variables={
+                    "user_topic": "The main topic or focus of the podcast",
+                    "rag_results": "Retrieved content from the knowledge base",
+                    "duration_minutes": "Target podcast duration in minutes",
+                    "word_count": "Target word count based on duration",
+                    "min_word_count": "Minimum acceptable word count (target * 0.85)",
+                    "max_word_count": "Maximum acceptable word count (target * 1.15)",
+                },
+                example_inputs={
+                    "user_topic": "Introduction to Machine Learning",
+                    "rag_results": "Machine learning is a subset of artificial intelligence...",
+                    "duration_minutes": 15,
+                    "word_count": 2250,
+                    "min_word_count": 1913,
+                    "max_word_count": 2588,
+                },
+                is_default=True,
+                max_context_length=8192,  # Larger context for podcast scripts
+                validation_schema={
+                    "model": "PromptVariables",
+                    "fields": {
+                        "user_topic": {"type": "str", "min_length": 1},
+                        "rag_results": {"type": "str", "min_length": 1},
+                        "duration_minutes": {"type": "int", "gt": 0},
+                        "word_count": {"type": "int", "gt": 0},
+                        "min_word_count": {"type": "int", "gt": 0},
+                        "max_word_count": {"type": "int", "gt": 0},
+                    },
+                    "required": ["user_topic", "rag_results", "duration_minutes", "word_count"],
                 },
             )
         )

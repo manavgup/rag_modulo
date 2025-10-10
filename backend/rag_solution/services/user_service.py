@@ -36,8 +36,8 @@ class UserService:
         # Initialize user defaults
         provider, templates, parameters = self.user_provider_service.initialize_user_defaults(user.id)
 
-        # Validate that all required defaults were created
-        if not provider or not templates or len(templates) < 2 or not parameters:
+        # Validate that all required defaults were created (RAG, Question, Podcast)
+        if not provider or not templates or len(templates) < 3 or not parameters:
             self.db.rollback()
             raise ValidationError("Failed to initialize required user configuration")
 
