@@ -223,7 +223,7 @@ Generate the complete dialogue script now:"""
             )
 
         # Check user's active podcast limit
-        active_count = self.repository.count_active_for_user(user_id)
+        active_count = self.repository.count_active_for_user(podcast_input.user_id)
         max_concurrent = self.settings.podcast_max_concurrent_per_user
 
         if active_count >= max_concurrent:
@@ -293,7 +293,7 @@ Generate the complete dialogue script now:"""
 
             # Step 5: Store audio (90-95%)
             await self._update_progress(podcast_id, progress=90, step="storing_audio")
-            audio_url = await self._store_audio(podcast_id, user_id, audio_bytes, podcast_input.format)
+            audio_url = await self._store_audio(podcast_id, podcast_input.user_id, audio_bytes, podcast_input.format)
 
             # Step 6: Mark complete (100%)
             self.repository.mark_completed(
@@ -351,7 +351,7 @@ Generate the complete dialogue script now:"""
 
         # Execute search
         search_input = SearchInput(
-            user_id=user_id,
+            user_id=podcast_input.user_id,
             collection_id=podcast_input.collection_id,
             question=synthetic_query,
             config_metadata={
