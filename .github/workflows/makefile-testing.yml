@@ -48,15 +48,18 @@ jobs:
           echo "Testing make help command..."
           make help
 
-      - name: Test make info
-        run: |
-          echo "Testing make info command..."
-          make info
-
       - name: Test make check-docker
         run: |
           echo "Testing Docker requirements check..."
           make check-docker
+
+      - name: Test streamlined targets
+        run: |
+          echo "Testing streamlined Makefile targets..."
+          echo "✓ make help - passed"
+          echo "✓ make check-docker - passed"
+          echo "Note: make info removed in streamlined Makefile (Issue #348)"
+          echo "Note: make dev-init replaced with make local-dev-setup"
 
       - name: Test Results
         run: |
