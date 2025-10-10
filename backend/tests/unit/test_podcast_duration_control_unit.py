@@ -38,6 +38,16 @@ def mock_podcast_service() -> PodcastService:
     # Mock search service
     service.search_service.search = AsyncMock()  # type: ignore[method-assign]
 
+    # Mock template service to avoid "Mock object is not iterable" errors
+    from rag_solution.models.prompt_template import PromptTemplate
+
+    mock_template = Mock(spec=PromptTemplate)
+    mock_template.template_text = "Generate podcast with {word_count} words"
+    mock_template.is_default = True
+
+    service.template_service = Mock()  # type: ignore[method-assign]
+    service.template_service.get_by_type = Mock(return_value=mock_template)  # type: ignore[method-assign]
+
     return service
 
 
@@ -48,7 +58,7 @@ class TestScriptGenerationDurationControl:
     @pytest.mark.asyncio
     @patch("rag_solution.services.podcast_service.LLMProviderFactory")
     async def test_llm_generates_too_short_script_no_validation(
-        self, mock_llm_factory: Mock, _mock_podcast_service: PodcastService
+        self, mock_llm_factory: Mock, mock_podcast_service: PodcastService
     ) -> None:
         """Unit: EXPOSES PROBLEM - LLM generates 500 words when asked for 2,250.
 
@@ -87,7 +97,7 @@ class TestScriptGenerationDurationControl:
     @pytest.mark.asyncio
     @patch("rag_solution.services.podcast_service.LLMProviderFactory")
     async def test_llm_generates_too_long_script_no_validation(
-        self, mock_llm_factory: Mock, _mock_podcast_service: PodcastService
+        self, mock_llm_factory: Mock, mock_podcast_service: PodcastService
     ) -> None:
         """Unit: EXPOSES PROBLEM - LLM generates 5,000 words when asked for 750.
 
@@ -126,7 +136,7 @@ class TestScriptGenerationDurationControl:
     @pytest.mark.asyncio
     @patch("rag_solution.services.podcast_service.LLMProviderFactory")
     async def test_script_word_count_calculation_correct_but_not_validated(
-        self, mock_llm_factory: Mock, _mock_podcast_service: PodcastService
+        self, mock_llm_factory: Mock, mock_podcast_service: PodcastService
     ) -> None:
         """Unit: Word count calculation is correct, but result is never validated.
 
@@ -166,7 +176,7 @@ class TestAudioDurationValidation:
     """Unit tests exposing lack of audio duration measurement."""
 
     @pytest.mark.asyncio
-    async def test_audio_duration_never_measured_after_generation(self, _mock_podcast_service: PodcastService) -> None:
+    async def test_audio_duration_never_measured_after_generation(self, mock_podcast_service: PodcastService) -> None:
         """Unit: EXPOSES PROBLEM - Audio duration is never measured.
 
         Current flow:
@@ -201,7 +211,7 @@ class TestAudioDurationValidation:
         # assert actual_duration is not None
 
     @pytest.mark.asyncio
-    async def test_no_quality_gate_for_duration_mismatch(self, __mock_podcast_service: PodcastService) -> None:
+    async def test_no_quality_gate_for_duration_mismatch(self) -> None:
         """Unit: EXPOSES PROBLEM - No quality gate prevents duration mismatches.
 
         Ideal flow:
@@ -225,7 +235,7 @@ class TestPodcastDurationFeedbackLoop:
     """Unit tests exposing lack of feedback loop for duration correction."""
 
     @pytest.mark.asyncio
-    async def test_no_retry_mechanism_for_short_script(self, _mock_podcast_service: PodcastService) -> None:
+    async def test_no_retry_mechanism_for_short_script(self) -> None:
         """Unit: EXPOSES PROBLEM - If script is too short, no retry with longer prompt.
 
         Ideal implementation:
@@ -243,7 +253,7 @@ class TestPodcastDurationFeedbackLoop:
         assert True, "NO RETRY: Short scripts are not regenerated"
 
     @pytest.mark.asyncio
-    async def test_no_adaptive_prompt_based_on_previous_attempts(self, _mock_podcast_service: PodcastService) -> None:
+    async def test_no_adaptive_prompt_based_on_previous_attempts(self) -> None:
         """Unit: EXPOSES PROBLEM - Prompt doesn't adapt based on previous attempts.
 
         Ideal implementation:
@@ -265,7 +275,7 @@ class TestPodcastDurationMetadata:
     """Unit tests for missing duration metadata in output."""
 
     @pytest.mark.asyncio
-    async def test_output_schema_lacks_actual_duration_field(self, _mock_podcast_service: PodcastService) -> None:
+    async def test_output_schema_lacks_actual_duration_field(self) -> None:
         """Unit: EXPOSES PROBLEM - Output schema has no actual_duration field.
 
         Current PodcastGenerationOutput fields:
@@ -281,7 +291,7 @@ class TestPodcastDurationMetadata:
         assert True, "MISSING FIELD: Output schema lacks actual duration"
 
     @pytest.mark.asyncio
-    async def test_no_warning_if_duration_significantly_off(self, _mock_podcast_service: PodcastService) -> None:
+    async def test_no_warning_if_duration_significantly_off(self) -> None:
         """Unit: EXPOSES PROBLEM - No warning if duration is way off.
 
         Scenario:
@@ -305,9 +315,7 @@ class TestVoiceSpeedImpactOnDuration:
     """Unit tests for voice speed settings affecting duration."""
 
     @pytest.mark.asyncio
-    async def test_voice_speed_not_considered_in_word_count_calculation(
-        self, _mock_podcast_service: PodcastService
-    ) -> None:
+    async def test_voice_speed_not_considered_in_word_count_calculation(self) -> None:
         """Unit: EXPOSES PROBLEM - Voice speed setting not used to adjust word count.
 
         Scenario:
@@ -347,7 +355,7 @@ class TestContentSufficiencyForDuration:
     """Unit tests for validating collection has enough content."""
 
     @pytest.mark.asyncio
-    async def test_no_validation_collection_has_enough_content(self, _mock_podcast_service: PodcastService) -> None:
+    async def test_no_validation_collection_has_enough_content(self) -> None:
         """Unit: EXPOSES PROBLEM - No validation that collection has enough content.
 
         Scenario:
