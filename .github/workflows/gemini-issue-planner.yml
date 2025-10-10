@@ -23,6 +23,8 @@ jobs:
 
       - name: Codex Analyzes Issue and Creates Plan
         uses: openai/codex-action@v1
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
           safety-strategy: drop-sudo  # Can run gh commands but no file changes or sudo
