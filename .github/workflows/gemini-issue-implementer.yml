@@ -72,6 +72,25 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Fetch Implementation Plan
+        id: get_plan
+        run: |
+          # Fetch the latest AI Implementation Plan from issue comments
+          PLAN=$(gh api repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments \
+            --jq '.[] | select(.body | contains("## 🤖 AI Implementation Plan")) | .body' | head -1)
+
+          if [ -z "$PLAN" ]; then
+            echo "❌ No implementation plan found in issue comments"
+            gh issue comment ${{ github.event.issue.number }} --body "❌ Implementation failed: No AI Implementation Plan found in issue comments. Please ensure the planning step completed successfully."
+            exit 1
+          fi
+
+          # Save plan to file (multiline safe)
+          echo "$PLAN" > /tmp/implementation_plan.md
+          echo "plan_file=/tmp/implementation_plan.md" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Codex Implements Fix
         uses: openai/codex-action@v1
         env:
@@ -82,8 +101,14 @@ jobs:
           prompt: |
             You are implementing the approved plan for GitHub issue #${{ github.event.issue.number }}.
 
+            ## 📋 Approved Implementation Plan
+
+            $(cat ${{ steps.get_plan.outputs.plan_file }})
+
+            ---
+
             **Your Task:**
-            1. Read the approved plan from the issue comments
+            1. Follow the approved plan above EXACTLY
             2. Create a new branch: `fix/issue-${{ github.event.issue.number }}`
             3. Implement the changes according to the plan
             4. Write/update tests as specified in the plan
