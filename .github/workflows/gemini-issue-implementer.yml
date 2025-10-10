@@ -1,4 +1,4 @@
-name: "Stage 2: Gemini Implementation"
+name: "Stage 2: AI Implementation (OpenAI Codex)"
 
 # Triggers when the "plan-approved" label is added (human approval)
 on:
@@ -72,10 +72,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Gemini Implements Fix
-        uses: google-github-actions/run-gemini-cli@v1
+      - name: Codex Implements Fix
+        uses: openai/codex-action@v1
         with:
-          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          safety-strategy: drop-sudo  # Can write files but no superuser access
           prompt: |
             You are implementing the approved plan for GitHub issue #${{ github.event.issue.number }}.
 
@@ -143,10 +144,6 @@ jobs:
             - Ask before making breaking changes
             - Test changes locally when possible
             - Follow the approved plan - don't deviate
-
-          # Allow file operations and git/gh commands
-          # Note: We're NOT using --yolo here for safety
-          cli_args: '--allowed-tools "Read,Write,Edit,Glob,Grep,Bash(git:*),Bash(gh pr:*),Bash(gh issue:*),Bash(poetry:*),Bash(npm:*),Bash(make test-unit-fast:*),Bash(make lint:*)"'
 
       - name: Comment on Issue
         if: success()

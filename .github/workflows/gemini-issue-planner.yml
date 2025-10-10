@@ -1,4 +1,4 @@
-name: "Stage 1: Gemini Issue Analysis & Planning"
+name: "Stage 1: AI Issue Analysis & Planning (OpenAI Codex)"
 
 # Triggers when an issue is labeled with "ai-assist"
 on:
@@ -21,10 +21,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Gemini Analyzes Issue and Creates Plan
-        uses: google-github-actions/run-gemini-cli@v1
+      - name: Codex Analyzes Issue and Creates Plan
+        uses: openai/codex-action@v1
         with:
-          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          safety-strategy: read-only  # Planning is read-only, no file changes
           prompt: |
             You are a senior software engineer analyzing GitHub issue #${{ github.event.issue.number }}.
 
@@ -170,9 +171,6 @@ jobs:
             - Consider the existing CI/CD setup (linting, testing, security)
             - Be specific about implementation details
             - Identify dependencies and prerequisites
-
-          # Allow read-only operations and GitHub CLI
-          cli_args: '--allowed-tools "Read,Glob,Grep,Bash(gh issue:*),Bash(gh search:*)"'
 
       - name: Add Planning Complete Label
         if: success()
