@@ -74,6 +74,8 @@ jobs:
 
       - name: Codex Implements Fix
         uses: openai/codex-action@v1
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
           safety-strategy: drop-sudo  # Can write files but no superuser access
