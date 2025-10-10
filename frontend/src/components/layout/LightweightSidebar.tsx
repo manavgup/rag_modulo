@@ -14,9 +14,12 @@ import {
   EllipsisHorizontalCircleIcon,
   ChevronDownIcon,
   ChevronRightIcon,
+  MicrophoneIcon,
 } from '@heroicons/react/24/outline';
 import apiClient from '../../services/apiClient';
 import AllChatsModal from '../modals/AllChatsModal';
+import { useAuth } from '../../contexts/AuthContext';
+import type { Podcast } from '../../services/apiClient';
 
 interface LightweightSidebarProps {
   isExpanded: boolean;
@@ -35,13 +38,18 @@ interface Conversation {
 const LightweightSidebar: React.FC<LightweightSidebarProps> = ({ isExpanded, onClose }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
   const [recentConversations, setRecentConversations] = useState<Conversation[]>([]);
+  const [recentPodcasts, setRecentPodcasts] = useState<Podcast[]>([]);
   const [isChatExpanded, setIsChatExpanded] = useState(false);
+  const [isPodcastsExpanded, setIsPodcastsExpanded] = useState(false);
   const [isAllChatsModalOpen, setIsAllChatsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isPodcastsLoading, setIsPodcastsLoading] = useState(false);
 
   useEffect(() => {
     loadRecentConversations();
+    loadRecentPodcasts();
   }, []);
 
   const loadRecentConversations = async () => {
@@ -70,8 +78,37 @@ const LightweightSidebar: React.FC<LightweightSidebarProps> = ({ isExpanded, onC
     }
   };
 
+  const loadRecentPodcasts = async () => {
+    setIsPodcastsLoading(true);
+    try {
+      const userId = user?.id || '';
+      if (!userId) return;
+
+      const response = await apiClient.listPodcasts(userId);
+      // Get the last 10 podcasts
+      setRecentPodcasts(response.podcasts.slice(0, 10));
+    } catch (error) {
+      console.error('Failed to load recent podcasts:', error);
+    } finally {
+      setIsPodcastsLoading(false);
+    }
+  };
+
   const toggleChatMenu = () => {
     setIsChatExpanded(!isChatExpanded);
+  };
+
+  const togglePodcastsMenu = () => {
+    setIsPodcastsExpanded(!isPodcastsExpanded);
+  };
+
+  const handleSelectPodcast = (podcast: Podcast) => {
+    navigate(`/podcasts/${podcast.podcast_id}`);
+    setIsPodcastsExpanded(true);
+
+    if (window.innerWidth < 1024) {
+      onClose();
+    }
   };
 
   const navigationItems = [
@@ -167,7 +204,7 @@ const LightweightSidebar: React.FC<LightweightSidebarProps> = ({ isExpanded, onC
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-4 py-6 space-y-2">
+          <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
             {/* Chat Menu with Nested Conversations */}
             <div className="space-y-1">
               <button
@@ -216,6 +253,79 @@ const LightweightSidebar: React.FC<LightweightSidebarProps> = ({ isExpanded, onC
                         <EllipsisHorizontalCircleIcon className="w-4 h-4 flex-shrink-0" />
                         <span>All chats</span>
                       </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Podcasts Menu with Nested Podcasts */}
+            <div className="space-y-1">
+              <button
+                onClick={togglePodcastsMenu}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left transition-colors duration-200 ${
+                  location.pathname.startsWith('/podcasts')
+                    ? 'bg-blue-60 text-white'
+                    : 'text-gray-70 hover:bg-gray-20 hover:text-gray-100'
+                }`}
+              >
+                <div className="flex items-center space-x-3">
+                  <MicrophoneIcon className="w-5 h-5 flex-shrink-0" />
+                  <span className="font-medium">Podcasts</span>
+                </div>
+                {isPodcastsExpanded ? (
+                  <ChevronDownIcon className="w-4 h-4" />
+                ) : (
+                  <ChevronRightIcon className="w-4 h-4" />
+                )}
+              </button>
+
+              {/* Nested Podcasts */}
+              {isPodcastsExpanded && (
+                <div className="ml-6 space-y-1">
+                  {isPodcastsLoading ? (
+                    <div className="px-3 py-2 text-sm text-gray-60">
+                      Loading podcasts...
+                    </div>
+                  ) : (
+                    <>
+                      {/* All Podcasts Link */}
+                      <button
+                        onClick={() => handleNavigate('/podcasts')}
+                        className={`w-full flex items-center px-3 py-2 rounded-lg text-left transition-colors duration-200 text-sm ${
+                          location.pathname === '/podcasts'
+                            ? 'bg-blue-50 text-white'
+                            : 'text-gray-70 hover:bg-gray-20 hover:text-gray-100'
+                        }`}
+                      >
+                        <span>All Podcasts</span>
+                      </button>
+
+                      {/* Recent Podcasts */}
+                      {recentPodcasts.length > 0 && (
+                        <>
+                          <div className="px-3 py-1 text-xs text-gray-60 font-medium">Recent</div>
+                          {recentPodcasts.map((podcast) => (
+                            <button
+                              key={podcast.podcast_id}
+                              onClick={() => handleSelectPodcast(podcast)}
+                              className="w-full flex flex-col px-3 py-2 rounded-lg text-left transition-colors duration-200 text-gray-70 hover:bg-gray-20 hover:text-gray-100 text-sm"
+                            >
+                              <span className="truncate">
+                                {podcast.title || `Podcast ${podcast.podcast_id.substring(0, 8)}`}
+                              </span>
+                              <span className={`text-xs ${
+                                podcast.status === 'completed' ? 'text-green-50' :
+                                podcast.status === 'generating' ? 'text-yellow-50' :
+                                podcast.status === 'failed' ? 'text-red-50' :
+                                'text-gray-50'
+                              }`}>
+                                {podcast.status.toUpperCase()}
+                              </span>
+                            </button>
+                          ))}
+                        </>
+                      )}
                     </>
                   )}
                 </div>

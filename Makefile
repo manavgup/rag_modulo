@@ -310,11 +310,11 @@ local-dev-setup:
 	@echo "$(CYAN)🚀 Setting up local development environment (no containers)...$(NC)"
 	@echo ""
 	@echo "$(CYAN)📦 Installing backend dependencies...$(NC)"
-	@cd backend && $(POETRY) install --with dev,test
+	@$(POETRY) -C backend install --with dev,test
 	@echo "$(GREEN)✅ Backend dependencies installed$(NC)"
 	@echo ""
 	@echo "$(CYAN)📦 Installing frontend dependencies...$(NC)"
-	@cd frontend && npm install
+	@npm --prefix frontend install
 	@echo "$(GREEN)✅ Frontend dependencies installed$(NC)"
 	@echo ""
 	@echo "$(CYAN)💡 Next steps:$(NC)"
@@ -339,22 +339,22 @@ local-dev-backend:
 	@echo "$(CYAN)🐍 Starting backend locally (Poetry + Uvicorn)...$(NC)"
 	@echo "$(YELLOW)⚠️  Make sure infrastructure is running: make local-dev-infra$(NC)"
 	@echo "$(CYAN)📋 Logs: tail -F /tmp/rag-backend.log$(NC)"
-	@cd backend && $(POETRY) run uvicorn main:app --reload --host 0.0.0.0 --port 8000 > /tmp/rag-backend.log 2>&1
+	@PYTHONPATH=backend $(POETRY) -C backend run uvicorn main:app --reload --host 0.0.0.0 --port 8000 --app-dir backend > /tmp/rag-backend.log 2>&1
 
 local-dev-frontend:
 	@echo "$(CYAN)⚛️  Starting frontend locally (npm + react-scripts)...$(NC)"
-	@cd frontend && npm run dev
+	@npm --prefix frontend run dev
 
 local-dev-all:
 	@echo "$(CYAN)🚀 Starting full local development environment...$(NC)"
 	@make local-dev-infra
 	@echo ""
 	@echo "$(CYAN)🐍 Starting backend in background...$(NC)"
-	@cd backend && $(POETRY) run uvicorn main:app --reload --host 0.0.0.0 --port 8000 > /tmp/rag-backend.log 2>&1 &
+	@PYTHONPATH=backend $(POETRY) -C backend run uvicorn main:app --reload --host 0.0.0.0 --port 8000 --app-dir backend > /tmp/rag-backend.log 2>&1 &
 	@echo "Backend PID: $$!"
 	@echo ""
 	@echo "$(CYAN)⚛️  Starting frontend in background...$(NC)"
-	@cd frontend && npm run dev > /tmp/rag-frontend.log 2>&1 &
+	@npm --prefix frontend run dev > /tmp/rag-frontend.log 2>&1 &
 	@echo "Frontend PID: $$!"
 	@echo ""
 	@echo "$(GREEN)✅ Local development environment started$(NC)"

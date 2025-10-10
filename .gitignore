@@ -45,7 +45,7 @@ my_chroma_data/
 *.log
 *.sh
 backend/logs/
-logs/  # Root logs directory (application logs)
+logs/
 
 # Project specific ignores
 chroma/

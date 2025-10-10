@@ -15,7 +15,13 @@ from core.logging_utils import get_logger
 class Settings(BaseSettings):
     """Application settings with environment variable loading."""
 
-    model_config = SettingsConfigDict(extra="allow", validate_default=True, case_sensitive=False)
+    model_config = SettingsConfigDict(
+        extra="allow",
+        validate_default=True,
+        case_sensitive=False,
+        env_file=".env",  # Expect .env in project root (current working directory)
+        env_file_encoding="utf-8",
+    )
 
     # Required settings with defaults for development/testing
     jwt_secret_key: Annotated[

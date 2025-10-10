@@ -138,16 +138,16 @@ const PodcastAudioPlayer: React.FC<PodcastAudioPlayerProps> = ({
   const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
-    <div className="bg-gray-90 border border-gray-30 rounded-lg p-4">
+    <div className="bg-gray-10 border border-gray-20 rounded-lg p-4">
       <audio ref={audioRef} src={audioUrl} preload="metadata" />
 
       {/* Progress Bar */}
       <div className="mb-4">
-        <div className="flex items-center justify-between text-sm text-gray-50 mb-2">
+        <div className="flex items-center justify-between text-sm text-gray-70 mb-2">
           <span>{formatTime(currentTime)}</span>
           <button
             onClick={() => onQuestionClick && onQuestionClick(currentTime)}
-            className="text-xs text-blue-50 hover:text-blue-40 transition-colors"
+            className="text-xs text-blue-60 hover:text-blue-70 transition-colors"
           >
             + Add Question Here
           </button>
@@ -163,9 +163,9 @@ const PodcastAudioPlayer: React.FC<PodcastAudioPlayerProps> = ({
           onMouseUp={handleSeekEnd}
           onTouchStart={handleSeekStart}
           onTouchEnd={handleSeekEnd}
-          className="w-full h-2 bg-gray-30 rounded-lg appearance-none cursor-pointer slider"
+          className="w-full h-2 bg-gray-20 rounded-lg appearance-none cursor-pointer slider"
           style={{
-            background: `linear-gradient(to right, #0f62fe 0%, #0f62fe ${progressPercentage}%, #525252 ${progressPercentage}%, #525252 100%)`,
+            background: `linear-gradient(to right, #0f62fe 0%, #0f62fe ${progressPercentage}%, #e0e0e0 ${progressPercentage}%, #e0e0e0 100%)`,
           }}
         />
       </div>
@@ -176,7 +176,7 @@ const PodcastAudioPlayer: React.FC<PodcastAudioPlayerProps> = ({
         <div className="flex items-center gap-3">
           <button
             onClick={() => skip(-15)}
-            className="text-white hover:text-blue-50 transition-colors"
+            className="text-gray-70 hover:text-blue-60 transition-colors"
             title="Back 15s"
           >
             <BackwardIcon className="w-6 h-6" />
@@ -184,7 +184,7 @@ const PodcastAudioPlayer: React.FC<PodcastAudioPlayerProps> = ({
 
           <button
             onClick={togglePlayPause}
-            className="w-12 h-12 flex items-center justify-center bg-blue-50 hover:bg-blue-40 rounded-full transition-colors"
+            className="w-12 h-12 flex items-center justify-center bg-blue-60 hover:bg-blue-70 rounded-full transition-colors"
           >
             {isPlaying ? (
               <PauseIcon className="w-6 h-6 text-white" />
@@ -195,7 +195,7 @@ const PodcastAudioPlayer: React.FC<PodcastAudioPlayerProps> = ({
 
           <button
             onClick={() => skip(15)}
-            className="text-white hover:text-blue-50 transition-colors"
+            className="text-gray-70 hover:text-blue-60 transition-colors"
             title="Forward 15s"
           >
             <ForwardIcon className="w-6 h-6" />
@@ -204,7 +204,7 @@ const PodcastAudioPlayer: React.FC<PodcastAudioPlayerProps> = ({
 
         {/* Volume Control */}
         <div className="flex items-center gap-2">
-          <button onClick={toggleMute} className="text-white hover:text-blue-50 transition-colors">
+          <button onClick={toggleMute} className="text-gray-70 hover:text-blue-60 transition-colors">
             {isMuted || volume === 0 ? (
               <SpeakerXMarkIcon className="w-5 h-5" />
             ) : (
@@ -218,17 +218,17 @@ const PodcastAudioPlayer: React.FC<PodcastAudioPlayerProps> = ({
             step="0.01"
             value={isMuted ? 0 : volume}
             onChange={handleVolumeChange}
-            className="w-20 h-1 bg-gray-30 rounded-lg appearance-none cursor-pointer"
+            className="w-20 h-1 bg-gray-20 rounded-lg appearance-none cursor-pointer"
           />
         </div>
 
         {/* Playback Speed */}
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-50">Speed:</span>
+          <span className="text-sm text-gray-70">Speed:</span>
           <select
             value={playbackRate}
             onChange={(e) => setPlaybackRate(parseFloat(e.target.value))}
-            className="px-2 py-1 bg-gray-100 border border-gray-30 rounded text-white text-sm"
+            className="px-2 py-1 bg-white border border-gray-20 rounded text-gray-100 text-sm"
           >
             {PLAYBACK_SPEEDS.map((speed) => (
               <option key={speed} value={speed}>
@@ -240,8 +240,8 @@ const PodcastAudioPlayer: React.FC<PodcastAudioPlayerProps> = ({
       </div>
 
       {/* Keyboard Shortcuts Info */}
-      <div className="mt-3 pt-3 border-t border-gray-30">
-        <div className="text-xs text-gray-50">
+      <div className="mt-3 pt-3 border-t border-gray-20">
+        <div className="text-xs text-gray-70">
           <span className="font-medium">Keyboard shortcuts:</span> Space = Play/Pause, ← → = Seek 15s
         </div>
       </div>

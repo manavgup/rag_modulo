@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import apiClient from '../services/apiClient';
 
 export interface User {
   id: string;
@@ -29,24 +30,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Mock user for UI-first development
-  const mockUser: User = {
-    id: '1',
-    username: 'admin',
-    email: 'admin@ragmodulo.com',
-    role: 'system_administrator',
-    permissions: ['read', 'write', 'admin', 'agent_management', 'workflow_management'],
-    lastLogin: new Date()
-  };
-
   useEffect(() => {
-    // Simulate loading user from localStorage or API
+    // Load user from backend API
     const loadUser = async () => {
       setIsLoading(true);
       try {
-        // In a real app, this would check localStorage or make an API call
-        // For UI-first development, we'll use the mock user
-        setUser(mockUser);
+        // Fetch user info from backend
+        const userInfo = await apiClient.getUserInfo();
+
+        // Map backend user to frontend User type
+        const mappedUser: User = {
+          id: userInfo.uuid,
+          username: userInfo.name || userInfo.email.split('@')[0],
+          email: userInfo.email,
+          role: userInfo.role === 'admin' ? 'system_administrator' : 'end_user',
+          permissions: userInfo.role === 'admin'
+            ? ['read', 'write', 'admin', 'agent_management', 'workflow_management']
+            : ['read', 'write'],
+          lastLogin: new Date()
+        };
+
+        setUser(mappedUser);
+        // Store user ID in localStorage for backward compatibility
+        localStorage.setItem('user_id', userInfo.uuid);
       } catch (error) {
         console.error('Failed to load user:', error);
         setUser(null);
@@ -61,12 +67,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (username: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     try {
-      // Mock login - in a real app, this would make an API call
-      if (username === 'admin' && password === 'admin') {
-        setUser(mockUser);
-        localStorage.setItem('user', JSON.stringify(mockUser));
-        return true;
-      }
+      // Login is handled via OIDC redirect - this is just a placeholder
+      // In a real implementation, this would redirect to the OIDC login page
+      console.log('Login via OIDC not implemented in this context');
       return false;
     } catch (error) {
       console.error('Login failed:', error);

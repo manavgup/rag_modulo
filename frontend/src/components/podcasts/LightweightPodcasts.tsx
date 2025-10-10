@@ -4,29 +4,45 @@ import {
   PlayIcon,
   TrashIcon,
   ArrowDownTrayIcon,
-  FunnelIcon,
+  PlusIcon,
+  ChatBubbleLeftRightIcon,
+  DocumentTextIcon,
+  FolderIcon,
+  DocumentIcon,
+  MicrophoneIcon,
+  ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import { useNotification } from '../../contexts/NotificationContext';
-import apiClient, { Podcast } from '../../services/apiClient';
+import { useAuth } from '../../contexts/AuthContext';
+import apiClient, { Podcast, Collection } from '../../services/apiClient';
 import PodcastProgressCard from './PodcastProgressCard';
+import PodcastGenerationModal from './PodcastGenerationModal';
 
 const LightweightPodcasts: React.FC = () => {
   const { addNotification } = useNotification();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [podcasts, setPodcasts] = useState<Podcast[]>([]);
+  const [collections, setCollections] = useState<Collection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<'date' | 'duration'>('date');
+  const [isLoadingCollections, setIsLoadingCollections] = useState(true);
+  const [filterTab, setFilterTab] = useState<'all' | 'in-progress' | 'completed' | 'favorites'>('all');
+  const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
+  const [selectedCollectionForGeneration, setSelectedCollectionForGeneration] = useState<{id: string; name: string} | null>(null);
 
   useEffect(() => {
     loadPodcasts();
+    loadCollections();
+  }, []);
 
-    // Poll for updates every 5 seconds if there are generating podcasts
+  // Separate useEffect for polling generating podcasts
+  useEffect(() => {
+    const hasGenerating = podcasts.some(p => p.status === 'generating' || p.status === 'queued');
+
+    if (!hasGenerating) return;
+
     const interval = setInterval(() => {
-      const hasGenerating = podcasts.some(p => p.status === 'generating' || p.status === 'queued');
-      if (hasGenerating) {
-        loadPodcasts(true); // Silent reload
-      }
+      loadPodcasts(true); // Silent reload
     }, 5000);
 
     return () => clearInterval(interval);
@@ -36,13 +52,9 @@ const LightweightPodcasts: React.FC = () => {
     if (!silent) setIsLoading(true);
 
     try {
-      const userId = localStorage.getItem('user_id') || '';
+      const userId = user?.id || '';
       const response = await apiClient.listPodcasts(userId);
       setPodcasts(response.podcasts);
-
-      if (!silent) {
-        addNotification('success', 'Podcasts Loaded', 'Your podcasts have been loaded successfully.');
-      }
     } catch (error) {
       console.error('Error loading podcasts:', error);
       if (!silent) {
@@ -54,6 +66,24 @@ const LightweightPodcasts: React.FC = () => {
     }
   };
 
+  const loadCollections = async () => {
+    setIsLoadingCollections(true);
+    try {
+      const collectionsData = await apiClient.getCollections();
+      setCollections(collectionsData);
+    } catch (error) {
+      console.error('Error loading collections:', error);
+      setCollections([]);
+    } finally {
+      setIsLoadingCollections(false);
+    }
+  };
+
+  const handleGenerateFromCollection = (collection: Collection) => {
+    setSelectedCollectionForGeneration({ id: collection.id, name: collection.name });
+    setIsGenerateModalOpen(true);
+  };
+
   const handleDelete = async (podcastId: string, event: React.MouseEvent) => {
     event.stopPropagation();
 
@@ -62,7 +92,7 @@ const LightweightPodcasts: React.FC = () => {
     }
 
     try {
-      const userId = localStorage.getItem('user_id') || '';
+      const userId = user?.id || '';
       await apiClient.deletePodcast(podcastId, userId);
       setPodcasts(prev => prev.filter(p => p.podcast_id !== podcastId));
       addNotification('success', 'Podcast Deleted', 'Podcast has been deleted successfully.');
@@ -102,106 +132,206 @@ const LightweightPodcasts: React.FC = () => {
   };
 
   const filteredPodcasts = podcasts.filter(podcast => {
-    if (filterStatus === 'all') return true;
-    return podcast.status === filterStatus;
+    if (filterTab === 'all') return true;
+    if (filterTab === 'in-progress') {
+      return podcast.status === 'generating' || podcast.status === 'queued';
+    }
+    if (filterTab === 'completed') {
+      return podcast.status === 'completed';
+    }
+    if (filterTab === 'favorites') {
+      // For now, show all completed podcasts as potential favorites
+      // In the future, this could check a favorites flag
+      return podcast.status === 'completed';
+    }
+    return true;
   });
 
   const sortedPodcasts = [...filteredPodcasts].sort((a, b) => {
-    if (sortBy === 'date') {
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    } else {
-      return b.duration - a.duration;
-    }
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
 
   const statusCounts = {
     all: podcasts.length,
-    queued: podcasts.filter(p => p.status === 'queued').length,
-    generating: podcasts.filter(p => p.status === 'generating').length,
+    'in-progress': podcasts.filter(p => p.status === 'generating' || p.status === 'queued').length,
     completed: podcasts.filter(p => p.status === 'completed').length,
-    failed: podcasts.filter(p => p.status === 'failed').length,
+    favorites: podcasts.filter(p => p.status === 'completed').length, // Placeholder
   };
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-2 border-blue-50 border-t-transparent rounded-full animate-spin" />
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-60 mx-auto mb-4"></div>
+          <p className="text-gray-70">Loading podcasts...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6">
+    <div className="min-h-screen bg-gray-10 p-6">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-white mb-2">My Podcasts</h1>
-        <p className="text-gray-50">
-          Manage and listen to your generated podcasts
-        </p>
-      </div>
-
-      {/* Filters and Sort */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2">
-          <FunnelIcon className="w-5 h-5 text-gray-50" />
-          <div className="flex gap-2">
-            {[
-              { key: 'all', label: 'All' },
-              { key: 'completed', label: 'Completed' },
-              { key: 'generating', label: 'Generating' },
-              { key: 'queued', label: 'Queued' },
-              { key: 'failed', label: 'Failed' },
-            ].map(({ key, label }) => (
-              <button
-                key={key}
-                onClick={() => setFilterStatus(key)}
-                className={`px-3 py-1 rounded-lg text-sm transition-colors ${
-                  filterStatus === key
-                    ? 'bg-blue-50 text-white'
-                    : 'bg-gray-90 text-gray-50 hover:text-white'
-                }`}
-              >
-                {label} ({statusCounts[key as keyof typeof statusCounts]})
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as 'date' | 'duration')}
-          className="px-3 py-1 bg-gray-90 border border-gray-30 rounded-lg text-white text-sm"
-        >
-          <option value="date">Sort by Date</option>
-          <option value="duration">Sort by Duration</option>
-        </select>
-      </div>
-
-      {/* Podcasts List */}
-      {sortedPodcasts.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-gray-50 mb-4">
-            {filterStatus === 'all'
-              ? 'No podcasts yet. Generate your first podcast from a collection!'
-              : `No ${filterStatus} podcasts found.`
-            }
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-semibold text-gray-100 mb-2">My Podcasts</h1>
+          <p className="text-gray-70">
+            Generate and manage AI-powered podcasts from your collections
           </p>
-          {filterStatus === 'all' && (
-            <button
-              onClick={() => navigate('/collections')}
-              className="px-4 py-2 bg-blue-50 hover:bg-blue-40 text-white rounded-lg transition-colors"
-            >
-              Go to Collections
-            </button>
-          )}
         </div>
+        <button
+          onClick={() => setIsGenerateModalOpen(true)}
+          className="btn-primary flex items-center space-x-2"
+        >
+          <PlusIcon className="w-5 h-5" />
+          <span>Generate Podcast</span>
+        </button>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex items-center gap-4 mb-6 border-b border-gray-20">
+        {[
+          { key: 'all' as const, label: 'All Podcasts' },
+          { key: 'in-progress' as const, label: 'In Progress' },
+          { key: 'completed' as const, label: 'Completed' },
+          { key: 'favorites' as const, label: 'Favorites' },
+        ].map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setFilterTab(key)}
+            className={`px-4 py-2 text-sm font-medium transition-colors relative ${
+              filterTab === key
+                ? 'text-blue-60'
+                : 'text-gray-70 hover:text-gray-100'
+            }`}
+          >
+            {label}
+            {filterTab === key && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-60" />
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Podcasts List or Empty State */}
+      {sortedPodcasts.length === 0 ? (
+        filterTab === 'all' && podcasts.length === 0 ? (
+          /* Comprehensive Empty State */
+          <div className="flex justify-center items-center min-h-[600px] py-10">
+            <div className="max-w-4xl w-full text-center">
+              {/* Empty Icon */}
+              <div className="text-7xl mb-6 opacity-50">
+                <MicrophoneIcon className="w-24 h-24 mx-auto text-gray-50" />
+              </div>
+
+              {/* Title & Description */}
+              <h2 className="text-3xl font-semibold text-gray-100 mb-4">No podcasts yet</h2>
+              <p className="text-gray-70 text-lg mb-10 max-w-2xl mx-auto leading-relaxed">
+                Transform your document collections into engaging AI-powered podcasts.
+                Select a collection and generate your first podcast to get started.
+              </p>
+
+              {/* Collections or No Collections State */}
+              {isLoadingCollections ? (
+                <div className="text-gray-50">Loading collections...</div>
+              ) : collections.length > 0 ? (
+                <div>
+                  {/* Collection Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 max-w-3xl mx-auto">
+                    {collections.slice(0, 3).map((collection) => (
+                      <div
+                        key={collection.id}
+                        className="card p-6 cursor-pointer hover:border-blue-60 transition-all duration-200 group text-left"
+                        onClick={() => handleGenerateFromCollection(collection)}
+                      >
+                        <div className="mb-4">
+                          <FolderIcon className="w-8 h-8 text-gray-70 mb-3" />
+                        </div>
+                        <div className="mb-4">
+                          <div className="text-gray-100 font-semibold mb-1 group-hover:text-blue-60 transition-colors duration-200">{collection.name}</div>
+                          <div className="text-sm text-gray-70">
+                            {collection.documentCount} document{collection.documentCount !== 1 ? 's' : ''} •{' '}
+                            Updated {new Date(collection.updatedAt).toLocaleDateString()}
+                          </div>
+                        </div>
+                        <button
+                          className="btn-primary w-full text-sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleGenerateFromCollection(collection);
+                          }}
+                        >
+                          Generate Podcast
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Primary Actions */}
+                  <div className="flex gap-4 justify-center mb-12">
+                    <button
+                      onClick={() => {
+                        setSelectedCollectionForGeneration(null);
+                        setIsGenerateModalOpen(true);
+                      }}
+                      className="btn-primary flex items-center space-x-2"
+                    >
+                      <MicrophoneIcon className="w-5 h-5" />
+                      <span>Choose Collection & Generate</span>
+                    </button>
+                    <button
+                      onClick={() => navigate('/collections')}
+                      className="btn-secondary flex items-center space-x-2"
+                    >
+                      <FolderIcon className="w-5 h-5" />
+                      <span>Manage Collections</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* No Collections State */
+                <div>
+                  <div className="bg-yellow-50 bg-opacity-10 border border-yellow-50 rounded-lg p-6 mb-8 max-w-2xl mx-auto">
+                    <div className="flex items-start gap-4">
+                      <ExclamationTriangleIcon className="w-8 h-8 text-yellow-50 flex-shrink-0 mt-1" />
+                      <div className="text-left">
+                        <h3 className="text-lg font-semibold text-yellow-50 mb-2">No Collections Found</h3>
+                        <p className="text-yellow-40 leading-relaxed">
+                          You need at least one collection with documents to generate a podcast.
+                          Create a collection and upload your documents first.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-center mb-12">
+                    <button
+                      onClick={() => navigate('/collections')}
+                      className="btn-primary flex items-center space-x-2"
+                    >
+                      <FolderIcon className="w-5 h-5" />
+                      <span>Create Your First Collection</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          /* Simple Empty State for Filtered Tabs */
+          <div className="text-center py-12">
+            <p className="text-gray-70 mb-4">
+              No {filterTab === 'in-progress' ? 'in progress' : filterTab} podcasts found.
+            </p>
+          </div>
+        )
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {sortedPodcasts.map((podcast) => (
             <div
               key={podcast.podcast_id}
               onClick={() => navigate(`/podcasts/${podcast.podcast_id}`)}
-              className="bg-gray-90 border border-gray-30 rounded-lg p-4 hover:border-blue-50 transition-colors cursor-pointer"
+              className="card p-6 cursor-pointer hover:border-blue-60 transition-all duration-200 group"
             >
               {/* Show progress card for generating/queued podcasts */}
               {(podcast.status === 'generating' || podcast.status === 'queued') ? (
@@ -209,56 +339,62 @@ const LightweightPodcasts: React.FC = () => {
               ) : (
                 <>
                   {/* Title and Status */}
-                  <div className="mb-3">
-                    <h3 className="text-white font-medium mb-1">
+                  <div className="mb-4">
+                    <h3 className="text-lg font-semibold text-gray-100 group-hover:text-blue-60 transition-colors duration-200 mb-2">
                       {podcast.title || `Podcast ${podcast.podcast_id.substring(0, 8)}`}
                     </h3>
                     <div className="flex items-center gap-2">
-                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         podcast.status === 'completed' ? 'bg-green-50 text-white' :
                         podcast.status === 'failed' ? 'bg-red-50 text-white' :
                         'bg-gray-50 text-white'
                       }`}>
                         {podcast.status.toUpperCase()}
                       </span>
-                      <span className="text-xs text-gray-50">{podcast.duration} min</span>
-                      <span className="text-xs text-gray-50">{podcast.format.toUpperCase()}</span>
+                      <span className="text-xs text-gray-70">{podcast.duration} min</span>
+                      <span className="text-xs text-gray-70">{podcast.format.toUpperCase()}</span>
                     </div>
                   </div>
 
                   {/* Creation Date */}
-                  <div className="text-xs text-gray-50 mb-3">
+                  <div className="text-sm text-gray-70 mb-4">
                     {new Date(podcast.created_at).toLocaleDateString()} at{' '}
                     {new Date(podcast.created_at).toLocaleTimeString()}
                   </div>
 
                   {/* Actions */}
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap pt-4 border-t border-gray-20">
                     {podcast.status === 'completed' && (
                       <>
                         <button
                           onClick={(e) => handlePlay(podcast, e)}
-                          className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 hover:bg-blue-40 text-white rounded text-sm transition-colors"
+                          className="btn-primary flex items-center space-x-1 text-sm"
                         >
                           <PlayIcon className="w-4 h-4" />
-                          Play
+                          <span>Play</span>
                         </button>
                         <button
-                          onClick={(e) => handleDownload(podcast, e)}
-                          className="flex items-center gap-1 px-3 py-1.5 bg-gray-30 hover:bg-gray-40 text-white rounded text-sm transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/podcasts/${podcast.podcast_id}?tab=chat`);
+                          }}
+                          className="btn-ghost flex items-center space-x-1 text-sm"
                         >
-                          <ArrowDownTrayIcon className="w-4 h-4" />
-                          Download
+                          <ChatBubbleLeftRightIcon className="w-4 h-4" />
+                          <span>Chat</span>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/podcasts/${podcast.podcast_id}?tab=transcript`);
+                          }}
+                          className="btn-ghost flex items-center space-x-1 text-sm"
+                        >
+                          <DocumentTextIcon className="w-4 h-4" />
+                          <span>Transcript</span>
                         </button>
                       </>
                     )}
-                    <button
-                      onClick={(e) => handleDelete(podcast.podcast_id, e)}
-                      className="flex items-center gap-1 px-3 py-1.5 bg-red-50 hover:bg-red-40 text-white rounded text-sm transition-colors ml-auto"
-                    >
-                      <TrashIcon className="w-4 h-4" />
-                      Delete
-                    </button>
                   </div>
                 </>
               )}
@@ -266,6 +402,62 @@ const LightweightPodcasts: React.FC = () => {
           ))}
         </div>
       )}
+
+      {/* Getting Started Guide - Always Shown */}
+      <div className="mt-12 bg-white border border-gray-20 rounded-lg p-8 max-w-5xl mx-auto shadow-sm">
+        <h3 className="text-xl font-semibold text-gray-100 mb-6 flex items-center justify-center gap-2">
+          <span>🚀</span>
+          Getting Started
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {[
+            {
+              number: 1,
+              title: 'Upload Documents',
+              description: 'Add PDFs, docs, or text files to your collections',
+              icon: <DocumentIcon className="w-6 h-6" />
+            },
+            {
+              number: 2,
+              title: 'Generate Podcast',
+              description: 'AI creates engaging audio discussions from your content',
+              icon: <MicrophoneIcon className="w-6 h-6" />
+            },
+            {
+              number: 3,
+              title: 'Interact & Refine',
+              description: 'Ask questions to dynamically update your podcasts',
+              icon: <ChatBubbleLeftRightIcon className="w-6 h-6" />
+            }
+          ].map((tip) => (
+            <div key={tip.number} className="flex items-start gap-4 text-left">
+              <div className="w-10 h-10 bg-blue-60 text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">
+                {tip.number}
+              </div>
+              <div>
+                <div className="text-gray-100 font-semibold mb-1">{tip.title}</div>
+                <div className="text-sm text-gray-70 leading-relaxed">{tip.description}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Podcast Generation Modal */}
+      <PodcastGenerationModal
+        isOpen={isGenerateModalOpen}
+        onClose={() => {
+          setIsGenerateModalOpen(false);
+          setSelectedCollectionForGeneration(null);
+        }}
+        collectionId={selectedCollectionForGeneration?.id}
+        collectionName={selectedCollectionForGeneration?.name}
+        onPodcastCreated={() => {
+          setIsGenerateModalOpen(false);
+          setSelectedCollectionForGeneration(null);
+          loadPodcasts();
+        }}
+      />
     </div>
   );
 };

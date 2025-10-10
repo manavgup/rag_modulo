@@ -35,22 +35,29 @@ def get_current_user(
     This assumes authentication middleware has already validated the user
     and added user info to request.state.
 
-    In development mode with SKIP_AUTH=true, returns a mock user.
-    """
-    # Check if authentication is skipped (development mode)
-    if settings.skip_auth:
-        # Return mock user for development (all values from config)
-        return {
-            "user_id": settings.mock_token,
-            "uuid": settings.mock_token,
-            "email": settings.mock_user_email,
-            "name": settings.mock_user_name,
-        }
+    In development mode with SKIP_AUTH=true, the middleware sets up request.state.user
+    with the mock user, so we use that.
 
-    # Production: require authentication
+    Returns user_id as UUID object for consistency with database models.
+    """
+    # Authentication middleware always sets request.state.user (even in SKIP_AUTH mode)
     if not hasattr(request.state, "user"):
         raise HTTPException(status_code=401, detail="Not authenticated")
-    return request.state.user  # type: ignore[no-any-return]
+
+    user_data = request.state.user.copy()  # Create copy to avoid mutating original
+
+    # Ensure user_id is set as UUID object (some code expects it alongside uuid)
+    if "user_id" not in user_data and "uuid" in user_data:
+        from uuid import UUID
+
+        # Convert string UUID to UUID object for consistency with database
+        user_data["user_id"] = UUID(user_data["uuid"]) if isinstance(user_data["uuid"], str) else user_data["uuid"]
+    elif isinstance(user_data.get("user_id"), str):
+        from uuid import UUID
+
+        user_data["user_id"] = UUID(user_data["user_id"])
+
+    return user_data  # type: ignore[no-any-return]
 
 
 def verify_user_access(

@@ -8,6 +8,7 @@ import {
   DocumentTextIcon,
 } from '@heroicons/react/24/outline';
 import { useNotification } from '../../contexts/NotificationContext';
+import { useAuth } from '../../contexts/AuthContext';
 import apiClient, { Podcast } from '../../services/apiClient';
 import PodcastAudioPlayer from './PodcastAudioPlayer';
 import PodcastTranscriptViewer from './PodcastTranscriptViewer';
@@ -18,6 +19,7 @@ const LightweightPodcastDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { addNotification } = useNotification();
+  const { user } = useAuth();
 
   const [podcast, setPodcast] = useState<Podcast | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -43,7 +45,7 @@ const LightweightPodcastDetail: React.FC = () => {
     if (!silent) setIsLoading(true);
 
     try {
-      const userId = localStorage.getItem('user_id') || '';
+      const userId = user?.id || '';
       const podcastData = await apiClient.getPodcast(id!, userId);
       setPodcast(podcastData);
     } catch (error) {
@@ -61,7 +63,7 @@ const LightweightPodcastDetail: React.FC = () => {
     }
 
     try {
-      const userId = localStorage.getItem('user_id') || '';
+      const userId = user?.id || '';
       await apiClient.deletePodcast(id!, userId);
       addNotification('success', 'Podcast Deleted', 'Podcast has been deleted successfully.');
       navigate('/podcasts');
@@ -133,20 +135,23 @@ const LightweightPodcastDetail: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="w-8 h-8 border-2 border-blue-50 border-t-transparent rounded-full animate-spin" />
+      <div className="flex items-center justify-center min-h-screen bg-gray-10">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-60 mx-auto mb-4"></div>
+          <p className="text-gray-70">Loading podcast...</p>
+        </div>
       </div>
     );
   }
 
   if (!podcast) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center min-h-screen bg-gray-10">
         <div className="text-center">
-          <p className="text-white mb-4">Podcast not found</p>
+          <p className="text-gray-100 mb-4">Podcast not found</p>
           <button
             onClick={() => navigate('/podcasts')}
-            className="px-4 py-2 bg-blue-50 hover:bg-blue-40 text-white rounded-lg transition-colors"
+            className="btn-primary"
           >
             Back to Podcasts
           </button>
@@ -159,151 +164,153 @@ const LightweightPodcastDetail: React.FC = () => {
   const isCompleted = podcast.status === 'completed';
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      {/* Back Button */}
-      <button
-        onClick={() => navigate('/podcasts')}
-        className="flex items-center gap-2 text-gray-50 hover:text-white mb-6 transition-colors"
-      >
-        <ArrowLeftIcon className="w-5 h-5" />
-        Back to Podcasts
-      </button>
-
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-white mb-2">
-          {podcast.title || `Podcast ${podcast.podcast_id.substring(0, 8)}`}
-        </h1>
-        <div className="flex items-center gap-3">
-          <span className={`px-3 py-1 rounded text-sm font-medium ${
-            podcast.status === 'completed' ? 'bg-green-50 text-white' :
-            podcast.status === 'failed' ? 'bg-red-50 text-white' :
-            podcast.status === 'generating' ? 'bg-yellow-30 text-gray-100' :
-            podcast.status === 'queued' ? 'bg-blue-50 text-white' :
-            'bg-gray-50 text-white'
-          }`}>
-            {podcast.status.toUpperCase()}
-          </span>
-          <span className="text-gray-50">{podcast.duration} minutes</span>
-          <span className="text-gray-50">{podcast.format.toUpperCase()}</span>
-          {podcast.audio_size_bytes && (
-            <span className="text-gray-50">
-              {(podcast.audio_size_bytes / (1024 * 1024)).toFixed(2)} MB
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Actions */}
-      <div className="flex items-center gap-3 mb-6">
-        {isCompleted && (
-          <>
-            <button
-              onClick={handleDownload}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-40 text-white rounded-lg transition-colors"
-            >
-              <ArrowDownTrayIcon className="w-5 h-5" />
-              Download
-            </button>
-            <button
-              onClick={handleShare}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-30 hover:bg-gray-40 text-white rounded-lg transition-colors"
-            >
-              <ShareIcon className="w-5 h-5" />
-              Share
-            </button>
-            <button
-              onClick={() => setShowTranscript(!showTranscript)}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-30 hover:bg-gray-40 text-white rounded-lg transition-colors"
-            >
-              <DocumentTextIcon className="w-5 h-5" />
-              {showTranscript ? 'Hide' : 'Show'} Transcript
-            </button>
-          </>
-        )}
+    <div className="min-h-screen bg-gray-10 p-6">
+      <div className="max-w-6xl mx-auto">
+        {/* Back Button */}
         <button
-          onClick={handleDelete}
-          className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-40 text-white rounded-lg transition-colors ml-auto"
+          onClick={() => navigate('/podcasts')}
+          className="flex items-center space-x-2 text-gray-70 hover:text-gray-100 mb-6 transition-colors"
         >
-          <TrashIcon className="w-5 h-5" />
-          Delete
+          <ArrowLeftIcon className="w-5 h-5" />
+          <span>Back to Podcasts</span>
         </button>
-      </div>
 
-      {/* Content */}
-      {isGenerating ? (
-        <PodcastProgressCard podcast={podcast} />
-      ) : podcast.status === 'failed' ? (
-        <div className="bg-red-50 bg-opacity-10 border border-red-50 rounded-lg p-6">
-          <h2 className="text-xl font-semibold text-red-50 mb-2">Generation Failed</h2>
-          <p className="text-gray-50">
-            {podcast.error_message || 'An error occurred during podcast generation.'}
-          </p>
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-3xl font-semibold text-gray-100 mb-2">
+            {podcast.title || `Podcast ${podcast.podcast_id.substring(0, 8)}`}
+          </h1>
+          <div className="flex items-center gap-3">
+            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+              podcast.status === 'completed' ? 'bg-green-50 text-white' :
+              podcast.status === 'failed' ? 'bg-red-50 text-white' :
+              podcast.status === 'generating' ? 'bg-yellow-30 text-gray-100' :
+              podcast.status === 'queued' ? 'bg-blue-60 text-white' :
+              'bg-gray-50 text-white'
+            }`}>
+              {podcast.status.toUpperCase()}
+            </span>
+            <span className="text-sm text-gray-70">{podcast.duration} minutes</span>
+            <span className="text-sm text-gray-70">{podcast.format.toUpperCase()}</span>
+            {podcast.audio_size_bytes && (
+              <span className="text-sm text-gray-70">
+                {(podcast.audio_size_bytes / (1024 * 1024)).toFixed(2)} MB
+              </span>
+            )}
+          </div>
         </div>
-      ) : isCompleted ? (
-        <div className="space-y-6">
-          {/* Audio Player */}
-          {podcast.audio_url && (
-            <div>
-              <h2 className="text-xl font-semibold text-white mb-3">Audio Player</h2>
-              <PodcastAudioPlayer
-                audioUrl={podcast.audio_url}
-                onTimeUpdate={handleTimeUpdate}
-                onQuestionClick={handleQuestionClick}
-              />
-            </div>
-          )}
 
-          {/* Transcript */}
-          {showTranscript && podcast.transcript && (
-            <div>
-              <h2 className="text-xl font-semibold text-white mb-3">Transcript</h2>
-              <PodcastTranscriptViewer
-                transcript={podcast.transcript}
-                currentTime={currentTime}
-              />
-            </div>
+        {/* Actions */}
+        <div className="flex items-center gap-3 mb-6">
+          {isCompleted && (
+            <>
+              <button
+                onClick={handleDownload}
+                className="btn-primary flex items-center space-x-2"
+              >
+                <ArrowDownTrayIcon className="w-5 h-5" />
+                <span>Download</span>
+              </button>
+              <button
+                onClick={handleShare}
+                className="btn-secondary flex items-center space-x-2"
+              >
+                <ShareIcon className="w-5 h-5" />
+                <span>Share</span>
+              </button>
+              <button
+                onClick={() => setShowTranscript(!showTranscript)}
+                className="btn-secondary flex items-center space-x-2"
+              >
+                <DocumentTextIcon className="w-5 h-5" />
+                <span>{showTranscript ? 'Hide' : 'Show'} Transcript</span>
+              </button>
+            </>
           )}
+          <button
+            onClick={handleDelete}
+            className="flex items-center space-x-2 px-4 py-2 bg-red-50 hover:bg-red-40 text-white rounded-md transition-colors ml-auto"
+          >
+            <TrashIcon className="w-5 h-5" />
+            <span>Delete</span>
+          </button>
+        </div>
 
-          {/* Metadata */}
-          <div className="bg-gray-90 border border-gray-30 rounded-lg p-4">
-            <h3 className="text-lg font-semibold text-white mb-3">Metadata</h3>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-gray-50">Created:</span>
-                <span className="text-white ml-2">
-                  {new Date(podcast.created_at).toLocaleString()}
-                </span>
+        {/* Content */}
+        {isGenerating ? (
+          <PodcastProgressCard podcast={podcast} />
+        ) : podcast.status === 'failed' ? (
+          <div className="bg-red-50 bg-opacity-10 border border-red-50 rounded-lg p-6">
+            <h2 className="text-xl font-semibold text-red-50 mb-2">Generation Failed</h2>
+            <p className="text-gray-70">
+              {podcast.error_message || 'An error occurred during podcast generation.'}
+            </p>
+          </div>
+        ) : isCompleted ? (
+          <div className="space-y-6">
+            {/* Audio Player */}
+            {podcast.audio_url && (
+              <div className="card p-6">
+                <h2 className="text-xl font-semibold text-gray-100 mb-4">Audio Player</h2>
+                <PodcastAudioPlayer
+                  audioUrl={podcast.audio_url}
+                  onTimeUpdate={handleTimeUpdate}
+                  onQuestionClick={handleQuestionClick}
+                />
               </div>
-              <div>
-                <span className="text-gray-50">Completed:</span>
-                <span className="text-white ml-2">
-                  {podcast.completed_at
-                    ? new Date(podcast.completed_at).toLocaleString()
-                    : 'N/A'}
-                </span>
+            )}
+
+            {/* Transcript */}
+            {showTranscript && podcast.transcript && (
+              <div className="card p-6">
+                <h2 className="text-xl font-semibold text-gray-100 mb-4">Transcript</h2>
+                <PodcastTranscriptViewer
+                  transcript={podcast.transcript}
+                  currentTime={currentTime}
+                />
               </div>
-              <div>
-                <span className="text-gray-50">Collection ID:</span>
-                <span className="text-white ml-2">{podcast.collection_id.substring(0, 8)}...</span>
-              </div>
-              <div>
-                <span className="text-gray-50">Podcast ID:</span>
-                <span className="text-white ml-2">{podcast.podcast_id.substring(0, 8)}...</span>
+            )}
+
+            {/* Metadata */}
+            <div className="card p-6">
+              <h3 className="text-lg font-semibold text-gray-100 mb-4">Metadata</h3>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-gray-70">Created:</span>
+                  <span className="text-gray-100 ml-2">
+                    {new Date(podcast.created_at).toLocaleString()}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-70">Completed:</span>
+                  <span className="text-gray-100 ml-2">
+                    {podcast.completed_at
+                      ? new Date(podcast.completed_at).toLocaleString()
+                      : 'N/A'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-70">Collection ID:</span>
+                  <span className="text-gray-100 ml-2">{podcast.collection_id.substring(0, 8)}...</span>
+                </div>
+                <div>
+                  <span className="text-gray-70">Podcast ID:</span>
+                  <span className="text-gray-100 ml-2">{podcast.podcast_id.substring(0, 8)}...</span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      ) : null}
+        ) : null}
 
-      {/* Question Injection Modal */}
-      <PodcastQuestionInjectionModal
-        isOpen={isQuestionModalOpen}
-        onClose={() => setIsQuestionModalOpen(false)}
-        podcastId={podcast.podcast_id}
-        currentTimestamp={questionTimestamp}
-        onQuestionInjected={handleQuestionInjected}
-      />
+        {/* Question Injection Modal */}
+        <PodcastQuestionInjectionModal
+          isOpen={isQuestionModalOpen}
+          onClose={() => setIsQuestionModalOpen(false)}
+          podcastId={podcast.podcast_id}
+          currentTimestamp={questionTimestamp}
+          onQuestionInjected={handleQuestionInjected}
+        />
+      </div>
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { useNotification } from '../../contexts/NotificationContext';
+import { useAuth } from '../../contexts/AuthContext';
 import apiClient, { PodcastQuestionInjection } from '../../services/apiClient';
 
 interface PodcastQuestionInjectionModalProps {
@@ -19,6 +20,7 @@ const PodcastQuestionInjectionModal: React.FC<PodcastQuestionInjectionModalProps
   onQuestionInjected,
 }) => {
   const { addNotification } = useNotification();
+  const { user } = useAuth();
   const [question, setQuestion] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -36,7 +38,7 @@ const PodcastQuestionInjectionModal: React.FC<PodcastQuestionInjectionModalProps
 
     setIsSubmitting(true);
     try {
-      const userId = localStorage.getItem('user_id') || '';
+      const userId = user?.id || '';
 
       const injection: PodcastQuestionInjection = {
         podcast_id: podcastId,
