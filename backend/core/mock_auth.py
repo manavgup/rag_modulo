@@ -62,11 +62,15 @@ def is_mock_token(token: str) -> bool:
     return bool(token.startswith("dev-"))
 
 
-def create_mock_user_data(user_uuid: str | None = None) -> dict[str, Any]:
+def create_mock_user_data(user_uuid: str | None = None, settings: Settings | None = None) -> dict[str, Any]:
     """Create mock user data for testing.
+
+    Uses settings.mock_user_email and settings.mock_user_name for consistency
+    across the application when SKIP_AUTH=true.
 
     Args:
         user_uuid: Required user UUID to use
+        settings: Application settings (defaults to get_settings() if not provided)
 
     Returns:
         dict: Mock user data
@@ -77,10 +81,14 @@ def create_mock_user_data(user_uuid: str | None = None) -> dict[str, Any]:
     if not user_uuid:
         raise ValueError("user_uuid is required for mock user data")
 
+    # Get settings if not provided
+    if settings is None:
+        settings = get_settings()
+
     return {
         "id": "test_user_id",
-        "email": "test@example.com",
-        "name": "Test User",
+        "email": settings.mock_user_email,
+        "name": settings.mock_user_name,
         "uuid": user_uuid,
         "role": "admin",
     }
@@ -104,22 +112,28 @@ def ensure_mock_user_exists(db: Session, settings: Settings, user_key: str = "de
     This function uses the UserService to properly create the user
     with all required components:
     - User record
-    - Prompt templates (RAG_QUERY, QUESTION_GENERATION)
+    - Prompt templates (RAG_QUERY, QUESTION_GENERATION, PODCAST_GENERATION)
     - LLM provider assignment
     - LLM parameters
     - Pipeline configuration
 
-    Uses environment variables for configuration instead of hardcoded values.
+    Uses settings for configuration to ensure consistency across the application.
+
+    Args:
+        db: Database session
+        settings: Application settings
+        user_key: Key for different mock users (currently unused)
 
     Returns:
         UUID: The user's ID
     """
-    # Get mock user configuration from environment variables
+    # Get mock user configuration from settings (not os.getenv directly)
+    # This ensures consistency with create_mock_user_data() and get_current_user()
     config = {
-        "ibm_id": os.getenv("MOCK_USER_IBM_ID", "mock-user-ibm-id"),
-        "email": os.getenv("MOCK_USER_EMAIL", "test@example.com"),
-        "name": os.getenv("MOCK_USER_NAME", "Test User"),
-        "role": os.getenv("MOCK_USER_ROLE", "admin"),
+        "ibm_id": os.getenv("MOCK_USER_IBM_ID", "mock-user-ibm-id"),  # Still use env for IBM ID
+        "email": settings.mock_user_email,
+        "name": settings.mock_user_name,
+        "role": os.getenv("MOCK_USER_ROLE", "admin"),  # Still use env for role
     }
 
     try:
@@ -136,7 +150,10 @@ def ensure_mock_user_exists(db: Session, settings: Settings, user_key: str = "de
 
         # Create new user with full initialization
         user_input = UserInput(
-            ibm_id=str(config["ibm_id"]), email=str(config["email"]), name=str(config["name"]), role=str(config["role"])
+            ibm_id=str(config["ibm_id"]),
+            email=str(config["email"]),
+            name=str(config["name"]),
+            role=str(config["role"]),
         )
 
         logger.info("Creating mock user: %s", config["email"])
