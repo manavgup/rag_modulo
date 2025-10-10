@@ -108,6 +108,14 @@ interface User {
   updated_at: Date;
 }
 
+interface UserInfo {
+  sub: string;
+  name: string | null;
+  email: string;
+  uuid: string;
+  role: string | null;
+}
+
 interface PromptTemplate {
   id: string;
   name: string;
@@ -207,7 +215,7 @@ interface VoiceSettings {
 }
 
 interface PodcastGenerationInput {
-  user_id: string;
+  user_id?: string;
   collection_id: string;
   duration: 5 | 15 | 30 | 60;
   voice_settings: VoiceSettings;
@@ -952,6 +960,12 @@ class ApiClient {
     );
     return response.data;
   }
+
+  // Auth API
+  async getUserInfo(): Promise<UserInfo> {
+    const response: AxiosResponse<UserInfo> = await this.client.get('/api/auth/userinfo');
+    return response.data;
+  }
 }
 
 // Create singleton instance
@@ -964,6 +978,7 @@ export type {
   Collection,
   CollectionDocument,
   User,
+  UserInfo,
   PromptTemplate,
   ConversationSession,
   ConversationMessage,

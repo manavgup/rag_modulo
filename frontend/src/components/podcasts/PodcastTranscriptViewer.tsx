@@ -70,29 +70,29 @@ const PodcastTranscriptViewer: React.FC<PodcastTranscriptViewerProps> = ({
   );
 
   return (
-    <div className="bg-gray-90 border border-gray-30 rounded-lg">
+    <div className="bg-gray-10 border border-gray-20 rounded-lg">
       {/* Search Header */}
-      <div className="p-4 border-b border-gray-30">
+      <div className="p-4 border-b border-gray-20">
         <div className="flex items-center gap-2">
-          <MagnifyingGlassIcon className="w-5 h-5 text-gray-50" />
+          <MagnifyingGlassIcon className="w-5 h-5 text-gray-70" />
           <input
             type="text"
             placeholder="Search transcript..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-1 px-3 py-2 bg-gray-100 border border-gray-30 rounded-lg text-white placeholder-gray-50 focus:outline-none focus:border-blue-50"
+            className="flex-1 px-3 py-2 bg-white border border-gray-20 rounded-lg text-gray-100 placeholder-gray-60 focus:outline-none focus:border-blue-60"
           />
           {searchTerm && (
             <button
               onClick={() => setSearchTerm('')}
-              className="text-gray-50 hover:text-white text-sm transition-colors"
+              className="text-gray-70 hover:text-gray-100 text-sm transition-colors"
             >
               Clear
             </button>
           )}
         </div>
         {searchTerm && (
-          <div className="text-xs text-gray-50 mt-2">
+          <div className="text-xs text-gray-70 mt-2">
             {filteredTurns.length} result{filteredTurns.length !== 1 ? 's' : ''} found
           </div>
         )}
@@ -101,7 +101,7 @@ const PodcastTranscriptViewer: React.FC<PodcastTranscriptViewerProps> = ({
       {/* Transcript Content */}
       <div className="p-4 max-h-[600px] overflow-y-auto">
         {filteredTurns.length === 0 ? (
-          <div className="text-center py-8 text-gray-50">
+          <div className="text-center py-8 text-gray-70">
             {searchTerm ? 'No matches found' : 'No transcript available'}
           </div>
         ) : (
@@ -111,22 +111,22 @@ const PodcastTranscriptViewer: React.FC<PodcastTranscriptViewerProps> = ({
                 key={index}
                 className={`p-3 rounded-lg ${
                   turn.speaker === 'HOST'
-                    ? 'bg-blue-50 bg-opacity-10 border-l-4 border-blue-50'
+                    ? 'bg-blue-60 bg-opacity-10 border-l-4 border-blue-60'
                     : 'bg-purple-50 bg-opacity-10 border-l-4 border-purple-50'
                 }`}
               >
                 <div className="flex items-center gap-2 mb-2">
                   <span
-                    className={`px-2 py-0.5 rounded text-xs font-medium ${
+                    className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                       turn.speaker === 'HOST'
-                        ? 'bg-blue-50 text-white'
+                        ? 'bg-blue-60 text-white'
                         : 'bg-purple-50 text-white'
                     }`}
                   >
                     {turn.speaker}
                   </span>
                 </div>
-                <div className="text-sm text-white leading-relaxed">
+                <div className="text-sm text-gray-100 leading-relaxed">
                   {highlightText(turn.text)}
                 </div>
               </div>
@@ -136,7 +136,7 @@ const PodcastTranscriptViewer: React.FC<PodcastTranscriptViewerProps> = ({
       </div>
 
       {/* Stats Footer */}
-      <div className="p-3 border-t border-gray-30 flex items-center justify-between text-xs text-gray-50">
+      <div className="p-3 border-t border-gray-20 flex items-center justify-between text-xs text-gray-70">
         <span>{turns.length} dialogue turns</span>
         <span>{transcript.split(' ').length} words</span>
       </div>

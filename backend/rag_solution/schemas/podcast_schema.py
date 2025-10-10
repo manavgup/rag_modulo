@@ -11,6 +11,7 @@ This module defines data models for podcast generation, including:
 
 from datetime import datetime
 from enum import Enum
+from typing import ClassVar
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
@@ -161,6 +162,9 @@ class PodcastGenerationInput(BaseModel):
     Client-provided user_id values are ignored for security reasons.
     """
 
+    # Valid OpenAI TTS voice IDs
+    VALID_VOICE_IDS: ClassVar[set[str]] = {"alloy", "echo", "fable", "onyx", "nova", "shimmer"}
+
     user_id: UUID | None = Field(
         default=None,
         description=(
@@ -197,6 +201,14 @@ class PodcastGenerationInput(BaseModel):
         default=False,
         description="Add background music (future feature)",
     )
+
+    @field_validator("host_voice", "expert_voice")
+    @classmethod
+    def validate_voice_ids(cls, v: str) -> str:
+        """Validate that voice IDs are valid OpenAI TTS voices."""
+        if v not in cls.VALID_VOICE_IDS:
+            raise ValueError(f"Invalid voice ID '{v}'. Must be one of: {', '.join(sorted(cls.VALID_VOICE_IDS))}")
+        return v
 
     @field_validator("title")
     @classmethod

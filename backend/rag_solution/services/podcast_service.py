@@ -251,6 +251,8 @@ Generate the complete dialogue script now:"""
             podcast_id: Podcast database ID
             podcast_input: Original request input
         """
+        audio_stored = False  # Track if audio was stored for cleanup
+
         try:
             logger.info("Starting podcast generation: %s", podcast_id)
 
@@ -294,6 +296,7 @@ Generate the complete dialogue script now:"""
             # Step 5: Store audio (90-95%)
             await self._update_progress(podcast_id, progress=90, step="storing_audio")
             audio_url = await self._store_audio(podcast_id, podcast_input.user_id, audio_bytes, podcast_input.format)
+            audio_stored = True  # Mark audio as stored for cleanup if needed
 
             # Step 6: Mark complete (100%)
             self.repository.mark_completed(
@@ -310,13 +313,65 @@ Generate the complete dialogue script now:"""
                 podcast_script.total_duration,
             )
 
+        except (NotFoundError, ValidationError) as e:
+            # Resource/validation errors - provide clear error message
+            error_msg = f"Validation error: {e}"
+            logger.error("Podcast generation validation failed for %s: %s", podcast_id, error_msg)
+            await self._cleanup_failed_podcast(podcast_id, podcast_input.user_id, audio_stored, error_msg)
+
         except Exception as e:
+            # TODO: Use more specific exception types (e.g., LLMError, AudioGenerationError, StorageError)
+            # and implement retry logic for transient failures. Sanitize error messages before
+            # storing to avoid information leakage. See follow-up issue for exception hierarchy.
+
+            # Unexpected errors - log full traceback and clean up
+            error_msg = f"Generation failed: {e}"
             logger.exception("Podcast generation failed for %s: %s", podcast_id, e)
+            await self._cleanup_failed_podcast(podcast_id, podcast_input.user_id, audio_stored, error_msg)
+
+    async def _cleanup_failed_podcast(
+        self,
+        podcast_id: UUID4,
+        user_id: UUID4,
+        audio_stored: bool,
+        error_message: str,
+    ) -> None:
+        """
+        Clean up resources for a failed podcast generation.
+
+        Args:
+            podcast_id: Podcast ID
+            user_id: User ID
+            audio_stored: Whether audio file was stored
+            error_message: Error description
+        """
+        try:
+            # Clean up audio file if it was stored
+            if audio_stored:
+                try:
+                    await self.audio_storage.delete_audio(
+                        podcast_id=podcast_id,
+                        user_id=user_id,
+                    )
+                    logger.info("Cleaned up audio file for failed podcast: %s", podcast_id)
+                except Exception as cleanup_error:
+                    logger.warning(
+                        "Failed to clean up audio file for %s: %s",
+                        podcast_id,
+                        cleanup_error,
+                    )
+
+            # Mark podcast as failed in database
             self.repository.update_status(
                 podcast_id=podcast_id,
                 status=PodcastStatus.FAILED,
-                error_message=str(e),
+                error_message=error_message,
             )
+            logger.info("Marked podcast as failed: %s", podcast_id)
+
+        except Exception as e:
+            # Even cleanup failed - log but don't raise
+            logger.exception("Failed to clean up failed podcast %s: %s", podcast_id, e)
 
     async def _retrieve_content(self, podcast_input: PodcastGenerationInput) -> str:
         """

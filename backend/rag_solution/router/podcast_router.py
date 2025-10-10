@@ -9,8 +9,8 @@ import logging
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
+from fastapi.responses import Response, StreamingResponse
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
@@ -252,6 +252,57 @@ async def delete_podcast(
 VALID_VOICE_IDS = {"alloy", "echo", "fable", "onyx", "nova", "shimmer"}
 
 
+def _parse_range_header(range_header: str, file_size: int) -> tuple[int, int] | None:
+    """
+    Parse HTTP Range header.
+
+    Args:
+        range_header: Range header value (e.g., "bytes=0-1023")
+        file_size: Total file size
+
+    Returns:
+        Tuple of (start, end) byte positions, or None if invalid
+    """
+    try:
+        # Range header format: "bytes=start-end"
+        if not range_header.startswith("bytes="):
+            return None
+
+        range_spec = range_header[6:]  # Remove "bytes=" prefix
+        parts = range_spec.split("-")
+
+        if len(parts) != 2:
+            return None
+
+        # Parse start and end
+        start_str, end_str = parts
+
+        if start_str == "":
+            # Suffix range: "-500" means last 500 bytes
+            if end_str == "":
+                return None
+            suffix_length = int(end_str)
+            start = max(0, file_size - suffix_length)
+            end = file_size - 1
+        elif end_str == "":
+            # Open range: "500-" means from byte 500 to end
+            start = int(start_str)
+            end = file_size - 1
+        else:
+            # Full range: "500-999"
+            start = int(start_str)
+            end = int(end_str)
+
+        # Validate range
+        if start < 0 or end >= file_size or start > end:
+            return None
+
+        return (start, end)
+
+    except (ValueError, IndexError):
+        return None
+
+
 @router.get(
     "/{podcast_id}/audio",
     summary="Serve podcast audio file",
@@ -263,32 +314,35 @@ VALID_VOICE_IDS = {"alloy", "echo", "fable", "onyx", "nova", "shimmer"}
 
     The response supports:
     - Content streaming for efficient playback
-    - HTTP Range requests for seek functionality
+    - HTTP Range requests for seek functionality (RFC 7233)
     - Proper MIME types for different audio formats
     """,
 )
 async def serve_podcast_audio(
+    request: Request,
     podcast_id: UUID4,
     podcast_service: Annotated[PodcastService, Depends(get_podcast_service)],
     settings: Annotated[Settings, Depends(get_settings)],
     current_user: Annotated[dict, Depends(get_current_user)],
-) -> FileResponse:
+) -> Response:
     """
-    Serve podcast audio file.
+    Serve podcast audio file with Range request support.
 
     Args:
+        request: FastAPI request object (for Range header)
         podcast_id: Podcast UUID
         podcast_service: Injected podcast service
         settings: Application settings
         current_user: Authenticated user from JWT token
 
     Returns:
-        FileResponse with audio file
+        StreamingResponse with audio file (206 for Range, 200 for full)
 
     Raises:
         HTTPException 401: Unauthorized
         HTTPException 403: Access denied (not podcast owner)
         HTTPException 404: Podcast or audio file not found
+        HTTPException 416: Range not satisfiable
     """
     user_id = current_user.get("user_id")
 
@@ -309,6 +363,9 @@ async def serve_podcast_audio(
     if not audio_path.exists():
         raise HTTPException(status_code=404, detail="Audio file not found on disk")
 
+    # Get file size
+    file_size = audio_path.stat().st_size
+
     # Determine media type based on format
     media_type_map = {
         "mp3": "audio/mpeg",
@@ -318,12 +375,74 @@ async def serve_podcast_audio(
     }
     media_type = media_type_map.get(podcast.format, "audio/mpeg")
 
-    # Return file with proper headers
-    return FileResponse(
-        path=str(audio_path),
-        media_type=media_type,
-        filename=f"{podcast.title or f'podcast-{str(podcast_id)[:8]}'}.{podcast.format}",
-    )
+    # Parse Range header
+    range_header = request.headers.get("range")
+
+    if range_header:
+        # Handle Range request
+        byte_range = _parse_range_header(range_header, file_size)
+
+        if byte_range is None:
+            # Invalid range
+            raise HTTPException(
+                status_code=416,
+                detail="Range not satisfiable",
+                headers={"Content-Range": f"bytes */{file_size}"},
+            )
+
+        start, end = byte_range
+        content_length = end - start + 1
+
+        # Create streaming response for byte range
+        def iter_file():
+            """Stream file chunk by chunk."""
+            with open(audio_path, "rb") as f:
+                f.seek(start)
+                remaining = content_length
+                chunk_size = 65536  # 64KB chunks
+
+                while remaining > 0:
+                    chunk = f.read(min(chunk_size, remaining))
+                    if not chunk:
+                        break
+                    remaining -= len(chunk)
+                    yield chunk
+
+        # Return 206 Partial Content
+        return StreamingResponse(
+            iter_file(),
+            status_code=206,
+            media_type=media_type,
+            headers={
+                "Content-Range": f"bytes {start}-{end}/{file_size}",
+                "Content-Length": str(content_length),
+                "Accept-Ranges": "bytes",
+                "Content-Disposition": f'inline; filename="{podcast.title or f"podcast-{str(podcast_id)[:8]}"}.{podcast.format}"',
+            },
+        )
+    else:
+        # No Range header - serve full file
+        def iter_full_file():
+            """Stream full file chunk by chunk."""
+            with open(audio_path, "rb") as f:
+                chunk_size = 65536  # 64KB chunks
+                while True:
+                    chunk = f.read(chunk_size)
+                    if not chunk:
+                        break
+                    yield chunk
+
+        # Return 200 OK with full content
+        return StreamingResponse(
+            iter_full_file(),
+            status_code=200,
+            media_type=media_type,
+            headers={
+                "Content-Length": str(file_size),
+                "Accept-Ranges": "bytes",
+                "Content-Disposition": f'inline; filename="{podcast.title or f"podcast-{str(podcast_id)[:8]}"}.{podcast.format}"',
+            },
+        )
 
 
 @router.get(

@@ -5,6 +5,7 @@ and service injection that can be used across all routers.
 """
 
 from typing import Any
+from uuid import UUID
 
 from fastapi import Depends, HTTPException, Request
 from pydantic import UUID4
@@ -36,6 +37,7 @@ def get_current_user(
     and added user info to request.state.
 
     In development mode with SKIP_AUTH=true, returns a mock user.
+    Returns user_id as UUID object for consistency with database models.
     """
     # Check if authentication is skipped (development mode)
     if settings.skip_auth:
@@ -50,7 +52,21 @@ def get_current_user(
     # Production: require authentication
     if not hasattr(request.state, "user"):
         raise HTTPException(status_code=401, detail="Not authenticated")
-    return request.state.user  # type: ignore[no-any-return]
+
+    user_data = request.state.user.copy()  # Create copy to avoid mutating original
+
+    # TODO: Standardize on single UUID field name (either 'user_id' or 'uuid') throughout codebase
+    # Current dual-field pattern adds type conversion overhead and potential confusion
+    # Tracked in follow-up issue for codebase-wide standardization
+
+    # Ensure user_id is set as UUID object (some code expects it alongside uuid)
+    if "user_id" not in user_data and "uuid" in user_data:
+        # Convert string UUID to UUID object for consistency with database
+        user_data["user_id"] = UUID(user_data["uuid"]) if isinstance(user_data["uuid"], str) else user_data["uuid"]
+    elif isinstance(user_data.get("user_id"), str):
+        user_data["user_id"] = UUID(user_data["user_id"])
+
+    return user_data  # type: ignore[no-any-return]
 
 
 def verify_user_access(

@@ -7,8 +7,8 @@ import VoiceSelector from './VoiceSelector';
 interface PodcastGenerationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  collectionId: string;
-  collectionName: string;
+  collectionId?: string;
+  collectionName?: string;
   onPodcastCreated?: (podcastId: string) => void;
 }
 
@@ -38,8 +38,8 @@ const FORMAT_OPTIONS = [
 const PodcastGenerationModal: React.FC<PodcastGenerationModalProps> = ({
   isOpen,
   onClose,
-  collectionId,
-  collectionName,
+  collectionId: providedCollectionId,
+  collectionName: providedCollectionName,
   onPodcastCreated,
 }) => {
   const { addNotification } = useNotification();
@@ -53,6 +53,11 @@ const PodcastGenerationModal: React.FC<PodcastGenerationModalProps> = ({
   const [includeIntro, setIncludeIntro] = useState(false);
   const [includeOutro, setIncludeOutro] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // Collection selection state (when collection not provided)
+  const [collections, setCollections] = useState<Array<{id: string; name: string}>>([]);
+  const [selectedCollectionId, setSelectedCollectionId] = useState<string>(providedCollectionId || '');
+  const [isLoadingCollections, setIsLoadingCollections] = useState(false);
 
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -112,17 +117,40 @@ const PodcastGenerationModal: React.FC<PodcastGenerationModalProps> = ({
     };
   }, []);
 
+  // Load collections when modal opens and no collection is provided
+  useEffect(() => {
+    if (isOpen && !providedCollectionId) {
+      loadCollections();
+    }
+  }, [isOpen, providedCollectionId]);
+
+  const loadCollections = async () => {
+    setIsLoadingCollections(true);
+    try {
+      const collectionsData = await apiClient.getCollections();
+      setCollections(collectionsData.map(c => ({ id: c.id, name: c.name })));
+    } catch (error) {
+      console.error('Error loading collections:', error);
+      addNotification('error', 'Load Failed', 'Failed to load collections');
+    } finally {
+      setIsLoadingCollections(false);
+    }
+  };
+
 
   const selectedDuration = DURATION_OPTIONS.find(d => d.value === duration);
   const estimatedCost = selectedDuration?.cost || 0;
 
   const handleGenerate = async () => {
+    const collectionId = providedCollectionId || selectedCollectionId;
+    if (!collectionId) {
+      addNotification('error', 'Validation Error', 'Please select a collection');
+      return;
+    }
+
     setIsGenerating(true);
     try {
-      const userId = localStorage.getItem('user_id') || '';
-
       const input: PodcastGenerationInput = {
-        user_id: userId,
         collection_id: collectionId,
         duration,
         voice_settings: {
@@ -174,7 +202,9 @@ const PodcastGenerationModal: React.FC<PodcastGenerationModalProps> = ({
         <div className="flex items-center justify-between p-6 border-b border-gray-30">
           <div>
             <h2 className="text-2xl font-semibold text-white">Generate Podcast</h2>
-            <p className="text-gray-50 mt-1">From collection: {collectionName}</p>
+            {providedCollectionName && (
+              <p className="text-gray-50 mt-1">From collection: {providedCollectionName}</p>
+            )}
           </div>
           <button
             onClick={onClose}
@@ -186,6 +216,34 @@ const PodcastGenerationModal: React.FC<PodcastGenerationModalProps> = ({
 
         {/* Body */}
         <div className="p-6 space-y-6">
+          {/* Collection Selection (if not provided) */}
+          {!providedCollectionId && (
+            <div>
+              <label className="block text-sm font-medium text-white mb-3">
+                Collection *
+              </label>
+              {isLoadingCollections ? (
+                <div className="text-gray-50 text-sm">Loading collections...</div>
+              ) : (
+                <select
+                  value={selectedCollectionId}
+                  onChange={(e) => setSelectedCollectionId(e.target.value)}
+                  className="w-full px-4 py-2 bg-gray-90 border border-gray-30 rounded-lg text-white focus:outline-none focus:border-blue-50"
+                >
+                  <option value="">Select a collection</option>
+                  {collections.map((collection) => (
+                    <option key={collection.id} value={collection.id}>
+                      {collection.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <p className="text-xs text-gray-50 mt-1">
+                Choose the collection to use as the knowledge base for your podcast
+              </p>
+            </div>
+          )}
+
           {/* Duration Selection */}
           <div>
             <label className="block text-sm font-medium text-white mb-3">
