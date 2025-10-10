@@ -191,20 +191,20 @@ class TestPodcastGenerationInput:
         assert podcast_input.include_outro is True
         assert podcast_input.music_background is True
 
-    def test_podcast_input_user_id_required(self) -> None:
-        """Atomic: User ID is required."""
-        with pytest.raises(ValidationError) as exc_info:
-            PodcastGenerationInput(  # type: ignore[call-arg]
-                collection_id=uuid4(),
-                duration=PodcastDuration.MEDIUM,
-                voice_settings=VoiceSettings(
-                    voice_id="voice-123",
-                    gender=VoiceGender.FEMALE,
-                ),
-                host_voice="alloy",
-                expert_voice="onyx",
-            )
-        assert "user_id" in str(exc_info.value).lower()
+    def test_podcast_input_user_id_optional(self) -> None:
+        """Atomic: User ID is optional in schema (filled by router from auth)."""
+        # user_id is optional in schema - router fills it from authenticated session
+        podcast_input = PodcastGenerationInput(
+            collection_id=uuid4(),
+            duration=PodcastDuration.MEDIUM,
+            voice_settings=VoiceSettings(
+                voice_id="voice-123",
+                gender=VoiceGender.FEMALE,
+            ),
+            host_voice="alloy",
+            expert_voice="onyx",
+        )
+        assert podcast_input.user_id is None  # Not set in schema, router will set it
 
     def test_podcast_input_collection_id_required(self) -> None:
         """Atomic: Collection ID is required."""

@@ -213,6 +213,8 @@ class Settings(BaseSettings):
     skip_auth: Annotated[bool, Field(default=False, alias="SKIP_AUTH")]
     development_mode: Annotated[bool, Field(default=False, alias="DEVELOPMENT_MODE")]
     mock_token: Annotated[str, Field(default="dev-0000-0000-0000", alias="MOCK_TOKEN")]
+    mock_user_email: Annotated[str, Field(default="dev@example.com", alias="MOCK_USER_EMAIL")]
+    mock_user_name: Annotated[str, Field(default="Development User", alias="MOCK_USER_NAME")]
 
     # File storage path
     file_storage_path: Annotated[str, Field(default=tempfile.gettempdir(), alias="FILE_STORAGE_PATH")]

@@ -155,9 +155,20 @@ class ProgressStepDetails(BaseModel):
 
 
 class PodcastGenerationInput(BaseModel):
-    """Input schema for podcast generation request."""
+    """Input schema for podcast generation request.
 
-    user_id: UUID = Field(..., description="User requesting podcast generation")
+    Note: user_id is always set by the API router from the authenticated session token.
+    Client-provided user_id values are ignored for security reasons.
+    """
+
+    user_id: UUID | None = Field(
+        default=None,
+        description=(
+            "User requesting podcast generation. Always set by router from authenticated session. "
+            "Client-provided values are ignored for security. Type is Optional for schema flexibility "
+            "but router ensures it's always non-null before calling service layer."
+        ),
+    )
     collection_id: UUID = Field(..., description="Document collection to generate podcast from")
     duration: PodcastDuration = Field(..., description="Target podcast duration")
     voice_settings: VoiceSettings = Field(..., description="Voice configuration for TTS")

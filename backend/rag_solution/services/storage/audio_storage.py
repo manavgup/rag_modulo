@@ -161,9 +161,8 @@ class LocalFileStorage(AudioStorageBase):
                 len(audio_data),
             )
 
-            # Return relative path from base_path
-            relative_path = audio_path.relative_to(self.base_path)
-            return f"/podcasts/{relative_path}"
+            # Return API endpoint URL for accessing the audio
+            return f"/api/podcasts/{podcast_id}/audio"
 
         except OSError as e:
             error_msg = f"Failed to store audio for podcast {podcast_id}: {e}"

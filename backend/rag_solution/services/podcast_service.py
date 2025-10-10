@@ -15,13 +15,14 @@ Orchestrates podcast generation from document collections:
 """
 
 import logging
+from typing import Any
 
 from fastapi import BackgroundTasks, HTTPException
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
 from core.config import get_settings
-from core.custom_exceptions import NotFoundError, ValidationError
+from core.custom_exceptions import NotFoundError, PromptTemplateNotFoundError, ValidationError
 from rag_solution.generation.audio.factory import AudioProviderFactory
 from rag_solution.generation.providers.factory import LLMProviderFactory
 from rag_solution.repository.podcast_repository import PodcastRepository
@@ -129,8 +130,7 @@ Generate the complete dialogue script now:"""
         podcast_input: PodcastGenerationInput,
         background_tasks: BackgroundTasks,
     ) -> PodcastGenerationOutput:
-        """
-        Generate podcast from collection (async with background processing).
+        """Generate podcast from collection (async with background processing).
 
         Args:
             podcast_input: Podcast generation request
@@ -140,15 +140,21 @@ Generate the complete dialogue script now:"""
             PodcastGenerationOutput with QUEUED status
 
         Raises:
-            HTTPException: If validation fails
+            HTTPException: If validation fails or user_id is not set
         """
+        # Validate user_id is set (should be auto-filled by router from auth)
+        if not podcast_input.user_id:
+            raise ValidationError("user_id is required for podcast generation", field="user_id")
+
+        user_id: UUID4 = podcast_input.user_id  # Type assertion for mypy
+
         try:
             # 1. Validate request
             await self._validate_podcast_request(podcast_input)
 
             # 2. Create podcast record
             podcast = self.repository.create(
-                user_id=podcast_input.user_id,
+                user_id=user_id,
                 collection_id=podcast_input.collection_id,
                 duration=podcast_input.duration.value,
                 voice_settings=podcast_input.voice_settings.model_dump(),
@@ -168,7 +174,7 @@ Generate the complete dialogue script now:"""
             logger.info(
                 "Queued podcast generation: id=%s, user=%s, collection=%s",
                 podcast.podcast_id,
-                podcast_input.user_id,
+                user_id,
                 podcast_input.collection_id,
             )
 
@@ -350,13 +356,28 @@ Generate the complete dialogue script now:"""
             question=synthetic_query,
             config_metadata={
                 "top_k": top_k,
-                "enable_reranking": True,
+                "enable_reranking": False,  # Disable reranking - not needed for podcast content retrieval
                 "enable_hierarchical": True,
                 "cot_enabled": False,  # Skip chain-of-thought for retrieval
             },
         )
 
         search_result = await self.search_service.search(search_input)
+
+        # Validate sufficient content retrieved
+        num_retrieved = len(search_result.query_results) if search_result.query_results else 0
+
+        # Require at least 20% of requested documents for SHORT, 30% for others
+        min_threshold_pct = 0.2 if podcast_input.duration == PodcastDuration.SHORT else 0.3
+        min_required = max(3, int(top_k * min_threshold_pct))  # At least 3 documents minimum
+
+        if num_retrieved < min_required:
+            raise ValidationError(
+                f"Insufficient content retrieved: got {num_retrieved} documents, "
+                f"need at least {min_required} (minimum {min_threshold_pct:.0%} of {top_k} requested) "
+                f"for {podcast_input.duration.value} podcast",
+                field="content_retrieval",
+            )
 
         # Format results for prompt using query_results which contain the actual text
         formatted_results = "\n\n".join(
@@ -368,24 +389,35 @@ Generate the complete dialogue script now:"""
         )
 
         logger.info(
-            "Retrieved %d documents for podcast (top_k=%d)",
-            len(search_result.documents),
+            "Retrieved %d documents for podcast (top_k=%d, min_required=%d)",
+            num_retrieved,
             top_k,
+            min_required,
         )
 
         return formatted_results
 
     async def _generate_script(self, podcast_input: PodcastGenerationInput, rag_results: str) -> str:
-        """
-        Generate podcast script via LLM.
+        """Generate podcast script via LLM using database template.
 
         Args:
-            podcast_input: Podcast request
-            rag_results: Retrieved content
+            podcast_input: Podcast generation request input
+            rag_results: Retrieved content from knowledge base
 
         Returns:
-            Generated script text
+            Generated podcast script text
+
+        Raises:
+            ValidationError: If user_id is not set in podcast_input
         """
+        # Validate user_id is set (should be auto-filled by router from auth)
+        if not podcast_input.user_id:
+            from rag_solution.core.exceptions import ValidationError
+
+            raise ValidationError("user_id is required for podcast generation", field="user_id")
+
+        user_id: UUID4 = podcast_input.user_id  # Type assertion after validation
+
         # Calculate target word count
         duration_minutes_map = {
             PodcastDuration.SHORT: 5,
@@ -396,48 +428,86 @@ Generate the complete dialogue script now:"""
         duration_minutes = duration_minutes_map[podcast_input.duration]
         word_count = duration_minutes * 150  # 150 words/minute
 
-        # Format prompt
-        prompt = self.PODCAST_SCRIPT_PROMPT.format(
-            user_topic=podcast_input.description or "General overview of the content",
-            rag_results=rag_results,
-            duration_minutes=duration_minutes,
-            word_count=word_count,
+        # Calculate min/max word count (±15% tolerance)
+        min_word_count = int(word_count * 0.85)
+        max_word_count = int(word_count * 1.15)
+
+        # Get podcast template from database
+        from rag_solution.schemas.prompt_template_schema import (
+            PromptTemplateInput,
+            PromptTemplateOutput,
+            PromptTemplateType,
         )
+        from rag_solution.services.prompt_template_service import PromptTemplateService
+
+        template_service = PromptTemplateService(self.session)
+
+        podcast_template: PromptTemplateOutput | PromptTemplateInput
+        try:
+            loaded_template = template_service.get_by_type(user_id, PromptTemplateType.PODCAST_GENERATION)
+            if loaded_template is None:
+                # No template found - use fallback
+                logger.info("No podcast template found for user %s, using fallback", user_id)
+                podcast_template = PromptTemplateInput(
+                    name="podcast_fallback",
+                    user_id=user_id,
+                    template_type=PromptTemplateType.PODCAST_GENERATION,
+                    system_prompt="You are a professional podcast script writer.",
+                    template_format=self.PODCAST_SCRIPT_PROMPT,
+                    input_variables={},
+                )
+            else:
+                podcast_template = loaded_template  # Type: PromptTemplateOutput
+        except (NotFoundError, PromptTemplateNotFoundError):
+            # Template service errors - use fallback
+            logger.info("Template service error, using fallback template")
+            podcast_template = PromptTemplateInput(
+                name="podcast_fallback",
+                user_id=user_id,
+                template_type=PromptTemplateType.PODCAST_GENERATION,
+                system_prompt="You are a professional podcast script writer.",
+                template_format=self.PODCAST_SCRIPT_PROMPT,
+                input_variables={},
+            )
+
+        # Prepare template variables
+        variables = {
+            "user_topic": podcast_input.description or "General overview of the content",
+            "rag_results": rag_results,
+            "duration_minutes": duration_minutes,
+            "word_count": word_count,
+            "min_word_count": min_word_count,
+            "max_word_count": max_word_count,
+        }
 
         # Generate via LLM using configured provider
         factory = LLMProviderFactory(self.session)
         llm_provider = factory.get_provider(self.settings.llm_provider)
 
-        # Create simple template for podcast generation
-        from rag_solution.schemas.prompt_template_schema import PromptTemplateBase, PromptTemplateType
-
-        podcast_template = PromptTemplateBase(
-            name="podcast_script_generation",
-            user_id=podcast_input.user_id,
-            template_type=PromptTemplateType.CUSTOM,
-            template_format="{prompt}",  # Simple pass-through template
-            input_variables={"prompt": "The podcast script prompt"},
-        )
-
         script_text = llm_provider.generate_text(
-            user_id=podcast_input.user_id,
-            prompt=prompt,
+            user_id=user_id,
+            prompt="",  # Empty - template contains full prompt
             template=podcast_template,
-            variables={"prompt": prompt},
+            variables=variables,
         )
 
         logger.info(
-            "Generated script: %d characters, target %d words",
-            len(script_text),
+            "Generated script: %d characters, target %d words (range: %d-%d)",
+            len(script_text) if isinstance(script_text, str) else sum(len(s) for s in script_text),
             word_count,
+            min_word_count,
+            max_word_count,
         )
 
+        # Ensure we return a single string (some providers may return list)
+        if isinstance(script_text, list):
+            return "\n\n".join(script_text)
         return script_text
 
     async def _generate_audio(
         self,
         _podcast_id: UUID4,
-        podcast_script,
+        podcast_script: Any,  # PodcastScript - keeping as Any for now as type is complex
         podcast_input: PodcastGenerationInput,
     ) -> bytes:
         """
@@ -553,6 +623,7 @@ Generate the complete dialogue script now:"""
         if not podcast:
             raise HTTPException(status_code=404, detail="Podcast not found")
 
+        # user_id comes from get_current_user() as UUID object
         if podcast.user_id != user_id:
             raise HTTPException(status_code=403, detail="Access denied")
 
@@ -570,6 +641,7 @@ Generate the complete dialogue script now:"""
         Returns:
             PodcastListResponse
         """
+        # user_id comes from get_current_user() as UUID object
         podcasts = self.repository.get_by_user(user_id=user_id, limit=limit, offset=offset)
 
         return PodcastListResponse(
@@ -597,6 +669,7 @@ Generate the complete dialogue script now:"""
         if not podcast:
             raise HTTPException(status_code=404, detail="Podcast not found")
 
+        # user_id comes from get_current_user() as UUID object
         if podcast.user_id != user_id:
             raise HTTPException(status_code=403, detail="Access denied")
 
@@ -633,13 +706,14 @@ Generate the complete dialogue script now:"""
             )
 
             # Generate a short, generic audio preview
-            audio_bytes = await audio_provider.generate_single_turn_audio(
+            # Note: generate_single_turn_audio is implemented in concrete audio providers but not in base class
+            audio_bytes = await audio_provider.generate_single_turn_audio(  # type: ignore[attr-defined]
                 text=self.VOICE_PREVIEW_TEXT,
                 voice=voice_id,
                 audio_format=AudioFormat.MP3,
             )
 
-            return audio_bytes
+            return bytes(audio_bytes)  # Ensure return type is bytes
 
         except Exception as e:
             logger.exception("Failed to generate voice preview for voice_id: %s", voice_id)

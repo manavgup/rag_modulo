@@ -6,10 +6,11 @@ Provides RESTful API for podcast generation, status checking, and management.
 
 import io
 import logging
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
@@ -106,15 +107,20 @@ async def generate_podcast(
         HTTPException 404: Collection not found
         HTTPException 500: Internal error
     """
-    # Validate that authenticated user matches request user_id
+    # Set user_id from authenticated session (security best practice)
+    # Never trust user_id from request body - always use authenticated session
     user_id_from_token = current_user.get("user_id")
-    if str(podcast_input.user_id) != str(user_id_from_token):
+
+    if not user_id_from_token:
         raise HTTPException(
-            status_code=403,
-            detail="Cannot generate podcast for another user",
+            status_code=401,
+            detail="User ID not found in authentication token",
         )
 
-    return await podcast_service.generate_podcast(podcast_input, background_tasks)
+    # Create validated input with authenticated user_id (ensures user_id is never None)
+    validated_input = podcast_input.model_copy(update={"user_id": user_id_from_token})
+
+    return await podcast_service.generate_podcast(validated_input, background_tasks)
 
 
 @router.get(
@@ -244,6 +250,80 @@ async def delete_podcast(
 
 # Valid voice IDs for OpenAI TTS voices
 VALID_VOICE_IDS = {"alloy", "echo", "fable", "onyx", "nova", "shimmer"}
+
+
+@router.get(
+    "/{podcast_id}/audio",
+    summary="Serve podcast audio file",
+    description="""
+    Serve the generated podcast audio file.
+
+    This endpoint provides access to the podcast audio file with proper authentication
+    and access control. Only the podcast owner can access the audio.
+
+    The response supports:
+    - Content streaming for efficient playback
+    - HTTP Range requests for seek functionality
+    - Proper MIME types for different audio formats
+    """,
+)
+async def serve_podcast_audio(
+    podcast_id: UUID4,
+    podcast_service: Annotated[PodcastService, Depends(get_podcast_service)],
+    settings: Annotated[Settings, Depends(get_settings)],
+    current_user: Annotated[dict, Depends(get_current_user)],
+) -> FileResponse:
+    """
+    Serve podcast audio file.
+
+    Args:
+        podcast_id: Podcast UUID
+        podcast_service: Injected podcast service
+        settings: Application settings
+        current_user: Authenticated user from JWT token
+
+    Returns:
+        FileResponse with audio file
+
+    Raises:
+        HTTPException 401: Unauthorized
+        HTTPException 403: Access denied (not podcast owner)
+        HTTPException 404: Podcast or audio file not found
+    """
+    user_id = current_user.get("user_id")
+
+    # Get podcast to verify ownership and get audio format
+    podcast = await podcast_service.get_podcast(podcast_id, user_id)
+
+    if podcast.status != "completed":
+        raise HTTPException(status_code=400, detail=f"Podcast is not ready. Current status: {podcast.status}")
+
+    if not podcast.audio_url:
+        raise HTTPException(status_code=404, detail="Audio file not found for this podcast")
+
+    # Construct file path from audio_url
+    # audio_url format: "/podcasts/{user_id}/{podcast_id}/audio.{format}"
+    base_path = Path(settings.podcast_local_storage_path)
+    audio_path = base_path / str(user_id) / str(podcast_id) / f"audio.{podcast.format}"
+
+    if not audio_path.exists():
+        raise HTTPException(status_code=404, detail="Audio file not found on disk")
+
+    # Determine media type based on format
+    media_type_map = {
+        "mp3": "audio/mpeg",
+        "wav": "audio/wav",
+        "ogg": "audio/ogg",
+        "flac": "audio/flac",
+    }
+    media_type = media_type_map.get(podcast.format, "audio/mpeg")
+
+    # Return file with proper headers
+    return FileResponse(
+        path=str(audio_path),
+        media_type=media_type,
+        filename=f"{podcast.title or f'podcast-{str(podcast_id)[:8]}'}.{podcast.format}",
+    )
 
 
 @router.get(

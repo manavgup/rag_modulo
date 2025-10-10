@@ -70,7 +70,7 @@ class TestUserServiceTDD:
         service.user_repository.create.return_value = expected_user
         service.user_provider_service.initialize_user_defaults.return_value = (
             Mock(),  # provider
-            [Mock(), Mock()],  # templates (2 required)
+            [Mock(), Mock(), Mock()],  # templates (3 required: RAG, QUESTION, PODCAST)
             Mock(),  # parameters
         )
 
@@ -199,7 +199,11 @@ class TestUserServiceTDD:
         # User not found, then created successfully
         service.user_repository.get_by_ibm_id.side_effect = NotFoundError("User", "new_user")
         service.user_repository.create.return_value = new_user
-        service.user_provider_service.initialize_user_defaults.return_value = (Mock(), [Mock(), Mock()], Mock())
+        service.user_provider_service.initialize_user_defaults.return_value = (
+            Mock(),  # provider
+            [Mock(), Mock(), Mock()],  # templates (3 required: RAG, QUESTION, PODCAST)
+            Mock(),  # parameters
+        )
 
         result = service.get_or_create_user(user_input)
 

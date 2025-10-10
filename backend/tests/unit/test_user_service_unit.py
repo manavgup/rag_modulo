@@ -65,7 +65,7 @@ class TestUserServiceUnit:
 
         # Mock initialize_user_defaults to return successful values
         mock_provider = Mock()
-        mock_templates = [Mock(), Mock()]  # Need at least 2 templates
+        mock_templates = [Mock(), Mock(), Mock()]  # Need 3 templates: RAG, QUESTION, PODCAST
         mock_parameters = Mock()
         service.user_provider_service.initialize_user_defaults.return_value = (
             mock_provider,

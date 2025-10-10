@@ -438,7 +438,8 @@ class PipelineService:
     def _format_context(self, template_id: UUID4, query_results: list[QueryResult]) -> str:
         """Format retrieved contexts using template's context strategy."""
         try:
-            texts = [result.chunk.text for result in query_results]
+            # Filter out None chunks and extract text
+            texts: list[str] = [result.chunk.text for result in query_results if result.chunk and result.chunk.text]
             return self.prompt_template_service.apply_context_strategy(template_id, texts)
         except Exception as e:  # pylint: disable=broad-exception-caught
             logger.error("Error formatting context: %s", e)
@@ -570,13 +571,13 @@ class PipelineService:
             logger.warning("Hierarchical retrieval failed: %s, returning original results", e)
             return results
 
-    def _retrieve_documents(self, query: str, collection_name: str) -> list[QueryResult]:
-        """
-        Retrieve relevant documents for the query.
+    def _retrieve_documents(self, query: str, collection_name: str, top_k: int | None = None) -> list[QueryResult]:
+        """Retrieve relevant documents for the query.
 
         Args:
             query: The query text
             collection_name: Name of the collection to search
+            top_k: Number of documents to retrieve (overrides default if provided)
 
         Returns:
             List of query results
@@ -585,9 +586,10 @@ class PipelineService:
             ConfigurationError: If retrieval fails
         """
         try:
-            vector_query = VectorQuery(text=query, number_of_results=self.settings.number_of_results)
+            num_results = top_k if top_k is not None else self.settings.number_of_results
+            vector_query = VectorQuery(text=query, number_of_results=num_results)
             results = self.retriever.retrieve(collection_name, vector_query)
-            logger.info("Retrieved %d documents", len(results))
+            logger.info("Retrieved %d documents (requested: %d)", len(results), num_results)
 
             # Apply hierarchical retrieval if enabled
             if self.settings.chunking_strategy.lower() == "hierarchical":
@@ -710,7 +712,14 @@ class PipelineService:
             # Process query and retrieve documents
             clean_query = self._prepare_query(search_input.question)
             rewritten_query = self.query_rewriter.rewrite(clean_query)
-            query_results = self._retrieve_documents(rewritten_query, collection_name)
+
+            # Extract top_k from config_metadata (defaults to settings value if not provided)
+            top_k = self.settings.number_of_results
+            if search_input.config_metadata and "top_k" in search_input.config_metadata:
+                top_k = search_input.config_metadata["top_k"]
+                logger.info("Using top_k=%d from config_metadata", top_k)
+
+            query_results = self._retrieve_documents(rewritten_query, collection_name, top_k)
 
             # Generate answer and evaluate response
             if not query_results:
