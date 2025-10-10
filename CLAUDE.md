@@ -132,6 +132,77 @@ npm install                     # Install dependencies
 npm run dev                    # Development mode with hot reload
 ```
 
+## AI-Assisted Development Workflow
+
+This repository supports **automated development** using a multi-agent AI system:
+
+### Architecture
+- **Google Gemini**: Writes code implementations
+- **Claude Code**: Reviews PRs and provides feedback
+- **GitHub Actions**: Runs automated tests and quality checks
+
+### Quick Start
+
+```bash
+# 1. Add "ai-assist" label to an issue
+# 2. Gemini analyzes and posts implementation plan (2-3 min)
+# 3. Review plan → Add "plan-approved" label
+# 4. Gemini implements fix on new branch (5-10 min)
+# 5. Gemini creates PR automatically
+# 6. Claude reviews PR and posts feedback
+# 7. Review and merge if approved
+```
+
+### When to Use
+
+**✅ Good for:**
+- Well-defined bug fixes
+- Adding missing tests
+- Implementing documented features
+- Refactoring with clear goals
+
+**❌ Not recommended for:**
+- Vague or poorly described issues
+- Security-critical code
+- Architecture changes
+- Complex algorithms
+
+### Setup (One-Time)
+
+1. **Add Secrets** (GitHub Settings → Secrets):
+   ```
+   GEMINI_API_KEY=<from https://aistudio.google.com/app/apikey>
+   CLAUDE_CODE_OAUTH_TOKEN=<already configured>
+   ```
+
+2. **Create Labels**:
+   ```bash
+   gh label create "ai-assist" --color "4285f4"
+   gh label create "plan-approved" --color "10b981"
+   gh label create "ai-generated" --color "a855f7"
+   ```
+
+### Workflow Stages
+
+1. **Planning** (Gemini): Analyzes issue, posts detailed plan
+2. **Approval** (Human): Reviews plan, adds `plan-approved` label
+3. **Implementation** (Gemini): Creates branch, writes code, creates PR
+4. **Testing** (CI/CD): Runs linting, security scans, unit tests
+5. **Review** (Claude): Analyzes code, posts review comment
+6. **Merge** (Human): Final approval and merge
+
+### Documentation
+
+- **Quick Start**: `docs/development/AI_WORKFLOW_QUICKSTART.md`
+- **Full Guide**: `docs/development/ai-assisted-workflow.md` (architecture, setup, best practices)
+- **Workflows**: `.github/workflows/gemini-*.yml`
+
+### Cost & Performance
+
+- **Cost**: ~$0.11-0.55 per issue (~$2-11/month for 20 issues)
+- **Time Savings**: 10-60 min vs 1-8 hours manual
+- **ROI**: 100-200x return on investment
+
 ## Key Environment Variables
 
 Required environment variables (see `env.example` for full list):
