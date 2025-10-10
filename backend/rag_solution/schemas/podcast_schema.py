@@ -11,6 +11,7 @@ This module defines data models for podcast generation, including:
 
 from datetime import datetime
 from enum import Enum
+from typing import ClassVar
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
@@ -162,7 +163,7 @@ class PodcastGenerationInput(BaseModel):
     """
 
     # Valid OpenAI TTS voice IDs
-    VALID_VOICE_IDS = {"alloy", "echo", "fable", "onyx", "nova", "shimmer"}
+    VALID_VOICE_IDS: ClassVar[set[str]] = {"alloy", "echo", "fable", "onyx", "nova", "shimmer"}
 
     user_id: UUID | None = Field(
         default=None,
