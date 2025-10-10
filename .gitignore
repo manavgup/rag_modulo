@@ -36,6 +36,10 @@ Thumbs.db
 # Ignore node_modules
 node_modules/
 
+# Frontend build artifacts
+frontend/build/
+build/
+
 # Ignore data and volumes
 data/
 volumes/
@@ -45,7 +49,7 @@ my_chroma_data/
 *.log
 *.sh
 backend/logs/
-logs/  # Root logs directory (application logs)
+logs/
 
 # Project specific ignores
 chroma/
