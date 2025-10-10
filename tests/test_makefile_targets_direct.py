@@ -173,24 +173,32 @@ class TestMakefileTargetsDirect:
 
         assert result["success"], f"Docker check failed: {result['stderr']}"
 
-    def test_make_dev_init(self, direct_makefile_tester):
-        """Test that make dev-init creates necessary files."""
-        result = direct_makefile_tester.run_make_command("dev-init")
+    def test_make_venv(self, direct_makefile_tester):
+        """Test that make venv creates virtual environment."""
+        result = direct_makefile_tester.run_make_command("venv", timeout=120)
 
-        assert result["success"], f"make dev-init failed: {result['stderr']}"
+        # Skip if Poetry cannot be installed (CI might not have curl)
+        if "Poetry not found" in result["stderr"]:
+            pytest.skip("Poetry installation requires curl")
 
-        # Check that .env.dev was created
-        env_dev = direct_makefile_tester.test_dir / ".env.dev"
-        assert env_dev.exists(), ".env.dev was not created"
+        assert result["success"], f"make venv failed: {result['stderr']}"
+
+        # Check that .venv was created
+        venv_dir = direct_makefile_tester.test_dir / "backend" / ".venv"
+        assert venv_dir.exists(), "backend/.venv was not created"
 
     def test_make_help(self, direct_makefile_tester):
         """Test that make help displays usage information."""
         result = direct_makefile_tester.run_make_command("help")
 
         assert result["success"], f"make help failed: {result['stderr']}"
-        assert "Usage: make [target]" in result["stdout"]
+        # Check for new visual help format
+        assert "RAG Modulo - Streamlined Development Guide" in result["stdout"]
+        assert "Quick Start" in result["stdout"]
         assert "check-docker" in result["stdout"]
+        assert "local-dev-setup" in result["stdout"]
 
+    @pytest.mark.skip(reason="info target removed in streamlined Makefile (Issue #348)")
     def test_make_info(self, direct_makefile_tester):
         """Test that make info displays project information."""
         result = direct_makefile_tester.run_make_command("info")
@@ -200,13 +208,10 @@ class TestMakefileTargetsDirect:
         assert "Python version:" in result["stdout"]
 
     @pytest.mark.slow
-    def test_make_dev_build_minimal(self, direct_makefile_tester):
-        """Test that make dev-build starts correctly (minimal test)."""
-        # First initialize
-        direct_makefile_tester.run_make_command("dev-init")
-
+    def test_make_build_backend_minimal(self, direct_makefile_tester):
+        """Test that make build-backend starts correctly (minimal test)."""
         # Try to start the build (we'll timeout quickly to just test it starts)
-        result = direct_makefile_tester.run_make_command("dev-build", timeout=10)
+        result = direct_makefile_tester.run_make_command("build-backend", timeout=10)
 
         # We expect it to timeout or start building
         # If it fails immediately with Docker errors, that's a problem
