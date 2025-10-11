@@ -104,10 +104,14 @@ jobs:
             -- "cd /workspace && make test-atomic"
 
           # Run unit tests
-          gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} -- "cd /workspace && make test-unit"
+          gh codespace ssh \
+            --codespace ${{ steps.create-codespace.outputs.codespace-name }} \
+            -- "cd /workspace && make test-unit"
 
           # Run integration tests
-          gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} -- "cd /workspace && make test-integration"
+          gh codespace ssh \
+            --codespace ${{ steps.create-codespace.outputs.codespace-name }} \
+            -- "cd /workspace && make test-integration"
 
       - name: Test Hot Reloading
         if: steps.create-codespace.outputs.codespace-available == 'true'
@@ -115,13 +119,19 @@ jobs:
           echo "Testing hot reloading functionality..."
 
           # Create a test file change
-          gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} -- "cd /workspace/backend && echo '# Test change' >> test_hot_reload.py"
+          gh codespace ssh \
+            --codespace ${{ steps.create-codespace.outputs.codespace-name }} \
+            -- "cd /workspace/backend && echo '# Test change' >> test_hot_reload.py"
 
           # Verify the change is reflected
-          gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} -- "cd /workspace && ls backend/test_hot_reload.py"
+          gh codespace ssh \
+            --codespace ${{ steps.create-codespace.outputs.codespace-name }} \
+            -- "cd /workspace && ls backend/test_hot_reload.py"
 
           # Clean up test file
-          gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} -- "cd /workspace/backend && rm test_hot_reload.py"
+          gh codespace ssh \
+            --codespace ${{ steps.create-codespace.outputs.codespace-name }} \
+            -- "cd /workspace/backend && rm test_hot_reload.py"
 
       - name: Test CLI Commands
         if: steps.create-codespace.outputs.codespace-available == 'true'
@@ -129,16 +139,22 @@ jobs:
           echo "Testing CLI commands..."
 
           # Test CLI help
-          gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} -- "cd /workspace && poetry run python -m rag_solution.cli.main --help"
+          gh codespace ssh \
+            --codespace ${{ steps.create-codespace.outputs.codespace-name }} \
+            -- "cd /workspace && poetry run python -m rag_solution.cli.main --help"
 
           # Test health check
-          gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} -- "cd /workspace && poetry run python -m rag_solution.cli.main health check"
+          gh codespace ssh \
+            --codespace ${{ steps.create-codespace.outputs.codespace-name }} \
+            -- "cd /workspace && poetry run python -m rag_solution.cli.main health check"
 
       - name: Cleanup Services
         if: always() && steps.create-codespace.outputs.codespace-available == 'true'
         run: |
           echo "Cleaning up services..."
-          gh codespace ssh --codespace ${{ steps.create-codespace.outputs.codespace-name }} -- "cd /workspace && make dev-down"
+          gh codespace ssh \
+            --codespace ${{ steps.create-codespace.outputs.codespace-name }} \
+            -- "cd /workspace && make dev-down"
 
       - name: Cleanup Codespace
         if: always() && steps.create-codespace.outputs.codespace-available == 'true'

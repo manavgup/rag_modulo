@@ -1,0 +1,235 @@
+name: "AI Issue Triage - Identify AI-Assist Candidates"
+
+# Run manually or on schedule to analyze existing issues
+on:
+  workflow_dispatch:
+    inputs:
+      state:
+        description: 'Issue state to analyze'
+        required: false
+        default: 'open'
+        type: choice
+        options:
+          - open
+          - closed
+          - all
+      limit:
+        description: 'Number of issues to analyze (max 50)'
+        required: false
+        default: '20'
+        type: string
+  schedule:
+    # Run weekly on Monday at 9 AM UTC
+    - cron: '0 9 * * 1'
+
+jobs:
+  triage-issues:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Analyze Issues for AI Suitability
+        uses: google-github-actions/run-gemini-cli@v1
+        with:
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          prompt: |
+            You are analyzing existing GitHub issues to identify good candidates for AI-assisted implementation.
+
+            **Your Task:**
+            1. Get list of open issues (limit to ${{ github.event.inputs.limit || '20' }}):
+               ```bash
+               gh issue list --state ${{ github.event.inputs.state || 'open' }} \
+                 --limit ${{ github.event.inputs.limit || '20' }} \
+                 --json number,title,labels,body --jq '.[] | {number, title, labels: [.labels[].name], body}'
+               ```
+
+            2. For each issue, assess AI suitability based on:
+               - **Good candidates**:
+                 * Clear, well-defined problem
+                 * Specific bug reports with reproduction steps
+                 * Feature requests with detailed requirements
+                 * "Good first issue" or "help wanted" labels
+                 * Missing tests for existing functionality
+                 * Documentation updates
+                 * Refactoring with clear scope
+
+               - **Poor candidates**:
+                 * Vague descriptions ("something is broken")
+                 * Questions or discussions
+                 * Security-critical issues
+                 * Architecture decisions needed
+                 * Already has ai-assist or plan-approved label
+                 * Requires domain expertise
+                 * Blocked by other issues
+
+            3. Categorize issues into three groups:
+               - ✅ **Ready for AI**: Can immediately add ai-assist label
+               - ⚠️ **Needs Clarification**: Good candidate but missing details
+               - ❌ **Not Suitable**: Should be done manually
+
+            4. Create a summary issue with your analysis:
+               ```bash
+               gh issue create \
+                 --title "🤖 AI-Assist Triage Report - $(date +%Y-%m-%d)" \
+                 --label "ai-triage,documentation" \
+                 --body "$(cat <<'TRIAGEOF'
+               ## 🤖 AI-Assisted Development - Issue Triage Report
+
+               **Analysis Date**: $(date)
+               **Issues Analyzed**: ${{ github.event.inputs.limit || '20' }}
+               **State**: ${{ github.event.inputs.state || 'open' }}
+
+               ---
+
+               ## ✅ Ready for AI-Assist
+
+               These issues are excellent candidates for automated AI implementation:
+
+               | Issue | Title | Complexity | Why Ready |
+               |-------|-------|------------|-----------|
+               | #XXX | [title] | Simple | Clear bug with repro steps |
+               | #YYY | [title] | Moderate | Well-scoped feature request |
+
+               **Recommended Action**: Add \`ai-assist\` label to these issues.
+
+               ---
+
+               ## ⚠️ Needs Clarification
+
+               These issues could use AI-assist but need more details first:
+
+               | Issue | Title | Missing Info | Suggested Question |
+               |-------|-------|--------------|-------------------|
+               | #AAA | [title] | Reproduction steps | "Can you provide steps to reproduce?" |
+               | #BBB | [title] | Expected behavior | "What should happen instead?" |
+
+               **Recommended Action**: Comment on issues to gather details, then add \`ai-assist\`.
+
+               ---
+
+               ## ❌ Not Suitable for AI
+
+               These issues should be implemented manually:
+
+               | Issue | Title | Reason | Recommendation |
+               |-------|-------|--------|----------------|
+               | #CCC | [title] | Security-critical | Manual implementation with security review |
+               | #DDD | [title] | Requires architecture decisions | Design discussion first |
+
+               ---
+
+               ## 📊 Summary Statistics
+
+               - ✅ Ready: X issues (Y%)
+               - ⚠️ Needs Clarification: A issues (B%)
+               - ❌ Not Suitable: C issues (D%)
+
+               ---
+
+               ## 🎯 Quick Actions
+
+               **To batch-add ai-assist to ready issues:**
+               \`\`\`bash
+               # Add ai-assist label to recommended issues
+               gh issue edit XXX --add-label "ai-assist"
+               gh issue edit YYY --add-label "ai-assist"
+               # ... etc
+               \`\`\`
+
+               **Or use the batch script** (see comment below)
+
+               ---
+
+               *This report was generated by AI Issue Triage workflow.*
+               *Review recommendations carefully before applying labels.*
+               TRIAGEOF
+               )"
+               ```
+
+            **Important Guidelines:**
+            - Be conservative: When in doubt, mark as "Needs Clarification"
+            - Prioritize quality over quantity
+            - Consider issue age (older issues may need refresh)
+            - Check if issue dependencies are resolved
+
+          cli_args: '--allowed-tools "Read,Glob,Grep,Bash(gh issue:*),Bash(gh search:*),Bash(date:*)"'
+
+      - name: Comment with Batch Script
+        run: |
+          # Find the triage report issue (most recent with ai-triage label)
+          TRIAGE_ISSUE=$(gh issue list --label "ai-triage" --limit 1 --json number --jq '.[0].number')
+
+          if [ -n "$TRIAGE_ISSUE" ]; then
+            gh issue comment "$TRIAGE_ISSUE" --body "## 🚀 Batch Processing Script
+
+            To quickly add \`ai-assist\` labels to all recommended issues, create this script:
+
+            \`\`\`bash
+            #!/bin/bash
+            # batch-ai-assist.sh - Add ai-assist to recommended issues
+
+            # Array of issue numbers from triage report
+            # EDIT THIS: Copy issue numbers from 'Ready for AI-Assist' section above
+            ISSUES=(
+              # XXX  # Short description
+              # YYY  # Short description
+            )
+
+            echo \"Adding ai-assist label to \${#ISSUES[@]} issues...\"
+
+            for issue in \"\${ISSUES[@]}\"; do
+              # Skip comments (lines starting with #)
+              [[ \$issue =~ ^# ]] && continue
+
+              echo \"Processing issue #\$issue...\"
+              gh issue edit \"\$issue\" --add-label \"ai-assist\"
+
+              # Rate limit: wait 2 seconds between requests
+              sleep 2
+            done
+
+            echo \"✅ Done! Check issue activity for AI planning results.\"
+            \`\`\`
+
+            **Usage:**
+            1. Copy the script above to \`batch-ai-assist.sh\`
+            2. Edit the ISSUES array with issue numbers from the report
+            3. Run: \`chmod +x batch-ai-assist.sh && ./batch-ai-assist.sh\`
+
+            **Monitor Progress:**
+            \`\`\`bash
+            # Watch for AI planning activity
+            gh issue list --label \"ai-assist,plan-ready\" --limit 50
+
+            # See which issues have plans ready for approval
+            gh issue list --label \"plan-ready\" --limit 20
+            \`\`\`"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Notify on Failure
+        if: failure()
+        run: |
+          gh issue create \
+            --title "⚠️ AI Issue Triage Failed - $(date +%Y-%m-%d)" \
+            --label "bug,ai-triage" \
+            --body "The automated issue triage workflow failed.
+
+            **Check the workflow logs**: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            This may indicate:
+            - Gemini API quota exhausted
+            - Too many issues to analyze at once
+            - GitHub API rate limits
+
+            Try reducing the issue limit or running again later."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
