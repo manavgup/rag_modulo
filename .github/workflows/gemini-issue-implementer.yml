@@ -72,7 +72,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Fetch Implementation Plan
+      - name: Fetch Implementation Plan and Build Prompt
         id: get_plan
         run: |
           # Fetch the latest AI Implementation Plan from issue comments
@@ -85,9 +85,83 @@ jobs:
             exit 1
           fi
 
-          # Save plan to file (multiline safe)
-          echo "$PLAN" > /tmp/implementation_plan.md
-          echo "plan_file=/tmp/implementation_plan.md" >> $GITHUB_OUTPUT
+          # Build the complete prompt with the plan embedded
+          {
+            echo "You are implementing the approved plan for GitHub issue #${{ github.event.issue.number }}."
+            echo ""
+            echo "## 📋 Approved Implementation Plan"
+            echo ""
+            echo "$PLAN"
+            echo ""
+            echo "---"
+            echo ""
+            echo "**Your Task:**"
+            echo "1. Follow the approved plan above EXACTLY"
+            echo "2. Create a new branch: \`fix/issue-${{ github.event.issue.number }}\`"
+            echo "3. Implement the changes according to the plan"
+            echo "4. Write/update tests as specified in the plan"
+            echo "5. Ensure code follows the project's standards (CLAUDE.md)"
+            echo "6. Run local quality checks if possible"
+            echo "7. Commit changes with descriptive messages (include DCO sign-off)"
+            echo "8. Push the branch"
+            echo "9. Create a pull request with:"
+            echo "   - Title: \"fix: [Brief description from issue]\""
+            echo "   - Body: Reference to issue, summary of changes, testing done"
+            echo "   - Link to the original issue"
+            echo ""
+            echo "**Branch Workflow:**"
+            echo "\`\`\`bash"
+            echo "# Create and checkout new branch"
+            echo "git checkout -b fix/issue-${{ github.event.issue.number }}"
+            echo ""
+            echo "# After making changes, commit with DCO"
+            echo "git add ."
+            echo "git commit -s -m \"fix: [descriptive message]"
+            echo ""
+            echo "Fixes #${{ github.event.issue.number }}"
+            echo ""
+            echo "[Detailed description of what was changed and why]\""
+            echo ""
+            echo "# Push branch"
+            echo "git push -u origin fix/issue-${{ github.event.issue.number }}"
+            echo ""
+            echo "# Create PR"
+            echo "gh pr create \\"
+            echo "  --title \"fix: [Brief description]\" \\"
+            echo "  --body \"\$(cat <<'PREOF'"
+            echo "Fixes #${{ github.event.issue.number }}"
+            echo ""
+            echo "## Changes Made"
+            echo "[List your changes]"
+            echo ""
+            echo "## Testing"
+            echo "[How you tested]"
+            echo ""
+            echo "## Checklist"
+            echo "- [ ] Code follows project style guidelines"
+            echo "- [ ] Tests added/updated"
+            echo "- [ ] Documentation updated if needed"
+            echo "- [ ] All CI checks pass"
+            echo "PREOF"
+            echo ")\" \\"
+            echo "  --label \"ai-generated\""
+            echo "\`\`\`"
+            echo ""
+            echo "**Quality Guidelines:**"
+            echo "- Follow existing code patterns"
+            echo "- Add comprehensive error handling"
+            echo "- Include docstrings and type hints (Python)"
+            echo "- Write clear commit messages"
+            echo "- Keep changes focused on the issue"
+            echo ""
+            echo "**Important:**"
+            echo "- Do NOT use --yolo mode for destructive operations"
+            echo "- Ask before making breaking changes"
+            echo "- Test changes locally when possible"
+            echo "- Follow the approved plan - don't deviate"
+          } > /tmp/codex_prompt.md
+
+          echo "prompt_file=/tmp/codex_prompt.md" >> $GITHUB_OUTPUT
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -97,80 +171,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
-          safety-strategy: drop-sudo  # Can write files but no superuser access
-          prompt: |
-            You are implementing the approved plan for GitHub issue #${{ github.event.issue.number }}.
-
-            ## 📋 Approved Implementation Plan
-
-            $(cat ${{ steps.get_plan.outputs.plan_file }})
-
-            ---
-
-            **Your Task:**
-            1. Follow the approved plan above EXACTLY
-            2. Create a new branch: `fix/issue-${{ github.event.issue.number }}`
-            3. Implement the changes according to the plan
-            4. Write/update tests as specified in the plan
-            5. Ensure code follows the project's standards (CLAUDE.md)
-            6. Run local quality checks if possible
-            7. Commit changes with descriptive messages (include DCO sign-off)
-            8. Push the branch
-            9. Create a pull request with:
-               - Title: "fix: [Brief description from issue]"
-               - Body: Reference to issue, summary of changes, testing done
-               - Link to the original issue
-
-            **Branch Workflow:**
-            ```bash
-            # Create and checkout new branch
-            git checkout -b fix/issue-${{ github.event.issue.number }}
-
-            # After making changes, commit with DCO
-            git add .
-            git commit -s -m "fix: [descriptive message]
-
-            Fixes #${{ github.event.issue.number }}
-
-            [Detailed description of what was changed and why]"
-
-            # Push branch
-            git push -u origin fix/issue-${{ github.event.issue.number }}
-
-            # Create PR
-            gh pr create \
-              --title "fix: [Brief description]" \
-              --body "$(cat <<'PREOF'
-            Fixes #${{ github.event.issue.number }}
-
-            ## Changes Made
-            [List your changes]
-
-            ## Testing
-            [How you tested]
-
-            ## Checklist
-            - [ ] Code follows project style guidelines
-            - [ ] Tests added/updated
-            - [ ] Documentation updated if needed
-            - [ ] All CI checks pass
-            PREOF
-            )" \
-              --label "ai-generated"
-            ```
-
-            **Quality Guidelines:**
-            - Follow existing code patterns
-            - Add comprehensive error handling
-            - Include docstrings and type hints (Python)
-            - Write clear commit messages
-            - Keep changes focused on the issue
-
-            **Important:**
-            - Do NOT use --yolo mode for destructive operations
-            - Ask before making breaking changes
-            - Test changes locally when possible
-            - Follow the approved plan - don't deviate
+          safety-strategy: drop-sudo
+          prompt-file: ${{ steps.get_plan.outputs.prompt_file }}
 
       - name: Comment on Issue
         if: success()
