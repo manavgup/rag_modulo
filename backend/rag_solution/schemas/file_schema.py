@@ -34,6 +34,7 @@ class FileOutput(BaseModel):
     file_type: str | None = None
     metadata: FileMetadata | None = None
     document_id: str | None = None
+    file_size_bytes: int | None = None
 
 
 class DocumentDelete(BaseModel):
