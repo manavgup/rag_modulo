@@ -1,0 +1,146 @@
+name: "Stage 2: AI Implementation (Claude Code Action)"
+
+# Triggers when the "plan-approved" label is added (human approval)
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  implement-fix:
+    # Only run when the "plan-approved" label is added
+    if: github.event.label.name == 'plan-approved'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Check for Branch Collision
+        run: |
+          BRANCH="fix/issue-${{ github.event.issue.number }}"
+
+          # Check if branch exists on remote
+          if git ls-remote --heads origin "$BRANCH" | grep -q "$BRANCH"; then
+            echo "⚠️ Branch $BRANCH already exists on remote!"
+
+            gh issue comment ${{ github.event.issue.number }} --body "## ❌ Implementation Blocked: Branch Already Exists
+
+            The branch \`$BRANCH\` already exists in the repository.
+
+            **This usually means:**
+            1. A previous AI implementation attempt for this issue exists
+            2. Someone manually created this branch
+            3. An old PR was closed without deleting the branch
+
+            **To resolve:**
+            1. Check if there's an existing PR for this issue
+            2. If the PR is closed/merged, delete the branch:
+               \`\`\`bash
+               git push origin --delete $BRANCH
+               \`\`\`
+            3. If you want to keep the existing branch, use a different issue number
+            4. After cleanup, remove and re-add the \`plan-approved\` label to retry
+
+            **Workflow stopped to prevent conflicts.**"
+
+            exit 1
+          fi
+
+          echo "✅ Branch $BRANCH is available"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fetch Implementation Plan and Build Prompt
+        id: get_plan
+        run: |
+          # Fetch the latest AI Implementation Plan from issue comments
+          PLAN=$(gh api repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments \
+            --jq '.[] | select(.body | contains("## 🤖 AI Implementation Plan")) | .body' | head -1)
+
+          if [ -z "$PLAN" ]; then
+            echo "❌ No implementation plan found in issue comments"
+            gh issue comment ${{ github.event.issue.number }} --body "❌ Implementation failed: No AI Implementation Plan found in issue comments. Please ensure the planning step completed successfully."
+            exit 1
+          fi
+
+          # Build the complete prompt with the plan embedded
+          {
+            echo "You are implementing the approved plan for GitHub issue #${{ github.event.issue.number }}."
+            echo ""
+            echo "## 📋 Approved Implementation Plan"
+            echo ""
+            printf '%s\n' "$PLAN"
+            echo ""
+            echo "---"
+            echo ""
+            echo "**Your Task:**"
+            echo "1. Follow the approved plan above EXACTLY"
+            echo "2. Create a new branch: \`fix/issue-${{ github.event.issue.number }}\`"
+            echo "3. Implement the changes according to the plan"
+            echo "4. Write/update tests as specified in the plan"
+            echo "5. Ensure code follows the project's standards (see CLAUDE.md)"
+            echo "6. Run quality checks: \`make quick-check\` or \`make lint\`"
+            echo "7. Commit changes with descriptive messages (include DCO sign-off)"
+            echo "8. Push the branch to origin"
+            echo "9. Create a pull request with:"
+            echo "   - Title: \"fix: [Brief description from issue]\""
+            echo "   - Body: Reference issue #${{ github.event.issue.number }}, summary of changes, testing done"
+            echo "   - Label: \"ai-generated\""
+            echo ""
+            echo "**Quality Guidelines:**"
+            echo "- Follow existing code patterns in the repository"
+            echo "- Add comprehensive error handling"
+            echo "- Include docstrings and type hints (Python)"
+            echo "- Write clear, descriptive commit messages"
+            echo "- Keep changes focused on the issue at hand"
+            echo "- Add tests for new functionality"
+            echo ""
+            echo "**Important Notes:**"
+            echo "- Test changes before committing"
+            echo "- Follow the approved plan - don't deviate without good reason"
+            echo "- If you encounter blockers, document them in the PR description"
+            echo "- Ensure all CI checks will pass (linting, tests, security)"
+          } > /tmp/implementation_prompt.txt
+
+          # Save prompt for the action
+          cat /tmp/implementation_prompt.txt
+          echo "prompt_content<<PROMPT_EOF" >> $GITHUB_OUTPUT
+          cat /tmp/implementation_prompt.txt >> $GITHUB_OUTPUT
+          echo "PROMPT_EOF" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Claude Code Action - Implement Fix
+        uses: anthropics/claude-code-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: ${{ steps.get_plan.outputs.prompt_content }}
+
+      - name: Add Success Label
+        if: success()
+        run: |
+          gh issue edit ${{ github.event.issue.number }} --add-label "ai-implemented"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Notify on Failure
+        if: failure()
+        run: |
+          gh issue comment ${{ github.event.issue.number }} --body "❌ Implementation failed. Please check the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.
+
+          You may need to implement this manually."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -98,11 +98,11 @@ flowchart TD
 
 ---
 
-### Stage 2: Implementation (Gemini)
+### Stage 2: Implementation (Claude Code Action)
 
 **Trigger**: Add `plan-approved` label
 
-**Workflow**: `.github/workflows/gemini-issue-implementer.yml`
+**Workflow**: `.github/workflows/claude-issue-implementer.yml`
 
 **What Happens**:
 1. Creates branch `fix/issue-{number}`
@@ -276,7 +276,7 @@ Create these labels in your repository:
 ```
 .github/workflows/
 ├── gemini-issue-planner.yml      # Stage 1: Planning
-├── gemini-issue-implementer.yml  # Stage 2: Implementation
+├── claude-issue-implementer.yml  # Stage 2: Implementation (Claude Code Action)
 ├── claude-code-review.yml        # Stage 4: Review
 ├── 01-lint.yml                   # Stage 3: Linting
 ├── 02-security.yml               # Stage 3: Security
@@ -461,9 +461,9 @@ Cost Analysis
 
 ## Advanced Configurations
 
-### Customizing Gemini Behavior
+### Customizing Implementation Behavior
 
-Edit `gemini-issue-implementer.yml` prompt to:
+Edit `claude-issue-implementer.yml` prompt to:
 - Enforce specific code patterns
 - Add custom testing requirements
 - Include security checklists

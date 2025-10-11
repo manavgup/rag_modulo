@@ -13,8 +13,8 @@ Your repository now has a **fully automated AI development workflow** where:
 ### 1. GitHub Workflows (`.github/workflows/`)
 
 ```
-gemini-issue-planner.yml      # Stage 1: Gemini analyzes issues and creates plans
-gemini-issue-implementer.yml  # Stage 2: Gemini implements approved plans
+gemini-issue-planner.yml       # Stage 1: Gemini analyzes issues and creates plans
+claude-issue-implementer.yml   # Stage 2: Claude Code Action implements approved plans
 ```
 
 ### 2. Documentation (`docs/development/`)
