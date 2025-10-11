@@ -66,6 +66,32 @@ else:
 logger = get_logger(__name__)
 
 
+def validate_production_security() -> None:
+    """Validate security configuration to prevent dangerous misconfigurations in production.
+
+    Raises:
+        RuntimeError: If insecure configuration detected in production environment
+    """
+    settings = get_settings()
+    environment = os.getenv("ENVIRONMENT", "development").lower()
+
+    # Prevent SKIP_AUTH in production
+    if environment == "production" and settings.skip_auth:
+        error_msg = (
+            "🚨 SECURITY ERROR: SKIP_AUTH=true is not allowed in production environment. "
+            "This would allow unauthenticated access to the application. "
+            "Set SKIP_AUTH=false or remove the SKIP_AUTH variable from production .env"
+        )
+        logger.error(error_msg)
+        raise RuntimeError(error_msg)
+
+    # Log warning if SKIP_AUTH is enabled in any environment
+    if settings.skip_auth:
+        logger.warning("⚠️  SKIP_AUTH is enabled - authentication is bypassed!")
+        logger.warning("⚠️  This should ONLY be used in development/testing environments")
+        logger.warning("⚠️  Current environment: %s", environment)
+
+
 # -------------------------------------------
 # 🛠️ LIFESPAN EVENTS
 # -------------------------------------------
@@ -86,6 +112,9 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
         SystemExit: If critical initialization fails
     """
     logger.info("Starting application lifespan events")
+
+    # Validate security configuration before proceeding
+    validate_production_security()
 
     try:
         inspector = inspect(engine)

@@ -73,8 +73,15 @@ const LightweightPodcasts: React.FC = () => {
     if (!silent) setIsLoading(true);
 
     try {
-      const userId = user?.id || '';
-      const response = await apiClient.listPodcasts(userId);
+      // Don't make API call if user is not loaded yet
+      if (!user?.id) {
+        console.log('User not loaded yet, skipping podcast load');
+        setPodcasts([]);
+        if (!silent) setIsLoading(false);
+        return;
+      }
+
+      const response = await apiClient.listPodcasts(user.id);
       setPodcasts(response.podcasts);
     } catch (error) {
       console.error('Error loading podcasts:', error);

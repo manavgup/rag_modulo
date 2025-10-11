@@ -114,6 +114,8 @@ interface UserInfo {
   email: string;
   uuid: string;
   role: string | null;
+  access_token?: string;  // Optional token provided in bypass mode
+  token_type?: string;    // Token type (Bearer)
 }
 
 interface PromptTemplate {

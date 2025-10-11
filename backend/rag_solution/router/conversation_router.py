@@ -64,7 +64,22 @@ async def list_conversations(
     """
     try:
         # Use current user if no user_id provided
-        target_user_id = user_id if user_id else UUID(current_user["uuid"])
+        if user_id:
+            target_user_id = user_id
+        else:
+            # Validate UUID format before conversion
+            uuid_str = current_user.get("uuid", "")
+            if not uuid_str:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED, detail="User UUID not found in authentication context"
+                )
+            try:
+                target_user_id = UUID(uuid_str)
+            except ValueError as ve:
+                logger.error("Invalid UUID format: %s", uuid_str)
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Invalid user UUID format: {uuid_str}"
+                ) from ve
 
         # Get all sessions for user
         sessions = await conversation_service.list_sessions(target_user_id)
@@ -76,6 +91,8 @@ async def list_conversations(
         logger.info("Listed %d conversations for user %s", len(sessions), str(target_user_id))
         return sessions
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error("Error listing conversations: %s", str(e))
         raise HTTPException(

@@ -8,6 +8,7 @@ import io
 import logging
 from pathlib import Path
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from fastapi.responses import Response, StreamingResponse
@@ -205,7 +206,19 @@ async def list_podcasts(
     Raises:
         HTTPException 401: Unauthorized
     """
-    user_id = current_user.get("user_id")
+    # Get user_id from current_user, with proper UUID validation
+    user_id_str = current_user.get("user_id") or current_user.get("uuid")
+
+    if not user_id_str:
+        raise HTTPException(status_code=401, detail="User ID not found in authentication context")
+
+    # Validate UUID format
+    try:
+        user_id = UUID(user_id_str) if isinstance(user_id_str, str) else user_id_str
+    except (ValueError, AttributeError) as e:
+        logger.error("Invalid user ID format: %s", user_id_str)
+        raise HTTPException(status_code=401, detail=f"Invalid user ID format: {user_id_str}") from e
+
     return await podcast_service.list_user_podcasts(user_id, limit, offset)
 
 

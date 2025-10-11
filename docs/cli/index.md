@@ -295,7 +295,7 @@ export TESTING=true
 export SKIP_AUTH=true
 
 # Optional: Set specific mock token
-export MOCK_TOKEN="dev-0000-0000-0000"
+# Note: MOCK_TOKEN no longer needed - backend provides bypass token automatically
 
 # Run CLI commands without real authentication
 rag-cli collections list

@@ -21,8 +21,15 @@ PRODUCTION_MODE=false          # Enable production mode
 DEBUG=false                    # Enable debug logging
 LOG_LEVEL=INFO                # Logging level (DEBUG, INFO, WARNING, ERROR)
 TESTING=false                 # Enable testing mode
-SKIP_AUTH=false               # Skip authentication (development only)
 DEVELOPMENT_MODE=false        # Enable development features
+
+# Authentication Bypass (Development/Testing Only)
+# See: docs/features/authentication-bypass.md for detailed documentation
+SKIP_AUTH=false               # Set to true to bypass IBM OIDC authentication
+                              # When true: Backend provides mock user + bypass token
+                              # When false: Full IBM OIDC authentication required
+                              # SECURITY: Never set to true in production!
+                              # Application will refuse to start if SKIP_AUTH=true and ENVIRONMENT=production
 ```
 
 ### Security Configuration

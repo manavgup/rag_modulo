@@ -41,12 +41,22 @@ def get_current_user(
     """
     # Check if authentication is skipped (development mode)
     if settings.skip_auth:
-        # Return mock user for development (all values from config)
+        # In bypass mode, user should be set by authentication middleware
+        # This is a fallback that should rarely be used
+        if hasattr(request.state, "user"):
+            return request.state.user
+
+        # Final fallback - should not happen in normal flow
+        logger.warning("SKIP_AUTH=true but no user in request.state - using fallback")
+        from core.identity_service import IdentityService
+
+        mock_uuid = str(IdentityService.get_mock_user_id())
         return {
-            "user_id": settings.mock_token,
-            "uuid": settings.mock_token,
+            "user_id": mock_uuid,
+            "uuid": mock_uuid,
             "email": settings.mock_user_email,
             "name": settings.mock_user_name,
+            "role": "admin",
         }
 
     # Production: require authentication
