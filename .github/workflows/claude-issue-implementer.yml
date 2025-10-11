@@ -1,4 +1,4 @@
-name: "Stage 2: AI Implementation (OpenAI Codex)"
+name: "Stage 2: AI Implementation (Claude Code Action)"
 
 # Triggers when the "plan-approved" label is added (human approval)
 on:
@@ -26,16 +26,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
 
       - name: Check for Branch Collision
         run: |
@@ -100,89 +90,49 @@ jobs:
             echo "2. Create a new branch: \`fix/issue-${{ github.event.issue.number }}\`"
             echo "3. Implement the changes according to the plan"
             echo "4. Write/update tests as specified in the plan"
-            echo "5. Ensure code follows the project's standards (CLAUDE.md)"
-            echo "6. Run local quality checks if possible"
+            echo "5. Ensure code follows the project's standards (see CLAUDE.md)"
+            echo "6. Run quality checks: \`make quick-check\` or \`make lint\`"
             echo "7. Commit changes with descriptive messages (include DCO sign-off)"
-            echo "8. Push the branch"
+            echo "8. Push the branch to origin"
             echo "9. Create a pull request with:"
             echo "   - Title: \"fix: [Brief description from issue]\""
-            echo "   - Body: Reference to issue, summary of changes, testing done"
-            echo "   - Link to the original issue"
-            echo ""
-            echo "**Branch Workflow:**"
-            echo "\`\`\`bash"
-            echo "# Create and checkout new branch"
-            echo "git checkout -b fix/issue-${{ github.event.issue.number }}"
-            echo ""
-            echo "# After making changes, commit with DCO"
-            echo "git add ."
-            echo "git commit -s -m \"fix: [descriptive message]"
-            echo ""
-            echo "Fixes #${{ github.event.issue.number }}"
-            echo ""
-            echo "[Detailed description of what was changed and why]\""
-            echo ""
-            echo "# Push branch"
-            echo "git push -u origin fix/issue-${{ github.event.issue.number }}"
-            echo ""
-            echo "# Create PR"
-            echo "gh pr create \\"
-            echo "  --title \"fix: [Brief description]\" \\"
-            echo "  --body \"\$(cat <<'PREOF'"
-            echo "Fixes #${{ github.event.issue.number }}"
-            echo ""
-            echo "## Changes Made"
-            echo "[List your changes]"
-            echo ""
-            echo "## Testing"
-            echo "[How you tested]"
-            echo ""
-            echo "## Checklist"
-            echo "- [ ] Code follows project style guidelines"
-            echo "- [ ] Tests added/updated"
-            echo "- [ ] Documentation updated if needed"
-            echo "- [ ] All CI checks pass"
-            echo "PREOF"
-            echo ")\" \\"
-            echo "  --label \"ai-generated\""
-            echo "\`\`\`"
+            echo "   - Body: Reference issue #${{ github.event.issue.number }}, summary of changes, testing done"
+            echo "   - Label: \"ai-generated\""
             echo ""
             echo "**Quality Guidelines:**"
-            echo "- Follow existing code patterns"
+            echo "- Follow existing code patterns in the repository"
             echo "- Add comprehensive error handling"
             echo "- Include docstrings and type hints (Python)"
-            echo "- Write clear commit messages"
-            echo "- Keep changes focused on the issue"
+            echo "- Write clear, descriptive commit messages"
+            echo "- Keep changes focused on the issue at hand"
+            echo "- Add tests for new functionality"
             echo ""
-            echo "**Important:**"
-            echo "- Do NOT use --yolo mode for destructive operations"
-            echo "- Ask before making breaking changes"
-            echo "- Test changes locally when possible"
-            echo "- Follow the approved plan - don't deviate"
-          } > /tmp/codex_prompt.md
+            echo "**Important Notes:**"
+            echo "- Test changes before committing"
+            echo "- Follow the approved plan - don't deviate without good reason"
+            echo "- If you encounter blockers, document them in the PR description"
+            echo "- Ensure all CI checks will pass (linting, tests, security)"
+          } > /tmp/implementation_prompt.txt
 
-          echo "prompt_file=/tmp/codex_prompt.md" >> $GITHUB_OUTPUT
+          # Save prompt for the action
+          cat /tmp/implementation_prompt.txt
+          echo "prompt_content<<PROMPT_EOF" >> $GITHUB_OUTPUT
+          cat /tmp/implementation_prompt.txt >> $GITHUB_OUTPUT
+          echo "PROMPT_EOF" >> $GITHUB_OUTPUT
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Codex Implements Fix
-        uses: openai/codex-action@v1
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Claude Code Action - Implement Fix
+        uses: anthropics/claude-code-action@beta
         with:
-          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
-          safety-strategy: drop-sudo
-          prompt-file: ${{ steps.get_plan.outputs.prompt_file }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: ${{ steps.get_plan.outputs.prompt_content }}
 
-      - name: Comment on Issue
+      - name: Add Success Label
         if: success()
         run: |
-          # Get the PR number that was just created
-          PR_NUM=$(gh pr list --head fix/issue-${{ github.event.issue.number }} --json number --jq '.[0].number')
-          gh issue comment ${{ github.event.issue.number }} --body "✅ Implementation complete! Pull request created: #${PR_NUM}
-
-          The PR will now be automatically reviewed by Claude Code Review.
-          Please review the changes and merge if everything looks good."
+          gh issue edit ${{ github.event.issue.number }} --add-label "ai-implemented"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
