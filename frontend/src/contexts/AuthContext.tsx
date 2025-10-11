@@ -34,7 +34,12 @@ interface CachedUser {
 }
 
 // Role mapping function to handle all role types
-const mapBackendRole = (backendRole: string): 'end_user' | 'content_manager' | 'system_administrator' => {
+const mapBackendRole = (backendRole: string | null): 'end_user' | 'content_manager' | 'system_administrator' => {
+  // Default to end_user if role is null or undefined
+  if (!backendRole) {
+    return 'end_user';
+  }
+
   switch (backendRole.toLowerCase()) {
     case 'admin':
     case 'system_administrator':
