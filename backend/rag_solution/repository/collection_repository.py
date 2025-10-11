@@ -288,10 +288,10 @@ class CollectionRepository:
     def _get_file_size(file_path: str | None) -> int | None:
         """
         Get file size in bytes, return None if file doesn't exist or path is None.
-        
+
         Args:
             file_path: Path to the file
-            
+
         Returns:
             File size in bytes or None if file doesn't exist/accessible
         """
@@ -314,10 +314,10 @@ class CollectionRepository:
             updated_at=collection.updated_at,
             files=[
                 FileInfo(
-                    id=file.id, 
+                    id=file.id,
                     filename=file.filename,
-                    file_size_bytes=CollectionRepository._get_file_size(file.file_path)
-                ) 
+                    file_size_bytes=CollectionRepository._get_file_size(file.file_path),
+                )
                 for file in collection.files or []
             ],
             user_ids=[user.user_id for user in collection.users or []],
