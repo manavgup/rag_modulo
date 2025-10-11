@@ -14,6 +14,7 @@ class CollectionStatus(str, Enum):
 class FileInfo(BaseModel):
     id: UUID4
     filename: str
+    file_size_bytes: int | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

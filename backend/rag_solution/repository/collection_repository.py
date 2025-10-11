@@ -2,6 +2,7 @@
 
 import builtins
 import logging
+import os
 from typing import Any
 
 from pydantic import UUID4
@@ -284,6 +285,25 @@ class CollectionRepository:
             raise
 
     @staticmethod
+    def _get_file_size(file_path: str | None) -> int | None:
+        """
+        Get file size in bytes, return None if file doesn't exist or path is None.
+
+        Args:
+            file_path: Path to the file
+
+        Returns:
+            File size in bytes or None if file doesn't exist/accessible
+        """
+        if not file_path:
+            return None
+        try:
+            return os.path.getsize(file_path) if os.path.exists(file_path) else None
+        except (OSError, TypeError) as e:
+            logger.warning("Unable to get file size for %s: %s", file_path, str(e))
+            return None
+
+    @staticmethod
     def _collection_to_output(collection: Collection) -> CollectionOutput:
         return CollectionOutput(
             id=collection.id,
@@ -292,7 +312,14 @@ class CollectionRepository:
             is_private=collection.is_private,
             created_at=collection.created_at,
             updated_at=collection.updated_at,
-            files=[FileInfo(id=file.id, filename=file.filename) for file in collection.files or []],
+            files=[
+                FileInfo(
+                    id=file.id,
+                    filename=file.filename,
+                    file_size_bytes=CollectionRepository._get_file_size(file.file_path),
+                )
+                for file in collection.files or []
+            ],
             user_ids=[user.user_id for user in collection.users or []],
             status=collection.status,
         )
