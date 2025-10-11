@@ -4,8 +4,7 @@ on:
   schedule:
     # Every Monday at 2:00 AM UTC
     - cron: '0 2 * * 1'
-  workflow_dispatch:
-    # Manual trigger option
+  workflow_dispatch:  # Manual trigger option
 
 permissions:
   contents: read
@@ -83,9 +82,13 @@ jobs:
 
       - name: 🐳 Dockle - Best Practices Audit
         run: |
-          VERSION=$(curl --silent "https://api.github.com/repos/goodwithtech/dockle/releases/latest" | \
-            grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/')
-          curl -L -o dockle.deb https://github.com/goodwithtech/dockle/releases/download/v${VERSION}/dockle_${VERSION}_Linux-64bit.deb
+          VERSION=$(
+            curl --silent \
+              "https://api.github.com/repos/goodwithtech/dockle/releases/latest" |
+            grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/'
+          )
+          curl -L -o dockle.deb \
+            https://github.com/goodwithtech/dockle/releases/download/v${VERSION}/dockle_${VERSION}_Linux-64bit.deb
           sudo dpkg -i dockle.deb
           dockle --format json --output dockle-${{ matrix.service }}-report.json ${{ matrix.image_name }}:audit || true
           dockle ${{ matrix.image_name }}:audit || true
@@ -143,9 +146,21 @@ jobs:
           for report in security-reports/*/trivy-*-detailed.json; do
             if [ -f "$report" ]; then
               # Count vulnerabilities by severity level using jq
-              CRITICAL=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL")] | length' "$report" 2>/dev/null || echo 0)
-              HIGH=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH")] | length' "$report" 2>/dev/null || echo 0)
-              MEDIUM=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "MEDIUM")] | length' "$report" 2>/dev/null || echo 0)
+              CRITICAL=$(
+                jq '[.Results[]?.Vulnerabilities[]? |
+                     select(.Severity == "CRITICAL")] | length' \
+                   "$report" 2>/dev/null || echo 0
+              )
+              HIGH=$(
+                jq '[.Results[]?.Vulnerabilities[]? |
+                     select(.Severity == "HIGH")] | length' \
+                   "$report" 2>/dev/null || echo 0
+              )
+              MEDIUM=$(
+                jq '[.Results[]?.Vulnerabilities[]? |
+                     select(.Severity == "MEDIUM")] | length' \
+                   "$report" 2>/dev/null || echo 0
+              )
 
               CRITICAL_COUNT=$((CRITICAL_COUNT + CRITICAL))
               HIGH_COUNT=$((HIGH_COUNT + HIGH))
@@ -194,7 +209,8 @@ jobs:
             - Software Bill of Materials (SBOM)
 
             ### Next Steps
-            1. Review the workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            1. Review the workflow run:
+               ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
             2. Download security reports from artifacts
             3. Update base images and dependencies
             4. Re-run security scans after fixes

@@ -18,8 +18,7 @@ on:
   schedule:
     # Weekly CVE scan every Tuesday at 6:17 PM UTC
     - cron: '17 18 * * 2'
-  workflow_dispatch:
-    # Manual trigger option
+  workflow_dispatch:  # Manual trigger option
 
 # Cancel outdated workflow runs for the same PR
 concurrency:
@@ -281,4 +280,6 @@ jobs:
           echo "3. Address any CRITICAL vulnerabilities before merging" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "---" >> $GITHUB_STEP_SUMMARY
-          echo "🔗 **Documentation**: [CI/CD Security Pipeline](../../docs/development/ci-cd-security.md)" >> $GITHUB_STEP_SUMMARY
+          echo "🔗 **Documentation**:" \
+            "[CI/CD Security Pipeline](../../docs/development/ci-cd-security.md)" \
+            >> $GITHUB_STEP_SUMMARY

@@ -52,7 +52,8 @@ jobs:
 
           1. Install [Docker Desktop](https://www.docker.com/products/docker-desktop)
           2. Install [VS Code](https://code.visualstudio.com/)
-          3. Install the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+          3. Install the [Dev Containers extension](
+             https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
           4. Clone this PR branch locally
           5. Open in VS Code and click "Reopen in Container" when prompted
 
