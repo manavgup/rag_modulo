@@ -74,19 +74,14 @@ jobs:
       - name: 📥 Install dependencies
         run: cd backend && poetry install --with dev,test
 
-      # 5️⃣ Run unit/atomic tests
-      - name: 🧪 Run unit tests
-        run: |
-          cd backend
-          poetry run pytest tests/ -m "unit or atomic" --tb=short -v --maxfail=5
-
-      # 6️⃣ Generate coverage report (optional)
-      - name: 📊 Run tests with coverage
-        if: success()
+      # 5️⃣ Run unit/atomic tests with coverage
+      - name: 🧪 Run unit tests with coverage
         run: |
           cd backend
           poetry run pytest tests/ -m "unit or atomic" \
             --cov=rag_solution \
             --cov-report=term-missing \
             --cov-report=html \
-            --tb=short
+            --tb=short \
+            -v \
+            --maxfail=5
