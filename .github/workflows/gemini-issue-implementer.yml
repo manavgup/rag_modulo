@@ -91,7 +91,7 @@ jobs:
             echo ""
             echo "## 📋 Approved Implementation Plan"
             echo ""
-            echo "$PLAN"
+            printf '%s\n' "$PLAN"
             echo ""
             echo "---"
             echo ""
