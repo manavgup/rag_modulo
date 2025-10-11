@@ -41,6 +41,11 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/auth", tags=["authentication"])
 
+# Authentication bypass token for development/testing
+# When SKIP_AUTH=true, this token is returned to frontend and accepted by backend
+# Hardcoded for security - not configurable to prevent production misconfiguration
+BYPASS_TOKEN = "dev-bypass-auth"
+
 
 # Define response models
 class OIDCConfig(BaseModel):
@@ -262,7 +267,7 @@ async def get_userinfo(
     # Check if authentication bypass is active
 
     if is_bypass_mode_active():
-        logger.info("Authentication bypass mode active - returning mock user info")
+        logger.info("Authentication bypass mode active - returning mock user info with token")
         try:
             # Ensure mock user exists in database
             user_uuid = ensure_mock_user_exists(db, settings)
@@ -275,8 +280,12 @@ async def get_userinfo(
                 uuid=user_data.get("uuid", str(user_uuid)),
                 role=user_data.get("role", "admin"),
             )
-            logger.info("Retrieved mock user info in bypass mode: %s", user_info.email)
-            return JSONResponse(content=user_info.model_dump())
+
+            # Return user info along with bypass token for frontend to store
+            # This allows frontend to be completely agnostic about auth mode
+            response_data = {**user_info.model_dump(), "access_token": BYPASS_TOKEN, "token_type": "Bearer"}
+            logger.info("Retrieved mock user info in bypass mode: %s (token: %s)", user_info.email, BYPASS_TOKEN)
+            return JSONResponse(content=response_data)
         except (ValueError, KeyError, AttributeError) as e:
             logger.error("Failed to create mock user info: %s", e)
             # Fallback to basic mock data
@@ -287,7 +296,8 @@ async def get_userinfo(
                 uuid="1aa5093c-084e-4f20-905b-cf5e18301b1c",
                 role="admin",
             )
-            return JSONResponse(content=user_info.model_dump())
+            response_data = {**user_info.model_dump(), "access_token": BYPASS_TOKEN, "token_type": "Bearer"}
+            return JSONResponse(content=response_data)
 
     authorization = request.headers.get("Authorization")
     if not authorization:

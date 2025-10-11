@@ -218,7 +218,7 @@ class Settings(BaseSettings):
     testing: Annotated[bool, Field(default=False, alias="TESTING")]
     skip_auth: Annotated[bool, Field(default=False, alias="SKIP_AUTH")]
     development_mode: Annotated[bool, Field(default=False, alias="DEVELOPMENT_MODE")]
-    mock_token: Annotated[str, Field(default="dev-0000-0000-0000", alias="MOCK_TOKEN")]
+    # Note: mock_token removed - now hardcoded as BYPASS_TOKEN in auth_router.py
     mock_user_email: Annotated[str, Field(default="dev@example.com", alias="MOCK_USER_EMAIL")]
     mock_user_name: Annotated[str, Field(default="Development User", alias="MOCK_USER_NAME")]
 

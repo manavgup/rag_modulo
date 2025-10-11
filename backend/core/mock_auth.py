@@ -20,16 +20,16 @@ logger = logging.getLogger(__name__)
 
 
 def get_mock_token() -> str:
-    """Get the configured mock authentication token.
+    """Get the bypass authentication token for development/testing.
 
-    Returns the mock token from environment variable or default.
-    Uses a memorable format like 'dev-0000-0000-0000' by default.
+    This token is hardcoded to prevent configuration errors.
+    When SKIP_AUTH=true, this token is accepted by the backend
+    and returned to the frontend via /api/auth/userinfo.
 
     Returns:
-        str: The mock authentication token
+        str: The bypass authentication token (always "dev-bypass-auth")
     """
-    settings = get_settings()
-    return settings.mock_token
+    return "dev-bypass-auth"
 
 
 def is_mock_token(token: str) -> bool:

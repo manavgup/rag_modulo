@@ -128,6 +128,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Fetch user info from backend
       const userInfo = await apiClient.getUserInfo();
 
+      // Store access token if provided (for SKIP_AUTH mode)
+      // Backend returns token when in bypass mode, frontend stores it agnostically
+      if (userInfo.access_token) {
+        localStorage.setItem('access_token', userInfo.access_token);
+      }
+
       // Map backend user to frontend User type with proper role mapping
       const mappedRole = mapBackendRole(userInfo.role);
       const mappedUser: User = {
