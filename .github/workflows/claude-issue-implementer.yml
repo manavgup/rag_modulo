@@ -127,7 +127,8 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          prompt: ${{ steps.get_plan.outputs.prompt_content }}
+          direct_prompt: ${{ steps.get_plan.outputs.prompt_content }}
+          mode: direct
 
       - name: Add Success Label
         if: success()
