@@ -69,9 +69,8 @@ class PodcastDuration(int, Enum):
 
     SHORT = 5  # 5 minutes
     MEDIUM = 15  # 15 minutes
-    LONG = 20  # 20 minutes
-    EXTENDED = 30  # 30 minutes
-    MAXIMUM = 60  # 60 minutes
+    LONG = 30  # 30 minutes
+    EXTENDED = 60  # 60 minutes
 
 
 class Speaker(str, Enum):

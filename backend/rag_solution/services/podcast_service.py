@@ -453,7 +453,7 @@ CRITICAL INSTRUCTION: Generate the complete dialogue script now using ONLY the p
             )
         else:
             podcast_query = (
-                "Provide comprehensive overview of all key topics, main insights, "
+                "Provide a comprehensive overview of all key topics, main insights, "
                 "important concepts, and significant information from this collection. "
                 "Include examples, details, and practical applications suitable for "
                 "creating an educational podcast dialogue."
