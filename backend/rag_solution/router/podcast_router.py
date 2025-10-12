@@ -16,12 +16,16 @@ from pydantic import UUID4
 from sqlalchemy.orm import Session
 
 from core.config import Settings, get_settings
+from core.custom_exceptions import NotFoundError, ValidationError
 from rag_solution.core.dependencies import get_current_user
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.podcast_schema import (
+    PodcastAudioGenerationInput,
     PodcastGenerationInput,
     PodcastGenerationOutput,
     PodcastListResponse,
+    PodcastScriptGenerationInput,
+    PodcastScriptOutput,
 )
 from rag_solution.services.collection_service import CollectionService
 from rag_solution.services.podcast_service import PodcastService
@@ -30,6 +34,14 @@ from rag_solution.services.search_service import SearchService
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/podcasts", tags=["podcasts"])
+
+# Media type constants for audio formats
+AUDIO_MEDIA_TYPES = {
+    "mp3": "audio/mpeg",
+    "wav": "audio/wav",
+    "ogg": "audio/ogg",
+    "flac": "audio/flac",
+}
 
 
 # Dependency to get PodcastService
@@ -122,6 +134,181 @@ async def generate_podcast(
     validated_input = podcast_input.model_copy(update={"user_id": user_id_from_token})
 
     return await podcast_service.generate_podcast(validated_input, background_tasks)
+
+
+@router.post(
+    "/generate-script",
+    response_model=PodcastScriptOutput,
+    status_code=200,
+    summary="Generate podcast script only (no audio)",
+    description="""
+    Generate podcast script without audio synthesis.
+
+    **Use Cases:**
+    - Validate script quality before committing to TTS
+    - Faster iteration (script generation ~30s vs full podcast ~90s)
+    - Cost savings (skip TTS API calls during development/testing)
+    - Script editing workflows (generate → review → edit → synthesize)
+
+    **Quality Metrics Returned:**
+    - word_count: Actual words in generated script
+    - target_word_count: Expected words for duration
+    - estimated_duration_minutes: Actual duration estimate (word_count / 150)
+    - has_proper_format: Whether script has HOST/EXPERT dialogue structure
+
+    **Workflow:**
+    1. Call this endpoint to generate script
+    2. Review script quality and metrics
+    3. If satisfied, call POST /generate with same parameters for full podcast
+    4. If not satisfied, adjust parameters and retry
+
+    Cost: ~$0.01-0.05 (LLM only, no TTS)
+    Time: ~30 seconds
+    """,
+)
+async def generate_script_only(
+    script_input: PodcastScriptGenerationInput,
+    podcast_service: Annotated[PodcastService, Depends(get_podcast_service)],
+    current_user: Annotated[dict, Depends(get_current_user)],
+) -> PodcastScriptOutput:
+    """
+    Generate podcast script without audio synthesis.
+
+    Args:
+        script_input: Script generation request
+        podcast_service: Injected podcast service
+        current_user: Authenticated user from JWT token
+
+    Returns:
+        PodcastScriptOutput with generated script and quality metrics
+
+    Raises:
+        HTTPException 400: Validation failed
+        HTTPException 401: Unauthorized
+        HTTPException 404: Collection not found
+        HTTPException 500: Internal error
+    """
+    # Set user_id from authenticated session
+    user_id_from_token = current_user.get("user_id")
+
+    if not user_id_from_token:
+        raise HTTPException(
+            status_code=401,
+            detail="User ID not found in authentication token",
+        )
+
+    # Create validated input with authenticated user_id
+    validated_input = script_input.model_copy(update={"user_id": user_id_from_token})
+
+    try:
+        return await podcast_service.generate_script_only(validated_input)
+    except Exception as e:
+        logger.exception("Failed to generate script for collection %s", script_input.collection_id)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Script generation failed: {e!s}",
+        ) from e
+
+
+@router.post(
+    "/script-to-audio",
+    response_model=PodcastGenerationOutput,
+    status_code=202,
+    summary="Generate audio from existing script (no script generation)",
+    description="""
+    Convert an existing podcast script to audio without LLM script generation.
+
+    **Use Cases:**
+    - Generate audio from previously generated script
+    - Generate audio from user-edited script
+    - Re-generate audio with different voices/settings
+    - Faster/cheaper processing (TTS only, no LLM)
+
+    **Workflow:**
+    1. Call POST /generate-script to get script
+    2. Review/edit script (optional)
+    3. Call this endpoint to convert script to audio
+
+    **Benefits:**
+    - **Quality Control**: Review scripts before paying for TTS
+    - **Cost Savings**: ~60% cheaper (TTS only, no LLM)
+    - **User Editing**: Let users edit scripts before audio generation
+    - **Faster Processing**: ~30-90 seconds (vs ~90-120 for full generation)
+
+    **Requirements:**
+    - Script must have HOST/EXPERT dialogue format
+    - Collection must exist and user must have access
+
+    **Cost (OpenAI TTS):**
+    - 5 min: ~$0.05
+    - 15 min: ~$0.15
+    - 30 min: ~$0.30
+
+    **Time:** ~30-90 seconds depending on duration
+
+    The request is processed asynchronously:
+    1. Returns immediately with status QUEUED
+    2. Background task generates audio (30-90 seconds)
+    3. Poll GET /podcasts/{podcast_id} to check status
+    4. When COMPLETED, audio_url contains the podcast file
+    """,
+)
+async def generate_audio_from_script(
+    audio_input: PodcastAudioGenerationInput,
+    background_tasks: BackgroundTasks,
+    podcast_service: Annotated[PodcastService, Depends(get_podcast_service)],
+    current_user: Annotated[dict, Depends(get_current_user)],
+) -> PodcastGenerationOutput:
+    """
+    Generate podcast audio from existing script (skip LLM script generation).
+
+    Args:
+        audio_input: Audio generation request with script
+        background_tasks: FastAPI background tasks
+        podcast_service: Injected podcast service
+        current_user: Authenticated user from JWT token
+
+    Returns:
+        PodcastGenerationOutput with QUEUED status and podcast_id
+
+    Raises:
+        HTTPException 400: Validation failed or invalid script format
+        HTTPException 401: Unauthorized
+        HTTPException 404: Collection not found
+        HTTPException 500: Internal error
+    """
+    # Set user_id from authenticated session
+    user_id_from_token = current_user.get("user_id")
+
+    if not user_id_from_token:
+        raise HTTPException(
+            status_code=401,
+            detail="User ID not found in authentication token",
+        )
+
+    # Create validated input with authenticated user_id
+    validated_input = audio_input.model_copy(update={"user_id": user_id_from_token})
+
+    try:
+        return await podcast_service.generate_audio_from_script(validated_input, background_tasks)
+    except ValidationError as e:
+        logger.exception("Validation error for script-to-audio")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Validation failed: {e!s}",
+        ) from e
+    except NotFoundError as e:
+        logger.exception("Collection not found for script-to-audio")
+        raise HTTPException(
+            status_code=404,
+            detail=str(e),
+        ) from e
+    except Exception as e:
+        logger.exception("Failed to generate audio from script for collection %s", audio_input.collection_id)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Audio generation failed: {e!s}",
+        ) from e
 
 
 @router.get(
@@ -371,22 +558,43 @@ async def serve_podcast_audio(
     # Construct file path from audio_url
     # audio_url format: "/podcasts/{user_id}/{podcast_id}/audio.{format}"
     base_path = Path(settings.podcast_local_storage_path)
-    audio_path = base_path / str(user_id) / str(podcast_id) / f"audio.{podcast.format}"
 
+    # Resolve to absolute path to avoid working directory issues
+    if not base_path.is_absolute():
+        # Use __file__ to get path relative to this router file
+        # This is more robust than relying on working directory
+        router_file = Path(__file__).resolve()
+        backend_dir = router_file.parent.parent.parent  # rag_solution/router/ -> rag_solution/ -> backend/
+        base_path = (backend_dir / base_path).resolve()
+
+    # Get format as string (handle both enum and string values)
+    audio_format = podcast.format.value if hasattr(podcast.format, "value") else str(podcast.format)
+    audio_path = base_path / str(user_id) / str(podcast_id) / f"audio.{audio_format}"
+
+    # Resolve and validate path to prevent directory traversal
+    try:
+        audio_path = audio_path.resolve(strict=False)
+        # Ensure resolved path is within base_path (security check)
+        if not str(audio_path).startswith(str(base_path.resolve())):
+            logger.error(f"Path traversal attempt detected: {audio_path}")
+            raise HTTPException(status_code=403, detail="Access denied")
+    except (ValueError, OSError) as e:
+        logger.error(f"Invalid path resolution: {e}")
+        raise HTTPException(status_code=400, detail="Invalid file path") from e
+
+    # Debug logging
+    logger.info(f"Looking for audio file at: {audio_path}")
+    logger.info(f"File exists: {audio_path.exists()}")
     if not audio_path.exists():
+        logger.error(f"Audio file not found. Path checked: {audio_path}")
+        logger.error(f"Base path: {base_path}, User ID: {user_id}, Podcast ID: {podcast_id}")
         raise HTTPException(status_code=404, detail="Audio file not found on disk")
 
     # Get file size
     file_size = audio_path.stat().st_size
 
     # Determine media type based on format
-    media_type_map = {
-        "mp3": "audio/mpeg",
-        "wav": "audio/wav",
-        "ogg": "audio/ogg",
-        "flac": "audio/flac",
-    }
-    media_type = media_type_map.get(podcast.format, "audio/mpeg")
+    media_type = AUDIO_MEDIA_TYPES.get(audio_format, "audio/mpeg")
 
     # Parse Range header
     range_header = request.headers.get("range")

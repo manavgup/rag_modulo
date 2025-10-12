@@ -21,12 +21,8 @@ const VOICE_OPTIONS: Array<{id: VoiceId; name: string; gender: 'male' | 'female'
   { id: 'shimmer', name: 'Shimmer', gender: 'female', description: 'Soft, friendly female voice' },
 ];
 
-const DURATION_OPTIONS = [
-  { value: 5, label: '5 minutes', cost: 0.07 },
-  { value: 15, label: '15 minutes', cost: 0.20 },
-  { value: 30, label: '30 minutes', cost: 0.41 },
-  { value: 60, label: '60 minutes', cost: 0.81 },
-];
+// Default description template for script generation
+const DEFAULT_DESCRIPTION = "Provide a comprehensive overview of the key topics, main insights, important concepts, and significant information from this collection. Focus on creating an engaging dialogue that educates listeners about the most valuable content.";
 
 const FORMAT_OPTIONS = [
   { value: 'mp3', label: 'MP3', description: 'Standard format, widely supported' },
@@ -44,15 +40,22 @@ const PodcastGenerationModal: React.FC<PodcastGenerationModalProps> = ({
 }) => {
   const { addNotification } = useNotification();
   const [isGenerating, setIsGenerating] = useState(false);
-  const [duration, setDuration] = useState<5 | 15 | 30 | 60>(15);
+  const [duration, setDuration] = useState<number>(15);
   const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
+  const [description, setDescription] = useState(DEFAULT_DESCRIPTION);
   const [format, setFormat] = useState<'mp3' | 'wav' | 'ogg' | 'flac'>('mp3');
   const [hostVoice, setHostVoice] = useState('alloy');
   const [expertVoice, setExpertVoice] = useState('onyx');
   const [includeIntro, setIncludeIntro] = useState(false);
   const [includeOutro, setIncludeOutro] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // New advanced options
+  const [podcastStyle, setPodcastStyle] = useState('conversational_interview');
+  const [language, setLanguage] = useState('en');
+  const [complexityLevel, setComplexityLevel] = useState('intermediate');
+  const [includeChapterMarkers, setIncludeChapterMarkers] = useState(false);
+  const [generateTranscript, setGenerateTranscript] = useState(true);
 
   // Collection selection state (when collection not provided)
   const [collections, setCollections] = useState<Array<{id: string; name: string}>>([]);
@@ -138,13 +141,21 @@ const PodcastGenerationModal: React.FC<PodcastGenerationModalProps> = ({
   };
 
 
-  const selectedDuration = DURATION_OPTIONS.find(d => d.value === duration);
-  const estimatedCost = selectedDuration?.cost || 0;
+  const estimatedCost = duration * 0.013; // $0.013 per minute for OpenAI TTS
+
+  // Validation for button state
+  const collectionId = providedCollectionId || selectedCollectionId;
+  const isValid = collectionId && title.trim() && !isGenerating;
 
   const handleGenerate = async () => {
     const collectionId = providedCollectionId || selectedCollectionId;
     if (!collectionId) {
       addNotification('error', 'Validation Error', 'Please select a collection');
+      return;
+    }
+
+    if (!title.trim()) {
+      addNotification('error', 'Validation Error', 'Please provide a title for your podcast');
       return;
     }
 
@@ -158,7 +169,7 @@ const PodcastGenerationModal: React.FC<PodcastGenerationModalProps> = ({
           speed: 1.0,
           pitch: 1.0,
         },
-        title: title.trim() || undefined,
+        title: title.trim(),
         description: description.trim() || undefined,
         format,
         host_voice: hostVoice,
@@ -166,6 +177,12 @@ const PodcastGenerationModal: React.FC<PodcastGenerationModalProps> = ({
         include_intro: includeIntro,
         include_outro: includeOutro,
         music_background: false,
+        // New advanced options
+        podcast_style: podcastStyle,
+        language: language,
+        complexity_level: complexityLevel,
+        include_chapter_markers: includeChapterMarkers,
+        generate_transcript: generateTranscript,
       };
 
       const podcast = await apiClient.generatePodcast(input);
@@ -196,39 +213,39 @@ const PodcastGenerationModal: React.FC<PodcastGenerationModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-gray-100 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-gray-100 bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-30">
+        <div className="flex items-center justify-between p-3 border-b border-gray-20">
           <div>
-            <h2 className="text-2xl font-semibold text-white">Generate Podcast</h2>
+            <h2 className="text-base font-semibold text-gray-100">Generate Podcast</h2>
             {providedCollectionName && (
-              <p className="text-gray-50 mt-1">From collection: {providedCollectionName}</p>
+              <p className="text-xs text-gray-70 mt-1">From collection: {providedCollectionName}</p>
             )}
           </div>
           <button
             onClick={onClose}
-            className="text-gray-50 hover:text-white transition-colors"
+            className="text-gray-60 hover:text-gray-100"
           >
-            <XMarkIcon className="w-6 h-6" />
+            <XMarkIcon className="w-5 h-5" />
           </button>
         </div>
 
         {/* Body */}
-        <div className="p-6 space-y-6">
+        <div className="p-3 space-y-2">
           {/* Collection Selection (if not provided) */}
           {!providedCollectionId && (
             <div>
-              <label className="block text-sm font-medium text-white mb-3">
+              <label className="block text-xs font-medium text-gray-100 mb-1">
                 Collection *
               </label>
               {isLoadingCollections ? (
-                <div className="text-gray-50 text-sm">Loading collections...</div>
+                <div className="text-gray-70 text-xs">Loading collections...</div>
               ) : (
                 <select
                   value={selectedCollectionId}
                   onChange={(e) => setSelectedCollectionId(e.target.value)}
-                  className="w-full px-4 py-2 bg-gray-90 border border-gray-30 rounded-lg text-white focus:outline-none focus:border-blue-50"
+                  className="w-full px-2 py-1 text-xs border border-gray-30 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-60 focus:border-transparent"
                 >
                   <option value="">Select a collection</option>
                   {collections.map((collection) => (
@@ -238,7 +255,7 @@ const PodcastGenerationModal: React.FC<PodcastGenerationModalProps> = ({
                   ))}
                 </select>
               )}
-              <p className="text-xs text-gray-50 mt-1">
+              <p className="text-xs text-gray-70 mt-1">
                 Choose the collection to use as the knowledge base for your podcast
               </p>
             </div>
@@ -246,31 +263,36 @@ const PodcastGenerationModal: React.FC<PodcastGenerationModalProps> = ({
 
           {/* Duration Selection */}
           <div>
-            <label className="block text-sm font-medium text-white mb-3">
-              Duration
+            <label className="block text-xs font-medium text-gray-100 mb-1">
+              Duration: {duration} minutes
             </label>
-            <div className="grid grid-cols-4 gap-3">
-              {DURATION_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => setDuration(option.value as 5 | 15 | 30 | 60)}
-                  className={`p-3 rounded-lg border-2 transition-all ${
-                    duration === option.value
-                      ? 'border-blue-50 bg-blue-50 bg-opacity-20 text-white'
-                      : 'border-gray-30 text-gray-50 hover:border-gray-40'
-                  }`}
-                >
-                  <div className="text-sm font-medium">{option.label}</div>
-                  <div className="text-xs mt-1">${option.cost.toFixed(2)}</div>
-                </button>
-              ))}
+            <div className="space-y-1">
+              <input
+                type="range"
+                min="5"
+                max="30"
+                step="5"
+                value={duration}
+                onChange={(e) => setDuration(parseInt(e.target.value))}
+                className="w-full h-2 bg-gray-30 rounded-lg appearance-none cursor-pointer"
+                style={{
+                  background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${((duration - 5) / (30 - 5)) * 100}%, #e5e7eb ${((duration - 5) / (30 - 5)) * 100}%, #e5e7eb 100%)`
+                }}
+              />
+              <div className="flex justify-between text-xs text-gray-70">
+                <span>5 min</span>
+                <span>30 min</span>
+              </div>
+              <div className="text-xs text-gray-70">
+                Cost: ${(duration * 0.013).toFixed(2)}
+              </div>
             </div>
           </div>
 
-          {/* Title (Optional) */}
+          {/* Title (Required) */}
           <div>
-            <label className="block text-sm font-medium text-white mb-2">
-              Title <span className="text-gray-50">(optional)</span>
+            <label className="block text-xs font-medium text-gray-100 mb-1">
+              Title <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -278,29 +300,32 @@ const PodcastGenerationModal: React.FC<PodcastGenerationModalProps> = ({
               onChange={(e) => setTitle(e.target.value)}
               maxLength={200}
               placeholder="My Podcast Episode"
-              className="w-full px-4 py-2 bg-gray-90 border border-gray-30 rounded-lg text-white placeholder-gray-50 focus:outline-none focus:border-blue-50"
+              required
+              className="w-full px-2 py-1 text-xs border border-gray-30 rounded-lg text-gray-100 placeholder-gray-70 focus:outline-none focus:ring-2 focus:ring-blue-60 focus:border-transparent"
             />
-            <p className="text-xs text-gray-50 mt-1">{title.length}/200 characters</p>
+            <p className="text-xs text-gray-70 mt-1">{title.length}/200 characters</p>
           </div>
 
-          {/* Description (Optional) */}
+          {/* Description (Script Prompt) */}
           <div>
-            <label className="block text-sm font-medium text-white mb-2">
-              Description <span className="text-gray-50">(optional)</span>
+            <label className="block text-xs font-medium text-gray-100 mb-1">
+              Script Generation Prompt
             </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              maxLength={500}
-              rows={3}
-              placeholder="Brief description of your podcast..."
-              className="w-full px-4 py-2 bg-gray-90 border border-gray-30 rounded-lg text-white placeholder-gray-50 focus:outline-none focus:border-blue-50"
+              maxLength={1000}
+              rows={5}
+              placeholder={DEFAULT_DESCRIPTION}
+              className="w-full px-2 py-1 text-xs border border-gray-30 rounded-lg text-gray-100 placeholder-gray-70 focus:outline-none focus:ring-2 focus:ring-blue-60 focus:border-transparent"
             />
-            <p className="text-xs text-gray-50 mt-1">{description.length}/500 characters</p>
+            <p className="text-xs text-gray-70 mt-1">
+              {description.length}/1000 characters. This prompt guides the AI in generating your podcast script.
+            </p>
           </div>
 
           {/* Voice Settings */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-2">
             <VoiceSelector
               label="Host Voice"
               options={VOICE_OPTIONS}
@@ -322,14 +347,16 @@ const PodcastGenerationModal: React.FC<PodcastGenerationModalProps> = ({
           </div>
 
           {/* Advanced Options (Collapsible) */}
-          <div>
+          <div className="border border-gray-30 rounded-md">
             <button
               onClick={() => setShowAdvanced(!showAdvanced)}
-              className="flex items-center text-blue-50 hover:text-blue-40 transition-colors"
+              className="w-full flex items-center justify-between px-3 py-2 text-sm text-blue-60 hover:text-blue-70 hover:bg-gray-10"
             >
-              <span className="text-sm font-medium">Advanced Options</span>
+              <div className="flex items-center space-x-2">
+                <span className="font-medium">Advanced Options</span>
+              </div>
               <svg
-                className={`w-4 h-4 ml-2 transition-transform ${showAdvanced ? 'rotate-180' : ''}`}
+                className={`w-4 h-4 transition-transform ${showAdvanced ? 'rotate-180' : ''}`}
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -339,10 +366,10 @@ const PodcastGenerationModal: React.FC<PodcastGenerationModalProps> = ({
             </button>
 
             {showAdvanced && (
-              <div className="mt-4 space-y-4 p-4 bg-gray-90 rounded-lg">
+              <div className="border-t border-gray-30 p-3 space-y-4">
                 {/* Format Selection */}
                 <div>
-                  <label className="block text-sm font-medium text-white mb-2">
+                  <label className="block text-xs font-medium text-gray-100 mb-1">
                     Audio Format
                   </label>
                   <div className="grid grid-cols-2 gap-2">
@@ -352,77 +379,142 @@ const PodcastGenerationModal: React.FC<PodcastGenerationModalProps> = ({
                         onClick={() => setFormat(fmt.value as typeof format)}
                         className={`p-2 rounded border transition-all text-left ${
                           format === fmt.value
-                            ? 'border-blue-50 bg-blue-50 bg-opacity-20'
+                            ? 'border-blue-60 bg-blue-60 bg-opacity-20'
                             : 'border-gray-30 hover:border-gray-40'
                         }`}
                       >
-                        <div className="text-sm font-medium text-white">{fmt.label}</div>
-                        <div className="text-xs text-gray-50">{fmt.description}</div>
+                        <div className="text-xs font-medium text-gray-100">{fmt.label}</div>
+                        <div className="text-xs text-gray-70">{fmt.description}</div>
                       </button>
                     ))}
                   </div>
                 </div>
 
                 {/* Intro/Outro Options */}
-                <div className="space-y-3">
+                <div className="space-y-2">
                   <label className="flex items-center">
                     <input
                       type="checkbox"
                       checked={includeIntro}
                       onChange={(e) => setIncludeIntro(e.target.checked)}
-                      className="w-4 h-4 text-blue-50 border-gray-30 rounded focus:ring-blue-50"
+                      className="w-4 h-4 text-blue-60 border-gray-30 rounded focus:ring-blue-60"
                     />
-                    <span className="ml-2 text-sm text-white">Include introduction segment</span>
+                    <span className="ml-2 text-xs text-gray-100">Include introduction segment</span>
                   </label>
                   <label className="flex items-center">
                     <input
                       type="checkbox"
                       checked={includeOutro}
                       onChange={(e) => setIncludeOutro(e.target.checked)}
-                      className="w-4 h-4 text-blue-50 border-gray-30 rounded focus:ring-blue-50"
+                      className="w-4 h-4 text-blue-60 border-gray-30 rounded focus:ring-blue-60"
                     />
-                    <span className="ml-2 text-sm text-white">Include conclusion/outro segment</span>
+                    <span className="ml-2 text-xs text-gray-100">Include conclusion/outro segment</span>
                   </label>
                   <label className="flex items-center opacity-50 cursor-not-allowed">
                     <input
                       type="checkbox"
                       disabled
-                      className="w-4 h-4 text-blue-50 border-gray-30 rounded"
+                      className="w-4 h-4 text-blue-60 border-gray-30 rounded"
                     />
-                    <span className="ml-2 text-sm text-gray-50">Background music (coming soon)</span>
+                    <span className="ml-2 text-xs text-gray-70">Background music (coming soon)</span>
                   </label>
+                </div>
+
+                {/* New Advanced Options */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-medium text-gray-100">Content Options</h4>
+
+                  {/* Podcast Style */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-100 mb-1">
+                      Podcast Style
+                    </label>
+                    <select
+                      value={podcastStyle}
+                      onChange={(e) => setPodcastStyle(e.target.value)}
+                      className="w-full px-2 py-1 text-xs border border-gray-30 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-60 focus:border-transparent"
+                    >
+                      <option value="conversational_interview">Conversational Interview</option>
+                      <option value="narrative">Narrative</option>
+                      <option value="educational">Educational</option>
+                      <option value="discussion">Discussion</option>
+                    </select>
+                  </div>
+
+                  {/* Language */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-100 mb-1">
+                      Language
+                    </label>
+                    <select
+                      value={language}
+                      onChange={(e) => setLanguage(e.target.value)}
+                      className="w-full px-2 py-1 text-xs border border-gray-30 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-60 focus:border-transparent"
+                    >
+                      <option value="en">English</option>
+                      <option value="es">Spanish</option>
+                      <option value="fr">French</option>
+                      <option value="de">German</option>
+                    </select>
+                  </div>
+
+                  {/* Complexity Level */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-100 mb-1">
+                      Complexity Level
+                    </label>
+                    <select
+                      value={complexityLevel}
+                      onChange={(e) => setComplexityLevel(e.target.value)}
+                      className="w-full px-2 py-1 text-xs border border-gray-30 rounded-lg text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-60 focus:border-transparent"
+                    >
+                      <option value="beginner">Beginner</option>
+                      <option value="intermediate">Intermediate</option>
+                      <option value="advanced">Advanced</option>
+                    </select>
+                  </div>
+
+                  {/* Additional Options */}
+                  <div className="space-y-2">
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={includeChapterMarkers}
+                        onChange={(e) => setIncludeChapterMarkers(e.target.checked)}
+                        className="w-4 h-4 text-blue-60 border-gray-30 rounded focus:ring-blue-60"
+                      />
+                      <span className="ml-2 text-xs text-gray-100">Include chapter markers</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={generateTranscript}
+                        onChange={(e) => setGenerateTranscript(e.target.checked)}
+                        className="w-4 h-4 text-blue-60 border-gray-30 rounded focus:ring-blue-60"
+                      />
+                      <span className="ml-2 text-xs text-gray-100">Generate transcript</span>
+                    </label>
+                  </div>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Cost Estimate */}
-          <div className="bg-blue-50 bg-opacity-10 border border-blue-50 rounded-lg p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-medium text-white">Estimated Cost</h3>
-                <p className="text-xs text-gray-50 mt-1">OpenAI TTS API usage</p>
-              </div>
-              <div className="text-2xl font-bold text-blue-50">
-                ${estimatedCost.toFixed(2)}
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-30">
+        <div className="flex items-center justify-end gap-2 p-3 border-t border-gray-20">
           <button
             onClick={onClose}
             disabled={isGenerating}
-            className="px-4 py-2 text-gray-50 hover:text-white transition-colors disabled:opacity-50"
+            className="px-3 py-1 text-xs text-gray-70 hover:text-gray-100 transition-colors disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             onClick={handleGenerate}
-            disabled={isGenerating}
-            className="px-6 py-2 bg-blue-50 hover:bg-blue-40 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!isValid}
+            className="px-3 py-1 text-xs bg-blue-60 hover:bg-blue-70 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isGenerating ? 'Generating...' : 'Generate Podcast'}
           </button>

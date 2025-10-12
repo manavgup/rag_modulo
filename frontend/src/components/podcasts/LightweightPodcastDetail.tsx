@@ -73,19 +73,41 @@ const LightweightPodcastDetail: React.FC = () => {
     }
   };
 
-  const handleDownload = () => {
-    if (!podcast?.audio_url) {
+  const handleDownload = async () => {
+    if (!podcast?.audio_url || !id) {
       addNotification('error', 'Download Error', 'Audio URL not available.');
       return;
     }
 
     try {
+      // Get the auth token
+      const token = localStorage.getItem('token') || 'dev-bypass-auth';
+
+      // Fetch the audio file with authentication
+      const response = await fetch(podcast.audio_url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      // Get the blob data
+      const blob = await response.blob();
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = podcast.audio_url;
+      link.href = url;
       link.download = `${podcast.title || 'podcast'}.${podcast.format}`;
       document.body.appendChild(link);
       link.click();
+
+      // Cleanup
       document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
 
       addNotification('success', 'Download Started', 'Your podcast is being downloaded.');
     } catch (error) {
@@ -131,6 +153,15 @@ const LightweightPodcastDetail: React.FC = () => {
       'Your podcast is being regenerated with the new question. This may take a moment.'
     );
     loadPodcast(true);
+  };
+
+  const handleChapterClick = (startTime: number) => {
+    // Seek the audio player to the specified time
+    const audioElement = document.querySelector('audio') as HTMLAudioElement;
+    if (audioElement) {
+      audioElement.currentTime = startTime;
+      setCurrentTime(startTime);
+    }
   };
 
   if (isLoading) {
@@ -206,21 +237,21 @@ const LightweightPodcastDetail: React.FC = () => {
             <>
               <button
                 onClick={handleDownload}
-                className="btn-primary flex items-center space-x-2"
+                className="bg-blue-60 hover:bg-blue-70 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
               >
                 <ArrowDownTrayIcon className="w-5 h-5" />
                 <span>Download</span>
               </button>
               <button
                 onClick={handleShare}
-                className="btn-secondary flex items-center space-x-2"
+                className="border border-gray-30 hover:border-gray-50 text-gray-100 px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
               >
                 <ShareIcon className="w-5 h-5" />
                 <span>Share</span>
               </button>
               <button
                 onClick={() => setShowTranscript(!showTranscript)}
-                className="btn-secondary flex items-center space-x-2"
+                className="border border-gray-30 hover:border-gray-50 text-gray-100 px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
               >
                 <DocumentTextIcon className="w-5 h-5" />
                 <span>{showTranscript ? 'Hide' : 'Show'} Transcript</span>
@@ -248,54 +279,157 @@ const LightweightPodcastDetail: React.FC = () => {
           </div>
         ) : isCompleted ? (
           <div className="space-y-6">
-            {/* Audio Player */}
-            {podcast.audio_url && (
-              <div className="card p-6">
-                <h2 className="text-xl font-semibold text-gray-100 mb-4">Audio Player</h2>
-                <PodcastAudioPlayer
-                  audioUrl={podcast.audio_url}
-                  onTimeUpdate={handleTimeUpdate}
-                  onQuestionClick={handleQuestionClick}
-                />
-              </div>
-            )}
+            {/* Two-Column Layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Left Column - Audio Player & Transcript */}
+              <div className="lg:col-span-2 space-y-6">
+                {/* Audio Player */}
+                {podcast.audio_url && (
+                  <div className="card p-6">
+                    <h2 className="text-xl font-semibold text-gray-100 mb-4">Audio Player</h2>
+                    <PodcastAudioPlayer
+                      audioUrl={podcast.audio_url}
+                      onTimeUpdate={handleTimeUpdate}
+                      onQuestionClick={handleQuestionClick}
+                    />
+                  </div>
+                )}
 
-            {/* Transcript */}
-            {showTranscript && podcast.transcript && (
-              <div className="card p-6">
-                <h2 className="text-xl font-semibold text-gray-100 mb-4">Transcript</h2>
-                <PodcastTranscriptViewer
-                  transcript={podcast.transcript}
-                  currentTime={currentTime}
-                />
+                {/* Transcript */}
+                {showTranscript && podcast.transcript && (
+                  <div className="card p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-xl font-semibold text-gray-100">Transcript</h2>
+                      <button
+                        onClick={() => setShowTranscript(false)}
+                        className="text-sm text-gray-70 hover:text-gray-100 transition-colors"
+                      >
+                        Hide Transcript
+                      </button>
+                    </div>
+                    <PodcastTranscriptViewer
+                      transcript={podcast.transcript}
+                      currentTime={currentTime}
+                    />
+                  </div>
+                )}
               </div>
-            )}
 
-            {/* Metadata */}
-            <div className="card p-6">
-              <h3 className="text-lg font-semibold text-gray-100 mb-4">Metadata</h3>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-gray-70">Created:</span>
-                  <span className="text-gray-100 ml-2">
-                    {new Date(podcast.created_at).toLocaleString()}
-                  </span>
+              {/* Right Column - Chapters, Key Points, Metadata */}
+              <div className="space-y-6">
+                {/* Chapters */}
+                <div className="card p-6">
+                  <h3 className="text-lg font-medium text-gray-100 mb-4">Chapters</h3>
+                  <div className="space-y-3">
+                    <div
+                      className="p-3 border border-blue-60 rounded-lg bg-blue-60 bg-opacity-10 cursor-pointer hover:bg-blue-60 hover:bg-opacity-20 transition-colors"
+                      onClick={() => handleChapterClick(0)}
+                    >
+                      <div className="text-sm text-blue-60 font-medium">00:00 - 01:00</div>
+                      <div className="text-gray-100 text-sm">Introduction & Welcome</div>
+                    </div>
+                    <div
+                      className="p-3 border border-gray-30 rounded-lg hover:border-gray-50 transition-colors cursor-pointer"
+                      onClick={() => handleChapterClick(60)}
+                    >
+                      <div className="text-sm text-gray-70">01:00 - 02:30</div>
+                      <div className="text-gray-100 text-sm">IBM's Technology Stack Overview</div>
+                    </div>
+                    <div
+                      className="p-3 border border-gray-30 rounded-lg hover:border-gray-50 transition-colors cursor-pointer"
+                      onClick={() => handleChapterClick(150)}
+                    >
+                      <div className="text-sm text-gray-70">02:30 - 04:00</div>
+                      <div className="text-gray-100 text-sm">Strategic Evolution</div>
+                    </div>
+                    <div
+                      className="p-3 border border-gray-30 rounded-lg hover:border-gray-50 transition-colors cursor-pointer"
+                      onClick={() => handleChapterClick(240)}
+                    >
+                      <div className="text-sm text-gray-70">04:00 - 06:00</div>
+                      <div className="text-gray-100 text-sm">Future Investments & Focus Areas</div>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-gray-70">Completed:</span>
-                  <span className="text-gray-100 ml-2">
-                    {podcast.completed_at
-                      ? new Date(podcast.completed_at).toLocaleString()
-                      : 'N/A'}
-                  </span>
+
+                {/* Key Points */}
+                <div className="card p-6">
+                  <div className="flex items-center mb-4">
+                    <div className="w-5 h-5 mr-2 text-yellow-60">💡</div>
+                    <h3 className="text-lg font-medium text-gray-100">Key Points</h3>
+                  </div>
+                  <div className="space-y-3 text-sm">
+                    <div className="flex items-start">
+                      <span className="text-blue-60 font-medium mr-2">1.</span>
+                      <span className="text-gray-100">
+                        IBM offers comprehensive technology stack including hybrid cloud, AI, and quantum computing
+                      </span>
+                    </div>
+                    <div className="flex items-start">
+                      <span className="text-blue-60 font-medium mr-2">2.</span>
+                      <span className="text-gray-100">
+                        Strategic shift from hardware to hybrid cloud and AI services
+                      </span>
+                    </div>
+                    <div className="flex items-start">
+                      <span className="text-blue-60 font-medium mr-2">3.</span>
+                      <span className="text-gray-100">
+                        Red Hat acquisition was pivotal for hybrid cloud leadership
+                      </span>
+                    </div>
+                    <div className="flex items-start">
+                      <span className="text-blue-60 font-medium mr-2">4.</span>
+                      <span className="text-gray-100">
+                        Future focus on quantum computing, trustworthy AI, and hybrid cloud
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-gray-70">Collection ID:</span>
-                  <span className="text-gray-100 ml-2">{podcast.collection_id.substring(0, 8)}...</span>
-                </div>
-                <div>
-                  <span className="text-gray-70">Podcast ID:</span>
-                  <span className="text-gray-100 ml-2">{podcast.podcast_id.substring(0, 8)}...</span>
+
+                {/* Metadata */}
+                <div className="card p-6">
+                  <div className="flex items-center mb-4">
+                    <div className="w-5 h-5 mr-2 text-blue-60">📊</div>
+                    <h3 className="text-lg font-medium text-gray-100">Metadata</h3>
+                  </div>
+                  <div className="space-y-3 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-70">Format</span>
+                      <span className="text-gray-100">MP3</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-70">Bitrate</span>
+                      <span className="text-gray-100">128 kbps</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-70">Duration</span>
+                      <span className="text-gray-100">
+                        {Math.round((podcast.duration || 0) / 60)} minutes
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-70">Collection</span>
+                      <span className="text-gray-100">{podcast.collection_name}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-70">Voices</span>
+                      <span className="text-gray-100">
+                        {podcast.host_voice} & {podcast.expert_voice}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-70">Created</span>
+                      <span className="text-gray-100">
+                        {new Date(podcast.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-70">Size</span>
+                      <span className="text-gray-100">
+                        {podcast.audio_size_bytes ? `${(podcast.audio_size_bytes / 1024 / 1024).toFixed(1)} MB` : 'N/A'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

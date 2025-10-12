@@ -219,7 +219,7 @@ interface VoiceSettings {
 interface PodcastGenerationInput {
   user_id?: string;
   collection_id: string;
-  duration: 5 | 15 | 30 | 60;
+  duration: number;
   voice_settings: VoiceSettings;
   title?: string;
   description?: string;
@@ -229,6 +229,12 @@ interface PodcastGenerationInput {
   include_intro?: boolean;
   include_outro?: boolean;
   music_background?: boolean;
+  // New advanced options
+  podcast_style?: string;
+  language?: string;
+  complexity_level?: string;
+  include_chapter_markers?: boolean;
+  generate_transcript?: boolean;
 }
 
 interface PodcastStepDetails {
@@ -253,6 +259,11 @@ interface Podcast {
   current_step?: string;
   step_details?: PodcastStepDetails;
   estimated_time_remaining?: number;
+  // Voice settings
+  host_voice: string;
+  expert_voice: string;
+  // Collection information
+  collection_name?: string;
   created_at: string;
   updated_at: string;
   completed_at?: string;

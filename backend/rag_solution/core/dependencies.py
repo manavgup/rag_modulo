@@ -4,6 +4,7 @@ This module provides reusable dependencies for authentication, authorization,
 and service injection that can be used across all routers.
 """
 
+import logging
 from typing import Any
 from uuid import UUID
 
@@ -26,6 +27,8 @@ from rag_solution.services.user_collection_service import UserCollectionService
 from rag_solution.services.user_service import UserService
 from rag_solution.services.user_team_service import UserTeamService
 
+logger = logging.getLogger(__name__)
+
 
 def get_current_user(
     request: Request,
@@ -44,7 +47,17 @@ def get_current_user(
         # In bypass mode, user should be set by authentication middleware
         # This is a fallback that should rarely be used
         if hasattr(request.state, "user"):
-            return request.state.user
+            user_data = request.state.user.copy()  # Create copy to avoid mutating original
+
+            # Apply the same user_id mapping logic as production mode
+            if "user_id" not in user_data and "uuid" in user_data:
+                user_data["user_id"] = (
+                    UUID(user_data["uuid"]) if isinstance(user_data["uuid"], str) else user_data["uuid"]
+                )
+            elif isinstance(user_data.get("user_id"), str):
+                user_data["user_id"] = UUID(user_data["user_id"])
+
+            return user_data
 
         # Final fallback - should not happen in normal flow
         logger.warning("SKIP_AUTH=true but no user in request.state - using fallback")

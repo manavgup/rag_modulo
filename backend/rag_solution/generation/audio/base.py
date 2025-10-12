@@ -61,6 +61,45 @@ class AudioProviderBase(ABC):
             AudioGenerationError: If unable to fetch voices
         """
 
+    async def generate_single_turn_audio(
+        self,
+        text: str,
+        voice_id: str,
+        audio_format: AudioFormat = AudioFormat.MP3,
+    ) -> bytes:
+        """
+        Generate audio for a single text turn (for voice previews).
+
+        Args:
+            text: Text to convert to audio
+            voice_id: Voice identifier to use
+            audio_format: Output audio format
+
+        Returns:
+            Audio file bytes
+
+        Raises:
+            AudioGenerationError: If audio generation fails
+        """
+        # Default implementation - providers can override for optimization
+        from rag_solution.schemas.podcast_schema import PodcastScript, PodcastTurn, Speaker
+
+        # Calculate estimated duration (average speaking rate: 150 words/minute = 2.5 words/second)
+        word_count = len(text.split())
+        estimated_duration = word_count / 2.5  # seconds
+
+        # Create a simple single-turn script with required fields
+        turn = PodcastTurn(speaker=Speaker.HOST, text=text, estimated_duration=estimated_duration)
+
+        script = PodcastScript(turns=[turn], total_duration=estimated_duration, total_words=word_count)
+
+        return await self.generate_dialogue_audio(
+            script=script,
+            host_voice=voice_id,
+            expert_voice=voice_id,  # Use same voice for preview
+            audio_format=audio_format,
+        )
+
     async def validate_voices(self, host_voice: str, expert_voice: str) -> bool:
         """
         Validate that voice IDs are available.

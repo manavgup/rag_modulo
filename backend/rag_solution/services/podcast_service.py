@@ -15,7 +15,8 @@ Orchestrates podcast generation from document collections:
 """
 
 import logging
-from typing import Any
+from enum import Enum
+from typing import Any, ClassVar
 
 from fastapi import BackgroundTasks, HTTPException
 from pydantic import UUID4
@@ -28,10 +29,13 @@ from rag_solution.generation.providers.factory import LLMProviderFactory
 from rag_solution.repository.podcast_repository import PodcastRepository
 from rag_solution.schemas.podcast_schema import (
     AudioFormat,
+    PodcastAudioGenerationInput,
     PodcastDuration,
     PodcastGenerationInput,
     PodcastGenerationOutput,
     PodcastListResponse,
+    PodcastScriptGenerationInput,
+    PodcastScriptOutput,
     PodcastStatus,
 )
 from rag_solution.schemas.search_schema import SearchInput
@@ -43,12 +47,69 @@ from rag_solution.utils.script_parser import PodcastScriptParser
 logger = logging.getLogger(__name__)
 
 
+class SupportedLanguage(str, Enum):
+    """Supported languages for podcast generation with display names."""
+
+    ENGLISH = "en"
+    SPANISH = "es"
+    FRENCH = "fr"
+    GERMAN = "de"
+    ITALIAN = "it"
+    PORTUGUESE = "pt"
+    DUTCH = "nl"
+    JAPANESE = "ja"
+    KOREAN = "ko"
+    CHINESE = "zh"
+    ARABIC = "ar"
+    RUSSIAN = "ru"
+    HINDI = "hi"
+
+    @property
+    def display_name(self) -> str:
+        """Get human-readable language name."""
+        names = {
+            "en": "English",
+            "es": "Spanish",
+            "fr": "French",
+            "de": "German",
+            "it": "Italian",
+            "pt": "Portuguese",
+            "nl": "Dutch",
+            "ja": "Japanese",
+            "ko": "Korean",
+            "zh": "Chinese",
+            "ar": "Arabic",
+            "ru": "Russian",
+            "hi": "Hindi",
+        }
+        return names.get(self.value, self.value)
+
+
 class PodcastService:
     """Service for podcast generation and management."""
 
+    # Legacy dict for backward compatibility - use SupportedLanguage enum instead
+    LANGUAGE_NAMES: ClassVar[dict[str, str]] = {
+        "en": "English",
+        "es": "Spanish",
+        "fr": "French",
+        "de": "German",
+        "it": "Italian",
+        "pt": "Portuguese",
+        "nl": "Dutch",
+        "ja": "Japanese",
+        "ko": "Korean",
+        "zh": "Chinese",
+        "ar": "Arabic",
+        "ru": "Russian",
+        "hi": "Hindi",
+    }
+
     # Default podcast prompt template
     # pylint: disable=line-too-long
-    PODCAST_SCRIPT_PROMPT = """You are a professional podcast script writer. Create an engaging podcast dialogue between a HOST and an EXPERT.
+    PODCAST_SCRIPT_PROMPT = """You are a professional podcast script writer. Create an engaging podcast dialogue between a HOST and an EXPERT in {language} language.
+
+IMPORTANT: Generate the ENTIRE script in {language} language. All dialogue must be in {language}.
 
 Topic/Focus: {user_topic}
 
@@ -56,6 +117,10 @@ Content from documents:
 {rag_results}
 
 Duration: {duration_minutes} minutes (approximately {word_count} words at 150 words/minute)
+
+**Podcast Style:** {podcast_style}
+**Target Audience:** {complexity_level}
+**Language:** {language} (ALL text must be in this language)
 
 Format your script as a natural conversation with these guidelines:
 
@@ -74,13 +139,37 @@ Format your script as a natural conversation with these guidelines:
    HOST: [Follow-up or transition]
    EXPERT: [Further explanation]
 
-3. **Content Guidelines:**
-   - Make it conversational and engaging
-   - Use examples and analogies to clarify complex topics
-   - Keep language accessible but informative
-   - Include natural pauses and transitions
+3. **Style Guidelines for {podcast_style}:**
+   - conversational_interview: Use Q&A format with engaging, open-ended questions. HOST should ask follow-ups and show curiosity.
+   - narrative: Use storytelling approach with smooth transitions. EXPERT should weave information into a compelling narrative arc.
+   - educational: Use structured learning format. Break down concepts clearly with examples. Build from basics to advanced topics.
+   - discussion: Use debate-style format. Present multiple perspectives. HOST challenges ideas, EXPERT defends and explains trade-offs.
 
-Generate the complete dialogue script now:"""
+4. **Complexity Level Guidelines for {complexity_level}:**
+   - beginner: Use simple, everyday language. Avoid jargon. Explain technical terms. Use relatable analogies. More explanations, less depth.
+   - intermediate: Use standard technical terminology. Assume basic knowledge. Moderate depth. Balance explanation with detail.
+   - advanced: Use technical language freely. Assume strong prior knowledge. Deep analysis. Focus on nuances, trade-offs, and advanced concepts.
+
+5. **Language Guidelines:**
+   - YOU MUST generate the ENTIRE script in {language} language
+   - Use natural expressions and idioms appropriate for {language}
+   - Maintain professional but conversational tone in {language}
+   - Do NOT use English if the language is not English
+   - Every word of dialogue must be in {language}
+
+6. **Content Guidelines - CRITICAL:**
+   - **MANDATORY**: You MUST use ONLY the information provided in the documents above
+   - **FORBIDDEN**: Do NOT use any knowledge from your training data
+   - **REQUIRED**: Every fact, example, and detail must come from the provided documents
+   - **MANDATORY**: When discussing topics, directly reference specific information from the documents
+   - **REQUIRED**: If the documents don't cover a topic, explicitly state "Based on the provided documents, this topic is not covered"
+   - **MANDATORY**: Use exact quotes, numbers, and details from the provided documents
+   - **REQUIRED**: Transform the document content into natural dialogue format
+   - **CRITICAL**: The documents above contain ALL the information you need - use nothing else
+
+**FINAL WARNING**: If you use any information not found in the provided documents, the script will be rejected.
+
+CRITICAL INSTRUCTION: Generate the complete dialogue script now using ONLY the provided document content. Write EVERYTHING in {language} language, not English:"""
 
     # Voice preview text for TTS samples
     VOICE_PREVIEW_TEXT = "Hello, you are listening to a preview of this voice."
@@ -392,28 +481,35 @@ Generate the complete dialogue script now:"""
         }
         top_k = top_k_map[podcast_input.duration]
 
-        # Create synthetic query for comprehensive content
+        # Note: Topic will be extracted from description and passed to specialized search
+
+        # Create optimized query for podcast content retrieval
         if podcast_input.description:
-            synthetic_query = (
-                f"{podcast_input.description}. Provide comprehensive information covering all aspects of this topic."
+            podcast_query = (
+                f"Comprehensive information about {podcast_input.description}. "
+                f"Include key concepts, examples, details, insights, and practical applications. "
+                f"Cover all aspects of this topic for podcast content generation."
             )
         else:
-            synthetic_query = (
+            podcast_query = (
                 "Provide a comprehensive overview of all key topics, main insights, "
-                "important concepts, and significant information from this collection "
-                "suitable for creating an educational podcast dialogue."
+                "important concepts, and significant information from this collection. "
+                "Include examples, details, and practical applications suitable for "
+                "creating an educational podcast dialogue."
             )
 
-        # Execute search
+        logger.info("Using optimized podcast search query: '%s'", podcast_query[:100] + "...")
+
+        # Execute search with podcast-optimized parameters
         search_input = SearchInput(
             user_id=podcast_input.user_id,
             collection_id=podcast_input.collection_id,
-            question=synthetic_query,
+            question=podcast_query,
             config_metadata={
                 "top_k": top_k,
-                "enable_reranking": False,  # Disable reranking - not needed for podcast content retrieval
-                "enable_hierarchical": True,
-                "cot_enabled": False,  # Skip chain-of-thought for retrieval
+                "enable_reranking": False,  # Disable reranking for comprehensive content
+                "enable_hierarchical": True,  # Enable hierarchical retrieval for better coverage
+                "cot_enabled": False,  # Skip chain-of-thought for document retrieval
             },
         )
 
@@ -448,6 +544,14 @@ Generate the complete dialogue script now:"""
             num_retrieved,
             top_k,
             min_required,
+        )
+
+        # Debug: Log sample of RAG content being passed to LLM
+        logger.info("Podcast RAG content sample (first 500 chars): %s", formatted_results[:500])
+        logger.info("Podcast RAG content total length: %d characters", len(formatted_results))
+        logger.info(
+            "Podcast search strategies used: %s",
+            search_result.metadata.get("strategies_used", ["unknown"]) if search_result.metadata else ["unknown"],
         )
 
         return formatted_results
@@ -509,7 +613,17 @@ Generate the complete dialogue script now:"""
                     template_type=PromptTemplateType.PODCAST_GENERATION,
                     system_prompt="You are a professional podcast script writer.",
                     template_format=self.PODCAST_SCRIPT_PROMPT,
-                    input_variables={},
+                    input_variables={
+                        "user_topic": "Topic or focus area for the podcast",
+                        "rag_results": "Content from documents to be discussed",
+                        "duration_minutes": "Target duration in minutes",
+                        "word_count": "Target word count",
+                        "min_word_count": "Minimum word count",
+                        "max_word_count": "Maximum word count",
+                        "podcast_style": "Style of podcast (conversational_interview, narrative, educational, discussion)",
+                        "language": "Language for the podcast (en, es, fr, de, etc.)",
+                        "complexity_level": "Target audience complexity (beginner, intermediate, advanced)",
+                    },
                 )
             else:
                 podcast_template = loaded_template  # Type: PromptTemplateOutput
@@ -522,28 +636,81 @@ Generate the complete dialogue script now:"""
                 template_type=PromptTemplateType.PODCAST_GENERATION,
                 system_prompt="You are a professional podcast script writer.",
                 template_format=self.PODCAST_SCRIPT_PROMPT,
-                input_variables={},
+                input_variables={
+                    "user_topic": "Topic or focus area for the podcast",
+                    "rag_results": "Content from documents to be discussed",
+                    "duration_minutes": "Target duration in minutes",
+                    "word_count": "Target word count",
+                    "min_word_count": "Minimum word count",
+                    "max_word_count": "Maximum word count",
+                    "podcast_style": "Style of podcast (conversational_interview, narrative, educational, discussion)",
+                    "language": "Language for the podcast (en, es, fr, de, etc.)",
+                    "complexity_level": "Target audience complexity (beginner, intermediate, advanced)",
+                },
             )
 
-        # Prepare template variables
+        # For non-English languages, use a simpler, more direct prompt
+        # Use consistent template system for ALL languages
+        # Set variables for template system
         variables = {
             "user_topic": podcast_input.description or "General overview of the content",
-            "rag_results": rag_results,
+            "rag_results": rag_results,  # RAG content is included for ALL languages
             "duration_minutes": duration_minutes,
             "word_count": word_count,
             "min_word_count": min_word_count,
             "max_word_count": max_word_count,
+            # New advanced options
+            "podcast_style": podcast_input.podcast_style,
+            "language": podcast_input.language,
+            "complexity_level": podcast_input.complexity_level,
         }
 
-        # Generate via LLM using configured provider
+        # Continue with template system for all languages
         factory = LLMProviderFactory(self.session)
         llm_provider = factory.get_provider(self.settings.llm_provider)
+
+        # Override LLM parameters for podcast generation
+        # We need much higher token limits for long-form content
+        from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
+
+        # Calculate max_new_tokens for podcast generation
+        # Target word count * 1.5 (tokens per word) * 2 (buffer for formatting/structure)
+        desired_tokens = max_word_count * 3  # Conservative estimate for long-form content
+
+        # Add reasonable upper bound to prevent runaway token usage
+        # While model may support up to 128K context, generation is limited
+        # Set upper bound to 200K tokens (~133K words) which should handle even 60-minute podcasts
+        max_token_upper_bound = 200_000
+
+        # Cap at reasonable upper bound for safety
+        max_tokens = min(desired_tokens, max_token_upper_bound)
+
+        logger.info(
+            "Token calculation: desired=%d, max_allowed=%d, word_count=%d, duration=%d minutes",
+            desired_tokens,
+            max_tokens,
+            max_word_count,
+            duration_minutes,
+        )
+
+        podcast_params = LLMParametersInput(
+            user_id=user_id,  # Required field
+            name="podcast_generation_params",
+            description="Parameters optimized for podcast script generation",
+            max_new_tokens=max_tokens,  # Capped at model limits
+            temperature=0.7,
+            top_k=50,
+            top_p=0.95,
+            repetition_penalty=1.1,
+            is_default=False,
+        )
 
         script_text = llm_provider.generate_text(
             user_id=user_id,
             prompt="",  # Empty - template contains full prompt
             template=podcast_template,
             variables=variables,
+            model_parameters=podcast_params,
         )
 
         logger.info(
@@ -764,7 +931,7 @@ Generate the complete dialogue script now:"""
             # Note: generate_single_turn_audio is implemented in concrete audio providers but not in base class
             audio_bytes = await audio_provider.generate_single_turn_audio(  # type: ignore[attr-defined]
                 text=self.VOICE_PREVIEW_TEXT,
-                voice=voice_id,
+                voice_id=voice_id,
                 audio_format=AudioFormat.MP3,
             )
 
@@ -776,3 +943,259 @@ Generate the complete dialogue script now:"""
                 status_code=500,
                 detail=f"Failed to generate voice preview: {e}",
             ) from e
+
+    async def generate_script_only(
+        self,
+        script_input: "PodcastScriptGenerationInput",
+    ) -> "PodcastScriptOutput":
+        """
+        Generate podcast script without audio synthesis.
+
+        This endpoint is useful for:
+        - Script quality validation
+        - Faster iteration (30s vs 90s)
+        - Cost savings (no TTS API calls)
+        - Script editing workflows
+
+        Args:
+            script_input: Script generation request
+
+        Returns:
+            PodcastScriptOutput with generated script and metadata
+
+        Raises:
+            ValidationError: If input validation fails
+            NotFoundError: If collection not found
+        """
+        from uuid import uuid4
+
+        from rag_solution.schemas.podcast_schema import PodcastScriptOutput
+
+        logger.info("Starting script-only generation for collection %s", script_input.collection_id)
+
+        # Validate collection exists
+        collection = self.collection_service.get_collection(script_input.collection_id)
+        if not collection:
+            raise NotFoundError(f"Collection {script_input.collection_id} not found")
+
+        # Convert to full podcast input for internal processing
+        podcast_input = PodcastGenerationInput(
+            collection_id=script_input.collection_id,
+            user_id=script_input.user_id,
+            duration=script_input.duration,
+            title=script_input.title or f"Script for {collection.name}",
+            description=script_input.description,
+            audio_format=AudioFormat.MP3,
+            voice_settings=script_input.voice_settings
+            or {
+                "voice_id": "nova",
+                "gender": "female",
+                "speed": 1.0,
+                "pitch": 1.0,
+                "language": "en-US",
+                "name": "Nova",
+            },
+        )
+
+        # Step 1: Fetch RAG results
+        logger.info("Fetching RAG results for script generation")
+        rag_results = await self._retrieve_content(podcast_input)
+
+        # Step 2: Generate script
+        logger.info("Generating script via LLM")
+        script_text = await self._generate_script(podcast_input, rag_results)
+
+        # Calculate metadata
+        word_count = len(script_text.split())
+        duration_minutes = podcast_input.duration if isinstance(podcast_input.duration, int) else 15
+        target_word_count = duration_minutes * 150  # 150 words/minute
+        estimated_duration = word_count / 150.0  # Actual duration based on word count
+
+        # Check format
+        has_host = "HOST:" in script_text or "Host:" in script_text
+        has_expert = "EXPERT:" in script_text or "Expert:" in script_text
+        has_proper_format = has_host and has_expert
+
+        logger.info(
+            "Script generated: %d words (target: %d), estimated duration: %.1f minutes",
+            word_count,
+            target_word_count,
+            estimated_duration,
+        )
+
+        return PodcastScriptOutput(
+            script_id=uuid4(),
+            collection_id=script_input.collection_id,
+            user_id=script_input.user_id,
+            title=podcast_input.title,
+            script_text=script_text,
+            word_count=word_count,
+            target_word_count=target_word_count,
+            duration_minutes=duration_minutes,
+            estimated_duration_minutes=estimated_duration,
+            has_proper_format=has_proper_format,
+            metadata={
+                "has_host": has_host,
+                "has_expert": has_expert,
+                "rag_results_length": len(rag_results),
+                "collection_name": collection.name,
+            },
+        )
+
+    async def generate_audio_from_script(
+        self,
+        audio_input: "PodcastAudioGenerationInput",
+        background_tasks: BackgroundTasks,
+    ) -> PodcastGenerationOutput:
+        """
+        Generate podcast audio from an existing script (skip LLM script generation).
+
+        This method is useful for:
+        - Converting previously generated scripts to audio
+        - Converting user-edited scripts to audio
+        - Re-generating audio with different voices
+        - Faster/cheaper processing (TTS only, no LLM)
+
+        Workflow:
+        1. Validate user has access to collection
+        2. Create podcast record (status: QUEUED)
+        3. Schedule background task for audio generation
+        4. Background task: parse script → generate audio → store → update status
+
+        Cost: ~$0.05-0.80 (TTS only, 60% cheaper than full generation)
+        Time: ~30-90 seconds (depending on duration)
+
+        Args:
+            audio_input: Audio generation request with script
+            background_tasks: FastAPI background tasks
+
+        Returns:
+            PodcastGenerationOutput with QUEUED status
+
+        Raises:
+            ValidationError: If user_id not set or script format invalid
+            NotFoundError: If collection not found
+            HTTPException: For validation/permission errors
+        """
+        from uuid import uuid4
+
+        # Validate user_id is set (should be auto-filled by router from auth)
+        if not audio_input.user_id:
+            raise ValidationError("user_id is required for podcast generation", field="user_id")
+
+        user_id: UUID4 = audio_input.user_id
+
+        # Validate collection exists and user has access
+        collection = self.collection_service.get_collection(audio_input.collection_id)
+        if not collection:
+            raise NotFoundError(f"Collection {audio_input.collection_id} not found")
+
+        logger.info(
+            "Starting audio generation from script for collection %s (user %s)", audio_input.collection_id, user_id
+        )
+
+        # Create podcast record
+        podcast_id = uuid4()
+        podcast_record = self.repository.create(
+            podcast_id=podcast_id,
+            user_id=user_id,
+            collection_id=audio_input.collection_id,
+            title=audio_input.title,
+            description=audio_input.description,
+            duration=audio_input.duration,
+            status=PodcastStatus.QUEUED,
+            audio_format=audio_input.audio_format,
+        )
+
+        # Schedule background processing
+        background_tasks.add_task(
+            self._process_audio_from_script,
+            podcast_id,
+            audio_input,
+        )
+
+        logger.info("Podcast %s queued for audio generation (script-to-audio)", podcast_id)
+
+        return PodcastGenerationOutput.model_validate(podcast_record)
+
+    async def _process_audio_from_script(
+        self,
+        podcast_id: UUID4,
+        audio_input: "PodcastAudioGenerationInput",
+    ) -> None:
+        """
+        Background task: Generate audio from script.
+
+        Steps:
+        1. Update status to GENERATING
+        2. Parse script into turns
+        3. Generate multi-voice audio
+        4. Store audio file
+        5. Update status to COMPLETED
+
+        Args:
+            podcast_id: Podcast record ID
+            audio_input: Audio generation request
+        """
+        try:
+            logger.info("Processing audio generation for podcast %s", podcast_id)
+
+            # Step 1: Update status
+            await self._update_progress(
+                podcast_id,
+                PodcastStatus.GENERATING,
+                progress_percentage=0,
+                current_step="parsing_script",
+            )
+
+            # Step 2: Parse script
+            logger.info("Parsing script into dialogue turns")
+            parser = PodcastScriptParser()
+            parsed_script = parser.parse_script(audio_input.script_text)
+
+            await self._update_progress(
+                podcast_id,
+                PodcastStatus.GENERATING,
+                progress_percentage=30,
+                current_step="generating_audio",
+            )
+
+            # Step 3: Generate audio
+            logger.info("Generating multi-voice audio")
+            audio_bytes = await self._generate_audio(
+                script=parsed_script.script,
+                host_voice=audio_input.host_voice,
+                expert_voice=audio_input.expert_voice,
+                audio_format=audio_input.audio_format,
+            )
+
+            await self._update_progress(
+                podcast_id,
+                PodcastStatus.GENERATING,
+                progress_percentage=80,
+                current_step="storing_audio",
+            )
+
+            # Step 4: Store audio
+            logger.info("Storing audio file")
+            audio_url = await self._store_audio(
+                podcast_id=podcast_id,
+                audio_bytes=audio_bytes,
+                audio_format=audio_input.audio_format,
+            )
+
+            # Step 5: Mark completed
+            self.repository.update(
+                podcast_id=podcast_id,
+                status=PodcastStatus.COMPLETED,
+                audio_url=audio_url,
+                progress_percentage=100,
+                current_step="completed",
+            )
+
+            logger.info("Audio generation completed for podcast %s", podcast_id)
+
+        except Exception as e:
+            logger.exception("Audio generation failed for podcast %s", podcast_id)
+            await self._cleanup_failed_podcast(podcast_id, str(e))
+            raise

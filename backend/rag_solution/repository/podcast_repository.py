@@ -394,6 +394,13 @@ class PodcastRepository:
             current_step=podcast.current_step,
             step_details=step_details,
             estimated_time_remaining=podcast.estimated_time_remaining,
+            # Voice settings
+            host_voice=podcast.host_voice,
+            expert_voice=podcast.expert_voice,
+            # Collection information (will be populated by service if needed)
+            collection_name=getattr(podcast.collection, "name", None)
+            if hasattr(podcast, "collection") and podcast.collection
+            else None,
             created_at=podcast.created_at,
             updated_at=podcast.updated_at,
             completed_at=podcast.completed_at,

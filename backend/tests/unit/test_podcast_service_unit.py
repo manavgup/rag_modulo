@@ -455,7 +455,7 @@ class TestPodcastServiceVoicePreview:
             mock_factory.create_provider.assert_called_once()
             mock_provider.generate_single_turn_audio.assert_called_once_with(
                 text=mock_service.VOICE_PREVIEW_TEXT,
-                voice=voice_id,
+                voice_id=voice_id,
                 audio_format=AudioFormat.MP3,
             )
 

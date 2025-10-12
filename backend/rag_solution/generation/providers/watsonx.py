@@ -130,13 +130,33 @@ class WatsonXLLM(LLMBase):
         return model
 
     def _get_default_model_id(self) -> str:
-        """Get the default model ID for text generation."""
-        default_model = next((m for m in self._models if m.is_default and m.model_type == ModelType.GENERATION), None)
-        if not default_model:
-            raise LLMProviderError(
-                provider=self._provider_name, error_type="no_default_model", message="No default model configured"
+        """
+        Get default model from configuration.
+
+        Simply return the model specified in RAG_LLM from .env.
+        This ensures consistency and avoids database lookup issues.
+
+        Returns:
+            Model ID string
+
+        Raises:
+            ValueError: If RAG_LLM is not configured
+        """
+        from core.config import get_settings
+
+        settings = get_settings()
+
+        # Validate that RAG_LLM is configured
+        if not settings.rag_llm or settings.rag_llm.strip() == "":
+            raise ValueError(
+                "RAG_LLM environment variable is not configured. "
+                "Please set RAG_LLM in your .env file (e.g., RAG_LLM=ibm/granite-3-3-8b-instruct)"
             )
-        return default_model.model_id
+
+        # Use RAG_LLM from settings as the source of truth
+        rag_llm_id = settings.rag_llm
+        logger.info(f"Using configured model from RAG_LLM setting: {rag_llm_id}")
+        return rag_llm_id
 
     def _get_generation_params(
         self, user_id: UUID4, model_parameters: LLMParametersInput | None = None

@@ -77,18 +77,18 @@ const PodcastQuestionInjectionModal: React.FC<PodcastQuestionInjectionModalProps
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-gray-100 rounded-lg shadow-xl w-full max-w-md">
+      <div className="bg-gray-90 rounded-lg shadow-xl w-full max-w-md">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-30">
           <div>
-            <h2 className="text-xl font-semibold text-white">Add Question to Podcast</h2>
-            <p className="text-sm text-gray-50 mt-1">
+            <h2 className="text-xl font-semibold text-gray-100">Add Question to Podcast</h2>
+            <p className="text-sm text-gray-70 mt-1">
               Timestamp: {formatTimestamp(currentTimestamp)}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-50 hover:text-white transition-colors"
+            className="text-gray-70 hover:text-gray-100 transition-colors"
           >
             <XMarkIcon className="w-6 h-6" />
           </button>
@@ -97,7 +97,7 @@ const PodcastQuestionInjectionModal: React.FC<PodcastQuestionInjectionModalProps
         {/* Body */}
         <div className="p-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-white mb-2">
+            <label className="block text-sm font-medium text-gray-100 mb-2">
               Your Question
             </label>
             <textarea
@@ -105,20 +105,20 @@ const PodcastQuestionInjectionModal: React.FC<PodcastQuestionInjectionModalProps
               onChange={(e) => setQuestion(e.target.value)}
               rows={4}
               placeholder="What question would you like to add to the podcast at this point?"
-              className="w-full px-4 py-2 bg-gray-90 border border-gray-30 rounded-lg text-white placeholder-gray-50 focus:outline-none focus:border-blue-50 resize-none"
+                    className="w-full px-4 py-2 bg-gray-80 border border-gray-30 rounded-lg text-gray-100 placeholder-gray-50 focus:outline-none focus:border-gray-50 focus:ring-1 focus:ring-gray-50 resize-none"
               autoFocus
             />
-            <p className="text-xs text-gray-50 mt-1">
+            <p className="text-xs text-gray-70 mt-1">
               The podcast will be dynamically adjusted to include this question and answer.
             </p>
           </div>
 
           {/* Info Banner */}
-          <div className="bg-blue-50 bg-opacity-10 border border-blue-50 rounded-lg p-3">
-            <div className="text-sm text-white">
+          <div className="bg-gray-80 border border-gray-30 rounded-lg p-3">
+            <div className="text-sm text-gray-100">
               <strong>How it works:</strong>
             </div>
-            <ul className="text-xs text-gray-50 mt-1 space-y-1 ml-4 list-disc">
+            <ul className="text-xs text-gray-70 mt-1 space-y-1 ml-4 list-disc">
               <li>Your question will be inserted at {formatTimestamp(currentTimestamp)}</li>
               <li>The HOST will ask your question</li>
               <li>The EXPERT will provide a detailed answer using RAG</li>
@@ -133,14 +133,14 @@ const PodcastQuestionInjectionModal: React.FC<PodcastQuestionInjectionModalProps
           <button
             onClick={onClose}
             disabled={isSubmitting}
-            className="px-4 py-2 text-gray-50 hover:text-white transition-colors disabled:opacity-50"
+            className="px-4 py-2 text-gray-70 hover:text-gray-100 transition-colors disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             onClick={handleSubmit}
             disabled={isSubmitting || !question.trim()}
-            className="px-6 py-2 bg-blue-50 hover:bg-blue-40 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-2 bg-blue-60 hover:bg-blue-70 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-50"
           >
             {isSubmitting ? 'Adding Question...' : 'Add Question'}
           </button>

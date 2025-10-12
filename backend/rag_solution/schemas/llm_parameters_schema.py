@@ -12,7 +12,11 @@ class LLMParametersBase(BaseModel):
 # ⚙️ Core LLM Parameters
 class LLMParametersInput(LLMParametersBase):
     user_id: UUID4 = Field(..., description="ID of the user who owns these parameters")
-    max_new_tokens: int = Field(default=100, ge=1, le=2048, description="Maximum number of new tokens")
+    max_new_tokens: int = Field(
+        default=100,
+        ge=1,
+        description="Maximum number of new tokens (model-dependent: WatsonX ~2K, GPT-4 ~128K, Claude ~200K)",
+    )
     temperature: float = Field(default=0.7, ge=0.0, le=2.0, description="Sampling temperature")
     top_k: int = Field(default=50, ge=1, le=100, description="Top-k sampling parameter")
     top_p: float = Field(default=1.0, ge=0.0, le=1.0, description="Top-p sampling parameter")
