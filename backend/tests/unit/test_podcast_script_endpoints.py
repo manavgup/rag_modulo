@@ -37,21 +37,27 @@ class TestGenerateScriptEndpoint:
     async def test_generate_script_success(self, mock_service: PodcastService) -> None:
         """Test successful script generation."""
         # Arrange
+        user_id = uuid4()
+        collection_id = uuid4()
         script_input = PodcastScriptGenerationInput(
-            user_id=uuid4(),
-            collection_id=uuid4(),
+            user_id=user_id,
+            collection_id=collection_id,
             title="Test Podcast",
             duration=PodcastDuration.MEDIUM,
             language="en",
         )
 
         expected_output = PodcastScriptOutput(
+            script_id=uuid4(),
+            collection_id=collection_id,
+            user_id=user_id,
+            title="Test Podcast",
             script_text="HOST: Welcome...\nEXPERT: Thank you...",
             word_count=2250,
+            target_word_count=2250,
+            duration_minutes=15,
             estimated_duration_minutes=15.0,
             has_proper_format=True,
-            language="en",
-            title="Test Podcast",
             host_voice="alloy",
             expert_voice="echo",
         )
@@ -131,10 +137,16 @@ class TestScriptToAudioEndpoint:
     async def test_script_to_audio_success(self, mock_service: PodcastService) -> None:
         """Test successful script-to-audio conversion."""
         # Arrange
+        # Create script with minimum 100 characters as required by schema
+        script_text = (
+            "HOST: Welcome to our podcast about technology and innovation.\n\n"
+            "EXPERT: Thank you for having me. I'm excited to discuss this topic in depth.\n\n"
+            "HOST: Let's dive right in."
+        )
         audio_input = PodcastAudioGenerationInput(
             user_id=uuid4(),
             collection_id=uuid4(),
-            script_text="HOST: Welcome...\nEXPERT: Thank you...",
+            script_text=script_text,
             title="Test Podcast",
             duration=PodcastDuration.MEDIUM,
             host_voice="alloy",
@@ -169,54 +181,54 @@ class TestScriptToAudioEndpoint:
         mock_service.generate_audio_from_script.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_script_to_audio_invalid_voice(self, mock_service: PodcastService) -> None:
-        """Test script-to-audio with invalid voice ID."""
-        from core.custom_exceptions import ValidationError
+    async def test_script_to_audio_invalid_voice(self) -> None:
+        """Test script-to-audio with invalid voice ID - should fail at schema validation."""
+        from pydantic import ValidationError
 
         # Arrange
-        audio_input = PodcastAudioGenerationInput(
-            user_id=uuid4(),
-            collection_id=uuid4(),
-            script_text="HOST: Welcome...\nEXPERT: Thank you...",
-            title="Test Podcast",
-            duration=PodcastDuration.MEDIUM,
-            host_voice="invalid_voice",
-            expert_voice="echo",
+        # Create script with minimum 100 characters
+        script_text = (
+            "HOST: Welcome to our podcast about technology and innovation.\n\n"
+            "EXPERT: Thank you for having me. I'm excited to discuss this topic in depth.\n\n"
+            "HOST: Let's dive right in."
         )
 
-        mock_service.generate_audio_from_script.side_effect = ValidationError(
-            "Invalid voice ID: invalid_voice",
-            field="host_voice",
-        )
-
-        # Act & Assert
+        # Act & Assert - Should fail at Pydantic validation level
         with pytest.raises(ValidationError, match="Invalid voice ID"):
-            await mock_service.generate_audio_from_script(audio_input, Mock())
+            PodcastAudioGenerationInput(
+                user_id=uuid4(),
+                collection_id=uuid4(),
+                script_text=script_text,
+                title="Test Podcast",
+                duration=PodcastDuration.MEDIUM,
+                host_voice="invalid_voice",  # Invalid voice
+                expert_voice="echo",
+            )
 
     @pytest.mark.asyncio
-    async def test_script_to_audio_malformed_script(self, mock_service: PodcastService) -> None:
-        """Test script-to-audio with malformed script format."""
-        from core.custom_exceptions import ValidationError
+    async def test_script_to_audio_malformed_script(self) -> None:
+        """Test script-to-audio with malformed script format - should fail at schema validation."""
+        from pydantic import ValidationError
 
         # Arrange
-        audio_input = PodcastAudioGenerationInput(
-            user_id=uuid4(),
-            collection_id=uuid4(),
-            script_text="This is not a properly formatted script",
-            title="Test Podcast",
-            duration=PodcastDuration.MEDIUM,
-            host_voice="alloy",
-            expert_voice="echo",
+        # Create a script that's long enough but doesn't have proper HOST/EXPERT format
+        script_text = (
+            "This is not a properly formatted script. "
+            "It lacks the required HOST and EXPERT speaker labels. "
+            "This text is just long enough to pass the 100 character minimum requirement."
         )
 
-        mock_service.generate_audio_from_script.side_effect = ValidationError(
-            "Script must contain HOST/EXPERT dialogue format",
-            field="script_text",
-        )
-
-        # Act & Assert
-        with pytest.raises(ValidationError, match="HOST/EXPERT dialogue format"):
-            await mock_service.generate_audio_from_script(audio_input, Mock())
+        # Act & Assert - Should fail at Pydantic validation level
+        with pytest.raises(ValidationError, match="HOST speaker turns"):
+            PodcastAudioGenerationInput(
+                user_id=uuid4(),
+                collection_id=uuid4(),
+                script_text=script_text,
+                title="Test Podcast",
+                duration=PodcastDuration.MEDIUM,
+                host_voice="alloy",
+                expert_voice="echo",
+            )
 
     @pytest.mark.asyncio
     async def test_script_to_audio_collection_not_found(self, mock_service: PodcastService) -> None:
@@ -224,10 +236,16 @@ class TestScriptToAudioEndpoint:
         from core.custom_exceptions import NotFoundError
 
         # Arrange
+        # Create script with minimum 100 characters as required by schema
+        script_text = (
+            "HOST: Welcome to our podcast about technology and innovation.\n\n"
+            "EXPERT: Thank you for having me. I'm excited to discuss this topic in depth.\n\n"
+            "HOST: Let's dive right in."
+        )
         audio_input = PodcastAudioGenerationInput(
             user_id=uuid4(),
             collection_id=uuid4(),
-            script_text="HOST: Welcome...\nEXPERT: Thank you...",
+            script_text=script_text,
             title="Test Podcast",
             duration=PodcastDuration.MEDIUM,
             host_voice="alloy",
