@@ -144,13 +144,34 @@ const LightweightPodcasts: React.FC = () => {
     }
 
     try {
-      // Trigger download
+      // Get the auth token
+      const token = localStorage.getItem('token') || 'dev-bypass-auth';
+
+      // Fetch the audio file with authentication
+      const response = await fetch(podcast.audio_url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      // Get the blob data
+      const blob = await response.blob();
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = podcast.audio_url;
+      link.href = url;
       link.download = `${podcast.title || 'podcast'}.${podcast.format}`;
       document.body.appendChild(link);
       link.click();
+
+      // Cleanup
       document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
 
       addNotification('success', 'Download Started', 'Your podcast is being downloaded.');
     } catch (error) {

@@ -69,8 +69,9 @@ class PodcastDuration(int, Enum):
 
     SHORT = 5  # 5 minutes
     MEDIUM = 15  # 15 minutes
-    LONG = 30  # 30 minutes
-    EXTENDED = 60  # 60 minutes
+    LONG = 20  # 20 minutes
+    EXTENDED = 30  # 30 minutes
+    MAXIMUM = 60  # 60 minutes
 
 
 class Speaker(str, Enum):
@@ -202,6 +203,13 @@ class PodcastGenerationInput(BaseModel):
         description="Add background music (future feature)",
     )
 
+    # Advanced options
+    podcast_style: str = Field(default="conversational_interview", description="Style of podcast")
+    language: str = Field(default="en", description="Language for the podcast")
+    complexity_level: str = Field(default="intermediate", description="Target audience complexity level")
+    include_chapter_markers: bool = Field(default=False, description="Include chapter markers in podcast")
+    generate_transcript: bool = Field(default=True, description="Generate transcript alongside audio")
+
     @field_validator("host_voice", "expert_voice")
     @classmethod
     def validate_voice_ids(cls, v: str) -> str:
@@ -254,6 +262,11 @@ class PodcastGenerationOutput(BaseModel):
     )
     step_details: ProgressStepDetails | None = Field(default=None, description="Detailed progress for current step")
     estimated_time_remaining: int | None = Field(default=None, ge=0, description="Estimated seconds remaining")
+    # Voice settings
+    host_voice: str = Field(default="alloy", description="Voice ID for HOST speaker")
+    expert_voice: str = Field(default="onyx", description="Voice ID for EXPERT speaker")
+    # Collection information (populated by service)
+    collection_name: str | None = Field(default=None, description="Name of the source collection")
     created_at: datetime = Field(..., description="Timestamp when request was created")
     updated_at: datetime = Field(default_factory=datetime.utcnow, description="Timestamp of last status update")
     completed_at: datetime | None = Field(default=None, description="Timestamp when generation completed")
@@ -274,3 +287,116 @@ class ScriptParsingResult(BaseModel):
     script: PodcastScript = Field(..., description="Parsed podcast script")
     raw_text: str = Field(..., description="Original unparsed script text")
     parsing_warnings: list[str] = Field(default_factory=list, description="Any warnings during parsing")
+
+
+class PodcastScriptGenerationInput(BaseModel):
+    """
+    Input schema for script-only generation (no audio synthesis).
+
+    This is useful for:
+    - Validating script quality before committing to TTS
+    - Faster iteration (script generation ~30s vs full podcast ~90s)
+    - Cost savings (skip TTS API calls during development/testing)
+    - Script editing workflows (generate → review → edit → synthesize)
+    """
+
+    collection_id: UUID = Field(..., description="Collection ID to generate script from")
+    user_id: UUID | None = Field(None, description="User ID (auto-filled from auth)")
+    duration: PodcastDuration = Field(..., description="Target duration")
+    title: str | None = Field(None, max_length=255, description="Podcast title")
+    description: str | None = Field(None, max_length=1000, description="Topic or focus area for the podcast")
+
+    # Voice settings are optional for script-only generation
+    # (only needed if you want to validate against specific voice characteristics)
+    voice_settings: VoiceSettings | None = Field(None, description="Optional voice configuration")
+
+    # Advanced options (same as full podcast generation)
+    podcast_style: str = Field(default="conversational_interview", description="Style of podcast")
+    language: str = Field(default="en", description="Language for the podcast")
+    complexity_level: str = Field(default="intermediate", description="Target audience complexity level")
+    include_chapter_markers: bool = Field(default=False, description="Include chapter markers in podcast")
+    generate_transcript: bool = Field(default=True, description="Generate transcript alongside audio")
+
+
+class PodcastScriptOutput(BaseModel):
+    """
+    Output schema for script-only generation.
+
+    Includes quality metrics to help validate the script before audio synthesis.
+    """
+
+    script_id: UUID = Field(..., description="Unique script ID for tracking")
+    collection_id: UUID = Field(..., description="Source collection ID")
+    user_id: UUID = Field(..., description="User who generated the script")
+    title: str = Field(..., description="Script title")
+    script_text: str = Field(..., description="Generated dialogue script (HOST/EXPERT format)")
+
+    # Quality metrics
+    word_count: int = Field(..., description="Actual word count in generated script")
+    target_word_count: int = Field(..., description="Target word count based on duration")
+    duration_minutes: int = Field(..., description="Target duration in minutes")
+    estimated_duration_minutes: float = Field(..., description="Estimated actual duration (word_count / 150)")
+    has_proper_format: bool = Field(..., description="Whether script has correct HOST/EXPERT format")
+
+    # Metadata
+    metadata: dict = Field(
+        default_factory=dict, description="Additional metadata (has_host, has_expert, rag_results_length, etc.)"
+    )
+    created_at: datetime = Field(default_factory=datetime.now, description="Generation timestamp")
+
+
+class PodcastAudioGenerationInput(BaseModel):
+    """
+    Input schema for generating audio from an existing script (no script generation).
+
+    Use Cases:
+    - Generate audio from previously generated script
+    - Generate audio from user-edited script
+    - Re-generate audio with different voices/settings
+    - Skip LLM script generation step for faster/cheaper processing
+
+    Workflow:
+    1. POST /generate-script → Get script
+    2. User reviews/edits script (optional)
+    3. POST /script-to-audio → Convert to audio
+
+    Cost: ~$0.05-0.80 (TTS only, no LLM)
+    Time: ~30-90 seconds (depending on duration)
+    """
+
+    # Valid OpenAI TTS voice IDs
+    VALID_VOICE_IDS: ClassVar[set[str]] = {"alloy", "echo", "fable", "onyx", "nova", "shimmer"}
+
+    user_id: UUID | None = Field(default=None, description="User ID (auto-filled from auth token by router)")
+    collection_id: UUID = Field(..., description="Collection ID for tracking/permissions")
+    script_text: str = Field(..., min_length=100, description="Podcast script in HOST/EXPERT format")
+    title: str = Field(..., max_length=200, description="Podcast title")
+    duration: PodcastDuration = Field(..., description="Target podcast duration (for validation)")
+
+    # Audio settings
+    host_voice: str = Field(default="alloy", description="Voice ID for HOST speaker")
+    expert_voice: str = Field(default="onyx", description="Voice ID for EXPERT speaker")
+    audio_format: AudioFormat = Field(default=AudioFormat.MP3, description="Output audio format")
+
+    # Optional metadata
+    description: str | None = Field(default=None, max_length=500, description="Optional podcast description")
+    include_intro: bool = Field(default=False, description="Include introduction segment")
+    include_outro: bool = Field(default=False, description="Include conclusion/outro segment")
+
+    @field_validator("host_voice", "expert_voice")
+    @classmethod
+    def validate_voice_ids(cls, v: str) -> str:
+        """Validate that voice IDs are valid OpenAI TTS voices."""
+        if v not in cls.VALID_VOICE_IDS:
+            raise ValueError(f"Invalid voice ID '{v}'. Must be one of: {', '.join(sorted(cls.VALID_VOICE_IDS))}")
+        return v
+
+    @field_validator("script_text")
+    @classmethod
+    def validate_script_format(cls, v: str) -> str:
+        """Validate that script has proper HOST/EXPERT format."""
+        if "HOST:" not in v and "Host:" not in v:
+            raise ValueError("Script must contain HOST speaker turns")
+        if "EXPERT:" not in v and "Expert:" not in v:
+            raise ValueError("Script must contain EXPERT speaker turns")
+        return v

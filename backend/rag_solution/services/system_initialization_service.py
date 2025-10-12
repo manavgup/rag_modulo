@@ -126,7 +126,7 @@ class SystemInitializationService:
                 {
                     "provider_id": provider_id,
                     "model_id": self.settings.rag_llm,
-                    "default_model_id": "ibm/granite-3-8b-instruct",
+                    "default_model_id": self.settings.rag_llm,  # Use config, not hardcoded
                     "model_type": ModelType.GENERATION,
                     "timeout": 30,
                     "max_retries": 3,

@@ -148,7 +148,15 @@ class Settings(BaseSettings):
     ]  # Options: local, minio, s3, r2
 
     # Local filesystem storage (development)
-    podcast_local_storage_path: Annotated[str, Field(default="./data/podcasts", alias="PODCAST_LOCAL_STORAGE_PATH")]
+    # Use absolute path to avoid working directory issues
+    # Default is relative to backend directory: backend/data/podcasts
+    podcast_local_storage_path: Annotated[
+        str,
+        Field(
+            default="data/podcasts",  # Will be resolved to absolute path in __init__
+            alias="PODCAST_LOCAL_STORAGE_PATH",
+        ),
+    ]
 
     # MinIO/S3 storage (production)
     podcast_minio_endpoint: Annotated[str | None, Field(default=None, alias="PODCAST_MINIO_ENDPOINT")]

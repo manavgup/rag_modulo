@@ -55,6 +55,8 @@ const LightweightCollectionDetail: React.FC = () => {
         const collectionData = await apiClient.getCollection(id);
 
         setCollection(collectionData);
+        console.log('Collection loaded:', collectionData);
+        console.log('Collection status:', collectionData.status);
         addNotification('success', 'Collection Loaded', 'Collection details loaded successfully.');
       } catch (error) {
         console.error('Error loading collection:', error);
@@ -347,6 +349,7 @@ const LightweightCollectionDetail: React.FC = () => {
                 onClick={() => setIsPodcastModalOpen(true)}
                 disabled={collection.status !== 'ready' && collection.status !== 'completed'}
                 className="btn-primary flex items-center space-x-2 disabled:opacity-50 bg-purple-50 hover:bg-purple-40"
+                title={`Collection status: ${collection.status}`}
               >
                 <MicrophoneIcon className="w-4 h-4" />
                 <span>Generate Podcast</span>

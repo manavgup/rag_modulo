@@ -50,7 +50,7 @@ RED := \033[0;31m
 NC := \033[0m
 
 .DEFAULT_GOAL := help
-.PHONY: help venv clean-venv local-dev-setup local-dev-infra local-dev-backend local-dev-frontend local-dev-all local-dev-stop local-dev-status build-backend build-frontend build-all prod-start prod-stop prod-restart prod-logs prod-status test-atomic test-unit-fast test-integration lint format quick-check security-check clean
+.PHONY: help venv clean-venv local-dev-setup local-dev-infra local-dev-backend local-dev-frontend local-dev-all local-dev-stop local-dev-status build-backend build-frontend build-all prod-start prod-stop prod-restart prod-logs prod-status test-atomic test-unit-fast test-integration lint format quick-check security-check pre-commit-run clean
 
 # ============================================================================
 # VIRTUAL ENVIRONMENT
@@ -306,6 +306,26 @@ security-check: venv
 	@cd backend && $(POETRY) run safety check || echo "$(YELLOW)⚠️  Vulnerabilities found$(NC)"
 	@echo "$(GREEN)✅ Security scan complete$(NC)"
 
+pre-commit-run: venv
+	@echo "$(CYAN)🎯 Running pre-commit checks...$(NC)"
+	@echo "$(CYAN)Step 1/4: Formatting code...$(NC)"
+	@cd backend && $(POETRY) run ruff format . --config pyproject.toml
+	@echo "$(GREEN)✅ Code formatted$(NC)"
+	@echo ""
+	@echo "$(CYAN)Step 2/4: Running ruff linter...$(NC)"
+	@cd backend && $(POETRY) run ruff check --fix . --config pyproject.toml
+	@echo "$(GREEN)✅ Ruff checks passed$(NC)"
+	@echo ""
+	@echo "$(CYAN)Step 3/4: Running mypy type checker...$(NC)"
+	@cd backend && $(POETRY) run mypy . --config-file pyproject.toml --ignore-missing-imports
+	@echo "$(GREEN)✅ Type checks passed$(NC)"
+	@echo ""
+	@echo "$(CYAN)Step 4/4: Running pylint...$(NC)"
+	@cd backend && $(POETRY) run pylint rag_solution/ --rcfile=pyproject.toml || echo "$(YELLOW)⚠️  Pylint warnings found$(NC)"
+	@echo ""
+	@echo "$(GREEN)✅ Pre-commit checks complete!$(NC)"
+	@echo "$(CYAN)💡 Tip: Always run this before committing$(NC)"
+
 coverage: venv
 	@echo "$(CYAN)📊 Running tests with coverage...$(NC)"
 	@cd backend && $(POETRY) run pytest tests/ \
@@ -419,6 +439,7 @@ help:
 	@echo "  $(GREEN)make coverage$(NC)             Generate coverage report"
 	@echo ""
 	@echo "$(CYAN)🎨 Code Quality:$(NC)"
+	@echo "  $(GREEN)make pre-commit-run$(NC)       Run all pre-commit checks (format + lint + type)"
 	@echo "  $(GREEN)make quick-check$(NC)          Fast lint + format check"
 	@echo "  $(GREEN)make lint$(NC)                 Run all linters (ruff + mypy)"
 	@echo "  $(GREEN)make format$(NC)               Auto-format code"
@@ -446,7 +467,7 @@ help:
 	@echo ""
 	@echo "$(CYAN)💡 Pro Tips:$(NC)"
 	@echo "  • Use local development for fastest iteration (no container rebuilds)"
-	@echo "  • Run $(GREEN)make quick-check$(NC) before committing"
+	@echo "  • Run $(GREEN)make pre-commit-run$(NC) before committing (format + lint + type)"
 	@echo "  • Use $(GREEN)make prod-start$(NC) for production-like testing"
 	@echo "  • Check $(GREEN)make local-dev-status$(NC) to verify services"
 	@echo ""

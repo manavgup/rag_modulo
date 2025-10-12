@@ -1095,3 +1095,202 @@ class SearchService:
             logger.exception("Error tracking token usage: %s", e)
             # Don't fail search operation due to token tracking issues
             return None
+
+    async def search_for_podcast(
+        self,
+        collection_id: UUID4,
+        user_id: UUID4,
+        topic: str | None = None,
+        duration_minutes: int = 5,
+        top_k: int | None = None,
+    ) -> SearchOutput:
+        """
+        Specialized search for podcast content generation.
+
+        This method is optimized for retrieving comprehensive content suitable for
+        podcast generation, using multiple retrieval strategies to gather diverse
+        content from the collection.
+
+        Args:
+            collection_id: Collection to search
+            user_id: User requesting the search
+            topic: Optional topic focus (if provided, will be used in queries)
+            duration_minutes: Podcast duration (affects retrieval strategy)
+            top_k: Number of documents to retrieve (defaults based on duration)
+
+        Returns:
+            SearchOutput with comprehensive content for podcast generation
+
+        Raises:
+            ValidationError: If inputs are invalid
+            NotFoundError: If collection not found
+            ConfigurationError: If pipeline configuration fails
+        """
+        logger.info("🎙️ PODCAST SEARCH: Starting specialized podcast content retrieval")
+        logger.info("Collection: %s, Topic: %s, Duration: %d min", collection_id, topic, duration_minutes)
+
+        start_time = time.time()
+
+        # Validate inputs
+        if not collection_id:
+            raise ValidationError("Collection ID is required for podcast search")
+        if not user_id:
+            raise ValidationError("User ID is required for podcast search")
+
+        # Set default top_k based on duration if not provided
+        if top_k is None:
+            top_k_map = {
+                5: self.settings.podcast_retrieval_top_k_short,  # 30
+                15: self.settings.podcast_retrieval_top_k_medium,  # 50
+                30: self.settings.podcast_retrieval_top_k_long,  # 75
+                60: self.settings.podcast_retrieval_top_k_extended,  # 100
+            }
+            top_k = top_k_map.get(duration_minutes, 30)
+
+        logger.info("Using top_k=%d for %d-minute podcast", top_k, duration_minutes)
+
+        try:
+            # Validate collection access
+            self._validate_collection_access(collection_id, user_id)
+
+            # Resolve user's default pipeline
+            pipeline_id = self._resolve_user_default_pipeline(user_id)
+            self._validate_pipeline(pipeline_id)
+
+            # Initialize pipeline
+            collection_name = await self._initialize_pipeline(collection_id)
+
+            # Create multiple retrieval strategies for comprehensive content
+            all_query_results = []
+
+            # Strategy 1: Topic-focused retrieval (if topic provided)
+            if topic:
+                topic_query = f"Comprehensive information about {topic}. Key concepts, examples, details, and insights."
+                logger.info("Strategy 1: Topic-focused retrieval for '%s'", topic)
+                topic_results = await self._retrieve_for_podcast(topic_query, collection_name, pipeline_id, top_k // 2)
+                all_query_results.extend(topic_results)
+                logger.info("Retrieved %d documents for topic-focused search", len(topic_results))
+
+            # Strategy 2: General comprehensive retrieval
+            general_query = (
+                "Provide comprehensive overview of all key topics, main insights, "
+                "important concepts, and significant information from this collection. "
+                "Include examples, details, and practical applications."
+            )
+            logger.info("Strategy 2: General comprehensive retrieval")
+            general_results = await self._retrieve_for_podcast(
+                general_query, collection_name, pipeline_id, top_k // 2 if topic else top_k
+            )
+            all_query_results.extend(general_results)
+            logger.info("Retrieved %d documents for general search", len(general_results))
+
+            # Strategy 3: Diversity retrieval (for longer podcasts)
+            if duration_minutes >= 15:
+                diversity_query = (
+                    "Find diverse content covering different aspects, perspectives, "
+                    "and topics from this collection. Include various examples and use cases."
+                )
+                logger.info("Strategy 3: Diversity retrieval for longer podcast")
+                diversity_results = await self._retrieve_for_podcast(
+                    diversity_query, collection_name, pipeline_id, top_k // 3
+                )
+                all_query_results.extend(diversity_results)
+                logger.info("Retrieved %d documents for diversity search", len(diversity_results))
+
+            # Remove duplicates based on chunk ID
+            seen_chunks = set()
+            unique_results = []
+            for result in all_query_results:
+                chunk_id = getattr(result.chunk, "id", None) if result.chunk else None
+                if chunk_id and chunk_id not in seen_chunks:
+                    seen_chunks.add(chunk_id)
+                    unique_results.append(result)
+                elif not chunk_id:  # Include results without chunk IDs
+                    unique_results.append(result)
+
+            logger.info("Total unique documents after deduplication: %d", len(unique_results))
+
+            # Limit to requested top_k
+            if len(unique_results) > top_k:
+                unique_results = unique_results[:top_k]
+                logger.info("Limited to top %d documents", top_k)
+
+            # Generate document metadata
+            document_metadata = self._generate_document_metadata(unique_results, collection_id)
+
+            # Create comprehensive summary for podcast context
+            execution_time = time.time() - start_time
+
+            # For podcast search, we don't generate an answer - just return the documents
+            search_output = SearchOutput(
+                answer=f"Retrieved {len(unique_results)} documents for podcast generation",
+                documents=document_metadata,
+                query_results=unique_results,
+                rewritten_query=f"Podcast content retrieval: {topic or 'comprehensive overview'}",
+                evaluation=None,
+                execution_time=execution_time,
+                cot_output=None,
+                token_warning=None,
+                metadata={
+                    "podcast_search": True,
+                    "duration_minutes": duration_minutes,
+                    "strategies_used": ["topic-focused", "general", "diversity"][: 3 if duration_minutes >= 15 else 2],
+                    "total_documents_retrieved": len(unique_results),
+                    "topic": topic,
+                },
+            )
+
+            logger.info("🎙️ PODCAST SEARCH: Completed successfully in %.2f seconds", execution_time)
+            return search_output
+
+        except Exception as e:
+            logger.exception("Podcast search failed: %s", e)
+            raise
+
+    async def _retrieve_for_podcast(
+        self,
+        query: str,
+        collection_name: str,
+        pipeline_id: UUID4,
+        top_k: int,
+    ) -> list[QueryResult]:
+        """
+        Helper method to retrieve documents for podcast search.
+
+        Args:
+            query: Search query
+            collection_name: Collection to search
+            pipeline_id: Pipeline configuration ID
+            top_k: Number of documents to retrieve
+
+        Returns:
+            List of query results
+        """
+        try:
+            # Create search input for this specific query
+            search_input = SearchInput(
+                user_id=UUID4("00000000-0000-0000-0000-000000000000"),  # Placeholder - not used in retrieval
+                collection_id=UUID4("00000000-0000-0000-0000-000000000000"),  # Placeholder - not used in retrieval
+                question=query,
+                config_metadata={
+                    "top_k": top_k,
+                    "enable_reranking": False,  # Disable reranking for podcast content
+                    "enable_hierarchical": True,
+                    "cot_enabled": False,  # Skip CoT for document retrieval
+                },
+            )
+
+            # Execute pipeline to get documents
+            pipeline_result = await self.pipeline_service.execute_pipeline(
+                search_input=search_input, collection_name=collection_name, pipeline_id=pipeline_id
+            )
+
+            if not pipeline_result.success:
+                logger.warning("Pipeline failed for query '%s': %s", query[:50], pipeline_result.error)
+                return []
+
+            return pipeline_result.query_results or []
+
+        except Exception as e:
+            logger.warning("Retrieval failed for query '%s': %s", query[:50], e)
+            return []
