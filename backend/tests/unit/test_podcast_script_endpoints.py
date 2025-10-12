@@ -153,6 +153,8 @@ class TestScriptToAudioEndpoint:
             expert_voice="echo",
         )
 
+        from datetime import datetime
+
         from rag_solution.schemas.podcast_schema import PodcastGenerationOutput
 
         expected_output = PodcastGenerationOutput(
@@ -166,8 +168,8 @@ class TestScriptToAudioEndpoint:
             host_voice=audio_input.host_voice,
             expert_voice=audio_input.expert_voice,
             progress_percentage=0,
-            created_at=Mock(),
-            updated_at=Mock(),
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
         )
 
         mock_service.generate_audio_from_script.return_value = expected_output
