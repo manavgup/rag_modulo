@@ -35,6 +35,14 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/podcasts", tags=["podcasts"])
 
+# Media type constants for audio formats
+AUDIO_MEDIA_TYPES = {
+    "mp3": "audio/mpeg",
+    "wav": "audio/wav",
+    "ogg": "audio/ogg",
+    "flac": "audio/flac",
+}
+
 
 # Dependency to get PodcastService
 def get_podcast_service(
@@ -553,18 +561,26 @@ async def serve_podcast_audio(
 
     # Resolve to absolute path to avoid working directory issues
     if not base_path.is_absolute():
-        # Relative paths are relative to backend directory
-        import os
-
-        backend_dir = Path(os.getcwd())
-        # If we're in project root, add backend/
-        if backend_dir.name != "backend" and (backend_dir / "backend").exists():
-            backend_dir = backend_dir / "backend"
-        base_path = backend_dir / base_path
+        # Use __file__ to get path relative to this router file
+        # This is more robust than relying on working directory
+        router_file = Path(__file__).resolve()
+        backend_dir = router_file.parent.parent.parent  # rag_solution/router/ -> rag_solution/ -> backend/
+        base_path = (backend_dir / base_path).resolve()
 
     # Get format as string (handle both enum and string values)
     audio_format = podcast.format.value if hasattr(podcast.format, "value") else str(podcast.format)
     audio_path = base_path / str(user_id) / str(podcast_id) / f"audio.{audio_format}"
+
+    # Resolve and validate path to prevent directory traversal
+    try:
+        audio_path = audio_path.resolve(strict=False)
+        # Ensure resolved path is within base_path (security check)
+        if not str(audio_path).startswith(str(base_path.resolve())):
+            logger.error(f"Path traversal attempt detected: {audio_path}")
+            raise HTTPException(status_code=403, detail="Access denied")
+    except (ValueError, OSError) as e:
+        logger.error(f"Invalid path resolution: {e}")
+        raise HTTPException(status_code=400, detail="Invalid file path") from e
 
     # Debug logging
     logger.info(f"Looking for audio file at: {audio_path}")
@@ -572,19 +588,13 @@ async def serve_podcast_audio(
     if not audio_path.exists():
         logger.error(f"Audio file not found. Path checked: {audio_path}")
         logger.error(f"Base path: {base_path}, User ID: {user_id}, Podcast ID: {podcast_id}")
-        raise HTTPException(status_code=404, detail=f"Audio file not found on disk at {audio_path}")
+        raise HTTPException(status_code=404, detail="Audio file not found on disk")
 
     # Get file size
     file_size = audio_path.stat().st_size
 
     # Determine media type based on format
-    media_type_map = {
-        "mp3": "audio/mpeg",
-        "wav": "audio/wav",
-        "ogg": "audio/ogg",
-        "flac": "audio/flac",
-    }
-    media_type = media_type_map.get(audio_format, "audio/mpeg")
+    media_type = AUDIO_MEDIA_TYPES.get(audio_format, "audio/mpeg")
 
     # Parse Range header
     range_header = request.headers.get("range")

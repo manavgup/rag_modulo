@@ -282,22 +282,17 @@ class SearchService:
         Users can override with 'show_cot_steps' for visibility or 'cot_disabled' to disable.
         """
         # Debug logging
-        logger.info("🔍 CoT decision check for question: %s", search_input.question)
-        logger.info("🔍 Config metadata: %s", search_input.config_metadata)
         logger.debug("CoT decision check for question: %s", search_input.question)
         logger.debug("Config metadata: %s", search_input.config_metadata)
 
         # Allow explicit override to disable CoT
         if search_input.config_metadata and search_input.config_metadata.get("cot_disabled"):
-            logger.info("🔍 CoT disabled by config")
             logger.debug("CoT disabled by config")
             return False
 
         # Allow explicit override to enable CoT - FORCE ENABLED
         if search_input.config_metadata and search_input.config_metadata.get("cot_enabled"):
-            logger.info("🔍 CoT FORCE ENABLED by config")
-            logger.debug("CoT FORCE ENABLED by config")
-            logger.info("🚨 FORCED COT ENABLED 🚨")
+            logger.info("🚨 FORCED COT ENABLED by config")
             return True
 
         # Automatic detection based on question complexity

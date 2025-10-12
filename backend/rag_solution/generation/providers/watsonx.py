@@ -135,10 +135,23 @@ class WatsonXLLM(LLMBase):
 
         Simply return the model specified in RAG_LLM from .env.
         This ensures consistency and avoids database lookup issues.
+
+        Returns:
+            Model ID string
+
+        Raises:
+            ValueError: If RAG_LLM is not configured
         """
         from core.config import get_settings
 
         settings = get_settings()
+
+        # Validate that RAG_LLM is configured
+        if not settings.rag_llm or settings.rag_llm.strip() == "":
+            raise ValueError(
+                "RAG_LLM environment variable is not configured. "
+                "Please set RAG_LLM in your .env file (e.g., RAG_LLM=ibm/granite-3-3-8b-instruct)"
+            )
 
         # Use RAG_LLM from settings as the source of truth
         rag_llm_id = settings.rag_llm

@@ -15,6 +15,7 @@ Orchestrates podcast generation from document collections:
 """
 
 import logging
+from enum import Enum
 from typing import Any, ClassVar
 
 from fastapi import BackgroundTasks, HTTPException
@@ -46,10 +47,48 @@ from rag_solution.utils.script_parser import PodcastScriptParser
 logger = logging.getLogger(__name__)
 
 
+class SupportedLanguage(str, Enum):
+    """Supported languages for podcast generation with display names."""
+
+    ENGLISH = "en"
+    SPANISH = "es"
+    FRENCH = "fr"
+    GERMAN = "de"
+    ITALIAN = "it"
+    PORTUGUESE = "pt"
+    DUTCH = "nl"
+    JAPANESE = "ja"
+    KOREAN = "ko"
+    CHINESE = "zh"
+    ARABIC = "ar"
+    RUSSIAN = "ru"
+    HINDI = "hi"
+
+    @property
+    def display_name(self) -> str:
+        """Get human-readable language name."""
+        names = {
+            "en": "English",
+            "es": "Spanish",
+            "fr": "French",
+            "de": "German",
+            "it": "Italian",
+            "pt": "Portuguese",
+            "nl": "Dutch",
+            "ja": "Japanese",
+            "ko": "Korean",
+            "zh": "Chinese",
+            "ar": "Arabic",
+            "ru": "Russian",
+            "hi": "Hindi",
+        }
+        return names.get(self.value, self.value)
+
+
 class PodcastService:
     """Service for podcast generation and management."""
 
-    # Language code to full name mapping
+    # Legacy dict for backward compatibility - use SupportedLanguage enum instead
     LANGUAGE_NAMES: ClassVar[dict[str, str]] = {
         "en": "English",
         "es": "Spanish",
@@ -638,10 +677,13 @@ CRITICAL INSTRUCTION: Generate the complete dialogue script now using ONLY the p
         # Target word count * 1.5 (tokens per word) * 2 (buffer for formatting/structure)
         desired_tokens = max_word_count * 3  # Conservative estimate for long-form content
 
-        # Don't cap - let WatsonX API handle its own limits
-        # Granite 3.3 8B context window: 128K (can read lots of RAG content)
-        # Granite 3.3 8B max_new_tokens: Set by API, we'll let it fail if too high
-        max_tokens = desired_tokens
+        # Add reasonable upper bound to prevent runaway token usage
+        # While model may support up to 128K context, generation is limited
+        # Set upper bound to 200K tokens (~133K words) which should handle even 60-minute podcasts
+        max_token_upper_bound = 200_000
+
+        # Cap at reasonable upper bound for safety
+        max_tokens = min(desired_tokens, max_token_upper_bound)
 
         logger.info(
             "Token calculation: desired=%d, max_allowed=%d, word_count=%d, duration=%d minutes",
