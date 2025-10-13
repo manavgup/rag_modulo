@@ -223,7 +223,8 @@ jobs:
             --label "bug,ai-triage" \
             --body "The automated issue triage workflow failed.
 
-            **Check the workflow logs**: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            **Check the workflow logs**:
+            ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
             This may indicate:
             - Gemini API quota exhausted
