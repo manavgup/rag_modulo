@@ -70,8 +70,8 @@ jobs:
           MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD || 'minioadmin' }}
 
         run: |
-          chmod +x ./scripts/deploy_infrastructure_codeengine.sh
-          ./scripts/deploy_infrastructure_codeengine.sh
+          chmod +x ./.github/scripts/deploy-infrastructure.sh
+          ./.github/scripts/deploy-infrastructure.sh
 
   build-and-push-backend:
     needs: deploy-infrastructure
@@ -254,8 +254,8 @@ jobs:
           JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
           LOG_LEVEL: "INFO"
         run: |
-          chmod +x ./scripts/deploy_codeengine.sh
-          ./scripts/deploy_codeengine.sh
+          chmod +x ./.github/scripts/deploy-backend.sh
+          ./.github/scripts/deploy-backend.sh
 
   deploy-frontend:
     needs: [build-and-push-frontend, security-scan-frontend]
@@ -282,8 +282,8 @@ jobs:
           REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
           REACT_APP_WS_URL: ${{ secrets.REACT_APP_WS_URL }}
         run: |
-          chmod +x ./scripts/deploy_codeengine.sh
-          ./scripts/deploy_codeengine.sh
+          chmod +x ./.github/scripts/deploy-frontend.sh
+          ./.github/scripts/deploy-frontend.sh
 
   smoke-test:
     needs: [deploy-backend, deploy-frontend]
