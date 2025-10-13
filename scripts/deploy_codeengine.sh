@@ -30,7 +30,10 @@ done
 
 # --- Deployment ---
 echo "Logging in to IBM Cloud..."
-ibmcloud login --apikey "$IBM_CLOUD_API_KEY" -r "$IBM_CLOUD_REGION" -g "$IBM_CLOUD_RESOURCE_GROUP" > /dev/null
+if ! ibmcloud login --apikey "$IBM_CLOUD_API_KEY" -r "$IBM_CLOUD_REGION" -g "$IBM_CLOUD_RESOURCE_GROUP"; then
+    echo "Error: Failed to login to IBM Cloud" >&2
+    exit 1
+fi
 echo "Login successful."
 
 # Check if the application already exists
@@ -42,26 +45,49 @@ else
     ACTION="create"
 fi
 
-# Construct the deployment command
-CMD="ibmcloud ce app $ACTION --name \"$APP_NAME\""
+# Build command array to prevent command injection
+        declare -a CMD_ARGS=(
+            "ibmcloud" "ce" "app" "$ACTION"
+            "--name" "$APP_NAME"
+            "--image" "$IMAGE_URL"
+            "--memory" "4Gi"
+            "--cpu" "1"
+            "--min-scale" "1"
+            "--max-scale" "5"
+        )
+
+# Add port only for create action
 if [ "$ACTION" == "create" ]; then
-    CMD+=" --port 8000"
+    CMD_ARGS+=("--port" "8000")
 fi
-CMD+=" --image \"$IMAGE_URL\""
-CMD+=" --memory 2Gi --cpu 1 --min-scale 1 --max-scale 5"
 
 # Add all environment variables from the current environment
 for var in "${REQUIRED_VARS[@]}"; do
     # Skip the API key as it is not needed by the application itself
     if [ "$var" != "IBM_CLOUD_API_KEY" ]; then
-        CMD+=" --env \"$var=${!var}\""
+        CMD_ARGS+=("--env" "$var=${!var}")
     fi
 done
 
 # Add other optional env vars
-CMD+=" --env \"PYTHONPATH=/app\" --env \"CONTAINER_ENV=1\""
+CMD_ARGS+=("--env" "PYTHONPATH=/app" "--env" "CONTAINER_ENV=1")
 
 echo "Executing Code Engine command..."
-eval "$CMD"
+echo "Command: ${CMD_ARGS[*]}"
 
-echo "Deployment to IBM Cloud Code Engine finished."
+# Execute the command safely using array expansion
+if ! "${CMD_ARGS[@]}"; then
+    echo "Error: Deployment command failed" >&2
+    exit 1
+fi
+
+echo "Deployment to IBM Cloud Code Engine finished successfully."
+
+# Post-deployment verification
+echo "Verifying deployment..."
+if ! ibmcloud ce app get --name "$APP_NAME" > /dev/null 2>&1; then
+    echo "Error: Application verification failed" >&2
+    exit 1
+fi
+
+echo "Deployment verification successful."

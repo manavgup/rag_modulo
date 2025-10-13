@@ -1,0 +1,339 @@
+name: Deploy Complete RAG Modulo Application
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      skip_security_scan:
+        description: 'Skip security scanning (not recommended)'
+        required: false
+        default: false
+        type: boolean
+      deploy_after_build:
+        description: 'Deploy after building (for daily builds)'
+        required: false
+        default: false
+        type: boolean
+  schedule:
+    # Daily build at 2 AM UTC (builds but doesn't deploy by default)
+    - cron: '0 2 * * *'
+  push:
+    branches:
+      - main
+      - develop
+
+# Define environment variables for the entire workflow
+env:
+  BACKEND_APP_NAME: ${{ vars.BACKEND_APP_NAME || 'rag-modulo-backend' }}
+  FRONTEND_APP_NAME: ${{ vars.FRONTEND_APP_NAME || 'rag-modulo-frontend' }}
+  IBM_CLOUD_REGION: ${{ vars.IBM_CLOUD_REGION || 'us-south' }}
+  CR_NAMESPACE: ${{ vars.IBM_CR_NAMESPACE || 'rag_modulo' }}
+
+# Prevent concurrent deployments
+concurrency:
+  group: deploy-complete-app-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # Infrastructure deployment
+  deploy-infrastructure:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up IBM Cloud CLI
+        run: |
+          curl -fsSL https://clis.cloud.ibm.com/install | bash
+          ibmcloud version
+
+      - name: Deploy Infrastructure to Code Engine
+        env:
+          IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}
+          IBM_CLOUD_REGION: ${{ env.IBM_CLOUD_REGION }}
+          IBM_CLOUD_RESOURCE_GROUP: ${{ vars.IBM_CLOUD_RESOURCE_GROUP || 'rag-modulo-deployment' }}
+
+          # Database credentials
+          COLLECTIONDB_USER: ${{ secrets.COLLECTIONDB_USER }}
+          COLLECTIONDB_PASS: ${{ secrets.COLLECTIONDB_PASS }}
+          COLLECTIONDB_NAME: ${{ secrets.COLLECTIONDB_NAME }}
+
+          # MinIO credentials
+          MINIO_ROOT_USER: ${{ secrets.MINIO_ROOT_USER || 'minioadmin' }}
+          MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD || 'minioadmin' }}
+
+        run: |
+          chmod +x ./scripts/deploy_infrastructure_codeengine.sh
+          ./scripts/deploy_infrastructure_codeengine.sh
+
+  build-and-push-backend:
+    needs: deploy-infrastructure
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to IBM Cloud Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.IBM_CLOUD_REGION }}.icr.io
+          username: iamapikey
+          password: ${{ secrets.IBM_CLOUD_API_KEY }}
+
+      - name: Build and push backend Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.codeengine
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.IBM_CLOUD_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.BACKEND_APP_NAME }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-and-push-frontend:
+    needs: deploy-infrastructure
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to IBM Cloud Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.IBM_CLOUD_REGION }}.icr.io
+          username: iamapikey
+          password: ${{ secrets.IBM_CLOUD_API_KEY }}
+
+      - name: Build and push frontend Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile.frontend
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.IBM_CLOUD_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.FRONTEND_APP_NAME }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  security-scan-backend:
+    needs: build-and-push-backend
+    if: ${{ !inputs.skip_security_scan }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner (Backend)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IBM_CLOUD_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.BACKEND_APP_NAME }}:${{ github.sha }}
+          format: 'sarif'
+          output: 'trivy-backend-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab (Backend)
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-backend-results.sarif'
+
+      - name: Run Trivy vulnerability scanner (Backend - Table)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IBM_CLOUD_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.BACKEND_APP_NAME }}:${{ github.sha }}
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
+
+  security-scan-frontend:
+    needs: build-and-push-frontend
+    if: ${{ !inputs.skip_security_scan }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner (Frontend)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IBM_CLOUD_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.FRONTEND_APP_NAME }}:${{ github.sha }}
+          format: 'sarif'
+          output: 'trivy-frontend-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab (Frontend)
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-frontend-results.sarif'
+
+      - name: Run Trivy vulnerability scanner (Frontend - Table)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IBM_CLOUD_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.FRONTEND_APP_NAME }}:${{ github.sha }}
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
+
+  deploy-backend:
+    needs: [build-and-push-backend, security-scan-backend]
+    if: always() && (needs.security-scan-backend.result == 'success' || needs.security-scan-backend.result == 'skipped') && (github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'schedule' && inputs.deploy_after_build == true))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up IBM Cloud CLI
+        run: |
+          curl -fsSL https://clis.cloud.ibm.com/install | bash
+          ibmcloud version
+
+      - name: Deploy Backend to Code Engine
+        env:
+          IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}
+          IMAGE_URL: ${{ env.IBM_CLOUD_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.BACKEND_APP_NAME }}:${{ github.sha }}
+          APP_NAME: ${{ env.BACKEND_APP_NAME }}
+          IBM_CLOUD_REGION: ${{ env.IBM_CLOUD_REGION }}
+          IBM_CLOUD_RESOURCE_GROUP: ${{ vars.IBM_CLOUD_RESOURCE_GROUP || 'rag-modulo-deployment' }}
+
+          # Application environment variables
+          SKIP_AUTH: ${{ secrets.SKIP_AUTH }}
+          OIDC_DISCOVERY_ENDPOINT: ${{ secrets.OIDC_DISCOVERY_ENDPOINT }}
+          IBM_CLIENT_ID: ${{ secrets.IBM_CLIENT_ID }}
+          IBM_CLIENT_SECRET: ${{ secrets.IBM_CLIENT_SECRET }}
+          FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
+          WATSONX_APIKEY: ${{ secrets.WATSONX_APIKEY }}
+          WATSONX_INSTANCE_ID: ${{ secrets.WATSONX_INSTANCE_ID }}
+
+          # Database configuration (using deployed PostgreSQL)
+          COLLECTIONDB_USER: ${{ secrets.COLLECTIONDB_USER }}
+          COLLECTIONDB_PASS: ${{ secrets.COLLECTIONDB_PASS }}
+          COLLECTIONDB_HOST: rag-modulo-postgres
+          COLLECTIONDB_PORT: "5432"
+          COLLECTIONDB_NAME: ${{ secrets.COLLECTIONDB_NAME }}
+
+          # Vector database configuration (using deployed Milvus)
+          VECTOR_DB: "milvus"
+          MILVUS_HOST: rag-modulo-milvus
+          MILVUS_PORT: "19530"
+          MILVUS_USER: ""
+          MILVUS_PASSWORD: ""
+
+          # MinIO configuration (using deployed MinIO)
+          MINIO_ENDPOINT: rag-modulo-minio:9000
+          MINIO_ACCESS_KEY: ${{ secrets.MINIO_ROOT_USER || 'minioadmin' }}
+          MINIO_SECRET_KEY: ${{ secrets.MINIO_ROOT_PASSWORD || 'minioadmin' }}
+          MINIO_USE_SSL: "false"
+
+          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+          LOG_LEVEL: "INFO"
+        run: |
+          chmod +x ./scripts/deploy_codeengine.sh
+          ./scripts/deploy_codeengine.sh
+
+  deploy-frontend:
+    needs: [build-and-push-frontend, security-scan-frontend]
+    if: always() && (needs.security-scan-frontend.result == 'success' || needs.security-scan-frontend.result == 'skipped') && (github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'schedule' && inputs.deploy_after_build == true))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up IBM Cloud CLI
+        run: |
+          curl -fsSL https://clis.cloud.ibm.com/install | bash
+          ibmcloud version
+
+      - name: Deploy Frontend to Code Engine
+        env:
+          IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}
+          IMAGE_URL: ${{ env.IBM_CLOUD_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.FRONTEND_APP_NAME }}:${{ github.sha }}
+          APP_NAME: ${{ env.FRONTEND_APP_NAME }}
+          IBM_CLOUD_REGION: ${{ env.IBM_CLOUD_REGION }}
+          IBM_CLOUD_RESOURCE_GROUP: ${{ vars.IBM_CLOUD_RESOURCE_GROUP || 'rag-modulo-deployment' }}
+
+          # Frontend environment variables
+          REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
+          REACT_APP_WS_URL: ${{ secrets.REACT_APP_WS_URL }}
+        run: |
+          chmod +x ./scripts/deploy_codeengine.sh
+          ./scripts/deploy_codeengine.sh
+
+  smoke-test:
+    needs: [deploy-backend, deploy-frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up IBM Cloud CLI
+        run: |
+          curl -fsSL https://clis.cloud.ibm.com/install | bash
+          ibmcloud version
+
+      - name: Test Backend Health
+        run: |
+          BACKEND_URL=$(ibmcloud ce app get --name "${{ env.BACKEND_APP_NAME }}" --output json | jq -r '.status.latest_ready_revision_name' | head -1)
+          if [ -n "$BACKEND_URL" ]; then
+            echo "Testing backend at: $BACKEND_URL/health"
+            if curl -f -s "$BACKEND_URL/health" > /dev/null; then
+              echo "✅ Backend health check passed"
+            else
+              echo "❌ Backend health check failed"
+              exit 1
+            fi
+          else
+            echo "❌ Could not determine backend URL"
+            exit 1
+          fi
+
+      - name: Test Frontend Health
+        run: |
+          FRONTEND_URL=$(ibmcloud ce app get --name "${{ env.FRONTEND_APP_NAME }}" --output json | jq -r '.status.latest_ready_revision_name' | head -1)
+          if [ -n "$FRONTEND_URL" ]; then
+            echo "Testing frontend at: $FRONTEND_URL"
+            if curl -f -s "$FRONTEND_URL" > /dev/null; then
+              echo "✅ Frontend health check passed"
+            else
+              echo "❌ Frontend health check failed"
+              exit 1
+            fi
+          else
+            echo "❌ Could not determine frontend URL"
+            exit 1
+          fi
+
+      - name: Test Application Integration
+        run: |
+          BACKEND_URL=$(ibmcloud ce app get --name "${{ env.BACKEND_APP_NAME }}" --output json | jq -r '.status.latest_ready_revision_name' | head -1)
+          FRONTEND_URL=$(ibmcloud ce app get --name "${{ env.FRONTEND_APP_NAME }}" --output json | jq -r '.status.latest_ready_revision_name' | head -1)
+          echo "✅ Complete application deployed successfully!"
+          echo "Backend URL: $BACKEND_URL"
+          echo "Frontend URL: $FRONTEND_URL"
+          echo "Application is ready for use!"
