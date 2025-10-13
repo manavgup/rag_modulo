@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useId } from 'react';
 import { CloudArrowUpIcon, DocumentIcon, TrashIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
 export interface UploadedFile {
@@ -9,6 +9,7 @@ export interface UploadedFile {
   status: 'pending' | 'uploading' | 'complete' | 'error';
   progress: number;
   file: File;
+  errorMessage?: string;
 }
 
 export interface FileUploadProps {
@@ -30,6 +31,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
 }) => {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [dragActive, setDragActive] = useState(false);
+  const inputId = useId();
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
@@ -39,16 +41,54 @@ const FileUpload: React.FC<FileUploadProps> = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  const validateFileType = (file: File): boolean => {
+    // Extract extensions from accept string (e.g., ".pdf,.docx,.txt")
+    const acceptedExtensions = accept
+      .split(',')
+      .map(ext => ext.trim().toLowerCase())
+      .filter(ext => ext.startsWith('.'));
+
+    // Get file extension
+    const fileName = file.name.toLowerCase();
+    const fileExtension = '.' + fileName.split('.').pop();
+
+    // Check if file extension is in accepted list
+    return acceptedExtensions.length === 0 || acceptedExtensions.includes(fileExtension);
+  };
+
+  const validateFileSize = (file: File): boolean => {
+    const maxSizeBytes = maxSize * 1024 * 1024; // Convert MB to bytes
+    return file.size <= maxSizeBytes;
+  };
+
   const handleFiles = (files: File[]) => {
-    const newFiles: UploadedFile[] = files.map(file => ({
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-      name: file.name,
-      size: file.size,
-      type: file.type,
-      status: 'complete',
-      progress: 100,
-      file: file,
-    }));
+    const newFiles: UploadedFile[] = files.map(file => {
+      let status: 'complete' | 'error' = 'complete';
+      let errorMessage: string | undefined;
+
+      // Validate file type
+      if (!validateFileType(file)) {
+        status = 'error';
+        errorMessage = `Invalid file type. Accepted: ${accept}`;
+      }
+
+      // Validate file size
+      if (!validateFileSize(file)) {
+        status = 'error';
+        errorMessage = `File size exceeds ${maxSize}MB limit`;
+      }
+
+      return {
+        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        status,
+        progress: status === 'complete' ? 100 : 0,
+        file: file,
+        errorMessage,
+      };
+    });
 
     const updatedFiles = [...uploadedFiles, ...newFiles];
     setUploadedFiles(updatedFiles);
@@ -100,7 +140,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
             ? 'border-blue-60 bg-blue-10'
             : 'border-gray-30 hover:border-blue-60'
         }`}
-        onClick={() => document.getElementById('file-upload-input')?.click()}
+        onClick={() => document.getElementById(inputId)?.click()}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
         onDragOver={handleDrag}
@@ -115,7 +155,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
           onChange={handleFileInput}
           accept={accept}
           className="hidden"
-          id="file-upload-input"
+          id={inputId}
         />
         <div className="btn-primary cursor-pointer inline-block">Select Files</div>
         <p className="text-xs text-gray-60 mt-3">{helpText}</p>
@@ -135,7 +175,9 @@ const FileUpload: React.FC<FileUploadProps> = ({
               >
                 <DocumentIcon className="w-5 h-5 text-gray-60 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-100 truncate">{file.name}</p>
+                  <p className={`text-sm font-medium truncate ${file.status === 'error' ? 'text-red-50' : 'text-gray-100'}`}>
+                    {file.name}
+                  </p>
                   <p className="text-xs text-gray-60">{formatFileSize(file.size)}</p>
                   {file.status === 'uploading' && (
                     <div className="w-full bg-gray-20 rounded-full h-1 mt-1">
@@ -144,6 +186,9 @@ const FileUpload: React.FC<FileUploadProps> = ({
                         style={{ width: `${file.progress}%` }}
                       />
                     </div>
+                  )}
+                  {file.status === 'error' && file.errorMessage && (
+                    <p className="text-xs text-red-50 mt-1">{file.errorMessage}</p>
                   )}
                 </div>
                 <div className="flex items-center space-x-2">
@@ -156,6 +201,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
                       removeFile(file.id);
                     }}
                     className="text-gray-60 hover:text-red-50"
+                    aria-label={`Remove ${file.name}`}
                   >
                     <TrashIcon className="w-4 h-4" />
                   </button>

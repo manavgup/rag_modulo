@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 
 export interface TextAreaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string;
@@ -12,7 +12,8 @@ const TextArea = React.forwardRef<HTMLTextAreaElement, TextAreaProps>(
     { label, error, helpText, fullWidth = false, className = '', id, ...props },
     ref
   ) => {
-    const textareaId = id || `textarea-${Math.random().toString(36).substr(2, 9)}`;
+    const generatedId = useId();
+    const textareaId = id || generatedId;
 
     // Base textarea classes
     const baseClasses =

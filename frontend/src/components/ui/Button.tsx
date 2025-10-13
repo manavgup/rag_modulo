@@ -67,11 +67,21 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 
     // Loading spinner
     const LoadingSpinner = () => (
-      <div className={`animate-spin rounded-full border-b-2 ${iconSizeClasses[size]} ${variant === 'ghost' || variant === 'secondary' ? 'border-gray-100' : 'border-white'}`} />
+      <div
+        className={`animate-spin rounded-full border-b-2 ${iconSizeClasses[size]} ${variant === 'ghost' || variant === 'secondary' ? 'border-gray-100' : 'border-white'}`}
+        role="status"
+        aria-label="Loading"
+      />
     );
 
     return (
-      <button ref={ref} className={combinedClasses} disabled={disabled || loading} {...props}>
+      <button
+        ref={ref}
+        className={combinedClasses}
+        disabled={disabled || loading}
+        aria-busy={loading}
+        {...props}
+      >
         {loading ? (
           <>
             <LoadingSpinner />
