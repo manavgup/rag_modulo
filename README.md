@@ -8,6 +8,12 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=flat&logo=fastapi)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/react-%2320232a.svg?style=flat&logo=react&logoColor=%2361DAFB)](https://reactjs.org/)
 
+[![Lint](https://github.com/manavgup/rag_modulo/actions/workflows/01-lint.yml/badge.svg)](https://github.com/manavgup/rag_modulo/actions/workflows/01-lint.yml)
+[![Security](https://github.com/manavgup/rag_modulo/actions/workflows/02-security.yml/badge.svg)](https://github.com/manavgup/rag_modulo/actions/workflows/02-security.yml)
+[![Build](https://github.com/manavgup/rag_modulo/actions/workflows/03-build-secure.yml/badge.svg)](https://github.com/manavgup/rag_modulo/actions/workflows/03-build-secure.yml)
+[![Tests](https://github.com/manavgup/rag_modulo/actions/workflows/04-pytest.yml/badge.svg)](https://github.com/manavgup/rag_modulo/actions/workflows/04-pytest.yml)
+[![CI](https://github.com/manavgup/rag_modulo/actions/workflows/05-ci.yml/badge.svg)](https://github.com/manavgup/rag_modulo/actions/workflows/05-ci.yml)
+
 **A production-ready, modular Retrieval-Augmented Generation (RAG) platform with Chain of Thought reasoning, multi-LLM support, and enterprise-grade features**
 
 [🚀 Quick Start](#-quick-start) • [📚 Documentation](https://manavgup.github.io/rag_modulo) • [🛠️ Development](#️-development-workflow) • [✨ Features](#-features--capabilities) • [🤝 Contributing](#-contributing)
@@ -31,9 +37,10 @@ RAG Modulo is a production-ready Retrieval-Augmented Generation platform that pr
 </div>
 
 #### 🎨 Frontend Features
-- **Modern UI**: React 18 with Tailwind CSS for responsive, accessible design
+- **Modern UI**: React 18 with Tailwind CSS and Carbon Design System principles
+- **Reusable Component Library**: 8 accessible, type-safe components with consistent design patterns
 - **Enhanced Search**: Interactive chat interface with Chain of Thought reasoning visualization
-- **Document Management**: Real-time file upload with drag-and-drop support
+- **Document Management**: Real-time file upload with drag-and-drop support and validation
 - **Smart Display**: Document source attribution with chunk-level page references
 - **Podcast Generation**: AI-powered podcast creation with voice preview
 - **Question Suggestions**: Intelligent query recommendations based on collection content
@@ -63,6 +70,7 @@ RAG Modulo is a production-ready Retrieval-Augmented Generation platform that pr
 |:---|:---|:---|
 | **🧠 Chain of Thought** | Automatic question decomposition with step-by-step reasoning | 40%+ better answer quality on complex queries |
 | **⚡ Auto Pipeline Resolution** | Zero-config search - backend handles pipeline selection | Simplified API, reduced client complexity |
+| **🎨 Reusable UI Components** | 8 accessible, type-safe components (Button, Input, Modal, etc.) | 44% code reduction, consistent design system |
 | **🔒 Security Hardening** | Multi-layer scanning (Trivy, Bandit, Gitleaks, Semgrep) | Production-grade security posture |
 | **🚀 Containerless Dev** | Local development without containers | 10x faster iteration, instant hot-reload |
 | **📄 IBM Docling** | Enhanced document processing for complex formats | Better PDF/DOCX/XLSX handling |
@@ -88,7 +96,7 @@ RAG Modulo is a production-ready Retrieval-Augmented Generation platform that pr
 <tr>
 <td><strong>Python</strong></td>
 <td>3.12+</td>
-<td><code>brew install python@3.12</code> (macOS)<br/><code>apt install python3.12</code> (Ubuntu)</td>
+<td><code>brew install python@3.12</code> (macOS)<br/><code>sudo add-apt-repository ppa:deadsnakes/ppa && sudo apt update && sudo apt install python3.12 python3.12-venv</code> (Ubuntu 22.04)<br/><code>apt install python3.12</code> (Ubuntu 24.04+)</td>
 <td>Backend runtime</td>
 </tr>
 <tr>
