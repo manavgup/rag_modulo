@@ -36,6 +36,14 @@ if ! ibmcloud login --apikey "$IBM_CLOUD_API_KEY" -r "$IBM_CLOUD_REGION" -g "$IB
 fi
 echo "Login successful."
 
+# Set the Code Engine project
+PROJECT_NAME="rag-modulo-test-project"
+echo "Setting Code Engine project to: $PROJECT_NAME"
+if ! ibmcloud ce project select --name "$PROJECT_NAME"; then
+    echo "Error: Failed to select Code Engine project" >&2
+    exit 1
+fi
+
 # Check if the application already exists
 if ibmcloud ce app get --name "$APP_NAME" > /dev/null 2>&1; then
     echo "Application '$APP_NAME' already exists. Updating..."

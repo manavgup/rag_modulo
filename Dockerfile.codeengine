@@ -32,13 +32,13 @@ WORKDIR /app
 # Copy dependency files first for better layer caching
 COPY backend/pyproject.toml backend/poetry.lock ./
 
-# Install CPU-only PyTorch first to avoid CUDA dependencies (~6GB savings)
-# Using compatible versions for ARM64
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir \
-    torch==2.7.1+cpu \
-    torchvision==0.22.1 \
-    --index-url https://download.pytorch.org/whl/cpu
+        # Install CPU-only PyTorch first to avoid CUDA dependencies (~6GB savings)
+        # Using compatible versions for ARM64
+        RUN --mount=type=cache,target=/root/.cache/pip \
+            pip install --no-cache-dir \
+            torch==2.5.0+cpu \
+            torchvision==0.20.0+cpu \
+            --index-url https://download.pytorch.org/whl/cpu
 
 # Configure pip globally to prevent any CUDA torch reinstalls
 RUN pip config set global.extra-index-url https://download.pytorch.org/whl/cpu

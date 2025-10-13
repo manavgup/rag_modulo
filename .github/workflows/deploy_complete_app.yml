@@ -299,7 +299,7 @@ jobs:
 
       - name: Test Backend Health
         run: |
-          BACKEND_URL=$(ibmcloud ce app get --name "${{ env.BACKEND_APP_NAME }}" --output json | jq -r '.status.latest_ready_revision_name' | head -1)
+          BACKEND_URL=$(ibmcloud ce app get --name "${{ env.BACKEND_APP_NAME }}" --output json | jq -r '.status.url' | head -1)
           if [ -n "$BACKEND_URL" ]; then
             echo "Testing backend at: $BACKEND_URL/health"
             if curl -f -s "$BACKEND_URL/health" > /dev/null; then
@@ -315,7 +315,7 @@ jobs:
 
       - name: Test Frontend Health
         run: |
-          FRONTEND_URL=$(ibmcloud ce app get --name "${{ env.FRONTEND_APP_NAME }}" --output json | jq -r '.status.latest_ready_revision_name' | head -1)
+          FRONTEND_URL=$(ibmcloud ce app get --name "${{ env.FRONTEND_APP_NAME }}" --output json | jq -r '.status.url' | head -1)
           if [ -n "$FRONTEND_URL" ]; then
             echo "Testing frontend at: $FRONTEND_URL"
             if curl -f -s "$FRONTEND_URL" > /dev/null; then
@@ -331,8 +331,8 @@ jobs:
 
       - name: Test Application Integration
         run: |
-          BACKEND_URL=$(ibmcloud ce app get --name "${{ env.BACKEND_APP_NAME }}" --output json | jq -r '.status.latest_ready_revision_name' | head -1)
-          FRONTEND_URL=$(ibmcloud ce app get --name "${{ env.FRONTEND_APP_NAME }}" --output json | jq -r '.status.latest_ready_revision_name' | head -1)
+          BACKEND_URL=$(ibmcloud ce app get --name "${{ env.BACKEND_APP_NAME }}" --output json | jq -r '.status.url' | head -1)
+          FRONTEND_URL=$(ibmcloud ce app get --name "${{ env.FRONTEND_APP_NAME }}" --output json | jq -r '.status.url' | head -1)
           echo "✅ Complete application deployed successfully!"
           echo "Backend URL: $BACKEND_URL"
           echo "Frontend URL: $FRONTEND_URL"
