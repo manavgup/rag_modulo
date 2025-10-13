@@ -131,7 +131,11 @@ def test_settings_validation_error_handling():
 
     # With defaults, Settings should instantiate even with empty environment
     # This is the desired behavior for dependency injection
-    with patch.dict(os.environ, {}, clear=True):
+    # Patch both os.environ and dotenv to prevent loading from .env file
+    with (
+        patch.dict(os.environ, {}, clear=True),
+        patch("pydantic_settings.sources.DotEnvSettingsSource.__call__", return_value={}),
+    ):
         settings = get_settings()
         # Should get default values
         assert settings.jwt_secret_key == "dev-secret-key-change-in-production-f8a7b2c1"

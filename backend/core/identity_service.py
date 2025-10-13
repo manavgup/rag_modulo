@@ -15,6 +15,9 @@ from uuid import UUID
 class IdentityService:
     """A centralized service for generating unique identifiers."""
 
+    # Default mock user ID for testing and development
+    DEFAULT_MOCK_USER_ID = UUID("9bae4a21-718b-4c8b-bdd2-22857779a85b")
+
     @staticmethod
     def generate_id() -> UUID:
         """
@@ -52,27 +55,24 @@ class IdentityService:
     @staticmethod
     def get_mock_user_id() -> UUID:
         """
-        Get the mock user ID from environment variables or generate a new one.
+        Get the mock user ID from environment variables or use the default.
 
         This allows for a consistent mock user ID during testing and development,
         which can be overridden via environment variables if needed.
 
         The environment variable `MOCK_USER_ID` is used to source the ID.
-        If not set, generates a new UUID (note: will be different on each call).
+        If not set or invalid, returns the default mock user ID.
 
         Returns:
             UUID: The mock user ID.
-
-        Raises:
-            ValueError: If MOCK_USER_ID is set but invalid.
         """
         mock_id_str = os.getenv("MOCK_USER_ID")
         if mock_id_str:
             try:
                 return UUID(mock_id_str)
-            except ValueError as e:
-                raise ValueError(f"Invalid MOCK_USER_ID in environment: {mock_id_str}") from e
+            except ValueError:
+                # Fall back to default on invalid UUID
+                return IdentityService.DEFAULT_MOCK_USER_ID
 
-        # Generate a new UUID if not specified
-        # Note: This will be different each time unless user is persisted in database
-        return IdentityService.generate_id()
+        # Return default mock user ID
+        return IdentityService.DEFAULT_MOCK_USER_ID
