@@ -188,7 +188,7 @@ class OpenAILLM(LLMBase):
             )
 
             for chunk in stream:
-                if chunk.choices[0].delta.content:
+                if chunk.choices and chunk.choices[0].delta.content:
                     yield chunk.choices[0].delta.content
 
         except (ValidationError, NotFoundError) as e:

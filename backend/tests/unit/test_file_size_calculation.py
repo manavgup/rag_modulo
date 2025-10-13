@@ -56,13 +56,13 @@ class TestFileSizeCalculation:
         """Test file size calculation with existing file."""
         # Create temporary file with known size
         with tempfile.NamedTemporaryFile(delete=False, mode="w") as temp_file:
-            temp_file.write("Test content for file repository!")  # 32 bytes
+            temp_file.write("Test content for file repository!")  # 33 characters
             temp_file_path = temp_file.name
 
         try:
             # Test the file size calculation
             file_size = FileRepository._get_file_size(temp_file_path)
-            assert file_size == 32
+            assert file_size == 33
         finally:
             # Clean up
             os.unlink(temp_file_path)
