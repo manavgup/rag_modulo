@@ -9,7 +9,7 @@ set -e
 # - All other application-specific environment variables (e.g., SKIP_AUTH, DB_HOST, etc.)
 
 # --- Configuration (can be overridden by environment variables) ---
-IBM_CLOUD_REGION=${IBM_CLOUD_API_LINE:-"us-south"}
+IBM_CLOUD_REGION=${IBM_CLOUD_REGION:-"us-south"}
 IBM_CLOUD_RESOURCE_GROUP=${IBM_CLOUD_RESOURCE_GROUP:-"Default"}
 
 # --- Validation ---
@@ -48,6 +48,7 @@ if [ "$ACTION" == "create" ]; then
     CMD+=" --port 8000"
 fi
 CMD+=" --image \"$IMAGE_URL\""
+CMD+=" --memory 2Gi --cpu 1 --min-scale 1 --max-scale 5"
 
 # Add all environment variables from the current environment
 for var in "${REQUIRED_VARS[@]}"; do

@@ -5,13 +5,17 @@ on:
 
 # Define environment variables for the entire workflow
 env:
-  APP_NAME: rag-modulo-app
-  IBM_CLOUD_REGION: us-south
-  CR_NAMESPACE: rag_modulo
+  APP_NAME: ${{ vars.IBM_CE_APP_NAME || 'rag-modulo-app' }}
+  IBM_CLOUD_REGION: ${{ vars.IBM_CLOUD_REGION || 'us-south' }}
+  CR_NAMESPACE: ${{ vars.IBM_CR_NAMESPACE || 'rag_modulo' }}
 
 jobs:
   build-and-push-image:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
     steps:
       - name: Check out code
         uses: actions/checkout@v4
