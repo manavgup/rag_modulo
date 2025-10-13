@@ -9,6 +9,10 @@ This guide covers deploying RAG Modulo in various environments, from local devel
 - [Local Deployment](#local-deployment)
 - [Production Deployment](#production-deployment)
 - [Cloud Deployment](#cloud-deployment)
+  - [IBM Cloud Code Engine](#ibm-cloud-code-engine)
+  - [AWS Deployment](#aws-deployment)
+  - [Google Cloud Deployment](#google-cloud-deployment)
+  - [Azure Deployment](#azure-deployment)
 - [Configuration](#configuration)
 - [Monitoring](#monitoring)
 - [Troubleshooting](#troubleshooting)
@@ -200,6 +204,63 @@ services:
 ```
 
 ## Cloud Deployment
+
+### IBM Cloud Code Engine
+
+IBM Cloud Code Engine provides a fully managed, serverless platform for running containerized applications. This is the recommended deployment method for production workloads.
+
+#### Complete Application Deployment
+
+The RAG Modulo application consists of multiple components deployed to IBM Cloud Code Engine:
+
+**Application Components:**
+- **Backend**: FastAPI Python application (1 CPU, 4GB RAM)
+- **Frontend**: React application (0.5 CPU, 1GB RAM)
+
+**Infrastructure Components:**
+- **PostgreSQL**: Database for application data (0.5 CPU, 2GB RAM)
+- **MinIO**: S3-compatible object storage (0.25 CPU, 1GB RAM)
+- **etcd**: Key-value store for Milvus (0.25 CPU, 1GB RAM)
+- **Milvus**: Vector database for embeddings (0.5 CPU, 2GB RAM)
+
+#### Quick Start
+
+1. **Prerequisites**: Set up IBM Cloud account and configure GitHub secrets
+2. **Deploy Complete App**: Use GitHub Actions workflow for full-stack deployment
+3. **Monitor**: Built-in health checks and monitoring for all components
+
+```bash
+# Deploy complete application via GitHub Actions
+# 1. Go to Actions tab in GitHub repository
+# 2. Select "Deploy Complete RAG Modulo Application"
+# 3. Choose environment (staging/production)
+# 4. Click "Run workflow"
+```
+
+#### Key Features
+
+- **Full-Stack Deployment**: Backend + Frontend + Infrastructure in single workflow
+- **Complete Infrastructure**: PostgreSQL, MinIO, etcd, and Milvus deployed automatically
+- **Security-First**: Automated vulnerability scanning with Trivy for all images
+- **Auto-Scaling**: Backend scales 1-5 instances, Frontend scales 1-3 instances
+- **Health Monitoring**: Built-in health checks and smoke tests for all components
+- **Cost Optimization**: Pay only for what you use
+- **Zero Downtime**: Rolling updates with zero downtime
+- **Daily Builds**: Automated daily builds with optional deployment
+
+#### Resources
+
+**Application Components:**
+- **Backend**: 1 CPU, 4GB RAM, scales 1-5 instances, port 8000
+- **Frontend**: 0.5 CPU, 1GB RAM, scales 1-3 instances, port 3000
+
+**Infrastructure Components:**
+- **PostgreSQL**: 0.5 CPU, 2GB RAM, scales 1 instance, port 5432
+- **MinIO**: 0.25 CPU, 1GB RAM, scales 1 instance, port 9000
+- **etcd**: 0.25 CPU, 1GB RAM, scales 1 instance, port 2379
+- **Milvus**: 0.5 CPU, 2GB RAM, scales 1 instance, port 19530
+
+For detailed instructions, see [IBM Cloud Code Engine Deployment Guide](ibm-cloud-code-engine.md).
 
 ### AWS Deployment
 
