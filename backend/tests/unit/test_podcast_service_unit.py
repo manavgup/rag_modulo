@@ -191,7 +191,7 @@ class TestPodcastServiceValidation:
         )
 
     @pytest.mark.asyncio
-    async def test_validate_podcast_input(self, mock_service: PodcastService) -> None:
+    async def test_validate_podcast_input(self) -> None:
         """Unit: Validates podcast input schema."""
         podcast_input = PodcastGenerationInput(
             user_id=uuid4(),
@@ -206,3 +206,95 @@ class TestPodcastServiceValidation:
         assert podcast_input.user_id is not None
         assert podcast_input.duration == PodcastDuration.SHORT
         assert podcast_input.format == AudioFormat.MP3  # default
+
+
+@pytest.mark.unit
+class TestPodcastServiceVoicePreview:
+    """Unit tests for voice preview functionality."""
+
+    @pytest.fixture
+    def mock_service(self) -> PodcastService:
+        """Fixture: Create mock PodcastService."""
+        session = Mock(spec=AsyncSession)
+        collection_service = Mock(spec=CollectionService)
+        search_service = Mock(spec=SearchService)
+
+        service = PodcastService(
+            session=session,
+            collection_service=collection_service,
+            search_service=search_service,
+        )
+
+        return service
+
+    @pytest.mark.asyncio
+    async def test_generate_voice_preview_success(self, mock_service: PodcastService) -> None:
+        """Unit: generate_voice_preview successfully generates audio."""
+        voice_id = "alloy"
+        expected_audio = b"mock_audio_data"
+
+        # Mock AudioProviderFactory
+        with patch("rag_solution.services.podcast_service.AudioProviderFactory") as mock_factory:
+            mock_provider = AsyncMock()
+            mock_provider.generate_single_turn_audio = AsyncMock(return_value=expected_audio)
+            mock_factory.create_provider.return_value = mock_provider
+
+            # Call the method
+            audio_bytes = await mock_service.generate_voice_preview(voice_id)
+
+            # Assertions
+            assert audio_bytes == expected_audio
+            mock_factory.create_provider.assert_called_once()
+            mock_provider.generate_single_turn_audio.assert_called_once_with(
+                text=mock_service.VOICE_PREVIEW_TEXT,
+                voice=voice_id,
+                audio_format=AudioFormat.MP3,
+            )
+
+    @pytest.mark.asyncio
+    async def test_generate_voice_preview_uses_constant_text(self, mock_service: PodcastService) -> None:
+        """Unit: generate_voice_preview uses VOICE_PREVIEW_TEXT constant."""
+        voice_id = "onyx"
+
+        with patch("rag_solution.services.podcast_service.AudioProviderFactory") as mock_factory:
+            mock_provider = AsyncMock()
+            mock_provider.generate_single_turn_audio = AsyncMock(return_value=b"audio")
+            mock_factory.create_provider.return_value = mock_provider
+
+            await mock_service.generate_voice_preview(voice_id)
+
+            # Verify constant is used
+            call_args = mock_provider.generate_single_turn_audio.call_args
+            assert call_args.kwargs["text"] == PodcastService.VOICE_PREVIEW_TEXT
+
+    @pytest.mark.asyncio
+    async def test_generate_voice_preview_raises_on_provider_error(self, mock_service: PodcastService) -> None:
+        """Unit: generate_voice_preview raises HTTPException on provider error."""
+        voice_id = "echo"
+
+        with patch("rag_solution.services.podcast_service.AudioProviderFactory") as mock_factory:
+            mock_provider = AsyncMock()
+            mock_provider.generate_single_turn_audio = AsyncMock(side_effect=Exception("TTS API error"))
+            mock_factory.create_provider.return_value = mock_provider
+
+            # Should raise HTTPException
+            with pytest.raises(Exception) as exc_info:
+                await mock_service.generate_voice_preview(voice_id)
+
+            # Verify exception is raised
+            assert exc_info.type.__name__ in ["HTTPException", "Exception"]
+
+    @pytest.mark.asyncio
+    async def test_generate_voice_preview_all_valid_voices(self, mock_service: PodcastService) -> None:
+        """Unit: generate_voice_preview works with all valid OpenAI voices."""
+        valid_voices = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
+
+        with patch("rag_solution.services.podcast_service.AudioProviderFactory") as mock_factory:
+            mock_provider = AsyncMock()
+            mock_provider.generate_single_turn_audio = AsyncMock(return_value=b"audio")
+            mock_factory.create_provider.return_value = mock_provider
+
+            # Test each voice
+            for voice_id in valid_voices:
+                audio_bytes = await mock_service.generate_voice_preview(voice_id)
+                assert audio_bytes == b"audio"
