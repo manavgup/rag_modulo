@@ -205,7 +205,7 @@ This repository supports **automated development** using a multi-agent AI system
 
 ## Key Environment Variables
 
-Required environment variables (see `env.example` for full list):
+Required environment variables (see `.env.example` for full list):
 - `COLLECTIONDB_*`: PostgreSQL configuration
 - `VECTOR_DB`: Vector database type (default: milvus)
 - `MILVUS_*`: Milvus configuration
