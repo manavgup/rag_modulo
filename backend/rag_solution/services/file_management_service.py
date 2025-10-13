@@ -213,3 +213,156 @@ class FileManagementService:
         except Exception as e:
             logger.error(f"Unexpected error getting file path: {e!s}")
             raise
+
+    # Voice-specific file management methods
+
+    def save_voice_file(self, user_id: UUID4, voice_id: UUID4, file_content: bytes, audio_format: str) -> Path:
+        """
+        Save voice sample file for a user's custom voice.
+
+        Structure: {storage_path}/{user_id}/voices/{voice_id}/sample.{format}
+
+        Args:
+            user_id: User ID who owns the voice
+            voice_id: Voice ID
+            file_content: Audio file bytes
+            audio_format: Audio format (mp3, wav, m4a, flac, ogg)
+
+        Returns:
+            Path to the saved voice sample file
+
+        Raises:
+            ValueError: If settings not configured or invalid format
+            OSError: If file write fails
+        """
+        try:
+            if self.settings is None:
+                raise ValueError("Settings must be provided to FileManagementService")
+
+            # Supported formats for voice samples
+            supported_formats = ["mp3", "wav", "m4a", "flac", "ogg"]
+            if audio_format.lower() not in supported_formats:
+                raise ValueError(
+                    f"Unsupported audio format '{audio_format}'. Supported: {', '.join(supported_formats)}"
+                )
+
+            # Create voice-specific folder structure
+            user_folder = Path(f"{self.settings.file_storage_path}/{user_id}")
+            voices_folder = user_folder / "voices"
+            voice_folder = voices_folder / str(voice_id)
+            voice_folder.mkdir(parents=True, exist_ok=True)
+
+            # Save file as sample.{format}
+            file_path = voice_folder / f"sample.{audio_format}"
+            with file_path.open("wb") as f:
+                f.write(file_content)
+
+            logger.info(f"Voice sample saved for voice {voice_id} at {file_path} ({len(file_content)} bytes)")
+            return file_path
+
+        except Exception as e:
+            logger.error(f"Error saving voice file for voice {voice_id}: {e!s}")
+            raise
+
+    def get_voice_file_path(self, user_id: UUID4, voice_id: UUID4) -> Path | None:
+        """
+        Get path to voice sample file.
+
+        Searches for voice sample in supported formats.
+
+        Args:
+            user_id: User ID
+            voice_id: Voice ID
+
+        Returns:
+            Path to voice sample file, or None if not found
+        """
+        try:
+            if self.settings is None:
+                raise ValueError("Settings must be provided to FileManagementService")
+
+            user_folder = Path(f"{self.settings.file_storage_path}/{user_id}")
+            voice_folder = user_folder / "voices" / str(voice_id)
+
+            # Try supported formats
+            for audio_format in ["mp3", "wav", "m4a", "flac", "ogg"]:
+                file_path = voice_folder / f"sample.{audio_format}"
+                if file_path.exists():
+                    logger.debug(f"Found voice sample at {file_path}")
+                    return file_path
+
+            logger.warning(f"Voice sample not found for voice {voice_id}")
+            return None
+
+        except Exception as e:
+            logger.error(f"Error getting voice file path for voice {voice_id}: {e!s}")
+            raise
+
+    def delete_voice_file(self, user_id: UUID4, voice_id: UUID4) -> bool:
+        """
+        Delete voice sample file.
+
+        Args:
+            user_id: User ID
+            voice_id: Voice ID
+
+        Returns:
+            True if file was deleted, False if not found
+
+        Raises:
+            OSError: If deletion fails
+        """
+        try:
+            if self.settings is None:
+                raise ValueError("Settings must be provided to FileManagementService")
+
+            user_folder = Path(f"{self.settings.file_storage_path}/{user_id}")
+            voice_folder = user_folder / "voices" / str(voice_id)
+
+            if not voice_folder.exists():
+                logger.debug(f"Voice folder not found for voice {voice_id}")
+                return False
+
+            deleted = False
+
+            # Delete all voice sample files (any format)
+            for audio_format in ["mp3", "wav", "m4a", "flac", "ogg"]:
+                file_path = voice_folder / f"sample.{audio_format}"
+                if file_path.exists():
+                    file_path.unlink()
+                    deleted = True
+                    logger.info(f"Deleted voice sample file: {file_path}")
+
+            # Remove empty directories
+            if deleted and voice_folder.exists():
+                if not any(voice_folder.iterdir()):
+                    voice_folder.rmdir()
+                    logger.debug(f"Removed empty voice folder: {voice_folder}")
+
+                voices_folder = voice_folder.parent
+                if voices_folder.exists() and not any(voices_folder.iterdir()):
+                    voices_folder.rmdir()
+                    logger.debug(f"Removed empty voices folder: {voices_folder}")
+
+            return deleted
+
+        except Exception as e:
+            logger.error(f"Error deleting voice file for voice {voice_id}: {e!s}")
+            raise
+
+    def voice_file_exists(self, user_id: UUID4, voice_id: UUID4) -> bool:
+        """
+        Check if voice sample file exists.
+
+        Args:
+            user_id: User ID
+            voice_id: Voice ID
+
+        Returns:
+            True if voice sample file exists in any format
+        """
+        try:
+            return self.get_voice_file_path(user_id, voice_id) is not None
+        except Exception as e:
+            logger.error(f"Error checking voice file existence for voice {voice_id}: {e!s}")
+            return False
