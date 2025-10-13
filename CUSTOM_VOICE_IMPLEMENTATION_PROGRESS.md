@@ -6,6 +6,63 @@
 
 This feature enables users to upload custom voice samples and use them for podcast generation, allowing personalized voice cloning for HOST and EXPERT speakers.
 
+## 🎯 Implementation Strategy: Phased Approach
+
+### Phase 1: ElevenLabs Integration (Current Phase) 🚀
+**Goal**: Fast time to market with proven cloud-based voice cloning
+
+**Why Start with ElevenLabs**:
+- ✅ **Fast Implementation**: Well-documented REST API, no infrastructure setup
+- ✅ **High Quality**: Industry-leading voice cloning (5/5 quality)
+- ✅ **Reliable**: Managed service with SLA guarantees
+- ✅ **Proven**: Used by thousands of production applications
+- ✅ **Quick Validation**: Test user adoption before infrastructure investment
+
+**Timeline**: ~15-20 hours for complete implementation
+
+---
+
+### Phase 2: F5-TTS Self-Hosted Option (Future) 🔧
+**Goal**: Cost optimization and data sovereignty for power users
+
+**Why Add F5-TTS** (based on [comprehensive analysis](https://github.com/manavgup/rag_modulo/issues/394#issuecomment-3395705696)):
+- ✅ **Zero-shot cloning**: Instant voice cloning (no training wait!)
+- ✅ **Cost Savings**: 20-80% cheaper than ElevenLabs at scale (50+ podcasts/month)
+- ✅ **Privacy**: Voice samples stay on our infrastructure
+- ✅ **Control**: We manage quality, latency, and availability
+- ✅ **No vendor lock-in**: Open-source (MIT license)
+- ✅ **Customization**: Can fine-tune model for our domain
+
+**F5-TTS Model Specs**:
+- **Zero-shot voice cloning** (instant embedding extraction)
+- **Flow Matching** architecture for high quality
+- **10-20x realtime** inference on GPU
+- **Multilingual** support (English, Chinese, more)
+- **4GB-6GB VRAM** requirement (RTX 3060+)
+- **Quality**: 4/5 vs ElevenLabs' 5/5 (marginal difference, acceptable for podcasts)
+
+**Timeline**: ~20-25 hours (Docker setup, GPU config, model integration)
+
+---
+
+### Runtime Provider Selection
+Users can choose their preferred provider based on needs:
+- **ElevenLabs**: Best quality, managed service, pay-per-use
+- **F5-TTS**: Cost-effective, privacy-focused, self-hosted
+
+**Implementation**:
+```python
+# User can select provider when processing voice
+POST /api/voices/{voice_id}/process
+{
+    "provider_name": "elevenlabs"  # or "f5-tts"
+}
+
+# System configuration determines available providers
+VOICE_TTS_PROVIDERS=elevenlabs,f5-tts
+VOICE_DEFAULT_PROVIDER=elevenlabs
+```
+
 ## Architecture
 
 ### Current System
@@ -113,20 +170,50 @@ This feature enables users to upload custom voice samples and use them for podca
 - `DELETE /api/voices/{voice_id}` - Delete voice
 - `GET /api/voices/{voice_id}/sample` - Download/stream voice sample
 
-### 7. ElevenLabs Audio Provider
+### 7. ElevenLabs Audio Provider (Phase 1) 🚀
 **File**: `backend/rag_solution/generation/audio/elevenlabs_audio.py`
 
 **Features**:
 - Implement `AudioProviderBase` interface
-- Support custom voice IDs from ElevenLabs API
-- Voice cloning API integration
+- Voice cloning via ElevenLabs API
+- Support for instant voice cloning (Professional Voice Cloning)
 - Multi-voice dialogue generation
+- Voice ID management and caching
+
+**API Integration**:
+- `/v1/voices/add` - Create cloned voice from sample
+- `/v1/text-to-speech/{voice_id}` - Generate audio with custom voice
+- `/v1/voices/{voice_id}` - Get voice details
+- `/v1/voices/{voice_id}` - Delete voice (cleanup)
 
 **Integration**:
-- Update `AudioProviderFactory` to register ElevenLabs
-- Add ElevenLabs API key to settings
+- Update `AudioProviderFactory` to register ElevenLabs provider
+- Add ElevenLabs API key to environment configuration
+- Implement retry logic and error handling
+- Track API usage and costs
 
-### 8. Update Podcast Schemas
+---
+
+### 8. F5-TTS Audio Provider (Phase 2 - Future) 🔧
+**File**: `backend/rag_solution/generation/audio/f5_tts_audio.py`
+
+**Status**: Planned for Phase 2
+
+**Features**:
+- Implement `AudioProviderBase` interface
+- Support zero-shot voice cloning from uploaded samples
+- Voice embedding extraction (instant, no training!)
+- Multi-voice dialogue generation
+- Local model inference (no API calls)
+- GPU-accelerated synthesis (10-20x realtime)
+
+**Integration**:
+- Update `AudioProviderFactory` to register F5-TTS provider
+- Add F5-TTS Docker service to docker-compose (GPU-enabled)
+- Configure model path, GPU settings, and voice embedding storage
+- Create FastAPI microservice for /clone-voice and /synthesize endpoints
+
+### 9. Update Podcast Schemas (Phase 1)
 **Changes to**: `backend/rag_solution/schemas/podcast_schema.py`
 
 **Modifications**:
@@ -134,7 +221,7 @@ This feature enables users to upload custom voice samples and use them for podca
 - Add `is_custom_voice` flag or voice type discriminator
 - Update validation to check custom voice access
 
-### 9. Integrate Custom Voices into Podcast Generation
+### 10. Integrate Custom Voices into Podcast Generation (Phase 1)
 **Changes to**: `backend/rag_solution/services/podcast_service.py`
 
 **Modifications**:
@@ -143,7 +230,7 @@ This feature enables users to upload custom voice samples and use them for podca
 - Track voice usage (increment `times_used`)
 - Handle mixed scenarios (one custom + one preset voice)
 
-### 10. Database Migration
+### 11. Database Migration (Phase 1)
 **File**: `backend/rag_solution/migrations/versions/XXXX_add_voices_table.py`
 
 **Changes**:
@@ -151,7 +238,7 @@ This feature enables users to upload custom voice samples and use them for podca
 - Add indexes on `user_id` and `status`
 - Add foreign key constraint to users table
 
-### 11. Tests
+### 12. Tests (Phase 1)
 
 **Unit Tests** (`backend/tests/unit/test_voice_*.py`):
 - `test_voice_repository.py` - CRUD operations
@@ -272,47 +359,93 @@ curl -X POST http://localhost:8000/api/podcasts/generate \
 ### New Environment Variables
 
 ```bash
-# ElevenLabs API
-ELEVENLABS_API_KEY=your_api_key_here
-ELEVENLABS_MODEL=eleven_monolingual_v1
+# Voice TTS Providers (Phase 1: ElevenLabs, Phase 2: F5-TTS)
+VOICE_TTS_PROVIDERS=elevenlabs  # Comma-separated: elevenlabs,f5-tts
+VOICE_DEFAULT_PROVIDER=elevenlabs
 
-# Voice Storage
+# ElevenLabs Configuration (Phase 1) 🚀
+ELEVENLABS_API_KEY=<your-api-key>  # Get from elevenlabs.io
+ELEVENLABS_API_BASE_URL=https://api.elevenlabs.io/v1
+ELEVENLABS_MODEL_ID=eleven_multilingual_v2  # Voice cloning model
+ELEVENLABS_VOICE_SETTINGS_STABILITY=0.5
+ELEVENLABS_VOICE_SETTINGS_SIMILARITY=0.75
+ELEVENLABS_REQUEST_TIMEOUT_SECONDS=30
+ELEVENLABS_MAX_RETRIES=3
+
+# F5-TTS Configuration (Phase 2 - Future) 🔧
+F5_TTS_SERVICE_URL=http://localhost:8001  # F5-TTS microservice URL
+F5_TTS_MODEL_PATH=/models/f5-tts  # Model storage path
+F5_TTS_GPU_ENABLED=true  # Use GPU for inference
+F5_TTS_LANGUAGE=en  # Default language
+F5_TTS_CACHE_DIR=/cache  # Voice embedding cache
+
+# Voice Storage (Both Phases)
 VOICE_STORAGE_BACKEND=local  # or minio, s3
 VOICE_LOCAL_STORAGE_PATH=./storage/voices
 VOICE_MAX_FILE_SIZE_MB=10
-VOICE_ALLOWED_FORMATS=mp3,wav,m4a,flac
+VOICE_ALLOWED_FORMATS=mp3,wav,m4a,flac,ogg
 
-# Voice Processing
+# Voice Processing (Both Phases)
 VOICE_MAX_PER_USER=10
-VOICE_PROCESSING_TIMEOUT_SECONDS=300
+VOICE_PROCESSING_TIMEOUT_SECONDS=30  # ElevenLabs cloning time
+VOICE_MIN_SAMPLE_DURATION_SECONDS=5  # Minimum voice sample length
+VOICE_MAX_SAMPLE_DURATION_SECONDS=300  # Maximum 5 minutes
 ```
 
 ---
 
 ## Next Steps
 
-1. Review this implementation plan
-2. Implement voice storage system
-3. Create voice repository and service
-4. Build voice API endpoints
-5. Add ElevenLabs provider
-6. Update podcast generation flow
-7. Write comprehensive tests
-8. Create database migration
-9. Update documentation
+### Phase 1: ElevenLabs Integration (Current) 🚀
+
+1. ✅ ~~Voice storage system~~ (Completed - integrated into FileManagementService)
+2. ✅ ~~Voice repository~~ (Completed - voice_repository.py)
+3. ✅ ~~Database model and schemas~~ (Completed)
+4. 🚧 Create voice service layer
+5. 🚧 Build voice API endpoints (7 endpoints)
+6. 🚧 Add ElevenLabs audio provider
+7. 🚧 Update podcast schemas for custom voices
+8. 🚧 Integrate custom voices into podcast generation
+9. 🚧 Write comprehensive tests
+10. 🚧 Create database migration
+11. 🚧 Update API documentation
+
+**Phase 1 Timeline**: ~12-15 hours remaining
+
+### Phase 2: F5-TTS Self-Hosted (Future) 🔧
+
+1. Set up F5-TTS Docker service with GPU support
+2. Create F5-TTS audio provider implementation
+3. Build FastAPI microservice for voice cloning
+4. Implement voice embedding caching
+5. Add provider selection UI in frontend
+6. Write tests for F5-TTS provider
+7. Update documentation with deployment guide
+8. Performance benchmarking and optimization
+
+**Phase 2 Timeline**: ~20-25 hours
 
 ---
 
 ## Estimated Timeline
 
-- **Voice Storage + Repository**: 2-3 hours
+### Phase 1 (ElevenLabs)
 - **Voice Service + API**: 3-4 hours
 - **ElevenLabs Provider**: 2-3 hours
 - **Podcast Integration**: 2-3 hours
 - **Tests**: 3-4 hours
 - **Migration + Docs**: 1-2 hours
 
-**Total**: ~15-20 hours for complete implementation
+**Total Phase 1**: ~12-15 hours remaining for complete implementation
+
+### Phase 2 (F5-TTS - Future)
+- **Docker + GPU Setup**: 4-5 hours
+- **F5-TTS Provider**: 5-6 hours
+- **Microservice**: 4-5 hours
+- **Tests**: 3-4 hours
+- **Docs**: 2-3 hours
+
+**Total Phase 2**: ~20-25 hours for self-hosted option
 
 ---
 

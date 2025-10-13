@@ -27,6 +27,7 @@ This section contains comprehensive documentation for the RAG Modulo API and its
 - **[Provider Configuration](provider_configuration.md)** - LLM provider and model management
 - **[Prompt Templates](prompt_templates.md)** - Template management system
 - **[Question Suggestion](question_suggestion.md)** - Intelligent query suggestions
+- **[Custom Voice API](voice_api.md)** - Voice sample upload and custom voice management
 
 ### Development Documentation
 
