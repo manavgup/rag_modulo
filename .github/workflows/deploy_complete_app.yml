@@ -1,6 +1,52 @@
+# =============================================================================
+# Workflow: Deploy Complete RAG Modulo Application
+# =============================================================================
+# Description: Comprehensive deployment workflow for RAG Modulo application
+#              including infrastructure, backend, and frontend components
+#              to IBM Cloud Code Engine with security scanning and testing.
+#
+# Author: RAG Modulo Team
+# Last Updated: 2025-01-13
+# Version: 2.0
+#
+# Triggers:
+#   - Manual dispatch (workflow_dispatch)
+#   - Daily builds (schedule: 2 AM UTC)
+#   - Push to main/develop branches
+#
+# Prerequisites:
+#   - IBM Cloud API Key configured as secret
+#   - IBM Cloud Container Registry namespace created
+#   - All application secrets configured in repository settings
+#
+# Jobs:
+#   1. deploy-infrastructure: Deploy PostgreSQL, MinIO, etcd, Milvus
+#   2. build-and-push-backend: Build and push backend Docker image
+#   3. build-and-push-frontend: Build and push frontend Docker image
+#   4. security-scan-*: Scan images for vulnerabilities with Trivy
+#   5. deploy-*: Deploy applications to IBM Cloud Code Engine
+#   6. smoke-test: Verify deployment health and functionality
+#
+# Security Features:
+#   - Trivy vulnerability scanning with SARIF output
+#   - Non-root container execution
+#   - Command injection prevention
+#   - Secret management via GitHub Secrets
+#
+# Resources Deployed:
+#   - Backend: 1 CPU, 4GB RAM, scales 1-5 instances
+#   - Frontend: 0.5 CPU, 1GB RAM, scales 1-3 instances
+#   - PostgreSQL: 0.5 CPU, 2GB RAM
+#   - MinIO: 0.25 CPU, 1GB RAM
+#   - etcd: 0.25 CPU, 1GB RAM
+#   - Milvus: 0.5 CPU, 2GB RAM
+# =============================================================================
+
 name: Deploy Complete RAG Modulo Application
 
+# Define workflow triggers
 on:
+  # Manual deployment with environment selection
   workflow_dispatch:
     inputs:
       environment:
@@ -21,9 +67,10 @@ on:
         required: false
         default: false
         type: boolean
+  # Daily automated builds at 2 AM UTC
   schedule:
-    # Daily build at 2 AM UTC (builds but doesn't deploy by default)
     - cron: '0 2 * * *'
+  # Automatic deployment on code changes
   push:
     branches:
       - main
@@ -36,13 +83,22 @@ env:
   IBM_CLOUD_REGION: ${{ vars.IBM_CLOUD_REGION || 'us-south' }}
   CR_NAMESPACE: ${{ vars.IBM_CR_NAMESPACE || 'rag_modulo' }}
 
-# Prevent concurrent deployments
+# Prevent concurrent deployments to avoid conflicts
 concurrency:
   group: deploy-complete-app-${{ github.ref }}
   cancel-in-progress: false
 
+# =============================================================================
+# WORKFLOW JOBS
+# =============================================================================
 jobs:
-  # Infrastructure deployment
+  # ---------------------------------------------------------------------------
+  # Job 1: Deploy Infrastructure Components
+  # ---------------------------------------------------------------------------
+  # Purpose: Deploy core infrastructure services (PostgreSQL, MinIO, etcd, Milvus)
+  # Dependencies: None (runs first)
+  # Outputs: Infrastructure services ready for application deployment
+  # ---------------------------------------------------------------------------
   deploy-infrastructure:
     runs-on: ubuntu-latest
     steps:
@@ -70,9 +126,17 @@ jobs:
           MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD || 'minioadmin' }}
 
         run: |
-          chmod +x ./.github/scripts/deploy-infrastructure.sh
-          ./.github/scripts/deploy-infrastructure.sh
+          chmod +x ./.github/scripts/deploy-infrastructure-codeengine.sh
+          ./.github/scripts/deploy-infrastructure-codeengine.sh
 
+  # ---------------------------------------------------------------------------
+  # Job 2: Build and Push Backend Application
+  # ---------------------------------------------------------------------------
+  # Purpose: Build Docker image for backend FastAPI application and push to registry
+  # Dependencies: deploy-infrastructure (must complete first)
+  # Outputs: Backend Docker image in IBM Cloud Container Registry
+  # Security: Multi-stage build, non-root user, CPU-only PyTorch
+  # ---------------------------------------------------------------------------
   build-and-push-backend:
     needs: deploy-infrastructure
     runs-on: ubuntu-latest
@@ -254,8 +318,8 @@ jobs:
           JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
           LOG_LEVEL: "INFO"
         run: |
-          chmod +x ./.github/scripts/deploy-backend.sh
-          ./.github/scripts/deploy-backend.sh
+          chmod +x ./.github/scripts/deploy-backend-codeengine.sh
+          ./.github/scripts/deploy-backend-codeengine.sh
 
   deploy-frontend:
     needs: [build-and-push-frontend, security-scan-frontend]
@@ -282,8 +346,8 @@ jobs:
           REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
           REACT_APP_WS_URL: ${{ secrets.REACT_APP_WS_URL }}
         run: |
-          chmod +x ./.github/scripts/deploy-frontend.sh
-          ./.github/scripts/deploy-frontend.sh
+          chmod +x ./.github/scripts/deploy-frontend-codeengine.sh
+          ./.github/scripts/deploy-frontend-codeengine.sh
 
   smoke-test:
     needs: [deploy-backend, deploy-frontend]
