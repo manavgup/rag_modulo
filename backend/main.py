@@ -42,6 +42,7 @@ from rag_solution.router.search_router import router as search_router
 from rag_solution.router.team_router import router as team_router
 from rag_solution.router.token_warning_router import router as token_warning_router
 from rag_solution.router.user_router import router as user_router
+from rag_solution.router.voice_router import router as voice_router
 from rag_solution.router.websocket_router import router as websocket_router
 
 # Services
@@ -196,6 +197,7 @@ app.include_router(user_router)
 app.include_router(team_router)
 app.include_router(search_router)
 app.include_router(token_warning_router)
+app.include_router(voice_router)
 app.include_router(websocket_router)
 
 
