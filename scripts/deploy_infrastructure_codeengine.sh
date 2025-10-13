@@ -50,7 +50,7 @@ fi
 echo "Login successful."
 
 # Set the Code Engine project
-PROJECT_NAME="rag-modulo-test-project"
+PROJECT_NAME="rag-modulo"
 echo "Setting Code Engine project to: $PROJECT_NAME"
 if ! ibmcloud ce project select --name "$PROJECT_NAME"; then
     echo "Error: Failed to select Code Engine project" >&2
