@@ -1,33 +1,87 @@
-# Use a slim Python base image
-FROM python:3.11-slim as builder
+# syntax=docker/dockerfile:1
+# Stage 1: Builder
+# Installs dependencies and builds the application
+FROM python:3.12-slim AS builder
 
-# Set working directory
+# Set environment variables for Poetry
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    POETRY_VERSION=1.8.2 \
+    POETRY_HOME="/opt/poetry" \
+    POETRY_VIRTUALENVS_IN_PROJECT=false \
+    POETRY_VIRTUALENVS_CREATE=false \
+    POETRY_NO_INTERACTION=1 \
+    POETRY_CACHE_DIR="/opt/poetry/cache"
+
+ENV PATH="$POETRY_HOME/bin:$PATH"
+
+# Install system dependencies required for building Python packages
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends build-essential curl && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install Rust toolchain, required by some dependencies
+RUN curl --proto '=https\' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Install Poetry
+RUN curl -sSL https://install.python-poetry.org | python3 -
+
 WORKDIR /app
-
-# Install poetry
-RUN pip install poetry
 
 # Copy dependency definition files
-COPY backend/poetry.lock backend/pyproject.toml /app/
+COPY backend/pyproject.toml backend/poetry.lock ./
 
-# Install dependencies
-RUN poetry config virtualenvs.create false && \
-    poetry install --no-dev --no-interaction --no-ansi
+# Install CPU-only PyTorch to avoid large CUDA dependencies
+RUN pip install --no-cache-dir torch==2.5.0+cpu torchvision==0.20.0+cpu --index-url https://download.pytorch.org/whl/cpu
 
-# --- Final Stage ---
-FROM python:3.11-slim
+# Configure pip to always use the CPU index for PyTorch
+RUN pip config set global.extra-index-url https://download.pytorch.org/whl/cpu
+
+# Install dependencies using Poetry
+RUN poetry install --without dev --no-root
+
+# Stage 2: Final Image
+# Creates the final, smaller runtime image
+FROM python:3.12-slim
 
 WORKDIR /app
 
-# Copy installed dependencies from builder stage
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=builder /app/ /app/
+# Copy installed Python packages from the builder stage
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
 
-# Copy the backend application code
-COPY backend/ /app/
+# Copy all necessary application files and directories
+COPY backend/main.py backend/healthcheck.py ./
+COPY backend/rag_solution/ ./rag_solution/
+COPY backend/auth/ ./auth/
+COPY backend/core/ ./core/
+COPY backend/cli/ ./cli/
+COPY backend/vectordbs/ ./vectordbs/
+COPY backend/pyproject.toml ./
 
-# Expose the port the app runs on
+# Create a non-root user and group for security
+RUN groupadd --gid 10001 backend && \
+    useradd --uid 10001 -g backend -M -d /nonexistent backend && \
+    mkdir -p /app/logs && \
+    chown -R backend:backend /app && \
+    chmod -R 755 /app && \
+    chmod 777 /app/logs
+
+# Set environment variables for the application
+ENV PYTHONPATH=/app
+ENV CONTAINER_ENV=1
+ENV LOG_LEVEL="INFO"
+
+# Switch to the non-root user
+USER backend
+
 EXPOSE 8000
 
-# Run the application
-CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "-w", "4", "-b", "0.0.0.0:8000", "main:app"]
+# Health check to monitor application status
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:8000/health || exit 1
+
+# Command to run the application using Uvicorn
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
