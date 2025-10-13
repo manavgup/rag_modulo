@@ -121,30 +121,36 @@ local-dev-frontend:
 local-dev-all:
 	@echo "$(CYAN)🚀 Starting full local development stack...$(NC)"
 	@PROJECT_ROOT=$$(pwd); \
-	mkdir -p $$PROJECT_ROOT/.dev-pids $$PROJECT_ROOT/logs; \
+	mkdir -p $$PROJECT_ROOT/logs; \
 	$(MAKE) local-dev-infra; \
 	echo "$(CYAN)🐍 Starting backend in background...$(NC)"; \
-	cd backend && $(POETRY) run uvicorn main:app --reload --host 0.0.0.0 --port 8000 > $$PROJECT_ROOT/logs/backend.log 2>&1 & echo $$! > $$PROJECT_ROOT/.dev-pids/backend.pid; \
-	sleep 2; \
-	if [ -f $$PROJECT_ROOT/.dev-pids/backend.pid ]; then \
-		if kill -0 $$(cat $$PROJECT_ROOT/.dev-pids/backend.pid) 2>/dev/null; then \
-			echo "$(GREEN)✅ Backend started (PID: $$(cat $$PROJECT_ROOT/.dev-pids/backend.pid))$(NC)"; \
-		else \
+	cd backend && $(POETRY) run uvicorn main:app --reload --host 0.0.0.0 --port 8000 > $$PROJECT_ROOT/logs/backend.log 2>&1 & \
+	echo "Waiting for backend to start..."; \
+	for i in 1 2 3 4 5 6 7 8 9 10; do \
+		if curl -s http://localhost:8000/api/health >/dev/null 2>&1; then \
+			echo "$(GREEN)✅ Backend started and responding$(NC)"; \
+			break; \
+		fi; \
+		if [ $$i -eq 10 ]; then \
 			echo "$(RED)❌ Backend failed to start - check logs/backend.log$(NC)"; \
 			exit 1; \
 		fi; \
-	fi; \
+		sleep 1; \
+	done; \
 	echo "$(CYAN)⚛️  Starting frontend in background...$(NC)"; \
-	cd frontend && npm run dev > $$PROJECT_ROOT/logs/frontend.log 2>&1 & echo $$! > $$PROJECT_ROOT/.dev-pids/frontend.pid; \
-	sleep 2; \
-	if [ -f $$PROJECT_ROOT/.dev-pids/frontend.pid ]; then \
-		if kill -0 $$(cat $$PROJECT_ROOT/.dev-pids/frontend.pid) 2>/dev/null; then \
-			echo "$(GREEN)✅ Frontend started (PID: $$(cat $$PROJECT_ROOT/.dev-pids/frontend.pid))$(NC)"; \
-		else \
-			echo "$(RED)❌ Frontend failed to start - check logs/frontend.log$(NC)"; \
-			exit 1; \
+	cd frontend && npm run dev > $$PROJECT_ROOT/logs/frontend.log 2>&1 & \
+	echo "Waiting for frontend to start..."; \
+	for i in 1 2 3 4 5 6 7 8 9 10; do \
+		if curl -s http://localhost:3000 >/dev/null 2>&1; then \
+			echo "$(GREEN)✅ Frontend started and responding$(NC)"; \
+			break; \
 		fi; \
-	fi; \
+		if [ $$i -eq 10 ]; then \
+			echo "$(YELLOW)⚠️  Frontend may still be starting - check logs/frontend.log$(NC)"; \
+			break; \
+		fi; \
+		sleep 1; \
+	done; \
 	echo "$(GREEN)✅ Local development environment running!$(NC)"; \
 	echo "$(CYAN)💡 Services:$(NC)"; \
 	echo "  Frontend:  http://localhost:3000"; \
@@ -157,24 +163,11 @@ local-dev-all:
 
 local-dev-stop:
 	@echo "$(CYAN)🛑 Stopping local development services...$(NC)"
-	@if [ -f .dev-pids/backend.pid ]; then \
-		if kill -0 $$(cat .dev-pids/backend.pid) 2>/dev/null; then \
-			kill $$(cat .dev-pids/backend.pid) && echo "$(GREEN)✅ Backend stopped$(NC)"; \
-		fi; \
-		rm -f .dev-pids/backend.pid; \
-	else \
-		echo "Backend not running (no PID file)"; \
-	fi
-	@if [ -f .dev-pids/frontend.pid ]; then \
-		if kill -0 $$(cat .dev-pids/frontend.pid) 2>/dev/null; then \
-			kill $$(cat .dev-pids/frontend.pid) && echo "$(GREEN)✅ Frontend stopped$(NC)"; \
-		fi; \
-		rm -f .dev-pids/frontend.pid; \
-	else \
-		echo "Frontend not running (no PID file)"; \
-	fi
+	@echo "Stopping backend..."
+	@pkill -f "uvicorn main:app" || echo "Backend not running"
+	@echo "Stopping frontend..."
+	@pkill -f "vite.*frontend" || echo "Frontend not running"
 	@$(DOCKER_COMPOSE) -f docker-compose-infra.yml down
-	@rm -rf .dev-pids
 	@echo "$(GREEN)✅ Local development stopped$(NC)"
 
 local-dev-status:
@@ -184,27 +177,19 @@ local-dev-status:
 	@$(DOCKER_COMPOSE) -f docker-compose-infra.yml ps
 	@echo ""
 	@echo "$(CYAN)🐍 Backend:$(NC)"
-	@if [ -f .dev-pids/backend.pid ]; then \
-		if kill -0 $$(cat .dev-pids/backend.pid) 2>/dev/null; then \
-			echo "$(GREEN)✅ Running (PID: $$(cat .dev-pids/backend.pid))$(NC)"; \
-		else \
-			echo "$(RED)❌ PID file exists but process is dead$(NC)"; \
-			rm -f .dev-pids/backend.pid; \
-		fi; \
+	@if curl -s http://localhost:8000/api/health >/dev/null 2>&1; then \
+		echo "$(GREEN)✅ Running and healthy at http://localhost:8000$(NC)"; \
+		pgrep -f "uvicorn main:app" | head -1 | xargs -I {} echo "   PID: {}"; \
 	else \
-		echo "$(RED)❌ Not running$(NC)"; \
+		echo "$(RED)❌ Not responding$(NC)"; \
 	fi
 	@echo ""
 	@echo "$(CYAN)⚛️  Frontend:$(NC)"
-	@if [ -f .dev-pids/frontend.pid ]; then \
-		if kill -0 $$(cat .dev-pids/frontend.pid) 2>/dev/null; then \
-			echo "$(GREEN)✅ Running (PID: $$(cat .dev-pids/frontend.pid))$(NC)"; \
-		else \
-			echo "$(RED)❌ PID file exists but process is dead$(NC)"; \
-			rm -f .dev-pids/frontend.pid; \
-		fi; \
+	@if curl -s http://localhost:3000 >/dev/null 2>&1; then \
+		echo "$(GREEN)✅ Running at http://localhost:3000$(NC)"; \
+		pgrep -f "vite.*frontend" | head -1 | xargs -I {} echo "   PID: {}"; \
 	else \
-		echo "$(RED)❌ Not running$(NC)"; \
+		echo "$(RED)❌ Not responding$(NC)"; \
 	fi
 
 # ============================================================================
@@ -376,7 +361,7 @@ prod-status:
 
 clean:
 	@echo "$(CYAN)🧹 Cleaning up...$(NC)"
-	@rm -rf .pytest_cache .mypy_cache .ruff_cache backend/htmlcov backend/.coverage
+	@rm -rf .pytest_cache .mypy_cache .ruff_cache backend/htmlcov backend/.coverage .dev-pids
 	@find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	@echo "$(GREEN)✅ Cleanup complete$(NC)"
 

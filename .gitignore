@@ -76,6 +76,9 @@ my_chroma_data/
 backend/logs/
 logs/
 
+# Development PID files (deprecated - no longer used)
+.dev-pids/
+
 # Project specific
 chroma/
 milvus.log
