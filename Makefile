@@ -118,42 +118,7 @@ local-dev-frontend:
 	@echo "$(CYAN)⚛️  Starting frontend with HMR (Vite)...$(NC)"
 	@cd frontend && npm run dev
 
-local-dev-all:
-	@echo "$(CYAN)🚀 Starting full local development stack...$(NC)"
-	@PROJECT_ROOT=$$(pwd); \
-	mkdir -p $$PROJECT_ROOT/.dev-pids $$PROJECT_ROOT/logs; \
-	$(MAKE) local-dev-infra; \
-	echo "$(CYAN)🐍 Starting backend in background...$(NC)"; \
-	cd backend && $(POETRY) run uvicorn main:app --reload --host 0.0.0.0 --port 8000 > $$PROJECT_ROOT/logs/backend.log 2>&1 & echo $$! > $$PROJECT_ROOT/.dev-pids/backend.pid; \
-	sleep 2; \
-	if [ -f $$PROJECT_ROOT/.dev-pids/backend.pid ]; then \
-		if kill -0 $$(cat $$PROJECT_ROOT/.dev-pids/backend.pid) 2>/dev/null; then \
-			echo "$(GREEN)✅ Backend started (PID: $$(cat $$PROJECT_ROOT/.dev-pids/backend.pid))$(NC)"; \
-		else \
-			echo "$(RED)❌ Backend failed to start - check logs/backend.log$(NC)"; \
-			exit 1; \
-		fi; \
-	fi; \
-	echo "$(CYAN)⚛️  Starting frontend in background...$(NC)"; \
-	cd frontend && npm run dev > $$PROJECT_ROOT/logs/frontend.log 2>&1 & echo $$! > $$PROJECT_ROOT/.dev-pids/frontend.pid; \
-	sleep 2; \
-	if [ -f $$PROJECT_ROOT/.dev-pids/frontend.pid ]; then \
-		if kill -0 $$(cat $$PROJECT_ROOT/.dev-pids/frontend.pid) 2>/dev/null; then \
-			echo "$(GREEN)✅ Frontend started (PID: $$(cat $$PROJECT_ROOT/.dev-pids/frontend.pid))$(NC)"; \
-		else \
-			echo "$(RED)❌ Frontend failed to start - check logs/frontend.log$(NC)"; \
-			exit 1; \
-		fi; \
-	fi; \
-	echo "$(GREEN)✅ Local development environment running!$(NC)"; \
-	echo "$(CYAN)💡 Services:$(NC)"; \
-	echo "  Frontend:  http://localhost:3000"; \
-	echo "  Backend:   http://localhost:8000"; \
-	echo "  MLFlow:    http://localhost:5001"; \
-	echo "$(CYAN)📋 Logs:$(NC)"; \
-	echo "  Backend:   tail -f logs/backend.log"; \
-	echo "  Frontend:  tail -f logs/frontend.log"; \
-	echo "$(CYAN)🛑 Stop:$(NC) make local-dev-stop"
+
 
 local-dev-stop:
 	@echo "$(CYAN)🛑 Stopping local development services...$(NC)"
@@ -206,6 +171,28 @@ local-dev-status:
 	else \
 		echo "$(RED)❌ Not running$(NC)"; \
 	fi
+
+# ============================================================================
+# CONTAINER-BASED DEVELOPMENT
+# ============================================================================
+
+dev:
+	@echo "$(CYAN)🚀 Starting container-based development environment...$(NC)"
+	@$(DOCKER_COMPOSE) -f docker-compose.dev.yml up -d --build
+	@echo "$(GREEN)✅ Development environment started$(NC)"
+
+dev-stop:
+	@echo "$(CYAN)🛑 Stopping container-based development environment...$(NC)"
+	@$(DOCKER_COMPOSE) -f docker-compose.dev.yml down
+	@echo "$(GREEN)✅ Development environment stopped$(NC)"
+
+dev-logs:
+	@echo "$(CYAN)📋 Tailing development logs...$(NC)"
+	@$(DOCKER_COMPOSE) -f docker-compose.dev.yml logs -f
+
+dev-status:
+	@echo "$(CYAN)📊 Container-based Development Status$(NC)"
+	@$(DOCKER_COMPOSE) -f docker-compose.dev.yml ps
 
 # ============================================================================
 # BUILD TARGETS
@@ -412,23 +399,27 @@ check-docker:
 # HELP
 # ============================================================================
 
-help:
+	help:
 	@echo ""
 	@echo "$(CYAN)╔══════════════════════════════════════════════════════════════╗$(NC)"
 	@echo "$(CYAN)║         RAG Modulo - Streamlined Development Guide          ║$(NC)"
 	@echo "$(CYAN)╚══════════════════════════════════════════════════════════════╝$(NC)"
 	@echo ""
-	@echo "$(CYAN)🚀 Quick Start (Local Development - RECOMMENDED):$(NC)"
+	@echo "$(CYAN)🚀 Quick Start (Container-based Development):$(NC)"
+	@echo "  $(GREEN)make dev$(NC)                   Start development environment with hot-reloading"
+	@echo "  $(GREEN)make dev-status$(NC)            Check status of development containers"
+	@echo "  $(GREEN)make dev-logs$(NC)              Tail logs from development containers"
+	@echo "  $(GREEN)make dev-stop$(NC)              Stop development environment"
+	@echo ""
+	@echo "$(CYAN)🚀 Quick Start (Local Containerless Development - RECOMMENDED):$(NC)"
 	@echo "  $(GREEN)make local-dev-setup$(NC)      Install dependencies (backend + frontend)"
 	@echo "  $(GREEN)make local-dev-infra$(NC)      Start infrastructure (Postgres, Milvus, etc.)"
 	@echo "  $(GREEN)make local-dev-backend$(NC)    Start backend with hot-reload (Terminal 1)"
 	@echo "  $(GREEN)make local-dev-frontend$(NC)   Start frontend with HMR (Terminal 2)"
-	@echo "  $(GREEN)make local-dev-all$(NC)        Start everything in background"
 	@echo "  $(GREEN)make local-dev-status$(NC)     Check status of local services"
 	@echo "  $(GREEN)make local-dev-stop$(NC)       Stop all local services"
 	@echo ""
-	@echo "$(CYAN)🐍 Virtual Environment:$(NC)"
-	@echo "  $(GREEN)make venv$(NC)                 Create Python virtual environment"
+	@echo "$(CYAN)🐍 Virtual Environment:$(NC)"	@echo "  $(GREEN)make venv$(NC)                 Create Python virtual environment"
 	@echo "  $(GREEN)make clean-venv$(NC)           Remove virtual environment"
 	@echo ""
 	@echo "$(CYAN)🧪 Testing:$(NC)"
