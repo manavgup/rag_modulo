@@ -104,6 +104,15 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
 
+      - name: 🧹 Free Up Disk Space
+        if: |
+          contains(matrix.id, 'ruff') || contains(matrix.id, 'mypy') ||
+          contains(matrix.id, 'pylint') || contains(matrix.id, 'pydocstyle')
+        run: |
+          echo "Initial: $(df -h / | awk 'NR==2 {print $4}') available"
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost "$AGENT_TOOLSDIRECTORY"
+          echo "After cleanup: $(df -h / | awk 'NR==2 {print $4}') available"
+
       - name: 🔍 Install jq for JSON linting
         if: matrix.id == 'jsonlint'
         run: sudo apt-get update && sudo apt-get install -y jq
