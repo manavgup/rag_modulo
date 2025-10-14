@@ -91,15 +91,16 @@ jobs:
         run: |
           cd backend
           # Install runtime + test deps; skip dev tools to reduce disk usage
-          poetry install --with test --without dev --no-root --no-cache
+          poetry install --with test --without dev
 
       # 6️⃣ Validate free disk space after cleanup (optional)
-      - name: ✅ Ensure sufficient free disk space (>= 5G)
+      - name: ✅ Ensure sufficient free disk space (>= ${MIN_FREE_GB:-5}G)
         run: |
+          THRESHOLD=${MIN_FREE_GB:-5}
           FREE=$(df -BG / | awk 'NR==2 {gsub("G","",$4); print $4}')
-          echo "Free space: ${FREE}G"
-          if [ "$FREE" -lt 5 ]; then
-            echo "Error: Less than 5G free after cleanup"
+          echo "Free space: ${FREE}G (threshold: ${THRESHOLD}G)"
+          if [ "$FREE" -lt "$THRESHOLD" ]; then
+            echo "Error: Less than ${THRESHOLD}G free after cleanup"
             exit 1
           fi
 
