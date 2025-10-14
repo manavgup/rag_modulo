@@ -90,14 +90,19 @@ jobs:
       - name: 📥 Install main + test dependencies (skip dev)
         run: |
           cd backend
-          # Install runtime + test deps; skip dev tools to reduce disk usage
+          # Install runtime + test deps; skip dev tools to reduce disk usage.
+          # Note: We intentionally skip the 'dev' group in unit tests to avoid
+          # heavy linters/type-checkers. pytest-cov and friends are declared in
+          # the 'test' group in pyproject.toml, so coverage still works.
+          # If coverage fails due to env drift, consider adding pytest-cov here
+          # explicitly or switching to `--with dev,test` selectively.
           poetry install --with test --without dev
 
       # 6️⃣ Validate free disk space after cleanup (optional)
-      - name: ✅ Ensure sufficient free disk space (>= ${MIN_FREE_GB:-5}G)
+      - name: ✅ Ensure sufficient free disk space
         run: |
           THRESHOLD=${MIN_FREE_GB:-5}
-          FREE=$(df -BG / | awk 'NR==2 {gsub("G","",$4); print $4}')
+          FREE=$(df -BG / | awk 'NR==2 {gsub("G","",$4); print int($4)}')
           echo "Free space: ${FREE}G (threshold: ${THRESHOLD}G)"
           if [ "$FREE" -lt "$THRESHOLD" ]; then
             echo "Error: Less than ${THRESHOLD}G free after cleanup"
