@@ -625,3 +625,94 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
                 error_type="cleanup_error",
                 message=f"Orphaned collection cleanup failed: {e!s}",
             ) from e
+
+    async def reindex_collection(self, collection_id: UUID4, user_id: UUID4) -> None:
+        """
+        Reindex all documents in a collection using current chunking settings.
+
+        This method:
+        1. Deletes all existing chunks from the vector database
+        2. Reprocesses all documents with current chunking configuration from .env
+        3. Re-indexes all chunks into the vector database
+        4. Regenerates suggested questions
+
+        Args:
+            collection_id: Collection UUID to reindex
+            user_id: User UUID requesting the reindex
+
+        Raises:
+            NotFoundError: If collection not found
+            CollectionProcessingError: If reindexing fails
+        """
+        try:
+            logger.info("Starting reindex for collection %s (user %s)", str(collection_id), str(user_id))
+
+            # Get collection
+            collection = self.get_collection(collection_id)
+
+            # Update status to PROCESSING
+            self.update_collection_status(collection_id, CollectionStatus.PROCESSING)
+
+            # Get all file records for this collection
+            file_records = self.file_management_service.get_files_by_collection(collection_id)
+
+            if not file_records:
+                logger.warning("No files found for collection %s - nothing to reindex", str(collection_id))
+                self.update_collection_status(collection_id, CollectionStatus.COMPLETED)
+                return
+
+            logger.info("Found %d files to reindex for collection %s", len(file_records), str(collection_id))
+
+            # Delete existing data from vector database
+            logger.info("Deleting existing vector data for collection %s", collection.vector_db_name)
+            try:
+                self.vector_store.delete_collection(collection.vector_db_name)
+                # Recreate the collection with same metadata
+                self.vector_store.create_collection(collection.vector_db_name, {"is_private": collection.is_private})
+                logger.info("Vector collection recreated: %s", collection.vector_db_name)
+            except CollectionError as e:
+                logger.error("Error recreating vector collection: %s", str(e))
+                self.update_collection_status(collection_id, CollectionStatus.ERROR)
+                raise CollectionProcessingError(
+                    collection_id=str(collection_id),
+                    stage="reindex_cleanup",
+                    error_type="vector_db_error",
+                    message=f"Failed to recreate vector collection: {e!s}",
+                ) from e
+
+            # Build lists of file paths and document IDs
+            file_paths = []
+            document_ids = []
+
+            for file_record in file_records:
+                if file_record.filename:
+                    # Get the current file path (based on current file_storage_path setting)
+                    # Don't use file_record.file_path as it may be outdated/temporary
+                    file_path = self.file_management_service.get_file_path(collection_id, file_record.filename)
+                    file_paths.append(str(file_path))
+                    # Use document_id if available, otherwise use file id as string
+                    document_ids.append(file_record.document_id if file_record.document_id else str(file_record.id))
+
+            logger.info("Reprocessing %d documents with current chunking settings", len(file_paths))
+
+            # Reprocess documents using current chunking settings
+            # This will use the updated MIN_CHUNK_SIZE, MAX_CHUNK_SIZE, etc. from .env
+            await self.process_documents(file_paths, collection_id, collection.vector_db_name, document_ids, user_id)
+
+            logger.info("Reindexing completed successfully for collection %s", str(collection_id))
+
+        except NotFoundError:
+            logger.error("Collection not found for reindexing: %s", str(collection_id))
+            raise
+        except CollectionProcessingError:
+            # Already logged and status updated
+            raise
+        except (ValueError, KeyError, AttributeError) as e:
+            logger.error("Unexpected error during reindexing: %s", str(e))
+            self.update_collection_status(collection_id, CollectionStatus.ERROR)
+            raise CollectionProcessingError(
+                collection_id=str(collection_id),
+                stage="reindex",
+                error_type="unexpected_error",
+                message=f"Reindexing failed: {e!s}",
+            ) from e

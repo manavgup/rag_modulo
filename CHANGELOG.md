@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Multi-Provider Podcast Audio Generation** (PR #TBD): Comprehensive custom voice support with multi-provider TTS
+  - **Per-Turn Provider Selection**: Each dialogue turn can use different TTS provider (OpenAI, ElevenLabs)
+  - **Custom Voice Resolution**: Automatic UUID-based voice detection, database lookup, and provider mapping
+  - **ElevenLabs Integration**: Added ElevenLabs provider with voice cloning support
+  - **Audio Stitching**: Seamless combination of audio segments from different providers with 500ms pauses
+  - **Script Format Flexibility**: Support for multiple dialogue formats (HOST:, [HOST]:, [Host]:, etc.)
+  - **LLM Prompt Improvements**: Prevents placeholder names ([HOST NAME], [EXPERT NAME]) in generated scripts
+  - **Provider Caching**: Efficient provider instance management to avoid recreation per turn
+  - **Type Safety**: Replaced `Any` types with proper `AudioProviderBase` type hints
+  - **Configuration**: Added ElevenLabs settings to env.example with comprehensive defaults
+  - **Code Quality**: All linting checks passed (Ruff, Pylint 9.37/10)
+
 - **Reusable UI Components Library** (Issue #395, PR #402): Comprehensive UI component system for consistent frontend design
   - **8 New Components**: Button, Input, TextArea, Select, Modal, Card, Badge, FileUpload
   - **Design System**: Carbon Design System principles with Tailwind CSS styling

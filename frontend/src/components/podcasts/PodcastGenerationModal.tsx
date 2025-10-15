@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { useNotification } from '../../contexts/NotificationContext';
-import apiClient, { PodcastGenerationInput, VoiceId } from '../../services/apiClient';
+import apiClient, { PodcastGenerationInput, VoiceId, CustomVoice } from '../../services/apiClient';
 import VoiceSelector from './VoiceSelector';
 
 interface PodcastGenerationModalProps {
@@ -66,6 +66,26 @@ const PodcastGenerationModal: React.FC<PodcastGenerationModalProps> = ({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUrlRef = useRef<string | null>(null);
 
+  // Custom voices state
+  const [customVoices, setCustomVoices] = useState<CustomVoice[]>([]);
+  const [, setIsLoadingVoices] = useState(false);
+
+  // Load custom voices
+  const loadCustomVoices = async () => {
+    setIsLoadingVoices(true);
+    try {
+      const response = await apiClient.listVoices(100, 0);
+      // Only include ready voices
+      const readyVoices = response.voices.filter(v => v.status === 'ready');
+      setCustomVoices(readyVoices);
+    } catch (error) {
+      console.error('Error loading custom voices:', error);
+      // Don't show error notification - custom voices are optional
+    } finally {
+      setIsLoadingVoices(false);
+    }
+  };
+
   const handlePlayPreview = async (voiceId: VoiceId) => {
     if (playingVoiceId === voiceId) {
       handleStopPreview();
@@ -73,7 +93,11 @@ const PodcastGenerationModal: React.FC<PodcastGenerationModalProps> = ({
     }
 
     try {
-      const audioBlob = await apiClient.getVoicePreview(voiceId);
+      // Check if it's a custom voice (UUID format) or OpenAI voice
+      const isCustomVoice = voiceId.includes('-'); // UUIDs contain hyphens
+      const audioBlob = isCustomVoice
+        ? await apiClient.getVoiceSample(voiceId)
+        : await apiClient.getVoicePreview(voiceId);
       const audioUrl = URL.createObjectURL(audioBlob);
 
       // Clean up previous audio if exists
@@ -120,14 +144,8 @@ const PodcastGenerationModal: React.FC<PodcastGenerationModalProps> = ({
     };
   }, []);
 
-  // Load collections when modal opens and no collection is provided
-  useEffect(() => {
-    if (isOpen && !providedCollectionId) {
-      loadCollections();
-    }
-  }, [isOpen, providedCollectionId]);
-
-  const loadCollections = async () => {
+  // Define functions before useEffect
+  const loadCollections = useCallback(async () => {
     setIsLoadingCollections(true);
     try {
       const collectionsData = await apiClient.getCollections();
@@ -138,10 +156,21 @@ const PodcastGenerationModal: React.FC<PodcastGenerationModalProps> = ({
     } finally {
       setIsLoadingCollections(false);
     }
-  };
+  }, [addNotification]);
 
+  // Load collections when modal opens and no collection is provided
+  useEffect(() => {
+    if (isOpen && !providedCollectionId) {
+      loadCollections();
+    }
+  }, [isOpen, providedCollectionId, loadCollections]);
 
-  const estimatedCost = duration * 0.013; // $0.013 per minute for OpenAI TTS
+  // Load custom voices when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      loadCustomVoices();
+    }
+  }, [isOpen]);
 
   // Validation for button state
   const collectionId = providedCollectionId || selectedCollectionId;
@@ -328,7 +357,22 @@ const PodcastGenerationModal: React.FC<PodcastGenerationModalProps> = ({
           <div className="grid grid-cols-2 gap-2">
             <VoiceSelector
               label="Host Voice"
-              options={VOICE_OPTIONS}
+              groups={[
+                {
+                  label: 'OpenAI Voices',
+                  voices: VOICE_OPTIONS
+                },
+                {
+                  label: 'My Custom Voices',
+                  voices: customVoices.map(v => ({
+                    id: v.voice_id,
+                    name: v.name,
+                    gender: v.gender,
+                    description: v.description || `Custom ${v.gender} voice`,
+                    isCustom: true
+                  }))
+                }
+              ]}
               selectedVoice={hostVoice}
               onSelectVoice={setHostVoice}
               playingVoiceId={playingVoiceId}
@@ -337,7 +381,22 @@ const PodcastGenerationModal: React.FC<PodcastGenerationModalProps> = ({
             />
             <VoiceSelector
               label="Expert Voice"
-              options={VOICE_OPTIONS}
+              groups={[
+                {
+                  label: 'OpenAI Voices',
+                  voices: VOICE_OPTIONS
+                },
+                {
+                  label: 'My Custom Voices',
+                  voices: customVoices.map(v => ({
+                    id: v.voice_id,
+                    name: v.name,
+                    gender: v.gender,
+                    description: v.description || `Custom ${v.gender} voice`,
+                    isCustom: true
+                  }))
+                }
+              ]}
               selectedVoice={expertVoice}
               onSelectVoice={setExpertVoice}
               playingVoiceId={playingVoiceId}

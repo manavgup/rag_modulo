@@ -8,6 +8,50 @@ Implementing Ralph pattern with Advanced Context Engineering (ACE-FCA) for syste
 
 ## 🚨 Recent Major Updates
 
+### **October 15, 2025: Multi-Provider Podcast Audio Generation** - PR #TBD ✅
+
+**Claude Code Assistant** completed comprehensive multi-provider TTS support with custom voice integration.
+
+#### **Key Features Implemented:**
+1. **✅ Per-Turn Provider Selection** - Each dialogue turn uses appropriate TTS provider (OpenAI, ElevenLabs)
+2. **✅ Custom Voice Resolution** - Automatic UUID detection, database lookup, ownership validation
+3. **✅ ElevenLabs Integration** - Full provider registration with voice cloning support
+4. **✅ Audio Stitching** - Seamless combination of multi-provider audio segments with 500ms pauses
+5. **✅ Script Format Flexibility** - Accepts HOST:, [HOST]:, [Host]:, EXPERT:, [EXPERT]:, etc.
+6. **✅ LLM Prompt Improvements** - Prevents placeholder names ([HOST NAME], [EXPERT NAME])
+7. **✅ Provider Caching** - Efficient instance management avoiding recreation per turn
+8. **✅ Type Safety** - Replaced `Any` types with `AudioProviderBase` throughout
+
+#### **Technical Implementation:**
+- **Multi-Provider Architecture**: `podcast_service.py` orchestrates per-turn provider selection
+- **Voice Resolution**: UUID-based custom voice detection with database lookup and validation
+- **Provider Factory**: Added ElevenLabs to `AudioProviderFactory` with proper settings handling
+- **Script Parser**: Extended regex patterns for bracket-style speaker labels
+- **Schema Validation**: Updated to accept multiple dialogue formats
+
+#### **Testing & Quality:**
+- **End-to-End**: Successfully generated podcast with mixed providers (ElevenLabs + OpenAI)
+- **Audio Quality**: Natural dialogue without placeholder names, seamless stitching
+- **Linting**: ✅ Ruff (all checks passed), ✅ Pylint (9.37/10 rating)
+- **Type Safety**: Zero `Any` types in new code, proper `AudioProviderBase` hints
+
+#### **Files Modified:**
+- `rag_solution/services/podcast_service.py` (~300 lines: multi-provider logic, voice resolution, prompt updates)
+- `rag_solution/schemas/podcast_schema.py` (~10 lines: script format validation)
+- `rag_solution/utils/script_parser.py` (~10 lines: bracket format patterns)
+- `rag_solution/generation/audio/factory.py` (~25 lines: ElevenLabs registration)
+- `rag_solution/generation/audio/elevenlabs_audio.py` (~15 lines: settings with defaults)
+- `env.example` (added ElevenLabs configuration section)
+
+#### **Documentation:**
+- **Environment**: Added ElevenLabs settings to `env.example` with comprehensive defaults
+- **Changelog**: Updated `CHANGELOG.md` with feature details
+- **AGENTS**: Updated this file with implementation details
+
+**Status**: ✅ Complete - All linting passed, end-to-end tested, documentation updated
+
+---
+
 ### **October 13, 2025: Reusable UI Components Library** - Issue #395, PR #402 ✅
 
 **Claude Code Assistant** completed comprehensive UI component library for consistent frontend design.

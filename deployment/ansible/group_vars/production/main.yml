@@ -1,0 +1,109 @@
+# Production Environment Variables
+# This file contains production-specific settings
+
+---
+# Environment configuration
+environment: "production"
+debug_enabled: false
+skip_auth_enabled: false
+log_level: "INFO"
+
+# Scaling configuration (high availability for production)
+backend_scaling:
+  min_scale: 3
+  max_scale: 20
+  cpu: "2"
+  memory: "4Gi"
+
+frontend_scaling:
+  min_scale: 2
+  max_scale: 10
+  cpu: "1"
+  memory: "2Gi"
+
+# Image tags (production - specific versions only)
+backend_image_tag: "v1.0.0"
+frontend_image_tag: "v1.0.0"
+
+# Production features
+enable_monitoring: true
+enable_backups: true
+enable_ssl: true
+enable_encryption: true
+enable_security_scanning: true
+enable_compliance_scanning: true
+
+# Production service endpoints (managed services)
+service_endpoints:
+  postgresql:
+    host: "{{ postgresql_host }}"
+    port: "{{ postgresql_port }}"
+    database: "{{ postgresql_database }}"
+    username: "{{ postgresql_username }}"
+    password: "{{ postgresql_password }}"
+  
+  object_storage:
+    endpoint: "{{ object_storage_endpoint }}"
+    access_key: "{{ object_storage_access_key }}"
+    secret_key: "{{ object_storage_secret_key }}"
+    bucket_name: "{{ object_storage_bucket_name }}"
+  
+  zilliz:
+    endpoint: "{{ zilliz_endpoint }}"
+    api_key: "{{ zilliz_api_key }}"
+  
+  event_streams:
+    endpoint: "{{ event_streams_endpoint }}"
+    api_key: "{{ event_streams_api_key }}"
+
+# Production tags
+deployment_tags:
+  - "project:rag-modulo"
+  - "environment:production"
+  - "cost-center:production"
+  - "owner:production-team"
+  - "compliance:required"
+  - "backup:required"
+  - "monitoring:required"
+  - "managed:true"
+
+# Production-specific settings
+production_settings:
+  hot_reload: false
+  debug_mode: false
+  verbose_logging: false
+  skip_tests: false
+  skip_security_checks: false
+  enable_auto_scaling: true
+  enable_disaster_recovery: true
+  backup_retention_days: 30
+  monitoring_alert_threshold: 80
+  security_scan_frequency: "daily"
+  compliance_scan_frequency: "weekly"
+
+# High availability configuration
+high_availability:
+  enable_multi_zone: true
+  enable_load_balancing: true
+  enable_auto_failover: true
+  min_healthy_instances: 2
+
+# Security configuration
+security:
+  enable_ssl: true
+  enable_encryption: true
+  enable_authentication: true
+  enable_authorization: true
+  enable_audit_logging: true
+  ssl_certificate_auto_renewal: true
+  encryption_at_rest: true
+  encryption_in_transit: true
+
+# Compliance configuration
+compliance:
+  enable_gdpr: true
+  enable_hipaa: false
+  enable_sox: false
+  enable_pci_dss: false
+  data_retention_days: 2555  # 7 years
+  audit_log_retention_days: 2555

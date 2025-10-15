@@ -1,0 +1,337 @@
+name: Terraform & Ansible Validation
+
+# This workflow validates Terraform and Ansible configurations
+# Runs on every PR and push to main to ensure deployment configurations are valid
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'deployment/**'
+      - '.github/workflows/terraform-ansible-validation.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'deployment/**'
+      - '.github/workflows/terraform-ansible-validation.yml'
+  workflow_dispatch:
+
+# Cancel outdated workflow runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  terraform-validation:
+    name: 🔧 Terraform Validation
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - module: "managed-services"
+            path: "deployment/terraform/modules/ibm-cloud/managed-services"
+          - module: "code-engine"
+            path: "deployment/terraform/modules/ibm-cloud/code-engine"
+          - module: "monitoring"
+            path: "deployment/terraform/modules/ibm-cloud/monitoring"
+          - module: "backup"
+            path: "deployment/terraform/modules/ibm-cloud/backup"
+          - module: "environment"
+            path: "deployment/terraform/environments/ibm"
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: 🔧 Install Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.5.0'
+
+      - name: 🧹 Free Up Disk Space
+        run: |
+          echo "Initial: $(df -h / | awk 'NR==2 {print $4}') available"
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost "$AGENT_TOOLSDIRECTORY"
+          echo "After cleanup: $(df -h / | awk 'NR==2 {print $4}') available"
+
+      - name: 🔍 Terraform Format Check
+        working-directory: ${{ matrix.path }}
+        run: |
+          terraform fmt -check -recursive
+          echo "✅ Terraform format check passed"
+
+      - name: 🔍 Terraform Init
+        working-directory: ${{ matrix.path }}
+        run: |
+          terraform init -backend=false
+          echo "✅ Terraform init completed"
+
+      - name: 🔍 Terraform Validate
+        working-directory: ${{ matrix.path }}
+        run: |
+          terraform validate
+          echo "✅ Terraform validation passed"
+
+      - name: 🔍 Terraform Plan (Dry Run)
+        working-directory: ${{ matrix.path }}
+        run: |
+          # Create test variables file
+          cat > test.tfvars << EOF
+          project_name = "test-rag-modulo"
+          environment = "dev"
+          region = "us-south"
+          resource_group_id = "test-resource-group"
+          ibmcloud_api_key = "test-api-key"
+          container_registry_username = "iamapikey"
+          container_registry_password = "test-password"
+          postgresql_admin_password = "test-password-123"
+          enable_production_safeguards = false
+          EOF
+
+          terraform plan -var-file="test.tfvars"
+          echo "✅ Terraform plan completed"
+
+      - name: 🔍 Terraform Security Scan
+        working-directory: ${{ matrix.path }}
+        run: |
+          # Check for hardcoded secrets
+          if grep -r "password.*=" . --include="*.tf" | grep -v "var\." | grep -v "test"; then
+            echo "❌ Hardcoded passwords found"
+            exit 1
+          fi
+
+          # Check for latest image tags
+          if grep -r ":latest" . --include="*.tf"; then
+            echo "❌ Latest image tags found"
+            exit 1
+          fi
+
+          echo "✅ Terraform security scan passed"
+
+  ansible-validation:
+    name: 🎭 Ansible Validation
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - playbook: "deploy-rag-modulo"
+            path: "deployment/ansible/playbooks/deploy-rag-modulo.yml"
+          - inventory: "ibm"
+            path: "deployment/ansible/inventories/ibm/hosts.yml"
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: 🧹 Free Up Disk Space
+        run: |
+          echo "Initial: $(df -h / | awk 'NR==2 {print $4}') available"
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost "$AGENT_TOOLSDIRECTORY"
+          echo "After cleanup: $(df -h / | awk 'NR==2 {print $4}') available"
+
+      - name: 🔧 Install Ansible
+        run: |
+          pip install ansible ansible-lint yamllint
+          echo "✅ Ansible installed"
+
+      - name: 🔍 Ansible Syntax Check
+        working-directory: deployment/ansible
+        run: |
+          if [ "${{ matrix.playbook }}" != "" ]; then
+            ansible-playbook --syntax-check playbooks/${{ matrix.playbook }}.yml
+            echo "✅ Ansible playbook syntax check passed"
+          fi
+
+          if [ "${{ matrix.inventory }}" != "" ]; then
+            ansible-inventory --list -i inventories/${{ matrix.inventory }}/hosts.yml
+            echo "✅ Ansible inventory syntax check passed"
+          fi
+
+      - name: 🔍 Ansible Lint
+        working-directory: deployment/ansible
+        run: |
+          if [ "${{ matrix.playbook }}" != "" ]; then
+            ansible-lint playbooks/${{ matrix.playbook }}.yml
+            echo "✅ Ansible lint check passed"
+          fi
+
+      - name: 🔍 YAML Lint
+        working-directory: deployment/ansible
+        run: |
+          yamllint -c .yamllint .
+          echo "✅ YAML lint check passed"
+
+      - name: 🔍 Ansible Collections Check
+        working-directory: deployment/ansible
+        run: |
+          ansible-galaxy collection install -r requirements.yml
+          PATTERN="(ansible\.posix|ansible\.windows|community\.general"
+          PATTERN="${PATTERN}|community\.kubernetes|ibm\.cloudcollection)"
+          ansible-galaxy collection list | grep -E "${PATTERN}"
+          echo "✅ Ansible collections check passed"
+
+      - name: 🔍 Ansible Dry Run
+        working-directory: deployment/ansible
+        run: |
+          if [ "${{ matrix.playbook }}" != "" ]; then
+            # Create test inventory
+            cat > inventories/ibm/test_hosts.yml << EOF
+          ---
+          all:
+            hosts:
+              localhost:
+                ansible_connection: local
+                ansible_python_interpreter: "{{ ansible_playbook_python }}"
+            vars:
+              project_name: "test-rag-modulo"
+              environment: "dev"
+              region: "us-south"
+              resource_group_id: "test-resource-group"
+              ibmcloud_api_key: "test-api-key"
+              container_registry_username: "iamapikey"
+              container_registry_password: "test-password"
+              backend_image_tag: "v1.0.0"
+              frontend_image_tag: "v1.0.0"
+              postgresql_host: "test-postgres.example.com"
+              postgresql_port: 5432
+              postgresql_database: "test_db"
+              postgresql_username: "test_user"
+              postgresql_password: "test_password"
+              object_storage_endpoint: "test-storage.example.com"
+              object_storage_access_key: "test_access_key"
+              object_storage_secret_key: "test_secret_key"
+              object_storage_bucket_name: "test-bucket"
+              zilliz_endpoint: "test-zilliz.example.com"
+              zilliz_api_key: "test_zilliz_key"
+              event_streams_endpoint: "test-kafka.example.com"
+              event_streams_api_key: "test_kafka_key"
+              backend_health_url: "https://backend-app.example.com/health"
+              frontend_health_url: "https://frontend-app.example.com/"
+          EOF
+
+            ansible-playbook --check --diff -i inventories/ibm/test_hosts.yml playbooks/${{ matrix.playbook }}.yml
+            echo "✅ Ansible dry run completed"
+          fi
+
+  integration-tests:
+    name: 🧪 Integration Tests
+    runs-on: ubuntu-latest
+    needs: [terraform-validation, ansible-validation]
+    if: always()
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: 🔧 Install Dependencies
+        run: |
+          pip install ansible ansible-lint yamllint
+          wget https://releases.hashicorp.com/terraform/1.5.0/terraform_1.5.0_linux_amd64.zip
+          unzip terraform_1.5.0_linux_amd64.zip
+          sudo mv terraform /usr/local/bin/
+          echo "✅ Dependencies installed"
+
+      - name: 🧪 Run Integration Tests
+        run: |
+          cd deployment/tests
+          chmod +x integration_test.sh
+          ./integration_test.sh
+          echo "✅ Integration tests completed"
+
+  security-scan:
+    name: 🔒 Security Scan
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔍 Terraform Security Scan
+        run: |
+          # Check for hardcoded secrets in Terraform files
+          if grep -r "password.*=" deployment/terraform --include="*.tf" | grep -v "var\." | grep -v "test"; then
+            echo "❌ Hardcoded passwords found in Terraform files"
+            exit 1
+          fi
+
+          # Check for latest image tags
+          if grep -r ":latest" deployment/terraform --include="*.tf"; then
+            echo "❌ Latest image tags found in Terraform files"
+            exit 1
+          fi
+
+          # Check for insecure settings in production
+          if grep -r "SKIP_AUTH.*true" deployment/terraform --include="*.tf" | grep -v "dev"; then
+            echo "❌ Insecure settings found in production configuration"
+            exit 1
+          fi
+
+          echo "✅ Terraform security scan passed"
+
+      - name: 🔍 Ansible Security Scan
+        run: |
+          # Check for hardcoded secrets in Ansible files
+          if grep -r "password.*=" deployment/ansible --include="*.yml" | grep -v "var\." | grep -v "test"; then
+            echo "❌ Hardcoded passwords found in Ansible files"
+            exit 1
+          fi
+
+          # Check for insecure settings
+          if grep -r "skip_auth.*true" deployment/ansible --include="*.yml" | grep -v "dev"; then
+            echo "❌ Insecure settings found in Ansible files"
+            exit 1
+          fi
+
+          echo "✅ Ansible security scan passed"
+
+  validation-summary:
+    name: 📊 Validation Summary
+    runs-on: ubuntu-latest
+    needs: [terraform-validation, ansible-validation, integration-tests, security-scan]
+    if: always()
+
+    steps:
+      - name: 📊 Validation Summary
+        run: |
+          echo "## 🔧 Terraform & Ansible Validation Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All validation checks completed. Check individual jobs for details." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Validation Coverage" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **Terraform**: Format, validation, plan, security scan" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **Ansible**: Syntax, lint, collections, dry run" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **Integration**: End-to-end deployment pipeline" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **Security**: Secret scanning, image tag validation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Benefits" >> $GITHUB_STEP_SUMMARY
+          echo "- 🚀 **Early Detection**: Catch issues before deployment" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔒 **Security**: Prevent hardcoded secrets and insecure settings" >> $GITHUB_STEP_SUMMARY
+          echo "- 📋 **Quality**: Ensure code follows best practices" >> $GITHUB_STEP_SUMMARY
+          echo "- 🧪 **Testing**: Validate deployment pipeline works correctly" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "1. Review any failed validation checks" >> $GITHUB_STEP_SUMMARY
+          echo "2. Fix issues and push changes" >> $GITHUB_STEP_SUMMARY
+          echo "3. Re-run validation to confirm fixes" >> $GITHUB_STEP_SUMMARY

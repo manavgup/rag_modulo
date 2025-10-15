@@ -518,7 +518,9 @@ async def download_voice_sample(
 
     file_service = FileManagementService(voice_service.session, settings)
 
-    file_path = file_service.get_voice_file_path(user_id=UUID(user_id), voice_id=voice_id)
+    # user_id might already be a UUID or string - handle both cases
+    user_uuid = user_id if isinstance(user_id, UUID) else UUID(str(user_id))
+    file_path = file_service.get_voice_file_path(user_id=user_uuid, voice_id=voice_id)
 
     if not file_path or not file_path.exists():
         raise HTTPException(

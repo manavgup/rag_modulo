@@ -7,11 +7,18 @@ interface VoiceOption {
   name: string;
   gender: 'male' | 'female' | 'neutral';
   description: string;
+  isCustom?: boolean;
+}
+
+interface VoiceGroup {
+  label: string;
+  voices: VoiceOption[];
 }
 
 interface VoiceSelectorProps {
   label: string;
-  options: VoiceOption[];
+  options?: VoiceOption[];
+  groups?: VoiceGroup[];
   selectedVoice: string;
   onSelectVoice: (voiceId: string) => void;
   playingVoiceId: string | null;
@@ -22,6 +29,7 @@ interface VoiceSelectorProps {
 const VoiceSelector: React.FC<VoiceSelectorProps> = ({
   label,
   options,
+  groups,
   selectedVoice,
   onSelectVoice,
   playingVoiceId,
@@ -30,7 +38,12 @@ const VoiceSelector: React.FC<VoiceSelectorProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
-  const selectedOption = options.find(option => option.id === selectedVoice);
+  // Flatten all voices for finding selected option
+  const allVoices = groups
+    ? groups.flatMap(g => g.voices)
+    : (options || []);
+
+  const selectedOption = allVoices.find(option => option.id === selectedVoice);
 
   const handleVoiceSelect = (voiceId: string) => {
     onSelectVoice(voiceId);
@@ -79,37 +92,89 @@ const VoiceSelector: React.FC<VoiceSelectorProps> = ({
       {/* Dropdown Menu */}
       {isOpen && (
         <div className="absolute z-10 w-full mt-1 bg-white border border-gray-30 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-          {options.map((voice) => {
-            const isPlaying = playingVoiceId === voice.id;
-
-            return (
-              <div
-                key={voice.id}
-                onClick={() => handleVoiceSelect(voice.id)}
-                className="flex items-center justify-between px-2 py-1 hover:bg-gray-20 cursor-pointer transition-colors"
-              >
-                <div className="flex items-center">
-                  <button
-                    onClick={(e) => handlePlayClick(e, voice.id)}
-                    className="mr-2 p-1 rounded-full bg-gray-20 hover:bg-gray-30 transition-colors"
-                  >
-                    {isPlaying ? (
-                      <PauseIcon className="w-3 h-3 text-gray-70" />
-                    ) : (
-                      <PlayIcon className="w-3 h-3 text-gray-70" />
-                    )}
-                  </button>
-                  <div>
-                    <div className="font-medium text-gray-100 text-xs">{voice.name}</div>
-                    <div className="text-xs text-gray-70">{voice.description}</div>
+          {groups ? (
+            // Grouped rendering
+            groups.map((group, groupIndex) => (
+              <div key={groupIndex}>
+                {/* Group Header */}
+                <div className="px-3 py-2 bg-gray-10 border-b border-gray-20">
+                  <div className="text-xs font-semibold text-gray-70 uppercase tracking-wide">
+                    {group.label}
                   </div>
                 </div>
-                {selectedVoice === voice.id && (
-                  <div className="w-2 h-2 bg-blue-60 rounded-full"></div>
+                {/* Group Voices */}
+                {group.voices.length === 0 ? (
+                  <div className="px-3 py-2 text-xs text-gray-60 italic">
+                    No voices available
+                  </div>
+                ) : (
+                  group.voices.map((voice) => {
+                    const isPlaying = playingVoiceId === voice.id;
+                    return (
+                      <div
+                        key={voice.id}
+                        onClick={() => handleVoiceSelect(voice.id)}
+                        className="flex items-center justify-between px-2 py-1 hover:bg-gray-20 cursor-pointer transition-colors"
+                      >
+                        <div className="flex items-center">
+                          <button
+                            onClick={(e) => handlePlayClick(e, voice.id)}
+                            className="mr-2 p-1 rounded-full bg-gray-20 hover:bg-gray-30 transition-colors"
+                          >
+                            {isPlaying ? (
+                              <PauseIcon className="w-3 h-3 text-gray-70" />
+                            ) : (
+                              <PlayIcon className="w-3 h-3 text-gray-70" />
+                            )}
+                          </button>
+                          <div>
+                            <div className="font-medium text-gray-100 text-xs">{voice.name}</div>
+                            <div className="text-xs text-gray-70">{voice.description}</div>
+                          </div>
+                        </div>
+                        {selectedVoice === voice.id && (
+                          <div className="w-2 h-2 bg-blue-60 rounded-full"></div>
+                        )}
+                      </div>
+                    );
+                  })
                 )}
               </div>
-            );
-          })}
+            ))
+          ) : (
+            // Flat rendering (backward compatible)
+            allVoices.map((voice) => {
+              const isPlaying = playingVoiceId === voice.id;
+
+              return (
+                <div
+                  key={voice.id}
+                  onClick={() => handleVoiceSelect(voice.id)}
+                  className="flex items-center justify-between px-2 py-1 hover:bg-gray-20 cursor-pointer transition-colors"
+                >
+                  <div className="flex items-center">
+                    <button
+                      onClick={(e) => handlePlayClick(e, voice.id)}
+                      className="mr-2 p-1 rounded-full bg-gray-20 hover:bg-gray-30 transition-colors"
+                    >
+                      {isPlaying ? (
+                        <PauseIcon className="w-3 h-3 text-gray-70" />
+                      ) : (
+                        <PlayIcon className="w-3 h-3 text-gray-70" />
+                      )}
+                    </button>
+                    <div>
+                      <div className="font-medium text-gray-100 text-xs">{voice.name}</div>
+                      <div className="text-xs text-gray-70">{voice.description}</div>
+                    </div>
+                  </div>
+                  {selectedVoice === voice.id && (
+                    <div className="w-2 h-2 bg-blue-60 rounded-full"></div>
+                  )}
+                </div>
+              );
+            })
+          )}
         </div>
       )}
     </div>

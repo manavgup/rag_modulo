@@ -1,0 +1,305 @@
+---
+# Ansible Deployment Tests
+# This file contains tests for the RAG Modulo deployment playbook
+
+- name: Test Ansible Playbook Syntax
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Check playbook syntax
+      ansible.builtin.command: ansible-playbook --syntax-check deploy-rag-modulo.yml
+      args:
+        chdir: ../playbooks
+      register: syntax_check
+      changed_when: false
+
+    - name: Verify syntax check passed
+      ansible.builtin.assert:
+        that:
+          - syntax_check.rc == 0
+        success_msg: "Playbook syntax is valid"
+        fail_msg: "Playbook syntax check failed"
+
+- name: Test Ansible Playbook Dry Run
+  hosts: localhost
+  gather_facts: false
+  vars:
+    # Test variables
+    project_name: "test-rag-modulo"
+    environment: "dev"
+    region: "us-south"
+    resource_group_id: "test-resource-group"
+    ibmcloud_api_key: "test-api-key"
+    container_registry_username: "iamapikey"
+    container_registry_password: "test-password"
+    backend_image_tag: "v1.0.0"
+    frontend_image_tag: "v1.0.0"
+    postgresql_host: "test-postgres.example.com"
+    postgresql_port: 5432
+    postgresql_database: "test_db"
+    postgresql_username: "test_user"
+    postgresql_password: "test_password"
+    object_storage_endpoint: "test-storage.example.com"
+    object_storage_access_key: "test_access_key"
+    object_storage_secret_key: "test_secret_key"
+    object_storage_bucket_name: "test-bucket"
+    zilliz_endpoint: "test-zilliz.example.com"
+    zilliz_api_key: "test_zilliz_key"
+    event_streams_endpoint: "test-kafka.example.com"
+    event_streams_api_key: "test_kafka_key"
+    backend_health_url: "https://backend-app.example.com/health"
+    frontend_health_url: "https://frontend-app.example.com/"
+
+  tasks:
+    - name: Run playbook dry run
+      ansible.builtin.command: ansible-playbook --check --diff deploy-rag-modulo.yml
+      args:
+        chdir: ../playbooks
+      register: dry_run
+      changed_when: false
+
+    - name: Verify dry run completed
+      ansible.builtin.assert:
+        that:
+          - dry_run.rc == 0
+        success_msg: "Playbook dry run completed successfully"
+        fail_msg: "Playbook dry run failed"
+
+- name: Test Ansible Variable Validation
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Test required variables are defined
+      ansible.builtin.assert:
+        that:
+          - project_name is defined
+          - environment is defined
+          - region is defined
+          - resource_group_id is defined
+          - ibmcloud_api_key is defined
+          - container_registry_password is defined
+          - postgresql_host is defined
+          - postgresql_database is defined
+          - postgresql_username is defined
+          - postgresql_password is defined
+          - object_storage_endpoint is defined
+          - object_storage_access_key is defined
+          - object_storage_secret_key is defined
+          - object_storage_bucket_name is defined
+          - zilliz_endpoint is defined
+          - zilliz_api_key is defined
+          - event_streams_endpoint is defined
+          - event_streams_api_key is defined
+        success_msg: "All required variables are defined"
+        fail_msg: "Some required variables are missing"
+
+    - name: Test environment validation
+      ansible.builtin.assert:
+        that:
+          - environment in ['dev', 'staging', 'production']
+        success_msg: "Environment is valid"
+        fail_msg: "Environment must be one of: dev, staging, production"
+
+    - name: Test image tag validation
+      ansible.builtin.assert:
+        that:
+          - backend_image_tag is defined
+          - frontend_image_tag is defined
+          - "'latest' not in backend_image_tag"
+          - "'latest' not in frontend_image_tag"
+        success_msg: "Image tags are valid (not 'latest')"
+        fail_msg: "Image tags cannot be 'latest' for security reasons"
+
+- name: Test Ansible Collection Dependencies
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Install required collections
+      ansible.builtin.command: ansible-galaxy collection install -r requirements.yml
+      args:
+        chdir: ../
+      register: collection_install
+      changed_when: false
+
+    - name: Verify collections installed
+      ansible.builtin.assert:
+        that:
+          - collection_install.rc == 0
+        success_msg: "All required collections installed successfully"
+        fail_msg: "Failed to install required collections"
+
+    - name: Check collection availability
+      ansible.builtin.command: ansible-galaxy collection list
+      register: collection_list
+      changed_when: false
+
+    - name: Verify core collections are available
+      ansible.builtin.assert:
+        that:
+          - "'ansible.posix' in collection_list.stdout"
+          - "'ansible.windows' in collection_list.stdout"
+          - "'community.general' in collection_list.stdout"
+          - "'community.kubernetes' in collection_list.stdout"
+          - "'ibm.cloudcollection' in collection_list.stdout"
+        success_msg: "All core collections are available"
+        fail_msg: "Some core collections are missing"
+
+- name: Test Ansible Inventory
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Test inventory syntax
+      ansible.builtin.command: ansible-inventory --list
+      args:
+        chdir: ../inventories/ibm
+      register: inventory_check
+      changed_when: false
+
+    - name: Verify inventory is valid
+      ansible.builtin.assert:
+        that:
+          - inventory_check.rc == 0
+        success_msg: "Inventory syntax is valid"
+        fail_msg: "Inventory syntax check failed"
+
+    - name: Test group variables
+      ansible.builtin.command: ansible-inventory --list --yaml
+      args:
+        chdir: ../inventories/ibm
+      register: inventory_yaml
+      changed_when: false
+
+    - name: Verify group variables are loaded
+      ansible.builtin.assert:
+        that:
+          - "'all' in inventory_yaml.stdout"
+          - "'ibm_cloud' in inventory_yaml.stdout"
+          - "'development' in inventory_yaml.stdout"
+          - "'production' in inventory_yaml.stdout"
+        success_msg: "All group variables are loaded"
+        fail_msg: "Some group variables are missing"
+
+- name: Test Ansible Playbook Execution
+  hosts: localhost
+  gather_facts: false
+  vars:
+    # Mock variables for testing
+    project_name: "test-rag-modulo"
+    environment: "dev"
+    region: "us-south"
+    resource_group_id: "test-resource-group"
+    ibmcloud_api_key: "test-api-key"
+    container_registry_username: "iamapikey"
+    container_registry_password: "test-password"
+    backend_image_tag: "v1.0.0"
+    frontend_image_tag: "v1.0.0"
+    postgresql_host: "test-postgres.example.com"
+    postgresql_port: 5432
+    postgresql_database: "test_db"
+    postgresql_username: "test_user"
+    postgresql_password: "test_password"
+    object_storage_endpoint: "test-storage.example.com"
+    object_storage_access_key: "test_access_key"
+    object_storage_secret_key: "test_secret_key"
+    object_storage_bucket_name: "test-bucket"
+    zilliz_endpoint: "test-zilliz.example.com"
+    zilliz_api_key: "test_zilliz_key"
+    event_streams_endpoint: "test-kafka.example.com"
+    event_streams_api_key: "test_kafka_key"
+    backend_health_url: "https://backend-app.example.com/health"
+    frontend_health_url: "https://frontend-app.example.com/"
+
+  tasks:
+    - name: Test playbook execution (dry run)
+      ansible.builtin.command: ansible-playbook --check --diff deploy-rag-modulo.yml
+      args:
+        chdir: ../playbooks
+      register: playbook_execution
+      changed_when: false
+
+    - name: Verify playbook execution
+      ansible.builtin.assert:
+        that:
+          - playbook_execution.rc == 0
+        success_msg: "Playbook execution test passed"
+        fail_msg: "Playbook execution test failed"
+
+    - name: Check for any errors in execution
+      ansible.builtin.assert:
+        that:
+          - "'ERROR' not in playbook_execution.stderr"
+          - "'FAILED' not in playbook_execution.stderr"
+        success_msg: "No errors found in playbook execution"
+        fail_msg: "Errors found in playbook execution"
+
+- name: Test Ansible Error Handling
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Test with missing required variables
+      ansible.builtin.command: ansible-playbook --check deploy-rag-modulo.yml
+      args:
+        chdir: ../playbooks
+      register: missing_vars_test
+      failed_when: false
+      changed_when: false
+
+    - name: Verify error handling for missing variables
+      ansible.builtin.assert:
+        that:
+          - missing_vars_test.rc != 0
+        success_msg: "Playbook correctly handles missing variables"
+        fail_msg: "Playbook should fail with missing variables"
+
+- name: Test Ansible Idempotency
+  hosts: localhost
+  gather_facts: false
+  vars:
+    # Test variables
+    project_name: "test-rag-modulo"
+    environment: "dev"
+    region: "us-south"
+    resource_group_id: "test-resource-group"
+    ibmcloud_api_key: "test-api-key"
+    container_registry_username: "iamapikey"
+    container_registry_password: "test-password"
+    backend_image_tag: "v1.0.0"
+    frontend_image_tag: "v1.0.0"
+    postgresql_host: "test-postgres.example.com"
+    postgresql_port: 5432
+    postgresql_database: "test_db"
+    postgresql_username: "test_user"
+    postgresql_password: "test_password"
+    object_storage_endpoint: "test-storage.example.com"
+    object_storage_access_key: "test_access_key"
+    object_storage_secret_key: "test_secret_key"
+    object_storage_bucket_name: "test-bucket"
+    zilliz_endpoint: "test-zilliz.example.com"
+    zilliz_api_key: "test_zilliz_key"
+    event_streams_endpoint: "test-kafka.example.com"
+    event_streams_api_key: "test_kafka_key"
+    backend_health_url: "https://backend-app.example.com/health"
+    frontend_health_url: "https://frontend-app.example.com/"
+
+  tasks:
+    - name: First run of playbook
+      ansible.builtin.command: ansible-playbook --check --diff deploy-rag-modulo.yml
+      args:
+        chdir: ../playbooks
+      register: first_run
+      changed_when: false
+
+    - name: Second run of playbook (should be idempotent)
+      ansible.builtin.command: ansible-playbook --check --diff deploy-rag-modulo.yml
+      args:
+        chdir: ../playbooks
+      register: second_run
+      changed_when: false
+
+    - name: Verify idempotency
+      ansible.builtin.assert:
+        that:
+          - first_run.rc == 0
+          - second_run.rc == 0
+        success_msg: "Playbook is idempotent"
+        fail_msg: "Playbook is not idempotent"

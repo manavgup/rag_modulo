@@ -212,10 +212,24 @@ class PodcastGenerationInput(BaseModel):
     @field_validator("host_voice", "expert_voice")
     @classmethod
     def validate_voice_ids(cls, v: str) -> str:
-        """Validate that voice IDs are valid OpenAI TTS voices."""
-        if v not in cls.VALID_VOICE_IDS:
-            raise ValueError(f"Invalid voice ID '{v}'. Must be one of: {', '.join(sorted(cls.VALID_VOICE_IDS))}")
-        return v
+        """Validate that voice IDs are valid OpenAI TTS voices or custom voice UUIDs."""
+        # Check if it's a valid OpenAI voice
+        if v in cls.VALID_VOICE_IDS:
+            return v
+
+        # Check if it's a valid UUID (custom voice)
+        # UUIDs have format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+        if "-" in v and len(v) == 36:
+            try:
+                UUID(v)  # Validate it's a proper UUID
+                return v
+            except (ValueError, AttributeError):
+                pass
+
+        raise ValueError(
+            f"Invalid voice ID '{v}'. Must be a valid OpenAI voice "
+            f"({', '.join(sorted(cls.VALID_VOICE_IDS))}) or a custom voice UUID"
+        )
 
     @field_validator("title")
     @classmethod
@@ -385,17 +399,37 @@ class PodcastAudioGenerationInput(BaseModel):
     @field_validator("host_voice", "expert_voice")
     @classmethod
     def validate_voice_ids(cls, v: str) -> str:
-        """Validate that voice IDs are valid OpenAI TTS voices."""
-        if v not in cls.VALID_VOICE_IDS:
-            raise ValueError(f"Invalid voice ID '{v}'. Must be one of: {', '.join(sorted(cls.VALID_VOICE_IDS))}")
-        return v
+        """Validate that voice IDs are valid OpenAI TTS voices or custom voice UUIDs."""
+        # Check if it's a valid OpenAI voice
+        if v in cls.VALID_VOICE_IDS:
+            return v
+
+        # Check if it's a valid UUID (custom voice)
+        # UUIDs have format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+        if "-" in v and len(v) == 36:
+            try:
+                UUID(v)  # Validate it's a proper UUID
+                return v
+            except (ValueError, AttributeError):
+                pass
+
+        raise ValueError(
+            f"Invalid voice ID '{v}'. Must be a valid OpenAI voice "
+            f"({', '.join(sorted(cls.VALID_VOICE_IDS))}) or a custom voice UUID"
+        )
 
     @field_validator("script_text")
     @classmethod
     def validate_script_format(cls, v: str) -> str:
         """Validate that script has proper HOST/EXPERT format."""
-        if "HOST:" not in v and "Host:" not in v:
-            raise ValueError("Script must contain HOST speaker turns")
-        if "EXPERT:" not in v and "Expert:" not in v:
-            raise ValueError("Script must contain EXPERT speaker turns")
+        # Accept multiple formats: HOST:, Host:, [HOST]:, [Host]
+        has_host = any(pattern in v for pattern in ["HOST:", "Host:", "[HOST]:", "[Host]"])
+        has_expert = any(pattern in v for pattern in ["EXPERT:", "Expert:", "[EXPERT]:", "[Expert]"])
+
+        if not has_host:
+            raise ValueError("Script must contain HOST speaker turns (formats: HOST:, Host:, [HOST]:, [Host])")
+        if not has_expert:
+            raise ValueError(
+                "Script must contain EXPERT speaker turns (formats: EXPERT:, Expert:, [EXPERT]:, [Expert])"
+            )
         return v

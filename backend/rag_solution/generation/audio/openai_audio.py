@@ -194,6 +194,71 @@ class OpenAIAudioProvider(AudioProviderBase):
                 original_error=e,
             ) from e
 
+    def _chunk_text(self, text: str, max_length: int = 4000) -> list[str]:
+        """
+        Split text into chunks that fit within OpenAI's character limit.
+
+        OpenAI TTS has a 4096 character limit. We use 4000 to leave buffer for edge cases.
+        Splits on sentence boundaries when possible.
+
+        Args:
+            text: Text to chunk
+            max_length: Maximum characters per chunk
+
+        Returns:
+            List of text chunks
+        """
+        if len(text) <= max_length:
+            return [text]
+
+        chunks = []
+        current_chunk = ""
+
+        # Split on sentences (., !, ?)
+        sentences = []
+        current_sentence = ""
+        for char in text:
+            current_sentence += char
+            if char in {".", "!", "?"} and len(current_sentence) > 10:
+                sentences.append(current_sentence.strip())
+                current_sentence = ""
+
+        # Add remaining text as last sentence
+        if current_sentence.strip():
+            sentences.append(current_sentence.strip())
+
+        # Group sentences into chunks
+        for sentence in sentences:
+            # If a single sentence exceeds limit, split it forcefully
+            if len(sentence) > max_length:
+                if current_chunk:
+                    chunks.append(current_chunk)
+                    current_chunk = ""
+                # Split long sentence at word boundaries
+                words = sentence.split()
+                temp_chunk = ""
+                for word in words:
+                    if len(temp_chunk) + len(word) + 1 <= max_length:
+                        temp_chunk += (" " + word) if temp_chunk else word
+                    else:
+                        if temp_chunk:
+                            chunks.append(temp_chunk)
+                        temp_chunk = word
+                if temp_chunk:
+                    chunks.append(temp_chunk)
+            elif len(current_chunk) + len(sentence) + 1 <= max_length:
+                current_chunk += (" " + sentence) if current_chunk else sentence
+            else:
+                chunks.append(current_chunk)
+                current_chunk = sentence
+
+        # Add final chunk
+        if current_chunk:
+            chunks.append(current_chunk)
+
+        logger.info("Split text of %d chars into %d chunks", len(text), len(chunks))
+        return chunks
+
     async def _generate_turn_audio(
         self,
         text: str,
@@ -202,6 +267,8 @@ class OpenAIAudioProvider(AudioProviderBase):
     ) -> AudioSegment:
         """
         Generate audio for a single turn using OpenAI TTS.
+
+        Automatically chunks text if it exceeds OpenAI's 4096 character limit.
 
         Args:
             text: Text to convert to speech
@@ -215,27 +282,73 @@ class OpenAIAudioProvider(AudioProviderBase):
             Exception: If API call fails
         """
         try:
-            # Call OpenAI TTS API
-            logger.info("Calling OpenAI TTS: voice=%s, text_len=%d, model=%s", voice_id, len(text), self.model)
-            logger.debug("OpenAI API key configured: %s", self.client.api_key is not None)
+            # ALWAYS log text length for debugging
+            logger.info("Processing turn audio: text_len=%d chars, voice=%s", len(text), voice_id)
 
-            response = await self.client.audio.speech.create(
-                model=self.model,
-                voice=voice_id,
-                input=text,
-                response_format=audio_format.value,  # type: ignore[arg-type]
-            )
+            # Check if text needs chunking - use 3500 to be extra safe
+            # OpenAI limit is 4096, but we want a larger buffer
+            if len(text) > 3500:
+                logger.warning("Turn text exceeds 3500 chars (%d), will chunk it", len(text))
+                chunks = self._chunk_text(text, max_length=3500)
 
-            logger.info("OpenAI TTS response received successfully")
+                # Validate ALL chunks are safe
+                for i, chunk in enumerate(chunks):
+                    if len(chunk) > 4095:
+                        logger.error("Chunk %d exceeds limit: %d chars", i + 1, len(chunk))
+                        raise ValueError(f"Chunk {i + 1} exceeds OpenAI limit: {len(chunk)} chars")
+                    logger.info("Chunk %d/%d: %d chars (safe)", i + 1, len(chunks), len(chunk))
 
-            # Convert response to AudioSegment
-            audio_bytes = response.content
-            segment = AudioSegment.from_file(
-                io.BytesIO(audio_bytes),
-                format=audio_format.value,
-            )
+                # Generate audio for each chunk
+                chunk_segments = []
+                for i, chunk in enumerate(chunks):
+                    logger.info("Generating audio for chunk %d/%d", i + 1, len(chunks))
 
-            return segment
+                    response = await self.client.audio.speech.create(
+                        model=self.model,
+                        voice=voice_id,  # type: ignore[arg-type]
+                        input=chunk,
+                        response_format=audio_format.value,  # type: ignore[arg-type]
+                    )
+
+                    audio_bytes = response.content
+                    segment = AudioSegment.from_file(
+                        io.BytesIO(audio_bytes),
+                        format=audio_format.value,
+                    )
+                    chunk_segments.append(segment)
+                    logger.info("Chunk %d/%d audio generated successfully", i + 1, len(chunks))
+
+                # Combine chunks with tiny pause between them
+                combined = AudioSegment.empty()
+                for i, segment in enumerate(chunk_segments):
+                    combined += segment
+                    # Add 100ms pause between chunks (except last)
+                    if i < len(chunk_segments) - 1:
+                        combined += AudioSegment.silent(duration=100)
+
+                logger.info("Combined %d chunks into single turn audio", len(chunks))
+                return combined
+            else:
+                # Text fits in single request - normal flow
+                logger.info("Text fits in single request (%d chars), sending to OpenAI TTS", len(text))
+
+                response = await self.client.audio.speech.create(
+                    model=self.model,
+                    voice=voice_id,  # type: ignore[arg-type]
+                    input=text,
+                    response_format=audio_format.value,  # type: ignore[arg-type]
+                )
+
+                logger.info("OpenAI TTS response received successfully")
+
+                # Convert response to AudioSegment
+                audio_bytes = response.content
+                segment = AudioSegment.from_file(
+                    io.BytesIO(audio_bytes),
+                    format=audio_format.value,
+                )
+
+                return segment
 
         except Exception as e:
             logger.error(

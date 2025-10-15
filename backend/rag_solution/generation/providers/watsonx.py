@@ -228,6 +228,12 @@ class WatsonXLLM(LLMBase):
                     return [str(response).strip()]
             else:
                 # Single prompt handling
+                logger.info(
+                    "=== ENTERING SINGLE PROMPT PATH === prompt=%s, template=%s",
+                    prompt[:50] if prompt else "EMPTY",
+                    template is not None,
+                )
+
                 if template is None:
                     raise ValueError("Template is required for text generation")
 
@@ -236,7 +242,35 @@ class WatsonXLLM(LLMBase):
                     prompt_variables.update(variables)
 
                 formatted_prompt = self.prompt_template_service.format_prompt_with_template(template, prompt_variables)
+                logger.info("=== FORMATTED PROMPT LENGTH: %d chars ===", len(formatted_prompt))
                 logger.debug("Formatted single prompt: %s...", formatted_prompt[:200])
+
+                # Save full prompt to file for debugging (especially useful for podcast generation)
+                import os
+                from datetime import datetime
+
+                debug_dir = "/tmp/watsonx_prompts"
+                os.makedirs(debug_dir, exist_ok=True)
+
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                prompt_file = f"{debug_dir}/prompt_{timestamp}_{user_id}.txt"
+
+                try:
+                    with open(prompt_file, "w", encoding="utf-8") as f:
+                        f.write("=" * 80 + "\n")
+                        f.write(f"WatsonX Prompt Debug - {datetime.now().isoformat()}\n")
+                        f.write("=" * 80 + "\n")
+                        f.write(f"User ID: {user_id}\n")
+                        f.write(f"Model: {model.model_id}\n")
+                        f.write(f"Parameters: {model.params}\n")
+                        f.write("=" * 80 + "\n\n")
+                        f.write("FULL FORMATTED PROMPT:\n")
+                        f.write("-" * 80 + "\n")
+                        f.write(formatted_prompt)
+                        f.write("\n" + "-" * 80 + "\n")
+                    logger.info("Saved full prompt to: %s", prompt_file)
+                except Exception as e:
+                    logger.warning("Failed to save prompt to file: %s", e)
 
                 response = model.generate_text(prompt=formatted_prompt)
                 logger.debug("Response from model: %s", response)
@@ -253,6 +287,22 @@ class WatsonXLLM(LLMBase):
                     )
                 else:
                     result = str(response).strip()
+
+                # Save response to same file for comparison
+                try:
+                    with open(prompt_file, "a", encoding="utf-8") as f:
+                        f.write("\n\n")
+                        f.write("=" * 80 + "\n")
+                        f.write("RAW LLM RESPONSE:\n")
+                        f.write("-" * 80 + "\n")
+                        f.write(result)
+                        f.write("\n" + "-" * 80 + "\n")
+                        f.write(f"\nResponse length: {len(result)} characters\n")
+                        f.write(f"Response word count: {len(result.split())} words\n")
+                    logger.info("Appended response to: %s", prompt_file)
+                except Exception as e:
+                    logger.warning("Failed to append response to file: %s", e)
+
                 return result
 
         except (ValidationError, NotFoundError) as e:

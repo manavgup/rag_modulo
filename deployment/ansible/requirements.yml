@@ -1,0 +1,97 @@
+# Ansible Requirements
+# This file defines the Ansible collections and roles required for deployment
+
+---
+# Ansible Collections
+collections:
+  # Core Ansible collections
+  - name: ansible.posix
+    version: ">= 1.0.0"
+  
+  - name: ansible.windows
+    version: ">= 1.0.0"
+  
+  - name: community.general
+    version: ">= 5.0.0"
+  
+  - name: community.kubernetes
+    version: ">= 2.0.0"
+  
+  - name: kubernetes.core
+    version: ">= 2.0.0"
+  
+  # IBM Cloud collections (valid ones)
+  - name: ibm.cloudcollection
+    version: ">= 1.0.0"
+  
+  # Additional useful collections
+  - name: community.docker
+    version: ">= 3.0.0"
+  
+  - name: community.postgresql
+    version: ">= 3.0.0"
+  
+  - name: community.mongodb
+    version: ">= 1.0.0"
+  
+  - name: community.mysql
+    version: ">= 3.0.0"
+  
+  - name: community.aws
+    version: ">= 5.0.0"
+  
+  - name: community.azure
+    version: ">= 2.0.0"
+  
+  - name: community.gcp
+    version: ">= 1.0.0"
+
+# Ansible Roles
+roles:
+  # Security and hardening roles
+  - name: geerlingguy.security
+    version: ">= 2.0.0"
+  
+  - name: geerlingguy.firewall
+    version: ">= 2.0.0"
+  
+  # Monitoring roles
+  - name: geerlingguy.prometheus
+    version: ">= 1.0.0"
+  
+  - name: geerlingguy.grafana
+    version: ">= 1.0.0"
+  
+  # Database roles
+  - name: geerlingguy.postgresql
+    version: ">= 3.0.0"
+  
+  - name: geerlingguy.mysql
+    version: ">= 3.0.0"
+  
+  # Web server roles
+  - name: geerlingguy.nginx
+    version: ">= 3.0.0"
+  
+  - name: geerlingguy.apache
+    version: ">= 3.0.0"
+  
+  # Container roles
+  - name: geerlingguy.docker
+    version: ">= 6.0.0"
+  
+  - name: geerlingguy.kubernetes
+    version: ">= 1.0.0"
+  
+  # Development tools
+  - name: geerlingguy.git
+    version: ">= 1.0.0"
+  
+  - name: geerlingguy.pip
+    version: ">= 1.0.0"
+  
+  - name: geerlingguy.nodejs
+    version: ">= 1.0.0"
+  
+  - name: geerlingguy.python
+    version: ">= 5.0.0"

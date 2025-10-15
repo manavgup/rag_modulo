@@ -1,0 +1,72 @@
+# Development Environment Variables
+# This file contains development-specific settings
+
+---
+# Environment configuration
+environment: "dev"
+debug_enabled: true
+skip_auth_enabled: true
+log_level: "DEBUG"
+
+# Scaling configuration (minimal for development)
+backend_scaling:
+  min_scale: 1
+  max_scale: 3
+  cpu: "0.5"
+  memory: "1Gi"
+
+frontend_scaling:
+  min_scale: 1
+  max_scale: 2
+  cpu: "0.25"
+  memory: "512Mi"
+
+# Image tags (development versions)
+backend_image_tag: "dev-latest"
+frontend_image_tag: "dev-latest"
+
+# Development features
+enable_monitoring: false
+enable_backups: false
+enable_ssl: false
+enable_encryption: false
+
+# Development service endpoints (local development)
+service_endpoints:
+  postgresql:
+    host: "localhost"
+    port: 5432
+    database: "rag_modulo_dev"
+    username: "rag_user"
+    password: "dev-password"
+  
+  object_storage:
+    endpoint: "localhost:9000"
+    access_key: "minioadmin"
+    secret_key: "minioadmin"
+    bucket_name: "rag-modulo-dev"
+  
+  zilliz:
+    endpoint: "localhost:19530"
+    api_key: ""
+  
+  event_streams:
+    endpoint: "localhost:9092"
+    api_key: ""
+
+# Development tags
+deployment_tags:
+  - "project:rag-modulo"
+  - "environment:development"
+  - "cost-center:development"
+  - "owner:development-team"
+  - "auto-shutdown:true"
+  - "managed:true"
+
+# Development-specific settings
+development_settings:
+  hot_reload: true
+  debug_mode: true
+  verbose_logging: true
+  skip_tests: false
+  skip_security_checks: true

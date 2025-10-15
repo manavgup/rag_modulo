@@ -268,3 +268,15 @@ line-ending = "auto"
 "**/tests/**/*.py" = ["ARG001"]
 # Allow unused arguments in router files (FastAPI dependency injection requires unused params)
 "**/rag_solution/router/*.py" = ["ARG001"]
+
+[tool.pylint.format]
+max-line-length = 120
+
+[tool.pylint.messages_control]
+disable = [
+    "C0111",  # missing-docstring
+    "C0103",  # invalid-name (conflicts with FastAPI patterns)
+    "R0903",  # too-few-public-methods (Pydantic models)
+    "R0913",  # too-many-arguments (common in dependency injection)
+    "W0212",  # protected-access (needed for some internal testing)
+]

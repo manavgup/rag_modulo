@@ -136,6 +136,15 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
         db_gen = get_db()
         try:
             db = next(db_gen)
+
+            # Clear any cached provider instances to ensure fresh initialization
+            # This is critical when .env settings change between restarts
+            from rag_solution.generation.providers.factory import LLMProviderFactory
+
+            factory = LLMProviderFactory(db)
+            factory.cleanup_all()
+            logger.info("Cleared cached provider instances")
+
             system_init_service = SystemInitializationService(db, get_settings())
             providers = system_init_service.initialize_providers(raise_on_error=True)
             logger.info("Initialized providers: %s", ", ".join(p.name for p in providers))

@@ -391,6 +391,9 @@ class TestSystemInitializationServiceUnit:
         mock_generation_model = Mock()
         mock_embedding_model = Mock()
 
+        # Mock get_models_by_provider to return empty list (no existing models)
+        service.llm_model_service.get_models_by_provider.return_value = []
+
         service.llm_model_service.create_model.side_effect = [mock_generation_model, mock_embedding_model]
 
         service._setup_watsonx_models(provider_id, False)
@@ -415,6 +418,9 @@ class TestSystemInitializationServiceUnit:
         """Test _setup_watsonx_models handles error with raise_on_error=False."""
         provider_id = uuid4()
 
+        # Mock get_models_by_provider to return empty list
+        service.llm_model_service.get_models_by_provider.return_value = []
+
         service.llm_model_service.create_model.side_effect = Exception("Model creation failed")
 
         # Should not raise exception
@@ -425,6 +431,9 @@ class TestSystemInitializationServiceUnit:
     def test_setup_watsonx_models_error_with_raise(self, service):
         """Test _setup_watsonx_models handles error with raise_on_error=True."""
         provider_id = uuid4()
+
+        # Mock get_models_by_provider to return empty list
+        service.llm_model_service.get_models_by_provider.return_value = []
 
         service.llm_model_service.create_model.side_effect = Exception("Model creation failed")
 

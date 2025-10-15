@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   HomeIcon,
@@ -47,10 +47,22 @@ const LightweightSidebar: React.FC<LightweightSidebarProps> = ({ isExpanded, onC
   const [isLoading, setIsLoading] = useState(false);
   const [isPodcastsLoading, setIsPodcastsLoading] = useState(false);
 
-  useEffect(() => {
-    loadRecentConversations();
-    loadRecentPodcasts();
-  }, []);
+  // Define functions before useEffect
+  const loadRecentPodcasts = useCallback(async () => {
+    setIsPodcastsLoading(true);
+    try {
+      const userId = user?.id || '';
+      if (!userId) return;
+
+      const response = await apiClient.listPodcasts(userId);
+      // Get the last 10 podcasts
+      setRecentPodcasts(response.podcasts.slice(0, 10));
+    } catch (error) {
+      console.error('Failed to load recent podcasts:', error);
+    } finally {
+      setIsPodcastsLoading(false);
+    }
+  }, [user]);
 
   const loadRecentConversations = async () => {
     setIsLoading(true);
@@ -65,6 +77,11 @@ const LightweightSidebar: React.FC<LightweightSidebarProps> = ({ isExpanded, onC
     }
   };
 
+  useEffect(() => {
+    loadRecentConversations();
+    loadRecentPodcasts();
+  }, [loadRecentPodcasts]);
+
   const handleSelectConversation = (conversation: Conversation) => {
     // Navigate to search page with session parameter
     navigate(`/search?session=${conversation.id}`);
@@ -75,22 +92,6 @@ const LightweightSidebar: React.FC<LightweightSidebarProps> = ({ isExpanded, onC
     // Close sidebar on mobile
     if (window.innerWidth < 1024) {
       onClose();
-    }
-  };
-
-  const loadRecentPodcasts = async () => {
-    setIsPodcastsLoading(true);
-    try {
-      const userId = user?.id || '';
-      if (!userId) return;
-
-      const response = await apiClient.listPodcasts(userId);
-      // Get the last 10 podcasts
-      setRecentPodcasts(response.podcasts.slice(0, 10));
-    } catch (error) {
-      console.error('Failed to load recent podcasts:', error);
-    } finally {
-      setIsPodcastsLoading(false);
     }
   };
 
@@ -299,6 +300,18 @@ const LightweightSidebar: React.FC<LightweightSidebarProps> = ({ isExpanded, onC
                         }`}
                       >
                         <span>All Podcasts</span>
+                      </button>
+
+                      {/* My Voices Link */}
+                      <button
+                        onClick={() => handleNavigate('/voices')}
+                        className={`w-full flex items-center px-3 py-2 rounded-lg text-left transition-colors duration-200 text-sm ${
+                          location.pathname === '/voices'
+                            ? 'bg-blue-50 text-white'
+                            : 'text-gray-70 hover:bg-gray-20 hover:text-gray-100'
+                        }`}
+                      >
+                        <span>My Voices</span>
                       </button>
 
                       {/* Recent Podcasts */}

@@ -386,7 +386,7 @@ def test_service_class_dependency_injection_pattern():
 
         config = service.get_config()
         assert config["llm"] == "anthropic"
-        assert config["embeddings"] == "sentence-transformers/all-minilm-l6-v2"
+        assert config["embeddings"] == "ibm/slate-125m-english-rtrvr"  # Updated to match current default
 
 
 @pytest.mark.unit

@@ -720,6 +720,49 @@ async def upload_documents_to_collection(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+@router.delete(
+    "/{collection_id}/documents/{document_id}",
+    summary="Delete a single document by ID",
+    description="Delete a specific document from a collection by its ID",
+    responses={
+        204: {"description": "Document deleted successfully"},
+        404: {"description": "Document not found"},
+        500: {"description": "Internal server error"},
+    },
+)
+def delete_document_by_id(
+    collection_id: UUID4,
+    document_id: UUID4,
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> Response:
+    """
+    Delete a single document from a collection by its ID.
+
+    Args:
+        collection_id (UUID): The ID of the collection.
+        document_id (UUID): The ID of the document/file to delete.
+        db (Session): The database session.
+        settings (Settings): Application settings.
+
+    Returns:
+        Response: 204 No Content on success.
+
+    Raises:
+        HTTPException: If document not found or deletion fails
+    """
+    try:
+        service = FileManagementService(db, settings)
+        service.delete_file_by_id(collection_id, document_id)
+        return Response(status_code=204)
+    except NotFoundError as e:
+        logger.error("Document not found for deletion: %s", str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        logger.error("Error deleting document %s from collection %s: %s", str(document_id), str(collection_id), str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
 @router.get(
     "/{collection_id}/files",
     response_model=list[str],
@@ -924,3 +967,85 @@ async def cleanup_orphaned_collections(
     except Exception as e:
         logger.error("Error during orphaned collection cleanup: %s", str(e))
         raise HTTPException(status_code=500, detail=f"Cleanup failed: {e!s}") from e
+
+
+@router.post(
+    "/{collection_id}/reindex",
+    summary="Reindex collection documents",
+    description="Reprocess all documents in the collection with current chunking settings",
+    responses={
+        200: {"description": "Reindexing started successfully"},
+        404: {"description": "Collection not found"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def reindex_collection(
+    collection_id: UUID4,
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+    background_tasks: BackgroundTasks = BackgroundTasks(),
+) -> dict:
+    """
+    Reindex all documents in a collection using current chunking settings.
+
+    This endpoint:
+    1. Deletes existing chunks from the vector database
+    2. Reprocesses all documents with current chunking configuration
+    3. Re-indexes all chunks into the vector database
+
+    Useful when:
+    - Chunking settings have changed (MIN_CHUNK_SIZE, MAX_CHUNK_SIZE, etc.)
+    - Documents were incorrectly processed
+    - Vector embeddings need to be regenerated
+
+    Args:
+        collection_id (UUID4): The ID of the collection to reindex
+        request (Request): The HTTP request object containing user authentication
+        db (Session): The database session
+        settings (Settings): Application settings
+        background_tasks (BackgroundTasks): Background tasks for async processing
+
+    Returns:
+        dict: Status message confirming reindexing has started
+
+    Raises:
+        HTTPException: If collection not found or reindexing fails
+    """
+    # Verify authentication
+    if not request or not hasattr(request.state, "user"):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    current_user = request.state.user
+    user_id = current_user.get("uuid")
+
+    logger.info("Reindexing collection %s requested by user %s", str(collection_id), str(user_id))
+
+    try:
+        collection_service = CollectionService(db, settings)
+
+        # Verify collection exists
+        collection = collection_service.get_collection(collection_id)
+
+        # Trigger reindexing in background
+        background_tasks.add_task(
+            collection_service.reindex_collection,
+            collection_id=collection_id,
+            user_id=user_id,
+        )
+
+        logger.info("Reindexing started for collection %s", str(collection_id))
+
+        return {
+            "status": "reindexing_started",
+            "collection_id": str(collection_id),
+            "collection_name": collection.name,
+            "message": "Collection reindexing has been queued and will process in the background",
+        }
+
+    except NotFoundError as e:
+        logger.error("Collection not found for reindexing: %s", str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        logger.error("Error starting reindexing: %s", str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to start reindexing: {e!s}") from e

@@ -130,6 +130,9 @@ Format your script as a natural conversation with these guidelines:
    - Include natural transitions and follow-up questions
    - Start with a brief introduction from HOST
    - End with a conclusion from HOST
+   - CRITICAL: DO NOT use placeholders like [HOST NAME] or [EXPERT NAME]
+   - CRITICAL: The speakers should refer to each other naturally without using placeholder names
+   - CRITICAL: Use direct address or simply continue the dialogue without inserting name placeholders
 
 2. **Script Format (IMPORTANT):**
    Use this exact format for each turn:
@@ -138,6 +141,8 @@ Format your script as a natural conversation with these guidelines:
    EXPERT: [Detailed answer with examples]
    HOST: [Follow-up or transition]
    EXPERT: [Further explanation]
+
+   CRITICAL: Do NOT include any placeholders like [HOST NAME], [EXPERT NAME], or [INSERT NAME]. Write natural dialogue without placeholder names.
 
 3. **Style Guidelines for {podcast_style}:**
    - conversational_interview: Use Q&A format with engaging, open-ended questions. HOST should ask follow-ups and show curiosity.
@@ -723,8 +728,126 @@ CRITICAL INSTRUCTION: Generate the complete dialogue script now using ONLY the p
 
         # Ensure we return a single string (some providers may return list)
         if isinstance(script_text, list):
-            return "\n\n".join(script_text)
+            script_text = "\n\n".join(script_text)
+
+        # Clean up LLM output - remove meta-commentary and duplicates
+        script_text = self._clean_llm_script(script_text)
+
+        logger.info("Cleaned script: %d characters", len(script_text))
+
         return script_text
+
+    def _clean_llm_script(self, script_text: str) -> str:
+        """
+        Clean LLM-generated script by removing meta-commentary and duplicates.
+
+        LLMs often add unwanted content like:
+        - Meta-commentary: "This script adheres to..."
+        - Duplicated content
+        - Instructions/wrapping markers
+
+        Args:
+            script_text: Raw LLM output
+
+        Returns:
+            Cleaned script with only dialogue content
+        """
+        # Common end markers that indicate meta-commentary starts
+        end_markers = [
+            "**End of script.**",
+            "** End of script **",
+            "[End of Response]",
+            "[End of Script]",
+            "[Instruction's wrapping]",
+            "Please note that this script",
+            "---\n\n**Podcast Script:**",  # Duplication marker
+            "***End of Script***",
+        ]
+
+        # Find the first occurrence of any end marker
+        first_marker_pos = len(script_text)
+        for marker in end_markers:
+            pos = script_text.find(marker)
+            if pos != -1 and pos < first_marker_pos:
+                first_marker_pos = pos
+
+        # Strip everything after the first marker
+        if first_marker_pos < len(script_text):
+            logger.info(
+                "Cleaning script: found end marker at position %d, stripping %d chars",
+                first_marker_pos,
+                len(script_text) - first_marker_pos,
+            )
+            script_text = script_text[:first_marker_pos]
+
+        # Remove leading/trailing whitespace and separator lines
+        script_text = script_text.strip()
+        script_text = script_text.strip("-")
+        script_text = script_text.strip()
+
+        return script_text
+
+    async def _resolve_voice_id(self, voice_id: str, user_id: UUID4) -> tuple[str, str | None]:
+        """
+        Resolve voice ID to provider-specific voice ID.
+
+        If voice_id is a UUID (custom voice), look it up in database and return:
+        - provider_voice_id: The actual voice ID in the TTS provider's system
+        - provider_name: The TTS provider name (elevenlabs, playht, resemble)
+
+        If voice_id is not a UUID (predefined voice), return it as-is with None provider.
+
+        Args:
+            voice_id: Voice ID (either UUID for custom voice or provider voice name)
+            user_id: User ID for custom voice lookup
+
+        Returns:
+            Tuple of (resolved_voice_id, provider_name)
+
+        Raises:
+            ValidationError: If custom voice not found or not ready
+        """
+        from uuid import UUID
+
+        # Check if voice_id is a UUID (custom voice)
+        try:
+            voice_uuid = UUID(voice_id)
+            # It's a custom voice - look it up in database
+            from rag_solution.repository.voice_repository import VoiceRepository
+
+            voice_repo = VoiceRepository(self.session)
+            custom_voice = voice_repo.get_by_id(voice_uuid)
+
+            if not custom_voice:
+                raise ValidationError(f"Custom voice '{voice_id}' not found", field="voice_id")
+
+            # Check voice ownership
+            if custom_voice.user_id != user_id:
+                raise ValidationError(f"Custom voice '{voice_id}' does not belong to user", field="voice_id")
+
+            # Check voice is ready
+            if custom_voice.status != "ready":
+                raise ValidationError(
+                    f"Custom voice '{voice_id}' is not ready (status: {custom_voice.status})", field="voice_id"
+                )
+
+            # Check provider voice ID exists
+            if not custom_voice.provider_voice_id:
+                raise ValidationError(f"Custom voice '{voice_id}' has no provider voice ID", field="voice_id")
+
+            logger.info(
+                "Resolved custom voice %s to provider voice ID: %s (provider: %s)",
+                voice_id,
+                custom_voice.provider_voice_id,
+                custom_voice.provider_name,
+            )
+
+            return custom_voice.provider_voice_id, custom_voice.provider_name
+
+        except ValueError:
+            # Not a UUID - it's a predefined provider voice name
+            logger.debug("Voice ID '%s' is a predefined provider voice", voice_id)
+            return voice_id, None
 
     async def _generate_audio(
         self,
@@ -733,36 +856,173 @@ CRITICAL INSTRUCTION: Generate the complete dialogue script now using ONLY the p
         podcast_input: PodcastGenerationInput,
     ) -> bytes:
         """
-        Generate audio from parsed script with progress tracking.
+        Generate audio from parsed script with multi-provider support.
+
+        This implements per-turn provider selection, allowing mixing of voices
+        from different providers (e.g., custom ElevenLabs voice for host,
+        OpenAI voice for expert).
+
+        Strategy:
+        1. For each turn, resolve voice ID and determine its provider
+        2. Create provider instance if needed (cached to avoid recreation)
+        3. Generate audio segment using the appropriate provider
+        4. Combine all segments with pauses into final audio
 
         Args:
-            _podcast_id: Podcast ID for progress updates (currently unused, reserved for future)
-            podcast_script: Parsed PodcastScript
-            podcast_input: Original request
+            _podcast_id: Podcast ID for progress updates (currently unused)
+            podcast_script: Parsed PodcastScript with turns
+            podcast_input: Original podcast generation input with voice settings
 
         Returns:
-            Audio file bytes
-        """
-        # Create audio provider
-        # Default to openai if not configured
-        audio_provider_type = getattr(self.settings, "podcast_audio_provider", "openai")
-        logger.info("Creating audio provider: type=%s", audio_provider_type)
+            Audio bytes (MP3, WAV, etc.)
 
-        audio_provider = AudioProviderFactory.create_provider(
-            provider_type=audio_provider_type,
-            settings=self.settings,
+        Raises:
+            AudioGenerationError: If audio generation fails
+            ValidationError: If voices are invalid
+        """
+        import io
+
+        from pydub import AudioSegment
+
+        from rag_solution.schemas.podcast_schema import Speaker
+
+        logger.info(
+            "Generating audio with multi-provider support for %d turns (host=%s, expert=%s)",
+            len(podcast_script.turns),
+            podcast_input.host_voice,
+            podcast_input.expert_voice,
         )
 
-        logger.info("Audio provider created successfully: %s", audio_provider.__class__.__name__)
+        # Resolve both voices upfront to validate and determine providers
+        host_voice_id, host_provider = await self._resolve_voice_id(
+            podcast_input.host_voice,
+            podcast_input.user_id,
+        )
+        expert_voice_id, expert_provider = await self._resolve_voice_id(
+            podcast_input.expert_voice,
+            podcast_input.user_id,
+        )
 
-        # Generate audio with turn-by-turn progress
-        # Note: OpenAIAudioProvider handles turn iteration internally
-        # We could add progress callback for more granular tracking
-        audio_bytes = await audio_provider.generate_dialogue_audio(
-            script=podcast_script,
-            host_voice=podcast_input.host_voice,
-            expert_voice=podcast_input.expert_voice,
-            audio_format=podcast_input.format,
+        # Determine provider for each role
+        # If voice has a provider, use it; otherwise use default from settings
+        default_provider = getattr(self.settings, "podcast_audio_provider", "openai")
+        host_provider_type = host_provider or default_provider
+        expert_provider_type = expert_provider or default_provider
+
+        logger.info(
+            "Voice configuration: HOST(voice=%s, provider=%s), EXPERT(voice=%s, provider=%s)",
+            host_voice_id,
+            host_provider_type,
+            expert_voice_id,
+            expert_provider_type,
+        )
+
+        # Cache provider instances to avoid recreating them for each turn
+        from rag_solution.generation.audio.base import AudioProviderBase
+
+        provider_cache: dict[str, AudioProviderBase] = {}
+
+        def get_provider(provider_type: str) -> AudioProviderBase:
+            """Get or create audio provider instance."""
+            if provider_type not in provider_cache:
+                logger.debug("Creating %s audio provider", provider_type)
+                provider_cache[provider_type] = AudioProviderFactory.create_provider(
+                    provider_type=provider_type,
+                    settings=self.settings,
+                )
+            return provider_cache[provider_type]
+
+        # Generate audio segments for each turn
+        audio_segments = []
+        pause_duration_ms = 500  # Default pause between speakers
+
+        for idx, turn in enumerate(podcast_script.turns):
+            # Determine voice and provider for this turn
+            if turn.speaker == Speaker.HOST:
+                voice_id = host_voice_id
+                provider_type = host_provider_type
+            else:
+                voice_id = expert_voice_id
+                provider_type = expert_provider_type
+
+            # Get provider instance
+            provider = get_provider(provider_type)
+
+            # Generate audio for this turn
+            try:
+                logger.debug(
+                    "Generating turn %d/%d: speaker=%s, provider=%s, voice=%s, text_len=%d",
+                    idx + 1,
+                    len(podcast_script.turns),
+                    turn.speaker.value,
+                    provider_type,
+                    voice_id,
+                    len(turn.text),
+                )
+
+                # Call provider's internal turn generation method
+                # pylint: disable=protected-access  # Intentional use of internal method for per-turn generation
+                segment = await provider._generate_turn_audio(
+                    text=turn.text,
+                    voice_id=voice_id,
+                    audio_format=podcast_input.format,
+                )
+
+                audio_segments.append(segment)
+
+                logger.debug(
+                    "Generated turn %d/%d successfully (%s, %d chars, %.1f sec)",
+                    idx + 1,
+                    len(podcast_script.turns),
+                    turn.speaker.value,
+                    len(turn.text),
+                    len(segment) / 1000.0,
+                )
+
+            except Exception as e:
+                from rag_solution.generation.audio.base import AudioGenerationError
+
+                logger.error(
+                    "Failed to generate audio for turn %d/%d (speaker=%s, provider=%s): %s",
+                    idx + 1,
+                    len(podcast_script.turns),
+                    turn.speaker.value,
+                    provider_type,
+                    e,
+                )
+                raise AudioGenerationError(
+                    provider=provider_type,
+                    error_type="turn_generation_failed",
+                    message=f"Failed to generate audio for turn {idx + 1}: {e}",
+                    original_error=e,
+                ) from e
+
+            # Add pause after turn (except last one)
+            if idx < len(podcast_script.turns) - 1:
+                pause = AudioSegment.silent(duration=pause_duration_ms)
+                audio_segments.append(pause)
+
+        # Combine all segments into final audio
+        logger.info("Combining %d audio segments into final podcast", len(audio_segments))
+
+        if not audio_segments:
+            raise ValueError("No audio segments generated")
+
+        combined = AudioSegment.empty()
+        for segment in audio_segments:
+            combined += segment
+
+        # Export to bytes
+        buffer = io.BytesIO()
+        combined.export(buffer, format=podcast_input.format.value)
+        audio_bytes = buffer.getvalue()
+
+        logger.info(
+            "Generated complete podcast: %d turns, %d bytes, %.1f seconds, providers_used=%s",
+            len(podcast_script.turns),
+            len(audio_bytes),
+            len(combined) / 1000.0,
+            list(provider_cache.keys()),
         )
 
         return audio_bytes
@@ -1077,7 +1337,6 @@ CRITICAL INSTRUCTION: Generate the complete dialogue script now using ONLY the p
             NotFoundError: If collection not found
             HTTPException: For validation/permission errors
         """
-        from uuid import uuid4
 
         # Validate user_id is set (should be auto-filled by router from auth)
         if not audio_input.user_id:
@@ -1095,28 +1354,31 @@ CRITICAL INSTRUCTION: Generate the complete dialogue script now using ONLY the p
         )
 
         # Create podcast record
-        podcast_id = uuid4()
         podcast_record = self.repository.create(
-            podcast_id=podcast_id,
             user_id=user_id,
             collection_id=audio_input.collection_id,
+            duration=audio_input.duration.value
+            if isinstance(audio_input.duration, PodcastDuration)
+            else audio_input.duration,
+            voice_settings={},  # Empty dict - voices handled separately
+            host_voice=audio_input.host_voice,
+            expert_voice=audio_input.expert_voice,
+            audio_format=audio_input.audio_format.value
+            if isinstance(audio_input.audio_format, AudioFormat)
+            else audio_input.audio_format,
             title=audio_input.title,
-            description=audio_input.description,
-            duration=audio_input.duration,
-            status=PodcastStatus.QUEUED,
-            audio_format=audio_input.audio_format,
         )
 
-        # Schedule background processing
+        # Schedule background processing with the actual podcast ID from database
         background_tasks.add_task(
             self._process_audio_from_script,
-            podcast_id,
+            podcast_record.podcast_id,
             audio_input,
         )
 
-        logger.info("Podcast %s queued for audio generation (script-to-audio)", podcast_id)
+        logger.info("Podcast %s queued for audio generation (script-to-audio)", podcast_record.podcast_id)
 
-        return PodcastGenerationOutput.model_validate(podcast_record)
+        return self.repository.to_schema(podcast_record)
 
     async def _process_audio_from_script(
         self,
@@ -1143,59 +1405,80 @@ CRITICAL INSTRUCTION: Generate the complete dialogue script now using ONLY the p
             # Step 1: Update status
             await self._update_progress(
                 podcast_id,
-                PodcastStatus.GENERATING,
-                progress_percentage=0,
-                current_step="parsing_script",
+                status=PodcastStatus.GENERATING,
+                progress=0,
+                step="parsing_script",
             )
 
             # Step 2: Parse script
             logger.info("Parsing script into dialogue turns")
-            parser = PodcastScriptParser()
-            parsed_script = parser.parse_script(audio_input.script_text)
+            parsing_result = self.script_parser.parse(audio_input.script_text)
+            podcast_script = parsing_result.script
+
+            if parsing_result.parsing_warnings:
+                logger.warning(
+                    "Script parsing warnings for %s: %s",
+                    podcast_id,
+                    parsing_result.parsing_warnings,
+                )
 
             await self._update_progress(
                 podcast_id,
-                PodcastStatus.GENERATING,
-                progress_percentage=30,
-                current_step="generating_audio",
+                progress=30,
+                step="generating_audio",
             )
 
             # Step 3: Generate audio
+            # Convert audio_input to PodcastGenerationInput for _generate_audio compatibility
             logger.info("Generating multi-voice audio")
-            audio_bytes = await self._generate_audio(
-                script=parsed_script.script,
+            podcast_input_for_audio = PodcastGenerationInput(
+                user_id=audio_input.user_id,
+                collection_id=audio_input.collection_id,
+                duration=audio_input.duration,
+                voice_settings={"voice_id": audio_input.host_voice},  # Minimal voice settings
                 host_voice=audio_input.host_voice,
                 expert_voice=audio_input.expert_voice,
-                audio_format=audio_input.audio_format,
+                format=audio_input.audio_format,
+                title=audio_input.title,
+            )
+
+            audio_bytes = await self._generate_audio(
+                podcast_id,
+                podcast_script,
+                podcast_input_for_audio,
             )
 
             await self._update_progress(
                 podcast_id,
-                PodcastStatus.GENERATING,
-                progress_percentage=80,
-                current_step="storing_audio",
+                progress=80,
+                step="storing_audio",
             )
 
             # Step 4: Store audio
             logger.info("Storing audio file")
             audio_url = await self._store_audio(
                 podcast_id=podcast_id,
+                user_id=audio_input.user_id,
                 audio_bytes=audio_bytes,
                 audio_format=audio_input.audio_format,
             )
 
             # Step 5: Mark completed
-            self.repository.update(
+            self.repository.mark_completed(
                 podcast_id=podcast_id,
-                status=PodcastStatus.COMPLETED,
                 audio_url=audio_url,
-                progress_percentage=100,
-                current_step="completed",
+                transcript=audio_input.script_text,
+                audio_size_bytes=len(audio_bytes),
             )
 
             logger.info("Audio generation completed for podcast %s", podcast_id)
 
         except Exception as e:
             logger.exception("Audio generation failed for podcast %s", podcast_id)
-            await self._cleanup_failed_podcast(podcast_id, str(e))
+            await self._cleanup_failed_podcast(
+                podcast_id=podcast_id,
+                user_id=audio_input.user_id,
+                audio_stored=False,
+                error_message=str(e),
+            )
             raise

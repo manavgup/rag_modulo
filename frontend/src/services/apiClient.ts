@@ -2,8 +2,8 @@ import axios, { AxiosInstance, AxiosResponse } from 'axios';
 
 const API_BASE_URL = process.env.REACT_APP_BACKEND_URL || '';
 
-// Valid OpenAI TTS voice IDs
-type VoiceId = 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer';
+// Valid OpenAI TTS voice IDs (or custom voice UUID)
+type VoiceId = 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer' | string;
 
 interface SearchInput {
   question: string;
@@ -288,6 +288,37 @@ interface SuggestedQuestion {
   created_at: string;
 }
 
+// Custom Voice interfaces
+interface CustomVoice {
+  voice_id: string;
+  user_id: string;
+  name: string;
+  description?: string;
+  gender: 'male' | 'female' | 'neutral';
+  status: 'uploading' | 'processing' | 'ready' | 'failed';
+  provider_voice_id?: string;
+  provider_name?: string;
+  sample_file_url: string;
+  sample_file_size: number;
+  quality_score?: number;
+  error_message?: string;
+  times_used: number;
+  created_at: string;
+  updated_at: string;
+  processed_at?: string;
+}
+
+interface VoiceListResponse {
+  voices: CustomVoice[];
+  total_count: number;
+}
+
+interface VoiceUploadInput {
+  name: string;
+  description?: string;
+  gender: 'male' | 'female' | 'neutral';
+}
+
 class ApiClient {
   private client: AxiosInstance;
 
@@ -470,6 +501,21 @@ class ApiClient {
 
   async deleteCollection(id: string): Promise<void> {
     await this.client.delete(`/api/collections/${id}`);
+  }
+
+  async reindexCollection(collectionId: string): Promise<{
+    status: string;
+    collection_id: string;
+    collection_name: string;
+    message: string;
+  }> {
+    const response: AxiosResponse<{
+      status: string;
+      collection_id: string;
+      collection_name: string;
+      message: string;
+    }> = await this.client.post(`/api/collections/${collectionId}/reindex`);
+    return response.data;
   }
 
   async getSuggestedQuestions(collectionId: string): Promise<SuggestedQuestion[]> {
@@ -974,6 +1020,62 @@ class ApiClient {
     return response.data;
   }
 
+  // Voice Management API
+  async listVoices(limit: number = 100, offset: number = 0): Promise<VoiceListResponse> {
+    const response: AxiosResponse<VoiceListResponse> = await this.client.get(
+      `/api/voices/?limit=${limit}&offset=${offset}`
+    );
+    return response.data;
+  }
+
+  async uploadVoice(input: VoiceUploadInput, audioFile: File): Promise<CustomVoice> {
+    const formData = new FormData();
+    formData.append('name', input.name);
+    formData.append('gender', input.gender);
+    formData.append('audio_file', audioFile);
+    if (input.description) {
+      formData.append('description', input.description);
+    }
+
+    const response: AxiosResponse<CustomVoice> = await this.client.post(
+      '/api/voices/upload',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    return response.data;
+  }
+
+  async processVoice(voiceId: string, providerName: string): Promise<CustomVoice> {
+    const response: AxiosResponse<CustomVoice> = await this.client.post(
+      `/api/voices/${voiceId}/process`,
+      { provider_name: providerName }
+    );
+    return response.data;
+  }
+
+  async getVoice(voiceId: string): Promise<CustomVoice> {
+    const response: AxiosResponse<CustomVoice> = await this.client.get(`/api/voices/${voiceId}`);
+    return response.data;
+  }
+
+  async deleteVoice(voiceId: string): Promise<void> {
+    await this.client.delete(`/api/voices/${voiceId}`);
+  }
+
+  async getVoiceSample(voiceId: string): Promise<Blob> {
+    const response: AxiosResponse<Blob> = await this.client.get(
+      `/api/voices/${voiceId}/sample`,
+      {
+        responseType: 'blob',
+      }
+    );
+    return response.data;
+  }
+
   // Auth API
   async getUserInfo(): Promise<UserInfo> {
     const response: AxiosResponse<UserInfo> = await this.client.get('/api/auth/userinfo');
@@ -1006,4 +1108,7 @@ export type {
   PodcastStepDetails,
   SuggestedQuestion,
   VoiceId,
+  CustomVoice,
+  VoiceListResponse,
+  VoiceUploadInput,
 };

@@ -1,36 +1,120 @@
----
-# YAML Lint Configuration for RAG Modulo
-# Configured for GitHub Actions workflows
+# YAML Lint Configuration
+# This file configures yamllint for consistent YAML formatting
 
 extends: default
 
 rules:
-  # Allow longer lines (workflows often have long commands)
+  # Line length
   line-length:
     max: 120
     level: warning
 
-  # Don't require document start markers
-  document-start: disable
-
-  # Allow "on" keyword in GitHub Actions
-  truthy:
-    allowed-values: ['true', 'false', 'on', 'off']
-
-  # Relax bracket spacing rules
-  brackets:
-    max-spaces-inside: 1
-
-  # Standard indentation
+  # Indentation
   indentation:
     spaces: 2
-    indent-sequences: consistent
+    indent-sequences: true
+    check-multi-line-strings: false
 
-  # Allow empty values
-  empty-values:
-    forbid-in-block-mappings: false
-    forbid-in-flow-mappings: false
-
-  # Comments can have any spacing
+  # Comments
   comments:
     min-spaces-from-content: 1
+
+  # Empty lines
+  empty-lines:
+    max: 2
+    max-start: 0
+    max-end: 0
+
+  # Truthy values
+  truthy:
+    allowed-values: ['true', 'false', 'yes', 'no', 'on', 'off']
+    check-keys: false
+
+  # Document start
+  document-start:
+    present: false
+
+  # Document end
+  document-end:
+    present: false
+
+  # Key ordering
+  key-ordering: disable
+
+  # Octal values
+  octal-values:
+    forbid-implicit-octal: true
+    forbid-explicit-octal: false
+
+  # Quoted strings
+  quoted-strings:
+    quote-type: single
+    check-keys: false
+
+  # Trailing spaces
+  trailing-spaces:
+    level: error
+
+  # Empty values
+  empty-values:
+    forbid-in-block-mappings: true
+    forbid-in-flow-mappings: true
+
+  # Hyphens
+  hyphens:
+    max-spaces-after: 1
+
+  # Colons
+  colons:
+    max-spaces-before: 0
+    max-spaces-after: 1
+
+  # Commas
+  commas:
+    max-spaces-before: 0
+    max-spaces-after: 1
+
+  # Brackets
+  brackets:
+    min-spaces-inside: 0
+    max-spaces-inside: 1
+
+  # Braces
+  braces:
+    min-spaces-inside: 0
+    max-spaces-inside: 1
+
+  # Comments indentation
+  comments-indentation: disable
+
+  # Key duplicates
+  key-duplicates: enable
+
+  # Key ordering
+  key-ordering: disable
+
+  # New line at end of file
+  new-line-at-end-of-file: enable
+
+  # New lines
+  new-lines:
+    type: unix
+
+  # Octal values
+  octal-values:
+    forbid-implicit-octal: true
+    forbid-explicit-octal: false
+
+  # Quoted strings
+  quoted-strings:
+    quote-type: single
+    check-keys: false
+
+  # Trailing spaces
+  trailing-spaces:
+    level: error
+
+  # Truthy
+  truthy:
+    allowed-values: ['true', 'false', 'yes', 'no', 'on', 'off']
+    check-keys: false

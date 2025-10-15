@@ -23,6 +23,7 @@ import LightweightLoginPage from './components/auth/LightweightLoginPage';
 import LightweightNotFound from './components/errors/LightweightNotFound';
 import LightweightPodcasts from './components/podcasts/LightweightPodcasts';
 import LightweightPodcastDetail from './components/podcasts/LightweightPodcastDetail';
+import VoiceManagement from './components/podcasts/VoiceManagement';
 
 const App: React.FC = () => {
   return (
@@ -54,6 +55,7 @@ const App: React.FC = () => {
                       {/* Podcast Routes */}
                       <Route path="/podcasts" element={<LightweightPodcasts />} />
                       <Route path="/podcasts/:id" element={<LightweightPodcastDetail />} />
+                      <Route path="/voices" element={<VoiceManagement />} />
 
                       {/* User Routes */}
                       <Route path="/profile" element={<LightweightUserProfile />} />

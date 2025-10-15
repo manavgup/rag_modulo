@@ -98,7 +98,7 @@ class TestScriptGenerationDurationControl:
         result_script = await mock_podcast_service._generate_script(podcast_input, "rag_results")
 
         # PROBLEM: Service accepts script without validation
-        assert result_script == too_short_script
+        assert result_script == too_short_script.strip()
         assert actual_word_count < 1000  # Way too short
         # NO VALIDATION - script is accepted even though it's 5x too short
 
@@ -145,7 +145,7 @@ class TestScriptGenerationDurationControl:
         result_script = await mock_podcast_service._generate_script(podcast_input, "rag_results")
 
         # PROBLEM: Service accepts script without validation
-        assert result_script == too_long_script
+        assert result_script == too_long_script.strip()
         assert actual_word_count > 4000  # Way too long
         # NO VALIDATION - script is accepted even though it's 6x too long
 

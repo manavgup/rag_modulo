@@ -90,6 +90,35 @@ class FileManagementService:
             logger.error(f"Unexpected error deleting files: {e!s}")
             raise
 
+    def delete_file_by_id(self, collection_id: UUID4, file_id: UUID4) -> None:
+        """
+        Delete a file by its ID, verifying it belongs to the specified collection.
+
+        Args:
+            collection_id (UUID): The ID of the collection.
+            file_id (UUID): The ID of the file to delete.
+
+        Raises:
+            NotFoundError: If the file is not found.
+            ValidationError: If the file does not belong to the collection.
+        """
+        logger.info(f"Deleting file {file_id} from collection {collection_id}")
+        # Get the file and verify it exists
+        file = self.file_repository.get(file_id)  # Will raise NotFoundError if not found
+
+        # Verify the file belongs to the specified collection
+        if file.collection_id != collection_id:
+            logger.warning(f"File {file_id} does not belong to collection {collection_id}")
+            raise NotFoundError(
+                resource_type="File",
+                resource_id=str(file_id),
+                message=f"File {file_id} not found in collection {collection_id}",
+            )
+
+        # Delete the file
+        self.delete_file(file_id)
+        logger.info(f"File {file_id} deleted successfully from collection {collection_id}")
+
     def get_files_by_collection(self, collection_id: UUID4) -> list[FileOutput]:
         try:
             logger.info(f"Fetching files for collection: {collection_id}")
