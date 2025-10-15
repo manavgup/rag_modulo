@@ -46,18 +46,17 @@ rules:
     forbid-implicit-octal: true
     forbid-explicit-octal: false
 
-  # Quoted strings
-  quoted-strings:
-    quote-type: single
-    check-keys: false
+  # Quoted strings - disabled for flexibility with GitHub Actions workflows
+  # GitHub Actions often uses both quoted and unquoted strings depending on context
+  quoted-strings: disable
 
   # Trailing spaces
   trailing-spaces:
     level: error
 
-  # Empty values
+  # Empty values - allow in block mappings for GitHub Actions (e.g., strategy: matrix:)
   empty-values:
-    forbid-in-block-mappings: true
+    forbid-in-block-mappings: false
     forbid-in-flow-mappings: true
 
   # Hyphens

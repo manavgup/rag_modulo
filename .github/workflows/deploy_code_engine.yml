@@ -1,0 +1,185 @@
+name: Deploy to IBM Cloud Code Engine
+
+on:
+  workflow_dispatch:
+    inputs:
+      skip_security_scan:
+        description: 'Skip security scanning (not recommended)'
+        required: false
+        default: false
+        type: boolean
+
+# Define environment variables for the entire workflow
+env:
+  APP_NAME: ${{ vars.IBM_CE_APP_NAME || 'rag-modulo-app' }}
+  IBM_CLOUD_REGION: ${{ vars.IBM_CLOUD_REGION || 'us-south' }}
+  CR_NAMESPACE: ${{ vars.IBM_CR_NAMESPACE || 'rag_modulo' }}
+
+# Prevent concurrent deployments
+concurrency:
+  group: deploy-code-engine-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-push-image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to IBM Cloud Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.IBM_CLOUD_REGION }}.icr.io
+          username: iamapikey
+          password: ${{ secrets.IBM_CLOUD_API_KEY }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.codeengine
+          push: true
+          tags: ${{ env.IBM_CLOUD_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.APP_NAME }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  security-scan:
+    needs: build-and-push-image
+    if: ${{ !inputs.skip_security_scan }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IBM_CLOUD_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.APP_NAME }}:${{ github.sha }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Run Trivy vulnerability scanner (table format)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IBM_CLOUD_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.APP_NAME }}:${{ github.sha }}
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
+
+  deploy-to-code-engine:
+    needs: [build-and-push-image, security-scan]
+    if: always() && (needs.security-scan.result == 'success' || needs.security-scan.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up IBM Cloud CLI
+        uses: ibm-cloud/sdk-action@v1
+
+      - name: Run Deployment Script
+        env:
+          # Credentials and config for the script
+          IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}
+          IMAGE_URL: ${{ env.IBM_CLOUD_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.APP_NAME }}:${{ github.sha }}
+          APP_NAME: ${{ env.APP_NAME }}
+
+          # Application environment variables
+          SKIP_AUTH: ${{ secrets.SKIP_AUTH }}
+          OIDC_DISCOVERY_ENDPOINT: ${{ secrets.OIDC_DISCOVERY_ENDPOINT }}
+          IBM_CLIENT_ID: ${{ secrets.IBM_CLIENT_ID }}
+          IBM_CLIENT_SECRET: ${{ secrets.IBM_CLIENT_SECRET }}
+          FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
+          WATSONX_APIKEY: ${{ secrets.WATSONX_APIKEY }}
+          WATSONX_INSTANCE_ID: ${{ secrets.WATSONX_INSTANCE_ID }}
+          COLLECTIONDB_USER: ${{ secrets.COLLECTIONDB_USER }}
+          COLLECTIONDB_PASS: ${{ secrets.COLLECTIONDB_PASS }}
+          COLLECTIONDB_HOST: ${{ secrets.COLLECTIONDB_HOST }}
+          COLLECTIONDB_PORT: ${{ secrets.COLLECTIONDB_PORT }}
+          COLLECTIONDB_NAME: ${{ secrets.COLLECTIONDB_NAME }}
+          VECTOR_DB: ${{ secrets.VECTOR_DB }}
+          MILVUS_HOST: ${{ secrets.MILVUS_HOST }}
+          MILVUS_PORT: ${{ secrets.MILVUS_PORT }}
+          MILVUS_USER: ${{ secrets.MILVUS_USER }}
+          MILVUS_PASSWORD: ${{ secrets.MILVUS_PASSWORD }}
+          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+          LOG_LEVEL: "INFO"
+
+        run: |
+          chmod +x ./scripts/deploy_codeengine.sh
+          ./scripts/deploy_codeengine.sh
+
+  smoke-test:
+    needs: deploy-to-code-engine
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up IBM Cloud CLI
+        uses: ibm-cloud/sdk-action@v1
+
+      - name: Get application URL
+        id: get-url
+        run: |
+          APP_URL=$(ibmcloud ce app get --name "${{ env.APP_NAME }}" --output json | jq -r '.status.latest_ready_revision_name' | head -1)
+          if [ -n "$APP_URL" ]; then
+            echo "url=$APP_URL" >> $GITHUB_OUTPUT
+          else
+            echo "Error: Could not get application URL" >&2
+            exit 1
+          fi
+
+      - name: Wait for application to be ready
+        run: |
+          echo "Waiting for application to be ready..."
+          sleep 30
+
+      - name: Test health endpoint
+        run: |
+          APP_URL=$(ibmcloud ce app get --name "${{ env.APP_NAME }}" --output json | jq -r '.status.latest_ready_revision_name' | head -1)
+          if [ -n "$APP_URL" ]; then
+            echo "Testing health endpoint at: $APP_URL/health"
+            if curl -f -s "$APP_URL/health" > /dev/null; then
+              echo "✅ Health check passed"
+            else
+              echo "❌ Health check failed"
+              exit 1
+            fi
+          else
+            echo "❌ Could not determine application URL"
+            exit 1
+          fi
+
+      - name: Test API endpoint
+        run: |
+          APP_URL=$(ibmcloud ce app get --name "${{ env.APP_NAME }}" --output json | jq -r '.status.latest_ready_revision_name' | head -1)
+          if [ -n "$APP_URL" ]; then
+            echo "Testing API endpoint at: $APP_URL/api/v1/health"
+            if curl -f -s "$APP_URL/api/v1/health" > /dev/null; then
+              echo "✅ API health check passed"
+            else
+              echo "❌ API health check failed"
+              exit 1
+            fi
+          else
+            echo "❌ Could not determine application URL"
+            exit 1
+          fi

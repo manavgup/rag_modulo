@@ -39,6 +39,8 @@ pnpm-debug.log*
 .env.development
 .env.production
 .env.test
+.env.act
+.secrets
 
 # OS / Editor Files
 .DS_Store

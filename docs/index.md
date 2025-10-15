@@ -257,6 +257,8 @@ make security-check
 - [Test Categories](testing/categories.md) - Understanding test types
 
 ### 🚀 Deployment
+- [Deployment Guide](deployment/index.md) - Complete deployment guide
+- [IBM Cloud Code Engine](deployment/ibm-cloud-code-engine.md) - Recommended cloud deployment
 - [Production Deployment](deployment/production.md) - Production setup
 - [Cloud Deployment](deployment/cloud.md) - Cloud deployment options
 - [Kubernetes](deployment/kubernetes.md) - K8s deployment

@@ -24,6 +24,7 @@ env:
   TESTING: true
   SKIP_AUTH: true
   DEVELOPMENT_MODE: true
+  MIN_FREE_GB: 7  # Minimum free disk space (GB) after cleanup
   # Test environment variables
   JWT_SECRET_KEY: test-secret-key-for-ci
   RAG_LLM: openai
@@ -65,12 +66,15 @@ jobs:
           echo "Initial: $(df -h / | awk 'NR==2 {print $4}') available"
 
           # Remove large packages in parallel
-          sudo rm -rf /usr/share/dotnet &
-          sudo rm -rf /opt/ghc &
-          sudo rm -rf /usr/local/share/boost &
-          sudo rm -rf "$AGENT_TOOLSDIRECTORY" &
-          sudo rm -rf /usr/local/lib/android &
-          sudo rm -rf /usr/share/swift &
+          for p in \
+            /usr/share/dotnet \
+            /opt/ghc \
+            /usr/local/share/boost \
+            "$AGENT_TOOLSDIRECTORY" \
+            /usr/local/lib/android \
+            /usr/share/swift; do
+            if [ -e "$p" ]; then sudo rm -rf "$p" & fi
+          done
           wait
 
           echo "After cleanup: $(df -h / | awk 'NR==2 {print $4}') available"
@@ -86,14 +90,32 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-poetry-
 
-      # 5️⃣ Install Python dependencies (only test dependencies)
-      - name: 📥 Install test dependencies only
-        run: |
-          cd backend
-          # Install only test dependencies, skip heavy ML libraries for unit tests
-          poetry install --only test --no-root --no-cache
+      # 5️⃣ Install Python dependencies (main + test, skip dev)
+      - name: 📥 Install main + test dependencies (skip dev)
+      run: |
+        cd backend
+        # Install runtime + test deps; skip dev tools to reduce disk usage.
+        # Note: We intentionally skip the 'dev' group in unit tests to avoid
+        # heavy linters/type-checkers. pytest-cov and friends are declared in
+        # the 'test' group in pyproject.toml, so coverage still works.
+        # If coverage fails due to env drift, consider adding pytest-cov here
+        # explicitly or switching to `--with dev,test` selectively.
+        poetry install --with test --without dev
 
-      # 5️⃣ Run unit/atomic tests with coverage
+      # 6️⃣ Validate free disk space after cleanup (optional)
+      - name: ✅ Ensure sufficient free disk space
+        run: |
+          THRESHOLD=${MIN_FREE_GB:-5}
+          # Compare using bytes to avoid rounding edge cases
+          FREE_BYTES=$(df -B1 / | awk 'NR==2 {print $4}')
+          THRESHOLD_BYTES=$((THRESHOLD*1024*1024*1024))
+          echo "Free space: $((FREE_BYTES/1024/1024/1024))G (threshold: ${THRESHOLD}G)"
+          if [ "$FREE_BYTES" -lt "$THRESHOLD_BYTES" ]; then
+            echo "Error: Less than ${THRESHOLD}G free after cleanup"
+            exit 1
+          fi
+
+      # 7️⃣ Run unit/atomic tests with coverage
       - name: 🧪 Run unit tests with coverage
         run: |
           cd backend

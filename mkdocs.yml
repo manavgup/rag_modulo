@@ -155,6 +155,7 @@ nav:
     - Manual Validation Checklist: testing/MANUAL_VALIDATION_CHECKLIST.md
   - 🚀 Deployment:
     - Overview: deployment/index.md
+    - IBM Cloud Code Engine: deployment/ibm-cloud-code-engine.md
     - Production: deployment/production.md
     - Cloud Deployment: deployment/cloud.md
     - Kubernetes: deployment/kubernetes.md
