@@ -163,7 +163,14 @@ class PodcastGenerationInput(BaseModel):
     """
 
     # Valid OpenAI TTS voice IDs
-    VALID_VOICE_IDS: ClassVar[set[str]] = {"alloy", "echo", "fable", "onyx", "nova", "shimmer"}
+    VALID_VOICE_IDS: ClassVar[set[str]] = {
+        "alloy",
+        "echo",
+        "fable",
+        "onyx",
+        "nova",
+        "shimmer",
+    }
 
     user_id: UUID | None = Field(
         default=None,
@@ -186,7 +193,11 @@ class PodcastGenerationInput(BaseModel):
         max_length=500,
         description="Optional podcast description",
     )
-    format: AudioFormat = Field(default=AudioFormat.MP3, description="Desired audio output format", alias="format")
+    format: AudioFormat = Field(
+        default=AudioFormat.MP3,
+        description="Desired audio output format",
+        alias="format",
+    )
     host_voice: str = Field(default="alloy", description="Voice ID for HOST speaker")
     expert_voice: str = Field(default="onyx", description="Voice ID for EXPERT speaker")
     include_intro: bool = Field(
@@ -353,7 +364,8 @@ class PodcastScriptOutput(BaseModel):
 
     # Metadata
     metadata: dict = Field(
-        default_factory=dict, description="Additional metadata (has_host, has_expert, rag_results_length, etc.)"
+        default_factory=dict,
+        description="Additional metadata (has_host, has_expert, rag_results_length, etc.)",
     )
     created_at: datetime = Field(default_factory=datetime.now, description="Generation timestamp")
 
@@ -378,7 +390,14 @@ class PodcastAudioGenerationInput(BaseModel):
     """
 
     # Valid OpenAI TTS voice IDs
-    VALID_VOICE_IDS: ClassVar[set[str]] = {"alloy", "echo", "fable", "onyx", "nova", "shimmer"}
+    VALID_VOICE_IDS: ClassVar[set[str]] = {
+        "alloy",
+        "echo",
+        "fable",
+        "onyx",
+        "nova",
+        "shimmer",
+    }
 
     user_id: UUID | None = Field(default=None, description="User ID (auto-filled from auth token by router)")
     collection_id: UUID = Field(..., description="Collection ID for tracking/permissions")

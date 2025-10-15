@@ -31,6 +31,7 @@
 ### **Item 1: Script-to-Audio Endpoint**
 
 #### **Should We Add It?**
+
 **YES** - This is valuable for the following workflow:
 
 ```
@@ -41,6 +42,7 @@
 ```
 
 #### **Use Cases**
+
 - **Quality Control**: Generate script, review it, then synthesize only if satisfied
 - **Cost Optimization**: Skip TTS for bad scripts
 - **Script Editing**: Users can edit the generated script before audio generation
@@ -113,6 +115,7 @@ class PodcastAudioGenerationInput(BaseModel):
    - Same status tracking as full generation
 
 4. **Test Workflow**
+
    ```bash
    # Step 1: Generate script
    SCRIPT=$(curl -X POST /api/podcasts/generate-script ... | jq -r '.script_text')
@@ -129,6 +132,7 @@ class PodcastAudioGenerationInput(BaseModel):
 ### **Item 2: New Field Support**
 
 #### **Fields to Test**
+
 1. `podcast_style`: `conversational_interview`, `narrative`, `educational`, `discussion`
 2. `complexity_level`: `beginner`, `intermediate`, `advanced`
 3. `language`: `en`, `es`, `fr`, `de`, etc.
@@ -140,11 +144,13 @@ class PodcastAudioGenerationInput(BaseModel):
 The schemas already support these fields, but we need to ensure they're **used in the prompt**.
 
 **Check Required**:
+
 1. Are these fields passed to the LLM prompt template?
 2. Does the prompt template use them to guide generation?
 3. Are they stored in the database for later reference?
 
 #### **Current Prompt Template Location**
+
 - `backend/rag_solution/services/podcast_service.py` → `_generate_script()` method
 - Uses `PromptTemplateService` to load `PODCAST_GENERATION` template
 - Template stored in database (`prompt_templates` table)
@@ -152,6 +158,7 @@ The schemas already support these fields, but we need to ensure they're **used i
 #### **Implementation Steps**
 
 1. **Review Prompt Template** (`podcast_service.py`)
+
    ```python
    # In _generate_script() method
    prompt = loaded_template.system_prompt.format(
@@ -165,6 +172,7 @@ The schemas already support these fields, but we need to ensure they're **used i
    ```
 
 2. **Update Prompt Template** (database or code)
+
    ```
    System: You are a podcast script writer.
 
@@ -187,6 +195,7 @@ The schemas already support these fields, but we need to ensure they're **used i
    ```
 
 3. **Test Each Field**
+
    ```bash
    # Test podcast_style
    curl -X POST /api/podcasts/generate-script \
@@ -211,18 +220,21 @@ The schemas already support these fields, but we need to ensure they're **used i
 ## Recommended Implementation Order
 
 ### **Phase 1: Verify & Fix Current Endpoints** (30 minutes)
+
 1. ✅ Check if `POST /generate` uses new fields in prompt
 2. ✅ Update prompt template to include new fields
 3. ✅ Test `POST /generate-script` with different field values
 4. ✅ Verify output quality changes based on fields
 
 ### **Phase 2: Add Script-to-Audio Endpoint** (1-2 hours)
+
 1. ✅ Create `PodcastAudioGenerationInput` schema
 2. ✅ Add `generate_audio_from_script()` service method
 3. ✅ Add `POST /script-to-audio` router endpoint
 4. ✅ Test complete workflow (script → edit → audio)
 
 ### **Phase 3: Integration Testing** (30 minutes)
+
 1. ✅ Test all endpoints with new fields
 2. ✅ Verify different podcast styles produce different outputs
 3. ✅ Test different languages (if supported by model)
@@ -267,12 +279,14 @@ The schemas already support these fields, but we need to ensure they're **used i
 **Your Decision Point:**
 
 **Option A: Quick Win (Recommended for MVP)**
+
 1. Verify current endpoints use new fields (15 min)
 2. Test with different field values (15 min)
 3. Document any limitations
 4. **Skip** script-to-audio endpoint for now
 
 **Option B: Complete Implementation**
+
 1. Verify current endpoints (15 min)
 2. Update prompt templates (15 min)
 3. Add script-to-audio endpoint (1-2 hours)

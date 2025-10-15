@@ -36,11 +36,11 @@ TESTS_FAILED=0
 run_test() {
     local test_name=$1
     local test_command=$2
-    
+
     echo ""
     echo "Running: $test_name"
     echo "----------------------------------------"
-    
+
     if eval "$test_command"; then
         print_status 0 "$test_name passed"
         ((TESTS_PASSED++))
@@ -68,7 +68,7 @@ test_env_setup() {
     export TESTING=true
     export SKIP_AUTH=true
     export DEVELOPMENT_MODE=true
-    
+
     # Verify they're set
     [ "$TESTING" = "true" ] && \
     [ "$SKIP_AUTH" = "true" ] && \
@@ -85,10 +85,10 @@ test_docker_compose_config() {
 test_start_infrastructure() {
     print_info "Starting infrastructure services (postgres, milvus)..."
     docker compose up -d postgres milvus-etcd milvus-standalone minio
-    
+
     print_info "Waiting for infrastructure to be ready..."
     sleep 30
-    
+
     # Check if services are healthy
     docker compose ps | grep -E "postgres|milvus-standalone" | grep -v "Exited"
 }
@@ -96,17 +96,17 @@ test_start_infrastructure() {
 # Test 4: Start Backend with CI Environment
 test_backend_startup() {
     print_info "Starting backend with CI environment variables..."
-    
+
     # Copy .env.ci to .env to simulate CI
     cp .env.ci .env
-    
+
     # Start backend with CI environment
     TESTING=true SKIP_AUTH=true DEVELOPMENT_MODE=true \
         docker compose up -d backend
-    
+
     print_info "Waiting for backend to start (60s)..."
     sleep 60
-    
+
     # Check if backend is running
     docker ps | grep "rag_modulo-backend" | grep -v "Exited"
 }
@@ -114,20 +114,20 @@ test_backend_startup() {
 # Test 5: Backend Health Check
 test_backend_health() {
     print_info "Checking backend health status..."
-    
+
     local max_retries=10
     local retry_count=0
-    
+
     while [ $retry_count -lt $max_retries ]; do
         if docker inspect rag_modulo-backend-1 --format='{{.State.Health.Status}}' 2>/dev/null | grep -q "healthy"; then
             return 0
         fi
-        
+
         print_info "Waiting for backend to be healthy... ($((retry_count+1))/$max_retries)"
         sleep 5
         ((retry_count++))
     done
-    
+
     # If we get here, health check failed
     print_info "Backend logs:"
     docker logs rag_modulo-backend-1 --tail 50
@@ -137,9 +137,9 @@ test_backend_health() {
 # Test 6: Health Endpoint Accessibility
 test_health_endpoint() {
     print_info "Testing /api/health endpoint..."
-    
+
     local response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/api/health)
-    
+
     if [ "$response" = "200" ]; then
         print_info "Health endpoint returned: $(curl -s http://localhost:8000/api/health | jq -r '.status')"
         return 0
@@ -152,18 +152,18 @@ test_health_endpoint() {
 # Test 7: OIDC Skip Verification
 test_oidc_skip() {
     print_info "Verifying OIDC registration was skipped..."
-    
+
     # Check logs for OIDC skip message
     if docker logs rag_modulo-backend-1 2>&1 | grep -q "OIDC registration skipped"; then
         return 0
     fi
-    
+
     # Also check that there are no OIDC connection errors
     if docker logs rag_modulo-backend-1 2>&1 | grep -i "connection refused\|failed to connect" | grep -i "oidc\|oauth"; then
         print_info "Found OIDC connection errors in logs"
         return 1
     fi
-    
+
     # If no skip message but also no errors, that's okay
     print_info "No OIDC errors detected"
     return 0
@@ -172,10 +172,10 @@ test_oidc_skip() {
 # Test 8: Authentication Middleware Skip
 test_auth_skip() {
     print_info "Testing authentication skip for protected endpoints..."
-    
+
     # Try to access a normally protected endpoint
     local response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/api/collections)
-    
+
     if [ "$response" = "200" ] || [ "$response" = "404" ]; then
         print_info "Protected endpoint accessible without auth (expected in CI mode)"
         return 0
@@ -191,7 +191,7 @@ test_auth_skip() {
 # Test 9: Run a Simple Integration Test
 test_integration_sample() {
     print_info "Running sample integration test..."
-    
+
     # Run a simple test through docker compose
     docker compose run --rm \
         -e TESTING=true \
@@ -203,11 +203,11 @@ test_integration_sample() {
 # Test 10: Container Environment Variables
 test_container_env() {
     print_info "Verifying environment variables in container..."
-    
+
     local testing_var=$(docker exec rag_modulo-backend-1 printenv TESTING 2>/dev/null)
     local skip_auth_var=$(docker exec rag_modulo-backend-1 printenv SKIP_AUTH 2>/dev/null)
     local dev_mode_var=$(docker exec rag_modulo-backend-1 printenv DEVELOPMENT_MODE 2>/dev/null)
-    
+
     if [ "$testing_var" = "true" ] && [ "$skip_auth_var" = "true" ] && [ "$dev_mode_var" = "true" ]; then
         print_info "Environment variables correctly set in container"
         return 0
@@ -224,11 +224,11 @@ test_container_env() {
 main() {
     echo "Starting CI environment tests..."
     echo ""
-    
+
     # Stop any existing containers
     print_info "Stopping existing containers..."
     docker compose down
-    
+
     # Run all tests
     run_test "Environment Variable Setup" test_env_setup
     run_test "Docker Compose Configuration" test_docker_compose_config
@@ -240,7 +240,7 @@ main() {
     run_test "Authentication Middleware Skip" test_auth_skip
     run_test "Container Environment Variables" test_container_env
     run_test "Sample Integration Test" test_integration_sample
-    
+
     # Print summary
     echo ""
     echo "========================================="
@@ -249,7 +249,7 @@ main() {
     echo -e "${GREEN}Passed:${NC} $TESTS_PASSED"
     echo -e "${RED}Failed:${NC} $TESTS_FAILED"
     echo ""
-    
+
     if [ $TESTS_FAILED -eq 0 ]; then
         echo -e "${GREEN}All tests passed! ✓${NC}"
         echo "The CI environment fixes are working correctly."

@@ -20,38 +20,38 @@ graph TB
         BE[Backend App]
         FE[Frontend App]
     end
-    
+
     subgraph "IBM Cloud Monitoring"
         APM[Application Performance Monitoring]
         LOG[Log Analysis]
         MET[Monitoring]
         ALERT[Alerting]
     end
-    
+
     subgraph "External Tools"
         GRAF[Grafana]
         PROM[Prometheus]
         ELK[ELK Stack]
     end
-    
+
     subgraph "Data Sources"
         METRICS[Application Metrics]
         LOGS[Application Logs]
         TRACES[Distributed Traces]
         EVENTS[Events]
     end
-    
+
     BE --> METRICS
     BE --> LOGS
     BE --> TRACES
     FE --> METRICS
     FE --> LOGS
-    
+
     METRICS --> APM
     LOGS --> LOG
     TRACES --> APM
     EVENTS --> MET
-    
+
     APM --> GRAF
     LOG --> ELK
     MET --> PROM
@@ -79,7 +79,7 @@ monitoring:
   service: "ibm-cloud-monitoring"
   plan: "lite"
   region: "us-south"
-  
+
   # Custom metrics
   custom_metrics:
     - name: "rag_queries_total"
@@ -91,7 +91,7 @@ monitoring:
     - name: "vector_search_duration_seconds"
       type: "histogram"
       description: "Vector search processing time"
-  
+
   # Alerting rules
   alerts:
     - name: "high_error_rate"
@@ -123,7 +123,7 @@ log_analysis:
   service: "ibm-cloud-log-analysis"
   plan: "lite"
   region: "us-south"
-  
+
   # Log sources
   sources:
     - name: "backend-logs"
@@ -135,13 +135,13 @@ log_analysis:
     - name: "system-logs"
       type: "system"
       level: "info"
-  
+
   # Retention policies
   retention:
     default: "30d"
     critical: "90d"
     debug: "7d"
-  
+
   # Log parsing rules
   parsing:
     - name: "error_logs"
@@ -171,7 +171,7 @@ infrastructure_monitoring:
   service: "ibm-cloud-monitoring"
   plan: "lite"
   region: "us-south"
-  
+
   # Monitored resources
   resources:
     - name: "code-engine-project"
@@ -183,7 +183,7 @@ infrastructure_monitoring:
     - name: "object-storage"
       type: "storage"
       metrics: ["storage_usage", "request_count", "data_transfer"]
-  
+
   # Alerting thresholds
   thresholds:
     cpu_usage: 80
@@ -232,16 +232,16 @@ async def health_check():
     try:
         # Check database connectivity
         db_status = await check_database_connection()
-        
+
         # Check vector database connectivity
         vector_status = await check_vector_database_connection()
-        
+
         # Check object storage connectivity
         storage_status = await check_object_storage_connection()
-        
+
         # Overall health status
         overall_status = "healthy" if all([db_status, vector_status, storage_status]) else "unhealthy"
-        
+
         return {
             "status": overall_status,
             "timestamp": datetime.utcnow().isoformat(),
@@ -466,19 +466,19 @@ critical_alerts:
     duration: "5m"
     severity: "critical"
     description: "Error rate is above 5%"
-    
+
   - name: "high_response_time"
     condition: "histogram_quantile(0.95, rate(rag_request_duration_seconds_bucket[5m])) > 2.0"
     duration: "10m"
     severity: "critical"
     description: "95th percentile response time is above 2 seconds"
-    
+
   - name: "service_down"
     condition: "up{job=\"rag-modulo-backend\"} == 0"
     duration: "1m"
     severity: "critical"
     description: "Backend service is down"
-    
+
   - name: "high_cpu_usage"
     condition: "rate(container_cpu_usage_seconds_total[5m]) * 100 > 80"
     duration: "5m"
@@ -496,13 +496,13 @@ warning_alerts:
     duration: "10m"
     severity: "warning"
     description: "Memory usage is above 85%"
-    
+
   - name: "low_cache_hit_rate"
     condition: "cache_hit_rate < 0.8"
     duration: "15m"
     severity: "warning"
     description: "Cache hit rate is below 80%"
-    
+
   - name: "high_database_connections"
     condition: "active_connections > 80"
     duration: "5m"
@@ -569,15 +569,15 @@ class StructuredLogger:
     def __init__(self, name):
         self.logger = logging.getLogger(name)
         self.logger.setLevel(logging.INFO)
-        
+
         # Create formatter
         formatter = logging.Formatter('%(message)s')
-        
+
         # Create handler
         handler = logging.StreamHandler()
         handler.setFormatter(formatter)
         self.logger.addHandler(handler)
-    
+
     def log(self, level, message, **kwargs):
         log_entry = {
             "timestamp": datetime.utcnow().isoformat(),
@@ -592,9 +592,9 @@ class StructuredLogger:
 logger = StructuredLogger(__name__)
 
 # Log request
-logger.log("info", "Request received", 
-          method="GET", 
-          path="/api/search", 
+logger.log("info", "Request received",
+          method="GET",
+          path="/api/search",
           user_id="12345",
           request_id="req-123")
 
@@ -612,13 +612,13 @@ logger.log("error", "Database connection failed",
 @app.middleware("http")
 async def access_log_middleware(request: Request, call_next):
     start_time = time.time()
-    
+
     # Process request
     response = await call_next(request)
-    
+
     # Calculate duration
     duration = time.time() - start_time
-    
+
     # Log access
     logger.log("info", "Request completed",
               method=request.method,
@@ -627,7 +627,7 @@ async def access_log_middleware(request: Request, call_next):
               duration=duration,
               user_agent=request.headers.get("user-agent"),
               ip_address=request.client.host)
-    
+
     return response
 ```
 
@@ -639,35 +639,35 @@ async def access_log_middleware(request: Request, call_next):
 # Error analysis queries
 error_analysis_queries = {
     "error_rate_by_endpoint": """
-        SELECT 
+        SELECT
             endpoint,
             COUNT(*) as error_count,
             COUNT(*) * 100.0 / SUM(COUNT(*)) OVER() as error_percentage
-        FROM logs 
-        WHERE level = 'ERROR' 
+        FROM logs
+        WHERE level = 'ERROR'
         AND timestamp >= NOW() - INTERVAL '1 hour'
         GROUP BY endpoint
         ORDER BY error_count DESC
     """,
-    
+
     "error_trends": """
-        SELECT 
+        SELECT
             DATE_TRUNC('hour', timestamp) as hour,
             COUNT(*) as error_count
-        FROM logs 
-        WHERE level = 'ERROR' 
+        FROM logs
+        WHERE level = 'ERROR'
         AND timestamp >= NOW() - INTERVAL '24 hours'
         GROUP BY hour
         ORDER BY hour
     """,
-    
+
     "top_errors": """
-        SELECT 
+        SELECT
             message,
             COUNT(*) as count,
             MAX(timestamp) as last_occurrence
-        FROM logs 
-        WHERE level = 'ERROR' 
+        FROM logs
+        WHERE level = 'ERROR'
         AND timestamp >= NOW() - INTERVAL '1 hour'
         GROUP BY message
         ORDER BY count DESC
@@ -682,24 +682,24 @@ error_analysis_queries = {
 # Performance analysis queries
 performance_analysis_queries = {
     "slow_queries": """
-        SELECT 
+        SELECT
             endpoint,
             AVG(duration) as avg_duration,
             MAX(duration) as max_duration,
             COUNT(*) as request_count
-        FROM logs 
-        WHERE duration > 1.0 
+        FROM logs
+        WHERE duration > 1.0
         AND timestamp >= NOW() - INTERVAL '1 hour'
         GROUP BY endpoint
         ORDER BY avg_duration DESC
     """,
-    
+
     "response_time_trends": """
-        SELECT 
+        SELECT
             DATE_TRUNC('minute', timestamp) as minute,
             AVG(duration) as avg_duration,
             PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY duration) as p95_duration
-        FROM logs 
+        FROM logs
         WHERE timestamp >= NOW() - INTERVAL '1 hour'
         GROUP BY minute
         ORDER BY minute
@@ -714,11 +714,13 @@ performance_analysis_queries = {
 #### 1. High Error Rate
 
 **Symptoms:**
+
 - Error rate above 5%
 - Increased user complaints
 - Service degradation
 
 **Investigation:**
+
 ```bash
 # Check error logs
 ibmcloud ce app logs rag-modulo-backend --tail 100 | grep ERROR
@@ -731,6 +733,7 @@ curl "https://monitoring-endpoint/api/query?query=topk(10, count by (error_type)
 ```
 
 **Solutions:**
+
 - Check application logs for specific errors
 - Verify database connectivity
 - Check resource utilization
@@ -739,11 +742,13 @@ curl "https://monitoring-endpoint/api/query?query=topk(10, count by (error_type)
 #### 2. High Response Time
 
 **Symptoms:**
+
 - Response time above 2 seconds
 - User experience degradation
 - Timeout errors
 
 **Investigation:**
+
 ```bash
 # Check response time metrics
 curl "https://monitoring-endpoint/api/query?query=histogram_quantile(0.95, rate(rag_request_duration_seconds_bucket[5m]))"
@@ -756,6 +761,7 @@ curl "https://monitoring-endpoint/api/query?query=rate(database_query_duration_s
 ```
 
 **Solutions:**
+
 - Scale up application resources
 - Optimize database queries
 - Check for resource bottlenecks
@@ -764,11 +770,13 @@ curl "https://monitoring-endpoint/api/query?query=rate(database_query_duration_s
 #### 3. Service Unavailable
 
 **Symptoms:**
+
 - Service returns 503 errors
 - Health checks failing
 - Complete service outage
 
 **Investigation:**
+
 ```bash
 # Check service status
 ibmcloud ce app get rag-modulo-backend
@@ -781,6 +789,7 @@ ibmcloud ce app logs rag-modulo-backend --tail 100
 ```
 
 **Solutions:**
+
 - Restart application
 - Check resource limits
 - Verify service bindings

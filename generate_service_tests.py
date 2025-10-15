@@ -24,17 +24,17 @@ def analyze_service(service_path: Path) -> Tuple[str, List[str], List[str]]:
     async_methods = []
 
     for node in ast.walk(tree):
-        if isinstance(node, ast.ClassDef) and node.name.endswith('Service'):
+        if isinstance(node, ast.ClassDef) and node.name.endswith("Service"):
             class_name = node.name
             for item in node.body:
                 if isinstance(item, ast.FunctionDef):
-                    if not item.name.startswith('_'):  # Public methods only
+                    if not item.name.startswith("_"):  # Public methods only
                         if isinstance(item, ast.AsyncFunctionDef):
                             async_methods.append(item.name)
                         else:
                             sync_methods.append(item.name)
                 elif isinstance(item, ast.AsyncFunctionDef):
-                    if not item.name.startswith('_'):
+                    if not item.name.startswith("_"):
                         async_methods.append(item.name)
 
     return class_name or "", sync_methods, async_methods
@@ -166,11 +166,13 @@ class Test{class_name}ErrorHandling:
 class Test{class_name}EdgeCases:
     """Tests for {class_name} edge cases."""
     pass
-'''.format(class_name=class_name)
+'''.format(
+        class_name=class_name
+    )
 
     # Write test file
     output_file = output_dir / f"test_{service_name}.py"
-    with open(output_file, 'w') as f:
+    with open(output_file, "w") as f:
         f.write(test_content)
 
     print(f"✓ Generated {output_file.name} ({estimated_tests} estimated tests)")
@@ -182,18 +184,20 @@ def main():
     tests_dir = Path("backend/tests/unit")
 
     # Services already completed
-    completed = {'conversation_service.py', 'pipeline_service.py'}
+    completed = {"conversation_service.py", "pipeline_service.py"}
 
     for service_file in services_dir.glob("*_service.py"):
-        if service_file.name in completed or service_file.name == '__init__.py':
+        if service_file.name in completed or service_file.name == "__init__.py":
             continue
 
         service_name = service_file.stem
         generate_test_file(service_name, service_file, tests_dir)
 
     # Handle non-service files (answer_synthesizer, question_decomposer)
-    for service_file in [services_dir / "answer_synthesizer.py",
-                         services_dir / "question_decomposer.py"]:
+    for service_file in [
+        services_dir / "answer_synthesizer.py",
+        services_dir / "question_decomposer.py",
+    ]:
         if service_file.exists():
             service_name = service_file.stem
             generate_test_file(service_name, service_file, tests_dir)

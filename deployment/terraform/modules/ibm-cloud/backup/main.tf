@@ -18,14 +18,14 @@ resource "ibm_resource_instance" "backup" {
   plan              = var.backup_plan
   location          = var.region
   resource_group_id = var.resource_group_id
-  
+
   tags = [
     "project:${var.project_name}",
     "environment:${var.environment}",
     "service:backup",
     "managed:true"
   ]
-  
+
   lifecycle {
     prevent_destroy = var.environment == "production"
   }
@@ -44,17 +44,17 @@ resource "ibm_cos_bucket" "backup_storage" {
   resource_instance_id = var.object_storage_instance_id
   region_location      = var.region
   storage_class        = "standard"
-  
+
   # Enable versioning for backup data
   object_versioning {
     enable = true
   }
-  
+
   # Enable encryption
   encryption {
     algorithm = "AES256"
   }
-  
+
   # Lifecycle rules for backup retention
   lifecycle_rule {
     id     = "backup_retention"
@@ -63,7 +63,7 @@ resource "ibm_cos_bucket" "backup_storage" {
       days = var.backup_retention_days
     }
   }
-  
+
   # Transition to cheaper storage after 30 days
   lifecycle_rule {
     id     = "backup_transition"
@@ -73,7 +73,7 @@ resource "ibm_cos_bucket" "backup_storage" {
       storage_class = "GLACIER"
     }
   }
-  
+
   tags = [
     "project:${var.project_name}",
     "environment:${var.environment}",
@@ -90,31 +90,31 @@ resource "random_id" "backup_suffix" {
 # Backup policies
 resource "ibm_backup_policy" "postgresql_backup" {
   name = "${var.project_name}-postgresql-backup-policy"
-  
+
   # Daily backup at 2 AM UTC
   schedule {
     frequency = "daily"
     time      = "02:00"
     timezone  = "UTC"
   }
-  
+
   # Backup retention
   retention {
     days = var.backup_retention_days
   }
-  
+
   # Backup source (PostgreSQL)
   source {
     type = "postgresql"
     instance_id = var.postgresql_instance_id
   }
-  
+
   # Backup destination
   destination {
     type = "object_storage"
     bucket = ibm_cos_bucket.backup_storage.bucket_name
   }
-  
+
   tags = [
     "project:${var.project_name}",
     "environment:${var.environment}",
@@ -125,31 +125,31 @@ resource "ibm_backup_policy" "postgresql_backup" {
 
 resource "ibm_backup_policy" "object_storage_backup" {
   name = "${var.project_name}-object-storage-backup-policy"
-  
+
   # Daily backup at 3 AM UTC
   schedule {
     frequency = "daily"
     time      = "03:00"
     timezone  = "UTC"
   }
-  
+
   # Backup retention
   retention {
     days = var.backup_retention_days
   }
-  
+
   # Backup source (Object Storage)
   source {
     type = "object_storage"
     instance_id = var.object_storage_instance_id
   }
-  
+
   # Backup destination
   destination {
     type = "object_storage"
     bucket = ibm_cos_bucket.backup_storage.bucket_name
   }
-  
+
   tags = [
     "project:${var.project_name}",
     "environment:${var.environment}",
@@ -160,31 +160,31 @@ resource "ibm_backup_policy" "object_storage_backup" {
 
 resource "ibm_backup_policy" "zilliz_backup" {
   name = "${var.project_name}-zilliz-backup-policy"
-  
+
   # Daily backup at 4 AM UTC
   schedule {
     frequency = "daily"
     time      = "04:00"
     timezone  = "UTC"
   }
-  
+
   # Backup retention
   retention {
     days = var.backup_retention_days
   }
-  
+
   # Backup source (Zilliz Cloud)
   source {
     type = "vector_database"
     instance_id = var.zilliz_instance_id
   }
-  
+
   # Backup destination
   destination {
     type = "object_storage"
     bucket = ibm_cos_bucket.backup_storage.bucket_name
   }
-  
+
   tags = [
     "project:${var.project_name}",
     "environment:${var.environment}",
@@ -196,13 +196,13 @@ resource "ibm_backup_policy" "zilliz_backup" {
 # Disaster recovery configuration
 resource "ibm_backup_dr_plan" "disaster_recovery" {
   name = "${var.project_name}-disaster-recovery-plan"
-  
+
   # Recovery time objective (RTO) in minutes
   rto_minutes = var.rto_minutes
-  
+
   # Recovery point objective (RPO) in minutes
   rpo_minutes = var.rpo_minutes
-  
+
   # Recovery procedures
   recovery_procedures {
     name = "postgresql_recovery"
@@ -214,7 +214,7 @@ resource "ibm_backup_dr_plan" "disaster_recovery" {
       "4. Start application services"
     ]
   }
-  
+
   recovery_procedures {
     name = "object_storage_recovery"
     description = "Recover Object Storage data"
@@ -225,7 +225,7 @@ resource "ibm_backup_dr_plan" "disaster_recovery" {
       "4. Start application services"
     ]
   }
-  
+
   recovery_procedures {
     name = "zilliz_recovery"
     description = "Recover Zilliz Cloud data"
@@ -236,7 +236,7 @@ resource "ibm_backup_dr_plan" "disaster_recovery" {
       "4. Start application services"
     ]
   }
-  
+
   tags = [
     "project:${var.project_name}",
     "environment:${var.environment}",
@@ -248,14 +248,14 @@ resource "ibm_backup_dr_plan" "disaster_recovery" {
 # Backup monitoring and alerting
 resource "ibm_function_action" "backup_monitor" {
   name = "${var.project_name}-backup-monitor"
-  
+
   exec {
     kind = "nodejs:16"
     code = <<EOF
 function main(params) {
   const backupStatus = params.backup_status;
   const timestamp = new Date().toISOString();
-  
+
   // Check backup status
   if (backupStatus.status === 'failed') {
     const alert = {
@@ -265,16 +265,16 @@ function main(params) {
       service: backupStatus.service,
       backup_id: backupStatus.backup_id
     };
-    
+
     // Send alert to monitoring system
     console.log('Backup failure alert:', JSON.stringify(alert, null, 2));
-    
+
     return {
       status: 'alert_sent',
       alert: alert
     };
   }
-  
+
   return {
     status: 'success',
     message: 'Backup completed successfully',
@@ -283,7 +283,7 @@ function main(params) {
 }
 EOF
   }
-  
+
   tags = [
     "project:${var.project_name}",
     "environment:${var.environment}",
@@ -294,7 +294,7 @@ EOF
 # Backup test schedule
 resource "ibm_function_trigger" "backup_test_trigger" {
   name = "${var.project_name}-backup-test-trigger"
-  
+
   feed {
     name = "/whisk.system/alarms/interval"
     parameters = jsonencode({
@@ -302,11 +302,11 @@ resource "ibm_function_trigger" "backup_test_trigger" {
       cron = "0 0 * * 0"  # Weekly on Sunday at midnight
     })
   }
-  
+
   user_defined_annotations = jsonencode({
     "description" = "Trigger for weekly backup testing"
   })
-  
+
   tags = [
     "project:${var.project_name}",
     "environment:${var.environment}",
@@ -319,7 +319,7 @@ resource "ibm_function_rule" "backup_test_rule" {
   name = "${var.project_name}-backup-test-rule"
   trigger_name = ibm_function_trigger.backup_test_trigger.name
   action_name = ibm_function_action.backup_monitor.name
-  
+
   tags = [
     "project:${var.project_name}",
     "environment:${var.environment}",

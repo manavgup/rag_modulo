@@ -30,7 +30,11 @@ class Settings(BaseSettings):
 
     # Required settings with defaults for development/testing
     jwt_secret_key: Annotated[
-        str, Field(default="dev-secret-key-change-in-production-f8a7b2c1", alias="JWT_SECRET_KEY")
+        str,
+        Field(
+            default="dev-secret-key-change-in-production-f8a7b2c1",
+            alias="JWT_SECRET_KEY",
+        ),
     ]
     rag_llm: Annotated[str, Field(default="ibm/granite-3-3-8b-instruct", alias="RAG_LLM")]
 
@@ -82,7 +86,10 @@ class Settings(BaseSettings):
     cot_token_budget_multiplier: Annotated[float, Field(default=2.0, alias="COT_TOKEN_BUDGET_MULTIPLIER")]
 
     # Embedding settings
-    embedding_model: Annotated[str, Field(default="sentence-transformers/all-minilm-l6-v2", alias="EMBEDDING_MODEL")]
+    embedding_model: Annotated[
+        str,
+        Field(default="sentence-transformers/all-minilm-l6-v2", alias="EMBEDDING_MODEL"),
+    ]
     embedding_dim: Annotated[int, Field(default=384, alias="EMBEDDING_DIM")]
     embedding_field: Annotated[str, Field(default="embedding", alias="EMBEDDING_FIELD")]
     upsert_batch_size: Annotated[int, Field(default=100, alias="UPSERT_BATCH_SIZE")]
@@ -188,7 +195,10 @@ class Settings(BaseSettings):
     watsonx_tts_api_key: Annotated[str | None, Field(default=None, alias="WATSONX_TTS_API_KEY")]
     watsonx_tts_url: Annotated[
         str | None,
-        Field(default="https://api.us-south.text-to-speech.watson.cloud.ibm.com", alias="WATSONX_TTS_URL"),
+        Field(
+            default="https://api.us-south.text-to-speech.watson.cloud.ibm.com",
+            alias="WATSONX_TTS_URL",
+        ),
     ]
     watsonx_tts_default_voice: Annotated[str, Field(default="en-US_AllisonV3Voice", alias="WATSONX_TTS_DEFAULT_VOICE")]
 
@@ -212,10 +222,17 @@ class Settings(BaseSettings):
     question_temperature: Annotated[float, Field(default=0.7, alias="QUESTION_TEMPERATURE")]
     question_types: Annotated[
         list[str],
-        Field(default=["What is", "How does", "Why is", "When should", "Which factors"], alias="QUESTION_TYPES"),
+        Field(
+            default=["What is", "How does", "Why is", "When should", "Which factors"],
+            alias="QUESTION_TYPES",
+        ),
     ]
     question_patterns: Annotated[
-        list[str], Field(default=["^What", "^How", "^Why", "^When", "^Which"], alias="QUESTION_PATTERNS")
+        list[str],
+        Field(
+            default=["^What", "^How", "^Why", "^When", "^Which"],
+            alias="QUESTION_PATTERNS",
+        ),
     ]
     question_required_terms: Annotated[list[str], Field(default=[], alias="QUESTION_REQUIRED_TERMS")]
 
@@ -313,11 +330,31 @@ class Settings(BaseSettings):
                     r"^/api/user-collections/collection/(.+)$": ["GET"],
                     r"^/api/user-collections/collection/(.+)/users$": ["DELETE"],
                     r"^/api/collections/(.+)$": ["GET"],
-                    r"^/api/users/(.+)/llm-providers.*$": ["GET", "POST", "PUT", "DELETE"],
-                    r"^/api/users/(.+)/llm-parameters.*$": ["GET", "POST", "PUT", "DELETE"],
-                    r"^/api/users/(.+)/prompt-templates.*$": ["GET", "POST", "PUT", "DELETE"],
+                    r"^/api/users/(.+)/llm-providers.*$": [
+                        "GET",
+                        "POST",
+                        "PUT",
+                        "DELETE",
+                    ],
+                    r"^/api/users/(.+)/llm-parameters.*$": [
+                        "GET",
+                        "POST",
+                        "PUT",
+                        "DELETE",
+                    ],
+                    r"^/api/users/(.+)/prompt-templates.*$": [
+                        "GET",
+                        "POST",
+                        "PUT",
+                        "DELETE",
+                    ],
                     r"^/api/users/(.+)/pipelines.*$": ["GET", "POST", "PUT", "DELETE"],
-                    r"^/api/users/(.+)/collections.*$": ["GET", "POST", "PUT", "DELETE"],
+                    r"^/api/users/(.+)/collections.*$": [
+                        "GET",
+                        "POST",
+                        "PUT",
+                        "DELETE",
+                    ],
                 },
                 "guest": {
                     r"^/api/user-collections$": ["GET", "POST", "DELETE", "PUT"],

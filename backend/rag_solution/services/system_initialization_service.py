@@ -5,10 +5,7 @@ from core.config import Settings
 from core.custom_exceptions import LLMProviderError
 from core.logging_utils import get_logger
 from rag_solution.schemas.llm_model_schema import LLMModelInput, ModelType
-from rag_solution.schemas.llm_provider_schema import (
-    LLMProviderInput,
-    LLMProviderOutput,
-)
+from rag_solution.schemas.llm_provider_schema import LLMProviderInput, LLMProviderOutput
 from rag_solution.services.llm_model_service import LLMModelService
 from rag_solution.services.llm_provider_service import LLMProviderService
 
@@ -96,7 +93,11 @@ class SystemInitializationService:
         return configs
 
     def _initialize_single_provider(
-        self, name: str, config: LLMProviderInput, existing_provider: LLMProviderOutput | None, raise_on_error: bool
+        self,
+        name: str,
+        config: LLMProviderInput,
+        existing_provider: LLMProviderOutput | None,
+        raise_on_error: bool,
     ) -> LLMProviderOutput | None:
         try:
             if existing_provider:

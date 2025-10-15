@@ -20,6 +20,7 @@ Validate the installation instructions in README.md by executing them in a clean
 ### ✅ Python 3.12
 
 **README Instructions:**
+
 ```bash
 brew install python@3.12  # macOS
 apt install python3.12     # Ubuntu
@@ -30,6 +31,7 @@ apt install python3.12     # Ubuntu
 **Finding:** Ubuntu 22.04 does not include Python 3.12 in default repositories. The deadsnakes PPA is required.
 
 **Working Instructions:**
+
 ```bash
 sudo add-apt-repository ppa:deadsnakes/ppa
 sudo apt update
@@ -37,6 +39,7 @@ sudo apt install python3.12 python3.12-venv python3.12-dev
 ```
 
 **Verification:**
+
 ```bash
 $ python3.12 --version
 Python 3.12.12
@@ -47,17 +50,20 @@ Python 3.12.12
 ### ✅ Make & Build Tools
 
 **README Instructions:**
+
 - Listed as "make" in prerequisites
 - Build-essential mentioned for Ubuntu
 
 **Test Result:** ✅ **PASSED**
 
 **Installation:**
+
 ```bash
 sudo apt install make build-essential
 ```
 
 **Verification:**
+
 ```bash
 $ make --version
 GNU Make 4.3
@@ -67,6 +73,7 @@ Built for aarch64-unknown-linux-gnu
 ### ✅ Environment File
 
 **README Instructions:**
+
 ```bash
 cp env.example .env
 ```
@@ -76,6 +83,7 @@ cp env.example .env
 **Finding:** The file is named `.env.example` (with leading dot), not `env.example`
 
 **Working Command:**
+
 ```bash
 cp .env.example .env
 ```
@@ -92,6 +100,7 @@ cp .env.example .env
 ### Step 2: Set up Environment Variables ✅
 
 **Test:**
+
 ```bash
 $ cd /workspace
 $ ls -la .env.example
@@ -103,6 +112,7 @@ $ ls -la .env.example
 ### Step 3: Install Dependencies
 
 **README Command:**
+
 ```bash
 make local-dev-setup
 ```
@@ -114,6 +124,7 @@ make local-dev-setup
 ### Step 4: Start Infrastructure
 
 **README Command:**
+
 ```bash
 make local-dev-infra
 ```
@@ -143,6 +154,7 @@ make local-dev-infra
    - macOS users should use Homebrew
 
 2. **Add verification step after prerequisites:**
+
    ```bash
    make check-docker  # Already exists!
    ```
@@ -169,6 +181,7 @@ make local-dev-infra
 The README installation instructions are accurate and comprehensive. The only issue found was the need for deadsnakes PPA on Ubuntu 22.04, which has been addressed.
 
 The prerequisites are correct, and the installation commands are valid. Full end-to-end testing would require:
+
 - More time (30-60 minutes)
 - Docker-in-Docker setup
 - API keys for LLM providers

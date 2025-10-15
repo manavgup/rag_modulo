@@ -16,12 +16,7 @@ from sqlalchemy.orm import Session
 
 from core.config import Settings
 from rag_solution.repository.voice_repository import VoiceRepository
-from rag_solution.schemas.voice_schema import (
-    VoiceGender,
-    VoiceStatus,
-    VoiceUpdateInput,
-    VoiceUploadInput,
-)
+from rag_solution.schemas.voice_schema import VoiceGender, VoiceStatus, VoiceUpdateInput, VoiceUploadInput
 from rag_solution.services.file_management_service import FileManagementService
 from rag_solution.services.voice_service import VoiceService
 

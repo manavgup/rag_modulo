@@ -66,7 +66,7 @@ environment_settings:
     max_scale: 3
     enable_monitoring: false
     enable_backups: false
-  
+
   staging:
     debug_enabled: false
     skip_auth_enabled: false
@@ -75,7 +75,7 @@ environment_settings:
     max_scale: 5
     enable_monitoring: true
     enable_backups: true
-  
+
   production:
     debug_enabled: false
     skip_auth_enabled: false
@@ -95,17 +95,17 @@ service_endpoints:
     database: "{{ postgresql_database | default('rag_modulo') }}"
     username: "{{ postgresql_username | default('rag_user') }}"
     password: "{{ postgresql_password | default('password') }}"
-  
+
   object_storage:
     endpoint: "{{ object_storage_endpoint | default('localhost:9000') }}"
     access_key: "{{ object_storage_access_key | default('minioadmin') }}"
     secret_key: "{{ object_storage_secret_key | default('minioadmin') }}"
     bucket_name: "{{ object_storage_bucket_name | default('rag-modulo-data') }}"
-  
+
   zilliz:
     endpoint: "{{ zilliz_endpoint | default('localhost:19530') }}"
     api_key: "{{ zilliz_api_key | default('') }}"
-  
+
   event_streams:
     endpoint: "{{ event_streams_endpoint | default('localhost:9092') }}"
     api_key: "{{ event_streams_api_key | default('') }}"

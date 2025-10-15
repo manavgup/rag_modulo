@@ -8,21 +8,21 @@ This script tests ONLY the script generation step (Step 1 of podcast creation):
 3. Validate script length and format
 """
 
+import asyncio
 import os
 import sys
-import asyncio
 from uuid import UUID
 
 # Add the backend directory to the Python path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'backend'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "backend"))
 
 from core.config import get_settings
 from rag_solution.file_management.database import SessionLocal
-from rag_solution.services.podcast_service import PodcastService
-from rag_solution.services.collection_service import CollectionService
-from rag_solution.services.search_service import SearchService
 from rag_solution.schemas.podcast_schema import PodcastGenerationInput
 from rag_solution.schemas.search_schema import SearchInput
+from rag_solution.services.collection_service import CollectionService
+from rag_solution.services.podcast_service import PodcastService
+from rag_solution.services.search_service import SearchService
 
 
 async def test_script_generation():
@@ -65,10 +65,10 @@ async def test_script_generation():
                 "speed": 1.0,
                 "pitch": 1.0,
                 "language": "en-US",
-                "name": "Nova"
+                "name": "Nova",
             },
             title="Test Script Generation",
-            description="Overview of the collection content"
+            description="Overview of the collection content",
         )
 
         print(f"\n🎯 Target duration: {podcast_input.duration} minutes")
@@ -79,7 +79,7 @@ async def test_script_generation():
         search_input = SearchInput(
             question=podcast_input.description or "Provide an overview of the content",
             collection_id=collection_id,
-            user_id=user_id
+            user_id=user_id,
         )
 
         search_result = await search_service.search(search_input)
@@ -145,6 +145,7 @@ async def test_script_generation():
     except Exception as e:
         print(f"\n❌ Error during script generation test: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 

@@ -9,12 +9,7 @@ import logging
 import re
 from typing import ClassVar
 
-from rag_solution.schemas.podcast_schema import (
-    PodcastScript,
-    PodcastTurn,
-    ScriptParsingResult,
-    Speaker,
-)
+from rag_solution.schemas.podcast_schema import PodcastScript, PodcastTurn, ScriptParsingResult, Speaker
 
 logger = logging.getLogger(__name__)
 

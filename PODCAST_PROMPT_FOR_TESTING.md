@@ -1,11 +1,13 @@
 # Podcast Script Generation Prompt for IBM Granite 3.3 8B
 
 ## System Prompt
+
 ```
 You are a professional podcast script writer.
 ```
 
 ## User Prompt Template
+
 ```
 You are a professional podcast script writer. Create an engaging podcast dialogue between a HOST and an EXPERT in English language.
 
@@ -77,6 +79,7 @@ CRITICAL INSTRUCTION: Generate the complete dialogue script now using ONLY the p
 ## The Problem
 
 Granite 3.3 8B is generating:
+
 1. ✅ Proper dialogue (HOST/EXPERT format)
 2. ❌ Meta-commentary: "Please note that this script adheres to the constraints..."
 3. ❌ Duplication: Repeating the entire script again with "**Podcast Script:**" header
@@ -84,6 +87,7 @@ Granite 3.3 8B is generating:
 This causes Turn 21 (the outro) to exceed 4096 characters when it includes all the garbage.
 
 ## Expected Output Format
+
 ```
 HOST: Welcome to today's podcast...
 EXPERT: Thank you for having me...
@@ -92,6 +96,7 @@ HOST: Thank you for listening. Until next time!
 ```
 
 ## Actual Output Format (WRONG)
+
 ```
 HOST: Welcome to today's podcast...
 EXPERT: Thank you for having me...
@@ -119,6 +124,7 @@ HOST: Welcome to today's podcast...
 Copy the "User Prompt Template" above and test with Granite 3.3 8B Instruct to see if you can get it to generate clean output without the meta-commentary and duplication.
 
 Possible solutions:
+
 1. Add "STOP AFTER THE FINAL HOST LINE. DO NOT ADD ANY COMMENTARY." to prompt
 2. Adjust temperature/top_p parameters
 3. Use stop sequences: ["**End of script.**", "Please note"]

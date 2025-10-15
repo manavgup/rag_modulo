@@ -186,7 +186,11 @@ app.add_middleware(
 
 app.add_middleware(
     LoggingCORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://frontend", "https://prepiam.ice.ibmcloud.com"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://frontend",
+        "https://prepiam.ice.ibmcloud.com",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*", "X-User-UUID"],
@@ -214,7 +218,12 @@ app.include_router(websocket_router)
 @app.get("/")
 async def root() -> dict[str, str]:
     """Root endpoint that provides basic API information."""
-    return {"message": "RAG Modulo API", "version": "1.0.0", "docs": "/docs", "health": "/api/health"}
+    return {
+        "message": "RAG Modulo API",
+        "version": "1.0.0",
+        "docs": "/docs",
+        "health": "/api/health",
+    }
 
 
 # -------------------------------------------

@@ -248,7 +248,7 @@ variable "enable_production_safeguards" {
 locals {
   # Validate that production safeguards are enabled for production environment
   production_safeguards_validation = var.environment == "production" ? var.enable_production_safeguards : true
-  
+
   # Validate scaling configuration
   scaling_validation = var.backend_min_scale <= var.backend_max_scale && var.frontend_min_scale <= var.frontend_max_scale
 }
@@ -256,19 +256,19 @@ locals {
 # Validation checks
 resource "null_resource" "validation_checks" {
   count = 1
-  
+
   provisioner "local-exec" {
     command = <<-EOT
       if [ "${var.environment}" = "production" ] && [ "${var.enable_production_safeguards}" = "false" ]; then
         echo "ERROR: Production safeguards must be enabled for production environment"
         exit 1
       fi
-      
+
       if [ ${var.backend_min_scale} -gt ${var.backend_max_scale} ]; then
         echo "ERROR: Backend min scale cannot be greater than max scale"
         exit 1
       fi
-      
+
       if [ ${var.frontend_min_scale} -gt ${var.frontend_max_scale} ]; then
         echo "ERROR: Frontend min scale cannot be greater than max scale"
         exit 1

@@ -41,10 +41,10 @@ resource "ibm_database" "postgresql" {
   plan              = var.postgresql_plan
   location          = var.region
   resource_group_id = var.resource_group_id
-  
+
   adminpassword = var.postgresql_admin_password
   service_endpoints = "public-and-private"
-  
+
   tags = [
     "project:${var.project_name}",
     "environment:${var.environment}",
@@ -86,7 +86,7 @@ resource "ibm_resource_instance" "object_storage" {
   plan              = var.object_storage_plan
   location          = var.region
   resource_group_id = var.resource_group_id
-  
+
   parameters = {
     "HMAC" = true
   }
@@ -97,11 +97,11 @@ resource "ibm_cos_bucket" "app_data" {
   resource_instance_id = ibm_resource_instance.object_storage.id
   region_location      = var.region
   storage_class        = "standard"
-  
+
   object_versioning {
     enable = true
   }
-  
+
   encryption {
     algorithm = "AES256"
   }
@@ -138,7 +138,7 @@ resource "ibm_resource_instance" "zilliz_cloud" {
   plan              = var.zilliz_plan
   location          = var.region
   resource_group_id = var.resource_group_id
-  
+
   tags = [
     "project:${var.project_name}",
     "environment:${var.environment}",
@@ -176,7 +176,7 @@ resource "ibm_resource_instance" "event_streams" {
   plan              = var.event_streams_plan
   location          = var.region
   resource_group_id = var.resource_group_id
-  
+
   tags = [
     "project:${var.project_name}",
     "environment:${var.environment}",
@@ -206,7 +206,7 @@ resource "ibm_code_engine_binding" "postgresql_binding" {
   project_id = ibm_code_engine_project.main.id
   app_id     = ibm_code_engine_app.backend.id
   name       = "postgresql-binding"
-  
+
   service_instance_id = var.postgresql_instance_id
 }
 
@@ -215,7 +215,7 @@ resource "ibm_code_engine_binding" "object_storage_binding" {
   project_id = ibm_code_engine_project.main.id
   app_id     = ibm_code_engine_app.backend.id
   name       = "object-storage-binding"
-  
+
   service_instance_id = var.object_storage_instance_id
 }
 ```

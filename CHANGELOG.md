@@ -92,6 +92,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `make prod-status`: Check production service status
 
 ### Changed
+
 - **Milvus Connection Stability**: Improved connection handling in MilvusStore
   - Added explicit disconnection before reconnecting to prevent stale connections
   - Fixes issues with connection caching when switching between hosts
@@ -116,6 +117,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Proper FormData handling for multi-file uploads
 
 ### Fixed
+
 - **Collection Creation Modal**: Fixed document upload functionality
   - Removed fake upload simulation
   - Store actual File objects for upload
@@ -123,6 +125,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Properly invoke document ingestion pipeline
 
 ### Technical Debt
+
 - Removed log file modifications from git tracking (already in .gitignore)
 - Cleaned up orphaned log files (logs/rag_modulo.log.1, logs/rag_modulo.log.3)
 
@@ -133,6 +136,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### [0.1.0] - 2025-09-30
 
 #### Major Features
+
 - Collection creation and management
 - Document processing and chunking
 - Vector store integration (Milvus)
@@ -142,6 +146,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Multi-provider LLM support (WatsonX, OpenAI, Anthropic)
 
 #### Infrastructure
+
 - Docker Compose orchestration
 - PostgreSQL for metadata
 - MLFlow for model tracking
@@ -154,11 +159,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Release Notes
 
 ### Version Numbering
+
 - **Major version** (X.0.0): Breaking changes, major architectural updates
 - **Minor version** (0.X.0): New features, non-breaking changes
 - **Patch version** (0.0.X): Bug fixes, minor improvements
 
 ### Categories
+
 - **Added**: New features
 - **Changed**: Changes to existing functionality
 - **Deprecated**: Soon-to-be removed features

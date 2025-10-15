@@ -9,7 +9,10 @@ from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
 
 @pytest.fixture
 def patched_openai_provider():
-    with patch("rag_solution.generation.providers.openai.OpenAILLM.initialize_client", new_callable=MagicMock):
+    with patch(
+        "rag_solution.generation.providers.openai.OpenAILLM.initialize_client",
+        new_callable=MagicMock,
+    ):
         mock_llm_model_service = MagicMock()
         mock_llm_parameters_service = MagicMock()
         mock_prompt_template_service = MagicMock()

@@ -38,10 +38,10 @@ test_command() {
     local command="$1"
     local description="$2"
     local expected_output="$3"
-    
+
     echo -e "${BLUE}Testing: $description${NC}"
     echo "Command: $command"
-    
+
     if eval "$command" > /dev/null 2>&1; then
         print_success "$description works"
         return 0
@@ -152,7 +152,7 @@ if [ -f ".env.dev" ]; then
         print_error ".env.dev missing DEVELOPMENT_MODE=true"
         ((tests_failed++))
     fi
-    
+
     if grep -q "TESTING=true" .env.dev; then
         print_success ".env.dev contains TESTING=true"
         ((tests_passed++))
@@ -160,7 +160,7 @@ if [ -f ".env.dev" ]; then
         print_error ".env.dev missing TESTING=true"
         ((tests_failed++))
     fi
-    
+
     if grep -q "SKIP_AUTH=true" .env.dev; then
         print_success ".env.dev contains SKIP_AUTH=true"
         ((tests_passed++))
@@ -217,7 +217,7 @@ print_step "10" "Testing Dev Container configuration"
 if [ -f ".devcontainer/devcontainer.json" ]; then
     print_success ".devcontainer/devcontainer.json exists"
     ((tests_passed++))
-    
+
     # Test that Dev Container config is valid JSON
     if python3 -m json.tool .devcontainer/devcontainer.json > /dev/null 2>&1; then
         print_success "Dev Container config is valid JSON"

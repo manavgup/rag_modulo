@@ -823,17 +823,24 @@ CRITICAL INSTRUCTION: Generate the complete dialogue script now using ONLY the p
 
             # Check voice ownership
             if custom_voice.user_id != user_id:
-                raise ValidationError(f"Custom voice '{voice_id}' does not belong to user", field="voice_id")
+                raise ValidationError(
+                    f"Custom voice '{voice_id}' does not belong to user",
+                    field="voice_id",
+                )
 
             # Check voice is ready
             if custom_voice.status != "ready":
                 raise ValidationError(
-                    f"Custom voice '{voice_id}' is not ready (status: {custom_voice.status})", field="voice_id"
+                    f"Custom voice '{voice_id}' is not ready (status: {custom_voice.status})",
+                    field="voice_id",
                 )
 
             # Check provider voice ID exists
             if not custom_voice.provider_voice_id:
-                raise ValidationError(f"Custom voice '{voice_id}' has no provider voice ID", field="voice_id")
+                raise ValidationError(
+                    f"Custom voice '{voice_id}' has no provider voice ID",
+                    field="voice_id",
+                )
 
             logger.info(
                 "Resolved custom voice %s to provider voice ID: %s (provider: %s)",
@@ -1231,7 +1238,10 @@ CRITICAL INSTRUCTION: Generate the complete dialogue script now using ONLY the p
 
         from rag_solution.schemas.podcast_schema import PodcastScriptOutput
 
-        logger.info("Starting script-only generation for collection %s", script_input.collection_id)
+        logger.info(
+            "Starting script-only generation for collection %s",
+            script_input.collection_id,
+        )
 
         # Validate collection exists
         collection = self.collection_service.get_collection(script_input.collection_id)
@@ -1350,7 +1360,9 @@ CRITICAL INSTRUCTION: Generate the complete dialogue script now using ONLY the p
             raise NotFoundError(f"Collection {audio_input.collection_id} not found")
 
         logger.info(
-            "Starting audio generation from script for collection %s (user %s)", audio_input.collection_id, user_id
+            "Starting audio generation from script for collection %s (user %s)",
+            audio_input.collection_id,
+            user_id,
         )
 
         # Create podcast record
@@ -1376,7 +1388,10 @@ CRITICAL INSTRUCTION: Generate the complete dialogue script now using ONLY the p
             audio_input,
         )
 
-        logger.info("Podcast %s queued for audio generation (script-to-audio)", podcast_record.podcast_id)
+        logger.info(
+            "Podcast %s queued for audio generation (script-to-audio)",
+            podcast_record.podcast_id,
+        )
 
         return self.repository.to_schema(podcast_record)
 

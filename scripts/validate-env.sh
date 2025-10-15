@@ -38,7 +38,7 @@ check_variable() {
     local var_value="${!var_name}"
     local required=$2
     local description=$3
-    
+
     if [ -z "$var_value" ]; then
         if [ "$required" = "true" ]; then
             print_status "ERROR" "$var_name is not set (REQUIRED: $description)"
@@ -60,30 +60,30 @@ check_variable() {
 # Function to validate environment file
 validate_env_file() {
     print_status "INFO" "Validating environment configuration"
-    
+
     # Check if .env file exists
     if [ ! -f ".env" ]; then
         print_status "ERROR" ".env file not found"
         print_status "INFO" "Please copy env.example to .env and configure the values"
         return 1
     fi
-    
+
     print_status "OK" ".env file found"
-    
+
     # Source the .env file to check variables
     if [ -f ".env" ]; then
         set -a
         source .env
         set +a
     fi
-    
+
     return 0
 }
 
 # Function to validate critical variables
 validate_critical_variables() {
     print_status "INFO" "Checking critical environment variables"
-    
+
     local critical_vars=(
         "MINIO_ROOT_USER:true:MinIO root username for object storage"
         "MINIO_ROOT_PASSWORD:true:MinIO root password for object storage"
@@ -93,23 +93,23 @@ validate_critical_variables() {
         "COLLECTIONDB_USER:true:PostgreSQL database user"
         "COLLECTIONDB_PASS:true:PostgreSQL database password"
     )
-    
+
     local error_count=0
-    
+
     for var_info in "${critical_vars[@]}"; do
         IFS=':' read -r var_name required description <<< "$var_info"
         if ! check_variable "$var_name" "$required" "$description"; then
             error_count=$((error_count + 1))
         fi
     done
-    
+
     return $error_count
 }
 
 # Function to validate optional variables
 validate_optional_variables() {
     print_status "INFO" "Checking optional environment variables"
-    
+
     local optional_vars=(
         "OIDC_DISCOVERY_ENDPOINT:false:OIDC discovery endpoint for authentication"
         "OIDC_AUTH_URL:false:OIDC authorization URL"
@@ -125,7 +125,7 @@ validate_optional_variables() {
         "PROJECT_NAME:false:Project name (default: rag-modulo)"
         "PYTHON_VERSION:false:Python version (default: 3.12)"
     )
-    
+
     for var_info in "${optional_vars[@]}"; do
         IFS=':' read -r var_name required description <<< "$var_info"
         check_variable "$var_name" "$required" "$description"
@@ -135,19 +135,19 @@ validate_optional_variables() {
 # Function to validate database configuration
 validate_database_config() {
     print_status "INFO" "Validating database configuration"
-    
+
     # Check if database credentials are properly formatted
     if [ -n "$COLLECTIONDB_HOST" ] && [ -n "$COLLECTIONDB_PORT" ]; then
         print_status "OK" "Database host: $COLLECTIONDB_HOST:$COLLECTIONDB_PORT"
     else
         print_status "WARNING" "Database host/port not explicitly set (using defaults)"
     fi
-    
+
     # Check if MinIO credentials are secure
     if [ "$MINIO_ROOT_PASSWORD" = "minioadmin123" ]; then
         print_status "WARNING" "Using default MinIO password - consider changing for production"
     fi
-    
+
     if [ "$MLFLOW_TRACKING_PASSWORD" = "mlflow123" ]; then
         print_status "WARNING" "Using default MLflow password - consider changing for production"
     fi
@@ -156,7 +156,7 @@ validate_database_config() {
 # Function to validate network configuration
 validate_network_config() {
     print_status "INFO" "Validating network configuration"
-    
+
     # Check if ports are within valid ranges
     if [ -n "$MILVUS_PORT" ]; then
         if [ "$MILVUS_PORT" -ge 1024 ] && [ "$MILVUS_PORT" -le 65535 ]; then
@@ -165,7 +165,7 @@ validate_network_config() {
             print_status "WARNING" "Milvus port $MILVUS_PORT is outside valid range (1024-65535)"
         fi
     fi
-    
+
     # Check if URLs are properly formatted
     if [ -n "$FRONTEND_URL" ]; then
         if [[ "$FRONTEND_URL" =~ ^https?:// ]]; then
@@ -206,37 +206,37 @@ main_validation() {
     echo "RAG Modulo Environment Validation"
     echo "=========================================="
     echo ""
-    
+
     local overall_status=0
-    
+
     # Validate environment file
     if ! validate_env_file; then
         overall_status=1
     fi
     echo ""
-    
+
     # Validate critical variables
     if ! validate_critical_variables; then
         overall_status=1
     fi
     echo ""
-    
+
     # Validate optional variables
     validate_optional_variables
     echo ""
-    
+
     # Validate database configuration
     validate_database_config
     echo ""
-    
+
     # Validate network configuration
     validate_network_config
     echo ""
-    
+
     echo "=========================================="
     echo "Validation Summary"
     echo "=========================================="
-    
+
     if [ $overall_status -eq 0 ]; then
         print_status "OK" "Environment validation passed"
         echo "All required variables are set"
@@ -246,7 +246,7 @@ main_validation() {
         echo "Please fix the issues above before starting services"
         provide_setup_instructions
     fi
-    
+
     return $overall_status
 }
 

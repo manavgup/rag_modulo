@@ -16,7 +16,7 @@ func TestTerraformManagedServicesModule(t *testing.T) {
 
 	// Generate a random name to avoid conflicts
 	randomName := strings.ToLower(random.UniqueId())
-	
+
 	// Set up Terraform options
 	terraformOptions := &terraform.Options{
 		TerraformDir: "../modules/ibm-cloud/managed-services",
@@ -57,7 +57,7 @@ func TestTerraformCodeEngineModule(t *testing.T) {
 
 	// Generate a random name to avoid conflicts
 	randomName := strings.ToLower(random.UniqueId())
-	
+
 	// Set up Terraform options
 	terraformOptions := &terraform.Options{
 		TerraformDir: "../modules/ibm-cloud/code-engine",

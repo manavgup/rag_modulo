@@ -15,19 +15,19 @@ graph TB
         BE[Backend App]
         FE[Frontend App]
     end
-    
+
     subgraph "Managed Services"
         PG[PostgreSQL]
         OS[Object Storage]
         ZL[Zilliz Cloud]
         ES[Event Streams]
     end
-    
+
     subgraph "External Services"
         CR[Container Registry]
         MON[Monitoring]
     end
-    
+
     CE --> BE
     CE --> FE
     BE --> PG
@@ -181,41 +181,41 @@ ENABLE_PRODUCTION_SAFEGUARDS=true
 # deployment/terraform/environments/ibm/main.tf
 module "managed_services" {
   source = "../../modules/ibm-cloud/managed-services"
-  
+
   project_name = var.project_name
   environment  = var.environment
   region       = var.region
   resource_group_id = data.ibm_resource_group.main.id
-  
+
   # Service plans
   postgresql_plan        = var.postgresql_plan
   object_storage_plan    = var.object_storage_plan
   zilliz_plan           = var.zilliz_plan
   event_streams_plan    = var.event_streams_plan
-  
+
   # PostgreSQL configuration
   postgresql_admin_password = var.postgresql_admin_password
-  
+
   # Production safeguards
   enable_production_safeguards = var.enable_production_safeguards
 }
 
 module "code_engine" {
   source = "../../modules/ibm-cloud/code-engine"
-  
+
   project_name = var.project_name
   environment  = var.environment
   resource_group_id = data.ibm_resource_group.main.id
-  
+
   # Container registry configuration
   container_registry_url      = var.container_registry_url
   container_registry_username = var.container_registry_username
   container_registry_password = var.container_registry_password
-  
+
   # Image tags
   backend_image_tag  = var.backend_image_tag
   frontend_image_tag = var.frontend_image_tag
-  
+
   # Managed services integration
   postgresql_host     = module.managed_services.postgresql_host
   postgresql_port     = module.managed_services.postgresql_port
@@ -223,7 +223,7 @@ module "code_engine" {
   postgresql_username = module.managed_services.postgresql_username
   postgresql_password = module.managed_services.postgresql_password
   postgresql_instance_id = module.managed_services.postgresql_instance_id
-  
+
   # ... other service configurations
 }
 ```
@@ -301,23 +301,23 @@ all:
         localhost:
           ansible_connection: local
           ansible_python_interpreter: "{{ ansible_playbook_python }}"
-    
+
     development:
       hosts:
         localhost:
           ansible_connection: local
           ansible_python_interpreter: "{{ ansible_playbook_python }}"
-    
+
     production:
       hosts:
         localhost:
           ansible_connection: local
           ansible_python_interpreter: "{{ ansible_playbook_python }}"
-  
+
   vars:
     ansible_connection: local
     ansible_python_interpreter: "{{ ansible_playbook_python }}"
-    
+
     # IBM Cloud default settings
     region: "us-south"
     container_registry_url: "us.icr.io"
@@ -490,10 +490,12 @@ Code Engine provides built-in metrics for:
 #### 1. Application Won't Start
 
 **Symptoms:**
+
 - Application status shows "Failed"
 - No logs available
 
 **Solutions:**
+
 ```bash
 # Check application status
 ibmcloud ce app get rag-modulo-backend
@@ -508,10 +510,12 @@ ibmcloud ce app get rag-modulo-backend --output json | jq '.spec.template.spec.c
 #### 2. Service Connection Issues
 
 **Symptoms:**
+
 - Application starts but can't connect to services
 - Database connection errors
 
 **Solutions:**
+
 ```bash
 # Verify service bindings
 ibmcloud ce app get rag-modulo-backend --output json | jq '.spec.template.spec.serviceBindings'
@@ -523,10 +527,12 @@ ibmcloud ce app get rag-modulo-backend --output json | jq '.spec.template.spec.c
 #### 3. Scaling Issues
 
 **Symptoms:**
+
 - Application doesn't scale as expected
 - Performance issues under load
 
 **Solutions:**
+
 ```bash
 # Check scaling configuration
 ibmcloud ce app get rag-modulo-backend --output json | jq '.spec.template.spec.scale'

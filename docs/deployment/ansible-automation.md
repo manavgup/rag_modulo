@@ -16,20 +16,20 @@ graph TB
         AP[Playbooks]
         AV[Variables]
     end
-    
+
     subgraph "Target Infrastructure"
         CE[Code Engine]
         MS[Managed Services]
         CR[Container Registry]
     end
-    
+
     subgraph "IBM Cloud CLI"
         ICL[ibmcloud CLI]
         IAM[IAM Commands]
         CE_CMD[Code Engine Commands]
         MS_CMD[Managed Services Commands]
     end
-    
+
     AC --> AI
     AC --> AP
     AC --> AV
@@ -109,23 +109,23 @@ all:
         localhost:
           ansible_connection: local
           ansible_python_interpreter: "{{ ansible_playbook_python }}"
-    
+
     development:
       hosts:
         localhost:
           ansible_connection: local
           ansible_python_interpreter: "{{ ansible_playbook_python }}"
-    
+
     production:
       hosts:
         localhost:
           ansible_connection: local
           ansible_python_interpreter: "{{ ansible_playbook_python }}"
-  
+
   vars:
     ansible_connection: local
     ansible_python_interpreter: "{{ ansible_playbook_python }}"
-    
+
     # IBM Cloud default settings
     region: "us-south"
     container_registry_url: "us.icr.io"
@@ -404,10 +404,10 @@ enable_production_safeguards: true
       ansible.builtin.debug:
         msg: |
           Deployment completed successfully!
-          
+
           Backend URL: {{ backend_url.stdout }}
           Frontend URL: {{ frontend_url.stdout }}
-          
+
           Project: {{ project_name }}-{{ environment }}
           Region: {{ region }}
           Environment: {{ environment }}

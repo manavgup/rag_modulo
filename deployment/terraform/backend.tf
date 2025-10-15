@@ -5,20 +5,20 @@ terraform {
   backend "s3" {
     # IBM Cloud Object Storage S3-compatible endpoint
     endpoint = "s3.us-south.cloud-object-storage.appdomain.cloud"
-    
+
     # Bucket configuration
     bucket = "rag-modulo-terraform-state"
     key    = "ibm/environments/terraform.tfstate"
     region = "us-south"
-    
+
     # Enable versioning and encryption
     versioning = true
     encrypt   = true
-    
+
     # State locking (using IBM Cloud Databases for PostgreSQL)
     dynamodb_endpoint = "https://dynamodb.us-south.cloud-object-storage.appdomain.cloud"
     dynamodb_table   = "rag-modulo-terraform-locks"
-    
+
     # Skip SSL verification for IBM Cloud Object Storage
     skip_credentials_validation = true
     skip_metadata_api_check     = true

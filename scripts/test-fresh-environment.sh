@@ -79,10 +79,10 @@ docker exec $CONTAINER_NAME bash -c "
     curl -fsSL https://get.docker.com -o get-docker.sh
     sh get-docker.sh
     rm get-docker.sh
-    
+
     # Add user to docker group
     usermod -aG docker root
-    
+
     echo 'Docker installed'
 "
 

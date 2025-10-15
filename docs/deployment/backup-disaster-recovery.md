@@ -24,14 +24,14 @@ graph TB
         BE[Backend App]
         FE[Frontend App]
     end
-    
+
     subgraph "Backup Services"
         PG_BK[PostgreSQL Backups]
         OS_BK[Object Storage Backups]
         ZL_BK[Zilliz Cloud Backups]
         ES_BK[Event Streams Backups]
     end
-    
+
     subgraph "Disaster Recovery"
         DR_REGION[DR Region]
         DR_PG[DR PostgreSQL]
@@ -40,27 +40,27 @@ graph TB
         DR_ES[DR Event Streams]
         DR_APPS[DR Applications]
     end
-    
+
     subgraph "Backup Storage"
         COS[Cloud Object Storage]
         CR[Container Registry]
         SECRETS[Secrets Manager]
     end
-    
+
     PG --> PG_BK
     OS --> OS_BK
     ZL --> ZL_BK
     ES --> ES_BK
-    
+
     PG_BK --> COS
     OS_BK --> COS
     ZL_BK --> COS
     ES_BK --> COS
-    
+
     COS --> DR_REGION
     CR --> DR_REGION
     SECRETS --> DR_REGION
-    
+
     DR_REGION --> DR_PG
     DR_REGION --> DR_OS
     DR_REGION --> DR_ZL
@@ -80,20 +80,20 @@ postgresql_backup:
   enabled: true
   service: "ibm-cloud-databases-for-postgresql"
   plan: "standard"
-  
+
   # Backup settings
   backup_settings:
     frequency: "daily"
     retention_days: 30
     point_in_time_recovery: true
     cross_region_replication: true
-  
+
   # Backup schedule
   schedule:
     time: "02:00"
     timezone: "UTC"
     days: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
-  
+
   # Backup storage
   storage:
     location: "us-south"
@@ -153,14 +153,14 @@ echo "Backup completed successfully: $BACKUP_FILE"
 object_storage_backup:
   enabled: true
   service: "ibm-cloud-object-storage"
-  
+
   # Replication settings
   replication:
     enabled: true
     source_region: "us-south"
     target_region: "us-east"
     target_bucket: "rag-modulo-backups-us-east"
-  
+
   # Lifecycle policies
   lifecycle_policies:
     - name: "standard_to_ia"
@@ -219,13 +219,13 @@ echo "Object Storage backup completed successfully"
 zilliz_backup:
   enabled: true
   service: "zilliz-cloud"
-  
+
   # Backup settings
   backup_settings:
     frequency: "daily"
     retention_days: 30
     cross_region_replication: true
-  
+
   # Backup collections
   collections:
     - name: "documents"
@@ -234,7 +234,7 @@ zilliz_backup:
       backup_enabled: true
     - name: "metadata"
       backup_enabled: true
-  
+
   # Backup storage
   storage:
     location: "us-south"
@@ -256,29 +256,29 @@ from zilliz import MilvusClient
 
 def backup_zilliz_collections():
     """Backup Zilliz Cloud collections"""
-    
+
     # Configuration
     zilliz_endpoint = os.getenv('MILVUS_HOST')
     zilliz_api_key = os.getenv('MILVUS_API_KEY')
     s3_bucket = os.getenv('BACKUP_BUCKET', 'rag-modulo-zilliz-backups')
     backup_prefix = f"zilliz-backup-{datetime.now().strftime('%Y%m%d_%H%M%S')}/"
-    
+
     # Initialize clients
     milvus_client = MilvusClient(uri=zilliz_endpoint, token=zilliz_api_key)
     s3_client = boto3.client('s3')
-    
+
     # Get all collections
     collections = milvus_client.list_collections()
-    
+
     for collection_name in collections:
         print(f"Backing up collection: {collection_name}")
-        
+
         # Export collection data
         export_result = milvus_client.export_collection(
             collection_name=collection_name,
             output_path=f"/tmp/{collection_name}_backup.json"
         )
-        
+
         # Upload to S3
         s3_key = f"{backup_prefix}{collection_name}_backup.json"
         s3_client.upload_file(
@@ -287,12 +287,12 @@ def backup_zilliz_collections():
             s3_key,
             ExtraArgs={'ServerSideEncryption': 'AES256'}
         )
-        
+
         # Clean up local file
         os.remove(f"/tmp/{collection_name}_backup.json")
-        
+
         print(f"Collection {collection_name} backed up successfully")
-    
+
     print("Zilliz Cloud backup completed successfully")
 
 if __name__ == "__main__":
@@ -440,42 +440,42 @@ from zilliz import MilvusClient
 
 def restore_zilliz_collections(restore_endpoint, restore_api_key, backup_prefix):
     """Restore Zilliz Cloud collections from backup"""
-    
+
     # Configuration
     s3_bucket = os.getenv('BACKUP_BUCKET', 'rag-modulo-zilliz-backups')
-    
+
     # Initialize clients
     milvus_client = MilvusClient(uri=restore_endpoint, token=restore_api_key)
     s3_client = boto3.client('s3')
-    
+
     # List backup files
     response = s3_client.list_objects_v2(
         Bucket=s3_bucket,
         Prefix=backup_prefix
     )
-    
+
     for obj in response.get('Contents', []):
         collection_name = obj['Key'].split('/')[-1].replace('_backup.json', '')
         print(f"Restoring collection: {collection_name}")
-        
+
         # Download backup file
         s3_client.download_file(
             s3_bucket,
             obj['Key'],
             f"/tmp/{collection_name}_restore.json"
         )
-        
+
         # Import collection data
         milvus_client.import_collection(
             collection_name=collection_name,
             data_path=f"/tmp/{collection_name}_restore.json"
         )
-        
+
         # Clean up local file
         os.remove(f"/tmp/{collection_name}_restore.json")
-        
+
         print(f"Collection {collection_name} restored successfully")
-    
+
     print("Zilliz Cloud recovery completed successfully")
 
 if __name__ == "__main__":
@@ -483,7 +483,7 @@ if __name__ == "__main__":
     if len(sys.argv) != 4:
         print("Usage: python restore_zilliz.py <endpoint> <api_key> <backup_prefix>")
         sys.exit(1)
-    
+
     restore_zilliz_collections(sys.argv[1], sys.argv[2], sys.argv[3])
 ```
 
@@ -501,7 +501,7 @@ if __name__ == "__main__":
     recovery_region: "{{ recovery_region | default('us-east') }}"
     backup_date: "{{ backup_date | default('latest') }}"
     recovery_environment: "{{ recovery_environment | default('production') }}"
-  
+
   tasks:
     - name: Validate recovery parameters
       ansible.builtin.assert:
@@ -510,14 +510,14 @@ if __name__ == "__main__":
           - backup_date is defined
           - recovery_environment is defined
         fail_msg: "Recovery parameters are not defined"
-    
+
     - name: Set up recovery environment
       ansible.builtin.shell: |
         ibmcloud target -r "{{ recovery_region }}"
         ibmcloud target -g "{{ resource_group_id }}"
       environment:
         IBMCLOUD_API_KEY: "{{ ibmcloud_api_key }}"
-    
+
     - name: Provision recovery infrastructure
       ansible.builtin.shell: |
         cd deployment/terraform/environments/ibm
@@ -526,23 +526,23 @@ if __name__ == "__main__":
         terraform apply -var-file="recovery.tfvars" -auto-approve
       environment:
         IBMCLOUD_API_KEY: "{{ ibmcloud_api_key }}"
-    
+
     - name: Restore PostgreSQL database
       ansible.builtin.shell: |
         ./scripts/restore_postgresql.sh "{{ postgresql_url }}" "{{ backup_date }}"
-    
+
     - name: Restore Object Storage
       ansible.builtin.shell: |
         ./scripts/restore_object_storage.sh "{{ object_storage_bucket }}" "{{ backup_date }}"
-    
+
     - name: Restore Vector Database
       ansible.builtin.shell: |
         python scripts/restore_zilliz.py "{{ zilliz_endpoint }}" "{{ zilliz_api_key }}" "{{ backup_date }}"
-    
+
     - name: Deploy applications
       ansible.builtin.shell: |
         ansible-playbook -i inventories/ibm/hosts.yml playbooks/deploy-rag-modulo.yml -e "environment={{ recovery_environment }}"
-    
+
     - name: Verify recovery
       ansible.builtin.shell: |
         curl -f "https://{{ frontend_url }}/health" || exit 1
@@ -697,12 +697,12 @@ backup_alerts:
     condition: "backup_status == 'failed'"
     severity: "critical"
     description: "Backup process failed"
-  
+
   - name: "backup_delayed"
     condition: "backup_delay > 2h"
     severity: "warning"
     description: "Backup is delayed by more than 2 hours"
-  
+
   - name: "backup_size_anomaly"
     condition: "backup_size < 0.5 * avg_backup_size OR backup_size > 2 * avg_backup_size"
     severity: "warning"
@@ -760,7 +760,7 @@ recovery_monitoring:
     condition: "recovery_time > 60m"
     severity: "critical"
     description: "Recovery time exceeded RTO of 60 minutes"
-  
+
   - name: "data_loss_detected"
     condition: "data_loss > 15m"
     severity: "critical"
@@ -781,13 +781,13 @@ emergency_contacts:
       phone: "+1-555-0123"
       email: "devops@company.com"
       slack: "#devops-alerts"
-  
+
   secondary:
     - name: "Engineering Manager"
       phone: "+1-555-0124"
       email: "eng-manager@company.com"
       slack: "#engineering"
-  
+
   escalation:
     - name: "CTO"
       phone: "+1-555-0125"
@@ -854,31 +854,37 @@ ibmcloud target -g production-resource-group
 ```
 
 ### 2. Provision Database
+
 ```bash
 cd deployment/terraform/environments/ibm
 terraform apply -var-file="recovery.tfvars"
 ```
 
 ### 3. Restore Database
+
 ```bash
 ./scripts/restore_postgresql.sh "$DATABASE_URL" "latest"
 ```
 
 ### 4. Verify Restoration
+
 ```bash
 psql "$DATABASE_URL" -c "SELECT COUNT(*) FROM information_schema.tables;"
 ```
 
 ### 5. Test Connectivity
+
 ```bash
 curl -f "https://backend-app.example.com/health"
 ```
 
 ## Troubleshooting
+
 - If restoration fails, try previous backup
 - Check database logs for errors
 - Verify network connectivity
 - Contact database team if needed
+
 ```
 
 ## Best Practices

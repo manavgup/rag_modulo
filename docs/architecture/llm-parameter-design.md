@@ -15,11 +15,13 @@ System Defaults → User Preferences → Context-Specific Overrides
 ```
 
 **Example Flow:**
+
 1. **System starts** with safe defaults (`max_new_tokens: 100`)
 2. **User configures** via UI/API (stored in database)
 3. **Service overrides** for specific use cases (podcast: `max_new_tokens: 8100`)
 
 **Benefits:**
+
 - ✅ Safe for new users (conservative defaults)
 - ✅ Flexible for advanced users (UI configuration)
 - ✅ Context-aware (services can override for specialized tasks)
@@ -54,6 +56,7 @@ class LLMParametersInput(LLMParametersBase):
 ```
 
 **Design Rationale:**
+
 - **No `le` (upper limit)**: Different models have vastly different capabilities
 - **Low default (100)**: Safe for general Q&A, fast responses
 - **Descriptive**: Documents model-specific limits
@@ -63,11 +66,13 @@ class LLMParametersInput(LLMParametersBase):
 **Location:** `llm_parameters` table
 
 **Access Methods:**
+
 1. **REST API:** `/api/users/{user_id}/llm-parameters`
 2. **UI:** Settings page (to be implemented)
 3. **CLI:** `rag-cli config llm-params set`
 
 **User Benefits:**
+
 - Persist preferences across sessions
 - Different configs for different tasks
 - Team-wide or personal settings
@@ -89,6 +94,7 @@ llm_provider.generate_text(model_parameters=podcast_params)
 ```
 
 **When to Use Service Overrides:**
+
 - Task requires significantly different parameters
 - Safety-critical operations (lower temperature)
 - Long-form content (higher token limits)
@@ -147,6 +153,7 @@ MODEL_CAPABILITIES = {
 ```
 
 **Use for:**
+
 - UI hints: "Your model supports up to 2048 tokens"
 - Automatic validation: Warn if exceeding model capability
 - Smart defaults: Suggest optimal parameters per model
@@ -175,6 +182,7 @@ PARAMETER_PRESETS = {
 ```
 
 **UI Flow:**
+
 ```
 [Preset: Custom ▼]
   - Short Q&A
@@ -187,11 +195,13 @@ PARAMETER_PRESETS = {
 ## Migration Path
 
 ### Phase 1: ✅ **Current State**
+
 - Sensible defaults in code
 - Database storage for user preferences
 - Service-level overrides working
 
 ### Phase 2: **UI Configuration** (Next)
+
 ```
 Location: frontend/src/components/settings/LLMParametersSettings.tsx
 
@@ -203,6 +213,7 @@ Features:
 ```
 
 ### Phase 3: **Per-Collection Settings**
+
 ```
 Allow different LLM parameters per collection:
 - Legal documents: Higher accuracy (low temperature)
@@ -211,6 +222,7 @@ Allow different LLM parameters per collection:
 ```
 
 ### Phase 4: **A/B Testing & Analytics**
+
 ```
 Track which parameters work best:
 - User satisfaction scores
@@ -352,6 +364,7 @@ if temperature > 1.5:
 ✅ **Runtime configuration** (no restarts needed)
 
 **Next Steps:**
+
 1. ✅ Remove `le=2048` limit (done)
 2. 🔄 Build UI for parameter configuration
 3. 🔄 Add parameter presets for common tasks

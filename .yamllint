@@ -90,31 +90,9 @@ rules:
   # Key duplicates
   key-duplicates: enable
 
-  # Key ordering
-  key-ordering: disable
-
   # New line at end of file
   new-line-at-end-of-file: enable
 
   # New lines
   new-lines:
     type: unix
-
-  # Octal values
-  octal-values:
-    forbid-implicit-octal: true
-    forbid-explicit-octal: false
-
-  # Quoted strings
-  quoted-strings:
-    quote-type: single
-    check-keys: false
-
-  # Trailing spaces
-  trailing-spaces:
-    level: error
-
-  # Truthy
-  truthy:
-    allowed-values: ['true', 'false', 'yes', 'no', 'on', 'off']
-    check-keys: false

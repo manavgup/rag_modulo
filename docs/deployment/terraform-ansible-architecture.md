@@ -46,19 +46,19 @@ graph TB
         MON[Monitoring]
         BK[Backup Services]
     end
-    
+
     subgraph "Managed Services"
         PG[PostgreSQL]
         OS[Object Storage]
         ZL[Zilliz Cloud]
         ES[Event Streams]
     end
-    
+
     subgraph "Applications"
         BE[Backend App]
         FE[Frontend App]
     end
-    
+
     CE --> BE
     CE --> FE
     MS --> PG
@@ -85,12 +85,12 @@ graph LR
         HC[Health Checks]
         CFG[Configuration]
     end
-    
+
     subgraph "Target Infrastructure"
         CE[Code Engine]
         MS[Managed Services]
     end
-    
+
     DP --> CE
     DP --> MS
     HC --> CE

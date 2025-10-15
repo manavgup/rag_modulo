@@ -24,6 +24,7 @@ Each dialogue turn can use a different TTS provider based on the voice selected:
 ```
 
 The system automatically:
+
 - Detects voice ID format (UUID = custom, string = predefined)
 - Resolves custom voices from database
 - Selects appropriate TTS provider per turn
@@ -33,6 +34,7 @@ The system automatically:
 ### 2. Custom Voice Resolution
 
 **UUID-Based Detection**:
+
 ```python
 async def _resolve_voice_id(self, voice_id: str, user_id: UUID4) -> tuple[str, str | None]:
     """
@@ -44,6 +46,7 @@ async def _resolve_voice_id(self, voice_id: str, user_id: UUID4) -> tuple[str, s
 ```
 
 **Validation Steps**:
+
 1. Parse voice ID as UUID
 2. Look up custom voice in database
 3. Validate ownership (user_id matches)
@@ -61,6 +64,7 @@ async def _resolve_voice_id(self, voice_id: str, user_id: UUID4) -> tuple[str, s
 ### 4. Audio Stitching
 
 **Technical Implementation**:
+
 ```python
 # Generate audio for each turn with appropriate provider
 for turn in script.turns:
@@ -81,6 +85,7 @@ for segment in audio_segments:
 ```
 
 **Benefits**:
+
 - Seamless transitions between providers
 - Natural pauses between speakers
 - Single output file (MP3, WAV, OGG, FLAC)
@@ -111,6 +116,7 @@ ELEVENLABS_MAX_RETRIES=3
 ```
 
 Get your API keys:
+
 - **OpenAI**: [https://platform.openai.com/api-keys](https://platform.openai.com/api-keys)
 - **ElevenLabs**: [https://elevenlabs.io/app/settings/api-keys](https://elevenlabs.io/app/settings/api-keys)
 
@@ -137,6 +143,7 @@ providers = AudioProviderFactory.list_providers()
 ### 1. Creating Custom Voices
 
 **Upload and Clone Voice** (ElevenLabs):
+
 ```bash
 POST /api/voices/upload-and-clone
 Content-Type: multipart/form-data
@@ -160,6 +167,7 @@ Response:
 ### 2. Generating Podcasts with Custom Voices
 
 **Mixed Provider Example**:
+
 ```bash
 POST /api/podcasts/script-to-audio
 Content-Type: application/json
@@ -176,6 +184,7 @@ Content-Type: application/json
 ```
 
 **Both Custom Voices**:
+
 ```json
 {
   "host_voice": "38c79b5a-204c-427c-b794-6c3a9e3db956",  # Custom voice 1
@@ -184,6 +193,7 @@ Content-Type: application/json
 ```
 
 **Both Predefined Voices**:
+
 ```json
 {
   "host_voice": "alloy",  # OpenAI
@@ -310,6 +320,7 @@ class AudioProviderFactory:
 **Location**: `backend/rag_solution/utils/script_parser.py`
 
 **Updated Patterns**:
+
 ```python
 HOST_PATTERNS: ClassVar[list[str]] = [
     r"^HOST:\s*(.*)$",
@@ -334,6 +345,7 @@ HOST_PATTERNS: ClassVar[list[str]] = [
 ### Optimization
 
 **Provider Caching**:
+
 ```python
 # Cache provider instances to avoid recreation per turn
 provider_cache: dict[str, AudioProviderBase] = {}
@@ -345,6 +357,7 @@ def get_provider(provider_type: str) -> AudioProviderBase:
 ```
 
 **Benefits**:
+
 - Reduces provider initialization overhead
 - Reuses HTTP connections
 - Faster per-turn generation
@@ -354,6 +367,7 @@ def get_provider(provider_type: str) -> AudioProviderBase:
 ### Common Errors
 
 #### 1. Custom Voice Not Found
+
 ```json
 {
   "error": "ValidationError",
@@ -365,6 +379,7 @@ def get_provider(provider_type: str) -> AudioProviderBase:
 **Solution**: Verify voice ID exists in database and belongs to user.
 
 #### 2. Voice Not Ready
+
 ```json
 {
   "error": "ValidationError",
@@ -376,6 +391,7 @@ def get_provider(provider_type: str) -> AudioProviderBase:
 **Solution**: Wait for voice cloning to complete (usually 30-60 seconds).
 
 #### 3. Provider API Error
+
 ```json
 {
   "error": "AudioGenerationError",
@@ -388,6 +404,7 @@ def get_provider(provider_type: str) -> AudioProviderBase:
 **Solution**: Check API key configuration in `.env`.
 
 #### 4. Script Format Validation Error
+
 ```json
 {
   "error": "ValidationError",
@@ -402,11 +419,13 @@ def get_provider(provider_type: str) -> AudioProviderBase:
 ### 1. Voice Selection
 
 **Custom Voices**:
+
 - Use for brand consistency
 - Requires 1+ minute of clear audio
 - Better for recognizable voices
 
 **Predefined Voices**:
+
 - Faster to set up (no cloning)
 - Consistent quality
 - Good for generic podcasts
@@ -414,12 +433,14 @@ def get_provider(provider_type: str) -> AudioProviderBase:
 ### 2. Script Quality
 
 **Good**:
+
 ```text
 HOST: Welcome to today's podcast on machine learning.
 EXPERT: Thank you for having me. Let me explain the core concepts.
 ```
 
 **Avoid**:
+
 ```text
 HOST: Welcome, [EXPERT NAME]!  # ❌ Placeholder names
 EXPERT: [Placeholder response]  # ❌ Template text
@@ -428,14 +449,17 @@ EXPERT: [Placeholder response]  # ❌ Template text
 ### 3. API Rate Limits
 
 **OpenAI**:
+
 - 50 requests/minute (free tier)
 - 500 requests/minute (paid tier)
 
 **ElevenLabs**:
+
 - 10,000 characters/month (free tier)
 - Unlimited (paid tier)
 
 **Recommendations**:
+
 - Use provider caching
 - Implement retry logic (already built-in)
 - Monitor usage via provider dashboards
@@ -445,6 +469,7 @@ EXPERT: [Placeholder response]  # ❌ Template text
 ### From Single-Provider to Multi-Provider
 
 **Before** (single provider for entire podcast):
+
 ```python
 # Old approach - all turns use same provider
 podcast_input = PodcastGenerationInput(
@@ -455,6 +480,7 @@ podcast_input = PodcastGenerationInput(
 ```
 
 **After** (per-turn provider selection):
+
 ```python
 # New approach - each voice can use different provider
 podcast_input = PodcastGenerationInput(
@@ -474,6 +500,7 @@ All existing podcasts continue to work without changes. The system detects voice
 **Symptoms**: Custom voice stuck in "processing" status
 
 **Solutions**:
+
 1. Check audio quality (clear speech, minimal background noise)
 2. Ensure file is 1+ minute duration
 3. Verify API key is valid
@@ -484,6 +511,7 @@ All existing podcasts continue to work without changes. The system detects voice
 **Symptoms**: Audible clicks/pops between turns
 
 **Solutions**:
+
 1. Adjust pause duration (default 500ms)
 2. Ensure all providers use same sample rate
 3. Check audio format consistency
@@ -493,9 +521,11 @@ All existing podcasts continue to work without changes. The system detects voice
 **Symptoms**: Request times out after 120 seconds
 
 **Solutions**:
+
 1. Reduce podcast duration
 2. Use faster provider (OpenAI typically faster)
 3. Increase timeout in settings:
+
 ```python
 ELEVENLABS_REQUEST_TIMEOUT_SECONDS=60  # Increase if needed
 ```

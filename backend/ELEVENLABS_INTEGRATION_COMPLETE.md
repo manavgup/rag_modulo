@@ -39,6 +39,7 @@ ELEVENLABS_MAX_RETRIES=3
 ### Files Created/Modified
 
 **New Files**:
+
 - `backend/rag_solution/generation/audio/elevenlabs_audio.py` (480 lines)
   - Full ElevenLabs TTS provider implementation
   - Voice cloning support
@@ -47,6 +48,7 @@ ELEVENLABS_MAX_RETRIES=3
   - Retry logic and error handling
 
 **Modified Files**:
+
 - `backend/core/config.py` (+14 lines) - ElevenLabs settings
 - `backend/.env` (+1 line) - API key
 - `backend/rag_solution/generation/audio/factory.py` (+46 lines) - Provider registration
@@ -141,29 +143,34 @@ curl -X POST http://localhost:8000/api/podcasts/generate \
 ### Core Capabilities
 
 ✅ **Voice Cloning** (`clone_voice`)
+
 - Upload voice sample (MP3, WAV, etc.)
 - ElevenLabs processes and creates custom voice
 - Returns provider_voice_id for future use
 - Supports voice descriptions
 
 ✅ **Multi-Voice Dialogue Generation** (`generate_dialogue_audio`)
+
 - Generate podcast audio with multiple custom voices
 - Turn-by-turn TTS synthesis
 - Automatic pause insertion between speakers
 - Format support: MP3, WAV, OGG, FLAC
 
 ✅ **Voice Management**
+
 - List available voices (`list_available_voices`)
 - Delete cloned voices (`delete_voice`)
 - Validate voice availability
 
 ✅ **Error Handling**
+
 - Automatic retry with exponential backoff (3 retries)
 - Detailed error messages
 - HTTP status code handling (401, 404, 500)
 - Timeout protection (30 seconds)
 
 ✅ **Quality Settings**
+
 - Configurable stability (0.0-1.0)
 - Configurable similarity boost (0.0-1.0)
 - Model selection (eleven_multilingual_v2)
@@ -173,12 +180,14 @@ curl -X POST http://localhost:8000/api/podcasts/generate \
 **ElevenLabs API Calls Made**:
 
 1. **Voice Cloning**: `POST /v1/voices/add`
+
    ```python
    files = {"files": ("voice_sample.mp3", voice_bytes, "audio/mpeg")}
    data = {"name": "Custom Voice", "description": "..."}
    ```
 
 2. **TTS Generation**: `POST /v1/text-to-speech/{voice_id}`
+
    ```python
    payload = {
        "text": "Dialogue text",
@@ -203,6 +212,7 @@ curl -X POST http://localhost:8000/api/podcasts/generate \
 ### Manual Testing Steps
 
 #### 1. Test Voice Upload
+
 ```bash
 # Get auth token first
 JWT_TOKEN=$(curl -X POST http://localhost:8000/api/auth/login ...)
@@ -218,6 +228,7 @@ curl -X POST http://localhost:8000/api/voices/upload \
 ```
 
 #### 2. Test Voice Processing (ElevenLabs)
+
 ```bash
 # Process with ElevenLabs
 curl -X POST http://localhost:8000/api/voices/{voice_id}/process \
@@ -229,6 +240,7 @@ curl -X POST http://localhost:8000/api/voices/{voice_id}/process \
 ```
 
 #### 3. Test Custom Voice in Podcast
+
 ```bash
 # Generate podcast
 curl -X POST http://localhost:8000/api/podcasts/generate \
@@ -294,12 +306,14 @@ Even when `PODCAST_AUDIO_PROVIDER=openai`, custom voices work because:
 ### ElevenLabs Pricing (as of 2025)
 
 **Voice Cloning**:
+
 - **Free Tier**: 3 custom voices
 - **Starter**: 10 custom voices ($5/month)
 - **Creator**: 30 custom voices ($22/month)
 - **Pro**: 160 custom voices ($99/month)
 
 **TTS Generation**:
+
 - **Free**: 10,000 characters/month
 - **Starter**: 30,000 characters/month
 - **Creator**: 100,000 characters/month
@@ -308,17 +322,20 @@ Even when `PODCAST_AUDIO_PROVIDER=openai`, custom voices work because:
 ### Cost Estimation
 
 **15-minute podcast** (~2,250 words):
+
 - Word count: 2,250 words
 - Character count: ~13,500 characters
 - Cost (Creator plan): ~$0.03 per podcast
 - Cost (Pro plan): ~$0.01 per podcast
 
 **Monthly Usage** (20 podcasts/month):
+
 - Characters: 270,000
 - Creator plan: Sufficient ($22/month)
 - Per-podcast cost: ~$1.10
 
 **Comparison**:
+
 - OpenAI TTS: ~$0.015 per 1K characters = ~$4.05/podcast
 - ElevenLabs Creator: ~$0.03/podcast
 - **Savings with ElevenLabs**: 99% cheaper for high-quality custom voices!
@@ -352,6 +369,7 @@ Even when `PODCAST_AUDIO_PROVIDER=openai`, custom voices work because:
 ## 📊 Implementation Statistics
 
 **Total Implementation**:
+
 - Lines of code added: ~3,500+
 - Files created: 8
 - Files modified: 5
@@ -359,6 +377,7 @@ Even when `PODCAST_AUDIO_PROVIDER=openai`, custom voices work because:
 - Time spent: ~12-14 hours
 
 **ElevenLabs Integration**:
+
 - Lines of code: ~480 (elevenlabs_audio.py)
 - API endpoints integrated: 4
 - Features implemented: 6
@@ -395,6 +414,7 @@ The custom voice feature with ElevenLabs integration is **production-ready**:
 ✅ Tests pass
 
 **Next Steps**:
+
 1. Start application: `make local-dev-all`
 2. Test voice upload → process → podcast generation workflow
 3. Monitor ElevenLabs API usage in dashboard
@@ -405,12 +425,13 @@ The custom voice feature with ElevenLabs integration is **production-ready**:
 
 ## 📞 Support
 
-**ElevenLabs Dashboard**: https://elevenlabs.io/dashboard
-**API Key Management**: https://elevenlabs.io/api
-**API Documentation**: https://elevenlabs.io/docs/api-reference
-**Pricing**: https://elevenlabs.io/pricing
+**ElevenLabs Dashboard**: <https://elevenlabs.io/dashboard>
+**API Key Management**: <https://elevenlabs.io/api>
+**API Documentation**: <https://elevenlabs.io/docs/api-reference>
+**Pricing**: <https://elevenlabs.io/pricing>
 
 **Project Documentation**:
+
 - Voice API: `docs/api/voice_api.md`
 - Implementation Progress: `CUSTOM_VOICE_IMPLEMENTATION_PROGRESS.md`
 - Completion Summary: `VOICE_FEATURE_COMPLETION_SUMMARY.md`

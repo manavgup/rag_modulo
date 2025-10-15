@@ -21,7 +21,7 @@ graph TB
         MALWARE[Malware]
         BOT[Botnets]
     end
-    
+
     subgraph "Security Layers"
         WAF[Web Application Firewall]
         DDoS[DDoS Protection]
@@ -31,43 +31,43 @@ graph TB
         ENCRYPT[Encryption]
         MONITOR[Security Monitoring]
     end
-    
+
     subgraph "Applications"
         FE[Frontend App]
         BE[Backend App]
     end
-    
+
     subgraph "Data Layer"
         PG[PostgreSQL]
         OS[Object Storage]
         ZL[Zilliz Cloud]
         ES[Event Streams]
     end
-    
+
     subgraph "Network Security"
         VPC[VPC]
         NSG[Network Security Groups]
         NLB[Network Load Balancer]
         VPN[VPN Gateway]
     end
-    
+
     ATTACK --> WAF
     MALWARE --> DDoS
     BOT --> SSL
-    
+
     WAF --> IAM
     DDoS --> SECRETS
     SSL --> ENCRYPT
-    
+
     IAM --> FE
     SECRETS --> BE
     ENCRYPT --> MONITOR
-    
+
     FE --> VPC
     BE --> NSG
     VPC --> NLB
     NSG --> VPN
-    
+
     NLB --> PG
     VPN --> OS
     PG --> ZL
@@ -85,7 +85,7 @@ graph TB
 resource "ibm_is_vpc" "rag_modulo_vpc" {
   name           = "${var.project_name}-vpc"
   resource_group = var.resource_group_id
-  
+
   tags = [
     "project:${var.project_name}",
     "environment:${var.environment}",
@@ -238,7 +238,7 @@ resource "ibm_iam_service_id" "terraform_service_id" {
 resource "ibm_iam_service_policy" "code_engine_policy" {
   iam_service_id = ibm_iam_service_id.rag_modulo_service_id.id
   roles          = ["Code Engine Developer", "Code Engine Administrator"]
-  
+
   resources {
     service = "codeengine"
   }
@@ -248,7 +248,7 @@ resource "ibm_iam_service_policy" "code_engine_policy" {
 resource "ibm_iam_service_policy" "database_policy" {
   iam_service_id = ibm_iam_service_id.rag_modulo_service_id.id
   roles          = ["Database Administrator"]
-  
+
   resources {
     service = "databases-for-postgresql"
     resource_group_id = var.resource_group_id
@@ -259,7 +259,7 @@ resource "ibm_iam_service_policy" "database_policy" {
 resource "ibm_iam_service_policy" "object_storage_policy" {
   iam_service_id = ibm_iam_service_id.rag_modulo_service_id.id
   roles          = ["Object Storage Manager"]
-  
+
   resources {
     service = "cloud-object-storage"
     resource_group_id = var.resource_group_id
@@ -360,7 +360,7 @@ resource "ibm_sm_secret" "api_keys" {
   gather_facts: false
   vars:
     secrets_manager_instance_id: "{{ secrets_manager_instance_id }}"
-  
+
   tasks:
     - name: Get database password from Secrets Manager
       ansible.builtin.shell: |
@@ -369,7 +369,7 @@ resource "ibm_sm_secret" "api_keys" {
           --output json | jq -r '.secret_data.password'
       register: database_password
       no_log: true
-    
+
     - name: Get API keys from Secrets Manager
       ansible.builtin.shell: |
         ibmcloud secrets-manager secret get "rag-modulo-api-keys" \
@@ -377,7 +377,7 @@ resource "ibm_sm_secret" "api_keys" {
           --output json | jq -r '.secret_data'
       register: api_keys
       no_log: true
-    
+
     - name: Update application with secrets
       ansible.builtin.shell: |
         ibmcloud ce app update rag-modulo-backend \
@@ -398,16 +398,16 @@ secure_env_vars:
   # Database configuration
   DATABASE_URL: "postgresql://username:${DATABASE_PASSWORD}@host:port/database?sslmode=require"
   DATABASE_PASSWORD: "{{ vault_database_password }}"
-  
+
   # API keys
   IBMCLOUD_API_KEY: "{{ vault_ibmcloud_api_key }}"
   ZILLIZ_API_KEY: "{{ vault_zilliz_api_key }}"
   EVENT_STREAMS_API_KEY: "{{ vault_event_streams_api_key }}"
-  
+
   # Security settings
   JWT_SECRET: "{{ vault_jwt_secret }}"
   ENCRYPTION_KEY: "{{ vault_encryption_key }}"
-  
+
   # Production safeguards
   SKIP_AUTH: "false"
   DEBUG: "false"
@@ -426,7 +426,7 @@ postgresql_encryption:
   enabled: true
   encryption_key: "{{ vault_database_encryption_key }}"
   key_rotation: "90d"
-  
+
   # Encryption settings
   settings:
     ssl_mode: "require"
@@ -443,7 +443,7 @@ object_storage_encryption:
   enabled: true
   encryption_type: "AES256"
   key_management: "ibm-cloud-key-protect"
-  
+
   # Bucket encryption
   bucket_encryption:
     - bucket: "rag-modulo-app-data"
@@ -461,13 +461,13 @@ tls_config:
   enabled: true
   version: "TLS 1.2"
   ciphers: "ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256"
-  
+
   # Certificate management
   certificate:
     provider: "letsencrypt"
     auto_renewal: true
     renewal_threshold: "30d"
-  
+
   # HSTS configuration
   hsts:
     enabled: true
@@ -511,7 +511,7 @@ class SearchRequest(BaseModel):
     query: str
     collection_id: str
     limit: int = 10
-    
+
     @validator('query')
     def validate_query(cls, v):
         if not v or len(v.strip()) == 0:
@@ -522,13 +522,13 @@ class SearchRequest(BaseModel):
         if re.search(r'[;\'"]', v):
             raise ValueError('Invalid characters in query')
         return v.strip()
-    
+
     @validator('collection_id')
     def validate_collection_id(cls, v):
         if not re.match(r'^[a-zA-Z0-9-_]+$', v):
             raise ValueError('Invalid collection ID format')
         return v
-    
+
     @validator('limit')
     def validate_limit(cls, v):
         if v < 1 or v > 100:
@@ -586,22 +586,22 @@ class JWTAuth:
     def __init__(self, secret_key: str, algorithm: str = "HS256"):
         self.secret_key = secret_key
         self.algorithm = algorithm
-    
+
     def create_token(self, user_id: str, expires_delta: timedelta = None):
         """Create JWT token"""
         if expires_delta:
             expire = datetime.utcnow() + expires_delta
         else:
             expire = datetime.utcnow() + timedelta(hours=24)
-        
+
         payload = {
             "user_id": user_id,
             "exp": expire,
             "iat": datetime.utcnow()
         }
-        
+
         return jwt.encode(payload, self.secret_key, algorithm=self.algorithm)
-    
+
     def verify_token(self, token: str):
         """Verify JWT token"""
         try:
@@ -638,10 +638,10 @@ def require_role(required_role: Role):
         async def wrapper(*args, **kwargs):
             user_id = kwargs.get("current_user")
             user_role = get_user_role(user_id)
-            
+
             if not has_permission(user_role, required_role):
                 raise HTTPException(status_code=403, detail="Insufficient permissions")
-            
+
             return await func(*args, **kwargs)
         return wrapper
     return decorator
@@ -653,7 +653,7 @@ def has_permission(user_role: Role, required_role: Role) -> bool:
         Role.USER: [Role.USER, Role.READONLY],
         Role.READONLY: [Role.READONLY]
     }
-    
+
     return required_role in role_hierarchy.get(user_role, [])
 
 # Usage example
@@ -684,27 +684,27 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.calls = calls
         self.period = period
         self.clients = defaultdict(list)
-    
+
     async def dispatch(self, request: Request, call_next):
         client_ip = request.client.host
         now = time.time()
-        
+
         # Clean old requests
         self.clients[client_ip] = [
             req_time for req_time in self.clients[client_ip]
             if now - req_time < self.period
         ]
-        
+
         # Check rate limit
         if len(self.clients[client_ip]) >= self.calls:
             return JSONResponse(
                 status_code=429,
                 content={"detail": "Rate limit exceeded"}
             )
-        
+
         # Add current request
         self.clients[client_ip].append(now)
-        
+
         response = await call_next(request)
         return response
 
@@ -728,7 +728,7 @@ class SecurityEventLogger:
     def __init__(self):
         self.logger = logging.getLogger("security")
         self.logger.setLevel(logging.INFO)
-        
+
         # Create security event handler
         handler = logging.StreamHandler()
         formatter = logging.Formatter(
@@ -736,19 +736,19 @@ class SecurityEventLogger:
         )
         handler.setFormatter(formatter)
         self.logger.addHandler(handler)
-    
+
     def log_auth_failure(self, user_id: str, ip_address: str, reason: str):
         """Log authentication failure"""
         self.logger.warning(
             f"Authentication failure - User: {user_id}, IP: {ip_address}, Reason: {reason}"
         )
-    
+
     def log_suspicious_activity(self, activity: str, details: Dict[str, Any]):
         """Log suspicious activity"""
         self.logger.warning(
             f"Suspicious activity - {activity}: {details}"
         )
-    
+
     def log_security_event(self, event_type: str, details: Dict[str, Any]):
         """Log general security event"""
         self.logger.info(
@@ -798,13 +798,13 @@ security_alerts:
     duration: "2m"
     severity: "critical"
     description: "High rate of authentication failures"
-  
+
   - name: "suspicious_activity_detected"
     condition: "rate(suspicious_activities_total[5m]) > 5"
     duration: "1m"
     severity: "warning"
     description: "Suspicious activity detected"
-  
+
   - name: "security_event_spike"
     condition: "rate(security_events_total[5m]) > 20"
     duration: "5m"
@@ -824,11 +824,11 @@ class SecurityIncidentResponse:
     def __init__(self):
         self.active_incidents = {}
         self.response_team = ["devops@company.com", "security@company.com"]
-    
+
     async def handle_security_alert(self, alert: Dict[str, Any]):
         """Handle security alert"""
         incident_id = f"SEC-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
-        
+
         # Create incident
         incident = {
             "id": incident_id,
@@ -838,34 +838,34 @@ class SecurityIncidentResponse:
             "status": "open",
             "details": alert["details"]
         }
-        
+
         self.active_incidents[incident_id] = incident
-        
+
         # Notify response team
         await self.notify_response_team(incident)
-        
+
         # Take automated actions
         await self.take_automated_actions(incident)
-        
+
         return incident_id
-    
+
     async def notify_response_team(self, incident: Dict[str, Any]):
         """Notify security response team"""
         # Send email notification
         await self.send_email_notification(incident)
-        
+
         # Send Slack notification
         await self.send_slack_notification(incident)
-    
+
     async def take_automated_actions(self, incident: Dict[str, Any]):
         """Take automated security actions"""
         if incident["severity"] == "critical":
             # Block suspicious IP
             await self.block_suspicious_ip(incident["details"]["ip_address"])
-            
+
             # Increase monitoring
             await self.increase_monitoring(incident["details"]["user_id"])
-            
+
             # Generate security report
             await self.generate_security_report(incident)
 
@@ -889,13 +889,13 @@ class AuditLogger:
     def __init__(self):
         self.logger = logging.getLogger("audit")
         self.logger.setLevel(logging.INFO)
-        
+
         # Create audit handler
         handler = logging.StreamHandler()
         formatter = logging.Formatter('%(message)s')
         handler.setFormatter(formatter)
         self.logger.addHandler(handler)
-    
+
     def log_user_action(self, user_id: str, action: str, resource: str, details: Dict[str, Any]):
         """Log user action"""
         audit_event = {
@@ -908,9 +908,9 @@ class AuditLogger:
             "ip_address": get_client_ip(),
             "user_agent": get_user_agent()
         }
-        
+
         self.logger.info(json.dumps(audit_event))
-    
+
     def log_system_event(self, event_type: str, details: Dict[str, Any]):
         """Log system event"""
         audit_event = {
@@ -919,9 +919,9 @@ class AuditLogger:
             "system_event_type": event_type,
             "details": details
         }
-        
+
         self.logger.info(json.dumps(audit_event))
-    
+
     def log_security_event(self, event_type: str, details: Dict[str, Any]):
         """Log security event"""
         audit_event = {
@@ -930,7 +930,7 @@ class AuditLogger:
             "security_event_type": event_type,
             "details": details
         }
-        
+
         self.logger.info(json.dumps(audit_event))
 
 # Global audit logger
@@ -947,7 +947,7 @@ from typing import List, Dict
 class ComplianceReporter:
     def __init__(self):
         self.audit_logger = AuditLogger()
-    
+
     def generate_compliance_report(self, start_date: datetime, end_date: datetime) -> Dict[str, Any]:
         """Generate compliance report"""
         report = {
@@ -960,25 +960,25 @@ class ComplianceReporter:
             "security_events": self.get_security_events(start_date, end_date),
             "compliance_summary": self.get_compliance_summary(start_date, end_date)
         }
-        
+
         return report
-    
+
     def get_user_actions(self, start_date: datetime, end_date: datetime) -> List[Dict[str, Any]]:
         """Get user actions for compliance report"""
         # Query audit logs for user actions
         # This would typically query a database or log aggregation system
         pass
-    
+
     def get_system_events(self, start_date: datetime, end_date: datetime) -> List[Dict[str, Any]]:
         """Get system events for compliance report"""
         # Query audit logs for system events
         pass
-    
+
     def get_security_events(self, start_date: datetime, end_date: datetime) -> List[Dict[str, Any]]:
         """Get security events for compliance report"""
         # Query audit logs for security events
         pass
-    
+
     def get_compliance_summary(self, start_date: datetime, end_date: datetime) -> Dict[str, Any]:
         """Get compliance summary"""
         return {
@@ -1017,30 +1017,30 @@ class DataClassifier:
             "api_key": DataClassification.RESTRICTED,
             "password": DataClassification.RESTRICTED
         }
-    
+
     def classify_data(self, data: Dict[str, Any]) -> Dict[str, DataClassification]:
         """Classify data based on content"""
         classifications = {}
-        
+
         for key, value in data.items():
             classification = DataClassification.INTERNAL  # Default
-            
+
             for pattern, data_class in self.classification_rules.items():
                 if pattern.lower() in key.lower():
                     classification = data_class
                     break
-            
+
             classifications[key] = classification
-        
+
         return classifications
-    
+
     def apply_data_protection(self, data: Dict[str, Any], classifications: Dict[str, DataClassification]) -> Dict[str, Any]:
         """Apply data protection based on classification"""
         protected_data = {}
-        
+
         for key, value in data.items():
             classification = classifications.get(key, DataClassification.INTERNAL)
-            
+
             if classification == DataClassification.RESTRICTED:
                 # Mask or remove restricted data
                 protected_data[key] = "***REDACTED***"
@@ -1052,7 +1052,7 @@ class DataClassifier:
                     protected_data[key] = "***MASKED***"
             else:
                 protected_data[key] = value
-        
+
         return protected_data
 
 # Global data classifier
@@ -1076,14 +1076,14 @@ container_security_scanning:
       targets:
         - "rag-modulo-backend:latest"
         - "rag-modulo-frontend:latest"
-    
+
     - name: "dockle"
       image: "goodwithtech/dockle"
       command: "dockle --exit-code 1"
       targets:
         - "rag-modulo-backend:latest"
         - "rag-modulo-frontend:latest"
-  
+
   schedule: "0 2 * * *"  # Daily at 2 AM
   reporting:
     - format: "json"
@@ -1102,11 +1102,11 @@ application_security_testing:
     - name: "owasp-zap"
       image: "owasp/zap2docker-stable"
       command: "zap-baseline.py -t https://backend-app.example.com"
-    
+
     - name: "nikto"
       image: "sullo/nikto"
       command: "nikto -h https://frontend-app.example.com"
-  
+
   schedule: "0 3 * * *"  # Daily at 3 AM
   reporting:
     - format: "json"

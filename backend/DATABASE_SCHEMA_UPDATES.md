@@ -15,6 +15,7 @@ Base.metadata.create_all(bind=engine)
 ```
 
 This automatically creates all tables defined in SQLAlchemy models that:
+
 1. Are registered with `Base` (inherit from `Base = declarative_base()`)
 2. Are imported in `rag_solution/models/__init__.py`
 
@@ -23,6 +24,7 @@ This automatically creates all tables defined in SQLAlchemy models that:
 To add a new table:
 
 1. **Create the model** in `rag_solution/models/{model_name}.py`
+
    ```python
    from rag_solution.file_management.database import Base
    from sqlalchemy import Column, String, UUID
@@ -33,7 +35,8 @@ To add a new table:
        name = Column(String, nullable=False)
    ```
 
-2. **Import in models/__init__.py**
+2. **Import in models/**init**.py**
+
    ```python
    from rag_solution.models.my_new_model import MyNewModel
 
@@ -56,6 +59,7 @@ To modify existing tables (add columns, change types, etc.):
 For local development or testing environments:
 
 1. **Drop the database** and recreate it:
+
    ```bash
    # Using Docker
    docker compose down -v
@@ -73,6 +77,7 @@ For local development or testing environments:
 For production environments with existing data:
 
 1. **Write SQL migration script**:
+
    ```sql
    -- Example: Add column to existing table
    ALTER TABLE voices ADD COLUMN new_field VARCHAR(255);
@@ -90,6 +95,7 @@ For production environments with existing data:
 ### Best Practices
 
 1. **Development**: Use Docker volumes for database persistence during development
+
    ```bash
    docker compose down    # Stop containers but keep data
    docker compose down -v # Stop containers AND delete data (fresh start)
@@ -134,6 +140,7 @@ class Voice(Base):
 ```
 
 **Deployment**:
+
 - ✅ **Development/Testing**: Table auto-created on next application start
 - ✅ **Production**: Table auto-created if database is fresh
 - ⚠️ **Existing Production**: If database already exists, table will be auto-created (CREATE TABLE IF NOT EXISTS)
@@ -150,12 +157,14 @@ If the project grows and needs more sophisticated migration management, consider
 4. Apply with `alembic upgrade head`
 
 Benefits:
+
 - Version-controlled schema changes
 - Rollback capability
 - Easier production deployments
 - Better collaboration on schema changes
 
 Trade-offs:
+
 - More complexity
 - Requires migration scripts in CI/CD
 - Extra setup/maintenance overhead

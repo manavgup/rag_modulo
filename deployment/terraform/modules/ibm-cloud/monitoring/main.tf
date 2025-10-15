@@ -18,14 +18,14 @@ resource "ibm_resource_instance" "monitoring" {
   plan              = var.monitoring_plan
   location          = var.region
   resource_group_id = var.resource_group_id
-  
+
   tags = [
     "project:${var.project_name}",
     "environment:${var.environment}",
     "service:monitoring",
     "managed:true"
   ]
-  
+
   lifecycle {
     prevent_destroy = var.environment == "production"
   }
@@ -45,14 +45,14 @@ resource "ibm_resource_instance" "log_analysis" {
   plan              = var.log_analysis_plan
   location          = var.region
   resource_group_id = var.resource_group_id
-  
+
   tags = [
     "project:${var.project_name}",
     "environment:${var.environment}",
     "service:log-analysis",
     "managed:true"
   ]
-  
+
   lifecycle {
     prevent_destroy = var.environment == "production"
   }
@@ -72,14 +72,14 @@ resource "ibm_resource_instance" "apm" {
   plan              = var.apm_plan
   location          = var.region
   resource_group_id = var.resource_group_id
-  
+
   tags = [
     "project:${var.project_name}",
     "environment:${var.environment}",
     "service:apm",
     "managed:true"
   ]
-  
+
   lifecycle {
     prevent_destroy = var.environment == "production"
   }
@@ -99,14 +99,14 @@ resource "ibm_resource_instance" "dashboard" {
   plan              = var.dashboard_plan
   location          = var.region
   resource_group_id = var.resource_group_id
-  
+
   tags = [
     "project:${var.project_name}",
     "environment:${var.environment}",
     "service:dashboard",
     "managed:true"
   ]
-  
+
   lifecycle {
     prevent_destroy = var.environment == "production"
   }
@@ -122,7 +122,7 @@ resource "ibm_resource_key" "dashboard_credentials" {
 # Alert webhook configuration
 resource "ibm_function_action" "alert_webhook" {
   name = "${var.project_name}-alert-webhook"
-  
+
   exec {
     kind = "nodejs:16"
     code = <<EOF
@@ -131,7 +131,7 @@ function main(params) {
   const severity = alert.severity || 'warning';
   const message = alert.message || 'No message provided';
   const timestamp = new Date().toISOString();
-  
+
   // Send alert to webhook URL
   const webhookUrl = params.webhook_url;
   if (webhookUrl) {
@@ -140,11 +140,11 @@ function main(params) {
       timestamp: timestamp,
       source: 'rag-modulo-monitoring'
     };
-    
+
     // In a real implementation, you would send this to your webhook
     console.log('Alert webhook payload:', JSON.stringify(payload, null, 2));
   }
-  
+
   return {
     status: 'success',
     message: 'Alert processed',
@@ -153,11 +153,11 @@ function main(params) {
 }
 EOF
   }
-  
+
   parameters = {
     webhook_url = var.alert_webhook_url
   }
-  
+
   tags = [
     "project:${var.project_name}",
     "environment:${var.environment}",
@@ -168,7 +168,7 @@ EOF
 # Monitoring triggers
 resource "ibm_function_trigger" "high_cpu_trigger" {
   name = "${var.project_name}-high-cpu-trigger"
-  
+
   feed {
     name = "/whisk.system/alarms/interval"
     parameters = jsonencode({
@@ -176,11 +176,11 @@ resource "ibm_function_trigger" "high_cpu_trigger" {
       cron = "*/5 * * * *"  # Every 5 minutes
     })
   }
-  
+
   user_defined_annotations = jsonencode({
     "description" = "Trigger for high CPU usage alerts"
   })
-  
+
   tags = [
     "project:${var.project_name}",
     "environment:${var.environment}",
@@ -190,7 +190,7 @@ resource "ibm_function_trigger" "high_cpu_trigger" {
 
 resource "ibm_function_trigger" "high_memory_trigger" {
   name = "${var.project_name}-high-memory-trigger"
-  
+
   feed {
     name = "/whisk.system/alarms/interval"
     parameters = jsonencode({
@@ -198,11 +198,11 @@ resource "ibm_function_trigger" "high_memory_trigger" {
       cron = "*/5 * * * *"  # Every 5 minutes
     })
   }
-  
+
   user_defined_annotations = jsonencode({
     "description" = "Trigger for high memory usage alerts"
   })
-  
+
   tags = [
     "project:${var.project_name}",
     "environment:${var.environment}",
@@ -215,7 +215,7 @@ resource "ibm_function_rule" "high_cpu_rule" {
   name = "${var.project_name}-high-cpu-rule"
   trigger_name = ibm_function_trigger.high_cpu_trigger.name
   action_name = ibm_function_action.alert_webhook.name
-  
+
   tags = [
     "project:${var.project_name}",
     "environment:${var.environment}",
@@ -227,7 +227,7 @@ resource "ibm_function_rule" "high_memory_rule" {
   name = "${var.project_name}-high-memory-rule"
   trigger_name = ibm_function_trigger.high_memory_trigger.name
   action_name = ibm_function_action.alert_webhook.name
-  
+
   tags = [
     "project:${var.project_name}",
     "environment:${var.environment}",

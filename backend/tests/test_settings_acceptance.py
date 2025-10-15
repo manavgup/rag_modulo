@@ -128,7 +128,13 @@ def test_acceptance_pytest_atomic_works():
     """ACCEPTANCE TEST: Settings can be imported in atomic test context."""
     env = os.environ.copy()
     # Remove all the potentially required variables (CI test-isolation scenario)
-    for var in ["JWT_SECRET_KEY", "RAG_LLM", "WATSONX_INSTANCE_ID", "WATSONX_APIKEY", "WATSONX_URL"]:
+    for var in [
+        "JWT_SECRET_KEY",
+        "RAG_LLM",
+        "WATSONX_INSTANCE_ID",
+        "WATSONX_APIKEY",
+        "WATSONX_URL",
+    ]:
         env.pop(var, None)
 
     # Test that config can be imported without ValidationError (the core CI issue)

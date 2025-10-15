@@ -39,17 +39,17 @@ service_endpoints:
     database: "rag_modulo_dev"
     username: "rag_user"
     password: "dev-password"
-  
+
   object_storage:
     endpoint: "localhost:9000"
     access_key: "minioadmin"
     secret_key: "minioadmin"
     bucket_name: "rag-modulo-dev"
-  
+
   zilliz:
     endpoint: "localhost:19530"
     api_key: ""
-  
+
   event_streams:
     endpoint: "localhost:9092"
     api_key: ""

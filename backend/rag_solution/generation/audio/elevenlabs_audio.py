@@ -416,7 +416,11 @@ class ElevenLabsAudioProvider(AudioProviderBase):
             AudioGenerationError: If voice cloning fails
         """
         try:
-            logger.info("Cloning voice: name=%s, sample_size=%d bytes", name, len(voice_sample_bytes))
+            logger.info(
+                "Cloning voice: name=%s, sample_size=%d bytes",
+                name,
+                len(voice_sample_bytes),
+            )
 
             # Prepare multipart form data
             files = {

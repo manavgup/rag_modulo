@@ -59,7 +59,10 @@ class TestScriptGenerationDurationControl:
     @patch("rag_solution.services.prompt_template_service.PromptTemplateService")
     @patch("rag_solution.services.podcast_service.LLMProviderFactory")
     async def test_llm_generates_too_short_script_no_validation(
-        self, mock_llm_factory: Mock, mock_template_service_class: Mock, mock_podcast_service: PodcastService
+        self,
+        mock_llm_factory: Mock,
+        mock_template_service_class: Mock,
+        mock_podcast_service: PodcastService,
     ) -> None:
         """Unit: EXPOSES PROBLEM - LLM generates 500 words when asked for 2,250.
 
@@ -106,7 +109,10 @@ class TestScriptGenerationDurationControl:
     @patch("rag_solution.services.prompt_template_service.PromptTemplateService")
     @patch("rag_solution.services.podcast_service.LLMProviderFactory")
     async def test_llm_generates_too_long_script_no_validation(
-        self, mock_llm_factory: Mock, mock_template_service_class: Mock, mock_podcast_service: PodcastService
+        self,
+        mock_llm_factory: Mock,
+        mock_template_service_class: Mock,
+        mock_podcast_service: PodcastService,
     ) -> None:
         """Unit: EXPOSES PROBLEM - LLM generates 5,000 words when asked for 750.
 
@@ -153,7 +159,10 @@ class TestScriptGenerationDurationControl:
     @patch("rag_solution.services.prompt_template_service.PromptTemplateService")
     @patch("rag_solution.services.podcast_service.LLMProviderFactory")
     async def test_script_word_count_calculation_correct_but_not_validated(
-        self, mock_llm_factory: Mock, mock_template_service_class: Mock, mock_podcast_service: PodcastService
+        self,
+        mock_llm_factory: Mock,
+        mock_template_service_class: Mock,
+        mock_podcast_service: PodcastService,
     ) -> None:
         """Unit: Word count calculation is correct, but result is never validated.
 

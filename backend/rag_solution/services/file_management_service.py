@@ -213,7 +213,10 @@ class FileManagementService:
 
         if file.collection_id != collection_id:
             logger.warning(f"File {file_id} does not belong to collection {collection_id}")
-            raise ValidationError(f"File does not belong to collection {collection_id}", field="collection_id")
+            raise ValidationError(
+                f"File does not belong to collection {collection_id}",
+                field="collection_id",
+            )
 
         file_update = FileInput(
             collection_id=file.collection_id,

@@ -19,16 +19,16 @@ resource "ibm_database" "postgresql" {
   plan              = var.postgresql_plan
   location          = var.region
   resource_group_id = var.resource_group_id
-  
+
   # Production configuration
   adminpassword = var.postgresql_admin_password
-  
+
   # Enable SSL and encryption
   service_endpoints = "public-and-private"
-  
+
   # Backup configuration
   backup_id = ibm_database_backup.postgresql_backup.id
-  
+
   # Monitoring
   tags = [
     "project:${var.project_name}",
@@ -36,7 +36,7 @@ resource "ibm_database" "postgresql" {
     "service:postgresql",
     "managed:true"
   ]
-  
+
   lifecycle {
     prevent_destroy = var.environment == "production"
   }
@@ -56,19 +56,19 @@ resource "ibm_resource_instance" "object_storage" {
   plan              = var.object_storage_plan
   location          = var.region
   resource_group_id = var.resource_group_id
-  
+
   # Enable encryption
   parameters = {
     "HMAC" = true
   }
-  
+
   tags = [
     "project:${var.project_name}",
     "environment:${var.environment}",
     "service:object-storage",
     "managed:true"
   ]
-  
+
   lifecycle {
     prevent_destroy = var.environment == "production"
   }
@@ -80,17 +80,17 @@ resource "ibm_cos_bucket" "app_data" {
   resource_instance_id = ibm_resource_instance.object_storage.id
   region_location      = var.region
   storage_class        = "standard"
-  
+
   # Enable versioning
   object_versioning {
     enable = true
   }
-  
+
   # Enable encryption
   encryption {
     algorithm = "AES256"
   }
-  
+
   # Lifecycle rules
   lifecycle_rule {
     id     = "cleanup_old_versions"
@@ -113,14 +113,14 @@ resource "ibm_resource_instance" "zilliz_cloud" {
   plan              = var.zilliz_plan
   location          = var.region
   resource_group_id = var.resource_group_id
-  
+
   tags = [
     "project:${var.project_name}",
     "environment:${var.environment}",
     "service:vector-database",
     "managed:true"
   ]
-  
+
   lifecycle {
     prevent_destroy = var.environment == "production"
   }
@@ -133,14 +133,14 @@ resource "ibm_resource_instance" "event_streams" {
   plan              = var.event_streams_plan
   location          = var.region
   resource_group_id = var.resource_group_id
-  
+
   tags = [
     "project:${var.project_name}",
     "environment:${var.environment}",
     "service:messaging",
     "managed:true"
   ]
-  
+
   lifecycle {
     prevent_destroy = var.environment == "production"
   }
@@ -151,7 +151,7 @@ resource "ibm_resource_key" "postgresql_credentials" {
   name                 = "${var.project_name}-postgresql-credentials"
   role                 = "Administrator"
   resource_instance_id = ibm_database.postgresql.id
-  
+
   # Store credentials in IBM Cloud Secrets Manager
   parameters = {
     "HMAC" = true

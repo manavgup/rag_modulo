@@ -283,7 +283,11 @@ class OpenAIAudioProvider(AudioProviderBase):
         """
         try:
             # ALWAYS log text length for debugging
-            logger.info("Processing turn audio: text_len=%d chars, voice=%s", len(text), voice_id)
+            logger.info(
+                "Processing turn audio: text_len=%d chars, voice=%s",
+                len(text),
+                voice_id,
+            )
 
             # Check if text needs chunking - use 3500 to be extra safe
             # OpenAI limit is 4096, but we want a larger buffer
@@ -330,7 +334,10 @@ class OpenAIAudioProvider(AudioProviderBase):
                 return combined
             else:
                 # Text fits in single request - normal flow
-                logger.info("Text fits in single request (%d chars), sending to OpenAI TTS", len(text))
+                logger.info(
+                    "Text fits in single request (%d chars), sending to OpenAI TTS",
+                    len(text),
+                )
 
                 response = await self.client.audio.speech.create(
                     model=self.model,

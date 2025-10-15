@@ -3,6 +3,7 @@
 Implementing Ralph pattern with Advanced Context Engineering (ACE-FCA) for systematic issue resolution.
 
 ## 🎯 Current Mission: Agentic RAG Platform Development
+
 **Priority Issues:** #242 (Frontend Epic), #243 (Chat Interface), #244 (Agent Orchestration)
 **Next Phase:** Issue discovery and systematic implementation by priority
 
@@ -13,6 +14,7 @@ Implementing Ralph pattern with Advanced Context Engineering (ACE-FCA) for syste
 **Claude Code Assistant** completed comprehensive multi-provider TTS support with custom voice integration.
 
 #### **Key Features Implemented:**
+
 1. **✅ Per-Turn Provider Selection** - Each dialogue turn uses appropriate TTS provider (OpenAI, ElevenLabs)
 2. **✅ Custom Voice Resolution** - Automatic UUID detection, database lookup, ownership validation
 3. **✅ ElevenLabs Integration** - Full provider registration with voice cloning support
@@ -23,6 +25,7 @@ Implementing Ralph pattern with Advanced Context Engineering (ACE-FCA) for syste
 8. **✅ Type Safety** - Replaced `Any` types with `AudioProviderBase` throughout
 
 #### **Technical Implementation:**
+
 - **Multi-Provider Architecture**: `podcast_service.py` orchestrates per-turn provider selection
 - **Voice Resolution**: UUID-based custom voice detection with database lookup and validation
 - **Provider Factory**: Added ElevenLabs to `AudioProviderFactory` with proper settings handling
@@ -30,12 +33,14 @@ Implementing Ralph pattern with Advanced Context Engineering (ACE-FCA) for syste
 - **Schema Validation**: Updated to accept multiple dialogue formats
 
 #### **Testing & Quality:**
+
 - **End-to-End**: Successfully generated podcast with mixed providers (ElevenLabs + OpenAI)
 - **Audio Quality**: Natural dialogue without placeholder names, seamless stitching
 - **Linting**: ✅ Ruff (all checks passed), ✅ Pylint (9.37/10 rating)
 - **Type Safety**: Zero `Any` types in new code, proper `AudioProviderBase` hints
 
 #### **Files Modified:**
+
 - `rag_solution/services/podcast_service.py` (~300 lines: multi-provider logic, voice resolution, prompt updates)
 - `rag_solution/schemas/podcast_schema.py` (~10 lines: script format validation)
 - `rag_solution/utils/script_parser.py` (~10 lines: bracket format patterns)
@@ -44,6 +49,7 @@ Implementing Ralph pattern with Advanced Context Engineering (ACE-FCA) for syste
 - `env.example` (added ElevenLabs configuration section)
 
 #### **Documentation:**
+
 - **Environment**: Added ElevenLabs settings to `env.example` with comprehensive defaults
 - **Changelog**: Updated `CHANGELOG.md` with feature details
 - **AGENTS**: Updated this file with implementation details
@@ -57,6 +63,7 @@ Implementing Ralph pattern with Advanced Context Engineering (ACE-FCA) for syste
 **Claude Code Assistant** completed comprehensive UI component library for consistent frontend design.
 
 #### **Components Created:**
+
 1. **✅ Button** - Multi-variant button (primary, secondary, ghost, danger) with loading states and icon support
 2. **✅ Input** - Text input with label, error messages, help text, and icon support
 3. **✅ TextArea** - Multi-line text input with validation
@@ -67,6 +74,7 @@ Implementing Ralph pattern with Advanced Context Engineering (ACE-FCA) for syste
 8. **✅ FileUpload** - Drag & drop upload with file size/type validation and progress tracking
 
 #### **Design System Implementation:**
+
 - **Architecture**: Carbon Design System principles with Tailwind CSS
 - **Type Safety**: Full TypeScript with exported interfaces for all components
 - **Accessibility**: ARIA labels, keyboard navigation, focus management, screen reader support
@@ -74,28 +82,34 @@ Implementing Ralph pattern with Advanced Context Engineering (ACE-FCA) for syste
 - **Quality**: All components pass ESLint, zero linting warnings
 
 #### **Documentation Delivered:**
+
 - **Component README**: `frontend/src/components/ui/README.md` - Usage examples and API docs
 - **MkDocs Integration**: `docs/development/frontend/index.md` and `docs/development/frontend/ui-components.md`
 - **Migration Guide**: Step-by-step guide for converting custom components to reusable library
 
 #### **PR Review Fixes (All Items Addressed):**
+
 **High Priority:**
+
 - **Modal Focus Trap**: Prevents tabbing out, Escape key closes, focus returns on close
 - **FileUpload Size Validation**: Enforces maxSize prop with error feedback
 - **FileUpload Type Validation**: Validates extensions for input and drag & drop
 
 **Medium Priority:**
+
 - **ID Generation**: Replaced Math.random() with React 18 useId hook (no collisions)
 - **Button ARIA**: Added aria-busy and aria-label for loading states
 - **Unique IDs**: FileUpload uses unique IDs per instance
 
 #### **Impact Metrics:**
+
 - **Code Reduction**: 44% reduction in refactored LightweightCreateCollectionModal (348 → 194 lines)
 - **Consistency**: Single source of truth for UI patterns across application
 - **Maintainability**: Centralized component library reduces duplication
 - **Accessibility**: 100% WCAG compliance with proper ARIA attributes
 
 #### **Files Created:**
+
 - `frontend/src/components/ui/Button.tsx`
 - `frontend/src/components/ui/Input.tsx`
 - `frontend/src/components/ui/TextArea.tsx`
@@ -110,6 +124,7 @@ Implementing Ralph pattern with Advanced Context Engineering (ACE-FCA) for syste
 - `docs/development/frontend/ui-components.md`
 
 #### **Files Modified:**
+
 - `frontend/src/components/modals/LightweightCreateCollectionModal.tsx` (refactored as example)
 - `mkdocs.yml` (added Frontend section)
 
@@ -122,6 +137,7 @@ Implementing Ralph pattern with Advanced Context Engineering (ACE-FCA) for syste
 **Claude Code Assistant** completed systematic resolution of all 13 critical issues identified in PR #360 code review.
 
 #### **Issues Fixed:**
+
 1. **✅ Authentication Security Gap** - Added error state, user-friendly messages, retry mechanism
 2. **✅ User Info API Performance** - Implemented 5-minute caching (95% API call reduction)
 3. **✅ Inconsistent Role Mapping** - Centralized role mapping for all user types
@@ -134,16 +150,19 @@ Implementing Ralph pattern with Advanced Context Engineering (ACE-FCA) for syste
 10. **✅ UUID Type Inconsistency** - Consistent UUID types throughout backend
 
 #### **Impact Metrics:**
+
 - **Performance**: 95% reduction in user info API calls, 75% reduction in polling load
 - **Reliability**: Zero storage leaks via automatic cleanup, all errors now visible
 - **UX**: Clear error messages, seek/scrub in audio players, collection error notifications
 
 #### **Files Modified:**
+
 - **Frontend**: `AuthContext.tsx`, `LightweightPodcasts.tsx`
 - **Backend**: `dependencies.py`, `podcast_schema.py`, `podcast_service.py`, `podcast_router.py`
 - **Conflicts Resolved**: `Makefile` (streamlined version), `dependencies.py` (SKIP_AUTH logic)
 
 #### **Documentation:**
+
 - **Feature Docs**: `docs/features/podcast-fixes-pr360.md` (comprehensive mkdocs format)
 - **Summary**: `PODCAST_FIXES_SUMMARY.md` (detailed fix descriptions)
 - **Changelog**: Updated with all fixes
@@ -151,6 +170,7 @@ Implementing Ralph pattern with Advanced Context Engineering (ACE-FCA) for syste
 **Status**: ✅ Ready for merge - All linting passed, documentation complete
 
 ## 🧠 Context Management (ACE-FCA Rules)
+
 - **Context Utilization**: Keep between 40%-60% to maintain efficiency
 - **Workflow**: Research → Plan → Implement (with intentional compaction)
 - **Human Engagement**: High review during research and planning phases
@@ -158,6 +178,7 @@ Implementing Ralph pattern with Advanced Context Engineering (ACE-FCA) for syste
 - **Verification**: Validate research before proceeding to implementation
 
 ## 📋 Project Context Essentials
+
 - **Architecture**: Python FastAPI backend + React frontend + IBM Carbon Design
 - **Focus**: Transform basic RAG into agentic AI platform with agent orchestration
 - **Tech Stack**: IBM MCP Context Forge recommended for agent orchestration
@@ -166,6 +187,7 @@ Implementing Ralph pattern with Advanced Context Engineering (ACE-FCA) for syste
 ## 🔄 Ralph + ACE-FCA Workflow Structure
 
 ### **Phase Structure (ACE-FCA)**
+
 1. **🔍 Research Phase** (.ralph/prompts/research_*.md)
    - Understand codebase structure and dependencies
    - Validate assumptions before proceeding
@@ -182,6 +204,7 @@ Implementing Ralph pattern with Advanced Context Engineering (ACE-FCA) for syste
    - Maintain high human engagement for quality
 
 ### **File Organization**
+
 - **Context Management**: .ralph/current_context.md (compacted context)
 - **Progress Tracking**: .ralph/progress.md (iteration tracking)
 - **Execution Logs**: .ralph/logs/ (detailed execution history)
@@ -190,6 +213,7 @@ Implementing Ralph pattern with Advanced Context Engineering (ACE-FCA) for syste
 ## 🚀 Current Development Phase: Document Upload & Infrastructure Improvements ✅
 
 ### **Recent Major Accomplishments (October 8, 2025)**
+
 - **✅ COMPLETED**: Document upload pipeline for collection creation with files
 - **✅ COMPLETED**: Document upload endpoint for existing collections
 - **✅ COMPLETED**: Milvus connection stability improvements (disconnect before reconnect)
@@ -199,6 +223,7 @@ Implementing Ralph pattern with Advanced Context Engineering (ACE-FCA) for syste
 - **✅ COMPLETED**: Duplicate collection name error handling (409 Conflict responses)
 
 ### **Previous Major Accomplishments (September 30, 2025)**
+
 - **✅ COMPLETED**: Collection creation 422 error fixed (N+1 query optimization)
 - **✅ COMPLETED**: Chat functionality enhanced (search endpoint integration, icon updates)
 - **✅ COMPLETED**: Document management (delete/download operations implemented)
@@ -211,6 +236,7 @@ Implementing Ralph pattern with Advanced Context Engineering (ACE-FCA) for syste
 - **✅ COMPLETED**: Removed legacy Carbon Design System dependencies
 
 ### **Issue #242: Agentic RAG Frontend Epic** (Status: ✅ COMPLETE)
+
 - **✅ COMPLETED**: Enhanced Search Interface with accordion displays (documents, token tracking, CoT reasoning)
 - **✅ COMPLETED**: Real-time Communication (WebSocket + REST API fallback)
 - **✅ COMPLETED**: Smart Data Display (document name resolution, responsive design)
@@ -221,12 +247,14 @@ Implementing Ralph pattern with Advanced Context Engineering (ACE-FCA) for syste
 - **🚫 EXCLUDED**: IBM Carbon Design (moving to Tailwind), Agent Orchestration (later), Multi-collection chat
 
 **Implementation Progress: 100% of practical scope completed**
+
 - **US-1.1**: Basic Chat Interface ✅ **COMPLETE** (WebSocket + ConversationService integration)
 - **US-1.2**: Context-Aware Conversations ✅ **COMPLETE** (full conversation management system)
 - **US-3.2**: Advanced Collection Analytics ✅ **COMPLETE**
 - **US-3.3**: Collaborative Collection Management (optional)
 
 **Final Implementation Status**
+
 - **✅ COMPLETE**: Full WebSocket conversation system with ConversationService integration
 - **✅ COMPLETE**: Complete models, schemas, repositories, and services for conversations
 - **✅ COMPLETE**: REST API router for conversation CRUD operations (10 endpoints)
@@ -234,6 +262,7 @@ Implementing Ralph pattern with Advanced Context Engineering (ACE-FCA) for syste
 - **✅ COMPLETE**: Session-aware WebSocket integration with context preservation
 
 ### **Infrastructure Foundation** (Status: ✅ Complete)
+
 - **✅ COMPLETED**: Tailwind frontend replaces IBM Carbon design
 - **✅ COMPLETED**: Frontend Dockerfile created (`frontend/Dockerfile`)
 - **✅ COMPLETED**: Docker-compose updated for new frontend
@@ -242,6 +271,7 @@ Implementing Ralph pattern with Advanced Context Engineering (ACE-FCA) for syste
 - **✅ COMPLETED**: Frontend builds successfully (95.11 kB optimized)
 
 ### **Issue #243: Conversational Chat Interface** (Status: ✅ Core Features Implemented)
+
 - **Scope**: WhatsApp-style chat for document Q&A with WebSocket integration
 - **Priority**: Critical (foundation for agentic features)
 - **✅ COMPLETED**: Chat functionality with real API integration
@@ -250,12 +280,14 @@ Implementing Ralph pattern with Advanced Context Engineering (ACE-FCA) for syste
 - **🔧 REMAINING**: TypeScript compilation fixes, final UI polish
 
 ### **Issue #244: Agent Discovery & Orchestration** (Status: Planned)
+
 - **Scope**: Agent marketplace, configuration UI, execution monitoring
 - **Dependencies**: Issue #243 completion
 - **Technology**: IBM MCP Context Forge integration
 - **Status**: Ready for Phase 3 implementation
 
 ### **Issue #245: Architecture Decision** (Status: ✅ Resolved)
+
 - **✅ DECISION**: IBM MCP Context Forge selected
 - **✅ IMPACT**: Architecture decision enables all agentic capabilities
 - **Status**: Approved and documented
@@ -263,6 +295,7 @@ Implementing Ralph pattern with Advanced Context Engineering (ACE-FCA) for syste
 ## 📊 Recent Implementation Details (September 29, 2025)
 
 ### **Critical Bug Fixes Completed**
+
 1. **Collection Creation 422 Error** (`backend/rag_solution/repository/user_collection_repository.py`)
    - **Issue**: N+1 query generating 425 UUIDs causing database overload
    - **Solution**: Implemented eager loading with `joinedload()` for collections and files
@@ -284,6 +317,7 @@ Implementing Ralph pattern with Advanced Context Engineering (ACE-FCA) for syste
    - **Impact**: Dashboard now loads without runtime errors and displays proper default values
 
 ### **Feature Implementations Completed**
+
 1. **Enhanced Search Functionality** (`frontend/src/components/search/LightweightSearchInterface.tsx`)
    - **UI Enhancement**: Changed search icon to paper airplane for better UX
    - **Reliability**: Added REST API fallback when WebSocket fails
@@ -308,6 +342,7 @@ Implementing Ralph pattern with Advanced Context Engineering (ACE-FCA) for syste
    - **Impact**: Both frontend React changes and backend Python changes now hot-reload instantly
 
 ### **Current Issues Recently Resolved** ✅
+
 1. **✅ TypeScript Compilation Errors** (`frontend/src/components/collections/LightweightCollectionDetail.tsx`)
    - **Issue**: Variable name collision: `document` parameter conflicts with global `document` object
    - **Solution**: Renamed parameter from `document` to `file` to avoid DOM API conflicts
@@ -324,6 +359,7 @@ Implementing Ralph pattern with Advanced Context Engineering (ACE-FCA) for syste
    - **Status**: Dashboard now loads without errors
 
 ### **Development Environment Status** ✅
+
 - **✅ Hot-Reload**: Both frontend and backend hot-reload working optimally
 - **✅ Dashboard API**: All endpoints responding correctly (stats and activity)
 - **✅ Frontend Compilation**: No TypeScript errors, webpack compiling successfully
@@ -332,6 +368,7 @@ Implementing Ralph pattern with Advanced Context Engineering (ACE-FCA) for syste
 ### **Latest Session Accomplishments (September 30, 2025) - Dynamic Chat Navigation**
 
 #### **Major Feature Implementation: Dynamic Chat Menu**
+
 1. **Dynamic Sidebar Navigation** (`frontend/src/components/layout/LightweightSidebar.tsx`)
    - **Issue**: Conversations were standalone menu item without nested structure
    - **Solution**: Moved conversations under Chat menu with expandable structure
@@ -361,6 +398,7 @@ Implementing Ralph pattern with Advanced Context Engineering (ACE-FCA) for syste
    - **Integration**: Connected to sidebar "All chats" option
 
 #### **Code Quality & Maintenance**
+
 1. **TypeScript Compilation Fixes**
    - **Issue**: Type mismatches between `ConversationSession` and `Conversation` interfaces
    - **Solution**: Aligned type definitions and fixed timestamp type from string to Date
@@ -377,6 +415,7 @@ Implementing Ralph pattern with Advanced Context Engineering (ACE-FCA) for syste
    - **Impact**: Consistent API usage patterns throughout frontend
 
 #### **Implementation Quality**
+
 - **Architecture**: Followed existing service layer patterns and API conventions
 - **Error Handling**: Comprehensive error handling with user notifications
 - **Type Safety**: All TypeScript types properly aligned
@@ -384,19 +423,23 @@ Implementing Ralph pattern with Advanced Context Engineering (ACE-FCA) for syste
 - **Responsive Design**: Mobile-friendly with sidebar auto-close on small screens
 
 ### **Next Phase Recommendations**
+
 1. **Test and validate** all implemented features end-to-end
 2. **Performance optimization** for dashboard API responses
 3. **Enhanced error handling** for edge cases
 4. **Begin Phase 2**: Agent Discovery and Advanced Features
 
 ## Phase 2: GitHub Issue Discovery
+
 After completing the priority issues, discover other open issues:
+
 1. Search GitHub repository for open issues
 2. Prioritize by: importance, complexity, dependencies, labels
 3. Focus on: bug fixes, feature requests, improvements
 4. Skip: documentation-only, questions, duplicates
 
 ## Your Mission
+
 1. **Phase 1**: Analyze and implement Issues #242, #243, #244
 2. **Phase 2**: Discover other GitHub issues and prioritize them
 3. **Phase 3**: Implement issues systematically by priority
@@ -404,6 +447,7 @@ After completing the priority issues, discover other open issues:
 ## 🤖 Agent Development Instructions
 
 ### **Quality Gates (Must Follow)**
+
 - **Pre-Commit**: Always run `make pre-commit-run` and tests before committing
 - **Test Coverage**: Add comprehensive tests for new features (>90% coverage)
 - **Code Patterns**: Follow existing patterns in `rag_solution/` and `webui/src/`
@@ -411,6 +455,7 @@ After completing the priority issues, discover other open issues:
 - **Commit Messages**: Descriptive commits following conventional format
 
 ### **Development Workflow**
+
 1. **Research First**: Use appropriate research prompt for thorough analysis
 2. **Plan Before Code**: Create detailed implementation plan with verification steps
 3. **Implement Systematically**: Execute plan with frequent verification and testing
@@ -418,21 +463,25 @@ After completing the priority issues, discover other open issues:
 5. **Progress Tracking**: Document progress in .ralph/progress.md after each iteration
 
 ### **Technology Stack Commands**
+
 - **Python**: `poetry run <command>` for all Python operations
 - **Frontend**: `npm run dev` for React development
 - **Testing**: `make test-unit-fast`, `make test-integration`
 - **Linting**: `make lint`, `make fix-all` - Any files created or edited should pass linting checks from ruff, mypy, pylint, and pydocstyle
 
 ### **Docker Compose Commands (V2 Required)**
+
 **⚠️ IMPORTANT: Always use `docker compose` (V2) not `docker-compose` (V1)**
 
 **Development Workflow:**
+
 - **Local Development**: `docker compose -f docker-compose.dev.yml up -d`
 - **Build Development**: `docker compose -f docker-compose.dev.yml build backend`
 - **Production Testing**: `make run-ghcr` (uses pre-built GHCR images)
 - **Stop Services**: `docker compose -f docker-compose.dev.yml down`
 
 **File Structure:**
+
 - `docker-compose.yml` - Production (uses GHCR pre-built images)
 - `docker-compose.dev.yml` - Development (builds locally from source)
 - `docker-compose-infra.yml` - Infrastructure services (Postgres, Milvus, MinIO)
@@ -443,30 +492,35 @@ The production `docker-compose.yml` uses `image:` with pre-built GHCR images, wh
 ## 📊 Context Management (ACE-FCA Principles)
 
 ### **Context Utilization Rules**
+
 - **Target Range**: 40%-60% context window utilization
 - **Compaction Strategy**: Compress technical details into key actionable insights
 - **Focus Discipline**: Work on ONE issue at a time to maintain quality
 - **Format Standards**: Use bullet points and structured formats for clarity
 
 ### **Research Phase Context Management**
+
 - **Validate Early**: Confirm research direction before deep implementation
 - **Risk Awareness**: Poor research → thousands of bad lines of code
 - **Insight Extraction**: Focus on understanding codebase structure and dependencies
 - **Compression**: Distill findings into implementation-ready insights
 
 ### **Implementation Phase Context Management**
+
 - **Plan Adherence**: Follow detailed plans created during planning phase
 - **Verification Points**: Test and validate after each implementation stage
 - **Context Updates**: Compact and update context after verified progress
 - **Human Engagement**: Maintain high human review, especially for critical decisions
 
 ### **Context State Tracking**
+
 - **Current State**: .ralph/current_context.md (compacted current context)
 - **Progress History**: .ralph/progress.md (iteration progress tracking)
 - **Detailed Logs**: .ralph/logs/ (full execution logs for debugging)
 - **Phase Context**: .ralph/prompts/ (specialized context for each development phase)
 
 ## Success Criteria
+
 - All tests pass
 - Code follows project style
 - Security guidelines followed
@@ -477,6 +531,7 @@ The production `docker-compose.yml` uses `image:` with pre-built GHCR images, wh
 ## 🔄 Ralph + ACE-FCA Execution Workflow
 
 ### **Iteration Structure (ralph-runner.sh)**
+
 1. **Context Loading**: Combine AGENTS.md + current issue context
 2. **Phase Execution**: Run appropriate research/plan/implement prompt
 3. **Verification**: Run tests and validate implementation
@@ -486,24 +541,28 @@ The production `docker-compose.yml` uses `image:` with pre-built GHCR images, wh
 ### **Phase-Specific Workflows**
 
 #### **🔍 Research Phase**
+
 - **Prompt**: `.ralph/prompts/research_*.md`
 - **Goal**: Understand codebase, dependencies, implementation requirements
 - **Output**: Compacted research findings with implementation readiness assessment
 - **Validation**: Confirm research accuracy before proceeding to planning
 
 #### **📋 Planning Phase**
+
 - **Prompt**: `.ralph/prompts/plan_*.md`
 - **Goal**: Create detailed, executable implementation plan
 - **Output**: Step-by-step plan with files to edit, tests to add, verification steps
 - **Human Review**: High engagement to ensure plan quality and feasibility
 
 #### **⚒️ Implementation Phase**
+
 - **Prompt**: `.ralph/prompts/implement_*.md`
 - **Goal**: Execute plan systematically with continuous verification
 - **Output**: Working code with tests, documentation updates, progress tracking
 - **Quality Gates**: Lint, tests, code review before considering complete
 
 ### **Context Compaction Strategy**
+
 - **After Research**: Compress findings into key insights and implementation requirements
 - **After Planning**: Compress plan into essential steps and verification criteria
 - **After Implementation**: Compress results into completed features and next actions
@@ -528,6 +587,7 @@ ralph/
 └── current_context.md # Combined context for Claude
 
 ## Usage Instructions
+
 - Start with this file (PROMPT_ISSUES.md) for issue implementation
 - Use specialized prompts in .ralph/prompts/ for specific tasks
 - Monitor progress in .ralph/progress.md

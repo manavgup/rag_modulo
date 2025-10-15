@@ -6,12 +6,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from core.config import Settings
-from core.custom_exceptions import (
-    ConfigurationError,
-    LLMProviderError,
-    NotFoundError,
-    ValidationError,
-)
+from core.custom_exceptions import ConfigurationError, LLMProviderError, NotFoundError, ValidationError
 from rag_solution.services.search_service import SearchService, handle_search_errors
 
 
@@ -141,9 +136,7 @@ class TestGetReranker:
         mock_llm_reranker.assert_called_once()
 
     @patch("rag_solution.retrieval.reranker.SimpleReranker")
-    def test_get_reranker_llm_no_provider(
-        self, mock_simple_reranker, search_service: SearchService, user_id
-    ):
+    def test_get_reranker_llm_no_provider(self, mock_simple_reranker, search_service: SearchService, user_id):
         """Test that get_reranker falls back to SimpleReranker if no provider is found."""
         search_service.settings.enable_reranking = True
         search_service.settings.reranker_type = "llm"

@@ -41,17 +41,17 @@ service_endpoints:
     database: "{{ postgresql_database }}"
     username: "{{ postgresql_username }}"
     password: "{{ postgresql_password }}"
-  
+
   object_storage:
     endpoint: "{{ object_storage_endpoint }}"
     access_key: "{{ object_storage_access_key }}"
     secret_key: "{{ object_storage_secret_key }}"
     bucket_name: "{{ object_storage_bucket_name }}"
-  
+
   zilliz:
     endpoint: "{{ zilliz_endpoint }}"
     api_key: "{{ zilliz_api_key }}"
-  
+
   event_streams:
     endpoint: "{{ event_streams_endpoint }}"
     api_key: "{{ event_streams_api_key }}"

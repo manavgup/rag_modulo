@@ -2,18 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import (
-    APIRouter,
-    BackgroundTasks,
-    Body,
-    Depends,
-    File,
-    Form,
-    HTTPException,
-    Request,
-    Response,
-    UploadFile,
-)
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import UUID4
 from sqlalchemy.orm import Session
@@ -55,7 +44,11 @@ async def debug_form_data(
     logger.debug("Request query params: %s", dict(request.query_params))
     logger.debug("=== END DEBUG FORM DATA ===")
 
-    return {"collection_name": collection_name, "user_id": str(user_id), "query_params": dict(request.query_params)}
+    return {
+        "collection_name": collection_name,
+        "user_id": str(user_id),
+        "query_params": dict(request.query_params),
+    }
 
 
 @router.post("/debug-form-data-with-db")
@@ -103,7 +96,11 @@ async def test_list_collections(
         user_collection_service = UserCollectionService(db)
         collections = user_collection_service.get_user_collections(mock_user_id)
 
-        logger.info("TEST: Retrieved %d collections for mock user %s", len(collections), str(mock_user_id))
+        logger.info(
+            "TEST: Retrieved %d collections for mock user %s",
+            len(collections),
+            str(mock_user_id),
+        )
         return collections
 
     except Exception as e:
@@ -298,7 +295,9 @@ async def create_collection_with_documents(  # pylint: disable=too-many-argument
     },
 )
 def get_collection(
-    collection_id: UUID4, db: Annotated[Session, Depends(get_db)], settings: Annotated[Settings, Depends(get_settings)]
+    collection_id: UUID4,
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> CollectionOutput:
     """
     Retrieve a collection by id.
@@ -385,7 +384,9 @@ def create_collection_question(
     },
 )
 def get_collection_questions(
-    collection_id: UUID4, db: Annotated[Session, Depends(get_db)], settings: Annotated[Settings, Depends(get_settings)]
+    collection_id: UUID4,
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> list[QuestionOutput]:
     """
     Get all questions for a collection.
@@ -501,7 +502,12 @@ def delete_collection_question(
         logger.error("Not found error deleting question: %s", str(e))
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
-        logger.error("Error deleting question %s from collection %s: %s", str(question_id), str(collection_id), str(e))
+        logger.error(
+            "Error deleting question %s from collection %s: %s",
+            str(question_id),
+            str(collection_id),
+            str(e),
+        )
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -516,7 +522,9 @@ def delete_collection_question(
     },
 )
 def delete_collection_questions(
-    collection_id: UUID4, db: Annotated[Session, Depends(get_db)], settings: Annotated[Settings, Depends(get_settings)]
+    collection_id: UUID4,
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> Response:
     """
     Delete all questions for a collection.
@@ -551,7 +559,9 @@ def delete_collection_questions(
     },
 )
 def delete_collection(
-    collection_id: UUID4, db: Annotated[Session, Depends(get_db)], settings: Annotated[Settings, Depends(get_settings)]
+    collection_id: UUID4,
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> Response:
     """
     Delete a collection by id.
@@ -693,7 +703,12 @@ async def upload_documents_to_collection(
     current_user = request.state.user
     user_id = current_user.get("uuid")
 
-    logger.info("Uploading %d documents to collection %s by user %s", len(files), str(collection_id), str(user_id))
+    logger.info(
+        "Uploading %d documents to collection %s by user %s",
+        len(files),
+        str(collection_id),
+        str(user_id),
+    )
 
     try:
         collection_service = CollectionService(db, settings)
@@ -706,7 +721,11 @@ async def upload_documents_to_collection(
             files, user_id, collection_id, collection.vector_db_name, background_tasks
         )
 
-        logger.info("Successfully uploaded %d documents to collection %s", len(file_records), str(collection_id))
+        logger.info(
+            "Successfully uploaded %d documents to collection %s",
+            len(file_records),
+            str(collection_id),
+        )
         return file_records
 
     except ValidationError as e:
@@ -759,7 +778,12 @@ def delete_document_by_id(
         logger.error("Document not found for deletion: %s", str(e))
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:
-        logger.error("Error deleting document %s from collection %s: %s", str(document_id), str(collection_id), str(e))
+        logger.error(
+            "Error deleting document %s from collection %s: %s",
+            str(document_id),
+            str(collection_id),
+            str(e),
+        )
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -775,7 +799,9 @@ def delete_document_by_id(
     },
 )
 def get_collection_files(
-    collection_id: UUID4, db: Annotated[Session, Depends(get_db)], settings: Annotated[Settings, Depends(get_settings)]
+    collection_id: UUID4,
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> list[str]:
     """
     Get a list of files in a specific collection.
@@ -1019,7 +1045,11 @@ async def reindex_collection(
     current_user = request.state.user
     user_id = current_user.get("uuid")
 
-    logger.info("Reindexing collection %s requested by user %s", str(collection_id), str(user_id))
+    logger.info(
+        "Reindexing collection %s requested by user %s",
+        str(collection_id),
+        str(user_id),
+    )
 
     try:
         collection_service = CollectionService(db, settings)

@@ -11,42 +11,42 @@
     project_name: "{{ project_name | default('rag-modulo') }}"
     environment: "{{ environment | default('dev') }}"
     region: "{{ region | default('us-south') }}"
-    
+
     # IBM Cloud configuration
     ibmcloud_api_key: "{{ ibmcloud_api_key | default(omit) }}"
     resource_group_id: "{{ resource_group_id | default(omit) }}"
-    
+
     # Container registry configuration
     container_registry_url: "{{ container_registry_url | default('us.icr.io') }}"
     container_registry_username: "{{ container_registry_username | default('iamapikey') }}"
     container_registry_password: "{{ container_registry_password | default(omit) }}"
-    
+
     # Image tags
     backend_image_tag: "{{ backend_image_tag | default('v1.0.0') }}"
     frontend_image_tag: "{{ frontend_image_tag | default('v1.0.0') }}"
-    
+
     # Managed services endpoints (from Terraform outputs)
     postgresql_host: "{{ postgresql_host | default(omit) }}"
     postgresql_port: "{{ postgresql_port | default(5432) }}"
     postgresql_database: "{{ postgresql_database | default(omit) }}"
     postgresql_username: "{{ postgresql_username | default(omit) }}"
     postgresql_password: "{{ postgresql_password | default(omit) }}"
-    
+
     object_storage_endpoint: "{{ object_storage_endpoint | default(omit) }}"
     object_storage_access_key: "{{ object_storage_access_key | default(omit) }}"
     object_storage_secret_key: "{{ object_storage_secret_key | default(omit) }}"
     object_storage_bucket_name: "{{ object_storage_bucket_name | default(omit) }}"
-    
+
     zilliz_endpoint: "{{ zilliz_endpoint | default(omit) }}"
     zilliz_api_key: "{{ zilliz_api_key | default(omit) }}"
-    
+
     event_streams_endpoint: "{{ event_streams_endpoint | default(omit) }}"
     event_streams_api_key: "{{ event_streams_api_key | default(omit) }}"
-    
+
     # Health check URLs
     backend_health_url: "{{ backend_health_url | default('https://backend-app.example.com/health') }}"
     frontend_health_url: "{{ frontend_health_url | default('https://frontend-app.example.com/') }}"
-    
+
     # Deployment configuration
     wait_timeout: 600
     retry_count: 3
@@ -299,17 +299,17 @@
           Project: {{ project_name }}
           Environment: {{ environment }}
           Region: {{ region }}
-          
+
           Backend:
             - URL: https://{{ backend_endpoint.stdout }}
             - Health: https://{{ backend_endpoint.stdout }}/health
             - Status: {{ backend_status.stdout }}
-          
+
           Frontend:
             - URL: https://{{ frontend_endpoint.stdout }}
             - Health: https://{{ frontend_endpoint.stdout }}/
             - Status: {{ frontend_status.stdout }}
-          
+
           Managed Services:
             - PostgreSQL: {{ postgresql_host }}:{{ postgresql_port }}/{{ postgresql_database }}
             - Object Storage: {{ object_storage_endpoint }}
@@ -322,12 +322,12 @@
         content: |
           # RAG Modulo Deployment Outputs
           # Generated on {{ ansible_date_time.iso8601 }}
-          
+
           BACKEND_URL=https://{{ backend_endpoint.stdout }}
           FRONTEND_URL=https://{{ frontend_endpoint.stdout }}
           BACKEND_HEALTH_URL=https://{{ backend_endpoint.stdout }}/health
           FRONTEND_HEALTH_URL=https://{{ frontend_endpoint.stdout }}/
-          
+
           # Service endpoints
           POSTGRESQL_HOST={{ postgresql_host }}
           POSTGRESQL_PORT={{ postgresql_port }}
@@ -347,16 +347,16 @@
           1. Verify deployment:
              - Backend: https://{{ backend_endpoint.stdout }}/health
              - Frontend: https://{{ frontend_endpoint.stdout }}/
-          
+
           2. Monitor applications:
              - ibmcloud ce app list
              - ibmcloud ce app get {{ project_name }}-backend
              - ibmcloud ce app get {{ project_name }}-frontend
-          
+
           3. View logs:
              - ibmcloud ce app logs {{ project_name }}-backend
              - ibmcloud ce app logs {{ project_name }}-frontend
-          
+
           4. Scale applications:
              - ibmcloud ce app update {{ project_name }}-backend --min-scale 2 --max-scale 5
              - ibmcloud ce app update {{ project_name }}-frontend --min-scale 2 --max-scale 3
