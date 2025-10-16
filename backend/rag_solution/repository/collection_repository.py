@@ -29,9 +29,7 @@ class CollectionRepository:
         """
         self.db = db
 
-    def create(
-        self, collection: CollectionInput, vector_db_name: str
-    ) -> CollectionOutput:
+    def create(self, collection: CollectionInput, vector_db_name: str) -> CollectionOutput:
         """
         Create a new collection in the database.
 
@@ -57,16 +55,12 @@ class CollectionRepository:
             self.db.flush()  # Flush to get the collection ID
 
             # After flush, db_collection should have an ID
-            assert (
-                db_collection.id is not None
-            ), "Collection should have an ID after flush"
+            assert db_collection.id is not None, "Collection should have an ID after flush"
 
             # Create user-collection relationships
             if collection.users:
                 for user_id in collection.users:
-                    user_collection = UserCollection(
-                        user_id=user_id, collection_id=db_collection.id
-                    )
+                    user_collection = UserCollection(user_id=user_id, collection_id=db_collection.id)
                     self.db.add(user_collection)
 
             self.db.commit()
@@ -110,9 +104,7 @@ class CollectionRepository:
                 .first()
             )
             if not collection:
-                raise NotFoundError(
-                    resource_type="Collection", resource_id=str(collection_id)
-                )
+                raise NotFoundError(resource_type="Collection", resource_id=str(collection_id))
             return self._collection_to_output(collection)
         except (NotFoundError, AlreadyExistsError, ValidationError):
             self.db.rollback()
@@ -141,16 +133,12 @@ class CollectionRepository:
                 .filter(UserCollection.user_id == user_id)
                 .all()
             )
-            return [
-                self._collection_to_output(collection) for collection in collections
-            ]
+            return [self._collection_to_output(collection) for collection in collections]
         except (NotFoundError, AlreadyExistsError, ValidationError):
             self.db.rollback()
             raise
         except SQLAlchemyError as e:
-            logger.error(
-                "Error getting collections for user %s: %s", str(user_id), str(e)
-            )
+            logger.error("Error getting collections for user %s: %s", str(user_id), str(e))
             raise
 
     def get_by_name(self, name: str) -> CollectionOutput | None:
@@ -199,9 +187,7 @@ class CollectionRepository:
                 .first()
             )
             if not collection:
-                raise NotFoundError(
-                    resource_type="Collection", resource_id=str(collection_id)
-                )
+                raise NotFoundError(resource_type="Collection", resource_id=str(collection_id))
             for key, value in collection_update.items():
                 setattr(collection, key, value)
             self.db.commit()
@@ -213,9 +199,7 @@ class CollectionRepository:
                 .first()
             )
             if collection is None:
-                raise NotFoundError(
-                    resource_type="Collection", resource_id=str(collection_id)
-                )
+                raise NotFoundError(resource_type="Collection", resource_id=str(collection_id))
             return self._collection_to_output(collection)
         except (NotFoundError, AlreadyExistsError, ValidationError):
             self.db.rollback()
@@ -239,9 +223,7 @@ class CollectionRepository:
             SQLAlchemyError: If there's an error during database operations.
         """
         try:
-            collection = (
-                self.db.query(Collection).filter(Collection.id == collection_id).first()
-            )
+            collection = self.db.query(Collection).filter(Collection.id == collection_id).first()
             if collection:
                 self.db.delete(collection)
                 self.db.commit()
@@ -276,9 +258,7 @@ class CollectionRepository:
                 .limit(limit)
                 .all()
             )
-            return [
-                self._collection_to_output(collection) for collection in collections
-            ]
+            return [self._collection_to_output(collection) for collection in collections]
         except (NotFoundError, AlreadyExistsError, ValidationError):
             self.db.rollback()
             raise
