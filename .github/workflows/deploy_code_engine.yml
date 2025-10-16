@@ -158,28 +158,11 @@ jobs:
           APP_URL=$(ibmcloud ce app get --name "${{ env.APP_NAME }}" \
             --output json | jq -r '.status.latest_ready_revision_name' | head -1)
           if [ -n "$APP_URL" ]; then
-            echo "Testing health endpoint at: $APP_URL/health"
-            if curl -f -s "$APP_URL/health" > /dev/null; then
+            echo "Testing health endpoint at: $APP_URL/api/health"
+            if curl -f -s "$APP_URL/api/health" > /dev/null; then
               echo "✅ Health check passed"
             else
               echo "❌ Health check failed"
-              exit 1
-            fi
-          else
-            echo "❌ Could not determine application URL"
-            exit 1
-          fi
-
-      - name: Test API endpoint
-        run: |
-          APP_URL=$(ibmcloud ce app get --name "${{ env.APP_NAME }}" \
-            --output json | jq -r '.status.latest_ready_revision_name' | head -1)
-          if [ -n "$APP_URL" ]; then
-            echo "Testing API endpoint at: $APP_URL/api/v1/health"
-            if curl -f -s "$APP_URL/api/v1/health" > /dev/null; then
-              echo "✅ API health check passed"
-            else
-              echo "❌ API health check failed"
               exit 1
             fi
           else

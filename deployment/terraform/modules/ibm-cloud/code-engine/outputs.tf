@@ -98,7 +98,7 @@ output "container_registry_secret_id" {
 # Health check endpoints
 output "backend_health_endpoint" {
   description = "Backend health check endpoint"
-  value       = "${ibm_code_engine_app.backend.endpoint}/health"
+  value       = "${ibm_code_engine_app.backend.endpoint}/api/health"
   sensitive   = false
 }
 
