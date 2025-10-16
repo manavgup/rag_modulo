@@ -15,6 +15,7 @@
 #   MILVUS_HOST - Milvus host (default: localhost)
 #   MILVUS_PORT - Milvus port (default: 19530)
 #   FORCE_RESTORE - Skip confirmation prompt (default: false)
+#   BACKUP_ENCRYPTION_KEY - Passphrase for GPG decryption (required if backup is encrypted)
 
 set -euo pipefail
 
@@ -111,6 +112,17 @@ check_prerequisites() {
         missing_tools+=("gunzip")
     fi
 
+    # Check for GPG if backup is encrypted
+    if [[ "$BACKUP_ARCHIVE" == *.gpg ]]; then
+        if ! command -v gpg &> /dev/null; then
+            missing_tools+=("gpg")
+        fi
+        if [ -z "${BACKUP_ENCRYPTION_KEY:-}" ]; then
+            log_error "BACKUP_ENCRYPTION_KEY environment variable is required for encrypted backups"
+            exit 1
+        fi
+    fi
+
     if [ ${#missing_tools[@]} -gt 0 ]; then
         log_error "Missing required tools: ${missing_tools[*]}"
         exit 1
@@ -146,6 +158,32 @@ confirm_restore() {
         log_info "Restore cancelled"
         exit 0
     fi
+}
+
+# Decrypt backup archive if encrypted
+decrypt_backup() {
+    if [[ ! "$BACKUP_ARCHIVE" == *.gpg ]]; then
+        log_info "Backup is not encrypted, skipping decryption"
+        return 0
+    fi
+
+    log_info "Decrypting backup archive..."
+
+    local decrypted_archive="${TEMP_DIR}/decrypted-backup.tar.gz"
+
+    # Decrypt the backup
+    echo "${BACKUP_ENCRYPTION_KEY}" | gpg \
+        --batch \
+        --yes \
+        --passphrase-fd 0 \
+        --decrypt \
+        --output "${decrypted_archive}" \
+        "${BACKUP_ARCHIVE}"
+
+    # Update BACKUP_ARCHIVE to point to decrypted file
+    BACKUP_ARCHIVE="${decrypted_archive}"
+
+    log_info "Backup decryption completed"
 }
 
 # Extract backup archive
@@ -189,15 +227,34 @@ verify_backup() {
     log_info "Backup verification passed"
 }
 
+# Create temporary .pgpass file for secure password handling
+create_pgpass_file() {
+    PGPASS_FILE=$(mktemp)
+    chmod 600 "${PGPASS_FILE}"
+    # Support wildcards for all databases
+    echo "${POSTGRES_HOST}:${POSTGRES_PORT}:*:${POSTGRES_USER}:${POSTGRES_PASS}" > "${PGPASS_FILE}"
+    echo "${PGPASS_FILE}"
+}
+
+# Remove temporary .pgpass file
+cleanup_pgpass_file() {
+    if [ -n "${PGPASS_FILE}" ] && [ -f "${PGPASS_FILE}" ]; then
+        rm -f "${PGPASS_FILE}"
+    fi
+}
+
 # Restore PostgreSQL database
 restore_postgres() {
     log_info "Restoring PostgreSQL database..."
 
     local postgres_backup="${BACKUP_DIR}/postgres_${POSTGRES_DB}.sql.gz"
 
+    # Use .pgpass file instead of PGPASSWORD to avoid password exposure in process list
+    PGPASS_FILE=$(create_pgpass_file)
+
     # Drop existing database (with caution)
     log_warn "Dropping existing database: ${POSTGRES_DB}"
-    PGPASSWORD="${POSTGRES_PASS}" psql \
+    PGPASSFILE="${PGPASS_FILE}" psql \
         -h "${POSTGRES_HOST}" \
         -p "${POSTGRES_PORT}" \
         -U "${POSTGRES_USER}" \
@@ -206,7 +263,7 @@ restore_postgres() {
 
     # Create fresh database
     log_info "Creating fresh database: ${POSTGRES_DB}"
-    PGPASSWORD="${POSTGRES_PASS}" psql \
+    PGPASSFILE="${PGPASS_FILE}" psql \
         -h "${POSTGRES_HOST}" \
         -p "${POSTGRES_PORT}" \
         -U "${POSTGRES_USER}" \
@@ -215,12 +272,14 @@ restore_postgres() {
 
     # Restore from backup
     log_info "Restoring database from backup..."
-    gunzip -c "${postgres_backup}" | PGPASSWORD="${POSTGRES_PASS}" psql \
+    gunzip -c "${postgres_backup}" | PGPASSFILE="${PGPASS_FILE}" psql \
         -h "${POSTGRES_HOST}" \
         -p "${POSTGRES_PORT}" \
         -U "${POSTGRES_USER}" \
         -d "${POSTGRES_DB}" \
         --quiet
+
+    cleanup_pgpass_file
 
     log_info "PostgreSQL restore completed"
 }
@@ -253,8 +312,11 @@ cleanup() {
 verify_restore() {
     log_info "Verifying restore..."
 
+    # Use .pgpass file for verification
+    PGPASS_FILE=$(create_pgpass_file)
+
     # Check database connection
-    if PGPASSWORD="${POSTGRES_PASS}" psql \
+    if PGPASSFILE="${PGPASS_FILE}" psql \
         -h "${POSTGRES_HOST}" \
         -p "${POSTGRES_PORT}" \
         -U "${POSTGRES_USER}" \
@@ -263,17 +325,20 @@ verify_restore() {
         log_info "Database connection verified"
     else
         log_error "Database connection failed"
+        cleanup_pgpass_file
         exit 1
     fi
 
     # Count tables
     local table_count
-    table_count=$(PGPASSWORD="${POSTGRES_PASS}" psql \
+    table_count=$(PGPASSFILE="${PGPASS_FILE}" psql \
         -h "${POSTGRES_HOST}" \
         -p "${POSTGRES_PORT}" \
         -U "${POSTGRES_USER}" \
         -d "${POSTGRES_DB}" \
         -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';")
+
+    cleanup_pgpass_file
 
     log_info "Restored ${table_count} database tables"
 
@@ -285,8 +350,13 @@ main() {
     log_info "Starting RAG Modulo restore"
     log_info "Backup archive: ${BACKUP_ARCHIVE}"
 
+    if [[ "$BACKUP_ARCHIVE" == *.gpg ]]; then
+        log_info "Encrypted backup detected"
+    fi
+
     check_prerequisites
     confirm_restore
+    decrypt_backup
     extract_backup
     verify_backup
     restore_postgres

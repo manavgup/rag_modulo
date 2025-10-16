@@ -15,6 +15,8 @@
 #   MILVUS_HOST - Milvus host (default: localhost)
 #   MILVUS_PORT - Milvus port (default: 19530)
 #   BACKUP_RETENTION_DAYS - Days to keep backups (default: 7)
+#   BACKUP_ENCRYPTION_KEY - Passphrase for GPG encryption (optional)
+#   BACKUP_ENABLE_ENCRYPTION - Enable backup encryption (default: false)
 
 set -euo pipefail
 
@@ -23,6 +25,8 @@ BACKUP_DIR="${1:-/tmp/rag-modulo-backups}"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_PATH="${BACKUP_DIR}/${TIMESTAMP}"
 RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-7}"
+ENABLE_ENCRYPTION="${BACKUP_ENABLE_ENCRYPTION:-false}"
+ENCRYPTION_KEY="${BACKUP_ENCRYPTION_KEY:-}"
 
 # PostgreSQL configuration
 POSTGRES_HOST="${COLLECTIONDB_HOST:-localhost}"
@@ -72,6 +76,17 @@ check_prerequisites() {
         missing_tools+=("gzip")
     fi
 
+    # Check for GPG if encryption is enabled
+    if [ "${ENABLE_ENCRYPTION}" = "true" ]; then
+        if ! command -v gpg &> /dev/null; then
+            missing_tools+=("gpg")
+        fi
+        if [ -z "${ENCRYPTION_KEY}" ]; then
+            log_error "BACKUP_ENCRYPTION_KEY environment variable is required when encryption is enabled"
+            exit 1
+        fi
+    fi
+
     if [ ${#missing_tools[@]} -gt 0 ]; then
         log_error "Missing required tools: ${missing_tools[*]}"
         exit 1
@@ -96,13 +111,31 @@ create_backup_dir() {
     mkdir -p "${BACKUP_PATH}"
 }
 
+# Create temporary .pgpass file for secure password handling
+create_pgpass_file() {
+    PGPASS_FILE=$(mktemp)
+    chmod 600 "${PGPASS_FILE}"
+    echo "${POSTGRES_HOST}:${POSTGRES_PORT}:${POSTGRES_DB}:${POSTGRES_USER}:${POSTGRES_PASS}" > "${PGPASS_FILE}"
+    echo "${PGPASS_FILE}"
+}
+
+# Remove temporary .pgpass file
+cleanup_pgpass_file() {
+    if [ -n "${PGPASS_FILE}" ] && [ -f "${PGPASS_FILE}" ]; then
+        rm -f "${PGPASS_FILE}"
+    fi
+}
+
 # Backup PostgreSQL database
 backup_postgres() {
     log_info "Backing up PostgreSQL database..."
 
     local db_backup_file="${BACKUP_PATH}/postgres_${POSTGRES_DB}.sql"
 
-    PGPASSWORD="${POSTGRES_PASS}" pg_dump \
+    # Use .pgpass file instead of PGPASSWORD to avoid password exposure in process list
+    PGPASS_FILE=$(create_pgpass_file)
+
+    PGPASSFILE="${PGPASS_FILE}" pg_dump \
         -h "${POSTGRES_HOST}" \
         -p "${POSTGRES_PORT}" \
         -U "${POSTGRES_USER}" \
@@ -112,6 +145,7 @@ backup_postgres() {
         --no-acl \
         -f "${db_backup_file}"
 
+    cleanup_pgpass_file
     gzip "${db_backup_file}"
 
     log_info "PostgreSQL backup completed: ${db_backup_file}.gz"
@@ -207,11 +241,41 @@ compress_backup() {
     log_info "Backup archive created: ${archive_name}"
 }
 
+# Encrypt backup archive
+encrypt_backup() {
+    if [ "${ENABLE_ENCRYPTION}" != "true" ]; then
+        log_info "Encryption disabled, skipping encryption step"
+        return 0
+    fi
+
+    log_info "Encrypting backup archive..."
+
+    local archive_name="${BACKUP_DIR}/rag-modulo-backup-${TIMESTAMP}.tar.gz"
+    local encrypted_archive="${archive_name}.gpg"
+
+    # Encrypt using symmetric encryption with passphrase
+    echo "${ENCRYPTION_KEY}" | gpg \
+        --batch \
+        --yes \
+        --passphrase-fd 0 \
+        --symmetric \
+        --cipher-algo AES256 \
+        --output "${encrypted_archive}" \
+        "${archive_name}"
+
+    # Remove unencrypted archive
+    rm -f "${archive_name}"
+
+    log_info "Backup encrypted: ${encrypted_archive}"
+}
+
 # Clean old backups
 cleanup_old_backups() {
     log_info "Cleaning up backups older than ${RETENTION_DAYS} days..."
 
+    # Clean both encrypted and unencrypted backups
     find "${BACKUP_DIR}" -name "rag-modulo-backup-*.tar.gz" -type f -mtime +"${RETENTION_DAYS}" -delete
+    find "${BACKUP_DIR}" -name "rag-modulo-backup-*.tar.gz.gpg" -type f -mtime +"${RETENTION_DAYS}" -delete
 
     log_info "Old backups cleaned up"
 }
@@ -220,13 +284,23 @@ cleanup_old_backups() {
 verify_backup() {
     log_info "Verifying backup integrity..."
 
-    local archive_name="${BACKUP_DIR}/rag-modulo-backup-${TIMESTAMP}.tar.gz"
-
-    if tar -tzf "${archive_name}" > /dev/null 2>&1; then
-        log_info "Backup verification passed"
+    if [ "${ENABLE_ENCRYPTION}" = "true" ]; then
+        local archive_name="${BACKUP_DIR}/rag-modulo-backup-${TIMESTAMP}.tar.gz.gpg"
+        # Verify GPG file can be listed
+        if gpg --list-packets "${archive_name}" > /dev/null 2>&1; then
+            log_info "Encrypted backup verification passed"
+        else
+            log_error "Encrypted backup verification failed"
+            exit 1
+        fi
     else
-        log_error "Backup verification failed"
-        exit 1
+        local archive_name="${BACKUP_DIR}/rag-modulo-backup-${TIMESTAMP}.tar.gz"
+        if tar -tzf "${archive_name}" > /dev/null 2>&1; then
+            log_info "Backup verification passed"
+        else
+            log_error "Backup verification failed"
+            exit 1
+        fi
     fi
 }
 
@@ -235,17 +309,29 @@ main() {
     log_info "Starting RAG Modulo backup at ${TIMESTAMP}"
     log_info "Backup directory: ${BACKUP_DIR}"
 
+    if [ "${ENABLE_ENCRYPTION}" = "true" ]; then
+        log_info "Encryption: ENABLED"
+    else
+        log_info "Encryption: DISABLED"
+    fi
+
     check_prerequisites
     create_backup_dir
     backup_postgres
     backup_milvus_metadata
     create_manifest
     compress_backup
+    encrypt_backup
     verify_backup
     cleanup_old_backups
 
-    log_info "Backup completed successfully!"
-    log_info "Backup location: ${BACKUP_DIR}/rag-modulo-backup-${TIMESTAMP}.tar.gz"
+    if [ "${ENABLE_ENCRYPTION}" = "true" ]; then
+        log_info "Backup completed successfully!"
+        log_info "Backup location: ${BACKUP_DIR}/rag-modulo-backup-${TIMESTAMP}.tar.gz.gpg"
+    else
+        log_info "Backup completed successfully!"
+        log_info "Backup location: ${BACKUP_DIR}/rag-modulo-backup-${TIMESTAMP}.tar.gz"
+    fi
 }
 
 main "$@"

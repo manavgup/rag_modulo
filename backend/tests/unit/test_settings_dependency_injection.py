@@ -52,7 +52,7 @@ def test_get_settings_with_environment_variables():
         os.environ,
         {
             "WATSONX_URL": "https://test.example.com",
-            "JWT_SECRET_KEY": "test-secret-key",
+            "JWT_SECRET_KEY": "test-secret-key",  # pragma: allowlist secret
             "RAG_LLM": "openai",
         },
     ):
@@ -63,6 +63,7 @@ def test_get_settings_with_environment_variables():
         settings = get_settings()
 
         assert settings.wx_url == "https://test.example.com"
+        # pragma: allowlist secret
         assert settings.jwt_secret_key == "test-secret-key"
         assert settings.rag_llm == "openai"
 
@@ -104,14 +105,18 @@ def test_no_import_time_settings_access():
     try:
         # Clear all relevant environment variables to make settings invalid
         for key in list(os.environ.keys()):
-            if any(prefix in key for prefix in ["WATSONX", "JWT", "RAG", "VECTOR", "MILVUS"]):
+            if any(
+                prefix in key
+                for prefix in ["WATSONX", "JWT", "RAG", "VECTOR", "MILVUS"]
+            ):
                 del os.environ[key]
 
         # The function should exist but not be called during import
         assert callable(get_settings)
 
-        # When we call get_settings() with empty environment, it should work with defaults
-        # This is the desired behavior - settings should be accessible even without env vars
+        # When we call get_settings() with empty environment,
+        # it should work with defaults. This is the desired behavior -
+        # settings should be accessible even without env vars
         settings = get_settings()
         assert settings is not None
         # Should have default values
@@ -138,10 +143,13 @@ def test_settings_validation_error_handling():
     # Patch both os.environ and dotenv to prevent loading from .env file
     with (
         patch.dict(os.environ, {}, clear=True),
-        patch("pydantic_settings.sources.DotEnvSettingsSource.__call__", return_value={}),
+        patch(
+            "pydantic_settings.sources.DotEnvSettingsSource.__call__", return_value={}
+        ),
     ):
         settings = get_settings()
         # Should get default values
+        # pragma: allowlist secret
         assert settings.jwt_secret_key == "dev-secret-key-change-in-production-f8a7b2c1"
         assert settings.rag_llm == "ibm/granite-3-3-8b-instruct"
 
@@ -297,7 +305,9 @@ def test_database_models_no_import_time_settings():
     except ImportError as e:
         # If import fails, it should NOT be due to settings/database validation
         error_msg = str(e).lower()
-        assert not any(term in error_msg for term in ["validation", "database", "connection"])
+        assert not any(
+            term in error_msg for term in ["validation", "database", "connection"]
+        )
 
     finally:
         # Restore original environment
@@ -338,10 +348,9 @@ def test_fastapi_route_dependency_injection_pattern():
     """Test the recommended FastAPI route dependency injection pattern."""
     from typing import Annotated
 
+    from core.config import Settings, get_settings
     from fastapi import Depends, FastAPI
     from fastapi.testclient import TestClient
-
-    from core.config import Settings, get_settings
 
     app = FastAPI()
 
@@ -358,7 +367,9 @@ def test_fastapi_route_dependency_injection_pattern():
 
     # Clear cache and set test environment
     get_settings.cache_clear()
-    with patch.dict(os.environ, {"RAG_LLM": "watsonx", "VECTOR_DB": "pinecone"}, clear=False):
+    with patch.dict(
+        os.environ, {"RAG_LLM": "watsonx", "VECTOR_DB": "pinecone"}, clear=False
+    ):
         response = client.get("/settings-test")
 
         assert response.status_code == 200
@@ -393,7 +404,9 @@ def test_service_class_dependency_injection_pattern():
 
         config = service.get_config()
         assert config["llm"] == "anthropic"
-        assert config["embeddings"] == "ibm/slate-125m-english-rtrvr"  # Updated to match current default
+        # Embedding model comes from .env file
+        # (EMBEDDING_MODEL=ibm/slate-125m-english-rtrvr)
+        assert config["embeddings"] == "ibm/slate-125m-english-rtrvr"
 
 
 @pytest.mark.unit
@@ -454,13 +467,17 @@ def test_vector_store_base_class_requires_settings():
 
     # Create a concrete implementation for testing
     class TestVectorStore(VectorStore):
-        def create_collection(self, _collection_name: str, _metadata: dict | None = None) -> None:
+        def create_collection(
+            self, _collection_name: str, _metadata: dict | None = None
+        ) -> None:
             pass
 
         def add_documents(self, _collection_name: str, _documents: list) -> list[str]:
             return []
 
-        def retrieve_documents(self, _query: str, _collection_name: str, _number_of_results: int = 10) -> list:
+        def retrieve_documents(
+            self, _query: str, _collection_name: str, _number_of_results: int = 10
+        ) -> list:
             return []
 
         def query(
@@ -475,11 +492,13 @@ def test_vector_store_base_class_requires_settings():
         def delete_collection(self, _collection_name: str) -> None:
             pass
 
-        def delete_documents(self, _collection_name: str, _document_ids: list[str]) -> None:
+        def delete_documents(
+            self, _collection_name: str, _document_ids: list[str]
+        ) -> None:
             pass
 
     # Test that settings are properly injected
-    mock_settings = Mock()
+    mock_settings = Mock()  # pragma: allowlist secret
     mock_settings.vector_db = "test"
 
     store = TestVectorStore(mock_settings)
@@ -494,7 +513,7 @@ def test_pinecone_store_dependency_injection():
 
     # Mock settings
     mock_settings = Mock()
-    mock_settings.pinecone_api_key = "test-key"
+    mock_settings.pinecone_api_key = "test-key"  # pragma: allowlist secret
     mock_settings.pinecone_cloud = "aws"
     mock_settings.pinecone_region = "us-east-1"
     mock_settings.embedding_dim = 768
@@ -539,12 +558,16 @@ def test_vector_stores_no_module_level_settings_access():
     try:
         # Clear all vector database related environment variables
         for key in list(os.environ.keys()):
-            if any(prefix in key for prefix in ["PINECONE", "CHROMA", "MILVUS", "ELASTIC", "WEAVIATE"]):
+            if any(
+                prefix in key
+                for prefix in ["PINECONE", "CHROMA", "MILVUS", "ELASTIC", "WEAVIATE"]
+            ):
                 del os.environ[key]
 
         # These imports should NOT fail even with invalid vector db config
         # because settings should not be accessed during import
-        from vectordbs import chroma_store, elasticsearch_store, milvus_store, pinecone_store, weaviate_store
+        from vectordbs import (chroma_store, elasticsearch_store, milvus_store,
+                               pinecone_store, weaviate_store)
 
         # Modules should be importable
         assert pinecone_store is not None
@@ -556,7 +579,9 @@ def test_vector_stores_no_module_level_settings_access():
     except ImportError as e:
         # If import fails, it should NOT be due to settings validation
         error_msg = str(e).lower()
-        assert not any(term in error_msg for term in ["validation", "settings", "config"])
+        assert not any(
+            term in error_msg for term in ["validation", "settings", "config"]
+        )
 
     finally:
         # Restore original environment
@@ -581,7 +606,9 @@ def test_data_ingestion_dependency_injection():
     mock_settings.chunking_strategy = "semantic"
 
     # Test PdfProcessor (concrete implementation of BaseProcessor)
-    with patch("rag_solution.data_ingestion.base_processor.get_chunking_method") as mock_get_chunking:
+    with patch(
+        "rag_solution.data_ingestion.base_processor.get_chunking_method"
+    ) as mock_get_chunking:
         mock_get_chunking.return_value = Mock()
 
         processor = PdfProcessor(settings=mock_settings)
@@ -607,7 +634,9 @@ def test_data_ingestion_dependency_injection():
 @pytest.mark.unit
 def test_chunking_functions_dependency_injection():
     """Test that chunking functions properly use dependency injection."""
-    from rag_solution.data_ingestion.chunking import get_chunking_method, semantic_chunker, simple_chunker
+    from rag_solution.data_ingestion.chunking import (get_chunking_method,
+                                                      semantic_chunker,
+                                                      simple_chunker)
 
     mock_settings = Mock()
     mock_settings.min_chunk_size = 100
@@ -616,7 +645,9 @@ def test_chunking_functions_dependency_injection():
     mock_settings.chunking_strategy = "semantic"
 
     # Test simple_chunker with injected settings
-    with patch("rag_solution.data_ingestion.chunking.simple_chunking") as mock_simple_chunking:
+    with patch(
+        "rag_solution.data_ingestion.chunking.simple_chunking"
+    ) as mock_simple_chunking:
         mock_simple_chunking.return_value = ["chunk1", "chunk2"]
 
         result = simple_chunker("test text", mock_settings)
@@ -625,7 +656,9 @@ def test_chunking_functions_dependency_injection():
         assert result == ["chunk1", "chunk2"]
 
     # Test semantic_chunker with injected settings
-    with patch("rag_solution.data_ingestion.chunking.semantic_chunking") as mock_semantic_chunking:
+    with patch(
+        "rag_solution.data_ingestion.chunking.semantic_chunking"
+    ) as mock_semantic_chunking:
         mock_semantic_chunking.return_value = ["semantic1", "semantic2"]
 
         result = semantic_chunker("test text", mock_settings)
@@ -667,8 +700,12 @@ def test_watsonx_utils_dependency_injection():
     ):
         get_wx_client(mock_settings)
 
-        mock_credentials.assert_called_once_with(api_key="test-key", url="https://test.watsonx.com")
-        mock_api_client.assert_called_once_with(project_id="test-project", credentials=mock_credentials.return_value)
+        mock_credentials.assert_called_once_with(
+            api_key="test-key", url="https://test.watsonx.com"
+        )
+        mock_api_client.assert_called_once_with(
+            project_id="test-project", credentials=mock_credentials.return_value
+        )
 
     # Test get_embeddings with injected settings
     with patch("vectordbs.utils.watsonx.get_wx_embeddings_client") as mock_get_client:
@@ -679,7 +716,9 @@ def test_watsonx_utils_dependency_injection():
         result = get_embeddings("test text", mock_settings)
 
         mock_get_client.assert_called_once_with(mock_settings)
-        mock_embed_client.embed_documents.assert_called_once_with(texts=["test text"], concurrency_limit=8)
+        mock_embed_client.embed_documents.assert_called_once_with(
+            texts=["test text"], concurrency_limit=8
+        )
         assert result == [[0.1, 0.2, 0.3]]
 
 
@@ -753,10 +792,16 @@ def test_no_global_settings_import_in_critical_modules():
 
             # Check for problematic imports
             for node in ast.walk(tree):
-                if isinstance(node, ast.ImportFrom) and node.module == "core.config" and node.names:
+                if (
+                    isinstance(node, ast.ImportFrom)
+                    and node.module == "core.config"
+                    and node.names
+                ):
                     for alias in node.names:
                         # Should NOT import 'settings' directly
-                        assert alias.name != "settings", f"File {file_path} still imports global 'settings' object"
+                        assert (
+                            alias.name != "settings"
+                        ), f"File {file_path} still imports global 'settings' object"
                         # SHOULD import 'Settings' class and 'get_settings' function
                         assert alias.name in [
                             "Settings",
