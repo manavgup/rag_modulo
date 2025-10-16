@@ -269,6 +269,25 @@ line-ending = "auto"
 # Allow unused arguments in router files (FastAPI dependency injection requires unused params)
 "**/rag_solution/router/*.py" = ["ARG001"]
 
+# Black configuration - must match Ruff line-length for consistency
+[tool.black]
+line-length = 120
+target-version = ['py312']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+    \.git
+  | \.mypy_cache
+  | \.pytest_cache
+  | \.ruff_cache
+  | \.venv
+  | _build
+  | build
+  | dist
+  | node_modules
+)/
+'''
+
 # isort configuration - compatible with Ruff and black
 [tool.isort]
 profile = "black"
