@@ -112,7 +112,7 @@ service_endpoints:
 
 # Health check URLs
 health_check_urls:
-  backend: "{{ backend_health_url | default('https://backend-app.example.com/health') }}"
+  backend: "{{ backend_health_url | default('https://backend-app.example.com/api/health') }}"
   frontend: "{{ frontend_health_url | default('https://frontend-app.example.com/') }}"
 
 # Deployment tags

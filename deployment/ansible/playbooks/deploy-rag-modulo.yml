@@ -270,7 +270,7 @@
 
     - name: Test backend health endpoint
       ansible.builtin.uri:
-        url: "https://{{ backend_endpoint.stdout }}/health"
+        url: "https://{{ backend_endpoint.stdout }}/api/health"
         method: GET
         status_code: 200
         timeout: 30

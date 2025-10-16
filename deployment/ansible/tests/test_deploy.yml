@@ -47,7 +47,7 @@
     zilliz_api_key: "test_zilliz_key"  # pragma: allowlist secret
     event_streams_endpoint: "test-kafka.example.com"
     event_streams_api_key: "test_kafka_key"  # pragma: allowlist secret
-    backend_health_url: "https://backend-app.example.com/health"
+    backend_health_url: "https://backend-app.example.com/api/health"
     frontend_health_url: "https://frontend-app.example.com/"
 
   tasks:
@@ -206,7 +206,7 @@
     zilliz_api_key: "test_zilliz_key"  # pragma: allowlist secret
     event_streams_endpoint: "test-kafka.example.com"
     event_streams_api_key: "test_kafka_key"  # pragma: allowlist secret
-    backend_health_url: "https://backend-app.example.com/health"
+    backend_health_url: "https://backend-app.example.com/api/health"
     frontend_health_url: "https://frontend-app.example.com/"
 
   tasks:
@@ -278,7 +278,7 @@
     zilliz_api_key: "test_zilliz_key"  # pragma: allowlist secret
     event_streams_endpoint: "test-kafka.example.com"
     event_streams_api_key: "test_kafka_key"  # pragma: allowlist secret
-    backend_health_url: "https://backend-app.example.com/health"
+    backend_health_url: "https://backend-app.example.com/api/health"
     frontend_health_url: "https://frontend-app.example.com/"
 
   tasks:
