@@ -15,6 +15,8 @@ class FileInfo(BaseModel):
     id: UUID4
     filename: str
     file_size_bytes: int | None = None
+    chunk_count: int = 0
+    document_id: str | None = None  # For querying chunks in vector store
 
     model_config = ConfigDict(from_attributes=True)
 

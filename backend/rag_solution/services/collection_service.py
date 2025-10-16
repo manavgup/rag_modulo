@@ -28,7 +28,7 @@ from core.logging_utils import get_logger
 from rag_solution.core.exceptions import AlreadyExistsError
 from rag_solution.data_ingestion.ingestion import DocumentStore
 from rag_solution.repository.collection_repository import CollectionRepository
-from rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput, CollectionStatus
+from rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput, CollectionStatus, FileInfo
 from rag_solution.schemas.file_schema import FileOutput
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
 from rag_solution.schemas.prompt_template_schema import PromptTemplateOutput, PromptTemplateType
@@ -89,7 +89,9 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
         existing_collection = self.collection_repository.get_by_name(collection.name)
         if existing_collection:
             # Collection exists, raise error
-            raise AlreadyExistsError(resource_type="Collection", field="name", value=collection.name)
+            raise AlreadyExistsError(
+                resource_type="Collection", field="name", value=collection.name
+            )
 
         vector_db_name = self._generate_valid_collection_name()
         try:
@@ -99,9 +101,15 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
                 vector_db_name,
             )
             # Create in both relational and vector databases
-            new_collection = self.collection_repository.create(collection, vector_db_name)
-            self.vector_store.create_collection(vector_db_name, {"is_private": collection.is_private})
-            logger.info("Collections created in both databases: %s", str(new_collection.id))
+            new_collection = self.collection_repository.create(
+                collection, vector_db_name
+            )
+            self.vector_store.create_collection(
+                vector_db_name, {"is_private": collection.is_private}
+            )
+            logger.info(
+                "Collections created in both databases: %s", str(new_collection.id)
+            )
 
             return new_collection
         except (ValueError, KeyError, AttributeError) as e:
@@ -118,11 +126,107 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
 
     def get_collection(self, collection_id: UUID4) -> CollectionOutput:
         """
-        Get a collection by its ID.
+        Get a collection by its ID with chunk counts from vector store.
         """
-        return self.collection_repository.get(collection_id)
+        collection = self.collection_repository.get(collection_id)
 
-    def update_collection(self, collection_id: UUID4, collection_update: CollectionInput) -> CollectionOutput:
+        # Enrich file info with chunk counts from vector store
+        collection = self._add_chunk_counts_to_collection(collection)
+
+        return collection
+
+    def _add_chunk_counts_to_collection(
+        self, collection: CollectionOutput
+    ) -> CollectionOutput:
+        """
+        Add chunk counts to file info by querying vector store.
+
+        Args:
+            collection: Collection output to enrich with chunk counts
+
+        Returns:
+            Collection output with chunk counts added to each file
+        """
+        try:
+            # Get chunk counts for each document from Milvus
+            enriched_files = []
+            for file_info in collection.files:
+                # Query Milvus for chunk count for this document using document_id
+                chunk_count = 0
+                if file_info.document_id:
+                    chunk_count = self._get_document_chunk_count(
+                        collection.vector_db_name, file_info.document_id
+                    )
+                # Create new FileInfo with chunk count
+                enriched_files.append(
+                    FileInfo(
+                        id=file_info.id,
+                        filename=file_info.filename,
+                        file_size_bytes=file_info.file_size_bytes,
+                        chunk_count=chunk_count,
+                        document_id=file_info.document_id,
+                    )
+                )
+
+            # Create new collection output with enriched files
+            return CollectionOutput(
+                id=collection.id,
+                name=collection.name,
+                vector_db_name=collection.vector_db_name,
+                is_private=collection.is_private,
+                created_at=collection.created_at,
+                updated_at=collection.updated_at,
+                files=enriched_files,
+                user_ids=collection.user_ids,
+                status=collection.status,
+            )
+        except Exception as e:
+            logger.warning(
+                "Failed to add chunk counts: %s. Returning collection without chunk counts",
+                str(e),
+            )
+            return collection
+
+    def _get_document_chunk_count(self, collection_name: str, document_id: str) -> int:
+        """
+        Get the count of chunks for a specific document in a collection.
+
+        Args:
+            collection_name: Vector store collection name
+            document_id: Document ID to count chunks for
+
+        Returns:
+            Number of chunks for the document
+        """
+        try:
+            # For Milvus, use pymilvus to query with expression filter
+            from pymilvus import Collection
+
+            # Load collection
+            milvus_collection = Collection(collection_name)
+
+            # Query with expression filter for document_id
+            # Milvus uses expr parameter for filtering
+            results = milvus_collection.query(
+                expr=f'document_id == "{document_id}"',
+                output_fields=["id"],  # Only need count, minimal fields
+                limit=10000,  # Max chunks per document
+            )
+
+            return len(results) if results else 0
+
+        except ImportError:
+            logger.warning("pymilvus not available, cannot count chunks")
+            return 0
+        except Exception as e:
+            logger.warning(
+                "Error getting chunk count for document %s: %s", document_id, str(e)
+            )
+            return 0
+
+    def update_collection(
+        self, collection_id: UUID4, collection_update: CollectionInput
+    ) -> CollectionOutput:
         """
         Update an existing collection.
         """
@@ -132,8 +236,12 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
 
             # Fetch User instances corresponding to the UUIDs in collection_update.users
             logger.info("Fetching users for collection: %s", str(collection_id))
-            user_collection_outputs = self.user_collection_service.get_collection_users(collection_id)
-            logger.info("User instances fetched successfully: %d", len(user_collection_outputs))
+            user_collection_outputs = self.user_collection_service.get_collection_users(
+                collection_id
+            )
+            logger.info(
+                "User instances fetched successfully: %d", len(user_collection_outputs)
+            )
 
             # Update the existing collection with the new data
             logger.info(
@@ -163,11 +271,15 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
 
             logger.info("Adding %d users.", len(users_to_add))
             for user_id in users_to_add:
-                self.user_collection_service.add_user_to_collection(user_id, collection_id)
+                self.user_collection_service.add_user_to_collection(
+                    user_id, collection_id
+                )
 
             logger.info("Removing %d users.", len(users_to_remove))
             for user_id in users_to_remove:
-                self.user_collection_service.remove_user_from_collection(user_id, collection_id)
+                self.user_collection_service.remove_user_from_collection(
+                    user_id, collection_id
+                )
 
             return self.collection_repository.get(collection_id)
         except (ValueError, KeyError, AttributeError) as e:
@@ -237,7 +349,9 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
                 background_tasks,
             )
 
-            logger.info("Collection with documents created successfully: %s", collection.id)
+            logger.info(
+                "Collection with documents created successfully: %s", collection.id
+            )
 
             return collection
         except (ValueError, KeyError, AttributeError) as e:
@@ -246,7 +360,9 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
                 try:
                     self.vector_store.delete_collection(collection.vector_db_name)
                 except CollectionError as exc:
-                    logger.error("Error deleting collection from vector store: %s", str(exc))
+                    logger.error(
+                        "Error deleting collection from vector store: %s", str(exc)
+                    )
             logger.error("Error in create_collection_with_documents: %s", str(e))
             raise
 
@@ -281,10 +397,14 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
             )
 
             # Extract document texts for question generation
-            document_texts = self._extract_document_texts(processed_documents, collection_id)
+            document_texts = self._extract_document_texts(
+                processed_documents, collection_id
+            )
 
             # Generate questions from processed documents
-            await self._generate_collection_questions(document_texts, collection_id, user_id)
+            await self._generate_collection_questions(
+                document_texts, collection_id, user_id
+            )
 
         except (DocumentIngestionError, EmptyDocumentError, QuestionGenerationError):
             # These exceptions already have proper collection status updates
@@ -323,7 +443,9 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
                 message=str(e),
             ) from e
 
-    def _extract_document_texts(self, processed_documents: list[Document], collection_id: UUID4) -> list[str]:
+    def _extract_document_texts(
+        self, processed_documents: list[Document], collection_id: UUID4
+    ) -> list[str]:
         """Extract text chunks from processed documents."""
         logger.info("Extracting document chunks for question generation")
         document_texts = []
@@ -370,7 +492,9 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
             )
 
             if not questions:
-                logger.warning("No questions were generated for collection %s", str(collection_id))
+                logger.warning(
+                    "No questions were generated for collection %s", str(collection_id)
+                )
                 self.update_collection_status(collection_id, CollectionStatus.ERROR)
                 raise QuestionGenerationError(
                     collection_id=str(collection_id),
@@ -407,15 +531,21 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
                 message=str(e),
             ) from e
 
-    def _get_question_generation_template(self, user_id: UUID4) -> PromptTemplateOutput | None:
+    def _get_question_generation_template(
+        self, user_id: UUID4
+    ) -> PromptTemplateOutput | None:
         """Get question generation template for user."""
         logger.info("Fetching Template")
-        return self.prompt_template_service.get_by_type(user_id, PromptTemplateType.QUESTION_GENERATION)
+        return self.prompt_template_service.get_by_type(
+            user_id, PromptTemplateType.QUESTION_GENERATION
+        )
 
     def _get_llm_parameters_input(self, user_id: UUID4) -> LLMParametersInput:
         """Get LLM parameters converted to input format."""
         logger.info("Attempting to get parameters")
-        parameters = self.llm_parameters_service.get_latest_or_default_parameters(user_id)
+        parameters = self.llm_parameters_service.get_latest_or_default_parameters(
+            user_id
+        )
         logger.info("got parameters: %s", parameters)
 
         if parameters is None:
@@ -458,7 +588,9 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
                 settings=self.settings,
             )
 
-            processed_documents = await document_store.load_documents(file_paths, document_ids)
+            processed_documents = await document_store.load_documents(
+                file_paths, document_ids
+            )
             logger.info(
                 "Document processing complete using DocumentStore with document IDs: %s",
                 document_ids,
@@ -490,7 +622,9 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
                     message=str(e),
                 ) from e
 
-    def store_documents_in_vector_store(self, documents: list[Document], collection_name: str) -> None:
+    def store_documents_in_vector_store(
+        self, documents: list[Document], collection_name: str
+    ) -> None:
         """Store documents in the vector store.
 
         Args:
@@ -503,7 +637,9 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
         try:
             logger.info("Storing documents in collection %s", collection_name)
             self.vector_store.add_documents(collection_name, documents)
-            logger.info("Successfully stored documents in collection %s", collection_name)
+            logger.info(
+                "Successfully stored documents in collection %s", collection_name
+            )
         except CollectionError as e:
             logger.error("Vector store error: %s", str(e))
             raise DocumentStorageError(
@@ -557,8 +693,10 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
                 document_ids.append(document_id)
 
                 # Upload file and create file record
-                file_record = self.file_management_service.upload_and_create_file_record(
-                    file, user_id, collection_id, document_id
+                file_record = (
+                    self.file_management_service.upload_and_create_file_record(
+                        file, user_id, collection_id, document_id
+                    )
                 )
                 file_records.append(file_record)
 
@@ -566,7 +704,11 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
                 if file.filename is None:
                     raise ValueError("File must have a filename")
 
-                file_path = str(self.file_management_service.get_file_path(collection_id, file.filename))
+                file_path = str(
+                    self.file_management_service.get_file_path(
+                        collection_id, file.filename
+                    )
+                )
                 file_paths.append(file_path)
 
             # Update collection status to PROCESSING
@@ -631,11 +773,15 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
             logger.error("Error in upload_file_and_process: %s", str(e))
             raise
 
-    def update_collection_status(self, collection_id: UUID4, status: CollectionStatus) -> None:
+    def update_collection_status(
+        self, collection_id: UUID4, status: CollectionStatus
+    ) -> None:
         """Update the status of a collection."""
         try:
             self.collection_repository.update(collection_id, {"status": status})
-            logger.info("Updated collection %s status to %s", str(collection_id), status)
+            logger.info(
+                "Updated collection %s status to %s", str(collection_id), status
+            )
         except (ValueError, KeyError, AttributeError) as e:
             logger.error(
                 "Error updating status for collection %s: %s",
@@ -659,16 +805,22 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
         try:
             # Get all collections from vector database
             if not hasattr(self.vector_store, "list_collections"):
-                logger.warning("Vector store does not support listing collections - skipping cleanup")
+                logger.warning(
+                    "Vector store does not support listing collections - skipping cleanup"
+                )
                 return {"found": 0, "deleted": 0, "errors": []}  # type: ignore[dict-item]
 
             vector_db_collections = self.vector_store.list_collections()
-            logger.info("Found %d collections in vector database", len(vector_db_collections))
+            logger.info(
+                "Found %d collections in vector database", len(vector_db_collections)
+            )
 
             # Get all collection vector_db_names from PostgreSQL
             pg_collections = self.collection_repository.get_all_collections()
             valid_vector_db_names = {col.vector_db_name for col in pg_collections}
-            logger.info("Found %d valid collections in PostgreSQL", len(valid_vector_db_names))
+            logger.info(
+                "Found %d valid collections in PostgreSQL", len(valid_vector_db_names)
+            )
 
             # Find orphaned collections
             orphaned_collections = []
@@ -692,7 +844,9 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
                     deleted_count += 1
                     logger.info("Deleted orphaned collection: %s", orphaned_collection)
                 except (ValueError, KeyError, AttributeError) as e:
-                    error_msg = f"Failed to delete collection {orphaned_collection}: {e!s}"
+                    error_msg = (
+                        f"Failed to delete collection {orphaned_collection}: {e!s}"
+                    )
                     logger.error(error_msg)
                     errors.append(error_msg)
 
@@ -746,7 +900,9 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
             self.update_collection_status(collection_id, CollectionStatus.PROCESSING)
 
             # Get all file records for this collection
-            file_records = self.file_management_service.get_files_by_collection(collection_id)
+            file_records = self.file_management_service.get_files_by_collection(
+                collection_id
+            )
 
             if not file_records:
                 logger.warning(
@@ -770,8 +926,12 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
             try:
                 self.vector_store.delete_collection(collection.vector_db_name)
                 # Recreate the collection with same metadata
-                self.vector_store.create_collection(collection.vector_db_name, {"is_private": collection.is_private})
-                logger.info("Vector collection recreated: %s", collection.vector_db_name)
+                self.vector_store.create_collection(
+                    collection.vector_db_name, {"is_private": collection.is_private}
+                )
+                logger.info(
+                    "Vector collection recreated: %s", collection.vector_db_name
+                )
             except CollectionError as e:
                 logger.error("Error recreating vector collection: %s", str(e))
                 self.update_collection_status(collection_id, CollectionStatus.ERROR)
@@ -790,10 +950,16 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
                 if file_record.filename:
                     # Get the current file path (based on current file_storage_path setting)
                     # Don't use file_record.file_path as it may be outdated/temporary
-                    file_path = self.file_management_service.get_file_path(collection_id, file_record.filename)
+                    file_path = self.file_management_service.get_file_path(
+                        collection_id, file_record.filename
+                    )
                     file_paths.append(str(file_path))
                     # Use document_id if available, otherwise use file id as string
-                    document_ids.append(file_record.document_id if file_record.document_id else str(file_record.id))
+                    document_ids.append(
+                        file_record.document_id
+                        if file_record.document_id
+                        else str(file_record.id)
+                    )
 
             logger.info(
                 "Reprocessing %d documents with current chunking settings",
