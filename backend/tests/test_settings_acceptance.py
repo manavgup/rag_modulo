@@ -39,7 +39,9 @@ print("✓ Settings works without environment variables")
         cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
     )
 
-    assert result.returncode == 0, f"Settings should work without env vars. Error: {result.stderr}"
+    assert (
+        result.returncode == 0
+    ), f"Settings should work without env vars. Error: {result.stderr}"
     assert "✓ Settings works" in result.stdout
 
 
@@ -66,7 +68,9 @@ print("✓ Lazy initialization works")
         cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
     )
 
-    assert result.returncode == 0, f"Lazy initialization should work. Error: {result.stderr}"
+    assert (
+        result.returncode == 0
+    ), f"Lazy initialization should work. Error: {result.stderr}"
     assert "✓ Lazy initialization" in result.stdout
 
 
@@ -92,7 +96,9 @@ print("✓ Backwards compatible")
         cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
     )
 
-    assert result.returncode == 0, f"Should be backwards compatible. Error: {result.stderr}"
+    assert (
+        result.returncode == 0
+    ), f"Should be backwards compatible. Error: {result.stderr}"
     assert "✓ Backwards compatible" in result.stdout
 
 
@@ -147,14 +153,17 @@ import sys
 sys.path.insert(0, '.')
 try:
     from core.config import settings, get_settings
-    # Test that defaults work
+    # Settings loads from .env file even when environment is cleared
+    # Test that .env values are loaded correctly
     assert settings.jwt_secret_key.startswith('generate_with_openssl')
-    assert settings.rag_llm == 'ibm/granite-3-3-8b-instruct'  # Updated to match actual default
+    assert settings.rag_llm == 'ibm/granite-3-3-8b-instruct'
     assert get_settings() is not None
     print('✓ Settings work in atomic test context')
     exit(0)
 except Exception as e:
+    import traceback
     print(f'✗ Settings failed: {e}')
+    traceback.print_exc()
     exit(1)
         """,
         ],
@@ -165,7 +174,9 @@ except Exception as e:
     )
 
     # Should succeed after fix
-    assert result.returncode == 0, f"Settings should work in atomic context. Error: {result.stderr}"
+    assert (
+        result.returncode == 0
+    ), f"Settings should work in atomic context. Error: {result.stderr}"
 
 
 @pytest.mark.integration
@@ -196,7 +207,9 @@ print("✓ Works in Docker context")
         cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
     )
 
-    assert result.returncode == 0, f"Should work in Docker context. Error: {result.stderr}"
+    assert (
+        result.returncode == 0
+    ), f"Should work in Docker context. Error: {result.stderr}"
     assert "✓ Works in Docker" in result.stdout
 
 
@@ -228,7 +241,9 @@ if __name__ == "__main__":
             print(f"  ✗ FAILED (expected before fix): {str(e)[:100]}...")
 
     print("\n" + "=" * 70)
-    print(f"Summary: {len(failed)} failed (expected), {len(passed)} passed (unexpected)")
+    print(
+        f"Summary: {len(failed)} failed (expected), {len(passed)} passed (unexpected)"
+    )
     print("=" * 70)
 
     if failed:

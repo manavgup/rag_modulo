@@ -404,8 +404,8 @@ def test_service_class_dependency_injection_pattern():
 
         config = service.get_config()
         assert config["llm"] == "anthropic"
-        # Embedding model comes from .env file
-        # (EMBEDDING_MODEL=ibm/slate-125m-english-rtrvr)
+        # Embedding model comes from .env file (Pydantic always loads .env)
+        # (.env: EMBEDDING_MODEL=ibm/slate-125m-english-rtrvr)
         assert config["embeddings"] == "ibm/slate-125m-english-rtrvr"
 
 

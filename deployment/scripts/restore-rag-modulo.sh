@@ -284,21 +284,144 @@ restore_postgres() {
     log_info "PostgreSQL restore completed"
 }
 
-# Restore Milvus metadata
+# Restore Milvus collections with full vector data
 restore_milvus_metadata() {
-    log_info "Restoring Milvus metadata..."
+    log_info "Restoring Milvus collections with vector data..."
 
-    local milvus_metadata="${BACKUP_DIR}/milvus_metadata.json"
+    local milvus_backup_dir="${BACKUP_DIR}/milvus"
 
-    if [ ! -f "$milvus_metadata" ]; then
-        log_warn "Milvus metadata file not found, skipping Milvus restore"
+    if [ ! -d "$milvus_backup_dir" ]; then
+        log_warn "Milvus backup directory not found, skipping Milvus restore"
         return 0
     fi
 
-    # Note: Actual Milvus collection data restore requires vector data backup
-    # This only restores metadata for reference
-    log_warn "Milvus vector data must be restored separately"
-    log_info "Milvus metadata reference saved: ${milvus_metadata}"
+    # Create a Python script to restore collection data
+    cat > /tmp/restore_milvus.py << 'EOF'
+import json
+import sys
+from pathlib import Path
+from pymilvus import connections, Collection, CollectionSchema, FieldSchema, DataType, utility
+
+def get_data_type(type_str):
+    """Convert string type to DataType enum."""
+    type_mapping = {
+        "DataType.INT64": DataType.INT64,
+        "DataType.VARCHAR": DataType.VARCHAR,
+        "DataType.FLOAT_VECTOR": DataType.FLOAT_VECTOR,
+        "DataType.BINARY_VECTOR": DataType.BINARY_VECTOR,
+        "DataType.BOOL": DataType.BOOL,
+        "DataType.FLOAT": DataType.FLOAT,
+        "DataType.DOUBLE": DataType.DOUBLE,
+    }
+    return type_mapping.get(type_str, DataType.VARCHAR)
+
+def restore_collection_data(collection_file):
+    """Restore data to a Milvus collection."""
+    try:
+        with open(collection_file, 'r') as f:
+            backup_data = json.load(f)
+
+        schema_data = backup_data["schema"]
+        collection_name = schema_data["name"]
+
+        # Drop existing collection if it exists
+        if utility.has_collection(collection_name):
+            utility.drop_collection(collection_name)
+            print(f"  Dropped existing collection: {collection_name}")
+
+        # Create collection schema
+        fields = []
+        for field_info in schema_data["fields"]:
+            dtype = get_data_type(field_info["type"])
+            if dtype == DataType.FLOAT_VECTOR or dtype == DataType.BINARY_VECTOR:
+                field = FieldSchema(
+                    name=field_info["name"],
+                    dtype=dtype,
+                    dim=field_info.get("dim", 128),
+                    is_primary=field_info.get("is_primary", False),
+                    auto_id=field_info.get("auto_id", False)
+                )
+            else:
+                field = FieldSchema(
+                    name=field_info["name"],
+                    dtype=dtype,
+                    is_primary=field_info.get("is_primary", False),
+                    auto_id=field_info.get("auto_id", False)
+                )
+            fields.append(field)
+
+        schema = CollectionSchema(
+            fields=fields,
+            description=schema_data.get("description", "")
+        )
+
+        # Create collection
+        collection = Collection(name=collection_name, schema=schema)
+        print(f"  Created collection: {collection_name}")
+
+        # Insert data if available
+        if backup_data["data"]:
+            collection.insert(backup_data["data"])
+            collection.flush()
+            print(f"✓ Restored {collection_name}: {len(backup_data['data'])} entities")
+        else:
+            print(f"✓ Restored {collection_name}: 0 entities (empty collection)")
+
+        return True
+
+    except Exception as e:
+        print(f"✗ Failed to restore {collection_file.name}: {e}", file=sys.stderr)
+        return False
+
+def main():
+    host = sys.argv[1]
+    port = sys.argv[2]
+    backup_dir = Path(sys.argv[3])
+
+    try:
+        connections.connect(host=host, port=port)
+
+        # Find all collection backup files
+        collection_files = list(backup_dir.glob("*.json"))
+        # Exclude summary.json and error.json
+        collection_files = [f for f in collection_files if f.name not in ["summary.json", "error.json"]]
+
+        restore_summary = {
+            "successful": [],
+            "failed": []
+        }
+
+        for collection_file in collection_files:
+            if restore_collection_data(collection_file):
+                restore_summary["successful"].append(collection_file.stem)
+            else:
+                restore_summary["failed"].append(collection_file.stem)
+
+        print(f"\nRestore complete:")
+        print(f"  Total collections: {len(collection_files)}")
+        print(f"  Successful: {len(restore_summary['successful'])}")
+        print(f"  Failed: {len(restore_summary['failed'])}")
+
+        return 0 if len(restore_summary['failed']) == 0 else 1
+
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+
+if __name__ == "__main__":
+    sys.exit(main())
+EOF
+
+    if command -v python3 &> /dev/null; then
+        python3 /tmp/restore_milvus.py "${MILVUS_HOST}" "${MILVUS_PORT}" "${milvus_backup_dir}" || {
+            log_warn "Milvus vector data restore failed (pymilvus may not be installed)"
+        }
+        rm -f /tmp/restore_milvus.py
+    else
+        log_warn "Python3 not available, skipping Milvus vector data restore"
+    fi
+
+    log_info "Milvus vector data restore completed"
 }
 
 # Cleanup temporary files

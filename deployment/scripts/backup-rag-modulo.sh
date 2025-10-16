@@ -151,49 +151,129 @@ backup_postgres() {
     log_info "PostgreSQL backup completed: ${db_backup_file}.gz"
 }
 
-# Backup Milvus collections metadata
+# Backup Milvus collections with full vector data
 backup_milvus_metadata() {
-    log_info "Backing up Milvus collections metadata..."
+    log_info "Backing up Milvus collections with vector data..."
 
-    local milvus_backup_file="${BACKUP_PATH}/milvus_metadata.json"
+    local milvus_backup_dir="${BACKUP_PATH}/milvus"
+    mkdir -p "${milvus_backup_dir}"
 
     # Note: This requires pymilvus Python package
-    # Create a simple Python script to export collection metadata
+    # Create a comprehensive Python script to export collection data
     cat > /tmp/backup_milvus.py << 'EOF'
 import json
 import sys
-from pymilvus import connections, utility
+from pathlib import Path
+from pymilvus import connections, Collection, utility
 
-try:
-    connections.connect(host=sys.argv[1], port=sys.argv[2])
-    collections = utility.list_collections()
+def backup_collection_data(collection_name, output_dir):
+    """Backup all data from a Milvus collection."""
+    try:
+        collection = Collection(collection_name)
+        collection.load()
 
-    metadata = {
-        "collections": collections,
-        "timestamp": sys.argv[3]
-    }
+        # Get collection schema
+        schema = {
+            "name": collection_name,
+            "description": collection.description,
+            "fields": []
+        }
 
-    with open(sys.argv[4], 'w') as f:
-        json.dump(metadata, f, indent=2)
+        for field in collection.schema.fields:
+            field_info = {
+                "name": field.name,
+                "type": str(field.dtype),
+                "is_primary": field.is_primary,
+                "auto_id": field.auto_id,
+            }
+            if field.dtype.name == "FLOAT_VECTOR" or field.dtype.name == "BINARY_VECTOR":
+                field_info["dim"] = field.params.get("dim", 0)
+            schema["fields"].append(field_info)
 
-    print(f"Backed up {len(collections)} collections")
-except Exception as e:
-    print(f"Error: {e}", file=sys.stderr)
-    sys.exit(1)
+        # Query all entities (limit to reasonable batch size)
+        # For very large collections, this should be done in batches
+        result = collection.query(
+            expr="",
+            output_fields=["*"],
+            limit=100000  # Adjust based on your needs
+        )
+
+        # Save schema and data
+        collection_data = {
+            "schema": schema,
+            "count": collection.num_entities,
+            "data": result
+        }
+
+        output_file = Path(output_dir) / f"{collection_name}.json"
+        with open(output_file, 'w') as f:
+            json.dump(collection_data, f, indent=2, default=str)
+
+        print(f"✓ Backed up {collection_name}: {len(result)} entities")
+        return True
+
+    except Exception as e:
+        print(f"✗ Failed to backup {collection_name}: {e}", file=sys.stderr)
+        return False
+
+def main():
+    host = sys.argv[1]
+    port = sys.argv[2]
+    timestamp = sys.argv[3]
+    output_dir = sys.argv[4]
+
+    try:
+        connections.connect(host=host, port=port)
+        collections = utility.list_collections()
+
+        backup_summary = {
+            "timestamp": timestamp,
+            "host": host,
+            "port": port,
+            "collections": [],
+            "successful": [],
+            "failed": []
+        }
+
+        for collection_name in collections:
+            if backup_collection_data(collection_name, output_dir):
+                backup_summary["successful"].append(collection_name)
+            else:
+                backup_summary["failed"].append(collection_name)
+
+            backup_summary["collections"].append(collection_name)
+
+        # Save summary
+        with open(Path(output_dir) / "summary.json", 'w') as f:
+            json.dump(backup_summary, f, indent=2)
+
+        print(f"\nBackup complete:")
+        print(f"  Total collections: {len(collections)}")
+        print(f"  Successful: {len(backup_summary['successful'])}")
+        print(f"  Failed: {len(backup_summary['failed'])}")
+
+        return 0 if len(backup_summary['failed']) == 0 else 1
+
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+
+if __name__ == "__main__":
+    sys.exit(main())
 EOF
 
     if command -v python3 &> /dev/null; then
-        python3 /tmp/backup_milvus.py "${MILVUS_HOST}" "${MILVUS_PORT}" "${TIMESTAMP}" "${milvus_backup_file}" || {
-            log_warn "Milvus metadata backup failed (pymilvus may not be installed)"
-            echo "{\"collections\": [], \"error\": \"pymilvus not available\"}" > "${milvus_backup_file}"
+        python3 /tmp/backup_milvus.py "${MILVUS_HOST}" "${MILVUS_PORT}" "${TIMESTAMP}" "${milvus_backup_dir}" || {
+            log_warn "Milvus vector data backup failed (pymilvus may not be installed)"
+            echo "{\"collections\": [], \"error\": \"pymilvus not available or backup failed\"}" > "${milvus_backup_dir}/error.json"
         }
         rm -f /tmp/backup_milvus.py
     else
-        log_warn "Python3 not available, skipping Milvus metadata backup"
-        echo "{\"collections\": [], \"error\": \"python3 not available\"}" > "${milvus_backup_file}"
+        log_warn "Python3 not available, skipping Milvus vector data backup"
+        echo "{\"collections\": [], \"error\": \"python3 not available\"}" > "${milvus_backup_dir}/error.json"
     fi
 
-    log_info "Milvus metadata backup completed: ${milvus_backup_file}"
+    log_info "Milvus vector data backup completed: ${milvus_backup_dir}"
 }
 
 # Create backup manifest
@@ -219,8 +299,12 @@ create_manifest() {
   },
   "files": [
     "postgres_${POSTGRES_DB}.sql.gz",
-    "milvus_metadata.json"
-  ]
+    "milvus/"
+  ],
+  "notes": {
+    "milvus_backup": "Full vector data backup including schemas and entities",
+    "limit_per_collection": 100000
+  }
 }
 EOF
 
