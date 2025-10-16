@@ -348,9 +348,10 @@ def test_fastapi_route_dependency_injection_pattern():
     """Test the recommended FastAPI route dependency injection pattern."""
     from typing import Annotated
 
-    from core.config import Settings, get_settings
     from fastapi import Depends, FastAPI
     from fastapi.testclient import TestClient
+
+    from core.config import Settings, get_settings
 
     app = FastAPI()
 
@@ -570,8 +571,13 @@ def test_vector_stores_no_module_level_settings_access():
 
         # These imports should NOT fail even with invalid vector db config
         # because settings should not be accessed during import
-        from vectordbs import (chroma_store, elasticsearch_store, milvus_store,
-                               pinecone_store, weaviate_store)
+        from vectordbs import (
+            chroma_store,
+            elasticsearch_store,
+            milvus_store,
+            pinecone_store,
+            weaviate_store,
+        )
 
         # Modules should be importable
         assert pinecone_store is not None
@@ -638,9 +644,11 @@ def test_data_ingestion_dependency_injection():
 @pytest.mark.unit
 def test_chunking_functions_dependency_injection():
     """Test that chunking functions properly use dependency injection."""
-    from rag_solution.data_ingestion.chunking import (get_chunking_method,
-                                                      semantic_chunker,
-                                                      simple_chunker)
+    from rag_solution.data_ingestion.chunking import (
+        get_chunking_method,
+        semantic_chunker,
+        simple_chunker,
+    )
 
     mock_settings = Mock()
     mock_settings.min_chunk_size = 100
