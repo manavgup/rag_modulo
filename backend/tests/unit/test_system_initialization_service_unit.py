@@ -27,11 +27,11 @@ class TestSystemInitializationServiceUnit:
     def mock_settings(self) -> Mock:
         """Mock settings with provider configurations."""
         settings = Mock(spec=Settings)
-        settings.wx_api_key = "test-wx-key"
-        settings.wx_project_id = "test-project-id"
+        settings.wx_api_key = "test-wx-key"  # pragma: allowlist secret
+        settings.wx_project_id = "test-project-id"  # pragma: allowlist secret
         settings.wx_url = "https://test-wx.com"
-        settings.openai_api_key = "test-openai-key"
-        settings.anthropic_api_key = "test-anthropic-key"
+        settings.openai_api_key = "test-openai-key"  # pragma: allowlist secret
+        settings.anthropic_api_key = "test-anthropic-key"  # pragma: allowlist secret
         settings.rag_llm = "ibm/granite-3-8b-instruct"
         settings.embedding_model = "ibm/slate-125m-english-rtrvr"
         return settings
@@ -205,7 +205,10 @@ class TestSystemInitializationServiceUnit:
             assert len(result) == 1
             assert result[0] is updated_provider
             mock_init_single.assert_called_once_with(
-                "watsonx", mock_get_configs.return_value["watsonx"], existing_provider, False
+                "watsonx",
+                mock_get_configs.return_value["watsonx"],
+                existing_provider,
+                False,
             )
 
     def test_initialize_providers_get_providers_error_no_raise(self, service):
@@ -361,7 +364,10 @@ class TestSystemInitializationServiceUnit:
         """Test _initialize_single_provider for WatsonX creates models."""
         provider_id = uuid4()
         config = LLMProviderInput(
-            name="watsonx", base_url="https://test-wx.com", api_key="test-key", project_id="test-project"
+            name="watsonx",
+            base_url="https://test-wx.com",
+            api_key="test-key",  # pragma: allowlist secret
+            project_id="test-project",
         )
 
         mock_provider = LLMProviderOutput(
@@ -391,7 +397,13 @@ class TestSystemInitializationServiceUnit:
         mock_generation_model = Mock()
         mock_embedding_model = Mock()
 
-        service.llm_model_service.create_model.side_effect = [mock_generation_model, mock_embedding_model]
+        # Mock get_models_by_provider to return empty list (no existing models)
+        service.llm_model_service.get_models_by_provider.return_value = []
+
+        service.llm_model_service.create_model.side_effect = [
+            mock_generation_model,
+            mock_embedding_model,
+        ]
 
         service._setup_watsonx_models(provider_id, False)
 
@@ -415,6 +427,9 @@ class TestSystemInitializationServiceUnit:
         """Test _setup_watsonx_models handles error with raise_on_error=False."""
         provider_id = uuid4()
 
+        # Mock get_models_by_provider to return empty list
+        service.llm_model_service.get_models_by_provider.return_value = []
+
         service.llm_model_service.create_model.side_effect = Exception("Model creation failed")
 
         # Should not raise exception
@@ -425,6 +440,9 @@ class TestSystemInitializationServiceUnit:
     def test_setup_watsonx_models_error_with_raise(self, service):
         """Test _setup_watsonx_models handles error with raise_on_error=True."""
         provider_id = uuid4()
+
+        # Mock get_models_by_provider to return empty list
+        service.llm_model_service.get_models_by_provider.return_value = []
 
         service.llm_model_service.create_model.side_effect = Exception("Model creation failed")
 

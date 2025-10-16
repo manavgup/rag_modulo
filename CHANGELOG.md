@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Multi-Provider Podcast Audio Generation** (PR #TBD): Comprehensive custom voice support with multi-provider TTS
+  - **Per-Turn Provider Selection**: Each dialogue turn can use different TTS provider (OpenAI, ElevenLabs)
+  - **Custom Voice Resolution**: Automatic UUID-based voice detection, database lookup, and provider mapping
+  - **ElevenLabs Integration**: Added ElevenLabs provider with voice cloning support
+  - **Audio Stitching**: Seamless combination of audio segments from different providers with 500ms pauses
+  - **Script Format Flexibility**: Support for multiple dialogue formats (HOST:, [HOST]:, [Host]:, etc.)
+  - **LLM Prompt Improvements**: Prevents placeholder names ([HOST NAME], [EXPERT NAME]) in generated scripts
+  - **Provider Caching**: Efficient provider instance management to avoid recreation per turn
+  - **Type Safety**: Replaced `Any` types with proper `AudioProviderBase` type hints
+  - **Configuration**: Added ElevenLabs settings to env.example with comprehensive defaults
+  - **Code Quality**: All linting checks passed (Ruff, Pylint 9.37/10)
+
 - **Reusable UI Components Library** (Issue #395, PR #402): Comprehensive UI component system for consistent frontend design
   - **8 New Components**: Button, Input, TextArea, Select, Modal, Card, Badge, FileUpload
   - **Design System**: Carbon Design System principles with Tailwind CSS styling
@@ -80,6 +92,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `make prod-status`: Check production service status
 
 ### Changed
+
 - **Milvus Connection Stability**: Improved connection handling in MilvusStore
   - Added explicit disconnection before reconnecting to prevent stale connections
   - Fixes issues with connection caching when switching between hosts
@@ -104,6 +117,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Proper FormData handling for multi-file uploads
 
 ### Fixed
+
 - **Collection Creation Modal**: Fixed document upload functionality
   - Removed fake upload simulation
   - Store actual File objects for upload
@@ -111,6 +125,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Properly invoke document ingestion pipeline
 
 ### Technical Debt
+
 - Removed log file modifications from git tracking (already in .gitignore)
 - Cleaned up orphaned log files (logs/rag_modulo.log.1, logs/rag_modulo.log.3)
 
@@ -121,6 +136,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### [0.1.0] - 2025-09-30
 
 #### Major Features
+
 - Collection creation and management
 - Document processing and chunking
 - Vector store integration (Milvus)
@@ -130,6 +146,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Multi-provider LLM support (WatsonX, OpenAI, Anthropic)
 
 #### Infrastructure
+
 - Docker Compose orchestration
 - PostgreSQL for metadata
 - MLFlow for model tracking
@@ -142,11 +159,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Release Notes
 
 ### Version Numbering
+
 - **Major version** (X.0.0): Breaking changes, major architectural updates
 - **Minor version** (0.X.0): New features, non-breaking changes
 - **Patch version** (0.0.X): Bug fixes, minor improvements
 
 ### Categories
+
 - **Added**: New features
 - **Changed**: Changes to existing functionality
 - **Deprecated**: Soon-to-be removed features

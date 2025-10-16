@@ -93,7 +93,11 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
 
         vector_db_name = self._generate_valid_collection_name()
         try:
-            logger.info("Creating collection: %s (Vector DB: %s)", collection.name, vector_db_name)
+            logger.info(
+                "Creating collection: %s (Vector DB: %s)",
+                collection.name,
+                vector_db_name,
+            )
             # Create in both relational and vector databases
             new_collection = self.collection_repository.create(collection, vector_db_name)
             self.vector_store.create_collection(vector_db_name, {"is_private": collection.is_private})
@@ -105,7 +109,10 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
             try:
                 self.vector_store.delete_collection(vector_db_name)
             except CollectionError as delete_exception:
-                logger.error("Failed to delete collection from vector store: %s", str(delete_exception))
+                logger.error(
+                    "Failed to delete collection from vector store: %s",
+                    str(delete_exception),
+                )
             logger.error("Error creating collection: %s", str(e))
             raise
 
@@ -130,7 +137,9 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
 
             # Update the existing collection with the new data
             logger.info(
-                "Updating collection with %s and %d users", collection_update.name, len(user_collection_outputs)
+                "Updating collection with %s and %d users",
+                collection_update.name,
+                len(user_collection_outputs),
             )
             update_data = {
                 "name": collection_update.name,
@@ -143,7 +152,11 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
             # Update user associations
             existing_user_ids = {uco.user_id for uco in user_collection_outputs}
             updated_user_ids = set(collection_update.users)
-            logger.info("Existing users: %s, Updated users: %s", str(existing_user_ids), str(updated_user_ids))
+            logger.info(
+                "Existing users: %s, Updated users: %s",
+                str(existing_user_ids),
+                str(updated_user_ids),
+            )
 
             users_to_add = updated_user_ids - existing_user_ids
             users_to_remove = existing_user_ids - updated_user_ids
@@ -208,13 +221,20 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
         try:
             # Create the collection
             collection_input = CollectionInput(
-                name=collection_name, is_private=is_private, users=[user_id], status=CollectionStatus.CREATED
+                name=collection_name,
+                is_private=is_private,
+                users=[user_id],
+                status=CollectionStatus.CREATED,
             )
             collection = self.create_collection(collection_input)
 
             # Use shared processing logic for file upload and processing
             self._upload_files_and_trigger_processing(
-                files, user_id, collection.id, collection.vector_db_name, background_tasks
+                files,
+                user_id,
+                collection.id,
+                collection.vector_db_name,
+                background_tasks,
             )
 
             logger.info("Collection with documents created successfully: %s", collection.id)
@@ -231,7 +251,12 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
             raise
 
     async def process_documents(  # pylint: disable=too-many-arguments,too-many-positional-arguments
-        self, file_paths: list[str], collection_id: UUID4, vector_db_name: str, document_ids: list[str], user_id: UUID4
+        self,
+        file_paths: list[str],
+        collection_id: UUID4,
+        vector_db_name: str,
+        document_ids: list[str],
+        user_id: UUID4,
     ) -> None:
         """Process documents and generate questions for a collection.
 
@@ -265,14 +290,25 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
             # These exceptions already have proper collection status updates
             raise
         except (ValueError, KeyError, AttributeError) as e:
-            logger.error("Unexpected error processing documents for collection %s: %s", str(collection_id), str(e))
+            logger.error(
+                "Unexpected error processing documents for collection %s: %s",
+                str(collection_id),
+                str(e),
+            )
             self.update_collection_status(collection_id, CollectionStatus.ERROR)
             raise CollectionProcessingError(
-                collection_id=str(collection_id), stage="processing", error_type="unexpected_error", message=str(e)
+                collection_id=str(collection_id),
+                stage="processing",
+                error_type="unexpected_error",
+                message=str(e),
             ) from e
 
     async def _process_and_ingest_documents(
-        self, file_paths: list[str], vector_db_name: str, document_ids: list[str], collection_id: UUID4
+        self,
+        file_paths: list[str],
+        vector_db_name: str,
+        document_ids: list[str],
+        collection_id: UUID4,
     ) -> list[Document]:
         """Process and ingest documents into vector store."""
         try:
@@ -281,7 +317,10 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
             logger.error("Document ingestion failed: %s", str(e))
             self.update_collection_status(collection_id, CollectionStatus.ERROR)
             raise CollectionProcessingError(
-                collection_id=str(collection_id), stage="ingestion", error_type="ingestion_failed", message=str(e)
+                collection_id=str(collection_id),
+                stage="ingestion",
+                error_type="ingestion_failed",
+                message=str(e),
             ) from e
 
     def _extract_document_texts(self, processed_documents: list[Document], collection_id: UUID4) -> list[str]:
@@ -294,7 +333,10 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
                     document_texts.append(chunk.text)
 
         if not document_texts:
-            logger.error("No valid text chunks found in documents for collection %s", str(collection_id))
+            logger.error(
+                "No valid text chunks found in documents for collection %s",
+                str(collection_id),
+            )
             self.update_collection_status(collection_id, CollectionStatus.ERROR)
             raise EmptyDocumentError(collection_id=str(collection_id))
 
@@ -331,10 +373,16 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
                 logger.warning("No questions were generated for collection %s", str(collection_id))
                 self.update_collection_status(collection_id, CollectionStatus.ERROR)
                 raise QuestionGenerationError(
-                    collection_id=str(collection_id), error_type="no_questions", message="No questions were generated"
+                    collection_id=str(collection_id),
+                    error_type="no_questions",
+                    message="No questions were generated",
                 )
 
-            logger.info("Generated %d questions for collection %s", len(questions), str(collection_id))
+            logger.info(
+                "Generated %d questions for collection %s",
+                len(questions),
+                str(collection_id),
+            )
             self.update_collection_status(collection_id, CollectionStatus.COMPLETED)
 
         except (ValidationError, NotFoundError, LLMProviderError) as e:
@@ -354,7 +402,9 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
             logger.error("Unexpected error during question generation: %s", str(e))
             self.update_collection_status(collection_id, CollectionStatus.ERROR)
             raise QuestionGenerationError(
-                collection_id=str(collection_id), error_type="unexpected_error", message=str(e)
+                collection_id=str(collection_id),
+                error_type="unexpected_error",
+                message=str(e),
             ) from e
 
     def _get_question_generation_template(self, user_id: UUID4) -> PromptTemplateOutput | None:
@@ -403,11 +453,16 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
         # Use DocumentStore for complete pipeline (processing + embedding + storage)
         try:
             document_store = DocumentStore(
-                vector_store=self.vector_store, collection_name=vector_db_name, settings=self.settings
+                vector_store=self.vector_store,
+                collection_name=vector_db_name,
+                settings=self.settings,
             )
 
             processed_documents = await document_store.load_documents(file_paths, document_ids)
-            logger.info("Document processing complete using DocumentStore with document IDs: %s", document_ids)
+            logger.info(
+                "Document processing complete using DocumentStore with document IDs: %s",
+                document_ids,
+            )
             return processed_documents
 
         except (ValueError, KeyError, AttributeError) as e:
@@ -415,15 +470,24 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
             # Map to appropriate DocumentIngestionError
             if "processing" in str(e).lower():
                 raise DocumentIngestionError(
-                    doc_id="batch", stage="processing", error_type="processing_failed", message=str(e)
+                    doc_id="batch",
+                    stage="processing",
+                    error_type="processing_failed",
+                    message=str(e),
                 ) from e
             if "storage" in str(e).lower() or "vector" in str(e).lower():
                 raise DocumentIngestionError(
-                    doc_id="batch", stage="vector_store", error_type="storage_failed", message=str(e)
+                    doc_id="batch",
+                    stage="vector_store",
+                    error_type="storage_failed",
+                    message=str(e),
                 ) from e
             else:
                 raise DocumentIngestionError(
-                    doc_id="batch", stage="unknown", error_type="unexpected_error", message=str(e)
+                    doc_id="batch",
+                    stage="unknown",
+                    error_type="unexpected_error",
+                    message=str(e),
                 ) from e
 
     def store_documents_in_vector_store(self, documents: list[Document], collection_name: str) -> None:
@@ -510,10 +574,18 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
 
             # Process documents and generate questions as a background task
             background_tasks.add_task(
-                self.process_documents, file_paths, collection_id, collection_vector_db_name, document_ids, user_id
+                self.process_documents,
+                file_paths,
+                collection_id,
+                collection_vector_db_name,
+                document_ids,
+                user_id,
             )
 
-            logger.info("Files uploaded and processing started for collection: %s", str(collection_id))
+            logger.info(
+                "Files uploaded and processing started for collection: %s",
+                str(collection_id),
+            )
 
             return file_records
 
@@ -546,7 +618,11 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
 
             # Use shared processing logic
             file_records = self._upload_files_and_trigger_processing(
-                [file], user_id, collection_id, collection.vector_db_name, background_tasks
+                [file],
+                user_id,
+                collection_id,
+                collection.vector_db_name,
+                background_tasks,
             )
 
             return file_records[0]
@@ -561,7 +637,11 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
             self.collection_repository.update(collection_id, {"status": status})
             logger.info("Updated collection %s status to %s", str(collection_id), status)
         except (ValueError, KeyError, AttributeError) as e:
-            logger.error("Error updating status for collection %s: %s", str(collection_id), str(e))
+            logger.error(
+                "Error updating status for collection %s: %s",
+                str(collection_id),
+                str(e),
+            )
 
     def cleanup_orphaned_vector_collections(self) -> dict[str, int]:
         """
@@ -596,7 +676,11 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
                 if vector_collection not in valid_vector_db_names:
                     orphaned_collections.append(vector_collection)
 
-            logger.info("Identified %d orphaned collections: %s", len(orphaned_collections), orphaned_collections)
+            logger.info(
+                "Identified %d orphaned collections: %s",
+                len(orphaned_collections),
+                orphaned_collections,
+            )
 
             # Delete orphaned collections
             deleted_count = 0
@@ -612,7 +696,11 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
                     logger.error(error_msg)
                     errors.append(error_msg)
 
-            summary = {"found": len(orphaned_collections), "deleted": deleted_count, "errors": errors}
+            summary = {
+                "found": len(orphaned_collections),
+                "deleted": deleted_count,
+                "errors": errors,
+            }
 
             logger.info("Cleanup complete: %s", summary)
             return summary  # type: ignore[return-value]
@@ -624,4 +712,121 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
                 stage="orphan_cleanup",
                 error_type="cleanup_error",
                 message=f"Orphaned collection cleanup failed: {e!s}",
+            ) from e
+
+    async def reindex_collection(self, collection_id: UUID4, user_id: UUID4) -> None:
+        """
+        Reindex all documents in a collection using current chunking settings.
+
+        This method:
+        1. Deletes all existing chunks from the vector database
+        2. Reprocesses all documents with current chunking configuration from .env
+        3. Re-indexes all chunks into the vector database
+        4. Regenerates suggested questions
+
+        Args:
+            collection_id: Collection UUID to reindex
+            user_id: User UUID requesting the reindex
+
+        Raises:
+            NotFoundError: If collection not found
+            CollectionProcessingError: If reindexing fails
+        """
+        try:
+            logger.info(
+                "Starting reindex for collection %s (user %s)",
+                str(collection_id),
+                str(user_id),
+            )
+
+            # Get collection
+            collection = self.get_collection(collection_id)
+
+            # Update status to PROCESSING
+            self.update_collection_status(collection_id, CollectionStatus.PROCESSING)
+
+            # Get all file records for this collection
+            file_records = self.file_management_service.get_files_by_collection(collection_id)
+
+            if not file_records:
+                logger.warning(
+                    "No files found for collection %s - nothing to reindex",
+                    str(collection_id),
+                )
+                self.update_collection_status(collection_id, CollectionStatus.COMPLETED)
+                return
+
+            logger.info(
+                "Found %d files to reindex for collection %s",
+                len(file_records),
+                str(collection_id),
+            )
+
+            # Delete existing data from vector database
+            logger.info(
+                "Deleting existing vector data for collection %s",
+                collection.vector_db_name,
+            )
+            try:
+                self.vector_store.delete_collection(collection.vector_db_name)
+                # Recreate the collection with same metadata
+                self.vector_store.create_collection(collection.vector_db_name, {"is_private": collection.is_private})
+                logger.info("Vector collection recreated: %s", collection.vector_db_name)
+            except CollectionError as e:
+                logger.error("Error recreating vector collection: %s", str(e))
+                self.update_collection_status(collection_id, CollectionStatus.ERROR)
+                raise CollectionProcessingError(
+                    collection_id=str(collection_id),
+                    stage="reindex_cleanup",
+                    error_type="vector_db_error",
+                    message=f"Failed to recreate vector collection: {e!s}",
+                ) from e
+
+            # Build lists of file paths and document IDs
+            file_paths = []
+            document_ids = []
+
+            for file_record in file_records:
+                if file_record.filename:
+                    # Get the current file path (based on current file_storage_path setting)
+                    # Don't use file_record.file_path as it may be outdated/temporary
+                    file_path = self.file_management_service.get_file_path(collection_id, file_record.filename)
+                    file_paths.append(str(file_path))
+                    # Use document_id if available, otherwise use file id as string
+                    document_ids.append(file_record.document_id if file_record.document_id else str(file_record.id))
+
+            logger.info(
+                "Reprocessing %d documents with current chunking settings",
+                len(file_paths),
+            )
+
+            # Reprocess documents using current chunking settings
+            # This will use the updated MIN_CHUNK_SIZE, MAX_CHUNK_SIZE, etc. from .env
+            await self.process_documents(
+                file_paths,
+                collection_id,
+                collection.vector_db_name,
+                document_ids,
+                user_id,
+            )
+
+            logger.info(
+                "Reindexing completed successfully for collection %s",
+                str(collection_id),
+            )
+
+        except NotFoundError:
+            logger.error("Collection not found for reindexing: %s", str(collection_id))
+            raise
+        except CollectionProcessingError:
+            # Already logged and status updated
+            raise
+        except (ValueError, KeyError, AttributeError) as e:
+            logger.error("Unexpected error during reindexing: %s", str(e))
+            self.update_collection_status(collection_id, CollectionStatus.ERROR)
+            raise CollectionProcessingError(
+                collection_id=str(collection_id),
+                stage="reindex",
+                error_type="unexpected_error",
+                message=f"Reindexing failed: {e!s}",
             ) from e

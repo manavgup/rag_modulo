@@ -139,7 +139,8 @@ jobs:
       - name: Get application URL
         id: get-url
         run: |
-          APP_URL=$(ibmcloud ce app get --name "${{ env.APP_NAME }}" --output json | jq -r '.status.latest_ready_revision_name' | head -1)
+          APP_URL=$(ibmcloud ce app get --name "${{ env.APP_NAME }}" \
+            --output json | jq -r '.status.latest_ready_revision_name' | head -1)
           if [ -n "$APP_URL" ]; then
             echo "url=$APP_URL" >> $GITHUB_OUTPUT
           else
@@ -154,7 +155,8 @@ jobs:
 
       - name: Test health endpoint
         run: |
-          APP_URL=$(ibmcloud ce app get --name "${{ env.APP_NAME }}" --output json | jq -r '.status.latest_ready_revision_name' | head -1)
+          APP_URL=$(ibmcloud ce app get --name "${{ env.APP_NAME }}" \
+            --output json | jq -r '.status.latest_ready_revision_name' | head -1)
           if [ -n "$APP_URL" ]; then
             echo "Testing health endpoint at: $APP_URL/health"
             if curl -f -s "$APP_URL/health" > /dev/null; then
@@ -170,7 +172,8 @@ jobs:
 
       - name: Test API endpoint
         run: |
-          APP_URL=$(ibmcloud ce app get --name "${{ env.APP_NAME }}" --output json | jq -r '.status.latest_ready_revision_name' | head -1)
+          APP_URL=$(ibmcloud ce app get --name "${{ env.APP_NAME }}" \
+            --output json | jq -r '.status.latest_ready_revision_name' | head -1)
           if [ -n "$APP_URL" ]; then
             echo "Testing API endpoint at: $APP_URL/api/v1/health"
             if curl -f -s "$APP_URL/api/v1/health" > /dev/null; then

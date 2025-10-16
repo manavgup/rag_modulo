@@ -7,18 +7,10 @@ from collections.abc import Generator, Sequence
 from typing import Any
 
 from ibm_watsonx_ai import APIClient, Credentials
-from ibm_watsonx_ai.foundation_models import (
-    Embeddings as wx_Embeddings,
-)
-from ibm_watsonx_ai.foundation_models import (
-    ModelInference,
-)
-from ibm_watsonx_ai.metanames import (
-    EmbedTextParamsMetaNames as EmbedParams,
-)
-from ibm_watsonx_ai.metanames import (
-    GenTextParamsMetaNames as GenParams,
-)
+from ibm_watsonx_ai.foundation_models import Embeddings as wx_Embeddings
+from ibm_watsonx_ai.foundation_models import ModelInference
+from ibm_watsonx_ai.metanames import EmbedTextParamsMetaNames as EmbedParams
+from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams
 from pydantic import UUID4
 
 from core.config import get_settings
@@ -43,7 +35,10 @@ class WatsonXLLM(LLMBase):
             # Get provider configuration as Pydantic model
             self._provider = self._get_provider_config("watsonx")
 
-            logger.debug("Initializing WatsonX client with project_id: %s", self._provider.project_id)
+            logger.debug(
+                "Initializing WatsonX client with project_id: %s",
+                self._provider.project_id,
+            )
             logger.debug("Using base_url: %s", self._provider.base_url)
 
             try:
@@ -51,7 +46,10 @@ class WatsonXLLM(LLMBase):
                 api_key_value = self._provider.api_key.get_secret_value()
                 logger.debug("DEBUG: API key type: %s", type(self._provider.api_key))
                 logger.debug("DEBUG: API key value: '%s'", api_key_value)
-                logger.debug("DEBUG: API key length: %s", len(api_key_value) if api_key_value else "None")
+                logger.debug(
+                    "DEBUG: API key length: %s",
+                    len(api_key_value) if api_key_value else "None",
+                )
                 credentials = Credentials(api_key=api_key_value, url=str(self._provider.base_url))
                 logger.debug("Created IBM credentials")
 
@@ -85,14 +83,17 @@ class WatsonXLLM(LLMBase):
             concurrency_limit = getattr(settings, "embedding_concurrency_limit", 1)
 
             logger.info(
-                "Initializing embeddings client with batch_size=%d, concurrency_limit=%d", batch_size, concurrency_limit
+                "Initializing embeddings client with batch_size=%d, concurrency_limit=%d",
+                batch_size,
+                concurrency_limit,
             )
 
             self.embeddings_client = wx_Embeddings(
                 model_id=str(embedding_model.model_id),
                 project_id=str(self._provider.project_id),
                 credentials=Credentials(
-                    api_key=self._provider.api_key.get_secret_value(), url=str(self._provider.base_url)
+                    api_key=self._provider.api_key.get_secret_value(),
+                    url=str(self._provider.base_url),
                 ),
                 params={EmbedParams.RETURN_OPTIONS: {"input_text": True}},
             )
@@ -113,13 +114,18 @@ class WatsonXLLM(LLMBase):
         max_retries = getattr(settings, "llm_max_retries", 10)
         delay_time = getattr(settings, "llm_delay_time", 0.5)
 
-        logger.info("Initializing ModelInference with max_retries=%d, delay_time=%f", max_retries, delay_time)
+        logger.info(
+            "Initializing ModelInference with max_retries=%d, delay_time=%f",
+            max_retries,
+            delay_time,
+        )
 
         model = ModelInference(
             model_id=str(model_id),
             project_id=str(self._provider.project_id),
             credentials=Credentials(
-                api_key=self._provider.api_key.get_secret_value(), url=str(self._provider.base_url)
+                api_key=self._provider.api_key.get_secret_value(),
+                url=str(self._provider.base_url),
             ),
             params=params,  # Pass params during initialization like direct test
         )
@@ -228,6 +234,12 @@ class WatsonXLLM(LLMBase):
                     return [str(response).strip()]
             else:
                 # Single prompt handling
+                logger.info(
+                    "=== ENTERING SINGLE PROMPT PATH === prompt=%s, template=%s",
+                    prompt[:50] if prompt else "EMPTY",
+                    template is not None,
+                )
+
                 if template is None:
                     raise ValueError("Template is required for text generation")
 
@@ -236,7 +248,35 @@ class WatsonXLLM(LLMBase):
                     prompt_variables.update(variables)
 
                 formatted_prompt = self.prompt_template_service.format_prompt_with_template(template, prompt_variables)
+                logger.info("=== FORMATTED PROMPT LENGTH: %d chars ===", len(formatted_prompt))
                 logger.debug("Formatted single prompt: %s...", formatted_prompt[:200])
+
+                # Save full prompt to file for debugging (especially useful for podcast generation)
+                import os
+                from datetime import datetime
+
+                debug_dir = "/tmp/watsonx_prompts"
+                os.makedirs(debug_dir, exist_ok=True)
+
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                prompt_file = f"{debug_dir}/prompt_{timestamp}_{user_id}.txt"
+
+                try:
+                    with open(prompt_file, "w", encoding="utf-8") as f:
+                        f.write("=" * 80 + "\n")
+                        f.write(f"WatsonX Prompt Debug - {datetime.now().isoformat()}\n")
+                        f.write("=" * 80 + "\n")
+                        f.write(f"User ID: {user_id}\n")
+                        f.write(f"Model: {model.model_id}\n")
+                        f.write(f"Parameters: {model.params}\n")
+                        f.write("=" * 80 + "\n\n")
+                        f.write("FULL FORMATTED PROMPT:\n")
+                        f.write("-" * 80 + "\n")
+                        f.write(formatted_prompt)
+                        f.write("\n" + "-" * 80 + "\n")
+                    logger.info("Saved full prompt to: %s", prompt_file)
+                except Exception as e:
+                    logger.warning("Failed to save prompt to file: %s", e)
 
                 response = model.generate_text(prompt=formatted_prompt)
                 logger.debug("Response from model: %s", response)
@@ -253,6 +293,22 @@ class WatsonXLLM(LLMBase):
                     )
                 else:
                     result = str(response).strip()
+
+                # Save response to same file for comparison
+                try:
+                    with open(prompt_file, "a", encoding="utf-8") as f:
+                        f.write("\n\n")
+                        f.write("=" * 80 + "\n")
+                        f.write("RAW LLM RESPONSE:\n")
+                        f.write("-" * 80 + "\n")
+                        f.write(result)
+                        f.write("\n" + "-" * 80 + "\n")
+                        f.write(f"\nResponse length: {len(result)} characters\n")
+                        f.write(f"Response word count: {len(result.split())} words\n")
+                    logger.info("Appended response to: %s", prompt_file)
+                except Exception as e:
+                    logger.warning("Failed to append response to file: %s", e)
+
                 return result
 
         except (ValidationError, NotFoundError) as e:
@@ -333,7 +389,11 @@ class WatsonXLLM(LLMBase):
             last_exception = None
             for attempt in range(max_retries + 1):
                 try:
-                    logger.debug("Attempt %d: Calling embed_documents with %d texts", attempt + 1, len(texts))
+                    logger.debug(
+                        "Attempt %d: Calling embed_documents with %d texts",
+                        attempt + 1,
+                        len(texts),
+                    )
                     # Use the SDK's built-in rate limiting and batching
                     embeddings = self.embeddings_client.embed_documents(texts=texts)
 
@@ -356,10 +416,17 @@ class WatsonXLLM(LLMBase):
                                 logger.error("Embedding at index %d is None!", i)
                                 raise ValueError(f"Embedding at index {i} is None")
                             if not isinstance(emb, list) or not emb:
-                                logger.error("Embedding at index %d is not a valid list: %s", i, type(emb))
+                                logger.error(
+                                    "Embedding at index %d is not a valid list: %s",
+                                    i,
+                                    type(emb),
+                                )
                                 raise ValueError(f"Embedding at index {i} is not a valid list")
                             if not all(isinstance(x, int | float) for x in emb):
-                                logger.error("Embedding at index %d contains non-numeric values", i)
+                                logger.error(
+                                    "Embedding at index %d contains non-numeric values",
+                                    i,
+                                )
                                 raise ValueError(f"Embedding at index {i} contains non-numeric values")
 
                         logger.debug("All %d embeddings validated successfully", len(embeddings))
@@ -367,7 +434,10 @@ class WatsonXLLM(LLMBase):
                     else:
                         logger.debug("Converting single embedding to list")
                         if not isinstance(embeddings, list) or not embeddings:
-                            logger.error("Single embedding is not a valid list: %s", type(embeddings))
+                            logger.error(
+                                "Single embedding is not a valid list: %s",
+                                type(embeddings),
+                            )
                             raise ValueError("Single embedding is not a valid list")
                         return [embeddings]
 
@@ -396,7 +466,11 @@ class WatsonXLLM(LLMBase):
                         break
 
             # If we get here, all retries failed
-            logger.error("get_embeddings failed after %d retries: %s", max_retries, last_exception)
+            logger.error(
+                "get_embeddings failed after %d retries: %s",
+                max_retries,
+                last_exception,
+            )
             raise LLMProviderError(
                 provider=self._provider_name,
                 error_type="embeddings_failed",

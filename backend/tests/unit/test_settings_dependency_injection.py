@@ -50,7 +50,11 @@ def test_get_settings_with_environment_variables():
     """Test that get_settings respects environment variables."""
     with patch.dict(
         os.environ,
-        {"WATSONX_URL": "https://test.example.com", "JWT_SECRET_KEY": "test-secret-key", "RAG_LLM": "openai"},
+        {
+            "WATSONX_URL": "https://test.example.com",
+            "JWT_SECRET_KEY": "test-secret-key",
+            "RAG_LLM": "openai",
+        },
     ):
         from core.config import get_settings
 
@@ -376,7 +380,10 @@ def test_service_class_dependency_injection_pattern():
             self.llm_provider = settings.rag_llm
 
         def get_config(self):
-            return {"llm": self.llm_provider, "embeddings": self.settings.embedding_model}
+            return {
+                "llm": self.llm_provider,
+                "embeddings": self.settings.embedding_model,
+            }
 
     # In FastAPI, this would be injected, but for testing we manually create
     get_settings.cache_clear()
@@ -386,7 +393,7 @@ def test_service_class_dependency_injection_pattern():
 
         config = service.get_config()
         assert config["llm"] == "anthropic"
-        assert config["embeddings"] == "sentence-transformers/all-minilm-l6-v2"
+        assert config["embeddings"] == "ibm/slate-125m-english-rtrvr"  # Updated to match current default
 
 
 @pytest.mark.unit
@@ -398,7 +405,11 @@ def test_full_fastapi_app_with_settings_injection():
 
     @app.get("/health")
     async def health_check(settings: Settings = Depends(get_settings)):
-        return {"status": "ok", "llm_provider": settings.rag_llm, "vector_db": settings.vector_db}
+        return {
+            "status": "ok",
+            "llm_provider": settings.rag_llm,
+            "vector_db": settings.vector_db,
+        }
 
     @app.get("/config")
     async def get_config(settings: Settings = Depends(get_settings)):
@@ -452,7 +463,13 @@ def test_vector_store_base_class_requires_settings():
         def retrieve_documents(self, _query: str, _collection_name: str, _number_of_results: int = 10) -> list:
             return []
 
-        def query(self, _collection_name: str, _query, _number_of_results: int = 10, _filter=None) -> list:
+        def query(
+            self,
+            _collection_name: str,
+            _query,
+            _number_of_results: int = 10,
+            _filter=None,
+        ) -> list:
             return []
 
         def delete_collection(self, _collection_name: str) -> None:

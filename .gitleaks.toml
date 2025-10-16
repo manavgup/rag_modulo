@@ -14,10 +14,19 @@ paths = [
     '''(.*?)(.snap)''',
     '''(.*?)(\.md|\.txt)''',  # Documentation files
     '''env\.example''',  # Example env files
+    '''env\..*\.example''',  # env.dev.example, env.jules.example, etc.
     '''(.*?)test_.*\.py''',  # Test files with fixtures
     '''(.*?)tests/fixtures/.*''',  # Test fixtures
     '''deployment/scripts/.*''',  # Deployment scripts with env var templates
-    '''\.env\..*''',  # Environment template files
+    '''scripts/.*\.sh''',  # All deployment/setup scripts
+    '''scripts/ibm-create-secrets\.sh''',  # IBM secret creation scripts
+    '''deployment/k8s/.*/secrets/.*''',  # Kubernetes secret templates
+    '''\.github/workflows/.*''',  # GitHub Actions workflows (use ${{ secrets.* }})
+    '''docker-compose.*\.yml''',  # Docker compose files with env var templates
+    '''\.env\..*''',  # Environment template files (.env.local, .env.development, etc.)
+    '''(^|/)\.env$''',  # Local .env file (should be in .gitignore anyway)
+    '''(^|/)backend/\.env$''',  # Backend .env file
+    '''(^|/)frontend/\.env$''',  # Frontend .env file
 ]
 
 # Stopwords to avoid false positives

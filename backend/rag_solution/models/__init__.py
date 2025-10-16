@@ -25,6 +25,7 @@ from rag_solution.models.token_warning import TokenWarning
 from rag_solution.models.user import User
 from rag_solution.models.user_collection import UserCollection
 from rag_solution.models.user_team import UserTeam
+from rag_solution.models.voice import Voice
 
 # Register all models with Base.metadata
 __all__ = [
@@ -43,4 +44,5 @@ __all__ = [
     "User",
     "UserCollection",
     "UserTeam",
+    "Voice",
 ]

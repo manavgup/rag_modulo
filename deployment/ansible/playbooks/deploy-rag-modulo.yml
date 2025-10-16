@@ -1,0 +1,363 @@
+---
+# RAG Modulo Deployment Playbook
+# This playbook deploys RAG Modulo to IBM Cloud Code Engine using ibmcloud CLI
+# and integrates with managed services for data persistence
+
+- name: Deploy RAG Modulo to IBM Cloud Code Engine
+  hosts: localhost
+  gather_facts: false
+  vars:
+    # Project configuration
+    project_name: "{{ project_name | default('rag-modulo') }}"
+    environment: "{{ environment | default('dev') }}"
+    region: "{{ region | default('us-south') }}"
+
+    # IBM Cloud configuration
+    ibmcloud_api_key: "{{ ibmcloud_api_key | default(omit) }}"
+    resource_group_id: "{{ resource_group_id | default(omit) }}"
+
+    # Container registry configuration
+    container_registry_url: "{{ container_registry_url | default('us.icr.io') }}"
+    container_registry_username: "{{ container_registry_username | default('iamapikey') }}"
+    container_registry_password: "{{ container_registry_password | default(omit) }}"
+
+    # Image tags
+    backend_image_tag: "{{ backend_image_tag | default('v1.0.0') }}"
+    frontend_image_tag: "{{ frontend_image_tag | default('v1.0.0') }}"
+
+    # Managed services endpoints (from Terraform outputs)
+    postgresql_host: "{{ postgresql_host | default(omit) }}"
+    postgresql_port: "{{ postgresql_port | default(5432) }}"
+    postgresql_database: "{{ postgresql_database | default(omit) }}"
+    postgresql_username: "{{ postgresql_username | default(omit) }}"
+    postgresql_password: "{{ postgresql_password | default(omit) }}"
+
+    object_storage_endpoint: "{{ object_storage_endpoint | default(omit) }}"
+    object_storage_access_key: "{{ object_storage_access_key | default(omit) }}"
+    object_storage_secret_key: "{{ object_storage_secret_key | default(omit) }}"
+    object_storage_bucket_name: "{{ object_storage_bucket_name | default(omit) }}"
+
+    zilliz_endpoint: "{{ zilliz_endpoint | default(omit) }}"
+    zilliz_api_key: "{{ zilliz_api_key | default(omit) }}"
+
+    event_streams_endpoint: "{{ event_streams_endpoint | default(omit) }}"
+    event_streams_api_key: "{{ event_streams_api_key | default(omit) }}"
+
+    # Health check URLs
+    backend_health_url: "{{ backend_health_url | default('https://backend-app.example.com/health') }}"
+    frontend_health_url: "{{ frontend_health_url | default('https://frontend-app.example.com/') }}"
+
+    # Deployment configuration
+    wait_timeout: 600
+    retry_count: 3
+    retry_delay: 30
+
+  tasks:
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that:
+          - ibmcloud_api_key is defined
+          - resource_group_id is defined
+          - container_registry_password is defined
+          - postgresql_host is defined
+          - postgresql_database is defined
+          - postgresql_username is defined
+          - postgresql_password is defined
+          - object_storage_endpoint is defined
+          - object_storage_access_key is defined
+          - object_storage_secret_key is defined
+          - object_storage_bucket_name is defined
+          - zilliz_endpoint is defined
+          - zilliz_api_key is defined
+          - event_streams_endpoint is defined
+          - event_streams_api_key is defined
+        fail_msg: "Required variables are not defined. Check your inventory or group_vars."
+        success_msg: "All required variables are defined."
+
+    - name: Install IBM Cloud CLI
+      ansible.builtin.package:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - curl
+        - jq
+      when: ansible_os_family == "RedHat" or ansible_os_family == "Debian"
+
+    - name: Download IBM Cloud CLI
+      ansible.builtin.get_url:
+        url: "https://clis.cloud.ibm.com/install/linux"
+        dest: "/tmp/ibmcloud-cli-installer.sh"
+        mode: '0755'
+      when: ansible_os_family == "RedHat" or ansible_os_family == "Debian"
+
+    - name: Install IBM Cloud CLI
+      ansible.builtin.shell: |
+        /tmp/ibmcloud-cli-installer.sh
+      args:
+        creates: /usr/local/bin/ibmcloud
+      when: ansible_os_family == "RedHat" or ansible_os_family == "Debian"
+
+    - name: Verify IBM Cloud CLI installation
+      ansible.builtin.command: ibmcloud version
+      register: ibmcloud_version
+      changed_when: false
+
+    - name: Display IBM Cloud CLI version
+      ansible.builtin.debug:
+        msg: "IBM Cloud CLI version: {{ ibmcloud_version.stdout }}"
+
+    - name: Login to IBM Cloud
+      ansible.builtin.shell: |
+        ibmcloud login --apikey "{{ ibmcloud_api_key }}" --no-region
+      environment:
+        IBMCLOUD_API_KEY: "{{ ibmcloud_api_key }}"
+      register: ibmcloud_login
+      changed_when: false
+
+    - name: Set IBM Cloud target region
+      ansible.builtin.shell: |
+        ibmcloud target -r "{{ region }}"
+      register: ibmcloud_target_region
+      changed_when: false
+
+    - name: Set IBM Cloud target resource group
+      ansible.builtin.shell: |
+        ibmcloud target -g "{{ resource_group_id }}"
+      register: ibmcloud_target_rg
+      changed_when: false
+
+    - name: Check if Code Engine project exists
+      ansible.builtin.shell: |
+        ibmcloud ce project get "{{ project_name }}-{{ environment }}" --output json 2>/dev/null
+      register: ce_project_check
+      failed_when: false
+      changed_when: false
+
+    - name: Create Code Engine project
+      ansible.builtin.shell: |
+        ibmcloud ce project create --name "{{ project_name }}-{{ environment }}" --resource-group-id "{{ resource_group_id }}"
+      when: ce_project_check.rc != 0
+      register: ce_project_create
+
+    - name: Set Code Engine project target
+      ansible.builtin.shell: |
+        ibmcloud ce project select "{{ project_name }}-{{ environment }}"
+      register: ce_project_select
+      changed_when: false
+
+    - name: Check if container registry secret exists
+      ansible.builtin.shell: |
+        ibmcloud ce secret get "container-registry-secret" --output json 2>/dev/null
+      register: ce_secret_check
+      failed_when: false
+      changed_when: false
+
+    - name: Create container registry secret
+      ansible.builtin.shell: |
+        ibmcloud ce secret create --name "container-registry-secret" --from-literal "username={{ container_registry_username }}" --from-literal "password={{ container_registry_password }}" --from-literal "server={{ container_registry_url }}"
+      when: ce_secret_check.rc != 0
+      register: ce_secret_create
+
+    - name: Check if backend app exists
+      ansible.builtin.shell: |
+        ibmcloud ce app get "{{ project_name }}-backend" --output json 2>/dev/null
+      register: ce_backend_app_check
+      failed_when: false
+      changed_when: false
+
+    - name: Create backend app
+      ansible.builtin.shell: |
+        ibmcloud ce app create \
+          --name "{{ project_name }}-backend" \
+          --image "{{ container_registry_url }}/{{ project_name }}-backend:{{ backend_image_tag }}" \
+          --image-secret "container-registry-secret" \
+          --min-scale "{{ backend_min_scale | default(1) }}" \
+          --max-scale "{{ backend_max_scale | default(10) }}" \
+          --cpu "{{ backend_cpu | default('1') }}" \
+          --memory "{{ backend_memory | default('2Gi') }}" \
+          --env "DATABASE_URL=postgresql://{{ postgresql_username }}:{{ postgresql_password }}@{{ postgresql_host }}:{{ postgresql_port }}/{{ postgresql_database }}?sslmode=require" \
+          --env "MILVUS_HOST={{ zilliz_endpoint }}" \
+          --env "MILVUS_API_KEY={{ zilliz_api_key }}" \
+          --env "MINIO_ENDPOINT={{ object_storage_endpoint }}" \
+          --env "MINIO_ACCESS_KEY={{ object_storage_access_key }}" \
+          --env "MINIO_SECRET_KEY={{ object_storage_secret_key }}" \
+          --env "MINIO_BUCKET_NAME={{ object_storage_bucket_name }}" \
+          --env "KAFKA_BROKERS={{ event_streams_endpoint }}" \
+          --env "KAFKA_API_KEY={{ event_streams_api_key }}" \
+          --env "ENVIRONMENT={{ environment }}" \
+          --env "DEBUG={{ 'false' if environment == 'production' else 'true' }}" \
+          --env "SKIP_AUTH={{ 'false' if environment == 'production' else 'true' }}" \
+          --env "LOG_LEVEL={{ 'INFO' if environment == 'production' else 'DEBUG' }}" \
+          --port 8000
+      when: ce_backend_app_check.rc != 0
+      register: ce_backend_app_create
+
+    - name: Update backend app
+      ansible.builtin.shell: |
+        ibmcloud ce app update "{{ project_name }}-backend" \
+          --image "{{ container_registry_url }}/{{ project_name }}-backend:{{ backend_image_tag }}" \
+          --min-scale "{{ backend_min_scale | default(1) }}" \
+          --max-scale "{{ backend_max_scale | default(10) }}" \
+          --cpu "{{ backend_cpu | default('1') }}" \
+          --memory "{{ backend_memory | default('2Gi') }}"
+      when: ce_backend_app_check.rc == 0
+      register: ce_backend_app_update
+
+    - name: Check if frontend app exists
+      ansible.builtin.shell: |
+        ibmcloud ce app get "{{ project_name }}-frontend" --output json 2>/dev/null
+      register: ce_frontend_app_check
+      failed_when: false
+      changed_when: false
+
+    - name: Create frontend app
+      ansible.builtin.shell: |
+        ibmcloud ce app create \
+          --name "{{ project_name }}-frontend" \
+          --image "{{ container_registry_url }}/{{ project_name }}-frontend:{{ frontend_image_tag }}" \
+          --image-secret "container-registry-secret" \
+          --min-scale "{{ frontend_min_scale | default(1) }}" \
+          --max-scale "{{ frontend_max_scale | default(5) }}" \
+          --cpu "{{ frontend_cpu | default('0.5') }}" \
+          --memory "{{ frontend_memory | default('1Gi') }}" \
+          --env "REACT_APP_API_URL=https://{{ project_name }}-backend-{{ environment }}.us-south.codeengine.appdomain.cloud" \
+          --env "REACT_APP_ENVIRONMENT={{ environment }}" \
+          --env "REACT_APP_DEBUG={{ 'false' if environment == 'production' else 'true' }}" \
+          --port 3000
+      when: ce_frontend_app_check.rc != 0
+      register: ce_frontend_app_create
+
+    - name: Update frontend app
+      ansible.builtin.shell: |
+        ibmcloud ce app update "{{ project_name }}-frontend" \
+          --image "{{ container_registry_url }}/{{ project_name }}-frontend:{{ frontend_image_tag }}" \
+          --min-scale "{{ frontend_min_scale | default(1) }}" \
+          --max-scale "{{ frontend_max_scale | default(5) }}" \
+          --cpu "{{ frontend_cpu | default('0.5') }}" \
+          --memory "{{ frontend_memory | default('1Gi') }}"
+      when: ce_frontend_app_check.rc == 0
+      register: ce_frontend_app_update
+
+    - name: Wait for backend app to be ready
+      ansible.builtin.shell: |
+        ibmcloud ce app get "{{ project_name }}-backend" --output json | jq -r '.status.latest_ready_revision_name'
+      register: backend_status
+      until: backend_status.stdout != "null" and backend_status.stdout != ""
+      retries: "{{ retry_count }}"
+      delay: "{{ retry_delay }}"
+      changed_when: false
+
+    - name: Wait for frontend app to be ready
+      ansible.builtin.shell: |
+        ibmcloud ce app get "{{ project_name }}-frontend" --output json | jq -r '.status.latest_ready_revision_name'
+      register: frontend_status
+      until: frontend_status.stdout != "null" and frontend_status.stdout != ""
+      retries: "{{ retry_count }}"
+      delay: "{{ retry_delay }}"
+      changed_when: false
+
+    - name: Get backend app endpoint
+      ansible.builtin.shell: |
+        ibmcloud ce app get "{{ project_name }}-backend" --output json | jq -r '.status.url'
+      register: backend_endpoint
+      changed_when: false
+
+    - name: Get frontend app endpoint
+      ansible.builtin.shell: |
+        ibmcloud ce app get "{{ project_name }}-frontend" --output json | jq -r '.status.url'
+      register: frontend_endpoint
+      changed_when: false
+
+    - name: Test backend health endpoint
+      ansible.builtin.uri:
+        url: "https://{{ backend_endpoint.stdout }}/health"
+        method: GET
+        status_code: 200
+        timeout: 30
+      register: backend_health_test
+      retries: "{{ retry_count }}"
+      delay: "{{ retry_delay }}"
+      until: backend_health_test.status == 200
+
+    - name: Test frontend health endpoint
+      ansible.builtin.uri:
+        url: "https://{{ frontend_endpoint.stdout }}/"
+        method: GET
+        status_code: 200
+        timeout: 30
+      register: frontend_health_test
+      retries: "{{ retry_count }}"
+      delay: "{{ retry_delay }}"
+      until: frontend_health_test.status == 200
+
+    - name: Display deployment summary
+      ansible.builtin.debug:
+        msg: |
+          ========================================
+          RAG Modulo Deployment Summary
+          ========================================
+          Project: {{ project_name }}
+          Environment: {{ environment }}
+          Region: {{ region }}
+
+          Backend:
+            - URL: https://{{ backend_endpoint.stdout }}
+            - Health: https://{{ backend_endpoint.stdout }}/health
+            - Status: {{ backend_status.stdout }}
+
+          Frontend:
+            - URL: https://{{ frontend_endpoint.stdout }}
+            - Health: https://{{ frontend_endpoint.stdout }}/
+            - Status: {{ frontend_status.stdout }}
+
+          Managed Services:
+            - PostgreSQL: {{ postgresql_host }}:{{ postgresql_port }}/{{ postgresql_database }}
+            - Object Storage: {{ object_storage_endpoint }}
+            - Zilliz Cloud: {{ zilliz_endpoint }}
+            - Event Streams: {{ event_streams_endpoint }}
+          ========================================
+
+    - name: Save deployment outputs
+      ansible.builtin.copy:
+        content: |
+          # RAG Modulo Deployment Outputs
+          # Generated on {{ ansible_date_time.iso8601 }}
+
+          BACKEND_URL=https://{{ backend_endpoint.stdout }}
+          FRONTEND_URL=https://{{ frontend_endpoint.stdout }}
+          BACKEND_HEALTH_URL=https://{{ backend_endpoint.stdout }}/health
+          FRONTEND_HEALTH_URL=https://{{ frontend_endpoint.stdout }}/
+
+          # Service endpoints
+          POSTGRESQL_HOST={{ postgresql_host }}
+          POSTGRESQL_PORT={{ postgresql_port }}
+          POSTGRESQL_DATABASE={{ postgresql_database }}
+          OBJECT_STORAGE_ENDPOINT={{ object_storage_endpoint }}
+          ZILLIZ_ENDPOINT={{ zilliz_endpoint }}
+          EVENT_STREAMS_ENDPOINT={{ event_streams_endpoint }}
+        dest: "{{ playbook_dir }}/deployment-outputs.env"
+        mode: '0644'
+
+    - name: Display next steps
+      ansible.builtin.debug:
+        msg: |
+          ========================================
+          Next Steps:
+          ========================================
+          1. Verify deployment:
+             - Backend: https://{{ backend_endpoint.stdout }}/health
+             - Frontend: https://{{ frontend_endpoint.stdout }}/
+
+          2. Monitor applications:
+             - ibmcloud ce app list
+             - ibmcloud ce app get {{ project_name }}-backend
+             - ibmcloud ce app get {{ project_name }}-frontend
+
+          3. View logs:
+             - ibmcloud ce app logs {{ project_name }}-backend
+             - ibmcloud ce app logs {{ project_name }}-frontend
+
+          4. Scale applications:
+             - ibmcloud ce app update {{ project_name }}-backend --min-scale 2 --max-scale 5
+             - ibmcloud ce app update {{ project_name }}-frontend --min-scale 2 --max-scale 3
+          ========================================

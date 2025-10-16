@@ -16,6 +16,12 @@ import {
   ExclamationTriangleIcon,
   MagnifyingGlassIcon,
   MicrophoneIcon,
+  ArrowPathIcon,
+  ArrowUpTrayIcon,
+  SparklesIcon,
+  BoltIcon,
+  ChartBarIcon,
+  ArrowTrendingUpIcon,
 } from '@heroicons/react/24/outline';
 import { useNotification } from '../../contexts/NotificationContext';
 
@@ -40,6 +46,7 @@ const LightweightCollectionDetail: React.FC = () => {
   const [filesToUpload, setFilesToUpload] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isPodcastModalOpen, setIsPodcastModalOpen] = useState(false);
+  const [isReindexing, setIsReindexing] = useState(false);
 
   useEffect(() => {
     const loadCollection = async () => {
@@ -55,8 +62,6 @@ const LightweightCollectionDetail: React.FC = () => {
         const collectionData = await apiClient.getCollection(id);
 
         setCollection(collectionData);
-        console.log('Collection loaded:', collectionData);
-        console.log('Collection status:', collectionData.status);
         addNotification('success', 'Collection Loaded', 'Collection details loaded successfully.');
       } catch (error) {
         console.error('Error loading collection:', error);
@@ -261,6 +266,53 @@ const LightweightCollectionDetail: React.FC = () => {
     }
   };
 
+  const handleReindex = async () => {
+    if (!collection) return;
+
+    // Confirm with user
+    if (!window.confirm(`Are you sure you want to reindex all documents in "${collection.name}"? This will reprocess all documents with the current chunking settings.`)) {
+      return;
+    }
+
+    setIsReindexing(true);
+    try {
+      await apiClient.reindexCollection(collection.id);
+
+      // Update collection status to processing
+      setCollection(prev => prev ? {
+        ...prev,
+        status: 'processing'
+      } : null);
+
+      addNotification('success', 'Reindexing Started', 'Collection reindexing has been queued and will process in the background.');
+
+      // Poll for status updates every 5 seconds
+      const intervalId = setInterval(async () => {
+        try {
+          const updatedCollection = await apiClient.getCollection(collection.id);
+          setCollection(updatedCollection);
+
+          if (updatedCollection.status === 'completed' || updatedCollection.status === 'ready') {
+            clearInterval(intervalId);
+            addNotification('success', 'Reindexing Complete', 'All documents have been reindexed successfully.');
+            setIsReindexing(false);
+          } else if (updatedCollection.status === 'error') {
+            clearInterval(intervalId);
+            addNotification('error', 'Reindexing Failed', 'An error occurred during reindexing.');
+            setIsReindexing(false);
+          }
+        } catch (error) {
+          console.error('Error polling collection status:', error);
+        }
+      }, 5000);
+
+    } catch (error) {
+      console.error('Error reindexing collection:', error);
+      addNotification('error', 'Reindex Error', 'Failed to start reindexing.');
+      setIsReindexing(false);
+    }
+  };
+
   const filteredDocuments = collection?.documents.filter(doc =>
     doc.name.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
@@ -360,6 +412,112 @@ const LightweightCollectionDetail: React.FC = () => {
               </button>
               <button className="btn-secondary">
                 <Cog6ToothIcon className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Collection Stats Overview - Compact with Actions */}
+        <div className="card p-4 mb-4">
+          <div className="flex flex-wrap items-center justify-between gap-6">
+            {/* Stats */}
+            <div className="flex flex-wrap items-center gap-6">
+              {/* Documents */}
+              <div className="flex items-center space-x-2">
+                <DocumentIcon className="w-4 h-4 text-gray-60" />
+                <div>
+                  <div className="text-xs text-gray-70">Documents</div>
+                  <div className="text-lg font-semibold text-gray-100">{collection.documentCount}</div>
+                </div>
+              </div>
+
+              <div className="h-8 w-px bg-gray-30"></div>
+
+              {/* Total Chunks */}
+              <div className="flex items-center space-x-2">
+                <SparklesIcon className="w-4 h-4 text-gray-60" />
+                <div>
+                  <div className="text-xs text-gray-70">Total Chunks</div>
+                  <div className="text-lg font-semibold text-gray-100">
+                    {collection.documents.reduce((sum, doc) => sum + (doc.chunks || 0), 0).toLocaleString()}
+                  </div>
+                </div>
+              </div>
+
+              <div className="h-8 w-px bg-gray-30"></div>
+
+              {/* Queries Processed */}
+              <div className="flex items-center space-x-2">
+                <ChatBubbleLeftIcon className="w-4 h-4 text-gray-60" />
+                <div>
+                  <div className="text-xs text-gray-70">Queries</div>
+                  <div className="text-lg font-semibold text-gray-100">156</div>
+                </div>
+              </div>
+
+              <div className="h-8 w-px bg-gray-30"></div>
+
+              {/* Avg Response */}
+              <div className="flex items-center space-x-2">
+                <BoltIcon className="w-4 h-4 text-gray-60" />
+                <div>
+                  <div className="text-xs text-gray-70">Avg Response</div>
+                  <div className="text-lg font-semibold text-gray-100">1.3s</div>
+                </div>
+              </div>
+
+              <div className="h-8 w-px bg-gray-30"></div>
+
+              {/* Accuracy */}
+              <div className="flex items-center space-x-2">
+                <ChartBarIcon className="w-4 h-4 text-gray-60" />
+                <div>
+                  <div className="text-xs text-gray-70">Accuracy</div>
+                  <div className="text-lg font-semibold text-gray-100">94%</div>
+                </div>
+              </div>
+
+              <div className="h-8 w-px bg-gray-30"></div>
+
+              {/* Last Updated */}
+              <div className="flex items-center space-x-2">
+                <ArrowTrendingUpIcon className="w-4 h-4 text-gray-60" />
+                <div>
+                  <div className="text-xs text-gray-70">Last Updated</div>
+                  <div className="text-lg font-semibold text-gray-100">
+                    {(() => {
+                      const now = new Date();
+                      const updated = new Date(collection.updatedAt);
+                      const diffMs = now.getTime() - updated.getTime();
+                      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                      const diffDays = Math.floor(diffHours / 24);
+
+                      if (diffHours < 1) return 'Now';
+                      if (diffHours < 24) return `${diffHours}h`;
+                      return `${diffDays}d`;
+                    })()}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={handleReindex}
+                disabled={isReindexing || collection.status === 'processing'}
+                className="btn-secondary flex items-center space-x-2 disabled:opacity-50 text-sm"
+                title={isReindexing ? 'Reindexing in progress...' : 'Reprocess documents with current chunking settings'}
+              >
+                <ArrowPathIcon className={`w-4 h-4 ${isReindexing ? 'animate-spin' : ''}`} />
+                <span>{isReindexing ? 'Reindexing...' : 'Re-index'}</span>
+              </button>
+              <button
+                className="btn-secondary flex items-center space-x-2 text-sm"
+                title="Export collection data"
+              >
+                <ArrowUpTrayIcon className="w-4 h-4" />
+                <span>Export</span>
               </button>
             </div>
           </div>

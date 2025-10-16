@@ -11,6 +11,7 @@ from typing import ClassVar
 from core.config import Settings
 
 from .base import AudioProviderBase
+from .elevenlabs_audio import ElevenLabsAudioProvider
 from .ollama_audio import OllamaAudioProvider
 from .openai_audio import OpenAIAudioProvider
 
@@ -24,6 +25,7 @@ class AudioProviderFactory:
     _providers: ClassVar[dict[str, type[AudioProviderBase]]] = {
         "openai": OpenAIAudioProvider,
         "ollama": OllamaAudioProvider,
+        "elevenlabs": ElevenLabsAudioProvider,
     }
 
     @classmethod
@@ -57,6 +59,8 @@ class AudioProviderFactory:
                 return cls._create_openai_provider(settings)
             elif provider_type == "ollama":
                 return cls._create_ollama_provider(settings)
+            elif provider_type == "elevenlabs":
+                return cls._create_elevenlabs_provider(settings)
             else:
                 # Should not reach here due to registry check above
                 raise ValueError(f"No factory method for provider: {provider_type}")
@@ -135,6 +139,28 @@ class AudioProviderFactory:
             pause_duration_ms=500,
             timeout=300.0,
         )
+
+    @classmethod
+    def _create_elevenlabs_provider(cls, settings: Settings) -> ElevenLabsAudioProvider:
+        """
+        Create ElevenLabs audio provider.
+
+        Args:
+            settings: Application settings
+
+        Returns:
+            Configured ElevenLabsAudioProvider
+
+        Raises:
+            ValueError: If required settings are missing
+        """
+        if not hasattr(settings, "elevenlabs_api_key") or not settings.elevenlabs_api_key:
+            raise ValueError("ELEVENLABS_API_KEY is required for ElevenLabs audio provider")
+
+        # Use the from_settings factory method which handles all configuration
+        logger.info("Creating ElevenLabs audio provider")
+
+        return ElevenLabsAudioProvider.from_settings(settings)
 
     @classmethod
     def register_provider(

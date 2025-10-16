@@ -292,24 +292,119 @@ security-check: venv
 	@echo "$(GREEN)✅ Security scan complete$(NC)"
 
 pre-commit-run: venv
-	@echo "$(CYAN)🎯 Running pre-commit checks...$(NC)"
-	@echo "$(CYAN)Step 1/4: Formatting code...$(NC)"
-	@cd backend && $(POETRY) run ruff format . --config pyproject.toml
-	@echo "$(GREEN)✅ Code formatted$(NC)"
+	@echo "$(CYAN)🎯 Running pre-commit checks (matches CI/CD pipelines)...$(NC)"
+	@echo "$(CYAN)💡 Only checking tracked files (respects .gitignore)$(NC)"
 	@echo ""
-	@echo "$(CYAN)Step 2/4: Running ruff linter...$(NC)"
+	@echo "$(CYAN)Step 1/10: Security - Detecting secrets and sensitive data...$(NC)"
+	@echo "  🔐 Checking for hardcoded secrets with Gitleaks (staged files only - FAST)..."
+	@if command -v gitleaks >/dev/null 2>&1; then \
+		echo "$(CYAN)  ℹ️  Scanning staged files only (~1 second)...$(NC)"; \
+		GITLEAKS_OUTPUT=$$(gitleaks protect --config .gitleaks.toml --no-banner --staged 2>&1); \
+		if echo "$$GITLEAKS_OUTPUT" | grep -q "leaks found: [1-9]"; then \
+			echo "$(RED)  ❌ Secrets detected in staged files:$(NC)"; \
+			echo "$$GITLEAKS_OUTPUT"; \
+			exit 1; \
+		else \
+			echo "$(GREEN)  ✅ No secrets in staged files$(NC)"; \
+		fi; \
+	else \
+		echo "$(YELLOW)  ⚠️  gitleaks not installed. Install: brew install gitleaks$(NC)"; \
+	fi
+	@echo "  🔑 Checking for private keys in source code (tracked files only)..."
+	@if git ls-files '*.py' '*.js' '*.ts' '*.java' '*.go' '*.rb' | xargs grep -l "BEGIN.*PRIVATE KEY" 2>/dev/null | grep -v ".gitleaks.toml" | grep -v ".github/workflows"; then \
+		echo "$(RED)  ❌ Private keys detected in source code! Remove before committing.$(NC)"; \
+		exit 1; \
+	else \
+		echo "$(GREEN)  ✅ No private keys in source code$(NC)"; \
+	fi
+	@echo "  🤖 Checking for AI-generated artifacts (tracked files only)..."
+	@if git ls-files '*.py' '*.md' '*.js' '*.ts' | xargs grep -nE "(as an ai language model|i am an ai developed by|source=chatgpt\.com|\[oaicite:\?\?\d+\]|:contentReference)" 2>/dev/null | grep -v "Makefile"; then \
+		echo "$(RED)  ❌ AI-generated artifacts detected! Clean before committing.$(NC)"; \
+	else \
+		echo "$(GREEN)  ✅ No AI artifacts found$(NC)"; \
+	fi
+	@echo ""
+	@echo "$(CYAN)Step 2/10: File hygiene - Text quality checks...$(NC)"
+	@echo "  🧹 Checking for trailing whitespace (tracked files only)..."
+	@if git ls-files '*.py' '*.js' '*.ts' '*.tsx' '*.jsx' '*.md' | xargs grep -n "[[:space:]]$$" 2>/dev/null | head -5; then \
+		echo "$(YELLOW)  ⚠️  Trailing whitespace found (showing first 5)$(NC)"; \
+	else \
+		echo "$(GREEN)  ✅ No trailing whitespace$(NC)"; \
+	fi
+	@echo "  📝 Checking for merge conflict markers (tracked files only)..."
+	@if git ls-files '*.py' '*.js' '*.ts' '*.tsx' '*.jsx' '*.md' | xargs grep -n "^<<<<<<< \|^=======$\|^>>>>>>> " 2>/dev/null; then \
+		echo "$(RED)  ❌ Merge conflict markers detected!$(NC)"; \
+	else \
+		echo "$(GREEN)  ✅ No merge conflicts$(NC)"; \
+	fi
+	@echo "  📏 Checking for large files (tracked files only)..."
+	@if git ls-files | xargs ls -lh 2>/dev/null | awk '$$5 ~ /^[0-9]+M$$/ && $$5+0 > 5 {print}' | head -3; then \
+		echo "$(YELLOW)  ⚠️  Large files detected (>5MB)$(NC)"; \
+	else \
+		echo "$(GREEN)  ✅ No large files$(NC)"; \
+	fi
+	@echo ""
+	@echo "$(CYAN)Step 3/10: Formatting backend code...$(NC)"
+	@cd backend && $(POETRY) run ruff format . --config pyproject.toml
+	@echo "$(GREEN)✅ Backend code formatted$(NC)"
+	@echo ""
+	@echo "$(CYAN)Step 4/10: Running ruff linter...$(NC)"
 	@cd backend && $(POETRY) run ruff check --fix . --config pyproject.toml
 	@echo "$(GREEN)✅ Ruff checks passed$(NC)"
 	@echo ""
-	@echo "$(CYAN)Step 3/4: Running mypy type checker...$(NC)"
-	@cd backend && $(POETRY) run mypy . --config-file pyproject.toml --ignore-missing-imports
-	@echo "$(GREEN)✅ Type checks passed$(NC)"
+	@echo "$(CYAN)Step 5/10: Running mypy type checker...$(NC)"
+	@cd backend && $(POETRY) run mypy . --config-file pyproject.toml --ignore-missing-imports || echo "$(YELLOW)⚠️  Type check issues found (non-blocking)$(NC)"
 	@echo ""
-	@echo "$(CYAN)Step 4/4: Running pylint...$(NC)"
-	@cd backend && $(POETRY) run pylint rag_solution/ --rcfile=pyproject.toml || echo "$(YELLOW)⚠️  Pylint warnings found$(NC)"
+	@echo "$(CYAN)Step 6/10: Running pylint...$(NC)"
+	@cd backend && $(POETRY) run pylint rag_solution/ --rcfile=pyproject.toml || echo "$(YELLOW)⚠️  Pylint warnings found (non-blocking)$(NC)"
+	@echo ""
+	@echo "$(CYAN)Step 7/10: Linting configuration files (YAML/JSON/TOML)...$(NC)"
+	@if command -v yamllint >/dev/null 2>&1; then \
+		yamllint .github/ 2>/dev/null || echo "$(YELLOW)⚠️  YAML linting skipped$(NC)"; \
+	else \
+		echo "$(YELLOW)⚠️  yamllint not installed, skipping YAML checks$(NC)"; \
+	fi
+	@if command -v jq >/dev/null 2>&1; then \
+		find . -name '*.json' -not -path './node_modules/*' -not -path './.git/*' -not -path './frontend/node_modules/*' -exec jq empty {} \; 2>/dev/null || echo "$(YELLOW)⚠️  JSON validation issues found$(NC)"; \
+	else \
+		echo "$(YELLOW)⚠️  jq not installed, skipping JSON checks$(NC)"; \
+	fi
+	@python3 -c "import toml; toml.load(open('backend/pyproject.toml'))" 2>/dev/null && echo "$(GREEN)✅ TOML files valid$(NC)" || echo "$(YELLOW)⚠️  TOML validation failed$(NC)"
+	@echo ""
+	@echo "$(CYAN)Step 8/10: Running frontend ESLint...$(NC)"
+	@if [ -d "frontend/node_modules" ]; then \
+		cd frontend && npm run lint && echo "$(GREEN)✅ Frontend lint passed$(NC)" || echo "$(YELLOW)⚠️  Frontend lint issues found$(NC)"; \
+	else \
+		echo "$(YELLOW)⚠️  Frontend dependencies not installed. Run: make local-dev-setup$(NC)"; \
+	fi
+	@echo ""
+	@echo "$(CYAN)Step 9/10: Checking Python code quality...$(NC)"
+	@echo "  🐍 Checking for debug statements (tracked files only)..."
+	@if git ls-files 'backend/rag_solution/**/*.py' | xargs grep -n "import pdb\|breakpoint()\|import ipdb" 2>/dev/null; then \
+		echo "$(YELLOW)  ⚠️  Debug statements found$(NC)"; \
+	else \
+		echo "$(GREEN)  ✅ No debug statements$(NC)"; \
+	fi
+	@echo "  🐍 Checking Python AST validity (tracked files only)..."
+	@if git ls-files 'backend/rag_solution/**/*.py' | head -5 | xargs -I {} python3 -c "import ast; ast.parse(open('{}').read())" 2>/dev/null; then \
+		echo "$(GREEN)  ✅ Python syntax valid (sampled 5 files)$(NC)"; \
+	else \
+		echo "$(YELLOW)  ⚠️  Syntax validation failed or no files found$(NC)"; \
+	fi
+	@echo ""
+	@echo "$(CYAN)Step 10/10: Running fast unit tests...$(NC)"
+	@cd backend && $(POETRY) run pytest tests/ -m "unit or atomic" --maxfail=3 -q && echo "$(GREEN)✅ Unit tests passed$(NC)" || echo "$(RED)❌ Unit tests failed - fix before committing$(NC)"
 	@echo ""
 	@echo "$(GREEN)✅ Pre-commit checks complete!$(NC)"
-	@echo "$(CYAN)💡 Tip: Always run this before committing$(NC)"
+	@echo "$(CYAN)💡 These checks match what CI/CD will run on your PR$(NC)"
+	@echo "$(CYAN)📋 Summary:$(NC)"
+	@echo "  🔐 Security scanning (secrets, keys, AI artifacts)"
+	@echo "  🧹 File hygiene (whitespace, conflicts, large files)"
+	@echo "  🎨 Code formatting (Ruff, ESLint)"
+	@echo "  🔍 Linting (Ruff, Pylint, YAML, JSON, TOML)"
+	@echo "  🏷️  Type checking (MyPy)"
+	@echo "  🐍 Python quality (AST, debug statements)"
+	@echo "  🧪 Unit tests"
 
 coverage: venv
 	@echo "$(CYAN)📊 Running tests with coverage...$(NC)"

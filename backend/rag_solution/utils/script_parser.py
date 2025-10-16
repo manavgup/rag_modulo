@@ -9,12 +9,7 @@ import logging
 import re
 from typing import ClassVar
 
-from rag_solution.schemas.podcast_schema import (
-    PodcastScript,
-    PodcastTurn,
-    ScriptParsingResult,
-    Speaker,
-)
+from rag_solution.schemas.podcast_schema import PodcastScript, PodcastTurn, ScriptParsingResult, Speaker
 
 logger = logging.getLogger(__name__)
 
@@ -32,14 +27,18 @@ class PodcastScriptParser:
         r"^HOST:\s*(.*)$",
         r"^Host:\s*(.*)$",
         r"^H:\s*(.*)$",
-        r"^\[HOST\]\s*(.*)$",
+        r"^\[HOST\]:\s*(.*)$",  # [HOST]: format (with colon)
+        r"^\[HOST\]\s*(.*)$",  # [HOST] format (without colon)
+        r"^\[Host\]:\s*(.*)$",  # [Host]: format
     ]
 
     EXPERT_PATTERNS: ClassVar[list[str]] = [
         r"^EXPERT:\s*(.*)$",
         r"^Expert:\s*(.*)$",
         r"^E:\s*(.*)$",
-        r"^\[EXPERT\]\s*(.*)$",
+        r"^\[EXPERT\]:\s*(.*)$",  # [EXPERT]: format (with colon)
+        r"^\[EXPERT\]\s*(.*)$",  # [EXPERT] format (without colon)
+        r"^\[Expert\]:\s*(.*)$",  # [Expert]: format
     ]
 
     def __init__(self, average_wpm: int = 150):

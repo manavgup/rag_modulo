@@ -26,6 +26,80 @@ jobs:
       fail-fast: false  # Show all linter failures, not just the first
       matrix:
         include:
+          # Security & Secret Detection (BLOCKING)
+          - id: detect-private-keys
+            name: "🔑 Detect Private Keys"
+            blocking: true
+            cmd: |
+              if grep -r "BEGIN.*PRIVATE KEY" \
+                --include="*.py" --include="*.js" \
+                --include="*.ts" --include="*.env*" . 2>/dev/null | \
+                grep -v ".git" | grep -v "node_modules"; then
+                echo "❌ Private keys detected! Remove before merging."
+                exit 1
+              else
+                echo "✅ No private keys found"
+              fi
+
+          - id: detect-ai-artifacts
+            name: "🤖 Detect AI Artifacts"
+            blocking: true
+            cmd: |
+              PATTERN="(as an ai language model|i am an ai developed by"
+              PATTERN="${PATTERN}|source=chatgpt\.com|\[oaicite:\?\?\d+\]"
+              PATTERN="${PATTERN}|:contentReference)"
+              if grep -rE "${PATTERN}" \
+                --include="*.py" --include="*.md" \
+                --include="*.js" --include="*.ts" . 2>/dev/null | \
+                grep -v ".git" | grep -v "node_modules" | grep -v ".github"; then
+                echo "❌ AI-generated artifacts detected! Clean before merging."
+                exit 1
+              else
+                echo "✅ No AI artifacts found"
+              fi
+
+          # File Hygiene Checks (BLOCKING)
+          - id: check-merge-conflicts
+            name: "📝 Check Merge Conflicts"
+            blocking: true
+            cmd: |
+              if grep -rn "^<<<<<<< \|^=======$\|^>>>>>>> " \
+                --include="*.py" --include="*.js" \
+                --include="*.ts" . 2>/dev/null | \
+                grep -v ".git" | grep -v "node_modules"; then
+                echo "❌ Merge conflict markers detected!"
+                exit 1
+              else
+                echo "✅ No merge conflicts"
+              fi
+
+          - id: check-large-files
+            name: "📏 Check Large Files"
+            blocking: true
+            cmd: |
+              # Only check git-tracked files, not working directory
+              LARGE_FILES=$(git ls-files | xargs -I {} sh -c 'test -f "{}" && find "{}" -size +5M 2>/dev/null' || true)
+              if [ -n "$LARGE_FILES" ]; then
+                echo "⚠️ Large files detected in git (>5MB):"
+                echo "$LARGE_FILES" | xargs ls -lh
+                echo "❌ Large files should be stored in Git LFS or not committed"
+                exit 1
+              else
+                echo "✅ No large files in git"
+              fi
+
+          - id: check-debug-statements
+            name: "🐍 Check Debug Statements"
+            blocking: true
+            cmd: |
+              if grep -rn "import pdb\|breakpoint()\|import ipdb" \
+                --include="*.py" backend/rag_solution/ 2>/dev/null; then
+                echo "⚠️ Debug statements found - remove before merging"
+                exit 1
+              else
+                echo "✅ No debug statements"
+              fi
+
           # Configuration file linting
           - id: yamllint
             name: "YAML Lint"
@@ -103,6 +177,15 @@ jobs:
         with:
           python-version: '3.12'
           cache: 'pip'
+
+      - name: 🧹 Free Up Disk Space
+        if: |
+          contains(matrix.id, 'ruff') || contains(matrix.id, 'mypy') ||
+          contains(matrix.id, 'pylint') || contains(matrix.id, 'pydocstyle')
+        run: |
+          echo "Initial: $(df -h / | awk 'NR==2 {print $4}') available"
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost "$AGENT_TOOLSDIRECTORY"
+          echo "After cleanup: $(df -h / | awk 'NR==2 {print $4}') available"
 
       - name: 🔍 Install jq for JSON linting
         if: matrix.id == 'jsonlint'

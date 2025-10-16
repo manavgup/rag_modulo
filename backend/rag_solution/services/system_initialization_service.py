@@ -5,10 +5,7 @@ from core.config import Settings
 from core.custom_exceptions import LLMProviderError
 from core.logging_utils import get_logger
 from rag_solution.schemas.llm_model_schema import LLMModelInput, ModelType
-from rag_solution.schemas.llm_provider_schema import (
-    LLMProviderInput,
-    LLMProviderOutput,
-)
+from rag_solution.schemas.llm_provider_schema import LLMProviderInput, LLMProviderOutput
 from rag_solution.services.llm_model_service import LLMModelService
 from rag_solution.services.llm_provider_service import LLMProviderService
 
@@ -96,7 +93,11 @@ class SystemInitializationService:
         return configs
 
     def _initialize_single_provider(
-        self, name: str, config: LLMProviderInput, existing_provider: LLMProviderOutput | None, raise_on_error: bool
+        self,
+        name: str,
+        config: LLMProviderInput,
+        existing_provider: LLMProviderOutput | None,
+        raise_on_error: bool,
     ) -> LLMProviderOutput | None:
         try:
             if existing_provider:
@@ -121,12 +122,28 @@ class SystemInitializationService:
             return None
 
     def _setup_watsonx_models(self, provider_id: UUID4, raise_on_error: bool) -> None:
+        """Setup or update WatsonX models based on current .env settings.
+
+        This method ensures that models are always synchronized with .env configuration
+        on every startup, updating existing models or creating new ones as needed.
+
+        Args:
+            provider_id: The provider ID to associate models with
+            raise_on_error: Whether to raise exceptions on errors
+        """
         try:
-            generation_model = LLMModelInput.model_validate(
+            # Get existing models for this provider
+            existing_models = self.llm_model_service.get_models_by_provider(provider_id)
+            existing_by_type = {model.model_type: model for model in existing_models}
+
+            logger.info(f"Found {len(existing_models)} existing models for WatsonX provider")
+
+            # Generation model configuration from .env
+            generation_model_input = LLMModelInput.model_validate(
                 {
                     "provider_id": provider_id,
                     "model_id": self.settings.rag_llm,
-                    "default_model_id": self.settings.rag_llm,  # Use config, not hardcoded
+                    "default_model_id": self.settings.rag_llm,
                     "model_type": ModelType.GENERATION,
                     "timeout": 30,
                     "max_retries": 3,
@@ -140,7 +157,8 @@ class SystemInitializationService:
                 }
             )
 
-            embedding_model = LLMModelInput.model_validate(
+            # Embedding model configuration from .env
+            embedding_model_input = LLMModelInput.model_validate(
                 {
                     "provider_id": provider_id,
                     "model_id": self.settings.embedding_model,
@@ -158,13 +176,35 @@ class SystemInitializationService:
                 }
             )
 
-            self.llm_model_service.create_model(generation_model)
-            logger.info("Created WatsonX generation model")
+            # Update or create generation model
+            if ModelType.GENERATION in existing_by_type:
+                existing_gen = existing_by_type[ModelType.GENERATION]
+                if existing_gen.model_id != self.settings.rag_llm:
+                    logger.info(f"Updating generation model from {existing_gen.model_id} to {self.settings.rag_llm}")
+                    self.llm_model_service.update_model(existing_gen.id, generation_model_input)
+                    logger.info("Updated WatsonX generation model")
+                else:
+                    logger.info(f"Generation model already up to date: {existing_gen.model_id}")
+            else:
+                self.llm_model_service.create_model(generation_model_input)
+                logger.info(f"Created WatsonX generation model: {self.settings.rag_llm}")
 
-            self.llm_model_service.create_model(embedding_model)
-            logger.info("Created WatsonX embedding model")
+            # Update or create embedding model
+            if ModelType.EMBEDDING in existing_by_type:
+                existing_emb = existing_by_type[ModelType.EMBEDDING]
+                if existing_emb.model_id != self.settings.embedding_model:
+                    logger.info(
+                        f"Updating embedding model from {existing_emb.model_id} to {self.settings.embedding_model}"
+                    )
+                    self.llm_model_service.update_model(existing_emb.id, embedding_model_input)
+                    logger.info("Updated WatsonX embedding model")
+                else:
+                    logger.info(f"Embedding model already up to date: {existing_emb.model_id}")
+            else:
+                self.llm_model_service.create_model(embedding_model_input)
+                logger.info(f"Created WatsonX embedding model: {self.settings.embedding_model}")
 
         except Exception as e:
-            logger.error(f"Error creating WatsonX models: {e!s}")
+            logger.error(f"Error setting up WatsonX models: {e!s}")
             if raise_on_error:
                 raise

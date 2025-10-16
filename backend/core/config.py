@@ -3,6 +3,7 @@
 import os
 import tempfile
 from functools import lru_cache
+from pathlib import Path
 from typing import Annotated
 
 from pydantic import field_validator
@@ -10,6 +11,10 @@ from pydantic.fields import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from core.logging_utils import get_logger
+
+# Calculate project root (two levels up from this file: backend/core/config.py)
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+ENV_FILE_PATH = PROJECT_ROOT / ".env"
 
 
 class Settings(BaseSettings):
@@ -19,13 +24,17 @@ class Settings(BaseSettings):
         extra="allow",
         validate_default=True,
         case_sensitive=False,
-        env_file=".env",  # Expect .env in project root (current working directory)
+        env_file=str(ENV_FILE_PATH),  # Load .env from project root
         env_file_encoding="utf-8",
     )
 
     # Required settings with defaults for development/testing
     jwt_secret_key: Annotated[
-        str, Field(default="dev-secret-key-change-in-production-f8a7b2c1", alias="JWT_SECRET_KEY")
+        str,
+        Field(
+            default="dev-secret-key-change-in-production-f8a7b2c1",
+            alias="JWT_SECRET_KEY",
+        ),
     ]
     rag_llm: Annotated[str, Field(default="ibm/granite-3-3-8b-instruct", alias="RAG_LLM")]
 
@@ -77,7 +86,10 @@ class Settings(BaseSettings):
     cot_token_budget_multiplier: Annotated[float, Field(default=2.0, alias="COT_TOKEN_BUDGET_MULTIPLIER")]
 
     # Embedding settings
-    embedding_model: Annotated[str, Field(default="sentence-transformers/all-minilm-l6-v2", alias="EMBEDDING_MODEL")]
+    embedding_model: Annotated[
+        str,
+        Field(default="sentence-transformers/all-minilm-l6-v2", alias="EMBEDDING_MODEL"),
+    ]
     embedding_dim: Annotated[int, Field(default=384, alias="EMBEDDING_DIM")]
     embedding_field: Annotated[str, Field(default="embedding", alias="EMBEDDING_FIELD")]
     upsert_batch_size: Annotated[int, Field(default=100, alias="UPSERT_BATCH_SIZE")]
@@ -183,7 +195,10 @@ class Settings(BaseSettings):
     watsonx_tts_api_key: Annotated[str | None, Field(default=None, alias="WATSONX_TTS_API_KEY")]
     watsonx_tts_url: Annotated[
         str | None,
-        Field(default="https://api.us-south.text-to-speech.watson.cloud.ibm.com", alias="WATSONX_TTS_URL"),
+        Field(
+            default="https://api.us-south.text-to-speech.watson.cloud.ibm.com",
+            alias="WATSONX_TTS_URL",
+        ),
     ]
     watsonx_tts_default_voice: Annotated[str, Field(default="en-US_AllisonV3Voice", alias="WATSONX_TTS_DEFAULT_VOICE")]
 
@@ -207,10 +222,17 @@ class Settings(BaseSettings):
     question_temperature: Annotated[float, Field(default=0.7, alias="QUESTION_TEMPERATURE")]
     question_types: Annotated[
         list[str],
-        Field(default=["What is", "How does", "Why is", "When should", "Which factors"], alias="QUESTION_TYPES"),
+        Field(
+            default=["What is", "How does", "Why is", "When should", "Which factors"],
+            alias="QUESTION_TYPES",
+        ),
     ]
     question_patterns: Annotated[
-        list[str], Field(default=["^What", "^How", "^Why", "^When", "^Which"], alias="QUESTION_PATTERNS")
+        list[str],
+        Field(
+            default=["^What", "^How", "^Why", "^When", "^Which"],
+            alias="QUESTION_PATTERNS",
+        ),
     ]
     question_required_terms: Annotated[list[str], Field(default=[], alias="QUESTION_REQUIRED_TERMS")]
 
@@ -308,11 +330,31 @@ class Settings(BaseSettings):
                     r"^/api/user-collections/collection/(.+)$": ["GET"],
                     r"^/api/user-collections/collection/(.+)/users$": ["DELETE"],
                     r"^/api/collections/(.+)$": ["GET"],
-                    r"^/api/users/(.+)/llm-providers.*$": ["GET", "POST", "PUT", "DELETE"],
-                    r"^/api/users/(.+)/llm-parameters.*$": ["GET", "POST", "PUT", "DELETE"],
-                    r"^/api/users/(.+)/prompt-templates.*$": ["GET", "POST", "PUT", "DELETE"],
+                    r"^/api/users/(.+)/llm-providers.*$": [
+                        "GET",
+                        "POST",
+                        "PUT",
+                        "DELETE",
+                    ],
+                    r"^/api/users/(.+)/llm-parameters.*$": [
+                        "GET",
+                        "POST",
+                        "PUT",
+                        "DELETE",
+                    ],
+                    r"^/api/users/(.+)/prompt-templates.*$": [
+                        "GET",
+                        "POST",
+                        "PUT",
+                        "DELETE",
+                    ],
                     r"^/api/users/(.+)/pipelines.*$": ["GET", "POST", "PUT", "DELETE"],
-                    r"^/api/users/(.+)/collections.*$": ["GET", "POST", "PUT", "DELETE"],
+                    r"^/api/users/(.+)/collections.*$": [
+                        "GET",
+                        "POST",
+                        "PUT",
+                        "DELETE",
+                    ],
                 },
                 "guest": {
                     r"^/api/user-collections$": ["GET", "POST", "DELETE", "PUT"],
@@ -351,6 +393,40 @@ class Settings(BaseSettings):
             return "ibm/granite-3-3-8b-instruct"
         return v.strip()
 
+    @field_validator("file_storage_path")
+    @classmethod
+    def validate_file_storage_path(cls, v: str) -> str:
+        """Validate and resolve file storage path to absolute path.
+
+        Resolves relative paths (e.g., ./data/files) to absolute paths
+        based on the project root directory. Creates the directory if
+        it doesn't exist.
+
+        Args:
+            v: The file storage path from environment or default
+
+        Returns:
+            str: Absolute path to the file storage directory
+        """
+        from pathlib import Path
+
+        # Convert to Path object
+        path = Path(v)
+
+        # If path is relative, resolve it relative to project root
+        if not path.is_absolute():
+            # Get the directory containing this config.py file (backend/core)
+            config_dir = Path(__file__).parent
+            # Go up to backend directory, then to project root
+            project_root = config_dir.parent.parent
+            # Resolve the path relative to project root
+            path = (project_root / path).resolve()
+
+        # Create directory if it doesn't exist
+        path.mkdir(parents=True, exist_ok=True)
+
+        return str(path)
+
     def validate_production_settings(self) -> bool:
         """Validate settings for production deployment."""
         warnings = []
@@ -383,7 +459,7 @@ def get_settings() -> Settings:
     Returns:
         Settings: The cached settings instance
     """
-    return Settings()  # type: ignore[call-arg]
+    return Settings()
 
 
 # DEPRECATED: Direct module-level settings access

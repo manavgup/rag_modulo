@@ -1,0 +1,134 @@
+# Global Ansible Variables
+# This file contains variables used across all environments
+
+---
+# Project configuration
+project_name: "rag-modulo"
+default_environment: "dev"
+
+# IBM Cloud configuration
+ibm_cloud_region: "us-south"
+ibm_cloud_api_version: "v1"
+
+# Container registry configuration
+container_registry_url: "us.icr.io"
+container_registry_username: "iamapikey"
+
+# Image tags (default versions)
+default_backend_image_tag: "v1.0.0"
+default_frontend_image_tag: "v1.0.0"
+
+# Scaling configuration
+default_backend_scaling:
+  min_scale: 1
+  max_scale: 10
+  cpu: "1"
+  memory: "2Gi"
+
+default_frontend_scaling:
+  min_scale: 1
+  max_scale: 5
+  cpu: "0.5"
+  memory: "1Gi"
+
+# Health check configuration
+health_check_timeout: 30
+health_check_retries: 3
+health_check_delay: 10
+
+# Deployment configuration
+deployment_timeout: 600
+deployment_retries: 3
+deployment_delay: 30
+
+# Security configuration
+enable_ssl: true
+enable_encryption: true
+enable_security_scanning: true
+
+# Monitoring configuration
+enable_monitoring: true
+enable_logging: true
+enable_metrics: true
+
+# Backup configuration
+enable_backups: false
+backup_retention_days: 30
+backup_schedule: "0 2 * * *"  # Daily at 2 AM UTC
+
+# Environment-specific settings
+environment_settings:
+  dev:
+    debug_enabled: true
+    skip_auth_enabled: true
+    log_level: "DEBUG"
+    min_scale: 1
+    max_scale: 3
+    enable_monitoring: false
+    enable_backups: false
+
+  staging:
+    debug_enabled: false
+    skip_auth_enabled: false
+    log_level: "INFO"
+    min_scale: 2
+    max_scale: 5
+    enable_monitoring: true
+    enable_backups: true
+
+  production:
+    debug_enabled: false
+    skip_auth_enabled: false
+    log_level: "INFO"
+    min_scale: 3
+    max_scale: 20
+    enable_monitoring: true
+    enable_backups: true
+    enable_ssl: true
+    enable_encryption: true
+
+# Service endpoints (will be overridden by Terraform outputs)
+service_endpoints:
+  postgresql:
+    host: "{{ postgresql_host | default('localhost') }}"
+    port: "{{ postgresql_port | default(5432) }}"
+    database: "{{ postgresql_database | default('rag_modulo') }}"
+    username: "{{ postgresql_username | default('rag_user') }}"
+    password: "{{ postgresql_password | default('password') }}"
+
+  object_storage:
+    endpoint: "{{ object_storage_endpoint | default('localhost:9000') }}"
+    access_key: "{{ object_storage_access_key | default('minioadmin') }}"
+    secret_key: "{{ object_storage_secret_key | default('minioadmin') }}"
+    bucket_name: "{{ object_storage_bucket_name | default('rag-modulo-data') }}"
+
+  zilliz:
+    endpoint: "{{ zilliz_endpoint | default('localhost:19530') }}"
+    api_key: "{{ zilliz_api_key | default('') }}"
+
+  event_streams:
+    endpoint: "{{ event_streams_endpoint | default('localhost:9092') }}"
+    api_key: "{{ event_streams_api_key | default('') }}"
+
+# Health check URLs
+health_check_urls:
+  backend: "{{ backend_health_url | default('https://backend-app.example.com/health') }}"
+  frontend: "{{ frontend_health_url | default('https://frontend-app.example.com/') }}"
+
+# Deployment tags
+deployment_tags:
+  - "project:{{ project_name }}"
+  - "managed:true"
+  - "deployment:ansible"
+
+# Error handling
+error_handling:
+  continue_on_error: false
+  max_failures: 3
+  retry_delay: 30
+
+# Logging configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "/tmp/ansible-deployment.log"

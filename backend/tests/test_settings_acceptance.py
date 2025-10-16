@@ -128,7 +128,13 @@ def test_acceptance_pytest_atomic_works():
     """ACCEPTANCE TEST: Settings can be imported in atomic test context."""
     env = os.environ.copy()
     # Remove all the potentially required variables (CI test-isolation scenario)
-    for var in ["JWT_SECRET_KEY", "RAG_LLM", "WATSONX_INSTANCE_ID", "WATSONX_APIKEY", "WATSONX_URL"]:
+    for var in [
+        "JWT_SECRET_KEY",
+        "RAG_LLM",
+        "WATSONX_INSTANCE_ID",
+        "WATSONX_APIKEY",
+        "WATSONX_URL",
+    ]:
         env.pop(var, None)
 
     # Test that config can be imported without ValidationError (the core CI issue)
@@ -142,7 +148,7 @@ sys.path.insert(0, '.')
 try:
     from core.config import settings, get_settings
     # Test that defaults work
-    assert settings.jwt_secret_key.startswith('dev-secret-key')
+    assert settings.jwt_secret_key.startswith('generate_with_openssl')
     assert settings.rag_llm == 'ibm/granite-3-3-8b-instruct'  # Updated to match actual default
     assert get_settings() is not None
     print('✓ Settings work in atomic test context')

@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import apiClient, { SuggestedQuestion } from '../../services/apiClient';
 import { useNotification } from '../../contexts/NotificationContext';
-import { LightBulbIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { LightBulbIcon, ArrowPathIcon, ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
 
 interface SuggestedQuestionsProps {
   collectionId: string;
@@ -13,6 +13,7 @@ const SuggestedQuestions: React.FC<SuggestedQuestionsProps> = ({ collectionId, o
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
   const { addNotification } = useNotification();
 
 
@@ -67,13 +68,21 @@ const SuggestedQuestions: React.FC<SuggestedQuestionsProps> = ({ collectionId, o
 
   if (isLoading) {
     return (
-      <div className="p-4 bg-gray-20 rounded-lg animate-pulse">
-        <div className="h-4 bg-gray-30 rounded w-1/4 mb-2"></div>
-        <div className="flex flex-wrap gap-2">
-          <div className="h-8 bg-gray-30 rounded-full w-32"></div>
-          <div className="h-8 bg-gray-30 rounded-full w-48"></div>
-          <div className="h-8 bg-gray-30 rounded-full w-40"></div>
+      <div className="p-4 bg-gray-20 rounded-lg">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center text-sm font-semibold text-gray-80">
+            <LightBulbIcon className="w-5 h-5 mr-2" />
+            <span>Suggested Questions</span>
+          </div>
+          <ChevronDownIcon className="w-4 h-4 text-gray-60" />
         </div>
+        {isExpanded && (
+          <div className="flex flex-wrap gap-2 animate-pulse">
+            <div className="h-8 bg-gray-30 rounded-full w-32"></div>
+            <div className="h-8 bg-gray-30 rounded-full w-48"></div>
+            <div className="h-8 bg-gray-30 rounded-full w-40"></div>
+          </div>
+        )}
       </div>
     );
   }
@@ -95,55 +104,85 @@ const SuggestedQuestions: React.FC<SuggestedQuestionsProps> = ({ collectionId, o
   if (questions.length === 0) {
     return (
         <div className="p-4 bg-gray-20 rounded-lg">
-            <div className="flex items-center justify-between mb-2">
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="flex items-center justify-between mb-2 w-full text-left"
+            >
                 <div className="flex items-center text-sm font-semibold text-gray-80">
                     <LightBulbIcon className="w-5 h-5 mr-2" />
                     <span>Suggested Questions</span>
                 </div>
-                <button
-                onClick={handleRefresh}
-                disabled={isRefreshing}
-                className={`p-1 text-gray-60 hover:text-gray-90 ${isRefreshing ? 'animate-spin' : ''}`}
-                title="Refresh suggested questions"
-                aria-label="Refresh suggested questions"
-                >
-                <ArrowPathIcon className="w-4 h-4" />
-                </button>
-            </div>
-            <p className="text-sm text-gray-60">No suggested questions available at the moment. Questions will be generated automatically after document processing is complete.</p>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRefresh();
+                    }}
+                    disabled={isRefreshing}
+                    className={`p-1 text-gray-60 hover:text-gray-90 ${isRefreshing ? 'animate-spin' : ''}`}
+                    title="Refresh suggested questions"
+                    aria-label="Refresh suggested questions"
+                  >
+                    <ArrowPathIcon className="w-4 h-4" />
+                  </button>
+                  {isExpanded ? (
+                    <ChevronUpIcon className="w-4 h-4 text-gray-60" />
+                  ) : (
+                    <ChevronDownIcon className="w-4 h-4 text-gray-60" />
+                  )}
+                </div>
+            </button>
+            {isExpanded && (
+              <p className="text-sm text-gray-60">No suggested questions available at the moment. Questions will be generated automatically after document processing is complete.</p>
+            )}
       </div>
     );
   }
 
   return (
     <div className="p-4 bg-gray-20 rounded-lg">
-      <div className="flex items-center justify-between mb-2">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="flex items-center justify-between mb-2 w-full text-left"
+      >
         <div className="flex items-center text-sm font-semibold text-gray-80">
           <LightBulbIcon className="w-5 h-5 mr-2" />
-          <span>Suggested Questions</span>
+          <span>Suggested Questions ({questions.length})</span>
         </div>
-        <button
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-          className={`p-1 text-gray-60 hover:text-gray-90 ${isRefreshing ? 'animate-spin' : ''}`}
-          title="Refresh suggested questions"
-          aria-label="Refresh suggested questions"
-        >
-          <ArrowPathIcon className="w-4 h-4" />
-        </button>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {questions.map((q) => (
+        <div className="flex items-center space-x-2">
           <button
-            key={q.id}
-            onClick={() => onQuestionClick(q.question)}
-            className="px-3 py-1.5 bg-blue-10 text-blue-70 rounded-full hover:bg-blue-20 text-sm transition-colors"
-            aria-label={`Use suggested question: ${q.question}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleRefresh();
+            }}
+            disabled={isRefreshing}
+            className={`p-1 text-gray-60 hover:text-gray-90 ${isRefreshing ? 'animate-spin' : ''}`}
+            title="Refresh suggested questions"
+            aria-label="Refresh suggested questions"
           >
-            {q.question}
+            <ArrowPathIcon className="w-4 h-4" />
           </button>
-        ))}
-      </div>
+          {isExpanded ? (
+            <ChevronUpIcon className="w-4 h-4 text-gray-60" />
+          ) : (
+            <ChevronDownIcon className="w-4 h-4 text-gray-60" />
+          )}
+        </div>
+      </button>
+      {isExpanded && (
+        <div className="flex flex-wrap gap-2">
+          {questions.map((q) => (
+            <button
+              key={q.id}
+              onClick={() => onQuestionClick(q.question)}
+              className="px-3 py-1.5 bg-blue-10 text-blue-70 rounded-full hover:bg-blue-20 text-sm transition-colors"
+              aria-label={`Use suggested question: ${q.question}`}
+            >
+              {q.question}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

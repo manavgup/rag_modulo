@@ -1,135 +1,97 @@
-# Pre-commit hooks configuration
+# Pre-commit hooks for RAG Modulo
+# This file configures pre-commit hooks for code quality and security
+
 repos:
-  # Basic file checks
+  # General hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v4.4.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
-        args: ['--unsafe']  # Allow custom YAML tags in GitHub Actions
-      - id: check-added-large-files
-        args: ['--maxkb=1000']
-      - id: check-merge-conflict
-      - id: check-toml
       - id: check-json
-      - id: debug-statements  # Find forgotten print/pdb statements
-      - id: mixed-line-ending
-        args: ['--fix=lf']
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+      - id: check-case-conflict
+      - id: check-merge-conflict
+      - id: debug-statements
+      - id: detect-private-key
 
-  # Python linting and formatting - Ruff (fast, modern, handles both)
-  # Version matches backend/pyproject.toml: ruff = "^0.14.0"
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.0
+  # Terraform hooks
+  - repo: https://github.com/antonbabenko/pre-commit-terraform
+    rev: v1.81.0
     hooks:
-      - id: ruff
-        name: Ruff Lint
-        args: ['--fix', '--config', 'backend/pyproject.toml']
-        files: ^backend/
-      - id: ruff-format
-        name: Ruff Format
-        args: ['--config', 'backend/pyproject.toml']
-        files: ^backend/
+      - id: terraform_fmt
+        args: [-recursive]
+      - id: terraform_validate
+      - id: terraform_tflint
+        args: [--args=--only=terraform_deprecated_interpolation]
+      - id: terraform_checkov
+        args: [--args=--skip-check=CKV_AWS_21,CKV_AWS_23]
 
-  # Python type checking - MyPy (runs on push only for speed)
-  # Version matches backend/pyproject.toml: mypy = "^1.15.0"
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.15.0
+  # Ansible hooks
+  - repo: https://github.com/ansible/ansible-lint
+    rev: v6.17.2
     hooks:
-      - id: mypy
-        name: MyPy Type Check
-        stages: [push]  # Only run on push, not commit (too slow)
-        args: [
-          '--config-file=backend/pyproject.toml',
-          '--ignore-missing-imports',
-          '--show-error-codes',
-          '--disable-error-code=misc',
-          '--disable-error-code=unused-ignore',
-          '--no-strict-optional',
-          'backend/'
-        ]
-        additional_dependencies:
-          - pydantic>=2.0
-          - types-setuptools
-          - types-PyYAML
-          - sqlalchemy>=2.0.0
-          - types-aiofiles
-          - types-PyJWT
-          - types-requests
-          - pandas-stubs
-          - types-click
-          - fastapi
-          - starlette
-          - pydantic-settings
-          - rich
-          - authlib
-          - scikit-learn
-          - pymupdf
-          - python-docx
-          - pytest
-          - chromadb
-          - ibm-watsonx-ai
-          - tenacity
-          - weaviate-client
-          - pinecone
-          - pymilvus
-          - elasticsearch
-          - openai
-          - anthropic
-          - json-repair
-          - validators
-          - httpx
-        files: ^backend/
-        pass_filenames: false
+      - id: ansible-lint
+        args: [--fix]
 
-  # GitHub Workflow validation
-  - repo: https://github.com/sirosen/check-jsonschema
-    rev: 0.28.0
+  # YAML hooks
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.32.0
     hooks:
-      - id: check-github-workflows
-        args: ["--verbose"]
+      - id: yamllint
+        args: [-c=.yamllint]
 
-  # Local validation
-  - repo: local
+  # Security hooks
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
     hooks:
-      - id: python-poetry-check
-        name: Check poetry configuration
-        entry: bash -c 'cd backend && poetry check'
-        language: system
-        files: ^backend/(pyproject\.toml|poetry\.lock)$
-        pass_filenames: false
+      - id: detect-secrets
+        args: [--baseline .secrets.baseline]
 
-      - id: validate-ci-environment-fixes
-        name: Validate CI environment configuration
-        entry: python scripts/validate_ci_fixes.py
-        language: system
-        files: ^(backend/auth/oidc\.py|backend/core/authentication_middleware\.py|docker-compose\.yml|\.github/workflows/ci\.yml|\.env\.ci)$
-        pass_filenames: false
+  # Python hooks
+  - repo: https://github.com/psf/black
+    rev: 23.7.0
+    hooks:
+      - id: black
+        language_version: python3
 
-      - id: check-test-isolation
-        name: Check test isolation violations
-        entry: python scripts/check_test_isolation.py
-        language: system
-        files: ^backend/tests/.*\.py$
-        pass_filenames: false
+  - repo: https://github.com/pycqa/isort
+    rev: 5.12.0
+    hooks:
+      - id: isort
 
-      - id: check-strangler-compliance
-        name: Check strangler pattern compliance for new/modified files
-        entry: python scripts/check_strangler_compliance.py
-        language: system
-        files: ^(backend|scripts)/.*\.py$
-        pass_filenames: false
-        stages: [push]  # Only run on push, not commit (can be annoying)
+  - repo: https://github.com/pycqa/flake8
+    rev: 6.0.0
+    hooks:
+      - id: flake8
+        args: [--max-line-length=88, --extend-ignore=E203]
 
-      # Secret scanning hooks (gitleaks + trufflehog) - runs on push only
-      - id: gitleaks
-        name: Detect hardcoded secrets using Gitleaks
-        entry: gitleaks protect --verbose --redact -c .gitleaks.toml --staged
-        language: system
-        stages: [push]  # Only run on push, not every commit
+  # Shell hooks
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.9.0.5
+    hooks:
+      - id: shellcheck
 
-      - id: trufflehog
-        name: Detect hardcoded secrets using TruffleHog
-        entry: trufflehog filesystem --directory . --only-verified
-        language: system
-        stages: [push]  # Only run on push, not every commit
+  # Docker hooks
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.12.0
+    hooks:
+      - id: hadolint-docker
+        args: [--ignore, DL3008, --ignore, DL3009]
+
+  # Markdown hooks
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.35.0
+    hooks:
+      - id: markdownlint
+        args: [--fix]
+
+  # Commit message hooks
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v3.5.3
+    hooks:
+      - id: commitizen
+        stages: [commit-msg]

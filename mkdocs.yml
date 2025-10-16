@@ -161,6 +161,13 @@ nav:
     - Kubernetes: deployment/kubernetes.md
     - Monitoring: deployment/monitoring.md
     - Security: deployment/security.md
+    - Terraform + Ansible Architecture: deployment/terraform-ansible-architecture.md
+    - IBM Cloud Code Engine: deployment/ibm-cloud-code-engine.md
+    - Managed Services Strategy: deployment/managed-services.md
+    - Ansible Automation: deployment/ansible-automation.md
+    - Monitoring & Observability: deployment/monitoring-observability.md
+    - Backup & Disaster Recovery: deployment/backup-disaster-recovery.md
+    - Security Hardening: deployment/security-hardening.md
   - 🖥️ CLI:
     - Overview: cli/index.md
     - Installation: cli/installation.md
@@ -190,6 +197,10 @@ nav:
     - Search & Retrieval: features/search-retrieval.md
     - Document Processing: features/document-processing.md
     - LLM Integration: features/llm-integration.md
+    - Podcast Generation:
+      - Overview: features/podcast-generation.md
+      - Multi-Provider Audio: features/podcast-multi-provider-audio.md
+      - PR #360 Fixes: features/podcast-fixes-pr360.md
   - 🔧 Troubleshooting:
     - Common Issues: troubleshooting/common-issues.md
     - Debugging: troubleshooting/debugging.md
