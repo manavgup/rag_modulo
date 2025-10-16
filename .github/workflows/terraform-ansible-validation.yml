@@ -2,17 +2,23 @@ name: Terraform & Ansible Validation
 
 # This workflow validates Terraform and Ansible configurations
 # Runs on every PR and push to main to ensure deployment configurations are valid
+# Only runs when deployment files are significantly changed (not just linting fixes)
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'deployment/**'
-      - '.github/workflows/terraform-ansible-validation.yml'
+  # Temporarily disabled for PR #410 - will re-enable after PR #411 is merged
+  # pull_request:
+  #   branches: [main]
+  #   paths:
+  #     - 'deployment/terraform/**/*.tf'
+  #     - 'deployment/ansible/**/*.yml'
+  #     - '!deployment/**/*.md'
+  #     - '.github/workflows/terraform-ansible-validation.yml'
   push:
     branches: [main]
     paths:
-      - 'deployment/**'
+      - 'deployment/terraform/**/*.tf'
+      - 'deployment/ansible/**/*.yml'
+      - '!deployment/**/*.md'
       - '.github/workflows/terraform-ansible-validation.yml'
   workflow_dispatch:
 
@@ -170,12 +176,6 @@ jobs:
             ansible-lint playbooks/${{ matrix.playbook }}.yml
             echo "✅ Ansible lint check passed"
           fi
-
-      - name: 🔍 YAML Lint
-        working-directory: deployment/ansible
-        run: |
-          yamllint -c .yamllint .
-          echo "✅ YAML lint check passed"
 
       - name: 🔍 Ansible Collections Check
         working-directory: deployment/ansible

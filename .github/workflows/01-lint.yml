@@ -77,17 +77,15 @@ jobs:
             name: "📏 Check Large Files"
             blocking: true
             cmd: |
-              if find . -type f -size +5M \
-                -not -path "./.git/*" \
-                -not -path "./node_modules/*" 2>/dev/null | head -1; then
-                echo "⚠️ Large files detected (>5MB):"
-                find . -type f -size +5M \
-                  -not -path "./.git/*" \
-                  -not -path "./node_modules/*" -exec ls -lh {} \;
-                echo "❌ Large files should be stored in Git LFS or excluded"
+              # Only check git-tracked files, not working directory
+              LARGE_FILES=$(git ls-files | xargs -I {} sh -c 'test -f "{}" && find "{}" -size +5M 2>/dev/null' || true)
+              if [ -n "$LARGE_FILES" ]; then
+                echo "⚠️ Large files detected in git (>5MB):"
+                echo "$LARGE_FILES" | xargs ls -lh
+                echo "❌ Large files should be stored in Git LFS or not committed"
                 exit 1
               else
-                echo "✅ No large files"
+                echo "✅ No large files in git"
               fi
 
           - id: check-debug-statements
