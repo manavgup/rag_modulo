@@ -92,15 +92,15 @@ jobs:
 
       # 5️⃣ Install Python dependencies (main + test, skip dev)
       - name: 📥 Install main + test dependencies (skip dev)
-      run: |
-        cd backend
-        # Install runtime + test deps; skip dev tools to reduce disk usage.
-        # Note: We intentionally skip the 'dev' group in unit tests to avoid
-        # heavy linters/type-checkers. pytest-cov and friends are declared in
-        # the 'test' group in pyproject.toml, so coverage still works.
-        # If coverage fails due to env drift, consider adding pytest-cov here
-        # explicitly or switching to `--with dev,test` selectively.
-        poetry install --with test --without dev
+        run: |
+          cd backend
+          # Install runtime + test deps; skip dev tools to reduce disk usage.
+          # Note: We intentionally skip the 'dev' group in unit tests to avoid
+          # heavy linters/type-checkers. pytest-cov and friends are declared in
+          # the 'test' group in pyproject.toml, so coverage still works.
+          # If coverage fails due to env drift, consider adding pytest-cov here
+          # explicitly or switching to `--with dev,test` selectively.
+          poetry install --with test --without dev
 
       # 6️⃣ Validate free disk space after cleanup (optional)
       - name: ✅ Ensure sufficient free disk space
