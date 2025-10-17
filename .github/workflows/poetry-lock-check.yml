@@ -1,0 +1,67 @@
+name: Poetry Lock Validation
+
+# This workflow validates that poetry.lock is in sync with pyproject.toml
+# Triggers when dependency files are modified
+
+on:
+  pull_request:
+    paths:
+      - 'backend/pyproject.toml'
+      - 'backend/poetry.lock'
+  push:
+    branches: [main, develop]
+    paths:
+      - 'backend/pyproject.toml'
+      - 'backend/poetry.lock'
+
+permissions:
+  contents: read
+
+jobs:
+  validate-lock:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-create: false
+
+      - name: Validate poetry.lock is in sync
+        run: |
+          cd backend
+          echo "🔍 Checking if poetry.lock is in sync with pyproject.toml..."
+
+          if poetry check --lock; then
+            echo "✅ poetry.lock is in sync with pyproject.toml"
+          else
+            echo ""
+            echo "❌ ERROR: poetry.lock is out of sync with pyproject.toml"
+            echo ""
+            echo "This means dependencies in pyproject.toml have been modified"
+            echo "but poetry.lock was not regenerated."
+            echo ""
+            echo "To fix this:"
+            echo "  1. cd backend"
+            echo "  2. poetry lock"
+            echo "  3. git add poetry.lock"
+            echo "  4. git commit -m 'chore: update poetry.lock'"
+            echo "  5. git push"
+            echo ""
+            exit 1
+          fi
+
+      - name: Check for dependency conflicts
+        run: |
+          cd backend
+          echo "🔍 Checking for dependency conflicts..."
+          poetry check
+          echo "✅ No dependency conflicts detected"
