@@ -100,9 +100,7 @@ class ChromaDBStore(VectorStore):
         try:
             # Convert embeddings to the format expected by ChromaDB
             embeddings_array = np.array(embeddings, dtype=np.float32)
-            collection.upsert(
-                ids=ids, embeddings=embeddings_array, metadatas=metadatas, documents=docs
-            )  # type: ignore[arg-type]
+            collection.upsert(ids=ids, embeddings=embeddings_array, metadatas=metadatas, documents=docs)  # type: ignore[arg-type]
             logging.info("Successfully added documents to collection '%s'", collection_name)
         except Exception as e:
             logging.error("Failed to add documents to ChromaDB collection '%s': %s", collection_name, str(e))
