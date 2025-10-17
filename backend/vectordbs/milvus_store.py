@@ -9,15 +9,7 @@ import logging
 import time
 from typing import Any
 
-from pymilvus import (
-    Collection,
-    CollectionSchema,
-    DataType,
-    FieldSchema,
-    MilvusException,
-    connections,
-    utility,
-)
+from pymilvus import Collection, CollectionSchema, DataType, FieldSchema, MilvusException, connections, utility
 
 from core.config import Settings, get_settings
 from vectordbs.utils.watsonx import get_embeddings
@@ -351,6 +343,49 @@ class MilvusStore(VectorStore):
         except Exception as e:
             logging.error("Failed to delete documents from Milvus collection '%s': %s", collection_name, str(e))
             raise DocumentError(f"Failed to delete documents from Milvus collection '{collection_name}': {e}") from e
+
+    def count_document_chunks(self, collection_name: str, document_id: str) -> int:
+        """Count the number of chunks for a specific document.
+
+        Args:
+            collection_name: Name of the collection to search in
+            document_id: The document ID to count chunks for
+
+        Returns:
+            Number of chunks found for the document
+
+        Raises:
+            CollectionError: If collection doesn't exist
+            DocumentError: If counting fails
+        """
+        try:
+            collection = self._get_collection(collection_name)
+
+            # Escape document_id to prevent injection attacks
+            # Use JSON encoding for proper string escaping
+            escaped_doc_id = json.dumps(document_id)
+
+            # Query with expression filter for document_id
+            results = collection.query(
+                expr=f"document_id == {escaped_doc_id}",
+                output_fields=["id"],  # Only need count, minimal fields
+                limit=10000,  # Max chunks per document
+            )
+
+            chunk_count = len(results) if results else 0
+            logging.debug("Found %d chunks for document %s in collection %s", chunk_count, document_id, collection_name)
+            return chunk_count
+
+        except CollectionError:
+            # Re-raise collection errors
+            raise
+        except Exception as e:
+            logging.warning(
+                "Error counting chunks for document %s in collection %s: %s", document_id, collection_name, str(e)
+            )
+            raise DocumentError(
+                f"Failed to count chunks for document '{document_id}' in collection '{collection_name}': {e}"
+            ) from e
 
     def _process_search_results(self, results: Any, collection_name: str) -> list[QueryResult]:  # noqa: ARG002
         """Process Milvus search results into QueryResult objects."""

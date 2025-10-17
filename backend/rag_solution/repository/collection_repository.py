@@ -317,6 +317,7 @@ class CollectionRepository:
                     id=file.id,
                     filename=file.filename,
                     file_size_bytes=CollectionRepository._get_file_size(file.file_path),
+                    document_id=file.document_id,  # Include document_id for chunk counting
                 )
                 for file in collection.files or []
             ],

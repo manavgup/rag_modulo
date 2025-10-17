@@ -12,9 +12,25 @@ class CollectionStatus(str, Enum):
 
 
 class FileInfo(BaseModel):
+    """
+    File information schema for collection files.
+
+    This schema represents metadata about files uploaded to a collection,
+    including chunk count for vector search tracking.
+
+    Attributes:
+        id: Unique identifier for the file
+        filename: Original filename of the uploaded file
+        file_size_bytes: Size of the file in bytes (None if size unknown)
+        chunk_count: Number of chunks this file has been split into for vector search (default: 0)
+        document_id: Unique document ID used to track chunks in the vector store (None if not yet processed)
+    """
+
     id: UUID4
     filename: str
     file_size_bytes: int | None = None
+    chunk_count: int = 0
+    document_id: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

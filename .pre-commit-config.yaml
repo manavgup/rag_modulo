@@ -28,7 +28,7 @@ repos:
       - id: terraform_tflint
         args: [--args=--only=terraform_deprecated_interpolation]
       - id: terraform_checkov
-        args: [--args=--skip-check=CKV_AWS_21,CKV_AWS_23]
+        args: [--args=--skip-check=CKV_AWS_21, CKV_AWS_23]
 
   # Ansible hooks
   - repo: https://github.com/ansible/ansible-lint
@@ -51,23 +51,36 @@ repos:
       - id: detect-secrets
         args: [--baseline .secrets.baseline]
 
-  # Python hooks
-  - repo: https://github.com/psf/black
-    rev: 23.7.0
+  # Python hooks - must match CI configuration exactly
+  # CI runs from backend/ with: poetry run ruff check . --config pyproject.toml
+  # CI runs from backend/ with: poetry run ruff format --check . --config pyproject.toml
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.0
     hooks:
-      - id: black
-        language_version: python3
+      - id: ruff
+        name: Ruff linting (matches CI)
+        files: ^backend/
+        args: [--fix, --config=backend/pyproject.toml]
+      - id: ruff-format
+        name: Ruff formatting (matches CI)
+        files: ^backend/
+        args: [--config=backend/pyproject.toml]
 
-  - repo: https://github.com/pycqa/isort
-    rev: 5.12.0
+  # Python test hooks (run on push for velocity optimization)
+  - repo: local
     hooks:
-      - id: isort
-
-  - repo: https://github.com/pycqa/flake8
-    rev: 6.0.0
-    hooks:
-      - id: flake8
-        args: [--max-line-length=88, --extend-ignore=E203]
+      - id: test-atomic
+        name: Run atomic tests
+        entry: make test-atomic
+        language: system
+        pass_filenames: false
+        stages: [push]
+      - id: test-unit-fast
+        name: Run fast unit tests
+        entry: make test-unit-fast
+        language: system
+        pass_filenames: false
+        stages: [push]
 
   # Shell hooks
   - repo: https://github.com/shellcheck-py/shellcheck-py

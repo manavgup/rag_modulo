@@ -70,3 +70,15 @@ class VectorStore(ABC):
     @abstractmethod
     def delete_documents(self, collection_name: str, document_ids: list[str]) -> None:
         """Deletes documents by their IDs from the vector store."""
+
+    @abstractmethod
+    def count_document_chunks(self, collection_name: str, document_id: str) -> int:
+        """Count the number of chunks for a specific document.
+
+        Args:
+            collection_name: Name of the collection to search in.
+            document_id: The document ID to count chunks for.
+
+        Returns:
+            Number of chunks found for the document.
+        """

@@ -231,6 +231,40 @@ class PineconeStore(VectorStore):
             logging.error("Failed to delete documents from Pinecone collection '%s': %s", collection_name, str(e))
             raise DocumentError(f"Failed to delete documents from Pinecone collection '{collection_name}': {e}") from e
 
+    def count_document_chunks(self, collection_name: str, document_id: str) -> int:
+        """Count the number of chunks for a specific document.
+
+        Args:
+            collection_name: Name of the collection to search in
+            document_id: The document ID to count chunks for
+
+        Returns:
+            Number of chunks found for the document
+
+        Raises:
+            CollectionError: If collection doesn't exist
+            DocumentError: If counting fails
+        """
+        try:
+            index = self.pc.Index(collection_name)
+            # Query with filter and large top_k to get all matching vectors
+            results = index.query(
+                vector=[0.0] * self.settings.embedding_dim,  # Dummy vector
+                top_k=10000,  # Large number to get all vectors for this document
+                include_metadata=True,
+                filter={"document_id": document_id},
+            )
+            chunk_count = len(results.get("matches", []))
+            logging.debug("Found %d chunks for document %s in collection %s", chunk_count, document_id, collection_name)
+            return chunk_count
+        except Exception as e:
+            logging.warning(
+                "Error counting chunks for document %s in collection %s: %s", document_id, collection_name, str(e)
+            )
+            raise DocumentError(
+                f"Failed to count chunks for document '{document_id}' in collection '{collection_name}': {e}"
+            ) from e
+
     def _process_search_results(self, results: Any, collection_name: str) -> list[QueryResult]:  # noqa: ARG002
         """Process Pinecone search results into QueryResult objects."""
         query_results = []

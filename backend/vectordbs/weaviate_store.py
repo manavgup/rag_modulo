@@ -253,19 +253,62 @@ class WeaviateDataStore(VectorStore):
             # Query for objects with the specified document_ids
             for doc_id in document_ids:
                 results = (
-                    self.client.query.get(class_name=collection_name, properties=["document_id"])  # type: ignore[attr-defined]
+                    self.client.query.get(  # type: ignore[attr-defined]
+                        class_name=collection_name, properties=["document_id"]
+                    )
                     .with_where({"path": ["document_id"], "operator": "Equal", "valueString": doc_id})
                     .do()
                 )
 
                 # Delete each object
                 for obj in results["data"]["Get"][collection_name]:
-                    self.client.data_object.delete(uuid=obj["_additional"]["id"], class_name=collection_name)  # type: ignore[attr-defined]
+                    self.client.data_object.delete(  # type: ignore[attr-defined]
+                        uuid=obj["_additional"]["id"], class_name=collection_name
+                    )
 
             logging.info("Deleted documents from collection '%s'", collection_name)
         except Exception as e:
             logging.error("Failed to delete documents from Weaviate collection '%s': %s", collection_name, str(e))
             raise DocumentError(f"Failed to delete documents from Weaviate collection '{collection_name}': {e}") from e
+
+    def count_document_chunks(self, collection_name: str, document_id: str) -> int:
+        """Count the number of chunks for a specific document.
+
+        Args:
+            collection_name: Name of the collection to search in
+            document_id: The document ID to count chunks for
+
+        Returns:
+            Number of chunks found for the document
+
+        Raises:
+            CollectionError: If collection doesn't exist
+            DocumentError: If counting fails
+        """
+        try:
+            # Query for all chunks with the specified document_id
+            results = (
+                self.client.query.aggregate(collection_name)  # type: ignore[attr-defined]
+                .with_where({"path": ["document_id"], "operator": "Equal", "valueString": document_id})
+                .with_meta_count()
+                .do()
+            )
+            # Extract count from aggregation results
+            chunk_count = results["data"]["Aggregate"][collection_name][0]["meta"]["count"]
+            logging.debug("Found %d chunks for document %s in collection %s", chunk_count, document_id, collection_name)
+            return chunk_count
+        except (KeyError, IndexError, TypeError) as e:
+            logging.warning(
+                "Error parsing count results for document %s in collection %s: %s", document_id, collection_name, str(e)
+            )
+            return 0
+        except Exception as e:
+            logging.warning(
+                "Error counting chunks for document %s in collection %s: %s", document_id, collection_name, str(e)
+            )
+            raise DocumentError(
+                f"Failed to count chunks for document '{document_id}' in collection '{collection_name}': {e}"
+            ) from e
 
     def _process_search_results(self, results: Any, collection_name: str) -> list[QueryResult]:
         """Process Weaviate search results into QueryResult objects."""

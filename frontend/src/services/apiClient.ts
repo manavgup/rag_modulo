@@ -377,7 +377,7 @@ class ApiClient {
         size: file.file_size_bytes ?? file.size ?? 0,
         uploadedAt: new Date(file.uploaded_at || file.uploadedAt || new Date()),
         status: file.status || 'ready',
-        chunks: file.chunks || 0,
+        chunks: file.chunk_count ?? file.chunks ?? 0,
         vectorized: file.vectorized || false
       })),
       createdAt: new Date(collection.created_at || collection.createdAt),
@@ -401,7 +401,7 @@ class ApiClient {
         size: file.file_size_bytes ?? file.size ?? 0,
         uploadedAt: new Date(file.uploaded_at || file.uploadedAt || new Date()),
         status: file.status || 'ready',
-        chunks: file.chunks || 0,
+        chunks: file.chunk_count ?? file.chunks ?? 0,
         vectorized: file.vectorized || false
       })),
       createdAt: new Date(collection.created_at || collection.createdAt),
@@ -429,7 +429,7 @@ class ApiClient {
         size: file.file_size_bytes ?? file.size ?? 0,
         uploadedAt: new Date(file.uploaded_at || file.uploadedAt || new Date()),
         status: file.status || 'ready',
-        chunks: file.chunks || 0,
+        chunks: file.chunk_count ?? file.chunks ?? 0,
         vectorized: file.vectorized || false
       })),
       createdAt: new Date(collection.created_at || collection.createdAt),
@@ -466,7 +466,7 @@ class ApiClient {
         size: file.file_size_bytes ?? file.size ?? 0,
         uploadedAt: new Date(file.uploaded_at || file.uploadedAt || new Date()),
         status: file.status || 'ready',
-        chunks: file.chunks || 0,
+        chunks: file.chunk_count ?? file.chunks ?? 0,
         vectorized: file.vectorized || false
       })),
       createdAt: new Date(collection.created_at || collection.createdAt),
@@ -490,7 +490,7 @@ class ApiClient {
         size: file.file_size_bytes ?? file.size ?? 0,
         uploadedAt: new Date(file.uploaded_at || file.uploadedAt || new Date()),
         status: file.status || 'ready',
-        chunks: file.chunks || 0,
+        chunks: file.chunk_count ?? file.chunks ?? 0,
         vectorized: file.vectorized || false
       })),
       createdAt: new Date(collection.created_at || collection.createdAt),
