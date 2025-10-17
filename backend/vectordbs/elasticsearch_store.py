@@ -213,6 +213,38 @@ class ElasticSearchStore(VectorStore):
                 f"Failed to delete documents from Elasticsearch collection '{collection_name}': {e}"
             ) from e
 
+    def count_document_chunks(self, collection_name: str, document_id: str) -> int:
+        """Count the number of chunks for a specific document.
+
+        Args:
+            collection_name: Name of the collection to search in
+            document_id: The document ID to count chunks for
+
+        Returns:
+            Number of chunks found for the document
+
+        Raises:
+            CollectionError: If collection doesn't exist
+            DocumentError: If counting fails
+        """
+        try:
+            # Use Elasticsearch count API with term query
+            query = {"query": {"term": {"document_id": document_id}}}
+            response = self.client.count(index=collection_name, body=query)
+            chunk_count = response.get("count", 0)
+            logging.debug("Found %d chunks for document %s in collection %s", chunk_count, document_id, collection_name)
+            return chunk_count
+        except NotFoundError as e:
+            logging.warning("Collection '%s' not found", collection_name)
+            raise CollectionError(f"Collection '{collection_name}' not found") from e
+        except Exception as e:
+            logging.warning(
+                "Error counting chunks for document %s in collection %s: %s", document_id, collection_name, str(e)
+            )
+            raise DocumentError(
+                f"Failed to count chunks for document '{document_id}' in collection '{collection_name}': {e}"
+            ) from e
+
     def _create_collection_if_not_exists(self, collection_name: str) -> None:
         """Create a collection if it doesn't exist."""
         try:

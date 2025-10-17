@@ -100,7 +100,9 @@ class ChromaDBStore(VectorStore):
         try:
             # Convert embeddings to the format expected by ChromaDB
             embeddings_array = np.array(embeddings, dtype=np.float32)
-            collection.upsert(ids=ids, embeddings=embeddings_array, metadatas=metadatas, documents=docs)  # type: ignore[arg-type]
+            collection.upsert(
+                ids=ids, embeddings=embeddings_array, metadatas=metadatas, documents=docs
+            )  # type: ignore[arg-type]
             logging.info("Successfully added documents to collection '%s'", collection_name)
         except Exception as e:
             logging.error("Failed to add documents to ChromaDB collection '%s': %s", collection_name, str(e))
@@ -182,6 +184,38 @@ class ChromaDBStore(VectorStore):
         except Exception as e:
             logging.error("Failed to delete documents from ChromaDB collection '%s': %s", collection_name, str(e))
             raise DocumentError(f"Failed to delete documents from ChromaDB collection '{collection_name}': {e}") from e
+
+    def count_document_chunks(self, collection_name: str, document_id: str) -> int:
+        """Count the number of chunks for a specific document.
+
+        Args:
+            collection_name: Name of the collection to search in
+            document_id: The document ID to count chunks for
+
+        Returns:
+            Number of chunks found for the document
+
+        Raises:
+            CollectionError: If collection doesn't exist
+            DocumentError: If counting fails
+        """
+        try:
+            collection = self._client.get_collection(collection_name)
+            # ChromaDB uses where filter to query by metadata
+            results = collection.get(where={"document_id": document_id})
+            chunk_count = len(results.get("ids", []))
+            logging.debug("Found %d chunks for document %s in collection %s", chunk_count, document_id, collection_name)
+            return chunk_count
+        except (ValueError, KeyError, AttributeError) as e:
+            logging.warning("Collection '%s' not found or error accessing: %s", collection_name, str(e))
+            raise CollectionError(f"Collection '{collection_name}' not found: {e}") from e
+        except Exception as e:
+            logging.warning(
+                "Error counting chunks for document %s in collection %s: %s", document_id, collection_name, str(e)
+            )
+            raise DocumentError(
+                f"Failed to count chunks for document '{document_id}' in collection '{collection_name}': {e}"
+            ) from e
 
     def _convert_to_chunk(
         self, chunk_id: str, text: str, embeddings: list[float] | None, metadata: dict
