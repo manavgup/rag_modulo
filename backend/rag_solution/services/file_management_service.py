@@ -237,11 +237,30 @@ class FileManagementService:
     def get_file_path(self, collection_id: UUID4, filename: str) -> Path:
         try:
             logger.info(f"Getting file path for {filename} in collection {collection_id}")
-            file = self.get_file_by_name(collection_id, filename)
+
+            # Sanitize filename to prevent path traversal
+            clean_filename = Path(filename).name
+            if clean_filename != filename:
+                raise ValidationError("Invalid filename provided", field="filename")
+
+            file = self.get_file_by_name(collection_id, clean_filename)
             logger.info(f"found {file.file_path} for {file}")
             if file.file_path is None:
-                raise ValueError(f"File {filename} has no file path")
-            return Path(file.file_path)
+                raise ValueError(f"File {clean_filename} has no file path")
+
+            # Final security check: ensure the path is within the designated storage area
+            file_path = Path(file.file_path).resolve()
+            storage_root = Path(self.settings.file_storage_path).resolve()
+
+            # Python 3.9+ has is_relative_to() which is the correct way to check path containment
+            if not file_path.is_relative_to(storage_root):
+                logger.error(
+                    f"Security alert: Attempt to access file outside storage root. "
+                    f"Path: {file_path}, Root: {storage_root}"
+                )
+                raise NotFoundError(resource_type="File", resource_id=filename)
+
+            return file_path
         except Exception as e:
             logger.error(f"Unexpected error getting file path: {e!s}")
             raise

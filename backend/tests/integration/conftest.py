@@ -63,13 +63,37 @@ def mock_watsonx_provider():
 
 @pytest.fixture
 def db_session():
-    """Mock database session for integration tests."""
-    session = Mock()
-    session.execute.return_value.scalar.return_value = 1
-    session.add = Mock()
-    session.commit = Mock()
-    session.rollback = Mock()
-    return session
+    """Real sync database session for integration tests."""
+    import os
+
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    # Use test database from environment or docker-compose.test.yml settings
+    database_url = os.getenv(
+        "DATABASE_URL",
+        f"postgresql://{os.getenv('COLLECTIONDB_USER', 'test_user')}:"
+        f"{os.getenv('COLLECTIONDB_PASSWORD', 'test_pass')}@"
+        f"{os.getenv('COLLECTIONDB_HOST', 'localhost')}:"
+        f"{os.getenv('COLLECTIONDB_PORT', '5432')}/"
+        f"{os.getenv('COLLECTIONDB_NAME', 'test_rag_modulo')}",
+    )
+
+    # Create sync engine
+    engine = create_engine(database_url, echo=False)
+
+    # Create session factory
+    session_local = sessionmaker(bind=engine, expire_on_commit=False)
+
+    # Create session
+    session = session_local()
+
+    try:
+        yield session
+        session.rollback()  # Rollback any uncommitted changes
+    finally:
+        session.close()
+        engine.dispose()
 
 
 @pytest.fixture

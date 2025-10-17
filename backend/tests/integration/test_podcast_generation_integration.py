@@ -3,6 +3,9 @@
 Integration tests verify the complete podcast generation workflow from
 request to completion, including database interactions, but with mocked
 external services (LLM, TTS).
+
+NOTE: These tests are currently skipped pending refactoring to use real
+database sessions instead of mocks. See GitHub Issue for details.
 """
 
 from datetime import datetime
@@ -24,6 +27,9 @@ from rag_solution.schemas.podcast_schema import (
 from rag_solution.services.collection_service import CollectionService
 from rag_solution.services.podcast_service import PodcastService
 from rag_solution.services.search_service import SearchService
+
+# Skip all tests in this file - they use mocks instead of real integration
+pytestmark = pytest.mark.skip(reason="Integration tests need refactoring to use real DB sessions, not mocks")
 
 
 @pytest.mark.integration

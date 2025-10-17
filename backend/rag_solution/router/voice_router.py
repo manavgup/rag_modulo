@@ -117,7 +117,8 @@ async def upload_voice(
         HTTPException 500: Internal error
     """
     # Set user_id from authenticated session
-    user_id_from_token = current_user.get("user_id")
+    # Standardize JWT user ID extraction - use "uuid" as the standard field
+    user_id_from_token = current_user.get("uuid")
 
     if not user_id_from_token:
         raise HTTPException(
@@ -197,7 +198,8 @@ async def process_voice(
         HTTPException 409: Voice already processed or processing
         HTTPException 500: Processing failed
     """
-    user_id = current_user.get("user_id")
+    # Standardize JWT user ID extraction - use "uuid" as the standard field
+    user_id = current_user.get("uuid")
 
     if not user_id:
         raise HTTPException(
@@ -256,7 +258,8 @@ async def list_voices(
         HTTPException 400: Invalid pagination parameters
         HTTPException 401: Unauthorized
     """
-    user_id = current_user.get("user_id")
+    # Standardize JWT user ID extraction - use "uuid" as the standard field
+    user_id = current_user.get("uuid")
 
     if not user_id:
         raise HTTPException(
@@ -310,7 +313,8 @@ async def get_voice(
         HTTPException 403: Access denied (not voice owner)
         HTTPException 404: Voice not found
     """
-    user_id = current_user.get("user_id")
+    # Standardize JWT user ID extraction - use "uuid" as the standard field
+    user_id = current_user.get("uuid")
 
     if not user_id:
         raise HTTPException(
@@ -373,7 +377,8 @@ async def update_voice(
         HTTPException 404: Voice not found
         HTTPException 500: Update failed
     """
-    user_id = current_user.get("user_id")
+    # Standardize JWT user ID extraction - use "uuid" as the standard field
+    user_id = current_user.get("uuid")
 
     if not user_id:
         raise HTTPException(
@@ -434,7 +439,8 @@ async def delete_voice(
         HTTPException 409: Voice currently in use
         HTTPException 500: Deletion failed
     """
-    user_id = current_user.get("user_id")
+    # Standardize JWT user ID extraction - use "uuid" as the standard field
+    user_id = current_user.get("uuid")
 
     if not user_id:
         raise HTTPException(
@@ -502,7 +508,8 @@ async def download_voice_sample(
         HTTPException 404: Voice or sample file not found
         HTTPException 416: Range not satisfiable
     """
-    user_id = current_user.get("user_id")
+    # Standardize JWT user ID extraction - use "uuid" as the standard field
+    user_id = current_user.get("uuid")
 
     if not user_id:
         raise HTTPException(

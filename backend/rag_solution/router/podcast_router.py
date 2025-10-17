@@ -122,7 +122,8 @@ async def generate_podcast(
     """
     # Set user_id from authenticated session (security best practice)
     # Never trust user_id from request body - always use authenticated session
-    user_id_from_token = current_user.get("user_id")
+    # Standardize JWT user ID extraction - use "uuid" as the standard field
+    user_id_from_token = current_user.get("uuid")
 
     if not user_id_from_token:
         raise HTTPException(
@@ -189,7 +190,8 @@ async def generate_script_only(
         HTTPException 500: Internal error
     """
     # Set user_id from authenticated session
-    user_id_from_token = current_user.get("user_id")
+    # Standardize JWT user ID extraction - use "uuid" as the standard field
+    user_id_from_token = current_user.get("uuid")
 
     if not user_id_from_token:
         raise HTTPException(
@@ -278,7 +280,8 @@ async def generate_audio_from_script(
         HTTPException 500: Internal error
     """
     # Set user_id from authenticated session
-    user_id_from_token = current_user.get("user_id")
+    # Standardize JWT user ID extraction - use "uuid" as the standard field
+    user_id_from_token = current_user.get("uuid")
 
     if not user_id_from_token:
         raise HTTPException(
@@ -352,7 +355,8 @@ async def get_podcast(
         HTTPException 403: Access denied
         HTTPException 404: Podcast not found
     """
-    user_id = current_user.get("user_id")
+    # Standardize JWT user ID extraction - use "uuid" as the standard field
+    user_id = current_user.get("uuid")
     return await podcast_service.get_podcast(podcast_id, user_id)
 
 
@@ -394,7 +398,8 @@ async def list_podcasts(
         HTTPException 401: Unauthorized
     """
     # Get user_id from current_user, with proper UUID validation
-    user_id_str = current_user.get("user_id") or current_user.get("uuid")
+    # Standardize JWT user ID extraction - use "uuid" as the standard field
+    user_id_str = current_user.get("uuid")
 
     if not user_id_str:
         raise HTTPException(status_code=401, detail="User ID not found in authentication context")
@@ -444,7 +449,8 @@ async def delete_podcast(
         HTTPException 403: Access denied
         HTTPException 404: Podcast not found
     """
-    user_id = current_user.get("user_id")
+    # Standardize JWT user ID extraction - use "uuid" as the standard field
+    user_id = current_user.get("uuid")
     await podcast_service.delete_podcast(podcast_id, user_id)
 
 
@@ -544,7 +550,8 @@ async def serve_podcast_audio(
         HTTPException 404: Podcast or audio file not found
         HTTPException 416: Range not satisfiable
     """
-    user_id = current_user.get("user_id")
+    # Standardize JWT user ID extraction - use "uuid" as the standard field
+    user_id = current_user.get("uuid")
 
     # Get podcast to verify ownership and get audio format
     podcast = await podcast_service.get_podcast(podcast_id, user_id)

@@ -69,9 +69,22 @@ async def delete_file(
     user: Annotated[UserOutput, Depends(verify_user_access)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> bool:
-    """Delete a file from a user's collection."""
+    """Delete a file from a user's collection.
+
+    SECURITY: Verifies user has access to the file's collection before deletion.
+    """
     service = FileManagementService(db, settings)
     try:
+        # SECURITY FIX: Verify user has access to the file's collection
+        file = service.get_file_by_id(file_id)
+
+        # Import UserCollectionService for authorization check
+        from rag_solution.services.user_collection_service import UserCollectionService
+
+        user_collection_service = UserCollectionService(db)
+        user_collection_service.verify_user_access(user_id, file.collection_id)
+
+        # Now safe to delete
         service.delete_file(file_id)
         return True
     except Exception as e:
