@@ -66,6 +66,16 @@ repos:
         files: ^backend/
         args: [--config=backend/pyproject.toml]
 
+  # Poetry lock file validation
+  - repo: local
+    hooks:
+      - id: poetry-lock-check
+        name: Check poetry.lock is in sync with pyproject.toml
+        entry: bash -c 'cd backend && poetry check --lock || (echo "❌ poetry.lock is out of sync. Run - cd backend && poetry lock" && exit 1)'
+        language: system
+        files: ^backend/(pyproject\.toml|poetry\.lock)$
+        pass_filenames: false
+
   # Python test hooks (run on push for velocity optimization)
   - repo: local
     hooks:
