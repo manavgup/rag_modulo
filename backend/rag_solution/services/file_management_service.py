@@ -252,9 +252,11 @@ class FileManagementService:
             file_path = Path(file.file_path).resolve()
             storage_root = Path(self.settings.file_storage_path).resolve()
 
-            if storage_root not in file_path.parents:
+            # Python 3.9+ has is_relative_to() which is the correct way to check path containment
+            if not file_path.is_relative_to(storage_root):
                 logger.error(
-                    f"Security alert: Attempt to access file outside storage root. Path: {file_path}, Root: {storage_root}"
+                    f"Security alert: Attempt to access file outside storage root. "
+                    f"Path: {file_path}, Root: {storage_root}"
                 )
                 raise NotFoundError(resource_type="File", resource_id=filename)
 
