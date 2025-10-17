@@ -296,7 +296,7 @@ class TestGetBatchDocumentChunkCounts:
             # Verify batch query was called with IN expression
             mock_collection.query.assert_called_once()
             call_args = mock_collection.query.call_args
-            assert 'document_id in ["doc_123", "doc_456"]' == call_args[1]["expr"]
+            assert call_args[1]["expr"] == 'document_id in ["doc_123", "doc_456"]'
             assert call_args[1]["output_fields"] == ["document_id"]
             assert call_args[1]["limit"] == 100000
 
