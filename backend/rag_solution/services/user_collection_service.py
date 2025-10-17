@@ -105,3 +105,20 @@ class UserCollectionService:
             True if users were removed successfully
         """
         return self.user_collection_repository.remove_all_users_from_collection(collection_id)
+
+    def verify_user_access(self, user_id: UUID4, collection_id: UUID4) -> None:
+        """Verify that a user has access to a collection.
+
+        Args:
+            user_id: The UUID of the user.
+            collection_id: The UUID of the collection.
+
+        Raises:
+            NotFoundError: If the user does not have access to the collection.
+        """
+        if not self.user_collection_repository.user_has_access(user_id, collection_id):
+            raise NotFoundError(
+                resource_type="Collection",
+                resource_id=str(collection_id),
+                message="User does not have access to this collection.",
+            )

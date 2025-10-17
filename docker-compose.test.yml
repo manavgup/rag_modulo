@@ -1,0 +1,239 @@
+# ============================================================================
+# Isolated Integration Testing Environment
+# ============================================================================
+# This compose file provides a completely isolated environment for integration
+# tests with ephemeral data and no interference with development services.
+#
+# Key Features:
+# - Separate test database (no shared state with dev)
+# - Ephemeral volumes (cleaned with docker-compose down -v)
+# - Isolated network (no conflicts with dev services)
+# - Test runner container with proper dependencies
+# ============================================================================
+
+name: ${PROJECT_NAME:-rag-modulo}-test
+
+networks:
+  test-network:
+    driver: bridge
+    name: ${PROJECT_NAME:-rag-modulo}-test-network
+
+services:
+  # ============================================================================
+  # Test PostgreSQL Database (Isolated from dev)
+  # ============================================================================
+  postgres-test:
+    image: postgres:13
+    container_name: ${PROJECT_NAME:-rag-modulo}-postgres-test
+    environment:
+      - POSTGRES_USER=test_user
+      - POSTGRES_PASSWORD=test_pass
+      - POSTGRES_DB=test_rag_modulo
+    networks:
+      - test-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_user -d test_rag_modulo"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    volumes:
+      - postgres-test-data:/var/lib/postgresql/data
+    tmpfs:
+      - /var/run/postgresql
+
+  # ============================================================================
+  # Test Milvus Dependencies
+  # ============================================================================
+  etcd-test:
+    image: quay.io/coreos/etcd:v3.5.9
+    container_name: ${PROJECT_NAME:-rag-modulo}-etcd-test
+    environment:
+      - ETCD_NAME=etcd-test
+      - ETCD_DATA_DIR=/etcd-data
+      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
+      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd-test:2379
+      - ETCD_LISTEN_PEER_URLS=http://0.0.0.0:2380
+      - ETCD_INITIAL_ADVERTISE_PEER_URLS=http://etcd-test:2380
+      - ETCD_INITIAL_CLUSTER=etcd-test=http://etcd-test:2380
+      - ETCD_INITIAL_CLUSTER_TOKEN=etcd-cluster
+      - ETCD_INITIAL_CLUSTER_STATE=new
+    networks:
+      - test-network
+    healthcheck:
+      test: ["CMD", "etcdctl", "--endpoints=http://localhost:2379", "endpoint", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    volumes:
+      - etcd-test-data:/etcd-data
+
+  minio-test:
+    image: minio/minio:latest
+    container_name: ${PROJECT_NAME:-rag-modulo}-minio-test
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    networks:
+      - test-network
+    command: minio server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    volumes:
+      - minio-test-data:/data
+
+  milvus-standalone-test:
+    image: milvusdb/milvus:v2.4.4
+    container_name: ${PROJECT_NAME:-rag-modulo}-milvus-test
+    depends_on:
+      etcd-test:
+        condition: service_healthy
+      minio-test:
+        condition: service_healthy
+    environment:
+      - ETCD_ENDPOINTS=etcd-test:2379
+      - MINIO_ADDRESS=minio-test:9000
+      - MINIO_ACCESS_KEY_ID=minioadmin
+      - MINIO_SECRET_ACCESS_KEY=minioadmin
+      - COMMON_STORAGETYPE=minio
+      - MINIO_USE_SSL=false
+      - ETCD_USE_SSL=false
+    networks:
+      - test-network
+    command: ["milvus", "run", "standalone"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 30s
+    volumes:
+      - milvus-test-data:/var/lib/milvus
+
+  # ============================================================================
+  # Test MinIO bucket creation (required before MLFlow)
+  # ============================================================================
+  createbuckets-test:
+    image: minio/mc
+    container_name: ${PROJECT_NAME:-rag-modulo}-createbuckets-test
+    depends_on:
+      minio-test:
+        condition: service_healthy
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    networks:
+      - test-network
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc config host add myminio http://minio-test:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD;
+      /usr/bin/mc mb --ignore-existing myminio/test-mlflow;
+      exit 0;
+      "
+
+  # ============================================================================
+  # Test MLFlow Server (Optional for most tests)
+  # ============================================================================
+  mlflow-test:
+    image: quay.io/mtykhenko/rag-modulo-mlflow:latest
+    container_name: ${PROJECT_NAME:-rag-modulo}-mlflow-test
+    environment:
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - MLFLOW_S3_ENDPOINT_URL=http://minio-test:9000
+      - MLFLOW_ARTIFACT_URI=s3://test-mlflow
+      - MLFLOW_BACKEND_STORE_URI=postgresql+psycopg2://test_user:test_pass@postgres-test:5432/test_rag_modulo
+      - MLFLOW_TRACKING_USERNAME=mlflow
+      - MLFLOW_TRACKING_PASSWORD=mlflow123
+    networks:
+      - test-network
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      minio-test:
+        condition: service_healthy
+      createbuckets-test:
+        condition: service_completed_successfully
+
+  # ============================================================================
+  # Test Runner Container
+  # ============================================================================
+  test-runner:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.test
+    container_name: ${PROJECT_NAME:-rag-modulo}-test-runner
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      milvus-standalone-test:
+        condition: service_healthy
+      mlflow-test:
+        condition: service_started
+    networks:
+      - test-network
+    environment:
+      # Test-specific configuration
+      - TESTING=true
+      - PYTHONPATH=/app
+
+      # Database connection (test database)
+      - COLLECTIONDB_HOST=postgres-test
+      - COLLECTIONDB_PORT=5432
+      - COLLECTIONDB_NAME=test_rag_modulo
+      - COLLECTIONDB_USER=test_user
+      - COLLECTIONDB_PASSWORD=test_pass
+
+      # Milvus connection (test instance)
+      - MILVUS_HOST=milvus-standalone-test
+      - MILVUS_PORT=19530
+      - MILVUS_USER=
+      - MILVUS_PASSWORD=
+
+      # MLFlow connection (test instance)
+      - MLFLOW_TRACKING_URI=http://mlflow-test:5000
+
+      # Vector database selection
+      - VECTOR_DB=milvus
+
+      # Skip auth for tests
+      - SKIP_AUTH=true
+
+      # Test-specific settings
+      - WEB_CONCURRENCY=1
+      - RUNTIME_EVAL=false
+      - LOG_LEVEL=DEBUG
+
+      # File storage (writable location for non-root user)
+      - FILE_STORAGE_PATH=/tmp/test-files
+    env_file:
+      - .env
+    volumes:
+      # Mount source code read-only
+      - ./backend:/app/backend:ro
+      - ./backend/tests:/app/tests:ro
+      # Mount test outputs (writable)
+      - test-results:/app/test-results
+    command: ["pytest", "-v", "-s", "tests/integration/", "--junit-xml=/app/test-results/junit.xml"]
+
+# ============================================================================
+# Ephemeral Volumes (Cleaned with docker-compose down -v)
+# ============================================================================
+volumes:
+  postgres-test-data:
+    driver: local
+  etcd-test-data:
+    driver: local
+  minio-test-data:
+    driver: local
+  milvus-test-data:
+    driver: local
+  mlflow-test-artifacts:
+    driver: local
+  test-results:
+    driver: local

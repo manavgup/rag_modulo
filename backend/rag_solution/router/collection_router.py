@@ -425,6 +425,7 @@ def get_collection_questions(
     },
 )
 def download_file(
+    request: Request,
     collection_id: UUID4,
     filename: str,
     db: Annotated[Session, Depends(get_db)],
@@ -434,6 +435,7 @@ def download_file(
     Download a specific file from a collection.
 
     Args:
+        request (Request): The request object containing authenticated user info.
         collection_id (UUID): The ID of the collection.
         filename (str): The name of the file.
         db (Session): The database session.
@@ -443,9 +445,20 @@ def download_file(
         FileResponse: The file to be downloaded.
 
     Raises:
-        HTTPException: If the file is not found.
+        HTTPException: If the file is not found or user is not authorized.
     """
     try:
+        # Get the current user from the authenticated request
+        current_user = request.state.user
+        user_id = current_user.get("uuid")
+
+        if not user_id:
+            raise HTTPException(status_code=401, detail="User not authenticated")
+
+        # Verify user has access to the collection
+        user_collection_service = UserCollectionService(db)
+        user_collection_service.verify_user_access(user_id, collection_id)
+
         service = FileManagementService(db, settings)
         file_path = service.get_file_path(collection_id, filename)
 

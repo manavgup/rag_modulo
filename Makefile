@@ -243,22 +243,56 @@ build-all: build-backend build-frontend
 
 test-atomic: venv
 	@echo "$(CYAN)⚡ Running atomic tests (no DB, no coverage)...$(NC)"
-	@cd backend && $(POETRY) run pytest -c pytest-atomic.ini tests/atomic/ -v
+	@$(POETRY) -C backend run pytest -c pytest-atomic.ini tests/atomic/ -v
 	@echo "$(GREEN)✅ Atomic tests passed$(NC)"
 
 test-unit-fast: venv
 	@echo "$(CYAN)🏃 Running unit tests (mocked dependencies)...$(NC)"
-	@cd backend && $(POETRY) run pytest -c pytest-atomic.ini tests/unit/ -v
+	@$(POETRY) -C backend run pytest tests/unit/ -v
 	@echo "$(GREEN)✅ Unit tests passed$(NC)"
 
-test-integration: venv local-dev-infra
-	@echo "$(CYAN)🔗 Running integration tests...$(NC)"
-	@$(DOCKER_COMPOSE) run --rm \
-		-v $$(pwd)/backend:/app/backend:ro \
-		-v $$(pwd)/backend/tests:/app/tests:ro \
-		-e TESTING=true \
-		test pytest -v tests/integration/
+test-integration: venv
+	@echo "$(CYAN)🔗 Running integration tests in isolated environment...$(NC)"
+	@echo "$(CYAN)🧹 Cleaning up any previous test environment...$(NC)"
+	@$(DOCKER_COMPOSE) -f docker-compose.test.yml down -v --remove-orphans 2>/dev/null || true
+	@echo "$(CYAN)🐳 Starting isolated test infrastructure...$(NC)"
+	@$(DOCKER_COMPOSE) -f docker-compose.test.yml up -d postgres-test etcd-test minio-test milvus-standalone-test createbuckets-test mlflow-test
+	@echo "$(CYAN)⏳ Waiting for services to be healthy (max 90s)...$(NC)"
+	@timeout=90; elapsed=0; \
+	while [ $$elapsed -lt $$timeout ]; do \
+		postgres_health=$$(docker inspect --format='{{.State.Health.Status}}' rag-modulo-postgres-test 2>/dev/null || echo "starting"); \
+		milvus_health=$$(docker inspect --format='{{.State.Health.Status}}' rag-modulo-milvus-test 2>/dev/null || echo "starting"); \
+		if [ "$$postgres_health" = "healthy" ] && [ "$$milvus_health" = "healthy" ]; then \
+			echo "$(GREEN)✅ All critical test services healthy$(NC)"; \
+			break; \
+		fi; \
+		echo "  Waiting... (postgres: $$postgres_health, milvus: $$milvus_health) [$$elapsed/$$timeout s]"; \
+		sleep 3; \
+		elapsed=$$((elapsed + 3)); \
+		if [ $$elapsed -ge $$timeout ]; then \
+			echo "$(RED)❌ Services failed to become healthy within $$timeout seconds$(NC)"; \
+			echo "$(CYAN)📋 Service status:$(NC)"; \
+			$(DOCKER_COMPOSE) -f docker-compose.test.yml ps; \
+			echo "$(CYAN)📋 Health details:$(NC)"; \
+			docker inspect --format='Postgres: {{.State.Health.Status}}' rag-modulo-postgres-test 2>/dev/null || echo "Postgres: not found"; \
+			docker inspect --format='Milvus: {{.State.Health.Status}}' rag-modulo-milvus-test 2>/dev/null || echo "Milvus: not found"; \
+			echo "$(CYAN)📋 Recent logs:$(NC)"; \
+			$(DOCKER_COMPOSE) -f docker-compose.test.yml logs --tail=50; \
+			$(DOCKER_COMPOSE) -f docker-compose.test.yml down -v --remove-orphans; \
+			exit 1; \
+		fi; \
+	done
+	@echo "$(CYAN)🧪 Running integration tests...$(NC)"
+	@$(DOCKER_COMPOSE) -f docker-compose.test.yml run --rm test-runner || \
+		(echo "$(RED)❌ Integration tests failed$(NC)" && \
+		 echo "$(CYAN)📋 Test logs:$(NC)" && \
+		 $(DOCKER_COMPOSE) -f docker-compose.test.yml logs test-runner && \
+		 $(DOCKER_COMPOSE) -f docker-compose.test.yml down -v --remove-orphans && \
+		 exit 1)
 	@echo "$(GREEN)✅ Integration tests passed$(NC)"
+	@echo "$(CYAN)🧹 Cleaning up test environment...$(NC)"
+	@$(DOCKER_COMPOSE) -f docker-compose.test.yml down -v --remove-orphans
+	@echo "$(GREEN)✅ Test environment cleaned$(NC)"
 
 test-all: test-atomic test-unit-fast test-integration
 	@echo "$(GREEN)✅ All tests passed$(NC)"

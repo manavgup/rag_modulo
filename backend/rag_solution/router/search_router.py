@@ -6,11 +6,13 @@ document retrieval with LLM-based answer generation.
 """
 
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from core.config import Settings, get_settings
+from rag_solution.core.dependencies import get_current_user
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.search_schema import SearchInput, SearchOutput
 from rag_solution.services.search_service import SearchService
@@ -45,19 +47,24 @@ def get_search_service(
     responses={
         200: {"description": "LLM response generated successfully"},
         400: {"description": "Invalid input data"},
+        401: {"description": "Unauthorized"},
         404: {"description": "Collection not found"},
         500: {"description": "Internal server error"},
     },
 )
 async def search(
     search_input: SearchInput,
+    current_user: Annotated[dict, Depends(get_current_user)],
     search_service: Annotated[SearchService, Depends(get_search_service)],
 ) -> SearchOutput:
     """
     Process a search query through the RAG pipeline.
 
+    SECURITY: Requires authentication. User ID is extracted from JWT token.
+
     Args:
         search_input (SearchInput): Input data containing question and collection ID
+        current_user (dict): Authenticated user from JWT token
         search_service (SearchService): The search service instance from dependency injection
 
     Returns:
@@ -68,7 +75,20 @@ async def search(
     """
     print("🔍 ROUTER: search() function called!")
     try:
+        # SECURITY FIX: Set user_id from authenticated session (never trust client input)
+        user_id_from_token = current_user.get("user_id") or current_user.get("uuid")
+
+        if not user_id_from_token:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User ID not found in authentication token",
+            )
+
+        # Override user_id from token (security best practice)
+        search_input.user_id = UUID(user_id_from_token) if isinstance(user_id_from_token, str) else user_id_from_token
+
         print(f"🔍 ROUTER: Received search request: {search_input.question}")
+        print(f"🔍 ROUTER: Authenticated user: {user_id_from_token}")
         print(f"🔍 ROUTER: Config metadata: {search_input.config_metadata}")
         print(f"🔍 ROUTER: Config metadata type: {type(search_input.config_metadata)}")
         if search_input.config_metadata:

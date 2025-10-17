@@ -51,10 +51,18 @@ def get_summarization_service(db: Session = Depends(get_db)) -> ConversationSumm
 @router.post("/sessions", response_model=ConversationSessionOutput)
 async def create_session(
     session_data: ConversationSessionInput,
+    current_user: dict = Depends(get_current_user),
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> ConversationSessionOutput:
-    """Create a new conversation session."""
+    """Create a new conversation session.
+
+    SECURITY: Requires authentication. User ID is extracted from JWT token.
+    """
     try:
+        # SECURITY FIX: Set user_id from authenticated session (never trust client input)
+        user_id = UUID(current_user["uuid"])
+        session_data.user_id = user_id
+
         session = await conversation_service.create_session(session_data)
         return session
     except Exception as e:
@@ -126,14 +134,26 @@ async def list_sessions(
 async def add_message(
     session_id: UUID,
     message_data: ConversationMessageInput,
+    current_user: dict = Depends(get_current_user),
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> ConversationMessageOutput:
-    """Add a message to a conversation session."""
+    """Add a message to a conversation session.
+
+    SECURITY: Requires authentication. User must own the session.
+    """
     try:
+        # SECURITY FIX: Verify user owns the session
+        user_id = UUID(current_user["uuid"])
+        session = await conversation_service.get_session(session_id, user_id)
+        if not session:
+            raise HTTPException(status_code=403, detail="Access denied")
+
         # Ensure session_id matches
         message_data.session_id = session_id
         message = await conversation_service.add_message(message_data)
         return message
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
@@ -157,14 +177,27 @@ async def get_messages(
 async def process_user_message(
     session_id: UUID,
     message_data: ConversationMessageInput,
+    current_user: dict = Depends(get_current_user),
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> ConversationMessageOutput:
-    """Process a user message and generate a response."""
+    """Process a user message and generate a response.
+
+    SECURITY: Requires authentication. User must own the session.
+    CRITICAL: This endpoint consumes LLM API tokens and must be protected.
+    """
     try:
+        # SECURITY FIX: Verify user owns the session (prevent unauthorized LLM usage)
+        user_id = UUID(current_user["uuid"])
+        session = await conversation_service.get_session(session_id, user_id)
+        if not session:
+            raise HTTPException(status_code=403, detail="Access denied")
+
         # Ensure session_id matches
         message_data.session_id = session_id
         response = await conversation_service.process_user_message(message_data)
         return response
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     except Exception as e:

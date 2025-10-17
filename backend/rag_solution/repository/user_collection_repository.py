@@ -201,6 +201,23 @@ class UserCollectionRepository:
             logger.error("Database error: %s", str(e))
             raise RepositoryError(f"Failed to get user collection: {e!s}") from e
 
+    def user_has_access(self, user_id: UUID4, collection_id: UUID4) -> bool:
+        """Check if a user has access to a collection.
+
+        Args:
+            user_id: The UUID of the user.
+            collection_id: The UUID of the collection.
+
+        Returns:
+            bool: True if the user has access, False otherwise.
+        """
+        return (
+            self.db.query(UserCollection)
+            .filter(UserCollection.user_id == user_id, UserCollection.collection_id == collection_id)
+            .first()
+            is not None
+        )
+
     def _to_output(self, user_collection: UserCollection) -> UserCollectionOutput:
         collection = user_collection.collection
         if not collection:
