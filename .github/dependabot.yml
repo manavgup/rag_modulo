@@ -1,0 +1,84 @@
+# Dependabot configuration for automated dependency updates
+# Helps keep dependencies secure and up-to-date
+
+version: 2
+updates:
+  # Backend Python dependencies
+  - package-ecosystem: "pip"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "02:00"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "security"
+      - "backend"
+    # Group minor and patch updates together
+    groups:
+      python-dependencies:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Frontend npm dependencies
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "02:00"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "security"
+      - "frontend"
+    # Group minor and patch updates together
+    groups:
+      npm-dependencies:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "02:00"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "security"
+      - "ci-cd"
+
+  # Docker base images
+  - package-ecosystem: "docker"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "02:00"
+    open-pull-requests-limit: 2
+    labels:
+      - "dependencies"
+      - "security"
+      - "docker"
+
+  - package-ecosystem: "docker"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "02:00"
+    open-pull-requests-limit: 2
+    labels:
+      - "dependencies"
+      - "security"
+      - "docker"

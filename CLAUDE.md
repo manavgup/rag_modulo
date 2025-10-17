@@ -170,6 +170,57 @@ cd backend && poetry check --lock
 # CI validation happens in poetry-lock-check.yml workflow
 ```
 
+### Security & Secret Management
+
+**⚠️ CRITICAL: Never commit secrets to git**
+
+RAG Modulo uses a **3-layer defense-in-depth** approach to prevent secret leaks:
+
+1. **Pre-commit hooks** - Fast local validation with detect-secrets (< 1 sec)
+2. **Local testing** - Gitleaks scanning via `make pre-commit-run` (~1-2 sec)
+3. **CI/CD pipeline** - Comprehensive Gitleaks + TruffleHog scanning (~45 sec)
+
+**Quick Reference:**
+
+```bash
+# Run security checks before pushing
+make pre-commit-run
+
+# CI now FAILS on ANY secret detection (no exceptions)
+# This ensures no secrets make their way to the repository
+```
+
+**Supported Secret Types:**
+- Cloud Providers: AWS, Azure, GCP
+- LLM APIs: OpenAI, Anthropic, WatsonX, Gemini
+- Infrastructure: PostgreSQL, MinIO, MLFlow, JWT
+- Version Control: GitHub tokens, GitLab tokens
+- Generic: High-entropy strings, private keys
+
+**False Positives:**
+If secret scanning flags legitimate test data:
+
+```bash
+# Update baseline with false positives
+detect-secrets scan --baseline .secrets.baseline
+detect-secrets audit .secrets.baseline
+
+# Commit updated baseline
+git add .secrets.baseline
+git commit -m "chore: update secrets baseline"
+```
+
+**Emergency Response:**
+If a secret is accidentally committed:
+
+1. **ROTATE the secret IMMEDIATELY** (< 5 minutes)
+2. Update `.env` with new secret
+3. Update CI/CD secrets (GitHub Secrets)
+4. Clean git history (see documentation)
+5. Verify old secret is revoked
+
+**Full Documentation:** `docs/development/secret-management.md`
+
 ## AI-Assisted Development Workflow
 
 This repository supports **automated development** using a multi-agent AI system:
@@ -500,6 +551,7 @@ search_input = SearchInput(
 - **Development Workflow**: `docs/development/workflow.md` - Development process
 - **Contributing**: `docs/development/contributing.md` - Contribution guidelines
 - **Testing Guide**: `docs/testing/index.md` - Comprehensive testing documentation
+- **Secret Management**: `docs/development/secret-management.md` - Comprehensive guide for safe secret handling
 
 ### Other References
 
