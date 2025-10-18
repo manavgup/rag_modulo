@@ -68,7 +68,7 @@ jobs:
           exit-code: '0'  # Don't fail, just report
 
       - name: 📤 Upload Trivy Results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: 'trivy-${{ matrix.service }}-results.sarif'
 

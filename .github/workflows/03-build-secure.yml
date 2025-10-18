@@ -97,7 +97,7 @@ jobs:
           fi
 
       - name: 📤 Upload Hadolint SARIF
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always() && steps.hadolint.outputs.hadolint_success == 'true'
         with:
           sarif_file: hadolint-${{ matrix.service }}.sarif
@@ -147,7 +147,7 @@ jobs:
           fi
 
       - name: 📤 Upload Dockle SARIF
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always() && steps.check-dockle.outputs.dockle_success == 'true'
         with:
           sarif_file: dockle-${{ matrix.service }}.sarif
@@ -177,7 +177,7 @@ jobs:
           fi
 
       - name: 📤 Upload Trivy SARIF
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always() && steps.check-trivy.outputs.trivy_success == 'true'
         with:
           sarif_file: trivy-${{ matrix.service }}.sarif
@@ -246,7 +246,7 @@ jobs:
           fi
 
       - name: 📤 Upload Trivy Filesystem SARIF
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always() && steps.check-trivy-fs.outputs.trivy_fs_success == 'true'
         with:
           sarif_file: trivy-fs-${{ matrix.service }}.sarif
