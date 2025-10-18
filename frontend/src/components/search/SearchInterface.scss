@@ -251,6 +251,268 @@
 }
 
 // ==========================================
+// Chain of Thought Panel
+// ==========================================
+.cot-panel {
+  background: #f4f4f4; // Carbon gray-10
+  border: 1px solid #e0e0e0; // Carbon gray-20
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.cot-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #e0e0e0; // Carbon gray-20
+}
+
+.cot-panel-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #161616; // Carbon gray-100
+  margin: 0;
+}
+
+.cot-panel-count {
+  font-size: 0.875rem;
+  color: #525252; // Carbon gray-70
+  background: #e0e0e0; // Carbon gray-20
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+}
+
+.cot-panel-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+// Chain of Thought Step
+.cot-step {
+  position: relative;
+}
+
+.cot-step-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.cot-step-number {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: #0f62fe; // Carbon blue-60
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.875rem;
+  flex-shrink: 0;
+}
+
+.cot-step-title {
+  font-weight: 600;
+  color: #161616; // Carbon gray-100
+  font-size: 0.875rem;
+}
+
+.cot-step-sources {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  color: #525252; // Carbon gray-70
+  margin-left: auto;
+}
+
+.cot-step-sources-icon {
+  color: #0f62fe; // Carbon blue-60
+}
+
+.cot-step-content {
+  background: white;
+  border-radius: 0.375rem;
+  padding: 0.75rem;
+  margin-left: 2.75rem;
+}
+
+.cot-step-section {
+  margin-bottom: 0.75rem;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.cot-step-label {
+  font-weight: 600;
+  font-size: 0.75rem;
+  color: #161616; // Carbon gray-100
+  margin-bottom: 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.cot-step-text {
+  font-size: 0.875rem;
+  color: #525252; // Carbon gray-70
+  line-height: 1.5;
+}
+
+.cot-step-reasoning {
+  font-size: 0.8125rem;
+  color: #6f6f6f; // Carbon gray-60
+  line-height: 1.5;
+  font-style: italic;
+}
+
+.cot-step-connector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0.5rem 0;
+  margin-left: 1rem;
+}
+
+.cot-step-connector-line {
+  width: 2px;
+  height: 1.5rem;
+  background: #c6c6c6; // Carbon gray-30
+}
+
+.cot-step-connector-arrow {
+  color: #0f62fe; // Carbon blue-60
+  font-size: 1.25rem;
+  font-weight: bold;
+}
+
+.cot-panel-synthesis {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #d0e2ff; // Carbon blue-10
+  border: 1px solid #a6c8ff; // Carbon blue-20
+  border-radius: 0.375rem;
+}
+
+.cot-panel-synthesis-label {
+  font-weight: 600;
+  font-size: 0.75rem;
+  color: #002d9c; // Carbon blue-80
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+}
+
+.cot-panel-synthesis-text {
+  font-size: 0.875rem;
+  color: #0043ce; // Carbon blue-70
+  line-height: 1.5;
+}
+
+// ==========================================
+// Token Usage Panel
+// ==========================================
+.token-usage-panel {
+  border-radius: 0.5rem;
+  padding: 1rem;
+  border: 1px solid;
+}
+
+.token-usage-info {
+  background: #d0e2ff; // Carbon blue-10
+  border-color: #a6c8ff; // Carbon blue-20
+}
+
+.token-usage-warning {
+  background: #fcf4d6; // Carbon yellow-10
+  border-color: #f1c21b; // Carbon yellow-30
+}
+
+.token-usage-critical {
+  background: #fff1f1; // Carbon red-10
+  border-color: #ffc0cb; // Lighter red
+}
+
+.token-usage-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.token-usage-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #161616; // Carbon gray-100
+  margin: 0;
+}
+
+.token-usage-progress-container {
+  width: 100%;
+  height: 0.5rem;
+  background: #e0e0e0; // Carbon gray-20
+  border-radius: 0.25rem;
+  overflow: hidden;
+  margin-bottom: 0.75rem;
+}
+
+.token-usage-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #24a148 0%, #f1c21b 70%, #da1e28 100%);
+  transition: width 0.3s ease;
+}
+
+.token-usage-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.token-usage-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.token-usage-stat-label {
+  font-size: 0.75rem;
+  color: #525252; // Carbon gray-70
+  font-weight: 500;
+}
+
+.token-usage-stat-value {
+  font-size: 0.875rem;
+  color: #161616; // Carbon gray-100
+  font-weight: 600;
+}
+
+.token-usage-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: #525252; // Carbon gray-70
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 0.25rem;
+}
+
+.token-usage-suggestion {
+  margin-top: 0.5rem;
+  font-size: 0.8125rem;
+  color: #0043ce; // Carbon blue-70
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 0.25rem;
+}
+
+// ==========================================
 // Responsive Design
 // ==========================================
 @media (max-width: 640px) {
@@ -289,5 +551,18 @@
   .source-card-footer {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .cot-step-content {
+    margin-left: 0;
+  }
+
+  .cot-step-connector {
+    margin-left: 0;
+  }
+
+  .token-usage-stats {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
   }
 }
