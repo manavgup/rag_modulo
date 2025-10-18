@@ -19,7 +19,7 @@
     "react-dnd-html5-backend": "^16.0.1",
     "react-dom": "^18.3.1",
     "react-flow-renderer": "^10.3.17",
-    "react-pdf": "^10.1.0",
+    "react-pdf": "^10.2.0",
     "react-router-dom": "^6.24.0",
     "react-scripts": "5.0.1",
     "tailwindcss": "^3.4.17",
