@@ -735,7 +735,7 @@ const LightweightSearchInterface: React.FC = () => {
         <div className="grid grid-cols-1 gap-6">
           {/* Main Chat Area */}
           <div>
-            <div className="card flex flex-col h-[600px]">
+            <div className="card flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
               {/* Messages */}
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {messages.map((message) => (
