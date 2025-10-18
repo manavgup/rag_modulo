@@ -798,7 +798,7 @@ const LightweightSearchInterface: React.FC = () => {
                             <button
                               onClick={() => {
                                 setSourceModalOpen(message.id);
-                                setSourceModalSources(message.sources);
+                                setSourceModalSources(message.sources || []);
                               }}
                               className="w-full flex items-center justify-between px-3 py-2 text-sm text-blue-60 hover:text-blue-70 hover:bg-gray-10 border border-gray-30 rounded-md transition-colors"
                             >
