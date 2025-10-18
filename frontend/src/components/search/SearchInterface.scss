@@ -1,0 +1,61 @@
+// SearchInterface.scss
+// Styling for search interface components using Carbon Design System variables
+
+// Message Metadata Footer
+.message-metadata-footer {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.metadata-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+}
+
+.metadata-item {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  color: #525252; // Carbon gray-70
+}
+
+.metadata-icon {
+  flex-shrink: 0;
+  color: #0f62fe; // Carbon blue-60
+}
+
+.metadata-text {
+  white-space: nowrap;
+}
+
+// Specific metadata item types
+.metadata-sources .metadata-icon {
+  color: #0f62fe; // Carbon blue-60
+}
+
+.metadata-steps .metadata-icon {
+  color: #198038; // Carbon green-60
+}
+
+.metadata-tokens .metadata-icon {
+  color: #8a3ffc; // Carbon purple-60
+}
+
+.metadata-time .metadata-icon {
+  color: #f1c21b; // Carbon yellow-30
+}
+
+// Responsive design
+@media (max-width: 640px) {
+  .metadata-items {
+    gap: 0.5rem;
+  }
+
+  .metadata-item {
+    font-size: 0.6875rem; // 11px
+  }
+}

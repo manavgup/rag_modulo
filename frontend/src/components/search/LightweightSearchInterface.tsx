@@ -26,6 +26,8 @@ import {
 } from '@heroicons/react/24/outline';
 import { useNotification } from '../../contexts/NotificationContext';
 import SourceList from './SourceList';
+import MessageMetadataFooter from './MessageMetadataFooter';
+import './SearchInterface.scss';
 
 // Import API client and WebSocket client
 import apiClient, { Collection, CollectionDocument, ConversationSession, ConversationMessage, CreateConversationInput } from '../../services/apiClient';
@@ -747,6 +749,16 @@ const LightweightSearchInterface: React.FC = () => {
                       )}
 
                       <div className="whitespace-pre-wrap">{message.content}</div>
+
+                      {/* Message Metadata Footer */}
+                      {message.type === 'assistant' && (
+                        <MessageMetadataFooter
+                          sourcesCount={message.sources?.length || 0}
+                          stepsCount={message.cot_output?.total_steps}
+                          tokenCount={message.token_warning?.current_tokens}
+                          responseTime={message.metadata?.execution_time}
+                        />
+                      )}
 
                       {/* Message actions for referencing */}
                       <div className="mt-2 flex items-center justify-between">
