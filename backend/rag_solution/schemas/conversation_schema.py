@@ -265,6 +265,8 @@ class ConversationMessageOutput(BaseModel):
     token_count: int | None = Field(default=None, description="Token count for this message")
     execution_time: float | None = Field(default=None, description="Execution time in seconds")
     token_warning: dict[str, Any] | None = Field(default=None, description="Token usage warning if applicable")
+    sources: list[dict[str, Any]] | None = Field(default=None, description="Source documents with full metadata")
+    cot_output: dict[str, Any] | None = Field(default=None, description="Chain of Thought reasoning output")
 
     @classmethod
     def from_db_message(cls, message: Any) -> "ConversationMessageOutput":

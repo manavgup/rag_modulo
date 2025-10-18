@@ -375,22 +375,37 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
 
         logger.info("🧠 Final CoT extraction: cot_used=%s, cot_steps_count=%d", cot_used, len(cot_steps))
 
-        # Convert DocumentMetadata objects to dictionaries for JSON serialization
+        # Convert DocumentMetadata objects to dictionaries for JSON serialization in frontend format
         def serialize_documents(documents):
-            """Convert DocumentMetadata objects to JSON-serializable dictionaries."""
+            """Convert DocumentMetadata objects to JSON-serializable dictionaries matching frontend schema.
+
+            Frontend expects: {document_name: str, content: str, metadata: dict}
+            """
             serialized = []
             for doc in documents:
                 if hasattr(doc, "__dict__"):
-                    # Convert object to dict, handling any nested objects
-                    doc_dict = {}
+                    # Extract fields matching frontend schema
+                    doc_dict = {
+                        "document_name": getattr(doc, "document_name", getattr(doc, "name", "Unknown Document")),
+                        "content": getattr(doc, "content", getattr(doc, "text", "")),
+                        "metadata": {},
+                    }
+
+                    # Collect all other attributes into metadata dict
                     for key, value in doc.__dict__.items():
-                        if isinstance(value, str | int | float | bool | type(None)):
-                            doc_dict[key] = value
-                        else:
-                            doc_dict[key] = str(value)
+                        if key not in ["document_name", "name", "content", "text"]:
+                            if isinstance(value, str | int | float | bool | type(None)):
+                                doc_dict["metadata"][key] = value
+                            else:
+                                doc_dict["metadata"][key] = str(value)
+
+                    # Add score to metadata if present
+                    if hasattr(doc, "score"):
+                        doc_dict["metadata"]["score"] = doc.score
                     serialized.append(doc_dict)
                 else:
-                    serialized.append(str(doc))
+                    # Fallback for unknown types
+                    serialized.append({"document_name": "Unknown", "content": str(doc), "metadata": {}})
             return serialized
 
         # Serialize search sources
@@ -543,7 +558,18 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
             assistant_message.token_warning = token_warning_dict
             logger.info("📊 CONVERSATION SERVICE: Added token warning to response")
 
-        logger.info("🎉 CONVERSATION SERVICE: Returning assistant message with full metadata")
+        # Add full source documents to the response for frontend consumption
+        # Frontend expects: sources: [{document_name, content, metadata}]
+        if serialized_documents:
+            assistant_message.sources = serialized_documents
+            logger.info(f"📊 CONVERSATION SERVICE: Added {len(serialized_documents)} sources to response")
+
+        # Add CoT output to the response if CoT was used
+        if cot_used and hasattr(search_result, "cot_output") and search_result.cot_output:
+            assistant_message.cot_output = search_result.cot_output
+            logger.info("📊 CONVERSATION SERVICE: Added CoT output to response")
+
+        logger.info("🎉 CONVERSATION SERVICE: Returning assistant message with full metadata, sources, and CoT")
         return assistant_message
 
     async def get_session_statistics(self, session_id: UUID, user_id: UUID) -> SessionStatistics:
