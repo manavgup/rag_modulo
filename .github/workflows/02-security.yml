@@ -28,7 +28,7 @@ jobs:
     steps:
       # 0️⃣ Checkout source code with full history for secret scanning
       - name: 📥 Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0  # Need full history to scan all commits
 
@@ -46,7 +46,7 @@ jobs:
     steps:
       # 0️⃣ Checkout source code with full history
       - name: 📥 Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0  # Need full history for differential scanning
 

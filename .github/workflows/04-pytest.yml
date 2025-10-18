@@ -44,7 +44,7 @@ jobs:
     steps:
       # 0️⃣ Checkout source code
       - name: 📥 Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # 1️⃣ Setup Python environment
       - name: 🐍 Set up Python
