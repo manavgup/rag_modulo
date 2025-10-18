@@ -563,6 +563,7 @@ Available images:
 - **[⚙️ Configuration Guide](docs/configuration.md)** - Environment setup and configuration
 - **[🔌 API Reference](docs/api/README.md)** - Complete API documentation
 - **[🖥️ CLI Documentation](docs/cli/index.md)** - Command-line interface guide
+- **[🔐 Secret Management](docs/development/secret-management.md)** - Comprehensive guide for safe secret handling
 
 ### 🛠️ Command-Line Interface (CLI)
 
@@ -714,16 +715,33 @@ RAG Modulo uses a comprehensive CI/CD pipeline with multiple stages:
 [![CI Pipeline](https://github.com/manavgup/rag_modulo/workflows/CI/badge.svg)](https://github.com/manavgup/rag_modulo/actions)
 ```
 
-#### 2. Security Scanning (`.github/workflows/security.yml`)
+#### 2. Security Scanning (`.github/workflows/02-security.yml`)
 
-**Triggers:** Push to `main`, Pull Requests, Weekly schedule
+**Triggers:** Push to `main`, Pull Requests
+
+**Secret Detection (3-Layer Defense):**
+1. **Pre-commit hooks**: detect-secrets with baseline (< 1 sec)
+2. **Local testing**: Gitleaks via `make pre-commit-run` (~1-2 sec)
+3. **CI/CD**: Gitleaks + TruffleHog (~45 sec)
 
 **Scans:**
+- **Gitleaks**: Pattern-based secret scanning with custom rules (`.gitleaks.toml`)
+- **TruffleHog**: Entropy-based + verified secret detection
 - **Trivy**: Container vulnerability scanning
 - **Bandit**: Python security linting
-- **Gitleaks**: Secret detection
 - **Safety**: Python dependency vulnerabilities
 - **Semgrep**: SAST code analysis
+
+**⚠️ IMPORTANT:** CI now **fails on ANY secret detection** (no `continue-on-error`). This ensures no secrets make their way to the repository.
+
+**Supported Secret Types:**
+- Cloud: AWS, Azure, GCP keys
+- LLM: OpenAI, Anthropic, WatsonX, Gemini API keys
+- Infrastructure: PostgreSQL, MinIO, MLFlow, JWT secrets
+- Version Control: GitHub/GitLab tokens
+- Generic: High-entropy strings, private keys
+
+**See:** [`docs/development/secret-management.md`](docs/development/secret-management.md) for comprehensive guide
 
 #### 3. Documentation (`.github/workflows/docs.yml`)
 

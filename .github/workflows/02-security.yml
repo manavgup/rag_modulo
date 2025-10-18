@@ -25,7 +25,6 @@ jobs:
   gitleaks:
     name: 🔐 Gitleaks Secret Scanning
     runs-on: ubuntu-latest
-    continue-on-error: true  # Don't block PR on false positives
     steps:
       # 0️⃣ Checkout source code with full history for secret scanning
       - name: 📥 Checkout code
@@ -40,20 +39,10 @@ jobs:
           GITLEAKS_CONFIG: .gitleaks.toml
           GITLEAKS_ENABLE_UPLOAD: false
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        continue-on-error: true
-
-      # 2️⃣ Report findings if secrets detected
-      - name: 📊 Report Gitleaks status
-        if: failure()
-        run: |
-          echo "⚠️ Gitleaks detected potential secrets. Please review the findings above."
-          echo "If these are false positives, update .gitleaks.toml allowlist."
-          exit 0
 
   trufflehog:
     name: 🐷 TruffleHog Secret Scanning
     runs-on: ubuntu-latest
-    continue-on-error: true  # Don't block PR on false positives
     steps:
       # 0️⃣ Checkout source code with full history
       - name: 📥 Checkout code
@@ -69,12 +58,3 @@ jobs:
           base: ${{ github.event.pull_request.base.sha }}
           head: ${{ github.event.pull_request.head.sha }}
           extra_args: --only-verified  # Only flag verified secrets
-        continue-on-error: true
-
-      # 2️⃣ Report findings if verified secrets detected
-      - name: 📊 Report TruffleHog status
-        if: failure()
-        run: |
-          echo "⚠️ TruffleHog detected verified secrets. Please review the findings above."
-          echo "Remove any real secrets and rotate compromised credentials immediately."
-          exit 0

@@ -130,6 +130,51 @@ stopwords = [
     tags = ["secret", "JWT"]
 
 [[rules]]
+    id = "openai-api-key"
+    description = "OpenAI API Key"
+    regex = '''sk-[a-zA-Z0-9]{48}'''
+    tags = ["key", "OpenAI"]
+
+[[rules]]
+    id = "openai-project-key"
+    description = "OpenAI Project API Key"
+    regex = '''sk-proj-[a-zA-Z0-9]{48}'''
+    tags = ["key", "OpenAI"]
+
+[[rules]]
+    id = "google-gemini-api-key"
+    description = "Google Gemini API Key"
+    regex = '''AIza[0-9A-Za-z\\-_]{35}'''
+    tags = ["key", "Google", "Gemini"]
+
+[[rules]]
+    id = "azure-storage-account-key"
+    description = "Azure Storage Account Key"
+    regex = '''(?i)(AZURE_STORAGE_ACCOUNT_KEY|AZURE_STORAGE_CONNECTION_STRING)\s*[=:]\s*['"]?([a-zA-Z0-9+/=]{88})['"]?'''
+    tags = ["key", "Azure", "Storage"]
+
+[[rules]]
+    id = "azure-subscription-key"
+    description = "Azure Subscription Key"
+    regex = '''[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'''
+    keywords = ["azure", "subscription"]
+    tags = ["key", "Azure"]
+
+[[rules]]
+    id = "gcp-service-account-key"
+    description = "GCP Service Account Key (JSON)"
+    regex = '''"type":\s*"service_account"'''
+    keywords = ["private_key", "project_id"]
+    tags = ["key", "GCP", "ServiceAccount"]
+
+[[rules]]
+    id = "gcp-api-key"
+    description = "GCP API Key"
+    regex = '''AIza[0-9A-Za-z\\-_]{35}'''
+    keywords = ["gcp", "google-cloud", "googleapis"]
+    tags = ["key", "GCP"]
+
+[[rules]]
     id = "high-entropy-strings"
     description = "High Entropy String (possible secret)"
     regex = '''[a-zA-Z0-9+/=]{32,}'''
