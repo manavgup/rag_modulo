@@ -105,7 +105,7 @@ jobs:
 
       # ===== STAGE 2: Build Docker Image with Optimizations =====
       - name: 🏗️ Build Docker Image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
