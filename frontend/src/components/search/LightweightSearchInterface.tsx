@@ -27,6 +27,7 @@ import {
 import { useNotification } from '../../contexts/NotificationContext';
 import SourceList from './SourceList';
 import MessageMetadataFooter from './MessageMetadataFooter';
+import SourceModal from './SourceModal';
 import './SearchInterface.scss';
 
 // Import API client and WebSocket client
@@ -65,6 +66,8 @@ const LightweightSearchInterface: React.FC = () => {
   const [showSources, setShowSources] = useState<{ [key: string]: boolean }>({});
   const [showTokens, setShowTokens] = useState<{ [key: string]: boolean }>({});
   const [showCoT, setShowCoT] = useState<{ [key: string]: boolean }>({});
+  const [sourceModalOpen, setSourceModalOpen] = useState<string | null>(null);
+  const [sourceModalSources, setSourceModalSources] = useState<any[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>({ connected: false, connecting: false });
   const [isTyping, setIsTyping] = useState(false);
@@ -790,26 +793,21 @@ const LightweightSearchInterface: React.FC = () => {
 
                       {message.type === 'assistant' && (
                         <div className="mt-3 space-y-2">
-                          {/* Sources Accordion */}
+                          {/* Sources Button - Opens Modal */}
                           {message.sources && message.sources.length > 0 && (
-                            <div className="border border-gray-30 rounded-md">
-                              <button
-                                onClick={() => toggleSources(message.id)}
-                                className="w-full flex items-center justify-between px-3 py-2 text-sm text-blue-60 hover:text-blue-70 hover:bg-gray-10"
-                              >
-                                <div className="flex items-center space-x-2">
-                                  <DocumentIcon className="w-4 h-4" />
-                                  <span>Sources ({message.sources.length})</span>
-                                </div>
-                                {showSources[message.id] ? <ChevronUpIcon className="w-4 h-4" /> : <ChevronDownIcon className="w-4 h-4" />}
-                              </button>
-
-                              {showSources[message.id] && (
-                                <div className="border-t border-gray-30 p-3">
-                                  <SourceList sources={message.sources} />
-                                </div>
-                              )}
-                            </div>
+                            <button
+                              onClick={() => {
+                                setSourceModalOpen(message.id);
+                                setSourceModalSources(message.sources);
+                              }}
+                              className="w-full flex items-center justify-between px-3 py-2 text-sm text-blue-60 hover:text-blue-70 hover:bg-gray-10 border border-gray-30 rounded-md transition-colors"
+                            >
+                              <div className="flex items-center space-x-2">
+                                <DocumentIcon className="w-4 h-4" />
+                                <span className="font-medium">View Sources ({message.sources.length})</span>
+                              </div>
+                              <EyeIcon className="w-4 h-4" />
+                            </button>
                           )}
 
                           {/* Token Usage Accordion */}
@@ -1051,6 +1049,16 @@ const LightweightSearchInterface: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Source Modal */}
+        <SourceModal
+          isOpen={sourceModalOpen !== null}
+          onClose={() => {
+            setSourceModalOpen(null);
+            setSourceModalSources([]);
+          }}
+          sources={sourceModalSources}
+        />
 
         {/* Conversation Summary Modal */}
         {showSummaryModal && conversationSummary && (
