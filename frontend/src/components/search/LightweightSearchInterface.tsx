@@ -1,33 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
   PaperAirplaneIcon,
-  FunnelIcon,
-  DocumentIcon,
-  ShareIcon,
-  BookmarkIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
-  CpuChipIcon,
-  LightBulbIcon,
-  ExclamationTriangleIcon,
-  InformationCircleIcon,
-  ClockIcon,
-  ChatBubbleLeftRightIcon,
-  PlusIcon,
-  TrashIcon,
-  ArchiveBoxIcon,
-  PencilIcon,
-  ArrowUturnLeftIcon,
   LinkIcon,
-  EyeIcon,
-  DocumentTextIcon,
-  ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline';
 import { useNotification } from '../../contexts/NotificationContext';
-import SourceList from './SourceList';
 import MessageMetadataFooter from './MessageMetadataFooter';
 import SourceModal from './SourceModal';
 import SourcesAccordion from './SourcesAccordion';
@@ -36,26 +15,8 @@ import TokenAnalysisAccordion from './TokenAnalysisAccordion';
 import './SearchInterface.scss';
 
 // Import API client and WebSocket client
-import apiClient, { Collection, CollectionDocument, ConversationSession, ConversationMessage, CreateConversationInput } from '../../services/apiClient';
+import apiClient, { Collection, CollectionDocument, ConversationSession, CreateConversationInput } from '../../services/apiClient';
 import websocketClient, { ChatMessage as WSChatMessage, ConnectionStatus } from '../../services/websocketClient';
-
-interface SearchResult {
-  id: string;
-  title: string;
-  content: string;
-  source: string;
-  score: number;
-  metadata: {
-    author?: string;
-    date?: string;
-    type?: string;
-    tags?: string[];
-  };
-  highlights: {
-    text: string;
-    score: number;
-  }[];
-}
 
 // Use ChatMessage from WebSocket client
 type ChatMessage = WSChatMessage;
@@ -65,7 +26,6 @@ const LightweightSearchInterface: React.FC = () => {
   const location = useLocation();
   const [query, setQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
   const [selectedCollection, setSelectedCollection] = useState('all');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [showSources, setShowSources] = useState<{ [key: string]: boolean }>({});
@@ -81,7 +41,6 @@ const LightweightSearchInterface: React.FC = () => {
 
   // Message referencing state
   const [referencedMessage, setReferencedMessage] = useState<ChatMessage | null>(null);
-  const [showMessageSelector, setShowMessageSelector] = useState(false);
 
   // Summary state
   const [showSummaryModal, setShowSummaryModal] = useState(false);
@@ -93,39 +52,9 @@ const LightweightSearchInterface: React.FC = () => {
   const [currentConversation, setCurrentConversation] = useState<ConversationSession | null>(null);
   const [showNewConversationModal, setShowNewConversationModal] = useState(false);
   const [newConversationName, setNewConversationName] = useState('');
-  const [isLoadingConversations, setIsLoadingConversations] = useState(false);
 
-  // Load collection data from location state (passed from collections page)
-  useEffect(() => {
-    if (location.state) {
-      const { collectionId, collectionName, collectionDescription } = location.state as {
-        collectionId?: string;
-        collectionName?: string;
-        collectionDescription?: string;
-      };
-
-      if (collectionId && collectionName) {
-        setCurrentCollectionId(collectionId);
-        setCurrentCollectionName(collectionName);
-        setSelectedCollection(collectionId);
-
-        addNotification('info', 'Collection Loaded', `Now chatting with ${collectionName}`);
-      }
-    }
-  }, [location.state, addNotification]);
-
-  // Check for session parameter in URL
-  useEffect(() => {
-    const urlParams = new URLSearchParams(location.search);
-    const sessionId = urlParams.get('session');
-
-    if (sessionId) {
-      // Load the specific conversation
-      loadSpecificConversation(sessionId);
-    }
-  }, [location.search]);
-
-  const loadSpecificConversation = async (sessionId: string) => {
+  // Load specific conversation - wrapped in useCallback to fix exhaustive-deps
+  const loadSpecificConversation = useCallback(async (sessionId: string) => {
     try {
       const conversation = await apiClient.getConversation(sessionId);
       setCurrentConversation(conversation);
@@ -149,20 +78,46 @@ const LightweightSearchInterface: React.FC = () => {
         setCurrentCollectionName(collection.name);
         setSelectedCollection(conversation.collection_id);
       } catch (error) {
-        console.error('Failed to load collection:', error);
+        // Collection load failed - non-critical, continue
       }
     } catch (error) {
-      console.error('Failed to load conversation:', error);
       addNotification('error', 'Error', 'Failed to load conversation');
     }
-  };
+  }, [addNotification]);
+
+  // Load collection data from location state (passed from collections page)
+  useEffect(() => {
+    if (location.state) {
+      const { collectionId, collectionName } = location.state as {
+        collectionId?: string;
+        collectionName?: string;
+      };
+
+      if (collectionId && collectionName) {
+        setCurrentCollectionId(collectionId);
+        setCurrentCollectionName(collectionName);
+        setSelectedCollection(collectionId);
+
+        addNotification('info', 'Collection Loaded', `Now chatting with ${collectionName}`);
+      }
+    }
+  }, [location.state, addNotification]);
+
+  // Check for session parameter in URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const sessionId = urlParams.get('session');
+
+    if (sessionId) {
+      loadSpecificConversation(sessionId);
+    }
+  }, [location.search, loadSpecificConversation]);
 
   // Load conversations for current collection
   useEffect(() => {
     const loadConversations = async () => {
       if (!currentCollectionId || currentCollectionId === 'all') return;
 
-      setIsLoadingConversations(true);
       try {
         const conversationsData = await apiClient.getConversations(undefined, currentCollectionId);
         setConversations(conversationsData);
@@ -201,10 +156,7 @@ const LightweightSearchInterface: React.FC = () => {
           setMessages(chatMessages);
         }
       } catch (error) {
-        console.error('Error loading conversations:', error);
         addNotification('error', 'Loading Error', 'Failed to load conversations.');
-      } finally {
-        setIsLoadingConversations(false);
       }
     };
 
@@ -233,7 +185,6 @@ const LightweightSearchInterface: React.FC = () => {
         ];
         setCollections(formattedCollections);
       } catch (error) {
-        console.error('Error loading collections:', error);
         addNotification('error', 'Loading Error', 'Failed to load collections.');
       }
     };
@@ -274,9 +225,7 @@ const LightweightSearchInterface: React.FC = () => {
       try {
         const currentUser = await apiClient.getCurrentUser();
         userId = currentUser.id;
-        console.log('🔍 Using authenticated user ID:', userId);
       } catch (authError) {
-        console.error('Failed to get current user:', authError);
         // If auth fails, the search will likely fail too, but let's try anyway
         // The backend should handle the auth properly
         throw new Error('Authentication required. Please ensure you are logged in.');
@@ -289,7 +238,6 @@ const LightweightSearchInterface: React.FC = () => {
 
       // Use conversation endpoint if we have an active conversation (saves messages)
       if (activeConversation) {
-        console.log('🔍 Using conversation endpoint to save message history...');
         const conversationMessage = await apiClient.sendConversationMessage(activeConversation.id, query);
 
         // Convert conversation message response to search response format
@@ -309,7 +257,6 @@ const LightweightSearchInterface: React.FC = () => {
         };
       } else {
         // Fallback to stateless search (does not save conversation)
-        console.log('🔍 No active conversation, using stateless search endpoint...');
         searchResponse = await apiClient.search({
           question: query,
           collection_id: collectionId,
@@ -336,9 +283,6 @@ const LightweightSearchInterface: React.FC = () => {
         metadata: Record<string, any>;
       }> = [];
 
-      console.log('🔍 Documents array:', searchResponse.documents);
-      console.log('🔍 Query Results array:', searchResponse.query_results);
-
       // Prioritize query_results as they contain chunk-specific information with page numbers
       if (searchResponse.query_results && Array.isArray(searchResponse.query_results) && searchResponse.query_results.length > 0) {
         // Create a mapping of document_id to document_name from the documents array
@@ -349,8 +293,6 @@ const LightweightSearchInterface: React.FC = () => {
         if (searchResponse.documents && searchResponse.documents.length > 0) {
           // Get all unique document IDs from query results
           const uniqueDocIds: string[] = Array.from(new Set(searchResponse.query_results.map((r: any) => r.chunk.document_id as string)));
-          console.log(`🔍 Unique document IDs:`, uniqueDocIds);
-          console.log(`🔍 Available documents:`, searchResponse.documents);
 
           // Map document IDs to document names (using order as a heuristic)
           uniqueDocIds.forEach((docId, index) => {
@@ -358,28 +300,22 @@ const LightweightSearchInterface: React.FC = () => {
               const doc = searchResponse.documents[index];
               if (doc && doc.document_name) {
                 docIdToNameMap.set(docId, doc.document_name);
-                console.log(`🔍 Mapped ${docId} -> ${doc.document_name}`);
               }
             }
           });
         }
 
         // Use query_results chunks - contains chunk-specific information with page numbers
-        sources = searchResponse.query_results.map((result: any, index: number) => {
-          console.log(`🔍 Query Result ${index}:`, result);
-          console.log(`🔍 Looking for document_id: ${result.chunk.document_id}`);
-
+        sources = searchResponse.query_results.map((result: any) => {
           // Try to get document name from our mapping
           let documentName = 'Unknown Document';
           if (docIdToNameMap.has(result.chunk.document_id)) {
             documentName = docIdToNameMap.get(result.chunk.document_id)!;
-            console.log(`🔍 Using mapped document name:`, documentName);
           } else {
             // Fallback: use the first document name as a default
             const firstDoc = searchResponse.documents?.[0];
             if (firstDoc && firstDoc.document_name) {
               documentName = firstDoc.document_name;
-              console.log(`🔍 Using fallback document name:`, documentName);
             }
           }
 
@@ -410,8 +346,6 @@ const LightweightSearchInterface: React.FC = () => {
       } else if (searchResponse.documents && Array.isArray(searchResponse.documents)) {
         // Fallback to documents format (may lack chunk-specific page numbers)
         sources = searchResponse.documents.map((doc: any, index: number) => {
-          console.log(`🔍 Document ${index}:`, doc);
-
           // Try to extract document name and page number from the document
           const documentName = doc.document_name || doc.title || doc.name || `Document ${index + 1}`;
           const pageNumber = doc.page_number || doc.metadata?.page_number || 'Unknown';
@@ -445,27 +379,10 @@ const LightweightSearchInterface: React.FC = () => {
         cot_output: searchResponse.cot_output,
       };
 
-      console.log('🔍 FULL API RESPONSE:', searchResponse);
-      console.log('🔍 API Response Keys:', Object.keys(searchResponse));
-      console.log('🔍 CoT Output:', searchResponse.cot_output);
-      console.log('🔍 Token Warning:', searchResponse.token_warning);
-      console.log('🔍 Documents:', searchResponse.documents);
-      console.log('🔍 Sources:', searchResponse.sources);
-      console.log('🔍 Query Results:', (searchResponse as any).query_results);
-      console.log('🔍 REST API response data:', {
-        answer: searchResponse.answer ? `${searchResponse.answer.substring(0, 50)}...` : 'no answer',
-        sources: sources.length > 0 ? `${sources.length} sources` : 'no sources',
-        documents: searchResponse.documents ? `${searchResponse.documents.length} documents` : 'no documents',
-        query_results: searchResponse.query_results ? `${searchResponse.query_results.length} query results` : 'no query results',
-        token_warning: searchResponse.token_warning ? `has token warning: ${searchResponse.token_warning.message}` : 'no token warning',
-        cot_output: searchResponse.cot_output ? `CoT: ${searchResponse.cot_output.steps?.length || 0} steps` : 'no CoT'
-      });
-
       setMessages(prev => [...prev, assistantMessage]);
       setIsLoading(false);
       addNotification('success', 'Search Complete', 'Search completed successfully via REST API.');
     } catch (error) {
-      console.error('REST API search failed:', error);
       setIsLoading(false);
       throw error;
     }
@@ -506,7 +423,6 @@ const LightweightSearchInterface: React.FC = () => {
       setShowNewConversationModal(false);
       addNotification('success', 'Conversation Created', `Created new conversation: ${newConversation.session_name}`);
     } catch (error) {
-      console.error('Error creating conversation:', error);
       addNotification('error', 'Creation Error', 'Failed to create new conversation.');
     }
   };
@@ -536,11 +452,11 @@ const LightweightSearchInterface: React.FC = () => {
       setMessages(chatMessages);
       addNotification('info', 'Conversation Switched', `Switched to ${conversation.session_name}`);
     } catch (error) {
-      console.error('Error switching conversation:', error);
       addNotification('error', 'Switch Error', 'Failed to switch conversation.');
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
   const deleteConversation = async (conversationId: string) => {
     try {
       await apiClient.deleteConversation(conversationId);
@@ -558,7 +474,6 @@ const LightweightSearchInterface: React.FC = () => {
       }
       addNotification('success', 'Conversation Deleted', 'Conversation deleted successfully.');
     } catch (error) {
-      console.error('Error deleting conversation:', error);
       addNotification('error', 'Delete Error', 'Failed to delete conversation.');
     }
   };
@@ -571,13 +486,13 @@ const LightweightSearchInterface: React.FC = () => {
       setShowSummaryModal(true);
       addNotification('success', 'Summary Generated', `Generated ${summaryType} summary for conversation.`);
     } catch (error) {
-      console.error('Error loading conversation summary:', error);
       addNotification('error', 'Summary Error', 'Failed to generate conversation summary.');
     } finally {
       setSummaryLoading(false);
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
   const exportConversation = async (conversationId: string, format: string = 'json') => {
     try {
       const exportData = await apiClient.exportConversation(conversationId, format);
@@ -598,7 +513,6 @@ const LightweightSearchInterface: React.FC = () => {
 
       addNotification('success', 'Export Complete', `Conversation exported as ${format.toUpperCase()}.`);
     } catch (error) {
-      console.error('Error exporting conversation:', error);
       addNotification('error', 'Export Error', 'Failed to export conversation.');
     }
   };
@@ -643,7 +557,6 @@ const LightweightSearchInterface: React.FC = () => {
         setConversations(prev => [newConversation, ...prev]);
         addNotification('info', 'Conversation Created', `Created new conversation for your chat.`);
       } catch (error) {
-        console.error('Error creating conversation:', error);
         addNotification('error', 'Conversation Error', 'Failed to create conversation. Using temporary session.');
       }
     }
@@ -670,11 +583,8 @@ const LightweightSearchInterface: React.FC = () => {
 
     try {
       // Primary method: REST API (more reliable)
-      console.log('🔍 Attempting REST API search...');
       await handleRestApiSearch(query, collectionId, activeConversation);
     } catch (restError) {
-      console.error('REST API search failed, trying WebSocket fallback:', restError);
-
       // Fallback to WebSocket if available
       if (connectionStatus.connected) {
         try {
@@ -683,12 +593,10 @@ const LightweightSearchInterface: React.FC = () => {
             timestamp: new Date().toISOString()
           }, currentConversation?.id);
         } catch (wsError) {
-          console.error('WebSocket search also failed:', wsError);
           addNotification('error', 'Search Error', 'Both REST API and WebSocket search failed. Please try again.');
           setIsLoading(false);
         }
       } else {
-        console.error('No WebSocket connection available for fallback');
         addNotification('error', 'Search Error', 'Search failed and no WebSocket connection available. Please try again.');
         setIsLoading(false);
       }
