@@ -156,8 +156,90 @@ def semantic_chunking(text: str, min_chunk_size: int = 1, max_chunk_size: int = 
     return chunks
 
 
+def sentence_based_chunking(
+    text: str, target_chars: int = 750, overlap_chars: int = 100, min_chars: int = 500
+) -> list[str]:
+    """Sentence-based chunking with conservative character limits (FAST, no API calls).
+
+    Strategy for IBM Slate 512-token limit:
+    - Conservative char/token ratio: 2.5 chars/token (handles technical docs)
+    - Target: 750 chars ≈ 300 tokens (guidance: 200-400 tokens for 512-token models)
+    - Overlap: 100 chars ≈ 40 tokens (~13% overlap)
+    - Min: 500 chars ≈ 200 tokens
+    - Max safe: 1000 chars ≈ 400 tokens (well under 512 limit)
+    - Chunks at sentence boundaries (semantic)
+
+    Args:
+        text: Input text to chunk
+        target_chars: Target characters per chunk (default: 750)
+        overlap_chars: Characters to overlap between chunks (default: 100)
+        min_chars: Minimum characters for a chunk (default: 500)
+
+    Returns:
+        List of sentence-based chunks
+    """
+    if not text:
+        return []
+
+    sentences = split_sentences(text)
+    if not sentences:
+        return []
+
+    chunks: list[str] = []
+    current_chunk: list[str] = []
+    current_char_count = 0
+
+    for sentence in sentences:
+        sentence_len = len(sentence)
+
+        # Check if adding this sentence would exceed target
+        if current_char_count + sentence_len > target_chars and current_chunk:
+            # Save current chunk
+            chunk_text = " ".join(current_chunk)
+            chunks.append(chunk_text)
+
+            # Create overlap: keep last sentences that fit in overlap_chars
+            overlap_chunk: list[str] = []
+            overlap_count = 0
+
+            for i in range(len(current_chunk) - 1, -1, -1):
+                sent_len = len(current_chunk[i])
+                if overlap_count + sent_len <= overlap_chars:
+                    overlap_chunk.insert(0, current_chunk[i])
+                    overlap_count += sent_len
+                else:
+                    break
+
+            current_chunk = overlap_chunk
+            current_char_count = overlap_count
+
+        current_chunk.append(sentence)
+        current_char_count += sentence_len
+
+    # Add final chunk if it meets minimum size
+    if current_chunk:
+        chunk_text = " ".join(current_chunk)
+
+        if len(chunk_text) >= min_chars or not chunks:
+            chunks.append(chunk_text)
+        elif chunks:
+            # Merge small final chunk with previous chunk
+            chunks[-1] += " " + chunk_text
+
+    avg_chars = sum(len(c) for c in chunks) / len(chunks) if chunks else 0
+    logger.info(
+        f"Created {len(chunks)} sentence-based chunks: avg {avg_chars:.0f} chars "
+        f"(~{avg_chars / 2.5:.0f} tokens estimated)"
+    )
+
+    return chunks
+
+
 def token_based_chunking(text: str, max_tokens: int = 100, overlap: int = 20) -> list[str]:
-    """Split text into chunks based on token count.
+    """DEPRECATED: Use efficient_token_chunking() instead.
+
+    This function makes WatsonX API calls for every sentence - very slow.
+    Kept for backward compatibility only.
 
     Args:
         text: Input text to chunk
@@ -167,6 +249,8 @@ def token_based_chunking(text: str, max_tokens: int = 100, overlap: int = 20) ->
     Returns:
         List of token-based chunks
     """
+    logger.warning("token_based_chunking() is deprecated - use efficient_token_chunking() instead")
+
     sentences = split_sentences(text)
     tokenized_sentences = get_tokenization(sentences)
 
@@ -281,6 +365,45 @@ def hierarchical_chunker_wrapper(text: str, settings: Settings = get_settings())
     return [chunk.text for chunk in child_chunks]
 
 
+def sentence_chunker(text: str, settings: Settings = get_settings()) -> list[str]:
+    """Sentence-based chunking using settings configuration.
+
+    Uses conservative character-to-token ratio (2.5:1) for IBM Slate safety.
+
+    Args:
+        text: Input text to chunk
+        settings: Configuration settings
+
+    Returns:
+        List of sentence-based chunks
+    """
+    # Convert config values assuming they're in tokens, multiply by 2.5 for chars
+    target_chars = int(settings.max_chunk_size * 2.5) if settings.max_chunk_size < 1000 else 750
+    overlap_chars = int(settings.chunk_overlap * 2.5) if settings.chunk_overlap < 200 else 100
+    min_chars = int(settings.min_chunk_size * 2.5) if settings.min_chunk_size < 500 else 500
+
+    return sentence_based_chunking(text, target_chars=target_chars, overlap_chars=overlap_chars, min_chars=min_chars)
+
+
+def token_chunker(text: str, settings: Settings = get_settings()) -> list[str]:
+    """DEPRECATED: Use sentence_chunker() instead - it's faster and safer.
+
+    This function makes WatsonX API calls which is very slow.
+
+    Args:
+        text: Input text to chunk
+        settings: Configuration settings
+
+    Returns:
+        List of token-based chunks
+    """
+    logger.warning("token_chunker() is deprecated - use sentence_chunker() instead")
+    # Use 80% of max tokens to leave safety margin
+    max_tokens = int(settings.max_chunk_size * 0.8) if settings.max_chunk_size < 512 else 410
+    overlap = int(settings.chunk_overlap * 0.8) if settings.chunk_overlap < 100 else 80
+    return token_based_chunking(text, max_tokens=max_tokens, overlap=overlap)
+
+
 def get_chunking_method(settings: Settings = get_settings()) -> Callable[[str], list[str]]:
     """Get the appropriate chunking method based on settings.
 
@@ -292,9 +415,13 @@ def get_chunking_method(settings: Settings = get_settings()) -> Callable[[str], 
     """
     strategy = settings.chunking_strategy.lower()
 
+    if strategy == "sentence":
+        return lambda text: sentence_chunker(text, settings)
     if strategy == "semantic":
         return semantic_chunker
     if strategy == "hierarchical":
         return lambda text: hierarchical_chunker_wrapper(text, settings)
+    if strategy == "token":
+        return lambda text: token_chunker(text, settings)
 
     return simple_chunker

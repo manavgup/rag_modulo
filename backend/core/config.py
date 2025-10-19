@@ -56,11 +56,18 @@ class Settings(BaseSettings):
     anthropic_api_key: Annotated[str | None, Field(default=None, alias="ANTHROPIC_API_KEY")]
 
     # Chunking settings
-    # Options: fixed, semantic, hierarchical
-    chunking_strategy: Annotated[str, Field(default="fixed", alias="CHUNKING_STRATEGY")]
-    min_chunk_size: Annotated[int, Field(default=100, alias="MIN_CHUNK_SIZE")]
-    max_chunk_size: Annotated[int, Field(default=400, alias="MAX_CHUNK_SIZE")]
-    chunk_overlap: Annotated[int, Field(default=10, alias="CHUNK_OVERLAP")]
+    # Options: sentence (RECOMMENDED), semantic, hierarchical, token, fixed
+    # sentence: Conservative char-to-token (2.5:1), targets 200-400 tokens, sentence boundaries, FAST
+    # semantic: Embedding-based semantic boundaries (medium speed)
+    # hierarchical: Parent-child structure for context (fast)
+    # token: Accurate tokenization via WatsonX API (SLOW - avoid)
+    # fixed: Simple character-based (fast but risky)
+    chunking_strategy: Annotated[str, Field(default="sentence", alias="CHUNKING_STRATEGY")]
+    # Values represent TOKENS for sentence/token strategies, CHARACTERS for others
+    # For IBM Slate (512 tokens): target 200-400 tokens per chunk
+    min_chunk_size: Annotated[int, Field(default=200, alias="MIN_CHUNK_SIZE")]  # min tokens
+    max_chunk_size: Annotated[int, Field(default=300, alias="MAX_CHUNK_SIZE")]  # target tokens
+    chunk_overlap: Annotated[int, Field(default=40, alias="CHUNK_OVERLAP")]  # overlap tokens (~13%)
     semantic_threshold: Annotated[float, Field(default=0.5, alias="SEMANTIC_THRESHOLD")]
 
     # Hierarchical chunking settings
@@ -110,8 +117,8 @@ class Settings(BaseSettings):
     llm_delay_time: Annotated[float, Field(default=0.5, alias="LLM_DELAY_TIME")]
 
     # LLM settings
-    max_new_tokens: Annotated[int, Field(default=500, alias="MAX_NEW_TOKENS")]
-    min_new_tokens: Annotated[int, Field(default=200, alias="MIN_NEW_TOKENS")]
+    max_new_tokens: Annotated[int, Field(default=1024, alias="MAX_NEW_TOKENS")]
+    min_new_tokens: Annotated[int, Field(default=100, alias="MIN_NEW_TOKENS")]
     max_context_length: Annotated[int, Field(default=2048, alias="MAX_CONTEXT_LENGTH")]  # Total context window
     random_seed: Annotated[int, Field(default=50, alias="RANDOM_SEED")]
     top_k: Annotated[int, Field(default=5, alias="TOP_K")]
