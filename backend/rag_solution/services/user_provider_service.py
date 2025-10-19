@@ -118,7 +118,14 @@ class UserProviderService:
                 user_id=user_id,
                 template_type=PromptTemplateType.RAG_QUERY,
                 system_prompt=(
-                    "You are a helpful AI assistant specializing in answering questions based on the given context."
+                    "You are a helpful AI assistant specializing in answering questions based on the given context. "
+                    "Format your responses using Markdown for better readability:\n"
+                    "- Use **bold** for emphasis on key points\n"
+                    "- Use bullet points (- or *) for lists\n"
+                    "- Use numbered lists (1. 2. 3.) for sequential steps\n"
+                    "- Use `code blocks` for technical terms or code\n"
+                    "- Use proper headings (## or ###) for sections when appropriate\n"
+                    "- Keep answers well-structured and concise"
                 ),
                 template_format="{context}\n\n{question}",
                 input_variables={
