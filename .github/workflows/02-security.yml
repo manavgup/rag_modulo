@@ -58,3 +58,53 @@ jobs:
           base: ${{ github.event.pull_request.base.sha }}
           head: ${{ github.event.pull_request.head.sha }}
           extra_args: --only-verified  # Only flag verified secrets
+
+  # 🚀 CI/CD OPTIMIZATION: Trivy filesystem scans (NO Docker build required!)
+  # This replaces slow Docker builds on PRs while maintaining security coverage
+  trivy-backend:
+    name: 🔍 Trivy - Backend Dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔍 Scan Python dependencies (pyproject.toml, poetry.lock)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: 'backend/'
+          format: 'sarif'
+          output: 'trivy-backend-deps.sarif'
+          severity: 'CRITICAL,HIGH'
+          scanners: 'vuln'  # Only vulnerabilities, not misconfigurations
+
+      - name: 📤 Upload Trivy Backend SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-backend-deps.sarif
+          category: trivy-backend-deps
+
+  trivy-frontend:
+    name: 🔍 Trivy - Frontend Dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔍 Scan Node dependencies (package.json, package-lock.json)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: 'frontend/'
+          format: 'sarif'
+          output: 'trivy-frontend-deps.sarif'
+          severity: 'CRITICAL,HIGH'
+          scanners: 'vuln'
+
+      - name: 📤 Upload Trivy Frontend SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-frontend-deps.sarif
+          category: trivy-frontend-deps
