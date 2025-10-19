@@ -405,7 +405,7 @@ def generate_batch(
 def generate_text_stream(
     prompt: str,
     model_id: str,
-    max_tokens: int = 150,
+    max_tokens: int = 1024,
     temperature: float = 0.7,
     timeout: int = 30,
     random_seed: int = 50,

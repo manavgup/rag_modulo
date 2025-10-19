@@ -298,7 +298,7 @@ class TestGetBatchDocumentChunkCounts:
             call_args = mock_collection.query.call_args
             assert call_args[1]["expr"] == 'document_id in ["doc_123", "doc_456"]'
             assert call_args[1]["output_fields"] == ["document_id"]
-            assert call_args[1]["limit"] == 100000
+            assert call_args[1]["limit"] == 16384
 
             # Verify correct counts are returned (3 for doc_123, 2 for doc_456)
             assert counts == {"doc_123": 3, "doc_456": 2}

@@ -1,53 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import {
   PaperAirplaneIcon,
-  FunnelIcon,
-  DocumentIcon,
-  ShareIcon,
-  BookmarkIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
-  CpuChipIcon,
-  LightBulbIcon,
-  ExclamationTriangleIcon,
-  InformationCircleIcon,
-  ClockIcon,
-  ChatBubbleLeftRightIcon,
-  PlusIcon,
-  TrashIcon,
-  ArchiveBoxIcon,
-  PencilIcon,
-  ArrowUturnLeftIcon,
   LinkIcon,
-  EyeIcon,
-  DocumentTextIcon,
-  ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline';
 import { useNotification } from '../../contexts/NotificationContext';
-import SourceList from './SourceList';
+import MessageMetadataFooter from './MessageMetadataFooter';
+import SourceModal from './SourceModal';
+import SourcesAccordion from './SourcesAccordion';
+import ChainOfThoughtAccordion from './ChainOfThoughtAccordion';
+import TokenAnalysisAccordion from './TokenAnalysisAccordion';
+import './SearchInterface.scss';
 
 // Import API client and WebSocket client
-import apiClient, { Collection, CollectionDocument, ConversationSession, ConversationMessage, CreateConversationInput } from '../../services/apiClient';
+import apiClient, { Collection, CollectionDocument, ConversationSession, CreateConversationInput } from '../../services/apiClient';
 import websocketClient, { ChatMessage as WSChatMessage, ConnectionStatus } from '../../services/websocketClient';
-
-interface SearchResult {
-  id: string;
-  title: string;
-  content: string;
-  source: string;
-  score: number;
-  metadata: {
-    author?: string;
-    date?: string;
-    type?: string;
-    tags?: string[];
-  };
-  highlights: {
-    text: string;
-    score: number;
-  }[];
-}
 
 // Use ChatMessage from WebSocket client
 type ChatMessage = WSChatMessage;
@@ -57,12 +26,13 @@ const LightweightSearchInterface: React.FC = () => {
   const location = useLocation();
   const [query, setQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
   const [selectedCollection, setSelectedCollection] = useState('all');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [showSources, setShowSources] = useState<{ [key: string]: boolean }>({});
   const [showTokens, setShowTokens] = useState<{ [key: string]: boolean }>({});
   const [showCoT, setShowCoT] = useState<{ [key: string]: boolean }>({});
+  const [sourceModalOpen, setSourceModalOpen] = useState<string | null>(null);
+  const [sourceModalSources, setSourceModalSources] = useState<any[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>({ connected: false, connecting: false });
   const [isTyping, setIsTyping] = useState(false);
@@ -71,7 +41,6 @@ const LightweightSearchInterface: React.FC = () => {
 
   // Message referencing state
   const [referencedMessage, setReferencedMessage] = useState<ChatMessage | null>(null);
-  const [showMessageSelector, setShowMessageSelector] = useState(false);
 
   // Summary state
   const [showSummaryModal, setShowSummaryModal] = useState(false);
@@ -83,39 +52,9 @@ const LightweightSearchInterface: React.FC = () => {
   const [currentConversation, setCurrentConversation] = useState<ConversationSession | null>(null);
   const [showNewConversationModal, setShowNewConversationModal] = useState(false);
   const [newConversationName, setNewConversationName] = useState('');
-  const [isLoadingConversations, setIsLoadingConversations] = useState(false);
 
-  // Load collection data from location state (passed from collections page)
-  useEffect(() => {
-    if (location.state) {
-      const { collectionId, collectionName, collectionDescription } = location.state as {
-        collectionId?: string;
-        collectionName?: string;
-        collectionDescription?: string;
-      };
-
-      if (collectionId && collectionName) {
-        setCurrentCollectionId(collectionId);
-        setCurrentCollectionName(collectionName);
-        setSelectedCollection(collectionId);
-
-        addNotification('info', 'Collection Loaded', `Now chatting with ${collectionName}`);
-      }
-    }
-  }, [location.state, addNotification]);
-
-  // Check for session parameter in URL
-  useEffect(() => {
-    const urlParams = new URLSearchParams(location.search);
-    const sessionId = urlParams.get('session');
-
-    if (sessionId) {
-      // Load the specific conversation
-      loadSpecificConversation(sessionId);
-    }
-  }, [location.search]);
-
-  const loadSpecificConversation = async (sessionId: string) => {
+  // Load specific conversation - wrapped in useCallback to fix exhaustive-deps
+  const loadSpecificConversation = useCallback(async (sessionId: string) => {
     try {
       const conversation = await apiClient.getConversation(sessionId);
       setCurrentConversation(conversation);
@@ -139,20 +78,46 @@ const LightweightSearchInterface: React.FC = () => {
         setCurrentCollectionName(collection.name);
         setSelectedCollection(conversation.collection_id);
       } catch (error) {
-        console.error('Failed to load collection:', error);
+        // Collection load failed - non-critical, continue
       }
     } catch (error) {
-      console.error('Failed to load conversation:', error);
       addNotification('error', 'Error', 'Failed to load conversation');
     }
-  };
+  }, [addNotification]);
+
+  // Load collection data from location state (passed from collections page)
+  useEffect(() => {
+    if (location.state) {
+      const { collectionId, collectionName } = location.state as {
+        collectionId?: string;
+        collectionName?: string;
+      };
+
+      if (collectionId && collectionName) {
+        setCurrentCollectionId(collectionId);
+        setCurrentCollectionName(collectionName);
+        setSelectedCollection(collectionId);
+
+        addNotification('info', 'Collection Loaded', `Now chatting with ${collectionName}`);
+      }
+    }
+  }, [location.state, addNotification]);
+
+  // Check for session parameter in URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const sessionId = urlParams.get('session');
+
+    if (sessionId) {
+      loadSpecificConversation(sessionId);
+    }
+  }, [location.search, loadSpecificConversation]);
 
   // Load conversations for current collection
   useEffect(() => {
     const loadConversations = async () => {
       if (!currentCollectionId || currentCollectionId === 'all') return;
 
-      setIsLoadingConversations(true);
       try {
         const conversationsData = await apiClient.getConversations(undefined, currentCollectionId);
         setConversations(conversationsData);
@@ -191,10 +156,7 @@ const LightweightSearchInterface: React.FC = () => {
           setMessages(chatMessages);
         }
       } catch (error) {
-        console.error('Error loading conversations:', error);
         addNotification('error', 'Loading Error', 'Failed to load conversations.');
-      } finally {
-        setIsLoadingConversations(false);
       }
     };
 
@@ -223,7 +185,6 @@ const LightweightSearchInterface: React.FC = () => {
         ];
         setCollections(formattedCollections);
       } catch (error) {
-        console.error('Error loading collections:', error);
         addNotification('error', 'Loading Error', 'Failed to load collections.');
       }
     };
@@ -264,9 +225,7 @@ const LightweightSearchInterface: React.FC = () => {
       try {
         const currentUser = await apiClient.getCurrentUser();
         userId = currentUser.id;
-        console.log('🔍 Using authenticated user ID:', userId);
       } catch (authError) {
-        console.error('Failed to get current user:', authError);
         // If auth fails, the search will likely fail too, but let's try anyway
         // The backend should handle the auth properly
         throw new Error('Authentication required. Please ensure you are logged in.');
@@ -279,7 +238,6 @@ const LightweightSearchInterface: React.FC = () => {
 
       // Use conversation endpoint if we have an active conversation (saves messages)
       if (activeConversation) {
-        console.log('🔍 Using conversation endpoint to save message history...');
         const conversationMessage = await apiClient.sendConversationMessage(activeConversation.id, query);
 
         // Convert conversation message response to search response format
@@ -299,7 +257,6 @@ const LightweightSearchInterface: React.FC = () => {
         };
       } else {
         // Fallback to stateless search (does not save conversation)
-        console.log('🔍 No active conversation, using stateless search endpoint...');
         searchResponse = await apiClient.search({
           question: query,
           collection_id: collectionId,
@@ -326,9 +283,6 @@ const LightweightSearchInterface: React.FC = () => {
         metadata: Record<string, any>;
       }> = [];
 
-      console.log('🔍 Documents array:', searchResponse.documents);
-      console.log('🔍 Query Results array:', searchResponse.query_results);
-
       // Prioritize query_results as they contain chunk-specific information with page numbers
       if (searchResponse.query_results && Array.isArray(searchResponse.query_results) && searchResponse.query_results.length > 0) {
         // Create a mapping of document_id to document_name from the documents array
@@ -339,8 +293,6 @@ const LightweightSearchInterface: React.FC = () => {
         if (searchResponse.documents && searchResponse.documents.length > 0) {
           // Get all unique document IDs from query results
           const uniqueDocIds: string[] = Array.from(new Set(searchResponse.query_results.map((r: any) => r.chunk.document_id as string)));
-          console.log(`🔍 Unique document IDs:`, uniqueDocIds);
-          console.log(`🔍 Available documents:`, searchResponse.documents);
 
           // Map document IDs to document names (using order as a heuristic)
           uniqueDocIds.forEach((docId, index) => {
@@ -348,28 +300,22 @@ const LightweightSearchInterface: React.FC = () => {
               const doc = searchResponse.documents[index];
               if (doc && doc.document_name) {
                 docIdToNameMap.set(docId, doc.document_name);
-                console.log(`🔍 Mapped ${docId} -> ${doc.document_name}`);
               }
             }
           });
         }
 
         // Use query_results chunks - contains chunk-specific information with page numbers
-        sources = searchResponse.query_results.map((result: any, index: number) => {
-          console.log(`🔍 Query Result ${index}:`, result);
-          console.log(`🔍 Looking for document_id: ${result.chunk.document_id}`);
-
+        sources = searchResponse.query_results.map((result: any) => {
           // Try to get document name from our mapping
           let documentName = 'Unknown Document';
           if (docIdToNameMap.has(result.chunk.document_id)) {
             documentName = docIdToNameMap.get(result.chunk.document_id)!;
-            console.log(`🔍 Using mapped document name:`, documentName);
           } else {
             // Fallback: use the first document name as a default
             const firstDoc = searchResponse.documents?.[0];
             if (firstDoc && firstDoc.document_name) {
               documentName = firstDoc.document_name;
-              console.log(`🔍 Using fallback document name:`, documentName);
             }
           }
 
@@ -400,8 +346,6 @@ const LightweightSearchInterface: React.FC = () => {
       } else if (searchResponse.documents && Array.isArray(searchResponse.documents)) {
         // Fallback to documents format (may lack chunk-specific page numbers)
         sources = searchResponse.documents.map((doc: any, index: number) => {
-          console.log(`🔍 Document ${index}:`, doc);
-
           // Try to extract document name and page number from the document
           const documentName = doc.document_name || doc.title || doc.name || `Document ${index + 1}`;
           const pageNumber = doc.page_number || doc.metadata?.page_number || 'Unknown';
@@ -435,27 +379,10 @@ const LightweightSearchInterface: React.FC = () => {
         cot_output: searchResponse.cot_output,
       };
 
-      console.log('🔍 FULL API RESPONSE:', searchResponse);
-      console.log('🔍 API Response Keys:', Object.keys(searchResponse));
-      console.log('🔍 CoT Output:', searchResponse.cot_output);
-      console.log('🔍 Token Warning:', searchResponse.token_warning);
-      console.log('🔍 Documents:', searchResponse.documents);
-      console.log('🔍 Sources:', searchResponse.sources);
-      console.log('🔍 Query Results:', (searchResponse as any).query_results);
-      console.log('🔍 REST API response data:', {
-        answer: searchResponse.answer ? `${searchResponse.answer.substring(0, 50)}...` : 'no answer',
-        sources: sources.length > 0 ? `${sources.length} sources` : 'no sources',
-        documents: searchResponse.documents ? `${searchResponse.documents.length} documents` : 'no documents',
-        query_results: searchResponse.query_results ? `${searchResponse.query_results.length} query results` : 'no query results',
-        token_warning: searchResponse.token_warning ? `has token warning: ${searchResponse.token_warning.message}` : 'no token warning',
-        cot_output: searchResponse.cot_output ? `CoT: ${searchResponse.cot_output.steps?.length || 0} steps` : 'no CoT'
-      });
-
       setMessages(prev => [...prev, assistantMessage]);
       setIsLoading(false);
       addNotification('success', 'Search Complete', 'Search completed successfully via REST API.');
     } catch (error) {
-      console.error('REST API search failed:', error);
       setIsLoading(false);
       throw error;
     }
@@ -496,7 +423,6 @@ const LightweightSearchInterface: React.FC = () => {
       setShowNewConversationModal(false);
       addNotification('success', 'Conversation Created', `Created new conversation: ${newConversation.session_name}`);
     } catch (error) {
-      console.error('Error creating conversation:', error);
       addNotification('error', 'Creation Error', 'Failed to create new conversation.');
     }
   };
@@ -526,11 +452,11 @@ const LightweightSearchInterface: React.FC = () => {
       setMessages(chatMessages);
       addNotification('info', 'Conversation Switched', `Switched to ${conversation.session_name}`);
     } catch (error) {
-      console.error('Error switching conversation:', error);
       addNotification('error', 'Switch Error', 'Failed to switch conversation.');
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
   const deleteConversation = async (conversationId: string) => {
     try {
       await apiClient.deleteConversation(conversationId);
@@ -548,7 +474,6 @@ const LightweightSearchInterface: React.FC = () => {
       }
       addNotification('success', 'Conversation Deleted', 'Conversation deleted successfully.');
     } catch (error) {
-      console.error('Error deleting conversation:', error);
       addNotification('error', 'Delete Error', 'Failed to delete conversation.');
     }
   };
@@ -561,13 +486,13 @@ const LightweightSearchInterface: React.FC = () => {
       setShowSummaryModal(true);
       addNotification('success', 'Summary Generated', `Generated ${summaryType} summary for conversation.`);
     } catch (error) {
-      console.error('Error loading conversation summary:', error);
       addNotification('error', 'Summary Error', 'Failed to generate conversation summary.');
     } finally {
       setSummaryLoading(false);
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
   const exportConversation = async (conversationId: string, format: string = 'json') => {
     try {
       const exportData = await apiClient.exportConversation(conversationId, format);
@@ -588,7 +513,6 @@ const LightweightSearchInterface: React.FC = () => {
 
       addNotification('success', 'Export Complete', `Conversation exported as ${format.toUpperCase()}.`);
     } catch (error) {
-      console.error('Error exporting conversation:', error);
       addNotification('error', 'Export Error', 'Failed to export conversation.');
     }
   };
@@ -633,7 +557,6 @@ const LightweightSearchInterface: React.FC = () => {
         setConversations(prev => [newConversation, ...prev]);
         addNotification('info', 'Conversation Created', `Created new conversation for your chat.`);
       } catch (error) {
-        console.error('Error creating conversation:', error);
         addNotification('error', 'Conversation Error', 'Failed to create conversation. Using temporary session.');
       }
     }
@@ -660,11 +583,8 @@ const LightweightSearchInterface: React.FC = () => {
 
     try {
       // Primary method: REST API (more reliable)
-      console.log('🔍 Attempting REST API search...');
       await handleRestApiSearch(query, collectionId, activeConversation);
     } catch (restError) {
-      console.error('REST API search failed, trying WebSocket fallback:', restError);
-
       // Fallback to WebSocket if available
       if (connectionStatus.connected) {
         try {
@@ -673,12 +593,10 @@ const LightweightSearchInterface: React.FC = () => {
             timestamp: new Date().toISOString()
           }, currentConversation?.id);
         } catch (wsError) {
-          console.error('WebSocket search also failed:', wsError);
           addNotification('error', 'Search Error', 'Both REST API and WebSocket search failed. Please try again.');
           setIsLoading(false);
         }
       } else {
-        console.error('No WebSocket connection available for fallback');
         addNotification('error', 'Search Error', 'Search failed and no WebSocket connection available. Please try again.');
         setIsLoading(false);
       }
@@ -707,38 +625,33 @@ const LightweightSearchInterface: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-10">
-      <div className="max-w-6xl mx-auto p-6">
-        {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-semibold text-gray-100 mb-2">
-                {currentCollectionName ? `Chat with ${currentCollectionName}` : 'Chat with Documents'}
-              </h1>
-              <p className="text-gray-70">Chat with your document collections using natural language</p>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className={`w-3 h-3 rounded-full ${connectionStatus.connected ? 'bg-green-50' : connectionStatus.connecting ? 'bg-yellow-30' : 'bg-red-50'}`}></div>
-              <span className="text-sm text-gray-70">
-                {connectionStatus.connected ? 'Connected' : connectionStatus.connecting ? 'Connecting...' : 'Disconnected'}
-              </span>
-            </div>
+    <div className="flex flex-col h-screen bg-white">
+      {/* Fixed Header */}
+      <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 py-3">
+        <div className="max-w-3xl mx-auto flex items-center justify-between">
+          <div>
+            <h1 className="text-lg font-semibold text-gray-900">
+              {currentCollectionName || 'Chat with Documents'}
+            </h1>
+          </div>
+          <div className="flex items-center space-x-2">
+            <div className={`w-2 h-2 rounded-full ${connectionStatus.connected ? 'bg-green-500' : connectionStatus.connecting ? 'bg-yellow-500' : 'bg-gray-400'}`}></div>
+            <span className="text-xs text-gray-500">
+              {connectionStatus.connected ? 'Connected' : connectionStatus.connecting ? 'Connecting...' : 'Disconnected'}
+            </span>
           </div>
         </div>
+      </div>
 
-        <div className="grid grid-cols-1 gap-6">
-          {/* Main Chat Area */}
-          <div>
-            <div className="card flex flex-col h-[600px]">
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      {/* Messages Area */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="px-6 py-6 space-y-6">
                 {messages.map((message) => (
-                  <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-3xl ${message.type === 'user' ? 'bg-blue-60 text-white' : 'bg-gray-20 text-gray-100'} rounded-lg p-4`}>
+                  <div key={message.id} className="py-4">
+                    <div className="max-w-7xl mx-auto">
                       {/* Referenced message indicator */}
                       {referencedMessage?.id === message.id && (
-                        <div className="mb-2 p-2 bg-yellow-10 border border-yellow-30 rounded-md">
+                        <div className="mb-2 p-2 bg-yellow-10 border border-yellow-30 rounded-md max-w-3xl">
                           <div className="flex items-center space-x-2 text-xs text-yellow-70">
                             <LinkIcon className="w-3 h-3" />
                             <span>This message is being referenced</span>
@@ -746,199 +659,88 @@ const LightweightSearchInterface: React.FC = () => {
                         </div>
                       )}
 
-                      <div className="whitespace-pre-wrap">{message.content}</div>
+                      {/* Message content and accordions stacked vertically */}
+                      <div className="space-y-4">
+                        {/* Main message content */}
+                        <div className="max-w-3xl">
+                          <div className="prose max-w-none text-gray-900">
+                            {message.type === 'assistant' ? (
+                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                {message.content}
+                              </ReactMarkdown>
+                            ) : (
+                              <div className="whitespace-pre-wrap">{message.content}</div>
+                            )}
+                          </div>
 
-                      {/* Message actions for referencing */}
-                      <div className="mt-2 flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <button
-                            onClick={() => setReferencedMessage(message)}
-                            className="text-xs text-gray-50 hover:text-blue-60 flex items-center space-x-1"
-                            title="Reference this message"
-                          >
-                            <LinkIcon className="w-3 h-3" />
-                            <span>Reference</span>
-                          </button>
-                          <button
-                            onClick={() => {
-                              const messageText = `"${message.content.substring(0, 100)}${message.content.length > 100 ? '...' : ''}"`;
-                              setQuery(`Regarding your message: ${messageText} - `);
-                            }}
-                            className="text-xs text-gray-50 hover:text-blue-60 flex items-center space-x-1"
-                            title="Reply to this message"
-                          >
-                            <ArrowUturnLeftIcon className="w-3 h-3" />
-                            <span>Reply</span>
-                          </button>
+                          {/* Message Metadata Footer with Click Handlers */}
+                          {message.type === 'assistant' && (
+                            <MessageMetadataFooter
+                              sourcesCount={message.sources?.length || 0}
+                              stepsCount={message.cot_output?.steps?.length || message.cot_output?.total_steps}
+                              tokenCount={message.metadata?.token_analysis?.total_this_turn || message.token_warning?.current_tokens}
+                              responseTime={message.metadata?.execution_time}
+                              onSourcesClick={() => toggleSources(message.id)}
+                              onStepsClick={() => toggleCoT(message.id)}
+                              onTokensClick={() => toggleTokens(message.id)}
+                            />
+                          )}
                         </div>
-                        <div className="text-xs text-gray-50">
-                          {message.timestamp.toLocaleTimeString()}
-                        </div>
+
+                        {/* Accordions below message - Only show when opened */}
+                        {message.type === 'assistant' && (showSources[message.id] || showCoT[message.id] || showTokens[message.id]) && (
+                          <div className="space-y-2">
+                            {/* Sources Accordion - Only render when open */}
+                            {showSources[message.id] && message.sources && message.sources.length > 0 && (
+                              <SourcesAccordion
+                                sources={message.sources}
+                                isOpen={true}
+                                onToggle={() => toggleSources(message.id)}
+                              />
+                            )}
+
+                            {/* Chain of Thought Accordion - Only render when open */}
+                            {showCoT[message.id] && message.cot_output && message.cot_output.steps && message.cot_output.steps.length > 0 && (
+                              <ChainOfThoughtAccordion
+                                cotOutput={message.cot_output}
+                                isOpen={true}
+                                onToggle={() => toggleCoT(message.id)}
+                              />
+                            )}
+
+                            {/* Token Analysis Accordion - Only render when open */}
+                            {showTokens[message.id] && message.metadata?.token_analysis && (
+                              <TokenAnalysisAccordion
+                                tokenAnalysis={message.metadata.token_analysis}
+                                isOpen={true}
+                                onToggle={() => toggleTokens(message.id)}
+                              />
+                            )}
+                          </div>
+                        )}
                       </div>
-
-                      {message.type === 'assistant' && (
-                        <div className="mt-3 space-y-2">
-                          {/* Sources Accordion */}
-                          {message.sources && message.sources.length > 0 && (
-                            <div className="border border-gray-30 rounded-md">
-                              <button
-                                onClick={() => toggleSources(message.id)}
-                                className="w-full flex items-center justify-between px-3 py-2 text-sm text-blue-60 hover:text-blue-70 hover:bg-gray-10"
-                              >
-                                <div className="flex items-center space-x-2">
-                                  <DocumentIcon className="w-4 h-4" />
-                                  <span>Sources ({message.sources.length})</span>
-                                </div>
-                                {showSources[message.id] ? <ChevronUpIcon className="w-4 h-4" /> : <ChevronDownIcon className="w-4 h-4" />}
-                              </button>
-
-                              {showSources[message.id] && (
-                                <div className="border-t border-gray-30 p-3">
-                                  <SourceList sources={message.sources} />
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Token Usage Accordion */}
-                          {message.token_warning && (
-                            <div className="border border-gray-30 rounded-md">
-                              <button
-                                onClick={() => toggleTokens(message.id)}
-                                className="w-full flex items-center justify-between px-3 py-2 text-sm text-blue-60 hover:text-blue-70 hover:bg-gray-10"
-                              >
-                                <div className="flex items-center space-x-2">
-                                  <CpuChipIcon className="w-4 h-4" />
-                                  <span>Token Usage</span>
-                                  {message.token_warning.severity === 'critical' && (
-                                    <ExclamationTriangleIcon className="w-4 h-4 text-red-50" />
-                                  )}
-                                  {message.token_warning.severity === 'warning' && (
-                                    <ExclamationTriangleIcon className="w-4 h-4 text-yellow-30" />
-                                  )}
-                                  {message.token_warning.severity === 'info' && (
-                                    <InformationCircleIcon className="w-4 h-4 text-blue-50" />
-                                  )}
-                                </div>
-                                {showTokens[message.id] ? <ChevronUpIcon className="w-4 h-4" /> : <ChevronDownIcon className="w-4 h-4" />}
-                              </button>
-
-                              {showTokens[message.id] && (
-                                <div className="border-t border-gray-30 p-3">
-                                  <div className="grid grid-cols-2 gap-4 text-xs">
-                                    <div>
-                                      <span className="font-medium text-gray-100">Current Tokens:</span>
-                                      <span className="ml-2 text-gray-70">{message.token_warning.current_tokens.toLocaleString()}</span>
-                                    </div>
-                                    <div>
-                                      <span className="font-medium text-gray-100">Limit:</span>
-                                      <span className="ml-2 text-gray-70">{message.token_warning.limit_tokens.toLocaleString()}</span>
-                                    </div>
-                                    <div>
-                                      <span className="font-medium text-gray-100">Usage:</span>
-                                      <span className="ml-2 text-gray-70">{message.token_warning.percentage_used.toFixed(1)}%</span>
-                                    </div>
-                                    <div>
-                                      <span className="font-medium text-gray-100">Type:</span>
-                                      <span className="ml-2 text-gray-70">{message.token_warning.warning_type}</span>
-                                    </div>
-                                  </div>
-                                  <div className="mt-3 p-2 bg-gray-10 rounded text-xs text-gray-70">
-                                    <div className="flex items-start space-x-2">
-                                      <InformationCircleIcon className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                                      <span>{message.token_warning.message}</span>
-                                    </div>
-                                    {message.token_warning.suggested_action && (
-                                      <div className="mt-2 text-blue-60">
-                                        <strong>Suggestion:</strong> {message.token_warning.suggested_action}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Chain of Thought Accordion */}
-                          {message.cot_output && message.cot_output.enabled && message.cot_output.steps.length > 0 && (
-                            <div className="border border-gray-30 rounded-md">
-                              <button
-                                onClick={() => toggleCoT(message.id)}
-                                className="w-full flex items-center justify-between px-3 py-2 text-sm text-blue-60 hover:text-blue-70 hover:bg-gray-10"
-                              >
-                                <div className="flex items-center space-x-2">
-                                  <LightBulbIcon className="w-4 h-4" />
-                                  <span>Chain of Thought ({message.cot_output.total_steps} steps)</span>
-                                </div>
-                                {showCoT[message.id] ? <ChevronUpIcon className="w-4 h-4" /> : <ChevronDownIcon className="w-4 h-4" />}
-                              </button>
-
-                              {showCoT[message.id] && (
-                                <div className="border-t border-gray-30 p-3 space-y-3">
-                                  {message.cot_output.steps.map((step, index) => (
-                                    <div key={`step-${step.step_number}`} className="bg-gray-10 rounded-md p-3">
-                                      <div className="flex items-center space-x-2 mb-2">
-                                        <div className="w-6 h-6 rounded-full bg-blue-60 text-white text-xs flex items-center justify-center font-medium">
-                                          {step.step_number}
-                                        </div>
-                                        <div className="font-medium text-sm text-gray-100">Step {step.step_number}</div>
-                                        {step.sources_used > 0 && (
-                                          <div className="flex items-center space-x-1 text-xs text-gray-60">
-                                            <DocumentIcon className="w-3 h-3" />
-                                            <span>{step.sources_used} sources</span>
-                                          </div>
-                                        )}
-                                      </div>
-                                      <div className="text-sm space-y-2">
-                                        <div>
-                                          <div className="font-medium text-gray-100 text-xs mb-1">Question:</div>
-                                          <div className="text-gray-70">{step.question}</div>
-                                        </div>
-                                        <div>
-                                          <div className="font-medium text-gray-100 text-xs mb-1">Answer:</div>
-                                          <div className="text-gray-70">{step.answer}</div>
-                                        </div>
-                                        {step.reasoning && (
-                                          <div>
-                                            <div className="font-medium text-gray-100 text-xs mb-1">Reasoning:</div>
-                                            <div className="text-gray-60 text-xs">{step.reasoning}</div>
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                  ))}
-                                  {message.cot_output.final_synthesis && (
-                                    <div className="mt-3 p-3 bg-blue-10 rounded-md border border-blue-20">
-                                      <div className="font-medium text-blue-70 text-xs mb-1">Final Synthesis:</div>
-                                      <div className="text-blue-60 text-sm">{message.cot_output.final_synthesis}</div>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      )}
                     </div>
                   </div>
                 ))}
 
                 {isLoading && (
-                  <div className="flex justify-start">
-                    <div className="bg-gray-20 rounded-lg p-4">
+                  <div className="bg-gray-50 py-6">
+                    <div className="max-w-3xl mx-auto px-4">
                       <div className="flex items-center space-x-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-60"></div>
-                        <span className="text-gray-70">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
+                        <span className="text-gray-600">
                           {isTyping ? 'Assistant is typing...' : 'Searching your collections...'}
                         </span>
                       </div>
                     </div>
                   </div>
                 )}
-              </div>
+        </div>
+      </div>
 
-              {/* Search Input */}
-              <div className="border-t border-gray-20 p-4">
+      {/* Fixed Input Area */}
+      <div className="sticky bottom-0 bg-white border-t border-gray-200 px-4 py-4">
+        <div className="max-w-3xl mx-auto">
                 {/* Referenced message indicator */}
                 {referencedMessage && (
                   <div className="mb-3 p-3 bg-blue-10 border border-blue-20 rounded-md">
@@ -963,27 +765,27 @@ const LightweightSearchInterface: React.FC = () => {
                   </div>
                 )}
 
-                <form onSubmit={handleSearch} className="flex space-x-2">
-                  <input
-                    type="text"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder={referencedMessage ? "Ask a follow-up question..." : "Ask a question about your documents..."}
-                    disabled={isLoading}
-                    className="input-field flex-1 disabled:opacity-50"
-                  />
+                <form onSubmit={handleSearch} className="flex items-end space-x-3">
+                  <div className="flex-1 flex items-center bg-white rounded-md px-4 py-3 border border-gray-300 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
+                    <input
+                      type="text"
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      placeholder={referencedMessage ? "Ask a follow-up question..." : "Ask a question about your documents..."}
+                      disabled={isLoading}
+                      className="flex-1 bg-transparent outline-none text-gray-900 placeholder-gray-400 disabled:opacity-50"
+                    />
+                  </div>
                   <button
                     type="submit"
                     disabled={isLoading || !query.trim()}
-                    className="btn-primary px-4 py-2 disabled:opacity-50"
+                    className="bg-blue-600 text-white rounded-md px-4 py-3 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    <PaperAirplaneIcon className="w-4 h-4" />
+                    <PaperAirplaneIcon className="w-5 h-5" />
                   </button>
                 </form>
-              </div>
-            </div>
-          </div>
         </div>
+      </div>
 
         {/* New Conversation Modal */}
         {showNewConversationModal && (
@@ -1040,10 +842,20 @@ const LightweightSearchInterface: React.FC = () => {
           </div>
         )}
 
-        {/* Conversation Summary Modal */}
-        {showSummaryModal && conversationSummary && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[80vh] overflow-y-auto">
+        {/* Source Modal */}
+        <SourceModal
+          isOpen={sourceModalOpen !== null}
+          onClose={() => {
+            setSourceModalOpen(null);
+            setSourceModalSources([]);
+          }}
+          sources={sourceModalSources}
+        />
+
+      {/* Conversation Summary Modal */}
+      {showSummaryModal && conversationSummary && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[80vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-100">
                   Conversation Summary: {conversationSummary.session_name}
@@ -1153,7 +965,6 @@ const LightweightSearchInterface: React.FC = () => {
             </div>
           </div>
         )}
-      </div>
     </div>
   );
 };

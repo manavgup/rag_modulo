@@ -159,13 +159,26 @@ def create_hierarchical_chunks(
 
             child_current_pos = child_start_in_parent + len(child_text) - overlap
 
-    logger.info(
-        "Created %d hierarchical chunks: %d root, %d parents, %d children",
-        len(all_chunks),
-        len([c for c in all_chunks if c.level == 0]),
-        len([c for c in all_chunks if c.level == 1]),
-        len([c for c in all_chunks if c.level == 2]),
-    )
+    # Log chunk distribution by level (labels depend on levels setting)
+    level_0_count = len([c for c in all_chunks if c.level == 0])
+    level_1_count = len([c for c in all_chunks if c.level == 1])
+    level_2_count = len([c for c in all_chunks if c.level == 2])
+
+    if levels >= 3:
+        logger.info(
+            "Created %d hierarchical chunks: %d root, %d parents, %d children (3-level)",
+            len(all_chunks),
+            level_0_count,
+            level_1_count,
+            level_2_count,
+        )
+    else:
+        logger.info(
+            "Created %d hierarchical chunks: %d parents, %d children (2-level)",
+            len(all_chunks),
+            level_0_count,
+            level_1_count,
+        )
 
     return all_chunks
 

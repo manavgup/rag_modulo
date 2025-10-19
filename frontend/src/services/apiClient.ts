@@ -163,6 +163,14 @@ interface ConversationMessage {
     model_used?: string;
     confidence_score?: number;
     context_length?: number;
+    token_analysis?: {
+      query_tokens?: number;
+      context_tokens?: number;
+      response_tokens?: number;
+      system_tokens?: number;
+      total_this_turn?: number;
+      conversation_total?: number;
+    };
   };
   token_count?: number;
   execution_time?: number;
@@ -172,6 +180,7 @@ interface ConversationMessage {
     content: string;
     metadata: Record<string, any>;
   }>;
+  cot_output?: ChainOfThoughtOutput;
 }
 
 interface SessionStatistics {
@@ -861,7 +870,8 @@ class ApiClient {
       token_count: message.token_count,
       execution_time: message.execution_time,
       token_warning: message.token_warning,
-      sources: message.sources
+      sources: message.sources,
+      cot_output: message.cot_output
     }));
   }
 
@@ -928,7 +938,8 @@ class ApiClient {
       token_count: message.token_count,
       execution_time: message.execution_time,
       token_warning: message.token_warning,
-      sources: message.sources
+      sources: message.sources,
+      cot_output: message.cot_output
     };
   }
 

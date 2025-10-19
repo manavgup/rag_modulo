@@ -215,11 +215,11 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
 
     def _get_batch_document_chunk_counts(self, collection_name: str, document_ids: list[str]) -> dict[str, int]:
         """
-        Get chunk counts for multiple documents in a single batch query.
+        Get chunk counts for multiple documents with pagination support.
 
         This method optimizes performance by querying all document chunk counts
-        at once using Milvus IN operator, instead of making individual queries
-        for each document (N+1 problem).
+        at once using Milvus IN operator. For collections with >16,384 chunks,
+        it automatically paginates to retrieve all results.
 
         Performance: 100 documents takes <1 second vs 5-50 seconds with individual queries.
 
@@ -248,26 +248,58 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
             document_ids_json = json.dumps(document_ids)
             expr = f"document_id in {document_ids_json}"
 
-            # Query with expression filter for all document_ids at once
-            # Only fetch minimal fields needed for counting
-            results = milvus_collection.query(
-                expr=expr,
-                output_fields=["document_id"],  # Only need document_id for counting
-                limit=100000,  # Large limit to get all chunks (assuming <100k total chunks)
-            )
-
-            # Count chunks per document_id
+            # Paginate through results to handle collections with >16,384 chunks
+            # Milvus constraint: offset + limit <= 16384
             document_chunk_counts: dict[str, int] = {}
-            for result in results:
-                doc_id = result.get("document_id", "")
-                if doc_id:
-                    document_chunk_counts[doc_id] = document_chunk_counts.get(doc_id, 0) + 1
+            offset = 0
+            page_size = 16384  # Milvus maximum
+            total_chunks_retrieved = 0
+
+            while True:
+                # Query one page of results
+                results = milvus_collection.query(
+                    expr=expr,
+                    output_fields=["document_id"],
+                    limit=page_size,
+                    offset=offset,
+                )
+
+                # Break if no more results
+                if not results:
+                    break
+
+                # Count chunks per document_id in this page
+                for result in results:
+                    doc_id = result.get("document_id", "")
+                    if doc_id:
+                        document_chunk_counts[doc_id] = document_chunk_counts.get(doc_id, 0) + 1
+
+                total_chunks_retrieved += len(results)
+
+                # Break if we got fewer results than page_size (last page)
+                if len(results) < page_size:
+                    break
+
+                # Move to next page
+                offset += page_size
+
+                # Safety check: Milvus constraint is offset + limit <= 16384
+                # If next offset would exceed this, we can't paginate further
+                if offset >= 16384:
+                    logger.warning(
+                        "Reached Milvus pagination limit (offset=%d) for collection %s. "
+                        "Chunk counts may be incomplete if collection has >16,384 chunks.",
+                        offset,
+                        collection_name,
+                    )
+                    break
 
             logger.info(
-                "Batch query for %d documents returned %d chunks from collection %s",
+                "Batch query for %d documents returned %d total chunks from collection %s (pages: %d)",
                 len(document_ids),
-                len(results),
+                total_chunks_retrieved,
                 collection_name,
+                (offset // page_size) + 1,
             )
 
             return document_chunk_counts
