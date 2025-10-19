@@ -202,10 +202,15 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
         # Convert MessageMetadata Pydantic object to dictionary for database storage
         metadata_dict: dict[str, Any] = {}
         if message_input.metadata:
-            if hasattr(message_input.metadata, "model_dump"):
-                metadata_dict = message_input.metadata.model_dump()
+            if isinstance(message_input.metadata, dict):
+                # Already a dictionary, use it directly
+                metadata_dict = message_input.metadata
             else:
-                metadata_dict = message_input.metadata.__dict__
+                # Pydantic model - try model_dump (v2) first, fall back to dict() (v1)
+                try:
+                    metadata_dict = message_input.metadata.model_dump()
+                except AttributeError:
+                    metadata_dict = dict(message_input.metadata)
 
         message = ConversationMessage(
             session_id=message_input.session_id,
@@ -334,24 +339,29 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
 
         # Execute search - this will automatically use CoT if appropriate
         search_result = await self.search_service.search(search_input)
-        logger.info("📊 CONVERSATION SERVICE: Search result has metadata: %s", hasattr(search_result, "metadata"))
-        if hasattr(search_result, "metadata") and search_result.metadata:
-            logger.info("📊 CONVERSATION SERVICE: Search metadata keys: %s", list(search_result.metadata.keys()))
-        logger.info("📊 CONVERSATION SERVICE: Search result has cot_output: %s", hasattr(search_result, "cot_output"))
-        if hasattr(search_result, "cot_output") and search_result.cot_output:
-            logger.info("📊 CONVERSATION SERVICE: CoT output type: %s", type(search_result.cot_output))
+
+        # Extract metadata and cot_output using getattr with defaults
+        result_metadata = getattr(search_result, "metadata", None)
+        result_cot_output = getattr(search_result, "cot_output", None)
+
+        logger.info("📊 CONVERSATION SERVICE: Search result has metadata: %s", result_metadata is not None)
+        if result_metadata:
+            logger.info("📊 CONVERSATION SERVICE: Search metadata keys: %s", list(result_metadata.keys()))
+        logger.info("📊 CONVERSATION SERVICE: Search result has cot_output: %s", result_cot_output is not None)
+        if result_cot_output:
+            logger.info("📊 CONVERSATION SERVICE: CoT output type: %s", type(result_cot_output))
 
         # Extract CoT information if it was used
         cot_used = False
         cot_steps: list[dict[str, Any]] = []
 
         # Check both metadata and cot_output for CoT information
-        if hasattr(search_result, "metadata") and search_result.metadata:
-            cot_used = search_result.metadata.get("cot_used", False)
+        if result_metadata:
+            cot_used = result_metadata.get("cot_used", False)
             logger.info("🧠 CoT metadata: cot_used=%s", cot_used)
 
         # Extract CoT steps from cot_output (this is where the actual reasoning steps are)
-        if hasattr(search_result, "cot_output") and search_result.cot_output:
+        if result_cot_output:
             if isinstance(search_result.cot_output, dict):
                 reasoning_steps = search_result.cot_output.get("reasoning_steps", [])
                 if reasoning_steps:
@@ -375,12 +385,59 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
 
         logger.info("🧠 Final CoT extraction: cot_used=%s, cot_steps_count=%d", cot_used, len(cot_steps))
 
-        # Convert DocumentMetadata objects to dictionaries for JSON serialization in frontend format
-        def serialize_documents(documents):
+        # Convert DocumentMetadata and QueryResult objects to dictionaries for JSON serialization
+        def serialize_documents(documents, query_results):
             """Convert DocumentMetadata objects to JSON-serializable dictionaries matching frontend schema.
 
-            Frontend expects: {document_name: str, content: str, metadata: dict}
+            Enhances documents with scores and page numbers from query_results.
+            Frontend expects: {document_name: str, content: str, metadata: {score: float, page_number: int, ...}}
             """
+            # Extract scores and page numbers from query_results by document_id
+            doc_data_map = {}
+            if query_results:
+                for result in query_results:
+                    if not result.chunk:
+                        continue
+
+                    doc_id = result.chunk.document_id
+                    if not doc_id:
+                        continue
+
+                    # Get score (from QueryResult level first, then chunk level)
+                    score = (
+                        result.score
+                        if result.score is not None
+                        else (result.chunk.score if hasattr(result.chunk, "score") else None)
+                    )
+
+                    # Get page number from chunk metadata
+                    page_number = None
+                    if result.chunk.metadata and hasattr(result.chunk.metadata, "page_number"):
+                        page_number = result.chunk.metadata.page_number
+
+                    # Get content from chunk
+                    content = result.chunk.text if hasattr(result.chunk, "text") and result.chunk.text else ""
+
+                    # Keep track of best score and first page number for each document
+                    if doc_id not in doc_data_map:
+                        doc_data_map[doc_id] = {
+                            "score": score,
+                            "page_numbers": set([page_number]) if page_number else set(),
+                            "content": content,
+                        }
+                    else:
+                        # Update with better score if found
+                        if score is not None and (
+                            doc_data_map[doc_id]["score"] is None or score > doc_data_map[doc_id]["score"]
+                        ):
+                            doc_data_map[doc_id]["score"] = score
+                        # Collect all page numbers
+                        if page_number:
+                            doc_data_map[doc_id]["page_numbers"].add(page_number)
+                        # Append content (limit to avoid huge payloads)
+                        if content and len(doc_data_map[doc_id]["content"]) < 2000:
+                            doc_data_map[doc_id]["content"] += "\n\n" + content
+
             serialized = []
             for doc in documents:
                 if hasattr(doc, "__dict__"):
@@ -399,17 +456,46 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
                             else:
                                 doc_dict["metadata"][key] = str(value)
 
-                    # Add score to metadata if present
-                    if hasattr(doc, "score"):
-                        doc_dict["metadata"]["score"] = doc.score
+                    # Try to enhance with data from query_results
+                    # Since DocumentMetadata doesn't have document_id, we need to use all available query result data
+                    # Get the overall best score and earliest page from all query results
+                    if doc_data_map:
+                        all_scores = [data["score"] for data in doc_data_map.values() if data["score"] is not None]
+                        all_pages = []
+                        for data in doc_data_map.values():
+                            all_pages.extend(data["page_numbers"])
+
+                        if all_scores:
+                            # Use the best (highest) score from all retrieved chunks
+                            doc_dict["metadata"]["score"] = max(all_scores)
+
+                        if all_pages:
+                            # Use the first page number mentioned
+                            doc_dict["metadata"]["page_number"] = min(all_pages)
+
+                        # If original content is empty, use content from query results
+                        if not doc_dict["content"] and doc_data_map:
+                            # Get first non-empty content
+                            for data in doc_data_map.values():
+                                if data["content"]:
+                                    doc_dict["content"] = data["content"][:1000]  # Limit to 1000 chars
+                                    break
+
                     serialized.append(doc_dict)
                 else:
                     # Fallback for unknown types
                     serialized.append({"document_name": "Unknown", "content": str(doc), "metadata": {}})
+
+            logger.info(f"📊 Serialized {len(serialized)} documents with scores and page numbers")
+            if serialized and "metadata" in serialized[0]:
+                logger.info(f"📊 First source metadata: {serialized[0]['metadata']}")
+
             return serialized
 
-        # Serialize search sources
-        serialized_documents = serialize_documents(search_result.documents) if search_result.documents else []
+        # Serialize search sources with query results for scores and page numbers
+        result_documents = getattr(search_result, "documents", []) or []
+        result_query_results = getattr(search_result, "query_results", []) or []
+        serialized_documents = serialize_documents(result_documents, result_query_results)
 
         # IMPROVED TOKEN TRACKING: Better estimation for assistant response
         try:
@@ -417,9 +503,12 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
             provider = self.llm_provider_service.get_user_provider(user_id)
 
             # Use the provider's tokenize method if available (WatsonX has this)
-            if provider and hasattr(provider, "client") and hasattr(provider.client, "tokenize"):
+            provider_client = getattr(provider, "client", None) if provider else None
+            tokenize_method = getattr(provider_client, "tokenize", None) if provider_client else None
+
+            if tokenize_method:
                 try:
-                    assistant_tokens_result = provider.client.tokenize(text=search_result.answer)
+                    assistant_tokens_result = tokenize_method(text=search_result.answer)
                     assistant_response_tokens = len(assistant_tokens_result.get("result", []))
                     logger.info("✅ Real token count from provider: assistant=%d", assistant_response_tokens)
                 except (ValueError, KeyError, AttributeError) as e:
@@ -437,16 +526,12 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
 
         # Add CoT token usage to the total token count
         cot_token_usage = 0
-        if (
-            hasattr(search_result, "cot_output")
-            and search_result.cot_output
-            and isinstance(search_result.cot_output, dict)
-        ):
+        if result_cot_output and isinstance(result_cot_output, dict):
             # Extract total token usage from CoT output
-            cot_token_usage = search_result.cot_output.get("token_usage", 0)
+            cot_token_usage = result_cot_output.get("token_usage", 0)
             if not cot_token_usage:
                 # Sum from individual reasoning steps if total not available
-                reasoning_steps = search_result.cot_output.get("reasoning_steps", [])
+                reasoning_steps = result_cot_output.get("reasoning_steps", [])
                 for step in reasoning_steps:
                     step_tokens = step.get("token_usage", 0) if isinstance(step, dict) else 0
                     cot_token_usage += step_tokens
@@ -459,11 +544,9 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
         token_warning_dict = None
         try:
             # Get model name from provider
-            model_name = "default-model"  # Fallback
-            if provider and hasattr(provider, "model_id"):
-                model_name = provider.model_id
-            elif provider and hasattr(provider, "model_name"):
-                model_name = provider.model_name
+            model_name = getattr(provider, "model_id", None) if provider else None
+            if not model_name:
+                model_name = getattr(provider, "model_name", "default-model") if provider else "default-model"
 
             # Create LLMUsage object for warning check
             current_usage = LLMUsage(
@@ -511,7 +594,18 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
             f"🔍 DEBUG: Assistant response: '{search_result.answer[:100]}...' -> {assistant_response_tokens} tokens"
         )
 
+        # Calculate context tokens and conversation total tokens BEFORE creating metadata
+        context_tokens = len(serialized_documents) * 100 if serialized_documents else 0
+
+        # Get conversation total tokens from session statistics
+        try:
+            stats = await self.get_session_statistics(message_input.session_id, session.user_id)
+            conversation_total_tokens = stats.total_tokens
+        except (ValueError, KeyError, AttributeError):
+            conversation_total_tokens = 0
+
         # Create assistant response with integration metadata and token tracking
+        # IMPORTANT: Store sources and cot_output in metadata so they persist to database
         metadata_dict = {
             "source_documents": [doc.get("document_id", "") for doc in serialized_documents]
             if serialized_documents
@@ -531,7 +625,23 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
             "execution_time": search_result.execution_time,
             "context_length": len(context.context_window) if context else None,
             "token_count": token_count,
+            "token_analysis": {
+                "query_tokens": user_token_count,
+                "context_tokens": context_tokens,
+                "response_tokens": assistant_response_tokens,
+                "system_tokens": cot_token_usage,
+                "total_this_turn": token_count,
+                "conversation_total": conversation_total_tokens,
+            },
+            # Store full source data for frontend consumption
+            "sources": serialized_documents if serialized_documents else None,
+            # Store CoT output for frontend consumption
+            "cot_output": result_cot_output if (cot_used and result_cot_output) else None,
         }
+
+        logger.info(
+            f"📊 CONVERSATION SERVICE: Created metadata_dict with token_analysis: {metadata_dict.get('token_analysis')}"
+        )
 
         assistant_message_input = ConversationMessageInput(
             session_id=message_input.session_id,
@@ -565,11 +675,13 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
             logger.info(f"📊 CONVERSATION SERVICE: Added {len(serialized_documents)} sources to response")
 
         # Add CoT output to the response if CoT was used
-        if cot_used and hasattr(search_result, "cot_output") and search_result.cot_output:
-            assistant_message.cot_output = search_result.cot_output
+        if cot_used and result_cot_output:
+            assistant_message.cot_output = result_cot_output
             logger.info("📊 CONVERSATION SERVICE: Added CoT output to response")
 
-        logger.info("🎉 CONVERSATION SERVICE: Returning assistant message with full metadata, sources, and CoT")
+        logger.info(
+            "🎉 CONVERSATION SERVICE: Returning assistant message with full metadata (including token_analysis), sources, and CoT"
+        )
         return assistant_message
 
     async def get_session_statistics(self, session_id: UUID, user_id: UUID) -> SessionStatistics:

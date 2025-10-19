@@ -58,8 +58,9 @@ class MessageMetadata(BaseModel):
     model_used: str | None = Field(default=None, description="LLM model used for generation")
     confidence_score: float | None = Field(default=None, description="Confidence score of the response")
     context_length: int | None = Field(default=None, description="Length of context used")
+    token_analysis: dict[str, Any] | None = Field(default=None, description="Detailed token usage breakdown")
 
-    model_config = ConfigDict(extra="forbid")  # Prevent additional fields
+    model_config = ConfigDict(extra="allow")  # Allow additional fields for flexibility
 
 
 class ExportFormat(str, Enum):
@@ -267,10 +268,14 @@ class ConversationMessageOutput(BaseModel):
     token_warning: dict[str, Any] | None = Field(default=None, description="Token usage warning if applicable")
     sources: list[dict[str, Any]] | None = Field(default=None, description="Source documents with full metadata")
     cot_output: dict[str, Any] | None = Field(default=None, description="Chain of Thought reasoning output")
+    token_analysis: dict[str, Any] | None = Field(default=None, description="Detailed token usage breakdown")
 
     @classmethod
     def from_db_message(cls, message: Any) -> "ConversationMessageOutput":
-        """Create ConversationMessageOutput from database message model."""
+        """Create ConversationMessageOutput from database message model.
+
+        Reconstructs sources, cot_output, and token_analysis from stored metadata.
+        """
         # Debug logging for token count extraction
         logger.info("🔍 SCHEMA DEBUG: from_db_message() called")
         logger.info(
@@ -280,12 +285,14 @@ class ConversationMessageOutput(BaseModel):
 
         # Handle metadata properly - it's stored as a dict in the database
         metadata_value = None
+        raw_metadata = None
         if message.message_metadata:
             logger.info("🔍 SCHEMA DEBUG: message.message_metadata type: %s", type(message.message_metadata))
             logger.info(
                 f"🔍 SCHEMA DEBUG: message.message_metadata keys: {list(message.message_metadata.keys()) if isinstance(message.message_metadata, dict) else 'Not a dict'}"
             )
             if isinstance(message.message_metadata, dict):
+                raw_metadata = message.message_metadata  # Keep reference to raw dict
                 # It's already a dictionary from the database - convert to MessageMetadata object
                 try:
                     logger.info(
@@ -304,6 +311,26 @@ class ConversationMessageOutput(BaseModel):
             else:
                 logger.warning("Unexpected metadata type: %s", type(message.message_metadata))
 
+        # Reconstruct token_analysis from metadata if available
+        token_analysis = None
+        if raw_metadata and "token_analysis" in raw_metadata:
+            token_analysis = raw_metadata["token_analysis"]
+            logger.info("🔍 SCHEMA DEBUG: Reconstructed token_analysis from metadata")
+
+        # Reconstruct sources from metadata if available
+        # Note: Full source data (with scores, content, page numbers) needs to be stored in metadata
+        # For now, we can only reconstruct if it was stored in metadata
+        sources = None
+        if raw_metadata and "sources" in raw_metadata:
+            sources = raw_metadata["sources"]
+            logger.info("🔍 SCHEMA DEBUG: Reconstructed sources from metadata")
+
+        # Reconstruct cot_output from metadata if available
+        cot_output = None
+        if raw_metadata and "cot_output" in raw_metadata:
+            cot_output = raw_metadata["cot_output"]
+            logger.info("🔍 SCHEMA DEBUG: Reconstructed cot_output from metadata")
+
         data = {
             "id": message.id,
             "session_id": message.session_id,
@@ -314,6 +341,9 @@ class ConversationMessageOutput(BaseModel):
             "metadata": metadata_value,
             "token_count": message.token_count,
             "execution_time": message.execution_time,
+            "token_analysis": token_analysis,
+            "sources": sources,
+            "cot_output": cot_output,
         }
 
         logger.info("🔍 SCHEMA DEBUG: data dict token_count=%d", data["token_count"])

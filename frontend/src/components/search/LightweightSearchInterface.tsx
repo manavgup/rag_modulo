@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import {
   PaperAirplaneIcon,
   FunnelIcon,
@@ -28,6 +30,9 @@ import { useNotification } from '../../contexts/NotificationContext';
 import SourceList from './SourceList';
 import MessageMetadataFooter from './MessageMetadataFooter';
 import SourceModal from './SourceModal';
+import SourcesAccordion from './SourcesAccordion';
+import ChainOfThoughtAccordion from './ChainOfThoughtAccordion';
+import TokenAnalysisAccordion from './TokenAnalysisAccordion';
 import './SearchInterface.scss';
 
 // Import API client and WebSocket client
@@ -712,38 +717,33 @@ const LightweightSearchInterface: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-10">
-      <div className="max-w-6xl mx-auto p-6">
-        {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-semibold text-gray-100 mb-2">
-                {currentCollectionName ? `Chat with ${currentCollectionName}` : 'Chat with Documents'}
-              </h1>
-              <p className="text-gray-70">Chat with your document collections using natural language</p>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className={`w-3 h-3 rounded-full ${connectionStatus.connected ? 'bg-green-50' : connectionStatus.connecting ? 'bg-yellow-30' : 'bg-red-50'}`}></div>
-              <span className="text-sm text-gray-70">
-                {connectionStatus.connected ? 'Connected' : connectionStatus.connecting ? 'Connecting...' : 'Disconnected'}
-              </span>
-            </div>
+    <div className="flex flex-col h-screen bg-white">
+      {/* Fixed Header */}
+      <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 py-3">
+        <div className="max-w-3xl mx-auto flex items-center justify-between">
+          <div>
+            <h1 className="text-lg font-semibold text-gray-900">
+              {currentCollectionName || 'Chat with Documents'}
+            </h1>
+          </div>
+          <div className="flex items-center space-x-2">
+            <div className={`w-2 h-2 rounded-full ${connectionStatus.connected ? 'bg-green-500' : connectionStatus.connecting ? 'bg-yellow-500' : 'bg-gray-400'}`}></div>
+            <span className="text-xs text-gray-500">
+              {connectionStatus.connected ? 'Connected' : connectionStatus.connecting ? 'Connecting...' : 'Disconnected'}
+            </span>
           </div>
         </div>
+      </div>
 
-        <div className="grid grid-cols-1 gap-6">
-          {/* Main Chat Area */}
-          <div>
-            <div className="card flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      {/* Messages Area */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="px-6 py-6 space-y-6">
                 {messages.map((message) => (
-                  <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-3xl ${message.type === 'user' ? 'bg-blue-60 text-white' : 'bg-gray-20 text-gray-100'} rounded-lg p-4`}>
+                  <div key={message.id} className="py-4">
+                    <div className="max-w-7xl mx-auto">
                       {/* Referenced message indicator */}
                       {referencedMessage?.id === message.id && (
-                        <div className="mb-2 p-2 bg-yellow-10 border border-yellow-30 rounded-md">
+                        <div className="mb-2 p-2 bg-yellow-10 border border-yellow-30 rounded-md max-w-3xl">
                           <div className="flex items-center space-x-2 text-xs text-yellow-70">
                             <LinkIcon className="w-3 h-3" />
                             <span>This message is being referenced</span>
@@ -751,204 +751,88 @@ const LightweightSearchInterface: React.FC = () => {
                         </div>
                       )}
 
-                      <div className="whitespace-pre-wrap">{message.content}</div>
+                      {/* Message content and accordions stacked vertically */}
+                      <div className="space-y-4">
+                        {/* Main message content */}
+                        <div className="max-w-3xl">
+                          <div className="prose max-w-none text-gray-900">
+                            {message.type === 'assistant' ? (
+                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                {message.content}
+                              </ReactMarkdown>
+                            ) : (
+                              <div className="whitespace-pre-wrap">{message.content}</div>
+                            )}
+                          </div>
 
-                      {/* Message Metadata Footer */}
-                      {message.type === 'assistant' && (
-                        <MessageMetadataFooter
-                          sourcesCount={message.sources?.length || 0}
-                          stepsCount={message.cot_output?.total_steps}
-                          tokenCount={message.token_warning?.current_tokens}
-                          responseTime={message.metadata?.execution_time}
-                        />
-                      )}
+                          {/* Message Metadata Footer with Click Handlers */}
+                          {message.type === 'assistant' && (
+                            <MessageMetadataFooter
+                              sourcesCount={message.sources?.length || 0}
+                              stepsCount={message.cot_output?.steps?.length || message.cot_output?.total_steps}
+                              tokenCount={message.metadata?.token_analysis?.total_this_turn || message.token_warning?.current_tokens}
+                              responseTime={message.metadata?.execution_time}
+                              onSourcesClick={() => toggleSources(message.id)}
+                              onStepsClick={() => toggleCoT(message.id)}
+                              onTokensClick={() => toggleTokens(message.id)}
+                            />
+                          )}
+                        </div>
 
-                      {/* Message actions for referencing */}
-                      <div className="mt-2 flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <button
-                            onClick={() => setReferencedMessage(message)}
-                            className="text-xs text-gray-50 hover:text-blue-60 flex items-center space-x-1"
-                            title="Reference this message"
-                          >
-                            <LinkIcon className="w-3 h-3" />
-                            <span>Reference</span>
-                          </button>
-                          <button
-                            onClick={() => {
-                              const messageText = `"${message.content.substring(0, 100)}${message.content.length > 100 ? '...' : ''}"`;
-                              setQuery(`Regarding your message: ${messageText} - `);
-                            }}
-                            className="text-xs text-gray-50 hover:text-blue-60 flex items-center space-x-1"
-                            title="Reply to this message"
-                          >
-                            <ArrowUturnLeftIcon className="w-3 h-3" />
-                            <span>Reply</span>
-                          </button>
-                        </div>
-                        <div className="text-xs text-gray-50">
-                          {message.timestamp.toLocaleTimeString()}
-                        </div>
+                        {/* Accordions below message - Only show when opened */}
+                        {message.type === 'assistant' && (showSources[message.id] || showCoT[message.id] || showTokens[message.id]) && (
+                          <div className="space-y-2">
+                            {/* Sources Accordion - Only render when open */}
+                            {showSources[message.id] && message.sources && message.sources.length > 0 && (
+                              <SourcesAccordion
+                                sources={message.sources}
+                                isOpen={true}
+                                onToggle={() => toggleSources(message.id)}
+                              />
+                            )}
+
+                            {/* Chain of Thought Accordion - Only render when open */}
+                            {showCoT[message.id] && message.cot_output && message.cot_output.steps && message.cot_output.steps.length > 0 && (
+                              <ChainOfThoughtAccordion
+                                cotOutput={message.cot_output}
+                                isOpen={true}
+                                onToggle={() => toggleCoT(message.id)}
+                              />
+                            )}
+
+                            {/* Token Analysis Accordion - Only render when open */}
+                            {showTokens[message.id] && message.metadata?.token_analysis && (
+                              <TokenAnalysisAccordion
+                                tokenAnalysis={message.metadata.token_analysis}
+                                isOpen={true}
+                                onToggle={() => toggleTokens(message.id)}
+                              />
+                            )}
+                          </div>
+                        )}
                       </div>
-
-                      {message.type === 'assistant' && (
-                        <div className="mt-3 space-y-2">
-                          {/* Sources Button - Opens Modal */}
-                          {message.sources && message.sources.length > 0 && (
-                            <button
-                              onClick={() => {
-                                setSourceModalOpen(message.id);
-                                setSourceModalSources(message.sources || []);
-                              }}
-                              className="w-full flex items-center justify-between px-3 py-2 text-sm text-blue-60 hover:text-blue-70 hover:bg-gray-10 border border-gray-30 rounded-md transition-colors"
-                            >
-                              <div className="flex items-center space-x-2">
-                                <DocumentIcon className="w-4 h-4" />
-                                <span className="font-medium">View Sources ({message.sources.length})</span>
-                              </div>
-                              <EyeIcon className="w-4 h-4" />
-                            </button>
-                          )}
-
-                          {/* Token Usage Accordion */}
-                          {message.token_warning && (
-                            <div className="border border-gray-30 rounded-md">
-                              <button
-                                onClick={() => toggleTokens(message.id)}
-                                className="w-full flex items-center justify-between px-3 py-2 text-sm text-blue-60 hover:text-blue-70 hover:bg-gray-10"
-                              >
-                                <div className="flex items-center space-x-2">
-                                  <CpuChipIcon className="w-4 h-4" />
-                                  <span>Token Usage</span>
-                                  {message.token_warning.severity === 'critical' && (
-                                    <ExclamationTriangleIcon className="w-4 h-4 text-red-50" />
-                                  )}
-                                  {message.token_warning.severity === 'warning' && (
-                                    <ExclamationTriangleIcon className="w-4 h-4 text-yellow-30" />
-                                  )}
-                                  {message.token_warning.severity === 'info' && (
-                                    <InformationCircleIcon className="w-4 h-4 text-blue-50" />
-                                  )}
-                                </div>
-                                {showTokens[message.id] ? <ChevronUpIcon className="w-4 h-4" /> : <ChevronDownIcon className="w-4 h-4" />}
-                              </button>
-
-                              {showTokens[message.id] && (
-                                <div className="border-t border-gray-30 p-3">
-                                  <div className="grid grid-cols-2 gap-4 text-xs">
-                                    <div>
-                                      <span className="font-medium text-gray-100">Current Tokens:</span>
-                                      <span className="ml-2 text-gray-70">{message.token_warning.current_tokens.toLocaleString()}</span>
-                                    </div>
-                                    <div>
-                                      <span className="font-medium text-gray-100">Limit:</span>
-                                      <span className="ml-2 text-gray-70">{message.token_warning.limit_tokens.toLocaleString()}</span>
-                                    </div>
-                                    <div>
-                                      <span className="font-medium text-gray-100">Usage:</span>
-                                      <span className="ml-2 text-gray-70">{message.token_warning.percentage_used.toFixed(1)}%</span>
-                                    </div>
-                                    <div>
-                                      <span className="font-medium text-gray-100">Type:</span>
-                                      <span className="ml-2 text-gray-70">{message.token_warning.warning_type}</span>
-                                    </div>
-                                  </div>
-                                  <div className="mt-3 p-2 bg-gray-10 rounded text-xs text-gray-70">
-                                    <div className="flex items-start space-x-2">
-                                      <InformationCircleIcon className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                                      <span>{message.token_warning.message}</span>
-                                    </div>
-                                    {message.token_warning.suggested_action && (
-                                      <div className="mt-2 text-blue-60">
-                                        <strong>Suggestion:</strong> {message.token_warning.suggested_action}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Chain of Thought Accordion */}
-                          {message.cot_output && message.cot_output.enabled && message.cot_output.steps.length > 0 && (
-                            <div className="border border-gray-30 rounded-md">
-                              <button
-                                onClick={() => toggleCoT(message.id)}
-                                className="w-full flex items-center justify-between px-3 py-2 text-sm text-blue-60 hover:text-blue-70 hover:bg-gray-10"
-                              >
-                                <div className="flex items-center space-x-2">
-                                  <LightBulbIcon className="w-4 h-4" />
-                                  <span>Chain of Thought ({message.cot_output.total_steps} steps)</span>
-                                </div>
-                                {showCoT[message.id] ? <ChevronUpIcon className="w-4 h-4" /> : <ChevronDownIcon className="w-4 h-4" />}
-                              </button>
-
-                              {showCoT[message.id] && (
-                                <div className="border-t border-gray-30 p-3 space-y-3">
-                                  {message.cot_output.steps.map((step, index) => (
-                                    <div key={`step-${step.step_number}`} className="bg-gray-10 rounded-md p-3">
-                                      <div className="flex items-center space-x-2 mb-2">
-                                        <div className="w-6 h-6 rounded-full bg-blue-60 text-white text-xs flex items-center justify-center font-medium">
-                                          {step.step_number}
-                                        </div>
-                                        <div className="font-medium text-sm text-gray-100">Step {step.step_number}</div>
-                                        {step.sources_used > 0 && (
-                                          <div className="flex items-center space-x-1 text-xs text-gray-60">
-                                            <DocumentIcon className="w-3 h-3" />
-                                            <span>{step.sources_used} sources</span>
-                                          </div>
-                                        )}
-                                      </div>
-                                      <div className="text-sm space-y-2">
-                                        <div>
-                                          <div className="font-medium text-gray-100 text-xs mb-1">Question:</div>
-                                          <div className="text-gray-70">{step.question}</div>
-                                        </div>
-                                        <div>
-                                          <div className="font-medium text-gray-100 text-xs mb-1">Answer:</div>
-                                          <div className="text-gray-70">{step.answer}</div>
-                                        </div>
-                                        {step.reasoning && (
-                                          <div>
-                                            <div className="font-medium text-gray-100 text-xs mb-1">Reasoning:</div>
-                                            <div className="text-gray-60 text-xs">{step.reasoning}</div>
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                  ))}
-                                  {message.cot_output.final_synthesis && (
-                                    <div className="mt-3 p-3 bg-blue-10 rounded-md border border-blue-20">
-                                      <div className="font-medium text-blue-70 text-xs mb-1">Final Synthesis:</div>
-                                      <div className="text-blue-60 text-sm">{message.cot_output.final_synthesis}</div>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      )}
                     </div>
                   </div>
                 ))}
 
                 {isLoading && (
-                  <div className="flex justify-start">
-                    <div className="bg-gray-20 rounded-lg p-4">
+                  <div className="bg-gray-50 py-6">
+                    <div className="max-w-3xl mx-auto px-4">
                       <div className="flex items-center space-x-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-60"></div>
-                        <span className="text-gray-70">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
+                        <span className="text-gray-600">
                           {isTyping ? 'Assistant is typing...' : 'Searching your collections...'}
                         </span>
                       </div>
                     </div>
                   </div>
                 )}
-              </div>
+        </div>
+      </div>
 
-              {/* Search Input */}
-              <div className="border-t border-gray-20 p-4">
+      {/* Fixed Input Area */}
+      <div className="sticky bottom-0 bg-white border-t border-gray-200 px-4 py-4">
+        <div className="max-w-3xl mx-auto">
                 {/* Referenced message indicator */}
                 {referencedMessage && (
                   <div className="mb-3 p-3 bg-blue-10 border border-blue-20 rounded-md">
@@ -973,27 +857,27 @@ const LightweightSearchInterface: React.FC = () => {
                   </div>
                 )}
 
-                <form onSubmit={handleSearch} className="flex space-x-2">
-                  <input
-                    type="text"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder={referencedMessage ? "Ask a follow-up question..." : "Ask a question about your documents..."}
-                    disabled={isLoading}
-                    className="input-field flex-1 disabled:opacity-50"
-                  />
+                <form onSubmit={handleSearch} className="flex items-end space-x-3">
+                  <div className="flex-1 flex items-center bg-white rounded-md px-4 py-3 border border-gray-300 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
+                    <input
+                      type="text"
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      placeholder={referencedMessage ? "Ask a follow-up question..." : "Ask a question about your documents..."}
+                      disabled={isLoading}
+                      className="flex-1 bg-transparent outline-none text-gray-900 placeholder-gray-400 disabled:opacity-50"
+                    />
+                  </div>
                   <button
                     type="submit"
                     disabled={isLoading || !query.trim()}
-                    className="btn-primary px-4 py-2 disabled:opacity-50"
+                    className="bg-blue-600 text-white rounded-md px-4 py-3 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    <PaperAirplaneIcon className="w-4 h-4" />
+                    <PaperAirplaneIcon className="w-5 h-5" />
                   </button>
                 </form>
-              </div>
-            </div>
-          </div>
         </div>
+      </div>
 
         {/* New Conversation Modal */}
         {showNewConversationModal && (
@@ -1060,10 +944,10 @@ const LightweightSearchInterface: React.FC = () => {
           sources={sourceModalSources}
         />
 
-        {/* Conversation Summary Modal */}
-        {showSummaryModal && conversationSummary && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[80vh] overflow-y-auto">
+      {/* Conversation Summary Modal */}
+      {showSummaryModal && conversationSummary && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[80vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-100">
                   Conversation Summary: {conversationSummary.session_name}
@@ -1173,7 +1057,6 @@ const LightweightSearchInterface: React.FC = () => {
             </div>
           </div>
         )}
-      </div>
     </div>
   );
 };

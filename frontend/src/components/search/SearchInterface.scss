@@ -25,6 +25,28 @@
   color: #525252; // Carbon gray-70
 }
 
+.metadata-clickable {
+  background: none;
+  border: none;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background-color: #e0e0e0; // Carbon gray-20
+    color: #0f62fe; // Carbon blue-60
+
+    .metadata-icon {
+      color: #0f62fe; // Carbon blue-60
+    }
+  }
+
+  &:active {
+    background-color: #c6c6c6; // Carbon gray-30
+  }
+}
+
 .metadata-icon {
   flex-shrink: 0;
   color: #0f62fe; // Carbon blue-60
@@ -49,6 +71,75 @@
 
 .metadata-time .metadata-icon {
   color: #f1c21b; // Carbon yellow-30
+}
+
+// ==========================================
+// Accordion Components (Sources, CoT, Token Analysis)
+// ==========================================
+.source-accordion,
+.cot-accordion,
+.token-accordion {
+  margin-top: 1rem;
+  border: 1px solid #e0e0e0; // Carbon gray-20
+  border-radius: 0.5rem;
+  background: #f4f4f4; // Carbon gray-10
+  overflow: hidden;
+}
+
+.source-accordion-header,
+.cot-accordion-header,
+.token-accordion-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background-color: #e0e0e0; // Carbon gray-20
+  }
+}
+
+.source-accordion-title-section,
+.cot-accordion-title-section,
+.token-accordion-title-section {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.source-accordion-icon,
+.cot-accordion-icon,
+.token-accordion-icon {
+  color: #0f62fe; // Carbon blue-60
+  flex-shrink: 0;
+}
+
+.source-accordion-title,
+.cot-accordion-title,
+.token-accordion-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #161616; // Carbon gray-100
+}
+
+.source-accordion-chevron,
+.cot-accordion-chevron,
+.token-accordion-chevron {
+  color: #525252; // Carbon gray-70
+  flex-shrink: 0;
+}
+
+.source-accordion-content,
+.cot-accordion-content,
+.token-accordion-content {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #e0e0e0; // Carbon gray-20
+  background: white;
 }
 
 // ==========================================
