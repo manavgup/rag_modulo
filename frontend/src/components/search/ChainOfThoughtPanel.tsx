@@ -1,6 +1,12 @@
 import React from 'react';
 import ChainOfThoughtStep from './ChainOfThoughtStep';
 
+/**
+ * Security Note: Content from LLM responses is rendered as text content (not HTML).
+ * React automatically escapes text content, providing XSS protection.
+ * If HTML rendering is needed in the future, use sanitizeHtml() from utils/sanitize.ts
+ */
+
 interface ChainOfThoughtPanelProps {
   cotOutput: {
     enabled: boolean;

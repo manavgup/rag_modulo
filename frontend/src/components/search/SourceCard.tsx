@@ -1,6 +1,11 @@
 import React, { useState } from 'react';
 import { ChevronDownIcon, ChevronUpIcon, DocumentTextIcon, LinkIcon } from '@heroicons/react/24/outline';
 
+/**
+ * Security Note: Source content is rendered as text content (not HTML).
+ * React automatically escapes text content, providing XSS protection.
+ */
+
 export interface Source {
   document_name: string;
   content: string;

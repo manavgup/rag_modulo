@@ -422,7 +422,7 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
                     if doc_id not in doc_data_map:
                         doc_data_map[doc_id] = {
                             "score": score,
-                            "page_numbers": set([page_number]) if page_number else set(),
+                            "page_numbers": {page_number} if page_number else set(),
                             "content": content,
                         }
                     else:
