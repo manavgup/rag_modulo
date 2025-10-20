@@ -79,7 +79,7 @@ jobs:
           scanners: 'vuln'  # Only vulnerabilities, not misconfigurations
 
       - name: 📤 Upload Trivy Backend SARIF
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: trivy-backend-deps.sarif
@@ -103,7 +103,7 @@ jobs:
           scanners: 'vuln'
 
       - name: 📤 Upload Trivy Frontend SARIF
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: trivy-frontend-deps.sarif
