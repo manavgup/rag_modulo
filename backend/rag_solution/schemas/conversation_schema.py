@@ -49,7 +49,9 @@ class MessageType(str, Enum):
 class MessageMetadata(BaseModel):
     """Strongly typed metadata for conversation messages."""
 
-    source_documents: list[str] | None = Field(default=None, description="IDs of source documents")
+    source_documents: list[str] | None = Field(
+        default=None, description="Names/filenames of source documents used in the response"
+    )
     search_metadata: dict[str, Any] | None = Field(default=None, description="Search result metadata")
     cot_used: bool = Field(default=False, description="Whether Chain of Thought was used")
     conversation_aware: bool = Field(default=False, description="Whether conversation context was used")
