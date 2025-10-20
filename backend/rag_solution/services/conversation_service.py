@@ -607,7 +607,7 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
         # Create assistant response with integration metadata and token tracking
         # IMPORTANT: Store sources and cot_output in metadata so they persist to database
         metadata_dict = {
-            "source_documents": [doc.get("document_id", "") for doc in serialized_documents]
+            "source_documents": [doc.get("document_name", "") for doc in serialized_documents]
             if serialized_documents
             else None,
             "search_metadata": {
