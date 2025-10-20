@@ -229,9 +229,28 @@ class LLMReranker(BaseReranker):
         # Update QueryResult scores with LLM scores
         reranked_results = []
         for result, llm_score in sorted_results:
+            # Create new chunk with updated score to maintain consistency
+            if result.chunk is not None:
+                # Import DocumentChunkWithScore at function level to avoid circular imports
+                from vectordbs.data_types import DocumentChunkWithScore
+
+                updated_chunk = DocumentChunkWithScore(
+                    chunk_id=result.chunk.chunk_id,
+                    text=result.chunk.text,
+                    embeddings=result.chunk.embeddings,
+                    metadata=result.chunk.metadata,
+                    document_id=result.chunk.document_id,
+                    parent_chunk_id=result.chunk.parent_chunk_id,
+                    child_chunk_ids=result.chunk.child_chunk_ids,
+                    level=result.chunk.level,
+                    score=llm_score,  # Update chunk score to match QueryResult score
+                )
+            else:
+                updated_chunk = None
+
             # Create new QueryResult with updated score
             new_result = QueryResult(
-                chunk=result.chunk,
+                chunk=updated_chunk,
                 score=llm_score,  # Use LLM score instead of original vector similarity score
                 embeddings=result.embeddings,
             )
