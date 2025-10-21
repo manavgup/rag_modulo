@@ -257,21 +257,23 @@ class ChainOfThoughtService:
         )
 
         # Create prompt with explicit instructions
-        prompt = f"""You are a helpful AI assistant. Answer the user's question based ONLY on the provided documents below.
+        prompt = f"""Answer ONLY the specific question below. Do NOT generate additional questions or "Question:" / "Answer:" pairs.
 
-IMPORTANT RULES:
-- Answer based ONLY on the information in the documents
-- Do NOT mention the documents, your reasoning process, or any internal context
-- Do NOT include phrases like "Based on the analysis" or "in the context of"
-- Provide a direct, clear answer to the question
-- If the documents don't contain the answer, state this clearly
+CRITICAL RULES - FOLLOW EXACTLY:
+1. Answer ONLY the specific question provided
+2. Do NOT generate any additional questions
+3. Do NOT include "Question:" or "Answer:" labels in your response
+4. Do NOT mention documents, sources, or your reasoning process
+5. Do NOT include phrases like "Based on the analysis" or "in the context of"
+6. Provide ONLY a direct, factual answer based on the documents
+7. If the information is not in the documents, say "The information is not available in the provided documents."
 
 Documents:
 {formatted_docs}
 
 Question: {question}
 
-Provide a concise, direct answer:"""
+Your answer (do NOT repeat the question, do NOT generate additional questions):"""
 
         try:
             from rag_solution.schemas.llm_usage_schema import ServiceType
