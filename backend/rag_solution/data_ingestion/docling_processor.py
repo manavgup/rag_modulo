@@ -27,7 +27,7 @@ class DoclingProcessor(BaseProcessor):
     """
 
     def __init__(self, settings: Settings) -> None:
-        """Initialize Docling processor.
+        """Initialize Docling processor with hybrid chunking.
 
         Args:
             settings: Application settings
@@ -36,14 +36,39 @@ class DoclingProcessor(BaseProcessor):
 
         # Import Docling here to avoid import errors when not installed
         try:
+            from docling.chunking import HybridChunker
             from docling.document_converter import DocumentConverter
+            from docling_core.transforms.chunker.tokenizer.huggingface import HuggingFaceTokenizer
+            from transformers import AutoTokenizer
 
             self.converter = DocumentConverter()
-            logger.info("DoclingProcessor initialized successfully")
+
+            # Initialize tokenizer for accurate token counting
+            # Use a tokenizer compatible with embedding models
+            base_tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+
+            # IBM Slate/Granite embeddings have 512 token limit
+            max_tokens = min(settings.max_chunk_size, 400)  # Safe limit: 400 tokens (vs 512 max)
+
+            # Wrap tokenizer with HuggingFaceTokenizer (new API)
+            self.tokenizer = HuggingFaceTokenizer(
+                tokenizer=base_tokenizer,
+                max_tokens=max_tokens,
+            )
+
+            # Configure hybrid chunker with token limits
+            self.chunker = HybridChunker(
+                tokenizer=self.tokenizer,
+                merge_peers=True,  # Merge similar semantic chunks
+            )
+
+            logger.info("DoclingProcessor initialized with HybridChunker (max_tokens=%d)", max_tokens)
         except ImportError as e:
             logger.warning(f"Docling not installed: {e}. Install with: pip install docling")
             # Create a mock converter for testing
             self.converter = None
+            self.chunker = None
+            self.tokenizer = None
 
     async def process(self, file_path: str, document_id: str) -> AsyncIterator[Document]:
         """Process document using Docling.
@@ -147,7 +172,72 @@ class DoclingProcessor(BaseProcessor):
         )
 
     async def _convert_to_chunks(self, docling_doc: Any, document_id: str) -> list[DocumentChunk]:
-        """Convert DoclingDocument to RAG Modulo chunks.
+        """Convert DoclingDocument to RAG Modulo chunks using Docling's HybridChunker.
+
+        Args:
+            docling_doc: Docling document object
+            document_id: Document identifier
+
+        Returns:
+            List of DocumentChunk objects
+        """
+        if self.chunker is None:
+            logger.error("HybridChunker not initialized - falling back to old method")
+            return await self._convert_to_chunks_legacy(docling_doc, document_id)
+
+        chunks: list[DocumentChunk] = []
+        token_counts: list[int] = []  # Track token counts for statistics
+
+        # Use Docling's hybrid chunker - it handles the entire document intelligently
+        docling_chunks = list(self.chunker.chunk(dl_doc=docling_doc))
+
+        logger.info(f"Docling HybridChunker created {len(docling_chunks)} chunks")
+
+        for chunk_idx, docling_chunk in enumerate(docling_chunks):
+            # Extract text from DoclingChunk
+            chunk_text = docling_chunk.text
+
+            # Count actual tokens using the wrapped tokenizer
+            # HuggingFaceTokenizer has count_tokens() method
+            token_count = self.tokenizer.count_tokens(chunk_text)
+            token_counts.append(token_count)
+
+            # Extract metadata from DoclingChunk
+            # Try to get page number from chunk metadata
+            page_number = None
+            if hasattr(docling_chunk, "meta") and hasattr(docling_chunk.meta, "doc_items"):
+                doc_items = docling_chunk.meta.doc_items
+                if doc_items and len(doc_items) > 0:
+                    first_item = doc_items[0]
+                    # DocItem has prov attribute which is a list of Provenance objects
+                    if hasattr(first_item, "prov") and first_item.prov and len(first_item.prov) > 0:
+                        page_number = getattr(first_item.prov[0], "page_no", None)
+
+            chunk_metadata = {
+                "page_number": page_number,
+                "chunk_number": chunk_idx,
+                "start_index": 0,
+                "end_index": len(chunk_text),
+                "table_index": 0,
+                "image_index": 0,
+                "layout_type": "hybrid",
+                "headings": getattr(docling_chunk.meta, "headings", []) if hasattr(docling_chunk, "meta") else [],
+            }
+
+            chunks.append(self._create_chunk(chunk_text, chunk_metadata, document_id))
+
+        # Log chunking statistics
+        if token_counts:
+            avg_tokens = sum(token_counts) / len(token_counts)
+            max_tokens = max(token_counts)
+            logger.info(
+                f"Chunking complete: {len(chunks)} chunks, avg {avg_tokens:.0f} tokens, max {max_tokens} tokens"
+            )
+
+        return chunks
+
+    async def _convert_to_chunks_legacy(self, docling_doc: Any, document_id: str) -> list[DocumentChunk]:
+        """Legacy chunking method (fallback if HybridChunker not available).
 
         Args:
             docling_doc: Docling document object
@@ -167,21 +257,18 @@ class DoclingProcessor(BaseProcessor):
             return chunks
 
         # Iterate through document items (structure-aware)
-        # Note: iterate_items() returns tuples of (item, level) in newer Docling versions
         for item_data in docling_doc.iterate_items():
             # Handle both old API (direct items) and new API (tuples)
             item = item_data[0] if isinstance(item_data, tuple) else item_data
-
             item_type = type(item).__name__
 
-            # Handle text blocks (TextItem, SectionHeaderItem, etc.)
+            # Handle text blocks
             if item_type in ("TextItem", "SectionHeaderItem", "ListItem", "CodeItem"):
                 text_content = getattr(item, "text", "")
-
                 if not text_content:
                     continue
 
-                # Apply chunking strategy
+                # Apply old chunking strategy
                 text_chunks = self.chunking_method(text_content)
 
                 for chunk_text in text_chunks:
@@ -199,16 +286,13 @@ class DoclingProcessor(BaseProcessor):
                     chunks.append(self._create_chunk(chunk_text, chunk_metadata, document_id))
                     chunk_counter += 1
 
-            # Handle tables with TableFormer extraction
+            # Handle tables
             elif item_type == "TableItem":
                 table_data = None
                 if hasattr(item, "export_to_dict"):
                     table_data = item.export_to_dict()
 
-                # Convert table to text representation
                 table_text = self._table_to_text(table_data) if table_data else "Table content"
-
-                # Create table chunk (preserve structure)
                 table_counter += 1
                 chunk_metadata = {
                     "page_number": self._get_page_number(item),
@@ -226,7 +310,6 @@ class DoclingProcessor(BaseProcessor):
 
             # Handle images
             elif item_type == "PictureItem":
-                # Extract image metadata
                 image_path = None
                 if hasattr(item, "image") and hasattr(item.image, "uri"):
                     image_path = item.image.uri
