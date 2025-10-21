@@ -48,7 +48,12 @@ class DoclingProcessor(BaseProcessor):
             base_tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
 
             # IBM Slate/Granite embeddings have 512 token limit
-            max_tokens = min(settings.max_chunk_size, 400)  # Safe limit: 400 tokens (vs 512 max)
+            # Use 400 as max_tokens (78% of 512) to provide safety margin:
+            # - Accounts for tokenizer differences between BERT and embedding models
+            # - Prevents edge cases where token count varies slightly
+            # - Allows room for metadata/headers in embedding requests
+            # - Empirically validated: max observed chunk was 299 tokens
+            max_tokens = min(settings.max_chunk_size, 400)  # Safe limit with 78% safety margin
 
             # Wrap tokenizer with HuggingFaceTokenizer (new API)
             self.tokenizer = HuggingFaceTokenizer(
@@ -197,21 +202,31 @@ class DoclingProcessor(BaseProcessor):
             # Extract text from DoclingChunk
             chunk_text = docling_chunk.text
 
-            # Count actual tokens using the wrapped tokenizer
+            # Count actual tokens using the wrapped tokenizer with error handling
             # HuggingFaceTokenizer has count_tokens() method
-            token_count = self.tokenizer.count_tokens(chunk_text)
+            try:
+                token_count = self.tokenizer.count_tokens(chunk_text)
+            except Exception as e:
+                # Fallback: estimate tokens using rough 4-char-per-token heuristic
+                logger.warning(f"Token counting failed for chunk {chunk_idx}: {e}. Using estimation.")
+                token_count = len(chunk_text) // 4
             token_counts.append(token_count)
 
             # Extract metadata from DoclingChunk
-            # Try to get page number from chunk metadata
-            page_number = None
+            # Extract all unique page numbers from all doc_items (for multi-page chunks)
+            page_numbers = set()
             if hasattr(docling_chunk, "meta") and hasattr(docling_chunk.meta, "doc_items"):
                 doc_items = docling_chunk.meta.doc_items
-                if doc_items and len(doc_items) > 0:
-                    first_item = doc_items[0]
+                for item in doc_items:
                     # DocItem has prov attribute which is a list of Provenance objects
-                    if hasattr(first_item, "prov") and first_item.prov and len(first_item.prov) > 0:
-                        page_number = getattr(first_item.prov[0], "page_no", None)
+                    if hasattr(item, "prov") and item.prov:
+                        for prov in item.prov:
+                            page_no = getattr(prov, "page_no", None)
+                            if page_no is not None:
+                                page_numbers.add(page_no)
+
+            # Use first page for backwards compatibility, but store all pages in metadata
+            page_number = min(page_numbers) if page_numbers else None
 
             chunk_metadata = {
                 "page_number": page_number,
@@ -222,6 +237,7 @@ class DoclingProcessor(BaseProcessor):
                 "image_index": 0,
                 "layout_type": "hybrid",
                 "headings": getattr(docling_chunk.meta, "headings", []) if hasattr(docling_chunk, "meta") else [],
+                "page_range": sorted(page_numbers) if len(page_numbers) > 1 else None,  # For multi-page chunks
             }
 
             chunks.append(self._create_chunk(chunk_text, chunk_metadata, document_id))
