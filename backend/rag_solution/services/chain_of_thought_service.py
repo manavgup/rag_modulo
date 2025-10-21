@@ -227,7 +227,10 @@ class ChainOfThoughtService:
     def _generate_llm_response(
         self, llm_service: LLMBase, question: str, context: list[str], user_id: str
     ) -> tuple[str, Any]:
-        """Generate response using LLM service.
+        """Generate response using LLM service with structured prompt.
+
+        IMPORTANT: Prompt should have clear instructions to prevent leakage
+        of reasoning process or internal context.
 
         Args:
             llm_service: The LLM service to use.
@@ -243,10 +246,32 @@ class ChainOfThoughtService:
         """
         if not hasattr(llm_service, "generate_text_with_usage"):
             logger.warning("LLM service %s does not have generate_text_with_usage method", type(llm_service))
-            return f"Based on the context, {question.lower().replace('?', '')}...", None
+            return "Unable to generate response - LLM service unavailable", None
 
-        # Create a proper prompt with context
-        prompt = f"Question: {question}\n\nContext: {' '.join(context)}\n\nAnswer:"
+        # ✅ FIX: Create structured prompt with clear instructions
+        # Format documents as numbered list for clarity
+        formatted_docs = (
+            "\n\n".join([f"Document {i + 1}:\n{doc}" for i, doc in enumerate(context)])
+            if context
+            else "No context available."
+        )
+
+        # Create prompt with explicit instructions
+        prompt = f"""You are a helpful AI assistant. Answer the user's question based ONLY on the provided documents below.
+
+IMPORTANT RULES:
+- Answer based ONLY on the information in the documents
+- Do NOT mention the documents, your reasoning process, or any internal context
+- Do NOT include phrases like "Based on the analysis" or "in the context of"
+- Provide a direct, clear answer to the question
+- If the documents don't contain the answer, state this clearly
+
+Documents:
+{formatted_docs}
+
+Question: {question}
+
+Provide a concise, direct answer:"""
 
         try:
             from rag_solution.schemas.llm_usage_schema import ServiceType
@@ -256,14 +281,14 @@ class ChainOfThoughtService:
             # Use template consistently for ALL providers with token tracking
             llm_response, usage = llm_service.generate_text_with_usage(
                 user_id=UUID(user_id),
-                prompt=prompt,  # This will be passed as 'context' variable
+                prompt=prompt,
                 service_type=ServiceType.SEARCH,
                 template=cot_template,
-                variables={"context": prompt},  # Map prompt to context variable
+                variables={"context": prompt},
             )
 
             return (
-                str(llm_response) if llm_response else f"Based on the context, {question.lower().replace('?', '')}...",
+                str(llm_response).strip() if llm_response else "Unable to generate an answer.",
                 usage,
             )
 
@@ -526,29 +551,31 @@ class ChainOfThoughtService:
         )
 
     def _build_conversation_aware_context(
-        self, context_documents: list[str], context_metadata: dict[str, Any] | None
+        self,
+        context_documents: list[str],
+        context_metadata: dict[str, Any] | None = None,  # noqa: ARG002
     ) -> list[str]:
-        """Build conversation-aware context for CoT reasoning."""
-        enhanced_context = list(context_documents)
+        """Build context for CoT reasoning WITHOUT leaking metadata.
 
-        if context_metadata:
-            # Add conversation context if available
-            conversation_context = context_metadata.get("conversation_context")
-            if conversation_context:
-                enhanced_context.append(f"Conversation context: {conversation_context}")
+        IMPORTANT: Metadata is used for query expansion and understanding,
+        but should NOT be appended as text strings to the LLM prompt.
 
-            # Add conversation entities
-            conversation_entities = context_metadata.get("conversation_entities", [])
-            if conversation_entities:
-                enhanced_context.append(f"Previously discussed: {', '.join(conversation_entities)}")
+        Args:
+            context_documents: Retrieved document chunks (SEND to LLM)
+            context_metadata: Conversation metadata (kept for backward compatibility, not used)
 
-            # Add message history
-            message_history = context_metadata.get("message_history", [])
-            if message_history:
-                recent_messages = message_history[-3:]  # Last 3 messages
-                enhanced_context.append(f"Recent discussion: {' '.join(recent_messages)}")
+        Returns:
+            List of document strings ONLY (no metadata strings)
+        """
+        # ✅ FIX: Return ONLY documents, no metadata strings
+        # Metadata should be used for query expansion BEFORE retrieval,
+        # not sent to the LLM during reasoning
+        # context_metadata parameter kept for backward compatibility but intentionally unused
+        return list(context_documents)
 
-        return enhanced_context
+        # NOTE: If we need to use metadata for context understanding,
+        # it should be done through query rewriting or entity resolution,
+        # NOT by appending it as text to the prompt.
 
     def evaluate_reasoning_chain(self, output: ChainOfThoughtOutput) -> dict[str, str | int | float]:
         """Evaluate the quality of a reasoning chain.

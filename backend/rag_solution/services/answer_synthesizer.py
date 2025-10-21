@@ -18,39 +18,48 @@ class AnswerSynthesizer:
         self.llm_service = llm_service
         self.settings = settings or get_settings()
 
-    def synthesize(self, original_question: str, reasoning_steps: list[ReasoningStep]) -> str:
-        """Synthesize a final answer from reasoning steps.
+    def synthesize(self, original_question: str, reasoning_steps: list[ReasoningStep]) -> str:  # noqa: ARG002
+        """Synthesize final answer from reasoning steps WITHOUT leaking internal reasoning.
+
+        IMPORTANT: The final answer should be clean and user-facing.
+        Do NOT include internal prefixes like "Based on the analysis of".
 
         Args:
-            original_question: The original question.
-            reasoning_steps: The reasoning steps taken.
+            original_question: The original user question (kept for backward compatibility, not used)
+            reasoning_steps: The reasoning steps taken (internal)
 
         Returns:
-            The synthesized final answer.
+            Clean, user-facing answer
         """
         if not reasoning_steps:
             return "Unable to generate an answer due to insufficient information."
 
-        # Combine intermediate answers
+        # Extract intermediate answers
         intermediate_answers = [step.intermediate_answer for step in reasoning_steps if step.intermediate_answer]
 
         if not intermediate_answers:
             return "Unable to synthesize an answer from the reasoning steps."
 
-        # Simple synthesis (in production, this would use an LLM)
+        # ✅ FIX: Return clean answer without internal prefixes
+        # Single answer: return directly (no modification)
         if len(intermediate_answers) == 1:
             return intermediate_answers[0]
 
-        # Combine multiple answers
-        synthesis = f"Based on the analysis of {original_question}: "
+        # Multiple answers: combine naturally without "Based on the analysis" prefix
+        # Use the first answer as the base
+        synthesis = intermediate_answers[0]
 
-        for i, answer in enumerate(intermediate_answers):
-            if i == 0:
-                synthesis += answer
-            elif i == len(intermediate_answers) - 1:
-                synthesis += f" Additionally, {answer.lower()}"
+        # Add subsequent answers with natural transitions
+        for i, answer in enumerate(intermediate_answers[1:], start=1):
+            # Clean joining (avoid repetition, maintain flow)
+            if not synthesis.endswith((".", "!", "?")):
+                synthesis += "."
+
+            # Add natural transition
+            if i == len(intermediate_answers) - 1:
+                synthesis += f" Additionally, {answer}"
             else:
-                synthesis += f" Furthermore, {answer.lower()}"
+                synthesis += f" {answer}"
 
         return synthesis
 
