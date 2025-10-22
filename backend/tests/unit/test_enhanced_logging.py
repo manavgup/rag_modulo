@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 
 import pytest
 
@@ -214,7 +214,7 @@ class TestLogOperation:
         clear_context()
         self.logger.removeHandler(self.handler)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio  # type: ignore[misc]
     async def test_log_operation_basic(self) -> None:
         """Test basic log_operation functionality."""
 
@@ -228,7 +228,7 @@ class TestLogOperation:
 
         await test_func()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio  # type: ignore[misc]
     async def test_log_operation_timing(self) -> None:
         """Test that log_operation logs start and end with timing."""
 
@@ -243,18 +243,20 @@ class TestLogOperation:
         # Note: MemoryHandler doesn't store records in an easily accessible way
         # This test validates the context manager doesn't raise errors
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio  # type: ignore[misc]
     async def test_log_operation_error_handling(self) -> None:
         """Test that log_operation handles errors properly."""
 
         async def test_func() -> None:
-            with pytest.raises(ValueError):
-                with log_operation(self.logger, "failing_op", "collection", "coll_123"):
-                    raise ValueError("Test error")
+            with (
+                pytest.raises(ValueError),
+                log_operation(self.logger, "failing_op", "collection", "coll_123"),
+            ):
+                raise ValueError("Test error")
 
         await test_func()
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio  # type: ignore[misc]
     async def test_log_operation_restores_context(self) -> None:
         """Test that log_operation restores previous context."""
         initial = LogContext(request_id="initial_req")
@@ -273,7 +275,7 @@ class TestLogOperation:
 class TestLogStorageService:
     """Tests for LogStorageService."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio  # type: ignore[misc]
     async def test_add_log_basic(self) -> None:
         """Test adding a log entry."""
         storage = LogStorageService(max_size_mb=1)
@@ -290,7 +292,7 @@ class TestLogStorageService:
         assert entry.entity_type == "collection"
         assert entry.entity_id == "coll_123"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio  # type: ignore[misc]
     async def test_get_logs_filtering(self) -> None:
         """Test filtering logs by entity."""
         storage = LogStorageService(max_size_mb=1)
@@ -307,7 +309,7 @@ class TestLogStorageService:
         assert logs[0]["message"] == "Log 1"
         assert logs[0]["entity_id"] == "coll_123"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio  # type: ignore[misc]
     async def test_get_logs_by_request_id(self) -> None:
         """Test filtering logs by request ID."""
         storage = LogStorageService(max_size_mb=1)
@@ -322,7 +324,7 @@ class TestLogStorageService:
         assert len(logs) == 2
         assert all(log["request_id"] == "req_123" for log in logs)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio  # type: ignore[misc]
     async def test_get_logs_by_pipeline_stage(self) -> None:
         """Test filtering logs by pipeline stage."""
         storage = LogStorageService(max_size_mb=1)
@@ -336,7 +338,7 @@ class TestLogStorageService:
         assert len(logs) == 2
         assert all(log["pipeline_stage"] == "query_rewriting" for log in logs)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio  # type: ignore[misc]
     async def test_get_logs_level_filtering(self) -> None:
         """Test filtering logs by level."""
         storage = LogStorageService(max_size_mb=1)
@@ -353,7 +355,7 @@ class TestLogStorageService:
         assert any(log["level"] == "warning" for log in logs)
         assert any(log["level"] == "error" for log in logs)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio  # type: ignore[misc]
     async def test_get_logs_search(self) -> None:
         """Test searching logs by message text."""
         storage = LogStorageService(max_size_mb=1)
@@ -367,7 +369,7 @@ class TestLogStorageService:
         assert len(logs) == 2
         assert all("search" in log["message"].lower() for log in logs)
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio  # type: ignore[misc]
     async def test_get_logs_pagination(self) -> None:
         """Test pagination of log results."""
         storage = LogStorageService(max_size_mb=1)
@@ -386,7 +388,7 @@ class TestLogStorageService:
         assert len(page2) == 3
         assert page2[0]["message"] == "Log 3"
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio  # type: ignore[misc]
     async def test_storage_stats(self) -> None:
         """Test storage statistics."""
         storage = LogStorageService(max_size_mb=1)
@@ -403,7 +405,7 @@ class TestLogStorageService:
         assert "info" in stats["level_distribution"]
         assert "collection" in stats["entity_distribution"]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio  # type: ignore[misc]
     async def test_clear_logs(self) -> None:
         """Test clearing all logs."""
         storage = LogStorageService(max_size_mb=1)

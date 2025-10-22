@@ -25,7 +25,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from logging import Logger
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass
@@ -43,13 +43,13 @@ class LogContext:
         metadata: Additional arbitrary metadata
     """
 
-    request_id: Optional[str] = None
-    user_id: Optional[str] = None
-    collection_id: Optional[str] = None
-    pipeline_id: Optional[str] = None
-    document_id: Optional[str] = None
-    operation: Optional[str] = None
-    pipeline_stage: Optional[str] = None
+    request_id: str | None = None
+    user_id: str | None = None
+    collection_id: str | None = None
+    pipeline_id: str | None = None
+    document_id: str | None = None
+    operation: str | None = None
+    pipeline_stage: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -75,7 +75,7 @@ class LogContext:
 
 
 # Context variable for async propagation
-_log_context: ContextVar[LogContext] = ContextVar("log_context", default=LogContext())
+_log_context: ContextVar[LogContext | None] = ContextVar("log_context", default=None)
 
 
 def get_context() -> LogContext:
@@ -84,7 +84,11 @@ def get_context() -> LogContext:
     Returns:
         Current LogContext instance
     """
-    return _log_context.get()
+    context = _log_context.get()
+    if context is None:
+        context = LogContext()
+        _log_context.set(context)
+    return context
 
 
 def set_context(context: LogContext) -> None:
@@ -122,7 +126,7 @@ def log_operation(
     operation: str,
     entity_type: str,
     entity_id: str,
-    user_id: Optional[str] = None,
+    user_id: str | None = None,
     **metadata: Any,
 ) -> Generator[None, None, None]:
     """Context manager for tracking an operation with automatic timing.
@@ -262,8 +266,8 @@ def pipeline_stage_context(stage: str) -> Generator[None, None, None]:
 
 @contextmanager
 def request_context(
-    request_id: Optional[str] = None,
-    user_id: Optional[str] = None,
+    request_id: str | None = None,
+    user_id: str | None = None,
     **metadata: Any,
 ) -> Generator[None, None, None]:
     """Context manager for setting request-level context.
@@ -344,6 +348,7 @@ class PipelineStage:
     COT_ANSWER_SYNTHESIS = "cot_answer_synthesis"
 
     # Document processing stages
+    DOCUMENT_PROCESSING = "document_processing"
     DOCUMENT_PARSING = "document_parsing"
     DOCUMENT_CHUNKING = "document_chunking"
     DOCUMENT_INDEXING = "document_indexing"

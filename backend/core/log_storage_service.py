@@ -12,9 +12,9 @@ import uuid
 from collections import deque
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 
 class LogLevel(str, Enum):
@@ -51,18 +51,18 @@ class LogEntry:
     """
 
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
     level: LogLevel = LogLevel.INFO
-    entity_type: Optional[str] = None
-    entity_id: Optional[str] = None
-    entity_name: Optional[str] = None
+    entity_type: str | None = None
+    entity_id: str | None = None
+    entity_name: str | None = None
     message: str = ""
-    logger: Optional[str] = None
-    data: Optional[dict[str, Any]] = None
-    request_id: Optional[str] = None
-    operation: Optional[str] = None
-    pipeline_stage: Optional[str] = None
-    execution_time_ms: Optional[float] = None
+    logger: str | None = None
+    data: dict[str, Any] | None = None
+    request_id: str | None = None
+    operation: str | None = None
+    pipeline_stage: str | None = None
+    execution_time_ms: float | None = None
     _size: int = field(init=False, default=0)
 
     def __post_init__(self) -> None:
@@ -138,15 +138,15 @@ class LogStorageService:
         self,
         level: LogLevel,
         message: str,
-        entity_type: Optional[str] = None,
-        entity_id: Optional[str] = None,
-        entity_name: Optional[str] = None,
-        logger: Optional[str] = None,
-        data: Optional[dict[str, Any]] = None,
-        request_id: Optional[str] = None,
-        operation: Optional[str] = None,
-        pipeline_stage: Optional[str] = None,
-        execution_time_ms: Optional[float] = None,
+        entity_type: str | None = None,
+        entity_id: str | None = None,
+        entity_name: str | None = None,
+        logger: str | None = None,
+        data: dict[str, Any] | None = None,
+        request_id: str | None = None,
+        operation: str | None = None,
+        pipeline_stage: str | None = None,
+        execution_time_ms: float | None = None,
     ) -> LogEntry:
         """Add a log entry to storage.
 
@@ -182,7 +182,7 @@ class LogStorageService:
 
         # Add to buffer and update size
         self._buffer.append(log_entry)
-        self._current_size_bytes += log_entry._size  # noqa: SLF001
+        self._current_size_bytes += log_entry._size
 
         # Update indices BEFORE eviction so they can be cleaned up properly
         if entity_id:
@@ -204,7 +204,7 @@ class LogStorageService:
         # Remove old entries if size limit exceeded
         while self._current_size_bytes > self._max_size_bytes and self._buffer:
             old_entry = self._buffer.popleft()
-            self._current_size_bytes -= old_entry._size  # noqa: SLF001
+            self._current_size_bytes -= old_entry._size
             self._remove_from_indices(old_entry)
 
         # Notify subscribers
@@ -274,14 +274,14 @@ class LogStorageService:
 
     async def get_logs(
         self,
-        entity_type: Optional[str] = None,
-        entity_id: Optional[str] = None,
-        level: Optional[LogLevel] = None,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
-        request_id: Optional[str] = None,
-        pipeline_stage: Optional[str] = None,
-        search: Optional[str] = None,
+        entity_type: str | None = None,
+        entity_id: str | None = None,
+        level: LogLevel | None = None,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+        request_id: str | None = None,
+        pipeline_stage: str | None = None,
+        search: str | None = None,
         limit: int = 100,
         offset: int = 0,
         order: str = "desc",

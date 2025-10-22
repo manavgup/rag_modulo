@@ -21,18 +21,15 @@ import logging
 import logging.handlers
 import os
 from asyncio import AbstractEventLoop, get_running_loop
-from pathlib import Path
-from typing import Any, Optional
 
 from pythonjsonlogger import jsonlogger
 
 from core.log_storage_service import LogLevel, LogStorageService
-from core.logging_context import get_context
 
 # Global handlers will be created lazily
-_file_handler: Optional[logging.Handler] = None
-_text_handler: Optional[logging.StreamHandler] = None
-_storage_handler: Optional[logging.Handler] = None
+_file_handler: logging.Handler | None = None
+_text_handler: logging.StreamHandler | None = None
+_storage_handler: logging.Handler | None = None
 
 # Text formatter
 _text_formatter = logging.Formatter(
@@ -48,7 +45,7 @@ _json_formatter = jsonlogger.JsonFormatter(
 
 def _get_file_handler(
     log_file: str = "rag_modulo.log",
-    log_folder: Optional[str] = "logs",
+    log_folder: str | None = "logs",
     log_rotation_enabled: bool = True,
     log_max_size_mb: int = 10,
     log_backup_count: int = 5,
@@ -72,7 +69,7 @@ def _get_file_handler(
     Raises:
         ValueError: If file logging is disabled or no log file specified
     """
-    global _file_handler  # noqa: PLW0603
+    global _file_handler
     if _file_handler is None:
         if not log_file:
             raise ValueError("No log file specified")
@@ -108,7 +105,7 @@ def _get_text_handler() -> logging.StreamHandler:
     Returns:
         logging.StreamHandler: The stream handler for console logging
     """
-    global _text_handler  # noqa: PLW0603
+    global _text_handler
     if _text_handler is None:
         _text_handler = logging.StreamHandler()
         _text_handler.setFormatter(_text_formatter)
@@ -266,7 +263,7 @@ class LoggingService:
         log_format: str = "text",
         log_to_file: bool = True,
         log_file: str = "rag_modulo.log",
-        log_folder: Optional[str] = "logs",
+        log_folder: str | None = "logs",
         log_rotation_enabled: bool = True,
         log_max_size_mb: int = 10,
         log_backup_count: int = 5,
@@ -339,7 +336,7 @@ class LoggingService:
             self._storage = LogStorageService(max_size_mb=log_buffer_size_mb)
 
             # Add storage handler to capture all logs
-            global _storage_handler  # noqa: PLW0603
+            global _storage_handler
             _storage_handler = StorageHandler(self._storage)
             _storage_handler.setFormatter(_text_formatter)
             _storage_handler.setLevel(log_level_value)
@@ -398,7 +395,7 @@ class LoggingService:
 
         return self._loggers[name]
 
-    def get_storage(self) -> Optional[LogStorageService]:
+    def get_storage(self) -> LogStorageService | None:
         """Get the log storage service if available.
 
         Returns:
@@ -408,7 +405,7 @@ class LoggingService:
 
 
 # Global logging service instance
-_logging_service: Optional[LoggingService] = None
+_logging_service: LoggingService | None = None
 
 
 def get_logging_service() -> LoggingService:
@@ -417,7 +414,7 @@ def get_logging_service() -> LoggingService:
     Returns:
         LoggingService instance
     """
-    global _logging_service  # noqa: PLW0603
+    global _logging_service
     if _logging_service is None:
         _logging_service = LoggingService()
     return _logging_service
@@ -447,7 +444,7 @@ async def initialize_logging(
     log_format: str = "text",
     log_to_file: bool = True,
     log_file: str = "rag_modulo.log",
-    log_folder: Optional[str] = "logs",
+    log_folder: str | None = "logs",
     log_rotation_enabled: bool = True,
     log_max_size_mb: int = 10,
     log_backup_count: int = 5,

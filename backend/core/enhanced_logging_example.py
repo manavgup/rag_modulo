@@ -11,7 +11,6 @@ Example patterns shown:
 """
 
 import asyncio
-from typing import Optional
 
 from pydantic import UUID4
 
@@ -207,7 +206,7 @@ async def _synthesize_answers(answers: list[dict]) -> str:
     return "Synthesized final answer based on sub-answers"
 
 
-async def example_error_handling(collection_id: UUID4, user_id: UUID4) -> Optional[dict]:
+async def example_error_handling(collection_id: UUID4, user_id: UUID4) -> dict | None:
     """Example error handling with enhanced logging.
 
     Demonstrates how errors are automatically logged with context.
@@ -226,10 +225,9 @@ async def example_error_handling(collection_id: UUID4, user_id: UUID4) -> Option
             entity_type="collection",
             entity_id=str(collection_id),
             user_id=str(user_id),
-        ):
-            with pipeline_stage_context(PipelineStage.DOCUMENT_PROCESSING):
-                # Simulate an error
-                raise ValueError("Simulated processing error")
+        ), pipeline_stage_context(PipelineStage.DOCUMENT_PROCESSING):
+            # Simulate an error
+            raise ValueError("Simulated processing error")
     except ValueError as e:
         # Error is automatically logged by log_operation context manager
         # with full context, timing, and stack trace
