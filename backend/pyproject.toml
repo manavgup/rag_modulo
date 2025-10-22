@@ -27,6 +27,7 @@ dependencies = [
     "chromadb>=0.5.16",
     "aiofiles",
     "python-docx",
+    "python-json-logger>=2.0.7",
     "openpyxl>=3.1.2",
     "starlette>=0.36.3",
     "setuptools>=75.1.0",

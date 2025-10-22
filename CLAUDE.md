@@ -398,6 +398,34 @@ make validate-ci
 4. **Error Handling**: Proper error handling with custom exceptions
 5. **Testing**: Write tests for new features (unit + integration)
 6. **Line Length**: 120 characters for Python code
+7. **Enhanced Logging**: Use structured logging with context tracking (see below)
+
+### Enhanced Logging (Issue #218)
+
+RAG Modulo implements an enhanced logging system with structured context tracking, request correlation, and performance monitoring. Based on patterns from IBM mcp-context-forge.
+
+**Key Features**: Dual output formats (JSON/text), context tracking, pipeline stage tracking, performance monitoring, in-memory queryable storage.
+
+**Quick Example**:
+```python
+from core.enhanced_logging import get_logger
+from core.logging_context import log_operation, pipeline_stage_context, PipelineStage
+
+logger = get_logger(__name__)
+
+with log_operation(logger, "search", "collection", coll_id, user_id=user_id):
+    with pipeline_stage_context(PipelineStage.QUERY_REWRITING):
+        logger.info("Query rewritten", extra={"original": q, "rewritten": rq})
+```
+
+**📖 Full Documentation**: [docs/development/logging.md](docs/development/logging.md)
+
+- Configuration reference
+- Complete usage examples
+- API reference
+- Migration guide
+- Testing guide
+- Troubleshooting
 
 ### Vector Database Support
 
