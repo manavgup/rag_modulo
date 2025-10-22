@@ -20,16 +20,11 @@ Example:
 import logging
 import logging.handlers
 import os
-from asyncio import AbstractEventLoop, get_running_loop
+from asyncio import get_running_loop
 
 from pythonjsonlogger import jsonlogger
 
 from core.log_storage_service import LogLevel, LogStorageService
-
-# Global handlers will be created lazily
-_file_handler: logging.Handler | None = None
-_text_handler: logging.StreamHandler | None = None
-_storage_handler: logging.Handler | None = None
 
 # Text formatter
 _text_formatter = logging.Formatter(
@@ -43,16 +38,16 @@ _json_formatter = jsonlogger.JsonFormatter(
 )
 
 
-def _get_file_handler(
-    log_file: str = "rag_modulo.log",
-    log_folder: str | None = "logs",
-    log_rotation_enabled: bool = True,
-    log_max_size_mb: int = 10,
-    log_backup_count: int = 5,
-    log_filemode: str = "a",
-    log_format: str = "json",
+def _create_file_handler(
+    log_file: str,
+    log_folder: str | None,
+    log_rotation_enabled: bool,
+    log_max_size_mb: int,
+    log_backup_count: int,
+    log_filemode: str,
+    log_format: str,
 ) -> logging.Handler:
-    """Get or create the file handler.
+    """Create a new file handler with the specified configuration.
 
     Args:
         log_file: Log filename
@@ -67,49 +62,46 @@ def _get_file_handler(
         logging.Handler: Either a RotatingFileHandler or regular FileHandler
 
     Raises:
-        ValueError: If file logging is disabled or no log file specified
+        ValueError: If no log file specified
     """
-    global _file_handler
-    if _file_handler is None:
-        if not log_file:
-            raise ValueError("No log file specified")
+    if not log_file:
+        raise ValueError("No log file specified")
 
-        # Ensure log folder exists
-        if log_folder:
-            os.makedirs(log_folder, exist_ok=True)
-            log_path = os.path.join(log_folder, log_file)
-        else:
-            log_path = log_file
+    # Ensure log folder exists
+    if log_folder:
+        os.makedirs(log_folder, exist_ok=True)
+        log_path = os.path.join(log_folder, log_file)
+    else:
+        log_path = log_file
 
-        # Create appropriate handler based on rotation settings
-        if log_rotation_enabled:
-            max_bytes = log_max_size_mb * 1024 * 1024  # Convert MB to bytes
-            _file_handler = logging.handlers.RotatingFileHandler(
-                log_path, maxBytes=max_bytes, backupCount=log_backup_count, mode=log_filemode
-            )
-        else:
-            _file_handler = logging.FileHandler(log_path, mode=log_filemode)
+    # Create appropriate handler based on rotation settings
+    handler: logging.Handler
+    if log_rotation_enabled:
+        max_bytes = log_max_size_mb * 1024 * 1024  # Convert MB to bytes
+        handler = logging.handlers.RotatingFileHandler(
+            log_path, maxBytes=max_bytes, backupCount=log_backup_count, mode=log_filemode
+        )
+    else:
+        handler = logging.FileHandler(log_path, mode=log_filemode)
 
-        # Set formatter based on format type
-        if log_format == "json":
-            _file_handler.setFormatter(_json_formatter)
-        else:
-            _file_handler.setFormatter(_text_formatter)
+    # Set formatter based on format type
+    if log_format == "json":
+        handler.setFormatter(_json_formatter)
+    else:
+        handler.setFormatter(_text_formatter)
 
-    return _file_handler
+    return handler
 
 
-def _get_text_handler() -> logging.StreamHandler:
-    """Get or create the text handler for console output.
+def _create_text_handler() -> logging.StreamHandler:
+    """Create a new text handler for console output.
 
     Returns:
         logging.StreamHandler: The stream handler for console logging
     """
-    global _text_handler
-    if _text_handler is None:
-        _text_handler = logging.StreamHandler()
-        _text_handler.setFormatter(_text_formatter)
-    return _text_handler
+    handler = logging.StreamHandler()
+    handler.setFormatter(_text_formatter)
+    return handler
 
 
 class StorageHandler(logging.Handler):
@@ -123,7 +115,6 @@ class StorageHandler(logging.Handler):
         """
         super().__init__()
         self.storage = storage_service
-        self.loop: AbstractEventLoop | None = None
 
     def emit(self, record: logging.LogRecord) -> None:
         """Emit a log record to storage.
@@ -207,17 +198,23 @@ class StorageHandler(logging.Handler):
 
         # Store the log asynchronously
         try:
-            # Get or create event loop
-            if not self.loop:
+            # Get fresh event loop reference each time (avoid memory leak)
+            import asyncio
+
+            try:
+                loop = get_running_loop()
+            except RuntimeError:
+                # No running loop in this thread - try to get the default event loop
                 try:
-                    self.loop = get_running_loop()
+                    loop = asyncio.get_event_loop()
+                    if loop.is_closed():
+                        # Loop is closed, can't store
+                        return
                 except RuntimeError:
-                    # No running loop, can't store
+                    # No event loop available
                     return
 
             # Schedule the coroutine
-            import asyncio
-
             asyncio.run_coroutine_threadsafe(
                 self.storage.add_log(
                     level=log_level,
@@ -232,7 +229,7 @@ class StorageHandler(logging.Handler):
                     execution_time_ms=execution_time_ms,
                     data=data,
                 ),
-                self.loop,
+                loop,
             )
         except Exception:
             # Silently fail to avoid logging recursion
@@ -300,14 +297,14 @@ class LoggingService:
         root_logger.setLevel(log_level_value)
 
         # Always add console/text handler for stdout/stderr
-        text_handler = _get_text_handler()
+        text_handler = _create_text_handler()
         text_handler.setLevel(log_level_value)
         root_logger.addHandler(text_handler)
 
         # Add file handler if enabled
         if log_to_file and log_file:
             try:
-                file_handler = _get_file_handler(
+                file_handler = _create_file_handler(
                     log_file=log_file,
                     log_folder=log_folder,
                     log_rotation_enabled=log_rotation_enabled,
@@ -336,11 +333,10 @@ class LoggingService:
             self._storage = LogStorageService(max_size_mb=log_buffer_size_mb)
 
             # Add storage handler to capture all logs
-            global _storage_handler
-            _storage_handler = StorageHandler(self._storage)
-            _storage_handler.setFormatter(_text_formatter)
-            _storage_handler.setLevel(log_level_value)
-            root_logger.addHandler(_storage_handler)
+            storage_handler = StorageHandler(self._storage)
+            storage_handler.setFormatter(_text_formatter)
+            storage_handler.setLevel(log_level_value)
+            root_logger.addHandler(storage_handler)
 
             logging.info(f"Log storage initialized with {log_buffer_size_mb}MB buffer")
 
