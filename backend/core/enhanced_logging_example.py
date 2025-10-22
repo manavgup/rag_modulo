@@ -173,7 +173,7 @@ async def example_chain_of_thought_operation(
             with pipeline_stage_context(PipelineStage.COT_REASONING):
                 # Each sub-question gets its own logged operation
                 logger.info(
-                    f"Processing sub-question {i+1}/{len(sub_questions)}",
+                    f"Processing sub-question {i + 1}/{len(sub_questions)}",
                     extra={"sub_question": sub_q, "sub_question_index": i},
                 )
 
@@ -219,13 +219,16 @@ async def example_error_handling(collection_id: UUID4, user_id: UUID4) -> dict |
         Optional[dict]: Result or None on error
     """
     try:
-        with log_operation(
-            logger,
-            operation="risky_operation",
-            entity_type="collection",
-            entity_id=str(collection_id),
-            user_id=str(user_id),
-        ), pipeline_stage_context(PipelineStage.DOCUMENT_PROCESSING):
+        with (
+            log_operation(
+                logger,
+                operation="risky_operation",
+                entity_type="collection",
+                entity_id=str(collection_id),
+                user_id=str(user_id),
+            ),
+            pipeline_stage_context(PipelineStage.DOCUMENT_PROCESSING),
+        ):
             # Simulate an error
             raise ValueError("Simulated processing error")
     except ValueError as e:
