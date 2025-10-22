@@ -250,6 +250,18 @@ class Settings(BaseSettings):
 
     # Logging settings
     log_level: Annotated[str, Field(default="INFO", alias="LOG_LEVEL")]
+    log_format: Annotated[str, Field(default="text", alias="LOG_FORMAT")]  # text or json
+    log_to_file: Annotated[bool, Field(default=True, alias="LOG_TO_FILE")]
+    log_file: Annotated[str, Field(default="rag_modulo.log", alias="LOG_FILE")]
+    log_folder: Annotated[str | None, Field(default="logs", alias="LOG_FOLDER")]
+    log_rotation_enabled: Annotated[bool, Field(default=True, alias="LOG_ROTATION_ENABLED")]
+    log_max_size_mb: Annotated[int, Field(default=10, alias="LOG_MAX_SIZE_MB")]
+    log_backup_count: Annotated[int, Field(default=5, alias="LOG_BACKUP_COUNT")]
+    log_filemode: Annotated[str, Field(default="a", alias="LOG_FILEMODE")]
+
+    # Log storage (in-memory for admin UI and debugging)
+    log_storage_enabled: Annotated[bool, Field(default=True, alias="LOG_STORAGE_ENABLED")]
+    log_buffer_size_mb: Annotated[int, Field(default=5, alias="LOG_BUFFER_SIZE_MB")]
 
     # Testing settings
     testing: Annotated[bool, Field(default=False, alias="TESTING")]
