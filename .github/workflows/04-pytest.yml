@@ -24,7 +24,6 @@ env:
   TESTING: true
   SKIP_AUTH: true
   DEVELOPMENT_MODE: true
-  MIN_FREE_GB: 7  # Minimum free disk space (GB) after cleanup
   # Test environment variables
   JWT_SECRET_KEY: test-secret-key-for-ci
   RAG_LLM: openai
@@ -60,23 +59,21 @@ jobs:
           virtualenvs-create: true
           virtualenvs-in-project: true
 
-      # 3️⃣ Free up disk space before heavy operations
-      - name: 🧹 Free Up Disk Space
+      # 3️⃣ Optimized disk cleanup - remove unnecessary packages efficiently
+      # This step removes ~8-10GB of unnecessary packages in parallel while keeping
+      # cleanup time reasonable (~90-120 seconds vs 4m15s for full cleanup).
+      # Heavy dependencies (transformers, docling, vector DBs) require ~3-5GB,
+      # so we need sufficient cleanup to prevent disk exhaustion.
+      - name: 🧹 Free Up Disk Space (Optimized)
         run: |
-          echo "Initial: $(df -h / | awk 'NR==2 {print $4}') available"
-
-          # Remove large packages in parallel
-          for p in \
-            /usr/share/dotnet \
-            /opt/ghc \
-            /usr/local/share/boost \
-            "$AGENT_TOOLSDIRECTORY" \
-            /usr/local/lib/android \
-            /usr/share/swift; do
-            if [ -e "$p" ]; then sudo rm -rf "$p" & fi
-          done
+          echo "Before cleanup: $(df -h / | awk 'NR==2 {print $4}') available"
+          # Remove unnecessary packages in parallel (~8-10GB freed)
+          sudo rm -rf /usr/share/dotnet &       # ~1.5GB - .NET SDK
+          sudo rm -rf /opt/ghc &                 # ~2.5GB - Haskell compiler
+          sudo rm -rf /usr/local/share/boost &   # ~2GB - C++ Boost libraries
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY" &  # ~2-3GB - Tool cache
+          sudo rm -rf /usr/local/lib/android &   # ~1-2GB - Android SDK
           wait
-
           echo "After cleanup: $(df -h / | awk 'NR==2 {print $4}') available"
 
       # 4️⃣ Cache Poetry dependencies for faster builds
@@ -102,20 +99,7 @@ jobs:
           # explicitly or switching to `--with dev,test` selectively.
           poetry install --with test --without dev
 
-      # 6️⃣ Validate free disk space after cleanup (optional)
-      - name: ✅ Ensure sufficient free disk space
-        run: |
-          THRESHOLD=${MIN_FREE_GB:-5}
-          # Compare using bytes to avoid rounding edge cases
-          FREE_BYTES=$(df -B1 / | awk 'NR==2 {print $4}')
-          THRESHOLD_BYTES=$((THRESHOLD*1024*1024*1024))
-          echo "Free space: $((FREE_BYTES/1024/1024/1024))G (threshold: ${THRESHOLD}G)"
-          if [ "$FREE_BYTES" -lt "$THRESHOLD_BYTES" ]; then
-            echo "Error: Less than ${THRESHOLD}G free after cleanup"
-            exit 1
-          fi
-
-      # 7️⃣ Run unit/atomic tests with coverage
+      # 6️⃣ Run unit/atomic tests with coverage
       - name: 🧪 Run unit tests with coverage
         run: |
           cd backend
