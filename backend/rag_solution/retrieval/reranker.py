@@ -126,6 +126,10 @@ class LLMReranker(BaseReranker):
 
         Returns:
             List of variable dictionaries for prompt formatting.
+
+        Note:
+            Uses "context" as the variable name for document text to match
+            the WatsonX provider's batch generation implementation.
         """
         prompts = []
         for result in results:
@@ -133,7 +137,7 @@ class LLMReranker(BaseReranker):
                 continue
             prompt_vars = {
                 "query": query,
-                "document": result.chunk.text,
+                "context": result.chunk.text,  # Changed from "document" to "context"
                 "scale": str(self.score_scale),
             }
             prompts.append(prompt_vars)
@@ -167,7 +171,7 @@ class LLMReranker(BaseReranker):
                 for prompt_vars in batch_prompts:
                     # The template formatting is handled by the LLM provider
                     # We'll pass the document text as the "context" for the template
-                    formatted_prompts.append(prompt_vars["document"])
+                    formatted_prompts.append(prompt_vars["context"])
 
                 # Call LLM with batch of prompts
                 responses = self.llm_provider.generate_text(

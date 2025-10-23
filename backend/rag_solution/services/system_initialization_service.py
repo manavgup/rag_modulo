@@ -102,9 +102,11 @@ class SystemInitializationService:
         try:
             if existing_provider:
                 logger.info(f"Updating provider: {name}")
-                provider = self.llm_provider_service.update_provider(
-                    existing_provider.id, config.model_dump(exclude_unset=True)
-                )
+                # Convert LLMProviderInput to LLMProviderUpdate
+                from rag_solution.schemas.llm_provider_schema import LLMProviderUpdate
+
+                updates = LLMProviderUpdate(**config.model_dump(exclude_unset=True))
+                provider = self.llm_provider_service.update_provider(existing_provider.id, updates)
                 if not provider:
                     raise LLMProviderError(name, "update", f"Failed to update {name}")
             else:

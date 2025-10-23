@@ -168,7 +168,7 @@ class TestLLMReranker:
 
         assert len(prompts) == 3
         assert prompts[0]["query"] == "machine learning"
-        assert prompts[0]["document"] == "Machine learning is a subset of artificial intelligence."
+        assert prompts[0]["context"] == "Machine learning is a subset of artificial intelligence."
         assert prompts[0]["scale"] == "10"
 
     def test_create_reranking_prompts_skips_none_chunks(
