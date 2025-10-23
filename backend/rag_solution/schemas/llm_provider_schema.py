@@ -65,12 +65,17 @@ class LLMProviderConfig(BaseModel):
 
     @field_validator("api_key", mode="before")
     @classmethod
-    def convert_api_key_to_secret_str(cls, v):
-        """Convert string API key to SecretStr."""
+    def convert_api_key_to_secret_str(cls, v: str | SecretStr) -> SecretStr:
+        """Convert string API key to SecretStr.
+
+        Args:
+            v: API key as string or SecretStr
+
+        Returns:
+            SecretStr: Secured API key
+        """
         if isinstance(v, str):
-            print(f"DEBUG: Converting API key '{v}' to SecretStr")
             return SecretStr(v)
-        print(f"DEBUG: API key is not a string: {type(v)} = {v}")
         return v
 
     model_config = ConfigDict(from_attributes=True)
