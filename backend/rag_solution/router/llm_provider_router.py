@@ -5,8 +5,8 @@ from pydantic import UUID4
 from sqlalchemy.orm import Session
 
 from rag_solution.file_management.database import get_db
-from rag_solution.schemas.llm_model_schema import LLMModelInput, LLMModelOutput, ModelType
-from rag_solution.schemas.llm_provider_schema import LLMProviderInput, LLMProviderOutput
+from rag_solution.schemas.llm_model_schema import LLMModelInput, LLMModelOutput, LLMModelUpdate, ModelType
+from rag_solution.schemas.llm_provider_schema import LLMProviderInput, LLMProviderOutput, LLMProviderUpdate
 from rag_solution.services.llm_provider_service import LLMProviderService
 
 router = APIRouter(
@@ -58,15 +58,15 @@ def get_provider(provider_id: UUID4, service: Annotated[LLMProviderService, Depe
 
 @router.put("/{provider_id}", response_model=LLMProviderOutput)
 def update_provider(
-    provider_id: UUID4, updates: dict, service: Annotated[LLMProviderService, Depends(get_service)]
+    provider_id: UUID4, updates: LLMProviderUpdate, service: Annotated[LLMProviderService, Depends(get_service)]
 ) -> LLMProviderOutput:
     """
-    Update a specific LLM Provider.
+    Update a specific LLM Provider with partial updates.
+
+    Accepts LLMProviderUpdate with optional fields for partial updates.
+    Raises 404 if provider not found.
     """
-    provider = service.update_provider(provider_id, updates)
-    if not provider:
-        raise HTTPException(status_code=404, detail="Provider not found")
-    return provider
+    return service.update_provider(provider_id, updates)
 
 
 @router.delete("/{provider_id}")
@@ -122,24 +122,23 @@ def get_models_by_type(
 def get_model_by_id(model_id: UUID4, service: Annotated[LLMProviderService, Depends(get_service)]) -> LLMModelOutput:
     """
     Get a specific Model by ID.
+
+    Raises 404 if model not found.
     """
-    model = service.get_model_by_id(model_id)
-    if not model:
-        raise HTTPException(status_code=404, detail="Model not found")
-    return model
+    return service.get_model_by_id(model_id)
 
 
 @router.put("/models/{model_id}", response_model=LLMModelOutput)
 def update_model(
-    model_id: UUID4, updates: dict, service: Annotated[LLMProviderService, Depends(get_service)]
+    model_id: UUID4, updates: LLMModelUpdate, service: Annotated[LLMProviderService, Depends(get_service)]
 ) -> LLMModelOutput:
     """
-    Update a specific Model.
+    Update a specific Model with partial updates.
+
+    Accepts LLMModelUpdate with optional fields for partial updates.
+    Raises 404 if model not found.
     """
-    model = service.update_model(model_id, updates)
-    if not model:
-        raise HTTPException(status_code=404, detail="Model not found")
-    return model
+    return service.update_model(model_id, updates)
 
 
 @router.delete("/models/{model_id}")

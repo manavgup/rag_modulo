@@ -16,6 +16,23 @@ class LLMProviderInput(BaseModel):
     user_id: UUID4 | None = Field(None, description="User ID who owns this provider")
 
 
+class LLMProviderUpdate(BaseModel):
+    """Schema for partial updates to LLM providers.
+
+    All fields are optional to support partial updates from API.
+    Use exclude_unset=True when converting to dict to only update provided fields.
+    """
+
+    name: str | None = None
+    base_url: str | None = None
+    api_key: SecretStr | None = None
+    org_id: str | None = None
+    project_id: str | None = None
+    is_active: bool | None = None
+    is_default: bool | None = None
+    user_id: UUID4 | None = None
+
+
 class LLMProviderOutput(BaseModel):
     """Schema for returning an LLM Provider."""
 
@@ -48,12 +65,17 @@ class LLMProviderConfig(BaseModel):
 
     @field_validator("api_key", mode="before")
     @classmethod
-    def convert_api_key_to_secret_str(cls, v):
-        """Convert string API key to SecretStr."""
+    def convert_api_key_to_secret_str(cls, v: str | SecretStr) -> SecretStr:
+        """Convert string API key to SecretStr.
+
+        Args:
+            v: API key as string or SecretStr
+
+        Returns:
+            SecretStr: Secured API key
+        """
         if isinstance(v, str):
-            print(f"DEBUG: Converting API key '{v}' to SecretStr")
             return SecretStr(v)
-        print(f"DEBUG: API key is not a string: {type(v)} = {v}")
         return v
 
     model_config = ConfigDict(from_attributes=True)

@@ -192,9 +192,38 @@ def sentence_based_chunking(
     for sentence in sentences:
         sentence_len = len(sentence)
 
-        # Check if adding this sentence would exceed target
-        if current_char_count + sentence_len > target_chars and current_chunk:
-            # Save current chunk
+        # Handle oversized sentences by splitting them
+        if sentence_len > target_chars:
+            # Save current chunk first if not empty
+            if current_chunk:
+                chunk_text = " ".join(current_chunk)
+                chunks.append(chunk_text)
+                current_chunk = []
+                current_char_count = 0
+
+            # Split oversized sentence into target-sized pieces
+            start = 0
+            while start < sentence_len:
+                end = min(start + target_chars, sentence_len)
+                # Try to break at word boundary
+                if end < sentence_len:
+                    last_space = sentence[start:end].rfind(" ")
+                    if last_space > target_chars * 0.5:  # At least 50% full
+                        end = start + last_space
+
+                chunk_piece = sentence[start:end].strip()
+                if chunk_piece:  # Only append non-empty chunks
+                    chunks.append(chunk_piece)
+                start = end
+
+            continue
+
+        # Account for space between sentences when joining
+        space_len = 1 if current_chunk else 0
+
+        # STRICT: Don't add sentence if it would exceed target
+        if current_char_count + space_len + sentence_len > target_chars and current_chunk:
+            # Save current chunk (don't add the sentence that would exceed)
             chunk_text = " ".join(current_chunk)
             chunks.append(chunk_text)
 
@@ -204,9 +233,10 @@ def sentence_based_chunking(
 
             for i in range(len(current_chunk) - 1, -1, -1):
                 sent_len = len(current_chunk[i])
-                if overlap_count + sent_len <= overlap_chars:
+                space = 1 if overlap_chunk else 0
+                if overlap_count + space + sent_len <= overlap_chars:
                     overlap_chunk.insert(0, current_chunk[i])
-                    overlap_count += sent_len
+                    overlap_count += sent_len + space
                 else:
                     break
 
@@ -214,7 +244,7 @@ def sentence_based_chunking(
             current_char_count = overlap_count
 
         current_chunk.append(sentence)
-        current_char_count += sentence_len
+        current_char_count += sentence_len + space_len
 
     # Add final chunk if it meets minimum size
     if current_chunk:
@@ -368,19 +398,20 @@ def hierarchical_chunker_wrapper(text: str, settings: Settings = get_settings())
 def sentence_chunker(text: str, settings: Settings = get_settings()) -> list[str]:
     """Sentence-based chunking using settings configuration.
 
-    Uses conservative character-to-token ratio (2.5:1) for IBM Slate safety.
+    All config values (min_chunk_size, max_chunk_size, chunk_overlap) are in CHARACTERS.
+    Conservative char-to-token ratio (2.5:1) provides safety margin for IBM Slate 512-token limit.
 
     Args:
         text: Input text to chunk
-        settings: Configuration settings
+        settings: Configuration settings (all values in characters)
 
     Returns:
         List of sentence-based chunks
     """
-    # Convert config values assuming they're in tokens, multiply by 2.5 for chars
-    target_chars = int(settings.max_chunk_size * 2.5) if settings.max_chunk_size < 1000 else 750
-    overlap_chars = int(settings.chunk_overlap * 2.5) if settings.chunk_overlap < 200 else 100
-    min_chars = int(settings.min_chunk_size * 2.5) if settings.min_chunk_size < 500 else 500
+    # Use config values directly as characters (no conversion needed)
+    target_chars = settings.max_chunk_size
+    overlap_chars = settings.chunk_overlap
+    min_chars = settings.min_chunk_size
 
     return sentence_based_chunking(text, target_chars=target_chars, overlap_chars=overlap_chars, min_chars=min_chars)
 

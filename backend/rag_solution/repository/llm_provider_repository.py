@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from rag_solution.core.exceptions import AlreadyExistsError, NotFoundError, ValidationError
 from rag_solution.models.llm_provider import LLMProvider
-from rag_solution.schemas.llm_provider_schema import LLMProviderInput
+from rag_solution.schemas.llm_provider_schema import LLMProviderInput, LLMProviderUpdate
 
 
 class LLMProviderRepository:
@@ -102,22 +102,33 @@ class LLMProviderRepository:
         except Exception:
             raise
 
-    def update_provider(self, provider_id: UUID4, updates: dict) -> LLMProvider:
-        """Updates provider details.
+    def update_provider(self, provider_id: UUID4, updates: LLMProviderUpdate) -> LLMProvider:
+        """Updates provider details with partial updates.
+
+        Args:
+            provider_id: ID of the provider to update
+            updates: LLMProviderUpdate with optional fields for partial updates
 
         Raises:
             NotFoundError: If provider not found
+
+        Note:
+            Only updates fields that are explicitly set in the updates object.
+            Uses Pydantic's exclude_unset=True to handle partial updates.
         """
         try:
-            # Handle SecretStr in updates
-            if "api_key" in updates and hasattr(updates["api_key"], "get_secret_value"):
-                updates["api_key"] = updates["api_key"].get_secret_value()
-
             # Find the provider first - this will raise NotFoundError if not found
             provider = self.get_provider_by_id(provider_id)
 
+            # Convert Pydantic model to dict, only including explicitly set fields
+            update_data = updates.model_dump(exclude_unset=True)
+
+            # Handle SecretStr in updates
+            if "api_key" in update_data and hasattr(update_data["api_key"], "get_secret_value"):
+                update_data["api_key"] = update_data["api_key"].get_secret_value()
+
             # Apply updates
-            for key, value in updates.items():
+            for key, value in update_data.items():
                 setattr(provider, key, value)
 
             self.session.commit()
@@ -128,6 +139,7 @@ class LLMProviderRepository:
             self.session.rollback()
             raise AlreadyExistsError(resource_type="LLMProvider", field="name", value=str(provider_id)) from e
         except (NotFoundError, AlreadyExistsError, ValidationError):
+            self.session.rollback()
             raise
         except Exception:
             self.session.rollback()
