@@ -9,8 +9,13 @@ from sqlalchemy.orm import Session
 
 from core.custom_exceptions import LLMProviderError, ProviderValidationError
 from rag_solution.repository.llm_provider_repository import LLMProviderRepository
-from rag_solution.schemas.llm_model_schema import LLMModelOutput, ModelType
-from rag_solution.schemas.llm_provider_schema import LLMProviderConfig, LLMProviderInput, LLMProviderOutput
+from rag_solution.schemas.llm_model_schema import LLMModelOutput, LLMModelUpdate, ModelType
+from rag_solution.schemas.llm_provider_schema import (
+    LLMProviderConfig,
+    LLMProviderInput,
+    LLMProviderOutput,
+    LLMProviderUpdate,
+)
 
 logger = logging.getLogger("services.llm_provider")
 
@@ -63,11 +68,23 @@ class LLMProviderService:
         providers = self.repository.get_all_providers(is_active)
         return [LLMProviderOutput.model_validate(p) for p in providers]
 
-    def update_provider(self, provider_id: UUID4, updates: dict[str, Any]) -> LLMProviderOutput | None:
-        """Update provider details."""
+    def update_provider(self, provider_id: UUID4, updates: LLMProviderUpdate) -> LLMProviderOutput:
+        """Update provider details with partial updates.
+
+        Args:
+            provider_id: ID of the provider to update
+            updates: LLMProviderUpdate with optional fields for partial updates
+
+        Returns:
+            Updated provider
+
+        Raises:
+            NotFoundError: If provider not found
+            LLMProviderError: If update fails
+        """
         try:
             provider = self.repository.update_provider(provider_id, updates)
-            return LLMProviderOutput.model_validate(provider) if provider else None
+            return LLMProviderOutput.model_validate(provider)
         except Exception as e:
             raise LLMProviderError(provider=str(provider_id), error_type="update", message=str(e)) from e
 
@@ -198,33 +215,57 @@ class LLMProviderService:
         # For now, return an empty list
         return []
 
-    def get_model_by_id(self, _model_id: UUID4) -> LLMModelOutput | None:
-        """Get a specific model by ID."""
-        # This would typically query the database for a model by ID
-        # For now, return None
-        return None
+    def get_model_by_id(self, model_id: UUID4) -> LLMModelOutput:
+        """Get a specific model by ID.
 
-    def update_model(self, model_id: UUID4, updates: dict[str, Any]) -> LLMModelOutput | None:
-        """Update a model."""
-        # This would typically update the model in the database
+        NOTE: This is a stub implementation. In production, this should delegate
+        to LLMModelService.
+
+        Raises:
+            NotFoundError: Always raises as this is a stub
+        """
+        from rag_solution.core.exceptions import NotFoundError
+
+        raise NotFoundError(resource_type="LLMModel", resource_id=str(model_id))
+
+    def update_model(self, model_id: UUID4, updates: LLMModelUpdate) -> LLMModelOutput:
+        """Update a model.
+
+        NOTE: This is a stub implementation. In production, this should delegate
+        to LLMModelService.
+
+        Args:
+            model_id: ID of the model to update
+            updates: Partial updates to apply
+
+        Returns:
+            Mock updated model (stub implementation)
+
+        Raises:
+            NotFoundError: If model not found
+        """
+        # This would typically update the model in the database via LLMModelService
         # For now, return a mock updated model
         from datetime import datetime
+
+        # Convert Pydantic model to dict
+        updates_dict = updates.model_dump(exclude_unset=True)
 
         return LLMModelOutput(
             id=model_id,
             provider_id=uuid.UUID("11111111-1111-1111-1111-111111111111"),  # Mock provider_id
-            model_id=updates.get("model_id", "default-model"),
-            default_model_id=updates.get("default_model_id", "default-model"),
-            model_type=ModelType(updates.get("model_type", "generation")),
-            timeout=updates.get("timeout", 30),
-            max_retries=updates.get("max_retries", 3),
-            batch_size=updates.get("batch_size", 10),
-            retry_delay=updates.get("retry_delay", 1.0),
-            concurrency_limit=updates.get("concurrency_limit", 10),
-            stream=updates.get("stream", False),
-            rate_limit=updates.get("rate_limit", 10),
-            is_default=updates.get("is_default", False),
-            is_active=updates.get("is_active", True),
+            model_id=updates_dict.get("model_id", "default-model"),
+            default_model_id=updates_dict.get("default_model_id", "default-model"),
+            model_type=ModelType(updates_dict.get("model_type", "generation")),
+            timeout=updates_dict.get("timeout", 30),
+            max_retries=updates_dict.get("max_retries", 3),
+            batch_size=updates_dict.get("batch_size", 10),
+            retry_delay=updates_dict.get("retry_delay", 1.0),
+            concurrency_limit=updates_dict.get("concurrency_limit", 10),
+            stream=updates_dict.get("stream", False),
+            rate_limit=updates_dict.get("rate_limit", 10),
+            is_default=updates_dict.get("is_default", False),
+            is_active=updates_dict.get("is_active", True),
             created_at=datetime.now(),
             updated_at=datetime.now(),
         )

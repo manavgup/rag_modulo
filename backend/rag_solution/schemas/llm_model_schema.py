@@ -27,6 +27,29 @@ class LLMModelInput(BaseModel):
     model_config = ConfigDict(protected_namespaces=())
 
 
+class LLMModelUpdate(BaseModel):
+    """Schema for partial updates to LLM models.
+
+    All fields are optional to support partial updates from API.
+    Use exclude_unset=True when converting to dict to only update provided fields.
+    """
+
+    model_id: str | None = None
+    default_model_id: str | None = None
+    model_type: ModelType | None = None
+    timeout: int | None = None
+    max_retries: int | None = None
+    batch_size: int | None = None
+    retry_delay: float | None = None
+    concurrency_limit: int | None = None
+    stream: bool | None = None
+    rate_limit: int | None = None
+    is_default: bool | None = None
+    is_active: bool | None = None
+
+    model_config = ConfigDict(protected_namespaces=())
+
+
 class LLMModelOutput(BaseModel):
     id: UUID4
     provider_id: UUID4

@@ -1,5 +1,4 @@
 import logging
-from typing import Any
 
 from pydantic import UUID4
 from sqlalchemy.orm import Session
@@ -7,7 +6,7 @@ from sqlalchemy.orm import Session
 from core.custom_exceptions import LLMProviderError, ModelConfigError, ModelValidationError
 from rag_solution.repository.llm_model_repository import LLMModelRepository
 from rag_solution.repository.llm_provider_repository import LLMProviderRepository
-from rag_solution.schemas.llm_model_schema import LLMModelInput, LLMModelOutput, ModelType
+from rag_solution.schemas.llm_model_schema import LLMModelInput, LLMModelOutput, LLMModelUpdate, ModelType
 
 logger = logging.getLogger("services.llm_model")
 
@@ -53,36 +52,62 @@ class LLMModelService:
                 provider=str(model_input.provider_id), error_type="model_creation", message=str(e)
             ) from e
 
-    def set_default_model(self, model_id: UUID4) -> LLMModelOutput | None:
-        """Set a model as default and clear other defaults for the same provider."""
+    def set_default_model(self, model_id: UUID4) -> LLMModelOutput:
+        """Set a model as default and clear other defaults for the same provider.
+
+        Args:
+            model_id: ID of the model to set as default
+
+        Returns:
+            Updated model with is_default=True
+
+        Raises:
+            NotFoundError: If model not found
+            LLMProviderError: If update fails
+        """
         try:
             model = self.repository.get_model_by_id(model_id)
-            if not model:
-                return None
 
             # Clear other defaults for this provider and type
             self.repository.clear_other_defaults(model.provider_id, model.model_type)
 
-            # Set this model as default (use Pydantic model for type safety)
-            update_input = LLMModelInput(
-                model_id=model.model_id,
-                provider_id=model.provider_id,
-                model_type=model.model_type,
-                is_default=True,
-            )
-            return self.repository.update_model(model_id, update_input)
+            # Set this model as default (simple partial update)
+            update = LLMModelUpdate(is_default=True)
+            return self.repository.update_model(model_id, update)
         except Exception as e:
             raise LLMProviderError(provider="unknown", error_type="default_update", message=str(e)) from e
 
-    def get_default_model(self, provider_id: UUID4, model_type: ModelType) -> LLMModelOutput | None:
-        """Get the default model for a provider and type."""
+    def get_default_model(self, provider_id: UUID4, model_type: ModelType) -> LLMModelOutput:
+        """Get the default model for a provider and type.
+
+        Args:
+            provider_id: ID of the provider
+            model_type: Type of model (generation or embedding)
+
+        Returns:
+            Default model for the provider and type
+
+        Raises:
+            NotFoundError: If no default model found
+            LLMProviderError: If retrieval fails
+        """
         try:
             return self.repository.get_default_model(provider_id, model_type)
         except Exception as e:
             raise LLMProviderError(provider=str(provider_id), error_type="default_retrieval", message=str(e)) from e
 
-    def get_model_by_id(self, model_id: UUID4) -> LLMModelOutput | None:
-        """Get model by ID."""
+    def get_model_by_id(self, model_id: UUID4) -> LLMModelOutput:
+        """Get model by ID.
+
+        Args:
+            model_id: ID of the model
+
+        Returns:
+            Model details
+
+        Raises:
+            NotFoundError: If model not found
+        """
         return self.repository.get_model_by_id(model_id)
 
     def get_models_by_provider(self, provider_id: UUID4) -> list[LLMModelOutput]:
@@ -99,36 +124,26 @@ class LLMModelService:
         except Exception as e:
             raise LLMProviderError(provider="unknown", error_type="model_retrieval", message=str(e)) from e
 
-    def update_model(self, model_id: UUID4, updates: dict[str, Any]) -> LLMModelOutput | None:
-        """Update model details."""
+    def update_model(self, model_id: UUID4, updates: LLMModelUpdate) -> LLMModelOutput:
+        """Update model details with partial updates.
+
+        Args:
+            model_id: ID of the model to update
+            updates: LLMModelUpdate with optional fields for partial updates
+
+        Returns:
+            Updated model
+
+        Raises:
+            NotFoundError: If model not found
+            LLMProviderError: If update fails
+
+        Note:
+            Repository handles the single DB query and Pydantic-based merging.
+            No duplicate fetching or manual field construction needed.
+        """
         try:
-            # Get existing model to merge with updates
-            existing_model = self.repository.get_model_by_id(model_id)
-            if not existing_model:
-                return None
-
-            # Merge existing model data with updates
-            model_data = existing_model.model_dump()
-            model_data.update(updates)
-
-            # Create LLMModelInput from merged data (type-safe)
-            update_input = LLMModelInput(
-                provider_id=model_data["provider_id"],
-                model_id=model_data["model_id"],
-                default_model_id=model_data["default_model_id"],
-                model_type=model_data["model_type"],
-                timeout=model_data.get("timeout", 30),
-                max_retries=model_data.get("max_retries", 3),
-                batch_size=model_data.get("batch_size", 10),
-                retry_delay=model_data.get("retry_delay", 1.0),
-                concurrency_limit=model_data.get("concurrency_limit", 10),
-                stream=model_data.get("stream", False),
-                rate_limit=model_data.get("rate_limit", 10),
-                is_default=model_data.get("is_default", False),
-                is_active=model_data.get("is_active", True),
-            )
-
-            return self.repository.update_model(model_id, update_input)
+            return self.repository.update_model(model_id, updates)
         except Exception as e:
             raise LLMProviderError(provider=str(model_id), error_type="model_update", message=str(e)) from e
 

@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from rag_solution.core.exceptions import AlreadyExistsError, NotFoundError, ValidationError
 from rag_solution.models.llm_model import LLMModel
-from rag_solution.schemas.llm_model_schema import LLMModelInput, LLMModelOutput, ModelType
+from rag_solution.schemas.llm_model_schema import LLMModelInput, LLMModelOutput, LLMModelUpdate, ModelType
 
 
 class LLMModelRepository:
@@ -66,15 +66,19 @@ class LLMModelRepository:
         except Exception:
             raise
 
-    def update_model(self, model_id: UUID4, updates: LLMModelInput) -> LLMModelOutput:
-        """Updates model details.
+    def update_model(self, model_id: UUID4, updates: LLMModelUpdate) -> LLMModelOutput:
+        """Updates model details with partial updates.
 
         Args:
             model_id: ID of the model to update
-            updates: LLMModelInput Pydantic model with fields to update
+            updates: LLMModelUpdate with optional fields for partial updates
 
         Raises:
             NotFoundError: If model not found
+
+        Note:
+            Only updates fields that are explicitly set in the updates object.
+            Uses Pydantic's exclude_unset=True to handle partial updates.
         """
         try:
             # Find the model first
@@ -82,7 +86,7 @@ class LLMModelRepository:
             if not model:
                 raise NotFoundError(resource_type="LLMModel", resource_id=str(model_id))
 
-            # Update only fields that were explicitly set
+            # Update only fields that were explicitly set (partial update support)
             update_data = updates.model_dump(exclude_unset=True)
             for key, value in update_data.items():
                 setattr(model, key, value)
