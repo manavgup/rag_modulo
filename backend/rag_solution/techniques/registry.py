@@ -317,7 +317,7 @@ def register_technique(technique_id: str | None = None, *, singleton: bool = Tru
         Decorator function
     """
 
-    def decorator(technique_class: type[BaseTechnique]) -> type[BaseTechnique]:
+    def decorator(technique_class: T) -> T:
         # Determine technique ID
         tid = technique_id
         if tid is None:

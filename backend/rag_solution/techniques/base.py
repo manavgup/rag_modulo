@@ -321,7 +321,7 @@ class BaseTechnique(ABC, Generic[InputT, OutputT]):
             execution_time = (time.time() - start_time) * 1000
             return TechniqueResult(
                 success=False,
-                output=None,  # type: ignore[arg-type]
+                output=None,
                 metadata={"error_type": type(e).__name__},
                 technique_id=self.technique_id,
                 execution_time_ms=execution_time,
