@@ -63,8 +63,14 @@ class LLMModelService:
             # Clear other defaults for this provider and type
             self.repository.clear_other_defaults(model.provider_id, model.model_type)
 
-            # Set this model as default
-            return self.repository.update_model(model_id, {"is_default": True})
+            # Set this model as default (use Pydantic model for type safety)
+            update_input = LLMModelInput(
+                model_id=model.model_id,
+                provider_id=model.provider_id,
+                model_type=model.model_type,
+                is_default=True,
+            )
+            return self.repository.update_model(model_id, update_input)
         except Exception as e:
             raise LLMProviderError(provider="unknown", error_type="default_update", message=str(e)) from e
 
@@ -96,7 +102,33 @@ class LLMModelService:
     def update_model(self, model_id: UUID4, updates: dict[str, Any]) -> LLMModelOutput | None:
         """Update model details."""
         try:
-            return self.repository.update_model(model_id, updates)
+            # Get existing model to merge with updates
+            existing_model = self.repository.get_model_by_id(model_id)
+            if not existing_model:
+                return None
+
+            # Merge existing model data with updates
+            model_data = existing_model.model_dump()
+            model_data.update(updates)
+
+            # Create LLMModelInput from merged data (type-safe)
+            update_input = LLMModelInput(
+                provider_id=model_data["provider_id"],
+                model_id=model_data["model_id"],
+                default_model_id=model_data["default_model_id"],
+                model_type=model_data["model_type"],
+                timeout=model_data.get("timeout", 30),
+                max_retries=model_data.get("max_retries", 3),
+                batch_size=model_data.get("batch_size", 10),
+                retry_delay=model_data.get("retry_delay", 1.0),
+                concurrency_limit=model_data.get("concurrency_limit", 10),
+                stream=model_data.get("stream", False),
+                rate_limit=model_data.get("rate_limit", 10),
+                is_default=model_data.get("is_default", False),
+                is_active=model_data.get("is_active", True),
+            )
+
+            return self.repository.update_model(model_id, update_input)
         except Exception as e:
             raise LLMProviderError(provider=str(model_id), error_type="model_update", message=str(e)) from e
 

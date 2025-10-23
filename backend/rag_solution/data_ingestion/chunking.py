@@ -211,7 +211,9 @@ def sentence_based_chunking(
                     if last_space > target_chars * 0.5:  # At least 50% full
                         end = start + last_space
 
-                chunks.append(sentence[start:end].strip())
+                chunk_piece = sentence[start:end].strip()
+                if chunk_piece:  # Only append non-empty chunks
+                    chunks.append(chunk_piece)
                 start = end
 
             continue

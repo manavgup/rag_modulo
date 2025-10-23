@@ -94,6 +94,8 @@ class LLMModelRepository:
             self.session.rollback()
             raise AlreadyExistsError(resource_type="LLMModel", field="id", value=str(model_id)) from e
         except (NotFoundError, AlreadyExistsError, ValidationError):
+            # Rollback for safety even though these are typically raised before DB changes
+            self.session.rollback()
             raise
         except Exception:
             self.session.rollback()
