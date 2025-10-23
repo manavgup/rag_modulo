@@ -3,18 +3,31 @@
 This package contains implementations of various RAG techniques that can be
 composed into pipelines for dynamic retrieval augmentation.
 
-Available techniques:
-- VectorRetrievalTechnique: Vector-based document retrieval
-- RerankingTechnique: LLM-based result reranking
-- (More techniques to be added as they are implemented)
+Available techniques (wrapping existing infrastructure):
+- VectorRetrievalTechnique: Vector search (wraps existing VectorRetriever)
+- HybridRetrievalTechnique: Vector + keyword (wraps existing HybridRetriever)
+- FusionRetrievalTechnique: Alias for HybridRetrievalTechnique
+- LLMRerankingTechnique: LLM-based reranking (wraps existing LLMReranker)
+- RerankingTechnique: Alias for LLMRerankingTechnique
 
 All techniques are automatically registered with the technique registry
 when imported.
 """
 
-# Import all technique implementations to auto-register them
-# Note: As new techniques are implemented, import them here to auto-register
+# Import adapter techniques to auto-register them
+# These wrap existing retrieval infrastructure
+from rag_solution.techniques.implementations.adapters import (
+    FusionRetrievalTechnique,
+    HybridRetrievalTechnique,
+    LLMRerankingTechnique,
+    RerankingTechnique,
+    VectorRetrievalTechnique,
+)
 
 __all__ = [
-    # Technique implementations will be added here as they're created
+    "VectorRetrievalTechnique",
+    "HybridRetrievalTechnique",
+    "FusionRetrievalTechnique",
+    "LLMRerankingTechnique",
+    "RerankingTechnique",
 ]
