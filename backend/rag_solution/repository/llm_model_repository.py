@@ -66,8 +66,12 @@ class LLMModelRepository:
         except Exception:
             raise
 
-    def update_model(self, model_id: UUID4, updates: dict) -> LLMModelOutput:
+    def update_model(self, model_id: UUID4, updates: LLMModelInput) -> LLMModelOutput:
         """Updates model details.
+
+        Args:
+            model_id: ID of the model to update
+            updates: LLMModelInput Pydantic model with fields to update
 
         Raises:
             NotFoundError: If model not found
@@ -78,8 +82,9 @@ class LLMModelRepository:
             if not model:
                 raise NotFoundError(resource_type="LLMModel", resource_id=str(model_id))
 
-            # Apply updates
-            for key, value in updates.items():
+            # Update only fields that were explicitly set
+            update_data = updates.model_dump(exclude_unset=True)
+            for key, value in update_data.items():
                 setattr(model, key, value)
 
             self.session.commit()
