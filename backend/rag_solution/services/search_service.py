@@ -236,18 +236,29 @@ class SearchService:
 
         return self._reranker
 
-    def _apply_reranking(self, query: str, results: list[QueryResult], user_id: UUID4) -> list[QueryResult]:
+    def _apply_reranking(
+        self, query: str, results: list[QueryResult], user_id: UUID4, config_metadata: dict | None = None
+    ) -> list[QueryResult]:
         """Apply reranking to search results if enabled.
 
         Args:
             query: The search query
             results: List of QueryResult objects from retrieval
             user_id: User UUID
+            config_metadata: Optional config dict that can override enable_reranking
 
         Returns:
             Reranked list of QueryResult objects (or original if reranking disabled/failed)
         """
-        if not self.settings.enable_reranking or not results:
+        # Check for config override first, then fall back to settings
+        enable_reranking = (
+            config_metadata.get("enable_reranking", self.settings.enable_reranking)
+            if config_metadata
+            else self.settings.enable_reranking
+        )
+
+        if not enable_reranking or not results:
+            logger.debug("Reranking disabled (enable_reranking=%s), returning original results", enable_reranking)
             return results
 
         try:
@@ -685,6 +696,7 @@ class SearchService:
                             query=search_input.question,
                             results=pipeline_result.query_results,
                             user_id=search_input.user_id,
+                            config_metadata=search_input.config_metadata,
                         )
                     # Convert to CoT input with document context
                     try:
@@ -928,6 +940,7 @@ class SearchService:
                 query=search_input.question,
                 results=pipeline_result.query_results,
                 user_id=search_input.user_id,
+                config_metadata=search_input.config_metadata,
             )
 
         # Generate metadata
