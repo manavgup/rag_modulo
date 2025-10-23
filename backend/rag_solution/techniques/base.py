@@ -14,7 +14,7 @@ import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, ClassVar, TypeVar
 
 from pydantic import UUID4, BaseModel
 
@@ -219,8 +219,8 @@ class BaseTechnique(ABC, Generic[InputT, OutputT]):
     token_cost_multiplier: float = 1.0
 
     # Compatibility
-    compatible_with: list[str] = []
-    incompatible_with: list[str] = []
+    compatible_with: ClassVar[list[str]] = []
+    incompatible_with: ClassVar[list[str]] = []
 
     @abstractmethod
     async def execute(self, context: TechniqueContext) -> TechniqueResult[OutputT]:
@@ -321,7 +321,7 @@ class BaseTechnique(ABC, Generic[InputT, OutputT]):
             execution_time = (time.time() - start_time) * 1000
             return TechniqueResult(
                 success=False,
-                output=None,  # type: ignore
+                output=None,  # type: ignore[arg-type]
                 metadata={"error_type": type(e).__name__},
                 technique_id=self.technique_id,
                 execution_time_ms=execution_time,

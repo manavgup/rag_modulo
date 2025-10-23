@@ -11,9 +11,12 @@ The registry provides:
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from rag_solution.techniques.base import BaseTechnique, TechniqueMetadata, TechniqueStage
+
+T = TypeVar("T", bound=type[BaseTechnique])
 
 if TYPE_CHECKING:
     pass
@@ -260,7 +263,7 @@ class TechniqueRegistry:
         # Otherwise, return all techniques except incompatible ones
         return [
             tid
-            for tid in self._techniques.keys()
+            for tid in self._techniques
             if tid not in metadata.incompatible_with and tid != technique_id
         ]
 
@@ -292,7 +295,7 @@ class TechniqueRegistry:
 technique_registry = TechniqueRegistry()
 
 
-def register_technique(technique_id: str | None = None, *, singleton: bool = True):
+def register_technique(technique_id: str | None = None, *, singleton: bool = True) -> Callable[[T], T]:
     """Decorator for automatically registering techniques.
 
     Usage:

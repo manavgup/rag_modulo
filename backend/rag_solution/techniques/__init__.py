@@ -22,16 +22,13 @@ from rag_solution.techniques.pipeline import TechniquePipeline, TechniquePipelin
 from rag_solution.techniques.registry import TechniqueRegistry, technique_registry
 
 __all__ = [
-    # Base abstractions
     "BaseTechnique",
     "TechniqueContext",
     "TechniqueMetadata",
-    "TechniqueResult",
-    "TechniqueStage",
-    # Pipeline
     "TechniquePipeline",
     "TechniquePipelineBuilder",
-    # Registry
     "TechniqueRegistry",
+    "TechniqueResult",
+    "TechniqueStage",
     "technique_registry",
 ]

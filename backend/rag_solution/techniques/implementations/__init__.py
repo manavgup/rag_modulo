@@ -25,9 +25,9 @@ from rag_solution.techniques.implementations.adapters import (
 )
 
 __all__ = [
-    "VectorRetrievalTechnique",
-    "HybridRetrievalTechnique",
     "FusionRetrievalTechnique",
+    "HybridRetrievalTechnique",
     "LLMRerankingTechnique",
     "RerankingTechnique",
+    "VectorRetrievalTechnique",
 ]

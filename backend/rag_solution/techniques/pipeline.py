@@ -12,7 +12,7 @@ import logging
 import time
 from typing import TYPE_CHECKING, Any
 
-from rag_solution.techniques.base import BaseTechnique, TechniqueConfig, TechniqueContext, TechniqueStage
+from rag_solution.techniques.base import BaseTechnique, TechniqueConfig, TechniqueContext
 
 if TYPE_CHECKING:
     from rag_solution.techniques.registry import TechniqueRegistry

@@ -8,10 +8,10 @@ than reimplementing them.
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, ClassVar
 
 from rag_solution.retrieval.reranker import LLMReranker
-from rag_solution.retrieval.retriever import BaseRetriever, HybridRetriever, VectorRetriever
+from rag_solution.retrieval.retriever import HybridRetriever, VectorRetriever
 from rag_solution.techniques.base import BaseTechnique, TechniqueContext, TechniqueResult, TechniqueStage
 from rag_solution.techniques.registry import register_technique
 from vectordbs.data_types import QueryResult, VectorQuery
@@ -117,9 +117,7 @@ class VectorRetrievalTechnique(BaseTechnique[str, list[QueryResult]]):
     def validate_config(self, config: dict[str, Any]) -> bool:
         """Validate configuration."""
         top_k = config.get("top_k")
-        if top_k is not None and (not isinstance(top_k, int) or top_k <= 0):
-            return False
-        return True
+        return not (top_k is not None and (not isinstance(top_k, int) or top_k <= 0))
 
     def get_default_config(self) -> dict[str, Any]:
         """Get default configuration."""
@@ -145,7 +143,7 @@ class HybridRetrievalTechnique(BaseTechnique[str, list[QueryResult]]):
     token_cost_multiplier = 0.0
 
     # Alternative names for discovery
-    compatible_with = ["fusion_retrieval"]  # Alias
+    compatible_with: ClassVar[list[str]] = ["fusion_retrieval"]  # Alias
 
     def __init__(self) -> None:
         """Initialize technique."""
@@ -236,10 +234,7 @@ class HybridRetrievalTechnique(BaseTechnique[str, list[QueryResult]]):
             return False
 
         vector_weight = config.get("vector_weight")
-        if vector_weight is not None and (not isinstance(vector_weight, (int, float)) or not (0 <= vector_weight <= 1)):
-            return False
-
-        return True
+        return not (vector_weight is not None and (not isinstance(vector_weight, (int, float)) or not (0 <= vector_weight <= 1)))
 
     def get_default_config(self) -> dict[str, Any]:
         """Get default configuration."""
@@ -264,7 +259,7 @@ class LLMRerankingTechnique(BaseTechnique[list[QueryResult], list[QueryResult]])
     token_cost_multiplier = 2.0  # LLM calls for each document
 
     # Alternative names
-    compatible_with = ["reranking"]
+    compatible_with: ClassVar[list[str]] = ["reranking"]
 
     def __init__(self) -> None:
         """Initialize technique."""
@@ -346,7 +341,11 @@ class LLMRerankingTechnique(BaseTechnique[list[QueryResult], list[QueryResult]])
             context.retrieved_documents = reranked
 
             # Estimate token usage (rough estimate)
-            avg_doc_length = sum(len(d.chunk.text) for d in documents) // len(documents) if documents else 0
+            avg_doc_length = (
+                sum(len(d.chunk.text) for d in documents if d.chunk and d.chunk.text) // len(documents)
+                if documents
+                else 0
+            )
             tokens_used = len(documents) * (avg_doc_length // 4 + 50)  # Rough token estimate
 
             logger.info(
@@ -393,10 +392,7 @@ class LLMRerankingTechnique(BaseTechnique[list[QueryResult], list[QueryResult]])
             return False
 
         score_scale = config.get("score_scale")
-        if score_scale is not None and (not isinstance(score_scale, int) or score_scale <= 0):
-            return False
-
-        return True
+        return not (score_scale is not None and (not isinstance(score_scale, int) or score_scale <= 0))
 
     def get_default_config(self) -> dict[str, Any]:
         """Get default configuration."""
