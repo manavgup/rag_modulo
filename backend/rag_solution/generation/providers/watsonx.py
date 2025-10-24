@@ -95,7 +95,10 @@ class WatsonXLLM(LLMBase):
                     api_key=self._provider.api_key.get_secret_value(),
                     url=str(self._provider.base_url),
                 ),
-                params={EmbedParams.RETURN_OPTIONS: {"input_text": True}},
+                params={
+                    EmbedParams.TRUNCATE_INPUT_TOKENS: 512,  # FIX: Ensure proper truncation for 512-token limit models
+                    EmbedParams.RETURN_OPTIONS: {"input_text": False},  # Don't return input text to save bandwidth
+                },
             )
             logger.debug("Embeddings client: %s", self.embeddings_client)
         else:

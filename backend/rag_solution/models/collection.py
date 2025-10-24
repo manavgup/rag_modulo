@@ -52,7 +52,9 @@ class Collection(Base):  # pylint: disable=too-few-public-methods
     )
 
     # 🔗 Relationships
-    files: Mapped[list[File]] = relationship("File", back_populates="collection", lazy="selectin")
+    files: Mapped[list[File]] = relationship(
+        "File", back_populates="collection", lazy="selectin", cascade="all, delete-orphan"
+    )
     users: Mapped[list[UserCollection]] = relationship("UserCollection", back_populates="collection", lazy="selectin")
     suggested_questions: Mapped[list[SuggestedQuestion]] = relationship(
         "SuggestedQuestion", back_populates="collection", cascade="all, delete-orphan"

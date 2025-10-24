@@ -33,6 +33,7 @@ from rag_solution.core.device_flow import (
     get_device_flow_storage,
     parse_device_flow_error,
 )
+from rag_solution.core.exceptions import NotFoundError
 from rag_solution.file_management.database import get_db
 from rag_solution.services.user_service import UserService
 
@@ -286,7 +287,7 @@ async def get_userinfo(
             response_data = {**user_info.model_dump(), "access_token": BYPASS_TOKEN, "token_type": "Bearer"}
             logger.info("Retrieved mock user info in bypass mode: %s (token: %s)", user_info.email, BYPASS_TOKEN)
             return JSONResponse(content=response_data)
-        except (ValueError, KeyError, AttributeError) as e:
+        except (ValueError, KeyError, AttributeError, NotFoundError) as e:
             logger.error("Failed to create mock user info: %s", e)
             # Fallback to basic mock data
             user_info = UserInfo(

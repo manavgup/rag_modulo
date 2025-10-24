@@ -192,6 +192,58 @@ class MilvusStore(VectorStore):
                     )
                     document_names.append(document.metadata.title if document.metadata else "")
 
+            # DIMENSION MISMATCH DEBUG: Log embedding dimensions before insertion
+            logging.info("=" * 80)
+            logging.info(
+                "DIMENSION DEBUG: Preparing to insert %d chunks into collection '%s'", len(embeddings), collection_name
+            )
+            logging.info("DIMENSION DEBUG: Expected embedding dimension: %d", self.settings.embedding_dim)
+
+            # Check each embedding dimension
+            total_floats = 0
+            for idx, emb in enumerate(embeddings):
+                if emb is None:
+                    logging.error("DIMENSION DEBUG: Embedding %d is None!", idx)
+                elif isinstance(emb, list):
+                    emb_len = len(emb)
+                    total_floats += emb_len
+                    if emb_len != self.settings.embedding_dim:
+                        logging.error(
+                            "DIMENSION DEBUG: Embedding %d has WRONG dimension: %d (expected %d)",
+                            idx,
+                            emb_len,
+                            self.settings.embedding_dim,
+                        )
+                    else:
+                        logging.debug("DIMENSION DEBUG: Embedding %d has correct dimension: %d", idx, emb_len)
+                else:
+                    logging.error("DIMENSION DEBUG: Embedding %d is not a list! Type: %s", idx, type(emb))
+
+            logging.info("DIMENSION DEBUG: Total embeddings: %d", len(embeddings))
+            logging.info("DIMENSION DEBUG: Total floats: %d", total_floats)
+            logging.info("DIMENSION DEBUG: Expected total floats: %d", len(embeddings) * self.settings.embedding_dim)
+            logging.info("DIMENSION DEBUG: Floats per expected dim: %.2f", total_floats / self.settings.embedding_dim)
+
+            if total_floats % self.settings.embedding_dim != 0:
+                logging.error(
+                    "DIMENSION DEBUG: ⚠️ MISMATCH DETECTED: %d floats is not divisible by %d!",
+                    total_floats,
+                    self.settings.embedding_dim,
+                )
+                logging.error("DIMENSION DEBUG: This will cause Milvus insertion to fail!")
+
+                # Find the problematic embeddings
+                for idx, emb in enumerate(embeddings):
+                    if isinstance(emb, list) and len(emb) != self.settings.embedding_dim:
+                        logging.error(
+                            "DIMENSION DEBUG: Problematic embedding at index %d: dim=%d, chunk_id=%s",
+                            idx,
+                            len(emb),
+                            chunk_ids[idx],
+                        )
+
+            logging.info("=" * 80)
+
             # Insert data
             collection.insert(
                 [

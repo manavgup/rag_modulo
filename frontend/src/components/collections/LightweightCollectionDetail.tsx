@@ -47,6 +47,8 @@ const LightweightCollectionDetail: React.FC = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [isPodcastModalOpen, setIsPodcastModalOpen] = useState(false);
   const [isReindexing, setIsReindexing] = useState(false);
+  const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   useEffect(() => {
     const loadCollection = async () => {
@@ -313,6 +315,22 @@ const LightweightCollectionDetail: React.FC = () => {
     }
   };
 
+  const handleDeleteCollection = async () => {
+    if (!collection) return;
+
+    try {
+      await apiClient.deleteCollection(collection.id);
+      addNotification('success', 'Collection Deleted', `"${collection.name}" has been deleted successfully.`);
+      // Navigate back to collections list
+      navigate('/collections');
+    } catch (error) {
+      console.error('Error deleting collection:', error);
+      addNotification('error', 'Delete Error', 'Failed to delete collection.');
+    } finally {
+      setIsDeleteModalOpen(false);
+    }
+  };
+
   const filteredDocuments = collection?.documents.filter(doc =>
     doc.name.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
@@ -335,7 +353,7 @@ const LightweightCollectionDetail: React.FC = () => {
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-2xl font-semibold text-gray-100 mb-4">Collection Not Found</h1>
           <button
-            onClick={() => navigate('/lightweight-collections')}
+            onClick={() => navigate('/collections')}
             className="btn-primary"
           >
             Back to Collections
@@ -351,7 +369,7 @@ const LightweightCollectionDetail: React.FC = () => {
         {/* Breadcrumb */}
         <nav className="flex items-center space-x-2 text-sm text-gray-70 mb-6">
           <button
-            onClick={() => navigate('/lightweight-collections')}
+            onClick={() => navigate('/collections')}
             className="hover:text-blue-60"
           >
             Collections
@@ -366,7 +384,7 @@ const LightweightCollectionDetail: React.FC = () => {
             <div className="flex-1">
               <div className="flex items-center space-x-3 mb-2">
                 <button
-                  onClick={() => navigate('/lightweight-collections')}
+                  onClick={() => navigate('/collections')}
                   className="btn-ghost p-2"
                 >
                   <ArrowLeftIcon className="w-5 h-5" />
@@ -410,9 +428,41 @@ const LightweightCollectionDetail: React.FC = () => {
                 <ShareIcon className="w-4 h-4" />
                 <span>Share</span>
               </button>
-              <button className="btn-secondary">
-                <Cog6ToothIcon className="w-5 h-5" />
-              </button>
+              <div className="relative">
+                <button
+                  onClick={() => setIsSettingsMenuOpen(!isSettingsMenuOpen)}
+                  className="btn-secondary"
+                >
+                  <Cog6ToothIcon className="w-5 h-5" />
+                </button>
+                {isSettingsMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-20">
+                    <div className="py-1">
+                      <button
+                        onClick={() => {
+                          setIsSettingsMenuOpen(false);
+                          handleReindex();
+                        }}
+                        disabled={isReindexing || collection.status === 'processing'}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-100 hover:bg-gray-10 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <ArrowPathIcon className="w-4 h-4" />
+                        <span>Re-index</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setIsSettingsMenuOpen(false);
+                          setIsDeleteModalOpen(true);
+                        }}
+                        className="w-full text-left px-4 py-2 text-sm text-red-50 hover:bg-red-10 flex items-center space-x-2"
+                      >
+                        <TrashIcon className="w-4 h-4" />
+                        <span>Delete</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -503,15 +553,6 @@ const LightweightCollectionDetail: React.FC = () => {
 
             {/* Action Buttons */}
             <div className="flex items-center space-x-2">
-              <button
-                onClick={handleReindex}
-                disabled={isReindexing || collection.status === 'processing'}
-                className="btn-secondary flex items-center space-x-2 disabled:opacity-50 text-sm"
-                title={isReindexing ? 'Reindexing in progress...' : 'Reprocess documents with current chunking settings'}
-              >
-                <ArrowPathIcon className={`w-4 h-4 ${isReindexing ? 'animate-spin' : ''}`} />
-                <span>{isReindexing ? 'Reindexing...' : 'Re-index'}</span>
-              </button>
               <button
                 className="btn-secondary flex items-center space-x-2 text-sm"
                 title="Export collection data"
@@ -749,6 +790,52 @@ const LightweightCollectionDetail: React.FC = () => {
             navigate(`/podcasts/${podcastId}`);
           }}
         />
+
+        {/* Delete Confirmation Modal */}
+        {isDeleteModalOpen && (
+          <div className="fixed inset-0 bg-gray-100 bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-red-10 flex items-center justify-center">
+                  <ExclamationTriangleIcon className="w-6 h-6 text-red-50" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-100">Delete Collection</h2>
+                  <p className="text-sm text-gray-70">This action cannot be undone</p>
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <p className="text-gray-100 mb-2">
+                  Are you sure you want to delete <span className="font-semibold">"{collection.name}"</span>?
+                </p>
+                <p className="text-sm text-gray-70">
+                  This will permanently delete:
+                </p>
+                <ul className="mt-2 text-sm text-gray-70 list-disc list-inside space-y-1">
+                  <li>{collection.documentCount} document(s)</li>
+                  <li>{collection.documents.reduce((sum, doc) => sum + (doc.chunks || 0), 0)} chunk(s)</li>
+                  <li>All embeddings and search history</li>
+                </ul>
+              </div>
+
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => setIsDeleteModalOpen(false)}
+                  className="btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteCollection}
+                  className="bg-red-50 text-white px-4 py-2 rounded-lg hover:bg-red-60 transition-colors"
+                >
+                  Delete Collection
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

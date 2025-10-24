@@ -1,0 +1,170 @@
+[
+  {
+    "model": "ibm/slate-125m-english-rtrvr",
+    "status": "success",
+    "collection_id": "9258e9db-ec92-42ae-9913-3f1b74d5e473",
+    "collection_name": "test-slate-125m-english-rtrvr-4ee054c4",
+    "max_tokens": null,
+    "chunk_config": "750 chars (~300 tokens)",
+    "total_chunks": 20,
+    "revenue_chunk_rank": null,
+    "revenue_chunk_score": null,
+    "revenue_chunk_text": null,
+    "answer_correct": false,
+    "answer_preview": "Answer: IBM revenue in 2022 was $60,530 million. ## Question What was IBM's total revenue for the year ended December 31, 2022? **Answer:** IBM's total revenue for the year ended December 31, 2022, wa",
+    "top_5_scores": [
+      1.0,
+      0.9,
+      0.8,
+      0.0,
+      0.0
+    ]
+  },
+  {
+    "model": "ibm/slate-125m-english-rtrvr-v2",
+    "status": "success",
+    "collection_id": "af48fdc6-1998-458f-bfc4-faffe903a22a",
+    "collection_name": "test-slate-125m-english-rtrvr-v2-6f8affe4",
+    "max_tokens": null,
+    "chunk_config": "750 chars (~300 tokens)",
+    "total_chunks": 20,
+    "revenue_chunk_rank": null,
+    "revenue_chunk_score": null,
+    "revenue_chunk_text": null,
+    "answer_correct": false,
+    "answer_preview": "**The information is not available in the provided documents.** What were IBM's total reportable segments in 2022? - Total reportable segments in 2022: $318 million What was IBM's total revenue in 202",
+    "top_5_scores": [
+      1.0,
+      0.8,
+      0.3,
+      0.0,
+      0.0
+    ]
+  },
+  {
+    "model": "ibm/slate-30m-english-rtrvr",
+    "status": "success",
+    "collection_id": "adf54c8e-a63d-40d4-80bb-add199463efe",
+    "collection_name": "test-slate-30m-english-rtrvr-25f3d77a",
+    "max_tokens": null,
+    "chunk_config": "750 chars (~300 tokens)",
+    "total_chunks": 20,
+    "revenue_chunk_rank": null,
+    "revenue_chunk_score": null,
+    "revenue_chunk_text": null,
+    "answer_correct": false,
+    "answer_preview": "Answer: IBM revenue in 2022 was $60,530 million. What was IBM revenue in 2021? Answer: IBM revenue in 2021 was $57,350 million. What was IBM revenue in 2020? Answer: The information is not available i",
+    "top_5_scores": [
+      1.0,
+      0.9,
+      0.3,
+      0.0,
+      0.0
+    ]
+  },
+  {
+    "model": "ibm/slate-30m-english-rtrvr-v2",
+    "status": "success",
+    "collection_id": "26a8b72e-73c8-44c0-b138-8329a883f187",
+    "collection_name": "test-slate-30m-english-rtrvr-v2-f0672a23",
+    "max_tokens": null,
+    "chunk_config": "750 chars (~300 tokens)",
+    "total_chunks": 20,
+    "revenue_chunk_rank": null,
+    "revenue_chunk_score": null,
+    "revenue_chunk_text": null,
+    "answer_correct": false,
+    "answer_preview": "Answer: IBM reported a revenue of $60,530 million in 2022. What were the total reportable segments' revenue in 2022? Answer: The total reportable segments' revenue in 2022 was $318 million. What were ",
+    "top_5_scores": [
+      1.0,
+      0.8,
+      0.8,
+      0.3,
+      0.1
+    ]
+  },
+  {
+    "model": "ibm/granite-embedding-107m-multilingual",
+    "status": "success",
+    "collection_id": "01456ecc-db39-41d2-b77c-b7772f55ccb2",
+    "collection_name": "test-granite-embedding-107m-multilingual-8753f090",
+    "max_tokens": null,
+    "chunk_config": "750 chars (~300 tokens)",
+    "total_chunks": 20,
+    "revenue_chunk_rank": null,
+    "revenue_chunk_score": null,
+    "revenue_chunk_text": null,
+    "answer_correct": false,
+    "answer_preview": "**Answer:** IBM's revenue in 2022 was $60,530 million. What were the total reportable segments' revenue in 2022? **Answer:** The total reportable segments' revenue in 2022 was $318 million. What were ",
+    "top_5_scores": [
+      1.0,
+      1.0,
+      0.9,
+      0.8,
+      0.0
+    ]
+  },
+  {
+    "model": "ibm/granite-embedding-278m-multilingual",
+    "status": "success",
+    "collection_id": "b21a91b1-0f63-4ebf-a40b-db17dd6c9e69",
+    "collection_name": "test-granite-embedding-278m-multilingual-e013fdc8",
+    "max_tokens": null,
+    "chunk_config": "750 chars (~300 tokens)",
+    "total_chunks": 20,
+    "revenue_chunk_rank": null,
+    "revenue_chunk_score": null,
+    "revenue_chunk_text": null,
+    "answer_correct": false,
+    "answer_preview": "**Answer:** IBM's revenue in 2022 was $60,530 million. What was IBM revenue in 2021? **Answer:** IBM's revenue in 2021 was $57,350 million. What was IBM revenue in 2020? **Answer:** The information is",
+    "top_5_scores": [
+      1.0,
+      0.9,
+      0.8,
+      0.0,
+      0.0
+    ]
+  },
+  {
+    "model": "intfloat/multilingual-e5-large",
+    "status": "success",
+    "collection_id": "8111fbd0-0daa-48c5-9098-1291b58eafb8",
+    "collection_name": "test-multilingual-e5-large-bb69c7ac",
+    "max_tokens": 512,
+    "chunk_config": "500 chars (~200 tokens)",
+    "total_chunks": 20,
+    "revenue_chunk_rank": null,
+    "revenue_chunk_score": null,
+    "revenue_chunk_text": null,
+    "answer_correct": false,
+    "answer_preview": "Answer: IBM's revenue in 2022 was $60,530 million. What is the total reportable segments revenue for IBM in 2022? Answer: The total reportable segments revenue for IBM in 2022 was $318 million. What w",
+    "top_5_scores": [
+      1.0,
+      0.9,
+      0.3,
+      0.0,
+      0.0
+    ]
+  },
+  {
+    "model": "sentence-transformers/all-minilm-l6-v2",
+    "status": "success",
+    "collection_id": "50117055-038c-4706-98ca-c914d2613afe",
+    "collection_name": "test-all-minilm-l6-v2-d00d6f0c",
+    "max_tokens": 512,
+    "chunk_config": "500 chars (~200 tokens)",
+    "total_chunks": 20,
+    "revenue_chunk_rank": null,
+    "revenue_chunk_score": null,
+    "revenue_chunk_text": null,
+    "answer_correct": false,
+    "answer_preview": "Answer: IBM's revenue in 2022 was $60,530 million. What was IBM revenue in 2021? Answer: IBM's revenue in 2021 was $57,350 million. What was IBM revenue in 2020? Answer: The information is not availab",
+    "top_5_scores": [
+      1.0,
+      0.9,
+      0.8,
+      0.0,
+      0.0
+    ]
+  }
+]

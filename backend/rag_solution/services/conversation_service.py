@@ -304,14 +304,37 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
 
         # Get conversation context
         messages = await self.get_messages(message_input.session_id, session.user_id)
+        logger.info("=" * 80)
+        logger.info("CONTEXT TRACE #1: Building conversation context from %d messages", len(messages))
         context = await self.build_context_from_messages(message_input.session_id, messages)
+        logger.info("CONTEXT TRACE #1: context_window length: %d chars", len(context.context_window))
+        logger.info("CONTEXT TRACE #1: context_window preview: %s...", context.context_window[:200])
+        logger.info("CONTEXT TRACE #1: context_metadata keys: %s", list(context.context_metadata.keys()))
+        logger.info("=" * 80)
 
-        # Enhance question with conversation context
-        enhanced_question = await self.enhance_question_with_context(
+        # FIX: DO NOT enhance question before embedding - it pollutes the embeddings!
+        # Enhanced question with context should ONLY be used for LLM prompting AFTER retrieval.
+        # Embedding models need the pure, unmodified question for semantic similarity.
+        # The conversation context will be passed through config_metadata to the LLM.
+
+        # Use ORIGINAL question for search/embedding
+        original_question = message_input.content
+
+        # Build enhanced question for LLM prompting (used AFTER retrieval)
+        logger.info("=" * 80)
+        logger.info("CONTEXT TRACE #2: Enhancing question with context")
+        logger.info("CONTEXT TRACE #2: original_question: %s", original_question)
+        logger.info("CONTEXT TRACE #2: conversation_context length: %d chars", len(context.context_window))
+        enhanced_question_for_llm = await self.enhance_question_with_context(
             message_input.content,
             context.context_window,
             [msg.content for msg in messages[-5:]],  # Last 5 messages
         )
+        logger.info("CONTEXT TRACE #2: enhanced_question_for_llm: %s", enhanced_question_for_llm)
+        logger.info(
+            "CONTEXT TRACE #2: enhancement added: %d chars", len(enhanced_question_for_llm) - len(original_question)
+        )
+        logger.info("=" * 80)
 
         # Create search input with conversation context
         # Handle mocked database scenarios where IDs might be Mock objects
@@ -322,12 +345,17 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
         if not collection_id or not user_id:
             raise ValidationError("Session must have valid collection_id and user_id for search")
 
+        # FIX: Use ORIGINAL question for search, not enhanced_question
+        # The enhanced question is for LLM prompting AFTER retrieval
+        logger.info("=" * 80)
+        logger.info("CONTEXT TRACE #3: Creating SearchInput")
         search_input = SearchInput(
-            question=enhanced_question,
+            question=original_question,  # Use original for clean embeddings
             collection_id=collection_id,
             user_id=user_id,
             config_metadata={
                 "conversation_context": context.context_window,
+                "enhanced_question_for_llm": enhanced_question_for_llm,  # Pass enhanced for LLM
                 "session_id": str(message_input.session_id),
                 "message_history": [msg.content for msg in messages[-10:]],
                 "conversation_entities": context.context_metadata.get("extracted_entities", []),
@@ -336,6 +364,20 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
                 "conversation_aware": True,
             },
         )
+        logger.info("CONTEXT TRACE #3: question (for embedding): %s", original_question)
+        logger.info("CONTEXT TRACE #3: config_metadata keys: %s", list(search_input.config_metadata.keys()))
+        logger.info(
+            "CONTEXT TRACE #3: conversation_context in metadata: %d chars",
+            len(search_input.config_metadata.get("conversation_context", "")),
+        )
+        logger.info(
+            "CONTEXT TRACE #3: enhanced_question_for_llm: %s...",
+            str(search_input.config_metadata.get("enhanced_question_for_llm", ""))[:100],
+        )
+        logger.info(
+            "CONTEXT TRACE #3: message_history count: %d", len(search_input.config_metadata.get("message_history", []))
+        )
+        logger.info("=" * 80)
 
         # Execute search - this will automatically use CoT if appropriate
         search_result = await self.search_service.search(search_input)
@@ -611,7 +653,8 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
             if serialized_documents
             else None,
             "search_metadata": {
-                "enhanced_question": enhanced_question,
+                "enhanced_question": enhanced_question_for_llm,  # For display/logging only
+                "original_question": original_question,  # The actual query used for embedding
                 "cot_steps": cot_steps,
                 "integration_seamless": True,
                 "conversation_ui_used": True,
@@ -877,7 +920,13 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
         }
 
     def _build_context_window(self, messages: list[ConversationMessageOutput]) -> str:
-        """Build context window from messages."""
+        """Build context window from messages.
+
+        IMPORTANT: This method builds conversation context for enhancing future questions.
+        To prevent exponential context growth, we strip out metadata sections that were
+        added during previous question enhancement. This prevents recursive inclusion
+        of contexts in assistant responses.
+        """
         if not messages:
             return "No previous conversation context"
 
@@ -885,13 +934,51 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
         recent_messages = messages[-10:]
         context_parts = []
 
-        for msg in recent_messages:
-            if msg.role == "user":
-                context_parts.append(f"User: {msg.content}")
-            elif msg.role == "assistant":
-                context_parts.append(f"Assistant: {msg.content}")
+        # Maximum total context window size (not per message, but total)
+        MAX_CONTEXT_LENGTH = 2000  # Total characters for entire context window
 
-        return " ".join(context_parts) if context_parts else "No previous conversation context"
+        for msg in recent_messages:
+            content = msg.content
+
+            if msg.role == "user":
+                # For user messages, keep full content but remove any (referring to: ...) sections
+                # These were added by enhance_question_with_context in previous turns
+                content = re.sub(r"\s*\(referring to:.*?\)", "", content)
+                content = re.sub(r"\s*\(in the context of.*?\)", "", content)
+                context_parts.append(f"User: {content.strip()}")
+            elif msg.role == "assistant":
+                # For assistant messages, remove any recursive "Context:" sections
+                # Split by known metadata patterns
+                lines = content.split("\n")
+                core_lines = []
+
+                for line in lines:
+                    # Stop if we hit metadata sections that indicate context from previous turns
+                    if any(
+                        pattern in line
+                        for pattern in [
+                            "Context:",
+                            "Previously discussed:",
+                            "Participant:",
+                            "referring to:",
+                            "in the context of",
+                        ]
+                    ):
+                        break
+                    core_lines.append(line)
+
+                core_answer = "\n".join(core_lines).strip()
+                if core_answer:
+                    context_parts.append(f"Assistant: {core_answer}")
+
+        # Build context and enforce total length limit
+        full_context = " ".join(context_parts)
+
+        if len(full_context) > MAX_CONTEXT_LENGTH:
+            # Truncate from the beginning (oldest messages) to keep recent context
+            full_context = "..." + full_context[-MAX_CONTEXT_LENGTH:]
+
+        return full_context if full_context.strip() else "No previous conversation context"
 
     def _extract_entities_from_context(self, context: str) -> list[str]:
         """Extract entities from context using NLP patterns."""

@@ -594,6 +594,27 @@ class SearchService:
         logger.info("🔍 SEARCH SERVICE: METHOD ENTRY - search() called!")
         start_time = time.time()
         logger.info("Starting search operation")
+        logger.info("=" * 80)
+        logger.info("CONTEXT TRACE #4: SearchService.search() entry")
+        logger.info("CONTEXT TRACE #4: question: %s", search_input.question)
+        logger.info("CONTEXT TRACE #4: user_id: %s", search_input.user_id)
+        logger.info("CONTEXT TRACE #4: collection_id: %s", search_input.collection_id)
+        if search_input.config_metadata:
+            logger.info("CONTEXT TRACE #4: config_metadata keys: %s", list(search_input.config_metadata.keys()))
+            logger.info(
+                "CONTEXT TRACE #4: conversation_context length: %d chars",
+                len(search_input.config_metadata.get("conversation_context", "")),
+            )
+            logger.info(
+                "CONTEXT TRACE #4: conversation_context preview: %s...",
+                str(search_input.config_metadata.get("conversation_context", ""))[:200],
+            )
+            logger.info(
+                "CONTEXT TRACE #4: enhanced_question_for_llm: %s",
+                search_input.config_metadata.get("enhanced_question_for_llm", ""),
+            )
+            logger.info("CONTEXT TRACE #4: cot_enabled: %s", search_input.config_metadata.get("cot_enabled", False))
+        logger.info("=" * 80)
         logger.info("🔍 SEARCH SERVICE: search() called with question: %s", search_input.question)
         logger.info("🔍 SEARCH SERVICE: config_metadata: %s", search_input.config_metadata)
         logger.info("🔍 SEARCH SERVICE: search() method STARTED")

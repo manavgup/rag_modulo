@@ -102,9 +102,52 @@ class DocumentStore:
                     logger.error("No embeddings returned from provider!")
                     raise ValueError("No embeddings returned from provider")
 
+                # DIMENSION MISMATCH DEBUG: Check all embedding dimensions
+                logger.info("=" * 80)
+                logger.info("DIMENSION DEBUG (INGESTION): Checking %d embeddings from provider", len(all_embeddings))
+
                 if all_embeddings:
-                    logger.info("First embedding length: %d", len(all_embeddings[0]) if all_embeddings[0] else 0)
-                    logger.info("First embedding type: %s", type(all_embeddings[0]))
+                    first_dim = len(all_embeddings[0]) if all_embeddings[0] else 0
+                    logger.info("DIMENSION DEBUG (INGESTION): First embedding dimension: %d", first_dim)
+                    logger.info("DIMENSION DEBUG (INGESTION): First embedding type: %s", type(all_embeddings[0]))
+
+                    # Check if all embeddings have consistent dimensions
+                    dimension_counts = {}
+                    for idx, emb in enumerate(all_embeddings):
+                        if emb is None:
+                            logger.error("DIMENSION DEBUG (INGESTION): Embedding %d is None!", idx)
+                            dimension_counts["None"] = dimension_counts.get("None", 0) + 1
+                        elif isinstance(emb, list):
+                            dim = len(emb)
+                            dimension_counts[dim] = dimension_counts.get(dim, 0) + 1
+                            if dim != first_dim:
+                                logger.error(
+                                    "DIMENSION DEBUG (INGESTION): Embedding %d has different dimension: %d (expected %d)",
+                                    idx,
+                                    dim,
+                                    first_dim,
+                                )
+                        else:
+                            logger.error(
+                                "DIMENSION DEBUG (INGESTION): Embedding %d is not a list! Type: %s", idx, type(emb)
+                            )
+                            dimension_counts[f"Type:{type(emb).__name__}"] = (
+                                dimension_counts.get(f"Type:{type(emb).__name__}", 0) + 1
+                            )
+
+                    logger.info("DIMENSION DEBUG (INGESTION): Dimension distribution: %s", dimension_counts)
+
+                    if len(dimension_counts) > 1:
+                        logger.error("DIMENSION DEBUG (INGESTION): ⚠️ INCONSISTENT DIMENSIONS DETECTED!")
+                        logger.error(
+                            "DIMENSION DEBUG (INGESTION): Expected all embeddings to have dimension %d", first_dim
+                        )
+                    else:
+                        logger.info(
+                            "DIMENSION DEBUG (INGESTION): ✓ All embeddings have consistent dimension: %d", first_dim
+                        )
+
+                logger.info("=" * 80)
 
                 # Assign embeddings back to chunks
                 for embedding_idx, (doc_idx, chunk_idx) in enumerate(chunk_mapping):

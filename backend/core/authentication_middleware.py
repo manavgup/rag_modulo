@@ -18,6 +18,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from auth.oidc import verify_jwt_token
 from core.config import get_settings
 from core.mock_auth import create_mock_user_data, ensure_mock_user_exists, is_bypass_mode_active, is_mock_token
+from rag_solution.core.exceptions import NotFoundError
 
 # Get settings safely for middleware
 settings = get_settings()
@@ -109,7 +110,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             session.close()
             logger.info("AuthMiddleware: Mock user ready with ID: %s", user_uuid)
             return user_uuid
-        except (ValueError, TypeError, AttributeError, ConnectionError) as e:
+        except (ValueError, TypeError, AttributeError, ConnectionError, NotFoundError) as e:
             logger.warning("AuthMiddleware: Could not ensure mock user initialization: %s", e)
             return None
 

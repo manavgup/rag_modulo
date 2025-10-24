@@ -62,7 +62,9 @@ class PipelineService:
         self._collection_service: CollectionService | None = None
 
         # Core RAG components
-        self.query_rewriter = QueryRewriter({})
+        # FIX: Disable SimpleQueryRewriter - boolean operators (AND/OR) pollute embeddings
+        # Embedding models treat "AND (relevant OR important)" as text, not boolean logic
+        self.query_rewriter = QueryRewriter({"use_simple_rewriter": False})
         # Use factory with proper dependency injection
         factory = VectorStoreFactory(self.settings)
         self.vector_store = factory.get_datastore(self.settings.vector_db)

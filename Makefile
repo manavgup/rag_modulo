@@ -16,7 +16,7 @@ endif
 # ============================================================================
 
 # Python environment
-VENV_DIR := backend/.venv
+VENV_DIR := .venv
 PYTHON := python3.12
 POETRY := poetry
 
@@ -64,10 +64,10 @@ $(VENV_DIR)/bin/activate:
 		echo "$(RED)❌ Poetry not found. Installing Poetry...$(NC)"; \
 		curl -sSL https://install.python-poetry.org | $(PYTHON) -; \
 	fi
-	@cd backend && $(POETRY) config virtualenvs.in-project true
-	@cd backend && $(POETRY) install --with dev,test
-	@echo "$(GREEN)✅ Virtual environment created at backend/.venv$(NC)"
-	@echo "$(CYAN)💡 Activate with: source backend/.venv/bin/activate$(NC)"
+	@$(POETRY) config virtualenvs.in-project true
+	@$(POETRY) install --with dev,test
+	@echo "$(GREEN)✅ Virtual environment created at .venv$(NC)"
+	@echo "$(CYAN)💡 Activate with: source .venv/bin/activate$(NC)"
 
 clean-venv:
 	@echo "$(CYAN)🧹 Cleaning virtual environment...$(NC)"
@@ -112,7 +112,7 @@ local-dev-infra:
 local-dev-backend:
 	@echo "$(CYAN)🐍 Starting backend with hot-reload (uvicorn)...$(NC)"
 	@echo "$(YELLOW)⚠️  Make sure infrastructure is running: make local-dev-infra$(NC)"
-	@cd backend && $(POETRY) run uvicorn main:app --reload --host 0.0.0.0 --port 8000
+	@PYTHONPATH=backend:$$PYTHONPATH $(POETRY) run uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 
 local-dev-frontend:
 	@echo "$(CYAN)⚛️  Starting frontend with HMR (Vite)...$(NC)"
@@ -124,7 +124,7 @@ local-dev-all:
 	mkdir -p $$PROJECT_ROOT/logs; \
 	$(MAKE) local-dev-infra; \
 	echo "$(CYAN)🐍 Starting backend in background...$(NC)"; \
-	cd backend && $(POETRY) run uvicorn main:app --reload --host 0.0.0.0 --port 8000 > $$PROJECT_ROOT/logs/backend.log 2>&1 & \
+	PYTHONPATH=backend:$$PYTHONPATH $(POETRY) run uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000 > $$PROJECT_ROOT/logs/backend.log 2>&1 & \
 	echo "Waiting for backend to start..."; \
 	for i in 1 2 3 4 5 6 7 8 9 10; do \
 		if curl -s http://localhost:8000/api/health >/dev/null 2>&1; then \
@@ -303,26 +303,26 @@ test-all: test-atomic test-unit-fast test-integration
 
 lint: venv
 	@echo "$(CYAN)🔍 Running linters...$(NC)"
-	@cd backend && $(POETRY) run ruff check . --config pyproject.toml
-	@cd backend && $(POETRY) run mypy . --config-file pyproject.toml --ignore-missing-imports
+	@$(POETRY) run ruff check backend/ --config pyproject.toml
+	@$(POETRY) run mypy backend/ --config-file pyproject.toml --ignore-missing-imports
 	@echo "$(GREEN)✅ Linting passed$(NC)"
 
 format: venv
 	@echo "$(CYAN)🎨 Formatting code...$(NC)"
-	@cd backend && $(POETRY) run ruff format . --config pyproject.toml
-	@cd backend && $(POETRY) run ruff check --fix . --config pyproject.toml
+	@$(POETRY) run ruff format backend/ --config pyproject.toml
+	@$(POETRY) run ruff check --fix backend/ --config pyproject.toml
 	@echo "$(GREEN)✅ Code formatted$(NC)"
 
 quick-check: venv
 	@echo "$(CYAN)⚡ Running quick quality checks...$(NC)"
-	@cd backend && $(POETRY) run ruff format --check . --config pyproject.toml
-	@cd backend && $(POETRY) run ruff check . --config pyproject.toml
+	@$(POETRY) run ruff format --check backend/ --config pyproject.toml
+	@$(POETRY) run ruff check backend/ --config pyproject.toml
 	@echo "$(GREEN)✅ Quick checks passed$(NC)"
 
 security-check: venv
 	@echo "$(CYAN)🔒 Running security checks...$(NC)"
-	@cd backend && $(POETRY) run bandit -r rag_solution/ -ll || echo "$(YELLOW)⚠️  Security issues found$(NC)"
-	@cd backend && $(POETRY) run safety check || echo "$(YELLOW)⚠️  Vulnerabilities found$(NC)"
+	@$(POETRY) run bandit -r backend/rag_solution/ -ll || echo "$(YELLOW)⚠️  Security issues found$(NC)"
+	@$(POETRY) run safety check || echo "$(YELLOW)⚠️  Vulnerabilities found$(NC)"
 	@echo "$(GREEN)✅ Security scan complete$(NC)"
 
 pre-commit-run: venv
@@ -379,18 +379,18 @@ pre-commit-run: venv
 	fi
 	@echo ""
 	@echo "$(CYAN)Step 3/10: Formatting backend code...$(NC)"
-	@cd backend && $(POETRY) run ruff format . --config pyproject.toml
+	@$(POETRY) run ruff format backend/ --config pyproject.toml
 	@echo "$(GREEN)✅ Backend code formatted$(NC)"
 	@echo ""
 	@echo "$(CYAN)Step 4/10: Running ruff linter...$(NC)"
-	@cd backend && $(POETRY) run ruff check --fix . --config pyproject.toml
+	@$(POETRY) run ruff check --fix backend/ --config pyproject.toml
 	@echo "$(GREEN)✅ Ruff checks passed$(NC)"
 	@echo ""
 	@echo "$(CYAN)Step 5/10: Running mypy type checker...$(NC)"
-	@cd backend && $(POETRY) run mypy . --config-file pyproject.toml --ignore-missing-imports || echo "$(YELLOW)⚠️  Type check issues found (non-blocking)$(NC)"
+	@$(POETRY) run mypy backend/ --config-file pyproject.toml --ignore-missing-imports || echo "$(YELLOW)⚠️  Type check issues found (non-blocking)$(NC)"
 	@echo ""
 	@echo "$(CYAN)Step 6/10: Running pylint...$(NC)"
-	@cd backend && $(POETRY) run pylint rag_solution/ --rcfile=pyproject.toml || echo "$(YELLOW)⚠️  Pylint warnings found (non-blocking)$(NC)"
+	@$(POETRY) run pylint backend/rag_solution/ --rcfile=pyproject.toml || echo "$(YELLOW)⚠️  Pylint warnings found (non-blocking)$(NC)"
 	@echo ""
 	@echo "$(CYAN)Step 7/10: Linting configuration files (YAML/JSON/TOML)...$(NC)"
 	@if command -v yamllint >/dev/null 2>&1; then \

@@ -1,0 +1,805 @@
+2025-10-24 18:48:33,740 INFO sqlalchemy.engine.Engine ROLLBACK
+2025-10-24 18:48:33,740 - sqlalchemy.engine.Engine - INFO - ROLLBACK
+2025-10-24 18:48:33,741 - rag_solution.file_management.database - INFO - Database session closed.
+2025-10-24 18:48:33,741 - rag_solution.file_management.database - INFO - Database session closed.
+INFO:     127.0.0.1:0 - "GET /api/conversations/6cde4830-c940-49e4-bf49-d1c86115decc/messages?limit=50&offset=0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:0 - "GET /api/conversations?collection_id=bdbd9360-b54b-4307-ab68-d057d0ca682c HTTP/1.1" 200 OK
+2025-10-24 18:49:03,678 - rag_solution.router.websocket_router - INFO - WebSocket: Received message from user 34932a40-5ce3-4a12-9cce-3abb9510e22f
+2025-10-24 18:49:33,679 - rag_solution.router.websocket_router - INFO - WebSocket: Received message from user 34932a40-5ce3-4a12-9cce-3abb9510e22f
+2025-10-24 18:50:03,679 - rag_solution.router.websocket_router - INFO - WebSocket: Received message from user 34932a40-5ce3-4a12-9cce-3abb9510e22f
+2025-10-24 18:50:33,678 - rag_solution.router.websocket_router - INFO - WebSocket: Received message from user 34932a40-5ce3-4a12-9cce-3abb9510e22f
+2025-10-24 18:51:03,678 - rag_solution.router.websocket_router - INFO - WebSocket: Received message from user 34932a40-5ce3-4a12-9cce-3abb9510e22f
+2025-10-24 18:51:06,166 - core.authentication_middleware - INFO - AuthMiddleware: Processing request to /api/auth/userinfo
+2025-10-24 18:51:06,218 - core.authentication_middleware - INFO - AuthMiddleware: Mock user ready with ID: 34932a40-5ce3-4a12-9cce-3abb9510e22f
+2025-10-24 18:51:06,218 - core.authentication_middleware - INFO - AuthMiddleware: Using created mock user UUID: 34932a40-5ce3-4a12-9cce-3abb9510e22f
+2025-10-24 18:51:06,220 - rag_solution.file_management.database - INFO - === DATABASE DEPENDENCY DEBUG ===
+2025-10-24 18:51:06,220 - rag_solution.file_management.database - INFO - get_db() called - creating database session
+2025-10-24 18:51:06,220 - rag_solution.file_management.database - INFO - === END DATABASE DEPENDENCY DEBUG ===
+2025-10-24 18:51:06,220 - rag_solution.file_management.database - INFO - Creating a new database session.
+2025-10-24 18:51:06,220 - rag_solution.router.auth_router - INFO - Received request for /userinfo
+2025-10-24 18:51:06,221 - rag_solution.router.auth_router - INFO - Authentication bypass mode active - returning mock user info with token
+2025-10-24 18:51:06,221 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2025-10-24 18:51:06,221 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2025-10-24 18:51:06,221 INFO sqlalchemy.engine.Engine SELECT anon_1.users_id AS anon_1_users_id, anon_1.users_ibm_id AS anon_1_users_ibm_id, anon_1.users_email AS anon_1_users_email, anon_1.users_name AS anon_1_users_name, anon_1.users_role AS anon_1_users_role, anon_1.users_preferred_provider_id AS anon_1_users_preferred_provider_id, anon_1.users_created_at AS anon_1_users_created_at, anon_1.users_updated_at AS anon_1_users_updated_at, user_team_1.user_id AS user_team_1_user_id, user_team_1.team_id AS user_team_1_team_id, user_team_1.joined_at AS user_team_1_joined_at 
+FROM (SELECT users.id AS users_id, users.ibm_id AS users_ibm_id, users.email AS users_email, users.name AS users_name, users.role AS users_role, users.preferred_provider_id AS users_preferred_provider_id, users.created_at AS users_created_at, users.updated_at AS users_updated_at 
+FROM users 
+WHERE users.ibm_id = %(ibm_id_1)s 
+ LIMIT %(param_1)s) AS anon_1 LEFT OUTER JOIN user_team AS user_team_1 ON anon_1.users_id = user_team_1.user_id
+2025-10-24 18:51:06,221 - sqlalchemy.engine.Engine - INFO - SELECT anon_1.users_id AS anon_1_users_id, anon_1.users_ibm_id AS anon_1_users_ibm_id, anon_1.users_email AS anon_1_users_email, anon_1.users_name AS anon_1_users_name, anon_1.users_role AS anon_1_users_role, anon_1.users_preferred_provider_id AS anon_1_users_preferred_provider_id, anon_1.users_created_at AS anon_1_users_created_at, anon_1.users_updated_at AS anon_1_users_updated_at, user_team_1.user_id AS user_team_1_user_id, user_team_1.team_id AS user_team_1_team_id, user_team_1.joined_at AS user_team_1_joined_at 
+FROM (SELECT users.id AS users_id, users.ibm_id AS users_ibm_id, users.email AS users_email, users.name AS users_name, users.role AS users_role, users.preferred_provider_id AS users_preferred_provider_id, users.created_at AS users_created_at, users.updated_at AS users_updated_at 
+FROM users 
+WHERE users.ibm_id = %(ibm_id_1)s 
+ LIMIT %(param_1)s) AS anon_1 LEFT OUTER JOIN user_team AS user_team_1 ON anon_1.users_id = user_team_1.user_id
+2025-10-24 18:51:06,222 INFO sqlalchemy.engine.Engine [cached since 206.9s ago] {'ibm_id_1': 'mock-user-ibm-id', 'param_1': 1}
+2025-10-24 18:51:06,222 - sqlalchemy.engine.Engine - INFO - [cached since 206.9s ago] {'ibm_id_1': 'mock-user-ibm-id', 'param_1': 1}
+2025-10-24 18:51:06,225 - rag_solution.router.auth_router - INFO - Retrieved mock user info in bypass mode: dev@example.com (token: dev-bypass-auth)
+2025-10-24 18:51:06,225 INFO sqlalchemy.engine.Engine ROLLBACK
+2025-10-24 18:51:06,225 - sqlalchemy.engine.Engine - INFO - ROLLBACK
+2025-10-24 18:51:06,226 - rag_solution.file_management.database - INFO - Database session closed.
+INFO:     127.0.0.1:0 - "GET /api/auth/userinfo HTTP/1.1" 200 OK
+2025-10-24 18:51:06,238 - core.authentication_middleware - INFO - AuthMiddleware: Processing request to /api/chat/sessions/6cde4830-c940-49e4-bf49-d1c86115decc/process
+2025-10-24 18:51:06,260 - core.authentication_middleware - INFO - AuthMiddleware: Mock user ready with ID: 34932a40-5ce3-4a12-9cce-3abb9510e22f
+2025-10-24 18:51:06,260 - core.authentication_middleware - INFO - AuthMiddleware: Using created mock user UUID: 34932a40-5ce3-4a12-9cce-3abb9510e22f
+2025-10-24 18:51:06,261 - rag_solution.file_management.database - INFO - === DATABASE DEPENDENCY DEBUG ===
+2025-10-24 18:51:06,261 - rag_solution.file_management.database - INFO - get_db() called - creating database session
+2025-10-24 18:51:06,261 - rag_solution.file_management.database - INFO - === END DATABASE DEPENDENCY DEBUG ===
+2025-10-24 18:51:06,261 - rag_solution.file_management.database - INFO - Creating a new database session.
+2025-10-24 18:51:06,262 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2025-10-24 18:51:06,262 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2025-10-24 18:51:06,263 INFO sqlalchemy.engine.Engine SELECT conversation_sessions.id AS conversation_sessions_id, conversation_sessions.user_id AS conversation_sessions_user_id, conversation_sessions.collection_id AS conversation_sessions_collection_id, conversation_sessions.session_name AS conversation_sessions_session_name, conversation_sessions.status AS conversation_sessions_status, conversation_sessions.context_window_size AS conversation_sessions_context_window_size, conversation_sessions.max_messages AS conversation_sessions_max_messages, conversation_sessions.is_archived AS conversation_sessions_is_archived, conversation_sessions.is_pinned AS conversation_sessions_is_pinned, conversation_sessions.created_at AS conversation_sessions_created_at, conversation_sessions.updated_at AS conversation_sessions_updated_at, conversation_sessions.session_metadata AS conversation_sessions_session_metadata 
+FROM conversation_sessions 
+WHERE conversation_sessions.id = %(id_1)s::UUID AND conversation_sessions.user_id = %(user_id_1)s::UUID 
+ LIMIT %(param_1)s
+2025-10-24 18:51:06,263 - sqlalchemy.engine.Engine - INFO - SELECT conversation_sessions.id AS conversation_sessions_id, conversation_sessions.user_id AS conversation_sessions_user_id, conversation_sessions.collection_id AS conversation_sessions_collection_id, conversation_sessions.session_name AS conversation_sessions_session_name, conversation_sessions.status AS conversation_sessions_status, conversation_sessions.context_window_size AS conversation_sessions_context_window_size, conversation_sessions.max_messages AS conversation_sessions_max_messages, conversation_sessions.is_archived AS conversation_sessions_is_archived, conversation_sessions.is_pinned AS conversation_sessions_is_pinned, conversation_sessions.created_at AS conversation_sessions_created_at, conversation_sessions.updated_at AS conversation_sessions_updated_at, conversation_sessions.session_metadata AS conversation_sessions_session_metadata 
+FROM conversation_sessions 
+WHERE conversation_sessions.id = %(id_1)s::UUID AND conversation_sessions.user_id = %(user_id_1)s::UUID 
+ LIMIT %(param_1)s
+2025-10-24 18:51:06,263 INFO sqlalchemy.engine.Engine [cached since 200.5s ago] {'id_1': UUID('6cde4830-c940-49e4-bf49-d1c86115decc'), 'user_id_1': UUID('34932a40-5ce3-4a12-9cce-3abb9510e22f'), 'param_1': 1}
+2025-10-24 18:51:06,263 - sqlalchemy.engine.Engine - INFO - [cached since 200.5s ago] {'id_1': UUID('6cde4830-c940-49e4-bf49-d1c86115decc'), 'user_id_1': UUID('34932a40-5ce3-4a12-9cce-3abb9510e22f'), 'param_1': 1}
+2025-10-24 18:51:06,266 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: from_db_session() called
+2025-10-24 18:51:06,266 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: session.id=6cde4830-c940-49e4-bf49-d1c86115decc
+2025-10-24 18:51:06,266 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: session.id type=<class 'uuid.UUID'>
+2025-10-24 18:51:06,266 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: session.status=active
+2025-10-24 18:51:06,267 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: session.status type=<class 'str'>
+2025-10-24 18:51:06,267 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: status_value=SessionStatus.ACTIVE
+2025-10-24 18:51:06,267 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: status_value type=<enum 'SessionStatus'>
+2025-10-24 18:51:06,267 - rag_solution.services.conversation_service - INFO - 🚀 CONVERSATION SERVICE: process_user_message() called with session_id=6cde4830-c940-49e4-bf49-d1c86115decc
+2025-10-24 18:51:06,267 - rag_solution.services.conversation_service - INFO - 📝 CONVERSATION SERVICE: message content: what was ibm revenue?...
+2025-10-24 18:51:06,267 INFO sqlalchemy.engine.Engine SELECT conversation_sessions.id AS conversation_sessions_id, conversation_sessions.user_id AS conversation_sessions_user_id, conversation_sessions.collection_id AS conversation_sessions_collection_id, conversation_sessions.session_name AS conversation_sessions_session_name, conversation_sessions.status AS conversation_sessions_status, conversation_sessions.context_window_size AS conversation_sessions_context_window_size, conversation_sessions.max_messages AS conversation_sessions_max_messages, conversation_sessions.is_archived AS conversation_sessions_is_archived, conversation_sessions.is_pinned AS conversation_sessions_is_pinned, conversation_sessions.created_at AS conversation_sessions_created_at, conversation_sessions.updated_at AS conversation_sessions_updated_at, conversation_sessions.session_metadata AS conversation_sessions_session_metadata 
+FROM conversation_sessions 
+WHERE conversation_sessions.id = %(id_1)s::UUID 
+ LIMIT %(param_1)s
+2025-10-24 18:51:06,267 - sqlalchemy.engine.Engine - INFO - SELECT conversation_sessions.id AS conversation_sessions_id, conversation_sessions.user_id AS conversation_sessions_user_id, conversation_sessions.collection_id AS conversation_sessions_collection_id, conversation_sessions.session_name AS conversation_sessions_session_name, conversation_sessions.status AS conversation_sessions_status, conversation_sessions.context_window_size AS conversation_sessions_context_window_size, conversation_sessions.max_messages AS conversation_sessions_max_messages, conversation_sessions.is_archived AS conversation_sessions_is_archived, conversation_sessions.is_pinned AS conversation_sessions_is_pinned, conversation_sessions.created_at AS conversation_sessions_created_at, conversation_sessions.updated_at AS conversation_sessions_updated_at, conversation_sessions.session_metadata AS conversation_sessions_session_metadata 
+FROM conversation_sessions 
+WHERE conversation_sessions.id = %(id_1)s::UUID 
+ LIMIT %(param_1)s
+2025-10-24 18:51:06,267 INFO sqlalchemy.engine.Engine [cached since 178.8s ago] {'id_1': UUID('6cde4830-c940-49e4-bf49-d1c86115decc'), 'param_1': 1}
+2025-10-24 18:51:06,267 - sqlalchemy.engine.Engine - INFO - [cached since 178.8s ago] {'id_1': UUID('6cde4830-c940-49e4-bf49-d1c86115decc'), 'param_1': 1}
+2025-10-24 18:51:06,268 - rag_solution.services.conversation_service - INFO - 📊 CONVERSATION SERVICE: Found session - user_id=34932a40-5ce3-4a12-9cce-3abb9510e22f, collection_id=bdbd9360-b54b-4307-ab68-d057d0ca682c
+2025-10-24 18:51:06,268 INFO sqlalchemy.engine.Engine SELECT conversation_sessions.id AS conversation_sessions_id, conversation_sessions.user_id AS conversation_sessions_user_id, conversation_sessions.collection_id AS conversation_sessions_collection_id, conversation_sessions.session_name AS conversation_sessions_session_name, conversation_sessions.status AS conversation_sessions_status, conversation_sessions.context_window_size AS conversation_sessions_context_window_size, conversation_sessions.max_messages AS conversation_sessions_max_messages, conversation_sessions.is_archived AS conversation_sessions_is_archived, conversation_sessions.is_pinned AS conversation_sessions_is_pinned, conversation_sessions.created_at AS conversation_sessions_created_at, conversation_sessions.updated_at AS conversation_sessions_updated_at, conversation_sessions.session_metadata AS conversation_sessions_session_metadata 
+FROM conversation_sessions 
+WHERE conversation_sessions.id = %(id_1)s::UUID 
+ LIMIT %(param_1)s
+2025-10-24 18:51:06,268 - sqlalchemy.engine.Engine - INFO - SELECT conversation_sessions.id AS conversation_sessions_id, conversation_sessions.user_id AS conversation_sessions_user_id, conversation_sessions.collection_id AS conversation_sessions_collection_id, conversation_sessions.session_name AS conversation_sessions_session_name, conversation_sessions.status AS conversation_sessions_status, conversation_sessions.context_window_size AS conversation_sessions_context_window_size, conversation_sessions.max_messages AS conversation_sessions_max_messages, conversation_sessions.is_archived AS conversation_sessions_is_archived, conversation_sessions.is_pinned AS conversation_sessions_is_pinned, conversation_sessions.created_at AS conversation_sessions_created_at, conversation_sessions.updated_at AS conversation_sessions_updated_at, conversation_sessions.session_metadata AS conversation_sessions_session_metadata 
+FROM conversation_sessions 
+WHERE conversation_sessions.id = %(id_1)s::UUID 
+ LIMIT %(param_1)s
+2025-10-24 18:51:06,268 INFO sqlalchemy.engine.Engine [cached since 178.8s ago] {'id_1': UUID('6cde4830-c940-49e4-bf49-d1c86115decc'), 'param_1': 1}
+2025-10-24 18:51:06,268 - sqlalchemy.engine.Engine - INFO - [cached since 178.8s ago] {'id_1': UUID('6cde4830-c940-49e4-bf49-d1c86115decc'), 'param_1': 1}
+2025-10-24 18:51:06,269 INFO sqlalchemy.engine.Engine INSERT INTO conversation_messages (id, session_id, content, role, message_type, created_at, message_metadata, token_count, execution_time) VALUES (%(id)s::UUID, %(session_id)s::UUID, %(content)s, %(role)s, %(message_type)s, %(created_at)s, %(message_metadata)s::JSON, %(token_count)s, %(execution_time)s)
+2025-10-24 18:51:06,269 - sqlalchemy.engine.Engine - INFO - INSERT INTO conversation_messages (id, session_id, content, role, message_type, created_at, message_metadata, token_count, execution_time) VALUES (%(id)s::UUID, %(session_id)s::UUID, %(content)s, %(role)s, %(message_type)s, %(created_at)s, %(message_metadata)s::JSON, %(token_count)s, %(execution_time)s)
+2025-10-24 18:51:06,269 INFO sqlalchemy.engine.Engine [cached since 178.8s ago] {'id': UUID('17230f15-723d-4efe-8759-65a3cab37985'), 'session_id': UUID('6cde4830-c940-49e4-bf49-d1c86115decc'), 'content': 'what was ibm revenue?', 'role': <MessageRole.USER: 'user'>, 'message_type': <MessageType.QUESTION: 'question'>, 'created_at': datetime.datetime(2025, 10, 24, 22, 51, 6, 269677), 'message_metadata': '{}', 'token_count': 5, 'execution_time': 0.0}
+2025-10-24 18:51:06,269 - sqlalchemy.engine.Engine - INFO - [cached since 178.8s ago] {'id': UUID('17230f15-723d-4efe-8759-65a3cab37985'), 'session_id': UUID('6cde4830-c940-49e4-bf49-d1c86115decc'), 'content': 'what was ibm revenue?', 'role': <MessageRole.USER: 'user'>, 'message_type': <MessageType.QUESTION: 'question'>, 'created_at': datetime.datetime(2025, 10, 24, 22, 51, 6, 269677), 'message_metadata': '{}', 'token_count': 5, 'execution_time': 0.0}
+2025-10-24 18:51:06,271 INFO sqlalchemy.engine.Engine COMMIT
+2025-10-24 18:51:06,271 - sqlalchemy.engine.Engine - INFO - COMMIT
+2025-10-24 18:51:06,273 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2025-10-24 18:51:06,273 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2025-10-24 18:51:06,274 INFO sqlalchemy.engine.Engine SELECT conversation_messages.id, conversation_messages.session_id, conversation_messages.content, conversation_messages.role, conversation_messages.message_type, conversation_messages.created_at, conversation_messages.message_metadata, conversation_messages.token_count, conversation_messages.execution_time 
+FROM conversation_messages 
+WHERE conversation_messages.id = %(pk_1)s::UUID
+2025-10-24 18:51:06,274 - sqlalchemy.engine.Engine - INFO - SELECT conversation_messages.id, conversation_messages.session_id, conversation_messages.content, conversation_messages.role, conversation_messages.message_type, conversation_messages.created_at, conversation_messages.message_metadata, conversation_messages.token_count, conversation_messages.execution_time 
+FROM conversation_messages 
+WHERE conversation_messages.id = %(pk_1)s::UUID
+2025-10-24 18:51:06,274 INFO sqlalchemy.engine.Engine [cached since 178.8s ago] {'pk_1': UUID('17230f15-723d-4efe-8759-65a3cab37985')}
+2025-10-24 18:51:06,274 - sqlalchemy.engine.Engine - INFO - [cached since 178.8s ago] {'pk_1': UUID('17230f15-723d-4efe-8759-65a3cab37985')}
+2025-10-24 18:51:06,276 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: from_db_message() called
+2025-10-24 18:51:06,276 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: message.token_count=5 (type: <class 'int'>)
+2025-10-24 18:51:06,276 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: message.id=17230f15-723d-4efe-8759-65a3cab37985
+2025-10-24 18:51:06,276 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: data dict token_count=5
+2025-10-24 18:51:06,276 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: result.token_count=5
+2025-10-24 18:51:06,276 INFO sqlalchemy.engine.Engine SELECT conversation_sessions.id AS conversation_sessions_id, conversation_sessions.user_id AS conversation_sessions_user_id, conversation_sessions.collection_id AS conversation_sessions_collection_id, conversation_sessions.session_name AS conversation_sessions_session_name, conversation_sessions.status AS conversation_sessions_status, conversation_sessions.context_window_size AS conversation_sessions_context_window_size, conversation_sessions.max_messages AS conversation_sessions_max_messages, conversation_sessions.is_archived AS conversation_sessions_is_archived, conversation_sessions.is_pinned AS conversation_sessions_is_pinned, conversation_sessions.created_at AS conversation_sessions_created_at, conversation_sessions.updated_at AS conversation_sessions_updated_at, conversation_sessions.session_metadata AS conversation_sessions_session_metadata 
+FROM conversation_sessions 
+WHERE conversation_sessions.id = %(pk_1)s::UUID
+2025-10-24 18:51:06,276 - sqlalchemy.engine.Engine - INFO - SELECT conversation_sessions.id AS conversation_sessions_id, conversation_sessions.user_id AS conversation_sessions_user_id, conversation_sessions.collection_id AS conversation_sessions_collection_id, conversation_sessions.session_name AS conversation_sessions_session_name, conversation_sessions.status AS conversation_sessions_status, conversation_sessions.context_window_size AS conversation_sessions_context_window_size, conversation_sessions.max_messages AS conversation_sessions_max_messages, conversation_sessions.is_archived AS conversation_sessions_is_archived, conversation_sessions.is_pinned AS conversation_sessions_is_pinned, conversation_sessions.created_at AS conversation_sessions_created_at, conversation_sessions.updated_at AS conversation_sessions_updated_at, conversation_sessions.session_metadata AS conversation_sessions_session_metadata 
+FROM conversation_sessions 
+WHERE conversation_sessions.id = %(pk_1)s::UUID
+2025-10-24 18:51:06,276 INFO sqlalchemy.engine.Engine [cached since 178.8s ago] {'pk_1': UUID('6cde4830-c940-49e4-bf49-d1c86115decc')}
+2025-10-24 18:51:06,276 - sqlalchemy.engine.Engine - INFO - [cached since 178.8s ago] {'pk_1': UUID('6cde4830-c940-49e4-bf49-d1c86115decc')}
+2025-10-24 18:51:06,277 INFO sqlalchemy.engine.Engine SELECT conversation_sessions.id AS conversation_sessions_id, conversation_sessions.user_id AS conversation_sessions_user_id, conversation_sessions.collection_id AS conversation_sessions_collection_id, conversation_sessions.session_name AS conversation_sessions_session_name, conversation_sessions.status AS conversation_sessions_status, conversation_sessions.context_window_size AS conversation_sessions_context_window_size, conversation_sessions.max_messages AS conversation_sessions_max_messages, conversation_sessions.is_archived AS conversation_sessions_is_archived, conversation_sessions.is_pinned AS conversation_sessions_is_pinned, conversation_sessions.created_at AS conversation_sessions_created_at, conversation_sessions.updated_at AS conversation_sessions_updated_at, conversation_sessions.session_metadata AS conversation_sessions_session_metadata 
+FROM conversation_sessions 
+WHERE conversation_sessions.id = %(id_1)s::UUID AND conversation_sessions.user_id = %(user_id_1)s::UUID 
+ LIMIT %(param_1)s
+2025-10-24 18:51:06,277 - sqlalchemy.engine.Engine - INFO - SELECT conversation_sessions.id AS conversation_sessions_id, conversation_sessions.user_id AS conversation_sessions_user_id, conversation_sessions.collection_id AS conversation_sessions_collection_id, conversation_sessions.session_name AS conversation_sessions_session_name, conversation_sessions.status AS conversation_sessions_status, conversation_sessions.context_window_size AS conversation_sessions_context_window_size, conversation_sessions.max_messages AS conversation_sessions_max_messages, conversation_sessions.is_archived AS conversation_sessions_is_archived, conversation_sessions.is_pinned AS conversation_sessions_is_pinned, conversation_sessions.created_at AS conversation_sessions_created_at, conversation_sessions.updated_at AS conversation_sessions_updated_at, conversation_sessions.session_metadata AS conversation_sessions_session_metadata 
+FROM conversation_sessions 
+WHERE conversation_sessions.id = %(id_1)s::UUID AND conversation_sessions.user_id = %(user_id_1)s::UUID 
+ LIMIT %(param_1)s
+2025-10-24 18:51:06,277 INFO sqlalchemy.engine.Engine [cached since 200.5s ago] {'id_1': UUID('6cde4830-c940-49e4-bf49-d1c86115decc'), 'user_id_1': UUID('34932a40-5ce3-4a12-9cce-3abb9510e22f'), 'param_1': 1}
+2025-10-24 18:51:06,277 - sqlalchemy.engine.Engine - INFO - [cached since 200.5s ago] {'id_1': UUID('6cde4830-c940-49e4-bf49-d1c86115decc'), 'user_id_1': UUID('34932a40-5ce3-4a12-9cce-3abb9510e22f'), 'param_1': 1}
+2025-10-24 18:51:06,278 INFO sqlalchemy.engine.Engine SELECT conversation_messages.id AS conversation_messages_id, conversation_messages.session_id AS conversation_messages_session_id, conversation_messages.content AS conversation_messages_content, conversation_messages.role AS conversation_messages_role, conversation_messages.message_type AS conversation_messages_message_type, conversation_messages.created_at AS conversation_messages_created_at, conversation_messages.message_metadata AS conversation_messages_message_metadata, conversation_messages.token_count AS conversation_messages_token_count, conversation_messages.execution_time AS conversation_messages_execution_time 
+FROM conversation_messages 
+WHERE conversation_messages.session_id = %(session_id_1)s::UUID ORDER BY conversation_messages.created_at ASC 
+ LIMIT %(param_1)s OFFSET %(param_2)s
+2025-10-24 18:51:06,278 - sqlalchemy.engine.Engine - INFO - SELECT conversation_messages.id AS conversation_messages_id, conversation_messages.session_id AS conversation_messages_session_id, conversation_messages.content AS conversation_messages_content, conversation_messages.role AS conversation_messages_role, conversation_messages.message_type AS conversation_messages_message_type, conversation_messages.created_at AS conversation_messages_created_at, conversation_messages.message_metadata AS conversation_messages_message_metadata, conversation_messages.token_count AS conversation_messages_token_count, conversation_messages.execution_time AS conversation_messages_execution_time 
+FROM conversation_messages 
+WHERE conversation_messages.session_id = %(session_id_1)s::UUID ORDER BY conversation_messages.created_at ASC 
+ LIMIT %(param_1)s OFFSET %(param_2)s
+2025-10-24 18:51:06,278 INFO sqlalchemy.engine.Engine [cached since 200.5s ago] {'session_id_1': UUID('6cde4830-c940-49e4-bf49-d1c86115decc'), 'param_1': 50, 'param_2': 0}
+2025-10-24 18:51:06,278 - sqlalchemy.engine.Engine - INFO - [cached since 200.5s ago] {'session_id_1': UUID('6cde4830-c940-49e4-bf49-d1c86115decc'), 'param_1': 50, 'param_2': 0}
+2025-10-24 18:51:06,278 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: from_db_message() called
+2025-10-24 18:51:06,278 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: message.token_count=5 (type: <class 'int'>)
+2025-10-24 18:51:06,279 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: message.id=5474a141-5076-464e-934a-7003559a86c5
+2025-10-24 18:51:06,279 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: data dict token_count=5
+2025-10-24 18:51:06,279 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: result.token_count=5
+2025-10-24 18:51:06,279 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: from_db_message() called
+2025-10-24 18:51:06,279 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: message.token_count=5 (type: <class 'int'>)
+2025-10-24 18:51:06,279 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: message.id=80f38b37-1b36-4a77-8a1b-e6f07d9d4e6d
+2025-10-24 18:51:06,279 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: data dict token_count=5
+2025-10-24 18:51:06,279 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: result.token_count=5
+2025-10-24 18:51:06,279 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: from_db_message() called
+2025-10-24 18:51:06,279 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: message.token_count=61 (type: <class 'int'>)
+2025-10-24 18:51:06,279 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: message.id=a6f1dd3d-d055-46c8-aa25-cee679036dc9
+2025-10-24 18:51:06,279 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: message.message_metadata type: <class 'dict'>
+2025-10-24 18:51:06,279 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: message.message_metadata keys: ['source_documents', 'search_metadata', 'cot_used', 'conversation_aware', 'execution_time', 'token_count', 'model_used', 'confidence_score', 'context_length', 'token_analysis', 'sources', 'cot_output']
+2025-10-24 18:51:06,279 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: Attempting to create MessageMetadata with keys: ['source_documents', 'search_metadata', 'cot_used', 'conversation_aware', 'execution_time', 'token_count', 'model_used', 'confidence_score', 'context_length', 'token_analysis', 'sources', 'cot_output']
+2025-10-24 18:51:06,279 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: Successfully created MessageMetadata
+2025-10-24 18:51:06,279 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: Reconstructed token_analysis from metadata
+2025-10-24 18:51:06,279 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: Reconstructed sources from metadata
+2025-10-24 18:51:06,279 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: Reconstructed cot_output from metadata
+2025-10-24 18:51:06,279 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: data dict token_count=61
+2025-10-24 18:51:06,279 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: result.token_count=61
+2025-10-24 18:51:06,279 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: from_db_message() called
+2025-10-24 18:51:06,279 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: message.token_count=5 (type: <class 'int'>)
+2025-10-24 18:51:06,279 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: message.id=17230f15-723d-4efe-8759-65a3cab37985
+2025-10-24 18:51:06,279 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: data dict token_count=5
+2025-10-24 18:51:06,279 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: result.token_count=5
+2025-10-24 18:51:06,279 - rag_solution.services.conversation_service - INFO - ================================================================================
+2025-10-24 18:51:06,280 - rag_solution.services.conversation_service - INFO - CONTEXT TRACE #1: Building conversation context from 4 messages
+2025-10-24 18:51:06,280 - rag_solution.services.conversation_service - INFO - CONTEXT TRACE #1: context_window length: 513 chars
+2025-10-24 18:51:06,280 - rag_solution.services.conversation_service - INFO - CONTEXT TRACE #1: context_window preview: User: what was ibm revenue? User: what was ibm revenue? Assistant: The most recent information available indicates that IBM's revenue for 2022 was approximately $73.6 billion. Please verify with the l...
+2025-10-24 18:51:06,280 - rag_solution.services.conversation_service - INFO - CONTEXT TRACE #1: context_metadata keys: ['extracted_entities', 'conversation_topics', 'message_count', 'context_length']
+2025-10-24 18:51:06,280 - rag_solution.services.conversation_service - INFO - ================================================================================
+2025-10-24 18:51:06,280 - rag_solution.services.conversation_service - INFO - ================================================================================
+2025-10-24 18:51:06,280 - rag_solution.services.conversation_service - INFO - CONTEXT TRACE #2: Enhancing question with context
+2025-10-24 18:51:06,280 - rag_solution.services.conversation_service - INFO - CONTEXT TRACE #2: original_question: what was ibm revenue?
+2025-10-24 18:51:06,280 - rag_solution.services.conversation_service - INFO - CONTEXT TRACE #2: conversation_context length: 513 chars
+2025-10-24 18:51:06,280 - rag_solution.services.conversation_service - INFO - CONTEXT TRACE #2: enhanced_question_for_llm: what was ibm revenue? (in the context of Assistant, User, Note, Please, s revenue for 2022, Reference, The revenue figures)
+2025-10-24 18:51:06,280 - rag_solution.services.conversation_service - INFO - CONTEXT TRACE #2: enhancement added: 102 chars
+2025-10-24 18:51:06,280 - rag_solution.services.conversation_service - INFO - ================================================================================
+2025-10-24 18:51:06,280 - rag_solution.services.conversation_service - INFO - ================================================================================
+2025-10-24 18:51:06,280 - rag_solution.services.conversation_service - INFO - CONTEXT TRACE #3: Creating SearchInput
+2025-10-24 18:51:06,280 - rag_solution.services.conversation_service - INFO - CONTEXT TRACE #3: question (for embedding): what was ibm revenue?
+2025-10-24 18:51:06,280 - rag_solution.services.conversation_service - INFO - CONTEXT TRACE #3: config_metadata keys: ['conversation_context', 'enhanced_question_for_llm', 'session_id', 'message_history', 'conversation_entities', 'cot_enabled', 'show_cot_steps', 'conversation_aware']
+2025-10-24 18:51:06,280 - rag_solution.services.conversation_service - INFO - CONTEXT TRACE #3: conversation_context in metadata: 513 chars
+2025-10-24 18:51:06,280 - rag_solution.services.conversation_service - INFO - CONTEXT TRACE #3: enhanced_question_for_llm: what was ibm revenue? (in the context of Assistant, User, Note, Please, s revenue for 2022, Referenc...
+2025-10-24 18:51:06,281 - rag_solution.services.conversation_service - INFO - CONTEXT TRACE #3: message_history count: 4
+2025-10-24 18:51:06,281 - rag_solution.services.conversation_service - INFO - ================================================================================
+2025-10-24 18:51:06,281 - services.search - INFO - 🔍 SEARCH SERVICE: __init__ called!
+2025-10-24 18:51:06,281 - services.search - INFO - 🔍 SEARCH SERVICE: METHOD ENTRY - search() called!
+2025-10-24 18:51:06,281 - services.search - INFO - Starting search operation
+2025-10-24 18:51:06,281 - services.search - INFO - ================================================================================
+2025-10-24 18:51:06,281 - services.search - INFO - CONTEXT TRACE #4: SearchService.search() entry
+2025-10-24 18:51:06,281 - services.search - INFO - CONTEXT TRACE #4: question: what was ibm revenue?
+2025-10-24 18:51:06,281 - services.search - INFO - CONTEXT TRACE #4: user_id: 34932a40-5ce3-4a12-9cce-3abb9510e22f
+2025-10-24 18:51:06,281 - services.search - INFO - CONTEXT TRACE #4: collection_id: bdbd9360-b54b-4307-ab68-d057d0ca682c
+2025-10-24 18:51:06,281 - services.search - INFO - CONTEXT TRACE #4: config_metadata keys: ['conversation_context', 'enhanced_question_for_llm', 'session_id', 'message_history', 'conversation_entities', 'cot_enabled', 'show_cot_steps', 'conversation_aware']
+2025-10-24 18:51:06,281 - services.search - INFO - CONTEXT TRACE #4: conversation_context length: 513 chars
+2025-10-24 18:51:06,281 - services.search - INFO - CONTEXT TRACE #4: conversation_context preview: User: what was ibm revenue? User: what was ibm revenue? Assistant: The most recent information available indicates that IBM's revenue for 2022 was approximately $73.6 billion. Please verify with the l...
+2025-10-24 18:51:06,281 - services.search - INFO - CONTEXT TRACE #4: enhanced_question_for_llm: what was ibm revenue? (in the context of Assistant, User, Note, Please, s revenue for 2022, Reference, The revenue figures)
+2025-10-24 18:51:06,281 - services.search - INFO - CONTEXT TRACE #4: cot_enabled: True
+2025-10-24 18:51:06,281 - services.search - INFO - ================================================================================
+2025-10-24 18:51:06,281 - services.search - INFO - 🔍 SEARCH SERVICE: search() called with question: what was ibm revenue?
+2025-10-24 18:51:06,281 - services.search - INFO - 🔍 SEARCH SERVICE: config_metadata: {'conversation_context': "User: what was ibm revenue? User: what was ibm revenue? Assistant: The most recent information available indicates that IBM's revenue for 2022 was approximately $73.6 billion. Please verify with the latest financial reports for the most up-to-date figures.\n\nReference(s):\nInternational Business Machines Corporation Investor Relations: https://www.ibm.com/investor-relations/financial-information/annual-reports.html\n\nNote: The revenue figures are subject to change with the release of User: what was ibm revenue?", 'enhanced_question_for_llm': 'what was ibm revenue? (in the context of Assistant, User, Note, Please, s revenue for 2022, Reference, The revenue figures)', 'session_id': '6cde4830-c940-49e4-bf49-d1c86115decc', 'message_history': ['what was ibm revenue?', 'what was ibm revenue?', "The most recent information available indicates that IBM's revenue for 2022 was approximately $73.6 billion. Please verify with the latest financial reports for the most up-to-date figures.\n\nReference(s):\nInternational Business Machines Corporation Investor Relations: https://www.ibm.com/investor-relations/financial-information/annual-reports.html\n\nNote: The revenue figures are subject to change with the release of", 'what was ibm revenue?'], 'conversation_entities': ['Assistant', 'User', 'Note', 'Please', 's revenue for 2022', 'Reference', 'The revenue figures'], 'cot_enabled': True, 'show_cot_steps': False, 'conversation_aware': True}
+2025-10-24 18:51:06,281 - services.search - INFO - 🔍 SEARCH SERVICE: search() method STARTED
+2025-10-24 18:51:06,282 - root - INFO - Disconnected existing Milvus connection
+2025-10-24 18:51:06,291 - root - INFO - Connected to Milvus at localhost:19530
+2025-10-24 18:51:06,292 INFO sqlalchemy.engine.Engine SELECT anon_1.collections_id AS anon_1_collections_id, anon_1.collections_name AS anon_1_collections_name, anon_1.collections_vector_db_name AS anon_1_collections_vector_db_name, anon_1.collections_status AS anon_1_collections_status, anon_1.collections_is_private AS anon_1_collections_is_private, anon_1.collections_created_at AS anon_1_collections_created_at, anon_1.collections_updated_at AS anon_1_collections_updated_at, files_1.id AS files_1_id, files_1.user_id AS files_1_user_id, files_1.collection_id AS files_1_collection_id, files_1.filename AS files_1_filename, files_1.file_path AS files_1_file_path, files_1.file_type AS files_1_file_type, files_1.document_id AS files_1_document_id, files_1.file_metadata AS files_1_file_metadata, files_1.created_at AS files_1_created_at, files_1.updated_at AS files_1_updated_at, user_collection_1.user_id AS user_collection_1_user_id, user_collection_1.collection_id AS user_collection_1_collection_id, user_collection_1.joined_at AS user_collection_1_joined_at 
+FROM (SELECT collections.id AS collections_id, collections.name AS collections_name, collections.vector_db_name AS collections_vector_db_name, collections.status AS collections_status, collections.is_private AS collections_is_private, collections.created_at AS collections_created_at, collections.updated_at AS collections_updated_at 
+FROM collections 
+WHERE collections.id = %(id_1)s::UUID 
+ LIMIT %(param_1)s) AS anon_1 LEFT OUTER JOIN files AS files_1 ON anon_1.collections_id = files_1.collection_id LEFT OUTER JOIN user_collection AS user_collection_1 ON anon_1.collections_id = user_collection_1.collection_id
+2025-10-24 18:51:06,292 - sqlalchemy.engine.Engine - INFO - SELECT anon_1.collections_id AS anon_1_collections_id, anon_1.collections_name AS anon_1_collections_name, anon_1.collections_vector_db_name AS anon_1_collections_vector_db_name, anon_1.collections_status AS anon_1_collections_status, anon_1.collections_is_private AS anon_1_collections_is_private, anon_1.collections_created_at AS anon_1_collections_created_at, anon_1.collections_updated_at AS anon_1_collections_updated_at, files_1.id AS files_1_id, files_1.user_id AS files_1_user_id, files_1.collection_id AS files_1_collection_id, files_1.filename AS files_1_filename, files_1.file_path AS files_1_file_path, files_1.file_type AS files_1_file_type, files_1.document_id AS files_1_document_id, files_1.file_metadata AS files_1_file_metadata, files_1.created_at AS files_1_created_at, files_1.updated_at AS files_1_updated_at, user_collection_1.user_id AS user_collection_1_user_id, user_collection_1.collection_id AS user_collection_1_collection_id, user_collection_1.joined_at AS user_collection_1_joined_at 
+FROM (SELECT collections.id AS collections_id, collections.name AS collections_name, collections.vector_db_name AS collections_vector_db_name, collections.status AS collections_status, collections.is_private AS collections_is_private, collections.created_at AS collections_created_at, collections.updated_at AS collections_updated_at 
+FROM collections 
+WHERE collections.id = %(id_1)s::UUID 
+ LIMIT %(param_1)s) AS anon_1 LEFT OUTER JOIN files AS files_1 ON anon_1.collections_id = files_1.collection_id LEFT OUTER JOIN user_collection AS user_collection_1 ON anon_1.collections_id = user_collection_1.collection_id
+2025-10-24 18:51:06,292 INFO sqlalchemy.engine.Engine [cached since 195.7s ago] {'id_1': UUID('bdbd9360-b54b-4307-ab68-d057d0ca682c'), 'param_1': 1}
+2025-10-24 18:51:06,292 - sqlalchemy.engine.Engine - INFO - [cached since 195.7s ago] {'id_1': UUID('bdbd9360-b54b-4307-ab68-d057d0ca682c'), 'param_1': 1}
+2025-10-24 18:51:06,295 INFO sqlalchemy.engine.Engine SELECT users.id AS users_id, users.ibm_id AS users_ibm_id, users.email AS users_email, users.name AS users_name, users.role AS users_role, users.preferred_provider_id AS users_preferred_provider_id, users.created_at AS users_created_at, users.updated_at AS users_updated_at 
+FROM users 
+WHERE users.id IN (%(primary_keys_1)s::UUID)
+2025-10-24 18:51:06,295 - sqlalchemy.engine.Engine - INFO - SELECT users.id AS users_id, users.ibm_id AS users_ibm_id, users.email AS users_email, users.name AS users_name, users.role AS users_role, users.preferred_provider_id AS users_preferred_provider_id, users.created_at AS users_created_at, users.updated_at AS users_updated_at 
+FROM users 
+WHERE users.id IN (%(primary_keys_1)s::UUID)
+2025-10-24 18:51:06,295 INFO sqlalchemy.engine.Engine [cached since 195.7s ago] {'primary_keys_1': UUID('34932a40-5ce3-4a12-9cce-3abb9510e22f')}
+2025-10-24 18:51:06,295 - sqlalchemy.engine.Engine - INFO - [cached since 195.7s ago] {'primary_keys_1': UUID('34932a40-5ce3-4a12-9cce-3abb9510e22f')}
+2025-10-24 18:51:06,308 - services.collection - INFO - Batch query for 1 documents returned 731 total chunks from collection collection_2b1a2d9d3a22497f8ba15ee6937302cc (pages: 1)
+2025-10-24 18:51:06,308 - services.collection - INFO - Fetching collections for user: 34932a40-5ce3-4a12-9cce-3abb9510e22f
+2025-10-24 18:51:06,308 INFO sqlalchemy.engine.Engine SELECT collections.id AS collections_id, collections.name AS collections_name, collections.vector_db_name AS collections_vector_db_name, collections.status AS collections_status, collections.is_private AS collections_is_private, collections.created_at AS collections_created_at, collections.updated_at AS collections_updated_at, files_1.id AS files_1_id, files_1.user_id AS files_1_user_id, files_1.collection_id AS files_1_collection_id, files_1.filename AS files_1_filename, files_1.file_path AS files_1_file_path, files_1.file_type AS files_1_file_type, files_1.document_id AS files_1_document_id, files_1.file_metadata AS files_1_file_metadata, files_1.created_at AS files_1_created_at, files_1.updated_at AS files_1_updated_at, user_collection_1.user_id AS user_collection_1_user_id, user_collection_1.collection_id AS user_collection_1_collection_id, user_collection_1.joined_at AS user_collection_1_joined_at 
+FROM collections JOIN user_collection ON collections.id = user_collection.collection_id LEFT OUTER JOIN files AS files_1 ON collections.id = files_1.collection_id LEFT OUTER JOIN user_collection AS user_collection_1 ON collections.id = user_collection_1.collection_id 
+WHERE user_collection.user_id = %(user_id_1)s::UUID
+2025-10-24 18:51:06,308 - sqlalchemy.engine.Engine - INFO - SELECT collections.id AS collections_id, collections.name AS collections_name, collections.vector_db_name AS collections_vector_db_name, collections.status AS collections_status, collections.is_private AS collections_is_private, collections.created_at AS collections_created_at, collections.updated_at AS collections_updated_at, files_1.id AS files_1_id, files_1.user_id AS files_1_user_id, files_1.collection_id AS files_1_collection_id, files_1.filename AS files_1_filename, files_1.file_path AS files_1_file_path, files_1.file_type AS files_1_file_type, files_1.document_id AS files_1_document_id, files_1.file_metadata AS files_1_file_metadata, files_1.created_at AS files_1_created_at, files_1.updated_at AS files_1_updated_at, user_collection_1.user_id AS user_collection_1_user_id, user_collection_1.collection_id AS user_collection_1_collection_id, user_collection_1.joined_at AS user_collection_1_joined_at 
+FROM collections JOIN user_collection ON collections.id = user_collection.collection_id LEFT OUTER JOIN files AS files_1 ON collections.id = files_1.collection_id LEFT OUTER JOIN user_collection AS user_collection_1 ON collections.id = user_collection_1.collection_id 
+WHERE user_collection.user_id = %(user_id_1)s::UUID
+2025-10-24 18:51:06,308 INFO sqlalchemy.engine.Engine [cached since 178.8s ago] {'user_id_1': UUID('34932a40-5ce3-4a12-9cce-3abb9510e22f')}
+2025-10-24 18:51:06,308 - sqlalchemy.engine.Engine - INFO - [cached since 178.8s ago] {'user_id_1': UUID('34932a40-5ce3-4a12-9cce-3abb9510e22f')}
+2025-10-24 18:51:06,310 INFO sqlalchemy.engine.Engine SELECT users.id AS users_id, users.ibm_id AS users_ibm_id, users.email AS users_email, users.name AS users_name, users.role AS users_role, users.preferred_provider_id AS users_preferred_provider_id, users.created_at AS users_created_at, users.updated_at AS users_updated_at 
+FROM users 
+WHERE users.id IN (%(primary_keys_1)s::UUID)
+2025-10-24 18:51:06,310 - sqlalchemy.engine.Engine - INFO - SELECT users.id AS users_id, users.ibm_id AS users_ibm_id, users.email AS users_email, users.name AS users_name, users.role AS users_role, users.preferred_provider_id AS users_preferred_provider_id, users.created_at AS users_created_at, users.updated_at AS users_updated_at 
+FROM users 
+WHERE users.id IN (%(primary_keys_1)s::UUID)
+2025-10-24 18:51:06,310 INFO sqlalchemy.engine.Engine [cached since 195.7s ago] {'primary_keys_1': UUID('34932a40-5ce3-4a12-9cce-3abb9510e22f')}
+2025-10-24 18:51:06,310 - sqlalchemy.engine.Engine - INFO - [cached since 195.7s ago] {'primary_keys_1': UUID('34932a40-5ce3-4a12-9cce-3abb9510e22f')}
+2025-10-24 18:51:06,311 - services.search - INFO - 🔍 SEARCH SERVICE: About to check _should_use_chain_of_thought
+2025-10-24 18:51:06,311 - services.search - INFO - 🔍 SEARCH SERVICE: force_cot = True
+2025-10-24 18:51:06,311 - services.search - INFO - 🔍 SEARCH SERVICE: config_metadata = {'conversation_context': "User: what was ibm revenue? User: what was ibm revenue? Assistant: The most recent information available indicates that IBM's revenue for 2022 was approximately $73.6 billion. Please verify with the latest financial reports for the most up-to-date figures.\n\nReference(s):\nInternational Business Machines Corporation Investor Relations: https://www.ibm.com/investor-relations/financial-information/annual-reports.html\n\nNote: The revenue figures are subject to change with the release of User: what was ibm revenue?", 'enhanced_question_for_llm': 'what was ibm revenue? (in the context of Assistant, User, Note, Please, s revenue for 2022, Reference, The revenue figures)', 'session_id': '6cde4830-c940-49e4-bf49-d1c86115decc', 'message_history': ['what was ibm revenue?', 'what was ibm revenue?', "The most recent information available indicates that IBM's revenue for 2022 was approximately $73.6 billion. Please verify with the latest financial reports for the most up-to-date figures.\n\nReference(s):\nInternational Business Machines Corporation Investor Relations: https://www.ibm.com/investor-relations/financial-information/annual-reports.html\n\nNote: The revenue figures are subject to change with the release of", 'what was ibm revenue?'], 'conversation_entities': ['Assistant', 'User', 'Note', 'Please', 's revenue for 2022', 'Reference', 'The revenue figures'], 'cot_enabled': True, 'show_cot_steps': False, 'conversation_aware': True}
+2025-10-24 18:51:06,311 - services.search - INFO - 🔍 SEARCH SERVICE: _should_use_chain_of_thought returned: True
+2025-10-24 18:51:06,311 - services.search - INFO - 🔍 SEARCH SERVICE: CoT will be used!
+2025-10-24 18:51:06,311 - services.search - INFO - Using Chain of Thought for enhanced reasoning
+2025-10-24 18:51:06,311 - rag_solution.query_rewriting.query_rewriter - INFO - Initialized QueryRewriter with 0 rewriters
+2025-10-24 18:51:06,489 - root - INFO - Disconnected existing Milvus connection
+2025-10-24 18:51:06,505 - root - INFO - Connected to Milvus at localhost:19530
+2025-10-24 18:51:06,506 INFO sqlalchemy.engine.Engine SELECT pipeline_configs.id AS pipeline_configs_id, pipeline_configs.user_id AS pipeline_configs_user_id, pipeline_configs.collection_id AS pipeline_configs_collection_id, pipeline_configs.name AS pipeline_configs_name, pipeline_configs.description AS pipeline_configs_description, pipeline_configs.chunking_strategy AS pipeline_configs_chunking_strategy, pipeline_configs.embedding_model AS pipeline_configs_embedding_model, pipeline_configs.retriever AS pipeline_configs_retriever, pipeline_configs.context_strategy AS pipeline_configs_context_strategy, pipeline_configs.enable_logging AS pipeline_configs_enable_logging, pipeline_configs.max_context_length AS pipeline_configs_max_context_length, pipeline_configs.timeout AS pipeline_configs_timeout, pipeline_configs.config_metadata AS pipeline_configs_config_metadata, pipeline_configs.is_default AS pipeline_configs_is_default, pipeline_configs.provider_id AS pipeline_configs_provider_id, pipeline_configs.created_at AS pipeline_configs_created_at, pipeline_configs.updated_at AS pipeline_configs_updated_at 
+FROM pipeline_configs 
+WHERE pipeline_configs.user_id = %(user_id_1)s::UUID AND pipeline_configs.collection_id IS NULL AND pipeline_configs.is_default IS true 
+ LIMIT %(param_1)s
+2025-10-24 18:51:06,506 - sqlalchemy.engine.Engine - INFO - SELECT pipeline_configs.id AS pipeline_configs_id, pipeline_configs.user_id AS pipeline_configs_user_id, pipeline_configs.collection_id AS pipeline_configs_collection_id, pipeline_configs.name AS pipeline_configs_name, pipeline_configs.description AS pipeline_configs_description, pipeline_configs.chunking_strategy AS pipeline_configs_chunking_strategy, pipeline_configs.embedding_model AS pipeline_configs_embedding_model, pipeline_configs.retriever AS pipeline_configs_retriever, pipeline_configs.context_strategy AS pipeline_configs_context_strategy, pipeline_configs.enable_logging AS pipeline_configs_enable_logging, pipeline_configs.max_context_length AS pipeline_configs_max_context_length, pipeline_configs.timeout AS pipeline_configs_timeout, pipeline_configs.config_metadata AS pipeline_configs_config_metadata, pipeline_configs.is_default AS pipeline_configs_is_default, pipeline_configs.provider_id AS pipeline_configs_provider_id, pipeline_configs.created_at AS pipeline_configs_created_at, pipeline_configs.updated_at AS pipeline_configs_updated_at 
+FROM pipeline_configs 
+WHERE pipeline_configs.user_id = %(user_id_1)s::UUID AND pipeline_configs.collection_id IS NULL AND pipeline_configs.is_default IS true 
+ LIMIT %(param_1)s
+2025-10-24 18:51:06,506 INFO sqlalchemy.engine.Engine [cached since 178.8s ago] {'user_id_1': UUID('34932a40-5ce3-4a12-9cce-3abb9510e22f'), 'param_1': 1}
+2025-10-24 18:51:06,506 - sqlalchemy.engine.Engine - INFO - [cached since 178.8s ago] {'user_id_1': UUID('34932a40-5ce3-4a12-9cce-3abb9510e22f'), 'param_1': 1}
+2025-10-24 18:51:06,508 INFO sqlalchemy.engine.Engine SELECT llm_providers.id AS llm_providers_id, llm_providers.name AS llm_providers_name, llm_providers.base_url AS llm_providers_base_url, llm_providers.api_key AS llm_providers_api_key, llm_providers.org_id AS llm_providers_org_id, llm_providers.project_id AS llm_providers_project_id, llm_providers.is_active AS llm_providers_is_active, llm_providers.created_at AS llm_providers_created_at, llm_providers.updated_at AS llm_providers_updated_at, llm_providers.is_default AS llm_providers_is_default 
+FROM llm_providers 
+WHERE llm_providers.id IN (%(primary_keys_1)s::UUID)
+2025-10-24 18:51:06,508 - sqlalchemy.engine.Engine - INFO - SELECT llm_providers.id AS llm_providers_id, llm_providers.name AS llm_providers_name, llm_providers.base_url AS llm_providers_base_url, llm_providers.api_key AS llm_providers_api_key, llm_providers.org_id AS llm_providers_org_id, llm_providers.project_id AS llm_providers_project_id, llm_providers.is_active AS llm_providers_is_active, llm_providers.created_at AS llm_providers_created_at, llm_providers.updated_at AS llm_providers_updated_at, llm_providers.is_default AS llm_providers_is_default 
+FROM llm_providers 
+WHERE llm_providers.id IN (%(primary_keys_1)s::UUID)
+2025-10-24 18:51:06,509 INFO sqlalchemy.engine.Engine [cached since 178.7s ago] {'primary_keys_1': UUID('678209fd-85fa-4f47-9ac9-bb31bb056aeb')}
+2025-10-24 18:51:06,509 - sqlalchemy.engine.Engine - INFO - [cached since 178.7s ago] {'primary_keys_1': UUID('678209fd-85fa-4f47-9ac9-bb31bb056aeb')}
+2025-10-24 18:51:06,511 INFO sqlalchemy.engine.Engine SELECT pipeline_configs.id AS pipeline_configs_id, pipeline_configs.user_id AS pipeline_configs_user_id, pipeline_configs.collection_id AS pipeline_configs_collection_id, pipeline_configs.name AS pipeline_configs_name, pipeline_configs.description AS pipeline_configs_description, pipeline_configs.chunking_strategy AS pipeline_configs_chunking_strategy, pipeline_configs.embedding_model AS pipeline_configs_embedding_model, pipeline_configs.retriever AS pipeline_configs_retriever, pipeline_configs.context_strategy AS pipeline_configs_context_strategy, pipeline_configs.enable_logging AS pipeline_configs_enable_logging, pipeline_configs.max_context_length AS pipeline_configs_max_context_length, pipeline_configs.timeout AS pipeline_configs_timeout, pipeline_configs.config_metadata AS pipeline_configs_config_metadata, pipeline_configs.is_default AS pipeline_configs_is_default, pipeline_configs.provider_id AS pipeline_configs_provider_id, pipeline_configs.created_at AS pipeline_configs_created_at, pipeline_configs.updated_at AS pipeline_configs_updated_at 
+FROM pipeline_configs 
+WHERE pipeline_configs.id = %(id_1)s::UUID 
+ LIMIT %(param_1)s
+2025-10-24 18:51:06,511 - sqlalchemy.engine.Engine - INFO - SELECT pipeline_configs.id AS pipeline_configs_id, pipeline_configs.user_id AS pipeline_configs_user_id, pipeline_configs.collection_id AS pipeline_configs_collection_id, pipeline_configs.name AS pipeline_configs_name, pipeline_configs.description AS pipeline_configs_description, pipeline_configs.chunking_strategy AS pipeline_configs_chunking_strategy, pipeline_configs.embedding_model AS pipeline_configs_embedding_model, pipeline_configs.retriever AS pipeline_configs_retriever, pipeline_configs.context_strategy AS pipeline_configs_context_strategy, pipeline_configs.enable_logging AS pipeline_configs_enable_logging, pipeline_configs.max_context_length AS pipeline_configs_max_context_length, pipeline_configs.timeout AS pipeline_configs_timeout, pipeline_configs.config_metadata AS pipeline_configs_config_metadata, pipeline_configs.is_default AS pipeline_configs_is_default, pipeline_configs.provider_id AS pipeline_configs_provider_id, pipeline_configs.created_at AS pipeline_configs_created_at, pipeline_configs.updated_at AS pipeline_configs_updated_at 
+FROM pipeline_configs 
+WHERE pipeline_configs.id = %(id_1)s::UUID 
+ LIMIT %(param_1)s
+2025-10-24 18:51:06,511 INFO sqlalchemy.engine.Engine [cached since 178.7s ago] {'id_1': UUID('f6a4a6c8-1ab4-43fa-94e5-eb5b2d57944d'), 'param_1': 1}
+2025-10-24 18:51:06,511 - sqlalchemy.engine.Engine - INFO - [cached since 178.7s ago] {'id_1': UUID('f6a4a6c8-1ab4-43fa-94e5-eb5b2d57944d'), 'param_1': 1}
+2025-10-24 18:51:06,512 INFO sqlalchemy.engine.Engine SELECT llm_providers.id AS llm_providers_id, llm_providers.name AS llm_providers_name, llm_providers.base_url AS llm_providers_base_url, llm_providers.api_key AS llm_providers_api_key, llm_providers.org_id AS llm_providers_org_id, llm_providers.project_id AS llm_providers_project_id, llm_providers.is_active AS llm_providers_is_active, llm_providers.created_at AS llm_providers_created_at, llm_providers.updated_at AS llm_providers_updated_at, llm_providers.is_default AS llm_providers_is_default 
+FROM llm_providers 
+WHERE llm_providers.id IN (%(primary_keys_1)s::UUID)
+2025-10-24 18:51:06,512 - sqlalchemy.engine.Engine - INFO - SELECT llm_providers.id AS llm_providers_id, llm_providers.name AS llm_providers_name, llm_providers.base_url AS llm_providers_base_url, llm_providers.api_key AS llm_providers_api_key, llm_providers.org_id AS llm_providers_org_id, llm_providers.project_id AS llm_providers_project_id, llm_providers.is_active AS llm_providers_is_active, llm_providers.created_at AS llm_providers_created_at, llm_providers.updated_at AS llm_providers_updated_at, llm_providers.is_default AS llm_providers_is_default 
+FROM llm_providers 
+WHERE llm_providers.id IN (%(primary_keys_1)s::UUID)
+2025-10-24 18:51:06,512 INFO sqlalchemy.engine.Engine [cached since 178.7s ago] {'primary_keys_1': UUID('678209fd-85fa-4f47-9ac9-bb31bb056aeb')}
+2025-10-24 18:51:06,512 - sqlalchemy.engine.Engine - INFO - [cached since 178.7s ago] {'primary_keys_1': UUID('678209fd-85fa-4f47-9ac9-bb31bb056aeb')}
+2025-10-24 18:51:06,513 INFO sqlalchemy.engine.Engine SELECT anon_1.collections_id AS anon_1_collections_id, anon_1.collections_name AS anon_1_collections_name, anon_1.collections_vector_db_name AS anon_1_collections_vector_db_name, anon_1.collections_status AS anon_1_collections_status, anon_1.collections_is_private AS anon_1_collections_is_private, anon_1.collections_created_at AS anon_1_collections_created_at, anon_1.collections_updated_at AS anon_1_collections_updated_at, files_1.id AS files_1_id, files_1.user_id AS files_1_user_id, files_1.collection_id AS files_1_collection_id, files_1.filename AS files_1_filename, files_1.file_path AS files_1_file_path, files_1.file_type AS files_1_file_type, files_1.document_id AS files_1_document_id, files_1.file_metadata AS files_1_file_metadata, files_1.created_at AS files_1_created_at, files_1.updated_at AS files_1_updated_at, user_collection_1.user_id AS user_collection_1_user_id, user_collection_1.collection_id AS user_collection_1_collection_id, user_collection_1.joined_at AS user_collection_1_joined_at 
+FROM (SELECT collections.id AS collections_id, collections.name AS collections_name, collections.vector_db_name AS collections_vector_db_name, collections.status AS collections_status, collections.is_private AS collections_is_private, collections.created_at AS collections_created_at, collections.updated_at AS collections_updated_at 
+FROM collections 
+WHERE collections.id = %(id_1)s::UUID 
+ LIMIT %(param_1)s) AS anon_1 LEFT OUTER JOIN files AS files_1 ON anon_1.collections_id = files_1.collection_id LEFT OUTER JOIN user_collection AS user_collection_1 ON anon_1.collections_id = user_collection_1.collection_id
+2025-10-24 18:51:06,513 - sqlalchemy.engine.Engine - INFO - SELECT anon_1.collections_id AS anon_1_collections_id, anon_1.collections_name AS anon_1_collections_name, anon_1.collections_vector_db_name AS anon_1_collections_vector_db_name, anon_1.collections_status AS anon_1_collections_status, anon_1.collections_is_private AS anon_1_collections_is_private, anon_1.collections_created_at AS anon_1_collections_created_at, anon_1.collections_updated_at AS anon_1_collections_updated_at, files_1.id AS files_1_id, files_1.user_id AS files_1_user_id, files_1.collection_id AS files_1_collection_id, files_1.filename AS files_1_filename, files_1.file_path AS files_1_file_path, files_1.file_type AS files_1_file_type, files_1.document_id AS files_1_document_id, files_1.file_metadata AS files_1_file_metadata, files_1.created_at AS files_1_created_at, files_1.updated_at AS files_1_updated_at, user_collection_1.user_id AS user_collection_1_user_id, user_collection_1.collection_id AS user_collection_1_collection_id, user_collection_1.joined_at AS user_collection_1_joined_at 
+FROM (SELECT collections.id AS collections_id, collections.name AS collections_name, collections.vector_db_name AS collections_vector_db_name, collections.status AS collections_status, collections.is_private AS collections_is_private, collections.created_at AS collections_created_at, collections.updated_at AS collections_updated_at 
+FROM collections 
+WHERE collections.id = %(id_1)s::UUID 
+ LIMIT %(param_1)s) AS anon_1 LEFT OUTER JOIN files AS files_1 ON anon_1.collections_id = files_1.collection_id LEFT OUTER JOIN user_collection AS user_collection_1 ON anon_1.collections_id = user_collection_1.collection_id
+2025-10-24 18:51:06,514 INFO sqlalchemy.engine.Engine [cached since 195.9s ago] {'id_1': UUID('bdbd9360-b54b-4307-ab68-d057d0ca682c'), 'param_1': 1}
+2025-10-24 18:51:06,514 - sqlalchemy.engine.Engine - INFO - [cached since 195.9s ago] {'id_1': UUID('bdbd9360-b54b-4307-ab68-d057d0ca682c'), 'param_1': 1}
+2025-10-24 18:51:06,515 INFO sqlalchemy.engine.Engine SELECT users.id AS users_id, users.ibm_id AS users_ibm_id, users.email AS users_email, users.name AS users_name, users.role AS users_role, users.preferred_provider_id AS users_preferred_provider_id, users.created_at AS users_created_at, users.updated_at AS users_updated_at 
+FROM users 
+WHERE users.id IN (%(primary_keys_1)s::UUID)
+2025-10-24 18:51:06,515 - sqlalchemy.engine.Engine - INFO - SELECT users.id AS users_id, users.ibm_id AS users_ibm_id, users.email AS users_email, users.name AS users_name, users.role AS users_role, users.preferred_provider_id AS users_preferred_provider_id, users.created_at AS users_created_at, users.updated_at AS users_updated_at 
+FROM users 
+WHERE users.id IN (%(primary_keys_1)s::UUID)
+2025-10-24 18:51:06,515 INFO sqlalchemy.engine.Engine [cached since 195.9s ago] {'primary_keys_1': UUID('34932a40-5ce3-4a12-9cce-3abb9510e22f')}
+2025-10-24 18:51:06,515 - sqlalchemy.engine.Engine - INFO - [cached since 195.9s ago] {'primary_keys_1': UUID('34932a40-5ce3-4a12-9cce-3abb9510e22f')}
+2025-10-24 18:51:06,527 - services.collection - INFO - Batch query for 1 documents returned 731 total chunks from collection collection_2b1a2d9d3a22497f8ba15ee6937302cc (pages: 1)
+2025-10-24 18:51:06,530 - root - INFO - Collection 'collection_2b1a2d9d3a22497f8ba15ee6937302cc' already exists
+2025-10-24 18:51:06,534 - services.pipeline - INFO - Created collection collection_2b1a2d9d3a22497f8ba15ee6937302cc in vector store
+2025-10-24 18:51:06,534 - services.pipeline - INFO - Pipeline initialized for collection: collection_2b1a2d9d3a22497f8ba15ee6937302cc
+2025-10-24 18:51:06,534 - services.search - INFO - 🔍 SEARCH SERVICE: About to execute pipeline for CoT
+2025-10-24 18:51:06,534 - services.pipeline - INFO - Starting RAG pipeline execution
+2025-10-24 18:51:06,534 - services.pipeline - INFO - **** Validating configuration for user_id: 34932a40-5ce3-4a12-9cce-3abb9510e22f
+2025-10-24 18:51:06,535 INFO sqlalchemy.engine.Engine SELECT pipeline_configs.id AS pipeline_configs_id, pipeline_configs.user_id AS pipeline_configs_user_id, pipeline_configs.collection_id AS pipeline_configs_collection_id, pipeline_configs.name AS pipeline_configs_name, pipeline_configs.description AS pipeline_configs_description, pipeline_configs.chunking_strategy AS pipeline_configs_chunking_strategy, pipeline_configs.embedding_model AS pipeline_configs_embedding_model, pipeline_configs.retriever AS pipeline_configs_retriever, pipeline_configs.context_strategy AS pipeline_configs_context_strategy, pipeline_configs.enable_logging AS pipeline_configs_enable_logging, pipeline_configs.max_context_length AS pipeline_configs_max_context_length, pipeline_configs.timeout AS pipeline_configs_timeout, pipeline_configs.config_metadata AS pipeline_configs_config_metadata, pipeline_configs.is_default AS pipeline_configs_is_default, pipeline_configs.provider_id AS pipeline_configs_provider_id, pipeline_configs.created_at AS pipeline_configs_created_at, pipeline_configs.updated_at AS pipeline_configs_updated_at 
+FROM pipeline_configs 
+WHERE pipeline_configs.id = %(id_1)s::UUID 
+ LIMIT %(param_1)s
+2025-10-24 18:51:06,535 - sqlalchemy.engine.Engine - INFO - SELECT pipeline_configs.id AS pipeline_configs_id, pipeline_configs.user_id AS pipeline_configs_user_id, pipeline_configs.collection_id AS pipeline_configs_collection_id, pipeline_configs.name AS pipeline_configs_name, pipeline_configs.description AS pipeline_configs_description, pipeline_configs.chunking_strategy AS pipeline_configs_chunking_strategy, pipeline_configs.embedding_model AS pipeline_configs_embedding_model, pipeline_configs.retriever AS pipeline_configs_retriever, pipeline_configs.context_strategy AS pipeline_configs_context_strategy, pipeline_configs.enable_logging AS pipeline_configs_enable_logging, pipeline_configs.max_context_length AS pipeline_configs_max_context_length, pipeline_configs.timeout AS pipeline_configs_timeout, pipeline_configs.config_metadata AS pipeline_configs_config_metadata, pipeline_configs.is_default AS pipeline_configs_is_default, pipeline_configs.provider_id AS pipeline_configs_provider_id, pipeline_configs.created_at AS pipeline_configs_created_at, pipeline_configs.updated_at AS pipeline_configs_updated_at 
+FROM pipeline_configs 
+WHERE pipeline_configs.id = %(id_1)s::UUID 
+ LIMIT %(param_1)s
+2025-10-24 18:51:06,535 INFO sqlalchemy.engine.Engine [cached since 178.8s ago] {'id_1': UUID('f6a4a6c8-1ab4-43fa-94e5-eb5b2d57944d'), 'param_1': 1}
+2025-10-24 18:51:06,535 - sqlalchemy.engine.Engine - INFO - [cached since 178.8s ago] {'id_1': UUID('f6a4a6c8-1ab4-43fa-94e5-eb5b2d57944d'), 'param_1': 1}
+2025-10-24 18:51:06,536 INFO sqlalchemy.engine.Engine SELECT llm_providers.id AS llm_providers_id, llm_providers.name AS llm_providers_name, llm_providers.base_url AS llm_providers_base_url, llm_providers.api_key AS llm_providers_api_key, llm_providers.org_id AS llm_providers_org_id, llm_providers.project_id AS llm_providers_project_id, llm_providers.is_active AS llm_providers_is_active, llm_providers.created_at AS llm_providers_created_at, llm_providers.updated_at AS llm_providers_updated_at, llm_providers.is_default AS llm_providers_is_default 
+FROM llm_providers 
+WHERE llm_providers.id IN (%(primary_keys_1)s::UUID)
+2025-10-24 18:51:06,536 - sqlalchemy.engine.Engine - INFO - SELECT llm_providers.id AS llm_providers_id, llm_providers.name AS llm_providers_name, llm_providers.base_url AS llm_providers_base_url, llm_providers.api_key AS llm_providers_api_key, llm_providers.org_id AS llm_providers_org_id, llm_providers.project_id AS llm_providers_project_id, llm_providers.is_active AS llm_providers_is_active, llm_providers.created_at AS llm_providers_created_at, llm_providers.updated_at AS llm_providers_updated_at, llm_providers.is_default AS llm_providers_is_default 
+FROM llm_providers 
+WHERE llm_providers.id IN (%(primary_keys_1)s::UUID)
+2025-10-24 18:51:06,537 INFO sqlalchemy.engine.Engine [cached since 178.8s ago] {'primary_keys_1': UUID('678209fd-85fa-4f47-9ac9-bb31bb056aeb')}
+2025-10-24 18:51:06,537 - sqlalchemy.engine.Engine - INFO - [cached since 178.8s ago] {'primary_keys_1': UUID('678209fd-85fa-4f47-9ac9-bb31bb056aeb')}
+2025-10-24 18:51:06,538 INFO sqlalchemy.engine.Engine SELECT llm_parameters.id AS llm_parameters_id, llm_parameters.user_id AS llm_parameters_user_id, llm_parameters.name AS llm_parameters_name, llm_parameters.description AS llm_parameters_description, llm_parameters.max_new_tokens AS llm_parameters_max_new_tokens, llm_parameters.temperature AS llm_parameters_temperature, llm_parameters.top_k AS llm_parameters_top_k, llm_parameters.top_p AS llm_parameters_top_p, llm_parameters.repetition_penalty AS llm_parameters_repetition_penalty, llm_parameters.is_default AS llm_parameters_is_default, llm_parameters.created_at AS llm_parameters_created_at, llm_parameters.updated_at AS llm_parameters_updated_at 
+FROM llm_parameters 
+WHERE llm_parameters.user_id = %(user_id_1)s::UUID AND llm_parameters.is_default IS true 
+ LIMIT %(param_1)s
+2025-10-24 18:51:06,538 - sqlalchemy.engine.Engine - INFO - SELECT llm_parameters.id AS llm_parameters_id, llm_parameters.user_id AS llm_parameters_user_id, llm_parameters.name AS llm_parameters_name, llm_parameters.description AS llm_parameters_description, llm_parameters.max_new_tokens AS llm_parameters_max_new_tokens, llm_parameters.temperature AS llm_parameters_temperature, llm_parameters.top_k AS llm_parameters_top_k, llm_parameters.top_p AS llm_parameters_top_p, llm_parameters.repetition_penalty AS llm_parameters_repetition_penalty, llm_parameters.is_default AS llm_parameters_is_default, llm_parameters.created_at AS llm_parameters_created_at, llm_parameters.updated_at AS llm_parameters_updated_at 
+FROM llm_parameters 
+WHERE llm_parameters.user_id = %(user_id_1)s::UUID AND llm_parameters.is_default IS true 
+ LIMIT %(param_1)s
+2025-10-24 18:51:06,538 INFO sqlalchemy.engine.Engine [cached since 178.7s ago] {'user_id_1': UUID('34932a40-5ce3-4a12-9cce-3abb9510e22f'), 'param_1': 1}
+2025-10-24 18:51:06,538 - sqlalchemy.engine.Engine - INFO - [cached since 178.7s ago] {'user_id_1': UUID('34932a40-5ce3-4a12-9cce-3abb9510e22f'), 'param_1': 1}
+2025-10-24 18:51:06,540 INFO sqlalchemy.engine.Engine SELECT users.id AS users_id, users.ibm_id AS users_ibm_id, users.email AS users_email, users.name AS users_name, users.role AS users_role, users.preferred_provider_id AS users_preferred_provider_id, users.created_at AS users_created_at, users.updated_at AS users_updated_at 
+FROM users 
+WHERE users.id IN (%(primary_keys_1)s::UUID)
+2025-10-24 18:51:06,540 - sqlalchemy.engine.Engine - INFO - SELECT users.id AS users_id, users.ibm_id AS users_ibm_id, users.email AS users_email, users.name AS users_name, users.role AS users_role, users.preferred_provider_id AS users_preferred_provider_id, users.created_at AS users_created_at, users.updated_at AS users_updated_at 
+FROM users 
+WHERE users.id IN (%(primary_keys_1)s::UUID)
+2025-10-24 18:51:06,540 INFO sqlalchemy.engine.Engine [cached since 178.7s ago] {'primary_keys_1': UUID('34932a40-5ce3-4a12-9cce-3abb9510e22f')}
+2025-10-24 18:51:06,540 - sqlalchemy.engine.Engine - INFO - [cached since 178.7s ago] {'primary_keys_1': UUID('34932a40-5ce3-4a12-9cce-3abb9510e22f')}
+2025-10-24 18:51:06,542 INFO sqlalchemy.engine.Engine SELECT llm_providers.id AS llm_providers_id, llm_providers.name AS llm_providers_name, llm_providers.base_url AS llm_providers_base_url, llm_providers.api_key AS llm_providers_api_key, llm_providers.org_id AS llm_providers_org_id, llm_providers.project_id AS llm_providers_project_id, llm_providers.is_active AS llm_providers_is_active, llm_providers.created_at AS llm_providers_created_at, llm_providers.updated_at AS llm_providers_updated_at, llm_providers.is_default AS llm_providers_is_default 
+FROM llm_providers 
+WHERE llm_providers.id = %(id_1)s::UUID 
+ LIMIT %(param_1)s
+2025-10-24 18:51:06,542 - sqlalchemy.engine.Engine - INFO - SELECT llm_providers.id AS llm_providers_id, llm_providers.name AS llm_providers_name, llm_providers.base_url AS llm_providers_base_url, llm_providers.api_key AS llm_providers_api_key, llm_providers.org_id AS llm_providers_org_id, llm_providers.project_id AS llm_providers_project_id, llm_providers.is_active AS llm_providers_is_active, llm_providers.created_at AS llm_providers_created_at, llm_providers.updated_at AS llm_providers_updated_at, llm_providers.is_default AS llm_providers_is_default 
+FROM llm_providers 
+WHERE llm_providers.id = %(id_1)s::UUID 
+ LIMIT %(param_1)s
+2025-10-24 18:51:06,542 INFO sqlalchemy.engine.Engine [cached since 207.3s ago] {'id_1': UUID('678209fd-85fa-4f47-9ac9-bb31bb056aeb'), 'param_1': 1}
+2025-10-24 18:51:06,542 - sqlalchemy.engine.Engine - INFO - [cached since 207.3s ago] {'id_1': UUID('678209fd-85fa-4f47-9ac9-bb31bb056aeb'), 'param_1': 1}
+2025-10-24 18:51:06,548 - llm.providers.WatsonXLLM - INFO - Initializing WatsonXLLM
+2025-10-24 18:51:06,549 INFO sqlalchemy.engine.Engine SELECT llm_providers.id AS llm_providers_id, llm_providers.name AS llm_providers_name, llm_providers.base_url AS llm_providers_base_url, llm_providers.api_key AS llm_providers_api_key, llm_providers.org_id AS llm_providers_org_id, llm_providers.project_id AS llm_providers_project_id, llm_providers.is_active AS llm_providers_is_active, llm_providers.created_at AS llm_providers_created_at, llm_providers.updated_at AS llm_providers_updated_at, llm_providers.is_default AS llm_providers_is_default 
+FROM llm_providers 
+WHERE llm_providers.name ILIKE %(name_1)s AND llm_providers.is_active 
+ LIMIT %(param_1)s
+2025-10-24 18:51:06,549 - sqlalchemy.engine.Engine - INFO - SELECT llm_providers.id AS llm_providers_id, llm_providers.name AS llm_providers_name, llm_providers.base_url AS llm_providers_base_url, llm_providers.api_key AS llm_providers_api_key, llm_providers.org_id AS llm_providers_org_id, llm_providers.project_id AS llm_providers_project_id, llm_providers.is_active AS llm_providers_is_active, llm_providers.created_at AS llm_providers_created_at, llm_providers.updated_at AS llm_providers_updated_at, llm_providers.is_default AS llm_providers_is_default 
+FROM llm_providers 
+WHERE llm_providers.name ILIKE %(name_1)s AND llm_providers.is_active 
+ LIMIT %(param_1)s
+2025-10-24 18:51:06,549 INFO sqlalchemy.engine.Engine [cached since 178.7s ago] {'name_1': 'watsonx', 'param_1': 1}
+2025-10-24 18:51:06,549 - sqlalchemy.engine.Engine - INFO - [cached since 178.7s ago] {'name_1': 'watsonx', 'param_1': 1}
+2025-10-24 18:51:07,365 INFO sqlalchemy.engine.Engine SELECT llm_models.id AS llm_models_id, llm_models.provider_id AS llm_models_provider_id, llm_models.model_id AS llm_models_model_id, llm_models.default_model_id AS llm_models_default_model_id, llm_models.model_type AS llm_models_model_type, llm_models.timeout AS llm_models_timeout, llm_models.max_retries AS llm_models_max_retries, llm_models.batch_size AS llm_models_batch_size, llm_models.retry_delay AS llm_models_retry_delay, llm_models.concurrency_limit AS llm_models_concurrency_limit, llm_models.stream AS llm_models_stream, llm_models.rate_limit AS llm_models_rate_limit, llm_models.is_default AS llm_models_is_default, llm_models.is_active AS llm_models_is_active, llm_models.created_at AS llm_models_created_at, llm_models.updated_at AS llm_models_updated_at 
+FROM llm_models 
+WHERE llm_models.provider_id = %(provider_id_1)s::UUID
+2025-10-24 18:51:07,365 - sqlalchemy.engine.Engine - INFO - SELECT llm_models.id AS llm_models_id, llm_models.provider_id AS llm_models_provider_id, llm_models.model_id AS llm_models_model_id, llm_models.default_model_id AS llm_models_default_model_id, llm_models.model_type AS llm_models_model_type, llm_models.timeout AS llm_models_timeout, llm_models.max_retries AS llm_models_max_retries, llm_models.batch_size AS llm_models_batch_size, llm_models.retry_delay AS llm_models_retry_delay, llm_models.concurrency_limit AS llm_models_concurrency_limit, llm_models.stream AS llm_models_stream, llm_models.rate_limit AS llm_models_rate_limit, llm_models.is_default AS llm_models_is_default, llm_models.is_active AS llm_models_is_active, llm_models.created_at AS llm_models_created_at, llm_models.updated_at AS llm_models_updated_at 
+FROM llm_models 
+WHERE llm_models.provider_id = %(provider_id_1)s::UUID
+2025-10-24 18:51:07,366 INFO sqlalchemy.engine.Engine [cached since 208.1s ago] {'provider_id_1': UUID('678209fd-85fa-4f47-9ac9-bb31bb056aeb')}
+2025-10-24 18:51:07,366 - sqlalchemy.engine.Engine - INFO - [cached since 208.1s ago] {'provider_id_1': UUID('678209fd-85fa-4f47-9ac9-bb31bb056aeb')}
+2025-10-24 18:51:07,369 - llm.providers.watsonx - INFO - Initializing embeddings client with batch_size=5, concurrency_limit=1
+2025-10-24 18:51:08,470 INFO sqlalchemy.engine.Engine SELECT prompt_templates.id AS prompt_templates_id, prompt_templates.user_id AS prompt_templates_user_id, prompt_templates.name AS prompt_templates_name, prompt_templates.template_type AS prompt_templates_template_type, prompt_templates.system_prompt AS prompt_templates_system_prompt, prompt_templates.template_format AS prompt_templates_template_format, prompt_templates.input_variables AS prompt_templates_input_variables, prompt_templates.example_inputs AS prompt_templates_example_inputs, prompt_templates.context_strategy AS prompt_templates_context_strategy, prompt_templates.max_context_length AS prompt_templates_max_context_length, prompt_templates.stop_sequences AS prompt_templates_stop_sequences, prompt_templates.validation_schema AS prompt_templates_validation_schema, prompt_templates.is_default AS prompt_templates_is_default, prompt_templates.created_at AS prompt_templates_created_at, prompt_templates.updated_at AS prompt_templates_updated_at 
+FROM prompt_templates 
+WHERE prompt_templates.user_id = %(user_id_1)s::UUID AND prompt_templates.template_type = %(template_type_1)s
+2025-10-24 18:51:08,470 - sqlalchemy.engine.Engine - INFO - SELECT prompt_templates.id AS prompt_templates_id, prompt_templates.user_id AS prompt_templates_user_id, prompt_templates.name AS prompt_templates_name, prompt_templates.template_type AS prompt_templates_template_type, prompt_templates.system_prompt AS prompt_templates_system_prompt, prompt_templates.template_format AS prompt_templates_template_format, prompt_templates.input_variables AS prompt_templates_input_variables, prompt_templates.example_inputs AS prompt_templates_example_inputs, prompt_templates.context_strategy AS prompt_templates_context_strategy, prompt_templates.max_context_length AS prompt_templates_max_context_length, prompt_templates.stop_sequences AS prompt_templates_stop_sequences, prompt_templates.validation_schema AS prompt_templates_validation_schema, prompt_templates.is_default AS prompt_templates_is_default, prompt_templates.created_at AS prompt_templates_created_at, prompt_templates.updated_at AS prompt_templates_updated_at 
+FROM prompt_templates 
+WHERE prompt_templates.user_id = %(user_id_1)s::UUID AND prompt_templates.template_type = %(template_type_1)s
+2025-10-24 18:51:08,470 INFO sqlalchemy.engine.Engine [cached since 178.5s ago] {'user_id_1': UUID('34932a40-5ce3-4a12-9cce-3abb9510e22f'), 'template_type_1': 'RAG_QUERY'}
+2025-10-24 18:51:08,470 - sqlalchemy.engine.Engine - INFO - [cached since 178.5s ago] {'user_id_1': UUID('34932a40-5ce3-4a12-9cce-3abb9510e22f'), 'template_type_1': 'RAG_QUERY'}
+2025-10-24 18:51:08,474 - rag_solution.query_rewriting.query_rewriter - INFO - Starting query rewriting process for: what was ibm revenue?
+2025-10-24 18:51:08,475 - rag_solution.query_rewriting.query_rewriter - WARNING - Query remained unchanged after rewriting process
+2025-10-24 18:51:09,911 - httpx - INFO - HTTP Request: POST https://us-south.ml.cloud.ibm.com/ml/v1/text/embeddings?version=2025-07-07 "HTTP/1.1 200 OK"
+2025-10-24 18:51:09,921 - root - INFO - Query response: data: [[{'id': 461726054344510248, 'distance': 0.7011913657188416, 'entity': {'document_id': '6ede5fc1-5075-4646-814c-0bd106ea13eb', 'text': "IBM common stock is listed on the New York Stock Exchange and the Chicago Stock Exchange under the symbol 'IBM'.", 'chunk_id': '9e27767c-ede6-4560-97dc-02b8e1901f80', 'source': 'Source.PDF', 'page_number': 143, 'chunk_number': 723, 'document_name': '2020-ibm-annual-report.pdf'}}, {'id': 461726054344509857, 'distance': 0.6604302525520325, 'entity': {'document_id': '6ede5fc1-5075-4646-814c-0bd106ea13eb', 'text': 'International Business Machines Corporation and Subsidiary Companies', 'chunk_id': '1da2b50e-0f9f-412b-b477-83109d124ac1', 'source': 'Source.PDF', 'page_number': 77, 'chunk_number': 332, 'document_name': '2020-ibm-annual-report.pdf'}}, {'id': 461726054344509848, 'distance': 0.6604302525520325, 'entity': {'document_id': '6ede5fc1-5075-4646-814c-0bd106ea13eb', 'text': 'International Business Machines Corporation and Subsidiary Companies', 'chunk_id': 'c0bb354f-7005-4df3-85b5-df72f179a7c5', 'source': 'Source.PDF', 'page_number': 75, 'chunk_number': 323, 'document_name': '2020-ibm-annual-report.pdf'}}, {'id': 461726054344509612, 'distance': 0.6604302525520325, 'entity': {'document_id': '6ede5fc1-5075-4646-814c-0bd106ea13eb', 'text': 'International Business Machines Corporation and Subsidiary Companies', 'chunk_id': '15a02e1b-6adb-49d8-8898-9d0f5f2b9cdd', 'source': 'Source.PDF', 'page_number': 27, 'chunk_number': 87, 'document_name': '2020-ibm-annual-report.pdf'}}, {'id': 461726054344509576, 'distance': 0.6604302525520325, 'entity': {'document_id': '6ede5fc1-5075-4646-814c-0bd106ea13eb', 'text': 'International Business Machines Corporation and Subsidiary Companies', 'chunk_id': 'ecd08196-ad09-4356-8b80-25c7192fb253', 'source': 'Source.PDF', 'page_number': 19, 'chunk_number': 51, 'document_name': '2020-ibm-annual-report.pdf'}}]]
+2025-10-24 18:51:09,921 - rag_solution.retrieval.retriever - INFO - Received 5 documents for query: what was ibm revenue?
+2025-10-24 18:51:09,921 - services.pipeline - INFO - Retrieved 5 documents (requested: 5)
+2025-10-24 18:51:09,922 INFO sqlalchemy.engine.Engine SELECT prompt_templates.id AS prompt_templates_id, prompt_templates.user_id AS prompt_templates_user_id, prompt_templates.name AS prompt_templates_name, prompt_templates.template_type AS prompt_templates_template_type, prompt_templates.system_prompt AS prompt_templates_system_prompt, prompt_templates.template_format AS prompt_templates_template_format, prompt_templates.input_variables AS prompt_templates_input_variables, prompt_templates.example_inputs AS prompt_templates_example_inputs, prompt_templates.context_strategy AS prompt_templates_context_strategy, prompt_templates.max_context_length AS prompt_templates_max_context_length, prompt_templates.stop_sequences AS prompt_templates_stop_sequences, prompt_templates.validation_schema AS prompt_templates_validation_schema, prompt_templates.is_default AS prompt_templates_is_default, prompt_templates.created_at AS prompt_templates_created_at, prompt_templates.updated_at AS prompt_templates_updated_at 
+FROM prompt_templates 
+WHERE prompt_templates.id = %(id_1)s::UUID 
+ LIMIT %(param_1)s
+2025-10-24 18:51:09,922 - sqlalchemy.engine.Engine - INFO - SELECT prompt_templates.id AS prompt_templates_id, prompt_templates.user_id AS prompt_templates_user_id, prompt_templates.name AS prompt_templates_name, prompt_templates.template_type AS prompt_templates_template_type, prompt_templates.system_prompt AS prompt_templates_system_prompt, prompt_templates.template_format AS prompt_templates_template_format, prompt_templates.input_variables AS prompt_templates_input_variables, prompt_templates.example_inputs AS prompt_templates_example_inputs, prompt_templates.context_strategy AS prompt_templates_context_strategy, prompt_templates.max_context_length AS prompt_templates_max_context_length, prompt_templates.stop_sequences AS prompt_templates_stop_sequences, prompt_templates.validation_schema AS prompt_templates_validation_schema, prompt_templates.is_default AS prompt_templates_is_default, prompt_templates.created_at AS prompt_templates_created_at, prompt_templates.updated_at AS prompt_templates_updated_at 
+FROM prompt_templates 
+WHERE prompt_templates.id = %(id_1)s::UUID 
+ LIMIT %(param_1)s
+2025-10-24 18:51:09,922 INFO sqlalchemy.engine.Engine [cached since 178.1s ago] {'id_1': UUID('86125f75-f4ae-49ac-a774-01eabba68cc3'), 'param_1': 1}
+2025-10-24 18:51:09,922 - sqlalchemy.engine.Engine - INFO - [cached since 178.1s ago] {'id_1': UUID('86125f75-f4ae-49ac-a774-01eabba68cc3'), 'param_1': 1}
+2025-10-24 18:51:09,924 - llm.providers.watsonx - INFO - Using configured model from RAG_LLM setting: ibm/granite-3-3-8b-instruct
+2025-10-24 18:51:09,924 - llm.providers.watsonx - INFO - Initializing ModelInference with max_retries=10, delay_time=0.500000
+2025-10-24 18:51:11,115 - httpx - INFO - HTTP Request: GET https://us-south.ml.cloud.ibm.com/ml/v1/foundation_model_specs?version=2025-07-07&project_id=3f77f23d-71b7-426b-ae13-bc4710769880&filters=function_text_generation%2C%21lifecycle_withdrawn%3Aand&limit=200 "HTTP/1.1 200 OK"
+2025-10-24 18:51:11,152 - llm.providers.watsonx - INFO - Model ID: ibm/granite-3-3-8b-instruct
+2025-10-24 18:51:11,152 - llm.providers.watsonx - INFO - Model parameters: {'decoding_method': 'sample', 'max_new_tokens': 100, 'temperature': 0.7, 'top_k': 50, 'top_p': 1.0}
+2025-10-24 18:51:11,152 - llm.providers.watsonx - INFO - === ENTERING SINGLE PROMPT PATH === prompt=what was ibm revenue?, template=True
+2025-10-24 18:51:11,153 - services.prompt_template - INFO - ================================================================================
+2025-10-24 18:51:11,153 - services.prompt_template - INFO - CONTEXT TRACE #8: PromptTemplateService._format_prompt_with_template()
+2025-10-24 18:51:11,153 - services.prompt_template - INFO - CONTEXT TRACE #8: template.template_format: {context}
+
+{question}
+2025-10-24 18:51:11,153 - services.prompt_template - INFO - CONTEXT TRACE #8: template.system_prompt: You are a helpful AI assistant specializing in answering questions based on the given context. Format your responses using Markdown for better readability:
+- Use **bold** for emphasis on key points
+- Use bullet points (- or *) for lists
+- Use numbered lists (1. 2. 3.) for sequential steps
+- Use `code blocks` for technical terms or code
+- Use proper headings (## or ###) for sections when appropriate
+- Keep answers well-structured and concise
+2025-10-24 18:51:11,153 - services.prompt_template - INFO - CONTEXT TRACE #8: variables keys: ['context', 'question']
+2025-10-24 18:51:11,153 - services.prompt_template - INFO - CONTEXT TRACE #8: variable 'context': 392 chars, preview: IBM common stock is listed on the New York Stock Exchange and the Chicago Stock Exchange under the symbol 'IBM'.
+
+International Business Machines Corporation and Subsidiary Companies
+
+International Bu...
+2025-10-24 18:51:11,153 - services.prompt_template - INFO - CONTEXT TRACE #8: variable 'question': 21 chars, preview: what was ibm revenue?...
+2025-10-24 18:51:11,153 - services.prompt_template - INFO - CONTEXT TRACE #8: FINAL FORMATTED PROMPT LENGTH: 861 chars
+2025-10-24 18:51:11,154 - services.prompt_template - INFO - CONTEXT TRACE #8: formatted_prompt preview (first 400 chars): You are a helpful AI assistant specializing in answering questions based on the given context. Format your responses using Markdown for better readability:
+- Use **bold** for emphasis on key points
+- Use bullet points (- or *) for lists
+- Use numbered lists (1. 2. 3.) for sequential steps
+- Use `code blocks` for technical terms or code
+- Use proper headings (## or ###) for sections when appropriat...
+2025-10-24 18:51:11,154 - services.prompt_template - INFO - CONTEXT TRACE #8: formatted_prompt preview (last 200 chars): ... Corporation and Subsidiary Companies
+
+International Business Machines Corporation and Subsidiary Companies
+
+International Business Machines Corporation and Subsidiary Companies
+
+what was ibm revenue?
+2025-10-24 18:51:11,154 - services.prompt_template - INFO - ================================================================================
+2025-10-24 18:51:11,154 - llm.providers.watsonx - INFO - === FORMATTED PROMPT LENGTH: 861 chars ===
+2025-10-24 18:51:11,155 - llm.providers.watsonx - INFO - Saved full prompt to: /tmp/watsonx_prompts/prompt_20251024_185111_34932a40-5ce3-4a12-9cce-3abb9510e22f.txt
+2025-10-24 18:51:12,236 - httpx - INFO - HTTP Request: POST https://us-south.ml.cloud.ibm.com/ml/v1/text/generation?version=2025-07-07 "HTTP/1.1 200 OK"
+2025-10-24 18:51:12,237 - llm.providers.watsonx - INFO - Appended response to: /tmp/watsonx_prompts/prompt_20251024_185111_34932a40-5ce3-4a12-9cce-3abb9510e22f.txt
+2025-10-24 18:51:12,237 - services.pipeline - INFO - Pipeline executed in 5.70 seconds
+2025-10-24 18:51:12,237 - services.search - INFO - 🔍 SEARCH SERVICE: Pipeline result - success: True
+2025-10-24 18:51:12,237 - services.search - INFO - 🔍 SEARCH SERVICE: Pipeline result - query_results count: 5
+2025-10-24 18:51:12,237 - services.search - INFO - 🔍 SEARCH SERVICE: Pipeline SUCCESS, proceeding with CoT
+2025-10-24 18:51:12,238 INFO sqlalchemy.engine.Engine SELECT llm_providers.id AS llm_providers_id, llm_providers.name AS llm_providers_name, llm_providers.base_url AS llm_providers_base_url, llm_providers.api_key AS llm_providers_api_key, llm_providers.org_id AS llm_providers_org_id, llm_providers.project_id AS llm_providers_project_id, llm_providers.is_active AS llm_providers_is_active, llm_providers.created_at AS llm_providers_created_at, llm_providers.updated_at AS llm_providers_updated_at, llm_providers.is_default AS llm_providers_is_default 
+FROM llm_providers 
+WHERE llm_providers.is_active AND llm_providers.is_default 
+ LIMIT %(param_1)s
+2025-10-24 18:51:12,238 - sqlalchemy.engine.Engine - INFO - SELECT llm_providers.id AS llm_providers_id, llm_providers.name AS llm_providers_name, llm_providers.base_url AS llm_providers_base_url, llm_providers.api_key AS llm_providers_api_key, llm_providers.org_id AS llm_providers_org_id, llm_providers.project_id AS llm_providers_project_id, llm_providers.is_active AS llm_providers_is_active, llm_providers.created_at AS llm_providers_created_at, llm_providers.updated_at AS llm_providers_updated_at, llm_providers.is_default AS llm_providers_is_default 
+FROM llm_providers 
+WHERE llm_providers.is_active AND llm_providers.is_default 
+ LIMIT %(param_1)s
+2025-10-24 18:51:12,238 INFO sqlalchemy.engine.Engine [cached since 184.5s ago] {'param_1': 1}
+2025-10-24 18:51:12,238 - sqlalchemy.engine.Engine - INFO - [cached since 184.5s ago] {'param_1': 1}
+2025-10-24 18:51:12,240 - llm.providers.WatsonXLLM - INFO - Initializing WatsonXLLM
+2025-10-24 18:51:12,240 INFO sqlalchemy.engine.Engine SELECT llm_providers.id AS llm_providers_id, llm_providers.name AS llm_providers_name, llm_providers.base_url AS llm_providers_base_url, llm_providers.api_key AS llm_providers_api_key, llm_providers.org_id AS llm_providers_org_id, llm_providers.project_id AS llm_providers_project_id, llm_providers.is_active AS llm_providers_is_active, llm_providers.created_at AS llm_providers_created_at, llm_providers.updated_at AS llm_providers_updated_at, llm_providers.is_default AS llm_providers_is_default 
+FROM llm_providers 
+WHERE llm_providers.name ILIKE %(name_1)s AND llm_providers.is_active 
+ LIMIT %(param_1)s
+2025-10-24 18:51:12,240 - sqlalchemy.engine.Engine - INFO - SELECT llm_providers.id AS llm_providers_id, llm_providers.name AS llm_providers_name, llm_providers.base_url AS llm_providers_base_url, llm_providers.api_key AS llm_providers_api_key, llm_providers.org_id AS llm_providers_org_id, llm_providers.project_id AS llm_providers_project_id, llm_providers.is_active AS llm_providers_is_active, llm_providers.created_at AS llm_providers_created_at, llm_providers.updated_at AS llm_providers_updated_at, llm_providers.is_default AS llm_providers_is_default 
+FROM llm_providers 
+WHERE llm_providers.name ILIKE %(name_1)s AND llm_providers.is_active 
+ LIMIT %(param_1)s
+2025-10-24 18:51:12,240 INFO sqlalchemy.engine.Engine [cached since 184.4s ago] {'name_1': 'watsonx', 'param_1': 1}
+2025-10-24 18:51:12,240 - sqlalchemy.engine.Engine - INFO - [cached since 184.4s ago] {'name_1': 'watsonx', 'param_1': 1}
+2025-10-24 18:51:12,931 INFO sqlalchemy.engine.Engine SELECT llm_models.id AS llm_models_id, llm_models.provider_id AS llm_models_provider_id, llm_models.model_id AS llm_models_model_id, llm_models.default_model_id AS llm_models_default_model_id, llm_models.model_type AS llm_models_model_type, llm_models.timeout AS llm_models_timeout, llm_models.max_retries AS llm_models_max_retries, llm_models.batch_size AS llm_models_batch_size, llm_models.retry_delay AS llm_models_retry_delay, llm_models.concurrency_limit AS llm_models_concurrency_limit, llm_models.stream AS llm_models_stream, llm_models.rate_limit AS llm_models_rate_limit, llm_models.is_default AS llm_models_is_default, llm_models.is_active AS llm_models_is_active, llm_models.created_at AS llm_models_created_at, llm_models.updated_at AS llm_models_updated_at 
+FROM llm_models 
+WHERE llm_models.provider_id = %(provider_id_1)s::UUID
+2025-10-24 18:51:12,931 - sqlalchemy.engine.Engine - INFO - SELECT llm_models.id AS llm_models_id, llm_models.provider_id AS llm_models_provider_id, llm_models.model_id AS llm_models_model_id, llm_models.default_model_id AS llm_models_default_model_id, llm_models.model_type AS llm_models_model_type, llm_models.timeout AS llm_models_timeout, llm_models.max_retries AS llm_models_max_retries, llm_models.batch_size AS llm_models_batch_size, llm_models.retry_delay AS llm_models_retry_delay, llm_models.concurrency_limit AS llm_models_concurrency_limit, llm_models.stream AS llm_models_stream, llm_models.rate_limit AS llm_models_rate_limit, llm_models.is_default AS llm_models_is_default, llm_models.is_active AS llm_models_is_active, llm_models.created_at AS llm_models_created_at, llm_models.updated_at AS llm_models_updated_at 
+FROM llm_models 
+WHERE llm_models.provider_id = %(provider_id_1)s::UUID
+2025-10-24 18:51:12,932 INFO sqlalchemy.engine.Engine [cached since 213.7s ago] {'provider_id_1': UUID('678209fd-85fa-4f47-9ac9-bb31bb056aeb')}
+2025-10-24 18:51:12,932 - sqlalchemy.engine.Engine - INFO - [cached since 213.7s ago] {'provider_id_1': UUID('678209fd-85fa-4f47-9ac9-bb31bb056aeb')}
+2025-10-24 18:51:12,935 - llm.providers.watsonx - INFO - Initializing embeddings client with batch_size=5, concurrency_limit=1
+2025-10-24 18:51:13,831 INFO sqlalchemy.engine.Engine SELECT prompt_templates.id AS prompt_templates_id, prompt_templates.user_id AS prompt_templates_user_id, prompt_templates.name AS prompt_templates_name, prompt_templates.template_type AS prompt_templates_template_type, prompt_templates.system_prompt AS prompt_templates_system_prompt, prompt_templates.template_format AS prompt_templates_template_format, prompt_templates.input_variables AS prompt_templates_input_variables, prompt_templates.example_inputs AS prompt_templates_example_inputs, prompt_templates.context_strategy AS prompt_templates_context_strategy, prompt_templates.max_context_length AS prompt_templates_max_context_length, prompt_templates.stop_sequences AS prompt_templates_stop_sequences, prompt_templates.validation_schema AS prompt_templates_validation_schema, prompt_templates.is_default AS prompt_templates_is_default, prompt_templates.created_at AS prompt_templates_created_at, prompt_templates.updated_at AS prompt_templates_updated_at 
+FROM prompt_templates 
+WHERE prompt_templates.user_id = %(user_id_1)s::UUID AND prompt_templates.template_type = %(template_type_1)s
+2025-10-24 18:51:13,831 - sqlalchemy.engine.Engine - INFO - SELECT prompt_templates.id AS prompt_templates_id, prompt_templates.user_id AS prompt_templates_user_id, prompt_templates.name AS prompt_templates_name, prompt_templates.template_type AS prompt_templates_template_type, prompt_templates.system_prompt AS prompt_templates_system_prompt, prompt_templates.template_format AS prompt_templates_template_format, prompt_templates.input_variables AS prompt_templates_input_variables, prompt_templates.example_inputs AS prompt_templates_example_inputs, prompt_templates.context_strategy AS prompt_templates_context_strategy, prompt_templates.max_context_length AS prompt_templates_max_context_length, prompt_templates.stop_sequences AS prompt_templates_stop_sequences, prompt_templates.validation_schema AS prompt_templates_validation_schema, prompt_templates.is_default AS prompt_templates_is_default, prompt_templates.created_at AS prompt_templates_created_at, prompt_templates.updated_at AS prompt_templates_updated_at 
+FROM prompt_templates 
+WHERE prompt_templates.user_id = %(user_id_1)s::UUID AND prompt_templates.template_type = %(template_type_1)s
+2025-10-24 18:51:13,832 INFO sqlalchemy.engine.Engine [cached since 183.9s ago] {'user_id_1': UUID('34932a40-5ce3-4a12-9cce-3abb9510e22f'), 'template_type_1': 'RERANKING'}
+2025-10-24 18:51:13,832 - sqlalchemy.engine.Engine - INFO - [cached since 183.9s ago] {'user_id_1': UUID('34932a40-5ce3-4a12-9cce-3abb9510e22f'), 'template_type_1': 'RERANKING'}
+2025-10-24 18:51:13,834 - services.search - INFO - Applying reranking to 5 results
+2025-10-24 18:51:13,835 - rag_solution.retrieval.reranker - INFO - Reranking 5 results for query: what was ibm revenue?
+2025-10-24 18:51:13,835 - llm.providers.watsonx - INFO - Using configured model from RAG_LLM setting: ibm/granite-3-3-8b-instruct
+2025-10-24 18:51:13,836 INFO sqlalchemy.engine.Engine SELECT llm_parameters.id AS llm_parameters_id, llm_parameters.user_id AS llm_parameters_user_id, llm_parameters.name AS llm_parameters_name, llm_parameters.description AS llm_parameters_description, llm_parameters.max_new_tokens AS llm_parameters_max_new_tokens, llm_parameters.temperature AS llm_parameters_temperature, llm_parameters.top_k AS llm_parameters_top_k, llm_parameters.top_p AS llm_parameters_top_p, llm_parameters.repetition_penalty AS llm_parameters_repetition_penalty, llm_parameters.is_default AS llm_parameters_is_default, llm_parameters.created_at AS llm_parameters_created_at, llm_parameters.updated_at AS llm_parameters_updated_at 
+FROM llm_parameters 
+WHERE llm_parameters.user_id = %(user_id_1)s::UUID AND llm_parameters.is_default IS true 
+ LIMIT %(param_1)s
+2025-10-24 18:51:13,836 - sqlalchemy.engine.Engine - INFO - SELECT llm_parameters.id AS llm_parameters_id, llm_parameters.user_id AS llm_parameters_user_id, llm_parameters.name AS llm_parameters_name, llm_parameters.description AS llm_parameters_description, llm_parameters.max_new_tokens AS llm_parameters_max_new_tokens, llm_parameters.temperature AS llm_parameters_temperature, llm_parameters.top_k AS llm_parameters_top_k, llm_parameters.top_p AS llm_parameters_top_p, llm_parameters.repetition_penalty AS llm_parameters_repetition_penalty, llm_parameters.is_default AS llm_parameters_is_default, llm_parameters.created_at AS llm_parameters_created_at, llm_parameters.updated_at AS llm_parameters_updated_at 
+FROM llm_parameters 
+WHERE llm_parameters.user_id = %(user_id_1)s::UUID AND llm_parameters.is_default IS true 
+ LIMIT %(param_1)s
+2025-10-24 18:51:13,836 INFO sqlalchemy.engine.Engine [cached since 186s ago] {'user_id_1': UUID('34932a40-5ce3-4a12-9cce-3abb9510e22f'), 'param_1': 1}
+2025-10-24 18:51:13,836 - sqlalchemy.engine.Engine - INFO - [cached since 186s ago] {'user_id_1': UUID('34932a40-5ce3-4a12-9cce-3abb9510e22f'), 'param_1': 1}
+2025-10-24 18:51:13,839 INFO sqlalchemy.engine.Engine SELECT users.id AS users_id, users.ibm_id AS users_ibm_id, users.email AS users_email, users.name AS users_name, users.role AS users_role, users.preferred_provider_id AS users_preferred_provider_id, users.created_at AS users_created_at, users.updated_at AS users_updated_at 
+FROM users 
+WHERE users.id IN (%(primary_keys_1)s::UUID)
+2025-10-24 18:51:13,839 - sqlalchemy.engine.Engine - INFO - SELECT users.id AS users_id, users.ibm_id AS users_ibm_id, users.email AS users_email, users.name AS users_name, users.role AS users_role, users.preferred_provider_id AS users_preferred_provider_id, users.created_at AS users_created_at, users.updated_at AS users_updated_at 
+FROM users 
+WHERE users.id IN (%(primary_keys_1)s::UUID)
+2025-10-24 18:51:13,839 INFO sqlalchemy.engine.Engine [cached since 186s ago] {'primary_keys_1': UUID('34932a40-5ce3-4a12-9cce-3abb9510e22f')}
+2025-10-24 18:51:13,839 - sqlalchemy.engine.Engine - INFO - [cached since 186s ago] {'primary_keys_1': UUID('34932a40-5ce3-4a12-9cce-3abb9510e22f')}
+2025-10-24 18:51:13,840 - llm.providers.watsonx - INFO - Initializing ModelInference with max_retries=10, delay_time=0.500000
+2025-10-24 18:51:15,341 - httpx - INFO - HTTP Request: GET https://us-south.ml.cloud.ibm.com/ml/v1/foundation_model_specs?version=2025-07-07&project_id=3f77f23d-71b7-426b-ae13-bc4710769880&filters=function_text_generation%2C%21lifecycle_withdrawn%3Aand&limit=200 "HTTP/1.1 200 OK"
+2025-10-24 18:51:15,376 - llm.providers.watsonx - INFO - Model ID: ibm/granite-3-3-8b-instruct
+2025-10-24 18:51:15,376 - llm.providers.watsonx - INFO - Model parameters: {'decoding_method': 'sample', 'max_new_tokens': 100, 'temperature': 0.7, 'top_k': 50, 'top_p': 1.0}
+2025-10-24 18:51:15,376 - llm.providers.watsonx - ERROR - Error in generate_text: Template is required for batch generation
+2025-10-24 18:51:15,376 - llm.providers.watsonx - ERROR - Template is required for batch generation
+Traceback (most recent call last):
+  File "/Users/mg/mg-work/manav/work/ai-experiments/rag_modulo/backend/rag_solution/generation/providers/watsonx.py", line 221, in generate_text
+    raise ValueError("Template is required for batch generation")
+ValueError: Template is required for batch generation
+2025-10-24 18:51:15,377 - rag_solution.retrieval.reranker - ERROR - Error scoring batch 1: Failed to generate text: Template is required for batch generation
+2025-10-24 18:51:15,377 - rag_solution.retrieval.reranker - INFO - Reranking complete. Returning 5 results
+2025-10-24 18:51:15,377 - services.search - INFO - Reranking complete, returned 5 results
+2025-10-24 18:51:15,377 - services.search - INFO - CoT context extraction: Found 5 context documents
+2025-10-24 18:51:15,377 - services.search - INFO - Context doc 1: IBM common stock is listed on the New York Stock Exchange and the Chicago Stock Exchange under the s...
+2025-10-24 18:51:15,377 - services.search - INFO - Context doc 2: International Business Machines Corporation and Subsidiary Companies...
+2025-10-24 18:51:15,377 - services.search - INFO - 🔍 SEARCH SERVICE: About to execute CoT with 5 context docs
+2025-10-24 18:51:15,377 - services.search - INFO - Executing CoT with question: what was ibm revenue?
+2025-10-24 18:51:15,378 INFO sqlalchemy.engine.Engine SELECT llm_providers.id AS llm_providers_id, llm_providers.name AS llm_providers_name, llm_providers.base_url AS llm_providers_base_url, llm_providers.api_key AS llm_providers_api_key, llm_providers.org_id AS llm_providers_org_id, llm_providers.project_id AS llm_providers_project_id, llm_providers.is_active AS llm_providers_is_active, llm_providers.created_at AS llm_providers_created_at, llm_providers.updated_at AS llm_providers_updated_at, llm_providers.is_default AS llm_providers_is_default 
+FROM llm_providers 
+WHERE llm_providers.is_active AND llm_providers.is_default 
+ LIMIT %(param_1)s
+2025-10-24 18:51:15,378 - sqlalchemy.engine.Engine - INFO - SELECT llm_providers.id AS llm_providers_id, llm_providers.name AS llm_providers_name, llm_providers.base_url AS llm_providers_base_url, llm_providers.api_key AS llm_providers_api_key, llm_providers.org_id AS llm_providers_org_id, llm_providers.project_id AS llm_providers_project_id, llm_providers.is_active AS llm_providers_is_active, llm_providers.created_at AS llm_providers_created_at, llm_providers.updated_at AS llm_providers_updated_at, llm_providers.is_default AS llm_providers_is_default 
+FROM llm_providers 
+WHERE llm_providers.is_active AND llm_providers.is_default 
+ LIMIT %(param_1)s
+2025-10-24 18:51:15,378 INFO sqlalchemy.engine.Engine [cached since 187.6s ago] {'param_1': 1}
+2025-10-24 18:51:15,378 - sqlalchemy.engine.Engine - INFO - [cached since 187.6s ago] {'param_1': 1}
+2025-10-24 18:51:15,380 - llm.providers.WatsonXLLM - INFO - Initializing WatsonXLLM
+2025-10-24 18:51:15,381 INFO sqlalchemy.engine.Engine SELECT llm_providers.id AS llm_providers_id, llm_providers.name AS llm_providers_name, llm_providers.base_url AS llm_providers_base_url, llm_providers.api_key AS llm_providers_api_key, llm_providers.org_id AS llm_providers_org_id, llm_providers.project_id AS llm_providers_project_id, llm_providers.is_active AS llm_providers_is_active, llm_providers.created_at AS llm_providers_created_at, llm_providers.updated_at AS llm_providers_updated_at, llm_providers.is_default AS llm_providers_is_default 
+FROM llm_providers 
+WHERE llm_providers.name ILIKE %(name_1)s AND llm_providers.is_active 
+ LIMIT %(param_1)s
+2025-10-24 18:51:15,381 - sqlalchemy.engine.Engine - INFO - SELECT llm_providers.id AS llm_providers_id, llm_providers.name AS llm_providers_name, llm_providers.base_url AS llm_providers_base_url, llm_providers.api_key AS llm_providers_api_key, llm_providers.org_id AS llm_providers_org_id, llm_providers.project_id AS llm_providers_project_id, llm_providers.is_active AS llm_providers_is_active, llm_providers.created_at AS llm_providers_created_at, llm_providers.updated_at AS llm_providers_updated_at, llm_providers.is_default AS llm_providers_is_default 
+FROM llm_providers 
+WHERE llm_providers.name ILIKE %(name_1)s AND llm_providers.is_active 
+ LIMIT %(param_1)s
+2025-10-24 18:51:15,381 INFO sqlalchemy.engine.Engine [cached since 187.6s ago] {'name_1': 'watsonx', 'param_1': 1}
+2025-10-24 18:51:15,381 - sqlalchemy.engine.Engine - INFO - [cached since 187.6s ago] {'name_1': 'watsonx', 'param_1': 1}
+2025-10-24 18:51:16,097 INFO sqlalchemy.engine.Engine SELECT llm_models.id AS llm_models_id, llm_models.provider_id AS llm_models_provider_id, llm_models.model_id AS llm_models_model_id, llm_models.default_model_id AS llm_models_default_model_id, llm_models.model_type AS llm_models_model_type, llm_models.timeout AS llm_models_timeout, llm_models.max_retries AS llm_models_max_retries, llm_models.batch_size AS llm_models_batch_size, llm_models.retry_delay AS llm_models_retry_delay, llm_models.concurrency_limit AS llm_models_concurrency_limit, llm_models.stream AS llm_models_stream, llm_models.rate_limit AS llm_models_rate_limit, llm_models.is_default AS llm_models_is_default, llm_models.is_active AS llm_models_is_active, llm_models.created_at AS llm_models_created_at, llm_models.updated_at AS llm_models_updated_at 
+FROM llm_models 
+WHERE llm_models.provider_id = %(provider_id_1)s::UUID
+2025-10-24 18:51:16,097 - sqlalchemy.engine.Engine - INFO - SELECT llm_models.id AS llm_models_id, llm_models.provider_id AS llm_models_provider_id, llm_models.model_id AS llm_models_model_id, llm_models.default_model_id AS llm_models_default_model_id, llm_models.model_type AS llm_models_model_type, llm_models.timeout AS llm_models_timeout, llm_models.max_retries AS llm_models_max_retries, llm_models.batch_size AS llm_models_batch_size, llm_models.retry_delay AS llm_models_retry_delay, llm_models.concurrency_limit AS llm_models_concurrency_limit, llm_models.stream AS llm_models_stream, llm_models.rate_limit AS llm_models_rate_limit, llm_models.is_default AS llm_models_is_default, llm_models.is_active AS llm_models_is_active, llm_models.created_at AS llm_models_created_at, llm_models.updated_at AS llm_models_updated_at 
+FROM llm_models 
+WHERE llm_models.provider_id = %(provider_id_1)s::UUID
+2025-10-24 18:51:16,098 INFO sqlalchemy.engine.Engine [cached since 216.8s ago] {'provider_id_1': UUID('678209fd-85fa-4f47-9ac9-bb31bb056aeb')}
+2025-10-24 18:51:16,098 - sqlalchemy.engine.Engine - INFO - [cached since 216.8s ago] {'provider_id_1': UUID('678209fd-85fa-4f47-9ac9-bb31bb056aeb')}
+2025-10-24 18:51:16,102 - llm.providers.watsonx - INFO - Initializing embeddings client with batch_size=5, concurrency_limit=1
+2025-10-24 18:51:17,083 - rag_solution.services.chain_of_thought_service - INFO - 🔍 DEBUG: Question decomposed into 1 sub-questions
+2025-10-24 18:51:17,083 - rag_solution.services.chain_of_thought_service - INFO - 🔍 DEBUG: Sub-question 1: sub_question='what was ibm revenue?' reasoning_step=1 dependency_indices=[] question_type='definition' complexity_score=0.08
+2025-10-24 18:51:17,084 - rag_solution.services.chain_of_thought_service - INFO - 🔍 DEBUG: About to execute 1 reasoning steps
+2025-10-24 18:51:17,084 - rag_solution.services.chain_of_thought_service - INFO - 🔍 DEBUG: Executing step 1 for question: sub_question='what was ibm revenue?' reasoning_step=1 dependency_indices=[] question_type='definition' complexity_score=0.08
+2025-10-24 18:51:17,085 INFO sqlalchemy.engine.Engine SELECT users.id AS users_id, users.ibm_id AS users_ibm_id, users.email AS users_email, users.name AS users_name, users.role AS users_role, users.preferred_provider_id AS users_preferred_provider_id, users.created_at AS users_created_at, users.updated_at AS users_updated_at 
+FROM users 
+WHERE users.id = %(id_1)s::UUID 
+ LIMIT %(param_1)s
+2025-10-24 18:51:17,085 - sqlalchemy.engine.Engine - INFO - SELECT users.id AS users_id, users.ibm_id AS users_ibm_id, users.email AS users_email, users.name AS users_name, users.role AS users_role, users.preferred_provider_id AS users_preferred_provider_id, users.created_at AS users_created_at, users.updated_at AS users_updated_at 
+FROM users 
+WHERE users.id = %(id_1)s::UUID 
+ LIMIT %(param_1)s
+2025-10-24 18:51:17,085 INFO sqlalchemy.engine.Engine [cached since 189.3s ago] {'id_1': UUID('34932a40-5ce3-4a12-9cce-3abb9510e22f'), 'param_1': 1}
+2025-10-24 18:51:17,085 - sqlalchemy.engine.Engine - INFO - [cached since 189.3s ago] {'id_1': UUID('34932a40-5ce3-4a12-9cce-3abb9510e22f'), 'param_1': 1}
+2025-10-24 18:51:17,090 INFO sqlalchemy.engine.Engine SELECT llm_providers.id AS llm_providers_id, llm_providers.name AS llm_providers_name, llm_providers.base_url AS llm_providers_base_url, llm_providers.api_key AS llm_providers_api_key, llm_providers.org_id AS llm_providers_org_id, llm_providers.project_id AS llm_providers_project_id, llm_providers.is_active AS llm_providers_is_active, llm_providers.created_at AS llm_providers_created_at, llm_providers.updated_at AS llm_providers_updated_at, llm_providers.is_default AS llm_providers_is_default 
+FROM llm_providers 
+WHERE llm_providers.is_active AND llm_providers.is_default 
+ LIMIT %(param_1)s
+2025-10-24 18:51:17,090 - sqlalchemy.engine.Engine - INFO - SELECT llm_providers.id AS llm_providers_id, llm_providers.name AS llm_providers_name, llm_providers.base_url AS llm_providers_base_url, llm_providers.api_key AS llm_providers_api_key, llm_providers.org_id AS llm_providers_org_id, llm_providers.project_id AS llm_providers_project_id, llm_providers.is_active AS llm_providers_is_active, llm_providers.created_at AS llm_providers_created_at, llm_providers.updated_at AS llm_providers_updated_at, llm_providers.is_default AS llm_providers_is_default 
+FROM llm_providers 
+WHERE llm_providers.is_active AND llm_providers.is_default 
+ LIMIT %(param_1)s
+2025-10-24 18:51:17,090 INFO sqlalchemy.engine.Engine [cached since 189.3s ago] {'param_1': 1}
+2025-10-24 18:51:17,090 - sqlalchemy.engine.Engine - INFO - [cached since 189.3s ago] {'param_1': 1}
+2025-10-24 18:51:17,092 - rag_solution.services.chain_of_thought_service - INFO - 🔍 DEBUG: llm_service = <rag_solution.generation.providers.watsonx.WatsonXLLM object at 0x1203fae40>, user_id = 34932a40-5ce3-4a12-9cce-3abb9510e22f
+2025-10-24 18:51:17,093 - rag_solution.services.chain_of_thought_service - INFO - ✅ Using LLM service for reasoning step
+2025-10-24 18:51:17,093 - llm.providers.watsonx - INFO - Using configured model from RAG_LLM setting: ibm/granite-3-3-8b-instruct
+2025-10-24 18:51:17,094 INFO sqlalchemy.engine.Engine SELECT llm_parameters.id AS llm_parameters_id, llm_parameters.user_id AS llm_parameters_user_id, llm_parameters.name AS llm_parameters_name, llm_parameters.description AS llm_parameters_description, llm_parameters.max_new_tokens AS llm_parameters_max_new_tokens, llm_parameters.temperature AS llm_parameters_temperature, llm_parameters.top_k AS llm_parameters_top_k, llm_parameters.top_p AS llm_parameters_top_p, llm_parameters.repetition_penalty AS llm_parameters_repetition_penalty, llm_parameters.is_default AS llm_parameters_is_default, llm_parameters.created_at AS llm_parameters_created_at, llm_parameters.updated_at AS llm_parameters_updated_at 
+FROM llm_parameters 
+WHERE llm_parameters.user_id = %(user_id_1)s::UUID AND llm_parameters.is_default IS true 
+ LIMIT %(param_1)s
+2025-10-24 18:51:17,094 - sqlalchemy.engine.Engine - INFO - SELECT llm_parameters.id AS llm_parameters_id, llm_parameters.user_id AS llm_parameters_user_id, llm_parameters.name AS llm_parameters_name, llm_parameters.description AS llm_parameters_description, llm_parameters.max_new_tokens AS llm_parameters_max_new_tokens, llm_parameters.temperature AS llm_parameters_temperature, llm_parameters.top_k AS llm_parameters_top_k, llm_parameters.top_p AS llm_parameters_top_p, llm_parameters.repetition_penalty AS llm_parameters_repetition_penalty, llm_parameters.is_default AS llm_parameters_is_default, llm_parameters.created_at AS llm_parameters_created_at, llm_parameters.updated_at AS llm_parameters_updated_at 
+FROM llm_parameters 
+WHERE llm_parameters.user_id = %(user_id_1)s::UUID AND llm_parameters.is_default IS true 
+ LIMIT %(param_1)s
+2025-10-24 18:51:17,094 INFO sqlalchemy.engine.Engine [cached since 189.3s ago] {'user_id_1': UUID('34932a40-5ce3-4a12-9cce-3abb9510e22f'), 'param_1': 1}
+2025-10-24 18:51:17,094 - sqlalchemy.engine.Engine - INFO - [cached since 189.3s ago] {'user_id_1': UUID('34932a40-5ce3-4a12-9cce-3abb9510e22f'), 'param_1': 1}
+2025-10-24 18:51:17,097 INFO sqlalchemy.engine.Engine SELECT users.id AS users_id, users.ibm_id AS users_ibm_id, users.email AS users_email, users.name AS users_name, users.role AS users_role, users.preferred_provider_id AS users_preferred_provider_id, users.created_at AS users_created_at, users.updated_at AS users_updated_at 
+FROM users 
+WHERE users.id IN (%(primary_keys_1)s::UUID)
+2025-10-24 18:51:17,097 - sqlalchemy.engine.Engine - INFO - SELECT users.id AS users_id, users.ibm_id AS users_ibm_id, users.email AS users_email, users.name AS users_name, users.role AS users_role, users.preferred_provider_id AS users_preferred_provider_id, users.created_at AS users_created_at, users.updated_at AS users_updated_at 
+FROM users 
+WHERE users.id IN (%(primary_keys_1)s::UUID)
+2025-10-24 18:51:17,097 INFO sqlalchemy.engine.Engine [cached since 189.3s ago] {'primary_keys_1': UUID('34932a40-5ce3-4a12-9cce-3abb9510e22f')}
+2025-10-24 18:51:17,097 - sqlalchemy.engine.Engine - INFO - [cached since 189.3s ago] {'primary_keys_1': UUID('34932a40-5ce3-4a12-9cce-3abb9510e22f')}
+2025-10-24 18:51:17,099 - llm.providers.watsonx - INFO - Initializing ModelInference with max_retries=10, delay_time=0.500000
+2025-10-24 18:51:18,291 - httpx - INFO - HTTP Request: GET https://us-south.ml.cloud.ibm.com/ml/v1/foundation_model_specs?version=2025-07-07&project_id=3f77f23d-71b7-426b-ae13-bc4710769880&filters=function_text_generation%2C%21lifecycle_withdrawn%3Aand&limit=200 "HTTP/1.1 200 OK"
+2025-10-24 18:51:18,353 - llm.providers.watsonx - INFO - Model ID: ibm/granite-3-3-8b-instruct
+2025-10-24 18:51:18,354 - llm.providers.watsonx - INFO - Model parameters: {'decoding_method': 'sample', 'max_new_tokens': 100, 'temperature': 0.7, 'top_k': 50, 'top_p': 1.0}
+2025-10-24 18:51:18,354 - llm.providers.watsonx - INFO - === ENTERING SINGLE PROMPT PATH === prompt=Question: what was ibm revenue?
+
+Context: IBM comm, template=True
+2025-10-24 18:51:18,354 - services.prompt_template - INFO - ================================================================================
+2025-10-24 18:51:18,354 - services.prompt_template - INFO - CONTEXT TRACE #8: PromptTemplateService._format_prompt_with_template()
+2025-10-24 18:51:18,354 - services.prompt_template - INFO - CONTEXT TRACE #8: template.template_format: {context}
+2025-10-24 18:51:18,354 - services.prompt_template - INFO - CONTEXT TRACE #8: template.system_prompt: None
+2025-10-24 18:51:18,354 - services.prompt_template - INFO - CONTEXT TRACE #8: variables keys: ['context']
+2025-10-24 18:51:18,354 - services.prompt_template - INFO - CONTEXT TRACE #8: variable 'context': 1561 chars, preview: Question: what was ibm revenue?
+
+Context: IBM common stock is listed on the New York Stock Exchange and the Chicago Stock Exchange under the symbol 'IBM'. International Business Machines Corporation a...
+2025-10-24 18:51:18,355 - services.prompt_template - INFO - CONTEXT TRACE #8: FINAL FORMATTED PROMPT LENGTH: 1561 chars
+2025-10-24 18:51:18,355 - services.prompt_template - INFO - CONTEXT TRACE #8: formatted_prompt preview (first 400 chars): Question: what was ibm revenue?
+
+Context: IBM common stock is listed on the New York Stock Exchange and the Chicago Stock Exchange under the symbol 'IBM'. International Business Machines Corporation and Subsidiary Companies International Business Machines Corporation and Subsidiary Companies International Business Machines Corporation and Subsidiary Companies International Business Machines Corpor...
+2025-10-24 18:51:18,355 - services.prompt_template - INFO - CONTEXT TRACE #8: formatted_prompt preview (last 200 chars): ...Investor Relations: https://www.ibm.com/investor-relations/financial-information/annual-reports.html
+
+Note: The revenue figures are subject to change with the release of what was ibm revenue?
+
+Answer:
+2025-10-24 18:51:18,355 - services.prompt_template - INFO - ================================================================================
+2025-10-24 18:51:18,355 - llm.providers.watsonx - INFO - === FORMATTED PROMPT LENGTH: 1561 chars ===
+2025-10-24 18:51:18,355 - llm.providers.watsonx - INFO - Saved full prompt to: /tmp/watsonx_prompts/prompt_20251024_185118_34932a40-5ce3-4a12-9cce-3abb9510e22f.txt
+2025-10-24 18:51:19,435 - httpx - INFO - HTTP Request: POST https://us-south.ml.cloud.ibm.com/ml/v1/text/generation?version=2025-07-07 "HTTP/1.1 200 OK"
+2025-10-24 18:51:19,437 - llm.providers.watsonx - INFO - Appended response to: /tmp/watsonx_prompts/prompt_20251024_185118_34932a40-5ce3-4a12-9cce-3abb9510e22f.txt
+2025-10-24 18:51:19,437 - rag_solution.services.chain_of_thought_service - INFO - 🔍 DEBUG: Step 1 used 0 tokens
+2025-10-24 18:51:19,437 - rag_solution.services.chain_of_thought_service - INFO - 🔍 DEBUG: Step 1 completed, reasoning_steps now has 1 items
+2025-10-24 18:51:19,438 - rag_solution.services.chain_of_thought_service - INFO - 🔍 DEBUG: Creating ChainOfThoughtOutput with 1 reasoning steps
+2025-10-24 18:51:19,438 - rag_solution.services.chain_of_thought_service - INFO - 🔍 DEBUG: Step 1 content: The most recent information available indicates that IBM's revenue for 2022 was approximately $73.6 ...
+2025-10-24 18:51:19,439 - services.search - INFO - 🔍 SEARCH SERVICE: CoT execution SUCCESS - result type: <class 'rag_solution.schemas.chain_of_thought_schema.ChainOfThoughtOutput'>
+2025-10-24 18:51:19,439 - services.search - INFO - 🔍 SEARCH SERVICE: CoT result has token_usage: True
+2025-10-24 18:51:19,439 - services.search - INFO - 🔍 SEARCH SERVICE: CoT token_usage: 140
+2025-10-24 18:51:19,439 - services.search - INFO - 🔍 SEARCH SERVICE: CoT reasoning_steps count: 1
+2025-10-24 18:51:19,439 - services.search - INFO - 🔍 SEARCH SERVICE: Step 1: 1 - what was ibm revenue?...
+2025-10-24 18:51:19,440 - rag_solution.services.file_management_service - INFO - Fetching files for collection: bdbd9360-b54b-4307-ab68-d057d0ca682c
+2025-10-24 18:51:19,442 INFO sqlalchemy.engine.Engine SELECT files.id AS files_id, files.user_id AS files_user_id, files.collection_id AS files_collection_id, files.filename AS files_filename, files.file_path AS files_file_path, files.file_type AS files_file_type, files.document_id AS files_document_id, files.file_metadata AS files_file_metadata, files.created_at AS files_created_at, files.updated_at AS files_updated_at 
+FROM files 
+WHERE files.collection_id = %(collection_id_1)s::UUID
+2025-10-24 18:51:19,442 - sqlalchemy.engine.Engine - INFO - SELECT files.id AS files_id, files.user_id AS files_user_id, files.collection_id AS files_collection_id, files.filename AS files_filename, files.file_path AS files_file_path, files.file_type AS files_file_type, files.document_id AS files_document_id, files.file_metadata AS files_file_metadata, files.created_at AS files_created_at, files.updated_at AS files_updated_at 
+FROM files 
+WHERE files.collection_id = %(collection_id_1)s::UUID
+2025-10-24 18:51:19,442 INFO sqlalchemy.engine.Engine [cached since 176.8s ago] {'collection_id_1': UUID('bdbd9360-b54b-4307-ab68-d057d0ca682c')}
+2025-10-24 18:51:19,442 - sqlalchemy.engine.Engine - INFO - [cached since 176.8s ago] {'collection_id_1': UUID('bdbd9360-b54b-4307-ab68-d057d0ca682c')}
+2025-10-24 18:51:19,445 - rag_solution.services.file_management_service - INFO - Retrieved 1 files for collection bdbd9360-b54b-4307-ab68-d057d0ca682c
+/Users/mg/mg-work/manav/work/ai-experiments/rag_modulo/backend/rag_solution/services/search_service.py:1095: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  timestamp=datetime.utcnow(),
+2025-10-24 18:51:19,446 - services.search - INFO - 🔍 SEARCH SERVICE: _should_show_cot_steps result: False
+2025-10-24 18:51:19,446 - services.search - INFO - 🔍 SEARCH SERVICE: config_metadata: {'conversation_context': "User: what was ibm revenue? User: what was ibm revenue? Assistant: The most recent information available indicates that IBM's revenue for 2022 was approximately $73.6 billion. Please verify with the latest financial reports for the most up-to-date figures.\n\nReference(s):\nInternational Business Machines Corporation Investor Relations: https://www.ibm.com/investor-relations/financial-information/annual-reports.html\n\nNote: The revenue figures are subject to change with the release of User: what was ibm revenue?", 'enhanced_question_for_llm': 'what was ibm revenue? (in the context of Assistant, User, Note, Please, s revenue for 2022, Reference, The revenue figures)', 'session_id': '6cde4830-c940-49e4-bf49-d1c86115decc', 'message_history': ['what was ibm revenue?', 'what was ibm revenue?', "The most recent information available indicates that IBM's revenue for 2022 was approximately $73.6 billion. Please verify with the latest financial reports for the most up-to-date figures.\n\nReference(s):\nInternational Business Machines Corporation Investor Relations: https://www.ibm.com/investor-relations/financial-information/annual-reports.html\n\nNote: The revenue figures are subject to change with the release of", 'what was ibm revenue?'], 'conversation_entities': ['Assistant', 'User', 'Note', 'Please', 's revenue for 2022', 'Reference', 'The revenue figures'], 'cot_enabled': True, 'show_cot_steps': False, 'conversation_aware': True}
+2025-10-24 18:51:19,446 - rag_solution.services.conversation_service - INFO - 📊 CONVERSATION SERVICE: Search result has metadata: True
+2025-10-24 18:51:19,446 - rag_solution.services.conversation_service - INFO - 📊 CONVERSATION SERVICE: Search metadata keys: ['cot_used', 'conversation_aware', 'reasoning_strategy', 'conversation_context_used']
+2025-10-24 18:51:19,446 - rag_solution.services.conversation_service - INFO - 📊 CONVERSATION SERVICE: Search result has cot_output: False
+2025-10-24 18:51:19,446 - rag_solution.services.conversation_service - INFO - 🧠 CoT metadata: cot_used=True
+2025-10-24 18:51:19,447 - rag_solution.services.conversation_service - INFO - 🧠 Final CoT extraction: cot_used=True, cot_steps_count=0
+2025-10-24 18:51:19,447 - rag_solution.services.conversation_service - INFO - 📊 Serialized 1 documents with scores and page numbers
+2025-10-24 18:51:19,447 - rag_solution.services.conversation_service - INFO - 📊 First source metadata: {'title': None, 'author': None, 'subject': None, 'keywords': None, 'creator': None, 'producer': None, 'creation_date': None, 'mod_date': None, 'total_pages': None, 'total_chunks': None, 'score': 0.7011913657188416, 'page_number': 19}
+2025-10-24 18:51:19,447 INFO sqlalchemy.engine.Engine SELECT users.id AS users_id, users.ibm_id AS users_ibm_id, users.email AS users_email, users.name AS users_name, users.role AS users_role, users.preferred_provider_id AS users_preferred_provider_id, users.created_at AS users_created_at, users.updated_at AS users_updated_at 
+FROM users 
+WHERE users.id = %(id_1)s::UUID 
+ LIMIT %(param_1)s
+2025-10-24 18:51:19,447 - sqlalchemy.engine.Engine - INFO - SELECT users.id AS users_id, users.ibm_id AS users_ibm_id, users.email AS users_email, users.name AS users_name, users.role AS users_role, users.preferred_provider_id AS users_preferred_provider_id, users.created_at AS users_created_at, users.updated_at AS users_updated_at 
+FROM users 
+WHERE users.id = %(id_1)s::UUID 
+ LIMIT %(param_1)s
+2025-10-24 18:51:19,448 INFO sqlalchemy.engine.Engine [cached since 191.7s ago] {'id_1': UUID('34932a40-5ce3-4a12-9cce-3abb9510e22f'), 'param_1': 1}
+2025-10-24 18:51:19,448 - sqlalchemy.engine.Engine - INFO - [cached since 191.7s ago] {'id_1': UUID('34932a40-5ce3-4a12-9cce-3abb9510e22f'), 'param_1': 1}
+2025-10-24 18:51:19,450 INFO sqlalchemy.engine.Engine SELECT llm_providers.id AS llm_providers_id, llm_providers.name AS llm_providers_name, llm_providers.base_url AS llm_providers_base_url, llm_providers.api_key AS llm_providers_api_key, llm_providers.org_id AS llm_providers_org_id, llm_providers.project_id AS llm_providers_project_id, llm_providers.is_active AS llm_providers_is_active, llm_providers.created_at AS llm_providers_created_at, llm_providers.updated_at AS llm_providers_updated_at, llm_providers.is_default AS llm_providers_is_default 
+FROM llm_providers 
+WHERE llm_providers.is_active AND llm_providers.is_default 
+ LIMIT %(param_1)s
+2025-10-24 18:51:19,450 - sqlalchemy.engine.Engine - INFO - SELECT llm_providers.id AS llm_providers_id, llm_providers.name AS llm_providers_name, llm_providers.base_url AS llm_providers_base_url, llm_providers.api_key AS llm_providers_api_key, llm_providers.org_id AS llm_providers_org_id, llm_providers.project_id AS llm_providers_project_id, llm_providers.is_active AS llm_providers_is_active, llm_providers.created_at AS llm_providers_created_at, llm_providers.updated_at AS llm_providers_updated_at, llm_providers.is_default AS llm_providers_is_default 
+FROM llm_providers 
+WHERE llm_providers.is_active AND llm_providers.is_default 
+ LIMIT %(param_1)s
+2025-10-24 18:51:19,450 INFO sqlalchemy.engine.Engine [cached since 191.7s ago] {'param_1': 1}
+2025-10-24 18:51:19,450 - sqlalchemy.engine.Engine - INFO - [cached since 191.7s ago] {'param_1': 1}
+2025-10-24 18:51:19,452 - rag_solution.services.conversation_service - INFO - 🔢 Final token count breakdown: assistant=58, cot=0, total=58
+2025-10-24 18:51:19,452 - rag_solution.services.conversation_service - INFO - 🔢 Token tracking debug: assistant_token_count=58
+2025-10-24 18:51:19,452 - rag_solution.services.conversation_service - INFO - 🔢 User input tokens: 5, Assistant response tokens: 58
+2025-10-24 18:51:19,452 - rag_solution.services.conversation_service - INFO - 🔍 DEBUG: Assistant response: 'The most recent information available indicates that IBM's revenue for 2022 was approximately $73.6 ...' -> 58 tokens
+2025-10-24 18:51:19,453 INFO sqlalchemy.engine.Engine SELECT conversation_sessions.id AS conversation_sessions_id, conversation_sessions.user_id AS conversation_sessions_user_id, conversation_sessions.collection_id AS conversation_sessions_collection_id, conversation_sessions.session_name AS conversation_sessions_session_name, conversation_sessions.status AS conversation_sessions_status, conversation_sessions.context_window_size AS conversation_sessions_context_window_size, conversation_sessions.max_messages AS conversation_sessions_max_messages, conversation_sessions.is_archived AS conversation_sessions_is_archived, conversation_sessions.is_pinned AS conversation_sessions_is_pinned, conversation_sessions.created_at AS conversation_sessions_created_at, conversation_sessions.updated_at AS conversation_sessions_updated_at, conversation_sessions.session_metadata AS conversation_sessions_session_metadata 
+FROM conversation_sessions 
+WHERE conversation_sessions.id = %(id_1)s::UUID AND conversation_sessions.user_id = %(user_id_1)s::UUID 
+ LIMIT %(param_1)s
+2025-10-24 18:51:19,453 - sqlalchemy.engine.Engine - INFO - SELECT conversation_sessions.id AS conversation_sessions_id, conversation_sessions.user_id AS conversation_sessions_user_id, conversation_sessions.collection_id AS conversation_sessions_collection_id, conversation_sessions.session_name AS conversation_sessions_session_name, conversation_sessions.status AS conversation_sessions_status, conversation_sessions.context_window_size AS conversation_sessions_context_window_size, conversation_sessions.max_messages AS conversation_sessions_max_messages, conversation_sessions.is_archived AS conversation_sessions_is_archived, conversation_sessions.is_pinned AS conversation_sessions_is_pinned, conversation_sessions.created_at AS conversation_sessions_created_at, conversation_sessions.updated_at AS conversation_sessions_updated_at, conversation_sessions.session_metadata AS conversation_sessions_session_metadata 
+FROM conversation_sessions 
+WHERE conversation_sessions.id = %(id_1)s::UUID AND conversation_sessions.user_id = %(user_id_1)s::UUID 
+ LIMIT %(param_1)s
+2025-10-24 18:51:19,453 INFO sqlalchemy.engine.Engine [cached since 213.7s ago] {'id_1': UUID('6cde4830-c940-49e4-bf49-d1c86115decc'), 'user_id_1': UUID('34932a40-5ce3-4a12-9cce-3abb9510e22f'), 'param_1': 1}
+2025-10-24 18:51:19,453 - sqlalchemy.engine.Engine - INFO - [cached since 213.7s ago] {'id_1': UUID('6cde4830-c940-49e4-bf49-d1c86115decc'), 'user_id_1': UUID('34932a40-5ce3-4a12-9cce-3abb9510e22f'), 'param_1': 1}
+2025-10-24 18:51:19,455 INFO sqlalchemy.engine.Engine SELECT conversation_messages.id AS conversation_messages_id, conversation_messages.session_id AS conversation_messages_session_id, conversation_messages.content AS conversation_messages_content, conversation_messages.role AS conversation_messages_role, conversation_messages.message_type AS conversation_messages_message_type, conversation_messages.created_at AS conversation_messages_created_at, conversation_messages.message_metadata AS conversation_messages_message_metadata, conversation_messages.token_count AS conversation_messages_token_count, conversation_messages.execution_time AS conversation_messages_execution_time 
+FROM conversation_messages 
+WHERE conversation_messages.session_id = %(session_id_1)s::UUID ORDER BY conversation_messages.created_at ASC 
+ LIMIT %(param_1)s OFFSET %(param_2)s
+2025-10-24 18:51:19,455 - sqlalchemy.engine.Engine - INFO - SELECT conversation_messages.id AS conversation_messages_id, conversation_messages.session_id AS conversation_messages_session_id, conversation_messages.content AS conversation_messages_content, conversation_messages.role AS conversation_messages_role, conversation_messages.message_type AS conversation_messages_message_type, conversation_messages.created_at AS conversation_messages_created_at, conversation_messages.message_metadata AS conversation_messages_message_metadata, conversation_messages.token_count AS conversation_messages_token_count, conversation_messages.execution_time AS conversation_messages_execution_time 
+FROM conversation_messages 
+WHERE conversation_messages.session_id = %(session_id_1)s::UUID ORDER BY conversation_messages.created_at ASC 
+ LIMIT %(param_1)s OFFSET %(param_2)s
+2025-10-24 18:51:19,455 INFO sqlalchemy.engine.Engine [cached since 213.7s ago] {'session_id_1': UUID('6cde4830-c940-49e4-bf49-d1c86115decc'), 'param_1': 50, 'param_2': 0}
+2025-10-24 18:51:19,455 - sqlalchemy.engine.Engine - INFO - [cached since 213.7s ago] {'session_id_1': UUID('6cde4830-c940-49e4-bf49-d1c86115decc'), 'param_1': 50, 'param_2': 0}
+2025-10-24 18:51:19,457 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: from_db_message() called
+2025-10-24 18:51:19,457 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: message.token_count=5 (type: <class 'int'>)
+2025-10-24 18:51:19,457 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: message.id=5474a141-5076-464e-934a-7003559a86c5
+2025-10-24 18:51:19,457 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: data dict token_count=5
+2025-10-24 18:51:19,457 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: result.token_count=5
+2025-10-24 18:51:19,457 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: from_db_message() called
+2025-10-24 18:51:19,457 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: message.token_count=5 (type: <class 'int'>)
+2025-10-24 18:51:19,457 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: message.id=80f38b37-1b36-4a77-8a1b-e6f07d9d4e6d
+2025-10-24 18:51:19,457 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: data dict token_count=5
+2025-10-24 18:51:19,457 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: result.token_count=5
+2025-10-24 18:51:19,458 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: from_db_message() called
+2025-10-24 18:51:19,458 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: message.token_count=61 (type: <class 'int'>)
+2025-10-24 18:51:19,458 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: message.id=a6f1dd3d-d055-46c8-aa25-cee679036dc9
+2025-10-24 18:51:19,458 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: message.message_metadata type: <class 'dict'>
+2025-10-24 18:51:19,458 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: message.message_metadata keys: ['source_documents', 'search_metadata', 'cot_used', 'conversation_aware', 'execution_time', 'token_count', 'model_used', 'confidence_score', 'context_length', 'token_analysis', 'sources', 'cot_output']
+2025-10-24 18:51:19,458 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: Attempting to create MessageMetadata with keys: ['source_documents', 'search_metadata', 'cot_used', 'conversation_aware', 'execution_time', 'token_count', 'model_used', 'confidence_score', 'context_length', 'token_analysis', 'sources', 'cot_output']
+2025-10-24 18:51:19,458 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: Successfully created MessageMetadata
+2025-10-24 18:51:19,458 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: Reconstructed token_analysis from metadata
+2025-10-24 18:51:19,458 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: Reconstructed sources from metadata
+2025-10-24 18:51:19,458 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: Reconstructed cot_output from metadata
+2025-10-24 18:51:19,458 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: data dict token_count=61
+2025-10-24 18:51:19,458 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: result.token_count=61
+2025-10-24 18:51:19,458 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: from_db_message() called
+2025-10-24 18:51:19,458 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: message.token_count=5 (type: <class 'int'>)
+2025-10-24 18:51:19,458 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: message.id=17230f15-723d-4efe-8759-65a3cab37985
+2025-10-24 18:51:19,458 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: data dict token_count=5
+2025-10-24 18:51:19,459 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: result.token_count=5
+2025-10-24 18:51:19,459 INFO sqlalchemy.engine.Engine SELECT conversation_sessions.id AS conversation_sessions_id, conversation_sessions.user_id AS conversation_sessions_user_id, conversation_sessions.collection_id AS conversation_sessions_collection_id, conversation_sessions.session_name AS conversation_sessions_session_name, conversation_sessions.status AS conversation_sessions_status, conversation_sessions.context_window_size AS conversation_sessions_context_window_size, conversation_sessions.max_messages AS conversation_sessions_max_messages, conversation_sessions.is_archived AS conversation_sessions_is_archived, conversation_sessions.is_pinned AS conversation_sessions_is_pinned, conversation_sessions.created_at AS conversation_sessions_created_at, conversation_sessions.updated_at AS conversation_sessions_updated_at, conversation_sessions.session_metadata AS conversation_sessions_session_metadata 
+FROM conversation_sessions 
+WHERE conversation_sessions.id = %(id_1)s::UUID AND conversation_sessions.user_id = %(user_id_1)s::UUID 
+ LIMIT %(param_1)s
+2025-10-24 18:51:19,459 - sqlalchemy.engine.Engine - INFO - SELECT conversation_sessions.id AS conversation_sessions_id, conversation_sessions.user_id AS conversation_sessions_user_id, conversation_sessions.collection_id AS conversation_sessions_collection_id, conversation_sessions.session_name AS conversation_sessions_session_name, conversation_sessions.status AS conversation_sessions_status, conversation_sessions.context_window_size AS conversation_sessions_context_window_size, conversation_sessions.max_messages AS conversation_sessions_max_messages, conversation_sessions.is_archived AS conversation_sessions_is_archived, conversation_sessions.is_pinned AS conversation_sessions_is_pinned, conversation_sessions.created_at AS conversation_sessions_created_at, conversation_sessions.updated_at AS conversation_sessions_updated_at, conversation_sessions.session_metadata AS conversation_sessions_session_metadata 
+FROM conversation_sessions 
+WHERE conversation_sessions.id = %(id_1)s::UUID AND conversation_sessions.user_id = %(user_id_1)s::UUID 
+ LIMIT %(param_1)s
+2025-10-24 18:51:19,459 INFO sqlalchemy.engine.Engine [cached since 213.7s ago] {'id_1': UUID('6cde4830-c940-49e4-bf49-d1c86115decc'), 'user_id_1': UUID('34932a40-5ce3-4a12-9cce-3abb9510e22f'), 'param_1': 1}
+2025-10-24 18:51:19,459 - sqlalchemy.engine.Engine - INFO - [cached since 213.7s ago] {'id_1': UUID('6cde4830-c940-49e4-bf49-d1c86115decc'), 'user_id_1': UUID('34932a40-5ce3-4a12-9cce-3abb9510e22f'), 'param_1': 1}
+2025-10-24 18:51:19,460 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: from_db_session() called
+2025-10-24 18:51:19,460 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: session.id=6cde4830-c940-49e4-bf49-d1c86115decc
+2025-10-24 18:51:19,460 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: session.id type=<class 'uuid.UUID'>
+2025-10-24 18:51:19,461 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: session.status=active
+2025-10-24 18:51:19,461 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: session.status type=<class 'str'>
+2025-10-24 18:51:19,461 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: status_value=SessionStatus.ACTIVE
+2025-10-24 18:51:19,461 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: status_value type=<enum 'SessionStatus'>
+2025-10-24 18:51:19,461 - rag_solution.services.conversation_service - INFO - 🔢 Session stats - Total tokens: 76, LLM calls: 1, CoT tokens: 0
+2025-10-24 18:51:19,461 - rag_solution.services.conversation_service - INFO - 🔢 Token breakdown - Prompt: 51, Completion: 24
+/Users/mg/mg-work/manav/work/ai-experiments/rag_modulo/backend/rag_solution/services/conversation_service.py:819: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  last_activity=datetime.utcnow(),
+2025-10-24 18:51:19,461 - rag_solution.services.conversation_service - INFO - 📊 CONVERSATION SERVICE: Created metadata_dict with token_analysis: {'query_tokens': 5, 'context_tokens': 100, 'response_tokens': 58, 'system_tokens': 0, 'total_this_turn': 58, 'conversation_total': 76}
+2025-10-24 18:51:19,461 INFO sqlalchemy.engine.Engine SELECT conversation_sessions.id AS conversation_sessions_id, conversation_sessions.user_id AS conversation_sessions_user_id, conversation_sessions.collection_id AS conversation_sessions_collection_id, conversation_sessions.session_name AS conversation_sessions_session_name, conversation_sessions.status AS conversation_sessions_status, conversation_sessions.context_window_size AS conversation_sessions_context_window_size, conversation_sessions.max_messages AS conversation_sessions_max_messages, conversation_sessions.is_archived AS conversation_sessions_is_archived, conversation_sessions.is_pinned AS conversation_sessions_is_pinned, conversation_sessions.created_at AS conversation_sessions_created_at, conversation_sessions.updated_at AS conversation_sessions_updated_at, conversation_sessions.session_metadata AS conversation_sessions_session_metadata 
+FROM conversation_sessions 
+WHERE conversation_sessions.id = %(id_1)s::UUID 
+ LIMIT %(param_1)s
+2025-10-24 18:51:19,461 - sqlalchemy.engine.Engine - INFO - SELECT conversation_sessions.id AS conversation_sessions_id, conversation_sessions.user_id AS conversation_sessions_user_id, conversation_sessions.collection_id AS conversation_sessions_collection_id, conversation_sessions.session_name AS conversation_sessions_session_name, conversation_sessions.status AS conversation_sessions_status, conversation_sessions.context_window_size AS conversation_sessions_context_window_size, conversation_sessions.max_messages AS conversation_sessions_max_messages, conversation_sessions.is_archived AS conversation_sessions_is_archived, conversation_sessions.is_pinned AS conversation_sessions_is_pinned, conversation_sessions.created_at AS conversation_sessions_created_at, conversation_sessions.updated_at AS conversation_sessions_updated_at, conversation_sessions.session_metadata AS conversation_sessions_session_metadata 
+FROM conversation_sessions 
+WHERE conversation_sessions.id = %(id_1)s::UUID 
+ LIMIT %(param_1)s
+2025-10-24 18:51:19,462 INFO sqlalchemy.engine.Engine [cached since 192s ago] {'id_1': UUID('6cde4830-c940-49e4-bf49-d1c86115decc'), 'param_1': 1}
+2025-10-24 18:51:19,462 - sqlalchemy.engine.Engine - INFO - [cached since 192s ago] {'id_1': UUID('6cde4830-c940-49e4-bf49-d1c86115decc'), 'param_1': 1}
+/Users/mg/.pyenv/versions/3.12.3/lib/python3.12/site-packages/sqlalchemy/sql/schema.py:3624: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  return util.wrap_callable(lambda ctx: fn(), fn)  # type: ignore
+2025-10-24 18:51:19,463 INFO sqlalchemy.engine.Engine INSERT INTO conversation_messages (id, session_id, content, role, message_type, created_at, message_metadata, token_count, execution_time) VALUES (%(id)s::UUID, %(session_id)s::UUID, %(content)s, %(role)s, %(message_type)s, %(created_at)s, %(message_metadata)s::JSON, %(token_count)s, %(execution_time)s)
+2025-10-24 18:51:19,463 - sqlalchemy.engine.Engine - INFO - INSERT INTO conversation_messages (id, session_id, content, role, message_type, created_at, message_metadata, token_count, execution_time) VALUES (%(id)s::UUID, %(session_id)s::UUID, %(content)s, %(role)s, %(message_type)s, %(created_at)s, %(message_metadata)s::JSON, %(token_count)s, %(execution_time)s)
+2025-10-24 18:51:19,463 INFO sqlalchemy.engine.Engine [cached since 192s ago] {'id': UUID('9e15232f-da4a-4cdd-b927-717de71d8aa4'), 'session_id': UUID('6cde4830-c940-49e4-bf49-d1c86115decc'), 'content': "The most recent information available indicates that IBM's revenue for 2022 was approximately $73.6 billion. Please verify with the latest financial  ... (116 characters truncated) ... tions: <https://www.ibm.com/investor-relations/financial-information/annual-reports.html>\n\nNote: The revenue figures are subject to change with the", 'role': <MessageRole.ASSISTANT: 'assistant'>, 'message_type': <MessageType.ANSWER: 'answer'>, 'created_at': datetime.datetime(2025, 10, 24, 22, 51, 19, 463214), 'message_metadata': '{"source_documents": ["2020-ibm-annual-report.pdf"], "search_metadata": {"enhanced_question": "what was ibm revenue? (in the context of Assistant, Us ... (1241 characters truncated) ... tion_date": null, "mod_date": null, "total_pages": null, "total_chunks": null, "score": 0.7011913657188416, "page_number": 19}}], "cot_output": null}', 'token_count': 58, 'execution_time': 13.164815664291382}
+2025-10-24 18:51:19,463 - sqlalchemy.engine.Engine - INFO - [cached since 192s ago] {'id': UUID('9e15232f-da4a-4cdd-b927-717de71d8aa4'), 'session_id': UUID('6cde4830-c940-49e4-bf49-d1c86115decc'), 'content': "The most recent information available indicates that IBM's revenue for 2022 was approximately $73.6 billion. Please verify with the latest financial  ... (116 characters truncated) ... tions: <https://www.ibm.com/investor-relations/financial-information/annual-reports.html>\n\nNote: The revenue figures are subject to change with the", 'role': <MessageRole.ASSISTANT: 'assistant'>, 'message_type': <MessageType.ANSWER: 'answer'>, 'created_at': datetime.datetime(2025, 10, 24, 22, 51, 19, 463214), 'message_metadata': '{"source_documents": ["2020-ibm-annual-report.pdf"], "search_metadata": {"enhanced_question": "what was ibm revenue? (in the context of Assistant, Us ... (1241 characters truncated) ... tion_date": null, "mod_date": null, "total_pages": null, "total_chunks": null, "score": 0.7011913657188416, "page_number": 19}}], "cot_output": null}', 'token_count': 58, 'execution_time': 13.164815664291382}
+2025-10-24 18:51:19,464 INFO sqlalchemy.engine.Engine COMMIT
+2025-10-24 18:51:19,464 - sqlalchemy.engine.Engine - INFO - COMMIT
+2025-10-24 18:51:19,465 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2025-10-24 18:51:19,465 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2025-10-24 18:51:19,465 INFO sqlalchemy.engine.Engine SELECT conversation_messages.id, conversation_messages.session_id, conversation_messages.content, conversation_messages.role, conversation_messages.message_type, conversation_messages.created_at, conversation_messages.message_metadata, conversation_messages.token_count, conversation_messages.execution_time 
+FROM conversation_messages 
+WHERE conversation_messages.id = %(pk_1)s::UUID
+2025-10-24 18:51:19,465 - sqlalchemy.engine.Engine - INFO - SELECT conversation_messages.id, conversation_messages.session_id, conversation_messages.content, conversation_messages.role, conversation_messages.message_type, conversation_messages.created_at, conversation_messages.message_metadata, conversation_messages.token_count, conversation_messages.execution_time 
+FROM conversation_messages 
+WHERE conversation_messages.id = %(pk_1)s::UUID
+2025-10-24 18:51:19,465 INFO sqlalchemy.engine.Engine [cached since 192s ago] {'pk_1': UUID('9e15232f-da4a-4cdd-b927-717de71d8aa4')}
+2025-10-24 18:51:19,465 - sqlalchemy.engine.Engine - INFO - [cached since 192s ago] {'pk_1': UUID('9e15232f-da4a-4cdd-b927-717de71d8aa4')}
+2025-10-24 18:51:19,467 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: from_db_message() called
+2025-10-24 18:51:19,467 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: message.token_count=58 (type: <class 'int'>)
+2025-10-24 18:51:19,467 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: message.id=9e15232f-da4a-4cdd-b927-717de71d8aa4
+2025-10-24 18:51:19,467 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: message.message_metadata type: <class 'dict'>
+2025-10-24 18:51:19,467 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: message.message_metadata keys: ['source_documents', 'search_metadata', 'cot_used', 'conversation_aware', 'execution_time', 'token_count', 'model_used', 'confidence_score', 'context_length', 'token_analysis', 'sources', 'cot_output']
+2025-10-24 18:51:19,467 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: Attempting to create MessageMetadata with keys: ['source_documents', 'search_metadata', 'cot_used', 'conversation_aware', 'execution_time', 'token_count', 'model_used', 'confidence_score', 'context_length', 'token_analysis', 'sources', 'cot_output']
+2025-10-24 18:51:19,467 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: Successfully created MessageMetadata
+2025-10-24 18:51:19,467 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: Reconstructed token_analysis from metadata
+2025-10-24 18:51:19,468 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: Reconstructed sources from metadata
+2025-10-24 18:51:19,468 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: Reconstructed cot_output from metadata
+2025-10-24 18:51:19,468 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: data dict token_count=58
+2025-10-24 18:51:19,468 - conversation.schema - INFO - 🔍 SCHEMA DEBUG: result.token_count=58
+2025-10-24 18:51:19,468 - rag_solution.services.conversation_service - INFO - 📊 CONVERSATION SERVICE: Assistant message created with token_count=58
+2025-10-24 18:51:19,468 - rag_solution.services.conversation_service - INFO - 📊 CONVERSATION SERVICE: Assistant message metadata keys: ['source_documents', 'search_metadata', 'cot_used', 'conversation_aware', 'execution_time', 'token_count', 'model_used', 'confidence_score', 'context_length', 'token_analysis', 'sources', 'cot_output']
+2025-10-24 18:51:19,468 - rag_solution.services.conversation_service - INFO - 📊 CONVERSATION SERVICE: Added 1 sources to response
+2025-10-24 18:51:19,468 - rag_solution.services.conversation_service - INFO - 🎉 CONVERSATION SERVICE: Returning assistant message with full metadata (including token_analysis), sources, and CoT
+2025-10-24 18:51:19,469 INFO sqlalchemy.engine.Engine ROLLBACK
+2025-10-24 18:51:19,469 - sqlalchemy.engine.Engine - INFO - ROLLBACK
+2025-10-24 18:51:19,469 - rag_solution.file_management.database - INFO - Database session closed.
+INFO:     127.0.0.1:0 - "POST /api/chat/sessions/6cde4830-c940-49e4-bf49-d1c86115decc/process HTTP/1.1" 200 OK
+2025-10-24 18:51:33,679 - rag_solution.router.websocket_router - INFO - WebSocket: Received message from user 34932a40-5ce3-4a12-9cce-3abb9510e22f

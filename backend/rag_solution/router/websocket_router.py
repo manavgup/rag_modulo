@@ -22,6 +22,7 @@ from core.mock_auth import (
     is_bypass_mode_active,
     is_mock_token,
 )
+from rag_solution.core.exceptions import NotFoundError
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.conversation_schema import (
     ConversationMessageInput,
@@ -233,7 +234,7 @@ async def authenticate_websocket(websocket: WebSocket, db: Session) -> dict[str,
             user_data = create_mock_user_data(str(user_id))
             logger.info("WebSocket: Using mock user: %s", str(user_id))
             return user_data
-        except (ValueError, KeyError, AttributeError) as e:
+        except (ValueError, KeyError, AttributeError, NotFoundError) as e:
             logger.error("WebSocket: Failed to create mock user: %s", str(e))
             return None
 

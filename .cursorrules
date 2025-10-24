@@ -1,0 +1,173 @@
+# RAG Modulo Test Consolidation Rules
+
+## Critical Finding: Schema Validation Duplication
+**Atomic tests duplicate Pydantic validation that happens automatically in unit tests.**
+- ~200+ atomic tests can be deleted
+- Unit tests already trigger all schema validation when creating input objects
+- Keep only atomic tests for complex custom validators or edge cases
+
+## Test Structure After Consolidation
+
+```
+tests/
+├── unit/              # ~600 tests (517 unit + select atomic edge cases)
+│   ├── services/      # Service tests with business logic
+│   ├── schemas/       # ONLY complex validation edge cases
+│   └── conftest.py    # All mocked fixtures
+├── integration/       # 74 tests (keep as is)
+│   └── conftest.py    # Real DB fixtures
+└── e2e/              # 48 tests (keep as is)
+    └── conftest.py    # API client fixtures
+```
+
+## Consolidation Rules
+
+### DELETE These Atomic Tests:
+1. **Basic Pydantic validation** (EmailStr, min_length, max_length)
+2. **Required field checks** (automatically validated)
+3. **Simple type validation** (str, int, bool)
+4. **Basic serialization tests** (model_dump())
+
+### KEEP These Atomic Tests (Move to unit/schemas/):
+1. **Complex custom validators** (@field_validator)
+2. **Cross-field validation** (password != username)
+3. **Regex pattern edge cases**
+4. **Business logic validation** (not handled by Pydantic)
+
+## When Analyzing Tests
+
+### Step 1: Identify Redundant Schema Tests
+```python
+# REDUNDANT (delete):
+def test_user_email_validation():
+    user = UserInput(email="test@example.com")  # Pydantic validates
+    assert user.email == "test@example.com"
+
+# KEEP (edge case):
+def test_email_unicode_edge_case():
+    # Tests something Pydantic might miss
+    user = UserInput(email="用户@例子.cn")
+```
+
+### Step 2: Check What Unit Tests Already Cover
+If a unit test does:
+```python
+user_input = UserInput(email="test@example.com", name="Test")
+```
+It already tests:
+- EmailStr validation
+- Required fields
+- String types
+- Serialization
+
+No need for separate atomic tests!
+
+## Consolidation Execution Plan
+
+### Phase 1: Analyze Schema Constraints
+```
+Find all Field() definitions with validators:
+- min_length, max_length → Delete atomic tests
+- EmailStr → Delete atomic tests
+- gt, ge, lt, le → Keep edge case tests only
+- pattern/regex → Keep complex pattern tests
+```
+
+### Phase 2: Delete Redundant Tests
+```
+From atomic/:
+- test_user_validation.py → DELETE (basic validation)
+- test_user_service.py → KEEP business logic, DELETE schema tests
+- test_team_validation.py → DELETE (basic validation)
+- test_search_validation.py → DELETE most, KEEP complex queries
+```
+
+### Phase 3: Move Valuable Tests
+```
+atomic/ → unit/schemas/ (only edge cases)
+- test_token_usage_schemas_tdd.py → KEEP (good edge cases)
+- Complex validators from other files → KEEP
+```
+
+### Phase 4: Final Structure
+```
+tests/unit/
+├── services/
+│   ├── test_user_service.py (business logic + indirect schema validation)
+│   ├── test_collection_service.py
+│   └── test_search_service.py
+├── schemas/
+│   └── test_edge_cases.py (ONLY complex validation not covered by Pydantic)
+└── conftest.py
+```
+
+## Test Classification
+
+### What Goes Where:
+- **unit/services/**: Service methods, business logic (triggers schema validation)
+- **unit/schemas/**: ONLY complex edge cases Pydantic doesn't handle
+- **integration/**: Real DB workflows
+- **e2e/**: Full API tests
+
+### Example Classification:
+```python
+# unit/services/test_user_service.py
+def test_create_user():
+    # This ALREADY tests email validation, required fields, etc.
+    user = service.create(UserInput(email="test@test.com"))
+
+# unit/schemas/test_edge_cases.py
+def test_email_with_multiple_plus_signs():
+    # Edge case Pydantic might not handle well
+    UserInput(email="test+tag1+tag2@example.com")
+```
+
+## Coverage Impact
+
+**Before Consolidation:**
+- 284 atomic tests (mostly redundant)
+- 517 unit tests
+- Total: 801 tests with ~50% duplication
+
+**After Consolidation:**
+- ~20 edge case tests (from atomic)
+- 517 unit tests
+- Total: ~537 tests with 0% duplication
+- **Same coverage, 33% fewer tests!**
+
+## Commands for Cursor
+
+### Analyze Duplication:
+```
+@backend/tests/atomic @backend/rag_solution/schemas
+For each atomic test, tell me:
+1. What Pydantic constraint it tests
+2. If unit tests already cover this
+3. Keep or Delete?
+```
+
+### Execute Consolidation:
+```
+1. Delete atomic/test_user_validation.py (all basic validation)
+2. Delete atomic/test_team_validation.py (all basic validation)
+3. Move valuable edge cases to unit/schemas/test_edge_cases.py
+4. Update imports in remaining tests
+```
+
+## Important: Don't Over-Delete!
+
+Keep tests that:
+- Document non-obvious behavior
+- Test complex regex patterns
+- Validate business rules beyond Pydantic
+- Test error messages users will see
+- Cover security-related validation
+
+## Final Checklist
+
+- [ ] Identify all Pydantic constraints in schemas
+- [ ] Map which atomic tests duplicate these
+- [ ] Delete redundant atomic tests
+- [ ] Move edge cases to unit/schemas/
+- [ ] Run tests to ensure nothing broke
+- [ ] Verify coverage remains >70%

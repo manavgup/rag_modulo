@@ -210,3 +210,34 @@ class SystemInitializationService:
             logger.error(f"Error setting up WatsonX models: {e!s}")
             if raise_on_error:
                 raise
+
+    def initialize_default_users(self, raise_on_error: bool = False) -> bool:
+        """Initialize default users based on environment configuration.
+
+        In development (SKIP_AUTH=true), creates the mock user for testing.
+        This ensures users are automatically recreated after database wipes.
+
+        Args:
+            raise_on_error: Whether to raise exceptions on errors
+
+        Returns:
+            bool: True if user initialization succeeded or was skipped, False otherwise
+        """
+        try:
+            # Only create mock user when authentication is bypassed
+            if self.settings.skip_auth:
+                from core.mock_auth import ensure_mock_user_exists
+
+                logger.info("Initializing mock user for development (SKIP_AUTH=true)")
+                user_id = ensure_mock_user_exists(self.db, self.settings)
+                logger.info(f"Mock user initialized successfully: {user_id}")
+                return True
+            else:
+                logger.info("Authentication enabled, skipping mock user initialization")
+                return True
+
+        except Exception as e:
+            logger.error(f"Error initializing default users: {e!s}")
+            if raise_on_error:
+                raise
+            return False

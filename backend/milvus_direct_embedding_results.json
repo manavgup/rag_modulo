@@ -1,0 +1,51 @@
+[
+  {
+    "model": "ibm-slate-125m-english-rtrvr",
+    "dimension": 768,
+    "revenue_rank": 1,
+    "revenue_score": 0.8918645977973938,
+    "description": "IBM Slate 125M retriever (PRODUCTION)"
+  },
+  {
+    "model": "ibm-slate-30m-english-rtrvr",
+    "dimension": 384,
+    "revenue_rank": 1,
+    "revenue_score": 0.9275553226470947,
+    "description": "IBM Slate 30M retriever (smaller)"
+  },
+  {
+    "model": "all-MiniLM-L6-v2",
+    "dimension": 384,
+    "revenue_rank": 1,
+    "revenue_score": 0.8151805400848389,
+    "description": "Fast, lightweight model"
+  },
+  {
+    "model": "all-mpnet-base-v2",
+    "dimension": 768,
+    "revenue_rank": 1,
+    "revenue_score": 0.8445457816123962,
+    "description": "High quality general purpose"
+  },
+  {
+    "model": "paraphrase-multilingual-MiniLM-L12-v2",
+    "dimension": 384,
+    "revenue_rank": 1,
+    "revenue_score": 0.8158401250839233,
+    "description": "Multilingual support"
+  },
+  {
+    "model": "all-distilroberta-v1",
+    "dimension": 768,
+    "revenue_rank": 1,
+    "revenue_score": 0.6922871470451355,
+    "description": "DistilRoBERTa based"
+  },
+  {
+    "model": "multi-qa-MiniLM-L6-cos-v1",
+    "dimension": 384,
+    "revenue_rank": 2,
+    "revenue_score": 0.7908200025558472,
+    "description": "Optimized for Q&A"
+  }
+]

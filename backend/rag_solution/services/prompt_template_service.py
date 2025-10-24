@@ -226,11 +226,47 @@ class PromptTemplateService:
 
     def _format_prompt_with_template(self, template: PromptTemplateBase, variables: dict[str, Any]) -> str:
         """Internal method to format prompt with a template object."""
+        # CONTEXT TRACE #8: Log template variables before formatting
+        import logging
+
+        logger = logging.getLogger("services.prompt_template")
+
+        logger.info("=" * 80)
+        logger.info("CONTEXT TRACE #8: PromptTemplateService._format_prompt_with_template()")
+        logger.info("CONTEXT TRACE #8: template.template_format: %s", template.template_format)
+        logger.info("CONTEXT TRACE #8: template.system_prompt: %s", template.system_prompt)
+        logger.info("CONTEXT TRACE #8: variables keys: %s", list(variables.keys()) if variables else [])
+
+        if variables:
+            for key, value in variables.items():
+                if isinstance(value, str):
+                    logger.info(
+                        "CONTEXT TRACE #8: variable '%s': %d chars, preview: %s...",
+                        key,
+                        len(value),
+                        value[:200] if len(value) > 200 else value,
+                    )
+                elif isinstance(value, list):
+                    logger.info("CONTEXT TRACE #8: variable '%s': list with %d items", key, len(value))
+                else:
+                    logger.info("CONTEXT TRACE #8: variable '%s': type %s", key, type(value).__name__)
+
         parts = []
         if template.system_prompt:
             parts.append(str(template.system_prompt))
-        parts.append(template.template_format.format(**variables))
-        return "\n\n".join(parts)
+
+        formatted_template = template.template_format.format(**variables)
+        parts.append(formatted_template)
+
+        final_prompt = "\n\n".join(parts)
+        logger.info("CONTEXT TRACE #8: FINAL FORMATTED PROMPT LENGTH: %d chars", len(final_prompt))
+        if len(final_prompt) > 2000:
+            logger.warning("CONTEXT TRACE #8: ⚠️  LARGE PROMPT DETECTED: %d chars", len(final_prompt))
+        logger.info("CONTEXT TRACE #8: formatted_prompt preview (first 400 chars): %s...", final_prompt[:400])
+        logger.info("CONTEXT TRACE #8: formatted_prompt preview (last 200 chars): ...%s", final_prompt[-200:])
+        logger.info("=" * 80)
+
+        return final_prompt
 
     # Legacy method for backward compatibility - will be deprecated
     def format_prompt(self, template_or_id: UUID4 | PromptTemplateBase, variables: dict[str, Any]) -> str:

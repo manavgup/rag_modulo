@@ -5,6 +5,7 @@ for advanced document processing capabilities including AI-powered table extract
 layout analysis, and reading order detection.
 """
 
+import asyncio
 import logging
 import os
 import uuid
@@ -94,8 +95,9 @@ class DoclingProcessor(BaseProcessor):
             if self.converter is None:
                 raise ImportError("Docling DocumentConverter not available")
 
-            # Convert document using Docling
-            result = self.converter.convert(file_path)
+            # Convert document using Docling in a background thread to avoid blocking the event loop
+            # Docling's convert() is CPU-intensive and synchronous, so we run it in a thread pool
+            result = await asyncio.to_thread(self.converter.convert, file_path)
 
             # Extract metadata
             metadata = self._extract_docling_metadata(result.document, file_path)
@@ -193,8 +195,9 @@ class DoclingProcessor(BaseProcessor):
         chunks: list[DocumentChunk] = []
         token_counts: list[int] = []  # Track token counts for statistics
 
-        # Use Docling's hybrid chunker - it handles the entire document intelligently
-        docling_chunks = list(self.chunker.chunk(dl_doc=docling_doc))
+        # Use Docling's hybrid chunker in a background thread - it's CPU-intensive
+        # Run the chunking operation in thread pool to avoid blocking the event loop
+        docling_chunks = await asyncio.to_thread(lambda: list(self.chunker.chunk(dl_doc=docling_doc)))
 
         logger.info(f"Docling HybridChunker created {len(docling_chunks)} chunks")
 

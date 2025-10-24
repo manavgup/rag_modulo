@@ -148,6 +148,10 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
             system_init_service = SystemInitializationService(db, get_settings())
             providers = system_init_service.initialize_providers(raise_on_error=True)
             logger.info("Initialized providers: %s", ", ".join(p.name for p in providers))
+
+            # Initialize default users (mock user in development mode)
+            system_init_service.initialize_default_users()
+            logger.info("Default users initialized")
         except StopIteration:
             logger.error("Failed to get database session")
             return
