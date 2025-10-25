@@ -19,6 +19,7 @@ class ChunkingStrategy(str, Enum):
     SEMANTIC = "semantic"
     OVERLAP = "overlap"
     PARAGRAPH = "paragraph"
+    SENTENCE = "sentence"
 
 
 class RetrieverType(str, Enum):
@@ -67,14 +68,6 @@ class PipelineConfigBase(BaseModel):
         use_enum_values=True,
         json_encoders={UUID4: str},
     )
-
-    @field_validator("embedding_model")
-    @classmethod
-    def validate_embedding_model(cls, v: str) -> str:
-        """Validate embedding model name format."""
-        if not any(prefix in v for prefix in ["sentence-transformers/", "openai/", "google/", "microsoft/"]):
-            raise ValueError("Invalid embedding model format")
-        return v
 
     @model_validator(mode="after")
     def validate_hybrid_retriever_config(self) -> "PipelineConfigBase":
