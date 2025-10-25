@@ -27,8 +27,9 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-# Add backend to path (script is in backend/scripts/, parent is backend/)
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add backend to path (script is in scripts/, backend is sibling directory)
+backend_path = Path(__file__).parent.parent / "backend"
+sys.path.insert(0, str(backend_path))
 
 from pymilvus import connections, utility
 from sqlalchemy import text
@@ -306,9 +307,9 @@ def wipe_local_files(dry_run: bool = False):
         if Path(podcast_path_str).is_absolute():
             podcast_storage_path = Path(podcast_path_str)
         else:
-            # Relative to backend directory (script is in backend/scripts/)
-            backend_dir = Path(__file__).parent.parent
-            podcast_storage_path = backend_dir / podcast_path_str
+            # Relative to project root (script is in scripts/)
+            project_root = Path(__file__).parent.parent
+            podcast_storage_path = project_root / podcast_path_str
 
         if podcast_storage_path.exists():
             # Calculate size before deletion

@@ -20,8 +20,9 @@ import json
 import sys
 from pathlib import Path
 
-# Add backend to path (script is in backend/scripts/, parent is backend/)
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add backend to path (script is in scripts/, backend is sibling directory)
+backend_path = Path(__file__).parent.parent / "backend"
+sys.path.insert(0, str(backend_path))
 
 
 from core.config import get_settings
