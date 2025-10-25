@@ -13,7 +13,6 @@ from sqlalchemy.orm import Session
 
 from core.config import Settings, get_settings
 from core.identity_service import IdentityService
-from rag_solution.core.exceptions import NotFoundError
 from rag_solution.schemas.user_schema import UserInput
 from rag_solution.services.user_service import UserService
 
@@ -107,18 +106,17 @@ def is_bypass_mode_active() -> bool:
 
 
 def ensure_mock_user_exists(db: Session, settings: Settings, user_key: str = "default") -> UUID:  # pylint: disable=unused-argument
-    """
-    Ensure a mock user exists with full initialization.
+    """Ensure a mock user exists using standard user creation flow.
 
-    This function uses the UserService to properly create the user
-    with all required components:
-    - User record
+    This function uses the UserService.get_or_create_user() method to maintain
+    consistency with how OIDC and API users are created. The get_or_create_user()
+    method automatically handles:
+    - User record creation/retrieval
     - Prompt templates (RAG_QUERY, QUESTION_GENERATION, PODCAST_GENERATION)
     - LLM provider assignment
     - LLM parameters
     - Pipeline configuration
-
-    Uses settings for configuration to ensure consistency across the application.
+    - Defensive reinitialization if defaults are missing
 
     Args:
         db: Database session
@@ -127,39 +125,26 @@ def ensure_mock_user_exists(db: Session, settings: Settings, user_key: str = "de
 
     Returns:
         UUID: The user's ID
-    """
-    # Get mock user configuration from settings (not os.getenv directly)
-    # This ensures consistency with create_mock_user_data() and get_current_user()
-    config = {
-        "ibm_id": os.getenv("MOCK_USER_IBM_ID", "mock-user-ibm-id"),  # Still use env for IBM ID
-        "email": settings.mock_user_email,
-        "name": settings.mock_user_name,
-        "role": os.getenv("MOCK_USER_ROLE", "admin"),  # Still use env for role
-    }
 
+    Note:
+        This method now uses the same code path as OIDC users (get_or_create_user)
+        instead of having separate logic for mock users. This ensures consistent
+        behavior across all authentication methods.
+    """
     try:
         user_service = UserService(db, settings)
 
-        # Try to get existing user first
-        try:
-            existing_user = user_service.user_repository.get_by_ibm_id(str(config["ibm_id"]))
-            logger.debug("Mock user already exists: %s", existing_user.id)
-            return existing_user.id
-        except (NotFoundError, ValueError, AttributeError, TypeError):
-            # User doesn't exist, proceed to create
-            logger.debug("Mock user not found, will create new user")
-
-        # Create new user with full initialization
+        # Use standardized user creation flow (same as OIDC/API users)
         user_input = UserInput(
-            ibm_id=str(config["ibm_id"]),
-            email=str(config["email"]),
-            name=str(config["name"]),
-            role=str(config["role"]),
+            ibm_id=os.getenv("MOCK_USER_IBM_ID", "mock-user-ibm-id"),
+            email=settings.mock_user_email,
+            name=settings.mock_user_name,
+            role=os.getenv("MOCK_USER_ROLE", "admin"),
         )
 
-        logger.info("Creating mock user: %s", config["email"])
-        user = user_service.create_user(user_input)
-        logger.info("Mock user created successfully: %s", user.id)
+        logger.info("Ensuring mock user exists: %s", user_input.email)
+        user = user_service.get_or_create_user(user_input)
+        logger.info("Mock user ready: %s", user.id)
 
         return user.id
 

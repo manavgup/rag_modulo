@@ -42,10 +42,12 @@ class TestUserServiceTDD:
         with (
             patch("rag_solution.services.user_service.UserRepository"),
             patch("rag_solution.services.user_service.UserProviderService"),
+            patch("rag_solution.services.user_service.PromptTemplateService"),
         ):
             service = UserService(mock_db, mock_settings)
             service.user_repository = Mock()
             service.user_provider_service = Mock()
+            service.prompt_template_service = Mock()
             return service
 
     def test_create_user_success_red_phase(self, service, mock_db):
@@ -151,7 +153,7 @@ class TestUserServiceTDD:
         mock_db.rollback.assert_called_once()
 
     def test_get_or_create_user_existing_user_red_phase(self, service):
-        """RED: Test get_or_create when user already exists."""
+        """RED: Test get_or_create when user already exists with sufficient templates."""
         user_input = UserInput(
             ibm_id="existing_user",
             email="existing@example.com",
@@ -172,11 +174,15 @@ class TestUserServiceTDD:
         )
 
         service.user_repository.get_by_ibm_id.return_value = existing_user
+        # Mock that user has 3 templates (sufficient)
+        service.prompt_template_service.get_user_templates.return_value = [Mock(), Mock(), Mock()]
 
         result = service.get_or_create_user(user_input)
 
         assert result is existing_user
         service.user_repository.get_by_ibm_id.assert_called_once_with("existing_user")
+        service.prompt_template_service.get_user_templates.assert_called_once_with(existing_user.id)
+        service.user_provider_service.initialize_user_defaults.assert_not_called()
         service.user_repository.create.assert_not_called()
 
     def test_get_or_create_user_new_user_red_phase(self, service, mock_db):  # noqa: ARG002
@@ -211,6 +217,69 @@ class TestUserServiceTDD:
         service.user_repository.get_by_ibm_id.assert_called_once_with("new_user")
         service.user_repository.create.assert_called_once_with(user_input)
 
+    def test_get_or_create_user_missing_templates_reinitializes(self, service):
+        """Test that existing user with missing templates triggers reinitialization."""
+        user_input = UserInput(
+            ibm_id="user1", email="user@test.com", name="User", role="user", preferred_provider_id=None
+        )
+        user_id = uuid4()
+        existing_user = UserOutput(
+            id=user_id,
+            ibm_id="user1",
+            email="user@test.com",
+            name="User",
+            role="user",
+            preferred_provider_id=None,
+            created_at="2024-01-01T00:00:00Z",
+            updated_at="2024-01-01T00:00:00Z",
+        )
+
+        # Mock existing user but with < 3 templates
+        service.user_repository.get_by_ibm_id.return_value = existing_user
+        service.prompt_template_service.get_user_templates.return_value = [Mock()]  # Only 1 template
+
+        # Mock successful reinitialization
+        service.user_provider_service.initialize_user_defaults.return_value = (
+            Mock(),  # provider
+            [Mock(), Mock(), Mock()],  # 3 templates
+            Mock(),  # parameters
+        )
+
+        result = service.get_or_create_user(user_input)
+
+        # Assert reinitialization was triggered
+        assert result is existing_user
+        service.prompt_template_service.get_user_templates.assert_called_once_with(existing_user.id)
+        service.user_provider_service.initialize_user_defaults.assert_called_once_with(existing_user.id)
+
+    def test_get_or_create_user_with_sufficient_templates_skips_reinit(self, service):
+        """Test that existing user with 3+ templates skips reinitialization."""
+        user_input = UserInput(
+            ibm_id="user1", email="user@test.com", name="User", role="user", preferred_provider_id=None
+        )
+        user_id = uuid4()
+        existing_user = UserOutput(
+            id=user_id,
+            ibm_id="user1",
+            email="user@test.com",
+            name="User",
+            role="user",
+            preferred_provider_id=None,
+            created_at="2024-01-01T00:00:00Z",
+            updated_at="2024-01-01T00:00:00Z",
+        )
+
+        service.user_repository.get_by_ibm_id.return_value = existing_user
+        # User has 3 templates - sufficient
+        service.prompt_template_service.get_user_templates.return_value = [Mock(), Mock(), Mock()]
+
+        result = service.get_or_create_user(user_input)
+
+        # Assert reinitialization was NOT triggered
+        assert result is existing_user
+        service.prompt_template_service.get_user_templates.assert_called_once_with(existing_user.id)
+        service.user_provider_service.initialize_user_defaults.assert_not_called()
+
     def test_get_or_create_user_by_fields_red_phase(self, service):
         """RED: Test get_or_create_user_by_fields convenience method."""
         existing_user = UserOutput(
@@ -225,6 +294,8 @@ class TestUserServiceTDD:
         )
 
         service.user_repository.get_by_ibm_id.return_value = existing_user
+        # Mock that user has 3 templates (sufficient)
+        service.prompt_template_service.get_user_templates.return_value = [Mock(), Mock(), Mock()]
 
         result = service.get_or_create_user_by_fields(
             ibm_id="field_user", email="field@example.com", name="Field User", role="admin"
