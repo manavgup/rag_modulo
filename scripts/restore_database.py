@@ -169,8 +169,12 @@ def restore_milvus_info(backup_path: Path, dry_run: bool = False):
         print(f"✗ Error reading Milvus backup: {e}")
 
 
-def restore_postgresql_instructions(backup_path: Path):
-    """Display instructions for PostgreSQL restore."""
+def restore_postgresql_instructions(backup_path: Path) -> None:
+    """Display instructions for PostgreSQL restore.
+
+    Args:
+        backup_path: Path to the backup directory containing postgres_backup.sql
+    """
     print("\n" + "=" * 80)
     print("POSTGRESQL RESTORE INSTRUCTIONS")
     print("=" * 80)
@@ -179,12 +183,28 @@ def restore_postgresql_instructions(backup_path: Path):
     if pg_backup_file.exists():
         print(f"  ✓ PostgreSQL dump found: {pg_backup_file}")
         print()
-        print("  To restore:")
-        print(f"    psql -h {settings.collectiondb_host} \\")
-        print(f"         -p {settings.collectiondb_port} \\")
-        print(f"         -U {settings.collectiondb_user} \\")
-        print(f"         -d {settings.collectiondb_database} \\")
-        print(f"         -f {pg_backup_file}")
+        print("  To restore (custom format backup):")
+        print()
+        print("  Option 1: Using pg_restore with PGPASSWORD (recommended):")
+        print(f"    export PGPASSWORD='{settings.collectiondb_password}'")
+        print(f"    pg_restore -h {settings.collectiondb_host} \\")
+        print(f"              -p {settings.collectiondb_port} \\")
+        print(f"              -U {settings.collectiondb_user} \\")
+        print(f"              -d {settings.collectiondb_database} \\")
+        print(f"              -F c \\")
+        print(f"              --clean --if-exists \\")
+        print(f"              {pg_backup_file}")
+        print(f"    unset PGPASSWORD")
+        print()
+        print("  Option 2: Using .pgpass file (more secure for production):")
+        print(f"    echo '{settings.collectiondb_host}:{settings.collectiondb_port}:{settings.collectiondb_database}:{settings.collectiondb_user}:<password>' >> ~/.pgpass")
+        print("    chmod 600 ~/.pgpass")
+        print(f"    pg_restore -h {settings.collectiondb_host} -p {settings.collectiondb_port} -U {settings.collectiondb_user} -d {settings.collectiondb_database} -F c {pg_backup_file}")
+        print()
+        print("  ⚠️  SECURITY NOTE:")
+        print("  - PGPASSWORD is convenient but exposes password in process list")
+        print("  - For production, use .pgpass file or connection service file")
+        print("  - Always unset PGPASSWORD after use to avoid leaking credentials")
         print()
     else:
         print("  ⚠️  No PostgreSQL dump found in backup")

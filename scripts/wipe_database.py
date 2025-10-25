@@ -21,11 +21,14 @@ Best Practices Implemented:
 
 import argparse
 import json
+import logging
 import os
 import shutil
+import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
 # Add backend to path (script is in scripts/, backend is sibling directory)
 backend_path = Path(__file__).parent.parent / "backend"
@@ -35,12 +38,41 @@ from pymilvus import connections, utility
 from sqlalchemy import text
 
 from core.config import get_settings
+from core.logging_utils import get_logger
 from rag_solution.file_management.database import engine
 
+# Module constants
+DEFAULT_MILVUS_PORT = 19530
+DEFAULT_STATEMENT_TIMEOUT_SECONDS = 30
+BACKUP_DIR_NAME = "backups"
+POSTGRES_BACKUP_FORMAT = "custom"  # PostgreSQL custom format for pg_dump
+
 settings = get_settings()
+logger = get_logger(__name__)
 
 
-def check_environment_safety():
+def safe_quote_identifier(identifier: str) -> str:
+    """Safely quote a PostgreSQL identifier to prevent SQL injection.
+
+    Args:
+        identifier: The identifier name (table, column, etc.)
+
+    Returns:
+        Quoted identifier safe for SQL execution
+
+    Note:
+        This validates that the identifier contains only safe characters,
+        then wraps it in double quotes as per PostgreSQL standards.
+    """
+    # Validate identifier contains only alphanumeric, underscore, and dollar sign
+    # These are the only characters allowed in PostgreSQL identifiers
+    if not all(c.isalnum() or c in ("_", "$") for c in identifier):
+        raise ValueError(f"Invalid identifier: {identifier}")
+    # Double-quote the identifier (PostgreSQL standard)
+    return f'"{identifier}"'
+
+
+def check_environment_safety() -> None:
     """Prevent accidental wipes in production environment."""
     environment = os.getenv("ENVIRONMENT", "development").lower()
 
@@ -73,8 +105,15 @@ def check_environment_safety():
         sys.exit(1)
 
 
-def create_backup(backup_dir: Path):
-    """Create timestamped backup of critical data before wiping."""
+def create_backup(backup_dir: Path) -> Path:
+    """Create timestamped backup of critical data before wiping.
+
+    Args:
+        backup_dir: Directory where backups will be stored
+
+    Returns:
+        Path to the created backup directory
+    """
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     backup_path = backup_dir / f"backup_{timestamp}"
     backup_path.mkdir(parents=True, exist_ok=True)
@@ -89,14 +128,42 @@ def create_backup(backup_dir: Path):
         pg_backup_file = backup_path / "postgres_backup.sql"
         print(f"  Creating PostgreSQL dump: {pg_backup_file.name}")
 
-        # Using pg_dump via docker if running in containers
+        # Using pg_dump to create backup
         db_host = settings.collectiondb_host
         db_port = settings.collectiondb_port
         db_name = settings.collectiondb_database
         db_user = settings.collectiondb_user
+        db_password = settings.collectiondb_password
 
-        # Note: This requires pg_dump to be installed or running via docker
-        print("  (Skipping PostgreSQL backup - requires manual pg_dump setup)")
+        try:
+            # Set PGPASSWORD environment variable for authentication
+            # This is the standard PostgreSQL way to pass passwords to pg_dump
+            env = os.environ.copy()
+            env["PGPASSWORD"] = db_password
+
+            # Run pg_dump with custom format (allows parallel restore)
+            pg_dump_cmd = [
+                "pg_dump",
+                "-h", db_host,
+                "-p", str(db_port),
+                "-U", db_user,
+                "-d", db_name,
+                "-F", POSTGRES_BACKUP_FORMAT,
+                "-f", str(pg_backup_file),
+                "--verbose",
+            ]
+
+            subprocess.run(pg_dump_cmd, env=env, check=True, capture_output=True, text=True)
+            print(f"  ✓ PostgreSQL backup created: {pg_backup_file}")
+        except subprocess.CalledProcessError as e:
+            logger.error(f"PostgreSQL backup failed: {e}", extra={"stderr": e.stderr})
+            print(f"  ⚠️  PostgreSQL backup failed: {e}")
+            print(f"  stderr: {e.stderr}")
+            print("  Continuing with backup of other components...")
+        except FileNotFoundError:
+            logger.warning("pg_dump command not found - PostgreSQL client tools not installed")
+            print("  ⚠️  pg_dump not found. Install PostgreSQL client tools.")
+            print("  Continuing with backup of other components...")
 
         # 2. Backup Milvus collections metadata
         milvus_backup_file = backup_path / "milvus_collections.json"
@@ -104,18 +171,22 @@ def create_backup(backup_dir: Path):
 
         try:
             host = settings.milvus_host or "localhost"
-            port = settings.milvus_port or 19530
+            port = settings.milvus_port or DEFAULT_MILVUS_PORT
             connections.connect("backup", host=host, port=port)
-            collections = utility.list_collections()
+            try:
+                collections = utility.list_collections()
 
-            milvus_metadata = {"timestamp": timestamp, "collections": collections, "host": host, "port": port}
+                milvus_metadata = {"timestamp": timestamp, "collections": collections, "host": host, "port": port}
 
-            with open(milvus_backup_file, "w") as f:
-                json.dump(milvus_metadata, f, indent=2)
+                with open(milvus_backup_file, "w") as f:
+                    json.dump(milvus_metadata, f, indent=2)
 
-            connections.disconnect("backup")
-            print(f"  ✓ Backed up metadata for {len(collections)} Milvus collections")
+                logger.info(f"Backed up metadata for {len(collections)} Milvus collections")
+                print(f"  ✓ Backed up metadata for {len(collections)} Milvus collections")
+            finally:
+                connections.disconnect("backup")
         except Exception as e:
+            logger.error(f"Milvus backup failed: {e}", exc_info=True)
             print(f"  ⚠️  Milvus backup failed: {e}")
 
         # 3. Create backup manifest
@@ -135,15 +206,21 @@ def create_backup(backup_dir: Path):
         print(f"  To restore: See {backup_path}/manifest.json")
         print()
 
+        logger.info(f"Backup created successfully at {backup_path}")
         return backup_path
 
     except Exception as e:
+        logger.error(f"Backup creation failed: {e}", exc_info=True)
         print(f"✗ Backup creation failed: {e}")
         raise
 
 
-def wipe_milvus(dry_run: bool = False):
-    """Drop all collections from Milvus."""
+def wipe_milvus(dry_run: bool = False) -> None:
+    """Drop all collections from Milvus.
+
+    Args:
+        dry_run: If True, only preview operations without executing
+    """
     print("=" * 80)
     print("WIPING MILVUS" + (" (DRY RUN)" if dry_run else ""))
     print("=" * 80)
@@ -151,36 +228,38 @@ def wipe_milvus(dry_run: bool = False):
     try:
         # Connect to Milvus
         host = settings.milvus_host or "localhost"
-        port = settings.milvus_port or 19530
+        port = settings.milvus_port or DEFAULT_MILVUS_PORT
         connections.connect("default", host=host, port=port)
-        print(f"✓ Connected to Milvus at {host}:{port}")
+        try:
+            print(f"✓ Connected to Milvus at {host}:{port}")
 
-        # List all collections
-        collections = utility.list_collections()
-        print(f"  Found {len(collections)} collections: {collections}")
+            # List all collections
+            collections = utility.list_collections()
+            print(f"  Found {len(collections)} collections: {collections}")
 
-        # Drop each collection
-        if collections:
-            for collection_name in collections:
-                if dry_run:
-                    print(f"  [DRY RUN] Would drop collection: {collection_name}")
-                else:
-                    print(f"  Dropping collection: {collection_name}")
-                    utility.drop_collection(collection_name)
-            if not dry_run:
-                print(f"✓ Dropped {len(collections)} collections")
-        else:
-            print("  (No collections to drop)")
-
-        # Disconnect
-        connections.disconnect("default")
+            # Drop each collection
+            if collections:
+                for collection_name in collections:
+                    if dry_run:
+                        print(f"  [DRY RUN] Would drop collection: {collection_name}")
+                    else:
+                        print(f"  Dropping collection: {collection_name}")
+                        utility.drop_collection(collection_name)
+                if not dry_run:
+                    print(f"✓ Dropped {len(collections)} collections")
+            else:
+                print("  (No collections to drop)")
+        finally:
+            # Ensure connection is always closed
+            connections.disconnect("default")
 
     except Exception as e:
+        logger.error(f"Error wiping Milvus: {e}", exc_info=True)
         print(f"✗ Error wiping Milvus: {e}")
         raise
 
 
-def terminate_active_connections():
+def terminate_active_connections() -> None:
     """Terminate all active connections to the database except our own."""
     try:
         with engine.connect() as conn:
@@ -206,8 +285,12 @@ def terminate_active_connections():
         print(f"  ⚠️  Could not terminate connections: {e}")
 
 
-def wipe_postgres(dry_run: bool = False):
-    """Truncate all data tables from PostgreSQL, preserving schema."""
+def wipe_postgres(dry_run: bool = False) -> None:
+    """Truncate all data tables from PostgreSQL, preserving schema.
+
+    Args:
+        dry_run: If True, only preview operations without executing
+    """
     print("=" * 80)
     print("WIPING POSTGRESQL DATA" + (" (DRY RUN)" if dry_run else ""))
     print("=" * 80)
@@ -220,8 +303,9 @@ def wipe_postgres(dry_run: bool = False):
     try:
         # Connect to PostgreSQL via SQLAlchemy with statement timeout
         with engine.connect() as conn:
-            # Set statement timeout to 30 seconds to prevent hanging
-            conn.execute(text("SET statement_timeout = '30s'"))
+            # Set statement timeout to prevent hanging
+            timeout_sql = f"SET statement_timeout = '{DEFAULT_STATEMENT_TIMEOUT_SECONDS}s'"
+            conn.execute(text(timeout_sql))
             print(f"✓ Connected to PostgreSQL at {settings.collectiondb_host}:{settings.collectiondb_port}")
 
             # Get all table names
@@ -251,7 +335,9 @@ def wipe_postgres(dry_run: bool = False):
                         print(f"  [DRY RUN] Would truncate: {table}")
                     else:
                         print(f"  Truncating: {table}")
-                        conn.execute(text(f'TRUNCATE TABLE "{table}" RESTART IDENTITY CASCADE'))
+                        # Use safe quoting to prevent SQL injection
+                        quoted_table = safe_quote_identifier(table)
+                        conn.execute(text(f'TRUNCATE TABLE {quoted_table} RESTART IDENTITY CASCADE'))
 
                 if not dry_run:
                     conn.commit()
@@ -260,12 +346,17 @@ def wipe_postgres(dry_run: bool = False):
                 print("  (No tables to truncate)")
 
     except Exception as e:
+        logger.error(f"Error wiping PostgreSQL: {e}", exc_info=True)
         print(f"✗ Error wiping PostgreSQL: {e}")
         raise
 
 
-def wipe_local_files(dry_run: bool = False):
-    """Delete all uploaded files (collection documents and podcasts)."""
+def wipe_local_files(dry_run: bool = False) -> None:
+    """Delete all uploaded files (collection documents and podcasts).
+
+    Args:
+        dry_run: If True, only preview operations without executing
+    """
     print("=" * 80)
     print("WIPING LOCAL FILES" + (" (DRY RUN)" if dry_run else ""))
     print("=" * 80)
@@ -336,9 +427,11 @@ def wipe_local_files(dry_run: bool = False):
         if not dry_run:
             total_deleted = deleted_count + podcast_deleted
             total_mb = (total_size + podcast_size) / (1024 * 1024)
+            logger.info(f"Deleted {total_deleted} files ({total_mb:.2f} MB total)")
             print(f"\n✓ Deleted {total_deleted} files ({total_mb:.2f} MB total)")
 
     except Exception as e:
+        logger.error(f"Error wiping local files: {e}", exc_info=True)
         print(f"✗ Error wiping local files: {e}")
         raise
 

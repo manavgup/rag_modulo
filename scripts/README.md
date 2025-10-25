@@ -1,6 +1,6 @@
-# Backend Scripts
+# Database Management Scripts
 
-Utility scripts for database management and administration.
+Utility scripts for database management and administration located in `scripts/` (project root).
 
 ## Table of Contents
 
@@ -193,26 +193,31 @@ python scripts/restore_database.py --backup backup_20241024_153045 --dry-run
 ### Features
 
 **1. Backup Discovery**
+
 - Auto-scans backup directory for valid backups
 - Sorts by timestamp (newest first)
 - Validates backup integrity before restore
 
 **2. Interactive Selection**
+
 - Lists all available backups with metadata
 - Shows timestamp, environment, and size
 - User-friendly selection interface
 
 **3. Backup Validation**
+
 - Checks manifest.json exists
 - Validates Milvus metadata
 - Reports any missing components
 
 **4. Restore Guidance**
+
 - PostgreSQL: Exact `psql`/`pg_restore` commands
 - Milvus: Collection list and restore options
 - Clear next steps for post-restore verification
 
 **5. Multiple Restore Modes**
+
 - `--latest`: Auto-select most recent backup
 - `--backup NAME`: Restore specific backup
 - Interactive: Choose from list
@@ -256,16 +261,19 @@ curl http://localhost:8000/health
 ### Current Limitations
 
 **PostgreSQL Restore:**
+
 - ⚠️ Currently requires manual `pg_restore` or `psql` execution
 - Script provides exact commands to run
 - Full automation planned for future versions
 
 **Milvus Restore:**
+
 - ⚠️ Vector data requires Milvus Backup utility
 - Script shows collection metadata only
 - Options: Use Milvus Backup tool OR re-ingest documents
 
 **File Restore:**
+
 - Local files can be restored if backup directory is preserved
 - Automated file restore planned for future versions
 
