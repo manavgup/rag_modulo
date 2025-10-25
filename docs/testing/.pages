@@ -1,5 +1,6 @@
 title: 🧪 Testing
 nav:
   - index.md
+  - test-suite-guide.md
   - COMPREHENSIVE_TESTING_GUIDE.md
   - MANUAL_VALIDATION_CHECKLIST.md
