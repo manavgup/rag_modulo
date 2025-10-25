@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from core.config import Settings
 from core.custom_exceptions import LLMProviderError
 from rag_solution.schemas.llm_model_schema import ModelType
-from rag_solution.schemas.llm_provider_schema import LLMProviderInput, LLMProviderOutput
+from rag_solution.schemas.llm_provider_schema import LLMProviderInput, LLMProviderOutput, LLMProviderUpdate
 from rag_solution.services.system_initialization_service import SystemInitializationService
 
 
@@ -334,9 +334,12 @@ class TestSystemInitializationServiceUnit:
         result = service._initialize_single_provider("openai", config, existing_provider, False)
 
         assert result is updated_provider
-        service.llm_provider_service.update_provider.assert_called_once_with(
-            existing_provider.id, config.model_dump(exclude_unset=True)
-        )
+        # Verify update_provider was called with LLMProviderUpdate (not dict)
+        call_args = service.llm_provider_service.update_provider.call_args
+        assert call_args[0][0] == existing_provider.id
+        assert isinstance(call_args[0][1], LLMProviderUpdate)
+        assert call_args[0][1].name == "openai"
+        assert call_args[0][1].base_url == "https://api.openai.com"
 
     def test_initialize_single_provider_create_error_no_raise(self, service):
         """Test _initialize_single_provider handles create error with raise_on_error=False."""
