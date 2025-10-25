@@ -49,7 +49,7 @@ class TestPipelineService:
         assert any(keyword in error_message for keyword in ["empty", "query", "validation"])
 
     @pytest.mark.asyncio
-    async def test_execute_pipeline_with_none_query(self, pipeline_service: PipelineService):  # noqa: ARG002
+    async def test_execute_pipeline_with_none_query(self, pipeline_service: PipelineService):
         """Test execute_pipeline with None query - should fail at Pydantic validation."""
         # This test should fail at SearchInput creation, not at pipeline execution
         with pytest.raises(Exception) as exc_info:

@@ -3,6 +3,7 @@
 ## Executive Summary
 
 **Tests Created:** 33 comprehensive tests exposing fundamental problems
+
 - **Atomic tests:** 12 tests documenting duration calculation gaps
 - **Unit tests (duration control):** 11 tests exposing validation failures
 - **Unit tests (audio serving):** 10 tests exposing missing endpoint
@@ -10,6 +11,7 @@
 **Test Results:** ✅ All 33 tests pass (they document problems, not failures)
 
 **Critical Findings:**
+
 1. ❌ **No audio serving endpoint** - Files generated but inaccessible to frontend
 2. ❌ **No LLM word count validation** - System accepts any output length
 3. ❌ **No actual duration measurement** - Never validates TTS output
@@ -21,6 +23,7 @@
 ## Problem 1: Missing Audio Serving Endpoint
 
 ### Current State
+
 ```
 Generation Flow: ✅ WORKING
 ├── 1. Generate script ✅
@@ -38,6 +41,7 @@ Frontend Access Flow: ❌ BROKEN
 ```
 
 ### Root Cause
+
 - **Files exist on disk** but no HTTP endpoint serves them
 - **podcast_router.py** has no GET /audio route
 - **main.py** has no static file mounting
@@ -45,6 +49,7 @@ Frontend Access Flow: ❌ BROKEN
 ### Solution: Add Static File Mounting
 
 **Recommended Implementation** (backend/main.py):
+
 ```python
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
@@ -62,6 +67,7 @@ if podcast_storage_path.exists():
 ```
 
 **Why this solution:**
+
 - ✅ Simple and fast (no Python overhead)
 - ✅ Browser can cache files
 - ✅ Supports HTTP Range requests (seek functionality)
@@ -129,12 +135,14 @@ Generate the complete dialogue script now:"""
 ```
 
 **Strengths:**
+
 - ✅ Clear structure with HOST/EXPERT format
 - ✅ Specifies word count target explicitly
 - ✅ Includes conversational guidelines
 - ✅ Emphasizes natural flow and transitions
 
 **Weaknesses:**
+
 - ❌ No enforcement mechanism for word count
 - ❌ Phrase "approximately" gives LLM too much leeway
 - ❌ No penalties for deviation
@@ -144,6 +152,7 @@ Generate the complete dialogue script now:"""
 ### NotebookLM Approach (Inferred from Research)
 
 Based on research, NotebookLM appears to use:
+
 - **Section-based approach**: Break into 3-4 minute segments
 - **Conversational markers**: "Right," "Exactly," rhetorical questions
 - **Structured flow**: Broad intro → narrow specifics → conclusion
@@ -351,16 +360,19 @@ Generate the complete dialogue script now:"""
 ## Implementation Priority
 
 ### Critical (Fix Immediately)
+
 1. ✅ **Add static file mounting** for audio serving (1 hour)
 2. ✅ **Measure actual audio duration** after generation (2 hours)
 3. ✅ **Add duration validation** to output schema (1 hour)
 
 ### High Priority (Next Sprint)
+
 4. ⚠️ **Implement word count validation** with retry (4 hours)
 5. ⚠️ **Account for voice speed** in word count calculation (2 hours)
 6. ⚠️ **Validate collection content** sufficiency (3 hours)
 
 ### Medium Priority (Future Enhancement)
+
 7. ⏳ **Adaptive prompt engineering** based on attempt history (8 hours)
 8. ⏳ **Section-based generation** like NotebookLM (12 hours)
 9. ⏳ **Quality gates** preventing COMPLETED status if duration way off (4 hours)
@@ -411,23 +423,27 @@ poetry run pytest tests/ -k podcast -v
 **The fundamental problem:** Podcast generation systems (including ours, NotebookLM, and others) have **NO GUARANTEES** that generated podcasts match requested duration.
 
 **Why it's hard:**
+
 1. LLMs don't reliably respect word count instructions
 2. Speaking rate varies with content, voice settings, and TTS implementation
 3. No industry-standard solution exists yet
 
 **Our current state:**
+
 - ❌ Files generated but not accessible (audio serving broken)
 - ❌ No validation that LLM respects word count
 - ❌ No measurement of actual duration
 - ❌ No quality gates or warnings
 
 **Recommended path forward:**
+
 1. **Fix audio serving** (critical blocker)
 2. **Measure actual duration** (visibility)
 3. **Add validation with retry** (quality improvement)
 4. **Iterate on prompt engineering** (continuous improvement)
 
 **Realistic expectations:**
+
 - Even with all improvements, expect ±15-20% duration variation
 - This is better than current state (no control) but still imperfect
 - Similar to NotebookLM's "typically 6-15 minutes" for requested 10-minute podcasts
@@ -436,10 +452,10 @@ poetry run pytest tests/ -k podcast -v
 
 ## References
 
-- NotebookLM FAQ: https://notebooklm.in/notebooklm-podcast-faq/
-- NotebookLM Prompt Engineering: https://nicolehennig.com/notebooklm-reverse-engineering-the-system-prompt-for-audio-overviews/
-- podgenai (GitHub): https://github.com/impredicative/podgenai
-- Jellypod Duration Control: https://jellypod.ai/blog/change-length-duration-notebooklm-podcast
+- NotebookLM FAQ: <https://notebooklm.in/notebooklm-podcast-faq/>
+- NotebookLM Prompt Engineering: <https://nicolehennig.com/notebooklm-reverse-engineering-the-system-prompt-for-audio-overviews/>
+- podgenai (GitHub): <https://github.com/impredicative/podgenai>
+- Jellypod Duration Control: <https://jellypod.ai/blog/change-length-duration-notebooklm-podcast>
 
 ---
 

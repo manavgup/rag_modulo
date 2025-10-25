@@ -7,24 +7,28 @@ This directory contains the test suite for the RAG solution, implementing compre
 The test suite is organized into the following categories:
 
 ### Unit Tests (`@pytest.mark.unit`)
+
 - Test individual components in isolation
 - Located in `tests/test_*.py`
 - Fast execution, no external dependencies
 - Focus on business logic and validation
 
 ### Integration Tests (`@pytest.mark.integration`)
+
 - Test multiple components working together
 - Located in `tests/integration/`
 - Test end-to-end flows
 - Verify component interactions
 
 ### Error Tests (`@pytest.mark.error`)
+
 - Verify error handling and edge cases
 - Test validation failures
 - Test boundary conditions
 - Test error recovery
 
 ### Performance Tests (`@pytest.mark.performance`)
+
 - Measure system performance
 - Located in `tests/performance/`
 - Benchmark critical operations
@@ -33,6 +37,7 @@ The test suite is organized into the following categories:
 ## 🚀 Running Tests
 
 ### Basic Usage
+
 ```bash
 # Run all tests
 pytest
@@ -51,6 +56,7 @@ pytest --cov=rag_solution
 ```
 
 ### Test Markers
+
 - `unit`: Unit tests
 - `integration`: Integration tests
 - `error`: Error handling tests
@@ -68,6 +74,7 @@ pytest --cov=rag_solution
 ## 📝 Writing Tests
 
 ### Test Organization
+
 - Use appropriate markers for test categorization
 - Follow naming conventions:
   - Files: `test_*.py`
@@ -77,6 +84,7 @@ pytest --cov=rag_solution
 - Use descriptive test names
 
 ### Test Best Practices
+
 1. Use strong typing with type hints
 2. Use proper assertions
 3. Use fixtures for setup/teardown
@@ -89,6 +97,7 @@ pytest --cov=rag_solution
 10. Clean up test resources
 
 ### Example Test with Atomic Fixtures
+
 ```python
 import pytest
 from pydantic import UUID4
@@ -164,6 +173,7 @@ class TestQuestionGeneration:
 ## 🔧 Configuration
 
 ### pytest.ini
+
 - Test discovery paths
 - Logging configuration
 - Test markers
@@ -172,6 +182,7 @@ class TestQuestionGeneration:
 - Coverage settings
 
 ### conftest.py
+
 - Shared fixtures
 - Database setup/teardown
 - Environment setup
@@ -180,6 +191,7 @@ class TestQuestionGeneration:
 ## 📊 Test Coverage
 
 Coverage reports can be generated using:
+
 ```bash
 # Generate coverage report
 pytest --cov=rag_solution --cov-report=html
@@ -189,6 +201,7 @@ open htmlcov/index.html
 ```
 
 ### Coverage Goals
+
 - Aim for high test coverage (>90%)
 - Focus on critical paths
 - Test edge cases
@@ -198,6 +211,7 @@ open htmlcov/index.html
 ## 🐛 Debugging Tests
 
 ### Debug Options
+
 ```bash
 # Show local variables in failures
 pytest --showlocals
@@ -213,6 +227,7 @@ pytest -x
 ```
 
 ### Common Issues
+
 1. Database cleanup between tests
 2. Environment variable conflicts
 3. Resource cleanup
@@ -225,6 +240,7 @@ pytest -x
 ## 🔍 Code Quality
 
 The test suite enforces:
+
 - Strong typing with type hints
 - Pydantic 2.0 validation
 - Proper error handling

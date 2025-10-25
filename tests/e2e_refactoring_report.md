@@ -1,21 +1,26 @@
 # E2E Test Refactoring Report
 
 ## File: test_search_debug_edge_cases.py
+
 - Total lines: 1833
 - Total tests: 55
 - Test classes: 9
 - Test functions: 55
 
 ## Test Categories
+
 ### Atomic Tests (1)
+
 - test_llm_config
 
 ### Unit Tests (0)
 
 ### Integration Tests (1)
+
 - test_db
 
 ### E2E Tests (53)
+
 - test_user
 - test_empty_collection
 - test_pipeline_config
