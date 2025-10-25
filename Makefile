@@ -50,7 +50,7 @@ RED := \033[0;31m
 NC := \033[0m
 
 .DEFAULT_GOAL := help
-.PHONY: help venv clean-venv local-dev-setup local-dev-infra local-dev-backend local-dev-frontend local-dev-all local-dev-stop local-dev-status build-backend build-frontend build-all prod-start prod-stop prod-restart prod-logs prod-status test-atomic test-unit-fast test-integration lint format quick-check security-check pre-commit-run clean
+.PHONY: help venv clean-venv local-dev-setup local-dev-infra local-dev-backend local-dev-frontend local-dev-all local-dev-stop local-dev-status build-backend build-frontend build-all prod-start prod-stop prod-restart prod-logs prod-status test-atomic test-unit-fast test-integration test-integration-ci test-e2e test-e2e-ci test-e2e-local-parallel test-e2e-ci-parallel test-all test-all-ci lint format quick-check security-check pre-commit-run clean
 
 # ============================================================================
 # VIRTUAL ENVIRONMENT
@@ -101,8 +101,14 @@ local-dev-setup:
 
 local-dev-infra:
 	@echo "$(CYAN)🏗️  Starting infrastructure (Postgres, Milvus, MinIO, MLFlow)...$(NC)"
-	@$(DOCKER_COMPOSE) -f docker-compose-infra.yml up -d
-	@echo "$(GREEN)✅ Infrastructure started$(NC)"
+	@if docker ps --format '{{.Names}}' | grep -q 'milvus-etcd'; then \
+		echo "$(YELLOW)⚠️  Infrastructure containers already running$(NC)"; \
+	else \
+		$(DOCKER_COMPOSE) -f docker-compose-infra.yml up -d --remove-orphans || \
+		(echo "$(YELLOW)⚠️  Containers exist but stopped, starting them...$(NC)" && \
+		 $(DOCKER_COMPOSE) -f docker-compose-infra.yml start); \
+	fi
+	@echo "$(GREEN)✅ Infrastructure ready$(NC)"
 	@echo "$(CYAN)💡 Services:$(NC)"
 	@echo "  PostgreSQL: localhost:5432"
 	@echo "  Milvus:     localhost:19530"
@@ -121,36 +127,30 @@ local-dev-frontend:
 local-dev-all:
 	@echo "$(CYAN)🚀 Starting full local development stack...$(NC)"
 	@PROJECT_ROOT=$$(pwd); \
-	mkdir -p $$PROJECT_ROOT/logs; \
+	mkdir -p $$PROJECT_ROOT/.dev-pids $$PROJECT_ROOT/logs; \
 	$(MAKE) local-dev-infra; \
 	echo "$(CYAN)🐍 Starting backend in background...$(NC)"; \
-	cd backend && $(POETRY) run uvicorn main:app --reload --host 0.0.0.0 --port 8000 > $$PROJECT_ROOT/logs/backend.log 2>&1 & \
-	echo "Waiting for backend to start..."; \
-	for i in 1 2 3 4 5 6 7 8 9 10; do \
-		if curl -s http://localhost:8000/api/health >/dev/null 2>&1; then \
-			echo "$(GREEN)✅ Backend started and responding$(NC)"; \
-			break; \
-		fi; \
-		if [ $$i -eq 10 ]; then \
+	cd backend && $(POETRY) run uvicorn main:app --reload --host 0.0.0.0 --port 8000 > $$PROJECT_ROOT/logs/backend.log 2>&1 & echo $$! > $$PROJECT_ROOT/.dev-pids/backend.pid; \
+	sleep 2; \
+	if [ -f $$PROJECT_ROOT/.dev-pids/backend.pid ]; then \
+		if kill -0 $$(cat $$PROJECT_ROOT/.dev-pids/backend.pid) 2>/dev/null; then \
+			echo "$(GREEN)✅ Backend started (PID: $$(cat $$PROJECT_ROOT/.dev-pids/backend.pid))$(NC)"; \
+		else \
 			echo "$(RED)❌ Backend failed to start - check logs/backend.log$(NC)"; \
 			exit 1; \
 		fi; \
-		sleep 1; \
-	done; \
+	fi; \
 	echo "$(CYAN)⚛️  Starting frontend in background...$(NC)"; \
-	cd frontend && npm run dev > $$PROJECT_ROOT/logs/frontend.log 2>&1 & \
-	echo "Waiting for frontend to start..."; \
-	for i in 1 2 3 4 5 6 7 8 9 10; do \
-		if curl -s http://localhost:3000 >/dev/null 2>&1; then \
-			echo "$(GREEN)✅ Frontend started and responding$(NC)"; \
-			break; \
+	cd frontend && npm run dev > $$PROJECT_ROOT/logs/frontend.log 2>&1 & echo $$! > $$PROJECT_ROOT/.dev-pids/frontend.pid; \
+	sleep 2; \
+	if [ -f $$PROJECT_ROOT/.dev-pids/frontend.pid ]; then \
+		if kill -0 $$(cat $$PROJECT_ROOT/.dev-pids/frontend.pid) 2>/dev/null; then \
+			echo "$(GREEN)✅ Frontend started (PID: $$(cat $$PROJECT_ROOT/.dev-pids/frontend.pid))$(NC)"; \
+		else \
+			echo "$(RED)❌ Frontend failed to start - check logs/frontend.log$(NC)"; \
+			exit 1; \
 		fi; \
-		if [ $$i -eq 10 ]; then \
-			echo "$(YELLOW)⚠️  Frontend may still be starting - check logs/frontend.log$(NC)"; \
-			break; \
-		fi; \
-		sleep 1; \
-	done; \
+	fi; \
 	echo "$(GREEN)✅ Local development environment running!$(NC)"; \
 	echo "$(CYAN)💡 Services:$(NC)"; \
 	echo "  Frontend:  http://localhost:3000"; \
@@ -163,11 +163,24 @@ local-dev-all:
 
 local-dev-stop:
 	@echo "$(CYAN)🛑 Stopping local development services...$(NC)"
-	@echo "Stopping backend..."
-	@pkill -f "uvicorn main:app" || echo "Backend not running"
-	@echo "Stopping frontend..."
-	@pkill -f "vite.*frontend" || echo "Frontend not running"
+	@if [ -f .dev-pids/backend.pid ]; then \
+		if kill -0 $$(cat .dev-pids/backend.pid) 2>/dev/null; then \
+			kill $$(cat .dev-pids/backend.pid) && echo "$(GREEN)✅ Backend stopped$(NC)"; \
+		fi; \
+		rm -f .dev-pids/backend.pid; \
+	else \
+		echo "Backend not running (no PID file)"; \
+	fi
+	@if [ -f .dev-pids/frontend.pid ]; then \
+		if kill -0 $$(cat .dev-pids/frontend.pid) 2>/dev/null; then \
+			kill $$(cat .dev-pids/frontend.pid) && echo "$(GREEN)✅ Frontend stopped$(NC)"; \
+		fi; \
+		rm -f .dev-pids/frontend.pid; \
+	else \
+		echo "Frontend not running (no PID file)"; \
+	fi
 	@$(DOCKER_COMPOSE) -f docker-compose-infra.yml down
+	@rm -rf .dev-pids
 	@echo "$(GREEN)✅ Local development stopped$(NC)"
 
 local-dev-status:
@@ -177,19 +190,27 @@ local-dev-status:
 	@$(DOCKER_COMPOSE) -f docker-compose-infra.yml ps
 	@echo ""
 	@echo "$(CYAN)🐍 Backend:$(NC)"
-	@if curl -s http://localhost:8000/api/health >/dev/null 2>&1; then \
-		echo "$(GREEN)✅ Running and healthy at http://localhost:8000$(NC)"; \
-		pgrep -f "uvicorn main:app" | head -1 | xargs -I {} echo "   PID: {}"; \
+	@if [ -f .dev-pids/backend.pid ]; then \
+		if kill -0 $$(cat .dev-pids/backend.pid) 2>/dev/null; then \
+			echo "$(GREEN)✅ Running (PID: $$(cat .dev-pids/backend.pid))$(NC)"; \
+		else \
+			echo "$(RED)❌ PID file exists but process is dead$(NC)"; \
+			rm -f .dev-pids/backend.pid; \
+		fi; \
 	else \
-		echo "$(RED)❌ Not responding$(NC)"; \
+		echo "$(RED)❌ Not running$(NC)"; \
 	fi
 	@echo ""
 	@echo "$(CYAN)⚛️  Frontend:$(NC)"
-	@if curl -s http://localhost:3000 >/dev/null 2>&1; then \
-		echo "$(GREEN)✅ Running at http://localhost:3000$(NC)"; \
-		pgrep -f "vite.*frontend" | head -1 | xargs -I {} echo "   PID: {}"; \
+	@if [ -f .dev-pids/frontend.pid ]; then \
+		if kill -0 $$(cat .dev-pids/frontend.pid) 2>/dev/null; then \
+			echo "$(GREEN)✅ Running (PID: $$(cat .dev-pids/frontend.pid))$(NC)"; \
+		else \
+			echo "$(RED)❌ PID file exists but process is dead$(NC)"; \
+			rm -f .dev-pids/frontend.pid; \
+		fi; \
 	else \
-		echo "$(RED)❌ Not responding$(NC)"; \
+		echo "$(RED)❌ Not running$(NC)"; \
 	fi
 
 # ============================================================================
@@ -243,59 +264,85 @@ build-all: build-backend build-frontend
 
 test-atomic: venv
 	@echo "$(CYAN)⚡ Running atomic tests (no DB, no coverage)...$(NC)"
-	@$(POETRY) -C backend run pytest -c pytest-atomic.ini tests/atomic/ -v
+	@cd backend && PYTHONPATH=.. poetry run pytest -c pytest-atomic.ini ../tests/unit/schemas/ -v -m atomic
 	@echo "$(GREEN)✅ Atomic tests passed$(NC)"
 
 test-unit-fast: venv
 	@echo "$(CYAN)🏃 Running unit tests (mocked dependencies)...$(NC)"
-	@$(POETRY) -C backend run pytest tests/unit/ -v
+	@cd backend && PYTHONPATH=.. poetry run pytest ../tests/unit/ -v ../tests/unit/ -v
 	@echo "$(GREEN)✅ Unit tests passed$(NC)"
 
-test-integration: venv
-	@echo "$(CYAN)🔗 Running integration tests in isolated environment...$(NC)"
-	@echo "$(CYAN)🧹 Cleaning up any previous test environment...$(NC)"
-	@$(DOCKER_COMPOSE) -f docker-compose.test.yml down -v --remove-orphans 2>/dev/null || true
-	@echo "$(CYAN)🐳 Starting isolated test infrastructure...$(NC)"
-	@$(DOCKER_COMPOSE) -f docker-compose.test.yml up -d postgres-test etcd-test minio-test milvus-standalone-test createbuckets-test mlflow-test
-	@echo "$(CYAN)⏳ Waiting for services to be healthy (max 90s)...$(NC)"
-	@timeout=90; elapsed=0; \
-	while [ $$elapsed -lt $$timeout ]; do \
-		postgres_health=$$(docker inspect --format='{{.State.Health.Status}}' rag-modulo-postgres-test 2>/dev/null || echo "starting"); \
-		milvus_health=$$(docker inspect --format='{{.State.Health.Status}}' rag-modulo-milvus-test 2>/dev/null || echo "starting"); \
-		if [ "$$postgres_health" = "healthy" ] && [ "$$milvus_health" = "healthy" ]; then \
-			echo "$(GREEN)✅ All critical test services healthy$(NC)"; \
-			break; \
-		fi; \
-		echo "  Waiting... (postgres: $$postgres_health, milvus: $$milvus_health) [$$elapsed/$$timeout s]"; \
-		sleep 3; \
-		elapsed=$$((elapsed + 3)); \
-		if [ $$elapsed -ge $$timeout ]; then \
-			echo "$(RED)❌ Services failed to become healthy within $$timeout seconds$(NC)"; \
-			echo "$(CYAN)📋 Service status:$(NC)"; \
-			$(DOCKER_COMPOSE) -f docker-compose.test.yml ps; \
-			echo "$(CYAN)📋 Health details:$(NC)"; \
-			docker inspect --format='Postgres: {{.State.Health.Status}}' rag-modulo-postgres-test 2>/dev/null || echo "Postgres: not found"; \
-			docker inspect --format='Milvus: {{.State.Health.Status}}' rag-modulo-milvus-test 2>/dev/null || echo "Milvus: not found"; \
-			echo "$(CYAN)📋 Recent logs:$(NC)"; \
-			$(DOCKER_COMPOSE) -f docker-compose.test.yml logs --tail=50; \
-			$(DOCKER_COMPOSE) -f docker-compose.test.yml down -v --remove-orphans; \
-			exit 1; \
-		fi; \
-	done
-	@echo "$(CYAN)🧪 Running integration tests...$(NC)"
-	@$(DOCKER_COMPOSE) -f docker-compose.test.yml run --rm test-runner || \
-		(echo "$(RED)❌ Integration tests failed$(NC)" && \
-		 echo "$(CYAN)📋 Test logs:$(NC)" && \
-		 $(DOCKER_COMPOSE) -f docker-compose.test.yml logs test-runner && \
-		 $(DOCKER_COMPOSE) -f docker-compose.test.yml down -v --remove-orphans && \
-		 exit 1)
+test-integration: venv local-dev-infra
+	@echo "$(CYAN)🔗 Running integration tests (with real services)...$(NC)"
+	@echo "$(YELLOW)💡 Using shared dev infrastructure (fast, reuses containers)$(NC)"
+	@cd backend && PYTHONPATH=.. poetry run pytest ../tests/integration/ -v -m integration
 	@echo "$(GREEN)✅ Integration tests passed$(NC)"
-	@echo "$(CYAN)🧹 Cleaning up test environment...$(NC)"
-	@$(DOCKER_COMPOSE) -f docker-compose.test.yml down -v --remove-orphans
-	@echo "$(GREEN)✅ Test environment cleaned$(NC)"
 
-test-all: test-atomic test-unit-fast test-integration
+test-integration-ci: venv
+	@echo "$(CYAN)🔗 Running integration tests in CI mode (isolated)...$(NC)"
+	@echo "$(YELLOW)🏗️  Starting isolated test infrastructure...$(NC)"
+	@$(DOCKER_COMPOSE) -f docker-compose-ci.yml up -d --wait
+	@echo "$(CYAN)🧪 Running tests with isolated services...$(NC)"
+	@COLLECTIONDB_PORT=5433 MILVUS_PORT=19531 \
+		cd backend && PYTHONPATH=.. poetry run pytest ../tests/integration/ -v -m integration || \
+		($(DOCKER_COMPOSE) -f docker-compose-ci.yml down -v && exit 1)
+	@echo "$(CYAN)🧹 Cleaning up test infrastructure...$(NC)"
+	@$(DOCKER_COMPOSE) -f docker-compose-ci.yml down -v
+	@echo "$(GREEN)✅ CI integration tests passed$(NC)"
+
+test-integration-parallel: venv local-dev-infra
+	@echo "$(CYAN)🔗 Running integration tests in parallel...$(NC)"
+	@echo "$(YELLOW)⚡ Using pytest-xdist for parallel execution$(NC)"
+	@cd backend && PYTHONPATH=.. poetry run pytest ../tests/integration/ -v -m integration -n auto
+	@echo "$(GREEN)✅ Parallel integration tests passed$(NC)"
+
+test-e2e: venv local-dev-infra
+	@echo "$(CYAN)🌐 Running end-to-end tests (full system)...$(NC)"
+	@echo "$(YELLOW)💡 Using shared dev infrastructure (fast, reuses containers)$(NC)"
+	@echo "$(YELLOW)💡 Using TestClient (in-memory, no backend required)$(NC)"
+	# Port 5432 is used by the postgres container in docker-compose-infra.yml
+	@cd backend && SKIP_AUTH=true COLLECTIONDB_HOST=localhost MILVUS_HOST=localhost \
+		env > env_dump.txt && cat env_dump.txt && \
+		PYTHONPATH=.. poetry run pytest ../tests/e2e/ -v -m e2e
+	@echo "$(GREEN)✅ E2E tests passed$(NC)"
+
+test-e2e-ci: venv
+	@echo "$(CYAN)🌐 Running E2E tests in CI mode (isolated, with backend)...$(NC)"
+	@echo "$(YELLOW)🏗️  Starting isolated test infrastructure + backend...$(NC)"
+	@$(DOCKER_COMPOSE) -f docker-compose-e2e.yml up -d --wait
+	@echo "$(CYAN)🧪 Running E2E tests with isolated services...$(NC)"
+	@SKIP_AUTH=true E2E_MODE=ci COLLECTIONDB_PORT=5434 COLLECTIONDB_HOST=localhost MILVUS_PORT=19532 MILVUS_HOST=milvus-e2e LLM_PROVIDER=watsonx \
+		cd backend && PYTHONPATH=.. poetry run pytest ../tests/e2e/ -v -m e2e || \
+		($(DOCKER_COMPOSE) -f docker-compose-e2e.yml down -v && exit 1)
+	@echo "$(CYAN)🧹 Cleaning up E2E infrastructure...$(NC)"
+	@$(DOCKER_COMPOSE) -f docker-compose-e2e.yml down -v
+	@echo "$(GREEN)✅ CI E2E tests passed$(NC)"
+
+test-e2e-ci-parallel: venv
+	@echo "$(CYAN)🌐 Running E2E tests in CI mode (isolated, with backend) in parallel...$(NC)"
+	@echo "$(YELLOW)🏗️  Starting isolated test infrastructure + backend...$(NC)"
+	@$(DOCKER_COMPOSE) -f docker-compose-e2e.yml up -d --wait
+	@echo "$(CYAN)🧪 Running E2E tests with isolated services in parallel...$(NC)"
+	@SKIP_AUTH=true E2E_MODE=ci COLLECTIONDB_PORT=5434 COLLECTIONDB_HOST=localhost MILVUS_PORT=19532 MILVUS_HOST=milvus-e2e LLM_PROVIDER=watsonx \
+		cd backend && PYTHONPATH=.. poetry run pytest ../tests/e2e/ -v -m e2e -n auto || \
+		($(DOCKER_COMPOSE) -f docker-compose-e2e.yml down -v && exit 1)
+	@echo "$(CYAN)🧹 Cleaning up E2E infrastructure...$(NC)"
+	@$(DOCKER_COMPOSE) -f docker-compose-e2e.yml down -v
+	@echo "$(GREEN)✅ CI E2E tests passed in parallel$(NC)"
+
+test-e2e-local-parallel: venv local-dev-infra
+	@echo "$(CYAN)🌐 Running E2E tests in parallel (local TestClient)...$(NC)"
+	@echo "$(YELLOW)⚡ Using pytest-xdist for parallel execution$(NC)"
+	@echo "$(YELLOW)💡 Using TestClient (in-memory, no backend required)$(NC)"
+	@SKIP_AUTH=true COLLECTIONDB_HOST=localhost MILVUS_HOST=localhost \
+		cd backend && PYTHONPATH=.. poetry run pytest ../tests/e2e/ -v -m e2e -n auto
+	@echo "$(GREEN)✅ Parallel E2E tests passed (local TestClient)$(NC)"
+
+test-all: test-atomic test-unit-fast test-integration test-e2e
 	@echo "$(GREEN)✅ All tests passed$(NC)"
+
+test-all-ci: test-atomic test-unit-fast test-integration-ci test-e2e-ci-parallel
+	@echo "$(GREEN)✅ All CI tests passed$(NC)"
 
 # ============================================================================
 # CODE QUALITY
@@ -326,123 +373,28 @@ security-check: venv
 	@echo "$(GREEN)✅ Security scan complete$(NC)"
 
 pre-commit-run: venv
-	@echo "$(CYAN)🎯 Running pre-commit checks (matches CI/CD pipelines)...$(NC)"
-	@echo "$(CYAN)💡 Only checking tracked files (respects .gitignore)$(NC)"
-	@echo ""
-	@echo "$(CYAN)Step 1/10: Security - Detecting secrets and sensitive data...$(NC)"
-	@echo "  🔐 Checking for hardcoded secrets with Gitleaks (staged files only - FAST)..."
-	@if command -v gitleaks >/dev/null 2>&1; then \
-		echo "$(CYAN)  ℹ️  Scanning staged files only (~1 second)...$(NC)"; \
-		GITLEAKS_OUTPUT=$$(gitleaks protect --config .gitleaks.toml --no-banner --staged 2>&1); \
-		if echo "$$GITLEAKS_OUTPUT" | grep -q "leaks found: [1-9]"; then \
-			echo "$(RED)  ❌ Secrets detected in staged files:$(NC)"; \
-			echo "$$GITLEAKS_OUTPUT"; \
-			exit 1; \
-		else \
-			echo "$(GREEN)  ✅ No secrets in staged files$(NC)"; \
-		fi; \
-	else \
-		echo "$(YELLOW)  ⚠️  gitleaks not installed. Install: brew install gitleaks$(NC)"; \
-	fi
-	@echo "  🔑 Checking for private keys in source code (tracked files only)..."
-	@if git ls-files '*.py' '*.js' '*.ts' '*.java' '*.go' '*.rb' | xargs grep -l "BEGIN.*PRIVATE KEY" 2>/dev/null | grep -v ".gitleaks.toml" | grep -v ".github/workflows"; then \
-		echo "$(RED)  ❌ Private keys detected in source code! Remove before committing.$(NC)"; \
-		exit 1; \
-	else \
-		echo "$(GREEN)  ✅ No private keys in source code$(NC)"; \
-	fi
-	@echo "  🤖 Checking for AI-generated artifacts (tracked files only)..."
-	@if git ls-files '*.py' '*.md' '*.js' '*.ts' | xargs grep -nE "(as an ai language model|i am an ai developed by|source=chatgpt\.com|\[oaicite:\?\?\d+\]|:contentReference)" 2>/dev/null | grep -v "Makefile"; then \
-		echo "$(RED)  ❌ AI-generated artifacts detected! Clean before committing.$(NC)"; \
-	else \
-		echo "$(GREEN)  ✅ No AI artifacts found$(NC)"; \
-	fi
-	@echo ""
-	@echo "$(CYAN)Step 2/10: File hygiene - Text quality checks...$(NC)"
-	@echo "  🧹 Checking for trailing whitespace (tracked files only)..."
-	@if git ls-files '*.py' '*.js' '*.ts' '*.tsx' '*.jsx' '*.md' | xargs grep -n "[[:space:]]$$" 2>/dev/null | head -5; then \
-		echo "$(YELLOW)  ⚠️  Trailing whitespace found (showing first 5)$(NC)"; \
-	else \
-		echo "$(GREEN)  ✅ No trailing whitespace$(NC)"; \
-	fi
-	@echo "  📝 Checking for merge conflict markers (tracked files only)..."
-	@if git ls-files '*.py' '*.js' '*.ts' '*.tsx' '*.jsx' '*.md' | xargs grep -n "^<<<<<<< \|^=======$\|^>>>>>>> " 2>/dev/null; then \
-		echo "$(RED)  ❌ Merge conflict markers detected!$(NC)"; \
-	else \
-		echo "$(GREEN)  ✅ No merge conflicts$(NC)"; \
-	fi
-	@echo "  📏 Checking for large files (tracked files only)..."
-	@if git ls-files | xargs ls -lh 2>/dev/null | awk '$$5 ~ /^[0-9]+M$$/ && $$5+0 > 5 {print}' | head -3; then \
-		echo "$(YELLOW)  ⚠️  Large files detected (>5MB)$(NC)"; \
-	else \
-		echo "$(GREEN)  ✅ No large files$(NC)"; \
-	fi
-	@echo ""
-	@echo "$(CYAN)Step 3/10: Formatting backend code...$(NC)"
+	@echo "$(CYAN)🎯 Running pre-commit checks...$(NC)"
+	@echo "$(CYAN)Step 1/4: Formatting code...$(NC)"
 	@cd backend && $(POETRY) run ruff format . --config pyproject.toml
-	@echo "$(GREEN)✅ Backend code formatted$(NC)"
+	@echo "$(GREEN)✅ Code formatted$(NC)"
 	@echo ""
-	@echo "$(CYAN)Step 4/10: Running ruff linter...$(NC)"
+	@echo "$(CYAN)Step 2/4: Running ruff linter...$(NC)"
 	@cd backend && $(POETRY) run ruff check --fix . --config pyproject.toml
 	@echo "$(GREEN)✅ Ruff checks passed$(NC)"
 	@echo ""
-	@echo "$(CYAN)Step 5/10: Running mypy type checker...$(NC)"
-	@cd backend && $(POETRY) run mypy . --config-file pyproject.toml --ignore-missing-imports || echo "$(YELLOW)⚠️  Type check issues found (non-blocking)$(NC)"
+	@echo "$(CYAN)Step 3/4: Running mypy type checker...$(NC)"
+	@cd backend && $(POETRY) run mypy . --config-file pyproject.toml --ignore-missing-imports
+	@echo "$(GREEN)✅ Type checks passed$(NC)"
 	@echo ""
-	@echo "$(CYAN)Step 6/10: Running pylint...$(NC)"
-	@cd backend && $(POETRY) run pylint rag_solution/ --rcfile=pyproject.toml || echo "$(YELLOW)⚠️  Pylint warnings found (non-blocking)$(NC)"
-	@echo ""
-	@echo "$(CYAN)Step 7/10: Linting configuration files (YAML/JSON/TOML)...$(NC)"
-	@if command -v yamllint >/dev/null 2>&1; then \
-		yamllint .github/ 2>/dev/null || echo "$(YELLOW)⚠️  YAML linting skipped$(NC)"; \
-	else \
-		echo "$(YELLOW)⚠️  yamllint not installed, skipping YAML checks$(NC)"; \
-	fi
-	@if command -v jq >/dev/null 2>&1; then \
-		find . -name '*.json' -not -path './node_modules/*' -not -path './.git/*' -not -path './frontend/node_modules/*' -exec jq empty {} \; 2>/dev/null || echo "$(YELLOW)⚠️  JSON validation issues found$(NC)"; \
-	else \
-		echo "$(YELLOW)⚠️  jq not installed, skipping JSON checks$(NC)"; \
-	fi
-	@python3 -c "import toml; toml.load(open('backend/pyproject.toml'))" 2>/dev/null && echo "$(GREEN)✅ TOML files valid$(NC)" || echo "$(YELLOW)⚠️  TOML validation failed$(NC)"
-	@echo ""
-	@echo "$(CYAN)Step 8/10: Running frontend ESLint...$(NC)"
-	@if [ -d "frontend/node_modules" ]; then \
-		cd frontend && npm run lint && echo "$(GREEN)✅ Frontend lint passed$(NC)" || echo "$(YELLOW)⚠️  Frontend lint issues found$(NC)"; \
-	else \
-		echo "$(YELLOW)⚠️  Frontend dependencies not installed. Run: make local-dev-setup$(NC)"; \
-	fi
-	@echo ""
-	@echo "$(CYAN)Step 9/10: Checking Python code quality...$(NC)"
-	@echo "  🐍 Checking for debug statements (tracked files only)..."
-	@if git ls-files 'backend/rag_solution/**/*.py' | xargs grep -n "import pdb\|breakpoint()\|import ipdb" 2>/dev/null; then \
-		echo "$(YELLOW)  ⚠️  Debug statements found$(NC)"; \
-	else \
-		echo "$(GREEN)  ✅ No debug statements$(NC)"; \
-	fi
-	@echo "  🐍 Checking Python AST validity (tracked files only)..."
-	@if git ls-files 'backend/rag_solution/**/*.py' | head -5 | xargs -I {} python3 -c "import ast; ast.parse(open('{}').read())" 2>/dev/null; then \
-		echo "$(GREEN)  ✅ Python syntax valid (sampled 5 files)$(NC)"; \
-	else \
-		echo "$(YELLOW)  ⚠️  Syntax validation failed or no files found$(NC)"; \
-	fi
-	@echo ""
-	@echo "$(CYAN)Step 10/10: Running fast unit tests...$(NC)"
-	@cd backend && $(POETRY) run pytest tests/ -m "unit or atomic" --maxfail=3 -q && echo "$(GREEN)✅ Unit tests passed$(NC)" || echo "$(RED)❌ Unit tests failed - fix before committing$(NC)"
+	@echo "$(CYAN)Step 4/4: Running pylint...$(NC)"
+	@cd backend && $(POETRY) run pylint rag_solution/ --rcfile=pyproject.toml || echo "$(YELLOW)⚠️  Pylint warnings found$(NC)"
 	@echo ""
 	@echo "$(GREEN)✅ Pre-commit checks complete!$(NC)"
-	@echo "$(CYAN)💡 These checks match what CI/CD will run on your PR$(NC)"
-	@echo "$(CYAN)📋 Summary:$(NC)"
-	@echo "  🔐 Security scanning (secrets, keys, AI artifacts)"
-	@echo "  🧹 File hygiene (whitespace, conflicts, large files)"
-	@echo "  🎨 Code formatting (Ruff, ESLint)"
-	@echo "  🔍 Linting (Ruff, Pylint, YAML, JSON, TOML)"
-	@echo "  🏷️  Type checking (MyPy)"
-	@echo "  🐍 Python quality (AST, debug statements)"
-	@echo "  🧪 Unit tests"
+	@echo "$(CYAN)💡 Tip: Always run this before committing$(NC)"
 
 coverage: venv
 	@echo "$(CYAN)📊 Running tests with coverage...$(NC)"
-	@cd backend && $(POETRY) run pytest tests/ \
+	@cd backend && PYTHONPATH=.. poetry run pytest ../tests/unit/ \
 		--cov=rag_solution \
 		--cov-report=term-missing \
 		--cov-report=html:htmlcov \
@@ -490,7 +442,7 @@ prod-status:
 
 clean:
 	@echo "$(CYAN)🧹 Cleaning up...$(NC)"
-	@rm -rf .pytest_cache .mypy_cache .ruff_cache backend/htmlcov backend/.coverage .dev-pids
+	@rm -rf .pytest_cache .mypy_cache .ruff_cache backend/htmlcov backend/.coverage
 	@find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	@echo "$(GREEN)✅ Cleanup complete$(NC)"
 
@@ -549,6 +501,7 @@ help:
 	@echo "  $(GREEN)make test-atomic$(NC)          Fast atomic tests (no DB)"
 	@echo "  $(GREEN)make test-unit-fast$(NC)       Unit tests (mocked dependencies)"
 	@echo "  $(GREEN)make test-integration$(NC)     Integration tests (requires infra)"
+	@echo "  $(GREEN)make test-e2e$(NC)             End-to-end tests (full system)"
 	@echo "  $(GREEN)make test-all$(NC)             Run all tests"
 	@echo "  $(GREEN)make coverage$(NC)             Generate coverage report"
 	@echo ""

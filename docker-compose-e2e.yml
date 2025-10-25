@@ -1,0 +1,191 @@
+# ============================================================================
+# E2E Test Infrastructure + Backend Service
+# ============================================================================
+# This compose file provides complete isolated infrastructure for E2E tests in CI.
+# Unlike docker-compose-ci.yml (integration tests only), this includes the backend
+# service to enable full end-to-end API testing.
+#
+# Key differences from dev/integration:
+# - Different ports (5434, 19532, 9101) to avoid conflicts
+# - Includes backend service for API testing
+# - Ephemeral volumes (deleted after tests)
+# - E2E-specific database names
+# ============================================================================
+
+services:
+  # E2E test database (separate from dev and integration test DBs)
+  postgres-e2e:
+    image: postgres:13
+    container_name: rag-postgres-e2e
+    ports:
+      - "5434:5432"  # Different port to avoid conflict
+    environment:
+      POSTGRES_DB: e2e_rag_db
+      POSTGRES_USER: ${COLLECTIONDB_USER:-test}
+      POSTGRES_PASSWORD: ${COLLECTIONDB_PASS:-test}
+    volumes:
+      - postgres_e2e_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${COLLECTIONDB_USER:-test} -d e2e_rag_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - e2e-network
+
+  # E2E MinIO (S3-compatible storage)
+  minio-e2e:
+    image: minio/minio:latest
+    container_name: rag-minio-e2e
+    ports:
+      - "9003:9001"  # Different console port
+      - "9101:9000"  # Different API port
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    volumes:
+      - minio_e2e_data:/data
+    command: minio server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - e2e-network
+
+  # E2E etcd for Milvus
+  milvus-etcd-e2e:
+    image: quay.io/coreos/etcd:v3.5.9
+    container_name: rag-milvus-etcd-e2e
+    environment:
+      - ETCD_NAME=etcd-e2e
+      - ETCD_DATA_DIR=/etcd-data
+      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
+      - ETCD_ADVERTISE_CLIENT_URLS=http://milvus-etcd-e2e:2379
+      - ETCD_LISTEN_PEER_URLS=http://0.0.0.0:2380
+      - ETCD_INITIAL_ADVERTISE_PEER_URLS=http://milvus-etcd-e2e:2380
+      - ETCD_INITIAL_CLUSTER=etcd-e2e=http://milvus-etcd-e2e:2380
+      - ETCD_INITIAL_CLUSTER_TOKEN=etcd-cluster-e2e
+      - ETCD_INITIAL_CLUSTER_STATE=new
+    volumes:
+      - etcd_e2e_data:/etcd-data
+    healthcheck:
+      test: ["CMD", "etcdctl", "--endpoints=http://localhost:2379", "endpoint", "health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - e2e-network
+
+  # E2E Milvus vector database
+  milvus-e2e:
+    image: milvusdb/milvus:v2.4.4
+    container_name: rag-milvus-e2e
+    command: ["milvus", "run", "standalone"]
+    ports:
+      - "19532:19530"  # Different port to avoid conflict
+    environment:
+      ETCD_ENDPOINTS: milvus-etcd-e2e:2379
+      MINIO_ADDRESS: minio-e2e:9000
+      MINIO_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      COMMON_STORAGETYPE: minio
+      MINIO_USE_SSL: false
+      ETCD_USE_SSL: false
+    volumes:
+      - milvus_e2e_data:/var/lib/milvus
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      milvus-etcd-e2e:
+        condition: service_healthy
+      minio-e2e:
+        condition: service_healthy
+    networks:
+      - e2e-network
+
+  # Create MinIO bucket for E2E tests
+  createbuckets-e2e:
+    image: minio/mc
+    container_name: rag-minio-bucket-e2e
+    depends_on:
+      minio-e2e:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc config host add e2eminio http://minio-e2e:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD;
+      /usr/bin/mc mb --ignore-existing e2eminio/rag-modulo-e2e;
+      exit 0;
+      "
+    networks:
+      - e2e-network
+
+  # Backend service for E2E API testing
+  backend-e2e:
+    command: ["sh", "-c", "env && uvicorn main:app --host 0.0.0.0 --port 8000"]
+    container_name: rag-backend-e2e
+    ports:
+      - "8001:8000"  # Different port to avoid conflict with dev backend
+    environment:
+      # Database configuration
+      COLLECTIONDB_HOST: postgres-e2e
+      COLLECTIONDB_PORT: 5432
+      COLLECTIONDB_NAME: e2e_rag_db
+      COLLECTIONDB_USER: ${COLLECTIONDB_USER:-test}
+      COLLECTIONDB_PASS: ${COLLECTIONDB_PASS:-test}
+
+      # Milvus configuration
+      MILVUS_HOST: milvus-e2e
+      MILVUS_PORT: 19530
+      MILVUS_COLLECTION_PREFIX: e2e_
+
+      # MinIO configuration
+      MINIO_ENDPOINT: minio-e2e:9000
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+
+      # Test mode settings
+      VECTOR_DB: milvus
+      E2E_MODE: true
+
+      # API keys (use test values or from environment)
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-e2e-test-secret-key}
+      WATSONX_APIKEY: ${WATSONX_APIKEY:-}
+      WATSONX_URL: ${WATSONX_URL:-}
+      WATSONX_PROJECT_ID: ${WATSONX_PROJECT_ID:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    depends_on:
+      postgres-e2e:
+        condition: service_healthy
+      milvus-e2e:
+        condition: service_healthy
+      minio-e2e:
+        condition: service_healthy
+      createbuckets-e2e:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - e2e-network
+
+# Ephemeral volumes for E2E (deleted after docker-compose down -v)
+volumes:
+  postgres_e2e_data:
+  etcd_e2e_data:
+  minio_e2e_data:
+  milvus_e2e_data:
+
+networks:
+  e2e-network:
+    driver: bridge

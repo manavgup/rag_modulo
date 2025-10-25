@@ -1,0 +1,139 @@
+# ============================================================================
+# CI/CD Infrastructure for Integration Tests
+# ============================================================================
+# This compose file provides completely isolated test infrastructure for CI/CD.
+# Unlike docker-compose-infra.yml (shared dev/test), this creates fresh instances
+# with different ports to avoid conflicts and ensure reproducible test runs.
+#
+# Key differences from dev infrastructure:
+# - Different ports (no conflicts with running dev containers)
+# - Ephemeral volumes (deleted after tests)
+# - CI-optimized health checks (faster startup)
+# - Test-specific database names
+# ============================================================================
+
+services:
+  # Test database (separate from dev database)
+  postgres-test:
+    image: postgres:13
+    container_name: rag-postgres-test
+    ports:
+      - "5433:5432"  # Different port to avoid conflict with dev
+    environment:
+      POSTGRES_DB: test_rag_db
+      POSTGRES_USER: ${COLLECTIONDB_USER:-test}
+      POSTGRES_PASSWORD: ${COLLECTIONDB_PASS:-test}
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${COLLECTIONDB_USER:-test} -d test_rag_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - test-network
+
+  # Test MinIO (S3-compatible storage)
+  minio-test:
+    image: minio/minio:latest
+    container_name: rag-minio-test
+    ports:
+      - "9002:9001"  # Different console port
+      - "9100:9000"  # Different API port
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    volumes:
+      - minio_test_data:/data
+    command: minio server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - test-network
+
+  # Test etcd for Milvus
+  milvus-etcd-test:
+    image: quay.io/coreos/etcd:v3.5.9
+    container_name: rag-milvus-etcd-test
+    environment:
+      - ETCD_NAME=etcd-test
+      - ETCD_DATA_DIR=/etcd-data
+      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
+      - ETCD_ADVERTISE_CLIENT_URLS=http://milvus-etcd-test:2379
+      - ETCD_LISTEN_PEER_URLS=http://0.0.0.0:2380
+      - ETCD_INITIAL_ADVERTISE_PEER_URLS=http://milvus-etcd-test:2380
+      - ETCD_INITIAL_CLUSTER=etcd-test=http://milvus-etcd-test:2380
+      - ETCD_INITIAL_CLUSTER_TOKEN=etcd-cluster-test
+      - ETCD_INITIAL_CLUSTER_STATE=new
+    volumes:
+      - etcd_test_data:/etcd-data
+    healthcheck:
+      test: ["CMD", "etcdctl", "--endpoints=http://localhost:2379", "endpoint", "health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - test-network
+
+  # Test Milvus vector database
+  milvus-test:
+    image: milvusdb/milvus:v2.4.4
+    container_name: rag-milvus-test
+    command: ["milvus", "run", "standalone"]
+    ports:
+      - "19531:19530"  # Different port to avoid conflict
+    environment:
+      ETCD_ENDPOINTS: milvus-etcd-test:2379
+      MINIO_ADDRESS: minio-test:9000
+      MINIO_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      COMMON_STORAGETYPE: minio
+      MINIO_USE_SSL: false
+      ETCD_USE_SSL: false
+    volumes:
+      - milvus_test_data:/var/lib/milvus
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      milvus-etcd-test:
+        condition: service_healthy
+      minio-test:
+        condition: service_healthy
+    networks:
+      - test-network
+
+  # Create MinIO bucket for tests
+  createbuckets-test:
+    image: minio/mc
+    container_name: rag-minio-bucket-test
+    depends_on:
+      minio-test:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc config host add testminio http://minio-test:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD;
+      /usr/bin/mc mb --ignore-existing testminio/rag-modulo-test;
+      exit 0;
+      "
+    networks:
+      - test-network
+
+# Ephemeral volumes for CI (deleted after docker-compose down -v)
+volumes:
+  postgres_test_data:
+  etcd_test_data:
+  minio_test_data:
+  milvus_test_data:
+
+networks:
+  test-network:
+    driver: bridge
