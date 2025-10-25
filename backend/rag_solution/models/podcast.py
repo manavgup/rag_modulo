@@ -5,7 +5,7 @@ Tracks podcast generation requests, status, progress, and results.
 """
 
 from datetime import datetime
-from typing import Any
+from typing import Any, ClassVar
 from uuid import UUID
 
 from sqlalchemy import (
@@ -31,6 +31,7 @@ class Podcast(Base):
     """Database model for podcast generation tracking."""
 
     __tablename__ = "podcasts"
+    __table_args__: ClassVar[dict] = {"extend_existing": True}
 
     # Primary key
     podcast_id: Mapped[UUID] = mapped_column(
