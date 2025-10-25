@@ -8,9 +8,14 @@ from core.logging_utils import get_logger
 from rag_solution.core.exceptions import NotFoundError, ValidationError
 from rag_solution.repository.user_repository import UserRepository
 from rag_solution.schemas.user_schema import UserInput, UserOutput
+from rag_solution.services.prompt_template_service import PromptTemplateService
 from rag_solution.services.user_provider_service import UserProviderService
 
 logger = get_logger(__name__)
+
+# Minimum number of required templates for user initialization
+# Includes: RAG_QUERY, QUESTION_GENERATION, PODCAST_GENERATION
+MIN_REQUIRED_TEMPLATES = 3
 
 
 class UserService:
@@ -22,6 +27,7 @@ class UserService:
         self.settings = settings
         self.user_repository = UserRepository(db)
         self.user_provider_service = UserProviderService(db, settings)
+        self.prompt_template_service = PromptTemplateService(db)
 
     def create_user(self, user_input: UserInput) -> UserOutput:
         """Creates a new user with validation.
@@ -37,7 +43,7 @@ class UserService:
         provider, templates, parameters = self.user_provider_service.initialize_user_defaults(user.id)
 
         # Validate that all required defaults were created (RAG, Question, Podcast)
-        if not provider or not templates or len(templates) < 3 or not parameters:
+        if not provider or not templates or len(templates) < MIN_REQUIRED_TEMPLATES or not parameters:
             self.db.rollback()
             raise ValidationError("Failed to initialize required user configuration")
 
@@ -73,27 +79,31 @@ class UserService:
 
             # Defensive check: Ensure user has required defaults
             # Handles edge case where user exists after DB wipe but missing defaults
-            from rag_solution.services.prompt_template_service import PromptTemplateService
+            templates = self.prompt_template_service.get_user_templates(existing_user.id)
 
-            template_service = PromptTemplateService(self.db)
-            templates = template_service.get_user_templates(existing_user.id)
-
-            if not templates or len(templates) < 3:
+            if not templates or len(templates) < MIN_REQUIRED_TEMPLATES:
                 logger.warning(
-                    "User %s exists but missing defaults (has %d templates) - reinitializing...",
+                    "User %s exists but missing defaults (has %d/%d templates) - attempting recovery...",
                     existing_user.id,
                     len(templates) if templates else 0,
+                    MIN_REQUIRED_TEMPLATES,
                 )
-                from rag_solution.services.user_provider_service import UserProviderService
-
-                user_provider_service = UserProviderService(self.db, self.settings)
-                _, reinit_templates, parameters = user_provider_service.initialize_user_defaults(existing_user.id)
-                logger.info(
-                    "Reinitialized user %s defaults: %d templates, %s parameters",
-                    existing_user.id,
-                    len(reinit_templates),
-                    "created" if parameters else "failed",
-                )
+                try:
+                    _, reinit_templates, parameters = self.user_provider_service.initialize_user_defaults(
+                        existing_user.id
+                    )
+                    logger.info(
+                        "✅ Successfully recovered user %s: %d templates, %s parameters",
+                        existing_user.id,
+                        len(reinit_templates),
+                        "created" if parameters else "failed",
+                    )
+                except Exception as e:
+                    logger.error("❌ Failed to recover user %s: %s", existing_user.id, str(e))
+                    raise ValidationError(
+                        f"User {existing_user.id} missing required defaults and recovery failed: {e}",
+                        field="user_initialization",
+                    ) from e
 
             return existing_user
         except NotFoundError:

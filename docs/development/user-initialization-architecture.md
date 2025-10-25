@@ -7,6 +7,7 @@ This document describes the unified user initialization architecture that ensure
 ## Problem Statement
 
 **Before:** Different code paths for mock vs. OIDC users led to:
+
 - Code duplication
 - Inconsistent behavior
 - Silent failures after database wipes
@@ -100,6 +101,7 @@ def get_or_create_user(self, user_input: UserInput) -> UserOutput:
 **Location:** `backend/core/mock_auth.py`
 
 **Before (70+ lines):**
+
 ```python
 def ensure_mock_user_exists(db, settings):
     # Custom user lookup
@@ -110,6 +112,7 @@ def ensure_mock_user_exists(db, settings):
 ```
 
 **After (20 lines):**
+
 ```python
 def ensure_mock_user_exists(db, settings, user_key="default") -> UUID:
     """Ensure mock user exists using standard user creation flow."""
@@ -187,6 +190,7 @@ def ensure_mock_user_exists(db, settings, user_key="default") -> UUID:
 **Problem:** User exists but prompt_templates table is empty
 
 **Solution:**
+
 ```python
 # get_or_create_user() checks template count
 if not templates or len(templates) < 3:
@@ -201,6 +205,7 @@ if not templates or len(templates) < 3:
 **Problem:** User created but template creation failed partway
 
 **Solution:**
+
 ```python
 # Defensive check catches incomplete initialization
 if not templates or len(templates) < 3:
@@ -215,6 +220,7 @@ if not templates or len(templates) < 3:
 **Problem:** Upgraded from version without podcast templates
 
 **Solution:**
+
 ```python
 # Check for minimum template count
 if len(templates) < 3:
@@ -252,24 +258,28 @@ if len(templates) < 3:
 ### Verification Steps
 
 1. **Check template count** after user creation:
+
    ```sql
    SELECT COUNT(*) FROM prompt_templates WHERE user_id = '<uuid>';
    -- Expected: 3
    ```
 
 2. **Verify template types** exist:
+
    ```sql
    SELECT template_type FROM prompt_templates WHERE user_id = '<uuid>';
    -- Expected: RAG_QUERY, QUESTION_GENERATION, PODCAST_GENERATION
    ```
 
 3. **Check LLM parameters** exist:
+
    ```sql
    SELECT id FROM llm_parameters WHERE user_id = '<uuid>';
    -- Expected: 1 row
    ```
 
 4. **Verify pipeline** exists:
+
    ```sql
    SELECT id FROM pipeline_configs WHERE user_id = '<uuid>';
    -- Expected: 1 row
@@ -346,11 +356,13 @@ templates = template_service.get_user_templates(existing_user.id)
 ```
 
 **Impact:**
+
 - **Query:** Simple SELECT with indexed user_id
 - **Frequency:** Once per user login/access
 - **Cost:** ~1-5ms (negligible)
 
 **Benefits outweigh cost:**
+
 - ✅ Prevents silent failures (hours of debugging)
 - ✅ Self-healing (no manual intervention)
 - ✅ Database wipe safe (automatic recovery)

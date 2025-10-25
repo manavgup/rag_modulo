@@ -180,6 +180,7 @@ def get_or_create_user(self, user_input: UserInput) -> UserOutput:
 #### Mock User Creation (Simplified)
 
 **Before (Special Case):**
+
 ```python
 # Old approach - separate logic for mock users
 def ensure_mock_user_exists(db, settings):
@@ -190,6 +191,7 @@ def ensure_mock_user_exists(db, settings):
 ```
 
 **After (Unified):**
+
 ```python
 # New approach - uses same path as OIDC users
 def ensure_mock_user_exists(db, settings):
