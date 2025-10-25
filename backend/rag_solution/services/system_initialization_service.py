@@ -5,7 +5,7 @@ from core.config import Settings
 from core.custom_exceptions import LLMProviderError
 from core.logging_utils import get_logger
 from rag_solution.schemas.llm_model_schema import LLMModelInput, ModelType
-from rag_solution.schemas.llm_provider_schema import LLMProviderInput, LLMProviderOutput
+from rag_solution.schemas.llm_provider_schema import LLMProviderInput, LLMProviderOutput, LLMProviderUpdate
 from rag_solution.services.llm_model_service import LLMModelService
 from rag_solution.services.llm_provider_service import LLMProviderService
 
@@ -103,7 +103,7 @@ class SystemInitializationService:
             if existing_provider:
                 logger.info(f"Updating provider: {name}")
                 provider = self.llm_provider_service.update_provider(
-                    existing_provider.id, config.model_dump(exclude_unset=True)
+                    existing_provider.id, LLMProviderUpdate(**config.model_dump(exclude_unset=True))
                 )
                 if not provider:
                     raise LLMProviderError(name, "update", f"Failed to update {name}")
