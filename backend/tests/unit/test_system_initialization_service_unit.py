@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from core.config import Settings
 from core.custom_exceptions import LLMProviderError
 from rag_solution.schemas.llm_model_schema import ModelType
-from rag_solution.schemas.llm_provider_schema import LLMProviderInput, LLMProviderOutput
+from rag_solution.schemas.llm_provider_schema import LLMProviderInput, LLMProviderOutput, LLMProviderUpdate
 from rag_solution.services.system_initialization_service import SystemInitializationService
 
 
@@ -334,9 +334,12 @@ class TestSystemInitializationServiceUnit:
         result = service._initialize_single_provider("openai", config, existing_provider, False)
 
         assert result is updated_provider
-        service.llm_provider_service.update_provider.assert_called_once_with(
-            existing_provider.id, config.model_dump(exclude_unset=True)
-        )
+        # Verify update_provider was called with LLMProviderUpdate (not dict)
+        call_args = service.llm_provider_service.update_provider.call_args
+        assert call_args[0][0] == existing_provider.id
+        assert isinstance(call_args[0][1], LLMProviderUpdate)
+        assert call_args[0][1].name == "openai"
+        assert call_args[0][1].base_url == "https://api.openai.com"
 
     def test_initialize_single_provider_create_error_no_raise(self, service):
         """Test _initialize_single_provider handles create error with raise_on_error=False."""
@@ -450,3 +453,50 @@ class TestSystemInitializationServiceUnit:
             service._setup_watsonx_models(provider_id, True)
 
         assert "Model creation failed" in str(exc_info.value)
+
+    def test_initialize_default_users_skip_auth_true(self, service, mock_settings):
+        """Test initialize_default_users creates mock user when SKIP_AUTH=true."""
+        mock_settings.skip_auth = True
+        mock_user_id = uuid4()
+
+        with patch("core.mock_auth.ensure_mock_user_exists") as mock_ensure_user:
+            mock_ensure_user.return_value = mock_user_id
+
+            result = service.initialize_default_users(raise_on_error=False)
+
+            assert result is True
+            mock_ensure_user.assert_called_once_with(service.db, mock_settings)
+
+    def test_initialize_default_users_skip_auth_false(self, service, mock_settings):
+        """Test initialize_default_users skips creation when SKIP_AUTH=false."""
+        mock_settings.skip_auth = False
+
+        result = service.initialize_default_users(raise_on_error=False)
+
+        assert result is True
+        # Should not attempt to import or call ensure_mock_user_exists
+
+    def test_initialize_default_users_error_no_raise(self, service, mock_settings):
+        """Test initialize_default_users handles errors gracefully with raise_on_error=False."""
+        mock_settings.skip_auth = True
+
+        with patch("core.mock_auth.ensure_mock_user_exists") as mock_ensure_user:
+            mock_ensure_user.side_effect = Exception("User creation failed")
+
+            result = service.initialize_default_users(raise_on_error=False)
+
+            assert result is False
+            mock_ensure_user.assert_called_once()
+
+    def test_initialize_default_users_error_with_raise(self, service, mock_settings):
+        """Test initialize_default_users raises exception when raise_on_error=True."""
+        mock_settings.skip_auth = True
+
+        with patch("core.mock_auth.ensure_mock_user_exists") as mock_ensure_user:
+            mock_ensure_user.side_effect = Exception("User creation failed")
+
+            with pytest.raises(Exception) as exc_info:
+                service.initialize_default_users(raise_on_error=True)
+
+            assert "User creation failed" in str(exc_info.value)
+            mock_ensure_user.assert_called_once()
