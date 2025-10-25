@@ -124,6 +124,108 @@ When `SKIP_AUTH=false`:
 └─────────────┘
 ```
 
+## User Initialization Architecture
+
+### Unified User Creation (All Authentication Methods)
+
+**Design Principle:** All users (mock, OIDC, API) use the same code path for initialization to ensure consistency and prevent silent failures.
+
+#### Single Source: `UserService.get_or_create_user()`
+
+All user creation flows converge to a single method that guarantees proper initialization:
+
+```python
+# backend/rag_solution/services/user_service.py
+
+def get_or_create_user(self, user_input: UserInput) -> UserOutput:
+    """Gets existing user or creates new one, ensuring all required defaults exist.
+
+    Provides defensive initialization to handle edge cases where users may exist
+    in the database but are missing required defaults (e.g., after database wipes,
+    failed initializations, or data migrations).
+    """
+    try:
+        existing_user = self.user_repository.get_by_ibm_id(user_input.ibm_id)
+
+        # Defensive check: Ensure user has required defaults
+        template_service = PromptTemplateService(self.db)
+        templates = template_service.get_user_templates(existing_user.id)
+
+        if not templates or len(templates) < 3:
+            # User missing defaults - reinitialize
+            user_provider_service.initialize_user_defaults(existing_user.id)
+
+        return existing_user
+    except NotFoundError:
+        # User doesn't exist, create with full initialization
+        return self.create_user(user_input)
+```
+
+**What gets initialized:**
+
+1. **Prompt Templates** (3 required):
+   - `RAG_QUERY` - For answering questions
+   - `QUESTION_GENERATION` - For generating suggested questions
+   - `PODCAST_GENERATION` - For creating podcast scripts
+
+2. **LLM Parameters:**
+   - Default generation settings (temperature, max_tokens, etc.)
+
+3. **Pipeline Configuration:**
+   - Default RAG pipeline linking templates and parameters
+
+4. **Provider Assignment:**
+   - Links user to default LLM provider (usually WatsonX)
+
+#### Mock User Creation (Simplified)
+
+**Before (Special Case):**
+```python
+# Old approach - separate logic for mock users
+def ensure_mock_user_exists(db, settings):
+    # Custom check for existing user
+    # Custom template initialization
+    # Lots of duplicate code
+    # Different behavior than OIDC users
+```
+
+**After (Unified):**
+```python
+# New approach - uses same path as OIDC users
+def ensure_mock_user_exists(db, settings):
+    """Ensure mock user exists using standard user creation flow."""
+    user_service = UserService(db, settings)
+    user_input = UserInput(
+        ibm_id=os.getenv("MOCK_USER_IBM_ID", "mock-user-ibm-id"),
+        email=settings.mock_user_email,
+        name=settings.mock_user_name,
+        role=os.getenv("MOCK_USER_ROLE", "admin"),
+    )
+
+    # Same code path as OIDC users!
+    user = user_service.get_or_create_user(user_input)
+    return user.id
+```
+
+**Benefits:**
+
+- ✅ **Consistency**: Mock and OIDC users behave identically
+- ✅ **Less code**: Removed ~50 lines of duplicate logic
+- ✅ **Self-healing**: Automatically fixes users missing defaults
+- ✅ **Database wipe safe**: Templates recreated on next startup
+- ✅ **Better tested**: Single code path = easier to test
+
+#### All User Creation Paths
+
+| User Type | Entry Point | Flow |
+|-----------|------------|------|
+| **Mock User** (SKIP_AUTH=true) | `ensure_mock_user_exists()` | → `get_or_create_user()` → defensive check |
+| **OIDC User** (First login) | OIDC callback | → `get_or_create_user()` → `create_user()` |
+| **OIDC User** (Returning) | OIDC callback | → `get_or_create_user()` → defensive check |
+| **API User** (Admin creates) | `POST /api/users/` | → `create_user()` |
+
+**Result:** All users get proper initialization, regardless of authentication method! 🎉
+
 ## Implementation Details
 
 ### Backend Components

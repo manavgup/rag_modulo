@@ -51,11 +51,53 @@ class UserService:
         )
 
     def get_or_create_user(self, user_input: UserInput) -> UserOutput:
-        """Gets existing user or creates new one from input model."""
+        """Gets existing user or creates new one, ensuring all required defaults exist.
+
+        This method provides defensive initialization to handle edge cases where users
+        may exist in the database but are missing required defaults (e.g., after database
+        wipes, failed initializations, or data migrations).
+
+        Args:
+            user_input: User data for creation or lookup
+
+        Returns:
+            UserOutput: User with all required defaults initialized
+
+        Note:
+            Automatically reinitializes missing defaults (templates, parameters, pipelines)
+            for existing users. This adds one DB query per user access but prevents
+            silent failures during collection creation or search operations.
+        """
         try:
-            return self.user_repository.get_by_ibm_id(user_input.ibm_id)
+            existing_user = self.user_repository.get_by_ibm_id(user_input.ibm_id)
+
+            # Defensive check: Ensure user has required defaults
+            # Handles edge case where user exists after DB wipe but missing defaults
+            from rag_solution.services.prompt_template_service import PromptTemplateService
+
+            template_service = PromptTemplateService(self.db)
+            templates = template_service.get_user_templates(existing_user.id)
+
+            if not templates or len(templates) < 3:
+                logger.warning(
+                    "User %s exists but missing defaults (has %d templates) - reinitializing...",
+                    existing_user.id,
+                    len(templates) if templates else 0,
+                )
+                from rag_solution.services.user_provider_service import UserProviderService
+
+                user_provider_service = UserProviderService(self.db, self.settings)
+                _, reinit_templates, parameters = user_provider_service.initialize_user_defaults(existing_user.id)
+                logger.info(
+                    "Reinitialized user %s defaults: %d templates, %s parameters",
+                    existing_user.id,
+                    len(reinit_templates),
+                    "created" if parameters else "failed",
+                )
+
+            return existing_user
         except NotFoundError:
-            # User doesn't exist, create a new one
+            # User doesn't exist, create with full initialization
             return self.create_user(user_input)
 
     def get_user_by_id(self, user_id: UUID4) -> UserOutput:
