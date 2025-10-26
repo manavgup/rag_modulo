@@ -516,7 +516,13 @@ Context: {" ".join(context)}
         return prompt
 
     def _generate_llm_response_with_retry(
-        self, llm_service: LLMBase, question: str, context: list[str], user_id: str, max_retries: int = 3
+        self,
+        llm_service: LLMBase,
+        question: str,
+        context: list[str],
+        user_id: str,
+        max_retries: int = 3,
+        quality_threshold: float = 0.6,
     ) -> tuple[str, Any]:
         """Generate LLM response with validation and retry logic.
 
@@ -528,6 +534,7 @@ Context: {" ".join(context)}
             context: Context passages
             user_id: User ID
             max_retries: Maximum retry attempts
+            quality_threshold: Minimum quality score for acceptance (default: 0.6, configurable via ChainOfThoughtConfig.evaluation_threshold)
 
         Returns:
             Tuple of (parsed answer, usage)
@@ -564,16 +571,20 @@ Context: {" ".join(context)}
                 quality_score = self._assess_answer_quality(parsed_answer, question)
 
                 # Log attempt results
-                logger.info("=" * 80)
-                logger.info("🔍 LLM RESPONSE ATTEMPT %d/%d", attempt + 1, max_retries)
-                logger.info("Question: %s", question)
-                logger.info("Quality Score: %.2f", quality_score)
-                logger.info("Raw Response (first 300 chars): %s", str(llm_response)[:300] if llm_response else "None")
-                logger.info("Parsed Answer (first 300 chars): %s", parsed_answer[:300])
+                logger.debug("=" * 80)
+                logger.debug("🔍 LLM RESPONSE ATTEMPT %d/%d", attempt + 1, max_retries)
+                logger.debug("Question: %s", question)
+                logger.debug("Quality Score: %.2f", quality_score)
+                logger.debug("Raw Response (first 300 chars): %s", str(llm_response)[:300] if llm_response else "None")
+                logger.debug("Parsed Answer (first 300 chars): %s", parsed_answer[:300])
 
-                # Check quality threshold
-                if quality_score >= 0.6:
-                    logger.info("✅ Answer quality acceptable (score: %.2f)", quality_score)
+                # Check quality threshold (configurable via quality_threshold parameter)
+                if quality_score >= quality_threshold:
+                    logger.info(
+                        "✅ Answer quality acceptable (score: %.2f >= threshold: %.2f)",
+                        quality_score,
+                        quality_threshold,
+                    )
                     logger.info("=" * 80)
                     return (parsed_answer, usage)
 
@@ -583,10 +594,21 @@ Context: {" ".join(context)}
                     logger.warning("Reason: Contains CoT artifacts")
                 logger.info("=" * 80)
 
+                # Exponential backoff before retry (except on last attempt)
+                if attempt < max_retries - 1:
+                    delay = 2**attempt  # 1s, 2s, 4s for attempts 0, 1, 2
+                    logger.info("Waiting %ds before retry (exponential backoff)...", delay)
+                    time.sleep(delay)
+
             except Exception as exc:
                 logger.error("Attempt %d/%d failed: %s", attempt + 1, max_retries, exc)
                 if attempt == max_retries - 1:
                     raise
+
+                # Exponential backoff before retry
+                delay = 2**attempt  # 1s, 2s, 4s for attempts 0, 1, 2
+                logger.info("Waiting %ds before retry (exponential backoff)...", delay)
+                time.sleep(delay)
 
         # All retries failed, return last attempt with warning
         logger.error("All %d attempts failed quality check, returning last attempt", max_retries)
