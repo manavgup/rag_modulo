@@ -35,7 +35,7 @@ class TestSystemAdministrationE2E:
         except requests.exceptions.RequestException as e:
             pytest.skip(f"System not accessible for E2E testing: {e}")
 
-    def test_system_initialization_e2e_workflow(self, base_url: str, auth_headers: dict[str, str]):  # noqa: ARG002
+    def test_system_initialization_e2e_workflow(self, base_url: str, auth_headers: dict[str, str]):
         """Test complete system initialization E2E workflow."""
         # Note: System initialization happens automatically during app startup
         # There is no admin endpoint for manual initialization
@@ -77,7 +77,7 @@ class TestSystemAdministrationE2E:
                 test_provider = {
                     "name": f"test_provider_{uuid4().hex[:8]}",
                     "base_url": "https://api.test-provider.com",
-                    "api_key": "test-api-key",
+                    "api_key": "test-api-key",  # pragma: allowlist secret
                     "is_active": True,
                     "is_default": False,
                 }
@@ -157,13 +157,13 @@ class TestSystemAdministrationE2E:
         except requests.exceptions.RequestException as e:
             pytest.skip(f"Model configuration E2E not available: {e}")
 
-    def test_system_configuration_backup_restore_workflow(self, base_url: str, auth_headers: dict[str, str]):  # noqa: ARG002
+    def test_system_configuration_backup_restore_workflow(self, base_url: str, auth_headers: dict[str, str]):
         """Test system configuration backup and restore E2E workflow."""
         # Note: System backup/restore endpoints don't exist in the current API
         # These would need to be implemented if required
         pytest.skip("System backup/restore endpoints not implemented")
 
-    def test_system_monitoring_e2e_workflow(self, base_url: str, auth_headers: dict[str, str]):  # noqa: ARG002
+    def test_system_monitoring_e2e_workflow(self, base_url: str, auth_headers: dict[str, str]):
         """Test system monitoring E2E workflow."""
         # Note: System metrics and logs endpoints don't exist in the current API
         # These would need to be implemented if required

@@ -539,6 +539,10 @@ Context: {" ".join(context)}
 
         cot_template = self._create_reasoning_template(user_id)
 
+        # Initialize variables to avoid UnboundLocalError if all retries fail
+        parsed_answer = ""
+        usage = None
+
         for attempt in range(max_retries):
             try:
                 # Create enhanced prompt
