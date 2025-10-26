@@ -18,40 +18,58 @@ class AnswerSynthesizer:
         self.llm_service = llm_service
         self.settings = settings or get_settings()
 
-    def synthesize(self, original_question: str, reasoning_steps: list[ReasoningStep]) -> str:
+    def synthesize(self, original_question: str, reasoning_steps: list[ReasoningStep]) -> str:  # noqa: ARG002
         """Synthesize a final answer from reasoning steps.
 
+        NOTE: Since we now use structured output parsing in chain_of_thought_service.py,
+        the intermediate_answer already contains only the clean final answer (from <answer> tags).
+        We no longer need to add prefixes like "Based on the analysis of..." as this was
+        causing CoT reasoning leakage.
+
         Args:
-            original_question: The original question.
+            original_question: The original question (not used, kept for API compatibility).
             reasoning_steps: The reasoning steps taken.
 
         Returns:
             The synthesized final answer.
         """
+        import logging
+
+        logger = logging.getLogger(__name__)
+
         if not reasoning_steps:
             return "Unable to generate an answer due to insufficient information."
 
-        # Combine intermediate answers
+        # Extract intermediate answers (already cleaned by structured output parsing)
         intermediate_answers = [step.intermediate_answer for step in reasoning_steps if step.intermediate_answer]
 
         if not intermediate_answers:
             return "Unable to synthesize an answer from the reasoning steps."
 
-        # Simple synthesis (in production, this would use an LLM)
-        if len(intermediate_answers) == 1:
-            return intermediate_answers[0]
-
-        # Combine multiple answers
-        synthesis = f"Based on the analysis of {original_question}: "
-
+        # DEBUG: Log what we receive from CoT
+        logger.info("=" * 80)
+        logger.info("📝 ANSWER SYNTHESIZER DEBUG")
+        logger.info("Number of intermediate answers: %d", len(intermediate_answers))
         for i, answer in enumerate(intermediate_answers):
-            if i == 0:
-                synthesis += answer
-            elif i == len(intermediate_answers) - 1:
-                synthesis += f" Additionally, {answer.lower()}"
-            else:
-                synthesis += f" Furthermore, {answer.lower()}"
+            logger.info("Intermediate answer %d (first 300 chars): %s", i + 1, answer[:300])
+        logger.info("=" * 80)
 
+        # For single answer, return it directly (already clean from XML parsing)
+        if len(intermediate_answers) == 1:
+            final = intermediate_answers[0]
+            logger.info("🎯 FINAL ANSWER (single step, first 300 chars): %s", final[:300])
+            return final
+
+        # For multiple answers, combine cleanly without contaminating prefixes
+        # The LLM already provided clean answers via <answer> tags
+        synthesis = intermediate_answers[0]
+
+        for answer in intermediate_answers[1:]:
+            # Only add if it provides new information (avoid duplicates)
+            if answer.lower() not in synthesis.lower():
+                synthesis += f" {answer}"
+
+        logger.info("🎯 FINAL SYNTHESIZED ANSWER (first 300 chars): %s", synthesis[:300])
         return synthesis
 
     async def synthesize_answer(self, original_question: str, reasoning_steps: list[ReasoningStep]) -> SynthesisResult:
