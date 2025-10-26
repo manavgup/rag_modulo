@@ -284,16 +284,17 @@ def mock_get_datastore(*args, **kwargs):
 # Test Isolation Fixtures
 # ============================================================================
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def clear_provider_registry():
-    """Clear LLM provider registry before test session to prevent registration errors.
+    """Clear LLM provider registry before each test function to prevent registration errors.
 
     The LLMProviderFactory uses a class-level registry that persists across test
-    modules. This fixture ensures a clean state for each test session.
+    functions. This fixture ensures a clean state for each test by clearing
+    the registry before and after each test executes.
     """
     from backend.rag_solution.generation.providers.factory import LLMProviderFactory
 
     LLMProviderFactory.clear_providers()
     yield
-    # Clean up after tests complete
+    # Clean up after test completes
     LLMProviderFactory.clear_providers()
