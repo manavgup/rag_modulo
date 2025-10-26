@@ -9,9 +9,8 @@ This module validates the complete workflow ensuring:
 """
 
 import pytest
-from fastapi.testclient import TestClient
-
 from backend.main import app
+from fastapi.testclient import TestClient
 
 
 class TestSeamlessWorkflowTDD:

@@ -4,34 +4,32 @@ Generated on: 2025-10-18
 Coverage: Unit tests for podcast generation, script generation, audio synthesis, and file management
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch, MagicMock, call
 from datetime import datetime
-from uuid import uuid4, UUID
-from fastapi import HTTPException, BackgroundTasks
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from uuid import uuid4
 
-from backend.rag_solution.services.podcast_service import PodcastService, SupportedLanguage
+import pytest
+from backend.core.custom_exceptions import NotFoundError, ValidationError
+from backend.rag_solution.models.collection import Collection
 from backend.rag_solution.schemas.podcast_schema import (
+    AudioFormat,
+    PodcastAudioGenerationInput,
+    PodcastDuration,
     PodcastGenerationInput,
     PodcastGenerationOutput,
+    PodcastListResponse,
+    PodcastScript,
     PodcastScriptGenerationInput,
     PodcastScriptOutput,
-    PodcastAudioGenerationInput,
     PodcastStatus,
-    PodcastDuration,
-    AudioFormat,
-    VoiceSettings,
-    VoiceGender,
-    PodcastScript,
     PodcastTurn,
-    Speaker,
     ScriptParsingResult,
-    PodcastListResponse,
+    Speaker,
+    VoiceGender,
+    VoiceSettings,
 )
-from backend.core.custom_exceptions import NotFoundError, ValidationError, PromptTemplateNotFoundError
-from backend.rag_solution.models.podcast import Podcast
-from backend.rag_solution.models.collection import Collection
-
+from backend.rag_solution.services.podcast_service import PodcastService, SupportedLanguage
+from fastapi import BackgroundTasks, HTTPException
 
 # ============================================================================
 # SHARED FIXTURES
@@ -61,7 +59,7 @@ def mock_repository():
     def create_podcast_model(**kwargs):
         """Create a proper podcast model with all required fields"""
         # Handle audio_format - can be AudioFormat enum or string
-        audio_fmt = kwargs.get('audio_format', AudioFormat.MP3)
+        audio_fmt = kwargs.get("audio_format", AudioFormat.MP3)
         if isinstance(audio_fmt, AudioFormat):
             audio_fmt_value = audio_fmt.value
             audio_fmt_enum = audio_fmt
@@ -73,7 +71,7 @@ def mock_repository():
             audio_fmt_enum = AudioFormat.MP3
 
         # Handle duration - can be PodcastDuration enum or int
-        dur = kwargs.get('duration', PodcastDuration.MEDIUM)
+        dur = kwargs.get("duration", PodcastDuration.MEDIUM)
         if isinstance(dur, PodcastDuration):
             dur_value = dur.value
             dur_enum = dur
@@ -85,18 +83,18 @@ def mock_repository():
             dur_enum = PodcastDuration.MEDIUM
 
         return Mock(
-            podcast_id=kwargs.get('podcast_id', podcast_id),
-            user_id=kwargs.get('user_id', user_id),
-            collection_id=kwargs.get('collection_id', collection_id),
-            status=kwargs.get('status', PodcastStatus.QUEUED),
-            progress_percentage=kwargs.get('progress_percentage', 0),
+            podcast_id=kwargs.get("podcast_id", podcast_id),
+            user_id=kwargs.get("user_id", user_id),
+            collection_id=kwargs.get("collection_id", collection_id),
+            status=kwargs.get("status", PodcastStatus.QUEUED),
+            progress_percentage=kwargs.get("progress_percentage", 0),
             duration=dur_enum,
             audio_format=audio_fmt_enum,
-            host_voice=kwargs.get('host_voice', "alloy"),
-            expert_voice=kwargs.get('expert_voice', "onyx"),
-            voice_settings=kwargs.get('voice_settings', {}),
-            title=kwargs.get('title', "Test Podcast"),
-            description=kwargs.get('description'),
+            host_voice=kwargs.get("host_voice", "alloy"),
+            expert_voice=kwargs.get("expert_voice", "onyx"),
+            voice_settings=kwargs.get("voice_settings", {}),
+            title=kwargs.get("title", "Test Podcast"),
+            description=kwargs.get("description"),
             audio_url=None,
             transcript=None,
             audio_size_bytes=None,
@@ -258,9 +256,9 @@ def mock_script_parser():
 @pytest.fixture
 def service(mock_session, mock_collection_service, mock_search_service, mock_repository, mock_settings, mock_audio_storage, mock_script_parser):
     """Service instance with mocked dependencies"""
-    with patch('backend.rag_solution.services.podcast_service.get_settings', return_value=mock_settings):
-        with patch('backend.rag_solution.services.podcast_service.PodcastRepository', return_value=mock_repository):
-            with patch('backend.rag_solution.services.podcast_service.PodcastScriptParser', return_value=mock_script_parser):
+    with patch("backend.rag_solution.services.podcast_service.get_settings", return_value=mock_settings):
+        with patch("backend.rag_solution.services.podcast_service.PodcastRepository", return_value=mock_repository):
+            with patch("backend.rag_solution.services.podcast_service.PodcastScriptParser", return_value=mock_script_parser):
                 svc = PodcastService(
                     session=mock_session,
                     collection_service=mock_collection_service,
@@ -478,10 +476,10 @@ class TestScriptGenerationUnit:
     @pytest.mark.asyncio
     async def test_generate_script_success(self, service, valid_podcast_input):
         """Test successful script generation"""
-        with patch('backend.rag_solution.services.prompt_template_service.PromptTemplateService') as mock_template_service_class:
+        with patch("backend.rag_solution.services.prompt_template_service.PromptTemplateService") as mock_template_service_class:
             mock_template_service_class.return_value.get_by_type.return_value = None
 
-            with patch('backend.rag_solution.services.podcast_service.LLMProviderFactory') as mock_factory:
+            with patch("backend.rag_solution.services.podcast_service.LLMProviderFactory") as mock_factory:
                 mock_provider = Mock()
                 mock_provider.generate_text = Mock(return_value="HOST: Hello\nEXPERT: Hi there")
                 mock_factory.return_value.get_provider.return_value = mock_provider
@@ -506,10 +504,10 @@ class TestScriptGenerationUnit:
     @pytest.mark.asyncio
     async def test_generate_script_word_count_calculation(self, service, valid_podcast_input):
         """Test word count calculation for different durations"""
-        with patch('backend.rag_solution.services.prompt_template_service.PromptTemplateService') as mock_template_service_class:
+        with patch("backend.rag_solution.services.prompt_template_service.PromptTemplateService") as mock_template_service_class:
             mock_template_service_class.return_value.get_by_type.return_value = None
 
-            with patch('backend.rag_solution.services.podcast_service.LLMProviderFactory') as mock_factory:
+            with patch("backend.rag_solution.services.podcast_service.LLMProviderFactory") as mock_factory:
                 mock_provider = Mock()
                 mock_provider.generate_text = Mock(return_value="Script text")
                 mock_factory.return_value.get_provider.return_value = mock_provider
@@ -527,16 +525,16 @@ class TestScriptGenerationUnit:
 
                     # Verify word count was passed to template
                     call_args = mock_provider.generate_text.call_args
-                    variables = call_args.kwargs.get('variables', {})
-                    assert variables.get('word_count') == expected_words
+                    variables = call_args.kwargs.get("variables", {})
+                    assert variables.get("word_count") == expected_words
 
     @pytest.mark.asyncio
     async def test_generate_script_different_languages(self, service, valid_podcast_input):
         """Test script generation for different languages"""
-        with patch('backend.rag_solution.services.prompt_template_service.PromptTemplateService') as mock_template_service_class:
+        with patch("backend.rag_solution.services.prompt_template_service.PromptTemplateService") as mock_template_service_class:
             mock_template_service_class.return_value.get_by_type.return_value = None
 
-            with patch('backend.rag_solution.services.podcast_service.LLMProviderFactory') as mock_factory:
+            with patch("backend.rag_solution.services.podcast_service.LLMProviderFactory") as mock_factory:
                 mock_provider = Mock()
                 mock_provider.generate_text = Mock(return_value="Script text")
                 mock_factory.return_value.get_provider.return_value = mock_provider
@@ -546,16 +544,16 @@ class TestScriptGenerationUnit:
                     await service._generate_script(valid_podcast_input, "RAG content")
 
                     call_args = mock_provider.generate_text.call_args
-                    variables = call_args.kwargs.get('variables', {})
-                    assert variables.get('language') == lang
+                    variables = call_args.kwargs.get("variables", {})
+                    assert variables.get("language") == lang
 
     @pytest.mark.asyncio
     async def test_generate_script_list_response(self, service, valid_podcast_input):
         """Test script generation handles list responses from LLM"""
-        with patch('backend.rag_solution.services.prompt_template_service.PromptTemplateService') as mock_template_service_class:
+        with patch("backend.rag_solution.services.prompt_template_service.PromptTemplateService") as mock_template_service_class:
             mock_template_service_class.return_value.get_by_type.return_value = None
 
-            with patch('backend.rag_solution.services.podcast_service.LLMProviderFactory') as mock_factory:
+            with patch("backend.rag_solution.services.podcast_service.LLMProviderFactory") as mock_factory:
                 mock_provider = Mock()
                 mock_provider.generate_text = Mock(return_value=["Part 1", "Part 2"])
                 mock_factory.return_value.get_provider.return_value = mock_provider
@@ -569,10 +567,10 @@ class TestScriptGenerationUnit:
     @pytest.mark.asyncio
     async def test_generate_script_with_template_fallback(self, service, valid_podcast_input):
         """Test script generation falls back to default template when user template not found"""
-        with patch('backend.rag_solution.services.prompt_template_service.PromptTemplateService') as mock_template_service_class:
+        with patch("backend.rag_solution.services.prompt_template_service.PromptTemplateService") as mock_template_service_class:
             mock_template_service_class.return_value.get_by_type.return_value = None
 
-            with patch('backend.rag_solution.services.podcast_service.LLMProviderFactory') as mock_factory:
+            with patch("backend.rag_solution.services.podcast_service.LLMProviderFactory") as mock_factory:
                 mock_provider = Mock()
                 mock_provider.generate_text = Mock(return_value="Script text")
                 mock_factory.return_value.get_provider.return_value = mock_provider
@@ -597,7 +595,7 @@ class TestAudioGenerationUnit:
             total_words=1
         )
 
-        with patch('backend.rag_solution.services.podcast_service.AudioProviderFactory') as mock_factory:
+        with patch("backend.rag_solution.services.podcast_service.AudioProviderFactory") as mock_factory:
             mock_audio_provider = AsyncMock()
             mock_audio_provider.generate_dialogue_audio = AsyncMock(return_value=b"audio_bytes")
             mock_factory.create_provider.return_value = mock_audio_provider
@@ -619,7 +617,7 @@ class TestAudioGenerationUnit:
         for provider in ["openai", "ollama"]:
             mock_settings.podcast_audio_provider = provider
 
-            with patch('backend.rag_solution.services.podcast_service.AudioProviderFactory') as mock_factory:
+            with patch("backend.rag_solution.services.podcast_service.AudioProviderFactory") as mock_factory:
                 mock_audio_provider = AsyncMock()
                 mock_audio_provider.generate_dialogue_audio = AsyncMock(return_value=b"audio")
                 mock_factory.create_provider.return_value = mock_audio_provider
@@ -640,7 +638,7 @@ class TestAudioGenerationUnit:
             total_words=1
         )
 
-        with patch('backend.rag_solution.services.podcast_service.AudioProviderFactory') as mock_factory:
+        with patch("backend.rag_solution.services.podcast_service.AudioProviderFactory") as mock_factory:
             mock_audio_provider = AsyncMock()
             mock_audio_provider.generate_dialogue_audio = AsyncMock(return_value=b"minimal_audio")
             mock_factory.create_provider.return_value = mock_audio_provider
@@ -683,7 +681,7 @@ class TestFileManagementUnit:
             await service._store_audio(podcast_id, user_id, b"audio", audio_format)
 
             call_args = mock_audio_storage.store_audio.call_args
-            assert call_args.kwargs['audio_format'] == audio_format.value
+            assert call_args.kwargs["audio_format"] == audio_format.value
 
     @pytest.mark.asyncio
     async def test_store_audio_large_file(self, service, mock_audio_storage):
@@ -695,7 +693,7 @@ class TestFileManagementUnit:
         result = await service._store_audio(podcast_id, user_id, large_audio, AudioFormat.MP3)
 
         assert result is not None
-        assert len(mock_audio_storage.store_audio.call_args.kwargs['audio_data']) == 10 * 1024 * 1024
+        assert len(mock_audio_storage.store_audio.call_args.kwargs["audio_data"]) == 10 * 1024 * 1024
 
     @pytest.mark.asyncio
     async def test_delete_podcast_success(self, service, mock_repository, mock_audio_storage):
@@ -800,7 +798,7 @@ class TestProgressTrackingUnit:
         )
 
         call_args = mock_repository.update_progress.call_args
-        assert call_args.kwargs['step_details'] == step_details
+        assert call_args.kwargs["step_details"] == step_details
 
     @pytest.mark.asyncio
     async def test_update_progress_with_status_change(self, service, mock_repository):
@@ -951,7 +949,7 @@ class TestVoicePreviewUnit:
     @pytest.mark.asyncio
     async def test_generate_voice_preview_success(self, service):
         """Test successful voice preview generation"""
-        with patch('backend.rag_solution.services.podcast_service.AudioProviderFactory') as mock_factory:
+        with patch("backend.rag_solution.services.podcast_service.AudioProviderFactory") as mock_factory:
             mock_audio_provider = AsyncMock()
             mock_audio_provider.generate_single_turn_audio = AsyncMock(return_value=b"preview_audio")
             mock_factory.create_provider.return_value = mock_audio_provider
@@ -964,7 +962,7 @@ class TestVoicePreviewUnit:
     @pytest.mark.asyncio
     async def test_generate_voice_preview_different_voices(self, service):
         """Test voice preview for different voice IDs"""
-        with patch('backend.rag_solution.services.podcast_service.AudioProviderFactory') as mock_factory:
+        with patch("backend.rag_solution.services.podcast_service.AudioProviderFactory") as mock_factory:
             mock_audio_provider = AsyncMock()
             mock_audio_provider.generate_single_turn_audio = AsyncMock(return_value=b"audio")
             mock_factory.create_provider.return_value = mock_audio_provider
@@ -973,12 +971,12 @@ class TestVoicePreviewUnit:
                 await service.generate_voice_preview(voice_id)
 
                 call_args = mock_audio_provider.generate_single_turn_audio.call_args
-                assert call_args.kwargs['voice_id'] == voice_id
+                assert call_args.kwargs["voice_id"] == voice_id
 
     @pytest.mark.asyncio
     async def test_generate_voice_preview_provider_error(self, service):
         """Test voice preview handles provider errors"""
-        with patch('backend.rag_solution.services.podcast_service.AudioProviderFactory') as mock_factory:
+        with patch("backend.rag_solution.services.podcast_service.AudioProviderFactory") as mock_factory:
             mock_audio_provider = AsyncMock()
             mock_audio_provider.generate_single_turn_audio = AsyncMock(
                 side_effect=Exception("TTS provider unavailable")
@@ -1009,10 +1007,10 @@ class TestScriptOnlyGenerationUnit:
             description="Test description"
         )
 
-        with patch.object(service, '_retrieve_content', new_callable=AsyncMock) as mock_retrieve:
+        with patch.object(service, "_retrieve_content", new_callable=AsyncMock) as mock_retrieve:
             mock_retrieve.return_value = "RAG content"
 
-            with patch.object(service, '_generate_script', new_callable=AsyncMock) as mock_gen_script:
+            with patch.object(service, "_generate_script", new_callable=AsyncMock) as mock_gen_script:
                 mock_gen_script.return_value = "HOST: Hello\nEXPERT: Hi there"
 
                 result = await service.generate_script_only(script_input)
@@ -1050,10 +1048,10 @@ class TestScriptOnlyGenerationUnit:
 
         script_text = "HOST: " + " ".join(["word"] * 100) + "\nEXPERT: " + " ".join(["word"] * 100)
 
-        with patch.object(service, '_retrieve_content', new_callable=AsyncMock) as mock_retrieve:
+        with patch.object(service, "_retrieve_content", new_callable=AsyncMock) as mock_retrieve:
             mock_retrieve.return_value = "RAG content"
 
-            with patch.object(service, '_generate_script', new_callable=AsyncMock) as mock_gen_script:
+            with patch.object(service, "_generate_script", new_callable=AsyncMock) as mock_gen_script:
                 mock_gen_script.return_value = script_text
 
                 result = await service.generate_script_only(script_input)
@@ -1070,10 +1068,10 @@ class TestScriptOnlyGenerationUnit:
             duration=PodcastDuration.MEDIUM
         )
 
-        with patch.object(service, '_retrieve_content', new_callable=AsyncMock) as mock_retrieve:
+        with patch.object(service, "_retrieve_content", new_callable=AsyncMock) as mock_retrieve:
             mock_retrieve.return_value = "RAG content"
 
-            with patch.object(service, '_generate_script', new_callable=AsyncMock) as mock_gen_script:
+            with patch.object(service, "_generate_script", new_callable=AsyncMock) as mock_gen_script:
                 mock_gen_script.return_value = "Just plain text without speaker labels"
 
                 result = await service.generate_script_only(script_input)
@@ -1250,10 +1248,10 @@ class TestEdgeCasesUnit:
         """Test handling of special characters in podcast text"""
         script_with_special_chars = "HOST: Hello! How are you? 你好\nEXPERT: I'm good 😊"
 
-        with patch('backend.rag_solution.services.prompt_template_service.PromptTemplateService') as mock_template_service_class:
+        with patch("backend.rag_solution.services.prompt_template_service.PromptTemplateService") as mock_template_service_class:
             mock_template_service_class.return_value.get_by_type.return_value = None
 
-            with patch('backend.rag_solution.services.podcast_service.LLMProviderFactory') as mock_factory:
+            with patch("backend.rag_solution.services.podcast_service.LLMProviderFactory") as mock_factory:
                 mock_provider = Mock()
                 mock_provider.generate_text = Mock(return_value=script_with_special_chars)
                 mock_factory.return_value.get_provider.return_value = mock_provider

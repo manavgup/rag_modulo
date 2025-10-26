@@ -4,19 +4,18 @@ Generated on: 2025-10-18
 Coverage: Unit tests for user-team relationship management
 """
 
-import pytest
-from unittest.mock import Mock, MagicMock, AsyncMock
 from datetime import datetime
-from uuid import uuid4, UUID
-from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError
+from unittest.mock import Mock
+from uuid import uuid4
+
+import pytest
+from backend.rag_solution.core.exceptions import NotFoundError
+from backend.rag_solution.repository.user_team_repository import UserTeamRepository
+from backend.rag_solution.schemas.user_team_schema import UserTeamOutput
 
 # Service imports
 from backend.rag_solution.services.user_team_service import UserTeamService
-from backend.rag_solution.schemas.user_team_schema import UserTeamOutput, UserTeamInput
-from backend.rag_solution.repository.user_team_repository import UserTeamRepository
-from backend.rag_solution.core.exceptions import NotFoundError
-
+from sqlalchemy.orm import Session
 
 # ============================================================================
 # SHARED FIXTURES

@@ -16,7 +16,9 @@ class TestChainOfThoughtConfigSchema:
 
     def test_cot_config_schema_creation_with_valid_data(self):
         """Test creation of CoT config schema with valid data."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtConfig  # type: ignore  # type: ignore
+        from backend.rag_solution.schemas.chain_of_thought_schema import (
+            ChainOfThoughtConfig,  # type: ignore  # type: ignore
+        )
 
         config_data = {
             "enabled": True,
@@ -223,7 +225,10 @@ class TestChainOfThoughtOutputSchema:
 
     def test_cot_output_schema_creation(self):
         """Test creation of CoT output schema."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtOutput, ReasoningStep  # type: ignore
+        from backend.rag_solution.schemas.chain_of_thought_schema import (  # type: ignore
+            ChainOfThoughtOutput,
+            ReasoningStep,
+        )
 
         step1 = ReasoningStep(
             step_number=1,

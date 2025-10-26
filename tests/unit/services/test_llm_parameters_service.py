@@ -4,16 +4,15 @@ This module provides comprehensive unit tests for the LLM Parameters Service,
 covering CRUD operations, parameter validation, default handling, and error scenarios.
 """
 
-from datetime import datetime, timezone
-from unittest.mock import Mock, patch
+from datetime import UTC, datetime
+from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
-from pydantic import UUID4, ValidationError
-
 from backend.core.custom_exceptions import NotFoundException
 from backend.rag_solution.schemas.llm_parameters_schema import LLMParametersInput, LLMParametersOutput
 from backend.rag_solution.services.llm_parameters_service import LLMParametersService
+from pydantic import UUID4, ValidationError
 
 
 class TestLLMParametersService:
@@ -73,8 +72,8 @@ class TestLLMParametersService:
             top_p=0.9,
             repetition_penalty=1.1,
             is_default=False,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
 
     # ============================================================================
@@ -130,8 +129,8 @@ class TestLLMParametersService:
             top_p=1.0,  # Default
             repetition_penalty=1.1,  # Default
             is_default=False,  # Default
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
         service.repository.create.return_value = mock_output
 
@@ -164,8 +163,8 @@ class TestLLMParametersService:
             top_p=1.0,
             repetition_penalty=1.1,
             is_default=True,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
         service.repository.create.return_value = mock_output
 
@@ -237,8 +236,8 @@ class TestLLMParametersService:
             top_p=1.0,
             repetition_penalty=1.1,
             is_default=True,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
         service.repository.get_default_parameters.return_value = None
         service.repository.create.return_value = default_params
@@ -278,8 +277,8 @@ class TestLLMParametersService:
             top_p=0.8,
             repetition_penalty=1.0,
             is_default=True,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
         params2 = LLMParametersOutput(
             id=uuid4(),
@@ -292,8 +291,8 @@ class TestLLMParametersService:
             top_p=0.95,
             repetition_penalty=1.2,
             is_default=False,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
 
         service.repository.get_parameters_by_user_id.return_value = [params1, params2]
@@ -349,8 +348,8 @@ class TestLLMParametersService:
             top_p=0.9,  # Original value
             repetition_penalty=1.1,  # Original value
             is_default=False,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
         service.repository.update.return_value = updated_output
 
@@ -440,7 +439,7 @@ class TestLLMParametersService:
             repetition_penalty=sample_parameters_output.repetition_penalty,
             is_default=True,  # Changed to default
             created_at=sample_parameters_output.created_at,
-            updated_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(UTC),
         )
         service.repository.update.return_value = updated_output
 
@@ -488,7 +487,7 @@ class TestLLMParametersService:
             repetition_penalty=sample_parameters_output.repetition_penalty,
             is_default=True,
             created_at=sample_parameters_output.created_at,
-            updated_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(UTC),
         )
         service.repository.update.return_value = updated_output
 
@@ -516,8 +515,8 @@ class TestLLMParametersService:
             top_p=1.0,
             repetition_penalty=1.1,
             is_default=True,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
         service.repository.create.return_value = default_params
 
@@ -545,8 +544,8 @@ class TestLLMParametersService:
             top_p=0.95,
             repetition_penalty=1.2,
             is_default=True,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
         service.repository.get_default_parameters.return_value = existing_default
 
@@ -572,8 +571,8 @@ class TestLLMParametersService:
             top_p=1.0,
             repetition_penalty=1.1,
             is_default=True,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
         service.repository.get_default_parameters.return_value = default_params
 
@@ -600,8 +599,8 @@ class TestLLMParametersService:
             top_p=0.8,
             repetition_penalty=1.0,
             is_default=False,
-            created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
-            updated_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
+            created_at=datetime(2023, 1, 1, tzinfo=UTC),
+            updated_at=datetime(2023, 1, 1, tzinfo=UTC),
         )
 
         latest_params = LLMParametersOutput(
@@ -615,8 +614,8 @@ class TestLLMParametersService:
             top_p=0.95,
             repetition_penalty=1.2,
             is_default=False,
-            created_at=datetime(2024, 1, 1, tzinfo=timezone.utc),
-            updated_at=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            created_at=datetime(2024, 1, 1, tzinfo=UTC),
+            updated_at=datetime(2024, 1, 1, tzinfo=UTC),
         )
 
         service.repository.get_parameters_by_user_id.return_value = [old_params, latest_params]
@@ -646,8 +645,8 @@ class TestLLMParametersService:
             top_p=1.0,
             repetition_penalty=1.1,
             is_default=True,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
         service.repository.create.return_value = default_params
 
@@ -774,8 +773,8 @@ class TestLLMParametersService:
             top_p=0.0,
             repetition_penalty=1.0,
             is_default=False,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
         service.repository.create.return_value = boundary_output
 
@@ -814,8 +813,8 @@ class TestLLMParametersService:
             top_p=1.0,
             repetition_penalty=2.0,
             is_default=False,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
         service.repository.create.return_value = max_output
 

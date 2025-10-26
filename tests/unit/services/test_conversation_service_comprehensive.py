@@ -17,19 +17,13 @@ Test Structure:
 - Edge Cases (10 tests)
 """
 
-import re
 from datetime import datetime, timedelta
-from typing import Any
-from unittest.mock import AsyncMock, Mock, MagicMock, patch
-from uuid import UUID, uuid4
+from unittest.mock import Mock, patch
+from uuid import uuid4
 
 import pytest
-from pydantic import UUID4
-
-from backend.core.custom_exceptions import NotFoundError, ValidationError, ConfigurationError
+from backend.core.custom_exceptions import NotFoundError, ValidationError
 from backend.rag_solution.core.exceptions import SessionExpiredError
-from backend.rag_solution.models.conversation_message import ConversationMessage
-from backend.rag_solution.models.conversation_session import ConversationSession
 from backend.rag_solution.schemas.conversation_schema import (
     ConversationContext,
     ConversationMessageInput,
@@ -39,11 +33,11 @@ from backend.rag_solution.schemas.conversation_schema import (
     MessageMetadata,
     MessageRole,
     MessageType,
-    QuestionSuggestionOutput,
     SessionStatistics,
     SessionStatus,
 )
 from backend.rag_solution.services.conversation_service import ConversationService
+from pydantic import UUID4
 
 # ============================================================================
 # SHARED FIXTURES
@@ -1096,9 +1090,9 @@ class TestConversationServiceStatistics:
         ]
 
         # Mock get_session
-        with patch.object(conversation_service, 'get_session', return_value=sample_session):
+        with patch.object(conversation_service, "get_session", return_value=sample_session):
             # Mock get_messages
-            with patch.object(conversation_service, 'get_messages', return_value=messages):
+            with patch.object(conversation_service, "get_messages", return_value=messages):
                 stats = await conversation_service.get_session_statistics(test_session_id, test_user_id)
 
         assert isinstance(stats, SessionStatistics)
@@ -1111,8 +1105,8 @@ class TestConversationServiceStatistics:
     @pytest.mark.asyncio
     async def test_get_session_statistics_empty_session(self, conversation_service, test_session_id, test_user_id, sample_session):
         """Test statistics for empty session."""
-        with patch.object(conversation_service, 'get_session', return_value=sample_session):
-            with patch.object(conversation_service, 'get_messages', return_value=[]):
+        with patch.object(conversation_service, "get_session", return_value=sample_session):
+            with patch.object(conversation_service, "get_messages", return_value=[]):
                 stats = await conversation_service.get_session_statistics(test_session_id, test_user_id)
 
         assert stats.message_count == 0
@@ -1136,9 +1130,9 @@ class TestConversationServiceStatistics:
             )
         ]
 
-        with patch.object(conversation_service, 'get_session', return_value=sample_session):
-            with patch.object(conversation_service, 'get_messages', return_value=messages):
-                with patch.object(conversation_service, 'get_session_statistics', return_value=Mock(
+        with patch.object(conversation_service, "get_session", return_value=sample_session):
+            with patch.object(conversation_service, "get_messages", return_value=messages):
+                with patch.object(conversation_service, "get_session_statistics", return_value=Mock(
                     total_tokens=10, cot_usage_count=0
                 )):
                     summary = await conversation_service.generate_conversation_summary(
@@ -1177,9 +1171,9 @@ class TestConversationServiceStatistics:
             )
         ]
 
-        with patch.object(conversation_service, 'get_session', return_value=sample_session):
-            with patch.object(conversation_service, 'get_messages', return_value=messages):
-                with patch.object(conversation_service, 'get_session_statistics', return_value=Mock(
+        with patch.object(conversation_service, "get_session", return_value=sample_session):
+            with patch.object(conversation_service, "get_messages", return_value=messages):
+                with patch.object(conversation_service, "get_session_statistics", return_value=Mock(
                     total_tokens=15, cot_usage_count=0
                 )):
                     summary = await conversation_service.generate_conversation_summary(
@@ -1205,9 +1199,9 @@ class TestConversationServiceStatistics:
             )
         ]
 
-        with patch.object(conversation_service, 'get_session', return_value=sample_session):
-            with patch.object(conversation_service, 'get_messages', return_value=messages):
-                with patch.object(conversation_service, 'get_session_statistics', return_value=Mock(
+        with patch.object(conversation_service, "get_session", return_value=sample_session):
+            with patch.object(conversation_service, "get_messages", return_value=messages):
+                with patch.object(conversation_service, "get_session_statistics", return_value=Mock(
                     total_tokens=5, cot_usage_count=0
                 )):
                     summary = await conversation_service.generate_conversation_summary(
@@ -1221,8 +1215,8 @@ class TestConversationServiceStatistics:
         """Test session export in JSON format."""
         messages = [Mock()]
 
-        with patch.object(conversation_service, 'get_session', return_value=sample_session):
-            with patch.object(conversation_service, 'get_messages', return_value=messages):
+        with patch.object(conversation_service, "get_session", return_value=sample_session):
+            with patch.object(conversation_service, "get_messages", return_value=messages):
                 export = await conversation_service.export_session(test_session_id, test_user_id, export_format="json")
 
         assert isinstance(export, dict)
@@ -1284,7 +1278,7 @@ class TestConversationServiceStatistics:
         conversation_service._llm_provider_service = Mock()
         conversation_service._llm_provider_service.get_default_provider = Mock(return_value=None)
 
-        with patch.object(conversation_service, 'get_messages', return_value=messages):
+        with patch.object(conversation_service, "get_messages", return_value=messages):
             name = await conversation_service.generate_conversation_name(test_session_id, test_user_id)
 
         assert isinstance(name, str)
@@ -1360,7 +1354,7 @@ class TestConversationServiceErrorHandling:
         """Test statistics for invalid session."""
         invalid_session_id = uuid4()
 
-        with patch.object(conversation_service, 'get_session', side_effect=NotFoundError("Session", str(invalid_session_id))):
+        with patch.object(conversation_service, "get_session", side_effect=NotFoundError("Session", str(invalid_session_id))):
             with pytest.raises(NotFoundError):
                 await conversation_service.get_session_statistics(invalid_session_id, test_user_id)
 
@@ -1406,8 +1400,8 @@ class TestConversationServiceErrorHandling:
     @pytest.mark.asyncio
     async def test_generate_summary_empty_session(self, conversation_service, test_session_id, test_user_id, sample_session):
         """Test summary generation for empty session."""
-        with patch.object(conversation_service, 'get_session', return_value=sample_session):
-            with patch.object(conversation_service, 'get_messages', return_value=[]):
+        with patch.object(conversation_service, "get_session", return_value=sample_session):
+            with patch.object(conversation_service, "get_messages", return_value=[]):
                 summary = await conversation_service.generate_conversation_summary(test_session_id, test_user_id)
 
         assert "No messages" in summary["summary"]
@@ -1440,7 +1434,7 @@ class TestConversationServiceEdgeCases:
             )
             messages.append(msg)
 
-        with patch.object(conversation_service, 'get_messages', return_value=messages):
+        with patch.object(conversation_service, "get_messages", return_value=messages):
             result = await conversation_service.get_messages(test_session_id, test_user_id, limit=50)
 
         assert len(result) == 50

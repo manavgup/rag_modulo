@@ -6,12 +6,10 @@ collection CRUD operations, document processing, and error handling.
 Aiming for 90%+ coverage.
 """
 
-import pytest
-from unittest.mock import Mock, patch, AsyncMock, MagicMock
+from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
-from fastapi import UploadFile, BackgroundTasks
-from sqlalchemy.orm import Session
 
+import pytest
 from backend.core.config import Settings
 from backend.core.custom_exceptions import (
     CollectionProcessingError,
@@ -19,10 +17,12 @@ from backend.core.custom_exceptions import (
     NotFoundError,
     ValidationError,
 )
-from backend.rag_solution.services.collection_service import CollectionService
-from backend.rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput, CollectionStatus
+from backend.rag_solution.schemas.collection_schema import CollectionInput, CollectionStatus
 from backend.rag_solution.schemas.file_schema import FileOutput
 from backend.rag_solution.schemas.llm_parameters_schema import LLMParametersInput
+from backend.rag_solution.services.collection_service import CollectionService
+from fastapi import BackgroundTasks, UploadFile
+from sqlalchemy.orm import Session
 
 
 class TestCollectionService:
@@ -54,17 +54,17 @@ class TestCollectionService:
     @pytest.fixture
     def collection_service(self, mock_db, mock_settings):
         """Create CollectionService instance with mocked dependencies."""
-        with patch('backend.rag_solution.services.collection_service.CollectionRepository'), \
-             patch('backend.rag_solution.services.collection_service.FileManagementService'), \
-             patch('backend.rag_solution.services.collection_service.LLMModelService'), \
-             patch('backend.rag_solution.services.collection_service.LLMParametersService'), \
-             patch('backend.rag_solution.services.collection_service.PromptTemplateService'), \
-             patch('backend.rag_solution.services.collection_service.QuestionService'), \
-             patch('backend.rag_solution.services.collection_service.UserCollectionService'), \
-             patch('backend.rag_solution.services.collection_service.UserProviderService'), \
-             patch('backend.rag_solution.services.collection_service.VectorStoreFactory'), \
-             patch('backend.rag_solution.services.collection_service.DocumentStore') as MockDocumentStore, \
-             patch('backend.rag_solution.services.collection_service.IdentityService'):
+        with patch("backend.rag_solution.services.collection_service.CollectionRepository"), \
+             patch("backend.rag_solution.services.collection_service.FileManagementService"), \
+             patch("backend.rag_solution.services.collection_service.LLMModelService"), \
+             patch("backend.rag_solution.services.collection_service.LLMParametersService"), \
+             patch("backend.rag_solution.services.collection_service.PromptTemplateService"), \
+             patch("backend.rag_solution.services.collection_service.QuestionService"), \
+             patch("backend.rag_solution.services.collection_service.UserCollectionService"), \
+             patch("backend.rag_solution.services.collection_service.UserProviderService"), \
+             patch("backend.rag_solution.services.collection_service.VectorStoreFactory"), \
+             patch("backend.rag_solution.services.collection_service.DocumentStore") as MockDocumentStore, \
+             patch("backend.rag_solution.services.collection_service.IdentityService"):
             service = CollectionService(mock_db, mock_settings)
             # Manually add document_store attribute for tests that rely on it
             service.document_store = MockDocumentStore()
@@ -527,7 +527,7 @@ class TestCollectionService:
 
         # Mock the entire document processing pipeline
         mock_documents = [Mock(), Mock()]
-        with patch('backend.rag_solution.services.collection_service.DocumentStore') as mock_doc_store:
+        with patch("backend.rag_solution.services.collection_service.DocumentStore") as mock_doc_store:
             mock_doc_store.return_value.load_documents = AsyncMock(return_value=mock_documents)
 
             # Act
@@ -547,7 +547,7 @@ class TestCollectionService:
         document_ids = ["doc1"]
 
         # Mock the entire document processing pipeline to raise error
-        with patch('backend.rag_solution.services.collection_service.DocumentStore') as mock_doc_store:
+        with patch("backend.rag_solution.services.collection_service.DocumentStore") as mock_doc_store:
             mock_doc_store.return_value.load_documents = AsyncMock(side_effect=ValueError("Processing failed"))
 
             # Act & Assert

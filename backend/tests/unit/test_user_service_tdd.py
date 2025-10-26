@@ -185,7 +185,7 @@ class TestUserServiceTDD:
         service.user_provider_service.initialize_user_defaults.assert_not_called()
         service.user_repository.create.assert_not_called()
 
-    def test_get_or_create_user_new_user_red_phase(self, service, mock_db):  # noqa: ARG002
+    def test_get_or_create_user_new_user_red_phase(self, service, mock_db):
         """RED: Test get_or_create when user doesn't exist - should create new."""
         user_input = UserInput(
             ibm_id="new_user", email="new@example.com", name="New User", role="user", preferred_provider_id=None

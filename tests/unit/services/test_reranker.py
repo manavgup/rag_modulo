@@ -8,12 +8,11 @@ import uuid
 from unittest.mock import Mock, create_autospec
 
 import pytest
-from pydantic import UUID4
-
 from backend.rag_solution.generation.providers.base import LLMBase
 from backend.rag_solution.retrieval.reranker import LLMReranker, SimpleReranker
 from backend.rag_solution.schemas.prompt_template_schema import PromptTemplateBase, PromptTemplateType
 from backend.vectordbs.data_types import DocumentChunkWithScore, QueryResult
+from pydantic import UUID4
 
 
 @pytest.fixture

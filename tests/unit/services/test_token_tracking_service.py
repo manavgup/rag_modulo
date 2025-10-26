@@ -1,12 +1,10 @@
 """Unit tests for TokenTrackingService."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
 import pytest
-
-from backend.rag_solution.services.token_tracking_service import TokenTrackingService
 from backend.rag_solution.schemas.llm_usage_schema import (
     LLMUsage,
     ServiceType,
@@ -14,6 +12,7 @@ from backend.rag_solution.schemas.llm_usage_schema import (
     TokenWarning,
     TokenWarningType,
 )
+from backend.rag_solution.services.token_tracking_service import TokenTrackingService
 
 
 class TestTokenTrackingService:
@@ -48,7 +47,7 @@ class TestTokenTrackingService:
             prompt_tokens=1000,
             completion_tokens=200,
             total_tokens=1200,
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(UTC)
         )
 
     @pytest.fixture
@@ -100,7 +99,7 @@ class TestTokenTrackingService:
             prompt_tokens=1000,
             completion_tokens=200,
             total_tokens=1200,
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(UTC)
         )
 
         result = await service.check_usage_warning(usage)
@@ -121,7 +120,7 @@ class TestTokenTrackingService:
             prompt_tokens=1000,
             completion_tokens=200,
             total_tokens=1200,
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(UTC)
         )
 
         result = await service.check_usage_warning(usage)
@@ -143,7 +142,7 @@ class TestTokenTrackingService:
             prompt_tokens=2868,
             completion_tokens=200,
             total_tokens=3068,
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(UTC)
         )
 
         result = await service.check_usage_warning(usage)
@@ -168,7 +167,7 @@ class TestTokenTrackingService:
             prompt_tokens=3482,
             completion_tokens=200,
             total_tokens=3682,
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(UTC)
         )
 
         result = await service.check_usage_warning(usage)
@@ -193,7 +192,7 @@ class TestTokenTrackingService:
             prompt_tokens=3892,
             completion_tokens=200,
             total_tokens=4092,
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(UTC)
         )
 
         result = await service.check_usage_warning(usage)
@@ -218,7 +217,7 @@ class TestTokenTrackingService:
             prompt_tokens=5000,
             completion_tokens=200,
             total_tokens=5200,
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(UTC)
         )
 
         result = await service.check_usage_warning(usage)
@@ -242,7 +241,7 @@ class TestTokenTrackingService:
             prompt_tokens=1000,
             completion_tokens=200,
             total_tokens=1200,
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(UTC)
         )
 
         # Use context_tokens override
@@ -271,7 +270,7 @@ class TestTokenTrackingService:
             prompt_tokens=1000,
             completion_tokens=200,
             total_tokens=1200,
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(UTC)
         )]
 
         result = await service.check_conversation_warning(usage_history, str(uuid4()))
@@ -292,7 +291,7 @@ class TestTokenTrackingService:
             prompt_tokens=1000,
             completion_tokens=200,
             total_tokens=1200,
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(UTC)
         )] * 3  # 3000 total tokens
 
         result = await service.check_conversation_warning(usage_history, str(uuid4()))
@@ -313,7 +312,7 @@ class TestTokenTrackingService:
             prompt_tokens=1100,
             completion_tokens=200,
             total_tokens=1300,
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(UTC)
         )] * 3  # 3300 total tokens
 
         result = await service.check_conversation_warning(usage_history, str(uuid4()))
@@ -337,7 +336,7 @@ class TestTokenTrackingService:
             prompt_tokens=1500,
             completion_tokens=200,
             total_tokens=1700,
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(UTC)
         )] * 3  # 4500 total tokens
 
         result = await service.check_conversation_warning(usage_history, str(uuid4()))
@@ -378,7 +377,7 @@ class TestTokenTrackingService:
         mock_warning.suggested_action = None
         mock_warning.model_name = "test-model"
         mock_warning.service_type = "llm"
-        mock_warning.created_at = datetime.now(timezone.utc)
+        mock_warning.created_at = datetime.now(UTC)
         mock_warning.acknowledged_at = None
 
         service.token_warning_repository.get_warnings_by_user.return_value = [mock_warning]
@@ -404,7 +403,7 @@ class TestTokenTrackingService:
         mock_warning.suggested_action = None
         mock_warning.model_name = "test-model"
         mock_warning.service_type = "llm"
-        mock_warning.created_at = datetime.now(timezone.utc)
+        mock_warning.created_at = datetime.now(UTC)
         mock_warning.acknowledged_at = None
 
         service.token_warning_repository.get_warnings_by_session.return_value = [mock_warning]
@@ -432,7 +431,7 @@ class TestTokenTrackingService:
         mock_warning.suggested_action = None
         mock_warning.model_name = "test-model"
         mock_warning.service_type = "llm"
-        mock_warning.created_at = datetime.now(timezone.utc)
+        mock_warning.created_at = datetime.now(UTC)
         mock_warning.acknowledged_at = None
 
         service.token_warning_repository.get_recent_warnings.return_value = [mock_warning]

@@ -1,13 +1,16 @@
 """Unit tests for UserCollectionInteractionService."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
-
+from backend.rag_solution.schemas.user_collection_schema import (
+    FileInfo,
+    UserCollectionDetailOutput,
+    UserCollectionsOutput,
+)
 from backend.rag_solution.services.user_collection_interaction_service import UserCollectionInteractionService
-from backend.rag_solution.schemas.user_collection_schema import FileInfo, UserCollectionDetailOutput, UserCollectionsOutput
 
 
 class TestUserCollectionInteractionService:
@@ -52,8 +55,8 @@ class TestUserCollectionInteractionService:
             collection_id=sample_collection_id,
             name="Test Collection",
             is_private=False,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
             files=[sample_file_info],
             status="completed"
         )

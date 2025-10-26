@@ -10,21 +10,20 @@ from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import pytest
-from pydantic import SecretStr
-from sqlalchemy.orm import Session
-
 from backend.core.custom_exceptions import (
     LLMProviderError,
     NotFoundError,
     ProviderValidationError,
 )
-from backend.rag_solution.schemas.llm_model_schema import LLMModelOutput, ModelType
+from backend.rag_solution.schemas.llm_model_schema import LLMModelOutput
 from backend.rag_solution.schemas.llm_provider_schema import (
     LLMProviderConfig,
     LLMProviderInput,
     LLMProviderOutput,
 )
 from backend.rag_solution.services.llm_provider_service import LLMProviderService
+from pydantic import SecretStr
+from sqlalchemy.orm import Session
 
 
 @pytest.mark.unit
@@ -563,7 +562,7 @@ class TestLLMProviderServiceUnit:
         mock_repository.get_provider_by_id.return_value = mock_provider_db_object
 
         # Mock the service method to avoid UUID validation issues
-        with patch.object(service, 'get_provider_models') as mock_get_models:
+        with patch.object(service, "get_provider_models") as mock_get_models:
             mock_model = Mock(spec=LLMModelOutput)
             mock_model.id = uuid4()
             mock_model.provider_id = provider_id
@@ -596,7 +595,7 @@ class TestLLMProviderServiceUnit:
         }
 
         # Mock the method to avoid UUID validation issues
-        with patch.object(service, 'create_provider_model') as mock_create:
+        with patch.object(service, "create_provider_model") as mock_create:
             mock_model = Mock(spec=LLMModelOutput)
             mock_model.id = uuid4()
             mock_model.provider_id = provider_id
@@ -618,7 +617,7 @@ class TestLLMProviderServiceUnit:
         model_data = {"model_id": "minimal-model"}
 
         # Mock the method to avoid UUID validation issues
-        with patch.object(service, 'create_provider_model') as mock_create:
+        with patch.object(service, "create_provider_model") as mock_create:
             mock_model = Mock(spec=LLMModelOutput)
             mock_model.id = uuid4()
             mock_model.provider_id = provider_id
@@ -642,7 +641,7 @@ class TestLLMProviderServiceUnit:
         mock_repository.get_provider_by_id.return_value = mock_provider_db_object
 
         # Mock the method to avoid UUID validation issues
-        with patch.object(service, 'get_models_by_provider') as mock_get_models:
+        with patch.object(service, "get_models_by_provider") as mock_get_models:
             mock_get_models.return_value = []
 
             result = service.get_models_by_provider(provider_id)
@@ -676,7 +675,7 @@ class TestLLMProviderServiceUnit:
         }
 
         # Mock the method to avoid UUID validation issues
-        with patch.object(service, 'update_model') as mock_update:
+        with patch.object(service, "update_model") as mock_update:
             mock_model = Mock(spec=LLMModelOutput)
             mock_model.id = model_id
             mock_model.model_id = "updated-model"
@@ -706,7 +705,7 @@ class TestLLMProviderServiceUnit:
         mock_repository.get_provider_by_id.return_value = mock_provider_db_object
 
         # Mock get_provider_models to avoid UUID validation issues
-        with patch.object(service, 'get_provider_models') as mock_get_models:
+        with patch.object(service, "get_provider_models") as mock_get_models:
             mock_get_models.return_value = []
 
             result = service.get_provider_with_models(provider_id)

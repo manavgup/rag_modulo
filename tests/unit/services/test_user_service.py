@@ -4,12 +4,10 @@ from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import pytest
-from sqlalchemy.orm import Session
-
-from backend.core.config import Settings
-from backend.core.custom_exceptions import NotFoundError, ValidationError
+from backend.core.custom_exceptions import NotFoundError
 from backend.rag_solution.schemas.user_schema import UserInput, UserOutput
 from backend.rag_solution.services.user_service import UserService
+from sqlalchemy.orm import Session
 
 
 @pytest.mark.unit
@@ -248,7 +246,6 @@ class TestUserServiceUnit:
         """Test user deletion when user not found."""
         user_id = uuid4()
 
-        from backend.core.custom_exceptions import NotFoundError
 
         service.user_repository.delete.side_effect = NotFoundError("User", "user_id", "User not found")
 
@@ -300,7 +297,6 @@ class TestUserServiceUnit:
         user_id = uuid4()
         provider_id = uuid4()
 
-        from backend.core.custom_exceptions import NotFoundError
 
         service.user_repository.get_by_id.side_effect = NotFoundError("User", "user_id", "User not found")
 

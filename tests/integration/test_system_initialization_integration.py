@@ -1,11 +1,10 @@
 """Integration tests for SystemInitializationService with real database connections."""
 
 import pytest
-from sqlalchemy.orm import Session
-
 from backend.core.config import get_settings
 from backend.rag_solution.schemas.llm_provider_schema import LLMProviderInput
 from backend.rag_solution.services.system_initialization_service import SystemInitializationService
+from sqlalchemy.orm import Session
 
 
 @pytest.mark.integration

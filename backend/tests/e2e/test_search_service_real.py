@@ -56,7 +56,7 @@ class TestSearchServiceReal:
         assert any(keyword in error_message for keyword in ["empty", "query", "validation"])
 
     @pytest.mark.asyncio
-    async def test_search_with_none_query(self, search_service: SearchService):  # noqa: ARG002
+    async def test_search_with_none_query(self, search_service: SearchService):
         """Test search with None query - should fail at Pydantic validation."""
         # This test should fail at SearchInput creation, not at search execution
         with pytest.raises(Exception) as exc_info:

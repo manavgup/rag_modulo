@@ -11,7 +11,6 @@ Business logic is covered by existing service/API tests.
 
 import pytest
 import requests
-
 from backend.rag_solution.cli.client import RAGAPIClient
 from backend.rag_solution.cli.commands.auth import AuthCommands
 from backend.rag_solution.cli.commands.collections import CollectionCommands

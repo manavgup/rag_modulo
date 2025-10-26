@@ -6,12 +6,11 @@ to ensure the test environment remains clean.
 """
 
 import os
+import shutil
 import subprocess
 import tempfile
-import time
 from pathlib import Path
-from typing import Dict, Any
-import shutil
+from typing import Any
 
 import pytest
 
@@ -75,7 +74,7 @@ class DirectMakefileTester:
                     src_dir = backend_src / dir_name
                     if src_dir.exists():
                         dst_dir = backend_dst / dir_name
-                        shutil.copytree(src_dir, dst_dir, ignore=shutil.ignore_patterns('__pycache__', '*.pyc', '.pytest_cache'))
+                        shutil.copytree(src_dir, dst_dir, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".pytest_cache"))
 
             # Copy other directories (minimal copy for speed)
             other_dirs = ["webui", "scripts"]
@@ -117,7 +116,7 @@ class DirectMakefileTester:
         except Exception:
             pass  # Ignore cleanup errors
 
-    def run_make_command(self, target: str, timeout: int = 60) -> Dict[str, Any]:
+    def run_make_command(self, target: str, timeout: int = 60) -> dict[str, Any]:
         """Run a make command in the test directory."""
         try:
             result = subprocess.run(

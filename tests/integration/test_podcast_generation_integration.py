@@ -10,8 +10,6 @@ from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from backend.rag_solution.schemas.podcast_schema import (
     AudioFormat,
     PodcastDuration,
@@ -24,6 +22,7 @@ from backend.rag_solution.schemas.podcast_schema import (
 from backend.rag_solution.services.collection_service import CollectionService
 from backend.rag_solution.services.podcast_service import PodcastService
 from backend.rag_solution.services.search_service import SearchService
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 @pytest.mark.integration

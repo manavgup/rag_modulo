@@ -4,9 +4,8 @@ from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
 import pytest
-
-from backend.rag_solution.services.answer_synthesizer import AnswerSynthesizer
 from backend.rag_solution.schemas.chain_of_thought_schema import ReasoningStep, SynthesisResult
+from backend.rag_solution.services.answer_synthesizer import AnswerSynthesizer
 
 
 class TestAnswerSynthesizer:

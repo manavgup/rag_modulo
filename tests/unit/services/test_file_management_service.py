@@ -6,19 +6,18 @@ file CRUD operations, file upload/download, validation, and error handling.
 Target: 70%+ line coverage with fully mocked dependencies.
 """
 
-import pytest
-from pathlib import Path
-from unittest.mock import Mock, MagicMock, patch, mock_open
-from uuid import uuid4
 from io import BytesIO
+from pathlib import Path
+from unittest.mock import MagicMock, Mock, mock_open, patch
+from uuid import uuid4
 
-from fastapi import UploadFile
-from sqlalchemy.orm import Session
-
+import pytest
 from backend.core.config import Settings
 from backend.rag_solution.core.exceptions import NotFoundError, ValidationError
-from backend.rag_solution.services.file_management_service import FileManagementService
 from backend.rag_solution.schemas.file_schema import FileInput, FileMetadata, FileOutput
+from backend.rag_solution.services.file_management_service import FileManagementService
+from fastapi import UploadFile
+from sqlalchemy.orm import Session
 
 
 class TestFileManagementService:
@@ -39,7 +38,7 @@ class TestFileManagementService:
     @pytest.fixture
     def file_management_service(self, mock_db, mock_settings):
         """Create FileManagementService instance with mocked dependencies."""
-        with patch('backend.rag_solution.services.file_management_service.FileRepository') as MockFileRepository:
+        with patch("backend.rag_solution.services.file_management_service.FileRepository") as MockFileRepository:
             service = FileManagementService(mock_db, mock_settings)
             # Store mock repository for easy access in tests
             service._mock_repository = MockFileRepository.return_value
@@ -241,7 +240,7 @@ class TestFileManagementService:
         file_management_service.file_repository.get.return_value = sample_file_output
 
         # Mock Path.exists and Path.unlink
-        with patch('backend.rag_solution.services.file_management_service.Path') as MockPath:
+        with patch("backend.rag_solution.services.file_management_service.Path") as MockPath:
             mock_path_instance = Mock()
             mock_path_instance.exists.return_value = True
             MockPath.return_value = mock_path_instance
@@ -263,7 +262,7 @@ class TestFileManagementService:
         file_management_service.file_repository.get.return_value = sample_file_output
 
         # Mock Path.exists to return False
-        with patch('backend.rag_solution.services.file_management_service.Path') as MockPath:
+        with patch("backend.rag_solution.services.file_management_service.Path") as MockPath:
             mock_path_instance = Mock()
             mock_path_instance.exists.return_value = False
             MockPath.return_value = mock_path_instance
@@ -482,7 +481,7 @@ class TestFileManagementService:
         filename = "test.pdf"
 
         # Mock Path operations with proper path building
-        with patch('backend.rag_solution.services.file_management_service.Path') as MockPath:
+        with patch("backend.rag_solution.services.file_management_service.Path") as MockPath:
             # Create mocks for the path chain
             mock_user_folder = MagicMock()
             mock_collection_folder = MagicMock()
@@ -532,7 +531,7 @@ class TestFileManagementService:
         filename = "test.pdf"
 
         # Mock Path to raise exception
-        with patch('backend.rag_solution.services.file_management_service.Path') as MockPath:
+        with patch("backend.rag_solution.services.file_management_service.Path") as MockPath:
             MockPath.side_effect = OSError("Disk full")
 
             # Act & Assert

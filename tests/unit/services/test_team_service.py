@@ -4,17 +4,16 @@ These tests follow a TDD approach, starting with RED phase tests that define
 the expected behavior and will fail until the implementation is complete.
 """
 
-from unittest.mock import Mock, MagicMock
+from unittest.mock import MagicMock, Mock
 from uuid import uuid4
 
 import pytest
-from sqlalchemy.orm import Session
-
 from backend.core.config import Settings
-from backend.core.custom_exceptions import DuplicateEntryError, NotFoundError, ValidationError
+from backend.core.custom_exceptions import DuplicateEntryError, NotFoundError
 from backend.rag_solution.schemas.team_schema import TeamInput, TeamOutput
-from backend.rag_solution.services.user_service import UserService
 from backend.rag_solution.services.team_service import TeamService
+from backend.rag_solution.services.user_service import UserService
+from sqlalchemy.orm import Session
 
 
 @pytest.mark.unit

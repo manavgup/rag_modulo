@@ -71,7 +71,6 @@ import logging
 from unittest.mock import Mock, patch
 
 import pytest
-
 from backend.core.config import Settings
 from backend.core.logging_utils import get_logger, setup_logging
 
@@ -182,6 +181,7 @@ def e2e_settings():
     """
     # Import here to avoid circular imports
     import os
+
     from backend.core.config import get_settings
 
     # Ensure localhost is used for local E2E tests (not Docker network name "postgres")

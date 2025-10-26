@@ -4,10 +4,10 @@ Playwright test configuration and fixtures for RAG Modulo.
 Based on IBM MCP Context Forge testing patterns.
 """
 import os
-import pytest
-from playwright.sync_api import Playwright, Browser, Page, BrowserContext
-from typing import Generator
+from collections.abc import Generator
 
+import pytest
+from playwright.sync_api import Browser, BrowserContext, Page, Playwright
 
 # Test configuration
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
@@ -188,7 +188,7 @@ def upload_test_file(page: Page, file_selector: str, file_content: str, file_nam
     """Upload a test file through file input."""
     # Create a temporary file for upload
     import tempfile
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
         f.write(file_content)
         temp_file_path = f.name
 

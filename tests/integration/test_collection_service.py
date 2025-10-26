@@ -7,11 +7,10 @@ These tests use transaction rollback for isolation.
 from uuid import uuid4
 
 import pytest
-from sqlalchemy.orm import Session
-
-from backend.core.config import Settings, get_settings
+from backend.core.config import get_settings
 from backend.rag_solution.schemas.collection_schema import CollectionInput
 from backend.rag_solution.services.collection_service import CollectionService
+from sqlalchemy.orm import Session
 
 
 @pytest.mark.integration

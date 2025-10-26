@@ -103,7 +103,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up IBM Cloud CLI
         run: |
@@ -146,7 +146,7 @@ jobs:
       security-events: write
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -159,7 +159,7 @@ jobs:
           password: ${{ secrets.IBM_CLOUD_API_KEY }}
 
       - name: Build and push backend Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile.codeengine
@@ -178,7 +178,7 @@ jobs:
       security-events: write
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -191,7 +191,7 @@ jobs:
           password: ${{ secrets.IBM_CLOUD_API_KEY }}
 
       - name: Build and push frontend Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: ./frontend
           file: ./frontend/Dockerfile.frontend
@@ -210,7 +210,7 @@ jobs:
       security-events: write
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Run Trivy vulnerability scanner (Backend)
         uses: aquasecurity/trivy-action@master
@@ -220,7 +220,7 @@ jobs:
           output: 'trivy-backend-results.sarif'
 
       - name: Upload Trivy scan results to GitHub Security tab (Backend)
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: 'trivy-backend-results.sarif'
@@ -242,7 +242,7 @@ jobs:
       security-events: write
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Run Trivy vulnerability scanner (Frontend)
         uses: aquasecurity/trivy-action@master
@@ -252,7 +252,7 @@ jobs:
           output: 'trivy-frontend-results.sarif'
 
       - name: Upload Trivy scan results to GitHub Security tab (Frontend)
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: 'trivy-frontend-results.sarif'
@@ -271,7 +271,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up IBM Cloud CLI
         run: |
@@ -327,7 +327,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up IBM Cloud CLI
         run: |
@@ -354,7 +354,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up IBM Cloud CLI
         run: |

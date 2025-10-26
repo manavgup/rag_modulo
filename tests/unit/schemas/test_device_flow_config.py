@@ -50,9 +50,8 @@ class TestDeviceFlowConfiguration:
 
     def test_device_flow_config_validation_errors(self):
         """Test device flow configuration validation errors."""
-        from pydantic import ValidationError
-
         from backend.rag_solution.core.config import DeviceFlowConfig
+        from pydantic import ValidationError
 
         # Missing required fields
         with pytest.raises(ValidationError) as exc_info:
@@ -76,9 +75,8 @@ class TestDeviceFlowConfiguration:
 
     def test_device_flow_intervals_validation(self):
         """Test device flow polling interval validation."""
-        from pydantic import ValidationError
-
         from backend.rag_solution.core.config import DeviceFlowConfig
+        from pydantic import ValidationError
 
         # Valid intervals
         config = DeviceFlowConfig(

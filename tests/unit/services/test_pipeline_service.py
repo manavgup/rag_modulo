@@ -5,11 +5,10 @@ Generated on: 2025-10-18
 Coverage: Unit tests for pipeline management, configuration, and execution
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import Mock, patch
 from uuid import uuid4
-from sqlalchemy.orm import Session
 
+import pytest
 from backend.core.config import Settings
 from backend.core.custom_exceptions import LLMProviderError
 from backend.rag_solution.core.exceptions import (
@@ -17,20 +16,19 @@ from backend.rag_solution.core.exceptions import (
     NotFoundError,
     ValidationError,
 )
-from backend.rag_solution.services.pipeline_service import PipelineService
+from backend.rag_solution.schemas.llm_parameters_schema import LLMParametersInput
 from backend.rag_solution.schemas.pipeline_schema import (
-    PipelineConfigInput,
-    PipelineConfigOutput,
-    PipelineResult,
     ChunkingStrategy,
-    RetrieverType,
     ContextStrategy,
     LLMProviderInfo,
+    PipelineConfigInput,
+    PipelineConfigOutput,
+    RetrieverType,
 )
 from backend.rag_solution.schemas.search_schema import SearchInput
-from backend.rag_solution.schemas.llm_parameters_schema import LLMParametersInput
-from backend.vectordbs.data_types import QueryResult, DocumentChunk, DocumentChunkMetadata, Source
-
+from backend.rag_solution.services.pipeline_service import PipelineService
+from backend.vectordbs.data_types import DocumentChunk, DocumentChunkMetadata, QueryResult, Source
+from sqlalchemy.orm import Session
 
 # ============================================================================
 # SHARED FIXTURES

@@ -1,16 +1,15 @@
 """Unit tests for UserCollectionService."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
-from pydantic import UUID4
-
-from backend.rag_solution.services.user_collection_service import UserCollectionService
-from backend.rag_solution.schemas.collection_schema import CollectionOutput, CollectionStatus
-from backend.rag_solution.schemas.user_collection_schema import UserCollectionOutput, FileInfo
 from backend.rag_solution.core.exceptions import NotFoundError
+from backend.rag_solution.schemas.collection_schema import CollectionOutput, CollectionStatus
+from backend.rag_solution.schemas.user_collection_schema import UserCollectionOutput
+from backend.rag_solution.services.user_collection_service import UserCollectionService
+from pydantic import UUID4
 
 
 class TestUserCollectionService:
@@ -49,7 +48,7 @@ class TestUserCollectionService:
 
         assert service.db == mock_db
         assert service.user_collection_repository is not None
-        assert hasattr(service.user_collection_repository, 'db')
+        assert hasattr(service.user_collection_repository, "db")
 
     def test_get_user_collections_success(self, service: UserCollectionService, sample_user_id: UUID4, mock_user_collection_repository: Mock) -> None:
         """Test get_user_collections with successful result."""
@@ -59,8 +58,8 @@ class TestUserCollectionService:
         mock_user_collection.name = "Test Collection"
         mock_user_collection.vector_db_name = "test_vector_db"
         mock_user_collection.is_private = False
-        mock_user_collection.created_at = datetime.now(timezone.utc)
-        mock_user_collection.updated_at = datetime.now(timezone.utc)
+        mock_user_collection.created_at = datetime.now(UTC)
+        mock_user_collection.updated_at = datetime.now(UTC)
         mock_user_collection.user_ids = [uuid4()]
         file_mock = Mock()
         file_mock.id = uuid4()
@@ -192,8 +191,8 @@ class TestUserCollectionService:
             mock_collection.name = f"Test Collection {i}"
             mock_collection.vector_db_name = f"test_vector_db_{i}"
             mock_collection.is_private = i % 2 == 0
-            mock_collection.created_at = datetime.now(timezone.utc)
-            mock_collection.updated_at = datetime.now(timezone.utc)
+            mock_collection.created_at = datetime.now(UTC)
+            mock_collection.updated_at = datetime.now(UTC)
             mock_collection.user_ids = [uuid4(), uuid4()]
             # Create proper file mock with required fields
             file_mock = Mock()
@@ -222,8 +221,8 @@ class TestUserCollectionService:
         mock_collection.name = "Collection Without Files"
         mock_collection.vector_db_name = "test_db"
         mock_collection.is_private = True
-        mock_collection.created_at = datetime.now(timezone.utc)
-        mock_collection.updated_at = datetime.now(timezone.utc)
+        mock_collection.created_at = datetime.now(UTC)
+        mock_collection.updated_at = datetime.now(UTC)
         mock_collection.user_ids = [uuid4()]
         mock_collection.files = []
         mock_collection.status = CollectionStatus.CREATED
@@ -243,8 +242,8 @@ class TestUserCollectionService:
         mock_collection.name = "Processing Collection"
         mock_collection.vector_db_name = "test_db"
         mock_collection.is_private = False
-        mock_collection.created_at = datetime.now(timezone.utc)
-        mock_collection.updated_at = datetime.now(timezone.utc)
+        mock_collection.created_at = datetime.now(UTC)
+        mock_collection.updated_at = datetime.now(UTC)
         mock_collection.user_ids = []
         mock_collection.files = []
         mock_collection.status = CollectionStatus.PROCESSING
@@ -263,8 +262,8 @@ class TestUserCollectionService:
         mock_collection.name = "Error Collection"
         mock_collection.vector_db_name = "test_db"
         mock_collection.is_private = True
-        mock_collection.created_at = datetime.now(timezone.utc)
-        mock_collection.updated_at = datetime.now(timezone.utc)
+        mock_collection.created_at = datetime.now(UTC)
+        mock_collection.updated_at = datetime.now(UTC)
         mock_collection.user_ids = [uuid4()]
         mock_collection.files = []
         mock_collection.status = CollectionStatus.ERROR

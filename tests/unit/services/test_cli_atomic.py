@@ -9,11 +9,10 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
-from pydantic import HttpUrl
-
 from backend.rag_solution.cli.commands.base import BaseCommand, CommandResult
 from backend.rag_solution.cli.config import ProfileManager, RAGConfig
 from backend.rag_solution.cli.exceptions import AuthenticationError, ConfigurationError, RAGCLIError, ValidationError
+from pydantic import HttpUrl
 
 
 class TestCommandResult:
