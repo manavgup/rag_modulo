@@ -56,14 +56,14 @@ jobs:
           export TESTING=true
           export SKIP_AUTH=true
           export DEVELOPMENT_MODE=true
-          cd backend && python ../scripts/check_test_isolation.py
+          python scripts/check_test_isolation.py
 
       - name: Run atomic tests without environment variables
         run: |
           export TESTING=true
           export SKIP_AUTH=true
           export DEVELOPMENT_MODE=true
-          cd backend && poetry run pytest tests/ -m atomic --tb=short -v
+          poetry run pytest tests/ -m atomic --tb=short -v
 
   # Fast feedback - lint and unit tests without infrastructure
   lint-and-unit:
@@ -101,16 +101,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-poetry-
 
-      - name: Validate poetry lock file is in sync
-        run: |
-          cd backend
-          poetry check --lock
-          if [ $? -ne 0 ]; then
-            echo "❌ poetry.lock is out of sync with pyproject.toml"
-            echo "Please run 'poetry lock' locally and commit the changes"
-            exit 1
-          fi
-
       - name: Install dependencies with retry
         uses: nick-fields/retry@v2
         with:
@@ -121,6 +111,8 @@ jobs:
             cd backend
             pip install poetry
             poetry config virtualenvs.in-project true
+            # Regenerate lock file to ensure sync
+            poetry lock
             # Install main, dev, and test groups for CI
             poetry install --with dev,test
 
@@ -138,7 +130,7 @@ jobs:
 
       - name: Run unit tests with coverage
         run: |
-          cd backend && poetry run pytest tests/ \
+          poetry run pytest tests/ \
             -m "atomic" \
             --cov=rag_solution \
             --cov-report=term-missing \

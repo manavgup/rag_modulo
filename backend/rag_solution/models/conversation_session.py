@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import ClassVar
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import JSON, UUID
@@ -11,6 +12,7 @@ from rag_solution.file_management.database import Base
 
 class ConversationSession(Base):
     __tablename__ = "conversation_sessions"
+    __table_args__: ClassVar[dict] = {"extend_existing": True}
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=IdentityService.generate_id)
     user_id: Mapped[uuid.UUID] = mapped_column(
