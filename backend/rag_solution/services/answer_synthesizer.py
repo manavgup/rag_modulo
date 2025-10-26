@@ -47,17 +47,17 @@ class AnswerSynthesizer:
             return "Unable to synthesize an answer from the reasoning steps."
 
         # DEBUG: Log what we receive from CoT
-        logger.info("=" * 80)
-        logger.info("📝 ANSWER SYNTHESIZER DEBUG")
-        logger.info("Number of intermediate answers: %d", len(intermediate_answers))
+        logger.debug("=" * 80)
+        logger.debug("📝 ANSWER SYNTHESIZER DEBUG")
+        logger.debug("Number of intermediate answers: %d", len(intermediate_answers))
         for i, answer in enumerate(intermediate_answers):
-            logger.info("Intermediate answer %d (first 300 chars): %s", i + 1, answer[:300])
-        logger.info("=" * 80)
+            logger.debug("Intermediate answer %d (first 300 chars): %s", i + 1, answer[:300])
+        logger.debug("=" * 80)
 
         # For single answer, return it directly (already clean from XML parsing)
         if len(intermediate_answers) == 1:
             final = intermediate_answers[0]
-            logger.info("🎯 FINAL ANSWER (single step, first 300 chars): %s", final[:300])
+            logger.debug("🎯 FINAL ANSWER (single step, first 300 chars): %s", final[:300])
             return final
 
         # For multiple answers, combine cleanly without contaminating prefixes
@@ -69,7 +69,7 @@ class AnswerSynthesizer:
             if answer.lower() not in synthesis.lower():
                 synthesis += f" {answer}"
 
-        logger.info("🎯 FINAL SYNTHESIZED ANSWER (first 300 chars): %s", synthesis[:300])
+        logger.debug("🎯 FINAL SYNTHESIZED ANSWER (first 300 chars): %s", synthesis[:300])
         return synthesis
 
     async def synthesize_answer(self, original_question: str, reasoning_steps: list[ReasoningStep]) -> SynthesisResult:
