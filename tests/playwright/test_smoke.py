@@ -4,12 +4,13 @@ Smoke tests for basic application health and functionality.
 These tests provide quick validation that the application is running correctly.
 Based on IBM MCP Context Forge patterns.
 """
+import os
+
 import pytest
 import requests
-from playwright.sync_api import Page
 from pages.collections_page import CollectionsPage
 from pages.search_page import SearchPage
-import os
+from playwright.sync_api import Page
 
 
 class TestSmoke:
@@ -41,7 +42,7 @@ class TestSmoke:
             assert response.status_code == 200, f"Health endpoint should return 200, got {response.status_code}"
 
             # Check response content if available
-            if response.headers.get('content-type', '').startswith('application/json'):
+            if response.headers.get("content-type", "").startswith("application/json"):
                 health_data = response.json()
                 assert isinstance(health_data, dict), "Health response should be a dictionary"
         except requests.exceptions.RequestException as e:

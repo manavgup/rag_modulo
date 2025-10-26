@@ -8,7 +8,6 @@ from unittest.mock import AsyncMock, MagicMock, Mock
 from uuid import uuid4
 
 import pytest
-
 from backend.core.config import Settings
 from backend.core.custom_exceptions import LLMProviderError, ValidationError
 

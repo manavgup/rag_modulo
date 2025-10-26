@@ -10,7 +10,6 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 import pytest
-from pydantic import ValidationError
 
 # These imports will fail initially - that's expected for TDD Red phase
 from backend.rag_solution.schemas.podcast_schema import (
@@ -22,6 +21,7 @@ from backend.rag_solution.schemas.podcast_schema import (
     VoiceGender,
     VoiceSettings,
 )
+from pydantic import ValidationError
 
 
 @pytest.mark.atomic

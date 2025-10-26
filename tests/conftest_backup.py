@@ -11,7 +11,6 @@ import os
 from unittest.mock import Mock, patch
 
 import pytest
-
 from backend.core.config import Settings
 from backend.core.logging_utils import get_logger, setup_logging
 

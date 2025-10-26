@@ -9,7 +9,6 @@ from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import pytest
-
 from backend.rag_solution.schemas.search_schema import SearchInput
 from backend.rag_solution.services.search_service import SearchService
 

@@ -2,7 +2,6 @@
 
 import numpy as np
 import pytest
-
 from backend.vectordbs.data_types import DocumentChunk, DocumentChunkMetadata, QueryResult, Source
 
 

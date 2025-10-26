@@ -3,16 +3,16 @@ Test data fixtures for Playwright tests.
 
 Contains sample data for collections, documents, and search queries.
 """
-import tempfile
 import os
-from typing import Dict, List, Any
+import tempfile
+from typing import Any
 
 
 class TestDataFixtures:
     """Centralized test data management."""
 
     @staticmethod
-    def get_sample_collections() -> List[Dict[str, Any]]:
+    def get_sample_collections() -> list[dict[str, Any]]:
         """Get sample collection data for testing."""
         return [
             {
@@ -33,7 +33,7 @@ class TestDataFixtures:
         ]
 
     @staticmethod
-    def get_sample_documents() -> List[Dict[str, Any]]:
+    def get_sample_documents() -> list[dict[str, Any]]:
         """Get sample document data for testing."""
         return [
             {
@@ -108,7 +108,7 @@ class TestDataFixtures:
         ]
 
     @staticmethod
-    def get_sample_search_queries() -> List[Dict[str, Any]]:
+    def get_sample_search_queries() -> list[dict[str, Any]]:
         """Get sample search queries for testing."""
         return [
             {
@@ -148,17 +148,17 @@ class TestDataFixtures:
 
         # Create temporary file
         with tempfile.NamedTemporaryFile(
-            mode='w',
+            mode="w",
             suffix=suffix,
             prefix=f"{filename}_",
             delete=False,
-            encoding='utf-8'
+            encoding="utf-8"
         ) as f:
             f.write(content)
             return f.name
 
     @staticmethod
-    def create_test_files_for_collection() -> List[str]:
+    def create_test_files_for_collection() -> list[str]:
         """Create multiple test files and return their paths."""
         documents = TestDataFixtures.get_sample_documents()
         file_paths = []
@@ -174,7 +174,7 @@ class TestDataFixtures:
         return file_paths
 
     @staticmethod
-    def cleanup_test_files(file_paths: List[str]) -> None:
+    def cleanup_test_files(file_paths: list[str]) -> None:
         """Clean up temporary test files."""
         for file_path in file_paths:
             try:
@@ -183,7 +183,7 @@ class TestDataFixtures:
                 pass  # File might already be deleted
 
     @staticmethod
-    def get_expected_responses() -> Dict[str, Dict[str, Any]]:
+    def get_expected_responses() -> dict[str, dict[str, Any]]:
         """Get expected response patterns for validation."""
         return {
             "machine_learning": {
@@ -204,7 +204,7 @@ class TestDataFixtures:
         }
 
     @staticmethod
-    def get_invalid_test_data() -> Dict[str, Any]:
+    def get_invalid_test_data() -> dict[str, Any]:
         """Get invalid data for negative testing."""
         return {
             "empty_collection_name": "",
@@ -217,7 +217,7 @@ class TestDataFixtures:
         }
 
     @staticmethod
-    def get_performance_test_data() -> Dict[str, Any]:
+    def get_performance_test_data() -> dict[str, Any]:
         """Get data for performance testing."""
         return {
             "concurrent_users": 5,
@@ -229,7 +229,7 @@ class TestDataFixtures:
         }
 
     @staticmethod
-    def get_mock_auth_data() -> Dict[str, str]:
+    def get_mock_auth_data() -> dict[str, str]:
         """Get mock authentication data for development testing."""
         return {
             "mock_token": "mock-dev-token",
@@ -240,7 +240,7 @@ class TestDataFixtures:
         }
 
     @staticmethod
-    def get_websocket_test_data() -> Dict[str, Any]:
+    def get_websocket_test_data() -> dict[str, Any]:
         """Get WebSocket specific test data."""
         return {
             "connection_timeout": 10000,

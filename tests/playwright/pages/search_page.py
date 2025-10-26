@@ -3,9 +3,10 @@ Search page object for the chat/search interface.
 
 Based on our LightweightSearchInterface component with WebSocket integration.
 """
+
 from playwright.sync_api import Page
+
 from .base_page import BasePage
-from typing import List, Dict, Optional
 
 
 class SearchPage(BasePage):
@@ -159,7 +160,7 @@ class SearchPage(BasePage):
         sources = last_message.locator(self.selectors["source_item"])
         return sources.count()
 
-    def get_source_titles_for_last_message(self) -> List[str]:
+    def get_source_titles_for_last_message(self) -> list[str]:
         """Get list of source titles from last assistant message."""
         if not self.has_sources_in_last_message():
             return []

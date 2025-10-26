@@ -1,15 +1,13 @@
 """Unit tests for SourceAttributionService."""
 
-from unittest.mock import Mock
 
 import pytest
-
-from backend.rag_solution.services.source_attribution_service import SourceAttributionService
 from backend.rag_solution.schemas.chain_of_thought_schema import (
     ReasoningStep,
     SourceAttribution,
     SourceSummary,
 )
+from backend.rag_solution.services.source_attribution_service import SourceAttributionService
 
 
 class TestSourceAttributionService:

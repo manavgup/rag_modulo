@@ -8,8 +8,6 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 import pytest
-from pydantic import ValidationError
-
 from backend.rag_solution.schemas.conversation_schema import (
     ConversationContext,
     ConversationMessageInput,
@@ -19,6 +17,7 @@ from backend.rag_solution.schemas.conversation_schema import (
     MessageType,
     SessionStatus,
 )
+from pydantic import ValidationError
 
 
 class TestConversationAtomicTDD:

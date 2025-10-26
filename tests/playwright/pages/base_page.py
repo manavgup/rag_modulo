@@ -3,9 +3,9 @@ Base page class for Page Object Model implementation.
 
 Following IBM MCP Context Forge patterns for maintainable test code.
 """
-from playwright.sync_api import Page, Locator
-from typing import Optional
 import os
+
+from playwright.sync_api import Locator, Page
 
 
 class BasePage:
@@ -26,22 +26,22 @@ class BasePage:
         """Wait for page to fully load."""
         self.page.wait_for_load_state("networkidle", timeout=self.timeout)
 
-    def wait_for_selector(self, selector: str, timeout: Optional[int] = None) -> Locator:
+    def wait_for_selector(self, selector: str, timeout: int | None = None) -> Locator:
         """Wait for selector and return locator."""
         timeout = timeout or self.timeout
         return self.page.wait_for_selector(selector, timeout=timeout)
 
-    def click_element(self, selector: str, timeout: Optional[int] = None) -> None:
+    def click_element(self, selector: str, timeout: int | None = None) -> None:
         """Click an element after waiting for it."""
         element = self.wait_for_selector(selector, timeout)
         element.click()
 
-    def fill_input(self, selector: str, value: str, timeout: Optional[int] = None) -> None:
+    def fill_input(self, selector: str, value: str, timeout: int | None = None) -> None:
         """Fill an input field after waiting for it."""
         element = self.wait_for_selector(selector, timeout)
         element.fill(value)
 
-    def get_text(self, selector: str, timeout: Optional[int] = None) -> str:
+    def get_text(self, selector: str, timeout: int | None = None) -> str:
         """Get text content of an element."""
         element = self.wait_for_selector(selector, timeout)
         return element.text_content() or ""
@@ -54,12 +54,12 @@ class BasePage:
         except Exception:
             return False
 
-    def wait_for_url_contains(self, url_part: str, timeout: Optional[int] = None) -> None:
+    def wait_for_url_contains(self, url_part: str, timeout: int | None = None) -> None:
         """Wait for URL to contain specific text."""
         timeout = timeout or self.timeout
         self.page.wait_for_url(lambda url: url_part in str(url), timeout=timeout)
 
-    def wait_for_api_response(self, url_pattern: str, timeout: Optional[int] = None):
+    def wait_for_api_response(self, url_pattern: str, timeout: int | None = None):
         """Wait for specific API response."""
         timeout = timeout or self.timeout
         with self.page.expect_response(

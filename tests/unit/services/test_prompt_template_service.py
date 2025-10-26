@@ -10,8 +10,7 @@ from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
-
-from backend.core.custom_exceptions import NotFoundError, PromptTemplateNotFoundError, ValidationError
+from backend.core.custom_exceptions import NotFoundError, ValidationError
 from backend.rag_solution.schemas.prompt_template_schema import (
     PromptTemplateInput,
     PromptTemplateOutput,

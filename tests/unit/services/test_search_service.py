@@ -4,22 +4,19 @@ Consolidated test suite covering search operations, pipeline resolution, and err
 Generated to achieve 70%+ coverage for backend/rag_solution/services/search_service.py
 """
 
-import time
-from datetime import datetime
-from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import pytest
-from fastapi import HTTPException
-from pydantic import UUID4
-
 from backend.core.custom_exceptions import ConfigurationError, LLMProviderError, NotFoundError, ValidationError
 from backend.rag_solution.schemas.collection_schema import CollectionStatus
 from backend.rag_solution.schemas.llm_usage_schema import TokenWarning
 from backend.rag_solution.schemas.search_schema import SearchInput, SearchOutput
 from backend.rag_solution.services.search_service import SearchService
-from backend.vectordbs.data_types import DocumentChunk as Chunk, DocumentChunkMetadata, DocumentMetadata, QueryResult, Source
+from backend.vectordbs.data_types import DocumentChunk as Chunk
+from backend.vectordbs.data_types import DocumentChunkMetadata, DocumentMetadata, QueryResult, Source
+from fastapi import HTTPException
+from pydantic import UUID4
 
 # ============================================================================
 # SHARED FIXTURES
@@ -388,7 +385,7 @@ class TestSearchServicePipelineResolution:
         # Mock pipeline creation
         search_service.pipeline_service.initialize_user_pipeline.return_value = sample_pipeline
 
-        with patch('backend.rag_solution.services.search_service.UserService', return_value=mock_user_service):
+        with patch("backend.rag_solution.services.search_service.UserService", return_value=mock_user_service):
             pipeline_id = search_service._resolve_user_default_pipeline(test_user_id)
 
         assert pipeline_id == sample_pipeline.id
@@ -405,7 +402,7 @@ class TestSearchServicePipelineResolution:
         mock_user_service = Mock()
         mock_user_service.get_user.return_value = None
 
-        with patch('backend.rag_solution.services.search_service.UserService', return_value=mock_user_service):
+        with patch("backend.rag_solution.services.search_service.UserService", return_value=mock_user_service):
             with pytest.raises(ConfigurationError) as exc_info:
                 search_service._resolve_user_default_pipeline(test_user_id)
 
@@ -425,7 +422,7 @@ class TestSearchServicePipelineResolution:
         # No provider available
         search_service.llm_provider_service.get_user_provider.return_value = None
 
-        with patch('backend.rag_solution.services.search_service.UserService', return_value=mock_user_service):
+        with patch("backend.rag_solution.services.search_service.UserService", return_value=mock_user_service):
             with pytest.raises(ConfigurationError) as exc_info:
                 search_service._resolve_user_default_pipeline(test_user_id)
 
@@ -448,7 +445,7 @@ class TestSearchServicePipelineResolution:
         # Pipeline creation fails
         search_service.pipeline_service.initialize_user_pipeline.side_effect = Exception("Database error")
 
-        with patch('backend.rag_solution.services.search_service.UserService', return_value=mock_user_service):
+        with patch("backend.rag_solution.services.search_service.UserService", return_value=mock_user_service):
             with pytest.raises(ConfigurationError) as exc_info:
                 search_service._resolve_user_default_pipeline(test_user_id)
 
@@ -514,7 +511,7 @@ class TestSearchServiceQueryPreprocessing:
 
         cleaned = search_service._clean_generated_answer(dirty_answer)
 
-        assert "Machine learning is a subset of AI" == cleaned
+        assert cleaned == "Machine learning is a subset of AI"
 
     def test_clean_generated_answer_removes_trailing_and(self, search_service):
         """Test cleaning removes trailing AND."""
@@ -1072,7 +1069,7 @@ class TestSearchServiceLazyInitialization:
 
         assert service._collection_service is None
 
-        with patch('backend.rag_solution.services.search_service.CollectionService') as mock_collection_service:
+        with patch("backend.rag_solution.services.search_service.CollectionService") as mock_collection_service:
             mock_collection_service.return_value = Mock()
             collection_service = service.collection_service
 
@@ -1085,7 +1082,7 @@ class TestSearchServiceLazyInitialization:
 
         assert service._pipeline_service is None
 
-        with patch('backend.rag_solution.services.search_service.PipelineService') as mock_pipeline_service:
+        with patch("backend.rag_solution.services.search_service.PipelineService") as mock_pipeline_service:
             mock_pipeline_service.return_value = Mock()
             pipeline_service = service.pipeline_service
 
@@ -1136,7 +1133,7 @@ class TestSearchServiceReranking:
         search_service.settings.enable_reranking = True
         search_service.settings.reranker_type = "simple"
 
-        with patch('backend.rag_solution.retrieval.reranker.SimpleReranker') as mock_simple:
+        with patch("backend.rag_solution.retrieval.reranker.SimpleReranker") as mock_simple:
             mock_simple.return_value = Mock()
             reranker = search_service.get_reranker(test_user_id)
 

@@ -71,7 +71,7 @@ class TestSystemInitializationServiceUnit:
             mock_provider_service.assert_called_once_with(mock_db)
             mock_model_service.assert_called_once_with(mock_db)
 
-    def test_get_provider_configs_with_all_providers(self, service, mock_settings):  # noqa: ARG002
+    def test_get_provider_configs_with_all_providers(self, service, mock_settings):
         """Test _get_provider_configs returns all configured providers."""
         result = service._get_provider_configs()
 

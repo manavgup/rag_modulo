@@ -5,14 +5,13 @@ with real dependencies and full system integration.
 """
 
 import pytest
-from fastapi.testclient import TestClient
-
 from backend.core.config import get_settings
 from backend.core.mock_auth import ensure_mock_user_exists
 from backend.main import app
 from backend.rag_solution.file_management.database import get_db
 from backend.rag_solution.schemas.collection_schema import CollectionInput
 from backend.rag_solution.services.collection_service import CollectionService
+from fastapi.testclient import TestClient
 
 
 class TestConversationE2ETDD:

@@ -4,9 +4,6 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import Mock, patch
 
 import pytest
-from sqlalchemy.orm import Session
-
-from backend.rag_solution.services.dashboard_service import DashboardService
 from backend.rag_solution.schemas.dashboard_schema import (
     ActivityStatus,
     ActivityType,
@@ -18,6 +15,8 @@ from backend.rag_solution.schemas.dashboard_schema import (
     SystemHealthStatus,
     TrendData,
 )
+from backend.rag_solution.services.dashboard_service import DashboardService
+from sqlalchemy.orm import Session
 
 
 class TestDashboardService:
@@ -58,7 +57,7 @@ class TestDashboardService:
 
         assert isinstance(result, dict)
         # Check that it returns the expected trend keys
-        expected_keys = ['documents', 'searches', 'success_rate', 'response_time', 'workflows']
+        expected_keys = ["documents", "searches", "success_rate", "response_time", "workflows"]
         for key in expected_keys:
             assert key in result
             assert isinstance(result[key], TrendData)
@@ -135,7 +134,7 @@ class TestDashboardService:
 
         # Should return default trends on exception
         assert isinstance(result, dict)
-        expected_keys = ['documents', 'searches', 'success_rate', 'response_time', 'workflows']
+        expected_keys = ["documents", "searches", "success_rate", "response_time", "workflows"]
         for key in expected_keys:
             assert key in result
             assert isinstance(result[key], TrendData)
@@ -200,8 +199,8 @@ class TestDashboardService:
     def test_statistics_edge_case_negative_trends(self, dashboard_service: DashboardService) -> None:
         """Test trend data structure with negative direction."""
         # Test that trend data can be created with negative directions
-        trend = TrendData(value=50.0, period='this month', direction='down')
-        assert trend.direction == 'down'
+        trend = TrendData(value=50.0, period="this month", direction="down")
+        assert trend.direction == "down"
         assert trend.value == 50.0
 
         # Test with error handling
@@ -219,7 +218,7 @@ class TestDashboardService:
         mock_query.filter.return_value = mock_query
         mock_query.scalar.return_value = 50
 
-        with patch('backend.rag_solution.services.dashboard_service.datetime') as mock_datetime:
+        with patch("backend.rag_solution.services.dashboard_service.datetime") as mock_datetime:
             # Test at month boundary (last day of month)
             mock_datetime.now.return_value = datetime(2025, 1, 31, 23, 59, 59, tzinfo=UTC)
             mock_datetime.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
@@ -227,7 +226,7 @@ class TestDashboardService:
             result = dashboard_service._calculate_trends()
 
             assert isinstance(result, dict)
-            assert 'documents' in result
+            assert "documents" in result
 
     def test_time_period_leap_year_handling(self, dashboard_service: DashboardService) -> None:
         """Test time period handling for leap years."""
@@ -236,7 +235,7 @@ class TestDashboardService:
         mock_query.filter.return_value = mock_query
         mock_query.scalar.return_value = 30
 
-        with patch('backend.rag_solution.services.dashboard_service.datetime') as mock_datetime:
+        with patch("backend.rag_solution.services.dashboard_service.datetime") as mock_datetime:
             # Test Feb 29 in leap year
             mock_datetime.now.return_value = datetime(2024, 2, 29, 12, 0, 0, tzinfo=UTC)
             mock_datetime.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
@@ -436,7 +435,7 @@ class TestDashboardService:
     def test_system_health_partial_degradation(self, dashboard_service: DashboardService) -> None:
         """Test system health with partial component degradation."""
         # Mock the service to return degraded components
-        with patch.object(dashboard_service, 'get_system_health') as mock_health:
+        with patch.object(dashboard_service, "get_system_health") as mock_health:
             mock_health.return_value = SystemHealthStatus(
                 overall_status="Degraded Performance",
                 components=[
@@ -454,7 +453,7 @@ class TestDashboardService:
 
     def test_system_health_critical_failure(self, dashboard_service: DashboardService) -> None:
         """Test system health with critical component failure."""
-        with patch.object(dashboard_service, 'get_system_health') as mock_health:
+        with patch.object(dashboard_service, "get_system_health") as mock_health:
             mock_health.return_value = SystemHealthStatus(
                 overall_status="Critical",
                 components=[
@@ -546,9 +545,7 @@ class TestDashboardService:
         call_count = [0]
         def mock_all():
             call_count[0] += 1
-            if call_count[0] == 1:  # Files
-                return []
-            elif call_count[0] == 2:  # Collections
+            if call_count[0] == 1 or call_count[0] == 2:  # Files
                 return []
             else:  # Conversations
                 return mock_conversations
@@ -574,7 +571,7 @@ class TestDashboardService:
 
         # Should return default trends
         assert isinstance(result, dict)
-        assert result['documents'].value == 12.0
+        assert result["documents"].value == 12.0
 
     def test_success_rate_with_key_error(self, dashboard_service: DashboardService) -> None:
         """Test success rate calculation with KeyError."""
@@ -595,7 +592,7 @@ class TestDashboardService:
         mock_query.scalar.side_effect = [100, 50, 10, 5, 60, 40]  # More messages than conversations
         mock_query.filter.return_value = mock_query
 
-        with patch.object(dashboard_service, '_calculate_trends') as mock_trends:
+        with patch.object(dashboard_service, "_calculate_trends") as mock_trends:
             mock_trends.return_value = dashboard_service._get_default_trends()
 
             result = dashboard_service.get_dashboard_stats()

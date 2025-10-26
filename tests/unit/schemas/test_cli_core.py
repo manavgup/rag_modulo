@@ -4,11 +4,10 @@ from argparse import ArgumentParser
 from datetime import datetime, timedelta
 
 import pytest
-from pydantic import ValidationError
-
 from backend.rag_solution.cli.auth import AuthManager, AuthResult
 from backend.rag_solution.cli.config import RAGConfig
 from backend.rag_solution.cli.main import create_main_parser
+from pydantic import ValidationError
 
 
 @pytest.mark.atomic

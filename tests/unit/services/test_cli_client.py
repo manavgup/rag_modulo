@@ -4,7 +4,6 @@ from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
-
 from backend.rag_solution.cli.client import RAGAPIClient
 from backend.rag_solution.cli.config import RAGConfig
 from backend.rag_solution.cli.exceptions import AuthenticationError

@@ -2,7 +2,6 @@ from unittest.mock import patch
 
 import numpy as np
 import pytest
-
 from backend.core.config import get_settings
 from backend.rag_solution.data_ingestion.chunking import (
     calculate_cosine_distances,

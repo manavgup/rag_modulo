@@ -4,13 +4,12 @@ This test validates the complete user journey through the CLI.
 Business logic validation is handled by existing service/API tests.
 """
 
-import tempfile
 import os
+import tempfile
 from unittest.mock import patch
 
 import pytest
 import requests
-
 from backend.rag_solution.cli.client import RAGAPIClient
 from backend.rag_solution.cli.commands.auth import AuthCommands
 from backend.rag_solution.cli.commands.collections import CollectionCommands

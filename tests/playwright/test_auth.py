@@ -4,13 +4,14 @@ Authentication tests for RAG Modulo with mock authentication.
 Tests the authentication flow and access control in development mode.
 Based on IBM MCP Context Forge patterns.
 """
+import os
+
 import pytest
 import requests
-from playwright.sync_api import Page, BrowserContext
+from fixtures.test_data import TestDataFixtures
 from pages.collections_page import CollectionsPage
 from pages.search_page import SearchPage
-from fixtures.test_data import TestDataFixtures
-import os
+from playwright.sync_api import Page
 
 
 class TestAuthentication:

@@ -8,7 +8,7 @@ import os
 import subprocess
 import time
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any
 
 import pytest
 
@@ -121,7 +121,7 @@ class MakefileTester:
         except subprocess.CalledProcessError as e:
             pytest.skip(f"Failed to install Docker CLI and Compose V2: {e.stderr}")
 
-    def run_make_command(self, target: str, timeout: int = 60) -> Dict[str, Any]:
+    def run_make_command(self, target: str, timeout: int = 60) -> dict[str, Any]:
         """Run a make command inside the container."""
         try:
             result = subprocess.run([

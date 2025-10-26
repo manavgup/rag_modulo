@@ -8,11 +8,10 @@ directly without going through HTTP/API layer.
 from uuid import uuid4
 
 import pytest
-from sqlalchemy.orm import Session
-
 from backend.core.config import get_settings
 from backend.rag_solution.schemas.search_schema import SearchInput, SearchOutput
 from backend.rag_solution.services.search_service import SearchService
+from sqlalchemy.orm import Session
 
 
 @pytest.mark.integration

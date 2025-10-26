@@ -4,15 +4,10 @@ This test suite provides complete coverage of the QuestionService class,
 testing all CRUD operations, question generation, validation, and error handling.
 """
 
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
 import pytest
-from pydantic import UUID4
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
-
 from backend.core.config import Settings
 from backend.core.custom_exceptions import NotFoundError, ValidationError
 from backend.rag_solution.models.question import SuggestedQuestion
@@ -20,6 +15,9 @@ from backend.rag_solution.schemas.llm_parameters_schema import LLMParametersInpu
 from backend.rag_solution.schemas.prompt_template_schema import PromptTemplateBase
 from backend.rag_solution.schemas.question_schema import QuestionInput
 from backend.rag_solution.services.question_service import QuestionService
+from pydantic import UUID4
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
 
 
 @pytest.mark.unit

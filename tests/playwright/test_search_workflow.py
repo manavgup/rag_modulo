@@ -5,10 +5,10 @@ Tests the complete flow from collection creation to search and chat.
 Based on IBM MCP Context Forge patterns.
 """
 import pytest
-from playwright.sync_api import Page
-from pages.collections_page import CollectionsPage, CollectionDetailPage
-from pages.search_page import SearchPage
 from fixtures.test_data import TestDataFixtures
+from pages.collections_page import CollectionDetailPage, CollectionsPage
+from pages.search_page import SearchPage
+from playwright.sync_api import Page
 
 
 class TestSearchWorkflow:

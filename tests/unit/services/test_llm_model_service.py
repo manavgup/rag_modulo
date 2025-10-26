@@ -5,11 +5,9 @@ from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
-from pydantic import UUID4
-
-from backend.rag_solution.services.llm_model_service import LLMModelService
-from backend.rag_solution.schemas.llm_model_schema import LLMModelInput, LLMModelOutput, ModelType
 from backend.core.custom_exceptions import LLMProviderError, ModelConfigError, ModelValidationError
+from backend.rag_solution.schemas.llm_model_schema import LLMModelInput, LLMModelOutput, ModelType
+from backend.rag_solution.services.llm_model_service import LLMModelService
 
 
 class TestLLMModelService:

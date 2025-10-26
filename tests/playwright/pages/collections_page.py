@@ -3,9 +3,10 @@ Collections page object for managing document collections.
 
 Based on our LightweightCollections and LightweightCollectionDetail components.
 """
+
 from playwright.sync_api import Page
+
 from .base_page import BasePage
-from typing import List, Dict
 
 
 class CollectionsPage(BasePage):
@@ -74,7 +75,7 @@ class CollectionsPage(BasePage):
         """Get the number of visible collections."""
         return len(self.page.locator(self.selectors["collection_cards"]).all())
 
-    def get_collection_names(self) -> List[str]:
+    def get_collection_names(self) -> list[str]:
         """Get list of all collection names."""
         cards = self.page.locator(self.selectors["collection_cards"])
         names = []

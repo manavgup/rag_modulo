@@ -10,17 +10,16 @@ from datetime import datetime
 from uuid import UUID
 
 import pytest
-from fastapi import UploadFile
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
-
 from backend.core.config import Settings, get_settings
 from backend.core.mock_auth import ensure_mock_user_exists
 from backend.main import app
 from backend.rag_solution.file_management.database import get_db
 from backend.rag_solution.schemas.collection_schema import CollectionStatus
 from backend.rag_solution.services.collection_service import CollectionService
+from fastapi import UploadFile
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
 
 
 # New helper function to create a mock file

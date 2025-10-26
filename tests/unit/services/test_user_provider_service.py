@@ -7,15 +7,11 @@ are mocked.
 """
 
 from datetime import datetime
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import pytest
-from pydantic import SecretStr
-from sqlalchemy.orm import Session
-
-from backend.core.config import Settings
-from backend.core.custom_exceptions import NotFoundError, RepositoryError
+from backend.core.custom_exceptions import RepositoryError
 from backend.rag_solution.core.exceptions import ValidationError
 from backend.rag_solution.schemas.llm_parameters_schema import LLMParametersOutput
 from backend.rag_solution.schemas.llm_provider_schema import LLMProviderOutput
@@ -25,6 +21,7 @@ from backend.rag_solution.schemas.prompt_template_schema import (
     PromptTemplateType,
 )
 from backend.rag_solution.services.user_provider_service import UserProviderService
+from sqlalchemy.orm import Session
 
 
 @pytest.mark.unit

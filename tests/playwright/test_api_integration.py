@@ -4,13 +4,12 @@ API integration tests for frontend-backend communication.
 Tests the integration between React frontend and FastAPI backend.
 Based on IBM MCP Context Forge patterns.
 """
+
 import pytest
-from playwright.sync_api import Page
-from pages.collections_page import CollectionsPage, CollectionDetailPage
-from pages.search_page import SearchPage
 from fixtures.test_data import TestDataFixtures
-import tempfile
-import os
+from pages.collections_page import CollectionDetailPage, CollectionsPage
+from pages.search_page import SearchPage
+from playwright.sync_api import Page
 
 
 class TestAPIIntegration:

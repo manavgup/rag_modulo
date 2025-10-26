@@ -9,7 +9,6 @@ from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import pytest
-
 from backend.core.config import Settings, get_settings
 from backend.rag_solution.schemas.conversation_schema import (
     ConversationContext,

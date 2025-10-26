@@ -8,11 +8,10 @@ from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
-from sqlalchemy.orm import Session
-
 from backend.core.config import Settings
 from backend.core.custom_exceptions import ValidationError
 from backend.rag_solution.schemas.pipeline_schema import PipelineResult, QueryResult
+from sqlalchemy.orm import Session
 
 
 @pytest.mark.integration

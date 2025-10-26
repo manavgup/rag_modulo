@@ -7,8 +7,6 @@ data structures, validation rules, and basic operations for token tracking.
 from datetime import datetime
 
 import pytest
-from pydantic import ValidationError
-
 from backend.rag_solution.schemas.llm_usage_schema import (
     LLMUsage,
     ServiceType,
@@ -16,6 +14,7 @@ from backend.rag_solution.schemas.llm_usage_schema import (
     TokenWarning,
     TokenWarningType,
 )
+from pydantic import ValidationError
 
 
 class TestTokenUsageSchemasAtomicTDD:

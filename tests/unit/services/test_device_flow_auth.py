@@ -8,7 +8,6 @@ from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-
 from backend.rag_solution.router.auth_router import (
     DeviceFlowPollRequest,
     DeviceFlowStartRequest,

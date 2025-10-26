@@ -7,14 +7,13 @@ from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
-from pydantic import ValidationError as PydanticValidationError
-
 from backend.core.config import Settings, get_settings
 from backend.core.custom_exceptions import ValidationError
 from backend.rag_solution.schemas.conversation_schema import (
     ConversationSessionInput,
 )
 from backend.rag_solution.services.conversation_service import ConversationService
+from pydantic import ValidationError as PydanticValidationError
 
 
 class TestConversationServiceSimple:

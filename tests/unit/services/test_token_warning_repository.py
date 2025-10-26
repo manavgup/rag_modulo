@@ -5,14 +5,13 @@ from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import pytest
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
-
 from backend.core.custom_exceptions import DuplicateEntryError, NotFoundError
 from backend.rag_solution.models.token_warning import TokenWarning
 from backend.rag_solution.repository.token_warning_repository import TokenWarningRepository
 from backend.rag_solution.schemas.llm_usage_schema import TokenWarning as TokenWarningSchema
 from backend.rag_solution.schemas.llm_usage_schema import TokenWarningType
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
 
 @pytest.mark.unit
