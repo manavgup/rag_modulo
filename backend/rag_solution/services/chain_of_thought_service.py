@@ -1,5 +1,7 @@
 """Chain of Thought (CoT) service for enhanced RAG search quality."""
 
+import json
+import re
 import time
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
@@ -36,6 +38,14 @@ from rag_solution.services.source_attribution_service import SourceAttributionSe
 from rag_solution.services.token_tracking_service import TokenTrackingService
 
 logger = get_logger(__name__)
+
+# Security: Maximum input length for regex operations to prevent ReDoS attacks
+MAX_REGEX_INPUT_LENGTH = 10 * 1024  # 10KB
+
+# Pre-compiled regex patterns for better performance
+XML_ANSWER_PATTERN = re.compile(r"<answer>(.*?)</answer>", re.DOTALL | re.IGNORECASE)
+JSON_ANSWER_PATTERN = re.compile(r"\{[^{}]*\"answer\"[^{}]*\}", re.DOTALL)
+FINAL_ANSWER_PATTERN = re.compile(r"final\s+answer:\s*(.+)", re.DOTALL | re.IGNORECASE)
 
 
 class ChainOfThoughtService:
@@ -299,9 +309,12 @@ class ChainOfThoughtService:
         Returns:
             Extracted answer or None if not found
         """
-        import re
+        # ReDoS protection: Limit input length for regex operations
+        if len(llm_response) > MAX_REGEX_INPUT_LENGTH:
+            logger.warning("LLM response exceeds %d chars, truncating for ReDoS protection", MAX_REGEX_INPUT_LENGTH)
+            llm_response = llm_response[:MAX_REGEX_INPUT_LENGTH]
 
-        answer_match = re.search(r"<answer>(.*?)</answer>", llm_response, re.DOTALL | re.IGNORECASE)
+        answer_match = XML_ANSWER_PATTERN.search(llm_response)
         if answer_match:
             return answer_match.group(1).strip()
 
@@ -325,12 +338,14 @@ class ChainOfThoughtService:
         Returns:
             Extracted answer or None if not found
         """
-        import json
-        import re
+        # ReDoS protection: Limit input length for regex operations
+        if len(llm_response) > MAX_REGEX_INPUT_LENGTH:
+            logger.warning("LLM response exceeds %d chars, truncating for ReDoS protection", MAX_REGEX_INPUT_LENGTH)
+            llm_response = llm_response[:MAX_REGEX_INPUT_LENGTH]
 
         try:
             # Try to find JSON object
-            json_match = re.search(r"\{[^{}]*\"answer\"[^{}]*\}", llm_response, re.DOTALL)
+            json_match = JSON_ANSWER_PATTERN.search(llm_response)
             if json_match:
                 data = json.loads(json_match.group(0))
                 if "answer" in data:
@@ -349,10 +364,13 @@ class ChainOfThoughtService:
         Returns:
             Extracted answer or None if not found
         """
-        import re
+        # ReDoS protection: Limit input length for regex operations
+        if len(llm_response) > MAX_REGEX_INPUT_LENGTH:
+            logger.warning("LLM response exceeds %d chars, truncating for ReDoS protection", MAX_REGEX_INPUT_LENGTH)
+            llm_response = llm_response[:MAX_REGEX_INPUT_LENGTH]
 
         # Try "Final Answer:" marker
-        final_match = re.search(r"final\s+answer:\s*(.+)", llm_response, re.DOTALL | re.IGNORECASE)
+        final_match = FINAL_ANSWER_PATTERN.search(llm_response)
         if final_match:
             return final_match.group(1).strip()
 
@@ -600,10 +618,15 @@ Context: {" ".join(context)}
                     logger.info("Waiting %ds before retry (exponential backoff)...", delay)
                     time.sleep(delay)
 
-            except Exception as exc:
+            except (LLMProviderError, ValidationError, PydanticValidationError) as exc:
                 logger.error("Attempt %d/%d failed: %s", attempt + 1, max_retries, exc)
                 if attempt == max_retries - 1:
-                    raise
+                    # Wrap in LLMProviderError as documented in the method signature
+                    if isinstance(exc, LLMProviderError):
+                        raise
+                    raise LLMProviderError(
+                        f"LLM response generation failed after {max_retries} attempts: {exc}"
+                    ) from exc
 
                 # Exponential backoff before retry
                 delay = 2**attempt  # 1s, 2s, 4s for attempts 0, 1, 2
