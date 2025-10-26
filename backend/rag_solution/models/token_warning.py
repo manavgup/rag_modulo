@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import datetime
+from typing import ClassVar
 
 from sqlalchemy import DateTime, Float, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
@@ -19,6 +20,7 @@ class TokenWarning(Base):
     """
 
     __tablename__ = "token_warnings"
+    __table_args__: ClassVar[dict] = {"extend_existing": True}
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=IdentityService.generate_id)
     user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)

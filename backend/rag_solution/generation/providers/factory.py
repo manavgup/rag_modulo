@@ -218,3 +218,15 @@ class LLMProviderFactory:
         with cls._lock:
             logger.debug(f"Listing providers: {cls._providers}")
             return cls._providers.copy()  # Return a copy to prevent modification
+
+    @classmethod
+    def clear_providers(cls) -> None:
+        """
+        Clear all registered providers (primarily for testing).
+
+        This method is useful for test isolation to prevent provider
+        registration errors across test modules.
+        """
+        with cls._lock:
+            cls._providers.clear()
+            logger.debug("Cleared all registered providers")
