@@ -70,13 +70,13 @@ WORKDIR /app
 COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
-# Copy only essential application files
-COPY main.py healthcheck.py ./
-COPY rag_solution/ ./rag_solution/
-COPY auth/ ./auth/
-COPY core/ ./core/
-COPY cli/ ./cli/
-COPY vectordbs/ ./vectordbs/
+# Copy only essential application files from backend directory
+COPY backend/main.py backend/healthcheck.py ./
+COPY backend/rag_solution/ ./rag_solution/
+COPY backend/auth/ ./auth/
+COPY backend/core/ ./core/
+COPY backend/cli/ ./cli/
+COPY backend/vectordbs/ ./vectordbs/
 COPY pyproject.toml ./
 
 # Create a non-root user and group

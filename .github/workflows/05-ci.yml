@@ -49,7 +49,7 @@ jobs:
           timeout_minutes: 10
           max_attempts: 3
           retry_wait_seconds: 30
-          command: cd backend && poetry install --with dev,test
+          command: poetry install --with dev,test
 
       - name: Run test isolation checker
         run: |
@@ -108,7 +108,6 @@ jobs:
           max_attempts: 3
           retry_wait_seconds: 30
           command: |
-            cd backend
             pip install poetry
             poetry config virtualenvs.in-project true
             # Regenerate lock file to ensure sync

@@ -16,7 +16,7 @@ endif
 # ============================================================================
 
 # Python environment
-VENV_DIR := backend/.venv
+VENV_DIR := .venv
 PYTHON := python3.12
 POETRY := poetry
 
@@ -64,10 +64,10 @@ $(VENV_DIR)/bin/activate:
 		echo "$(RED)❌ Poetry not found. Installing Poetry...$(NC)"; \
 		curl -sSL https://install.python-poetry.org | $(PYTHON) -; \
 	fi
-	@cd backend && $(POETRY) config virtualenvs.in-project true
-	@cd backend && $(POETRY) install --with dev,test
-	@echo "$(GREEN)✅ Virtual environment created at backend/.venv$(NC)"
-	@echo "$(CYAN)💡 Activate with: source backend/.venv/bin/activate$(NC)"
+	@$(POETRY) config virtualenvs.in-project true
+	@$(POETRY) install --with dev,test
+	@echo "$(GREEN)✅ Virtual environment created at .venv$(NC)"
+	@echo "$(CYAN)💡 Activate with: source .venv/bin/activate$(NC)"
 
 clean-venv:
 	@echo "$(CYAN)🧹 Cleaning virtual environment...$(NC)"
@@ -115,22 +115,22 @@ local-dev-infra:
 	@echo "  MinIO:      localhost:9001"
 	@echo "  MLFlow:     localhost:5001"
 
-local-dev-backend:
+local-dev-backend: venv
 	@echo "$(CYAN)🐍 Starting backend with hot-reload (uvicorn)...$(NC)"
 	@echo "$(YELLOW)⚠️  Make sure infrastructure is running: make local-dev-infra$(NC)"
-	@cd backend && $(POETRY) run uvicorn main:app --reload --host 0.0.0.0 --port 8000
+	@PYTHONPATH=backend $(POETRY) run uvicorn main:app --reload --host 0.0.0.0 --port 8000 --app-dir backend
 
 local-dev-frontend:
 	@echo "$(CYAN)⚛️  Starting frontend with HMR (Vite)...$(NC)"
 	@cd frontend && npm run dev
 
-local-dev-all:
+local-dev-all: venv
 	@echo "$(CYAN)🚀 Starting full local development stack...$(NC)"
 	@PROJECT_ROOT=$$(pwd); \
 	mkdir -p $$PROJECT_ROOT/.dev-pids $$PROJECT_ROOT/logs; \
 	$(MAKE) local-dev-infra; \
 	echo "$(CYAN)🐍 Starting backend in background...$(NC)"; \
-	cd backend && $(POETRY) run uvicorn main:app --reload --host 0.0.0.0 --port 8000 > $$PROJECT_ROOT/logs/backend.log 2>&1 & echo $$! > $$PROJECT_ROOT/.dev-pids/backend.pid; \
+	PYTHONPATH=backend $(POETRY) run uvicorn main:app --reload --host 0.0.0.0 --port 8000 --app-dir backend > $$PROJECT_ROOT/logs/backend.log 2>&1 & echo $$! > $$PROJECT_ROOT/.dev-pids/backend.pid; \
 	sleep 2; \
 	if [ -f $$PROJECT_ROOT/.dev-pids/backend.pid ]; then \
 		if kill -0 $$(cat $$PROJECT_ROOT/.dev-pids/backend.pid) 2>/dev/null; then \
@@ -221,16 +221,19 @@ build-backend:
 	@echo "$(CYAN)🔨 Building backend image...$(NC)"
 	@if [ "$(BUILDX_AVAILABLE)" = "yes" ]; then \
 		echo "Using Docker BuildKit with buildx..."; \
-		cd backend && $(CONTAINER_CLI) buildx build --load \
+		$(CONTAINER_CLI) buildx build --load \
 			-t $(GHCR_REPO)/backend:$(PROJECT_VERSION) \
 			-t $(GHCR_REPO)/backend:latest \
-			-f Dockerfile.backend .; \
+			-f backend/Dockerfile.backend \
+			--build-arg BUILDKIT_INLINE_CACHE=1 \
+			.; \
 	else \
 		echo "Using standard Docker build..."; \
-		cd backend && $(CONTAINER_CLI) build \
+		$(CONTAINER_CLI) build \
 			-t $(GHCR_REPO)/backend:$(PROJECT_VERSION) \
 			-t $(GHCR_REPO)/backend:latest \
-			-f Dockerfile.backend .; \
+			-f backend/Dockerfile.backend \
+			.; \
 	fi
 	@echo "$(GREEN)✅ Backend image built$(NC)"
 
@@ -238,14 +241,18 @@ build-frontend:
 	@echo "$(CYAN)🔨 Building frontend image...$(NC)"
 	@if [ "$(BUILDX_AVAILABLE)" = "yes" ]; then \
 		echo "Using Docker BuildKit with buildx..."; \
-		cd frontend && $(CONTAINER_CLI) buildx build --load \
+		$(CONTAINER_CLI) buildx build --load \
 			-t $(GHCR_REPO)/frontend:$(PROJECT_VERSION) \
-			-t $(GHCR_REPO)/frontend:latest .; \
+			-t $(GHCR_REPO)/frontend:latest \
+			-f frontend/Dockerfile \
+			.; \
 	else \
 		echo "Using standard Docker build..."; \
-		cd frontend && $(CONTAINER_CLI) build \
+		$(CONTAINER_CLI) build \
 			-t $(GHCR_REPO)/frontend:$(PROJECT_VERSION) \
-			-t $(GHCR_REPO)/frontend:latest .; \
+			-t $(GHCR_REPO)/frontend:latest \
+			-f frontend/Dockerfile \
+			.; \
 	fi
 	@echo "$(GREEN)✅ Frontend image built$(NC)"
 
@@ -264,18 +271,18 @@ build-all: build-backend build-frontend
 
 test-atomic: venv
 	@echo "$(CYAN)⚡ Running atomic tests (no DB, no coverage)...$(NC)"
-	@cd backend && PYTHONPATH=.. poetry run pytest -c pytest-atomic.ini ../tests/unit/schemas/ -v -m atomic
+	@PYTHONPATH=backend $(POETRY) run pytest -c backend/pytest-atomic.ini tests/unit/schemas/ -v -m atomic
 	@echo "$(GREEN)✅ Atomic tests passed$(NC)"
 
 test-unit-fast: venv
 	@echo "$(CYAN)🏃 Running unit tests (mocked dependencies)...$(NC)"
-	@cd backend && PYTHONPATH=.. poetry run pytest ../tests/unit/ -v ../tests/unit/ -v
+	@PYTHONPATH=backend $(POETRY) run pytest tests/unit/ -v
 	@echo "$(GREEN)✅ Unit tests passed$(NC)"
 
 test-integration: venv local-dev-infra
 	@echo "$(CYAN)🔗 Running integration tests (with real services)...$(NC)"
 	@echo "$(YELLOW)💡 Using shared dev infrastructure (fast, reuses containers)$(NC)"
-	@cd backend && PYTHONPATH=.. poetry run pytest ../tests/integration/ -v -m integration
+	@PYTHONPATH=backend $(POETRY) run pytest tests/integration/ -v -m integration
 	@echo "$(GREEN)✅ Integration tests passed$(NC)"
 
 test-integration-ci: venv
@@ -350,58 +357,58 @@ test-all-ci: test-atomic test-unit-fast test-integration-ci test-e2e-ci-parallel
 
 lint: venv
 	@echo "$(CYAN)🔍 Running linters...$(NC)"
-	@cd backend && $(POETRY) run ruff check . --config pyproject.toml
-	@cd backend && $(POETRY) run mypy . --config-file pyproject.toml --ignore-missing-imports
+	@$(POETRY) run ruff check backend --config pyproject.toml
+	@$(POETRY) run mypy backend --config-file pyproject.toml --ignore-missing-imports
 	@echo "$(GREEN)✅ Linting passed$(NC)"
 
 format: venv
 	@echo "$(CYAN)🎨 Formatting code...$(NC)"
-	@cd backend && $(POETRY) run ruff format . --config pyproject.toml
-	@cd backend && $(POETRY) run ruff check --fix . --config pyproject.toml
+	@$(POETRY) run ruff format backend --config pyproject.toml
+	@$(POETRY) run ruff check --fix backend --config pyproject.toml
 	@echo "$(GREEN)✅ Code formatted$(NC)"
 
 quick-check: venv
 	@echo "$(CYAN)⚡ Running quick quality checks...$(NC)"
-	@cd backend && $(POETRY) run ruff format --check . --config pyproject.toml
-	@cd backend && $(POETRY) run ruff check . --config pyproject.toml
+	@$(POETRY) run ruff format --check backend --config pyproject.toml
+	@$(POETRY) run ruff check backend --config pyproject.toml
 	@echo "$(GREEN)✅ Quick checks passed$(NC)"
 
 security-check: venv
 	@echo "$(CYAN)🔒 Running security checks...$(NC)"
-	@cd backend && $(POETRY) run bandit -r rag_solution/ -ll || echo "$(YELLOW)⚠️  Security issues found$(NC)"
-	@cd backend && $(POETRY) run safety check || echo "$(YELLOW)⚠️  Vulnerabilities found$(NC)"
+	@$(POETRY) run bandit -r backend/rag_solution/ -ll || echo "$(YELLOW)⚠️  Security issues found$(NC)"
+	@$(POETRY) run safety check || echo "$(YELLOW)⚠️  Vulnerabilities found$(NC)"
 	@echo "$(GREEN)✅ Security scan complete$(NC)"
 
 pre-commit-run: venv
 	@echo "$(CYAN)🎯 Running pre-commit checks...$(NC)"
 	@echo "$(CYAN)Step 1/4: Formatting code...$(NC)"
-	@cd backend && $(POETRY) run ruff format . --config pyproject.toml
+	@$(POETRY) run ruff format backend --config pyproject.toml
 	@echo "$(GREEN)✅ Code formatted$(NC)"
 	@echo ""
 	@echo "$(CYAN)Step 2/4: Running ruff linter...$(NC)"
-	@cd backend && $(POETRY) run ruff check --fix . --config pyproject.toml
+	@$(POETRY) run ruff check --fix backend --config pyproject.toml
 	@echo "$(GREEN)✅ Ruff checks passed$(NC)"
 	@echo ""
 	@echo "$(CYAN)Step 3/4: Running mypy type checker...$(NC)"
-	@cd backend && $(POETRY) run mypy . --config-file pyproject.toml --ignore-missing-imports
+	@$(POETRY) run mypy backend --config-file pyproject.toml --ignore-missing-imports
 	@echo "$(GREEN)✅ Type checks passed$(NC)"
 	@echo ""
 	@echo "$(CYAN)Step 4/4: Running pylint...$(NC)"
-	@cd backend && $(POETRY) run pylint rag_solution/ --rcfile=pyproject.toml || echo "$(YELLOW)⚠️  Pylint warnings found$(NC)"
+	@$(POETRY) run pylint backend/rag_solution/ --rcfile=pyproject.toml || echo "$(YELLOW)⚠️  Pylint warnings found$(NC)"
 	@echo ""
 	@echo "$(GREEN)✅ Pre-commit checks complete!$(NC)"
 	@echo "$(CYAN)💡 Tip: Always run this before committing$(NC)"
 
 coverage: venv
 	@echo "$(CYAN)📊 Running tests with coverage...$(NC)"
-	@cd backend && PYTHONPATH=.. poetry run pytest ../tests/unit/ \
-		--cov=rag_solution \
+	@PYTHONPATH=backend $(POETRY) run pytest tests/unit/ \
+		--cov=backend/rag_solution \
 		--cov-report=term-missing \
 		--cov-report=html:htmlcov \
 		--cov-fail-under=60 \
 		-v
 	@echo "$(GREEN)✅ Coverage report generated$(NC)"
-	@echo "$(CYAN)💡 View report: open backend/htmlcov/index.html$(NC)"
+	@echo "$(CYAN)💡 View report: open htmlcov/index.html$(NC)"
 
 # ============================================================================
 # PRODUCTION DEPLOYMENT
@@ -442,7 +449,7 @@ prod-status:
 
 clean:
 	@echo "$(CYAN)🧹 Cleaning up...$(NC)"
-	@rm -rf .pytest_cache .mypy_cache .ruff_cache backend/htmlcov backend/.coverage
+	@rm -rf .pytest_cache .mypy_cache .ruff_cache htmlcov .coverage
 	@find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	@echo "$(GREEN)✅ Cleanup complete$(NC)"
 
