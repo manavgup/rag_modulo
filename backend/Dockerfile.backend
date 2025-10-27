@@ -30,7 +30,7 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 WORKDIR /app
 
 # Copy dependency files first for better layer caching
-COPY pyproject.toml poetry.lock ./
+COPY backend/pyproject.toml backend/poetry.lock ./
 
 # Install CPU-only PyTorch first to avoid CUDA dependencies (~6GB savings)
 # Using torch 2.5.0 to match torchvision 0.20.0 compatibility
@@ -71,13 +71,13 @@ COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy only essential application files
-COPY main.py healthcheck.py ./
-COPY rag_solution/ ./rag_solution/
-COPY auth/ ./auth/
-COPY core/ ./core/
-COPY cli/ ./cli/
-COPY vectordbs/ ./vectordbs/
-COPY pyproject.toml ./
+COPY backend/main.py backend/healthcheck.py ./
+COPY backend/rag_solution/ ./rag_solution/
+COPY backend/auth/ ./auth/
+COPY backend/core/ ./core/
+COPY backend/cli/ ./cli/
+COPY backend/vectordbs/ ./vectordbs/
+COPY backend/pyproject.toml ./
 
 # Create a non-root user and group
 RUN groupadd --gid 10001 backend && \

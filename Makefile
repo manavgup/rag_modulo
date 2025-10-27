@@ -221,16 +221,16 @@ build-backend:
 	@echo "$(CYAN)🔨 Building backend image...$(NC)"
 	@if [ "$(BUILDX_AVAILABLE)" = "yes" ]; then \
 		echo "Using Docker BuildKit with buildx..."; \
-		cd backend && $(CONTAINER_CLI) buildx build --load \
+		$(CONTAINER_CLI) buildx build --load \
 			-t $(GHCR_REPO)/backend:$(PROJECT_VERSION) \
 			-t $(GHCR_REPO)/backend:latest \
-			-f Dockerfile.backend .; \
+			-f backend/Dockerfile.backend .; \
 	else \
 		echo "Using standard Docker build..."; \
-		cd backend && $(CONTAINER_CLI) build \
+		$(CONTAINER_CLI) build \
 			-t $(GHCR_REPO)/backend:$(PROJECT_VERSION) \
 			-t $(GHCR_REPO)/backend:latest \
-			-f Dockerfile.backend .; \
+			-f backend/Dockerfile.backend .; \
 	fi
 	@echo "$(GREEN)✅ Backend image built$(NC)"
 

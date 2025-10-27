@@ -1,0 +1,85 @@
+# Ignore everything except backend directory for backend builds
+# This file is used when building from the root context
+
+# Ignore frontend and other non-backend directories
+frontend/
+webui/
+docs/
+terraform/
+ansible/
+experiments/
+volumes/
+logs/
+
+# Ignore git and version control
+.git/
+.github/
+.gitignore
+.gitattributes
+
+# Ignore Python cache and build artifacts
+**__pycache__/
+**/*.pyc
+*.pyo
+*.pyd
+.Python
+**/*.egg-info/
+**/*.egg
+
+# Ignore virtual environments (except in backend which is needed)
+.venv/
+venv/
+env/
+
+# Ignore test and development files
+tests/
+**/tests/
+pytest.ini
+.pytest_cache/
+.coverage
+coverage/
+htmlcov/
+
+# Ignore IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Ignore mypy and ruff cache
+.mypy_cache/
+.ruff_cache/
+
+# Ignore CI/CD files
+.github/
+.gitlab-ci.yml
+azure-pipelines.yml
+
+# Ignore Docker files (not needed in image)
+docker-compose*.yml
+Dockerfile*
+.dockerignore
+
+# Ignore documentation
+*.md
+README*
+CHANGELOG*
+LICENSE*
+
+# Ignore dependency lock files not needed
+package-lock.json
+yarn.lock
+
+# Ignore environment files (should be provided at runtime)
+.env*
+!.env.example
+
+# Ignore node_modules
+node_modules/
+
+# Ignore build outputs from frontend
+build/
+dist/

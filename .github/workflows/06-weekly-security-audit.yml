@@ -21,7 +21,7 @@ jobs:
         include:
           - service: backend
             dockerfile: backend/Dockerfile.backend
-            context: backend
+            context: .
             image_name: rag-modulo-backend
           - service: frontend
             dockerfile: frontend/Dockerfile.frontend
