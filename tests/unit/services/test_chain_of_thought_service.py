@@ -8,8 +8,8 @@ from unittest.mock import AsyncMock, MagicMock, Mock
 from uuid import uuid4
 
 import pytest
-from backend.core.config import Settings
-from backend.core.custom_exceptions import LLMProviderError, ValidationError
+from core.config import Settings
+from core.custom_exceptions import LLMProviderError, ValidationError
 
 
 class TestChainOfThoughtServiceTDD:
@@ -40,7 +40,7 @@ class TestChainOfThoughtServiceTDD:
     @pytest.fixture
     def cot_service(self, mock_settings, mock_llm_service, mock_search_service):
         """Create ChainOfThoughtService instance for testing."""
-        from backend.rag_solution.services.chain_of_thought_service import ChainOfThoughtService  # type: ignore
+        from rag_solution.services.chain_of_thought_service import ChainOfThoughtService  # type: ignore
 
         # Create a mock db session
         mock_db = MagicMock()
@@ -127,7 +127,7 @@ class TestChainOfThoughtServiceTDD:
     @pytest.mark.asyncio
     async def test_iterative_reasoning_execution(self, cot_service, mock_search_service):
         """Test iterative reasoning execution with context preservation."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import (  # type: ignore
+        from rag_solution.schemas.chain_of_thought_schema import (  # type: ignore
             ChainOfThoughtInput,
         )
 
@@ -155,7 +155,7 @@ class TestChainOfThoughtServiceTDD:
     @pytest.mark.asyncio
     async def test_decomposition_reasoning_strategy(self, cot_service):
         """Test decomposition reasoning strategy."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
+        from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
 
         cot_input = ChainOfThoughtInput(
             question="Compare machine learning and artificial intelligence",
@@ -173,7 +173,7 @@ class TestChainOfThoughtServiceTDD:
     @pytest.mark.asyncio
     async def test_context_preservation_across_steps(self, cot_service):
         """Test context preservation across reasoning steps."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
+        from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
 
         cot_input = ChainOfThoughtInput(
             question="How does backpropagation work and why is it important?",
@@ -194,7 +194,7 @@ class TestChainOfThoughtServiceTDD:
     @pytest.mark.asyncio
     async def test_token_budget_management(self, cot_service, mock_settings):
         """Test token budget management with multiplier."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
+        from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
 
         mock_settings.cot_token_multiplier = 2.5
 
@@ -214,7 +214,7 @@ class TestChainOfThoughtServiceTDD:
     @pytest.mark.asyncio
     async def test_confidence_aggregation(self, cot_service):
         """Test confidence score aggregation across reasoning steps."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
+        from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
 
         cot_input = ChainOfThoughtInput(
             question="Multi-step question for confidence testing",
@@ -239,7 +239,7 @@ class TestChainOfThoughtServiceTDD:
     @pytest.mark.asyncio
     async def test_cot_disabled_fallback(self, cot_service, mock_search_service):
         """Test fallback to regular search when CoT is disabled."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
+        from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
 
         mock_search_service.search.return_value = {
             "answer": "Regular search result",
@@ -260,7 +260,7 @@ class TestChainOfThoughtServiceTDD:
     @pytest.mark.asyncio
     async def test_max_depth_enforcement(self, cot_service, mock_settings):
         """Test enforcement of maximum reasoning depth."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
+        from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
 
         mock_settings.cot_max_depth = 2
 
@@ -282,7 +282,7 @@ class TestChainOfThoughtServiceTDD:
     @pytest.mark.asyncio
     async def test_evaluation_threshold_filtering(self, cot_service, mock_settings):
         """Test filtering of low-confidence reasoning steps."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
+        from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
 
         mock_settings.cot_evaluation_threshold = 0.8
 
@@ -303,7 +303,7 @@ class TestChainOfThoughtServiceTDD:
     @pytest.mark.asyncio
     async def test_error_handling_llm_failure(self, cot_service, mock_llm_service):
         """Test error handling when LLM service fails."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
+        from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
 
         mock_llm_service.generate_text.side_effect = LLMProviderError("LLM service unavailable")
 
@@ -318,7 +318,7 @@ class TestChainOfThoughtServiceTDD:
     @pytest.mark.asyncio
     async def test_error_handling_invalid_configuration(self, cot_service):
         """Test error handling for invalid CoT configuration."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
+        from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
 
         cot_input = ChainOfThoughtInput(
             question="Test question",
@@ -336,7 +336,7 @@ class TestChainOfThoughtServiceTDD:
     @pytest.mark.asyncio
     async def test_reasoning_step_execution_time_tracking(self, cot_service):
         """Test execution time tracking for individual reasoning steps."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
+        from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
 
         cot_input = ChainOfThoughtInput(
             question="Question requiring multiple steps",
@@ -364,7 +364,7 @@ class TestQuestionDecomposerTDD:
     @pytest.fixture
     def question_decomposer(self):
         """Create QuestionDecomposer instance for testing."""
-        from backend.rag_solution.services.question_decomposer import QuestionDecomposer  # type: ignore
+        from rag_solution.services.question_decomposer import QuestionDecomposer  # type: ignore
 
         mock_llm_service = AsyncMock()
         return QuestionDecomposer(llm_service=mock_llm_service)
@@ -461,7 +461,7 @@ class TestAnswerSynthesizerTDD:
     @pytest.fixture
     def answer_synthesizer(self):
         """Create AnswerSynthesizer instance for testing."""
-        from backend.rag_solution.services.answer_synthesizer import AnswerSynthesizer  # type: ignore
+        from rag_solution.services.answer_synthesizer import AnswerSynthesizer  # type: ignore
 
         mock_llm_service = AsyncMock()
         return AnswerSynthesizer(llm_service=mock_llm_service)
@@ -475,7 +475,7 @@ class TestAnswerSynthesizerTDD:
     @pytest.mark.asyncio
     async def test_single_step_synthesis(self, answer_synthesizer):
         """Test synthesis from single reasoning step."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import ReasoningStep  # type: ignore
+        from rag_solution.schemas.chain_of_thought_schema import ReasoningStep  # type: ignore
 
         original_question = "What is machine learning?"
         reasoning_steps = [
@@ -496,7 +496,7 @@ class TestAnswerSynthesizerTDD:
     @pytest.mark.asyncio
     async def test_multi_step_synthesis(self, answer_synthesizer):
         """Test synthesis from multiple reasoning steps."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import ReasoningStep  # type: ignore
+        from rag_solution.schemas.chain_of_thought_schema import ReasoningStep  # type: ignore
 
         original_question = "What is machine learning and how does it work?"
         reasoning_steps = [
@@ -524,7 +524,7 @@ class TestAnswerSynthesizerTDD:
     @pytest.mark.asyncio
     async def test_confidence_aggregation_synthesis(self, answer_synthesizer):
         """Test confidence score aggregation during synthesis."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import ReasoningStep  # type: ignore
+        from rag_solution.schemas.chain_of_thought_schema import ReasoningStep  # type: ignore
 
         reasoning_steps = [
             ReasoningStep(step_number=1, question="Q1", intermediate_answer="A1", confidence_score=0.9),
@@ -541,7 +541,7 @@ class TestAnswerSynthesizerTDD:
     @pytest.mark.asyncio
     async def test_synthesis_with_context_preservation(self, answer_synthesizer):
         """Test synthesis preserves context across reasoning steps."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import ReasoningStep  # type: ignore
+        from rag_solution.schemas.chain_of_thought_schema import ReasoningStep  # type: ignore
 
         reasoning_steps = [
             ReasoningStep(
@@ -571,7 +571,7 @@ class TestAnswerSynthesizerTDD:
     @pytest.mark.asyncio
     async def test_synthesis_handles_missing_confidence(self, answer_synthesizer):
         """Test synthesis handles missing confidence scores gracefully."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import ReasoningStep  # type: ignore
+        from rag_solution.schemas.chain_of_thought_schema import ReasoningStep  # type: ignore
 
         reasoning_steps = [
             ReasoningStep(

@@ -2,8 +2,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
-from backend.rag_solution.schemas.conversation_schema import SummarizationConfigInput
-from backend.rag_solution.services.conversation_summarization_service import ConversationSummarizationService
+from rag_solution.schemas.conversation_schema import SummarizationConfigInput
+from rag_solution.services.conversation_summarization_service import ConversationSummarizationService
 
 
 @pytest.fixture
@@ -154,7 +154,7 @@ async def test_create_summary_success(conversation_summarization_service):
     """Test successful summary creation"""
     from datetime import datetime
 
-    from backend.rag_solution.schemas.conversation_schema import ConversationSummaryInput
+    from rag_solution.schemas.conversation_schema import ConversationSummaryInput
 
     session_id = uuid4()
     user_id = uuid4()
@@ -206,8 +206,8 @@ async def test_create_summary_success(conversation_summarization_service):
 @pytest.mark.asyncio
 async def test_create_summary_user_access_denied(conversation_summarization_service):
     """Test summary creation with unauthorized user"""
-    from backend.rag_solution.core.exceptions import ValidationError
-    from backend.rag_solution.schemas.conversation_schema import ConversationSummaryInput
+    from rag_solution.core.exceptions import ValidationError
+    from rag_solution.schemas.conversation_schema import ConversationSummaryInput
 
     session_id = uuid4()
     user_id = uuid4()
@@ -229,8 +229,8 @@ async def test_create_summary_user_access_denied(conversation_summarization_serv
 @pytest.mark.asyncio
 async def test_create_summary_no_messages(conversation_summarization_service):
     """Test summary creation with no messages"""
-    from backend.rag_solution.core.exceptions import ValidationError
-    from backend.rag_solution.schemas.conversation_schema import ConversationSummaryInput
+    from rag_solution.core.exceptions import ValidationError
+    from rag_solution.schemas.conversation_schema import ConversationSummaryInput
 
     session_id = uuid4()
     user_id = uuid4()
@@ -252,8 +252,8 @@ async def test_create_summary_no_messages(conversation_summarization_service):
 @pytest.mark.asyncio
 async def test_create_summary_session_not_found(conversation_summarization_service):
     """Test summary creation with non-existent session"""
-    from backend.rag_solution.core.exceptions import NotFoundError
-    from backend.rag_solution.schemas.conversation_schema import ConversationSummaryInput
+    from rag_solution.core.exceptions import NotFoundError
+    from rag_solution.schemas.conversation_schema import ConversationSummaryInput
 
     session_id = uuid4()
     user_id = uuid4()
@@ -277,7 +277,7 @@ async def test_summarize_for_context_insufficient_messages(conversation_summariz
     """Test context summarization with insufficient messages"""
     from datetime import datetime
 
-    from backend.rag_solution.schemas.conversation_schema import (
+    from rag_solution.schemas.conversation_schema import (
         ContextSummarizationInput,
         ConversationMessageOutput,
         MessageRole,
@@ -324,7 +324,7 @@ async def test_summarize_for_context_success(conversation_summarization_service)
     """Test successful context summarization"""
     from datetime import datetime
 
-    from backend.rag_solution.schemas.conversation_schema import (
+    from rag_solution.schemas.conversation_schema import (
         ContextSummarizationInput,
         ConversationMessageOutput,
         MessageRole,
@@ -383,7 +383,7 @@ async def test_summarize_for_context_preserve_all_messages(conversation_summariz
     """Test context summarization when preserving all messages"""
     from datetime import datetime
 
-    from backend.rag_solution.schemas.conversation_schema import (
+    from rag_solution.schemas.conversation_schema import (
         ContextSummarizationInput,
         ConversationMessageOutput,
         MessageRole,
@@ -429,8 +429,8 @@ async def test_summarize_for_context_exception_handling(conversation_summarizati
     """Test context summarization exception handling"""
     from datetime import datetime
 
-    from backend.rag_solution.core.exceptions import ValidationError
-    from backend.rag_solution.schemas.conversation_schema import (
+    from rag_solution.core.exceptions import ValidationError
+    from rag_solution.schemas.conversation_schema import (
         ContextSummarizationInput,
         ConversationMessageOutput,
         MessageRole,
@@ -506,7 +506,7 @@ async def test_get_session_summaries_with_limit(conversation_summarization_servi
 @pytest.mark.asyncio
 async def test_get_session_summaries_unauthorized(conversation_summarization_service):
     """Test getting session summaries for unauthorized user"""
-    from backend.rag_solution.core.exceptions import ValidationError
+    from rag_solution.core.exceptions import ValidationError
 
     session_id = uuid4()
     user_id = uuid4()
@@ -523,7 +523,7 @@ async def test_get_session_summaries_unauthorized(conversation_summarization_ser
 @pytest.mark.asyncio
 async def test_get_session_summaries_session_not_found(conversation_summarization_service):
     """Test getting summaries for non-existent session"""
-    from backend.rag_solution.core.exceptions import NotFoundError
+    from rag_solution.core.exceptions import NotFoundError
 
     session_id = uuid4()
     user_id = uuid4()
@@ -537,7 +537,7 @@ async def test_get_session_summaries_session_not_found(conversation_summarizatio
 @pytest.mark.asyncio
 async def test_get_session_summaries_exception_handling(conversation_summarization_service):
     """Test get session summaries exception handling"""
-    from backend.rag_solution.core.exceptions import ValidationError
+    from rag_solution.core.exceptions import ValidationError
 
     session_id = uuid4()
     user_id = uuid4()
@@ -561,7 +561,7 @@ async def test_generate_summary_content_success(conversation_summarization_servi
     """Test successful summary content generation"""
     from datetime import datetime
 
-    from backend.rag_solution.schemas.conversation_schema import (
+    from rag_solution.schemas.conversation_schema import (
         ConversationMessageOutput,
         ConversationSummaryInput,
         MessageRole,
@@ -616,7 +616,7 @@ async def test_generate_summary_content_empty_llm_response(conversation_summariz
     """Test summary generation with empty LLM response"""
     from datetime import datetime
 
-    from backend.rag_solution.schemas.conversation_schema import (
+    from rag_solution.schemas.conversation_schema import (
         ConversationMessageOutput,
         ConversationSummaryInput,
         MessageRole,
@@ -668,7 +668,7 @@ async def test_generate_summary_content_no_provider(conversation_summarization_s
     """Test summary generation with no LLM provider"""
     from datetime import datetime
 
-    from backend.rag_solution.schemas.conversation_schema import (
+    from rag_solution.schemas.conversation_schema import (
         ConversationMessageOutput,
         ConversationSummaryInput,
         MessageRole,
@@ -711,7 +711,7 @@ async def test_generate_summary_content_llm_exception(conversation_summarization
     """Test summary generation with LLM exception"""
     from datetime import datetime
 
-    from backend.rag_solution.schemas.conversation_schema import (
+    from rag_solution.schemas.conversation_schema import (
         ConversationMessageOutput,
         ConversationSummaryInput,
         MessageRole,
@@ -765,7 +765,7 @@ def test_build_conversation_text(conversation_summarization_service):
     """Test building conversation text from messages"""
     from datetime import datetime
 
-    from backend.rag_solution.schemas.conversation_schema import ConversationMessageOutput, MessageRole, MessageType
+    from rag_solution.schemas.conversation_schema import ConversationMessageOutput, MessageRole, MessageType
 
     session_id = uuid4()
     messages = [
@@ -804,7 +804,7 @@ def test_build_conversation_text_empty(conversation_summarization_service):
 
 def test_create_summarization_prompt_recent_plus_summary(conversation_summarization_service):
     """Test creating summarization prompt with RECENT_PLUS_SUMMARY strategy"""
-    from backend.rag_solution.schemas.conversation_schema import ConversationSummaryInput, SummarizationStrategy
+    from rag_solution.schemas.conversation_schema import ConversationSummaryInput, SummarizationStrategy
 
     session_id = uuid4()
     summary_input = ConversationSummaryInput(
@@ -825,7 +825,7 @@ def test_create_summarization_prompt_recent_plus_summary(conversation_summarizat
 
 def test_create_summarization_prompt_full_conversation(conversation_summarization_service):
     """Test creating summarization prompt with FULL_CONVERSATION strategy"""
-    from backend.rag_solution.schemas.conversation_schema import ConversationSummaryInput, SummarizationStrategy
+    from rag_solution.schemas.conversation_schema import ConversationSummaryInput, SummarizationStrategy
 
     session_id = uuid4()
     summary_input = ConversationSummaryInput(
@@ -843,7 +843,7 @@ def test_create_summarization_prompt_full_conversation(conversation_summarizatio
 
 def test_create_summarization_prompt_key_points(conversation_summarization_service):
     """Test creating summarization prompt with KEY_POINTS_ONLY strategy"""
-    from backend.rag_solution.schemas.conversation_schema import ConversationSummaryInput, SummarizationStrategy
+    from rag_solution.schemas.conversation_schema import ConversationSummaryInput, SummarizationStrategy
 
     session_id = uuid4()
     summary_input = ConversationSummaryInput(
@@ -859,7 +859,7 @@ def test_create_summarization_prompt_key_points(conversation_summarization_servi
 
 def test_create_summarization_prompt_topic_based(conversation_summarization_service):
     """Test creating summarization prompt with TOPIC_BASED strategy"""
-    from backend.rag_solution.schemas.conversation_schema import ConversationSummaryInput, SummarizationStrategy
+    from rag_solution.schemas.conversation_schema import ConversationSummaryInput, SummarizationStrategy
 
     session_id = uuid4()
     summary_input = ConversationSummaryInput(
@@ -877,7 +877,7 @@ def test_parse_summary_response_with_structured_data(conversation_summarization_
     """Test parsing LLM response with structured sections"""
     from datetime import datetime
 
-    from backend.rag_solution.schemas.conversation_schema import ConversationMessageOutput, MessageRole, MessageType
+    from rag_solution.schemas.conversation_schema import ConversationMessageOutput, MessageRole, MessageType
 
     response = """Summary of the conversation.
 
@@ -918,7 +918,7 @@ def test_parse_summary_response_empty(conversation_summarization_service):
     """Test parsing empty LLM response"""
     from datetime import datetime
 
-    from backend.rag_solution.schemas.conversation_schema import ConversationMessageOutput, MessageRole, MessageType
+    from rag_solution.schemas.conversation_schema import ConversationMessageOutput, MessageRole, MessageType
 
     messages = [
         ConversationMessageOutput(
@@ -943,7 +943,7 @@ def test_create_fallback_summary(conversation_summarization_service):
     """Test creating fallback summary"""
     from datetime import datetime
 
-    from backend.rag_solution.schemas.conversation_schema import ConversationMessageOutput, MessageRole, MessageType
+    from rag_solution.schemas.conversation_schema import ConversationMessageOutput, MessageRole, MessageType
 
     session_id = uuid4()
     messages = [
@@ -983,7 +983,7 @@ def test_create_fallback_summary_long_content(conversation_summarization_service
     """Test fallback summary truncates long messages"""
     from datetime import datetime
 
-    from backend.rag_solution.schemas.conversation_schema import ConversationMessageOutput, MessageRole, MessageType
+    from rag_solution.schemas.conversation_schema import ConversationMessageOutput, MessageRole, MessageType
 
     long_content = "A" * 200
     messages = [
@@ -1027,7 +1027,7 @@ async def test_estimate_tokens_empty(conversation_summarization_service):
 
 def test_llm_provider_service_lazy_initialization():
     """Test LLM provider service is lazily initialized"""
-    from backend.rag_solution.services.conversation_summarization_service import ConversationSummarizationService
+    from rag_solution.services.conversation_summarization_service import ConversationSummarizationService
 
     mock_db = MagicMock()
     mock_settings = MagicMock()
@@ -1045,7 +1045,7 @@ def test_llm_provider_service_lazy_initialization():
 
 def test_token_tracking_service_lazy_initialization():
     """Test token tracking service is lazily initialized"""
-    from backend.rag_solution.services.conversation_summarization_service import ConversationSummarizationService
+    from rag_solution.services.conversation_summarization_service import ConversationSummarizationService
 
     mock_db = MagicMock()
     mock_settings = MagicMock()
@@ -1070,7 +1070,7 @@ async def test_large_conversation_within_limits(conversation_summarization_servi
     """Test handling large conversations within validation limits (100 messages max)"""
     from datetime import datetime
 
-    from backend.rag_solution.schemas.conversation_schema import (
+    from rag_solution.schemas.conversation_schema import (
         ContextSummarizationInput,
         ConversationMessageOutput,
         MessageRole,
@@ -1127,7 +1127,7 @@ async def test_mixed_role_messages(conversation_summarization_service):
     """Test summarization with mixed message roles"""
     from datetime import datetime
 
-    from backend.rag_solution.schemas.conversation_schema import ConversationMessageOutput, MessageRole, MessageType
+    from rag_solution.schemas.conversation_schema import ConversationMessageOutput, MessageRole, MessageType
 
     session_id = uuid4()
     messages = [
@@ -1170,7 +1170,7 @@ async def test_zero_token_messages(conversation_summarization_service):
     """Test handling messages with zero tokens"""
     from datetime import datetime
 
-    from backend.rag_solution.schemas.conversation_schema import (
+    from rag_solution.schemas.conversation_schema import (
         ContextSummarizationInput,
         ConversationMessageOutput,
         MessageRole,
@@ -1243,7 +1243,7 @@ async def test_context_window_at_exact_minimum(conversation_summarization_servic
 @pytest.mark.asyncio
 async def test_summarization_with_all_strategies(conversation_summarization_service):
     """Test summarization with all strategy types"""
-    from backend.rag_solution.schemas.conversation_schema import ConversationSummaryInput, SummarizationStrategy
+    from rag_solution.schemas.conversation_schema import ConversationSummaryInput, SummarizationStrategy
 
     session_id = uuid4()
     strategies = [

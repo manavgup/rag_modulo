@@ -4,9 +4,9 @@ from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
-from backend.rag_solution.cli.client import RAGAPIClient
-from backend.rag_solution.cli.config import RAGConfig
-from backend.rag_solution.cli.exceptions import AuthenticationError
+from rag_solution.cli.client import RAGAPIClient
+from rag_solution.cli.config import RAGConfig
+from rag_solution.cli.exceptions import AuthenticationError
 
 # Valid JWT token for testing
 VALID_JWT_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoidGVzdCIsImV4cCI6OTk5OTk5OTk5OX0.test"
@@ -222,7 +222,7 @@ class TestCLICommandWrapper:
 
     def test_collections_list_command(self, mock_api_client):
         """Test collections list command wrapper."""
-        from backend.rag_solution.cli.commands.collections import CollectionCommands
+        from rag_solution.cli.commands.collections import CollectionCommands
 
         # Mock API response (reuses existing test data patterns)
         mock_api_client.get.return_value = {
@@ -246,7 +246,7 @@ class TestCLICommandWrapper:
 
     def test_users_create_command(self, mock_api_client):
         """Test users create command wrapper."""
-        from backend.rag_solution.cli.commands.users import UserCommands
+        from rag_solution.cli.commands.users import UserCommands
 
         # Mock API response
         mock_api_client.post.return_value = {
@@ -270,7 +270,7 @@ class TestCLICommandWrapper:
 
     def test_search_query_command(self, mock_api_client):
         """Test search query command wrapper with simplified pipeline resolution."""
-        from backend.rag_solution.cli.commands.search import SearchCommands
+        from rag_solution.cli.commands.search import SearchCommands
 
         # Mock the auth/me endpoint - only called once now
         mock_api_client.get.return_value = {"id": "user123", "uuid": "user123"}
@@ -303,7 +303,7 @@ class TestCLICommandWrapper:
 
     def test_command_authentication_check(self, mock_api_client):
         """Test that commands check authentication status."""
-        from backend.rag_solution.cli.commands.collections import CollectionCommands
+        from rag_solution.cli.commands.collections import CollectionCommands
 
         # Mock unauthenticated state
         mock_api_client.is_authenticated.return_value = False

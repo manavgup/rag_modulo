@@ -190,19 +190,21 @@ class LLMProviderFactory:
         """
         Register a new provider implementation.
 
-        This method is thread-safe and ensures no duplicate registrations.
+        This method is thread-safe and handles duplicate registrations gracefully.
 
         Args:
             name: Name to register the provider under
             provider_class: Provider class to register
 
-        Raises:
-            ValueError: If provider is already registered
+        Note:
+            If a provider with the same name is already registered, this method
+            will log a debug message and skip the registration (no error raised).
         """
         with cls._lock:
             name = name.lower()
             if name in cls._providers:
-                raise ValueError(f"Provider '{name}' is already registered")
+                logger.debug(f"Provider '{name}' is already registered, skipping")
+                return
             cls._providers[name] = provider_class
             logger.info(f"Registered new provider: {name}")
             logger.debug(f"Current providers: {cls._providers}")

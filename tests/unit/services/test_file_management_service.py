@@ -12,10 +12,10 @@ from unittest.mock import MagicMock, Mock, mock_open, patch
 from uuid import uuid4
 
 import pytest
-from backend.core.config import Settings
-from backend.rag_solution.core.exceptions import NotFoundError, ValidationError
-from backend.rag_solution.schemas.file_schema import FileInput, FileMetadata, FileOutput
-from backend.rag_solution.services.file_management_service import FileManagementService
+from core.config import Settings
+from rag_solution.core.exceptions import NotFoundError, ValidationError
+from rag_solution.schemas.file_schema import FileInput, FileMetadata, FileOutput
+from rag_solution.services.file_management_service import FileManagementService
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
 
@@ -38,7 +38,7 @@ class TestFileManagementService:
     @pytest.fixture
     def file_management_service(self, mock_db, mock_settings):
         """Create FileManagementService instance with mocked dependencies."""
-        with patch("backend.rag_solution.services.file_management_service.FileRepository") as MockFileRepository:
+        with patch("rag_solution.services.file_management_service.FileRepository") as MockFileRepository:
             service = FileManagementService(mock_db, mock_settings)
             # Store mock repository for easy access in tests
             service._mock_repository = MockFileRepository.return_value
@@ -240,7 +240,7 @@ class TestFileManagementService:
         file_management_service.file_repository.get.return_value = sample_file_output
 
         # Mock Path.exists and Path.unlink
-        with patch("backend.rag_solution.services.file_management_service.Path") as MockPath:
+        with patch("rag_solution.services.file_management_service.Path") as MockPath:
             mock_path_instance = Mock()
             mock_path_instance.exists.return_value = True
             MockPath.return_value = mock_path_instance
@@ -262,7 +262,7 @@ class TestFileManagementService:
         file_management_service.file_repository.get.return_value = sample_file_output
 
         # Mock Path.exists to return False
-        with patch("backend.rag_solution.services.file_management_service.Path") as MockPath:
+        with patch("rag_solution.services.file_management_service.Path") as MockPath:
             mock_path_instance = Mock()
             mock_path_instance.exists.return_value = False
             MockPath.return_value = mock_path_instance
@@ -481,7 +481,7 @@ class TestFileManagementService:
         filename = "test.pdf"
 
         # Mock Path operations with proper path building
-        with patch("backend.rag_solution.services.file_management_service.Path") as MockPath:
+        with patch("rag_solution.services.file_management_service.Path") as MockPath:
             # Create mocks for the path chain
             mock_user_folder = MagicMock()
             mock_collection_folder = MagicMock()
@@ -531,7 +531,7 @@ class TestFileManagementService:
         filename = "test.pdf"
 
         # Mock Path to raise exception
-        with patch("backend.rag_solution.services.file_management_service.Path") as MockPath:
+        with patch("rag_solution.services.file_management_service.Path") as MockPath:
             MockPath.side_effect = OSError("Disk full")
 
             # Act & Assert
@@ -764,19 +764,25 @@ class TestFileManagementService:
     # ============================================================================
 
     @pytest.mark.unit
-    def test_get_file_path_success(self, file_management_service, sample_file_output):
+    def test_get_file_path_success(self, file_management_service, sample_file_output, mock_settings):
         """Test successful file path retrieval."""
         # Arrange
         collection_id = sample_file_output.collection_id
         filename = sample_file_output.filename
-        file_management_service.get_file_by_name = Mock(return_value=sample_file_output)
+
+        # Update file path to be within storage root for security check
+        file_path_within_storage = Path(mock_settings.file_storage_path) / "test_document.pdf"
+        sample_file_output.file_path = str(file_path_within_storage)
+
+        # Mock the repository method, not the service method
+        file_management_service.file_repository.get_file_by_name = Mock(return_value=sample_file_output)
 
         # Act
         result = file_management_service.get_file_path(collection_id, filename)
 
         # Assert
-        assert result == Path(sample_file_output.file_path)
-        file_management_service.get_file_by_name.assert_called_once_with(collection_id, filename)
+        assert result == file_path_within_storage.resolve()
+        file_management_service.file_repository.get_file_by_name.assert_called_once_with(collection_id, filename)
 
     @pytest.mark.unit
     def test_get_file_path_no_path_error(self, file_management_service, sample_file_output):

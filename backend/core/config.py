@@ -10,7 +10,7 @@ from pydantic import field_validator
 from pydantic.fields import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from core.logging_utils import get_logger
+from .logging_utils import get_logger
 
 # Calculate project root (two levels up from this file: backend/core/config.py)
 PROJECT_ROOT = Path(__file__).parent.parent.parent

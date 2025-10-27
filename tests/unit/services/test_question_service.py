@@ -8,13 +8,13 @@ from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
 import pytest
-from backend.core.config import Settings
-from backend.core.custom_exceptions import NotFoundError, ValidationError
-from backend.rag_solution.models.question import SuggestedQuestion
-from backend.rag_solution.schemas.llm_parameters_schema import LLMParametersInput
-from backend.rag_solution.schemas.prompt_template_schema import PromptTemplateBase
-from backend.rag_solution.schemas.question_schema import QuestionInput
-from backend.rag_solution.services.question_service import QuestionService
+from core.config import Settings
+from core.custom_exceptions import NotFoundError, ValidationError
+from rag_solution.models.question import SuggestedQuestion
+from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
+from rag_solution.schemas.prompt_template_schema import PromptTemplateBase
+from rag_solution.schemas.question_schema import QuestionInput
+from rag_solution.services.question_service import QuestionService
 from pydantic import UUID4
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session

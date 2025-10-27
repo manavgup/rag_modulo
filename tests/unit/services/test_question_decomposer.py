@@ -8,9 +8,9 @@ and edge cases with fully mocked dependencies.
 from unittest.mock import AsyncMock, Mock
 
 import pytest
-from backend.core.config import Settings
-from backend.rag_solution.schemas.chain_of_thought_schema import DecomposedQuestion, QuestionDecomposition
-from backend.rag_solution.services.question_decomposer import QuestionDecomposer
+from core.config import Settings
+from rag_solution.schemas.chain_of_thought_schema import DecomposedQuestion, QuestionDecomposition
+from rag_solution.services.question_decomposer import QuestionDecomposer
 
 
 class TestQuestionDecomposerUnit:

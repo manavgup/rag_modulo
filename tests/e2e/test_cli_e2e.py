@@ -10,13 +10,13 @@ from unittest.mock import patch
 
 import pytest
 import requests
-from backend.rag_solution.cli.client import RAGAPIClient
-from backend.rag_solution.cli.commands.auth import AuthCommands
-from backend.rag_solution.cli.commands.collections import CollectionCommands
-from backend.rag_solution.cli.commands.documents import DocumentCommands
-from backend.rag_solution.cli.commands.search import SearchCommands
-from backend.rag_solution.cli.config import RAGConfig
-from backend.rag_solution.cli.exceptions import APIError, AuthenticationError
+from rag_solution.cli.client import RAGAPIClient
+from rag_solution.cli.commands.auth import AuthCommands
+from rag_solution.cli.commands.collections import CollectionCommands
+from rag_solution.cli.commands.documents import DocumentCommands
+from rag_solution.cli.commands.search import SearchCommands
+from rag_solution.cli.config import RAGConfig
+from rag_solution.cli.exceptions import APIError, AuthenticationError
 
 
 @pytest.mark.e2e

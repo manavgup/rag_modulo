@@ -5,10 +5,10 @@ from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import pytest
-from backend.core.custom_exceptions import DuplicateEntryError, NotFoundError
-from backend.rag_solution.models.conversation_session import ConversationSession
-from backend.rag_solution.repository.conversation_session_repository import ConversationSessionRepository
-from backend.rag_solution.schemas.conversation_schema import ConversationSessionInput, ConversationSessionOutput
+from core.custom_exceptions import DuplicateEntryError, NotFoundError
+from rag_solution.models.conversation_session import ConversationSession
+from rag_solution.repository.conversation_session_repository import ConversationSessionRepository
+from rag_solution.schemas.conversation_schema import ConversationSessionInput, ConversationSessionOutput
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 

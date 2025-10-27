@@ -5,10 +5,10 @@ from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import pytest
-from backend.core.custom_exceptions import DuplicateEntryError, NotFoundError
-from backend.rag_solution.models.conversation_message import ConversationMessage
-from backend.rag_solution.repository.conversation_message_repository import ConversationMessageRepository
-from backend.rag_solution.schemas.conversation_schema import (
+from core.custom_exceptions import DuplicateEntryError, NotFoundError
+from rag_solution.models.conversation_message import ConversationMessage
+from rag_solution.repository.conversation_message_repository import ConversationMessageRepository
+from rag_solution.schemas.conversation_schema import (
     ConversationMessageInput,
     ConversationMessageOutput,
     MessageMetadata,

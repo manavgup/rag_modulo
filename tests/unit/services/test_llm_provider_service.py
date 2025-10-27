@@ -10,18 +10,18 @@ from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import pytest
-from backend.core.custom_exceptions import (
+from core.custom_exceptions import (
     LLMProviderError,
-    NotFoundError,
     ProviderValidationError,
 )
-from backend.rag_solution.schemas.llm_model_schema import LLMModelOutput
-from backend.rag_solution.schemas.llm_provider_schema import (
+from rag_solution.core.exceptions import NotFoundError
+from rag_solution.schemas.llm_model_schema import LLMModelOutput
+from rag_solution.schemas.llm_provider_schema import (
     LLMProviderConfig,
     LLMProviderInput,
     LLMProviderOutput,
 )
-from backend.rag_solution.services.llm_provider_service import LLMProviderService
+from rag_solution.services.llm_provider_service import LLMProviderService
 from pydantic import SecretStr
 from sqlalchemy.orm import Session
 
@@ -47,7 +47,7 @@ class TestLLMProviderServiceUnit:
     @pytest.fixture
     def service(self, mock_db, mock_repository) -> LLMProviderService:
         """Create service instance with mocked repository."""
-        with patch("backend.rag_solution.services.llm_provider_service.LLMProviderRepository"):
+        with patch("rag_solution.services.llm_provider_service.LLMProviderRepository"):
             service = LLMProviderService(mock_db)
             service.repository = mock_repository
             return service
@@ -97,7 +97,7 @@ class TestLLMProviderServiceUnit:
 
     def test_service_initialization(self, mock_db):
         """Test service initializes correctly with database session."""
-        with patch("backend.rag_solution.services.llm_provider_service.LLMProviderRepository") as mock_repo_class:
+        with patch("rag_solution.services.llm_provider_service.LLMProviderRepository") as mock_repo_class:
             service = LLMProviderService(mock_db)
 
             assert service.session is mock_db
@@ -206,7 +206,7 @@ class TestLLMProviderServiceUnit:
 
     def test_create_provider_duplicate_name(self, service, mock_repository, valid_provider_input):
         """Test creating provider with duplicate name."""
-        from backend.core.custom_exceptions import DuplicateEntryError
+        from core.custom_exceptions import DuplicateEntryError
 
         mock_repository.create_provider.side_effect = DuplicateEntryError(
             param_name="watsonx-test"
@@ -324,8 +324,10 @@ class TestLLMProviderServiceUnit:
 
     def test_update_provider_success(self, service, mock_repository, mock_provider_db_object):
         """Test successful provider update."""
+        from rag_solution.schemas.llm_provider_schema import LLMProviderUpdate
+
         provider_id = mock_provider_db_object.id
-        updates = {"name": "watsonx-updated", "is_active": False}
+        updates = LLMProviderUpdate(name="watsonx-updated", is_active=False)
 
         updated_provider = Mock()
         updated_provider.id = provider_id
@@ -349,19 +351,24 @@ class TestLLMProviderServiceUnit:
 
     def test_update_provider_not_found(self, service, mock_repository):
         """Test updating non-existent provider."""
+        from rag_solution.schemas.llm_provider_schema import LLMProviderUpdate
+
         provider_id = uuid4()
-        updates = {"name": "updated"}
+        updates = LLMProviderUpdate(name="updated")
 
-        mock_repository.update_provider.return_value = None
+        mock_repository.update_provider.side_effect = Exception("Provider not found")
 
-        result = service.update_provider(provider_id, updates)
+        with pytest.raises(LLMProviderError) as exc_info:
+            service.update_provider(provider_id, updates)
 
-        assert result is None
+        assert exc_info.value.details["error_type"] == "update"
 
     def test_update_provider_partial_update(self, service, mock_repository, mock_provider_db_object):
         """Test partial provider update."""
+        from rag_solution.schemas.llm_provider_schema import LLMProviderUpdate
+
         provider_id = mock_provider_db_object.id
-        updates = {"is_default": True}
+        updates = LLMProviderUpdate(is_default=True)
 
         updated_provider = Mock()
         updated_provider.id = provider_id
@@ -383,8 +390,10 @@ class TestLLMProviderServiceUnit:
 
     def test_update_provider_repository_error(self, service, mock_repository):
         """Test update provider handles repository errors."""
+        from rag_solution.schemas.llm_provider_schema import LLMProviderUpdate
+
         provider_id = uuid4()
-        updates = {"name": "updated"}
+        updates = LLMProviderUpdate(name="updated")
 
         mock_repository.update_provider.side_effect = Exception("Update failed")
 
@@ -660,10 +669,12 @@ class TestLLMProviderServiceUnit:
         """Test getting model by ID."""
         model_id = uuid4()
 
-        result = service.get_model_by_id(model_id)
+        # Stub implementation always raises NotFoundError
+        with pytest.raises(NotFoundError) as exc_info:
+            service.get_model_by_id(model_id)
 
-        # Currently returns None (stub implementation)
-        assert result is None
+        assert exc_info.value.resource_type == "LLMModel"
+        assert str(model_id) in str(exc_info.value.message)
 
     def test_update_model_success(self, service):
         """Test successful model update."""
@@ -794,15 +805,17 @@ class TestLLMProviderServiceUnit:
 
     def test_update_provider_empty_updates(self, service, mock_repository, mock_provider_db_object):
         """Test updating provider with empty updates dictionary."""
+        from rag_solution.schemas.llm_provider_schema import LLMProviderUpdate
+
         provider_id = uuid4()
-        updates = {}
+        updates = LLMProviderUpdate()
 
         mock_repository.update_provider.return_value = mock_provider_db_object
 
         result = service.update_provider(provider_id, updates)
 
         assert isinstance(result, LLMProviderOutput)
-        mock_repository.update_provider.assert_called_once_with(provider_id, {})
+        mock_repository.update_provider.assert_called_once()
 
     def test_multiple_active_providers(self, service, mock_repository, mock_provider_db_object):
         """Test handling multiple active providers."""

@@ -5,7 +5,7 @@
 # import-error: pylint can't resolve paths when run standalone, but tests work fine
 
 import pytest
-from backend.rag_solution.data_ingestion.hierarchical_chunking import (
+from rag_solution.data_ingestion.hierarchical_chunking import (
     HierarchicalChunk,
     create_hierarchical_chunks,
     create_sentence_based_hierarchical_chunks,

@@ -2,12 +2,12 @@
 
 
 import pytest
-from backend.rag_solution.schemas.chain_of_thought_schema import (
+from rag_solution.schemas.chain_of_thought_schema import (
     ReasoningStep,
     SourceAttribution,
     SourceSummary,
 )
-from backend.rag_solution.services.source_attribution_service import SourceAttributionService
+from rag_solution.services.source_attribution_service import SourceAttributionService
 
 
 class TestSourceAttributionService:

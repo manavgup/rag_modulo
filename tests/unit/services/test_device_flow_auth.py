@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from backend.rag_solution.router.auth_router import (
+from rag_solution.router.auth_router import (
     DeviceFlowPollRequest,
     DeviceFlowStartRequest,
     poll_device_token,
@@ -95,7 +95,7 @@ class TestDeviceFlowBackend:
     @pytest.mark.asyncio
     async def test_poll_device_token_pending(self, mock_settings):
         """Test polling when user hasn't authorized yet."""
-        from backend.rag_solution.core.device_flow import DeviceFlowRecord, get_device_flow_storage
+        from rag_solution.core.device_flow import DeviceFlowRecord, get_device_flow_storage
 
         # Store a pending device flow record
         storage = get_device_flow_storage()
@@ -125,7 +125,7 @@ class TestDeviceFlowBackend:
     @pytest.mark.asyncio
     async def test_poll_device_token_success(self, mock_settings, mock_token_response):
         """Test successful token retrieval after authorization."""
-        from backend.rag_solution.core.device_flow import DeviceFlowRecord, get_device_flow_storage
+        from rag_solution.core.device_flow import DeviceFlowRecord, get_device_flow_storage
 
         # Store a pending device flow record
         storage = get_device_flow_storage()
@@ -171,7 +171,7 @@ class TestDeviceFlowBackend:
     @pytest.mark.asyncio
     async def test_poll_device_token_expired(self, mock_settings):
         """Test polling when device code has expired."""
-        from backend.rag_solution.core.device_flow import DeviceFlowRecord, get_device_flow_storage
+        from rag_solution.core.device_flow import DeviceFlowRecord, get_device_flow_storage
 
         # Store an expired device flow record
         storage = get_device_flow_storage()
@@ -208,9 +208,9 @@ class TestDeviceFlowCLI:
         """Test CLI AuthCommands integration with device flow endpoints."""
         from unittest.mock import Mock, patch
 
-        from backend.rag_solution.cli.client import RAGAPIClient
-        from backend.rag_solution.cli.commands.auth import AuthCommands
-        from backend.rag_solution.cli.config import RAGConfig
+        from rag_solution.cli.client import RAGAPIClient
+        from rag_solution.cli.commands.auth import AuthCommands
+        from rag_solution.cli.config import RAGConfig
 
         # Create CLI config and client
         config = RAGConfig(api_url="http://localhost:8000", profile="test")
@@ -229,9 +229,9 @@ class TestDeviceFlowCLI:
         """Test CLI OIDC flow integration with device flow backend."""
         from unittest.mock import Mock, patch
 
-        from backend.rag_solution.cli.client import RAGAPIClient
-        from backend.rag_solution.cli.commands.auth import AuthCommands
-        from backend.rag_solution.cli.config import RAGConfig
+        from rag_solution.cli.client import RAGAPIClient
+        from rag_solution.cli.commands.auth import AuthCommands
+        from rag_solution.cli.config import RAGConfig
 
         # Mock the API client to simulate backend responses
         mock_client = Mock(spec=RAGAPIClient)

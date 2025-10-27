@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import pytest
-from backend.rag_solution.schemas.podcast_schema import (
+from rag_solution.schemas.podcast_schema import (
     AudioFormat,
     PodcastDuration,
     PodcastGenerationInput,
@@ -19,9 +19,9 @@ from backend.rag_solution.schemas.podcast_schema import (
     VoiceGender,
     VoiceSettings,
 )
-from backend.rag_solution.services.collection_service import CollectionService
-from backend.rag_solution.services.podcast_service import PodcastService
-from backend.rag_solution.services.search_service import SearchService
+from rag_solution.services.collection_service import CollectionService
+from rag_solution.services.podcast_service import PodcastService
+from rag_solution.services.search_service import SearchService
 from sqlalchemy.orm import Session
 
 
@@ -237,9 +237,9 @@ class TestPodcastServiceCustomization:
         )
 
         # Mock search_service.search to return sufficient documents
-        from backend.rag_solution.schemas.pipeline_schema import QueryResult
-        from backend.rag_solution.schemas.search_schema import SearchOutput
-        from backend.vectordbs.data_types import DocumentChunkWithScore, DocumentMetadata
+        from rag_solution.schemas.pipeline_schema import QueryResult
+        from rag_solution.schemas.search_schema import SearchOutput
+        from vectordbs.data_types import DocumentChunkWithScore, DocumentMetadata
 
         # Create mock search result with enough documents
         mock_query_results = [
@@ -320,7 +320,7 @@ class TestPodcastServiceCustomization:
         # Mock PromptTemplateService to return a valid template
         from datetime import datetime
 
-        from backend.rag_solution.schemas.prompt_template_schema import PromptTemplateOutput, PromptTemplateType
+        from rag_solution.schemas.prompt_template_schema import PromptTemplateOutput, PromptTemplateType
 
         mock_template = PromptTemplateOutput(
             id=uuid4(),
@@ -376,7 +376,7 @@ class TestPodcastServiceCustomization:
         # Mock PromptTemplateService to return a valid template
         from datetime import datetime
 
-        from backend.rag_solution.schemas.prompt_template_schema import PromptTemplateOutput, PromptTemplateType
+        from rag_solution.schemas.prompt_template_schema import PromptTemplateOutput, PromptTemplateType
 
         mock_template = PromptTemplateOutput(
             id=uuid4(),

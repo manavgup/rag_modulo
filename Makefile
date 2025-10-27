@@ -118,7 +118,7 @@ local-dev-infra:
 local-dev-backend: venv
 	@echo "$(CYAN)🐍 Starting backend with hot-reload (uvicorn)...$(NC)"
 	@echo "$(YELLOW)⚠️  Make sure infrastructure is running: make local-dev-infra$(NC)"
-	@PYTHONPATH=backend $(POETRY) run uvicorn main:app --reload --host 0.0.0.0 --port 8000 --app-dir backend
+	@$(POETRY) run uvicorn main:app --reload --host 0.0.0.0 --port 8000 --app-dir backend
 
 local-dev-frontend:
 	@echo "$(CYAN)⚛️  Starting frontend with HMR (Vite)...$(NC)"
@@ -130,7 +130,7 @@ local-dev-all: venv
 	mkdir -p $$PROJECT_ROOT/.dev-pids $$PROJECT_ROOT/logs; \
 	$(MAKE) local-dev-infra; \
 	echo "$(CYAN)🐍 Starting backend in background...$(NC)"; \
-	PYTHONPATH=backend $(POETRY) run uvicorn main:app --reload --host 0.0.0.0 --port 8000 --app-dir backend > $$PROJECT_ROOT/logs/backend.log 2>&1 & echo $$! > $$PROJECT_ROOT/.dev-pids/backend.pid; \
+	$(POETRY) run uvicorn main:app --reload --host 0.0.0.0 --port 8000 --app-dir backend > $$PROJECT_ROOT/logs/backend.log 2>&1 & echo $$! > $$PROJECT_ROOT/.dev-pids/backend.pid; \
 	sleep 2; \
 	if [ -f $$PROJECT_ROOT/.dev-pids/backend.pid ]; then \
 		if kill -0 $$(cat $$PROJECT_ROOT/.dev-pids/backend.pid) 2>/dev/null; then \
@@ -271,18 +271,18 @@ build-all: build-backend build-frontend
 
 test-atomic: venv
 	@echo "$(CYAN)⚡ Running atomic tests (no DB, no coverage)...$(NC)"
-	@PYTHONPATH=backend $(POETRY) run pytest -c backend/pytest-atomic.ini tests/unit/schemas/ -v -m atomic
+	@$(POETRY) run pytest -c pytest-atomic.ini tests/unit/schemas/ -v -m atomic
 	@echo "$(GREEN)✅ Atomic tests passed$(NC)"
 
 test-unit-fast: venv
 	@echo "$(CYAN)🏃 Running unit tests (mocked dependencies)...$(NC)"
-	@PYTHONPATH=backend $(POETRY) run pytest tests/unit/ -v
+	@$(POETRY) run pytest tests/unit/ -v
 	@echo "$(GREEN)✅ Unit tests passed$(NC)"
 
 test-integration: venv local-dev-infra
 	@echo "$(CYAN)🔗 Running integration tests (with real services)...$(NC)"
 	@echo "$(YELLOW)💡 Using shared dev infrastructure (fast, reuses containers)$(NC)"
-	@PYTHONPATH=backend $(POETRY) run pytest tests/integration/ -v -m integration
+	@$(POETRY) run pytest tests/integration/ -v -m integration
 	@echo "$(GREEN)✅ Integration tests passed$(NC)"
 
 test-integration-ci: venv
@@ -291,7 +291,7 @@ test-integration-ci: venv
 	@$(DOCKER_COMPOSE) -f docker-compose-ci.yml up -d --wait
 	@echo "$(CYAN)🧪 Running tests with isolated services...$(NC)"
 	@COLLECTIONDB_PORT=5433 MILVUS_PORT=19531 \
-		cd backend && PYTHONPATH=.. poetry run pytest ../tests/integration/ -v -m integration || \
+		cd backend && poetry run pytest ../tests/integration/ -v -m integration || \
 		($(DOCKER_COMPOSE) -f docker-compose-ci.yml down -v && exit 1)
 	@echo "$(CYAN)🧹 Cleaning up test infrastructure...$(NC)"
 	@$(DOCKER_COMPOSE) -f docker-compose-ci.yml down -v
@@ -300,7 +300,7 @@ test-integration-ci: venv
 test-integration-parallel: venv local-dev-infra
 	@echo "$(CYAN)🔗 Running integration tests in parallel...$(NC)"
 	@echo "$(YELLOW)⚡ Using pytest-xdist for parallel execution$(NC)"
-	@cd backend && PYTHONPATH=.. poetry run pytest ../tests/integration/ -v -m integration -n auto
+	@cd backend && poetry run pytest ../tests/integration/ -v -m integration -n auto
 	@echo "$(GREEN)✅ Parallel integration tests passed$(NC)"
 
 test-e2e: venv local-dev-infra
@@ -310,7 +310,7 @@ test-e2e: venv local-dev-infra
 	# Port 5432 is used by the postgres container in docker-compose-infra.yml
 	@cd backend && SKIP_AUTH=true COLLECTIONDB_HOST=localhost MILVUS_HOST=localhost \
 		env > env_dump.txt && cat env_dump.txt && \
-		PYTHONPATH=.. poetry run pytest ../tests/e2e/ -v -m e2e
+		poetry run pytest ../tests/e2e/ -v -m e2e
 	@echo "$(GREEN)✅ E2E tests passed$(NC)"
 
 test-e2e-ci: venv
@@ -319,7 +319,7 @@ test-e2e-ci: venv
 	@$(DOCKER_COMPOSE) -f docker-compose-e2e.yml up -d --wait
 	@echo "$(CYAN)🧪 Running E2E tests with isolated services...$(NC)"
 	@SKIP_AUTH=true E2E_MODE=ci COLLECTIONDB_PORT=5434 COLLECTIONDB_HOST=localhost MILVUS_PORT=19532 MILVUS_HOST=milvus-e2e LLM_PROVIDER=watsonx \
-		cd backend && PYTHONPATH=.. poetry run pytest ../tests/e2e/ -v -m e2e || \
+		cd backend && poetry run pytest ../tests/e2e/ -v -m e2e || \
 		($(DOCKER_COMPOSE) -f docker-compose-e2e.yml down -v && exit 1)
 	@echo "$(CYAN)🧹 Cleaning up E2E infrastructure...$(NC)"
 	@$(DOCKER_COMPOSE) -f docker-compose-e2e.yml down -v
@@ -331,7 +331,7 @@ test-e2e-ci-parallel: venv
 	@$(DOCKER_COMPOSE) -f docker-compose-e2e.yml up -d --wait
 	@echo "$(CYAN)🧪 Running E2E tests with isolated services in parallel...$(NC)"
 	@SKIP_AUTH=true E2E_MODE=ci COLLECTIONDB_PORT=5434 COLLECTIONDB_HOST=localhost MILVUS_PORT=19532 MILVUS_HOST=milvus-e2e LLM_PROVIDER=watsonx \
-		cd backend && PYTHONPATH=.. poetry run pytest ../tests/e2e/ -v -m e2e -n auto || \
+		cd backend && poetry run pytest ../tests/e2e/ -v -m e2e -n auto || \
 		($(DOCKER_COMPOSE) -f docker-compose-e2e.yml down -v && exit 1)
 	@echo "$(CYAN)🧹 Cleaning up E2E infrastructure...$(NC)"
 	@$(DOCKER_COMPOSE) -f docker-compose-e2e.yml down -v
@@ -342,7 +342,7 @@ test-e2e-local-parallel: venv local-dev-infra
 	@echo "$(YELLOW)⚡ Using pytest-xdist for parallel execution$(NC)"
 	@echo "$(YELLOW)💡 Using TestClient (in-memory, no backend required)$(NC)"
 	@SKIP_AUTH=true COLLECTIONDB_HOST=localhost MILVUS_HOST=localhost \
-		cd backend && PYTHONPATH=.. poetry run pytest ../tests/e2e/ -v -m e2e -n auto
+		cd backend && poetry run pytest ../tests/e2e/ -v -m e2e -n auto
 	@echo "$(GREEN)✅ Parallel E2E tests passed (local TestClient)$(NC)"
 
 test-all: test-atomic test-unit-fast test-integration test-e2e
@@ -401,7 +401,7 @@ pre-commit-run: venv
 
 coverage: venv
 	@echo "$(CYAN)📊 Running tests with coverage...$(NC)"
-	@PYTHONPATH=backend $(POETRY) run pytest tests/unit/ \
+	@$(POETRY) run pytest tests/unit/ \
 		--cov=backend/rag_solution \
 		--cov-report=term-missing \
 		--cov-report=html:htmlcov \

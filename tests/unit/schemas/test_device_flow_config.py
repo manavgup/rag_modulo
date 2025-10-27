@@ -15,7 +15,7 @@ class TestDeviceFlowConfiguration:
 
     def test_device_flow_config_validation(self):
         """Test device flow configuration validation."""
-        from backend.rag_solution.core.config import DeviceFlowConfig
+        from rag_solution.core.config import DeviceFlowConfig
 
         # Valid configuration
         config = DeviceFlowConfig(
@@ -34,7 +34,7 @@ class TestDeviceFlowConfiguration:
 
     def test_device_flow_config_from_env(self, monkeypatch):
         """Test device flow configuration from environment variables."""
-        from backend.rag_solution.core.config import DeviceFlowConfig
+        from rag_solution.core.config import DeviceFlowConfig
 
         # Set environment variables
         monkeypatch.setenv("IBM_CLIENT_ID", "env-client-id")
@@ -50,7 +50,7 @@ class TestDeviceFlowConfiguration:
 
     def test_device_flow_config_validation_errors(self):
         """Test device flow configuration validation errors."""
-        from backend.rag_solution.core.config import DeviceFlowConfig
+        from rag_solution.core.config import DeviceFlowConfig
         from pydantic import ValidationError
 
         # Missing required fields
@@ -75,7 +75,7 @@ class TestDeviceFlowConfiguration:
 
     def test_device_flow_intervals_validation(self):
         """Test device flow polling interval validation."""
-        from backend.rag_solution.core.config import DeviceFlowConfig
+        from rag_solution.core.config import DeviceFlowConfig
         from pydantic import ValidationError
 
         # Valid intervals
@@ -110,7 +110,7 @@ class TestDeviceCodeGeneration:
 
     def test_device_code_format(self):
         """Test device code generation format."""
-        from backend.rag_solution.core.device_flow import generate_device_code
+        from rag_solution.core.device_flow import generate_device_code
 
         device_code = generate_device_code()
 
@@ -121,7 +121,7 @@ class TestDeviceCodeGeneration:
 
     def test_user_code_format(self):
         """Test user-friendly code generation format."""
-        from backend.rag_solution.core.device_flow import generate_user_code
+        from rag_solution.core.device_flow import generate_user_code
 
         user_code = generate_user_code()
 
@@ -134,7 +134,7 @@ class TestDeviceCodeGeneration:
 
     def test_user_code_uniqueness(self):
         """Test that generated user codes are unique."""
-        from backend.rag_solution.core.device_flow import generate_user_code
+        from rag_solution.core.device_flow import generate_user_code
 
         codes = {generate_user_code() for _ in range(100)}
 
@@ -143,7 +143,7 @@ class TestDeviceCodeGeneration:
 
     def test_device_code_validation(self):
         """Test device code validation logic."""
-        from backend.rag_solution.core.device_flow import validate_device_code
+        from rag_solution.core.device_flow import validate_device_code
 
         # Valid device code
         valid_code = "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6"
@@ -157,7 +157,7 @@ class TestDeviceCodeGeneration:
 
     def test_user_code_validation(self):
         """Test user code validation logic."""
-        from backend.rag_solution.core.device_flow import validate_user_code
+        from rag_solution.core.device_flow import validate_user_code
 
         # Valid user codes
         assert validate_user_code("ABCD-1234") is True
@@ -178,7 +178,7 @@ class TestDeviceFlowStorage:
 
     def test_device_flow_storage_structure(self):
         """Test device flow storage data structure."""
-        from backend.rag_solution.core.device_flow import DeviceFlowRecord, DeviceFlowStorage
+        from rag_solution.core.device_flow import DeviceFlowRecord, DeviceFlowStorage
 
         # Create storage
         storage = DeviceFlowStorage()
@@ -201,7 +201,7 @@ class TestDeviceFlowStorage:
 
     def test_device_flow_record_expiration(self):
         """Test device flow record expiration logic."""
-        from backend.rag_solution.core.device_flow import DeviceFlowRecord
+        from rag_solution.core.device_flow import DeviceFlowRecord
 
         # Expired record
         expired_record = DeviceFlowRecord(
@@ -229,7 +229,7 @@ class TestDeviceFlowStorage:
 
     def test_device_flow_storage_operations(self):
         """Test device flow storage CRUD operations."""
-        from backend.rag_solution.core.device_flow import DeviceFlowRecord, DeviceFlowStorage
+        from rag_solution.core.device_flow import DeviceFlowRecord, DeviceFlowStorage
 
         storage = DeviceFlowStorage()
 
@@ -264,7 +264,7 @@ class TestDeviceFlowStorage:
 
     def test_device_flow_storage_cleanup(self):
         """Test automatic cleanup of expired records."""
-        from backend.rag_solution.core.device_flow import DeviceFlowRecord, DeviceFlowStorage
+        from rag_solution.core.device_flow import DeviceFlowRecord, DeviceFlowStorage
 
         storage = DeviceFlowStorage()
 
@@ -308,7 +308,7 @@ class TestDeviceFlowUtilities:
 
     def test_polling_backoff_calculation(self):
         """Test exponential backoff calculation for polling."""
-        from backend.rag_solution.core.device_flow import calculate_next_polling_interval
+        from rag_solution.core.device_flow import calculate_next_polling_interval
 
         # Initial interval
         assert calculate_next_polling_interval(5, 0) == 5  # First poll
@@ -323,7 +323,7 @@ class TestDeviceFlowUtilities:
 
     def test_device_flow_error_parsing(self):
         """Test parsing of device flow error responses."""
-        from backend.rag_solution.core.device_flow import parse_device_flow_error
+        from rag_solution.core.device_flow import parse_device_flow_error
 
         # Standard OAuth errors
         assert parse_device_flow_error("authorization_pending") == {
@@ -352,7 +352,7 @@ class TestDeviceFlowUtilities:
 
     def test_device_flow_url_construction(self):
         """Test construction of device flow URLs."""
-        from backend.rag_solution.core.device_flow import build_verification_uri_complete
+        from rag_solution.core.device_flow import build_verification_uri_complete
 
         base_uri = "https://prepiam.ice.ibmcloud.com/device"
         user_code = "ABCD-1234"
@@ -369,7 +369,7 @@ class TestDeviceFlowUtilities:
 
     def test_device_flow_timeout_calculation(self):
         """Test calculation of device flow timeouts."""
-        from backend.rag_solution.core.device_flow import calculate_device_flow_timeout
+        from rag_solution.core.device_flow import calculate_device_flow_timeout
 
         # Standard timeout calculation
         expires_in = 600  # 10 minutes

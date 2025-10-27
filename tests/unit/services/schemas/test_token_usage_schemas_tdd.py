@@ -7,7 +7,7 @@ data structures, validation rules, and basic operations for token tracking.
 from datetime import datetime
 
 import pytest
-from backend.rag_solution.schemas.llm_usage_schema import (
+from rag_solution.schemas.llm_usage_schema import (
     LLMUsage,
     ServiceType,
     TokenUsageStats,

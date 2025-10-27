@@ -5,10 +5,10 @@ from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
-from backend.rag_solution.core.exceptions import NotFoundError
-from backend.rag_solution.schemas.collection_schema import CollectionOutput, CollectionStatus
-from backend.rag_solution.schemas.user_collection_schema import UserCollectionOutput
-from backend.rag_solution.services.user_collection_service import UserCollectionService
+from rag_solution.core.exceptions import NotFoundError
+from rag_solution.schemas.collection_schema import CollectionOutput, CollectionStatus
+from rag_solution.schemas.user_collection_schema import UserCollectionOutput
+from rag_solution.services.user_collection_service import UserCollectionService
 from pydantic import UUID4
 
 

@@ -4,9 +4,9 @@ from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import pytest
-from backend.core.custom_exceptions import NotFoundError
-from backend.rag_solution.schemas.user_schema import UserInput, UserOutput
-from backend.rag_solution.services.user_service import UserService
+from core.custom_exceptions import NotFoundError
+from rag_solution.schemas.user_schema import UserInput, UserOutput
+from rag_solution.services.user_service import UserService
 from sqlalchemy.orm import Session
 
 

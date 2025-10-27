@@ -106,6 +106,7 @@ class TestDoclingProcessorPDFProcessing:
         mock_stat_result = type("stat_result", (), {})()
         mock_stat_result.st_ctime = 1234567890.0
         mock_stat_result.st_mtime = 1234567890.0
+        mock_stat_result.st_size = 12345
         mock_stat.return_value = mock_stat_result
 
         # Setup mock converter
@@ -113,6 +114,10 @@ class TestDoclingProcessorPDFProcessing:
         mock_result.document = mock_docling_document
         docling_processor.converter = mock_converter_class.return_value
         docling_processor.converter.convert.return_value = mock_result
+
+        # Mock chunker to avoid real Docling processing with Mock objects
+        docling_processor.chunker = Mock()
+        docling_processor.chunker.chunk.return_value = []
 
         # Process test PDF
         documents = []
@@ -143,6 +148,7 @@ class TestDoclingProcessorPDFProcessing:
         mock_stat_result = type("stat_result", (), {})()
         mock_stat_result.st_ctime = 1234567890.0
         mock_stat_result.st_mtime = 1234567890.0
+        mock_stat_result.st_size = 12345
         mock_stat.return_value = mock_stat_result
 
         # Create mock text item
@@ -163,6 +169,13 @@ class TestDoclingProcessorPDFProcessing:
         # Set converter on processor instance
         docling_processor.converter = mock_converter_class.return_value
         docling_processor.converter.convert.return_value = mock_result
+
+        # Mock chunker to return a single chunk from the text
+        mock_chunk = Mock()
+        mock_chunk.text = mock_text_item.text
+        mock_chunk.meta = Mock(doc_items=[Mock(prov=[Mock(page_no=1)])])
+        docling_processor.chunker = Mock()
+        docling_processor.chunker.chunk.return_value = [mock_chunk]
 
         # Process document
         documents = []
@@ -213,6 +226,7 @@ class TestDoclingProcessorTableExtraction:
         mock_stat_result = type("stat_result", (), {})()
         mock_stat_result.st_ctime = 1234567890.0
         mock_stat_result.st_mtime = 1234567890.0
+        mock_stat_result.st_size = 12345
         mock_stat.return_value = mock_stat_result
 
         # Create mock table item
@@ -237,6 +251,9 @@ class TestDoclingProcessorTableExtraction:
         # Set converter on processor instance
         docling_processor.converter = mock_converter_class.return_value
         docling_processor.converter.convert.return_value = mock_result
+
+        # Set chunker to None to force legacy chunking (which properly sets table_index)
+        docling_processor.chunker = None
 
         # Process document
         documents = []
@@ -277,6 +294,7 @@ class TestDoclingProcessorTableExtraction:
         mock_stat_result = type("stat_result", (), {})()
         mock_stat_result.st_ctime = 1234567890.0
         mock_stat_result.st_mtime = 1234567890.0
+        mock_stat_result.st_size = 12345
         mock_stat.return_value = mock_stat_result
 
         # Create multiple mock table items
@@ -300,6 +318,9 @@ class TestDoclingProcessorTableExtraction:
         # Set converter on processor instance
         docling_processor.converter = mock_converter_class.return_value
         docling_processor.converter.convert.return_value = mock_result
+
+        # Set chunker to None to force legacy chunking (which properly sets table_index)
+        docling_processor.chunker = None
 
         # Process document
         documents = []
@@ -353,6 +374,7 @@ class TestDoclingProcessorMetadataExtraction:
         mock_stat_result = type("stat_result", (), {})()
         mock_stat_result.st_ctime = 1234567890.0
         mock_stat_result.st_mtime = 1234567890.0
+        mock_stat_result.st_size = 12345
         mock_stat.return_value = mock_stat_result
 
         # Create mock DoclingDocument
@@ -391,6 +413,7 @@ class TestDoclingProcessorMetadataExtraction:
         mock_stat_result = type("stat_result", (), {})()
         mock_stat_result.st_ctime = 1234567890.0
         mock_stat_result.st_mtime = 1234567890.0
+        mock_stat_result.st_size = 12345
         mock_stat.return_value = mock_stat_result
 
         # Create mock document with tables
@@ -448,6 +471,7 @@ class TestDoclingProcessorImageHandling:
         mock_stat_result = type("stat_result", (), {})()
         mock_stat_result.st_ctime = 1234567890.0
         mock_stat_result.st_mtime = 1234567890.0
+        mock_stat_result.st_size = 12345
         mock_stat.return_value = mock_stat_result
 
         # Create mock image item
@@ -466,6 +490,9 @@ class TestDoclingProcessorImageHandling:
         # Set converter on processor instance
         docling_processor.converter = mock_converter_class.return_value
         docling_processor.converter.convert.return_value = mock_result
+
+        # Set chunker to None to force legacy chunking (which properly sets image_index)
+        docling_processor.chunker = None
 
         # Process document
         documents = []
@@ -537,6 +564,7 @@ class TestDoclingProcessorErrorHandling:
         mock_stat_result = type("stat_result", (), {})()
         mock_stat_result.st_ctime = 1234567890.0
         mock_stat_result.st_mtime = 1234567890.0
+        mock_stat_result.st_size = 12345
         mock_stat.return_value = mock_stat_result
 
         # Create empty mock document
@@ -549,6 +577,10 @@ class TestDoclingProcessorErrorHandling:
         # Set converter on processor instance
         docling_processor.converter = mock_converter_class.return_value
         docling_processor.converter.convert.return_value = mock_result
+
+        # Mock chunker to return empty list for empty document
+        docling_processor.chunker = Mock()
+        docling_processor.chunker.chunk.return_value = []
 
         # Process empty document
         documents = []
@@ -599,6 +631,7 @@ class TestDoclingProcessorChunking:
         mock_stat_result = type("stat_result", (), {})()
         mock_stat_result.st_ctime = 1234567890.0
         mock_stat_result.st_mtime = 1234567890.0
+        mock_stat_result.st_size = 12345
         mock_stat.return_value = mock_stat_result
 
         # Create mock text item with long text
@@ -619,6 +652,18 @@ class TestDoclingProcessorChunking:
         # Set converter on processor instance
         docling_processor.converter = mock_converter_class.return_value
         docling_processor.converter.convert.return_value = mock_result
+
+        # Mock chunker to return multiple chunks (simulating text splitting)
+        mock_chunk1 = Mock()
+        mock_chunk1.text = long_text[:200]  # First chunk
+        mock_chunk1.meta = Mock(doc_items=[Mock(prov=[Mock(page_no=1)])])
+
+        mock_chunk2 = Mock()
+        mock_chunk2.text = long_text[180:400]  # Second chunk with overlap
+        mock_chunk2.meta = Mock(doc_items=[Mock(prov=[Mock(page_no=1)])])
+
+        docling_processor.chunker = Mock()
+        docling_processor.chunker.chunk.return_value = [mock_chunk1, mock_chunk2]
 
         # Process document
         documents = []

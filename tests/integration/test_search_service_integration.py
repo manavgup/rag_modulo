@@ -9,8 +9,8 @@ from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import pytest
-from backend.rag_solution.schemas.search_schema import SearchInput
-from backend.rag_solution.services.search_service import SearchService
+from rag_solution.schemas.search_schema import SearchInput
+from rag_solution.services.search_service import SearchService
 
 
 class TestSearchPipelineResolutionIntegration:
@@ -38,9 +38,9 @@ class TestSearchPipelineResolutionIntegration:
             config_metadata={"max_chunks": 10},
         )
 
-    @patch("backend.rag_solution.services.search_service.CollectionService")
-    @patch("backend.rag_solution.services.search_service.PipelineService")
-    @patch("backend.rag_solution.services.search_service.FileManagementService")
+    @patch("rag_solution.services.search_service.CollectionService")
+    @patch("rag_solution.services.search_service.PipelineService")
+    @patch("rag_solution.services.search_service.FileManagementService")
     @pytest.mark.asyncio
     async def test_search_end_to_end_with_pipeline_resolution(
         self,
@@ -106,9 +106,9 @@ class TestSearchPipelineResolutionIntegration:
         call_args = mock_pipeline_service.execute_pipeline.call_args
         assert call_args[1]["pipeline_id"] == resolved_pipeline_id  # Should use resolved pipeline_id
 
-    @patch("backend.rag_solution.services.user_service.UserService")
-    @patch("backend.rag_solution.services.search_service.CollectionService")
-    @patch("backend.rag_solution.services.search_service.PipelineService")
+    @patch("rag_solution.services.user_service.UserService")
+    @patch("rag_solution.services.search_service.CollectionService")
+    @patch("rag_solution.services.search_service.PipelineService")
     @pytest.mark.asyncio
     async def test_search_creates_default_pipeline_when_user_has_none(
         self,
@@ -210,7 +210,7 @@ class TestSearchPipelineResolutionIntegration:
         assert hasattr(search_input_without_pipeline, "user_id")
         assert hasattr(search_input_without_pipeline, "config_metadata")
 
-    @patch("backend.rag_solution.services.search_service.PipelineService")
+    @patch("rag_solution.services.search_service.PipelineService")
     def test_pipeline_service_execute_pipeline_signature_change(
         self, mock_pipeline_service_class, mock_db, mock_settings, search_input_without_pipeline
     ):

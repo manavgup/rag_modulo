@@ -2,7 +2,7 @@
 
 import numpy as np
 import pytest
-from backend.vectordbs.data_types import DocumentChunk, DocumentChunkMetadata, QueryResult, Source
+from vectordbs.data_types import DocumentChunk, DocumentChunkMetadata, QueryResult, Source
 
 
 @pytest.mark.atomic

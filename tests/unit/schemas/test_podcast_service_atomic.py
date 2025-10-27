@@ -12,7 +12,7 @@ from uuid import UUID, uuid4
 import pytest
 
 # These imports will fail initially - that's expected for TDD Red phase
-from backend.rag_solution.schemas.podcast_schema import (
+from rag_solution.schemas.podcast_schema import (
     AudioFormat,
     PodcastDuration,
     PodcastGenerationInput,

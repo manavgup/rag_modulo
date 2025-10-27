@@ -8,9 +8,9 @@ from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
-from backend.core.config import Settings
-from backend.core.custom_exceptions import ValidationError
-from backend.rag_solution.schemas.pipeline_schema import PipelineResult, QueryResult
+from core.config import Settings
+from core.custom_exceptions import ValidationError
+from rag_solution.schemas.pipeline_schema import PipelineResult, QueryResult
 from sqlalchemy.orm import Session
 
 
@@ -29,7 +29,7 @@ class TestChainOfThoughtSearchIntegration:
         self, chunk_id: str, text: str, document_id: str, score: float, answer: str
     ) -> PipelineResult:
         """Helper to create properly formatted mock pipeline results."""
-        from backend.vectordbs.data_types import DocumentChunkMetadata, DocumentChunkWithScore, Source
+        from vectordbs.data_types import DocumentChunkMetadata, DocumentChunkWithScore, Source
 
         mock_chunk = DocumentChunkWithScore(
             chunk_id=chunk_id,
@@ -69,9 +69,9 @@ class TestChainOfThoughtSearchIntegration:
         # Create test user with explicit UUID
         import uuid
 
-        from backend.rag_solution.models.collection import Collection
-        from backend.rag_solution.models.user import User
-        from backend.rag_solution.models.user_collection import UserCollection
+        from rag_solution.models.collection import Collection
+        from rag_solution.models.user import User
+        from rag_solution.models.user_collection import UserCollection
 
         user_id = uuid.uuid4()
         user = User(id=user_id, ibm_id="cot_test_user", email="cot_test@example.com", name="CoT Test")
@@ -114,9 +114,9 @@ class TestChainOfThoughtSearchIntegration:
     async def test_cot_search_integration_with_database(self, test_collection, db_session):
         """Test CoT search integration with database operations."""
 
-        from backend.rag_solution.schemas.pipeline_schema import PipelineResult, QueryResult
-        from backend.rag_solution.schemas.search_schema import SearchInput
-        from backend.rag_solution.services.search_service import SearchService  # type: ignore
+        from rag_solution.schemas.pipeline_schema import PipelineResult, QueryResult
+        from rag_solution.schemas.search_schema import SearchInput
+        from rag_solution.services.search_service import SearchService  # type: ignore
 
         # Create search input with CoT configuration
         search_input = SearchInput(
@@ -130,7 +130,7 @@ class TestChainOfThoughtSearchIntegration:
         )
 
         # Mock pipeline service to return proper data structure
-        from backend.vectordbs.data_types import DocumentChunkMetadata, DocumentChunkWithScore, Source
+        from vectordbs.data_types import DocumentChunkMetadata, DocumentChunkWithScore, Source
 
         mock_chunk = DocumentChunkWithScore(
             chunk_id="chunk1",
@@ -179,9 +179,9 @@ class TestChainOfThoughtSearchIntegration:
 
     async def test_cot_pipeline_resolution_integration(self, test_collection, db_session):
         """Test CoT integration with pipeline resolution."""
-        from backend.rag_solution.schemas.pipeline_schema import PipelineResult, QueryResult
-        from backend.rag_solution.schemas.search_schema import SearchInput
-        from backend.rag_solution.services.search_service import SearchService  # type: ignore
+        from rag_solution.schemas.pipeline_schema import PipelineResult, QueryResult
+        from rag_solution.schemas.search_schema import SearchInput
+        from rag_solution.services.search_service import SearchService  # type: ignore
 
         search_input = SearchInput(
             question="Complex multi-part question requiring reasoning",
@@ -190,7 +190,7 @@ class TestChainOfThoughtSearchIntegration:
         )
 
         # Mock pipeline service to return proper data structure
-        from backend.vectordbs.data_types import DocumentChunkMetadata, DocumentChunkWithScore, Source
+        from vectordbs.data_types import DocumentChunkMetadata, DocumentChunkWithScore, Source
 
         mock_chunk = DocumentChunkWithScore(
             chunk_id="chunk2",
@@ -235,10 +235,10 @@ class TestChainOfThoughtSearchIntegration:
 
     async def test_cot_vector_store_integration(self, test_collection, db_session):
         """Test CoT integration with vector store operations."""
-        from backend.rag_solution.schemas.pipeline_schema import PipelineResult, QueryResult
-        from backend.rag_solution.schemas.search_schema import SearchInput
-        from backend.rag_solution.services.search_service import SearchService  # type: ignore
-        from backend.vectordbs.data_types import DocumentChunkMetadata, DocumentChunkWithScore, Source
+        from rag_solution.schemas.pipeline_schema import PipelineResult, QueryResult
+        from rag_solution.schemas.search_schema import SearchInput
+        from rag_solution.services.search_service import SearchService  # type: ignore
+        from vectordbs.data_types import DocumentChunkMetadata, DocumentChunkWithScore, Source
 
         search_input = SearchInput(
             question="How do neural networks learn from data?",
@@ -293,8 +293,8 @@ class TestChainOfThoughtSearchIntegration:
 
     async def test_cot_context_preservation_across_steps(self, test_collection, db_session):
         """Test context preservation across CoT reasoning steps."""
-        from backend.rag_solution.schemas.search_schema import SearchInput
-        from backend.rag_solution.services.search_service import SearchService  # type: ignore
+        from rag_solution.schemas.search_schema import SearchInput
+        from rag_solution.services.search_service import SearchService  # type: ignore
 
         search_input = SearchInput(
             question="What is deep learning, how does it work, and what are its applications?",
@@ -344,8 +344,8 @@ class TestChainOfThoughtSearchIntegration:
 
     async def test_cot_performance_metrics_tracking(self, test_collection, db_session):
         """Test performance metrics tracking for CoT operations."""
-        from backend.rag_solution.schemas.search_schema import SearchInput
-        from backend.rag_solution.services.search_service import SearchService  # type: ignore
+        from rag_solution.schemas.search_schema import SearchInput
+        from rag_solution.services.search_service import SearchService  # type: ignore
 
         search_input = SearchInput(
             question="Compare supervised and unsupervised learning algorithms",
@@ -374,8 +374,8 @@ class TestChainOfThoughtSearchIntegration:
     async def test_cot_error_handling_integration(self, test_collection, db_session):
         """Test error handling in CoT integration scenarios."""
 
-        from backend.rag_solution.schemas.search_schema import SearchInput
-        from backend.rag_solution.services.search_service import SearchService  # type: ignore
+        from rag_solution.schemas.search_schema import SearchInput
+        from rag_solution.services.search_service import SearchService  # type: ignore
 
         search_input = SearchInput(
             question="Test question for error handling",
@@ -397,8 +397,8 @@ class TestChainOfThoughtSearchIntegration:
 
     async def test_cot_fallback_to_regular_search(self, test_collection, db_session):
         """Test fallback to regular search when CoT fails."""
-        from backend.rag_solution.schemas.search_schema import SearchInput
-        from backend.rag_solution.services.search_service import SearchService  # type: ignore
+        from rag_solution.schemas.search_schema import SearchInput
+        from rag_solution.services.search_service import SearchService  # type: ignore
 
         search_input = SearchInput(
             question="Simple question that might not need CoT",
@@ -416,8 +416,8 @@ class TestChainOfThoughtSearchIntegration:
 
     async def test_cot_question_classification_integration(self, test_collection, db_session):
         """Test question classification integration in CoT pipeline."""
-        from backend.rag_solution.schemas.search_schema import SearchInput
-        from backend.rag_solution.services.search_service import SearchService  # type: ignore
+        from rag_solution.schemas.search_schema import SearchInput
+        from rag_solution.services.search_service import SearchService  # type: ignore
 
         # Test different question types
         test_questions = [
@@ -449,8 +449,8 @@ class TestChainOfThoughtSearchIntegration:
 
     async def test_cot_token_budget_management_integration(self, test_collection, db_session):
         """Test token budget management in CoT integration."""
-        from backend.rag_solution.schemas.search_schema import SearchInput
-        from backend.rag_solution.services.search_service import SearchService  # type: ignore
+        from rag_solution.schemas.search_schema import SearchInput
+        from rag_solution.services.search_service import SearchService  # type: ignore
 
         search_input = SearchInput(
             question="Very detailed question about machine learning algorithms and their applications",
@@ -473,8 +473,8 @@ class TestChainOfThoughtSearchIntegration:
 
     async def test_cot_database_persistence_integration(self, test_collection, db_session):
         """Test database persistence of CoT results."""
-        from backend.rag_solution.schemas.search_schema import SearchInput
-        from backend.rag_solution.services.search_service import SearchService  # type: ignore
+        from rag_solution.schemas.search_schema import SearchInput
+        from rag_solution.services.search_service import SearchService  # type: ignore
 
         search_input = SearchInput(
             question="Test question for persistence",
@@ -502,8 +502,8 @@ class TestChainOfThoughtSearchIntegration:
         """Test concurrent CoT execution handling."""
         import asyncio
 
-        from backend.rag_solution.schemas.search_schema import SearchInput
-        from backend.rag_solution.services.search_service import SearchService  # type: ignore
+        from rag_solution.schemas.search_schema import SearchInput
+        from rag_solution.services.search_service import SearchService  # type: ignore
 
         # Create multiple concurrent search requests
         search_inputs = [
@@ -534,9 +534,9 @@ class TestChainOfThoughtLLMProviderIntegration:
 
     async def test_cot_watsonx_provider_integration(self):
         """Test CoT with WatsonX LLM provider."""
-        from backend.rag_solution.generation.providers.watsonx import WatsonXLLM  # type: ignore
-        from backend.rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
-        from backend.rag_solution.services.chain_of_thought_service import ChainOfThoughtService  # type: ignore
+        from rag_solution.generation.providers.watsonx import WatsonXLLM  # type: ignore
+        from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
+        from rag_solution.services.chain_of_thought_service import ChainOfThoughtService  # type: ignore
 
         mock_provider = AsyncMock(spec=WatsonXLLM)
         mock_provider.generate_text.return_value = "Test LLM response"
@@ -566,9 +566,9 @@ class TestChainOfThoughtLLMProviderIntegration:
 
     async def test_cot_openai_provider_integration(self):
         """Test CoT with OpenAI provider."""
-        from backend.rag_solution.generation.providers.openai import OpenAILLM  # type: ignore
-        from backend.rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
-        from backend.rag_solution.services.chain_of_thought_service import ChainOfThoughtService  # type: ignore
+        from rag_solution.generation.providers.openai import OpenAILLM  # type: ignore
+        from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
+        from rag_solution.services.chain_of_thought_service import ChainOfThoughtService  # type: ignore
 
         mock_provider = AsyncMock(spec=OpenAILLM)
         mock_provider.generate_text.return_value = "OpenAI test response"
@@ -598,7 +598,7 @@ class TestChainOfThoughtLLMProviderIntegration:
 
     async def test_cot_provider_switching_integration(self):
         """Test CoT with dynamic provider switching."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
+        from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
 
         # Test that CoT service can handle provider switching
         cot_input = ChainOfThoughtInput(
@@ -619,9 +619,9 @@ class TestChainOfThoughtVectorStoreIntegration:
 
     async def test_cot_milvus_integration(self):
         """Test CoT with Milvus vector store."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
-        from backend.rag_solution.services.chain_of_thought_service import ChainOfThoughtService  # type: ignore
-        from backend.vectordbs.milvus_store import MilvusStore
+        from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
+        from rag_solution.services.chain_of_thought_service import ChainOfThoughtService  # type: ignore
+        from vectordbs.milvus_store import MilvusStore
 
         mock_vector_store = AsyncMock(spec=MilvusStore)
         mock_vector_store.query.return_value = [
@@ -660,7 +660,7 @@ class TestChainOfThoughtVectorStoreIntegration:
 
     async def test_cot_multi_vector_store_integration(self):
         """Test CoT with multiple vector store queries per step."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
+        from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
 
         cot_input = ChainOfThoughtInput(
             question="Complex question requiring multiple vector searches",

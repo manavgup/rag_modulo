@@ -3,10 +3,10 @@
 from uuid import uuid4
 
 import pytest
-from backend.rag_solution.schemas.llm_model_schema import LLMModelInput, ModelType
-from backend.rag_solution.schemas.llm_parameters_schema import LLMParametersInput
-from backend.rag_solution.schemas.llm_provider_schema import LLMProviderInput
-from backend.rag_solution.schemas.prompt_template_schema import PromptTemplateInput, PromptTemplateType
+from rag_solution.schemas.llm_model_schema import LLMModelInput, ModelType
+from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
+from rag_solution.schemas.llm_provider_schema import LLMProviderInput
+from rag_solution.schemas.prompt_template_schema import PromptTemplateInput, PromptTemplateType
 from pydantic import SecretStr
 
 

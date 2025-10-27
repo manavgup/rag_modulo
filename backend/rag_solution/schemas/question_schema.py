@@ -42,7 +42,6 @@ class QuestionInDB(QuestionBase):
         from_attributes=True,
         str_strip_whitespace=True,
         validate_assignment=True,
-        json_encoders={datetime: lambda v: v.isoformat()},
     )
 
 
@@ -53,4 +52,4 @@ class QuestionOutput(QuestionBase):
     created_at: datetime = Field(..., description="Timestamp when the question was created")
     question_metadata: dict | None = Field(default=None, description="Optional metadata for the question")
 
-    model_config = ConfigDict(from_attributes=True, json_encoders={datetime: lambda v: v.isoformat()})
+    model_config = ConfigDict(from_attributes=True)

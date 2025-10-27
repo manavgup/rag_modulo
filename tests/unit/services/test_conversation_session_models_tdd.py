@@ -8,7 +8,7 @@ from datetime import datetime
 from uuid import uuid4
 
 import pytest
-from backend.rag_solution.schemas.conversation_schema import (
+from rag_solution.schemas.conversation_schema import (
     ConversationContext,
     ConversationMessageInput,
     ConversationMessageOutput,
@@ -134,7 +134,7 @@ class TestConversationSessionModelsTDD:
 
     def test_conversation_message_input_with_metadata(self) -> None:
         """Test creating a conversation message input with metadata."""
-        from backend.rag_solution.schemas.conversation_schema import MessageMetadata
+        from rag_solution.schemas.conversation_schema import MessageMetadata
 
         # Arrange
         session_id = uuid4()

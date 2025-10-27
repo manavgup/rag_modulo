@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import Mock, patch
 
 import pytest
-from backend.rag_solution.schemas.dashboard_schema import (
+from rag_solution.schemas.dashboard_schema import (
     ActivityStatus,
     ActivityType,
     DashboardStats,
@@ -15,7 +15,7 @@ from backend.rag_solution.schemas.dashboard_schema import (
     SystemHealthStatus,
     TrendData,
 )
-from backend.rag_solution.services.dashboard_service import DashboardService
+from rag_solution.services.dashboard_service import DashboardService
 from sqlalchemy.orm import Session
 
 

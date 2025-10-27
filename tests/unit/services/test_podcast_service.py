@@ -9,9 +9,9 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from uuid import uuid4
 
 import pytest
-from backend.core.custom_exceptions import NotFoundError, ValidationError
-from backend.rag_solution.models.collection import Collection
-from backend.rag_solution.schemas.podcast_schema import (
+from core.custom_exceptions import NotFoundError, ValidationError
+from rag_solution.models.collection import Collection
+from rag_solution.schemas.podcast_schema import (
     AudioFormat,
     PodcastAudioGenerationInput,
     PodcastDuration,
@@ -28,7 +28,7 @@ from backend.rag_solution.schemas.podcast_schema import (
     VoiceGender,
     VoiceSettings,
 )
-from backend.rag_solution.services.podcast_service import PodcastService, SupportedLanguage
+from rag_solution.services.podcast_service import PodcastService, SupportedLanguage
 from fastapi import BackgroundTasks, HTTPException
 
 # ============================================================================

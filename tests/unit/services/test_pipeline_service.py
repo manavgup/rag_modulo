@@ -9,15 +9,15 @@ from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import pytest
-from backend.core.config import Settings
-from backend.core.custom_exceptions import LLMProviderError
-from backend.rag_solution.core.exceptions import (
+from core.config import Settings
+from core.custom_exceptions import LLMProviderError
+from rag_solution.core.exceptions import (
     ConfigurationError,
     NotFoundError,
     ValidationError,
 )
-from backend.rag_solution.schemas.llm_parameters_schema import LLMParametersInput
-from backend.rag_solution.schemas.pipeline_schema import (
+from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
+from rag_solution.schemas.pipeline_schema import (
     ChunkingStrategy,
     ContextStrategy,
     LLMProviderInfo,
@@ -25,9 +25,9 @@ from backend.rag_solution.schemas.pipeline_schema import (
     PipelineConfigOutput,
     RetrieverType,
 )
-from backend.rag_solution.schemas.search_schema import SearchInput
-from backend.rag_solution.services.pipeline_service import PipelineService
-from backend.vectordbs.data_types import DocumentChunk, DocumentChunkMetadata, QueryResult, Source
+from rag_solution.schemas.search_schema import SearchInput
+from rag_solution.services.pipeline_service import PipelineService
+from vectordbs.data_types import DocumentChunk, DocumentChunkMetadata, QueryResult, Source
 from sqlalchemy.orm import Session
 
 # ============================================================================

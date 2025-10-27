@@ -4,9 +4,9 @@ from argparse import ArgumentParser
 from datetime import datetime, timedelta
 
 import pytest
-from backend.rag_solution.cli.auth import AuthManager, AuthResult
-from backend.rag_solution.cli.config import RAGConfig
-from backend.rag_solution.cli.main import create_main_parser
+from rag_solution.cli.auth import AuthManager, AuthResult
+from rag_solution.cli.config import RAGConfig
+from rag_solution.cli.main import create_main_parser
 from pydantic import ValidationError
 
 
@@ -163,7 +163,7 @@ class TestCLIOutputFormatting:
 
     def test_format_table_output(self):
         """Test table output formatting."""
-        from backend.rag_solution.cli.output import format_table_output
+        from rag_solution.cli.output import format_table_output
 
         data = [{"name": "Collection 1", "status": "active"}, {"name": "Collection 2", "status": "processing"}]
 
@@ -176,7 +176,7 @@ class TestCLIOutputFormatting:
 
     def test_format_json_output(self):
         """Test JSON output formatting."""
-        from backend.rag_solution.cli.output import format_json_output
+        from rag_solution.cli.output import format_json_output
 
         data = {"collections": [{"name": "Test", "id": "123"}]}
         result = format_json_output(data)
@@ -186,7 +186,7 @@ class TestCLIOutputFormatting:
 
     def test_format_operation_result(self):
         """Test operation result formatting."""
-        from backend.rag_solution.cli.output import format_operation_result
+        from rag_solution.cli.output import format_operation_result
 
         # Success case
         success_result = format_operation_result("Operation completed", success_count=5, error_count=0)

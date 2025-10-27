@@ -10,17 +10,17 @@ from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import pytest
-from backend.core.config import Settings
-from backend.core.custom_exceptions import (
+from core.config import Settings
+from core.custom_exceptions import (
     CollectionProcessingError,
     DocumentIngestionError,
     NotFoundError,
     ValidationError,
 )
-from backend.rag_solution.schemas.collection_schema import CollectionInput, CollectionStatus
-from backend.rag_solution.schemas.file_schema import FileOutput
-from backend.rag_solution.schemas.llm_parameters_schema import LLMParametersInput
-from backend.rag_solution.services.collection_service import CollectionService
+from rag_solution.schemas.collection_schema import CollectionInput, CollectionStatus
+from rag_solution.schemas.file_schema import FileOutput
+from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
+from rag_solution.services.collection_service import CollectionService
 from fastapi import BackgroundTasks, UploadFile
 from sqlalchemy.orm import Session
 
@@ -311,7 +311,7 @@ class TestCollectionService:
         collection_service.collection_repository.get_by_name.return_value = Mock()
 
         # Act & Assert
-        from backend.rag_solution.core.exceptions import AlreadyExistsError
+        from rag_solution.core.exceptions import AlreadyExistsError
         with pytest.raises(AlreadyExistsError, match="Collection with name='Test Collection' already exists"):
             collection_service.create_collection(sample_collection_input)
 

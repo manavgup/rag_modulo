@@ -10,16 +10,16 @@ from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import pytest
-from backend.core.config import Settings, get_settings
-from backend.rag_solution.schemas.conversation_schema import (
+from core.config import Settings, get_settings
+from rag_solution.schemas.conversation_schema import (
     ConversationMessageInput,
     MessageRole,
     MessageType,
 )
-from backend.rag_solution.schemas.llm_usage_schema import LLMUsage, ServiceType, TokenWarning, TokenWarningType
-from backend.rag_solution.schemas.search_schema import SearchInput, SearchOutput
-from backend.rag_solution.services.conversation_service import ConversationService
-from backend.rag_solution.services.search_service import SearchService
+from rag_solution.schemas.llm_usage_schema import LLMUsage, ServiceType, TokenWarning, TokenWarningType
+from rag_solution.schemas.search_schema import SearchInput, SearchOutput
+from rag_solution.services.conversation_service import ConversationService
+from rag_solution.services.search_service import SearchService
 
 
 class TestTokenTrackingIntegrationTDD:  # type: ignore[misc]

@@ -2,8 +2,8 @@ from unittest.mock import patch
 
 import numpy as np
 import pytest
-from backend.core.config import get_settings
-from backend.rag_solution.data_ingestion.chunking import (
+from core.config import get_settings
+from rag_solution.data_ingestion.chunking import (
     calculate_cosine_distances,
     combine_sentences,
     get_chunking_method,
@@ -120,7 +120,7 @@ def test_semantic_chunking() -> None:
         ]
     )
 
-    with patch("backend.rag_solution.data_ingestion.chunking.get_embeddings", return_value=mock_embeddings):
+    with patch("rag_solution.data_ingestion.chunking.get_embeddings", return_value=mock_embeddings):
         chunks = semantic_chunking(text)
         assert len(chunks) >= 1  # Should identify at least one semantic chunk
 
@@ -144,7 +144,7 @@ def test_token_based_chunking() -> None:
     # Mock tokenization
     mock_tokens = [[1, 2, 3, 4], [1, 2, 3], [1, 2, 3, 4, 5], [1, 2, 3]]
 
-    with patch("backend.rag_solution.data_ingestion.chunking.get_tokenization", return_value=mock_tokens):
+    with patch("rag_solution.data_ingestion.chunking.get_tokenization", return_value=mock_tokens):
         chunks = token_based_chunking(text, max_tokens=10, overlap=2)
         assert len(chunks) > 1
 
@@ -153,7 +153,7 @@ def test_token_based_chunking() -> None:
 
         # Test text with fewer tokens than max
         short_text = "Short text."
-        with patch("backend.rag_solution.data_ingestion.chunking.get_tokenization", return_value=[[1, 2]]):
+        with patch("rag_solution.data_ingestion.chunking.get_tokenization", return_value=[[1, 2]]):
             chunks = token_based_chunking(short_text, max_tokens=10, overlap=2)
             assert len(chunks) == 1
             assert chunks[0] == short_text
@@ -231,7 +231,7 @@ def test_chunker_integration() -> None:
     mock_embeddings = np.array([[1.0, 0.0], [0.9, 0.1], [0.0, 1.0]])
     settings = get_settings()
     with (
-        patch("backend.rag_solution.data_ingestion.chunking.get_embeddings", return_value=mock_embeddings),
+        patch("rag_solution.data_ingestion.chunking.get_embeddings", return_value=mock_embeddings),
         patch.object(settings, "min_chunk_size", 10),
         patch.object(settings, "max_chunk_size", 50),
     ):

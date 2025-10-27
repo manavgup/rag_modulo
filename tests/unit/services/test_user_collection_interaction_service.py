@@ -5,12 +5,12 @@ from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
-from backend.rag_solution.schemas.user_collection_schema import (
+from rag_solution.schemas.user_collection_schema import (
     FileInfo,
     UserCollectionDetailOutput,
     UserCollectionsOutput,
 )
-from backend.rag_solution.services.user_collection_interaction_service import UserCollectionInteractionService
+from rag_solution.services.user_collection_interaction_service import UserCollectionInteractionService
 
 
 class TestUserCollectionInteractionService:

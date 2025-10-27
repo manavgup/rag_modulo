@@ -5,11 +5,11 @@ from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import pytest
-from backend.core.config import Settings
-from backend.core.custom_exceptions import LLMProviderError
-from backend.rag_solution.schemas.llm_model_schema import ModelType
-from backend.rag_solution.schemas.llm_provider_schema import LLMProviderInput, LLMProviderOutput
-from backend.rag_solution.services.system_initialization_service import SystemInitializationService
+from core.config import Settings
+from core.custom_exceptions import LLMProviderError
+from rag_solution.schemas.llm_model_schema import ModelType
+from rag_solution.schemas.llm_provider_schema import LLMProviderInput, LLMProviderOutput
+from rag_solution.services.system_initialization_service import SystemInitializationService
 from sqlalchemy.orm import Session
 
 

@@ -19,7 +19,7 @@ from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import pytest
-from backend.rag_solution.services.storage.audio_storage import (
+from rag_solution.services.storage.audio_storage import (
     AudioStorageBase,
     AudioStorageError,
     LocalFileStorage,

@@ -52,28 +52,31 @@ repos:
         args: [--baseline .secrets.baseline]
 
   # Python hooks - must match CI configuration exactly
-  # CI runs from backend/ with: poetry run ruff check . --config pyproject.toml
-  # CI runs from backend/ with: poetry run ruff format --check . --config pyproject.toml
+  # Poetry moved to root (October 2025) - pyproject.toml now at root level
+  # CI runs from root with: poetry run ruff check backend/ --config pyproject.toml
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.14.0
     hooks:
       - id: ruff
         name: Ruff linting (matches CI)
         files: ^backend/
-        args: [--fix, --config=backend/pyproject.toml]
+        args: [--fix, --config=pyproject.toml]
       - id: ruff-format
         name: Ruff formatting (matches CI)
         files: ^backend/
-        args: [--config=backend/pyproject.toml]
+        args: [--config=pyproject.toml]
 
-  # Poetry lock file validation
+  # Poetry lock file validation (Poetry moved to root in October 2025)
   - repo: local
     hooks:
       - id: poetry-lock-check
         name: Check poetry.lock is in sync with pyproject.toml
-        entry: bash -c 'cd backend && poetry check --lock || (echo "❌ poetry.lock is out of sync. Run - cd backend && poetry lock" && exit 1)'
+        entry: bash
+        args:
+          - -c
+          - "poetry check --lock || (echo 'poetry.lock is out of sync. Run: poetry lock' && exit 1)"
         language: system
-        files: ^backend/(pyproject\.toml|poetry\.lock)$
+        files: ^(pyproject\.toml|poetry\.lock)$
         pass_filenames: false
 
   # Python test hooks (run on push for velocity optimization)
@@ -110,7 +113,7 @@ repos:
     rev: v0.35.0
     hooks:
       - id: markdownlint
-        args: [--fix]
+        args: [--fix, --config, .markdownlint.json]
 
   # Commit message hooks
   - repo: https://github.com/commitizen-tools/commitizen
