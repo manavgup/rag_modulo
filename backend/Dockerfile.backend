@@ -29,6 +29,10 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 
 WORKDIR /app
 
+# CACHE_BUST: Poetry files moved to project root (Issue #501)
+# This ARG invalidates Docker cache when pyproject.toml location changes
+ARG POETRY_ROOT_MIGRATION=20251027
+
 # Copy dependency files first for better layer caching
 COPY pyproject.toml poetry.lock ./
 
