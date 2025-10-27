@@ -72,10 +72,10 @@ jobs:
     env:
       # Essential environment variables for current atomic tests
       # TODO: Remove these once issue #172 (test isolation) is fixed
-      JWT_SECRET_KEY: test-secret-key-for-ci
+      JWT_SECRET_KEY: test-secret-key-for-ci  # pragma: allowlist secret
       RAG_LLM: openai
       WATSONX_INSTANCE_ID: test-instance-id
-      WATSONX_APIKEY: test-api-key
+      WATSONX_APIKEY: test-api-key  # pragma: allowlist secret
       WATSONX_URL: https://test.watsonx.com
       # Additional variables needed by tests
       VECTOR_DB: milvus
@@ -97,7 +97,7 @@ jobs:
           path: |
             ~/.cache/pypoetry
             backend/.venv
-          key: ${{ runner.os }}-poetry-${{ hashFiles('backend/poetry.lock') }}
+          key: ${{ runner.os }}-poetry-${{ hashFiles('poetry.lock') }}
           restore-keys: |
             ${{ runner.os }}-poetry-
 

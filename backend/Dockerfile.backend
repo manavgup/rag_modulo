@@ -37,11 +37,11 @@ ARG POETRY_ROOT_MIGRATION=20251027
 COPY pyproject.toml poetry.lock ./
 
 # Install CPU-only PyTorch first to avoid CUDA dependencies (~6GB savings)
-# Using torch 2.5.0 to match torchvision 0.20.0 compatibility
+# Using torch 2.6.0 CPU-only version (compatible with ARM64 and x86_64)
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir \
-    torch==2.5.0+cpu \
-    torchvision==0.20.0+cpu \
+    torch==2.6.0+cpu \
+    torchvision==0.21.0+cpu \
     --index-url https://download.pytorch.org/whl/cpu
 
 # Configure pip globally to prevent any CUDA torch reinstalls
@@ -68,11 +68,18 @@ RUN find /usr/local -name "*.pyc" -delete && \
 # Final stage - clean runtime
 FROM python:3.12-slim
 
+# CACHE_BUST: Poetry files moved to project root (Issue #501)
+# Ensure final stage cache is also invalidated
+ARG POETRY_ROOT_MIGRATION=20251027
+
 WORKDIR /app
 
 # Copy system Python packages from builder
 COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Copy Poetry config from project root (moved from backend/ in Issue #501)
+COPY pyproject.toml poetry.lock ./
 
 # Copy only essential application files from backend directory
 COPY backend/main.py backend/healthcheck.py ./
@@ -81,7 +88,6 @@ COPY backend/auth/ ./auth/
 COPY backend/core/ ./core/
 COPY backend/cli/ ./cli/
 COPY backend/vectordbs/ ./vectordbs/
-COPY pyproject.toml ./
 
 # Create a non-root user and group
 RUN groupadd --gid 10001 backend && \
