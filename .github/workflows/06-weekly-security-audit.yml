@@ -181,7 +181,7 @@ jobs:
 
       - name: 🚨 Create Security Issue if Vulnerabilities Found
         if: steps.analyze.outputs.create_issue == 'true'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const critical = '${{ steps.analyze.outputs.critical }}';
