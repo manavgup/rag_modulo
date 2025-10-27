@@ -1,6 +1,6 @@
 name: Lint & Static Analysis
 
-# This workflow uses tool versions and configurations from backend/pyproject.toml
+# This workflow uses tool versions and configurations from pyproject.toml (project root)
 # All linting tools (Ruff, MyPy, Pylint, Pydocstyle) reference pyproject.toml as single source of truth
 # Tool versions: Ruff ^0.14.0, MyPy ^1.15.0, Pylint ^3.3.8, Pydocstyle ^6.3.0
 
@@ -119,48 +119,44 @@ jobs:
             blocking: true
             cmd: |
               pip install toml
-              python -c "import toml; toml.load(open('backend/pyproject.toml'))"
+              python -c "import toml; toml.load(open('pyproject.toml'))"
 
           # Python backend linting (blocking) - Check ALL backend Python files
           - id: ruff
             name: "Ruff (Lint + Format)"
-            working-directory: backend
             blocking: true
             cmd: |
               pip install poetry
               poetry install --only dev
               echo "Running Ruff linting..."
-              poetry run ruff check . --config pyproject.toml
+              poetry run ruff check backend --config pyproject.toml
               echo "Running Ruff formatting check..."
-              poetry run ruff format --check . --config pyproject.toml
+              poetry run ruff format --check backend --config pyproject.toml
 
           # Python type/quality checking (non-blocking / informational)
           - id: mypy
             name: "MyPy Type Check (Informational)"
-            working-directory: backend
             blocking: false
             cmd: |
               pip install poetry
               poetry install --only dev
-              poetry run mypy . --config-file pyproject.toml --ignore-missing-imports --show-error-codes || true
+              poetry run mypy backend --config-file pyproject.toml --ignore-missing-imports --show-error-codes || true
 
           - id: pylint
             name: "Pylint Quality (Informational)"
-            working-directory: backend
             blocking: false
             cmd: |
               pip install poetry
               poetry install --only dev
-              poetry run pylint rag_solution/ vectordbs/ core/ auth/ --rcfile=pyproject.toml || true
+              poetry run pylint backend/rag_solution/ backend/vectordbs/ backend/core/ backend/auth/ --rcfile=pyproject.toml || true
 
           - id: pydocstyle
             name: "Docstring Style (Informational)"
-            working-directory: backend
             blocking: false
             cmd: |
               pip install poetry
               poetry install --only dev
-              poetry run pydocstyle rag_solution/ vectordbs/ core/ auth/ --config=pyproject.toml --count || true
+              poetry run pydocstyle backend/rag_solution/ backend/vectordbs/ backend/core/ backend/auth/ --config=pyproject.toml --count || true
 
     name: ${{ matrix.name }}
 

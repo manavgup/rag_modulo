@@ -6,13 +6,13 @@ name: Poetry Lock Validation
 on:
   pull_request:
     paths:
-      - 'backend/pyproject.toml'
-      - 'backend/poetry.lock'
+      - 'pyproject.toml'
+      - 'poetry.lock'
   push:
     branches: [main, develop]
     paths:
-      - 'backend/pyproject.toml'
-      - 'backend/poetry.lock'
+      - 'pyproject.toml'
+      - 'poetry.lock'
 
 permissions:
   contents: read
@@ -37,7 +37,6 @@ jobs:
 
       - name: Validate poetry.lock is in sync
         run: |
-          cd backend
           echo "🔍 Checking if poetry.lock is in sync with pyproject.toml..."
 
           if poetry check --lock; then
@@ -50,18 +49,16 @@ jobs:
             echo "but poetry.lock was not regenerated."
             echo ""
             echo "To fix this:"
-            echo "  1. cd backend"
-            echo "  2. poetry lock"
-            echo "  3. git add poetry.lock"
-            echo "  4. git commit -m 'chore: update poetry.lock'"
-            echo "  5. git push"
+            echo "  1. poetry lock"
+            echo "  2. git add poetry.lock"
+            echo "  3. git commit -m 'chore: update poetry.lock'"
+            echo "  4. git push"
             echo ""
             exit 1
           fi
 
       - name: Check for dependency conflicts
         run: |
-          cd backend
           echo "🔍 Checking for dependency conflicts..."
           poetry check
           echo "✅ No dependency conflicts detected"
