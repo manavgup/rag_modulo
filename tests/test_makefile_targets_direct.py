@@ -37,7 +37,10 @@ class DirectMakefileTester:
                 "docker-compose.dev.yml",
                 "docker-compose-infra.yml",
                 "env.example",
-                "env.dev.example"
+                "env.dev.example",
+                # Poetry files moved to root (Issue #501 - October 2025)
+                "pyproject.toml",
+                "poetry.lock"
             ]
 
             # Copy files
@@ -53,9 +56,9 @@ class DirectMakefileTester:
                 # Copy essential backend files and directories needed by Dockerfile
                 backend_dst.mkdir(parents=True, exist_ok=True)
 
-                # Copy root files
+                # Copy backend-specific files
                 backend_files = [
-                    "main.py", "healthcheck.py", "pyproject.toml", "poetry.lock"
+                    "main.py", "healthcheck.py"
                 ]
                 for file in backend_files:
                     src_file = backend_src / file
