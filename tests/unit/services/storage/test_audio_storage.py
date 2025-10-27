@@ -50,17 +50,11 @@ class TestLocalFileStorageInitialization:
 
     def test_initialization_with_default_path(self) -> None:
         """Unit: LocalFileStorage initializes with default path."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with patch("backend.rag_solution.services.storage.audio_storage.Path") as mock_path:
-                mock_path_instance = Mock()
-                mock_path_instance.mkdir = Mock()
-                mock_path_instance.absolute.return_value = Path(tmpdir)
-                mock_path.return_value = mock_path_instance
+        storage = LocalFileStorage()
 
-                storage = LocalFileStorage()
-
-                assert storage.base_path == mock_path_instance
-                mock_path_instance.mkdir.assert_called_once_with(parents=True, exist_ok=True)
+        # Verify default path was created
+        assert storage.base_path == Path("data/podcasts")
+        assert storage.base_path.exists()
 
     def test_initialization_with_custom_path(self) -> None:
         """Unit: LocalFileStorage initializes with custom path."""
