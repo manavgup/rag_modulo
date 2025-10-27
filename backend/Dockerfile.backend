@@ -29,8 +29,12 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 
 WORKDIR /app
 
+# CACHE_BUST: Poetry files moved to project root (Issue #501)
+# This ARG invalidates Docker cache when pyproject.toml location changes
+ARG POETRY_ROOT_MIGRATION=20251027
+
 # Copy dependency files first for better layer caching
-COPY backend/pyproject.toml backend/poetry.lock ./
+COPY pyproject.toml poetry.lock ./
 
 # Install CPU-only PyTorch first to avoid CUDA dependencies (~6GB savings)
 # Using torch 2.5.0 to match torchvision 0.20.0 compatibility
@@ -70,14 +74,14 @@ WORKDIR /app
 COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
-# Copy only essential application files
+# Copy only essential application files from backend directory
 COPY backend/main.py backend/healthcheck.py ./
 COPY backend/rag_solution/ ./rag_solution/
 COPY backend/auth/ ./auth/
 COPY backend/core/ ./core/
 COPY backend/cli/ ./cli/
 COPY backend/vectordbs/ ./vectordbs/
-COPY backend/pyproject.toml ./
+COPY pyproject.toml ./
 
 # Create a non-root user and group
 RUN groupadd --gid 10001 backend && \

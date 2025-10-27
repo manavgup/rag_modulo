@@ -24,7 +24,7 @@ services:
       milvus-standalone:
         condition: service_healthy
       mlflow-server:
-       condition: service_started
+        condition: service_started
     environment:
       # Development-specific overrides
       - SKIP_AUTH=true

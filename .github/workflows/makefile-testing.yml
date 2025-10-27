@@ -32,7 +32,6 @@ jobs:
 
       - name: Install dependencies
         run: |
-          cd backend
           poetry install --with test
 
       - name: Set up Docker Buildx
@@ -41,7 +40,7 @@ jobs:
       - name: Test Makefile targets directly
         run: |
           echo "Running direct Makefile tests..."
-          cd backend && poetry run pytest ../tests/test_makefile_targets_direct.py -v
+          PYTHONPATH=backend poetry run pytest tests/test_makefile_targets_direct.py -v
 
       - name: Test make help
         run: |
