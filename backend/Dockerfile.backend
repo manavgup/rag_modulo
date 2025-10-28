@@ -33,6 +33,7 @@ WORKDIR /app
 # Previous: POETRY_ROOT_MIGRATION=20251027 (Poetry root migration)
 # Updated: 20251028 to invalidate cache and install CPU-only PyTorch
 ARG CACHE_BUST=20251028
+RUN echo "Cache bust: $CACHE_BUST"
 
 # Copy dependency files first for better layer caching
 COPY pyproject.toml poetry.lock ./
