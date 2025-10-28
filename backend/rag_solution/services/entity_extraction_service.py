@@ -198,19 +198,19 @@ class EntityExtractionService:
             List of entity strings extracted by LLM
         """
         # Get LLM provider
-        if self._llm_provider_service is None:
-            self._llm_provider_service = LLMProviderService(self.db)
-
-        provider_config = self._llm_provider_service.get_default_provider()
-        if not provider_config:
-            logger.warning("No LLM provider available, falling back to spaCy")
-            return self._extract_with_spacy(context)
-
-        # Get actual provider instance
         try:
+            if self._llm_provider_service is None:
+                self._llm_provider_service = LLMProviderService(self.db)
+
+            provider_config = self._llm_provider_service.get_default_provider()
+            if not provider_config:
+                logger.warning("No LLM provider available, falling back to spaCy")
+                return self._extract_with_spacy(context)
+
+            # Get actual provider instance
             factory = LLMProviderFactory(self.db)
             provider = factory.get_provider(provider_config.name)
-        except (ImportError, ValueError, RuntimeError) as e:
+        except (ImportError, ValueError, RuntimeError, Exception) as e:
             logger.error("Failed to get LLM provider: %s", e)
             return self._extract_with_spacy(context)
 
@@ -296,7 +296,7 @@ Entities:"""
                 )
                 return ranked
 
-            except (RuntimeError, ValueError, AttributeError) as e:
+            except (RuntimeError, ValueError, AttributeError, Exception) as e:
                 logger.warning("LLM refinement failed: %s, using spaCy only", e)
                 return spacy_entities
         else:
@@ -345,6 +345,7 @@ Entities:"""
         logger.info("Using regex fallback for entity extraction")
 
         patterns = [
+            r"\b[A-Z][A-Z]+\b",  # All caps acronyms (e.g., IBM, API)
             r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2}\b",  # Proper nouns (2-3 words)
             r'"([^"]+)"',  # Quoted terms
             r"\b\d{4}\b",  # Years (e.g., 2020)
