@@ -88,9 +88,10 @@ const LightweightSearchInterface: React.FC = () => {
   // Load collection data from location state (passed from collections page)
   useEffect(() => {
     if (location.state) {
-      const { collectionId, collectionName } = location.state as {
+      const { collectionId, collectionName, newConversation } = location.state as {
         collectionId?: string;
         collectionName?: string;
+        newConversation?: boolean;
       };
 
       if (collectionId && collectionName) {
@@ -98,7 +99,15 @@ const LightweightSearchInterface: React.FC = () => {
         setCurrentCollectionName(collectionName);
         setSelectedCollection(collectionId);
 
-        addNotification('info', 'Collection Loaded', `Now chatting with ${collectionName}`);
+        // If newConversation flag is set, clear any existing conversation
+        if (newConversation) {
+          setCurrentConversation(null);
+          setMessages([]);
+          localStorage.removeItem(`lastConversation_${collectionId}`);
+          addNotification('info', 'New Conversation', `Starting fresh conversation with ${collectionName}`);
+        } else {
+          addNotification('info', 'Collection Loaded', `Now chatting with ${collectionName}`);
+        }
       }
     }
   }, [location.state, addNotification]);
@@ -122,38 +131,44 @@ const LightweightSearchInterface: React.FC = () => {
         const conversationsData = await apiClient.getConversations(undefined, currentCollectionId);
         setConversations(conversationsData);
 
-        // Try to restore last selected conversation from localStorage
-        const lastConversationId = localStorage.getItem(`lastConversation_${currentCollectionId}`);
-        let conversationToSelect = null;
+        // Check if we're in "new conversation" mode from location state
+        const isNewConversationMode = location.state?.newConversation === true;
 
-        if (lastConversationId) {
-          conversationToSelect = conversationsData.find(c => c.id === lastConversationId);
-        }
+        // Only auto-load conversation if NOT in new conversation mode
+        if (!isNewConversationMode) {
+          // Try to restore last selected conversation from localStorage
+          const lastConversationId = localStorage.getItem(`lastConversation_${currentCollectionId}`);
+          let conversationToSelect = null;
 
-        // If no stored conversation or it doesn't exist, select the first one
-        if (!conversationToSelect && conversationsData.length > 0) {
-          conversationToSelect = conversationsData[0];
-        }
+          if (lastConversationId) {
+            conversationToSelect = conversationsData.find(c => c.id === lastConversationId);
+          }
 
-        // If no current conversation is selected, load the selected conversation
-        if (!currentConversation && conversationToSelect) {
-          setCurrentConversation(conversationToSelect);
-          // Store the selection for persistence
-          localStorage.setItem(`lastConversation_${currentCollectionId}`, conversationToSelect.id);
+          // If no stored conversation or it doesn't exist, select the first one
+          if (!conversationToSelect && conversationsData.length > 0) {
+            conversationToSelect = conversationsData[0];
+          }
 
-          // Load messages for this conversation
-          const messages = await apiClient.getConversationMessages(conversationToSelect.id);
-          // Convert to ChatMessage format
-          const chatMessages: ChatMessage[] = messages.map(msg => ({
-            id: msg.id,
-            type: msg.role === 'user' ? 'user' : 'assistant',
-            content: msg.content,
-            timestamp: new Date(msg.created_at),
-            sources: msg.sources,
-            metadata: msg.metadata,
-            token_warning: msg.token_warning as any,
-          }));
-          setMessages(chatMessages);
+          // If no current conversation is selected, load the selected conversation
+          if (!currentConversation && conversationToSelect) {
+            setCurrentConversation(conversationToSelect);
+            // Store the selection for persistence
+            localStorage.setItem(`lastConversation_${currentCollectionId}`, conversationToSelect.id);
+
+            // Load messages for this conversation
+            const messages = await apiClient.getConversationMessages(conversationToSelect.id);
+            // Convert to ChatMessage format
+            const chatMessages: ChatMessage[] = messages.map(msg => ({
+              id: msg.id,
+              type: msg.role === 'user' ? 'user' : 'assistant',
+              content: msg.content,
+              timestamp: new Date(msg.created_at),
+              sources: msg.sources,
+              metadata: msg.metadata,
+              token_warning: msg.token_warning as any,
+            }));
+            setMessages(chatMessages);
+          }
         }
       } catch (error) {
         addNotification('error', 'Loading Error', 'Failed to load conversations.');
@@ -161,7 +176,7 @@ const LightweightSearchInterface: React.FC = () => {
     };
 
     loadConversations();
-  }, [currentCollectionId, addNotification, currentConversation]);
+  }, [currentCollectionId, addNotification, currentConversation, location.state?.newConversation]);
 
   // Load collections and set up WebSocket connection
   useEffect(() => {

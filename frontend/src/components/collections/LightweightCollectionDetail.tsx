@@ -47,6 +47,10 @@ const LightweightCollectionDetail: React.FC = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [isPodcastModalOpen, setIsPodcastModalOpen] = useState(false);
   const [isReindexing, setIsReindexing] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
+  const [isConversationsOpen, setIsConversationsOpen] = useState(false);
 
   useEffect(() => {
     const loadCollection = async () => {
@@ -74,6 +78,25 @@ const LightweightCollectionDetail: React.FC = () => {
 
     loadCollection();
   }, [id, addNotification]);
+
+  // Load conversations for this collection
+  useEffect(() => {
+    const loadConversations = async () => {
+      if (!collection) return;
+
+      try {
+        // Pass undefined for userId and collection.id for collectionId
+        const conversationData = await apiClient.getConversations(undefined, collection.id);
+        console.log('Loaded conversations for collection:', collection.id, conversationData);
+        setConversations(conversationData);
+      } catch (error) {
+        console.error('Error loading conversations:', error);
+        // Don't show error notification - this is optional data
+      }
+    };
+
+    loadConversations();
+  }, [collection]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -313,6 +336,53 @@ const LightweightCollectionDetail: React.FC = () => {
     }
   };
 
+  const handleDeleteCollection = async () => {
+    if (!collection) return;
+
+    // Confirm with user
+    if (!window.confirm(`Are you sure you want to delete the collection "${collection.name}"? This action cannot be undone and will delete all documents and conversations.`)) {
+      return;
+    }
+
+    try {
+      await apiClient.deleteCollection(collection.id);
+      addNotification('success', 'Collection Deleted', 'Collection deleted successfully.');
+      navigate('/lightweight-collections');
+    } catch (error) {
+      console.error('Error deleting collection:', error);
+      addNotification('error', 'Delete Error', 'Failed to delete collection.');
+    }
+  };
+
+  const handleNewConversation = () => {
+    if (!collection) return;
+
+    // Navigate to search with a new conversation
+    navigate('/search', {
+      state: {
+        collectionId: collection.id,
+        collectionName: collection.name,
+        collectionDescription: collection.description,
+        newConversation: true  // Signal to create a new conversation
+      }
+    });
+  };
+
+  const handleSelectConversation = (conversationId: string) => {
+    setSelectedConversation(conversationId);
+    setIsConversationsOpen(false);
+
+    // Navigate to search with selected conversation
+    navigate('/search', {
+      state: {
+        collectionId: collection?.id,
+        collectionName: collection?.name,
+        collectionDescription: collection?.description,
+        conversationId: conversationId
+      }
+    });
+  };
+
   const filteredDocuments = collection?.documents.filter(doc =>
     doc.name.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
@@ -389,30 +459,149 @@ const LightweightCollectionDetail: React.FC = () => {
               </div>
             </div>
             <div className="flex space-x-2">
-              <button
-                onClick={handleChatWithCollection}
-                disabled={collection.status !== 'ready' && collection.status !== 'completed'}
-                className="btn-primary flex items-center space-x-2 disabled:opacity-50"
-              >
-                <ChatBubbleLeftIcon className="w-4 h-4" />
-                <span>Chat</span>
-              </button>
-              <button
-                onClick={() => setIsPodcastModalOpen(true)}
-                disabled={collection.status !== 'ready' && collection.status !== 'completed'}
-                className="btn-primary flex items-center space-x-2 disabled:opacity-50 bg-purple-50 hover:bg-purple-40"
-                title={`Collection status: ${collection.status}`}
-              >
-                <MicrophoneIcon className="w-4 h-4" />
-                <span>Generate Podcast</span>
-              </button>
+              {/* Chat Dropdown with Conversations */}
+              <div className="relative">
+                <button
+                  onClick={() => setIsConversationsOpen(!isConversationsOpen)}
+                  disabled={collection.status !== 'ready' && collection.status !== 'completed'}
+                  className="btn-primary flex items-center space-x-2 disabled:opacity-50"
+                  title="Start or continue a conversation"
+                >
+                  <ChatBubbleLeftIcon className="w-4 h-4" />
+                  <span>Chat</span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {isConversationsOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setIsConversationsOpen(false)}
+                    />
+                    <div className="absolute left-0 mt-2 w-80 bg-white rounded-lg shadow-lg z-20 border border-gray-20">
+                      <div className="p-2">
+                        {/* New Conversation Option */}
+                        <button
+                          onClick={() => {
+                            setIsConversationsOpen(false);
+                            handleNewConversation();
+                          }}
+                          className="w-full text-left px-3 py-2 hover:bg-blue-10 rounded flex items-center space-x-2 border-b border-gray-20 bg-blue-5"
+                        >
+                          <PlusIcon className="w-4 h-4 text-blue-60" />
+                          <div>
+                            <div className="text-sm font-medium text-blue-60">New Conversation</div>
+                            <div className="text-xs text-gray-60">Start fresh with no previous context</div>
+                          </div>
+                        </button>
+
+                        {/* Continue Last Conversation */}
+                        {conversations.length > 0 && (
+                          <button
+                            onClick={() => {
+                              setIsConversationsOpen(false);
+                              handleChatWithCollection();
+                            }}
+                            className="w-full text-left px-3 py-2 hover:bg-gray-10 rounded flex items-center space-x-2 border-b border-gray-20"
+                          >
+                            <ChatBubbleLeftIcon className="w-4 h-4 text-green-50" />
+                            <div>
+                              <div className="text-sm font-medium text-gray-100">Continue Last Conversation</div>
+                              <div className="text-xs text-gray-60">Resume where you left off</div>
+                            </div>
+                          </button>
+                        )}
+
+                        {/* Recent Conversations */}
+                        <div className="px-3 py-2 text-xs font-medium text-gray-70 uppercase">
+                          Recent Conversations ({conversations.length})
+                        </div>
+                        <div className="max-h-64 overflow-y-auto">
+                          {conversations.length === 0 ? (
+                            <div className="px-3 py-4 text-sm text-gray-60 text-center">
+                              No previous conversations
+                            </div>
+                          ) : (
+                            conversations.map((conv) => (
+                              <button
+                                key={conv.id}
+                                onClick={() => handleSelectConversation(conv.id)}
+                                className="w-full text-left px-3 py-2 hover:bg-gray-10 rounded flex items-start space-x-2 group"
+                              >
+                                <ChatBubbleLeftIcon className="w-4 h-4 text-gray-60 mt-0.5 flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-sm font-medium text-gray-100 truncate">
+                                    {conv.session_name || 'Untitled Conversation'}
+                                  </div>
+                                  <div className="text-xs text-gray-60">
+                                    {conv.message_count || 0} messages • {new Date(conv.updated_at).toLocaleDateString()}
+                                  </div>
+                                </div>
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Share Button */}
               <button className="btn-secondary flex items-center space-x-2">
                 <ShareIcon className="w-4 h-4" />
                 <span>Share</span>
               </button>
-              <button className="btn-secondary">
-                <Cog6ToothIcon className="w-5 h-5" />
-              </button>
+
+              {/* Settings Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+                  className="btn-secondary"
+                  title="Collection settings"
+                >
+                  <Cog6ToothIcon className="w-5 h-5" />
+                </button>
+
+                {isSettingsOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setIsSettingsOpen(false)}
+                    />
+                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg z-20 border border-gray-20">
+                      <div className="py-1">
+                        <button
+                          onClick={() => {
+                            setIsSettingsOpen(false);
+                            handleReindex();
+                          }}
+                          disabled={isReindexing || collection.status === 'processing'}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-100 hover:bg-gray-10 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <ArrowPathIcon className={`w-4 h-4 ${isReindexing ? 'animate-spin' : ''}`} />
+                          <span>{isReindexing ? 'Reindexing...' : 'Re-index Collection'}</span>
+                        </button>
+
+                        <div className="border-t border-gray-20 my-1" />
+
+                        <button
+                          onClick={() => {
+                            setIsSettingsOpen(false);
+                            handleDeleteCollection();
+                          }}
+                          className="w-full text-left px-4 py-2 text-sm text-red-50 hover:bg-red-10 flex items-center space-x-2"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                          <span>Delete Collection</span>
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -499,26 +688,6 @@ const LightweightCollectionDetail: React.FC = () => {
                   </div>
                 </div>
               </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={handleReindex}
-                disabled={isReindexing || collection.status === 'processing'}
-                className="btn-secondary flex items-center space-x-2 disabled:opacity-50 text-sm"
-                title={isReindexing ? 'Reindexing in progress...' : 'Reprocess documents with current chunking settings'}
-              >
-                <ArrowPathIcon className={`w-4 h-4 ${isReindexing ? 'animate-spin' : ''}`} />
-                <span>{isReindexing ? 'Reindexing...' : 'Re-index'}</span>
-              </button>
-              <button
-                className="btn-secondary flex items-center space-x-2 text-sm"
-                title="Export collection data"
-              >
-                <ArrowUpTrayIcon className="w-4 h-4" />
-                <span>Export</span>
-              </button>
             </div>
           </div>
         </div>
