@@ -13,7 +13,7 @@ class LLMParametersBase(BaseModel):
 class LLMParametersInput(LLMParametersBase):
     user_id: UUID4 = Field(..., description="ID of the user who owns these parameters")
     max_new_tokens: int = Field(
-        default=100,
+        default=2048,
         ge=1,
         description="Maximum number of new tokens (model-dependent: WatsonX ~2K, GPT-4 ~128K, Claude ~200K)",
     )
