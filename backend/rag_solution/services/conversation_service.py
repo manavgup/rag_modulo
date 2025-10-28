@@ -33,6 +33,7 @@ from rag_solution.schemas.conversation_schema import (
 from rag_solution.schemas.llm_usage_schema import LLMUsage, ServiceType
 from rag_solution.schemas.search_schema import SearchInput
 from rag_solution.services.chain_of_thought_service import ChainOfThoughtService
+from rag_solution.services.entity_extraction_service import EntityExtractionService
 from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.question_service import QuestionService
 from rag_solution.services.search_service import SearchService
@@ -53,6 +54,7 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
         self._llm_provider_service: LLMProviderService | None = None
         self._question_service: QuestionService | None = None
         self._token_tracking_service: TokenTrackingService | None = None
+        self._entity_extraction_service: EntityExtractionService | None = None
         # Context management cache
         self._context_cache: dict[str, ConversationContext] = {}
         self._cache_ttl = 300  # 5 minutes
@@ -95,6 +97,13 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
         if self._token_tracking_service is None:
             self._token_tracking_service = TokenTrackingService(self.db, self.settings)
         return self._token_tracking_service
+
+    @property
+    def entity_extraction_service(self) -> EntityExtractionService:
+        """Get entity extraction service instance."""
+        if self._entity_extraction_service is None:
+            self._entity_extraction_service = EntityExtractionService(self.db, self.settings)
+        return self._entity_extraction_service
 
     async def create_session(self, session_input: ConversationSessionInput) -> ConversationSessionOutput:
         """Create a new conversation session."""
@@ -468,18 +477,24 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
                         if all_scores:
                             # Use the best (highest) score from all retrieved chunks
                             doc_dict["metadata"]["score"] = max(all_scores)
+                        else:
+                            # Default score when query_results exist but have no scores
+                            doc_dict["metadata"]["score"] = 1.0
 
                         if all_pages:
                             # Use the first page number mentioned
                             doc_dict["metadata"]["page_number"] = min(all_pages)
 
                         # If original content is empty, use content from query results
-                        if not doc_dict["content"] and doc_data_map:
+                        if not doc_dict["content"]:
                             # Get first non-empty content
                             for data in doc_data_map.values():
                                 if data["content"]:
                                     doc_dict["content"] = data["content"][:1000]  # Limit to 1000 chars
                                     break
+                    else:
+                        # Default score when no query_results available
+                        doc_dict["metadata"]["score"] = 1.0
 
                     serialized.append(doc_dict)
                 else:
@@ -894,49 +909,38 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
         return " ".join(context_parts) if context_parts else "No previous conversation context"
 
     def _extract_entities_from_context(self, context: str) -> list[str]:
-        """Extract entities from context using NLP patterns."""
-        entities = []
+        """Extract entities from context using EntityExtractionService.
 
-        # Use regex patterns to extract potential entities
-        # Look for capitalized words, quoted terms, and common entity patterns
-        patterns = [
-            r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b",  # Proper nouns
-            r'"([^"]+)"',  # Quoted terms
-            r"\b\w+(?:\s+\w+){1,3}\b(?=\s+(?:is|are|was|were|can|will|should|would))",  # Subject patterns
-        ]
+        This method delegates to EntityExtractionService which provides:
+        - Fast spaCy NER extraction (5ms, 75% accuracy)
+        - Optional LLM-based refinement (for complex contexts)
+        - Comprehensive stop word filtering
+        - Entity validation and deduplication
 
-        for pattern in patterns:
-            matches = re.findall(pattern, context)
-            entities.extend(matches)
+        Args:
+            context: Conversation context to extract entities from
 
-        # Filter out common words and keep only meaningful entities
-        common_words = {
-            "the",
-            "and",
-            "or",
-            "but",
-            "in",
-            "on",
-            "at",
-            "to",
-            "for",
-            "of",
-            "with",
-            "by",
-            "from",
-            "as",
-            "is",
-            "are",
-            "was",
-            "were",
-        }
-        filtered_entities = [
-            entity
-            for entity in entities
-            if len(entity.split()) <= 4 and not all(word.lower() in common_words for word in entity.split())
-        ]
+        Returns:
+            List of validated entity strings (max 10)
+        """
+        # Use async service in sync context
+        import asyncio
 
-        return list(set(filtered_entities))
+        loop = asyncio.get_event_loop()
+        try:
+            entities = loop.run_until_complete(
+                self.entity_extraction_service.extract_entities(
+                    context=context,
+                    method="fast",  # Use "hybrid" for better quality (slightly slower)
+                    use_cache=True,
+                    max_entities=10,
+                )
+            )
+            logger.debug("Extracted %d entities from context: %s", len(entities), entities)
+            return entities
+        except Exception as e:
+            logger.error("Entity extraction failed: %s, returning empty list", e)
+            return []
 
     def _extract_topics_from_context(self, context: str) -> list[str]:
         """Extract topics from context."""
