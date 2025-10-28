@@ -93,6 +93,54 @@ EMBEDDING_FIELD=embedding                # Embedding field name
 EMBEDDING_BATCH_SIZE=32                  # Batch size for embeddings
 ```
 
+### Document Processing & Chunking Configuration
+
+```bash
+# IBM Docling Document Processing
+ENABLE_DOCLING=true                      # Enable IBM Docling for advanced document processing
+DOCLING_FALLBACK_ENABLED=true            # Enable fallback to traditional processing if Docling fails
+
+# HybridChunker Configuration
+USE_DOCLING_CHUNKER=true                 # Use Docling's HybridChunker for token-aware chunking
+CHUNKING_TOKENIZER_MODEL=ibm-granite/granite-embedding-english-r2  # Tokenizer model for token counting
+
+# Chunking Strategy (used when USE_DOCLING_CHUNKER=false)
+CHUNKING_STRATEGY=fixed                  # Chunking strategy (fixed, semantic, hierarchical)
+MIN_CHUNK_SIZE=100                       # Minimum chunk size in tokens
+MAX_CHUNK_SIZE=400                       # Maximum chunk size in tokens
+CHUNK_OVERLAP=10                         # Overlap between chunks
+```
+
+#### HybridChunker Details
+
+When `USE_DOCLING_CHUNKER=true`:
+
+- **Token-Aware Chunking**: Uses HuggingFace tokenizers to count actual tokens, ensuring chunks stay within embedding model limits
+- **Tokenizer Model**: Should match your embedding model family for accurate token counts:
+  - IBM Slate/Granite embeddings → `ibm-granite/granite-embedding-english-r2`
+  - Sentence Transformers → `sentence-transformers/all-MiniLM-L6-v2`
+- **Max Tokens**: Defaults to 400 tokens (78% of IBM Slate's 512 limit) with safety margin for metadata
+- **Semantic Merging**: Automatically merges semantically similar chunks when `merge_peers=True`
+
+**Benefits**:
+
+- ✅ Prevents "token count exceeds maximum" errors
+- ✅ Accurate token counting (no tokenizer mismatch)
+- ✅ Better chunk quality with semantic boundaries
+- ✅ Optimal for IBM Slate/Granite embeddings
+
+**When to Use**:
+
+- ✅ Using IBM Slate/Granite embeddings (recommended)
+- ✅ Processing long documents (PDFs, reports)
+- ✅ Need precise token control for embedding models
+
+**When to Disable**:
+
+- Traditional fixed-size chunking preferred
+- Custom chunking strategy needed
+- Docling not installed
+
 ### Object Storage Configuration
 
 ```bash

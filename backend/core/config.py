@@ -86,6 +86,14 @@ class Settings(BaseSettings):
     # IBM Docling Feature Flags
     enable_docling: Annotated[bool, Field(default=False, alias="ENABLE_DOCLING")]
     docling_fallback_enabled: Annotated[bool, Field(default=True, alias="DOCLING_FALLBACK_ENABLED")]
+    # When True, use Docling's HybridChunker (token-aware, uses HuggingFace tokenizer)
+    # When False, use RAG Modulo's chunking strategies (respects CHUNKING_STRATEGY setting)
+    use_docling_chunker: Annotated[bool, Field(default=False, alias="USE_DOCLING_CHUNKER")]
+    # Tokenizer model for HybridChunker token counting
+    # Should match embedding model family for accurate token counts (e.g., ibm-granite for IBM Slate)
+    chunking_tokenizer_model: Annotated[
+        str, Field(default="ibm-granite/granite-embedding-english-r2", alias="CHUNKING_TOKENIZER_MODEL")
+    ]
 
     # Chain of Thought (CoT) settings
     cot_max_reasoning_depth: Annotated[int, Field(default=3, alias="COT_MAX_REASONING_DEPTH")]
