@@ -45,7 +45,7 @@ class ChromaDBStore(VectorStore):
         self._client: ClientAPI = client or self._initialize_client()
 
         # Configure logging
-        logging.basicConfig(level=self.settings.log_level)
+        logging.basicConfig(level=getattr(self.settings, "log_level", "INFO"))
 
     def _initialize_client(self) -> ClientAPI:
         """Initialize the ChromaDB client."""

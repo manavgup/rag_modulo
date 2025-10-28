@@ -315,10 +315,10 @@ class TestProfileManager:
         self.profiles_dir_patcher = patch.object(self.profile_manager, "profiles_dir", self.profiles_dir)
 
         # Mock RAGConfig methods to use the temp directory
-        self.load_from_file_patcher = patch("backend.rag_solution.cli.config.RAGConfig.load_from_file")
+        self.load_from_file_patcher = patch("rag_solution.cli.config.RAGConfig.load_from_file")
         self.mock_load_from_file = self.load_from_file_patcher.start()
 
-        self.save_to_file_patcher = patch("backend.rag_solution.cli.config.RAGConfig.save_to_file")
+        self.save_to_file_patcher = patch("rag_solution.cli.config.RAGConfig.save_to_file")
         self.mock_save_to_file = self.save_to_file_patcher.start()
 
         self.config_dir_patcher.start()

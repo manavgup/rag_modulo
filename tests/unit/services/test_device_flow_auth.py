@@ -57,7 +57,7 @@ class TestDeviceFlowBackend:
     async def test_start_device_flow_success(self, mock_settings, mock_device_response):
         """Test successful device flow initiation."""
         # Mock HTTP client response
-        with patch("backend.rag_solution.router.auth_router.httpx.AsyncClient") as mock_client:
+        with patch("rag_solution.router.auth_router.httpx.AsyncClient") as mock_client:
             mock_response = Mock()
             mock_response.status_code = 200
             mock_response.json.return_value = mock_device_response
@@ -79,7 +79,7 @@ class TestDeviceFlowBackend:
         """Test device flow initiation when IBM returns error."""
         from fastapi import HTTPException
 
-        with patch("backend.rag_solution.router.auth_router.httpx.AsyncClient") as mock_client:
+        with patch("rag_solution.router.auth_router.httpx.AsyncClient") as mock_client:
             mock_response = Mock()
             mock_response.status_code = 400
             mock_response.json.return_value = {"error": "invalid_client"}
@@ -109,7 +109,7 @@ class TestDeviceFlowBackend:
         )
         storage.store_record(record)
 
-        with patch("backend.rag_solution.router.auth_router.httpx.AsyncClient") as mock_client:
+        with patch("rag_solution.router.auth_router.httpx.AsyncClient") as mock_client:
             mock_response = Mock()
             mock_response.status_code = 400
             mock_response.json.return_value = {"error": "authorization_pending"}
@@ -139,14 +139,14 @@ class TestDeviceFlowBackend:
         )
         storage.store_record(record)
 
-        with patch("backend.rag_solution.router.auth_router.httpx.AsyncClient") as mock_client:
+        with patch("rag_solution.router.auth_router.httpx.AsyncClient") as mock_client:
             mock_response = Mock()
             mock_response.status_code = 200
             mock_response.json.return_value = mock_token_response
             mock_client.return_value.__aenter__.return_value.post = AsyncMock(return_value=mock_response)
 
             # Mock user service
-            with patch("backend.rag_solution.router.auth_router.UserService") as mock_user_service_class:
+            with patch("rag_solution.router.auth_router.UserService") as mock_user_service_class:
                 mock_user = Mock()
                 mock_user.id = 123
                 mock_user.email = "test@ibm.com"

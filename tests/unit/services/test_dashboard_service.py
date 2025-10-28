@@ -218,7 +218,7 @@ class TestDashboardService:
         mock_query.filter.return_value = mock_query
         mock_query.scalar.return_value = 50
 
-        with patch("backend.rag_solution.services.dashboard_service.datetime") as mock_datetime:
+        with patch("rag_solution.services.dashboard_service.datetime") as mock_datetime:
             # Test at month boundary (last day of month)
             mock_datetime.now.return_value = datetime(2025, 1, 31, 23, 59, 59, tzinfo=UTC)
             mock_datetime.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
@@ -235,7 +235,7 @@ class TestDashboardService:
         mock_query.filter.return_value = mock_query
         mock_query.scalar.return_value = 30
 
-        with patch("backend.rag_solution.services.dashboard_service.datetime") as mock_datetime:
+        with patch("rag_solution.services.dashboard_service.datetime") as mock_datetime:
             # Test Feb 29 in leap year
             mock_datetime.now.return_value = datetime(2024, 2, 29, 12, 0, 0, tzinfo=UTC)
             mock_datetime.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)

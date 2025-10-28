@@ -28,8 +28,8 @@ class TestUserServiceUnit:
     def service(self, mock_db, mock_settings):
         """Create service instance with mocked repository."""
         with (
-            patch("backend.rag_solution.services.user_service.UserRepository"),
-            patch("backend.rag_solution.services.user_service.UserProviderService"),
+            patch("rag_solution.services.user_service.UserRepository"),
+            patch("rag_solution.services.user_service.UserProviderService"),
         ):
             service = UserService(mock_db, mock_settings)
             service.user_repository = Mock()
@@ -38,7 +38,7 @@ class TestUserServiceUnit:
 
     def test_service_initialization(self, mock_db, mock_settings):
         """Test service initialization with dependency injection."""
-        with patch("backend.rag_solution.services.user_service.UserRepository") as mock_repo_class:
+        with patch("rag_solution.services.user_service.UserRepository") as mock_repo_class:
             service = UserService(mock_db, mock_settings)
 
             assert service.db is mock_db

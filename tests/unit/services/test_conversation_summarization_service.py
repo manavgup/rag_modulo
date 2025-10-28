@@ -600,7 +600,7 @@ async def test_generate_summary_content_success(conversation_summarization_servi
         return_value=("This is a test summary", {"tokens": 10})
     )
 
-    with patch("backend.rag_solution.generation.providers.factory.LLMProviderFactory") as mock_factory:
+    with patch("rag_solution.generation.providers.factory.LLMProviderFactory") as mock_factory:
         mock_factory.return_value.get_provider.return_value = mock_provider
 
         summary_text, metadata = await conversation_summarization_service._generate_summary_content(
@@ -651,7 +651,7 @@ async def test_generate_summary_content_empty_llm_response(conversation_summariz
     mock_provider = AsyncMock()
     mock_provider.generate_text_with_usage = AsyncMock(return_value=("", {}))
 
-    with patch("backend.rag_solution.generation.providers.factory.LLMProviderFactory") as mock_factory:
+    with patch("rag_solution.generation.providers.factory.LLMProviderFactory") as mock_factory:
         mock_factory.return_value.get_provider.return_value = mock_provider
 
         summary_text, metadata = await conversation_summarization_service._generate_summary_content(
@@ -745,7 +745,7 @@ async def test_generate_summary_content_llm_exception(conversation_summarization
     mock_provider = AsyncMock()
     mock_provider.generate_text_with_usage = AsyncMock(side_effect=Exception("LLM error"))
 
-    with patch("backend.rag_solution.generation.providers.factory.LLMProviderFactory") as mock_factory:
+    with patch("rag_solution.generation.providers.factory.LLMProviderFactory") as mock_factory:
         mock_factory.return_value.get_provider.return_value = mock_provider
 
         summary_text, metadata = await conversation_summarization_service._generate_summary_content(
@@ -1032,7 +1032,7 @@ def test_llm_provider_service_lazy_initialization():
     mock_db = MagicMock()
     mock_settings = MagicMock()
 
-    with patch("backend.rag_solution.services.conversation_summarization_service.LLMProviderService") as mock_service_class:
+    with patch("rag_solution.services.conversation_summarization_service.LLMProviderService") as mock_service_class:
         mock_service_instance = MagicMock()
         mock_service_class.return_value = mock_service_instance
 
@@ -1050,7 +1050,7 @@ def test_token_tracking_service_lazy_initialization():
     mock_db = MagicMock()
     mock_settings = MagicMock()
 
-    with patch("backend.rag_solution.services.conversation_summarization_service.TokenTrackingService") as mock_service_class:
+    with patch("rag_solution.services.conversation_summarization_service.TokenTrackingService") as mock_service_class:
         mock_service_instance = MagicMock()
         mock_service_class.return_value = mock_service_instance
 

@@ -28,8 +28,10 @@ class TestChainOfThoughtServiceTDD:
     def mock_llm_service(self):
         """Mock LLM service for testing."""
         mock = AsyncMock()
-        # Ensure the mock has the generate_text method
+        # Ensure the mock has both generate_text and generate_text_with_usage methods
         mock.generate_text = AsyncMock()
+        # generate_text_with_usage is synchronous (not awaited in service code)
+        mock.generate_text_with_usage = Mock(return_value=("test response", Mock()))
         return mock
 
     @pytest.fixture
@@ -305,7 +307,8 @@ class TestChainOfThoughtServiceTDD:
         """Test error handling when LLM service fails."""
         from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput  # type: ignore
 
-        mock_llm_service.generate_text.side_effect = LLMProviderError("LLM service unavailable")
+        # Set side_effect on the method actually called by the service
+        mock_llm_service.generate_text_with_usage.side_effect = LLMProviderError("LLM service unavailable")
 
         user_id = uuid4()
         cot_input = ChainOfThoughtInput(

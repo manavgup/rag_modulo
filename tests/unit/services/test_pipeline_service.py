@@ -98,7 +98,7 @@ def mock_prompt_template_service():
 def pipeline_service(mock_db, mock_settings, mock_vector_store):
     """Create PipelineService instance with mocked dependencies"""
     # Patch VectorStoreFactory at the location where PipelineService imports it
-    with patch("backend.rag_solution.services.pipeline_service.VectorStoreFactory") as mock_factory_class:
+    with patch("rag_solution.services.pipeline_service.VectorStoreFactory") as mock_factory_class:
         mock_factory = Mock()
         mock_factory.get_datastore.return_value = mock_vector_store
         mock_factory_class.return_value = mock_factory
@@ -192,7 +192,7 @@ class TestPipelineServiceInitialization:
 
     def test_service_initialization_success(self, mock_db, mock_settings):
         """Test successful service initialization"""
-        with patch("backend.rag_solution.services.pipeline_service.VectorStoreFactory") as mock_factory_class:
+        with patch("rag_solution.services.pipeline_service.VectorStoreFactory") as mock_factory_class:
             mock_factory = Mock()
             mock_factory.get_datastore.return_value = Mock()
             mock_factory_class.return_value = mock_factory
@@ -535,7 +535,7 @@ class TestPipelineServiceValidation:
         pipeline_service._llm_provider_service.get_provider_by_id.return_value = mock_provider_output
 
         mock_llm_provider = Mock()
-        with patch("backend.rag_solution.services.pipeline_service.LLMProviderFactory") as mock_factory:
+        with patch("rag_solution.services.pipeline_service.LLMProviderFactory") as mock_factory:
             mock_factory.return_value.get_provider.return_value = mock_llm_provider
 
             pipeline_config, llm_params, provider = pipeline_service._validate_configuration(pipeline_id, user_id)
@@ -949,7 +949,7 @@ class TestPipelineServiceTesting:
         mock_results = [QueryResult(chunk=mock_chunk, score=0.9, document_id="doc-1")]
 
         # Mock RetrieverFactory to prevent settings issues
-        with patch("backend.rag_solution.services.pipeline_service.RetrieverFactory") as mock_factory:
+        with patch("rag_solution.services.pipeline_service.RetrieverFactory") as mock_factory:
             mock_retriever = Mock()
             mock_retriever.retrieve.return_value = mock_results
             mock_factory.create_retriever.return_value = mock_retriever
@@ -977,7 +977,7 @@ class TestPipelineServiceTesting:
         pipeline_service._pipeline_repository.get_by_id.return_value = sample_pipeline_output
 
         # Mock RetrieverFactory to raise an error
-        with patch("backend.rag_solution.services.pipeline_service.RetrieverFactory") as mock_factory:
+        with patch("rag_solution.services.pipeline_service.RetrieverFactory") as mock_factory:
             mock_retriever = Mock()
             mock_retriever.retrieve.side_effect = Exception("Retrieval error")
             mock_factory.create_retriever.return_value = mock_retriever

@@ -65,9 +65,9 @@ class TestUserProviderServiceUnit:
         mock_llm_model_service,
     ) -> UserProviderService:
         """Create service instance with mocked dependencies."""
-        with patch("backend.rag_solution.services.user_provider_service.UserProviderRepository"), patch(
-            "backend.rag_solution.services.user_provider_service.PromptTemplateService"
-        ), patch("backend.rag_solution.services.user_provider_service.LLMModelService"):
+        with patch("rag_solution.services.user_provider_service.UserProviderRepository"), patch(
+            "rag_solution.services.user_provider_service.PromptTemplateService"
+        ), patch("rag_solution.services.user_provider_service.LLMModelService"):
             service = UserProviderService(mock_db, mock_settings)
             service.user_provider_repository = mock_user_provider_repository
             service.prompt_template_service = mock_prompt_template_service
@@ -131,10 +131,10 @@ class TestUserProviderServiceUnit:
 
     def test_service_initialization(self, mock_db, mock_settings):
         """Test service initializes correctly with database session and settings."""
-        with patch("backend.rag_solution.services.user_provider_service.UserProviderRepository") as mock_repo_class, patch(
-            "backend.rag_solution.services.user_provider_service.PromptTemplateService"
+        with patch("rag_solution.services.user_provider_service.UserProviderRepository") as mock_repo_class, patch(
+            "rag_solution.services.user_provider_service.PromptTemplateService"
         ) as mock_template_class, patch(
-            "backend.rag_solution.services.user_provider_service.LLMModelService"
+            "rag_solution.services.user_provider_service.LLMModelService"
         ) as mock_model_class:
             service = UserProviderService(mock_db, mock_settings)
 
@@ -170,8 +170,8 @@ class TestUserProviderServiceUnit:
         mock_prompt_template_service.create_template.return_value = mock_prompt_template
 
         # Mock parameters service (module-level import) and pipeline service (local import)
-        with patch("backend.rag_solution.services.user_provider_service.LLMParametersService") as mock_params_class, patch(
-            "backend.rag_solution.services.pipeline_service.PipelineService"
+        with patch("rag_solution.services.user_provider_service.LLMParametersService") as mock_params_class, patch(
+            "rag_solution.services.pipeline_service.PipelineService"
         ) as mock_pipeline_class:
             mock_params_service = Mock()
             mock_params_service.initialize_default_parameters.return_value = mock_parameters
@@ -212,8 +212,8 @@ class TestUserProviderServiceUnit:
         mock_prompt_template_service.create_template.return_value = mock_prompt_template
 
         # Mock parameters and pipeline services - patch at service module level
-        with patch("backend.rag_solution.services.user_provider_service.LLMParametersService") as mock_params_class, patch(
-            "backend.rag_solution.services.pipeline_service.PipelineService"
+        with patch("rag_solution.services.user_provider_service.LLMParametersService") as mock_params_class, patch(
+            "rag_solution.services.pipeline_service.PipelineService"
         ) as mock_pipeline_class:
             mock_params_service = Mock()
             mock_params_service.initialize_default_parameters.return_value = mock_parameters
@@ -265,7 +265,7 @@ class TestUserProviderServiceUnit:
         mock_user_provider_repository.get_user_provider.return_value = mock_provider
         mock_prompt_template_service.create_template.return_value = mock_prompt_template
 
-        with patch("backend.rag_solution.services.user_provider_service.LLMParametersService") as mock_params_class:
+        with patch("rag_solution.services.user_provider_service.LLMParametersService") as mock_params_class:
             mock_params_service = Mock()
             mock_params_service.initialize_default_parameters.return_value = None
             mock_params_class.return_value = mock_params_service
@@ -547,8 +547,8 @@ class TestUserProviderServiceUnit:
         mock_user_provider_repository.set_user_provider.return_value = True
         mock_prompt_template_service.create_template.return_value = mock_prompt_template
 
-        with patch("backend.rag_solution.services.user_provider_service.LLMParametersService") as mock_params_class, patch(
-            "backend.rag_solution.services.pipeline_service.PipelineService"
+        with patch("rag_solution.services.user_provider_service.LLMParametersService") as mock_params_class, patch(
+            "rag_solution.services.pipeline_service.PipelineService"
         ) as mock_pipeline_class:
             mock_params_service = Mock()
             mock_params_service.initialize_default_parameters.return_value = mock_parameters
@@ -635,8 +635,8 @@ class TestUserProviderServiceUnit:
         mock_user_provider_repository.get_user_provider.return_value = mock_provider
         mock_prompt_template_service.create_template.return_value = mock_prompt_template
 
-        with patch("backend.rag_solution.services.user_provider_service.LLMParametersService") as mock_params_class, patch(
-            "backend.rag_solution.services.pipeline_service.PipelineService"
+        with patch("rag_solution.services.user_provider_service.LLMParametersService") as mock_params_class, patch(
+            "rag_solution.services.pipeline_service.PipelineService"
         ) as mock_pipeline_class:
             mock_params_service = Mock()
             mock_params_service.initialize_default_parameters.return_value = mock_parameters
@@ -727,8 +727,8 @@ class TestUserProviderServiceUnit:
         mock_prompt_template_service.create_template.return_value = mock_prompt_template
         mock_db.commit.side_effect = Exception("Commit failed")
 
-        with patch("backend.rag_solution.services.user_provider_service.LLMParametersService") as mock_params_class, patch(
-            "backend.rag_solution.services.pipeline_service.PipelineService"
+        with patch("rag_solution.services.user_provider_service.LLMParametersService") as mock_params_class, patch(
+            "rag_solution.services.pipeline_service.PipelineService"
         ) as mock_pipeline_class:
             mock_params_service = Mock()
             mock_params_service.initialize_default_parameters.return_value = mock_parameters
@@ -826,8 +826,8 @@ class TestUserProviderServiceUnit:
             podcast_template,
         ]
 
-        with patch("backend.rag_solution.services.user_provider_service.LLMParametersService") as mock_params_class, patch(
-            "backend.rag_solution.services.pipeline_service.PipelineService"
+        with patch("rag_solution.services.user_provider_service.LLMParametersService") as mock_params_class, patch(
+            "rag_solution.services.pipeline_service.PipelineService"
         ) as mock_pipeline_class:
             mock_params_service = Mock()
             mock_params_service.initialize_default_parameters.return_value = mock_parameters
@@ -912,8 +912,8 @@ class TestUserProviderServiceUnit:
         mock_user_provider_repository.get_user_provider.return_value = minimal_provider
         mock_prompt_template_service.create_template.return_value = mock_prompt_template
 
-        with patch("backend.rag_solution.services.user_provider_service.LLMParametersService") as mock_params_class, patch(
-            "backend.rag_solution.services.pipeline_service.PipelineService"
+        with patch("rag_solution.services.user_provider_service.LLMParametersService") as mock_params_class, patch(
+            "rag_solution.services.pipeline_service.PipelineService"
         ) as mock_pipeline_class:
             mock_params_service = Mock()
             mock_params_service.initialize_default_parameters.return_value = mock_parameters

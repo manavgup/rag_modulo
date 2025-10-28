@@ -89,7 +89,7 @@ jobs:
       - name: 🧪 Run unit tests with coverage
         run: |
           # Run from project root using poetry
-          PYTHONPATH=backend poetry run pytest tests/ -m "unit or atomic" \
+          poetry run pytest tests/unit/ \
             --cov=backend/rag_solution \
             --cov-report=term-missing \
             --cov-report=html \

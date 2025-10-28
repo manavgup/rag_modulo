@@ -397,7 +397,7 @@ class TestSearchServicePipelineResolution:
         # Mock pipeline creation
         search_service.pipeline_service.initialize_user_pipeline.return_value = sample_pipeline
 
-        with patch("backend.rag_solution.services.user_service.UserService", return_value=mock_user_service):
+        with patch("rag_solution.services.user_service.UserService", return_value=mock_user_service):
             pipeline_id = search_service._resolve_user_default_pipeline(test_user_id)
 
         assert pipeline_id == sample_pipeline.id
@@ -414,7 +414,7 @@ class TestSearchServicePipelineResolution:
         mock_user_service = Mock()
         mock_user_service.get_user.return_value = None
 
-        with patch("backend.rag_solution.services.user_service.UserService", return_value=mock_user_service):
+        with patch("rag_solution.services.user_service.UserService", return_value=mock_user_service):
             with pytest.raises(ConfigurationError) as exc_info:
                 search_service._resolve_user_default_pipeline(test_user_id)
 
@@ -445,7 +445,7 @@ class TestSearchServicePipelineResolution:
         # No provider available
         search_service.llm_provider_service.get_user_provider.return_value = None
 
-        with patch("backend.rag_solution.services.user_service.UserService", return_value=mock_user_service):
+        with patch("rag_solution.services.user_service.UserService", return_value=mock_user_service):
             with pytest.raises(ConfigurationError) as exc_info:
                 search_service._resolve_user_default_pipeline(test_user_id)
 
@@ -479,7 +479,7 @@ class TestSearchServicePipelineResolution:
         # Pipeline creation fails
         search_service.pipeline_service.initialize_user_pipeline.side_effect = Exception("Database error")
 
-        with patch("backend.rag_solution.services.user_service.UserService", return_value=mock_user_service):
+        with patch("rag_solution.services.user_service.UserService", return_value=mock_user_service):
             with pytest.raises(ConfigurationError) as exc_info:
                 search_service._resolve_user_default_pipeline(test_user_id)
 
@@ -1103,7 +1103,7 @@ class TestSearchServiceLazyInitialization:
 
         assert service._collection_service is None
 
-        with patch("backend.rag_solution.services.search_service.CollectionService") as mock_collection_service:
+        with patch("rag_solution.services.search_service.CollectionService") as mock_collection_service:
             mock_collection_service.return_value = Mock()
             collection_service = service.collection_service
 
@@ -1116,7 +1116,7 @@ class TestSearchServiceLazyInitialization:
 
         assert service._pipeline_service is None
 
-        with patch("backend.rag_solution.services.search_service.PipelineService") as mock_pipeline_service:
+        with patch("rag_solution.services.search_service.PipelineService") as mock_pipeline_service:
             mock_pipeline_service.return_value = Mock()
             pipeline_service = service.pipeline_service
 
@@ -1167,7 +1167,7 @@ class TestSearchServiceReranking:
         search_service.settings.enable_reranking = True
         search_service.settings.reranker_type = "simple"
 
-        with patch("backend.rag_solution.retrieval.reranker.SimpleReranker") as mock_simple:
+        with patch("rag_solution.retrieval.reranker.SimpleReranker") as mock_simple:
             mock_simple.return_value = Mock()
             reranker = search_service.get_reranker(test_user_id)
 

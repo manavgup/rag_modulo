@@ -109,51 +109,61 @@ make prod-logs              # View logs
 RAG Modulo has a comprehensive test suite with **947+ automated tests** organized by speed and scope:
 
 **1. Atomic Tests** (Fastest - ~5 seconds)
+
 ```bash
 make test-atomic
 ```
+
 - Fast schema/data structure tests
 - Tests only `tests/unit/schemas/` directory
 - No database required, no coverage collection
 - Validates Pydantic models
 
 **2. Unit Tests** (Fast - ~30 seconds)
+
 ```bash
 make test-unit-fast
 ```
+
 - Unit tests with mocked dependencies
 - Tests entire `tests/unit/` directory
 - No external services required
 - Tests individual functions/classes in isolation
 
 **3. Integration Tests** (Medium - ~2 minutes)
+
 ```bash
 make test-integration              # Local (reuses dev infrastructure)
 make test-integration-ci           # CI mode (isolated containers)
 make test-integration-parallel     # Parallel execution with pytest-xdist
 ```
+
 - Tests with real services (Postgres, Milvus, MinIO)
 - Tests service interactions and database operations
 - Local mode reuses `local-dev-infra` containers for speed
 
 **4. End-to-End Tests** (Slower - ~5 minutes)
+
 ```bash
 make test-e2e                    # Local with TestClient (in-memory)
 make test-e2e-ci                 # CI mode with isolated backend
 make test-e2e-ci-parallel        # CI mode in parallel
 make test-e2e-local-parallel     # Local in parallel
 ```
+
 - Full system tests from API to database
 - Tests complete workflows
 - Local mode uses TestClient (no separate backend needed)
 
 **5. Run All Tests**
+
 ```bash
 make test-all       # Runs: atomic → unit → integration → e2e (local)
 make test-all-ci    # Runs: atomic → unit → integration-ci → e2e-ci-parallel
 ```
 
 **6. Coverage Reports**
+
 ```bash
 make coverage       # Generate HTML coverage report (60% minimum)
 # Report available at: htmlcov/index.html

@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import pytest
-from core.custom_exceptions import DuplicateEntryError, NotFoundError
+from rag_solution.core.exceptions import AlreadyExistsError, NotFoundError
 from rag_solution.models.token_warning import TokenWarning
 from rag_solution.repository.token_warning_repository import TokenWarningRepository
 from rag_solution.schemas.llm_usage_schema import TokenWarning as TokenWarningSchema
@@ -98,7 +98,7 @@ class TestTokenWarningRepository:
         mock_db.rollback.return_value = None
 
         # Act & Assert
-        with pytest.raises(DuplicateEntryError):
+        with pytest.raises(AlreadyExistsError):
             repository.create(sample_warning_schema, user_id, session_id)
 
         mock_db.rollback.assert_called_once()

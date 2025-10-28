@@ -158,7 +158,7 @@ class TokenTrackingService:
                 warning_type=TokenWarningType.CONVERSATION_TOO_LONG,
                 current_tokens=recent_prompt_tokens,
                 limit_tokens=context_limit,
-                percentage_used=percentage,
+                percentage_used=min(percentage, 100.0),  # Cap at 100%
                 message="Conversation context is getting large. Older messages may be excluded from context.",
                 severity="warning" if percentage < 95 else "critical",
                 suggested_action="start_new_session",

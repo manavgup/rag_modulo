@@ -22,8 +22,7 @@ from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import pytest
-from core.custom_exceptions import NotFoundError, ValidationError
-from rag_solution.core.exceptions import SessionExpiredError
+from rag_solution.core.exceptions import NotFoundError, SessionExpiredError, ValidationError
 from rag_solution.schemas.conversation_schema import (
     ConversationContext,
     ConversationMessageInput,

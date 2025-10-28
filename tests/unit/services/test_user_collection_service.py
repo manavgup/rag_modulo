@@ -65,6 +65,8 @@ class TestUserCollectionService:
         file_mock.id = uuid4()
         file_mock.filename = "test.pdf"
         file_mock.file_size_bytes = 1024
+        file_mock.chunk_count = 10  # Add actual int value
+        file_mock.document_id = "doc_123"  # Add actual string value
         mock_user_collection.files = [file_mock]
         mock_user_collection.status = CollectionStatus.COMPLETED
 
@@ -199,6 +201,8 @@ class TestUserCollectionService:
             file_mock.id = uuid4()
             file_mock.filename = f"test{i}.pdf"
             file_mock.file_size_bytes = 1024 * (i + 1)
+            file_mock.chunk_count = 10 * (i + 1)  # Add actual int value
+            file_mock.document_id = f"doc_{i}"  # Add actual string value
             mock_collection.files = [file_mock]
             mock_collection.status = CollectionStatus.COMPLETED
             mock_collections.append(mock_collection)

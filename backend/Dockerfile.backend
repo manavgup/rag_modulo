@@ -36,25 +36,15 @@ ARG POETRY_ROOT_MIGRATION=20251027
 # Copy dependency files first for better layer caching
 COPY pyproject.toml poetry.lock ./
 
-# Install CPU-only PyTorch first to avoid CUDA dependencies (~6GB savings)
-# Using torch 2.6.0 CPU-only version (compatible with ARM64 and x86_64)
+# Install CPU-only PyTorch FIRST to prevent Poetry from pulling CUDA versions
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir \
     torch==2.6.0+cpu \
-    torchvision==0.21.0+cpu \
-    --index-url https://download.pytorch.org/whl/cpu
+    torchvision==0.21.0 \
+    --extra-index-url https://download.pytorch.org/whl/cpu
 
-# Configure pip globally to prevent any CUDA torch reinstalls
-RUN pip config set global.extra-index-url https://download.pytorch.org/whl/cpu
-
-# Install docling without dependencies first (prevents CUDA torch pull)
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir --no-deps docling
-
-# Now install all dependencies via Poetry, which will:
-# - Skip torch/torchvision (already installed)
-# - Skip docling (already installed)
-# - Install everything else
+# Install remaining dependencies via Poetry
+# Poetry will skip torch/torchvision since they're already installed
 RUN --mount=type=cache,target=/root/.cache/pip \
     --mount=type=cache,target=/root/.cache/pypoetry \
     poetry install --only main --no-root --no-cache
