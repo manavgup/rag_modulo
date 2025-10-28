@@ -7,8 +7,8 @@ name: ${PROJECT_NAME:-rag-modulo}-dev
 services:
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile.backend
+      context: .
+      dockerfile: backend/Dockerfile.backend
       tags:
         - rag-modulo/backend:dev
         - rag-modulo/backend:latest
@@ -24,7 +24,7 @@ services:
       milvus-standalone:
         condition: service_healthy
       mlflow-server:
-       condition: service_started
+        condition: service_started
     environment:
       # Development-specific overrides
       - SKIP_AUTH=true

@@ -5,10 +5,10 @@ from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import pytest
-from backend.core.custom_exceptions import DuplicateEntryError, NotFoundError
-from backend.rag_solution.models.conversation_message import ConversationMessage
-from backend.rag_solution.repository.conversation_message_repository import ConversationMessageRepository
-from backend.rag_solution.schemas.conversation_schema import (
+from rag_solution.core.exceptions import AlreadyExistsError, NotFoundError
+from rag_solution.models.conversation_message import ConversationMessage
+from rag_solution.repository.conversation_message_repository import ConversationMessageRepository
+from rag_solution.schemas.conversation_schema import (
     ConversationMessageInput,
     ConversationMessageOutput,
     MessageMetadata,
@@ -64,11 +64,17 @@ class TestConversationMessageRepository:
         # Mock successful database operations
         mock_db.add.return_value = None
         mock_db.commit.return_value = None
-        mock_db.refresh.return_value = None
 
-        # Mock the model validation
-        with patch("backend.rag_solution.repository.conversation_message_repository.ConversationMessageOutput") as mock_output:
-            mock_output.from_db_message.return_value = Mock(spec=ConversationMessageOutput)
+        # Mock refresh to set required fields
+        def mock_refresh(message):
+            message.id = uuid4()
+            message.created_at = datetime.utcnow()
+
+        mock_db.refresh.side_effect = mock_refresh
+
+        # Mock the model validation - patch at the schema module level
+        with patch("rag_solution.schemas.conversation_schema.ConversationMessageOutput.from_db_message") as mock_from_db:
+            mock_from_db.return_value = Mock(spec=ConversationMessageOutput)
 
             # Act
             result = repository.create(sample_message_input)
@@ -78,7 +84,7 @@ class TestConversationMessageRepository:
             mock_db.add.assert_called_once()
             mock_db.commit.assert_called_once()
             mock_db.refresh.assert_called_once()
-            mock_output.from_db_message.assert_called_once()
+            mock_from_db.assert_called_once()
 
     def test_create_message_integrity_error(self, repository, mock_db, sample_message_input):
         """Test message creation with integrity error."""
@@ -87,7 +93,7 @@ class TestConversationMessageRepository:
         mock_db.rollback.return_value = None
 
         # Act & Assert
-        with pytest.raises(DuplicateEntryError):
+        with pytest.raises(AlreadyExistsError):
             repository.create(sample_message_input)
 
         mock_db.rollback.assert_called_once()
@@ -113,9 +119,9 @@ class TestConversationMessageRepository:
         mock_query.options.return_value.filter.return_value.first.return_value = sample_message_model
         mock_db.query.return_value = mock_query
 
-        # Mock the model validation
-        with patch("backend.rag_solution.repository.conversation_message_repository.ConversationMessageOutput") as mock_output:
-            mock_output.from_db_message.return_value = Mock(spec=ConversationMessageOutput)
+        # Mock the model validation - patch at the schema module level
+        with patch("rag_solution.schemas.conversation_schema.ConversationMessageOutput.from_db_message") as mock_from_db:
+            mock_from_db.return_value = Mock(spec=ConversationMessageOutput)
 
             # Act
             result = repository.get_by_id(message_id)
@@ -123,7 +129,7 @@ class TestConversationMessageRepository:
             # Assert
             assert result is not None
             mock_db.query.assert_called_once_with(ConversationMessage)
-            mock_output.from_db_message.assert_called_once_with(sample_message_model)
+            mock_from_db.assert_called_once_with(sample_message_model)
 
     def test_get_by_id_not_found(self, repository, mock_db):
         """Test message retrieval when not found."""
@@ -150,9 +156,9 @@ class TestConversationMessageRepository:
         )
         mock_db.query.return_value = mock_query
 
-        # Mock the model validation
-        with patch("backend.rag_solution.repository.conversation_message_repository.ConversationMessageOutput") as mock_output:
-            mock_output.from_db_message.side_effect = [Mock(spec=ConversationMessageOutput)]
+        # Mock the model validation - patch at the schema module level
+        with patch("rag_solution.schemas.conversation_schema.ConversationMessageOutput.from_db_message") as mock_from_db:
+            mock_from_db.side_effect = [Mock(spec=ConversationMessageOutput)]
 
             # Act
             result = repository.get_messages_by_session(session_id, limit=100, offset=0)
@@ -172,7 +178,7 @@ class TestConversationMessageRepository:
         mock_db.query.return_value = mock_query
 
         # Mock the model validation
-        with patch("backend.rag_solution.repository.conversation_message_repository.ConversationMessageOutput") as mock_output:
+        with patch("rag_solution.repository.conversation_message_repository.ConversationMessageOutput") as mock_output:
             mock_output.from_db_message.side_effect = [Mock(spec=ConversationMessageOutput)]
 
             # Act
@@ -195,7 +201,7 @@ class TestConversationMessageRepository:
         mock_db.refresh.return_value = None
 
         # Mock the model validation
-        with patch("backend.rag_solution.repository.conversation_message_repository.ConversationMessageOutput") as mock_output:
+        with patch("rag_solution.repository.conversation_message_repository.ConversationMessageOutput") as mock_output:
             mock_output.from_db_message.return_value = Mock(spec=ConversationMessageOutput)
 
             # Act

@@ -3,9 +3,9 @@
 from uuid import uuid4
 
 import pytest
-from backend.rag_solution.schemas.collection_schema import CollectionInput
-from backend.rag_solution.schemas.team_schema import TeamInput
-from backend.rag_solution.schemas.user_schema import UserInput
+from rag_solution.schemas.collection_schema import CollectionInput
+from rag_solution.schemas.team_schema import TeamInput
+from rag_solution.schemas.user_schema import UserInput
 from pydantic import ValidationError
 
 

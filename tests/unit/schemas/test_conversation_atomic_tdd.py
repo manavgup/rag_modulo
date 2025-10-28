@@ -8,7 +8,7 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 import pytest
-from backend.rag_solution.schemas.conversation_schema import (
+from rag_solution.schemas.conversation_schema import (
     ConversationContext,
     ConversationMessageInput,
     ConversationSessionInput,
@@ -355,7 +355,7 @@ class TestConversationAtomicTDD:
     @pytest.mark.atomic
     def test_message_metadata_validation(self) -> None:
         """Atomic: Test MessageMetadata field validation."""
-        from backend.rag_solution.schemas.conversation_schema import MessageMetadata
+        from rag_solution.schemas.conversation_schema import MessageMetadata
 
         metadata = MessageMetadata(
             source_documents=["doc1", "doc2"],

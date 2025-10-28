@@ -3,7 +3,7 @@
 from uuid import UUID, uuid4
 
 import pytest
-from backend.rag_solution.schemas.llm_parameters_schema import LLMParametersInput, LLMParametersOutput
+from rag_solution.schemas.llm_parameters_schema import LLMParametersInput, LLMParametersOutput
 
 
 @pytest.mark.atomic

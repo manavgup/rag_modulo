@@ -116,7 +116,7 @@ def test_test_llm_params_fixture(test_llm_params) -> None:
 @pytest.mark.unit
 def test_pure_data_validation() -> None:
     """Test pure data validation without external dependencies."""
-    from backend.rag_solution.schemas.user_schema import UserInput
+    from rag_solution.schemas.user_schema import UserInput
 
     # Test valid user input
     user_input = UserInput(email="test@example.com", ibm_id="test_user_123", name="Test User", role="user")
@@ -131,7 +131,7 @@ def test_pure_collection_validation() -> None:
     """Test pure collection validation without external dependencies."""
     from uuid import uuid4
 
-    from backend.rag_solution.schemas.collection_schema import CollectionInput, CollectionStatus
+    from rag_solution.schemas.collection_schema import CollectionInput, CollectionStatus
 
     # Test valid collection input
     collection_input = CollectionInput(
@@ -146,7 +146,7 @@ def test_pure_collection_validation() -> None:
 @pytest.mark.unit
 def test_pure_team_validation() -> None:
     """Test pure team validation without external dependencies."""
-    from backend.rag_solution.schemas.team_schema import TeamInput
+    from rag_solution.schemas.team_schema import TeamInput
 
     # Test valid team input
     team_input = TeamInput(name="Test Team", description="A test team")
@@ -159,7 +159,7 @@ def test_pure_search_validation() -> None:
     """Test pure search validation without external dependencies."""
     from uuid import uuid4
 
-    from backend.rag_solution.schemas.search_schema import SearchInput
+    from rag_solution.schemas.search_schema import SearchInput
 
     # Test valid search input - no pipeline_id needed anymore
     search_input = SearchInput(question="What is machine learning?", collection_id=uuid4(), user_id=uuid4())

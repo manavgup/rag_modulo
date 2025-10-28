@@ -60,7 +60,7 @@ class MilvusStore(VectorStore):
         super().__init__(settings)
 
         # Configure logging
-        logging.basicConfig(level=self.settings.log_level)
+        logging.basicConfig(level=getattr(self.settings, "log_level", "INFO"))
 
         # Initialize connection
         self._connect()

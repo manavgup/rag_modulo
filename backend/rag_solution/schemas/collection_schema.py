@@ -43,9 +43,6 @@ class CollectionInput(BaseModel):
 
     model_config = ConfigDict(
         from_attributes=True,
-        json_encoders={
-            UUID4: lambda v: str(v),  # Convert UUID to string during serialization
-        },
     )
 
 

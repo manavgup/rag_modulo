@@ -26,9 +26,9 @@ class TestSeamlessWorkflowTDD:
         """Create test user ID that matches the auth middleware user."""
         # The auth middleware creates a user with the default user_key
         # We need to create the same user that the middleware will create
-        from backend.core.config import get_settings
-        from backend.core.mock_auth import ensure_mock_user_exists
-        from backend.rag_solution.file_management.database import get_db
+        from core.config import get_settings
+        from core.mock_auth import ensure_mock_user_exists
+        from rag_solution.file_management.database import get_db
 
         # Get database session
         db_gen = get_db()
@@ -46,10 +46,10 @@ class TestSeamlessWorkflowTDD:
         """Create test collection ID that actually exists in the database."""
         from uuid import UUID
 
-        from backend.core.config import get_settings
-        from backend.rag_solution.file_management.database import get_db
-        from backend.rag_solution.schemas.collection_schema import CollectionInput
-        from backend.rag_solution.services.collection_service import CollectionService
+        from core.config import get_settings
+        from rag_solution.file_management.database import get_db
+        from rag_solution.schemas.collection_schema import CollectionInput
+        from rag_solution.services.collection_service import CollectionService
 
         # Get database session
         db_gen = get_db()

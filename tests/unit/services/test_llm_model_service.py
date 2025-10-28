@@ -5,9 +5,10 @@ from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
-from backend.core.custom_exceptions import LLMProviderError, ModelConfigError, ModelValidationError
-from backend.rag_solution.schemas.llm_model_schema import LLMModelInput, LLMModelOutput, ModelType
-from backend.rag_solution.services.llm_model_service import LLMModelService
+from core.custom_exceptions import LLMProviderError, ModelConfigError, ModelValidationError
+from rag_solution.core.exceptions import NotFoundError
+from rag_solution.schemas.llm_model_schema import LLMModelInput, LLMModelOutput, ModelType
+from rag_solution.services.llm_model_service import LLMModelService
 
 
 class TestLLMModelService:
@@ -174,16 +175,21 @@ class TestLLMModelService:
         assert result == sample_model_output
         service.repository.get_model_by_id.assert_called_once_with(model_id)
         service.repository.clear_other_defaults.assert_called_once_with(sample_model_output.provider_id, sample_model_output.model_type)
-        service.repository.update_model.assert_called_once_with(model_id, {"is_default": True})
+        # Check that update_model was called (service passes LLMModelUpdate object)
+        service.repository.update_model.assert_called_once()
+        call_args = service.repository.update_model.call_args
+        assert call_args[0][0] == model_id
+        assert call_args[0][1].is_default is True
 
     def test_set_default_model_not_found(self, service: LLMModelService) -> None:
         """Test set_default_model with model not found."""
         model_id = uuid4()
         service.repository.get_model_by_id.return_value = None
 
-        result = service.set_default_model(model_id)
+        with pytest.raises(LLMProviderError) as exc_info:
+            service.set_default_model(model_id)
 
-        assert result is None
+        assert exc_info.value.details["error_type"] == "default_update"
         service.repository.get_model_by_id.assert_called_once_with(model_id)
 
     def test_set_default_model_error(self, service: LLMModelService, sample_model_output: LLMModelOutput) -> None:

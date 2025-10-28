@@ -4,8 +4,8 @@ import os
 import tempfile
 from unittest.mock import patch
 
-from backend.rag_solution.repository.collection_repository import CollectionRepository
-from backend.rag_solution.repository.file_repository import FileRepository
+from rag_solution.repository.collection_repository import CollectionRepository
+from rag_solution.repository.file_repository import FileRepository
 
 
 class TestFileSizeCalculation:

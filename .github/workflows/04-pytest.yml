@@ -77,20 +77,20 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pypoetry
-          key: ${{ runner.os }}-poetry-${{ hashFiles('backend/poetry.lock') }}
+          key: ${{ runner.os }}-poetry-${{ hashFiles('poetry.lock') }}
           restore-keys: |
             ${{ runner.os }}-poetry-
 
       # 5️⃣ Install Python dependencies
       - name: 📥 Install dependencies
-        run: cd backend && poetry install --with dev,test
+        run: poetry install --with dev,test
 
       # 6️⃣ Run unit/atomic tests with coverage
       - name: 🧪 Run unit tests with coverage
         run: |
-          # Run from backend directory using poetry, but test from project root
-          cd backend && poetry run pytest ../tests/ -m "unit or atomic" \
-            --cov=rag_solution \
+          # Run from project root using poetry
+          poetry run pytest tests/unit/ \
+            --cov=backend/rag_solution \
             --cov-report=term-missing \
             --cov-report=html \
             --tb=short \

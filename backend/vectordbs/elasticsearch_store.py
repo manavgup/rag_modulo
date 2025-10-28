@@ -39,7 +39,7 @@ class ElasticSearchStore(VectorStore):
         super().__init__(settings)
 
         # Configure logging
-        logging.basicConfig(level=self.settings.log_level)
+        logging.basicConfig(level=getattr(self.settings, "log_level", "INFO"))
 
         # Use provided values or fall back to settings with proper defaults
         actual_host = host or self.settings.elastic_host or "localhost"

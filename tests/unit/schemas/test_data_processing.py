@@ -1,7 +1,7 @@
 """Atomic tests for data processing validation and schemas."""
 
 import pytest
-from backend.vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, Source
+from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, Source
 
 
 @pytest.mark.atomic

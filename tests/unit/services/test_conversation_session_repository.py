@@ -5,10 +5,10 @@ from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import pytest
-from backend.core.custom_exceptions import DuplicateEntryError, NotFoundError
-from backend.rag_solution.models.conversation_session import ConversationSession
-from backend.rag_solution.repository.conversation_session_repository import ConversationSessionRepository
-from backend.rag_solution.schemas.conversation_schema import ConversationSessionInput, ConversationSessionOutput
+from rag_solution.core.exceptions import AlreadyExistsError, NotFoundError
+from rag_solution.models.conversation_session import ConversationSession
+from rag_solution.repository.conversation_session_repository import ConversationSessionRepository
+from rag_solution.schemas.conversation_schema import ConversationSessionInput, ConversationSessionOutput
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -62,7 +62,7 @@ class TestConversationSessionRepository:
         mock_db.refresh.return_value = None
 
         # Mock the model validation
-        with patch("backend.rag_solution.repository.conversation_session_repository.ConversationSessionOutput") as mock_output:
+        with patch("rag_solution.repository.conversation_session_repository.ConversationSessionOutput") as mock_output:
             mock_output.from_db_session.return_value = Mock(spec=ConversationSessionOutput)
 
             # Act
@@ -82,7 +82,7 @@ class TestConversationSessionRepository:
         mock_db.rollback.return_value = None
 
         # Act & Assert
-        with pytest.raises(DuplicateEntryError):
+        with pytest.raises(AlreadyExistsError):
             repository.create(sample_session_input)
 
         mock_db.rollback.assert_called_once()
@@ -109,7 +109,7 @@ class TestConversationSessionRepository:
         mock_db.query.return_value = mock_query
 
         # Mock the model validation
-        with patch("backend.rag_solution.repository.conversation_session_repository.ConversationSessionOutput") as mock_output:
+        with patch("rag_solution.repository.conversation_session_repository.ConversationSessionOutput") as mock_output:
             mock_output.from_db_session.return_value = Mock(spec=ConversationSessionOutput)
 
             # Act
@@ -146,7 +146,7 @@ class TestConversationSessionRepository:
         mock_db.query.return_value = mock_query
 
         # Mock the model validation
-        with patch("backend.rag_solution.repository.conversation_session_repository.ConversationSessionOutput") as mock_output:
+        with patch("rag_solution.repository.conversation_session_repository.ConversationSessionOutput") as mock_output:
             mock_output.from_db_session.side_effect = [Mock(spec=ConversationSessionOutput)]
 
             # Act
@@ -169,7 +169,7 @@ class TestConversationSessionRepository:
         mock_db.refresh.return_value = None
 
         # Mock the model validation
-        with patch("backend.rag_solution.repository.conversation_session_repository.ConversationSessionOutput") as mock_output:
+        with patch("rag_solution.repository.conversation_session_repository.ConversationSessionOutput") as mock_output:
             mock_output.from_db_session.return_value = Mock(spec=ConversationSessionOutput)
 
             # Act
@@ -195,7 +195,7 @@ class TestConversationSessionRepository:
         mock_db.refresh.return_value = None
 
         # Mock the model validation
-        with patch("backend.rag_solution.repository.conversation_session_repository.ConversationSessionOutput") as mock_output:
+        with patch("rag_solution.repository.conversation_session_repository.ConversationSessionOutput") as mock_output:
             mock_output.from_db_session.return_value = Mock(spec=ConversationSessionOutput)
 
             # Act
@@ -267,7 +267,7 @@ class TestConversationSessionRepository:
         mock_db.query.return_value = mock_query
 
         # Mock the model validation
-        with patch("backend.rag_solution.repository.conversation_session_repository.ConversationSessionOutput") as mock_output:
+        with patch("rag_solution.repository.conversation_session_repository.ConversationSessionOutput") as mock_output:
             mock_output.from_db_session.side_effect = [Mock(spec=ConversationSessionOutput)]
 
             # Act
@@ -303,7 +303,7 @@ class TestConversationSessionRepository:
             return attr in allowed
 
         with (
-            patch("backend.rag_solution.repository.conversation_session_repository.ConversationSessionOutput") as mock_output,
+            patch("rag_solution.repository.conversation_session_repository.ConversationSessionOutput") as mock_output,
             patch("builtins.hasattr", side_effect=mock_hasattr),
         ):
             mock_output.from_db_session.return_value = Mock(spec=ConversationSessionOutput)

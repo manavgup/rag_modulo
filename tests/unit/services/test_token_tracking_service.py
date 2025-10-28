@@ -5,14 +5,14 @@ from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
 import pytest
-from backend.rag_solution.schemas.llm_usage_schema import (
+from rag_solution.schemas.llm_usage_schema import (
     LLMUsage,
     ServiceType,
     TokenUsageStats,
     TokenWarning,
     TokenWarningType,
 )
-from backend.rag_solution.services.token_tracking_service import TokenTrackingService
+from rag_solution.services.token_tracking_service import TokenTrackingService
 
 
 class TestTokenTrackingService:

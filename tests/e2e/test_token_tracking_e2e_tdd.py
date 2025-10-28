@@ -10,12 +10,12 @@ from datetime import datetime
 from uuid import UUID
 
 import pytest
-from backend.core.config import Settings, get_settings
-from backend.core.mock_auth import ensure_mock_user_exists
+from core.config import Settings, get_settings
+from core.mock_auth import ensure_mock_user_exists
 from backend.main import app
-from backend.rag_solution.file_management.database import get_db
-from backend.rag_solution.schemas.collection_schema import CollectionStatus
-from backend.rag_solution.services.collection_service import CollectionService
+from rag_solution.file_management.database import get_db
+from rag_solution.schemas.collection_schema import CollectionStatus
+from rag_solution.services.collection_service import CollectionService
 from fastapi import UploadFile
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -122,7 +122,7 @@ class TestTokenTrackingE2ETDD:
     @pytest.fixture(scope="session")
     def e2e_settings(self):
         """Create a real settings object for E2E tests using actual environment variables."""
-        from backend.core.config import get_settings
+        from core.config import get_settings
 
         return get_settings()
 

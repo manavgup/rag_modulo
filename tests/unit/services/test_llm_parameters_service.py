@@ -9,9 +9,9 @@ from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
-from backend.core.custom_exceptions import NotFoundException
-from backend.rag_solution.schemas.llm_parameters_schema import LLMParametersInput, LLMParametersOutput
-from backend.rag_solution.services.llm_parameters_service import LLMParametersService
+from core.custom_exceptions import NotFoundException
+from rag_solution.schemas.llm_parameters_schema import LLMParametersInput, LLMParametersOutput
+from rag_solution.services.llm_parameters_service import LLMParametersService
 from pydantic import UUID4, ValidationError
 
 

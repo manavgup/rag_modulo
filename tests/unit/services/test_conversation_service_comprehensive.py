@@ -22,9 +22,8 @@ from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import pytest
-from backend.core.custom_exceptions import NotFoundError, ValidationError
-from backend.rag_solution.core.exceptions import SessionExpiredError
-from backend.rag_solution.schemas.conversation_schema import (
+from rag_solution.core.exceptions import NotFoundError, SessionExpiredError, ValidationError
+from rag_solution.schemas.conversation_schema import (
     ConversationContext,
     ConversationMessageInput,
     ConversationMessageOutput,
@@ -36,7 +35,7 @@ from backend.rag_solution.schemas.conversation_schema import (
     SessionStatistics,
     SessionStatus,
 )
-from backend.rag_solution.services.conversation_service import ConversationService
+from rag_solution.services.conversation_service import ConversationService
 from pydantic import UUID4
 
 # ============================================================================

@@ -10,13 +10,13 @@ from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
-from backend.core.custom_exceptions import NotFoundError, ValidationError
-from backend.rag_solution.schemas.prompt_template_schema import (
+from core.custom_exceptions import NotFoundError, ValidationError
+from rag_solution.schemas.prompt_template_schema import (
     PromptTemplateInput,
     PromptTemplateOutput,
     PromptTemplateType,
 )
-from backend.rag_solution.services.prompt_template_service import PromptTemplateService
+from rag_solution.services.prompt_template_service import PromptTemplateService
 
 
 def create_mock_template(**kwargs):
@@ -833,7 +833,7 @@ class TestPromptTemplateServiceUnit:
 
     def test_service_initialization(self, mock_db):
         """Test service initialization with database session."""
-        from backend.rag_solution.repository.prompt_template_repository import PromptTemplateRepository
+        from rag_solution.repository.prompt_template_repository import PromptTemplateRepository
 
         service = PromptTemplateService(mock_db)
 

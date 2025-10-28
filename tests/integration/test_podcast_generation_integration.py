@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import pytest
-from backend.rag_solution.schemas.podcast_schema import (
+from rag_solution.schemas.podcast_schema import (
     AudioFormat,
     PodcastDuration,
     PodcastGenerationInput,
@@ -19,9 +19,9 @@ from backend.rag_solution.schemas.podcast_schema import (
     VoiceGender,
     VoiceSettings,
 )
-from backend.rag_solution.services.collection_service import CollectionService
-from backend.rag_solution.services.podcast_service import PodcastService
-from backend.rag_solution.services.search_service import SearchService
+from rag_solution.services.collection_service import CollectionService
+from rag_solution.services.podcast_service import PodcastService
+from rag_solution.services.search_service import SearchService
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -42,15 +42,16 @@ class TestPodcastGenerationIntegration:
             search_service=search_service,
         )
 
-        # Mock repository methods
+        # Mock repository methods (all synchronous, not async)
         service.repository = Mock()
-        service.repository.create = AsyncMock()
-        service.repository.get_by_id = AsyncMock()
-        service.repository.update_progress = AsyncMock()
-        service.repository.mark_completed = AsyncMock()
-        service.repository.update_status = AsyncMock()
-        service.repository.get_by_user = AsyncMock()
-        service.repository.delete = AsyncMock()
+        service.repository.create = Mock()
+        service.repository.get_by_id = Mock()
+        service.repository.update_progress = Mock()
+        service.repository.mark_completed = Mock()
+        service.repository.update_status = Mock()
+        service.repository.get_by_user = Mock()
+        service.repository.delete = Mock()
+        service.repository.count_active_for_user = Mock(return_value=0)
 
         return service
 
@@ -80,7 +81,7 @@ class TestPodcastGenerationIntegration:
         mock_collection.files = [Mock() for _ in range(10)]  # Mock files list for validation
         mock_service.collection_service.get_collection = Mock(return_value=mock_collection)  # type: ignore[attr-defined]
         mock_service.collection_service.count_documents = AsyncMock(return_value=10)  # type: ignore[attr-defined]
-        mock_service.repository.count_active_for_user = AsyncMock(return_value=0)  # type: ignore[method-assign]
+        mock_service.repository.count_active_for_user = Mock(return_value=0)  # type: ignore[method-assign]
 
         # Mock background tasks
         background_tasks = Mock()
@@ -88,7 +89,7 @@ class TestPodcastGenerationIntegration:
 
         # Generate podcast with mocked create
         with (
-            patch.object(mock_service.repository, "create", new=AsyncMock(return_value=mock_podcast)) as mock_create,
+            patch.object(mock_service.repository, "create", new=Mock(return_value=mock_podcast)) as mock_create,
             patch.object(mock_service.repository, "to_schema") as mock_to_schema,
         ):
             mock_output = PodcastGenerationOutput(
@@ -124,7 +125,7 @@ class TestPodcastGenerationIntegration:
         mock_podcast.status = PodcastStatus.COMPLETED
 
         with (
-            patch.object(mock_service.repository, "get_by_id", new=AsyncMock(return_value=mock_podcast)) as mock_get,
+            patch.object(mock_service.repository, "get_by_id", new=Mock(return_value=mock_podcast)) as mock_get,
             patch.object(mock_service.repository, "to_schema") as mock_to_schema,
         ):
             mock_output = PodcastGenerationOutput(
@@ -183,7 +184,7 @@ class TestPodcastGenerationIntegration:
 
         with (
             patch.object(
-                mock_service.repository, "get_by_user", new=AsyncMock(return_value=[mock_podcast_1, mock_podcast_2])
+                mock_service.repository, "get_by_user", new=Mock(return_value=[mock_podcast_1, mock_podcast_2])
             ) as mock_get,
             patch.object(mock_service.repository, "to_schema") as mock_to_schema,
         ):
@@ -210,8 +211,8 @@ class TestPodcastGenerationIntegration:
         mock_podcast.audio_url = None  # No audio file to delete
 
         with (
-            patch.object(mock_service.repository, "get_by_id", new=AsyncMock(return_value=mock_podcast)),
-            patch.object(mock_service.repository, "delete", new=AsyncMock(return_value=True)) as mock_delete,
+            patch.object(mock_service.repository, "get_by_id", new=Mock(return_value=mock_podcast)),
+            patch.object(mock_service.repository, "delete", new=Mock(return_value=True)) as mock_delete,
         ):
             result = await mock_service.delete_podcast(podcast_id, user_id)
 
@@ -230,8 +231,8 @@ class TestPodcastGenerationIntegration:
         mock_podcast.user_id = different_user_id  # Different user
 
         with (
-            patch.object(mock_service.repository, "get_by_id", new=AsyncMock(return_value=mock_podcast)),
-            patch.object(mock_service.repository, "delete", new=AsyncMock()) as mock_delete,
+            patch.object(mock_service.repository, "get_by_id", new=Mock(return_value=mock_podcast)),
+            patch.object(mock_service.repository, "delete", new=Mock()) as mock_delete,
         ):
             # Service raises HTTPException, not PermissionError
             from fastapi import HTTPException
@@ -271,7 +272,7 @@ class TestPodcastErrorHandling:
         podcast_id = uuid4()
         user_id = uuid4()
 
-        with patch.object(mock_service.repository, "get_by_id", new=AsyncMock(return_value=None)):
+        with patch.object(mock_service.repository, "get_by_id", new=Mock(return_value=None)):
             # Service raises HTTPException 404, not ValueError
             from fastapi import HTTPException
 
@@ -286,7 +287,7 @@ class TestPodcastErrorHandling:
         podcast_id = uuid4()
         user_id = uuid4()
 
-        with patch.object(mock_service.repository, "get_by_id", new=AsyncMock(return_value=None)):
+        with patch.object(mock_service.repository, "get_by_id", new=Mock(return_value=None)):
             # Service raises HTTPException 404, not ValueError
             from fastapi import HTTPException
 

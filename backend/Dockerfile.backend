@@ -29,31 +29,25 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 
 WORKDIR /app
 
+# CACHE_BUST: Force rebuild to use CPU-only PyTorch (Issue #506)
+# Previous: POETRY_ROOT_MIGRATION=20251027 (Poetry root migration)
+# Updated: 20251028 to invalidate cache and install CPU-only PyTorch
+ARG CACHE_BUST=20251028
+RUN echo "Cache bust: $CACHE_BUST"
+
 # Copy dependency files first for better layer caching
 COPY pyproject.toml poetry.lock ./
 
-# Install CPU-only PyTorch first to avoid CUDA dependencies (~6GB savings)
-# Using torch 2.5.0 to match torchvision 0.20.0 compatibility
+# Install dependencies directly with pip, bypassing poetry.lock
+# CRITICAL: poetry.lock has CUDA PyTorch (2.8.0) which pulls 6-8GB of NVIDIA libs
+# Solution: Use pip to install from pyproject.toml with CPU-only PyTorch index
+# This matches Docling's official Docker approach:
+# https://github.com/docling-project/docling/blob/main/Dockerfile
+# Note: We normalize dependency strings by removing spaces before parentheses
+# (e.g., "psutil (>=7.0.0,<8.0.0)" -> "psutil>=7.0.0,<8.0.0")
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir \
-    torch==2.5.0+cpu \
-    torchvision==0.20.0+cpu \
-    --index-url https://download.pytorch.org/whl/cpu
-
-# Configure pip globally to prevent any CUDA torch reinstalls
-RUN pip config set global.extra-index-url https://download.pytorch.org/whl/cpu
-
-# Install docling without dependencies first (prevents CUDA torch pull)
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir --no-deps docling
-
-# Now install all dependencies via Poetry, which will:
-# - Skip torch/torchvision (already installed)
-# - Skip docling (already installed)
-# - Install everything else
-RUN --mount=type=cache,target=/root/.cache/pip \
-    --mount=type=cache,target=/root/.cache/pypoetry \
-    poetry install --only main --no-root --no-cache
+    python -c "import tomllib; f=open('pyproject.toml','rb'); data=tomllib.load(f); deps = data['project']['dependencies']; print('\n'.join(d.replace(' (', '').replace(')', '') for d in deps))" | \
+    xargs pip install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cpu
 
 # Clean up system Python installation
 RUN find /usr/local -name "*.pyc" -delete && \
@@ -64,20 +58,26 @@ RUN find /usr/local -name "*.pyc" -delete && \
 # Final stage - clean runtime
 FROM python:3.12-slim
 
+# CACHE_BUST: Force rebuild to use CPU-only PyTorch (Issue #506)
+# Ensure final stage cache is also invalidated
+ARG CACHE_BUST=20251028
+
 WORKDIR /app
 
 # Copy system Python packages from builder
 COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
-# Copy only essential application files
-COPY main.py healthcheck.py ./
-COPY rag_solution/ ./rag_solution/
-COPY auth/ ./auth/
-COPY core/ ./core/
-COPY cli/ ./cli/
-COPY vectordbs/ ./vectordbs/
-COPY pyproject.toml ./
+# Copy Poetry config from project root (moved from backend/ in Issue #501)
+COPY pyproject.toml poetry.lock ./
+
+# Copy only essential application files from backend directory
+COPY backend/main.py backend/healthcheck.py ./
+COPY backend/rag_solution/ ./rag_solution/
+COPY backend/auth/ ./auth/
+COPY backend/core/ ./core/
+COPY backend/cli/ ./cli/
+COPY backend/vectordbs/ ./vectordbs/
 
 # Create a non-root user and group
 RUN groupadd --gid 10001 backend && \

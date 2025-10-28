@@ -4,17 +4,18 @@ Consolidated test suite covering search operations, pipeline resolution, and err
 Generated to achieve 70%+ coverage for backend/rag_solution/services/search_service.py
 """
 
+from datetime import datetime
 from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import pytest
-from backend.core.custom_exceptions import ConfigurationError, LLMProviderError, NotFoundError, ValidationError
-from backend.rag_solution.schemas.collection_schema import CollectionStatus
-from backend.rag_solution.schemas.llm_usage_schema import TokenWarning
-from backend.rag_solution.schemas.search_schema import SearchInput, SearchOutput
-from backend.rag_solution.services.search_service import SearchService
-from backend.vectordbs.data_types import DocumentChunk as Chunk
-from backend.vectordbs.data_types import DocumentChunkMetadata, DocumentMetadata, QueryResult, Source
+from core.custom_exceptions import ConfigurationError, LLMProviderError, NotFoundError, ValidationError
+from rag_solution.schemas.collection_schema import CollectionStatus
+from rag_solution.schemas.llm_usage_schema import TokenWarning
+from rag_solution.schemas.search_schema import SearchInput, SearchOutput
+from rag_solution.services.search_service import SearchService
+from vectordbs.data_types import DocumentChunk as Chunk
+from vectordbs.data_types import DocumentChunkMetadata, DocumentMetadata, QueryResult, Source
 from fastapi import HTTPException
 from pydantic import UUID4
 
@@ -375,7 +376,18 @@ class TestSearchServicePipelineResolution:
 
         # Mock user verification
         mock_user_service = Mock()
-        mock_user_service.get_user.return_value = Mock(id=test_user_id)
+        from rag_solution.schemas.user_schema import UserOutput
+        mock_user = UserOutput(
+            id=test_user_id,
+            ibm_id="test-ibm-id",
+            email="test@example.com",
+            name="Test User",
+            role="user",
+            preferred_provider_id=None,
+            created_at=datetime.now(),
+            updated_at=datetime.now()
+        )
+        mock_user_service.get_user.return_value = mock_user
 
         # Mock provider
         mock_provider = Mock()
@@ -385,7 +397,7 @@ class TestSearchServicePipelineResolution:
         # Mock pipeline creation
         search_service.pipeline_service.initialize_user_pipeline.return_value = sample_pipeline
 
-        with patch("backend.rag_solution.services.search_service.UserService", return_value=mock_user_service):
+        with patch("rag_solution.services.user_service.UserService", return_value=mock_user_service):
             pipeline_id = search_service._resolve_user_default_pipeline(test_user_id)
 
         assert pipeline_id == sample_pipeline.id
@@ -402,7 +414,7 @@ class TestSearchServicePipelineResolution:
         mock_user_service = Mock()
         mock_user_service.get_user.return_value = None
 
-        with patch("backend.rag_solution.services.search_service.UserService", return_value=mock_user_service):
+        with patch("rag_solution.services.user_service.UserService", return_value=mock_user_service):
             with pytest.raises(ConfigurationError) as exc_info:
                 search_service._resolve_user_default_pipeline(test_user_id)
 
@@ -417,12 +429,23 @@ class TestSearchServicePipelineResolution:
 
         # Mock user verification
         mock_user_service = Mock()
-        mock_user_service.get_user.return_value = Mock(id=test_user_id)
+        from rag_solution.schemas.user_schema import UserOutput
+        mock_user = UserOutput(
+            id=test_user_id,
+            ibm_id="test-ibm-id",
+            email="test@example.com",
+            name="Test User",
+            role="user",
+            preferred_provider_id=None,
+            created_at=datetime.now(),
+            updated_at=datetime.now()
+        )
+        mock_user_service.get_user.return_value = mock_user
 
         # No provider available
         search_service.llm_provider_service.get_user_provider.return_value = None
 
-        with patch("backend.rag_solution.services.search_service.UserService", return_value=mock_user_service):
+        with patch("rag_solution.services.user_service.UserService", return_value=mock_user_service):
             with pytest.raises(ConfigurationError) as exc_info:
                 search_service._resolve_user_default_pipeline(test_user_id)
 
@@ -437,7 +460,18 @@ class TestSearchServicePipelineResolution:
 
         # Mock user and provider
         mock_user_service = Mock()
-        mock_user_service.get_user.return_value = Mock(id=test_user_id)
+        from rag_solution.schemas.user_schema import UserOutput
+        mock_user = UserOutput(
+            id=test_user_id,
+            ibm_id="test-ibm-id",
+            email="test@example.com",
+            name="Test User",
+            role="user",
+            preferred_provider_id=None,
+            created_at=datetime.now(),
+            updated_at=datetime.now()
+        )
+        mock_user_service.get_user.return_value = mock_user
         mock_provider = Mock()
         mock_provider.id = uuid4()
         search_service.llm_provider_service.get_user_provider.return_value = mock_provider
@@ -445,7 +479,7 @@ class TestSearchServicePipelineResolution:
         # Pipeline creation fails
         search_service.pipeline_service.initialize_user_pipeline.side_effect = Exception("Database error")
 
-        with patch("backend.rag_solution.services.search_service.UserService", return_value=mock_user_service):
+        with patch("rag_solution.services.user_service.UserService", return_value=mock_user_service):
             with pytest.raises(ConfigurationError) as exc_info:
                 search_service._resolve_user_default_pipeline(test_user_id)
 
@@ -787,7 +821,7 @@ class TestSearchServiceErrorHandling:
 
         # Note: handle_search_errors is a function decorator, not a method
         # We need to test the actual decorator behavior
-        from backend.rag_solution.services.search_service import handle_search_errors
+        from rag_solution.services.search_service import handle_search_errors
 
         @handle_search_errors
         async def failing_func():
@@ -801,7 +835,7 @@ class TestSearchServiceErrorHandling:
     @pytest.mark.asyncio
     async def test_handle_search_errors_validation(self):
         """Test error handler converts ValidationError to HTTPException 400."""
-        from backend.rag_solution.services.search_service import handle_search_errors
+        from rag_solution.services.search_service import handle_search_errors
 
         @handle_search_errors
         async def failing_func():
@@ -815,7 +849,7 @@ class TestSearchServiceErrorHandling:
     @pytest.mark.asyncio
     async def test_handle_search_errors_llm_provider(self):
         """Test error handler converts LLMProviderError to HTTPException 500."""
-        from backend.rag_solution.services.search_service import handle_search_errors
+        from rag_solution.services.search_service import handle_search_errors
 
         @handle_search_errors
         async def failing_func():
@@ -829,7 +863,7 @@ class TestSearchServiceErrorHandling:
     @pytest.mark.asyncio
     async def test_handle_search_errors_configuration(self):
         """Test error handler converts ConfigurationError to HTTPException 500."""
-        from backend.rag_solution.services.search_service import handle_search_errors
+        from rag_solution.services.search_service import handle_search_errors
 
         @handle_search_errors
         async def failing_func():
@@ -843,7 +877,7 @@ class TestSearchServiceErrorHandling:
     @pytest.mark.asyncio
     async def test_handle_search_errors_generic_exception(self):
         """Test error handler converts generic exceptions to HTTPException 500."""
-        from backend.rag_solution.services.search_service import handle_search_errors
+        from rag_solution.services.search_service import handle_search_errors
 
         @handle_search_errors
         async def failing_func():
@@ -1069,7 +1103,7 @@ class TestSearchServiceLazyInitialization:
 
         assert service._collection_service is None
 
-        with patch("backend.rag_solution.services.search_service.CollectionService") as mock_collection_service:
+        with patch("rag_solution.services.search_service.CollectionService") as mock_collection_service:
             mock_collection_service.return_value = Mock()
             collection_service = service.collection_service
 
@@ -1082,7 +1116,7 @@ class TestSearchServiceLazyInitialization:
 
         assert service._pipeline_service is None
 
-        with patch("backend.rag_solution.services.search_service.PipelineService") as mock_pipeline_service:
+        with patch("rag_solution.services.search_service.PipelineService") as mock_pipeline_service:
             mock_pipeline_service.return_value = Mock()
             pipeline_service = service.pipeline_service
 
@@ -1133,7 +1167,7 @@ class TestSearchServiceReranking:
         search_service.settings.enable_reranking = True
         search_service.settings.reranker_type = "simple"
 
-        with patch("backend.rag_solution.retrieval.reranker.SimpleReranker") as mock_simple:
+        with patch("rag_solution.retrieval.reranker.SimpleReranker") as mock_simple:
             mock_simple.return_value = Mock()
             reranker = search_service.get_reranker(test_user_id)
 

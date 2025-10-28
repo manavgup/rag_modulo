@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import pytest
-from backend.rag_solution.schemas.podcast_schema import (
+from rag_solution.schemas.podcast_schema import (
     AudioFormat,
     PodcastDuration,
     PodcastGenerationInput,
@@ -19,9 +19,9 @@ from backend.rag_solution.schemas.podcast_schema import (
     VoiceGender,
     VoiceSettings,
 )
-from backend.rag_solution.services.collection_service import CollectionService
-from backend.rag_solution.services.podcast_service import PodcastService
-from backend.rag_solution.services.search_service import SearchService
+from rag_solution.services.collection_service import CollectionService
+from rag_solution.services.podcast_service import PodcastService
+from rag_solution.services.search_service import SearchService
 from sqlalchemy.orm import Session
 
 
@@ -67,16 +67,16 @@ class TestPodcastServiceGeneration:
             search_service=search_service,
         )
 
-        # Mock repository (mix of async and sync methods)
+        # Mock repository (all methods are synchronous)
         service.repository = Mock()
-        service.repository.create = AsyncMock()
-        service.repository.get_by_id = AsyncMock()
-        service.repository.get_by_user = AsyncMock()
-        service.repository.delete = AsyncMock()
+        service.repository.create = Mock()
+        service.repository.get_by_id = Mock()
+        service.repository.get_by_user = Mock()
+        service.repository.delete = Mock()
         service.repository.update_progress = Mock()
+        service.repository.count_active_for_user = Mock(return_value=0)
         service.repository.mark_completed = Mock()
         service.repository.update_status = Mock()
-        service.repository.count_active_for_user = AsyncMock()
         service.repository.to_schema = Mock()
 
         return service
@@ -237,9 +237,9 @@ class TestPodcastServiceCustomization:
         )
 
         # Mock search_service.search to return sufficient documents
-        from backend.rag_solution.schemas.pipeline_schema import QueryResult
-        from backend.rag_solution.schemas.search_schema import SearchOutput
-        from backend.vectordbs.data_types import DocumentChunkWithScore, DocumentMetadata
+        from rag_solution.schemas.pipeline_schema import QueryResult
+        from rag_solution.schemas.search_schema import SearchOutput
+        from vectordbs.data_types import DocumentChunkWithScore, DocumentMetadata
 
         # Create mock search result with enough documents
         mock_query_results = [
@@ -302,8 +302,8 @@ class TestPodcastServiceCustomization:
         assert "Provide a comprehensive overview" in search_input.question
 
     @pytest.mark.asyncio
-    @patch("backend.rag_solution.services.prompt_template_service.PromptTemplateService")
-    @patch("backend.rag_solution.services.podcast_service.LLMProviderFactory")
+    @patch("rag_solution.services.prompt_template_service.PromptTemplateService")
+    @patch("rag_solution.services.podcast_service.LLMProviderFactory")
     async def test_generate_script_uses_description_in_prompt(
         self, mock_llm_factory: Mock, mock_template_service_class: Mock, mock_service: PodcastService
     ) -> None:
@@ -320,7 +320,7 @@ class TestPodcastServiceCustomization:
         # Mock PromptTemplateService to return a valid template
         from datetime import datetime
 
-        from backend.rag_solution.schemas.prompt_template_schema import PromptTemplateOutput, PromptTemplateType
+        from rag_solution.schemas.prompt_template_schema import PromptTemplateOutput, PromptTemplateType
 
         mock_template = PromptTemplateOutput(
             id=uuid4(),
@@ -359,8 +359,8 @@ class TestPodcastServiceCustomization:
         assert variables["user_topic"] == description
 
     @pytest.mark.asyncio
-    @patch("backend.rag_solution.services.prompt_template_service.PromptTemplateService")
-    @patch("backend.rag_solution.services.podcast_service.LLMProviderFactory")
+    @patch("rag_solution.services.prompt_template_service.PromptTemplateService")
+    @patch("rag_solution.services.podcast_service.LLMProviderFactory")
     async def test_generate_script_uses_generic_topic_without_description(
         self, mock_llm_factory: Mock, mock_template_service_class: Mock, mock_service: PodcastService
     ) -> None:
@@ -376,7 +376,7 @@ class TestPodcastServiceCustomization:
         # Mock PromptTemplateService to return a valid template
         from datetime import datetime
 
-        from backend.rag_solution.schemas.prompt_template_schema import PromptTemplateOutput, PromptTemplateType
+        from rag_solution.schemas.prompt_template_schema import PromptTemplateOutput, PromptTemplateType
 
         mock_template = PromptTemplateOutput(
             id=uuid4(),
@@ -441,7 +441,7 @@ class TestPodcastServiceVoicePreview:
         expected_audio = b"mock_audio_data"
 
         # Mock AudioProviderFactory
-        with patch("backend.rag_solution.services.podcast_service.AudioProviderFactory") as mock_factory:
+        with patch("rag_solution.services.podcast_service.AudioProviderFactory") as mock_factory:
             mock_provider = AsyncMock()
             mock_provider.generate_single_turn_audio = AsyncMock(return_value=expected_audio)
             mock_factory.create_provider.return_value = mock_provider
@@ -463,7 +463,7 @@ class TestPodcastServiceVoicePreview:
         """Unit: generate_voice_preview uses VOICE_PREVIEW_TEXT constant."""
         voice_id = "onyx"
 
-        with patch("backend.rag_solution.services.podcast_service.AudioProviderFactory") as mock_factory:
+        with patch("rag_solution.services.podcast_service.AudioProviderFactory") as mock_factory:
             mock_provider = AsyncMock()
             mock_provider.generate_single_turn_audio = AsyncMock(return_value=b"audio")
             mock_factory.create_provider.return_value = mock_provider
@@ -479,7 +479,7 @@ class TestPodcastServiceVoicePreview:
         """Unit: generate_voice_preview raises HTTPException on provider error."""
         voice_id = "echo"
 
-        with patch("backend.rag_solution.services.podcast_service.AudioProviderFactory") as mock_factory:
+        with patch("rag_solution.services.podcast_service.AudioProviderFactory") as mock_factory:
             mock_provider = AsyncMock()
             mock_provider.generate_single_turn_audio = AsyncMock(side_effect=Exception("TTS API error"))
             mock_factory.create_provider.return_value = mock_provider
@@ -496,7 +496,7 @@ class TestPodcastServiceVoicePreview:
         """Unit: generate_voice_preview works with all valid OpenAI voices."""
         valid_voices = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
 
-        with patch("backend.rag_solution.services.podcast_service.AudioProviderFactory") as mock_factory:
+        with patch("rag_solution.services.podcast_service.AudioProviderFactory") as mock_factory:
             mock_provider = AsyncMock()
             mock_provider.generate_single_turn_audio = AsyncMock(return_value=b"audio")
             mock_factory.create_provider.return_value = mock_provider

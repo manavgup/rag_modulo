@@ -11,11 +11,11 @@ Business logic is covered by existing service/API tests.
 
 import pytest
 import requests
-from backend.rag_solution.cli.client import RAGAPIClient
-from backend.rag_solution.cli.commands.auth import AuthCommands
-from backend.rag_solution.cli.commands.collections import CollectionCommands
-from backend.rag_solution.cli.config import RAGConfig
-from backend.rag_solution.cli.exceptions import APIError, AuthenticationError
+from rag_solution.cli.client import RAGAPIClient
+from rag_solution.cli.commands.auth import AuthCommands
+from rag_solution.cli.commands.collections import CollectionCommands
+from rag_solution.cli.config import RAGConfig
+from rag_solution.cli.exceptions import APIError, AuthenticationError
 
 
 @pytest.mark.integration
@@ -187,7 +187,7 @@ class TestCLIOutputFormatting:
 
     def test_table_output_formatting(self):
         """Test table output formatting works with backend data."""
-        from backend.rag_solution.cli.output import format_table_output
+        from rag_solution.cli.output import format_table_output
 
         # Test with collection-like data
         data = [
@@ -204,7 +204,7 @@ class TestCLIOutputFormatting:
 
     def test_json_output_formatting(self):
         """Test JSON output formatting works with backend data."""
-        from backend.rag_solution.cli.output import format_json_output
+        from rag_solution.cli.output import format_json_output
 
         data = {"collections": [{"id": "123", "name": "Test Collection"}], "total": 1}
 

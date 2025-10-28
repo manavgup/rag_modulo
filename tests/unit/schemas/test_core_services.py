@@ -4,9 +4,9 @@ from datetime import UTC
 from uuid import uuid4
 
 import pytest
-from backend.rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput, CollectionStatus
-from backend.rag_solution.schemas.team_schema import TeamInput, TeamOutput
-from backend.rag_solution.schemas.user_schema import UserInput, UserOutput
+from rag_solution.schemas.collection_schema import CollectionInput, CollectionOutput, CollectionStatus
+from rag_solution.schemas.team_schema import TeamInput, TeamOutput
+from rag_solution.schemas.user_schema import UserInput, UserOutput
 
 
 @pytest.mark.atomic

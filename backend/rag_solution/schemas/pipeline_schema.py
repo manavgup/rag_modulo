@@ -66,7 +66,6 @@ class PipelineConfigBase(BaseModel):
         frozen=False,
         str_strip_whitespace=True,
         use_enum_values=True,
-        json_encoders={UUID4: str},
     )
 
     @model_validator(mode="after")

@@ -4,7 +4,7 @@ import unittest
 from unittest.mock import patch
 from uuid import UUID
 
-from backend.core.identity_service import IdentityService
+from core.identity_service import IdentityService
 
 
 class TestIdentityService(unittest.TestCase):
@@ -65,8 +65,10 @@ class TestIdentityService(unittest.TestCase):
     @patch.dict("os.environ", {"MOCK_USER_ID": "not-a-uuid"})
     def test_get_mock_user_id_invalid_env(self):
         """Test get_mock_user_id falls back to default with an invalid env var."""
-        with self.assertRaises(ValueError):
-            IdentityService.get_mock_user_id()
+        mock_user_id = IdentityService.get_mock_user_id()
+        # Should fall back to default UUID, not raise ValueError
+        self.assertIsInstance(mock_user_id, UUID)
+        self.assertEqual(mock_user_id, IdentityService.DEFAULT_MOCK_USER_ID)
 
 
 if __name__ == "__main__":

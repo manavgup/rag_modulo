@@ -3,8 +3,8 @@
 from uuid import uuid4
 
 import pytest
-from backend.rag_solution.schemas.llm_model_schema import LLMModelInput, ModelType
-from backend.rag_solution.schemas.llm_provider_schema import LLMProviderInput
+from rag_solution.schemas.llm_model_schema import LLMModelInput, ModelType
+from rag_solution.schemas.llm_provider_schema import LLMProviderInput
 from pydantic import SecretStr
 
 

@@ -13,9 +13,9 @@ from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import pytest
-from backend.core.config import Settings, get_settings
-from backend.rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput, ChainOfThoughtOutput
-from backend.rag_solution.schemas.conversation_schema import (
+from core.config import Settings, get_settings
+from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput, ChainOfThoughtOutput
+from rag_solution.schemas.conversation_schema import (
     ConversationContext,
     ConversationMessageInput,
     ConversationSessionInput,
@@ -23,12 +23,12 @@ from backend.rag_solution.schemas.conversation_schema import (
     MessageRole,
     MessageType,
 )
-from backend.rag_solution.schemas.search_schema import SearchInput, SearchOutput
-from backend.rag_solution.services.chain_of_thought_service import ChainOfThoughtService
-from backend.rag_solution.services.conversation_service import ConversationService
-from backend.rag_solution.services.question_service import QuestionService
-from backend.rag_solution.services.search_service import SearchService
-from backend.vectordbs.data_types import DocumentMetadata
+from rag_solution.schemas.search_schema import SearchInput, SearchOutput
+from rag_solution.services.chain_of_thought_service import ChainOfThoughtService
+from rag_solution.services.conversation_service import ConversationService
+from rag_solution.services.question_service import QuestionService
+from rag_solution.services.search_service import SearchService
+from vectordbs.data_types import DocumentMetadata
 
 
 class TestSeamlessIntegrationTDD:
@@ -45,7 +45,7 @@ class TestSeamlessIntegrationTDD:
 
     def _create_mock_cot_output(self, question: str) -> ChainOfThoughtOutput:
         """Helper to create properly structured ChainOfThoughtOutput objects."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import ReasoningStep
+        from rag_solution.schemas.chain_of_thought_schema import ReasoningStep
 
         reasoning_steps = [
             ReasoningStep(

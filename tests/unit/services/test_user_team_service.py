@@ -9,12 +9,12 @@ from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
-from backend.rag_solution.core.exceptions import NotFoundError
-from backend.rag_solution.repository.user_team_repository import UserTeamRepository
-from backend.rag_solution.schemas.user_team_schema import UserTeamOutput
+from rag_solution.core.exceptions import NotFoundError
+from rag_solution.repository.user_team_repository import UserTeamRepository
+from rag_solution.schemas.user_team_schema import UserTeamOutput
 
 # Service imports
-from backend.rag_solution.services.user_team_service import UserTeamService
+from rag_solution.services.user_team_service import UserTeamService
 from sqlalchemy.orm import Session
 
 # ============================================================================

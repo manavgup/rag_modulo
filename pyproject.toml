@@ -51,6 +51,12 @@ dependencies = [
 
 [tool.poetry]
 package-mode = false
+packages = [
+    { include = "rag_solution", from = "backend" },
+    { include = "core",        from = "backend" },
+    { include = "auth",        from = "backend" },
+    { include = "vectordbs",   from = "backend" }
+]
 
 [project.scripts]
 rag-cli = "rag_solution.cli.main:main"
@@ -173,6 +179,10 @@ match-dir = "(?!tests).*"
 # Minimal async configuration for integration tests
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+filterwarnings = [
+    # Ignore audioop deprecation from pydub (external library, Python 3.13 compatibility)
+    "ignore:'audioop' is deprecated:DeprecationWarning:pydub.utils",
+]
 
 [tool.ruff]
 # Ruff configuration - consolidated from .ruff.toml

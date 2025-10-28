@@ -16,7 +16,7 @@ class TestChainOfThoughtConfigSchema:
 
     def test_cot_config_schema_creation_with_valid_data(self):
         """Test creation of CoT config schema with valid data."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import (
+        from rag_solution.schemas.chain_of_thought_schema import (
             ChainOfThoughtConfig,  # type: ignore  # type: ignore
         )
 
@@ -40,7 +40,7 @@ class TestChainOfThoughtConfigSchema:
 
     def test_cot_config_schema_with_default_values(self):
         """Test CoT config schema uses appropriate default values."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtConfig
+        from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtConfig
 
         config = ChainOfThoughtConfig()
 
@@ -53,7 +53,7 @@ class TestChainOfThoughtConfigSchema:
 
     def test_cot_config_schema_validation_max_depth_positive(self):
         """Test max_reasoning_depth must be positive."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtConfig
+        from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtConfig
 
         with pytest.raises(ValidationError) as exc_info:
             ChainOfThoughtConfig(max_reasoning_depth=0)
@@ -62,7 +62,7 @@ class TestChainOfThoughtConfigSchema:
 
     def test_cot_config_schema_validation_token_multiplier_positive(self):
         """Test token_budget_multiplier must be positive."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtConfig
+        from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtConfig
 
         with pytest.raises(ValidationError) as exc_info:
             ChainOfThoughtConfig(token_budget_multiplier=0)
@@ -71,7 +71,7 @@ class TestChainOfThoughtConfigSchema:
 
     def test_cot_config_schema_validation_threshold_range(self):
         """Test evaluation_threshold must be between 0 and 1."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtConfig
+        from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtConfig
 
         # Test lower bound
         with pytest.raises(ValidationError) as exc_info:
@@ -85,7 +85,7 @@ class TestChainOfThoughtConfigSchema:
 
     def test_cot_config_schema_valid_reasoning_strategies(self):
         """Test valid reasoning strategy values."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtConfig
+        from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtConfig
 
         valid_strategies = ["decomposition", "iterative", "hierarchical", "causal"]
 
@@ -95,7 +95,7 @@ class TestChainOfThoughtConfigSchema:
 
     def test_cot_config_schema_invalid_reasoning_strategy(self):
         """Test invalid reasoning strategy raises validation error."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtConfig
+        from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtConfig
 
         with pytest.raises(ValidationError) as exc_info:
             ChainOfThoughtConfig(reasoning_strategy="invalid_strategy")
@@ -108,7 +108,7 @@ class TestQuestionDecompositionSchema:
 
     def test_decomposed_question_schema_creation(self):
         """Test creation of decomposed question schema."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import DecomposedQuestion
+        from rag_solution.schemas.chain_of_thought_schema import DecomposedQuestion
 
         question_data = {
             "sub_question": "What is machine learning?",
@@ -128,7 +128,7 @@ class TestQuestionDecompositionSchema:
 
     def test_decomposed_question_schema_complexity_range(self):
         """Test complexity_score must be between 0 and 1."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import DecomposedQuestion
+        from rag_solution.schemas.chain_of_thought_schema import DecomposedQuestion
 
         # Test lower bound
         with pytest.raises(ValidationError) as exc_info:
@@ -142,7 +142,7 @@ class TestQuestionDecompositionSchema:
 
     def test_decomposed_question_schema_valid_question_types(self):
         """Test valid question type values."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import DecomposedQuestion
+        from rag_solution.schemas.chain_of_thought_schema import DecomposedQuestion
 
         valid_types = ["definition", "comparison", "causal", "procedural", "analytical"]
 
@@ -152,7 +152,7 @@ class TestQuestionDecompositionSchema:
 
     def test_decomposed_question_schema_step_positive(self):
         """Test reasoning_step must be positive."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import DecomposedQuestion
+        from rag_solution.schemas.chain_of_thought_schema import DecomposedQuestion
 
         with pytest.raises(ValidationError) as exc_info:
             DecomposedQuestion(sub_question="test", reasoning_step=0)
@@ -165,7 +165,7 @@ class TestReasoningStepSchema:
 
     def test_reasoning_step_schema_creation(self):
         """Test creation of reasoning step schema."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import ReasoningStep
+        from rag_solution.schemas.chain_of_thought_schema import ReasoningStep
 
         step_data = {
             "step_number": 1,
@@ -189,7 +189,7 @@ class TestReasoningStepSchema:
 
     def test_reasoning_step_schema_confidence_range(self):
         """Test confidence_score must be between 0 and 1."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import ReasoningStep
+        from rag_solution.schemas.chain_of_thought_schema import ReasoningStep
 
         # Test lower bound
         with pytest.raises(ValidationError) as exc_info:
@@ -203,7 +203,7 @@ class TestReasoningStepSchema:
 
     def test_reasoning_step_schema_step_number_positive(self):
         """Test step_number must be positive."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import ReasoningStep
+        from rag_solution.schemas.chain_of_thought_schema import ReasoningStep
 
         with pytest.raises(ValidationError) as exc_info:
             ReasoningStep(step_number=0, question="test")
@@ -212,7 +212,7 @@ class TestReasoningStepSchema:
 
     def test_reasoning_step_schema_execution_time_positive(self):
         """Test execution_time must be positive when provided."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import ReasoningStep
+        from rag_solution.schemas.chain_of_thought_schema import ReasoningStep
 
         with pytest.raises(ValidationError) as exc_info:
             ReasoningStep(step_number=1, question="test", execution_time=-1.0)
@@ -225,7 +225,7 @@ class TestChainOfThoughtOutputSchema:
 
     def test_cot_output_schema_creation(self):
         """Test creation of CoT output schema."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import (  # type: ignore
+        from rag_solution.schemas.chain_of_thought_schema import (  # type: ignore
             ChainOfThoughtOutput,
             ReasoningStep,
         )
@@ -268,7 +268,7 @@ class TestChainOfThoughtOutputSchema:
 
     def test_cot_output_schema_confidence_range(self):
         """Test total_confidence must be between 0 and 1."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtOutput
+        from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtOutput
 
         # Test lower bound
         with pytest.raises(ValidationError) as exc_info:
@@ -286,7 +286,7 @@ class TestChainOfThoughtOutputSchema:
 
     def test_cot_output_schema_token_usage_positive(self):
         """Test token_usage must be positive when provided."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtOutput
+        from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtOutput
 
         with pytest.raises(ValidationError) as exc_info:
             ChainOfThoughtOutput(original_question="test", final_answer="test", reasoning_steps=[], token_usage=-100)
@@ -295,7 +295,7 @@ class TestChainOfThoughtOutputSchema:
 
     def test_cot_output_schema_execution_time_positive(self):
         """Test total_execution_time must be positive when provided."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtOutput
+        from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtOutput
 
         with pytest.raises(ValidationError) as exc_info:
             ChainOfThoughtOutput(
@@ -310,7 +310,7 @@ class TestChainOfThoughtInputSchema:
 
     def test_cot_input_schema_creation(self):
         """Test creation of CoT input schema."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput
+        from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput
 
         input_data = {
             "question": "What is machine learning and how does it work?",
@@ -331,7 +331,7 @@ class TestChainOfThoughtInputSchema:
 
     def test_cot_input_schema_with_minimal_data(self):
         """Test CoT input schema with minimal required data."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput
+        from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput
 
         input_data = {"question": "What is AI?", "collection_id": uuid4(), "user_id": uuid4()}
 
@@ -343,7 +343,7 @@ class TestChainOfThoughtInputSchema:
 
     def test_cot_input_schema_question_not_empty(self):
         """Test question field cannot be empty."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput
+        from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput
 
         with pytest.raises(ValidationError) as exc_info:
             ChainOfThoughtInput(question="", collection_id=uuid4(), user_id=uuid4())
@@ -356,7 +356,7 @@ class TestQuestionClassificationSchema:
 
     def test_question_classification_schema_creation(self):
         """Test creation of question classification schema."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import QuestionClassification
+        from rag_solution.schemas.chain_of_thought_schema import QuestionClassification
 
         classification_data = {
             "question_type": "multi_part",
@@ -378,7 +378,7 @@ class TestQuestionClassificationSchema:
 
     def test_question_classification_valid_types(self):
         """Test valid question type values."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import QuestionClassification
+        from rag_solution.schemas.chain_of_thought_schema import QuestionClassification
 
         valid_types = ["simple", "multi_part", "comparison", "causal", "complex_analytical"]
 
@@ -388,7 +388,7 @@ class TestQuestionClassificationSchema:
 
     def test_question_classification_valid_complexity_levels(self):
         """Test valid complexity level values."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import QuestionClassification
+        from rag_solution.schemas.chain_of_thought_schema import QuestionClassification
 
         valid_levels = ["low", "medium", "high", "very_high"]
 
@@ -398,7 +398,7 @@ class TestQuestionClassificationSchema:
 
     def test_question_classification_confidence_range(self):
         """Test confidence must be between 0 and 1."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import QuestionClassification
+        from rag_solution.schemas.chain_of_thought_schema import QuestionClassification
 
         # Test lower bound
         with pytest.raises(ValidationError) as exc_info:
@@ -412,7 +412,7 @@ class TestQuestionClassificationSchema:
 
     def test_question_classification_estimated_steps_positive(self):
         """Test estimated_steps must be positive when provided."""
-        from backend.rag_solution.schemas.chain_of_thought_schema import QuestionClassification
+        from rag_solution.schemas.chain_of_thought_schema import QuestionClassification
 
         with pytest.raises(ValidationError) as exc_info:
             QuestionClassification(

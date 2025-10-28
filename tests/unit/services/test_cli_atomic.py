@@ -9,9 +9,9 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
-from backend.rag_solution.cli.commands.base import BaseCommand, CommandResult
-from backend.rag_solution.cli.config import ProfileManager, RAGConfig
-from backend.rag_solution.cli.exceptions import AuthenticationError, ConfigurationError, RAGCLIError, ValidationError
+from rag_solution.cli.commands.base import BaseCommand, CommandResult
+from rag_solution.cli.config import ProfileManager, RAGConfig
+from rag_solution.cli.exceptions import AuthenticationError, ConfigurationError, RAGCLIError, ValidationError
 from pydantic import HttpUrl
 
 
@@ -315,10 +315,10 @@ class TestProfileManager:
         self.profiles_dir_patcher = patch.object(self.profile_manager, "profiles_dir", self.profiles_dir)
 
         # Mock RAGConfig methods to use the temp directory
-        self.load_from_file_patcher = patch("backend.rag_solution.cli.config.RAGConfig.load_from_file")
+        self.load_from_file_patcher = patch("rag_solution.cli.config.RAGConfig.load_from_file")
         self.mock_load_from_file = self.load_from_file_patcher.start()
 
-        self.save_to_file_patcher = patch("backend.rag_solution.cli.config.RAGConfig.save_to_file")
+        self.save_to_file_patcher = patch("rag_solution.cli.config.RAGConfig.save_to_file")
         self.mock_save_to_file = self.save_to_file_patcher.start()
 
         self.config_dir_patcher.start()
