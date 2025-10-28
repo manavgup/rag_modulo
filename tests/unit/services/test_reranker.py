@@ -29,13 +29,16 @@ def mock_llm_provider() -> Mock:
 
 @pytest.fixture
 def mock_prompt_template() -> PromptTemplateBase:
-    """Create a mock prompt template."""
+    """Create a mock prompt template.
+
+    Note: Uses 'document' variable name to match what LLMReranker uses internally.
+    """
     return PromptTemplateBase(
         name="reranking",
         user_id=UUID4(str(uuid.uuid4())),
         template_type=PromptTemplateType.RERANKING,
-        template_format="Rate the relevance of this document to the query on a scale of 0-{scale}:\n\nQuery: {query}\n\nDocument: {context}\n\nRelevance score:",
-        input_variables={"query": "str", "context": "str", "scale": "str"},
+        template_format="Rate the relevance of this document to the query on a scale of 0-{scale}:\n\nQuery: {query}\n\nDocument: {document}\n\nRelevance score:",
+        input_variables={"query": "str", "document": "str", "scale": "str"},
         max_context_length=4000,
     )
 
@@ -161,14 +164,22 @@ class TestLLMReranker:
         mock_prompt_template: PromptTemplateBase,
         sample_results: list[QueryResult],
     ) -> None:
-        """Test creating reranking prompts from query and results."""
+        """Test creating reranking prompts from query and results.
+
+        Updated test: _create_reranking_prompts now returns list[str] of formatted prompts
+        instead of list[dict] of variables, as prompts are pre-formatted before calling LLM.
+        """
         reranker = LLMReranker(mock_llm_provider, user_id, mock_prompt_template)
         prompts = reranker._create_reranking_prompts("machine learning", sample_results)
 
+        # Verify we got 3 formatted prompt strings
         assert len(prompts) == 3
-        assert prompts[0]["query"] == "machine learning"
-        assert prompts[0]["document"] == "Machine learning is a subset of artificial intelligence."
-        assert prompts[0]["scale"] == "10"
+        assert isinstance(prompts[0], str)
+
+        # Verify the prompts contain the expected content
+        assert "machine learning" in prompts[0]
+        assert "Machine learning is a subset of artificial intelligence." in prompts[0]
+        assert "0-10" in prompts[0]  # Template uses "scale of 0-{scale}"
 
     def test_create_reranking_prompts_skips_none_chunks(
         self, mock_llm_provider: Mock, user_id: UUID4, mock_prompt_template: PromptTemplateBase

@@ -184,10 +184,10 @@ class TestUserProviderServiceUnit:
             result_provider, result_templates, result_params = service.initialize_user_defaults(user_id)
 
             assert result_provider == mock_provider
-            assert len(result_templates) == 3
+            assert len(result_templates) == 4
             assert result_params == mock_parameters
             mock_user_provider_repository.set_user_provider.assert_called_once_with(user_id, mock_provider.id)
-            assert mock_prompt_template_service.create_template.call_count == 3
+            assert mock_prompt_template_service.create_template.call_count == 4
             mock_params_service.initialize_default_parameters.assert_called_once_with(user_id)
             mock_pipeline_service.initialize_user_pipeline.assert_called_once_with(user_id, mock_provider.id)
             mock_db.commit.assert_called_once()
@@ -225,7 +225,7 @@ class TestUserProviderServiceUnit:
             result_provider, result_templates, result_params = service.initialize_user_defaults(user_id)
 
             assert result_provider == mock_provider
-            assert len(result_templates) == 3
+            assert len(result_templates) == 4
             assert result_params == mock_parameters
             # Should NOT call set_user_provider since provider already exists
             mock_user_provider_repository.set_user_provider.assert_not_called()
@@ -562,14 +562,14 @@ class TestUserProviderServiceUnit:
 
             # Verify all steps completed
             assert provider is not None
-            assert len(templates) == 3
+            assert len(templates) == 4
             assert params is not None
 
             # Verify correct order of operations
             mock_user_provider_repository.get_user_provider.assert_called_once()
             mock_user_provider_repository.get_default_provider.assert_called_once()
             mock_user_provider_repository.set_user_provider.assert_called_once()
-            assert mock_prompt_template_service.create_template.call_count == 3
+            assert mock_prompt_template_service.create_template.call_count == 4
             mock_params_service.initialize_default_parameters.assert_called_once()
             mock_pipeline_service.initialize_user_pipeline.assert_called_once()
             mock_db.commit.assert_called_once()
@@ -820,10 +820,24 @@ class TestUserProviderServiceUnit:
             updated_at=datetime.now(),
         )
 
+        reranking_template = PromptTemplateOutput(
+            id=uuid4(),
+            name="default-reranking-template",
+            user_id=user_id,
+            template_type=PromptTemplateType.RERANKING,
+            system_prompt="Reranking system prompt",
+            template_format="Query: {query}\n\nDocument: {document}\n\nScale: {scale}",
+            input_variables={"query": "query", "document": "document", "scale": "scale"},
+            is_default=True,
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+        )
+
         mock_prompt_template_service.create_template.side_effect = [
             rag_template,
             question_template,
             podcast_template,
+            reranking_template,
         ]
 
         with patch("rag_solution.services.user_provider_service.LLMParametersService") as mock_params_class, patch(
@@ -838,11 +852,12 @@ class TestUserProviderServiceUnit:
 
             provider, templates, params = service.initialize_user_defaults(user_id)
 
-            # Verify all three templates were created
-            assert len(templates) == 3
+            # Verify all four templates were created
+            assert len(templates) == 4
             assert any(t.template_type == PromptTemplateType.RAG_QUERY for t in templates)
             assert any(t.template_type == PromptTemplateType.QUESTION_GENERATION for t in templates)
             assert any(t.template_type == PromptTemplateType.PODCAST_GENERATION for t in templates)
+            assert any(t.template_type == PromptTemplateType.RERANKING for t in templates)
 
     # ============================================================================
     # ASYNC OPERATIONS SIMULATION
@@ -925,7 +940,7 @@ class TestUserProviderServiceUnit:
             provider, templates, params = service.initialize_user_defaults(user_id)
 
             assert provider == minimal_provider
-            assert len(templates) == 3
+            assert len(templates) == 4
             assert params == mock_parameters
 
     def test_template_validation_schemas_are_correct(

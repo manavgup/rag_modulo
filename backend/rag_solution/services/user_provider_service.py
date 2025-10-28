@@ -50,6 +50,7 @@ class UserProviderService:
             rag_template = self._create_default_rag_template(user_id)
             question_template = self._create_default_question_template(user_id)
             podcast_template = self._create_default_podcast_template(user_id)
+            reranking_template = self._create_default_reranking_template(user_id)
 
             # Add parameters initialization
             parameters_service = LLMParametersService(self.db)
@@ -66,7 +67,11 @@ class UserProviderService:
             pipeline_service.initialize_user_pipeline(user_id, provider.id)
 
             self.db.commit()
-            return provider, [rag_template, question_template, podcast_template], default_parameters
+            return (
+                provider,
+                [rag_template, question_template, podcast_template, reranking_template],
+                default_parameters,
+            )
 
         except Exception as e:
             logger.error(f"Initialization error: {e!s}")
@@ -249,6 +254,47 @@ class UserProviderService:
                         "max_word_count": {"type": "int", "gt": 0},
                     },
                     "required": ["user_topic", "rag_results", "duration_minutes", "word_count"],
+                },
+            )
+        )
+
+    def _create_default_reranking_template(self, user_id: UUID4) -> PromptTemplateOutput:
+        """Create default reranking template for user."""
+        return self.prompt_template_service.create_template(
+            PromptTemplateInput(
+                name="default-reranking-template",
+                user_id=user_id,
+                template_type=PromptTemplateType.RERANKING,
+                system_prompt=(
+                    "You are a document relevance scorer. Rate how relevant each document is "
+                    "to the given query on the specified scale. Only provide the numerical score."
+                ),
+                template_format=(
+                    "Rate the relevance of this document to the query on a scale of 0-{scale}:\n\n"
+                    "Query: {query}\n\n"
+                    "Document: {document}\n\n"
+                    "Relevance score:"
+                ),
+                input_variables={
+                    "query": "The search query",
+                    "document": "The document text to score",
+                    "scale": "Maximum score value (e.g., 10 for 0-10 scale)",
+                },
+                example_inputs={
+                    "query": "What is machine learning?",
+                    "document": "Machine learning is a subset of artificial intelligence...",
+                    "scale": "10",
+                },
+                is_default=True,
+                max_context_length=4000,  # Default context length for reranking
+                validation_schema={
+                    "model": "PromptVariables",
+                    "fields": {
+                        "query": {"type": "str", "min_length": 1},
+                        "document": {"type": "str", "min_length": 1},
+                        "scale": {"type": "str", "min_length": 1},
+                    },
+                    "required": ["query", "document", "scale"],
                 },
             )
         )
