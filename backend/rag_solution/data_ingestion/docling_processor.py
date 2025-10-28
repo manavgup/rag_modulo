@@ -5,6 +5,7 @@ for advanced document processing capabilities including AI-powered table extract
 layout analysis, and reading order detection.
 """
 
+# Standard library imports
 import logging
 import os
 import uuid
@@ -12,6 +13,12 @@ from collections.abc import AsyncIterator
 from datetime import datetime
 from typing import Any
 
+# Third-party imports
+from docling.document_converter import DocumentConverter
+from docling_core.transforms.chunker.hybrid_chunker import HybridChunker
+from transformers import AutoTokenizer, PreTrainedTokenizerBase
+
+# First-party imports
 from core.config import Settings
 from rag_solution.data_ingestion.base_processor import BaseProcessor
 from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, DocumentMetadata
@@ -24,7 +31,16 @@ class DoclingProcessor(BaseProcessor):
 
     Supports: PDF, DOCX, PPTX, HTML, images with AI-powered
     table extraction, layout analysis, and reading order detection.
+
+    Attributes:
+        converter: Docling document converter
+        chunker: HybridChunker for token-aware chunking
+        tokenizer: HuggingFace tokenizer for token counting
     """
+
+    converter: DocumentConverter | None = None
+    chunker: HybridChunker | None = None
+    tokenizer: PreTrainedTokenizerBase | None = None
 
     def __init__(self, settings: Settings) -> None:
         """Initialize Docling processor with hybrid chunking.
@@ -34,42 +50,51 @@ class DoclingProcessor(BaseProcessor):
         """
         super().__init__(settings)
 
-        # Import Docling here to avoid import errors when not installed
+        # Initialize Docling converter
         try:
-            from docling.chunking import HybridChunker
-            from docling.document_converter import DocumentConverter
-            from docling_core.transforms.chunker.tokenizer.huggingface import HuggingFaceTokenizer
-            from transformers import AutoTokenizer
-
             self.converter = DocumentConverter()
 
-            # Initialize tokenizer for accurate token counting
-            # Use a tokenizer compatible with embedding models
-            base_tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-
             # IBM Slate/Granite embeddings have 512 token limit
-            # Use 400 as max_tokens (78% of 512) to provide safety margin:
-            # - Accounts for tokenizer differences between BERT and embedding models
-            # - Prevents edge cases where token count varies slightly
-            # - Allows room for metadata/headers in embedding requests
-            # - Empirically validated: max observed chunk was 299 tokens
-            max_tokens = min(settings.max_chunk_size, 400)  # Safe limit with 78% safety margin
+            # Use configurable max_tokens (default 400 = 78% of 512) to provide safety margin:
+            # - Uses IBM Granite tokenizer (same model family as IBM Slate embeddings)
+            # - Ensures accurate token counting that matches embedding model
+            # - Allows room for metadata/headers in embedding requests (512 - 400 = 112)
+            # - Granite tokenizer supports up to 8192, but we limit to 512 for embedding quality
+            max_tokens = min(settings.max_chunk_size, settings.chunking_max_tokens)
 
-            # Wrap tokenizer with HuggingFaceTokenizer (new API)
-            self.tokenizer = HuggingFaceTokenizer(
-                tokenizer=base_tokenizer,
-                max_tokens=max_tokens,
-            )
+            # Initialize tokenizer for HybridChunker from settings
+            # This ensures token counts match what the embedding model will see
+            # Default: ibm-granite/granite-embedding-english-r2 (matches IBM Slate family)
+            try:
+                granite_tokenizer = AutoTokenizer.from_pretrained(settings.chunking_tokenizer_model)
+            except Exception as e:
+                logger.error(
+                    "Failed to load tokenizer '%s': %s. Check CHUNKING_TOKENIZER_MODEL setting and network connectivity.",
+                    settings.chunking_tokenizer_model,
+                    e,
+                )
+                raise ValueError(
+                    f"Cannot initialize DoclingProcessor: tokenizer '{settings.chunking_tokenizer_model}' not available. "
+                    f"Ensure the model exists on HuggingFace and you have network connectivity. "
+                    f"Error: {e}"
+                ) from e
 
-            # Configure hybrid chunker with token limits
+            # Configure hybrid chunker with IBM Granite tokenizer
+            # Using the actual embedding model's tokenizer eliminates token count mismatches
             self.chunker = HybridChunker(
-                tokenizer=self.tokenizer,
+                tokenizer=granite_tokenizer,  # Use IBM Granite tokenizer for accurate counts
+                max_tokens=max_tokens,  # Enforced with correct tokenization
                 merge_peers=True,  # Merge similar semantic chunks
             )
+            self.tokenizer = granite_tokenizer  # Store for statistics
 
-            logger.info("DoclingProcessor initialized with HybridChunker (max_tokens=%d)", max_tokens)
+            logger.info(
+                "DoclingProcessor initialized with HybridChunker (max_tokens=%d, tokenizer=%s)",
+                max_tokens,
+                settings.chunking_tokenizer_model,
+            )
         except ImportError as e:
-            logger.warning(f"Docling not installed: {e}. Install with: pip install docling")
+            logger.warning("Docling not installed: %s. Install with: pip install docling", e)
             # Create a mock converter for testing
             self.converter = None
             self.chunker = None
@@ -196,19 +221,22 @@ class DoclingProcessor(BaseProcessor):
         # Use Docling's hybrid chunker - it handles the entire document intelligently
         docling_chunks = list(self.chunker.chunk(dl_doc=docling_doc))
 
-        logger.info(f"Docling HybridChunker created {len(docling_chunks)} chunks")
+        logger.info("Docling HybridChunker created %d chunks", len(docling_chunks))
 
         for chunk_idx, docling_chunk in enumerate(docling_chunks):
             # Extract text from DoclingChunk
             chunk_text = docling_chunk.text
 
-            # Count actual tokens using the wrapped tokenizer with error handling
-            # HuggingFaceTokenizer has count_tokens() method
+            # Count tokens using IBM Granite tokenizer for accurate statistics
+            # This matches the token counting used during chunking
+            # Uses encode() with add_special_tokens=True to match what embedding model sees
             try:
-                token_count = self.tokenizer.count_tokens(chunk_text)
-            except Exception as e:
+                if self.tokenizer is None:
+                    raise AttributeError("Tokenizer not initialized")
+                token_count = len(self.tokenizer.encode(chunk_text, add_special_tokens=True))
+            except (Exception, AttributeError) as e:
                 # Fallback: estimate tokens using rough 4-char-per-token heuristic
-                logger.warning(f"Token counting failed for chunk {chunk_idx}: {e}. Using estimation.")
+                logger.warning("Token counting failed for chunk %d: %s. Using estimation.", chunk_idx, e)
                 token_count = len(chunk_text) // 4
             token_counts.append(token_count)
 
@@ -247,7 +275,10 @@ class DoclingProcessor(BaseProcessor):
             avg_tokens = sum(token_counts) / len(token_counts)
             max_tokens = max(token_counts)
             logger.info(
-                f"Chunking complete: {len(chunks)} chunks, avg {avg_tokens:.0f} tokens, max {max_tokens} tokens"
+                "Chunking complete: %d chunks, avg %.0f tokens, max %d tokens",
+                len(chunks),
+                avg_tokens,
+                max_tokens,
             )
 
         return chunks
@@ -349,7 +380,7 @@ class DoclingProcessor(BaseProcessor):
         logger.info("Created %d chunks from Docling document", len(chunks))
         return chunks
 
-    def _get_page_number(self, item: Any) -> int:
+    def _get_page_number(self, item: Any) -> int | None:
         """Extract page number from Docling item.
 
         Args:
@@ -360,7 +391,12 @@ class DoclingProcessor(BaseProcessor):
         """
         if hasattr(item, "prov") and item.prov and len(item.prov) > 0:
             # Try new API first (page_no), fallback to old API (page)
-            return getattr(item.prov[0], "page_no", getattr(item.prov[0], "page", None))
+            page_no = getattr(item.prov[0], "page_no", None)
+            if page_no is not None:
+                return int(page_no)
+            page = getattr(item.prov[0], "page", None)
+            if page is not None:
+                return int(page)
         return None
 
     def _table_to_text(self, table_data: dict) -> str:

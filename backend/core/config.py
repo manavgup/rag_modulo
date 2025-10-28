@@ -86,6 +86,18 @@ class Settings(BaseSettings):
     # IBM Docling Feature Flags
     enable_docling: Annotated[bool, Field(default=False, alias="ENABLE_DOCLING")]
     docling_fallback_enabled: Annotated[bool, Field(default=True, alias="DOCLING_FALLBACK_ENABLED")]
+    # When True, use Docling's HybridChunker (token-aware, uses HuggingFace tokenizer)
+    # When False, use RAG Modulo's chunking strategies (respects CHUNKING_STRATEGY setting)
+    use_docling_chunker: Annotated[bool, Field(default=False, alias="USE_DOCLING_CHUNKER")]
+    # Tokenizer model for HybridChunker token counting
+    # Should match embedding model family for accurate token counts (e.g., ibm-granite for IBM Slate)
+    chunking_tokenizer_model: Annotated[
+        str, Field(default="ibm-granite/granite-embedding-english-r2", alias="CHUNKING_TOKENIZER_MODEL")
+    ]
+    # Maximum tokens per chunk for HybridChunker
+    # Default 400 tokens provides safety margin (78% of IBM Slate's 512 token limit)
+    # Allows 112 tokens for metadata and special tokens
+    chunking_max_tokens: Annotated[int, Field(default=400, alias="CHUNKING_MAX_TOKENS")]
 
     # Chain of Thought (CoT) settings
     cot_max_reasoning_depth: Annotated[int, Field(default=3, alias="COT_MAX_REASONING_DEPTH")]
@@ -336,7 +348,9 @@ class Settings(BaseSettings):
     rbac_mapping: Annotated[
         dict[str, dict[str, list[str]]],
         Field(
-            default={
+            description="RBAC mapping configuration",
+            alias="RBAC_MAPPING",
+            default_factory=lambda: {
                 "admin": {
                     r"^/api/user-collections/(.+)$": ["GET"],
                     r"^/api/user-collections/(.+)/(.+)$": ["POST", "DELETE"],
@@ -381,7 +395,6 @@ class Settings(BaseSettings):
                     r"^/api/collection/(.+)$": ["GET", "POST", "DELETE", "PUT"],
                 },
             },
-            env="RBAC_MAPPING",
         ),
     ]
 
@@ -427,24 +440,21 @@ class Settings(BaseSettings):
         Returns:
             str: Absolute path to the file storage directory
         """
-        from pathlib import Path
-
         # Convert to Path object
-        path = Path(v)
-
+        storage_path = Path(v)
         # If path is relative, resolve it relative to project root
-        if not path.is_absolute():
+        if not storage_path.is_absolute():
             # Get the directory containing this config.py file (backend/core)
             config_dir = Path(__file__).parent
             # Go up to backend directory, then to project root
             project_root = config_dir.parent.parent
             # Resolve the path relative to project root
-            path = (project_root / path).resolve()
+            storage_path = (project_root / storage_path).resolve()
 
         # Create directory if it doesn't exist
-        path.mkdir(parents=True, exist_ok=True)
+        storage_path.mkdir(parents=True, exist_ok=True)
 
-        return str(path)
+        return str(storage_path)
 
     def validate_production_settings(self) -> bool:
         """Validate settings for production deployment."""
@@ -478,10 +488,12 @@ def get_settings() -> Settings:
     Returns:
         Settings: The cached settings instance
     """
-    return Settings()
+    # Pydantic BaseSettings automatically loads values from environment variables
+    # All fields have defaults, so no arguments are required
+    return Settings()  # type: ignore[call-arg]
 
 
 # DEPRECATED: Direct module-level settings access
 # This will be removed in a future version. Use get_settings() with FastAPI dependency injection instead.
 # For now, we call get_settings() directly for backward compatibility during migration.
-settings = get_settings()
+# settings = get_settings()
