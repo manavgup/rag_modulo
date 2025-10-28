@@ -35,17 +35,18 @@ WORKDIR /app
 ARG CACHE_BUST=20251028
 RUN echo "Cache bust: $CACHE_BUST"
 
-# Copy dependency files first for better layer caching
+# Copy dependency files and minimal backend structure for pip install
 COPY pyproject.toml poetry.lock ./
+COPY backend/ ./backend/
 
-# Install dependencies via Poetry
-# Use --extra-index-url for CPU-only PyTorch (saves ~6GB vs CUDA version)
+# Install dependencies directly with pip, bypassing poetry.lock
+# CRITICAL: poetry.lock has CUDA PyTorch (2.8.0) which pulls 6-8GB of NVIDIA libs
+# Solution: Use pip to install from pyproject.toml with CPU-only PyTorch index
 # This matches Docling's official Docker approach:
 # https://github.com/docling-project/docling/blob/main/Dockerfile
 RUN --mount=type=cache,target=/root/.cache/pip \
-    --mount=type=cache,target=/root/.cache/pypoetry \
-    PIP_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cpu \
-    poetry install --only main --no-root --no-cache
+    pip install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cpu \
+    -e .
 
 # Clean up system Python installation
 RUN find /usr/local -name "*.pyc" -delete && \
