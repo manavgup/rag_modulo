@@ -16,7 +16,7 @@ from typing import Any
 # Third-party imports
 from docling.document_converter import DocumentConverter
 from docling_core.transforms.chunker.hybrid_chunker import HybridChunker
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 # First-party imports
 from core.config import Settings
@@ -40,7 +40,7 @@ class DoclingProcessor(BaseProcessor):
 
     converter: DocumentConverter | None = None
     chunker: HybridChunker | None = None
-    tokenizer: Any | None = None
+    tokenizer: PreTrainedTokenizerBase | None = None
 
     def __init__(self, settings: Settings) -> None:
         """Initialize Docling processor with hybrid chunking.
@@ -55,17 +55,29 @@ class DoclingProcessor(BaseProcessor):
             self.converter = DocumentConverter()
 
             # IBM Slate/Granite embeddings have 512 token limit
-            # Use 400 as max_tokens (78% of 512) to provide safety margin:
+            # Use configurable max_tokens (default 400 = 78% of 512) to provide safety margin:
             # - Uses IBM Granite tokenizer (same model family as IBM Slate embeddings)
             # - Ensures accurate token counting that matches embedding model
             # - Allows room for metadata/headers in embedding requests (512 - 400 = 112)
             # - Granite tokenizer supports up to 8192, but we limit to 512 for embedding quality
-            max_tokens = min(settings.max_chunk_size, 400)  # Safe limit with exact tokenizer
+            max_tokens = min(settings.max_chunk_size, settings.chunking_max_tokens)
 
             # Initialize tokenizer for HybridChunker from settings
             # This ensures token counts match what the embedding model will see
             # Default: ibm-granite/granite-embedding-english-r2 (matches IBM Slate family)
-            granite_tokenizer = AutoTokenizer.from_pretrained(settings.chunking_tokenizer_model)
+            try:
+                granite_tokenizer = AutoTokenizer.from_pretrained(settings.chunking_tokenizer_model)
+            except Exception as e:
+                logger.error(
+                    "Failed to load tokenizer '%s': %s. Check CHUNKING_TOKENIZER_MODEL setting and network connectivity.",
+                    settings.chunking_tokenizer_model,
+                    e,
+                )
+                raise ValueError(
+                    f"Cannot initialize DoclingProcessor: tokenizer '{settings.chunking_tokenizer_model}' not available. "
+                    f"Ensure the model exists on HuggingFace and you have network connectivity. "
+                    f"Error: {e}"
+                ) from e
 
             # Configure hybrid chunker with IBM Granite tokenizer
             # Using the actual embedding model's tokenizer eliminates token count mismatches
@@ -217,10 +229,11 @@ class DoclingProcessor(BaseProcessor):
 
             # Count tokens using IBM Granite tokenizer for accurate statistics
             # This matches the token counting used during chunking
+            # Uses encode() with add_special_tokens=True to match what embedding model sees
             try:
                 if self.tokenizer is None:
                     raise AttributeError("Tokenizer not initialized")
-                token_count = len(self.tokenizer.tokenize(chunk_text))
+                token_count = len(self.tokenizer.encode(chunk_text, add_special_tokens=True))
             except (Exception, AttributeError) as e:
                 # Fallback: estimate tokens using rough 4-char-per-token heuristic
                 logger.warning("Token counting failed for chunk %d: %s. Using estimation.", chunk_idx, e)

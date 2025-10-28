@@ -510,6 +510,74 @@ make dev-restart
 make dev-validate
 ```
 
+#### HybridChunker and Tokenizer Issues
+
+**Problem**: "Failed to load tokenizer" error during startup
+
+**Cause**: Network connectivity issues, invalid tokenizer model name, or HuggingFace access problems
+
+**Solution**:
+```bash
+# 1. Verify tokenizer model exists on HuggingFace
+# Visit: https://huggingface.co/ibm-granite/granite-embedding-english-r2
+
+# 2. Check network connectivity
+curl -I https://huggingface.co
+
+# 3. Test tokenizer download manually
+python -c "from transformers import AutoTokenizer; AutoTokenizer.from_pretrained('ibm-granite/granite-embedding-english-r2')"
+
+# 4. If behind a proxy, set environment variables
+export HTTP_PROXY=http://proxy.example.com:8080
+export HTTPS_PROXY=http://proxy.example.com:8080
+
+# 5. Check CHUNKING_TOKENIZER_MODEL setting in .env
+grep CHUNKING_TOKENIZER_MODEL .env
+```
+
+**Problem**: "Token indices sequence length is longer than maximum" errors persist
+
+**Cause**: Chunks exceed embedding model's token limit despite HybridChunker configuration
+
+**Solution**:
+```bash
+# 1. Verify CHUNKING_MAX_TOKENS is set correctly (default: 400 for IBM Slate)
+grep CHUNKING_MAX_TOKENS .env
+
+# 2. Reduce max_tokens if needed (must be < 512 for IBM Slate)
+# Edit .env:
+CHUNKING_MAX_TOKENS=350  # More conservative limit
+
+# 3. Ensure USE_DOCLING_CHUNKER=true
+grep USE_DOCLING_CHUNKER .env
+
+# 4. Check logs for token count statistics
+grep "Chunking complete" logs/rag_modulo.log
+
+# 5. Verify tokenizer matches embedding model family
+# IBM Slate embeddings → ibm-granite tokenizer
+# Sentence Transformers → sentence-transformers tokenizer
+```
+
+**Problem**: "HybridChunker not initialized" warning in logs
+
+**Cause**: `USE_DOCLING_CHUNKER=false` or Docling not installed
+
+**Solution**:
+```bash
+# 1. Enable HybridChunker in .env
+USE_DOCLING_CHUNKER=true
+
+# 2. Verify Docling is installed
+poetry show | grep docling
+
+# 3. If not installed, add Docling
+poetry add docling
+
+# 4. Restart application
+make local-dev-restart
+```
+
 ## Best Practices
 
 ### Security
