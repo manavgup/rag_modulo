@@ -207,18 +207,23 @@ class WatsonXLLM(LLMBase):
 
             # Handle batch generation with concurrency_limit
             if isinstance(prompt, list):
-                formatted_prompts = []
-                for text in prompt:
-                    # For each text, create a new variables dict with the text as context
-                    prompt_variables = {"context": text}
-                    if variables:
-                        prompt_variables.update(variables)
+                # Check if prompts are already formatted strings or need template formatting
+                if template is None:
+                    # Prompts are already formatted - use them directly
+                    formatted_prompts = prompt
+                    logger.debug("Using pre-formatted prompts for batch generation")
+                else:
+                    # Prompts need template formatting
+                    formatted_prompts = []
+                    for text in prompt:
+                        # For each text, create a new variables dict with the text as context
+                        prompt_variables = {"context": text}
+                        if variables:
+                            prompt_variables.update(variables)
 
-                    if template is None:
-                        raise ValueError("Template is required for batch generation")
-                    formatted = self.prompt_template_service.format_prompt_with_template(template, prompt_variables)
-                    formatted_prompts.append(formatted)
-                    logger.debug("Formatted prompt: %s...", formatted[:200])  # Log first 200 chars
+                        formatted = self.prompt_template_service.format_prompt_with_template(template, prompt_variables)
+                        formatted_prompts.append(formatted)
+                        logger.debug("Formatted prompt: %s...", formatted[:200])  # Log first 200 chars
 
                 response = model.generate_text(
                     prompt=formatted_prompts,
