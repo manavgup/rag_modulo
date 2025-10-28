@@ -35,9 +35,8 @@ WORKDIR /app
 ARG CACHE_BUST=20251028
 RUN echo "Cache bust: $CACHE_BUST"
 
-# Copy dependency files and minimal backend structure for pip install
+# Copy dependency files first for better layer caching
 COPY pyproject.toml poetry.lock ./
-COPY backend/ ./backend/
 
 # Install dependencies directly with pip, bypassing poetry.lock
 # CRITICAL: poetry.lock has CUDA PyTorch (2.8.0) which pulls 6-8GB of NVIDIA libs
@@ -45,8 +44,10 @@ COPY backend/ ./backend/
 # This matches Docling's official Docker approach:
 # https://github.com/docling-project/docling/blob/main/Dockerfile
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cpu \
-    -e .
+    python -c "import tomllib; f=open('pyproject.toml','rb'); data=tomllib.load(f); \
+    deps = data['project']['dependencies']; \
+    [print(dep) for dep in deps]" | \
+    xargs pip install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cpu
 
 # Clean up system Python installation
 RUN find /usr/local -name "*.pyc" -delete && \
