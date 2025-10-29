@@ -256,8 +256,8 @@ class TestLLMReranker:
         sample_results: list[QueryResult],
     ) -> None:
         """Test that reranker falls back to original scores on LLM error."""
-        # Mock LLM to raise an exception
-        mock_llm_provider.generate_text.side_effect = Exception("LLM API error")
+        # Mock LLM to raise a ValueError (simulates LLM response parsing failure)
+        mock_llm_provider.generate_text.side_effect = ValueError("LLM API error")
 
         reranker = LLMReranker(mock_llm_provider, user_id, mock_prompt_template)
         reranked = reranker.rerank("machine learning", sample_results)

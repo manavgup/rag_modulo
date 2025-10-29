@@ -280,7 +280,7 @@ class TestAsyncRerankingErrorHandling:
             nonlocal call_count
             call_count += 1
             if call_count == 2:  # Fail on second batch
-                raise Exception("Simulated provider failure")
+                raise ValueError("Simulated LLM response parsing failure")
             if isinstance(prompt, list):
                 return [f"Score: 8.{i}" for i in range(len(prompt))]
             return "Score: 8.0"

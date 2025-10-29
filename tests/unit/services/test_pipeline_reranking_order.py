@@ -18,7 +18,7 @@ Current (Buggy) Flow:
 """
 
 from datetime import UTC, datetime
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import pytest
@@ -155,7 +155,7 @@ class TestRerankingOrder:
         """
         # Arrange: Mock reranker that returns top 5
         mock_reranker = Mock()
-        mock_reranker.rerank = Mock(side_effect=lambda query, results, top_k: results[:5])  # noqa: ARG005
+        mock_reranker.rerank_async = AsyncMock(side_effect=lambda query, results, top_k: results[:5])  # noqa: ARG005
 
         with (
             patch("rag_solution.services.pipeline_service.VectorStoreFactory.get_datastore") as mock_factory,
@@ -192,7 +192,7 @@ class TestRerankingOrder:
             )
 
             # Assert: Reranker was called
-            mock_reranker.rerank.assert_called_once()
+            mock_reranker.rerank_async.assert_called_once()
 
             # Assert: _format_context received 5 reranked results, not 20 raw results
             mock_format_context.assert_called_once()
@@ -223,7 +223,7 @@ class TestRerankingOrder:
             # Return only top 3 documents (don't modify chunk IDs - just return subset)
             return results[:3]
 
-        mock_reranker.rerank = Mock(side_effect=rerank_to_top_3)
+        mock_reranker.rerank_async = AsyncMock(side_effect=rerank_to_top_3)
 
         with (
             patch("rag_solution.services.pipeline_service.VectorStoreFactory.get_datastore") as mock_factory,
@@ -259,7 +259,7 @@ class TestRerankingOrder:
             )
 
             # Assert: Reranker was called
-            mock_reranker.rerank.assert_called_once()
+            mock_reranker.rerank_async.assert_called_once()
 
             # Assert: _format_context received exactly 3 reranked results
             mock_format_context.assert_called_once()
@@ -289,7 +289,7 @@ class TestRerankingOrder:
             reranker_top_k_used = top_k
             return results[: (top_k if top_k else len(results))]
 
-        mock_reranker.rerank = Mock(side_effect=track_top_k)
+        mock_reranker.rerank_async = AsyncMock(side_effect=track_top_k)
 
         with (
             patch("rag_solution.services.pipeline_service.VectorStoreFactory.get_datastore") as mock_factory,
@@ -341,7 +341,7 @@ class TestRerankingOrder:
         """
         # Arrange
         mock_reranker = Mock()
-        mock_reranker.rerank = Mock(return_value=[])
+        mock_reranker.rerank_async = AsyncMock(return_value=[])
 
         with (
             patch("rag_solution.services.pipeline_service.VectorStoreFactory.get_datastore") as mock_factory,
@@ -381,7 +381,7 @@ class TestRerankingOrder:
             mock_get_reranker.assert_not_called()
 
             # Assert: Reranker.rerank was NOT called
-            mock_reranker.rerank.assert_not_called()
+            mock_reranker.rerank_async.assert_not_called()
 
             # Assert: _format_context received all 20 raw results (no reranking)
             mock_format_context.assert_called_once()

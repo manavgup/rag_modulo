@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
+import time
 from abc import ABC, abstractmethod
 
 from pydantic import UUID4
@@ -155,7 +157,7 @@ class LLMReranker(BaseReranker):
 
                 # Extract scores from responses
                 if isinstance(responses, list) and len(responses) == len(batch):
-                    for result, response in zip(batch, responses, strict=False):
+                    for result, response in zip(batch, responses, strict=True):
                         score = self._extract_score(response)
                         scored_results.append((result, score))
                 else:
@@ -166,8 +168,8 @@ class LLMReranker(BaseReranker):
                     )
                     raise ValueError("Unexpected LLM response format.")
 
-            except Exception as e:  # pylint: disable=broad-exception-caught
-                # Justification: Fallback to original scores to ensure search continues
+            except (ValueError, KeyError, AttributeError, TypeError) as e:
+                # Catch specific exceptions from LLM provider, JSON parsing, and attribute access
                 # Fallback: use original scores for this batch, preserving relative order
                 logger.error(
                     "Error scoring batch %d: %s. Using original scores as fallback.", i // self.batch_size + 1, e
@@ -272,7 +274,7 @@ class LLMReranker(BaseReranker):
             # Extract scores from responses
             scored_batch = []
             if isinstance(responses, list) and len(responses) == len(batch):
-                for result, response in zip(batch, responses, strict=False):
+                for result, response in zip(batch, responses, strict=True):
                     score = self._extract_score(response)
                     scored_batch.append((result, score))
             else:
@@ -281,8 +283,8 @@ class LLMReranker(BaseReranker):
 
             return scored_batch
 
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            # Justification: Fallback to original scores to ensure search continues
+        except (TimeoutError, ValueError, KeyError, AttributeError, TypeError) as e:
+            # Catch specific exceptions from LLM provider, JSON parsing, and async operations
             logger.error("Error scoring batch: %s. Using original scores as fallback.", e)
             fallback_batch = []
             for result in batch:
@@ -322,9 +324,6 @@ class LLMReranker(BaseReranker):
         )
 
         # Process all batches concurrently
-        import asyncio
-        import time
-
         start_time = time.time()
         batch_results = await asyncio.gather(*[self._score_batch_async(query, batch) for batch in batches])
         elapsed_time = time.time() - start_time
