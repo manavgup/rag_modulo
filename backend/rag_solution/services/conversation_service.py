@@ -956,9 +956,13 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
 
         This method delegates to EntityExtractionService which provides:
         - Fast spaCy NER extraction (5ms, 75% accuracy)
-        - Optional LLM-based refinement (for complex contexts)
+        - Hybrid mode: spaCy + LLM-based refinement for better quality
         - Comprehensive stop word filtering
         - Entity validation and deduplication
+
+        Note: Using 'hybrid' mode (instead of 'fast') for better quality filtering
+        of noise and discourse markers from conversation context. The slight
+        performance tradeoff (~50-100ms) is worthwhile for cleaner entity extraction.
 
         Args:
             context: Conversation context to extract entities from
@@ -974,7 +978,7 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
             entities = loop.run_until_complete(
                 self.entity_extraction_service.extract_entities(
                     context=context,
-                    method="fast",  # Use "hybrid" for better quality (slightly slower)
+                    method="hybrid",  # Changed from "fast" to "hybrid" for better quality
                     use_cache=True,
                     max_entities=10,
                 )
