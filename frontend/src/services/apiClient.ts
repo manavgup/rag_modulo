@@ -334,7 +334,7 @@ class ApiClient {
   constructor() {
     this.client = axios.create({
       baseURL: API_BASE_URL,
-      timeout: 30000,
+      timeout: 120000, // 120 seconds (2 minutes) - supports long-running RAG queries
       headers: {
         'Content-Type': 'application/json',
       },
