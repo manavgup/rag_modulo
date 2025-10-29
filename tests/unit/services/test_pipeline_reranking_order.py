@@ -388,3 +388,62 @@ class TestRerankingOrder:
             call_args = mock_format_context.call_args
             results_passed = call_args[0][1]
             assert len(results_passed) == 20, "Should have all 20 raw results when reranking disabled"
+
+    async def test_simple_reranker_async_integration(
+        self, mock_db, mock_settings, mock_vector_store, mock_rag_template, search_input
+    ):
+        """
+        Test: Verify SimpleReranker works with async pipeline integration.
+
+        This test ensures SimpleReranker has rerank_async() method and works
+        correctly when used by PipelineService._apply_reranking().
+        """
+        from rag_solution.retrieval.reranker import SimpleReranker
+
+        # Arrange: Use real SimpleReranker instead of mock
+        simple_reranker = SimpleReranker()
+
+        with (
+            patch("rag_solution.services.pipeline_service.VectorStoreFactory.get_datastore") as mock_factory,
+            patch.object(PipelineService, "_validate_configuration") as mock_validate,
+            patch.object(PipelineService, "_get_templates") as mock_get_templates,
+            patch.object(PipelineService, "_prepare_query") as mock_prepare,
+            patch.object(PipelineService, "_retrieve_documents") as mock_retrieve,
+            patch.object(PipelineService, "_format_context") as mock_format_context,
+            patch.object(PipelineService, "_generate_answer") as mock_generate,
+        ):
+            # Setup mocks
+            mock_factory.return_value = mock_vector_store
+            mock_validate.return_value = (Mock(), Mock(), Mock())
+            mock_get_templates.return_value = (mock_rag_template, None)
+            mock_prepare.return_value = "cleaned query"
+            mock_retrieve.return_value = mock_vector_store.search.return_value
+            mock_format_context.return_value = "formatted context"
+            mock_generate.return_value = "Generated answer"
+
+            # Create service
+            mock_settings.reranker_top_k = 5
+            mock_settings.reranker_type = "simple"
+            service = PipelineService(mock_db, mock_settings)
+            service.query_rewriter = Mock()
+            service.query_rewriter.rewrite = Mock(return_value="rewritten query")
+
+            # Patch to return SimpleReranker
+            service.get_reranker = Mock(return_value=simple_reranker)
+
+            # Act: Should not raise AttributeError
+            result = await service.execute_pipeline(
+                search_input=search_input,
+                collection_name="test_collection",
+                pipeline_id=uuid4(),
+            )
+
+            # Assert: SimpleReranker's rerank_async was successfully called
+            # _format_context should receive top 5 results
+            mock_format_context.assert_called_once()
+            call_args = mock_format_context.call_args
+            results_passed = call_args[0][1]
+            assert len(results_passed) == 5, "SimpleReranker should return top 5 results"
+
+            # Assert: Results returned correctly
+            assert len(result.query_results) == 5

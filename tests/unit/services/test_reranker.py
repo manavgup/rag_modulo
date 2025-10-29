@@ -122,6 +122,54 @@ class TestSimpleReranker:
         assert len(reranked) == 2
         assert reranked[0].chunk.chunk_id == "2"  # score 0.5 comes first
 
+    async def test_rerank_async_sorts_by_score(self, sample_results: list[QueryResult]) -> None:
+        """Test that SimpleReranker async method sorts results by existing scores."""
+        reranker = SimpleReranker()
+        reranked = await reranker.rerank_async("machine learning", sample_results)
+
+        # Should be sorted in descending order: 0.9, 0.8, 0.7
+        assert len(reranked) == 3
+        assert reranked[0].chunk.chunk_id == "1"  # score 0.9
+        assert reranked[1].chunk.chunk_id == "3"  # score 0.8
+        assert reranked[2].chunk.chunk_id == "2"  # score 0.7
+
+    async def test_rerank_async_with_top_k(self, sample_results: list[QueryResult]) -> None:
+        """Test that SimpleReranker async method respects top_k parameter."""
+        reranker = SimpleReranker()
+        reranked = await reranker.rerank_async("machine learning", sample_results, top_k=2)
+
+        assert len(reranked) == 2
+        assert reranked[0].chunk.chunk_id == "1"  # score 0.9
+        assert reranked[1].chunk.chunk_id == "3"  # score 0.8
+
+    async def test_rerank_async_empty_results(self) -> None:
+        """Test that SimpleReranker async method handles empty results list."""
+        reranker = SimpleReranker()
+        reranked = await reranker.rerank_async("test query", [])
+
+        assert len(reranked) == 0
+
+    async def test_rerank_async_handles_none_scores(self) -> None:
+        """Test that SimpleReranker async method handles None scores gracefully."""
+        results = [
+            QueryResult(
+                chunk=DocumentChunkWithScore(chunk_id="1", text="test", embeddings=[], score=0.0),
+                score=None,
+                embeddings=[],
+            ),
+            QueryResult(
+                chunk=DocumentChunkWithScore(chunk_id="2", text="test2", embeddings=[], score=0.5),
+                score=0.5,
+                embeddings=[],
+            ),
+        ]
+        reranker = SimpleReranker()
+        reranked = await reranker.rerank_async("test", results)
+
+        # Should not crash, None should be treated as 0.0
+        assert len(reranked) == 2
+        assert reranked[0].chunk.chunk_id == "2"  # score 0.5 comes first
+
 
 class TestLLMReranker:
     """Tests for LLMReranker class."""

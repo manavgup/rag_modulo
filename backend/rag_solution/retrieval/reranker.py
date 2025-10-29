@@ -32,6 +32,17 @@ class BaseReranker(ABC):
         Rerank search results based on query relevance.
         """
 
+    @abstractmethod
+    async def rerank_async(
+        self,
+        query: str,
+        results: list[QueryResult],
+        top_k: int | None = None,
+    ) -> list[QueryResult]:
+        """
+        Async version of rerank for concurrent batch processing.
+        """
+
 
 # -----------------------------------------------------------
 # The LLM Reranker with Bug Fixes and Improved Scoring Logic
@@ -200,7 +211,7 @@ class LLMReranker(BaseReranker):
         logger.info("=" * 80)
 
         # Log original results with their vector similarity scores
-        logger.info("\n📊 BEFORE RERANKING (Vector Similarity Scores):")
+        logger.info("\n[BEFORE RERANKING] Vector Similarity Scores:")
         for i, result in enumerate(results, 1):
             original_score = result.score if result.score is not None else 0.0
             chunk_text = result.chunk.text[:200] if result.chunk and result.chunk.text else "N/A"
@@ -228,7 +239,7 @@ class LLMReranker(BaseReranker):
             reranked_results.append(new_result)
 
         # Log reranked results with LLM scores
-        logger.info("\n📊 AFTER RERANKING (LLM Relevance Scores):")
+        logger.info("\n[AFTER RERANKING] LLM Relevance Scores:")
         for i, (result, llm_score) in enumerate(sorted_results, 1):
             chunk_text = result.chunk.text[:200] if result.chunk and result.chunk.text else "N/A"
             original_score = result.score if result.score is not None else 0.0
@@ -243,7 +254,7 @@ class LLMReranker(BaseReranker):
         # Return top_k if specified
         if top_k is not None:
             reranked_results = reranked_results[:top_k]
-            logger.info("\n✂️  Returning top %d results", top_k)
+            logger.info("\n[TOP-K FILTERING] Returning top %d results", top_k)
 
         logger.info("=" * 80)
         logger.info("RERANKING: Complete. Returned %d results", len(reranked_results))
@@ -326,7 +337,7 @@ class LLMReranker(BaseReranker):
         # Process all batches concurrently
         start_time = time.time()
         batch_results = await asyncio.gather(*[self._score_batch_async(query, batch) for batch in batches])
-        elapsed_time = time.time() - start_time
+        elapsed_time: float = time.time() - start_time
 
         logger.info(
             "Concurrent batch processing completed in %.2fs (average %.2fs per batch)",
@@ -372,7 +383,7 @@ class LLMReranker(BaseReranker):
         logger.info("=" * 80)
 
         # Log original results with their vector similarity scores
-        logger.info("\n📊 BEFORE RERANKING (Vector Similarity Scores):")
+        logger.info("\n[BEFORE RERANKING] Vector Similarity Scores:")
         for i, result in enumerate(results, 1):
             original_score = result.score if result.score is not None else 0.0
             chunk_text = result.chunk.text[:200] if result.chunk and result.chunk.text else "N/A"
@@ -400,7 +411,7 @@ class LLMReranker(BaseReranker):
             reranked_results.append(new_result)
 
         # Log reranked results with LLM scores
-        logger.info("\n📊 AFTER RERANKING (LLM Relevance Scores):")
+        logger.info("\n[AFTER RERANKING] LLM Relevance Scores:")
         for i, (result, llm_score) in enumerate(sorted_results, 1):
             chunk_text = result.chunk.text[:200] if result.chunk and result.chunk.text else "N/A"
             original_score = result.score if result.score is not None else 0.0
@@ -415,7 +426,7 @@ class LLMReranker(BaseReranker):
         # Return top_k if specified
         if top_k is not None:
             reranked_results = reranked_results[:top_k]
-            logger.info("\n✂️  Returning top %d results", top_k)
+            logger.info("\n[TOP-K FILTERING] Returning top %d results", top_k)
 
         logger.info("=" * 80)
         logger.info("RERANKING: Complete. Returned %d results", len(reranked_results))
@@ -439,3 +450,14 @@ class SimpleReranker(BaseReranker):
         if top_k is not None:
             return sorted_results[:top_k]
         return sorted_results
+
+    async def rerank_async(
+        self,
+        query: str,
+        results: list[QueryResult],
+        top_k: int | None = None,
+    ) -> list[QueryResult]:
+        """
+        Async version of rerank - SimpleReranker doesn't need concurrency, just wraps sync method.
+        """
+        return self.rerank(query, results, top_k)
