@@ -252,41 +252,41 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         Returns:
             The response from the next handler or an authentication error response.
         """
-        logger.info("AuthMiddleware: Processing request to %s", request.url.path)
-        logger.debug("AuthMiddleware: Request headers: %s", request.headers)
+        try:
+            logger.info("AuthMiddleware: Processing request to %s", request.url.path)
+            logger.debug("AuthMiddleware: Request headers: %s", request.headers)
 
-        # Skip authentication entirely in test/development mode
-        skip_auth = os.getenv("SKIP_AUTH", "false").lower() == "true"
-        development_mode = os.getenv("DEVELOPMENT_MODE", "false").lower() == "true"
-        testing_mode = os.getenv("TESTING", "false").lower() == "true"
-        if skip_auth or development_mode or testing_mode:  # noqa: SIM102
-            if self._handle_bypass_mode(request):
+            # Skip authentication entirely in test/development mode
+            skip_auth = os.getenv("SKIP_AUTH", "false").lower() == "true"
+            development_mode = os.getenv("DEVELOPMENT_MODE", "false").lower() == "true"
+            testing_mode = os.getenv("TESTING", "false").lower() == "true"
+            if skip_auth or development_mode or testing_mode:  # noqa: SIM102
+                if self._handle_bypass_mode(request):
+                    return await call_next(request)
+
+            # Skip authentication for open paths and static files
+            if self._is_open_path(request):
                 return await call_next(request)
 
-        # Skip authentication for open paths and static files
-        if self._is_open_path(request):
-            return await call_next(request)
+            # Check for JWT in Authorization header
+            auth_header = request.headers.get("Authorization")
+            if auth_header and auth_header.startswith("Bearer "):
+                logger.info("AuthMiddleware: JWT token found in Authorization header")
+                token = auth_header.split(" ")[1]
 
-        # Check for JWT in Authorization header
-        auth_header = request.headers.get("Authorization")
-        if auth_header and auth_header.startswith("Bearer "):
-            logger.info("AuthMiddleware: JWT token found in Authorization header")
-            token = auth_header.split(" ")[1]
+                if not self._handle_jwt_token(request, token):
+                    return JSONResponse(status_code=401, content={"detail": "Invalid authentication credentials"})
+            else:
+                logger.info("AuthMiddleware: No JWT token found")
 
-            if not self._handle_jwt_token(request, token):
-                return JSONResponse(status_code=401, content={"detail": "Invalid authentication credentials"})
-        else:
-            logger.info("AuthMiddleware: No JWT token found")
+            # Require authentication for all other paths
+            if not hasattr(request.state, "user"):
+                logger.warning("AuthMiddleware: User not authenticated for protected endpoint: %s", request.url.path)
+                return JSONResponse(status_code=401, content={"detail": "Authentication required"})
 
-        # Require authentication for all other paths
-        if not hasattr(request.state, "user"):
-            logger.warning("AuthMiddleware: User not authenticated for protected endpoint: %s", request.url.path)
-            return JSONResponse(status_code=401, content={"detail": "Authentication required"})
+            logger.info("AuthMiddleware: Passing request to next middleware/handler")
+            logger.info("AuthMiddleware: About to call next handler for %s", request.url.path)
 
-        logger.info("AuthMiddleware: Passing request to next middleware/handler")
-        logger.info("AuthMiddleware: About to call next handler for %s", request.url.path)
-
-        try:
             response = await call_next(request)
             logger.info("AuthMiddleware: Response status code: %s", response.status_code)
             return response
@@ -295,6 +295,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             raise
         finally:
             # Always clear request context to prevent memory leaks
+            # This runs regardless of early returns or exceptions
             RequestContext.clear()
             logger.debug("AuthMiddleware: Cleared request context after request completion")
 
