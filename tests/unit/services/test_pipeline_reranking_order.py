@@ -18,18 +18,17 @@ Current (Buggy) Flow:
 """
 
 from datetime import UTC, datetime
-from typing import Callable
-from unittest.mock import ANY, Mock, call, patch
+from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import pytest
+from sqlalchemy.orm import Session
+
 from core.config import Settings
 from rag_solution.schemas.prompt_template_schema import PromptTemplateOutput, PromptTemplateType
 from rag_solution.schemas.search_schema import SearchInput
 from rag_solution.services.pipeline_service import PipelineService
-from sqlalchemy.orm import Session
 from vectordbs.data_types import DocumentChunk, DocumentChunkMetadata, QueryResult, Source
-
 
 # ============================================================================
 # FIXTURES
@@ -156,7 +155,7 @@ class TestRerankingOrder:
         """
         # Arrange: Mock reranker that returns top 5
         mock_reranker = Mock()
-        mock_reranker.rerank = Mock(side_effect=lambda query, results, top_k: results[:5])
+        mock_reranker.rerank = Mock(side_effect=lambda query, results, top_k: results[:5])  # noqa: ARG005
 
         with (
             patch("rag_solution.services.pipeline_service.VectorStoreFactory.get_datastore") as mock_factory,
@@ -166,7 +165,6 @@ class TestRerankingOrder:
             patch.object(PipelineService, "_retrieve_documents") as mock_retrieve,
             patch.object(PipelineService, "_format_context") as mock_format_context,
             patch.object(PipelineService, "_generate_answer") as mock_generate,
-            patch.object(PipelineService, "get_reranker") as mock_get_reranker,
         ):
             # Setup mocks
             mock_factory.return_value = mock_vector_store
@@ -177,12 +175,14 @@ class TestRerankingOrder:
             mock_retrieve.return_value = mock_vector_store.search.return_value
             mock_format_context.return_value = "formatted context"
             mock_generate.return_value = "Generated answer"
-            mock_get_reranker.return_value = mock_reranker
 
             # Create service
             service = PipelineService(mock_db, mock_settings)
             service.query_rewriter = Mock()
             service.query_rewriter.rewrite = Mock(return_value="rewritten query")
+
+            # Patch instance method AFTER service creation
+            service.get_reranker = Mock(return_value=mock_reranker)
 
             # Act
             result = await service.execute_pipeline(
@@ -206,29 +206,31 @@ class TestRerankingOrder:
             # Assert: Result contains reranked query results (5, not 20)
             assert len(result.query_results) == 5, "Should have 5 reranked results, not 20"
 
-    def test_llm_receives_reranked_documents(
+    async def test_llm_receives_reranked_documents(
         self, mock_db, mock_settings, mock_vector_store, mock_rag_template, search_input
     ):
         """
         TDD Test: Verify LLM generation receives context from reranked docs, not raw retrieval.
 
-        Expected: _format_context should receive 5 reranked docs, not 20 raw docs.
+        Expected: _format_context should receive 3 reranked docs, not 20 raw docs.
 
         This test FAILS initially because _format_context gets all 20 retrieved docs.
         """
         # Arrange: Mock reranker that returns top 3 with distinct IDs
-        def mock_reranker_callback(query: str, results: list[QueryResult]) -> list[QueryResult]:
-            # Return only top 3 documents with clear IDs
-            top_3 = results[:3]
-            for i, result in enumerate(top_3):
-                result.chunk.id = f"reranked_chunk_{i}"
-            return top_3
+        mock_reranker = Mock()
+
+        def rerank_to_top_3(query: str, results: list[QueryResult], top_k: int | None = None) -> list[QueryResult]:
+            # Return only top 3 documents (don't modify chunk IDs - just return subset)
+            return results[:3]
+
+        mock_reranker.rerank = Mock(side_effect=rerank_to_top_3)
 
         with (
             patch("rag_solution.services.pipeline_service.VectorStoreFactory.get_datastore") as mock_factory,
             patch.object(PipelineService, "_validate_configuration") as mock_validate,
             patch.object(PipelineService, "_get_templates") as mock_get_templates,
             patch.object(PipelineService, "_prepare_query") as mock_prepare,
+            patch.object(PipelineService, "_retrieve_documents") as mock_retrieve,
             patch.object(PipelineService, "_format_context") as mock_format_context,
             patch.object(PipelineService, "_generate_answer") as mock_generate,
         ):
@@ -237,6 +239,7 @@ class TestRerankingOrder:
             mock_validate.return_value = (Mock(), Mock(), Mock())
             mock_get_templates.return_value = (mock_rag_template, None)
             mock_prepare.return_value = "cleaned query"
+            mock_retrieve.return_value = mock_vector_store.search.return_value
             mock_format_context.return_value = "formatted context"
             mock_generate.return_value = "Generated answer"
 
@@ -245,13 +248,18 @@ class TestRerankingOrder:
             service.query_rewriter = Mock()
             service.query_rewriter.rewrite = Mock(return_value="rewritten query")
 
+            # Patch instance method AFTER service creation
+            service.get_reranker = Mock(return_value=mock_reranker)
+
             # Act
-            service.execute_pipeline(
+            await service.execute_pipeline(
                 search_input=search_input,
                 collection_name="test_collection",
                 pipeline_id=uuid4(),
-                reranker_callback=mock_reranker_callback,
             )
+
+            # Assert: Reranker was called
+            mock_reranker.rerank.assert_called_once()
 
             # Assert: _format_context received exactly 3 reranked results
             mock_format_context.assert_called_once()
@@ -261,11 +269,8 @@ class TestRerankingOrder:
             assert len(results_passed_to_format) == 3, (
                 f"_format_context should receive 3 reranked docs, got {len(results_passed_to_format)}"
             )
-            assert all(
-                result.chunk.id.startswith("reranked_chunk_") for result in results_passed_to_format
-            ), "All documents should be from reranked set"
 
-    def test_reranking_respects_top_k_config(
+    async def test_reranking_respects_top_k_config(
         self, mock_db, mock_settings, mock_vector_store, mock_rag_template, search_input
     ):
         """
@@ -277,17 +282,21 @@ class TestRerankingOrder:
         """
         # Arrange
         reranker_top_k_used = None
+        mock_reranker = Mock()
 
-        def mock_reranker_callback(query: str, results: list[QueryResult], top_k: int | None = None) -> list[QueryResult]:
+        def track_top_k(query: str, results: list[QueryResult], top_k: int | None = None) -> list[QueryResult]:
             nonlocal reranker_top_k_used
             reranker_top_k_used = top_k
             return results[: (top_k if top_k else len(results))]
+
+        mock_reranker.rerank = Mock(side_effect=track_top_k)
 
         with (
             patch("rag_solution.services.pipeline_service.VectorStoreFactory.get_datastore") as mock_factory,
             patch.object(PipelineService, "_validate_configuration") as mock_validate,
             patch.object(PipelineService, "_get_templates") as mock_get_templates,
             patch.object(PipelineService, "_prepare_query") as mock_prepare,
+            patch.object(PipelineService, "_retrieve_documents") as mock_retrieve,
             patch.object(PipelineService, "_format_context") as mock_format_context,
             patch.object(PipelineService, "_generate_answer") as mock_generate,
         ):
@@ -296,6 +305,7 @@ class TestRerankingOrder:
             mock_validate.return_value = (Mock(), Mock(), Mock())
             mock_get_templates.return_value = (mock_rag_template, None)
             mock_prepare.return_value = "cleaned query"
+            mock_retrieve.return_value = mock_vector_store.search.return_value
             mock_format_context.return_value = "formatted context"
             mock_generate.return_value = "Generated answer"
 
@@ -305,41 +315,40 @@ class TestRerankingOrder:
             service.query_rewriter = Mock()
             service.query_rewriter.rewrite = Mock(return_value="rewritten query")
 
+            # Patch instance method AFTER service creation
+            service.get_reranker = Mock(return_value=mock_reranker)
+
             # Act
-            service.execute_pipeline(
+            await service.execute_pipeline(
                 search_input=search_input,
                 collection_name="test_collection",
                 pipeline_id=uuid4(),
-                reranker_callback=mock_reranker_callback,
             )
 
             # Assert: Reranker was called with top_k=5
             assert reranker_top_k_used == 5, f"Reranker should use top_k=5, got {reranker_top_k_used}"
 
 
-    def test_reranking_skipped_when_disabled(
+    async def test_reranking_skipped_when_disabled(
         self, mock_db, mock_settings_reranking_disabled, mock_vector_store, mock_rag_template, search_input
     ):
         """
         TDD Test: Verify reranking is skipped when enable_reranking=False.
 
-        Expected: If settings.enable_reranking = False, reranker callback should not be called.
+        Expected: If settings.enable_reranking = False, reranker should not be called.
 
         This test should PASS even before the fix (validates skip logic).
         """
         # Arrange
-        reranker_called = False
-
-        def mock_reranker_callback(query: str, results: list[QueryResult]) -> list[QueryResult]:
-            nonlocal reranker_called
-            reranker_called = True
-            return results[:5]
+        mock_reranker = Mock()
+        mock_reranker.rerank = Mock(return_value=[])
 
         with (
             patch("rag_solution.services.pipeline_service.VectorStoreFactory.get_datastore") as mock_factory,
             patch.object(PipelineService, "_validate_configuration") as mock_validate,
             patch.object(PipelineService, "_get_templates") as mock_get_templates,
             patch.object(PipelineService, "_prepare_query") as mock_prepare,
+            patch.object(PipelineService, "_retrieve_documents") as mock_retrieve,
             patch.object(PipelineService, "_format_context") as mock_format_context,
             patch.object(PipelineService, "_generate_answer") as mock_generate,
         ):
@@ -348,6 +357,7 @@ class TestRerankingOrder:
             mock_validate.return_value = (Mock(), Mock(), Mock())
             mock_get_templates.return_value = (mock_rag_template, None)
             mock_prepare.return_value = "cleaned query"
+            mock_retrieve.return_value = mock_vector_store.search.return_value
             mock_format_context.return_value = "formatted context"
             mock_generate.return_value = "Generated answer"
 
@@ -356,16 +366,22 @@ class TestRerankingOrder:
             service.query_rewriter = Mock()
             service.query_rewriter.rewrite = Mock(return_value="rewritten query")
 
+            # Patch instance method AFTER service creation to verify it's NOT called
+            mock_get_reranker = Mock(return_value=None)
+            service.get_reranker = mock_get_reranker
+
             # Act
-            service.execute_pipeline(
+            await service.execute_pipeline(
                 search_input=search_input,
                 collection_name="test_collection",
                 pipeline_id=uuid4(),
-                reranker_callback=mock_reranker_callback,
             )
 
-            # Assert: Reranker was NOT called
-            assert not reranker_called, "Reranker should not be called when disabled"
+            # Assert: get_reranker was NOT called (early return when enable_reranking=False)
+            mock_get_reranker.assert_not_called()
+
+            # Assert: Reranker.rerank was NOT called
+            mock_reranker.rerank.assert_not_called()
 
             # Assert: _format_context received all 20 raw results (no reranking)
             mock_format_context.assert_called_once()
