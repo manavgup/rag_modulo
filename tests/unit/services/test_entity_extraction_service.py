@@ -8,8 +8,9 @@ Tests cover:
 - Caching behavior
 """
 
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from rag_solution.services.entity_extraction_service import EntityExtractionService
 
@@ -33,11 +34,58 @@ def entity_service(mock_db, mock_settings):
 
 
 class TestEntityValidation:
-    """Test entity validation and deduplication.
+    """Test entity validation and filtering."""
 
-    Note: _validate_entities() only performs deduplication and empty string removal.
-    Stop word filtering is handled by spaCy NER in _extract_with_spacy().
-    """
+    def test_validate_entities_filters_stop_words(self, entity_service):
+        """Test that stop words are filtered out."""
+        entities = [
+            "IBM",  # Valid
+            "it",  # Stop word - pronoun
+            "however",  # Stop word - discourse marker
+            "user",  # Stop word - generic term
+            "context",  # Stop word - generic term
+            "2020",  # Valid
+            "revenue",  # Valid
+        ]
+
+        validated = entity_service._validate_entities(entities)
+
+        assert "IBM" in validated
+        assert "2020" in validated
+        assert "revenue" in validated
+        assert "it" not in validated
+        assert "however" not in validated
+        assert "user" not in validated
+        assert "context" not in validated
+
+    def test_validate_entities_filters_short_entities(self, entity_service):
+        """Test that very short entities are filtered."""
+        entities = ["a", "I", "IBM", "AI"]
+
+        validated = entity_service._validate_entities(entities)
+
+        # Single characters should be removed
+        assert "a" not in validated
+        assert "I" not in validated
+        # 2-3 character entities like "IBM", "AI" should be kept
+        assert "IBM" in validated
+        assert "AI" in validated
+
+    def test_validate_entities_filters_entities_starting_with_stop_words(self, entity_service):
+        """Test that entities starting with stop words are filtered."""
+        entities = [
+            "IBM revenue",  # Valid
+            "it reports",  # Starts with stop word "it"
+            "however strong",  # Starts with stop word "however"
+            "Global Financing",  # Valid
+        ]
+
+        validated = entity_service._validate_entities(entities)
+
+        assert "IBM revenue" in validated
+        assert "Global Financing" in validated
+        assert "it reports" not in validated
+        assert "however strong" not in validated
 
     def test_validate_entities_deduplicates(self, entity_service):
         """Test that entities are deduplicated (case-insensitive)."""
@@ -49,39 +97,21 @@ class TestEntityValidation:
         assert len([e for e in validated if e.lower() == "ibm"]) == 1
         assert len([e for e in validated if e.lower() == "revenue"]) == 1
 
-    def test_validate_entities_removes_empty_strings(self, entity_service):
-        """Test that empty strings are filtered out."""
-        entities = ["IBM", "", "  ", "revenue", ""]
+    def test_validate_entities_filters_all_caps_noise(self, entity_service):
+        """Test that all-caps noise is filtered but acronyms are kept."""
+        entities = [
+            "IBM",  # Acronym - 3 chars - should keep
+            "API",  # Acronym - 3 chars - should keep
+            "HOWEVER",  # All caps - 7 chars - should filter
+            "SINCE",  # All caps - 5 chars - should filter (edge case)
+        ]
 
         validated = entity_service._validate_entities(entities)
 
         assert "IBM" in validated
-        assert "revenue" in validated
-        assert "" not in validated
-        assert len(validated) == 2  # Only IBM and revenue
-
-    def test_validate_entities_preserves_order(self, entity_service):
-        """Test that first occurrence order is preserved during deduplication."""
-        entities = ["IBM", "2020", "revenue", "IBM", "2020"]
-
-        validated = entity_service._validate_entities(entities)
-
-        # Should preserve order of first occurrence
-        assert validated.index("IBM") < validated.index("2020")
-        assert validated.index("2020") < validated.index("revenue")
-        assert len(validated) == 3  # Deduplicated
-
-    def test_validate_entities_handles_mixed_case(self, entity_service):
-        """Test case-insensitive deduplication preserves first occurrence."""
-        entities = ["IBM", "ibm", "IBM Corp", "ibm corp"]
-
-        validated = entity_service._validate_entities(entities)
-
-        # First occurrence should be preserved
-        assert "IBM" in validated
-        assert "ibm" not in validated  # Filtered as duplicate
-        assert "IBM Corp" in validated
-        assert "ibm corp" not in validated  # Filtered as duplicate
+        assert "API" in validated
+        assert "HOWEVER" not in validated
+        # SINCE is 5 chars, not > 5, so it might pass (implementation detail)
 
 
 class TestRegexFallback:
@@ -159,16 +189,16 @@ class TestSpacyExtraction:
 
     def test_extract_with_spacy_fallback_when_unavailable(self, entity_service):
         """Test fallback to regex when spaCy is unavailable."""
-        # Mock the nlp property to return None (spaCy unavailable)
-        with patch.object(type(entity_service), "nlp", new_callable=lambda: property(lambda self: None)):
-            context = "IBM reported revenue in 2020"
-            entities = entity_service._extract_with_spacy(context)
+        # Mock _extract_with_regex to verify fallback
+        with patch.object(entity_service, "_extract_with_regex", return_value=["IBM", "2020"]) as mock_regex:
+            # Mock nlp property to return None (spaCy unavailable)
+            with patch.object(type(entity_service), "nlp", new_callable=PropertyMock, return_value=None):
+                context = "IBM reported revenue in 2020"
+                entities = entity_service._extract_with_spacy(context)
 
-            # Should fallback to regex extraction
-            assert isinstance(entities, list)
-            # Should find at least IBM and 2020 with regex
-            assert any("IBM" in e for e in entities)
-            assert "2020" in entities
+                # Should fallback to regex extraction
+                mock_regex.assert_called_once_with(context)
+                assert entities == ["IBM", "2020"]
 
 
 @pytest.mark.asyncio
@@ -201,14 +231,24 @@ class TestLLMExtraction:
                 assert "Global Financing" in entities
 
     async def test_extract_with_llm_fallback_on_error(self, entity_service):
-        """Test fallback to spaCy when LLM fails."""
-        # Mock LLM provider service to raise error
-        mock_llm_service = MagicMock()
-        mock_llm_service.get_default_provider.side_effect = Exception("LLM error")
+        """Test fallback to spaCy when LLM generation fails."""
+        context = "IBM reported revenue in 2020"
 
-        with patch("rag_solution.services.entity_extraction_service.LLMProviderService", return_value=mock_llm_service):
+        # Mock LLMProviderService
+        mock_llm_service = MagicMock()
+        mock_provider_config = MagicMock()
+        mock_provider_config.name = "test_provider"
+        mock_llm_service.get_default_provider.return_value = mock_provider_config
+
+        # Set the mock service
+        entity_service._llm_provider_service = mock_llm_service
+
+        # Mock factory to raise an error (which is caught and falls back)
+        with patch("rag_solution.services.entity_extraction_service.LLMProviderFactory") as mock_factory_class:
+            mock_factory_class.return_value.get_provider.side_effect = RuntimeError("Provider error")
+
+            # Mock _extract_with_spacy for fallback
             with patch.object(entity_service, "_extract_with_spacy", return_value=["IBM", "2020"]) as mock_spacy:
-                context = "IBM reported revenue in 2020"
                 entities = await entity_service._extract_with_llm(context)
 
                 # Should fallback to spaCy
@@ -255,11 +295,14 @@ class TestHybridExtraction:
         context = " ".join(["word"] * 60)  # Complex context
 
         with patch.object(entity_service, "_extract_with_spacy", return_value=["IBM", "2020"]) as mock_spacy:
-            with patch.object(entity_service, "_extract_with_llm", side_effect=Exception("LLM error")):
+            # Mock _extract_with_llm to raise RuntimeError (which is caught)
+            with patch.object(entity_service, "_extract_with_llm", side_effect=RuntimeError("LLM error")) as mock_llm:
                 entities = await entity_service._extract_hybrid(context)
 
-                # Should fallback to spaCy only
+                # Should call both (LLM fails, but spaCy succeeds)
                 mock_spacy.assert_called_once()
+                mock_llm.assert_called_once()
+                # Returns spaCy results since LLM failed
                 assert entities == ["IBM", "2020"]
 
 

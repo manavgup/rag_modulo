@@ -198,19 +198,19 @@ class EntityExtractionService:
             List of entity strings extracted by LLM
         """
         # Get LLM provider
+        if self._llm_provider_service is None:
+            self._llm_provider_service = LLMProviderService(self.db)
+
+        provider_config = self._llm_provider_service.get_default_provider()
+        if not provider_config:
+            logger.warning("No LLM provider available, falling back to spaCy")
+            return self._extract_with_spacy(context)
+
+        # Get actual provider instance
         try:
-            if self._llm_provider_service is None:
-                self._llm_provider_service = LLMProviderService(self.db)
-
-            provider_config = self._llm_provider_service.get_default_provider()
-            if not provider_config:
-                logger.warning("No LLM provider available, falling back to spaCy")
-                return self._extract_with_spacy(context)
-
-            # Get actual provider instance
             factory = LLMProviderFactory(self.db)
             provider = factory.get_provider(provider_config.name)
-        except (ImportError, ValueError, RuntimeError, Exception) as e:
+        except (ImportError, ValueError, RuntimeError) as e:
             logger.error("Failed to get LLM provider: %s", e)
             return self._extract_with_spacy(context)
 
@@ -296,7 +296,7 @@ Entities:"""
                 )
                 return ranked
 
-            except (RuntimeError, ValueError, AttributeError, Exception) as e:
+            except (RuntimeError, ValueError, AttributeError) as e:
                 logger.warning("LLM refinement failed: %s, using spaCy only", e)
                 return spacy_entities
         else:
@@ -306,18 +306,51 @@ Entities:"""
     def _validate_entities(self, entities: list[str]) -> list[str]:
         """Validate and filter extracted entities.
 
-        Since spaCy NER already filters stop words and noise, this method
-        only performs basic cleanup: deduplication and empty string removal.
+        Performs comprehensive filtering to remove:
+        - Stop words and discourse markers
+        - Single-character entities (except valid acronyms)
+        - Entities starting with stop words
+        - All-caps stop words/discourse markers
+        - Empty strings
 
         Args:
             entities: Raw entity list
 
         Returns:
-            Cleaned and deduplicated entity list
+            Cleaned, validated, and deduplicated entity list
         """
-        # Deduplicate while preserving order (case-insensitive)
+        # Common stop words and discourse markers to filter
+        stop_words = {
+            "it",
+            "this",
+            "that",
+            "however",
+            "user",
+            "context",
+            "based",
+            "additionally",
+            "since",
+            "the",
+            "a",
+            "an",
+            "and",
+            "or",
+            "but",
+            "in",
+            "on",
+            "at",
+            "to",
+            "for",
+            "of",
+            "with",
+            "as",
+            "by",
+            "from",
+        }
+
+        # Deduplicate while preserving order and applying filters (case-insensitive)
         seen = set()
-        deduplicated = []
+        validated = []
 
         for entity in entities:
             entity_clean = entity.strip()
@@ -325,16 +358,38 @@ Entities:"""
                 continue
 
             entity_lower = entity_clean.lower()
-            if entity_lower not in seen:
-                seen.add(entity_lower)
-                deduplicated.append(entity_clean)
 
-        return deduplicated
+            # Skip if already seen
+            if entity_lower in seen:
+                continue
+
+            # Filter single characters (except 2-3 char acronyms like "AI", "IBM")
+            if len(entity_clean) == 1:
+                continue
+
+            # Filter stop words
+            if entity_lower in stop_words:
+                continue
+
+            # Filter entities starting with stop words
+            words = entity_clean.split()
+            if words and words[0].lower() in stop_words:
+                continue
+
+            # Filter all-caps stop words/discourse markers (but keep acronyms <= 4 chars)
+            if entity_clean.isupper() and len(entity_clean) > 4 and entity_lower in stop_words:
+                continue
+
+            # Valid entity
+            seen.add(entity_lower)
+            validated.append(entity_clean)
+
+        return validated
 
     def _extract_with_regex(self, context: str) -> list[str]:
         """Fallback regex-based extraction (least accurate).
 
-        Only used when spaCy is not available.
+        Only used when spaCy is not available or as a last resort.
 
         Args:
             context: Text to extract entities from
@@ -345,7 +400,7 @@ Entities:"""
         logger.info("Using regex fallback for entity extraction")
 
         patterns = [
-            r"\b[A-Z][A-Z]+\b",  # All caps acronyms (e.g., IBM, API)
+            r"\b[A-Z]{2,}\b",  # Acronyms (e.g., IBM, API, USA)
             r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2}\b",  # Proper nouns (2-3 words)
             r'"([^"]+)"',  # Quoted terms
             r"\b\d{4}\b",  # Years (e.g., 2020)
@@ -357,7 +412,8 @@ Entities:"""
             matches = re.findall(pattern, context)
             entities.extend(matches)
 
-        return list(set(entities))
+        # Apply validation to filter stop words and noise
+        return self._validate_entities(entities)
 
     def clear_cache(self) -> None:
         """Clear the entity extraction cache.
