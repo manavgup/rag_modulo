@@ -73,7 +73,8 @@ class PipelineService:
         # Lazy initialized components
         self._document_store: DocumentStore | None = None
         self._retriever: BaseRetriever | None = None
-        self._reranker: BaseReranker | None = None  # Lazy init reranker
+        # Cache rerankers per user to avoid sharing user-specific configurations
+        self._rerankers: dict[UUID4, BaseReranker] = {}
 
     # Property-based lazy initialization
     @property
@@ -142,68 +143,82 @@ class PipelineService:
     def get_reranker(self, user_id: UUID4) -> BaseReranker | None:
         """Get or create reranker instance for the given user.
 
+        Caches rerankers per user to avoid sharing user-specific configurations
+        across different users (e.g., different prompt templates, LLM settings).
+
         Args:
             user_id: User UUID for creating LLM-based reranker
 
         Returns:
-            Reranker instance (LLMReranker or SimpleReranker) or None if disabled
+            Reranker instance (LLMReranker or SimpleReranker) for this user, or None if disabled
         """
         if not self.settings.enable_reranking:
             return None
 
-        if self._reranker is None:
-            logger.debug("Lazy initializing reranker in PipelineService")
-            # pylint: disable=import-outside-toplevel
-            # Justification: Lazy import to avoid circular dependency
-            from rag_solution.retrieval.reranker import LLMReranker, SimpleReranker
-            from rag_solution.schemas.prompt_template_schema import PromptTemplateType
+        # Return cached reranker if already initialized for this user
+        if user_id in self._rerankers:
+            logger.debug("Returning cached reranker for user %s", user_id)
+            return self._rerankers[user_id]
 
-            if self.settings.reranker_type == "llm":
+        # Create new reranker for this user
+        logger.debug("Lazy initializing reranker for user %s in PipelineService", user_id)
+        # pylint: disable=import-outside-toplevel
+        # Justification: Lazy import to avoid circular dependency
+        from rag_solution.retrieval.reranker import LLMReranker, SimpleReranker
+        from rag_solution.schemas.prompt_template_schema import PromptTemplateType
+
+        if self.settings.reranker_type == "llm":
+            try:
+                # Get LLM provider
+                provider_config = self.llm_provider_service.get_default_provider()
+                if not provider_config:
+                    logger.warning("No LLM provider found, using simple reranker for user %s", user_id)
+                    reranker = SimpleReranker()
+                    self._rerankers[user_id] = reranker
+                    return reranker
+
+                # pylint: disable=import-outside-toplevel
+                # Justification: Lazy import to avoid circular dependency
+                from rag_solution.generation.providers.factory import LLMProviderFactory
+
+                factory = LLMProviderFactory(self.db)
+                llm_provider = factory.get_provider(provider_config.name)
+
+                # Get reranking prompt template (user-specific)
                 try:
-                    # Get LLM provider
-                    provider_config = self.llm_provider_service.get_default_provider()
-                    if not provider_config:
-                        logger.warning("No LLM provider found, using simple reranker")
-                        self._reranker = SimpleReranker()
-                        return self._reranker
-
-                    # pylint: disable=import-outside-toplevel
-                    # Justification: Lazy import to avoid circular dependency
-                    from rag_solution.generation.providers.factory import LLMProviderFactory
-
-                    factory = LLMProviderFactory(self.db)
-                    llm_provider = factory.get_provider(provider_config.name)
-
-                    # Get reranking prompt template
-                    try:
-                        template = self.prompt_template_service.get_by_type(
-                            user_id, PromptTemplateType.RERANKING
-                        )
-                        if template is None:
-                            raise ValueError("Reranking template not found")
-                    except Exception as e:  # pylint: disable=broad-exception-caught
-                        # Justification: Fallback to simple reranker if template loading fails
-                        logger.warning("Could not load reranking template: %s, using simple reranker", e)
-                        self._reranker = SimpleReranker()
-                        return self._reranker
-
-                    self._reranker = LLMReranker(
-                        llm_provider=llm_provider,
-                        user_id=user_id,
-                        prompt_template=template,
-                        batch_size=self.settings.reranker_batch_size,
-                        score_scale=self.settings.reranker_score_scale,
+                    template = self.prompt_template_service.get_by_type(
+                        user_id, PromptTemplateType.RERANKING
                     )
-                    logger.debug("LLM reranker initialized successfully")
+                    if template is None:
+                        raise ValueError("Reranking template not found")
                 except Exception as e:  # pylint: disable=broad-exception-caught
-                    # Justification: Fallback to simple reranker for any initialization error
-                    logger.warning("Failed to initialize LLM reranker: %s, using simple reranker", e)
-                    self._reranker = SimpleReranker()
-            else:
-                self._reranker = SimpleReranker()
-                logger.debug("Simple reranker initialized")
+                    # Justification: Fallback to simple reranker if template loading fails
+                    logger.warning("Could not load reranking template for user %s: %s, using simple reranker", user_id, e)
+                    reranker = SimpleReranker()
+                    self._rerankers[user_id] = reranker
+                    return reranker
 
-        return self._reranker
+                reranker = LLMReranker(
+                    llm_provider=llm_provider,
+                    user_id=user_id,
+                    prompt_template=template,
+                    batch_size=self.settings.reranker_batch_size,
+                    score_scale=self.settings.reranker_score_scale,
+                )
+                logger.debug("LLM reranker initialized successfully for user %s", user_id)
+                self._rerankers[user_id] = reranker
+                return reranker
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                # Justification: Fallback to simple reranker for any initialization error
+                logger.warning("Failed to initialize LLM reranker for user %s: %s, using simple reranker", user_id, e)
+                reranker = SimpleReranker()
+                self._rerankers[user_id] = reranker
+                return reranker
+        else:
+            reranker = SimpleReranker()
+            logger.debug("Simple reranker initialized for user %s", user_id)
+            self._rerankers[user_id] = reranker
+            return reranker
 
     def _apply_reranking(
         self, query: str, results: list[QueryResult], user_id: UUID4
@@ -242,7 +257,10 @@ class PipelineService:
             return reranked_results
 
         except Exception as e:  # pylint: disable=broad-exception-caught
-            # Justification: Fallback to original results for any reranking failure
+            # Justification: Catch all exceptions to ensure graceful degradation.
+            # Reranking is an enhancement - if it fails for ANY reason (network issues,
+            # LLM errors, scoring failures, etc.), we fall back to original retrieval results.
+            # This ensures the query still succeeds even if reranking fails.
             logger.warning("Reranking failed: %s, returning original results", e)
             return results
 
