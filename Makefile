@@ -122,7 +122,7 @@ local-dev-backend: venv
 
 local-dev-frontend:
 	@echo "$(CYAN)⚛️  Starting frontend with HMR (Vite)...$(NC)"
-	@cd frontend && npm run dev
+	@cd frontend && DANGEROUSLY_DISABLE_HOST_CHECK=true npm run dev
 
 local-dev-all: venv
 	@echo "$(CYAN)🚀 Starting full local development stack...$(NC)"
@@ -141,7 +141,7 @@ local-dev-all: venv
 		fi; \
 	fi; \
 	echo "$(CYAN)⚛️  Starting frontend in background...$(NC)"; \
-	cd frontend && npm run dev > $$PROJECT_ROOT/logs/frontend.log 2>&1 & echo $$! > $$PROJECT_ROOT/.dev-pids/frontend.pid; \
+	cd frontend && DANGEROUSLY_DISABLE_HOST_CHECK=true npm run dev > $$PROJECT_ROOT/logs/frontend.log 2>&1 & echo $$! > $$PROJECT_ROOT/.dev-pids/frontend.pid; \
 	sleep 2; \
 	if [ -f $$PROJECT_ROOT/.dev-pids/frontend.pid ]; then \
 		if kill -0 $$(cat $$PROJECT_ROOT/.dev-pids/frontend.pid) 2>/dev/null; then \

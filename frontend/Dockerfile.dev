@@ -13,7 +13,8 @@ ENV CHOKIDAR_USEPOLLING=true \
     WATCHPACK_POLLING=true \
     WDS_SOCKET_HOST=localhost \
     WDS_SOCKET_PORT=3000 \
-    REACT_APP_FAST_REFRESH=true
+    REACT_APP_FAST_REFRESH=true \
+    DANGEROUSLY_DISABLE_HOST_CHECK=true
 
 # Copy package files first for better caching
 COPY package*.json ./

@@ -21,7 +21,7 @@ services:
       milvus-standalone:
         condition: service_healthy
       mlflow-server:
-       condition: service_started
+        condition: service_started
     environment:
       # Development-specific overrides for hot reloading
       - SKIP_AUTH=true
@@ -76,6 +76,7 @@ services:
       - WDS_SOCKET_PORT=3000      # WebSocket port for HMR
       - REACT_APP_FAST_REFRESH=true
       - GENERATE_SOURCEMAP=true   # Source maps for debugging
+      - DANGEROUSLY_DISABLE_HOST_CHECK=true  # Bypass host check for local dev with proxy
     volumes:
       # Mount entire source directory for comprehensive hot reloading
       - ./frontend/src:/app/src
