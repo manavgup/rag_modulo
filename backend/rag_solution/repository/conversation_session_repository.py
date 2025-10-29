@@ -60,7 +60,7 @@ class ConversationSessionRepository:
             raise RepositoryError(f"Failed to create conversation session: {e}") from e
 
     def get_by_id(self, session_id: UUID4) -> ConversationSessionOutput:
-        """Get conversation session by ID.
+        """Get conversation session by ID with eager loading to prevent N+1 queries.
 
         Raises:
             NotFoundError: If session not found
@@ -70,7 +70,11 @@ class ConversationSessionRepository:
             logger.info(f"🔍 REPOSITORY DEBUG: Getting conversation session {session_id}")
             session = (
                 self.db.query(ConversationSession)
-                .options(joinedload(ConversationSession.messages))
+                .options(
+                    joinedload(ConversationSession.messages),
+                    joinedload(ConversationSession.user),
+                    joinedload(ConversationSession.collection),
+                )
                 .filter(ConversationSession.id == session_id)
                 .first()
             )
@@ -97,7 +101,7 @@ class ConversationSessionRepository:
             raise RepositoryError(f"Failed to get conversation session: {e}") from e
 
     def get_sessions_by_user(self, user_id: UUID4, limit: int = 50, offset: int = 0) -> list[ConversationSessionOutput]:
-        """Get conversation sessions for a user.
+        """Get conversation sessions for a user with eager loading to prevent N+1 queries.
 
         Args:
             user_id: User ID
@@ -110,6 +114,11 @@ class ConversationSessionRepository:
         try:
             sessions = (
                 self.db.query(ConversationSession)
+                .options(
+                    joinedload(ConversationSession.messages),
+                    joinedload(ConversationSession.user),
+                    joinedload(ConversationSession.collection),
+                )
                 .filter(ConversationSession.user_id == user_id)
                 .order_by(ConversationSession.created_at.desc())
                 .limit(limit)
@@ -129,7 +138,7 @@ class ConversationSessionRepository:
             raise RepositoryError(f"Failed to get sessions for user: {e}") from e
 
     def update(self, session_id: UUID4, updates: dict[str, Any]) -> ConversationSessionOutput:
-        """Update conversation session.
+        """Update conversation session with eager loading to prevent N+1 queries.
 
         Args:
             session_id: Session ID to update
@@ -140,7 +149,16 @@ class ConversationSessionRepository:
             RepositoryError: For other database errors
         """
         try:
-            session = self.db.query(ConversationSession).filter(ConversationSession.id == session_id).first()
+            session = (
+                self.db.query(ConversationSession)
+                .options(
+                    joinedload(ConversationSession.messages),
+                    joinedload(ConversationSession.user),
+                    joinedload(ConversationSession.collection),
+                )
+                .filter(ConversationSession.id == session_id)
+                .first()
+            )
 
             if not session:
                 raise NotFoundError(f"Conversation session not found: {session_id}")
@@ -201,7 +219,7 @@ class ConversationSessionRepository:
     def get_sessions_by_collection(
         self, collection_id: UUID4, limit: int = 50, offset: int = 0
     ) -> list[ConversationSessionOutput]:
-        """Get conversation sessions for a collection.
+        """Get conversation sessions for a collection with eager loading to prevent N+1 queries.
 
         Args:
             collection_id: Collection ID
@@ -214,6 +232,11 @@ class ConversationSessionRepository:
         try:
             sessions = (
                 self.db.query(ConversationSession)
+                .options(
+                    joinedload(ConversationSession.messages),
+                    joinedload(ConversationSession.user),
+                    joinedload(ConversationSession.collection),
+                )
                 .filter(ConversationSession.collection_id == collection_id)
                 .order_by(ConversationSession.created_at.desc())
                 .limit(limit)

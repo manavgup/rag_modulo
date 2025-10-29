@@ -5,12 +5,13 @@ from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import pytest
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
 from rag_solution.core.exceptions import AlreadyExistsError, NotFoundError
 from rag_solution.models.conversation_session import ConversationSession
 from rag_solution.repository.conversation_session_repository import ConversationSessionRepository
 from rag_solution.schemas.conversation_schema import ConversationSessionInput, ConversationSessionOutput
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
 
 
 @pytest.mark.unit
@@ -138,9 +139,9 @@ class TestConversationSessionRepository:
         user_id = uuid4()
         sessions = [sample_session_model]
 
-        # Mock database query
+        # Mock database query with options() for eager loading
         mock_query = Mock()
-        mock_query.filter.return_value.order_by.return_value.limit.return_value.offset.return_value.all.return_value = (
+        mock_query.options.return_value.filter.return_value.order_by.return_value.limit.return_value.offset.return_value.all.return_value = (
             sessions
         )
         mock_db.query.return_value = mock_query
@@ -161,9 +162,9 @@ class TestConversationSessionRepository:
         session_id = sample_session_model.id
         updates = {"session_name": "Updated Session", "max_messages": 100}
 
-        # Mock database query
+        # Mock database query with options() for eager loading
         mock_query = Mock()
-        mock_query.filter.return_value.first.return_value = sample_session_model
+        mock_query.options.return_value.filter.return_value.first.return_value = sample_session_model
         mock_db.query.return_value = mock_query
         mock_db.commit.return_value = None
         mock_db.refresh.return_value = None
@@ -187,9 +188,9 @@ class TestConversationSessionRepository:
         session_id = sample_session_model.id
         updates = {"invalid_field": "value", "session_name": "Updated Session"}
 
-        # Mock database query
+        # Mock database query with options() for eager loading
         mock_query = Mock()
-        mock_query.filter.return_value.first.return_value = sample_session_model
+        mock_query.options.return_value.filter.return_value.first.return_value = sample_session_model
         mock_db.query.return_value = mock_query
         mock_db.commit.return_value = None
         mock_db.refresh.return_value = None
@@ -213,9 +214,9 @@ class TestConversationSessionRepository:
         session_id = uuid4()
         updates = {"session_name": "Updated Session"}
 
-        # Mock database query returning None
+        # Mock database query with options() returning None
         mock_query = Mock()
-        mock_query.filter.return_value.first.return_value = None
+        mock_query.options.return_value.filter.return_value.first.return_value = None
         mock_db.query.return_value = mock_query
 
         # Act & Assert
@@ -259,9 +260,9 @@ class TestConversationSessionRepository:
         collection_id = uuid4()
         sessions = [sample_session_model]
 
-        # Mock database query
+        # Mock database query with options() for eager loading
         mock_query = Mock()
-        mock_query.filter.return_value.order_by.return_value.limit.return_value.offset.return_value.all.return_value = (
+        mock_query.options.return_value.filter.return_value.order_by.return_value.limit.return_value.offset.return_value.all.return_value = (
             sessions
         )
         mock_db.query.return_value = mock_query
@@ -290,9 +291,9 @@ class TestConversationSessionRepository:
             "user_id": uuid4(),  # not allowed (not in allowed_fields)
         }
 
-        # Mock database query
+        # Mock database query with options() for eager loading
         mock_query = Mock()
-        mock_query.filter.return_value.first.return_value = sample_session_model
+        mock_query.options.return_value.filter.return_value.first.return_value = sample_session_model
         mock_db.query.return_value = mock_query
         mock_db.commit.return_value = None
         mock_db.refresh.return_value = None
