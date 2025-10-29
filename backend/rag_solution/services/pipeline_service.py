@@ -19,6 +19,7 @@ from rag_solution.generation.providers.factory import LLMProviderFactory
 from rag_solution.query_rewriting.query_rewriter import QueryRewriter
 from rag_solution.repository.pipeline_repository import PipelineConfigRepository
 from rag_solution.retrieval.factories import RetrieverFactory
+from rag_solution.retrieval.reranker import BaseReranker
 from rag_solution.retrieval.retriever import BaseRetriever
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
 from rag_solution.schemas.pipeline_schema import (
@@ -72,7 +73,7 @@ class PipelineService:
         # Lazy initialized components
         self._document_store: DocumentStore | None = None
         self._retriever: BaseRetriever | None = None
-        self._reranker: Any | None = None  # Lazy init reranker
+        self._reranker: BaseReranker | None = None  # Lazy init reranker
 
     # Property-based lazy initialization
     @property
@@ -138,7 +139,7 @@ class PipelineService:
             self._retriever = RetrieverFactory.create_retriever({}, self.document_store)
         return self._retriever
 
-    def get_reranker(self, user_id: UUID4) -> Any:
+    def get_reranker(self, user_id: UUID4) -> BaseReranker | None:
         """Get or create reranker instance for the given user.
 
         Args:
@@ -226,13 +227,18 @@ class PipelineService:
                 logger.debug("Reranking disabled, returning original results")
                 return results
 
-            logger.info("Applying reranking to %d results", len(results))
+            original_count = len(results)
             reranked_results = reranker.rerank(
                 query=query,
                 results=results,
                 top_k=self.settings.reranker_top_k,
             )
-            logger.info("Reranking complete, returned %d results", len(reranked_results))
+            logger.info(
+                "Reranking reduced results from %d to %d documents (top_k=%d)",
+                original_count,
+                len(reranked_results),
+                self.settings.reranker_top_k or len(results),
+            )
             return reranked_results
 
         except Exception as e:  # pylint: disable=broad-exception-caught
