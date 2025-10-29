@@ -388,25 +388,3 @@ class TestRerankingOrder:
             call_args = mock_format_context.call_args
             results_passed = call_args[0][1]
             assert len(results_passed) == 20, "Should have all 20 raw results when reranking disabled"
-
-
-# ============================================================================
-# TEST: Integration with SearchService
-# ============================================================================
-
-
-@pytest.mark.unit
-class TestSearchServiceIntegration:
-    """Test that SearchService correctly passes reranker to PipelineService."""
-
-    def test_search_service_passes_reranker_to_pipeline(self):
-        """
-        TDD Test: Verify SearchService passes reranker callback to execute_pipeline.
-
-        Expected: SearchService.search() should call execute_pipeline with reranker_callback parameter.
-
-        This test will FAIL initially because execute_pipeline doesn't accept reranker_callback yet.
-        """
-        # This test will be implemented after we add the reranker_callback parameter
-        # to PipelineService.execute_pipeline()
-        pytest.skip("Will implement after adding reranker_callback parameter to execute_pipeline")
