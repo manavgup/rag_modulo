@@ -910,19 +910,20 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
         }
 
     def _build_context_window(self, messages: list[ConversationMessageOutput]) -> str:
-        """Build context window from messages."""
+        """Build context window from USER messages only.
+
+        CRITICAL: Only include USER messages to prevent assistant response pollution.
+        Assistant responses are verbose (200+ words) and pollute LLM prompts.
+        """
         if not messages:
             return "No previous conversation context"
 
-        # Take last 10 messages for context
-        recent_messages = messages[-10:]
+        # Take last 10 USER messages only for context
+        user_messages = [msg for msg in messages[-20:] if msg.role == "user"][-10:]
         context_parts = []
 
-        for msg in recent_messages:
-            if msg.role == "user":
-                context_parts.append(f"User: {msg.content}")
-            elif msg.role == "assistant":
-                context_parts.append(f"Assistant: {msg.content}")
+        for msg in user_messages:
+            context_parts.append(f"User: {msg.content}")
 
         return " ".join(context_parts) if context_parts else "No previous conversation context"
 
