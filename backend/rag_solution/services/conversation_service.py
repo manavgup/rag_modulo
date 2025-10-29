@@ -6,7 +6,7 @@ and integration with search and context management services.
 
 import logging
 import re
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -788,7 +788,7 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
             cot_usage_count=cot_usage_count,
             context_enhancement_count=context_enhancement_count,
             created_at=session.created_at,
-            last_activity=datetime.utcnow(),
+            last_activity=datetime.now(UTC),
             metadata={
                 "total_llm_calls": total_llm_calls,
                 "cot_token_count": cot_token_count,
@@ -811,7 +811,7 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
             "session_data": session,
             "messages": messages,
             "export_format": export_format,
-            "export_timestamp": datetime.utcnow(),
+            "export_timestamp": datetime.now(UTC),
             "metadata": {"cot_integration": True, "context_enhancement": True},
         }
 
@@ -1198,7 +1198,7 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
         """Clean up expired sessions and return count of cleaned sessions."""
 
         # Sessions expire after 7 days of inactivity
-        expiry_date = datetime.utcnow() - timedelta(days=7)
+        expiry_date = datetime.now(UTC) - timedelta(days=7)
 
         expired_sessions = (
             self.db.query(ConversationSession)
@@ -1382,7 +1382,7 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
             "topics": list(topics)[:10],  # Limit to top 10 topics
             "total_tokens": stats.total_tokens,
             "cot_usage_count": stats.cot_usage_count,
-            "generated_at": datetime.utcnow().isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
         }
 
     def _generate_brief_summary(
