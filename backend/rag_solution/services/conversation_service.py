@@ -316,10 +316,12 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
         context = await self.build_context_from_messages(message_input.session_id, messages)
 
         # Enhance question with conversation context
+        # CRITICAL: Only pass USER messages to prevent assistant response pollution
+        user_messages = [msg for msg in messages[-10:] if msg.role == MessageRole.USER]
         enhanced_question = await self.enhance_question_with_context(
             message_input.content,
             context.context_window,
-            [msg.content for msg in messages[-5:]],  # Last 5 messages
+            [msg.content for msg in user_messages[-5:]],  # Last 5 USER messages only
         )
 
         # Create search input with conversation context
@@ -338,7 +340,7 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
             config_metadata={
                 "conversation_context": context.context_window,
                 "session_id": str(message_input.session_id),
-                "message_history": [msg.content for msg in messages[-10:]],
+                "message_history": [msg.content for msg in user_messages[-10:]],  # USER messages only
                 "conversation_entities": context.context_metadata.get("extracted_entities", []),
                 "cot_enabled": True,
                 "show_cot_steps": False,  # Disable CoT steps visibility for context flow tests
@@ -846,6 +848,15 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
         # Extract entities only from user messages
         entities = self._extract_entities_from_context(user_only_context)
 
+        # Deduplicate message_history while preserving order (most recent last)
+        seen = set()
+        deduped_history = []
+        for msg in message_history:
+            msg_normalized = msg.strip().lower()
+            if msg_normalized and msg_normalized not in seen:
+                seen.add(msg_normalized)
+                deduped_history.append(msg)
+
         # Start with the original question
         enhanced_question = question
 
@@ -856,7 +867,7 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
 
         # Add conversation context if question is ambiguous
         if self._is_ambiguous_question(question):
-            recent_context = " ".join(message_history[-3:])  # Last 3 messages
+            recent_context = " ".join(deduped_history[-3:])  # Last 3 unique messages
             if entities:
                 # If we already added entity context, add ambiguous context as well
                 enhanced_question = f"{enhanced_question} (referring to: {recent_context})"
@@ -1003,15 +1014,25 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
         return list(set(topics))
 
     def _is_ambiguous_question(self, question: str) -> bool:
-        """Check if a question is ambiguous and needs context."""
+        """Check if a question is ambiguous and needs context.
+
+        Refined to reduce false positives by requiring stronger ambiguity signals:
+        - Pronouns at start of question (more likely ambiguous)
+        - Explicit continuation phrases
+        - Temporal references without clear subjects
+        """
         question_lower = question.lower().strip()
 
-        # Pattern-based detection for ambiguous questions
+        # More restrictive patterns to reduce false positives
         ambiguous_patterns = [
-            r"\b(it|this|that|they|them|these|those)\b",  # Pronouns
-            r"^(what|how|why|when|where)\s+(is|are|was|were|does|do|did|can|could|will|would)\s+(it|this|that|they)\b",  # Pronoun questions
-            r"^(tell me more|what about|how about|what\'s next|next step)\b",  # Vague requests
-            r"\b(earlier|before|previous|last|first)\b",  # Temporal references
+            # Pronouns at start of question (stronger ambiguity signal)
+            r"^(it|this|that|they|them)\s+(is|are|was|were|does|do|did|can|could|will|would)\b",
+            # Explicit continuation/reference phrases
+            r"^(tell me more|what about|how about|what\'s next|next step|and what about|also)\b",
+            # Temporal references WITHOUT clear subjects (e.g., "What about the earlier discussion?" vs "What was the first IBM computer?")
+            r"^(what|how|why)\s+(about|regarding)\s+(the\s+)?(earlier|previous|last)\b",
+            # Questions starting with vague pronouns
+            r"^(what|how|why)\s+(is|are|was|were)\s+(it|this|that)\b",
         ]
 
         return any(re.search(pattern, question_lower) for pattern in ambiguous_patterns)
