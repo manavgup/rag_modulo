@@ -22,7 +22,7 @@ RAG Modulo is a production-ready, modular Retrieval-Augmented Generation (RAG) p
 ### Frontend (React/Carbon Design)
 
 - React 18 with Carbon Design System
-- Located in `webui/` directory
+- Located in `frontend/` directory
 - Uses axios for API calls
 
 ### Infrastructure
@@ -350,7 +350,7 @@ poetry add <package>            # Add new dependency
 poetry lock                     # Update lock file (REQUIRED after modifying pyproject.toml)
 
 # Frontend dependencies
-cd webui
+cd frontend
 npm install                     # Install dependencies
 npm run dev                     # Development mode with hot reload
 ```
