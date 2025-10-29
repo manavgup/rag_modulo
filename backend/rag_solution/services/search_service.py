@@ -79,7 +79,7 @@ class SearchService:
         self._llm_provider_service: LLMProviderService | None = None
         self._chain_of_thought_service: Any | None = None
         self._token_tracking_service: TokenTrackingService | None = None
-        self._reranker: Any | None = None
+        # Note: Reranking moved to PipelineService (P0-2 fix)
 
     @property
     def file_service(self) -> FileManagementService:
@@ -169,106 +169,9 @@ class SearchService:
             self._token_tracking_service = TokenTrackingService(self.db, self.settings)
         return self._token_tracking_service
 
-    def get_reranker(self, user_id: UUID4) -> Any:
-        """Get or create reranker instance for the given user.
-
-        Args:
-            user_id: User UUID for creating LLM-based reranker
-
-        Returns:
-            Reranker instance (LLMReranker or SimpleReranker)
-        """
-        if not self.settings.enable_reranking:
-            return None
-
-        if self._reranker is None:
-            logger.debug("Lazy initializing reranker")
-            # pylint: disable=import-outside-toplevel
-            # Justification: Lazy import to avoid circular dependency with reranker and services
-            from rag_solution.retrieval.reranker import LLMReranker, SimpleReranker
-            from rag_solution.services.prompt_template_service import PromptTemplateService
-
-            if self.settings.reranker_type == "llm":
-                try:
-                    # Get LLM provider
-                    provider_config = self.llm_provider_service.get_default_provider()
-                    if not provider_config:
-                        logger.warning("No LLM provider found, using simple reranker")
-                        self._reranker = SimpleReranker()
-                        return self._reranker
-
-                    # pylint: disable=import-outside-toplevel
-                    # Justification: Lazy import to avoid circular dependency with LLMProviderFactory
-                    from rag_solution.generation.providers.factory import LLMProviderFactory
-
-                    factory = LLMProviderFactory(self.db)
-                    llm_provider = factory.get_provider(provider_config.name)
-
-                    # Get reranking prompt template
-                    prompt_service = PromptTemplateService(self.db)
-                    try:
-                        # pylint: disable=import-outside-toplevel
-                        # Justification: Lazy import to avoid circular dependency with schema types
-                        from rag_solution.schemas.prompt_template_schema import PromptTemplateType
-
-                        template = prompt_service.get_by_type(user_id, PromptTemplateType.RERANKING)
-                    except Exception as e:  # pylint: disable=broad-exception-caught
-                        # Justification: Fallback to simple reranker if template loading fails
-                        logger.warning("Could not load reranking template: %s, using simple reranker", e)
-                        self._reranker = SimpleReranker()
-                        return self._reranker
-
-                    self._reranker = LLMReranker(
-                        llm_provider=llm_provider,
-                        user_id=user_id,
-                        prompt_template=template,
-                        batch_size=self.settings.reranker_batch_size,
-                        score_scale=self.settings.reranker_score_scale,
-                    )
-                    logger.debug("LLM reranker initialized successfully")
-                except Exception as e:  # pylint: disable=broad-exception-caught
-                    # Justification: Fallback to simple reranker for any initialization error
-                    logger.warning("Failed to initialize LLM reranker: %s, using simple reranker", e)
-                    self._reranker = SimpleReranker()
-            else:
-                self._reranker = SimpleReranker()
-                logger.debug("Simple reranker initialized")
-
-        return self._reranker
-
-    def _apply_reranking(self, query: str, results: list[QueryResult], user_id: UUID4) -> list[QueryResult]:
-        """Apply reranking to search results if enabled.
-
-        Args:
-            query: The search query
-            results: List of QueryResult objects from retrieval
-            user_id: User UUID
-
-        Returns:
-            Reranked list of QueryResult objects (or original if reranking disabled/failed)
-        """
-        if not self.settings.enable_reranking or not results:
-            return results
-
-        try:
-            reranker = self.get_reranker(user_id)
-            if reranker is None:
-                logger.debug("Reranking disabled, returning original results")
-                return results
-
-            logger.info("Applying reranking to %d results", len(results))
-            reranked_results = reranker.rerank(
-                query=query,
-                results=results,
-                top_k=self.settings.reranker_top_k,
-            )
-            logger.info("Reranking complete, returned %d results", len(reranked_results))
-            return reranked_results
-
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            # Justification: Fallback to original results for any reranking failure
-            logger.warning("Reranking failed: %s, returning original results", e)
-            return results
+    # Note: Reranking methods removed - now handled by PipelineService (P0-2 fix)
+    # - get_reranker() moved to PipelineService
+    # - _apply_reranking() moved to PipelineService
 
     def _should_use_chain_of_thought(self, search_input: SearchInput) -> bool:
         """Automatically determine if Chain of Thought should be used for this search.
@@ -679,13 +582,7 @@ class SearchService:
                     # Fall through to regular search
                 else:
                     logger.info("🔍 SEARCH SERVICE: Pipeline SUCCESS, proceeding with CoT")
-                    # Apply reranking to retrieved results before CoT
-                    if pipeline_result.query_results:
-                        pipeline_result.query_results = self._apply_reranking(
-                            query=search_input.question,
-                            results=pipeline_result.query_results,
-                            user_id=search_input.user_id,
-                        )
+                    # Note: Reranking now happens INSIDE pipeline (before LLM generation)
                     # Convert to CoT input with document context
                     try:
                         logger.debug("Converting to CoT input")
@@ -922,14 +819,7 @@ class SearchService:
             logger.error("Pipeline execution failed: %s", pipeline_result.error)
             raise ConfigurationError(pipeline_result.error or "Pipeline execution failed")
 
-        # Apply reranking to retrieved results
-        if pipeline_result.query_results:
-            pipeline_result.query_results = self._apply_reranking(
-                query=search_input.question,
-                results=pipeline_result.query_results,
-                user_id=search_input.user_id,
-            )
-
+        # Note: Reranking now happens INSIDE pipeline (before LLM generation)
         # Generate metadata
         try:
             logger.debug("Generating document metadata for regular search")

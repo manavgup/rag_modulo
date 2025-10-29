@@ -56,6 +56,12 @@ def mock_settings():
     settings.log_level = "INFO"
     settings.milvus_host = "localhost"
     settings.milvus_port = 19530
+    # Reranking settings
+    settings.enable_reranking = False
+    settings.reranker_type = "simple"
+    settings.reranker_top_k = 5
+    settings.reranker_batch_size = 10
+    settings.reranker_score_scale = 1.0
     return settings
 
 

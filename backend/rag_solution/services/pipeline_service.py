@@ -19,6 +19,7 @@ from rag_solution.generation.providers.factory import LLMProviderFactory
 from rag_solution.query_rewriting.query_rewriter import QueryRewriter
 from rag_solution.repository.pipeline_repository import PipelineConfigRepository
 from rag_solution.retrieval.factories import RetrieverFactory
+from rag_solution.retrieval.reranker import BaseReranker
 from rag_solution.retrieval.retriever import BaseRetriever
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
 from rag_solution.schemas.pipeline_schema import (
@@ -136,6 +137,114 @@ class PipelineService:
         if self._retriever is None:
             self._retriever = RetrieverFactory.create_retriever({}, self.document_store)
         return self._retriever
+
+    def get_reranker(self, user_id: UUID4) -> BaseReranker | None:
+        """Get reranker instance for the given user.
+
+        Creates a fresh reranker on-demand for each request. No caching is needed
+        because reranker initialization is lightweight (just object creation).
+
+        Args:
+            user_id: User UUID for creating LLM-based reranker
+
+        Returns:
+            Reranker instance (LLMReranker or SimpleReranker), or None if disabled
+        """
+        if not self.settings.enable_reranking:
+            return None
+
+        logger.debug("Creating reranker for user %s", user_id)
+
+        # pylint: disable=import-outside-toplevel
+        # Justification: Lazy import to avoid circular dependency
+        from rag_solution.retrieval.reranker import LLMReranker, SimpleReranker
+        from rag_solution.schemas.prompt_template_schema import PromptTemplateType
+
+        if self.settings.reranker_type == "llm":
+            try:
+                # Get LLM provider
+                provider_config = self.llm_provider_service.get_default_provider()
+                if not provider_config:
+                    logger.warning("No LLM provider found, using simple reranker for user %s", user_id)
+                    return SimpleReranker()
+
+                # pylint: disable=import-outside-toplevel
+                # Justification: Lazy import to avoid circular dependency
+                from rag_solution.generation.providers.factory import LLMProviderFactory
+
+                factory = LLMProviderFactory(self.db)
+                llm_provider = factory.get_provider(provider_config.name)
+
+                # Get reranking prompt template (user-specific)
+                try:
+                    template = self.prompt_template_service.get_by_type(user_id, PromptTemplateType.RERANKING)
+                    if template is None:
+                        raise ValueError("Reranking template not found")
+                except Exception as e:  # pylint: disable=broad-exception-caught
+                    # Justification: Fallback to simple reranker if template loading fails
+                    logger.warning(
+                        "Could not load reranking template for user %s: %s, using simple reranker", user_id, e
+                    )
+                    return SimpleReranker()
+
+                reranker = LLMReranker(
+                    llm_provider=llm_provider,
+                    user_id=user_id,
+                    prompt_template=template,
+                    batch_size=self.settings.reranker_batch_size,
+                    score_scale=self.settings.reranker_score_scale,
+                )
+                logger.debug("LLM reranker created successfully for user %s", user_id)
+                return reranker
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                # Justification: Fallback to simple reranker for any initialization error
+                logger.warning("Failed to create LLM reranker for user %s: %s, using simple reranker", user_id, e)
+                return SimpleReranker()
+        else:
+            logger.debug("Creating simple reranker for user %s", user_id)
+            return SimpleReranker()
+
+    def _apply_reranking(self, query: str, results: list[QueryResult], user_id: UUID4) -> list[QueryResult]:
+        """Apply reranking to search results if enabled.
+
+        Args:
+            query: The search query
+            results: List of QueryResult objects from retrieval
+            user_id: User UUID
+
+        Returns:
+            Reranked list of QueryResult objects (or original if reranking disabled/failed)
+        """
+        if not self.settings.enable_reranking or not results:
+            return results
+
+        try:
+            reranker = self.get_reranker(user_id)
+            if reranker is None:
+                logger.debug("Reranking disabled, returning original results")
+                return results
+
+            original_count = len(results)
+            reranked_results = reranker.rerank(
+                query=query,
+                results=results,
+                top_k=self.settings.reranker_top_k,
+            )
+            logger.info(
+                "Reranking reduced results from %d to %d documents (top_k=%d)",
+                original_count,
+                len(reranked_results),
+                self.settings.reranker_top_k or len(results),
+            )
+            return reranked_results
+
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            # Justification: Catch all exceptions to ensure graceful degradation.
+            # Reranking is an enhancement - if it fails for ANY reason (network issues,
+            # LLM errors, scoring failures, etc.), we fall back to original retrieval results.
+            # This ensures the query still succeeds even if reranking fails.
+            logger.warning("Reranking failed: %s, returning original results", e)
+            return results
 
     async def initialize(self, collection_name: str, collection_id: UUID4 | None = None) -> None:  # noqa: ARG002  # pylint: disable=unused-argument
         """Initialize pipeline components for a collection."""
@@ -720,6 +829,11 @@ class PipelineService:
                 logger.info("Using top_k=%d from config_metadata", top_k)
 
             query_results = self._retrieve_documents(rewritten_query, collection_name, top_k)
+
+            # Apply reranking BEFORE context formatting and LLM generation (P0-2 fix)
+            if query_results:
+                query_results = self._apply_reranking(clean_query, query_results, search_input.user_id)
+                logger.info("Reranking applied, proceeding with %d results", len(query_results))
 
             # Generate answer and evaluate response
             if not query_results:

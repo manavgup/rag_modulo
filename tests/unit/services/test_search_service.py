@@ -1149,68 +1149,8 @@ class TestSearchServiceLazyInitialization:
 # ============================================================================
 # UNIT TESTS: Reranking
 # ============================================================================
-
-
-class TestSearchServiceReranking:
-    """Unit tests for reranking functionality."""
-
-    def test_get_reranker_when_disabled(self, search_service, test_user_id):
-        """Test reranker returns None when disabled."""
-        search_service.settings.enable_reranking = False
-
-        reranker = search_service.get_reranker(test_user_id)
-
-        assert reranker is None
-
-    def test_get_reranker_simple_type(self, search_service, test_user_id):
-        """Test simple reranker initialization."""
-        search_service.settings.enable_reranking = True
-        search_service.settings.reranker_type = "simple"
-
-        with patch("rag_solution.retrieval.reranker.SimpleReranker") as mock_simple:
-            mock_simple.return_value = Mock()
-            reranker = search_service.get_reranker(test_user_id)
-
-        assert reranker is not None
-
-    def test_apply_reranking_when_disabled(
-        self, search_service, sample_query_results, test_user_id
-    ):
-        """Test reranking is skipped when disabled."""
-        search_service.settings.enable_reranking = False
-
-        results = search_service._apply_reranking(
-            "test query", sample_query_results, test_user_id
-        )
-
-        assert results == sample_query_results
-
-    def test_apply_reranking_with_empty_results(
-        self, search_service, test_user_id
-    ):
-        """Test reranking handles empty results."""
-        search_service.settings.enable_reranking = True
-
-        results = search_service._apply_reranking("test query", [], test_user_id)
-
-        assert results == []
-
-    def test_apply_reranking_handles_errors(
-        self, search_service, sample_query_results, test_user_id
-    ):
-        """Test reranking handles errors gracefully."""
-        search_service.settings.enable_reranking = True
-
-        mock_reranker = Mock()
-        mock_reranker.rerank.side_effect = Exception("Reranking failed")
-        search_service._reranker = mock_reranker
-
-        # Should return original results on error
-        results = search_service._apply_reranking(
-            "test query", sample_query_results, test_user_id
-        )
-
-        assert results == sample_query_results
+# NOTE: Reranking tests removed - reranking now handled in PipelineService only.
+# See tests/unit/services/test_pipeline_reranking_order.py for reranking tests.
 
 
 # ============================================================================
