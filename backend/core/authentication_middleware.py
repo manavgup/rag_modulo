@@ -18,6 +18,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from auth.oidc import verify_jwt_token
 from core.config import get_settings
 from core.mock_auth import create_mock_user_data, ensure_mock_user_exists, is_bypass_mode_active, is_mock_token
+from core.request_context import RequestContext
 
 # Get settings safely for middleware
 settings = get_settings()
@@ -114,7 +115,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             return None
 
     def _set_mock_user_state(self, request: Request, user_uuid: str) -> None:
-        """Set mock user data in request state.
+        """Set mock user data in request state and cache it.
 
         Args:
             request: The FastAPI request object.
@@ -124,6 +125,8 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         # Allow role override via header for testing
         mock_data["role"] = request.headers.get("X-User-Role", mock_data["role"])
         request.state.user = mock_data
+        # Cache user data in request context to eliminate N+1 queries
+        RequestContext.set_user(mock_data)
 
     def _handle_bypass_mode(self, request: Request) -> bool:
         """Handle authentication bypass mode.
@@ -204,7 +207,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         return True
 
     def _handle_jwt_token(self, request: Request, token: str) -> bool:
-        """Handle JWT token authentication.
+        """Handle JWT token authentication and cache user data.
 
         Args:
             request: The FastAPI request object.
@@ -220,13 +223,16 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
 
             # Verify JWT using the verify_jwt_token function
             payload = verify_jwt_token(token)
-            request.state.user = {
+            user_data = {
                 "id": payload.get("sub"),
                 "email": payload.get("email"),
                 "name": payload.get("name"),
                 "uuid": payload.get("uuid"),
                 "role": payload.get("role"),
             }
+            request.state.user = user_data
+            # Cache user data in request context to eliminate N+1 queries
+            RequestContext.set_user(user_data)
             logger.info("AuthMiddleware: JWT token validated successfully. User: %s", request.state.user)
             return True
         except jwt.ExpiredSignatureError:
@@ -287,6 +293,10 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         except Exception as e:
             logger.error("AuthMiddleware: Exception in call_next: %s", e, exc_info=True)
             raise
+        finally:
+            # Always clear request context to prevent memory leaks
+            RequestContext.clear()
+            logger.debug("AuthMiddleware: Cleared request context after request completion")
 
     def add_open_path(self, path: str) -> None:
         """Add a path to the list of open paths that don't require authentication.
