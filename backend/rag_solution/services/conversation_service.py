@@ -835,9 +835,16 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
     async def enhance_question_with_context(
         self, question: str, conversation_context: str, message_history: list[str]
     ) -> str:
-        """Enhance question with conversation context."""
-        # Extract entities from conversation
-        entities = self._extract_entities_from_context(conversation_context)
+        """Enhance question with conversation context.
+
+        IMPORTANT: Only extracts entities from USER messages to prevent pollution
+        from assistant's verbose responses containing discourse markers.
+        """
+        # Extract user-only context to prevent assistant response pollution
+        user_only_context = self._extract_user_messages_from_context(conversation_context)
+
+        # Extract entities only from user messages
+        entities = self._extract_entities_from_context(user_only_context)
 
         # Start with the original question
         enhanced_question = question
@@ -856,8 +863,8 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
             else:
                 # If no entities, add both conversation context and message history
                 context_parts = []
-                if conversation_context.strip():
-                    context_parts.append(conversation_context)
+                if user_only_context.strip():
+                    context_parts.append(user_only_context)
                 if recent_context.strip():
                     context_parts.append(recent_context)
 
@@ -907,6 +914,42 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
                 context_parts.append(f"Assistant: {msg.content}")
 
         return " ".join(context_parts) if context_parts else "No previous conversation context"
+
+    def _extract_user_messages_from_context(self, context: str) -> str:
+        """Extract only user messages from context, excluding assistant responses.
+
+        This prevents contamination from assistant's verbose responses which contain
+        discourse markers like "Based on", "However", "Additionally" that get
+        incorrectly identified as entities by spaCy's noun chunking.
+
+        Args:
+            context: Full conversation context with both user and assistant messages
+
+        Returns:
+            String containing only user messages, filtered from the context
+
+        Example:
+            Input: "User: What is IBM? Assistant: Based on the analysis..."
+            Output: "What is IBM?"
+        """
+        if not context or context == "No previous conversation context":
+            return ""
+
+        user_messages = []
+
+        # Split by "Assistant:" to separate sections
+        sections = context.split("Assistant:")
+
+        for section in sections:
+            if "User:" in section:
+                # Extract all user messages from this section
+                user_parts = section.split("User:")
+                for part in user_parts[1:]:  # Skip first split (before first "User:")
+                    user_msg = part.strip()
+                    if user_msg:
+                        user_messages.append(user_msg)
+
+        return " ".join(user_messages)
 
     def _extract_entities_from_context(self, context: str) -> list[str]:
         """Extract entities from context using EntityExtractionService.

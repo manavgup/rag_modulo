@@ -7,13 +7,14 @@ from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
+from pydantic import ValidationError as PydanticValidationError
+
 from core.config import Settings, get_settings
 from rag_solution.core.exceptions import ValidationError
 from rag_solution.schemas.conversation_schema import (
     ConversationSessionInput,
 )
 from rag_solution.services.conversation_service import ConversationService
-from pydantic import ValidationError as PydanticValidationError
 
 
 class TestConversationServiceSimple:
@@ -87,3 +88,43 @@ class TestConversationServiceSimple:
         for method_name in required_methods:
             assert hasattr(service, method_name), f"Service missing method: {method_name}"
             assert callable(getattr(service, method_name)), f"Method {method_name} is not callable"
+
+    def test_extract_user_messages_filters_assistant_responses(self, service):
+        """Test that _extract_user_messages_from_context filters out assistant messages."""
+        # Test with mixed user and assistant messages
+        context = "User: What is IBM? Assistant: Based on the analysis, IBM is... User: What about revenue?"
+        result = service._extract_user_messages_from_context(context)
+
+        # Should only contain user messages
+        assert "What is IBM?" in result
+        assert "What about revenue?" in result
+        assert "Based on the analysis" not in result
+        assert "Assistant" not in result
+
+    def test_extract_user_messages_handles_empty_context(self, service):
+        """Test that empty or invalid context returns empty string."""
+        assert service._extract_user_messages_from_context("") == ""
+        assert service._extract_user_messages_from_context("No previous conversation context") == ""
+
+    def test_extract_user_messages_handles_user_only_context(self, service):
+        """Test that context with only user messages works correctly."""
+        context = "User: What is machine learning? User: How does it work?"
+        result = service._extract_user_messages_from_context(context)
+
+        assert "What is machine learning?" in result
+        assert "How does it work?" in result
+
+    def test_extract_user_messages_prevents_discourse_marker_pollution(self, service):
+        """Test that discourse markers from assistant responses are filtered out."""
+        # This is the key test - discourse markers should NOT appear
+        context = "User: Tell me about IBM Assistant: However, Based on the analysis, Additionally, Since the context suggests..."
+        result = service._extract_user_messages_from_context(context)
+
+        # User message should be present
+        assert "Tell me about IBM" in result
+
+        # Discourse markers should be filtered out
+        assert "However" not in result
+        assert "Based on" not in result
+        assert "Additionally" not in result
+        assert "Since" not in result
