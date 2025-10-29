@@ -33,16 +33,20 @@ class BaseQueryRewriter(ABC):
 
 class SimpleQueryRewriter(BaseQueryRewriter):
     def rewrite(self, query: str, context: dict[str, Any] | None = None) -> str:  # noqa: ARG002
-        logger.info(f"Applying simple query expansion to: {query}")
-        try:
-            if "AND (relevant OR important OR key)" not in query:
-                expanded_query = f"{query} AND (relevant OR important OR key)"
-                logger.info(f"Expanded query: {expanded_query}")
-                return expanded_query
-            return query
-        except Exception as e:
-            logger.error(f"Error in SimpleQueryRewriter: {e!s}")
-            raise RewriterError(f"SimpleQueryRewriter failed: {e!s}") from e
+        """Simple query rewriter that returns query unchanged.
+
+        Generic boolean expansion like 'AND (relevant OR important OR key)' adds no value
+        for semantic/vector search, as vector embeddings already capture semantic relevance.
+
+        Args:
+            query: The original search query
+            context: Optional context (unused in simple rewriter)
+
+        Returns:
+            The original query unchanged
+        """
+        logger.info(f"Simple query rewriter: returning query unchanged: {query}")
+        return query
 
 
 class HypotheticalDocumentEmbedding(BaseQueryRewriter):
