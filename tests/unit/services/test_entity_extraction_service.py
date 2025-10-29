@@ -8,8 +8,9 @@ Tests cover:
 - Caching behavior
 """
 
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from rag_solution.services.entity_extraction_service import EntityExtractionService
 
@@ -188,15 +189,16 @@ class TestSpacyExtraction:
 
     def test_extract_with_spacy_fallback_when_unavailable(self, entity_service):
         """Test fallback to regex when spaCy is unavailable."""
-        # Mock spaCy as unavailable
-        entity_service._nlp = None
+        # Mock _extract_with_regex to verify fallback
+        with patch.object(entity_service, "_extract_with_regex", return_value=["IBM", "2020"]) as mock_regex:
+            # Mock nlp property to return None (spaCy unavailable)
+            with patch.object(type(entity_service), "nlp", new_callable=PropertyMock, return_value=None):
+                context = "IBM reported revenue in 2020"
+                entities = entity_service._extract_with_spacy(context)
 
-        with patch.object(entity_service, "nlp", None):
-            context = "IBM reported revenue in 2020"
-            entities = entity_service._extract_with_spacy(context)
-
-            # Should fallback to regex extraction
-            assert isinstance(entities, list)
+                # Should fallback to regex extraction
+                mock_regex.assert_called_once_with(context)
+                assert entities == ["IBM", "2020"]
 
 
 @pytest.mark.asyncio
@@ -229,14 +231,24 @@ class TestLLMExtraction:
                 assert "Global Financing" in entities
 
     async def test_extract_with_llm_fallback_on_error(self, entity_service):
-        """Test fallback to spaCy when LLM fails."""
-        # Mock LLM provider service to raise error
-        mock_llm_service = MagicMock()
-        mock_llm_service.get_default_provider.side_effect = Exception("LLM error")
+        """Test fallback to spaCy when LLM generation fails."""
+        context = "IBM reported revenue in 2020"
 
-        with patch("rag_solution.services.entity_extraction_service.LLMProviderService", return_value=mock_llm_service):
+        # Mock LLMProviderService
+        mock_llm_service = MagicMock()
+        mock_provider_config = MagicMock()
+        mock_provider_config.name = "test_provider"
+        mock_llm_service.get_default_provider.return_value = mock_provider_config
+
+        # Set the mock service
+        entity_service._llm_provider_service = mock_llm_service
+
+        # Mock factory to raise an error (which is caught and falls back)
+        with patch("rag_solution.services.entity_extraction_service.LLMProviderFactory") as mock_factory_class:
+            mock_factory_class.return_value.get_provider.side_effect = RuntimeError("Provider error")
+
+            # Mock _extract_with_spacy for fallback
             with patch.object(entity_service, "_extract_with_spacy", return_value=["IBM", "2020"]) as mock_spacy:
-                context = "IBM reported revenue in 2020"
                 entities = await entity_service._extract_with_llm(context)
 
                 # Should fallback to spaCy
@@ -283,11 +295,14 @@ class TestHybridExtraction:
         context = " ".join(["word"] * 60)  # Complex context
 
         with patch.object(entity_service, "_extract_with_spacy", return_value=["IBM", "2020"]) as mock_spacy:
-            with patch.object(entity_service, "_extract_with_llm", side_effect=Exception("LLM error")):
+            # Mock _extract_with_llm to raise RuntimeError (which is caught)
+            with patch.object(entity_service, "_extract_with_llm", side_effect=RuntimeError("LLM error")) as mock_llm:
                 entities = await entity_service._extract_hybrid(context)
 
-                # Should fallback to spaCy only
+                # Should call both (LLM fails, but spaCy succeeds)
                 mock_spacy.assert_called_once()
+                mock_llm.assert_called_once()
+                # Returns spaCy results since LLM failed
                 assert entities == ["IBM", "2020"]
 
 
