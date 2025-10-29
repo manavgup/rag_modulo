@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     rag_llm: Annotated[str, Field(default="ibm/granite-3-3-8b-instruct", alias="RAG_LLM")]
 
     # Search settings
-    number_of_results: Annotated[int, Field(default=5, alias="NUMBER_OF_RESULTS")]
+    number_of_results: Annotated[int, Field(default=10, alias="NUMBER_OF_RESULTS")]
     runtime_eval: Annotated[bool, Field(default=False, alias="RUNTIME_EVAL")]
 
     # Core data settings
@@ -154,7 +154,9 @@ class Settings(BaseSettings):
     # Reranking settings
     enable_reranking: Annotated[bool, Field(default=True, alias="ENABLE_RERANKING")]
     reranker_type: Annotated[str, Field(default="llm", alias="RERANKER_TYPE")]  # Options: llm, simple
-    reranker_top_k: Annotated[int | None, Field(default=None, alias="RERANKER_TOP_K")]  # None = rerank all results
+    reranker_top_k: Annotated[
+        int | None, Field(default=5, alias="RERANKER_TOP_K")
+    ]  # Default 5 for optimal quality/speed
     reranker_batch_size: Annotated[int, Field(default=10, alias="RERANKER_BATCH_SIZE")]
     reranker_score_scale: Annotated[int, Field(default=10, alias="RERANKER_SCORE_SCALE")]  # 0-10 scoring scale
     reranker_prompt_template_name: Annotated[
