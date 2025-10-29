@@ -73,8 +73,6 @@ class PipelineService:
         # Lazy initialized components
         self._document_store: DocumentStore | None = None
         self._retriever: BaseRetriever | None = None
-        # Cache rerankers per user to avoid sharing user-specific configurations
-        self._rerankers: dict[UUID4, BaseReranker] = {}
 
     # Property-based lazy initialization
     @property
@@ -141,27 +139,22 @@ class PipelineService:
         return self._retriever
 
     def get_reranker(self, user_id: UUID4) -> BaseReranker | None:
-        """Get or create reranker instance for the given user.
+        """Get reranker instance for the given user.
 
-        Caches rerankers per user to avoid sharing user-specific configurations
-        across different users (e.g., different prompt templates, LLM settings).
+        Creates a fresh reranker on-demand for each request. No caching is needed
+        because reranker initialization is lightweight (just object creation).
 
         Args:
             user_id: User UUID for creating LLM-based reranker
 
         Returns:
-            Reranker instance (LLMReranker or SimpleReranker) for this user, or None if disabled
+            Reranker instance (LLMReranker or SimpleReranker), or None if disabled
         """
         if not self.settings.enable_reranking:
             return None
 
-        # Return cached reranker if already initialized for this user
-        if user_id in self._rerankers:
-            logger.debug("Returning cached reranker for user %s", user_id)
-            return self._rerankers[user_id]
+        logger.debug("Creating reranker for user %s", user_id)
 
-        # Create new reranker for this user
-        logger.debug("Lazy initializing reranker for user %s in PipelineService", user_id)
         # pylint: disable=import-outside-toplevel
         # Justification: Lazy import to avoid circular dependency
         from rag_solution.retrieval.reranker import LLMReranker, SimpleReranker
@@ -173,9 +166,7 @@ class PipelineService:
                 provider_config = self.llm_provider_service.get_default_provider()
                 if not provider_config:
                     logger.warning("No LLM provider found, using simple reranker for user %s", user_id)
-                    reranker = SimpleReranker()
-                    self._rerankers[user_id] = reranker
-                    return reranker
+                    return SimpleReranker()
 
                 # pylint: disable=import-outside-toplevel
                 # Justification: Lazy import to avoid circular dependency
@@ -186,17 +177,15 @@ class PipelineService:
 
                 # Get reranking prompt template (user-specific)
                 try:
-                    template = self.prompt_template_service.get_by_type(
-                        user_id, PromptTemplateType.RERANKING
-                    )
+                    template = self.prompt_template_service.get_by_type(user_id, PromptTemplateType.RERANKING)
                     if template is None:
                         raise ValueError("Reranking template not found")
                 except Exception as e:  # pylint: disable=broad-exception-caught
                     # Justification: Fallback to simple reranker if template loading fails
-                    logger.warning("Could not load reranking template for user %s: %s, using simple reranker", user_id, e)
-                    reranker = SimpleReranker()
-                    self._rerankers[user_id] = reranker
-                    return reranker
+                    logger.warning(
+                        "Could not load reranking template for user %s: %s, using simple reranker", user_id, e
+                    )
+                    return SimpleReranker()
 
                 reranker = LLMReranker(
                     llm_provider=llm_provider,
@@ -205,24 +194,17 @@ class PipelineService:
                     batch_size=self.settings.reranker_batch_size,
                     score_scale=self.settings.reranker_score_scale,
                 )
-                logger.debug("LLM reranker initialized successfully for user %s", user_id)
-                self._rerankers[user_id] = reranker
+                logger.debug("LLM reranker created successfully for user %s", user_id)
                 return reranker
             except Exception as e:  # pylint: disable=broad-exception-caught
                 # Justification: Fallback to simple reranker for any initialization error
-                logger.warning("Failed to initialize LLM reranker for user %s: %s, using simple reranker", user_id, e)
-                reranker = SimpleReranker()
-                self._rerankers[user_id] = reranker
-                return reranker
+                logger.warning("Failed to create LLM reranker for user %s: %s, using simple reranker", user_id, e)
+                return SimpleReranker()
         else:
-            reranker = SimpleReranker()
-            logger.debug("Simple reranker initialized for user %s", user_id)
-            self._rerankers[user_id] = reranker
-            return reranker
+            logger.debug("Creating simple reranker for user %s", user_id)
+            return SimpleReranker()
 
-    def _apply_reranking(
-        self, query: str, results: list[QueryResult], user_id: UUID4
-    ) -> list[QueryResult]:
+    def _apply_reranking(self, query: str, results: list[QueryResult], user_id: UUID4) -> list[QueryResult]:
         """Apply reranking to search results if enabled.
 
         Args:
