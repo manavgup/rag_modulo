@@ -277,6 +277,7 @@ class LLMReranker(BaseReranker):
         try:
             # Call LLM provider (synchronous - run in executor to avoid blocking)
             import asyncio
+
             loop = asyncio.get_event_loop()
             responses = await loop.run_in_executor(
                 None,
@@ -284,7 +285,7 @@ class LLMReranker(BaseReranker):
                     user_id=self.user_id,
                     prompt=formatted_prompts,
                     template=None,
-                )
+                ),
             )
 
             # Extract scores from responses
@@ -545,7 +546,7 @@ class CrossEncoderReranker(BaseReranker):
         rerank_time = time.time() - start_time
 
         # Combine results with scores
-        scored_results = list(zip(results, scores))
+        scored_results = list(zip(results, scores, strict=False))
 
         # Sort by cross-encoder scores (descending)
         sorted_results = sorted(scored_results, key=lambda x: x[1], reverse=True)
