@@ -517,6 +517,9 @@ class CrossEncoderReranker(BaseReranker):
 
         Returns:
             Reranked list of QueryResult objects with updated scores
+
+        Raises:
+            ValueError: If model prediction fails
         """
         if not results:
             logger.debug("No results to rerank")
@@ -537,7 +540,12 @@ class CrossEncoderReranker(BaseReranker):
         pairs = [[query, result.chunk.text] for result in results]
 
         # Score all pairs with cross-encoder (fast: ~100ms for 20 docs)
-        scores = self.model.predict(pairs)
+        try:
+            scores = self.model.predict(pairs)
+        except Exception as e:
+            logger.error("Cross-encoder prediction failed: %s", e)
+            raise ValueError(f"Reranking failed for model {self.model_name}: {e}") from e
+
         rerank_time = time.time() - start_time
 
         # Combine results with scores (strict=True for safety)
@@ -547,13 +555,14 @@ class CrossEncoderReranker(BaseReranker):
         sorted_results = sorted(scored_results, key=lambda x: x[1], reverse=True)
 
         # Update QueryResult scores with cross-encoder scores
+        # Note: QueryResult schema only has chunk, score, embeddings
+        # Collection info is preserved in the chunk object
         reranked_results = []
         for result, ce_score in sorted_results:
             new_result = QueryResult(
                 chunk=result.chunk,
                 score=float(ce_score),  # Convert numpy float to Python float
-                collection_id=result.collection_id,
-                collection_name=result.collection_name,
+                embeddings=result.embeddings,
             )
             reranked_results.append(new_result)
 
@@ -584,5 +593,5 @@ class CrossEncoderReranker(BaseReranker):
         """
         import asyncio
 
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, lambda: self.rerank(query, results, top_k))
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, self.rerank, query, results, top_k)

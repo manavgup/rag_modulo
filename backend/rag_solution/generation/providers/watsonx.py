@@ -380,11 +380,13 @@ class WatsonXLLM(LLMBase):
             if isinstance(texts, str):
                 texts = [texts]
 
-            # Debug logging for embeddings generation
+            # Debug logging for embeddings generation (limited to first 5 for performance)
             if logger.isEnabledFor(logging.DEBUG):
                 logger.debug("Generating embeddings for %d texts", len(texts))
-                for idx, text in enumerate(texts, 1):
+                for idx, text in enumerate(texts[:5], 1):
                     logger.debug("Text %d (length: %d chars): %s", idx, len(text), text[:100])
+                if len(texts) > 5:
+                    logger.debug("... and %d more texts", len(texts) - 5)
 
             # Add a configurable delay to prevent rate limiting
             settings = get_settings()
