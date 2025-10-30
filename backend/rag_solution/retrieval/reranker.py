@@ -504,38 +504,33 @@ class CrossEncoderReranker(BaseReranker):
         top_k: int | None = None,
     ) -> list[QueryResult]:
         """
-        Rerank search results using cross-encoder model.
+        Rerank results using cross-encoder model.
+
+        Cross-encoders score query-document pairs directly, providing more accurate
+        relevance scoring than bi-encoder cosine similarity. This is the industry
+        standard for production reranking (used by OpenAI, Anthropic, Cohere, etc.).
 
         Args:
-            query: Search query
+            query: The search query
             results: List of QueryResult objects to rerank
-            top_k: Optional number of top results to return
+            top_k: Optional number of top results to return (defaults to len(results))
 
         Returns:
-            List of reranked QueryResult objects (sorted by cross-encoder score)
+            Reranked list of QueryResult objects with updated scores
         """
         if not results:
-            logger.info("No results to rerank")
+            logger.debug("No results to rerank")
             return []
 
-        logger.info("=" * 80)
-        logger.info("RERANKING: Starting cross-encoder reranking")
-        logger.info("Model: %s", self.model_name)
-        logger.info("Query: %s", query[:150])
-        logger.info("Number of results: %d", len(results))
-        logger.info("=" * 80)
+        if top_k is None:
+            top_k = len(results)
 
-        # Log original results with vector similarity scores
-        logger.info("\n[BEFORE RERANKING] Vector Similarity Scores:")
-        for i, result in enumerate(results, 1):
-            original_score = result.score if result.score is not None else 0.0
-            chunk_text = result.chunk.text[:200] if result.chunk and result.chunk.text else "N/A"
-            logger.info(
-                "  %d. Score: %.4f | Text: %s...",
-                i,
-                original_score,
-                chunk_text.replace("\n", " "),
-            )
+        logger.debug(
+            "Reranking %d results with cross-encoder (top_k=%d, model=%s)",
+            len(results),
+            top_k,
+            self.model_name,
+        )
 
         # Create query-document pairs for cross-encoder
         start_time = time.time()
@@ -545,8 +540,8 @@ class CrossEncoderReranker(BaseReranker):
         scores = self.model.predict(pairs)
         rerank_time = time.time() - start_time
 
-        # Combine results with scores
-        scored_results = list(zip(results, scores, strict=False))
+        # Combine results with scores (strict=True for safety)
+        scored_results = list(zip(results, scores, strict=True))
 
         # Sort by cross-encoder scores (descending)
         sorted_results = sorted(scored_results, key=lambda x: x[1], reverse=True)
@@ -557,32 +552,23 @@ class CrossEncoderReranker(BaseReranker):
             new_result = QueryResult(
                 chunk=result.chunk,
                 score=float(ce_score),  # Convert numpy float to Python float
-                embeddings=result.embeddings,
+                collection_id=result.collection_id,
+                collection_name=result.collection_name,
             )
             reranked_results.append(new_result)
 
-        # Log reranked results
-        logger.info("\n[AFTER RERANKING] Cross-Encoder Scores:")
-        for i, (result, ce_score) in enumerate(sorted_results, 1):
-            chunk_text = result.chunk.text[:200] if result.chunk and result.chunk.text else "N/A"
-            original_score = result.score if result.score is not None else 0.0
-            logger.info(
-                "  %d. CE Score: %.4f (was %.4f) | Text: %s...",
-                i,
-                ce_score,
-                original_score,
-                chunk_text.replace("\n", " "),
-            )
+        # Return top_k results
+        final_results = reranked_results[:top_k]
 
-        # Return top_k if specified
-        if top_k is not None:
-            reranked_results = reranked_results[:top_k]
-            logger.info("\n[TOP-K FILTERING] Returning top %d results", top_k)
+        logger.info(
+            "Reranked %d results → %d results in %.3fs (model=%s)",
+            len(results),
+            len(final_results),
+            rerank_time,
+            self.model_name,
+        )
 
-        logger.info("=" * 80)
-        logger.info("RERANKING: Complete in %.2fs. Returned %d results", rerank_time, len(reranked_results))
-        logger.info("=" * 80)
-        return reranked_results
+        return final_results
 
     async def rerank_async(
         self,

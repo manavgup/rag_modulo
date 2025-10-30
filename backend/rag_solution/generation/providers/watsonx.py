@@ -380,28 +380,11 @@ class WatsonXLLM(LLMBase):
             if isinstance(texts, str):
                 texts = [texts]
 
-            # LOG EXACT TEXT BEING EMBEDDED FOR DEBUGGING
-            print("=" * 80)
-            print("🔍 EMBEDDING GENERATION - EXACT TEXT BEING SENT TO WATSONX")
-            print("=" * 80)
-            print(f"Number of texts: {len(texts)}")
-            for idx, text in enumerate(texts, 1):
-                print(f"Text {idx} (length: {len(text)} chars):")
-                print(f">>> {text}")
-            print("=" * 80)
-
-            # Also log it
-            logger.info("=" * 80)
-            logger.info("EMBEDDING GENERATION - EXACT TEXT BEING SENT TO WATSONX")
-            logger.info("=" * 80)
-            logger.info("Number of texts: %d", len(texts))
-            for idx, text in enumerate(texts, 1):
-                logger.info("Text %d (length: %d chars):", idx, len(text))
-                logger.info(">>> %s", text)
-            logger.info("=" * 80)
-
-            logger.debug("Generating embeddings for %d texts", len(texts))
-            logger.debug("Embeddings client: %s", self.embeddings_client)
+            # Debug logging for embeddings generation
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug("Generating embeddings for %d texts", len(texts))
+                for idx, text in enumerate(texts, 1):
+                    logger.debug("Text %d (length: %d chars): %s", idx, len(text), text[:100])
 
             # Add a configurable delay to prevent rate limiting
             settings = get_settings()
