@@ -275,11 +275,16 @@ class LLMReranker(BaseReranker):
         formatted_prompts = self._create_reranking_prompts(query, batch)
 
         try:
-            # Call LLM provider asynchronously
-            responses = await self.llm_provider.generate_text(
-                user_id=self.user_id,
-                prompt=formatted_prompts,
-                template=None,
+            # Call LLM provider (synchronous - run in executor to avoid blocking)
+            import asyncio
+            loop = asyncio.get_event_loop()
+            responses = await loop.run_in_executor(
+                None,
+                lambda: self.llm_provider.generate_text(
+                    user_id=self.user_id,
+                    prompt=formatted_prompts,
+                    template=None,
+                )
             )
 
             # Extract scores from responses
@@ -461,3 +466,136 @@ class SimpleReranker(BaseReranker):
         Async version of rerank - SimpleReranker doesn't need concurrency, just wraps sync method.
         """
         return self.rerank(query, results, top_k)
+
+
+class CrossEncoderReranker(BaseReranker):
+    """Fast cross-encoder reranker using sentence-transformers.
+
+    Production-grade reranker that uses a cross-encoder model to score
+    query-document pairs. Much faster than LLM-based reranking (~100ms vs 20-30s).
+
+    Models:
+        - cross-encoder/ms-marco-MiniLM-L-12-v2: Best accuracy (12 layers)
+        - cross-encoder/ms-marco-MiniLM-L-6-v2: Faster, good accuracy (6 layers)
+        - cross-encoder/ms-marco-TinyBERT-L-2-v2: Fastest, decent accuracy (2 layers)
+    """
+
+    def __init__(self, model_name: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"):
+        """
+        Initialize cross-encoder reranker.
+
+        Args:
+            model_name: HuggingFace model name for cross-encoder
+        """
+        from sentence_transformers import CrossEncoder
+
+        self.model_name = model_name
+        logger.info("Loading cross-encoder model: %s", model_name)
+        start_time = time.time()
+        self.model = CrossEncoder(model_name)
+        load_time = time.time() - start_time
+        logger.info("Cross-encoder loaded in %.2fs", load_time)
+
+    def rerank(
+        self,
+        query: str,
+        results: list[QueryResult],
+        top_k: int | None = None,
+    ) -> list[QueryResult]:
+        """
+        Rerank search results using cross-encoder model.
+
+        Args:
+            query: Search query
+            results: List of QueryResult objects to rerank
+            top_k: Optional number of top results to return
+
+        Returns:
+            List of reranked QueryResult objects (sorted by cross-encoder score)
+        """
+        if not results:
+            logger.info("No results to rerank")
+            return []
+
+        logger.info("=" * 80)
+        logger.info("RERANKING: Starting cross-encoder reranking")
+        logger.info("Model: %s", self.model_name)
+        logger.info("Query: %s", query[:150])
+        logger.info("Number of results: %d", len(results))
+        logger.info("=" * 80)
+
+        # Log original results with vector similarity scores
+        logger.info("\n[BEFORE RERANKING] Vector Similarity Scores:")
+        for i, result in enumerate(results, 1):
+            original_score = result.score if result.score is not None else 0.0
+            chunk_text = result.chunk.text[:200] if result.chunk and result.chunk.text else "N/A"
+            logger.info(
+                "  %d. Score: %.4f | Text: %s...",
+                i,
+                original_score,
+                chunk_text.replace("\n", " "),
+            )
+
+        # Create query-document pairs for cross-encoder
+        start_time = time.time()
+        pairs = [[query, result.chunk.text] for result in results]
+
+        # Score all pairs with cross-encoder (fast: ~100ms for 20 docs)
+        scores = self.model.predict(pairs)
+        rerank_time = time.time() - start_time
+
+        # Combine results with scores
+        scored_results = list(zip(results, scores))
+
+        # Sort by cross-encoder scores (descending)
+        sorted_results = sorted(scored_results, key=lambda x: x[1], reverse=True)
+
+        # Update QueryResult scores with cross-encoder scores
+        reranked_results = []
+        for result, ce_score in sorted_results:
+            new_result = QueryResult(
+                chunk=result.chunk,
+                score=float(ce_score),  # Convert numpy float to Python float
+                embeddings=result.embeddings,
+            )
+            reranked_results.append(new_result)
+
+        # Log reranked results
+        logger.info("\n[AFTER RERANKING] Cross-Encoder Scores:")
+        for i, (result, ce_score) in enumerate(sorted_results, 1):
+            chunk_text = result.chunk.text[:200] if result.chunk and result.chunk.text else "N/A"
+            original_score = result.score if result.score is not None else 0.0
+            logger.info(
+                "  %d. CE Score: %.4f (was %.4f) | Text: %s...",
+                i,
+                ce_score,
+                original_score,
+                chunk_text.replace("\n", " "),
+            )
+
+        # Return top_k if specified
+        if top_k is not None:
+            reranked_results = reranked_results[:top_k]
+            logger.info("\n[TOP-K FILTERING] Returning top %d results", top_k)
+
+        logger.info("=" * 80)
+        logger.info("RERANKING: Complete in %.2fs. Returned %d results", rerank_time, len(reranked_results))
+        logger.info("=" * 80)
+        return reranked_results
+
+    async def rerank_async(
+        self,
+        query: str,
+        results: list[QueryResult],
+        top_k: int | None = None,
+    ) -> list[QueryResult]:
+        """
+        Async version of rerank.
+
+        Cross-encoder inference is CPU-bound and relatively fast (~100ms),
+        so we run it in an executor to avoid blocking the event loop.
+        """
+        import asyncio
+
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, lambda: self.rerank(query, results, top_k))

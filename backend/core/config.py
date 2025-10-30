@@ -153,7 +153,7 @@ class Settings(BaseSettings):
 
     # Reranking settings
     enable_reranking: Annotated[bool, Field(default=True, alias="ENABLE_RERANKING")]
-    reranker_type: Annotated[str, Field(default="llm", alias="RERANKER_TYPE")]  # Options: llm, simple
+    reranker_type: Annotated[str, Field(default="llm", alias="RERANKER_TYPE")]  # Options: llm, simple, cross-encoder
     reranker_top_k: Annotated[
         int | None, Field(default=5, alias="RERANKER_TOP_K")
     ]  # Default 5 for optimal quality/speed
@@ -162,6 +162,10 @@ class Settings(BaseSettings):
     reranker_prompt_template_name: Annotated[
         str, Field(default="reranking", alias="RERANKER_PROMPT_TEMPLATE_NAME")
     ]  # Template name for reranking prompts
+    # Cross-encoder reranker settings (production-grade, ~100ms vs 20-30s for LLM)
+    cross_encoder_model: Annotated[
+        str, Field(default="cross-encoder/ms-marco-MiniLM-L-6-v2", alias="CROSS_ENCODER_MODEL")
+    ]  # Fast cross-encoder for reranking
 
     # Podcast Generation settings
     # Environment: "development" uses FastAPI BackgroundTasks + local filesystem

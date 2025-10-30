@@ -182,13 +182,14 @@ class WatsonXLLM(LLMBase):
         if params is None:
             raise ValueError("No LLM parameters found for user")
 
-        # Convert to WatsonX format
+        # Convert to WatsonX format with stop sequences
         return {
             GenParams.DECODING_METHOD: "sample",
             GenParams.MAX_NEW_TOKENS: params.max_new_tokens,
             GenParams.TEMPERATURE: params.temperature,
             GenParams.TOP_K: params.top_k,
             GenParams.TOP_P: params.top_p,
+            GenParams.STOP_SEQUENCES: ["##", "\n\nQuestion:", "\n\n##"],  # Stop at markdown headers or new questions
         }
 
     def generate_text(
@@ -378,6 +379,26 @@ class WatsonXLLM(LLMBase):
 
             if isinstance(texts, str):
                 texts = [texts]
+
+            # LOG EXACT TEXT BEING EMBEDDED FOR DEBUGGING
+            print("=" * 80)
+            print("🔍 EMBEDDING GENERATION - EXACT TEXT BEING SENT TO WATSONX")
+            print("=" * 80)
+            print(f"Number of texts: {len(texts)}")
+            for idx, text in enumerate(texts, 1):
+                print(f"Text {idx} (length: {len(text)} chars):")
+                print(f">>> {text}")
+            print("=" * 80)
+
+            # Also log it
+            logger.info("=" * 80)
+            logger.info("EMBEDDING GENERATION - EXACT TEXT BEING SENT TO WATSONX")
+            logger.info("=" * 80)
+            logger.info("Number of texts: %d", len(texts))
+            for idx, text in enumerate(texts, 1):
+                logger.info("Text %d (length: %d chars):", idx, len(text))
+                logger.info(">>> %s", text)
+            logger.info("=" * 80)
 
             logger.debug("Generating embeddings for %d texts", len(texts))
             logger.debug("Embeddings client: %s", self.embeddings_client)
