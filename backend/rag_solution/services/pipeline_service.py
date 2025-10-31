@@ -148,7 +148,7 @@ class PipelineService:
             user_id: User UUID for creating LLM-based reranker
 
         Returns:
-            Reranker instance (LLMReranker or SimpleReranker), or None if disabled
+            Reranker instance (CrossEncoderReranker, LLMReranker or SimpleReranker), or None if disabled
         """
         if not self.settings.enable_reranking:
             return None
@@ -157,10 +157,22 @@ class PipelineService:
 
         # pylint: disable=import-outside-toplevel
         # Justification: Lazy import to avoid circular dependency
-        from rag_solution.retrieval.reranker import LLMReranker, SimpleReranker
+        from rag_solution.retrieval.reranker import CrossEncoderReranker, LLMReranker, SimpleReranker
         from rag_solution.schemas.prompt_template_schema import PromptTemplateType
 
-        if self.settings.reranker_type == "llm":
+        if self.settings.reranker_type == "cross-encoder":
+            try:
+                logger.debug("Creating cross-encoder reranker for user %s", user_id)
+                reranker = CrossEncoderReranker(model_name=self.settings.cross_encoder_model)
+                logger.debug("Cross-encoder reranker created successfully for user %s", user_id)
+                return reranker
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                # Justification: Fallback to simple reranker for any initialization error
+                logger.warning(
+                    "Failed to create cross-encoder reranker for user %s: %s, using simple reranker", user_id, e
+                )
+                return SimpleReranker()
+        elif self.settings.reranker_type == "llm":
             try:
                 # Get LLM provider
                 provider_config = self.llm_provider_service.get_default_provider()

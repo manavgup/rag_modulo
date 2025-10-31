@@ -4,7 +4,7 @@ This module defines Pydantic schemas for conversation sessions, messages,
 context management, and question suggestions.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 from uuid import uuid4
@@ -132,9 +132,9 @@ class ConversationSessionInput(BaseModel):
     ) -> "ConversationSessionOutput":
         """Convert input to output schema using Pydantic 2+ model validation."""
         if created_at is None:
-            created_at = datetime.utcnow()
+            created_at = datetime.now(UTC)
         if updated_at is None:
-            updated_at = datetime.utcnow()
+            updated_at = datetime.now(UTC)
 
         # Use model_dump() to get all input data, then update with additional fields
         data = self.model_dump()
@@ -163,8 +163,8 @@ class ConversationSessionOutput(BaseModel):
     max_messages: int = Field(..., description="Maximum number of messages")
     is_archived: bool = Field(default=False, description="Whether the session is archived")
     is_pinned: bool = Field(default=False, description="Whether the session is pinned")
-    created_at: datetime = Field(default_factory=datetime.utcnow, description="Creation timestamp")
-    updated_at: datetime = Field(default_factory=datetime.utcnow, description="Last update timestamp")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), description="Creation timestamp")
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC), description="Last update timestamp")
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
     message_count: int = Field(default=0, description="Number of messages in the session")
 
@@ -234,7 +234,7 @@ class ConversationMessageInput(BaseModel):
     """Input schema for conversation messages."""
 
     session_id: UUID4 = Field(..., description="ID of the session")
-    content: str = Field(..., min_length=1, max_length=10000, description="Message content")
+    content: str = Field(..., min_length=1, max_length=100000, description="Message content")
     role: MessageRole = Field(..., description="Role of the message sender")
     message_type: MessageType = Field(..., description="Type of message")
     metadata: MessageMetadata | dict[str, Any] | None = Field(default=None, description="Message metadata")
@@ -246,7 +246,7 @@ class ConversationMessageInput(BaseModel):
     def to_output(self, message_id: UUID4, created_at: datetime | None = None) -> "ConversationMessageOutput":
         """Convert input to output schema using Pydantic 2+ model validation."""
         if created_at is None:
-            created_at = datetime.utcnow()
+            created_at = datetime.now(UTC)
 
         # Use model_dump() to get all input data, then update with additional fields
         data = self.model_dump()
@@ -263,7 +263,7 @@ class ConversationMessageOutput(BaseModel):
     content: str = Field(..., description="Message content")
     role: MessageRole = Field(..., description="Role of the message sender")
     message_type: MessageType = Field(..., description="Type of message")
-    created_at: datetime = Field(default_factory=datetime.utcnow, description="Creation timestamp")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), description="Creation timestamp")
     metadata: MessageMetadata | None = Field(default=None, description="Message metadata")
     token_count: int | None = Field(default=None, description="Token count for this message")
     execution_time: float | None = Field(default=None, description="Execution time in seconds")
@@ -406,7 +406,7 @@ class ExportOutput(BaseModel):
     session_data: ConversationSessionOutput = Field(..., description="Session information")
     messages: list[ConversationMessageOutput] = Field(..., description="All messages in session")
     export_format: ExportFormat = Field(..., description="Format of the export")
-    export_timestamp: datetime = Field(default_factory=datetime.utcnow, description="Export timestamp")
+    export_timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC), description="Export timestamp")
     metadata: dict[str, Any] = Field(default_factory=dict, description="Export metadata")
 
 
@@ -463,7 +463,7 @@ class ConversationSummaryOutput(BaseModel):
     important_decisions: list[str] = Field(default_factory=list, description="Important decisions made")
     unresolved_questions: list[str] = Field(default_factory=list, description="Questions still unresolved")
     summary_strategy: SummarizationStrategy = Field(..., description="Strategy used for summarization")
-    created_at: datetime = Field(default_factory=datetime.utcnow, description="Summary creation timestamp")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC), description="Summary creation timestamp")
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional summary metadata")
 
     @classmethod
@@ -609,7 +609,7 @@ class ConversationExportOutput(BaseModel):
     messages: list[ConversationMessageOutput] = Field(..., description="Exported messages")
     summaries: list[ConversationSummaryOutput] = Field(default_factory=list, description="Conversation summaries")
     export_format: ExportFormat = Field(..., description="Format of the export")
-    export_timestamp: datetime = Field(default_factory=datetime.utcnow, description="Export timestamp")
+    export_timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC), description="Export timestamp")
     total_messages: int = Field(..., ge=0, description="Total number of messages exported")
     total_tokens: int = Field(default=0, ge=0, description="Total tokens in exported content")
     file_size_bytes: int = Field(default=0, ge=0, description="Size of exported file in bytes")

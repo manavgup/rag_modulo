@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import time
 from collections.abc import Generator, Sequence
 from typing import Any
@@ -182,13 +183,14 @@ class WatsonXLLM(LLMBase):
         if params is None:
             raise ValueError("No LLM parameters found for user")
 
-        # Convert to WatsonX format
+        # Convert to WatsonX format with stop sequences
         return {
             GenParams.DECODING_METHOD: "sample",
             GenParams.MAX_NEW_TOKENS: params.max_new_tokens,
             GenParams.TEMPERATURE: params.temperature,
             GenParams.TOP_K: params.top_k,
             GenParams.TOP_P: params.top_p,
+            GenParams.STOP_SEQUENCES: ["##", "\n\nQuestion:", "\n\n##"],  # Stop at markdown headers or new questions
         }
 
     def generate_text(
@@ -379,8 +381,13 @@ class WatsonXLLM(LLMBase):
             if isinstance(texts, str):
                 texts = [texts]
 
-            logger.debug("Generating embeddings for %d texts", len(texts))
-            logger.debug("Embeddings client: %s", self.embeddings_client)
+            # Debug logging for embeddings generation (limited to first 5 for performance)
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug("Generating embeddings for %d texts", len(texts))
+                for idx, text in enumerate(texts[:5], 1):
+                    logger.debug("Text %d (length: %d chars): %s", idx, len(text), text[:100])
+                if len(texts) > 5:
+                    logger.debug("... and %d more texts", len(texts) - 5)
 
             # Add a configurable delay to prevent rate limiting
             settings = get_settings()

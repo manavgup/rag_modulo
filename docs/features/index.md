@@ -8,7 +8,7 @@ RAG Modulo provides a comprehensive set of features for building production-read
 
 <div class="grid cards" markdown>
 
--   :material-brain:{ .lg .middle } **Chain of Thought Reasoning**
+- :material-brain:{ .lg .middle } **Chain of Thought Reasoning**
 
     ---
 
@@ -16,7 +16,7 @@ RAG Modulo provides a comprehensive set of features for building production-read
 
     [:octicons-arrow-right-24: Learn more](chain-of-thought/index.md)
 
--   :material-chart-line:{ .lg .middle } **Token Tracking & Monitoring**
+- :material-chart-line:{ .lg .middle } **Token Tracking & Monitoring**
 
     ---
 
@@ -24,7 +24,7 @@ RAG Modulo provides a comprehensive set of features for building production-read
 
     [:octicons-arrow-right-24: Learn more](token-tracking.md)
 
--   :material-cog:{ .lg .middle } **Multi-Model Support**
+- :material-cog:{ .lg .middle } **Multi-Model Support**
 
     ---
 
@@ -32,7 +32,7 @@ RAG Modulo provides a comprehensive set of features for building production-read
 
     [:octicons-arrow-right-24: Learn more](llm-integration.md)
 
--   :material-memory:{ .lg .middle } **Context Management**
+- :material-memory:{ .lg .middle } **Context Management**
 
     ---
 
@@ -40,7 +40,7 @@ RAG Modulo provides a comprehensive set of features for building production-read
 
     [:octicons-arrow-right-24: Learn more](context-management.md)
 
--   :material-podcast:{ .lg .middle } **Podcast Generation**
+- :material-podcast:{ .lg .middle } **Podcast Generation**
 
     ---
 
@@ -54,7 +54,7 @@ RAG Modulo provides a comprehensive set of features for building production-read
 
 <div class="grid cards" markdown>
 
--   :material-magnify:{ .lg .middle } **Vector Search**
+- :material-magnify:{ .lg .middle } **Vector Search**
 
     ---
 
@@ -62,7 +62,15 @@ RAG Modulo provides a comprehensive set of features for building production-read
 
     [:octicons-arrow-right-24: Learn more](search-retrieval.md)
 
--   :material-source-branch:{ .lg .middle } **Source Attribution**
+- :material-sort:{ .lg .middle } **Cross-Encoder Reranking**
+
+    ---
+
+    250x faster reranking with specialized BERT models (~80ms vs 20-30s LLM-based)
+
+    [:octicons-arrow-right-24: Learn more](cross-encoder-reranking.md)
+
+- :material-source-branch:{ .lg .middle } **Source Attribution**
 
     ---
 
@@ -70,7 +78,7 @@ RAG Modulo provides a comprehensive set of features for building production-read
 
     [:octicons-arrow-right-24: Learn more](source-attribution.md)
 
--   :material-file-document:{ .lg .middle } **Document Processing**
+- :material-file-document:{ .lg .middle } **Document Processing**
 
     ---
 
@@ -78,7 +86,7 @@ RAG Modulo provides a comprehensive set of features for building production-read
 
     [:octicons-arrow-right-24: Learn more](document-processing.md)
 
--   :material-database:{ .lg .middle } **Multiple Vector DBs**
+- :material-database:{ .lg .middle } **Multiple Vector DBs**
 
     ---
 
@@ -92,7 +100,7 @@ RAG Modulo provides a comprehensive set of features for building production-read
 
 <div class="grid cards" markdown>
 
--   :material-monitor:{ .lg .middle } **Interactive Frontend**
+- :material-monitor:{ .lg .middle } **Interactive Frontend**
 
     ---
 
@@ -100,7 +108,7 @@ RAG Modulo provides a comprehensive set of features for building production-read
 
     [:octicons-arrow-right-24: Learn more](frontend-interface.md)
 
--   :material-chat:{ .lg .middle } **Enhanced Search Interface**
+- :material-chat:{ .lg .middle } **Enhanced Search Interface**
 
     ---
 
@@ -108,7 +116,7 @@ RAG Modulo provides a comprehensive set of features for building production-read
 
     [:octicons-arrow-right-24: Learn more](frontend-interface.md)
 
--   :material-responsive:{ .lg .middle } **Responsive Design**
+- :material-responsive:{ .lg .middle } **Responsive Design**
 
     ---
 
@@ -116,7 +124,7 @@ RAG Modulo provides a comprehensive set of features for building production-read
 
     [:octicons-arrow-right-24: Learn more](frontend-interface.md)
 
--   :material-connection:{ .lg .middle } **Real-time Communication**
+- :material-connection:{ .lg .middle } **Real-time Communication**
 
     ---
 
@@ -130,7 +138,7 @@ RAG Modulo provides a comprehensive set of features for building production-read
 
 <div class="grid cards" markdown>
 
--   :material-cog:{ .lg .middle } **Service-Based Design**
+- :material-cog:{ .lg .middle } **Service-Based Design**
 
     ---
 
@@ -138,7 +146,7 @@ RAG Modulo provides a comprehensive set of features for building production-read
 
     [:octicons-arrow-right-24: Learn more](../../architecture/components.md)
 
--   :material-speedometer:{ .lg .middle } **Performance Optimized**
+- :material-speedometer:{ .lg .middle } **Performance Optimized**
 
     ---
 
@@ -146,7 +154,7 @@ RAG Modulo provides a comprehensive set of features for building production-read
 
     [:octicons-arrow-right-24: Learn more](../../architecture/performance.md)
 
--   :material-shield-check:{ .lg .middle } **Enterprise Security**
+- :material-shield-check:{ .lg .middle } **Enterprise Security**
 
     ---
 
@@ -154,7 +162,7 @@ RAG Modulo provides a comprehensive set of features for building production-read
 
     [:octicons-arrow-right-24: Learn more](../../architecture/security.md)
 
--   :material-docker:{ .lg .middle } **Container Ready**
+- :material-docker:{ .lg .middle } **Container Ready**
 
     ---
 
@@ -173,6 +181,7 @@ RAG Modulo provides a comprehensive set of features for building production-read
 RAG Modulo includes advanced reasoning capabilities that break down complex problems into step-by-step solutions.
 
 **Key Benefits:**
+
 - ✅ **Transparent Reasoning**: See how the AI arrives at answers
 - ✅ **Token Breakdown**: Detailed cost analysis for each reasoning step
 - ✅ **Debugging**: Easier to identify and fix reasoning errors
@@ -185,6 +194,7 @@ RAG Modulo includes advanced reasoning capabilities that break down complex prob
 Comprehensive token usage monitoring with intelligent warnings and analytics.
 
 **Features:**
+
 - ✅ **Real-time Tracking**: Monitor token usage across all conversations
 - ✅ **Usage Analytics**: Detailed reports on token consumption
 - ✅ **Intelligent Warnings**: Alerts when approaching token limits
@@ -197,6 +207,7 @@ Comprehensive token usage monitoring with intelligent warnings and analytics.
 Advanced search capabilities with multiple strategies and optimizations.
 
 **Features:**
+
 - ✅ **Hybrid Search**: Combines semantic and keyword search
 - ✅ **Relevance Scoring**: Intelligent ranking of search results
 - ✅ **Contextual Retrieval**: Retrieves relevant context for queries
@@ -209,12 +220,14 @@ Advanced search capabilities with multiple strategies and optimizations.
 Comprehensive document processing with support for multiple formats.
 
 **Supported Formats:**
+
 - ✅ **PDF**: Text, tables, and image extraction
 - ✅ **DOCX**: Paragraph and formatting preservation
 - ✅ **TXT**: Plain text processing
 - ✅ **XLSX**: Spreadsheet data extraction
 
 **Processing Features:**
+
 - ✅ **Intelligent Chunking**: Optimal text segmentation
 - ✅ **Metadata Extraction**: Automatic metadata generation
 - ✅ **Content Preservation**: Maintains document structure
@@ -231,12 +244,14 @@ Comprehensive document processing with support for multiple formats.
 Seamless integration with multiple Large Language Model providers.
 
 **Supported Providers:**
+
 - ✅ **WatsonX**: IBM's enterprise AI platform
 - ✅ **OpenAI**: GPT models and embeddings
 - ✅ **Anthropic**: Claude models
 - ✅ **Custom Providers**: Easy integration of new providers
 
 **Features:**
+
 - ✅ **Runtime Switching**: Change providers without restart
 - ✅ **Load Balancing**: Distribute requests across providers
 - ✅ **Fallback Support**: Automatic failover to backup providers
@@ -249,6 +264,7 @@ Seamless integration with multiple Large Language Model providers.
 Support for multiple vector database backends.
 
 **Supported Databases:**
+
 - ✅ **Milvus**: High-performance vector database
 - ✅ **Elasticsearch**: Full-text search with vector support
 - ✅ **Pinecone**: Managed vector database service
@@ -256,6 +272,7 @@ Support for multiple vector database backends.
 - ✅ **ChromaDB**: Lightweight vector database
 
 **Features:**
+
 - ✅ **Easy Migration**: Switch between databases
 - ✅ **Performance Tuning**: Optimized for each database
 - ✅ **Scalability**: Horizontal scaling support
@@ -270,6 +287,7 @@ Support for multiple vector database backends.
 ### 📚 Knowledge Management
 
 **Perfect for:**
+
 - Corporate knowledge bases
 - Technical documentation
 - Research papers
@@ -277,6 +295,7 @@ Support for multiple vector database backends.
 - Customer support
 
 **Benefits:**
+
 - ✅ **Instant Answers**: Find information quickly
 - ✅ **Contextual Responses**: Answers based on relevant context
 - ✅ **Source Citations**: Always know where information comes from
@@ -285,6 +304,7 @@ Support for multiple vector database backends.
 ### 🤖 Customer Support
 
 **Perfect for:**
+
 - Automated customer service
 - FAQ systems
 - Product support
@@ -292,6 +312,7 @@ Support for multiple vector database backends.
 - Chatbots
 
 **Benefits:**
+
 - ✅ **24/7 Availability**: Always-on customer support
 - ✅ **Consistent Responses**: Standardized answers
 - ✅ **Escalation Support**: Hand off to human agents
@@ -300,6 +321,7 @@ Support for multiple vector database backends.
 ### 🔬 Research & Analysis
 
 **Perfect for:**
+
 - Academic research
 - Market analysis
 - Competitive intelligence
@@ -307,6 +329,7 @@ Support for multiple vector database backends.
 - Report generation
 
 **Benefits:**
+
 - ✅ **Comprehensive Search**: Find relevant information across sources
 - ✅ **Reasoning**: Step-by-step analysis
 - ✅ **Citation**: Proper source attribution
@@ -332,6 +355,7 @@ make run-ghcr
 - **[🧠 Chain of Thought](chain-of-thought/index.md)** - Advanced reasoning
 - **[📊 Token Tracking](token-tracking.md)** - Usage monitoring
 - **[🔍 Search & Retrieval](search-retrieval.md)** - Intelligent search
+- **[⚡ Cross-Encoder Reranking](cross-encoder-reranking.md)** - 250x faster reranking
 - **[📄 Document Processing](document-processing.md)** - Document handling
 - **[🤖 LLM Integration](llm-integration.md)** - Model providers
 - **[🎙️ Podcast Generation](podcast-generation.md)** - AI-powered podcasts from documents

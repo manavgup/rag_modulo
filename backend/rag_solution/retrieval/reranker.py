@@ -275,11 +275,17 @@ class LLMReranker(BaseReranker):
         formatted_prompts = self._create_reranking_prompts(query, batch)
 
         try:
-            # Call LLM provider asynchronously
-            responses = await self.llm_provider.generate_text(
-                user_id=self.user_id,
-                prompt=formatted_prompts,
-                template=None,
+            # Call LLM provider (synchronous - run in executor to avoid blocking)
+            import asyncio
+
+            loop = asyncio.get_event_loop()
+            responses = await loop.run_in_executor(
+                None,
+                lambda: self.llm_provider.generate_text(
+                    user_id=self.user_id,
+                    prompt=formatted_prompts,
+                    template=None,
+                ),
             )
 
             # Extract scores from responses
@@ -461,3 +467,131 @@ class SimpleReranker(BaseReranker):
         Async version of rerank - SimpleReranker doesn't need concurrency, just wraps sync method.
         """
         return self.rerank(query, results, top_k)
+
+
+class CrossEncoderReranker(BaseReranker):
+    """Fast cross-encoder reranker using sentence-transformers.
+
+    Production-grade reranker that uses a cross-encoder model to score
+    query-document pairs. Much faster than LLM-based reranking (~100ms vs 20-30s).
+
+    Models:
+        - cross-encoder/ms-marco-MiniLM-L-12-v2: Best accuracy (12 layers)
+        - cross-encoder/ms-marco-MiniLM-L-6-v2: Faster, good accuracy (6 layers)
+        - cross-encoder/ms-marco-TinyBERT-L-2-v2: Fastest, decent accuracy (2 layers)
+    """
+
+    def __init__(self, model_name: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"):
+        """
+        Initialize cross-encoder reranker.
+
+        Args:
+            model_name: HuggingFace model name for cross-encoder
+        """
+        from sentence_transformers import CrossEncoder
+
+        self.model_name = model_name
+        logger.info("Loading cross-encoder model: %s", model_name)
+        start_time = time.time()
+        self.model = CrossEncoder(model_name)
+        load_time = time.time() - start_time
+        logger.info("Cross-encoder loaded in %.2fs", load_time)
+
+    def rerank(
+        self,
+        query: str,
+        results: list[QueryResult],
+        top_k: int | None = None,
+    ) -> list[QueryResult]:
+        """
+        Rerank results using cross-encoder model.
+
+        Cross-encoders score query-document pairs directly, providing more accurate
+        relevance scoring than bi-encoder cosine similarity. This is the industry
+        standard for production reranking (used by OpenAI, Anthropic, Cohere, etc.).
+
+        Args:
+            query: The search query
+            results: List of QueryResult objects to rerank
+            top_k: Optional number of top results to return (defaults to len(results))
+
+        Returns:
+            Reranked list of QueryResult objects with updated scores
+
+        Raises:
+            ValueError: If model prediction fails
+        """
+        if not results:
+            logger.debug("No results to rerank")
+            return []
+
+        if top_k is None:
+            top_k = len(results)
+
+        logger.debug(
+            "Reranking %d results with cross-encoder (top_k=%d, model=%s)",
+            len(results),
+            top_k,
+            self.model_name,
+        )
+
+        # Create query-document pairs for cross-encoder
+        start_time = time.time()
+        pairs = [[query, result.chunk.text if result.chunk and result.chunk.text else ""] for result in results]
+
+        # Score all pairs with cross-encoder (fast: ~100ms for 20 docs)
+        try:
+            scores = self.model.predict(pairs)
+        except Exception as e:
+            logger.error("Cross-encoder prediction failed: %s", e)
+            raise ValueError(f"Reranking failed for model {self.model_name}: {e}") from e
+
+        rerank_time = time.time() - start_time
+
+        # Combine results with scores (strict=True for safety)
+        scored_results = list(zip(results, scores, strict=True))
+
+        # Sort by cross-encoder scores (descending)
+        sorted_results = sorted(scored_results, key=lambda x: x[1], reverse=True)
+
+        # Update QueryResult scores with cross-encoder scores
+        # Note: QueryResult schema only has chunk, score, embeddings
+        # Collection info is preserved in the chunk object
+        reranked_results = []
+        for result, ce_score in sorted_results:
+            new_result = QueryResult(
+                chunk=result.chunk,
+                score=float(ce_score),  # Convert numpy float to Python float
+                embeddings=result.embeddings,
+            )
+            reranked_results.append(new_result)
+
+        # Return top_k results
+        final_results = reranked_results[:top_k]
+
+        logger.info(
+            "Reranked %d results → %d results in %.3fs (model=%s)",
+            len(results),
+            len(final_results),
+            rerank_time,
+            self.model_name,
+        )
+
+        return final_results
+
+    async def rerank_async(
+        self,
+        query: str,
+        results: list[QueryResult],
+        top_k: int | None = None,
+    ) -> list[QueryResult]:
+        """
+        Async version of rerank.
+
+        Cross-encoder inference is CPU-bound and relatively fast (~100ms),
+        so we run it in an executor to avoid blocking the event loop.
+        """
+        import asyncio
+
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, self.rerank, query, results, top_k)

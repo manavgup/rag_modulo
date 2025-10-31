@@ -124,6 +124,9 @@ class UserProviderService:
                 template_type=PromptTemplateType.RAG_QUERY,
                 system_prompt=(
                     "You are a helpful AI assistant specializing in answering questions based on the given context. "
+                    "Answer ONLY the user's question that is provided. "
+                    "Do not generate additional questions or topics. "
+                    "Provide a single, focused, concise answer based on the context.\n\n"
                     "Format your responses using Markdown for better readability:\n"
                     "- Use **bold** for emphasis on key points\n"
                     "- Use bullet points (- or *) for lists\n"

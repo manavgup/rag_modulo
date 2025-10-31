@@ -142,7 +142,7 @@ class TestConversationAtomicTDD:
     @pytest.mark.atomic
     def test_message_content_validation_max_length(self) -> None:
         """Atomic: Test message content maximum length validation."""
-        long_content = "x" * 10001  # Assuming max length is 10000
+        long_content = "x" * 100001  # Max length is 100000
         with pytest.raises(ValidationError):
             ConversationMessageInput(
                 session_id=uuid4(), content=long_content, role=MessageRole.USER, message_type=MessageType.QUESTION
