@@ -153,6 +153,7 @@ nav:
     - Test Categories: testing/categories.md
     - Comprehensive Testing Guide: testing/COMPREHENSIVE_TESTING_GUIDE.md
     - Manual Validation Checklist: testing/MANUAL_VALIDATION_CHECKLIST.md
+    - CoT Regression Tests: testing/cot-regression-tests.md
   - 🚀 Deployment:
     - Overview: deployment/index.md
     - IBM Cloud Code Engine: deployment/ibm-cloud-code-engine.md
@@ -192,7 +193,10 @@ nav:
     - Performance: architecture/performance.md
   - 🧠 Features:
     - Overview: features/index.md
-    - Chain of Thought: features/chain-of-thought/index.md
+    - Chain of Thought:
+      - Overview: features/chain-of-thought/index.md
+      - Production Hardening: features/chain-of-thought-hardening.md
+      - Quick Reference: features/cot-quick-reference.md
     - Token Tracking: features/token-tracking.md
     - Search & Retrieval: features/search-retrieval.md
     - Document Processing: features/document-processing.md

@@ -77,7 +77,7 @@ class TestSystemAdministrationE2E:
                 test_provider = {
                     "name": f"test_provider_{uuid4().hex[:8]}",
                     "base_url": "https://api.test-provider.com",
-                    "api_key": "test-api-key",
+                    "api_key": "test-api-key",  # pragma: allowlist secret
                     "is_active": True,
                     "is_default": False,
                 }

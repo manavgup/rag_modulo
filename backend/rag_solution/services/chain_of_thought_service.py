@@ -224,10 +224,400 @@ class ChainOfThoughtService:
             max_context_length=4000,  # Default context length
         )
 
+    def _contains_artifacts(self, answer: str) -> bool:
+        """Check if answer contains CoT reasoning artifacts.
+
+        Args:
+            answer: Answer text to check
+
+        Returns:
+            True if artifacts detected, False otherwise
+        """
+        artifacts = [
+            "based on the analysis",
+            "(in the context of",
+            "furthermore,",
+            "additionally,",
+            "## instruction:",
+            "answer:",
+            "<thinking>",
+            "</thinking>",
+            "<answer>",
+            "</answer>",
+        ]
+        answer_lower = answer.lower()
+        return any(artifact in answer_lower for artifact in artifacts)
+
+    def _assess_answer_quality(self, answer: str, question: str) -> float:
+        """Assess answer quality and return confidence score.
+
+        Args:
+            answer: The answer text
+            question: The original question
+
+        Returns:
+            Quality score from 0.0 to 1.0
+        """
+        if not answer or len(answer) < 10:
+            return 0.0
+
+        score = 1.0
+
+        # Deduct for artifacts
+        if self._contains_artifacts(answer):
+            score -= 0.4
+            logger.debug("Quality deduction: Contains artifacts")
+
+        # Deduct for length issues
+        if len(answer) < 20:
+            score -= 0.3
+            logger.debug("Quality deduction: Too short")
+        elif len(answer) > 2000:
+            score -= 0.1
+            logger.debug("Quality deduction: Too long")
+
+        # Deduct for duplicate sentences
+        sentences = [s.strip() for s in answer.split(".") if s.strip()]
+        unique_sentences = set(sentences)
+        if len(sentences) > 1 and len(unique_sentences) < len(sentences):
+            score -= 0.2
+            logger.debug("Quality deduction: Duplicate sentences")
+
+        # Deduct if question is repeated in answer
+        if question.lower() in answer.lower():
+            score -= 0.1
+            logger.debug("Quality deduction: Question repeated in answer")
+
+        return max(0.0, min(1.0, score))
+
+    def _parse_xml_tags(self, llm_response: str) -> str | None:
+        """Parse XML-style <answer> tags.
+
+        Args:
+            llm_response: Raw LLM response
+
+        Returns:
+            Extracted answer or None if not found
+        """
+        import re
+
+        answer_match = re.search(r"<answer>(.*?)</answer>", llm_response, re.DOTALL | re.IGNORECASE)
+        if answer_match:
+            return answer_match.group(1).strip()
+
+        # Fallback: Extract after </thinking>
+        if "<thinking>" in llm_response.lower():
+            thinking_end = llm_response.lower().find("</thinking>")
+            if thinking_end != -1:
+                after_thinking = llm_response[thinking_end + len("</thinking>") :].strip()
+                after_thinking = re.sub(r"</?answer>", "", after_thinking, flags=re.IGNORECASE).strip()
+                if after_thinking:
+                    return after_thinking
+
+        return None
+
+    def _parse_json_structure(self, llm_response: str) -> str | None:
+        """Parse JSON-structured response.
+
+        Args:
+            llm_response: Raw LLM response
+
+        Returns:
+            Extracted answer or None if not found
+        """
+        import json
+        import re
+
+        try:
+            # Try to find JSON object
+            json_match = re.search(r"\{[^{}]*\"answer\"[^{}]*\}", llm_response, re.DOTALL)
+            if json_match:
+                data = json.loads(json_match.group(0))
+                if "answer" in data:
+                    return str(data["answer"]).strip()
+        except (json.JSONDecodeError, KeyError):
+            pass
+
+        return None
+
+    def _parse_final_answer_marker(self, llm_response: str) -> str | None:
+        """Parse 'Final Answer:' marker pattern.
+
+        Args:
+            llm_response: Raw LLM response
+
+        Returns:
+            Extracted answer or None if not found
+        """
+        import re
+
+        # Try "Final Answer:" marker
+        final_match = re.search(r"final\s+answer:\s*(.+)", llm_response, re.DOTALL | re.IGNORECASE)
+        if final_match:
+            return final_match.group(1).strip()
+
+        return None
+
+    def _clean_with_regex(self, llm_response: str) -> str:
+        """Clean response using regex patterns.
+
+        Args:
+            llm_response: Raw LLM response
+
+        Returns:
+            Cleaned response
+        """
+        import re
+
+        cleaned = llm_response.strip()
+
+        # Remove common prefixes
+        cleaned = re.sub(r"^based\s+on\s+the\s+analysis\s+of\s+.+?:\s*", "", cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r"\(in\s+the\s+context\s+of\s+[^)]+\)", "", cleaned, flags=re.IGNORECASE)
+
+        # Remove instruction patterns
+        cleaned = re.sub(r"##\s*instruction:.*?\n", "", cleaned, flags=re.IGNORECASE)
+
+        # Remove answer prefixes
+        cleaned = re.sub(r"^answer:\s*", "", cleaned, flags=re.IGNORECASE)
+
+        # Remove duplicate sentences
+        sentences = [s.strip() for s in cleaned.split(".") if s.strip()]
+        unique_sentences = []
+        for sentence in sentences:
+            if sentence and sentence not in unique_sentences:
+                unique_sentences.append(sentence)
+
+        if unique_sentences:
+            cleaned = ". ".join(unique_sentences)
+            if not cleaned.endswith("."):
+                cleaned += "."
+
+        # Remove multiple spaces and newlines
+        cleaned = re.sub(r"\s+", " ", cleaned)
+
+        return cleaned.strip()
+
+    def _parse_structured_response(self, llm_response: str) -> str:
+        """Parse structured LLM response with multi-layer fallbacks.
+
+        Priority 2 Enhancement: Multi-layer parsing strategy
+        Layer 1: XML tags
+        Layer 2: JSON structure
+        Layer 3: Final Answer marker
+        Layer 4: Regex cleaning
+        Layer 5: Full response with warning
+
+        Args:
+            llm_response: Raw LLM response string
+
+        Returns:
+            Extracted answer
+        """
+        if not llm_response:
+            return "Unable to generate an answer."
+
+        # Layer 1: Try XML tags
+        if answer := self._parse_xml_tags(llm_response):
+            logger.debug("Parsed answer using XML tags")
+            return answer
+
+        # Layer 2: Try JSON structure
+        if answer := self._parse_json_structure(llm_response):
+            logger.debug("Parsed answer using JSON structure")
+            return answer
+
+        # Layer 3: Try Final Answer marker
+        if answer := self._parse_final_answer_marker(llm_response):
+            logger.debug("Parsed answer using Final Answer marker")
+            return answer
+
+        # Layer 4: Clean with regex
+        cleaned = self._clean_with_regex(llm_response)
+        if cleaned and len(cleaned) > 10:
+            logger.warning("Using regex-cleaned response")
+            return cleaned
+
+        # Layer 5: Return full response with warning
+        logger.error("All parsing strategies failed, returning full response")
+        return llm_response.strip()
+
+    def _create_enhanced_prompt(self, question: str, context: list[str]) -> str:
+        """Create enhanced prompt with system instructions and few-shot examples.
+
+        Priority 2 Enhancement: Enhanced prompt engineering
+
+        Args:
+            question: The question to answer
+            context: Context passages
+
+        Returns:
+            Enhanced prompt string
+        """
+        system_instructions = """You are a RAG (Retrieval-Augmented Generation) assistant. Follow these CRITICAL RULES:
+
+1. NEVER include phrases like "Based on the analysis" or "(in the context of...)"
+2. Your response MUST use XML tags: <thinking> and <answer>
+3. ONLY content in <answer> tags will be shown to the user
+4. Keep <answer> content concise and directly answer the question
+5. If context doesn't contain the answer, say so clearly in <answer> tags
+6. Do NOT repeat the question in your answer
+7. Do NOT use phrases like "Furthermore" or "Additionally" in the <answer> section"""
+
+        few_shot_examples = """
+Example 1:
+Question: What was IBM's revenue in 2022?
+<thinking>
+Searching the context for revenue information...
+Found: IBM's revenue for 2022 was $73.6 billion
+</thinking>
+<answer>
+IBM's revenue in 2022 was $73.6 billion.
+</answer>
+
+Example 2:
+Question: Who is the CEO?
+<thinking>
+Looking for CEO information in the provided context...
+Found: Arvind Krishna is mentioned as CEO
+</thinking>
+<answer>
+Arvind Krishna is the CEO.
+</answer>
+
+Example 3:
+Question: What was the company's growth rate?
+<thinking>
+Searching for growth rate information...
+The context does not contain specific growth rate figures
+</thinking>
+<answer>
+The provided context does not contain specific growth rate information.
+</answer>"""
+
+        prompt = f"""{system_instructions}
+
+{few_shot_examples}
+
+Now answer this question:
+
+Question: {question}
+
+Context: {" ".join(context)}
+
+<thinking>
+[Your step-by-step reasoning here]
+</thinking>
+
+<answer>
+[Your concise final answer here]
+</answer>"""
+
+        return prompt
+
+    def _generate_llm_response_with_retry(
+        self,
+        llm_service: LLMBase,
+        question: str,
+        context: list[str],
+        user_id: str,
+        max_retries: int = 3,
+        quality_threshold: float = 0.6,
+    ) -> tuple[str, Any]:
+        """Generate LLM response with validation and retry logic.
+
+        Priority 1 Enhancement: Output validation with retry
+
+        Args:
+            llm_service: The LLM service
+            question: The question
+            context: Context passages
+            user_id: User ID
+            max_retries: Maximum retry attempts
+            quality_threshold: Minimum quality score for acceptance (default: 0.6, configurable via ChainOfThoughtConfig.evaluation_threshold)
+
+        Returns:
+            Tuple of (parsed answer, usage)
+
+        Raises:
+            LLMProviderError: If all retries fail
+        """
+        from rag_solution.schemas.llm_usage_schema import ServiceType
+
+        cot_template = self._create_reasoning_template(user_id)
+
+        # Initialize variables to avoid UnboundLocalError if all retries fail
+        parsed_answer = ""
+        usage = None
+
+        for attempt in range(max_retries):
+            try:
+                # Create enhanced prompt
+                prompt = self._create_enhanced_prompt(question, context)
+
+                # Call LLM
+                llm_response, usage = llm_service.generate_text_with_usage(
+                    user_id=UUID(user_id),
+                    prompt=prompt,
+                    service_type=ServiceType.SEARCH,
+                    template=cot_template,
+                    variables={"context": prompt},
+                )
+
+                # Parse response
+                parsed_answer = self._parse_structured_response(str(llm_response) if llm_response else "")
+
+                # Assess quality
+                quality_score = self._assess_answer_quality(parsed_answer, question)
+
+                # Log attempt results
+                logger.debug("=" * 80)
+                logger.debug("🔍 LLM RESPONSE ATTEMPT %d/%d", attempt + 1, max_retries)
+                logger.debug("Question: %s", question)
+                logger.debug("Quality Score: %.2f", quality_score)
+                logger.debug("Raw Response (first 300 chars): %s", str(llm_response)[:300] if llm_response else "None")
+                logger.debug("Parsed Answer (first 300 chars): %s", parsed_answer[:300])
+
+                # Check quality threshold (configurable via quality_threshold parameter)
+                if quality_score >= quality_threshold:
+                    logger.info(
+                        "✅ Answer quality acceptable (score: %.2f >= threshold: %.2f)",
+                        quality_score,
+                        quality_threshold,
+                    )
+                    logger.info("=" * 80)
+                    return (parsed_answer, usage)
+
+                # Quality too low, log and retry
+                logger.warning("❌ Answer quality too low (score: %.2f), retrying...", quality_score)
+                if self._contains_artifacts(parsed_answer):
+                    logger.warning("Reason: Contains CoT artifacts")
+                logger.info("=" * 80)
+
+                # Exponential backoff before retry (except on last attempt)
+                if attempt < max_retries - 1:
+                    delay = 2**attempt  # 1s, 2s, 4s for attempts 0, 1, 2
+                    logger.info("Waiting %ds before retry (exponential backoff)...", delay)
+                    time.sleep(delay)
+
+            except Exception as exc:
+                logger.error("Attempt %d/%d failed: %s", attempt + 1, max_retries, exc)
+                if attempt == max_retries - 1:
+                    raise
+
+                # Exponential backoff before retry
+                delay = 2**attempt  # 1s, 2s, 4s for attempts 0, 1, 2
+                logger.info("Waiting %ds before retry (exponential backoff)...", delay)
+                time.sleep(delay)
+
+        # All retries failed, return last attempt with warning
+        logger.error("All %d attempts failed quality check, returning last attempt", max_retries)
+        return (parsed_answer, usage)
+
     def _generate_llm_response(
         self, llm_service: LLMBase, question: str, context: list[str], user_id: str
     ) -> tuple[str, Any]:
-        """Generate response using LLM service.
+        """Generate response using LLM service with validation and retry.
 
         Args:
             llm_service: The LLM service to use.
@@ -236,7 +626,7 @@ class ChainOfThoughtService:
             user_id: The user ID.
 
         Returns:
-            Generated response string.
+            Generated response string with usage stats.
 
         Raises:
             LLMProviderError: If LLM generation fails.
@@ -245,27 +635,9 @@ class ChainOfThoughtService:
             logger.warning("LLM service %s does not have generate_text_with_usage method", type(llm_service))
             return f"Based on the context, {question.lower().replace('?', '')}...", None
 
-        # Create a proper prompt with context
-        prompt = f"Question: {question}\n\nContext: {' '.join(context)}\n\nAnswer:"
-
         try:
-            from rag_solution.schemas.llm_usage_schema import ServiceType
-
-            cot_template = self._create_reasoning_template(user_id)
-
-            # Use template consistently for ALL providers with token tracking
-            llm_response, usage = llm_service.generate_text_with_usage(
-                user_id=UUID(user_id),
-                prompt=prompt,  # This will be passed as 'context' variable
-                service_type=ServiceType.SEARCH,
-                template=cot_template,
-                variables={"context": prompt},  # Map prompt to context variable
-            )
-
-            return (
-                str(llm_response) if llm_response else f"Based on the context, {question.lower().replace('?', '')}...",
-                usage,
-            )
+            # Use enhanced generation with retry logic
+            return self._generate_llm_response_with_retry(llm_service, question, context, user_id)
 
         except Exception as exc:
             # Re-raise LLMProviderError as-is, convert others

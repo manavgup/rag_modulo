@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from sqlalchemy import Boolean, DateTime, Enum, String
 from sqlalchemy.dialects.postgresql import UUID
@@ -29,6 +29,7 @@ class Collection(Base):  # pylint: disable=too-few-public-methods
     """
 
     __tablename__ = "collections"
+    __table_args__: ClassVar[dict] = {"extend_existing": True}
 
     # 🆔 Identification
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=IdentityService.generate_id)

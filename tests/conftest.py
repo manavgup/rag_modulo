@@ -148,13 +148,13 @@ def configure_logging():
 def mock_env_vars():
     """Provide a standard set of mocked environment variables for testing."""
     return {
-        "JWT_SECRET_KEY": "test-secret-key",
+        "JWT_SECRET_KEY": "test-secret-key",  # pragma: allowlist secret
         "RAG_LLM": "watsonx",
-        "WX_API_KEY": "test-api-key",
+        "WX_API_KEY": "test-api-key",  # pragma: allowlist secret
         "WX_URL": "https://test.watsonx.ai",
         "WX_PROJECT_ID": "test-project-id",
         "WATSONX_INSTANCE_ID": "test-instance-id",
-        "WATSONX_APIKEY": "test-api-key",
+        "WATSONX_APIKEY": "test-api-key",  # pragma: allowlist secret
         "WATSONX_URL": "https://test.watsonx.ai",
         "VECTOR_DB": "milvus",
         "MILVUS_HOST": "localhost",
@@ -236,10 +236,10 @@ def isolated_test_env():
 def minimal_test_env():
     """Provide minimal required environment variables for testing."""
     minimal_vars = {
-        "JWT_SECRET_KEY": "minimal-secret",
+        "JWT_SECRET_KEY": "minimal-secret",  # pragma: allowlist secret
         "RAG_LLM": "watsonx",
         "WATSONX_INSTANCE_ID": "minimal-instance",
-        "WATSONX_APIKEY": "minimal-key",
+        "WATSONX_APIKEY": "minimal-key",  # pragma: allowlist secret
         "WATSONX_URL": "https://minimal.watsonx.ai",
         "WATSONX_PROJECT_ID": "minimal-project",
     }
@@ -278,3 +278,23 @@ def mock_embeddings_call(*args, **kwargs):
 def mock_get_datastore(*args, **kwargs):
     """Mock function for get_datastore calls."""
     return Mock()
+
+
+# ============================================================================
+# Test Isolation Fixtures
+# ============================================================================
+
+@pytest.fixture(scope="function", autouse=True)
+def clear_provider_registry():
+    """Clear LLM provider registry before each test function to prevent registration errors.
+
+    The LLMProviderFactory uses a class-level registry that persists across test
+    functions. This fixture ensures a clean state for each test by clearing
+    the registry before and after each test executes.
+    """
+    from backend.rag_solution.generation.providers.factory import LLMProviderFactory
+
+    LLMProviderFactory.clear_providers()
+    yield
+    # Clean up after test completes
+    LLMProviderFactory.clear_providers()
