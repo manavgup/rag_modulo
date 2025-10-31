@@ -12,7 +12,7 @@ from rag_solution.services.pipeline.search_context import SearchContext
 logger = get_logger("services.pipeline.stages.query_enhancement")
 
 
-class QueryEnhancementStage(BaseStage):
+class QueryEnhancementStage(BaseStage):  # pylint: disable=too-few-public-methods
     """
     Enhances user queries for better retrieval.
 
@@ -20,6 +20,8 @@ class QueryEnhancementStage(BaseStage):
     1. Cleans and prepares the raw query
     2. Rewrites the query for improved retrieval
     3. Updates the context with the rewritten query
+
+    Note: Single public method (execute) is by design for pipeline stage pattern.
     """
 
     def __init__(self, pipeline_service: "PipelineService") -> None:  # type: ignore
@@ -64,7 +66,11 @@ class QueryEnhancementStage(BaseStage):
             context.rewritten_query = rewritten_query
             context.add_metadata(
                 "query_enhancement",
-                {"original_query": original_query, "clean_query": clean_query, "rewritten_query": rewritten_query},
+                {
+                    "original_query": original_query,
+                    "clean_query": clean_query,
+                    "rewritten_query": rewritten_query,
+                },
             )
 
             result = StageResult(success=True, context=context)

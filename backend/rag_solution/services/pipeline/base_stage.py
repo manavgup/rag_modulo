@@ -35,13 +35,15 @@ class StageResult:
     metadata: dict[str, Any] | None = None
 
 
-class BaseStage(ABC):
+class BaseStage(ABC):  # pylint: disable=too-few-public-methods
     """
     Abstract base class for all pipeline stages.
 
     Each stage represents a discrete step in the search pipeline:
     - Pipeline resolution
     - Query enhancement
+
+    Note: Single abstract method (execute) is by design for pipeline stage pattern.
     - Retrieval
     - Reranking
     - Reasoning (Chain of Thought)

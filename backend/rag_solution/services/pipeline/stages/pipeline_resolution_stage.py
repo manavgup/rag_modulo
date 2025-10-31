@@ -15,7 +15,7 @@ from rag_solution.services.pipeline.search_context import SearchContext
 logger = get_logger("services.pipeline.stages.pipeline_resolution")
 
 
-class PipelineResolutionStage(BaseStage):
+class PipelineResolutionStage(BaseStage):  # pylint: disable=too-few-public-methods
     """
     Resolves pipeline configuration.
 
@@ -23,6 +23,8 @@ class PipelineResolutionStage(BaseStage):
     1. Resolves the user's default pipeline
     2. Creates a new pipeline if none exists
     3. Updates the context with pipeline_id
+
+    Note: Single public method (execute) is by design for pipeline stage pattern.
     """
 
     def __init__(self, pipeline_service: "PipelineService") -> None:  # type: ignore
@@ -56,7 +58,9 @@ class PipelineResolutionStage(BaseStage):
 
             # Update context
             context.pipeline_id = pipeline_id
-            context.add_metadata("pipeline_resolution", {"pipeline_id": str(pipeline_id), "success": True})
+            context.add_metadata(
+                "pipeline_resolution", {"pipeline_id": str(pipeline_id), "success": True}
+            )
 
             result = StageResult(success=True, context=context)
             self._log_stage_complete(result)
@@ -90,19 +94,23 @@ class PipelineResolutionStage(BaseStage):
 
         # Get user's LLM provider (or system default)
         try:
-            default_provider = self.pipeline_service.llm_provider_service.get_user_provider(user_id)
+            llm_service = self.pipeline_service.llm_provider_service
+            default_provider = llm_service.get_user_provider(user_id)
             if not default_provider:
-                raise ConfigurationError("No LLM provider available for pipeline creation")
+                raise ConfigurationError(
+                    "No LLM provider available for pipeline creation"
+                )
 
             # Create default pipeline for user
-            created_pipeline = self.pipeline_service.initialize_user_pipeline(user_id, default_provider.id)
+            created_pipeline = self.pipeline_service.initialize_user_pipeline(
+                user_id, default_provider.id
+            )
             logger.info("Created pipeline %s for user %s", created_pipeline.id, user_id)
             return created_pipeline.id
 
-        except ConfigurationError:
-            # Re-raise ConfigurationError as-is
-            raise
         except (AttributeError, ValueError, TypeError) as e:
             # Catch specific exceptions that indicate configuration issues
             logger.error("Failed to create pipeline for user %s: %s", user_id, e)
-            raise ConfigurationError(f"Failed to create default pipeline for user {user_id}: {e}") from e
+            raise ConfigurationError(
+                f"Failed to create default pipeline for user {user_id}: {e}"
+            ) from e

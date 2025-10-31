@@ -12,7 +12,7 @@ from rag_solution.services.pipeline.search_context import SearchContext
 logger = get_logger("services.pipeline.stages.retrieval")
 
 
-class RetrievalStage(BaseStage):
+class RetrievalStage(BaseStage):  # pylint: disable=too-few-public-methods
     """
     Retrieves relevant documents from vector database.
 
@@ -20,6 +20,8 @@ class RetrievalStage(BaseStage):
     1. Extracts top_k parameter from config
     2. Retrieves documents using the rewritten query
     3. Updates the context with query results
+
+    Note: Single public method (execute) is by design for pipeline stage pattern.
     """
 
     def __init__(self, pipeline_service: "PipelineService") -> None:  # type: ignore
@@ -61,7 +63,9 @@ class RetrievalStage(BaseStage):
             top_k = self._get_top_k(context)
 
             # Retrieve documents
-            query_results = self._retrieve_documents(context.rewritten_query, context.collection_name, top_k)
+            query_results = self._retrieve_documents(
+                context.rewritten_query, context.collection_name, top_k
+            )
 
             logger.info("Retrieved %d documents with top_k=%d", len(query_results), top_k)
 
@@ -69,7 +73,11 @@ class RetrievalStage(BaseStage):
             context.query_results = query_results
             context.add_metadata(
                 "retrieval",
-                {"top_k": top_k, "results_count": len(query_results), "collection": context.collection_name},
+                {
+                    "top_k": top_k,
+                    "results_count": len(query_results),
+                    "collection": context.collection_name,
+                },
             )
 
             result = StageResult(success=True, context=context)
