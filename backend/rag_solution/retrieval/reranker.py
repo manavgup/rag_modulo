@@ -537,7 +537,7 @@ class CrossEncoderReranker(BaseReranker):
 
         # Create query-document pairs for cross-encoder
         start_time = time.time()
-        pairs = [[query, result.chunk.text] for result in results]
+        pairs = [[query, result.chunk.text if result.chunk and result.chunk.text else ""] for result in results]
 
         # Score all pairs with cross-encoder (fast: ~100ms for 20 docs)
         try:

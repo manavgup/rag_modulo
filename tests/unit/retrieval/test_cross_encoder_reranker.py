@@ -13,14 +13,13 @@ Test Strategy:
 """
 
 import asyncio
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import numpy as np
 import pytest
 
 from rag_solution.retrieval.reranker import CrossEncoderReranker
-from vectordbs.data_types import DocumentChunk, DocumentChunkMetadata, DocumentChunkWithScore, QueryResult, Source
-
+from vectordbs.data_types import DocumentChunkMetadata, DocumentChunkWithScore, QueryResult, Source
 
 # ============================================================================
 # FIXTURES
@@ -750,7 +749,7 @@ class TestCrossEncoderRerankerErrorHandling:
 
         Given: Model.predict raises exception
         When: rerank() is called
-        Then: Exception is propagated (no silent failure)
+        Then: ValueError is raised with context (wrapped from original exception)
         """
         # Arrange
         with patch("sentence_transformers.CrossEncoder") as mock_ce:
@@ -762,10 +761,11 @@ class TestCrossEncoderRerankerErrorHandling:
             query = "test query"
 
             # Act & Assert
-            with pytest.raises(RuntimeError) as exc_info:
+            with pytest.raises(ValueError) as exc_info:
                 reranker.rerank(query, sample_query_results)
 
-            assert "prediction failed" in str(exc_info.value).lower()
+            assert "reranking failed" in str(exc_info.value).lower()
+            assert "model prediction failed" in str(exc_info.value).lower()
 
     def test_rerank_handles_invalid_model_output_shape(self, sample_query_results):
         """
@@ -796,7 +796,7 @@ class TestCrossEncoderRerankerErrorHandling:
 
         Given: Model initialization failed (model is None)
         When: rerank() is called
-        Then: AttributeError is raised
+        Then: ValueError is raised with context (wrapped from AttributeError)
         """
         # Arrange
         with patch("sentence_transformers.CrossEncoder") as mock_ce:
@@ -813,8 +813,10 @@ class TestCrossEncoderRerankerErrorHandling:
             results = [result]
 
             # Act & Assert
-            with pytest.raises(AttributeError):
+            with pytest.raises(ValueError) as exc_info:
                 reranker.rerank(query, results)
+
+            assert "reranking failed" in str(exc_info.value).lower()
 
     def test_rerank_logs_performance_metrics(self, mock_cross_encoder, sample_query_results, caplog):
         """
@@ -846,7 +848,7 @@ class TestCrossEncoderRerankerErrorHandling:
 
         Given: Model prediction fails
         When: rerank_async() is called
-        Then: Exception is propagated correctly
+        Then: ValueError is raised with context (wrapped from original exception)
         """
         # Arrange
         with patch("sentence_transformers.CrossEncoder") as mock_ce:
@@ -858,10 +860,11 @@ class TestCrossEncoderRerankerErrorHandling:
             query = "test query"
 
             # Act & Assert
-            with pytest.raises(RuntimeError) as exc_info:
+            with pytest.raises(ValueError) as exc_info:
                 await reranker.rerank_async(query, sample_query_results)
 
-            assert "prediction failed" in str(exc_info.value).lower()
+            assert "reranking failed" in str(exc_info.value).lower()
+            assert "async prediction failed" in str(exc_info.value).lower()
 
 
 # ============================================================================
@@ -912,7 +915,7 @@ class TestCrossEncoderRerankerQueryResultIntegration:
         reranked_results = reranker.rerank(query, sample_query_results)
 
         # Assert
-        for i, result in enumerate(reranked_results):
+        for result in reranked_results:
             assert result.chunk.metadata is not None
             assert result.chunk.metadata.source == Source.PDF
             assert result.chunk.metadata.document_id is not None
