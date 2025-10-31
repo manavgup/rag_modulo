@@ -1,13 +1,13 @@
 """
 Pipeline resolution stage.
 
-This stage resolves the user's default pipeline configuration and validates it.
+This stage resolves the user's default pipeline configuration.
 Wraps the existing PipelineService for pipeline management.
 """
 
 from pydantic import UUID4
 
-from core.custom_exceptions import ConfigurationError, NotFoundError
+from core.custom_exceptions import ConfigurationError
 from core.logging_utils import get_logger
 from rag_solution.services.pipeline.base_stage import BaseStage, StageResult
 from rag_solution.services.pipeline.search_context import SearchContext
@@ -17,13 +17,12 @@ logger = get_logger("services.pipeline.stages.pipeline_resolution")
 
 class PipelineResolutionStage(BaseStage):
     """
-    Resolves and validates pipeline configuration.
+    Resolves pipeline configuration.
 
     This stage:
     1. Resolves the user's default pipeline
     2. Creates a new pipeline if none exists
-    3. Validates the pipeline configuration
-    4. Updates the context with pipeline_id
+    3. Updates the context with pipeline_id
     """
 
     def __init__(self, pipeline_service: "PipelineService") -> None:  # type: ignore
@@ -45,15 +44,15 @@ class PipelineResolutionStage(BaseStage):
 
         Returns:
             StageResult with pipeline_id set in context
+
+        Raises:
+            ConfigurationError: If pipeline resolution or creation fails
         """
         self._log_stage_start(context)
 
         try:
-            # Resolve user's default pipeline
+            # Resolve user's default pipeline (creates if doesn't exist)
             pipeline_id = await self._resolve_user_default_pipeline(context.user_id)
-
-            # Validate pipeline configuration
-            self._validate_pipeline(pipeline_id)
 
             # Update context
             context.pipeline_id = pipeline_id
@@ -63,7 +62,7 @@ class PipelineResolutionStage(BaseStage):
             self._log_stage_complete(result)
             return result
 
-        except Exception as e:
+        except ConfigurationError as e:
             return await self._handle_error(context, e)
 
     async def _resolve_user_default_pipeline(self, user_id: UUID4) -> UUID4:
@@ -100,25 +99,10 @@ class PipelineResolutionStage(BaseStage):
             logger.info("Created pipeline %s for user %s", created_pipeline.id, user_id)
             return created_pipeline.id
 
-        except Exception as e:
+        except ConfigurationError:
+            # Re-raise ConfigurationError as-is
+            raise
+        except (AttributeError, ValueError, TypeError) as e:
+            # Catch specific exceptions that indicate configuration issues
             logger.error("Failed to create pipeline for user %s: %s", user_id, e)
             raise ConfigurationError(f"Failed to create default pipeline for user {user_id}: {e}") from e
-
-    def _validate_pipeline(self, pipeline_id: UUID4) -> None:
-        """
-        Validate pipeline configuration.
-
-        Args:
-            pipeline_id: Pipeline ID to validate
-
-        Raises:
-            NotFoundError: If pipeline not found
-        """
-        pipeline_config = self.pipeline_service.get_pipeline_config(pipeline_id)
-        if not pipeline_config:
-            raise NotFoundError(
-                resource_type="Pipeline",
-                resource_id=str(pipeline_id),
-                message=f"Pipeline configuration not found for ID {pipeline_id}",
-            )
-        logger.debug("Pipeline %s validated successfully", pipeline_id)

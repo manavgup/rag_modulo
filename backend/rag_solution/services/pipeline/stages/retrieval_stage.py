@@ -41,6 +41,10 @@ class RetrievalStage(BaseStage):
 
         Returns:
             StageResult with query_results set in context
+
+        Raises:
+            ValueError: If required context attributes are missing
+            AttributeError: If context attributes are not accessible
         """
         self._log_stage_start(context)
 
@@ -72,7 +76,7 @@ class RetrievalStage(BaseStage):
             self._log_stage_complete(result)
             return result
 
-        except Exception as e:
+        except (ValueError, AttributeError, TypeError, KeyError) as e:
             return await self._handle_error(context, e)
 
     def _get_top_k(self, context: SearchContext) -> int:

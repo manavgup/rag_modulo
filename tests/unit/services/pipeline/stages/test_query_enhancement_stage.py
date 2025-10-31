@@ -82,7 +82,7 @@ class TestQueryEnhancementStage:
 
     async def test_error_during_preparation(self, mock_pipeline_service: Mock, search_context: SearchContext) -> None:
         """Test error handling during query preparation."""
-        mock_pipeline_service._prepare_query.side_effect = Exception("Preparation failed")
+        mock_pipeline_service._prepare_query.side_effect = ValueError("Preparation failed")
 
         stage = QueryEnhancementStage(mock_pipeline_service)
         result = await stage.execute(search_context)
@@ -92,7 +92,7 @@ class TestQueryEnhancementStage:
 
     async def test_error_during_rewriting(self, mock_pipeline_service: Mock, search_context: SearchContext) -> None:
         """Test error handling during query rewriting."""
-        mock_pipeline_service.query_rewriter.rewrite.side_effect = Exception("Rewriting failed")
+        mock_pipeline_service.query_rewriter.rewrite.side_effect = ValueError("Rewriting failed")
 
         stage = QueryEnhancementStage(mock_pipeline_service)
         result = await stage.execute(search_context)

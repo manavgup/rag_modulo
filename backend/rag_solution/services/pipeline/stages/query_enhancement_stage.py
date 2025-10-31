@@ -41,6 +41,10 @@ class QueryEnhancementStage(BaseStage):
 
         Returns:
             StageResult with rewritten_query set in context
+
+        Raises:
+            ValueError: If query preparation or rewriting fails
+            AttributeError: If required context attributes are missing
         """
         self._log_stage_start(context)
 
@@ -67,7 +71,7 @@ class QueryEnhancementStage(BaseStage):
             self._log_stage_complete(result)
             return result
 
-        except Exception as e:
+        except (ValueError, AttributeError, TypeError) as e:
             return await self._handle_error(context, e)
 
     def _prepare_query(self, query: str) -> str:

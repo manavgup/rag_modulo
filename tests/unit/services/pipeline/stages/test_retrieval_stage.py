@@ -121,7 +121,7 @@ class TestRetrievalStage:
 
     async def test_retrieval_error(self, mock_pipeline_service: Mock, search_context: SearchContext) -> None:
         """Test error handling during retrieval."""
-        mock_pipeline_service._retrieve_documents.side_effect = Exception("Retrieval failed")
+        mock_pipeline_service._retrieve_documents.side_effect = ValueError("Retrieval failed")
 
         stage = RetrievalStage(mock_pipeline_service)
         result = await stage.execute(search_context)
