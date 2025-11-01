@@ -229,12 +229,38 @@ class MilvusStore(VectorStore):
         Raises:
             DocumentError: If retrieval fails
         """
+        # DEBUG: Log before embedding generation
+        logger.debug(
+            "MilvusDB.retrieve: query='%s...', collection=%s, n=%d",
+            query[:50] if len(query) > 50 else query,
+            collection_name,
+            number_of_results,
+        )
+
         query_embeddings = get_embeddings(query, settings=self.settings)
         if not query_embeddings:
             raise DocumentError("Failed to generate embeddings for the query string.")
 
+        # DEBUG: Log embedding details
+        embedding = query_embeddings[0]
+        logger.info("  Generated embedding dimension: %d", len(embedding))
+        logger.info("  Embedding sample (first 5 values): %s", embedding[:5])
+
         query_with_embedding = QueryWithEmbedding(text=query, embeddings=query_embeddings[0])
-        return self.query(collection_name, query_with_embedding, number_of_results=number_of_results)
+        results = self.query(collection_name, query_with_embedding, number_of_results=number_of_results)
+
+        # DEBUG: Log detailed results for debugging
+        logger.info("  Milvus returned %d results", len(results))
+        if results:
+            logger.info("  Detailed results from retrieve_documents():")
+            for i, result in enumerate(results[:5], 1):  # Log first 5 results
+                page_num = getattr(result.chunk.metadata, "page_number", -1) if result.chunk.metadata else -1
+                text_preview = result.chunk.text[:80] if result.chunk and result.chunk.text else "N/A"
+                logger.info("    Result %d: score=%.4f, page=%d, text='%s...'", i, result.score, page_num, text_preview)
+            if len(results) > 5:
+                logger.info("    ... and %d more results", len(results) - 5)
+
+        return results
 
     def query(
         self,
@@ -277,7 +303,11 @@ class MilvusStore(VectorStore):
                 ],
             )
 
-            logging.info("Query response: %s", results)
+            # Log summary instead of raw results
+            if results and hasattr(results, "__len__"):
+                logger.info("Milvus search complete: %d results returned", len(results))
+            else:
+                logger.debug("Milvus search returned results (non-list type)")
             return self._process_search_results(results, collection_name)
         except Exception as e:
             logging.error("Failed to query Milvus collection '%s': %s", collection_name, str(e))
@@ -391,7 +421,11 @@ class MilvusStore(VectorStore):
         """Process Milvus search results into QueryResult objects."""
         query_results = []
 
-        for hit in results[0]:  # results is a list of hits for each query
+        # DEBUG: Log raw Milvus hits before processing
+        if results and len(results) > 0:
+            logger.debug("Processing %d raw Milvus hits from results[0]", len(results[0]))
+
+        for idx, hit in enumerate(results[0], 1):  # results is a list of hits for each query
             # Extract data from hit using proper Milvus Hit API
             entity = hit.entity
             document_id = getattr(entity, "document_id", "")
@@ -418,4 +452,17 @@ class MilvusStore(VectorStore):
 
             query_results.append(QueryResult(chunk=chunk, score=float(hit.score), embeddings=[]))
 
+            # DEBUG: Log each processed result (first 3 only)
+            if idx <= 3:
+                text_preview = text[:80] if text else "N/A"
+                logger.debug(
+                    "  Processed hit %d: score=%.4f, page=%d, chunk=%s, text='%s...'",
+                    idx,
+                    float(hit.score),
+                    page_number,
+                    chunk_id,
+                    text_preview,
+                )
+
+        logger.debug("Total QueryResult objects created: %d", len(query_results))
         return query_results

@@ -63,8 +63,65 @@ def search_service(mock_db_session, mock_settings):
     service._pipeline_service = Mock()
     service._llm_provider_service = Mock()
     service._token_tracking_service = Mock()
+    service._chain_of_thought_service = Mock()
 
     return service
+
+
+@pytest.fixture
+def mock_pipeline_stage_methods(search_service, sample_query_results, test_pipeline_id):
+    """
+    Mock all methods called by pipeline stages for new architecture.
+
+    This fixture sets up mocks for the new stage-based pipeline architecture
+    where each stage calls specific methods on pipeline_service, not execute_pipeline().
+    """
+    # Stage 1: Pipeline Resolution - get_default_pipeline, initialize_user_pipeline
+    sample_pipeline = Mock()
+    sample_pipeline.id = test_pipeline_id
+    sample_pipeline.name = "Test Pipeline"
+    sample_pipeline.is_default = True
+    search_service.pipeline_service.get_default_pipeline.return_value = sample_pipeline
+
+    # Mock LLM provider service for pipeline creation
+    mock_provider = Mock()
+    mock_provider.id = uuid4()
+    search_service.pipeline_service.llm_provider_service = Mock()
+    search_service.pipeline_service.llm_provider_service.get_user_provider.return_value = mock_provider
+    search_service.pipeline_service.initialize_user_pipeline.return_value = sample_pipeline
+
+    # Stage 2: Query Enhancement - _prepare_query, query_rewriter.rewrite
+    search_service.pipeline_service._prepare_query = Mock(side_effect=lambda q: q.strip())
+    mock_query_rewriter = Mock()
+    mock_query_rewriter.rewrite = Mock(return_value="machine learning definition")
+    search_service.pipeline_service.query_rewriter = mock_query_rewriter
+
+    # Stage 3: Retrieval - retrieve_documents_by_id, generate_document_metadata
+    search_service.pipeline_service.retrieve_documents_by_id = Mock(return_value=sample_query_results)
+    search_service.pipeline_service.generate_document_metadata = Mock(return_value=[])
+    search_service.pipeline_service.settings = Mock(number_of_results=10)
+
+    # Stage 4: Reranking - get_reranker (optional, can return None)
+    search_service.pipeline_service.get_reranker = Mock(return_value=None)
+
+    # Stage 5: Reasoning - Chain of Thought service (mock to skip CoT)
+    search_service.chain_of_thought_service.should_use_cot = Mock(return_value=False)
+
+    # Stage 6: Generation - _validate_configuration, _get_templates, _format_context, _generate_answer
+    mock_provider_obj = Mock()
+    mock_llm_params = {"temperature": 0.7}
+    search_service.pipeline_service._validate_configuration = Mock(
+        return_value=(test_pipeline_id, mock_llm_params, mock_provider_obj)
+    )
+
+    mock_rag_template = Mock()
+    mock_rag_template.format = Mock(return_value="formatted prompt")
+    search_service.pipeline_service._get_templates = Mock(return_value=(mock_rag_template, None))
+
+    search_service.pipeline_service._format_context = Mock(return_value="formatted context")
+    search_service.pipeline_service._generate_answer = Mock(return_value="Machine learning is a branch of AI.")
+
+    return search_service
 
 
 @pytest.fixture
@@ -165,28 +222,15 @@ class TestSearchServiceBasicSearch:
 
     @pytest.mark.asyncio
     async def test_search_basic_success(
-        self, search_service, sample_search_input, sample_collection,
-        sample_pipeline, sample_query_results, test_pipeline_id
+        self, mock_pipeline_stage_methods, sample_search_input, sample_collection
     ):
-        """Test successful basic search operation."""
+        """Test successful basic search operation with new pipeline architecture."""
+        # Use the fixture that sets up all pipeline stage mocks
+        search_service = mock_pipeline_stage_methods
+
         # Mock collection service
         search_service.collection_service.get_collection.return_value = sample_collection
         search_service.collection_service.get_user_collections.return_value = [sample_collection]
-
-        # Mock pipeline service
-        search_service.pipeline_service.get_default_pipeline.return_value = sample_pipeline
-        search_service.pipeline_service.get_pipeline_config.return_value = {"id": test_pipeline_id}
-        search_service.pipeline_service.initialize = AsyncMock(return_value=None)
-
-        # Mock pipeline execution
-        pipeline_result = Mock()
-        pipeline_result.success = True
-        pipeline_result.generated_answer = "Machine learning is a branch of AI."
-        pipeline_result.query_results = sample_query_results
-        pipeline_result.rewritten_query = "machine learning definition"
-        pipeline_result.evaluation = None
-
-        search_service.pipeline_service.execute_pipeline = AsyncMock(return_value=pipeline_result)
 
         # Mock file service for metadata
         mock_file1 = Mock()
@@ -212,7 +256,10 @@ class TestSearchServiceBasicSearch:
         assert result.answer == "Machine learning is a branch of AI."
         assert len(result.query_results) == 2
         assert result.execution_time is not None
-        assert result.metadata["cot_used"] is False
+        # New pipeline uses 'reasoning' metadata key, not 'cot_used'
+        # When CoT is not used, 'reasoning' key won't be present
+        assert "reasoning" not in result.metadata
+        assert result.metadata["pipeline_architecture"] == "v2_stage_based"
 
     @pytest.mark.asyncio
     async def test_search_with_empty_query_fails(self, search_service, sample_search_input):
@@ -305,27 +352,15 @@ class TestSearchServiceBasicSearch:
 
     @pytest.mark.asyncio
     async def test_search_private_collection_access_granted(
-        self, search_service, sample_search_input, sample_collection,
-        sample_pipeline, sample_query_results, test_pipeline_id
+        self, mock_pipeline_stage_methods, sample_search_input, sample_collection
     ):
         """Test that private collection access is granted to authorized users."""
+        # Use the fixture that sets up all pipeline stage mocks
+        search_service = mock_pipeline_stage_methods
+
         sample_collection.is_private = True
         search_service.collection_service.get_collection.return_value = sample_collection
         search_service.collection_service.get_user_collections.return_value = [sample_collection]
-
-        # Mock successful pipeline execution
-        search_service.pipeline_service.get_default_pipeline.return_value = sample_pipeline
-        search_service.pipeline_service.get_pipeline_config.return_value = {"id": test_pipeline_id}
-        search_service.pipeline_service.initialize = AsyncMock(return_value=None)
-
-        pipeline_result = Mock()
-        pipeline_result.success = True
-        pipeline_result.generated_answer = "Test answer"
-        pipeline_result.query_results = sample_query_results
-        pipeline_result.rewritten_query = None
-        pipeline_result.evaluation = None
-
-        search_service.pipeline_service.execute_pipeline = AsyncMock(return_value=pipeline_result)
 
         # Mock file service
         mock_file1 = Mock()
@@ -900,79 +935,56 @@ class TestSearchServiceEdgeCases:
 
     @pytest.mark.asyncio
     async def test_search_with_special_characters_in_query(
-        self, search_service, sample_search_input, sample_collection,
-        sample_pipeline, test_pipeline_id
+        self, mock_pipeline_stage_methods, sample_search_input, sample_collection
     ):
         """Test search handles special characters in query."""
+        search_service = mock_pipeline_stage_methods
         sample_search_input.question = "What is ML? @#$%^&*()"
 
         search_service.collection_service.get_collection.return_value = sample_collection
-        search_service.pipeline_service.get_default_pipeline.return_value = sample_pipeline
-        search_service.pipeline_service.get_pipeline_config.return_value = {"id": test_pipeline_id}
-        search_service.pipeline_service.initialize = AsyncMock(return_value=None)
-
-        pipeline_result = Mock()
-        pipeline_result.success = True
-        pipeline_result.generated_answer = "Test answer"
-        pipeline_result.query_results = []
-        pipeline_result.rewritten_query = None
-        pipeline_result.evaluation = None
-
-        search_service.pipeline_service.execute_pipeline = AsyncMock(return_value=pipeline_result)
+        search_service.collection_service.get_user_collections.return_value = [sample_collection]
         search_service.file_service.get_files_by_collection.return_value = []
         search_service.token_tracking_service.check_usage_warning = AsyncMock(return_value=None)
+
+        # Override query_results for this test (empty results)
+        search_service.pipeline_service.retrieve_documents_by_id = Mock(return_value=[])
 
         result = await search_service.search(sample_search_input)
         assert isinstance(result, SearchOutput)
 
     @pytest.mark.asyncio
     async def test_search_with_very_long_query(
-        self, search_service, sample_search_input, sample_collection,
-        sample_pipeline, test_pipeline_id
+        self, mock_pipeline_stage_methods, sample_search_input, sample_collection
     ):
         """Test search handles very long queries (1000+ characters)."""
+        search_service = mock_pipeline_stage_methods
         sample_search_input.question = "What is machine learning? " * 100  # ~2500 chars
 
         search_service.collection_service.get_collection.return_value = sample_collection
-        search_service.pipeline_service.get_default_pipeline.return_value = sample_pipeline
-        search_service.pipeline_service.get_pipeline_config.return_value = {"id": test_pipeline_id}
-        search_service.pipeline_service.initialize = AsyncMock(return_value=None)
-
-        pipeline_result = Mock()
-        pipeline_result.success = True
-        pipeline_result.generated_answer = "Test answer"
-        pipeline_result.query_results = []
-        pipeline_result.rewritten_query = None
-        pipeline_result.evaluation = None
-
-        search_service.pipeline_service.execute_pipeline = AsyncMock(return_value=pipeline_result)
+        search_service.collection_service.get_user_collections.return_value = [sample_collection]
         search_service.file_service.get_files_by_collection.return_value = []
         search_service.token_tracking_service.check_usage_warning = AsyncMock(return_value=None)
+
+        # Override query_results for this test (empty results)
+        search_service.pipeline_service.retrieve_documents_by_id = Mock(return_value=[])
 
         result = await search_service.search(sample_search_input)
         assert isinstance(result, SearchOutput)
 
     @pytest.mark.asyncio
     async def test_search_with_no_results_returned(
-        self, search_service, sample_search_input, sample_collection,
-        sample_pipeline, test_pipeline_id
+        self, mock_pipeline_stage_methods, sample_search_input, sample_collection
     ):
         """Test search handles case where no results are found."""
+        search_service = mock_pipeline_stage_methods
+
         search_service.collection_service.get_collection.return_value = sample_collection
-        search_service.pipeline_service.get_default_pipeline.return_value = sample_pipeline
-        search_service.pipeline_service.get_pipeline_config.return_value = {"id": test_pipeline_id}
-        search_service.pipeline_service.initialize = AsyncMock(return_value=None)
-
-        pipeline_result = Mock()
-        pipeline_result.success = True
-        pipeline_result.generated_answer = "No relevant information found"
-        pipeline_result.query_results = []  # Empty results
-        pipeline_result.rewritten_query = None
-        pipeline_result.evaluation = None
-
-        search_service.pipeline_service.execute_pipeline = AsyncMock(return_value=pipeline_result)
+        search_service.collection_service.get_user_collections.return_value = [sample_collection]
         search_service.file_service.get_files_by_collection.return_value = []
         search_service.token_tracking_service.check_usage_warning = AsyncMock(return_value=None)
+
+        # Override query_results for this test (empty results)
+        search_service.pipeline_service.retrieve_documents_by_id = Mock(return_value=[])
 
         result = await search_service.search(sample_search_input)
         assert isinstance(result, SearchOutput)

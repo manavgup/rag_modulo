@@ -73,14 +73,40 @@ class TestSearchPipelineResolutionIntegration:
         mock_pipeline_service.get_pipeline_config.return_value = Mock()  # For validation
         mock_pipeline_service.initialize = AsyncMock(return_value=None)
 
-        # Mock successful pipeline execution
-        mock_pipeline_result = Mock()
-        mock_pipeline_result.success = True
-        mock_pipeline_result.generated_answer = "Machine learning key features include..."
-        mock_pipeline_result.query_results = []
-        mock_pipeline_result.rewritten_query = None
-        mock_pipeline_result.evaluation = None
-        mock_pipeline_service.execute_pipeline = AsyncMock(return_value=mock_pipeline_result)
+        # Mock all pipeline stage methods (NEW pipeline architecture)
+        # Stage 1: Pipeline Resolution
+        mock_pipeline_service.llm_provider_service = Mock()
+        mock_provider = Mock()
+        mock_provider.id = uuid4()
+        mock_pipeline_service.llm_provider_service.get_user_provider.return_value = mock_provider
+        mock_pipeline_service.initialize_user_pipeline.return_value = mock_default_pipeline
+
+        # Stage 2: Query Enhancement
+        mock_pipeline_service._prepare_query = Mock(side_effect=lambda q: q.strip())
+        mock_query_rewriter = Mock()
+        mock_query_rewriter.rewrite = Mock(return_value="machine learning features enhanced")
+        mock_pipeline_service.query_rewriter = mock_query_rewriter
+
+        # Stage 3: Retrieval
+        mock_pipeline_service.retrieve_documents_by_id = Mock(return_value=[])
+        mock_pipeline_service.generate_document_metadata = Mock(return_value=[])
+        mock_pipeline_service.settings = Mock(number_of_results=10)
+
+        # Stage 4: Reranking
+        mock_pipeline_service.get_reranker = Mock(return_value=None)
+
+        # Stage 6: Generation
+        mock_provider_obj = Mock()
+        mock_llm_params = {"temperature": 0.7}
+        mock_pipeline_service._validate_configuration = Mock(
+            return_value=(resolved_pipeline_id, mock_llm_params, mock_provider_obj)
+        )
+        mock_rag_template = Mock()
+        mock_rag_template.format = Mock(return_value="formatted prompt")
+        mock_pipeline_service._get_templates = Mock(return_value=(mock_rag_template, None))
+        mock_pipeline_service._format_context = Mock(return_value="formatted context")
+        mock_pipeline_service._generate_answer = Mock(return_value="Machine learning key features include...")
+
         mock_pipeline_service_class.return_value = mock_pipeline_service
 
         # Mock FileManagementService
@@ -91,6 +117,14 @@ class TestSearchPipelineResolutionIntegration:
         # Create SearchService
         search_service = SearchService(mock_db, mock_settings)
 
+        # Mock token tracking
+        search_service._token_tracking_service = Mock()
+        search_service.token_tracking_service.check_usage_warning = AsyncMock(return_value=None)
+
+        # Mock ChainOfThoughtService
+        search_service._chain_of_thought_service = Mock()
+        search_service.chain_of_thought_service.should_use_cot = Mock(return_value=False)
+
         # Act
         result = await search_service.search(search_input_without_pipeline)
 
@@ -100,11 +134,6 @@ class TestSearchPipelineResolutionIntegration:
 
         # Verify pipeline resolution was called
         mock_pipeline_service.get_default_pipeline.assert_called_once_with(search_input_without_pipeline.user_id)
-
-        # Verify pipeline execution was called with resolved pipeline_id
-        mock_pipeline_service.execute_pipeline.assert_called_once()
-        call_args = mock_pipeline_service.execute_pipeline.call_args
-        assert call_args[1]["pipeline_id"] == resolved_pipeline_id  # Should use resolved pipeline_id
 
     @patch("rag_solution.services.user_service.UserService")
     @patch("rag_solution.services.search_service.CollectionService")
@@ -159,6 +188,38 @@ class TestSearchPipelineResolutionIntegration:
         mock_created_pipeline = Mock()
         mock_created_pipeline.id = created_pipeline_id
         mock_pipeline_service.initialize_user_pipeline.return_value = mock_created_pipeline
+        mock_pipeline_service.get_pipeline_config.return_value = Mock()  # For validation
+
+        # Mock all pipeline stage methods (NEW pipeline architecture)
+        # Stage 1: Pipeline Resolution
+        mock_pipeline_service.llm_provider_service = Mock()
+        mock_pipeline_service.llm_provider_service.get_user_provider.return_value = mock_provider
+
+        # Stage 2: Query Enhancement
+        mock_pipeline_service._prepare_query = Mock(side_effect=lambda q: q.strip())
+        mock_query_rewriter = Mock()
+        mock_query_rewriter.rewrite = Mock(return_value="machine learning features")
+        mock_pipeline_service.query_rewriter = mock_query_rewriter
+
+        # Stage 3: Retrieval
+        mock_pipeline_service.retrieve_documents_by_id = Mock(return_value=[])
+        mock_pipeline_service.generate_document_metadata = Mock(return_value=[])
+        mock_pipeline_service.settings = Mock(number_of_results=10)
+
+        # Stage 4: Reranking
+        mock_pipeline_service.get_reranker = Mock(return_value=None)
+
+        # Stage 6: Generation
+        mock_provider_obj = Mock()
+        mock_llm_params = {"temperature": 0.7}
+        mock_pipeline_service._validate_configuration = Mock(
+            return_value=(created_pipeline_id, mock_llm_params, mock_provider_obj)
+        )
+        mock_rag_template = Mock()
+        mock_rag_template.format = Mock(return_value="formatted prompt")
+        mock_pipeline_service._get_templates = Mock(return_value=(mock_rag_template, None))
+        mock_pipeline_service._format_context = Mock(return_value="formatted context")
+        mock_pipeline_service._generate_answer = Mock(return_value="Test answer")
 
         mock_pipeline_service_class.return_value = mock_pipeline_service
 
@@ -167,22 +228,13 @@ class TestSearchPipelineResolutionIntegration:
         search_service._llm_provider_service = Mock()
         search_service.llm_provider_service.get_user_provider.return_value = mock_provider
 
-        # Mock other required methods
-        search_service._validate_search_input = Mock()
-        search_service._validate_collection_access = Mock()
-        search_service._validate_pipeline = Mock()
-        search_service._initialize_pipeline = AsyncMock(return_value="test_collection")
-        search_service._generate_document_metadata = Mock(return_value=[])
-        search_service._clean_generated_answer = Mock(return_value="Test answer")
+        # Mock token tracking
+        search_service._token_tracking_service = Mock()
+        search_service.token_tracking_service.check_usage_warning = AsyncMock(return_value=None)
 
-        # Mock pipeline execution
-        mock_result = Mock()
-        mock_result.success = True
-        mock_result.generated_answer = "Test answer"
-        mock_result.query_results = []
-        mock_result.rewritten_query = None
-        mock_result.evaluation = None
-        mock_pipeline_service.execute_pipeline = AsyncMock(return_value=mock_result)
+        # Mock ChainOfThoughtService
+        search_service._chain_of_thought_service = Mock()
+        search_service.chain_of_thought_service.should_use_cot = Mock(return_value=False)
 
         # Act
         result = await search_service.search(search_input_without_pipeline)
@@ -192,9 +244,8 @@ class TestSearchPipelineResolutionIntegration:
 
         # Verify default pipeline creation flow
         mock_pipeline_service.get_default_pipeline.assert_called_once_with(search_input_without_pipeline.user_id)
-        search_service.llm_provider_service.get_user_provider.assert_called_once_with(
-            search_input_without_pipeline.user_id
-        )
+        # Note: In the new stage-based architecture, get_user_provider and initialize_user_pipeline
+        # are called internally by PipelineResolutionStage, not directly by SearchService
         mock_pipeline_service.initialize_user_pipeline.assert_called_once_with(
             search_input_without_pipeline.user_id, provider_id
         )
