@@ -19,6 +19,19 @@ pipeline_service = PipelineService(db, settings)
 provider_service = LLMProviderService(db)
 ```
 
+### Modern Pipeline Architecture
+
+RAG Modulo uses a modern, stage-based pipeline architecture for all search operations. The pipeline consists of 6 independent stages that execute sequentially:
+
+1. **PipelineResolutionStage** - Resolves user's default pipeline configuration
+2. **QueryEnhancementStage** - Enhances/rewrites query for better retrieval
+3. **RetrievalStage** - Retrieves relevant documents from vector database
+4. **RerankingStage** - Reranks results for improved relevance
+5. **ReasoningStage** - Applies Chain of Thought reasoning if beneficial
+6. **GenerationStage** - Generates final answer from context
+
+**See:** [Pipeline Architecture Documentation](../architecture/pipeline-architecture.md) for detailed information.
+
 ## Simplified Search Input
 
 ### Schema Definition
