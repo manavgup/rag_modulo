@@ -21,7 +21,6 @@ from rag_solution.schemas.search_schema import SearchInput, SearchOutput
 from rag_solution.services.collection_service import CollectionService
 from rag_solution.services.file_management_service import FileManagementService
 from rag_solution.services.llm_provider_service import LLMProviderService
-from rag_solution.services.pipeline.feature_flags import get_feature_flag_manager
 from rag_solution.services.pipeline.pipeline_executor import PipelineExecutor
 from rag_solution.services.pipeline.search_context import SearchContext
 from rag_solution.services.pipeline.stages import (
@@ -90,7 +89,6 @@ class SearchService:
         self._llm_provider_service: LLMProviderService | None = None
         self._chain_of_thought_service: Any | None = None
         self._token_tracking_service: TokenTrackingService | None = None
-        self.feature_flag_manager = get_feature_flag_manager()
         # Note: Reranking moved to PipelineService (P0-2 fix)
 
     @property
@@ -494,6 +492,11 @@ class SearchService:
     async def search(self, search_input: SearchInput) -> SearchOutput:
         """Process a search query using modern pipeline architecture."""
         logger.info("🔍 Processing search query: %s", search_input.question)
+
+        # Validate search input before executing pipeline
+        self._validate_search_input(search_input)
+        self._validate_collection_access(search_input.collection_id, search_input.user_id)
+
         return await self._search_with_pipeline(search_input)
 
     async def _search_with_pipeline(self, search_input: SearchInput) -> SearchOutput:
@@ -521,9 +524,7 @@ class SearchService:
 
         # Create initial search context
         context = SearchContext(
-            search_input=search_input,
-            user_id=search_input.user_id,
-            collection_id=search_input.collection_id
+            search_input=search_input, user_id=search_input.user_id, collection_id=search_input.collection_id
         )
 
         # Create pipeline executor (pass empty list, stages will be added below)
@@ -580,8 +581,8 @@ class SearchService:
             metadata={
                 "pipeline_architecture": "v2_stage_based",
                 "stages_executed": executor.get_stage_names(),
-                **result_context.metadata
-            }
+                **result_context.metadata,
+            },
         )
 
         logger.info("✨ Pipeline execution completed successfully in %.2f seconds", result_context.execution_time)
