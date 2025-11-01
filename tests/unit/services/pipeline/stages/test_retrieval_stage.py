@@ -24,6 +24,7 @@ def mock_pipeline_service() -> Mock:
     service.settings = Mock()
     service.settings.number_of_results = 10
     service.retrieve_documents_by_id = Mock()
+    service.generate_document_metadata = Mock(return_value=[])  # Return empty list by default
     # Mock the db query for collection lookup
     service.db = Mock()
     return service
