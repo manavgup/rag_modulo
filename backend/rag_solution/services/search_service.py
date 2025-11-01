@@ -21,6 +21,17 @@ from rag_solution.schemas.search_schema import SearchInput, SearchOutput
 from rag_solution.services.collection_service import CollectionService
 from rag_solution.services.file_management_service import FileManagementService
 from rag_solution.services.llm_provider_service import LLMProviderService
+from rag_solution.services.pipeline.feature_flags import FeatureFlag, get_feature_flag_manager
+from rag_solution.services.pipeline.pipeline_executor import PipelineExecutor
+from rag_solution.services.pipeline.search_context import SearchContext
+from rag_solution.services.pipeline.stages import (
+    GenerationStage,
+    PipelineResolutionStage,
+    QueryEnhancementStage,
+    ReasoningStage,
+    RerankingStage,
+    RetrievalStage,
+)
 from rag_solution.services.pipeline_service import PipelineService
 from rag_solution.services.token_tracking_service import TokenTrackingService
 from vectordbs.data_types import DocumentMetadata, QueryResult
@@ -79,6 +90,7 @@ class SearchService:
         self._llm_provider_service: LLMProviderService | None = None
         self._chain_of_thought_service: Any | None = None
         self._token_tracking_service: TokenTrackingService | None = None
+        self.feature_flag_manager = get_feature_flag_manager()
         # Note: Reranking moved to PipelineService (P0-2 fix)
 
     @property
@@ -482,13 +494,42 @@ class SearchService:
     # Justification: Search orchestration requires complex control flow for CoT and regular search paths
     @handle_search_errors
     async def search(self, search_input: SearchInput) -> SearchOutput:
-        """Process a search query through the RAG pipeline."""
-        logger.info("🔍 SEARCH SERVICE: METHOD ENTRY - search() called!")
+        """Process a search query - routes to pipeline or legacy based on feature flag."""
+        logger.info("🔍 SEARCH SERVICE: search() called - routing based on feature flag")
+        logger.info("Question: %s", search_input.question)
+
+        # Check feature flag to determine which implementation to use
+        if self.feature_flag_manager.is_enabled(
+            FeatureFlag.USE_PIPELINE_ARCHITECTURE,
+            str(search_input.user_id)
+        ):
+            logger.info("✨ Using NEW pipeline architecture (Week 4)")
+            return await self._search_with_pipeline(search_input)
+
+        logger.info("📚 Using LEGACY monolithic implementation")
+        return await self._search_legacy(search_input)
+
+    # pylint: disable=too-many-locals,too-many-branches,too-many-statements,too-many-nested-blocks
+    # Justification: Legacy search implementation - complex orchestration for CoT and regular search
+    async def _search_legacy(self, search_input: SearchInput) -> SearchOutput:
+        """Legacy search implementation (pre-Week 4 pipeline architecture).
+
+        This method contains the original monolithic search logic that handles:
+        - Input validation
+        - Chain of Thought decision and execution
+        - Document retrieval via PipelineService
+        - Answer generation and cleaning
+        - Token tracking and metadata generation
+
+        This is kept for gradual feature flag rollout while transitioning to
+        the new stage-based pipeline architecture in _search_with_pipeline().
+        """
+        logger.info("🔍 SEARCH SERVICE: METHOD ENTRY - _search_legacy() called!")
         start_time = time.time()
         logger.info("Starting search operation")
-        logger.info("🔍 SEARCH SERVICE: search() called with question: %s", search_input.question)
+        logger.info("🔍 SEARCH SERVICE: _search_legacy() called with question: %s", search_input.question)
         logger.info("🔍 SEARCH SERVICE: config_metadata: %s", search_input.config_metadata)
-        logger.info("🔍 SEARCH SERVICE: search() method STARTED")
+        logger.info("🔍 SEARCH SERVICE: _search_legacy() method STARTED")
 
         # Validate inputs
         try:
@@ -893,6 +934,100 @@ class SearchService:
         except Exception as e:
             logger.exception("Failed to create SearchOutput for regular search: %s", e)
             raise
+
+    async def _search_with_pipeline(self, search_input: SearchInput) -> SearchOutput:
+        """New stage-based pipeline architecture (Week 4).
+
+        This method uses the modern pipeline architecture with explicit stages:
+        1. PipelineResolutionStage - Resolve user's default pipeline
+        2. QueryEnhancementStage - Enhance/rewrite query
+        3. RetrievalStage - Retrieve documents from vector DB
+        4. RerankingStage - Rerank results for relevance
+        5. ReasoningStage - Apply Chain of Thought if needed
+        6. GenerationStage - Generate final answer
+
+        Each stage is independent, testable, and modifiable without affecting
+        others. This enables easier maintenance, testing, and feature addition.
+
+        Args:
+            search_input: The search request
+
+        Returns:
+            SearchOutput with answer, documents, and metadata
+        """
+        logger.info("✨ Starting NEW pipeline architecture execution")
+        logger.info("Question: %s", search_input.question)
+
+        # Create initial search context
+        context = SearchContext(
+            search_input=search_input,
+            user_id=search_input.user_id,
+            collection_id=search_input.collection_id
+        )
+
+        # Create pipeline executor (pass empty list, stages will be added below)
+        executor = PipelineExecutor(stages=[])
+
+        # Add stages in execution order (Week 4 implementation uses all stages)
+        logger.debug("Configuring pipeline with all 6 stages")
+
+        # Stage 1: Pipeline Resolution - Get user's default pipeline configuration
+        executor.add_stage(PipelineResolutionStage(self.pipeline_service))
+
+        # Stage 2: Query Enhancement - Rewrite/enhance query for better retrieval
+        executor.add_stage(QueryEnhancementStage(self.pipeline_service))
+
+        # Stage 3: Retrieval - Get documents from vector DB
+        executor.add_stage(RetrievalStage(self.pipeline_service))
+
+        # Stage 4: Reranking - Rerank results for better relevance
+        executor.add_stage(RerankingStage(self.pipeline_service))
+
+        # Stage 5: Reasoning - Apply Chain of Thought if needed
+        executor.add_stage(ReasoningStage(self.chain_of_thought_service))
+
+        # Stage 6: Generation - Generate final answer from context
+        executor.add_stage(GenerationStage(self.pipeline_service))
+
+        # Execute pipeline
+        logger.info("Executing pipeline with %d stages", len(executor.get_stage_names()))
+        result_context = await executor.execute(context)
+
+        # Check for errors
+        if result_context.errors:
+            logger.warning("Pipeline completed with %d errors: %s", len(result_context.errors), result_context.errors)
+
+        # Convert SearchContext to SearchOutput
+        logger.debug("Converting SearchContext to SearchOutput")
+
+        # Clean the generated answer
+        cleaned_answer = self._clean_generated_answer(result_context.generated_answer or "")
+
+        # Build SearchOutput from context
+        # Convert cot_output from ChainOfThoughtOutput to dict if present
+        cot_output_dict = result_context.cot_output.model_dump() if result_context.cot_output else None
+
+        search_output = SearchOutput(
+            answer=cleaned_answer,
+            documents=result_context.document_metadata,
+            query_results=result_context.query_results,
+            rewritten_query=result_context.rewritten_query,
+            evaluation=result_context.evaluation,
+            execution_time=result_context.execution_time,
+            cot_output=cot_output_dict,
+            token_warning=result_context.token_warning,
+            metadata={
+                "pipeline_architecture": "v2_stage_based",
+                "stages_executed": executor.get_stage_names(),
+                **result_context.metadata
+            }
+        )
+
+        logger.info("✨ Pipeline execution completed successfully in %.2f seconds", result_context.execution_time)
+        logger.info("Generated answer length: %d chars", len(cleaned_answer))
+        logger.info("Retrieved documents: %d", len(result_context.query_results))
+
+        return search_output
 
     def _estimate_token_usage(self, question: str, answer: str) -> int:
         """Estimate token usage based on text length.

@@ -30,7 +30,46 @@ class FeatureFlagManager:
         """Initialize the feature flag manager."""
         self._flags: dict[str, bool] = {}
         self._rollout_percentage: dict[str, int] = {}
+
+        # Initialize rollout percentages from environment variables
+        self._initialize_from_env()
+
         logger.debug("Feature flag manager initialized")
+
+    def _initialize_from_env(self) -> None:
+        """
+        Initialize rollout percentages from environment variables.
+
+        Reads environment variables with pattern: <FLAG_NAME>_PERCENTAGE
+        Example: USE_PIPELINE_ARCHITECTURE_PERCENTAGE=100
+        """
+        for flag in FeatureFlag:
+            # Check for percentage env var (e.g., USE_PIPELINE_ARCHITECTURE_PERCENTAGE)
+            percentage_env_var = f"{flag.value}_PERCENTAGE"
+            percentage_str = os.getenv(percentage_env_var)
+
+            if percentage_str is not None:
+                try:
+                    percentage = int(percentage_str)
+                    if 0 <= percentage <= 100:
+                        self._rollout_percentage[flag.value] = percentage
+                        logger.info(
+                            "Initialized feature flag %s rollout from env: %d%%",
+                            flag.value,
+                            percentage,
+                        )
+                    else:
+                        logger.warning(
+                            "Invalid percentage value for %s: %s (must be 0-100)",
+                            percentage_env_var,
+                            percentage_str,
+                        )
+                except ValueError:
+                    logger.warning(
+                        "Invalid integer value for %s: %s",
+                        percentage_env_var,
+                        percentage_str,
+                    )
 
     def is_enabled(self, flag: FeatureFlag, user_id: str | None = None) -> bool:
         """

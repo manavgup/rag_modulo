@@ -51,9 +51,9 @@ class RetrievalStage(BaseStage):  # pylint: disable=too-few-public-methods
         self._log_stage_start(context)
 
         try:
-            # Ensure we have a collection name
-            if not context.collection_name:
-                raise ValueError("Collection name not set in context")
+            # Ensure we have a collection_id
+            if not context.collection_id:
+                raise ValueError("Collection ID not set in context")
 
             # Ensure we have a rewritten query
             if not context.rewritten_query:
@@ -62,21 +62,27 @@ class RetrievalStage(BaseStage):  # pylint: disable=too-few-public-methods
             # Extract top_k from config_metadata
             top_k = self._get_top_k(context)
 
-            # Retrieve documents
-            query_results = self._retrieve_documents(
-                context.rewritten_query, context.collection_name, top_k
+            # Retrieve documents using collection_id (PipelineService handles the lookup)
+            query_results = self.pipeline_service.retrieve_documents_by_id(
+                query=context.rewritten_query, collection_id=context.collection_id, top_k=top_k
             )
 
             logger.info("Retrieved %d documents with top_k=%d", len(query_results), top_k)
 
+            # Generate document metadata for UI display (sources)
+            document_metadata = self.pipeline_service.generate_document_metadata(query_results, context.collection_id)
+            logger.debug("Generated metadata for %d documents", len(document_metadata))
+
             # Update context
             context.query_results = query_results
+            context.document_metadata = document_metadata
             context.add_metadata(
                 "retrieval",
                 {
                     "top_k": top_k,
                     "results_count": len(query_results),
-                    "collection": context.collection_name,
+                    "documents_count": len(document_metadata),
+                    "collection_id": str(context.collection_id),
                 },
             )
 
@@ -106,20 +112,3 @@ class RetrievalStage(BaseStage):  # pylint: disable=too-few-public-methods
             logger.debug("Using top_k=%d from config_metadata", top_k)
 
         return top_k
-
-    def _retrieve_documents(self, query: str, collection_name: str, top_k: int) -> list:
-        """
-        Retrieve documents from vector database.
-
-        Args:
-            query: Query to search for
-            collection_name: Name of the collection
-            top_k: Number of documents to retrieve
-
-        Returns:
-            List of query results
-        """
-        # Use PipelineService's _retrieve_documents method
-        return self.pipeline_service._retrieve_documents(  # pylint: disable=protected-access
-            query, collection_name, top_k
-        )

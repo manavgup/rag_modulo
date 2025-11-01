@@ -29,9 +29,11 @@ def feature_manager() -> FeatureFlagManager:
 @pytest.fixture(autouse=True)
 def clean_env() -> None:
     """Clean environment variables before each test."""
-    # Remove any test feature flags
+    # Remove any test feature flags (both boolean and percentage variants)
     if "USE_PIPELINE_ARCHITECTURE" in os.environ:
         del os.environ["USE_PIPELINE_ARCHITECTURE"]
+    if "USE_PIPELINE_ARCHITECTURE_PERCENTAGE" in os.environ:
+        del os.environ["USE_PIPELINE_ARCHITECTURE_PERCENTAGE"]
 
 
 @pytest.mark.unit
@@ -110,7 +112,8 @@ class TestFeatureFlagManager:
         # Test multiple users
         for _ in range(10):
             user_id = str(uuid4())
-            assert feature_manager.is_enabled(FeatureFlag.USE_PIPELINE_ARCHITECTURE, user_id) is True
+            result = feature_manager.is_enabled(FeatureFlag.USE_PIPELINE_ARCHITECTURE, user_id)
+            assert result is True
 
     def test_percentage_rollout_50_percent(self, feature_manager: FeatureFlagManager) -> None:
         """Test 50% rollout enables for approximately half of users."""
@@ -138,7 +141,9 @@ class TestFeatureFlagManager:
 
         assert first_result == second_result
 
-    def test_percentage_rollout_invalid_percentage(self, feature_manager: FeatureFlagManager) -> None:
+    def test_percentage_rollout_invalid_percentage(
+        self, feature_manager: FeatureFlagManager
+    ) -> None:
         """Test that invalid percentages raise ValueError."""
         with pytest.raises(ValueError):
             feature_manager.set_rollout_percentage(FeatureFlag.USE_PIPELINE_ARCHITECTURE, -1)
@@ -174,3 +179,46 @@ class TestFeatureFlagManager:
 
         os.environ["USE_PIPELINE_ARCHITECTURE"] = "False"
         assert feature_manager.is_enabled(FeatureFlag.USE_PIPELINE_ARCHITECTURE) is False
+
+    def test_percentage_env_var_initialization_100(self) -> None:
+        """Test that percentage env var is read on initialization (100%)."""
+        os.environ["USE_PIPELINE_ARCHITECTURE_PERCENTAGE"] = "100"
+        manager = FeatureFlagManager()
+
+        # Should enable for all users
+        assert manager.is_enabled(FeatureFlag.USE_PIPELINE_ARCHITECTURE, "user-123") is True
+        assert manager.is_enabled(FeatureFlag.USE_PIPELINE_ARCHITECTURE, "user-456") is True
+
+    def test_percentage_env_var_initialization_0(self) -> None:
+        """Test that percentage env var is read on initialization (0%)."""
+        os.environ["USE_PIPELINE_ARCHITECTURE_PERCENTAGE"] = "0"
+        manager = FeatureFlagManager()
+
+        # Should disable for all users
+        assert manager.is_enabled(FeatureFlag.USE_PIPELINE_ARCHITECTURE, "user-123") is False
+        assert manager.is_enabled(FeatureFlag.USE_PIPELINE_ARCHITECTURE, "user-456") is False
+
+    def test_percentage_env_var_invalid_value(self) -> None:
+        """Test that invalid percentage env var is ignored."""
+        os.environ["USE_PIPELINE_ARCHITECTURE_PERCENTAGE"] = "invalid"
+        manager = FeatureFlagManager()
+
+        # Should be disabled by default when percentage is invalid
+        assert manager.is_enabled(FeatureFlag.USE_PIPELINE_ARCHITECTURE, "user-123") is False
+
+    def test_percentage_env_var_out_of_range(self) -> None:
+        """Test that out-of-range percentage env var is ignored."""
+        os.environ["USE_PIPELINE_ARCHITECTURE_PERCENTAGE"] = "150"
+        manager = FeatureFlagManager()
+
+        # Should be disabled by default when percentage is out of range
+        assert manager.is_enabled(FeatureFlag.USE_PIPELINE_ARCHITECTURE, "user-123") is False
+
+    def test_boolean_env_var_overrides_percentage_env_var(self) -> None:
+        """Test that boolean env var takes precedence over percentage env var."""
+        os.environ["USE_PIPELINE_ARCHITECTURE_PERCENTAGE"] = "0"
+        os.environ["USE_PIPELINE_ARCHITECTURE"] = "true"
+        manager = FeatureFlagManager()
+
+        # Boolean env var should override percentage (enabled despite 0%)
+        assert manager.is_enabled(FeatureFlag.USE_PIPELINE_ARCHITECTURE, "user-123") is True

@@ -37,7 +37,7 @@ from rag_solution.services.file_management_service import FileManagementService
 from rag_solution.services.llm_parameters_service import LLMParametersService
 from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.prompt_template_service import PromptTemplateService
-from vectordbs.data_types import QueryResult, VectorQuery
+from vectordbs.data_types import DocumentMetadata, QueryResult, VectorQuery
 from vectordbs.error_types import CollectionError
 from vectordbs.factory import VectorStoreFactory
 
@@ -694,6 +694,35 @@ class PipelineService:
             logger.warning("Hierarchical retrieval failed: %s, returning original results", e)
             return results
 
+    def retrieve_documents_by_id(self, query: str, collection_id, top_k: int | None = None) -> list[QueryResult]:
+        """Retrieve documents using collection_id (modern pipeline interface).
+
+        This is the preferred method for new code. It handles the collection_id
+        to collection_name lookup internally.
+
+        Args:
+            query: The query text
+            collection_id: UUID of the collection
+            top_k: Number of documents to retrieve
+
+        Returns:
+            List of query results
+
+        Raises:
+            ConfigurationError: If retrieval fails
+            ValueError: If collection not found
+        """
+        from rag_solution.models.collection import Collection
+
+        # Look up collection to get vector_db_name
+        collection = self.db.query(Collection).filter(Collection.id == collection_id).first()
+
+        if not collection:
+            raise ValueError(f"Collection not found: {collection_id}")
+
+        # Delegate to existing _retrieve_documents with the Milvus collection name
+        return self._retrieve_documents(query, collection.vector_db_name, top_k)
+
     def _retrieve_documents(self, query: str, collection_name: str, top_k: int | None = None) -> list[QueryResult]:
         """Retrieve relevant documents for the query.
 
@@ -711,8 +740,25 @@ class PipelineService:
         try:
             num_results = top_k if top_k is not None else self.settings.number_of_results
             vector_query = VectorQuery(text=query, number_of_results=num_results)
+
+            # Log retrieval details
+            logger.debug(
+                "Retrieving documents: query='%s...', collection=%s, top_k=%d",
+                query[:50] if len(query) > 50 else query,
+                collection_name,
+                num_results,
+            )
+
             results = self.retriever.retrieve(collection_name, vector_query)
             logger.info("Retrieved %d documents (requested: %d)", len(results), num_results)
+
+            # DEBUG: Log first result details
+            if results:
+                first = results[0]
+                logger.info("  First result: score=%.4f", first.score)
+                logger.info(
+                    "  First result text: %s...", first.chunk.text[:150] if first.chunk and first.chunk.text else "N/A"
+                )
 
             # Apply hierarchical retrieval if enabled
             if self.settings.chunking_strategy.lower() == "hierarchical":
@@ -836,6 +882,13 @@ class PipelineService:
             clean_query = self._prepare_query(search_input.question)
             rewritten_query = self.query_rewriter.rewrite(clean_query)
 
+            # DEBUG: Log query transformation
+            logger.info("=" * 80)
+            logger.info("Original query: %s", search_input.question)
+            logger.info("Clean query: %s", clean_query)
+            logger.info("Rewritten query: %s", rewritten_query)
+            logger.info("Collection: %s", collection_name)
+
             # Extract top_k from config_metadata (defaults to settings value if not provided)
             top_k = self.settings.number_of_results
             if search_input.config_metadata and "top_k" in search_input.config_metadata:
@@ -843,6 +896,17 @@ class PipelineService:
                 logger.info("Using top_k=%d from config_metadata", top_k)
 
             query_results = self._retrieve_documents(rewritten_query, collection_name, top_k)
+
+            # DEBUG: Log retrieval results
+            if query_results:
+                for i, result in enumerate(query_results[:5], 1):
+                    logger.info(
+                        "  Result %d: Score=%.4f, Text=%s...",
+                        i,
+                        result.score,
+                        result.chunk.text[:100] if result.chunk and result.chunk.text else "N/A",
+                    )
+            logger.info("=" * 80)
 
             # Apply reranking BEFORE context formatting and LLM generation (P0-2 fix)
             # Uses async concurrent batch processing for 50% performance improvement (P0-3)
@@ -893,3 +957,57 @@ class PipelineService:
         except Exception as e:  # pylint: disable=broad-exception-caught
             logger.error("Unexpected error: %s", e)
             raise Exception(f"Pipeline execution failed: {e!s}") from e  # pylint: disable=broad-exception-raised
+
+    def generate_document_metadata(
+        self, query_results: list[QueryResult], collection_id: UUID4
+    ) -> list[DocumentMetadata]:
+        """
+        Generate metadata from retrieved query results.
+
+        Args:
+            query_results: List of query results with document references
+            collection_id: ID of the collection being searched
+
+        Returns:
+            List of document metadata
+
+        Raises:
+            ConfigurationError: If files not found or metadata incomplete
+        """
+        logger.debug("Generating document metadata for collection %s", collection_id)
+
+        # Get unique document IDs from results
+        doc_ids = {result.document_id for result in query_results if result.document_id is not None}
+
+        if not doc_ids:
+            logger.debug("No document IDs found in query results")
+            return []
+
+        # Get file metadata from file service
+        files = self.file_management_service.get_files_by_collection(collection_id)
+        if not files:
+            logger.warning("No files found for collection %s", collection_id)
+            return []
+
+        # Create metadata map by document_id
+        file_metadata_by_id: dict[str, DocumentMetadata] = {
+            file.document_id: DocumentMetadata(
+                document_name=file.filename,
+                total_pages=file.metadata.total_pages if file.metadata else None,
+                total_chunks=file.metadata.total_chunks if file.metadata else None,
+                keywords=file.metadata.keywords if file.metadata else None,
+            )
+            for file in files
+            if file.document_id
+        }
+
+        # Build document metadata list (unique documents only)
+        doc_metadata = []
+        for doc_id in doc_ids:
+            if doc_id in file_metadata_by_id:
+                doc_metadata.append(file_metadata_by_id[doc_id])
+            else:
+                logger.warning("Document %s not found in collection metadata", doc_id)
+
+        logger.debug("Generated metadata for %d documents", len(doc_metadata))
+        return doc_metadata

@@ -23,7 +23,9 @@ def mock_pipeline_service() -> Mock:
     service = Mock()
     service.settings = Mock()
     service.settings.number_of_results = 10
-    service._retrieve_documents = Mock()
+    service.retrieve_documents_by_id = Mock()
+    # Mock the db query for collection lookup
+    service.db = Mock()
     return service
 
 
@@ -34,7 +36,6 @@ def search_context() -> SearchContext:
     collection_id = uuid4()
     search_input = SearchInput(user_id=user_id, collection_id=collection_id, question="Test question?")
     context = SearchContext(search_input=search_input, user_id=user_id, collection_id=collection_id)
-    context.collection_name = "test_collection"
     context.rewritten_query = "enhanced test question"
     return context
 
@@ -56,7 +57,7 @@ class TestRetrievalStage:
         """Test successful retrieval with default top_k."""
         # Setup mock results
         mock_results = [MagicMock() for _ in range(5)]
-        mock_pipeline_service._retrieve_documents.return_value = mock_results
+        mock_pipeline_service.retrieve_documents_by_id.return_value = mock_results
 
         stage = RetrievalStage(mock_pipeline_service)
         result = await stage.execute(search_context)
@@ -67,7 +68,9 @@ class TestRetrievalStage:
         assert result.context.metadata["retrieval"]["top_k"] == 10
         assert result.context.metadata["retrieval"]["results_count"] == 5
 
-        mock_pipeline_service._retrieve_documents.assert_called_once_with("enhanced test question", "test_collection", 10)
+        mock_pipeline_service.retrieve_documents_by_id.assert_called_once_with(
+            query="enhanced test question", collection_id=search_context.collection_id, top_k=10
+        )
 
     async def test_successful_retrieval_custom_top_k(
         self, mock_pipeline_service: Mock, search_context: SearchContext
@@ -77,7 +80,7 @@ class TestRetrievalStage:
         search_context.search_input.config_metadata = {"top_k": 20}
 
         mock_results = [MagicMock() for _ in range(15)]
-        mock_pipeline_service._retrieve_documents.return_value = mock_results
+        mock_pipeline_service.retrieve_documents_by_id.return_value = mock_results
 
         stage = RetrievalStage(mock_pipeline_service)
         result = await stage.execute(search_context)
@@ -86,11 +89,13 @@ class TestRetrievalStage:
         assert len(result.context.query_results) == 15
         assert result.context.metadata["retrieval"]["top_k"] == 20
 
-        mock_pipeline_service._retrieve_documents.assert_called_once_with("enhanced test question", "test_collection", 20)
+        mock_pipeline_service.retrieve_documents_by_id.assert_called_once_with(
+            query="enhanced test question", collection_id=search_context.collection_id, top_k=20
+        )
 
     async def test_retrieval_no_results(self, mock_pipeline_service: Mock, search_context: SearchContext) -> None:
         """Test retrieval with no results found."""
-        mock_pipeline_service._retrieve_documents.return_value = []
+        mock_pipeline_service.retrieve_documents_by_id.return_value = []
 
         stage = RetrievalStage(mock_pipeline_service)
         result = await stage.execute(search_context)
@@ -99,15 +104,15 @@ class TestRetrievalStage:
         assert len(result.context.query_results) == 0
         assert result.context.metadata["retrieval"]["results_count"] == 0
 
-    async def test_missing_collection_name(self, mock_pipeline_service: Mock, search_context: SearchContext) -> None:
-        """Test error when collection name is missing."""
-        search_context.collection_name = None
+    async def test_missing_collection_id(self, mock_pipeline_service: Mock, search_context: SearchContext) -> None:
+        """Test error when collection ID is missing."""
+        search_context.collection_id = None
 
         stage = RetrievalStage(mock_pipeline_service)
         result = await stage.execute(search_context)
 
         assert result.success is False
-        assert "collection name" in result.error.lower()
+        assert "collection id" in result.error.lower()
 
     async def test_missing_rewritten_query(self, mock_pipeline_service: Mock, search_context: SearchContext) -> None:
         """Test error when rewritten query is missing."""
@@ -121,7 +126,7 @@ class TestRetrievalStage:
 
     async def test_retrieval_error(self, mock_pipeline_service: Mock, search_context: SearchContext) -> None:
         """Test error handling during retrieval."""
-        mock_pipeline_service._retrieve_documents.side_effect = ValueError("Retrieval failed")
+        mock_pipeline_service.retrieve_documents_by_id.side_effect = ValueError("Retrieval failed")
 
         stage = RetrievalStage(mock_pipeline_service)
         result = await stage.execute(search_context)
@@ -145,30 +150,18 @@ class TestRetrievalStage:
 
         assert top_k == 25
 
-    async def test_retrieve_documents(self, mock_pipeline_service: Mock, search_context: SearchContext) -> None:
-        """Test document retrieval."""
-        mock_results = [MagicMock() for _ in range(7)]
-        mock_pipeline_service._retrieve_documents.return_value = mock_results
-
-        stage = RetrievalStage(mock_pipeline_service)
-        results = stage._retrieve_documents("test query", "test_collection", 10)
-
-        assert len(results) == 7
-        mock_pipeline_service._retrieve_documents.assert_called_once_with("test query", "test_collection", 10)
-
-    async def test_different_collection_names(self, mock_pipeline_service: Mock) -> None:
-        """Test retrieval with different collection names."""
+    async def test_different_collection_ids(self, mock_pipeline_service: Mock) -> None:
+        """Test retrieval with different collection IDs."""
         user_id = uuid4()
         collection_id = uuid4()
         search_input = SearchInput(user_id=user_id, collection_id=collection_id, question="Test?")
         context = SearchContext(search_input=search_input, user_id=user_id, collection_id=collection_id)
-        context.collection_name = "special_collection"
         context.rewritten_query = "test"
 
-        mock_pipeline_service._retrieve_documents.return_value = [MagicMock()]
+        mock_pipeline_service.retrieve_documents_by_id.return_value = [MagicMock()]
 
         stage = RetrievalStage(mock_pipeline_service)
         result = await stage.execute(context)
 
         assert result.success is True
-        assert result.context.metadata["retrieval"]["collection"] == "special_collection"
+        assert result.context.metadata["retrieval"]["collection_id"] == str(collection_id)

@@ -48,10 +48,21 @@ class VectorRetriever(BaseRetriever):
             List[QueryResult]: A list of retrieved documents with their relevance scores.
         """
         try:
+            # DEBUG: Log query before vector store call
+            logger.debug("VectorRetriever.retrieve: query='%s...', collection=%s, n=%d",
+                        query.text[:50] if len(query.text) > 50 else query.text,
+                        collection_name, query.number_of_results)
+
             results: list[QueryResult] = self.document_store.vector_store.retrieve_documents(
                 query.text, collection_name, query.number_of_results
             )
             logger.info(f"Received {len(results)} documents for query: {query.text}")
+
+            # DEBUG: Log first result
+            if results:
+                first = results[0]
+                logger.info("  First result in VectorRetriever: score=%.4f", first.score)
+
             return results
         except ValueError as e:
             logger.warning(f"Vector retrieval failed: {e}")
