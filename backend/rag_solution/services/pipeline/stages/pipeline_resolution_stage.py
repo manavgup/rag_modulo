@@ -58,9 +58,7 @@ class PipelineResolutionStage(BaseStage):  # pylint: disable=too-few-public-meth
 
             # Update context
             context.pipeline_id = pipeline_id
-            context.add_metadata(
-                "pipeline_resolution", {"pipeline_id": str(pipeline_id), "success": True}
-            )
+            context.add_metadata("pipeline_resolution", {"pipeline_id": str(pipeline_id), "success": True})
 
             result = StageResult(success=True, context=context)
             self._log_stage_complete(result)
@@ -97,20 +95,14 @@ class PipelineResolutionStage(BaseStage):  # pylint: disable=too-few-public-meth
             llm_service = self.pipeline_service.llm_provider_service
             default_provider = llm_service.get_user_provider(user_id)
             if not default_provider:
-                raise ConfigurationError(
-                    "No LLM provider available for pipeline creation"
-                )
+                raise ConfigurationError("No LLM provider available for pipeline creation")
 
             # Create default pipeline for user
-            created_pipeline = self.pipeline_service.initialize_user_pipeline(
-                user_id, default_provider.id
-            )
+            created_pipeline = self.pipeline_service.initialize_user_pipeline(user_id, default_provider.id)
             logger.info("Created pipeline %s for user %s", created_pipeline.id, user_id)
             return created_pipeline.id
 
         except (AttributeError, ValueError, TypeError) as e:
             # Catch specific exceptions that indicate configuration issues
             logger.error("Failed to create pipeline for user %s: %s", user_id, e)
-            raise ConfigurationError(
-                f"Failed to create default pipeline for user {user_id}: {e}"
-            ) from e
+            raise ConfigurationError(f"Failed to create default pipeline for user {user_id}: {e}") from e

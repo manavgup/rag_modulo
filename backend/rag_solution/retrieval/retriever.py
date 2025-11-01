@@ -49,9 +49,12 @@ class VectorRetriever(BaseRetriever):
         """
         try:
             # DEBUG: Log query before vector store call
-            logger.debug("VectorRetriever.retrieve: query='%s...', collection=%s, n=%d",
-                        query.text[:50] if len(query.text) > 50 else query.text,
-                        collection_name, query.number_of_results)
+            logger.debug(
+                "VectorRetriever.retrieve: query='%s...', collection=%s, n=%d",
+                query.text[:50] if len(query.text) > 50 else query.text,
+                collection_name,
+                query.number_of_results,
+            )
 
             results: list[QueryResult] = self.document_store.vector_store.retrieve_documents(
                 query.text, collection_name, query.number_of_results
