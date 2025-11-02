@@ -91,10 +91,23 @@ class ConversationRepository:
 
         except IntegrityError as e:
             self.db.rollback()
+            error_msg = str(e).lower()
             logger.error(f"Integrity error creating conversation session: {e}")
-            raise AlreadyExistsError(
-                "configuration", "Conversation session with this configuration already exists", "duplicate"
-            ) from e
+
+            # Check for specific constraint violations
+            if "unique" in error_msg or "duplicate" in error_msg:
+                raise AlreadyExistsError(
+                    "session", "Conversation session with this configuration already exists", "duplicate"
+                ) from e
+            elif "foreign" in error_msg or "violates foreign key constraint" in error_msg:
+                if "user_id" in error_msg:
+                    raise NotFoundError(f"User not found: {session_input.user_id}") from e
+                elif "collection_id" in error_msg:
+                    raise NotFoundError(f"Collection not found: {session_input.collection_id}") from e
+                else:
+                    raise NotFoundError("Referenced user or collection not found") from e
+            else:
+                raise RepositoryError(f"Database constraint violation: {e}") from e
         except Exception as e:
             self.db.rollback()
             logger.error(f"Error creating conversation session: {e}")
@@ -348,10 +361,21 @@ class ConversationRepository:
 
         except IntegrityError as e:
             self.db.rollback()
+            error_msg = str(e).lower()
             logger.error(f"Integrity error creating conversation message: {e}")
-            raise AlreadyExistsError(
-                "configuration", "Conversation message with this configuration already exists", "duplicate"
-            ) from e
+
+            # Check for specific constraint violations
+            if "unique" in error_msg or "duplicate" in error_msg:
+                raise AlreadyExistsError(
+                    "message", "Conversation message with this configuration already exists", "duplicate"
+                ) from e
+            elif "foreign" in error_msg or "violates foreign key constraint" in error_msg:
+                if "session_id" in error_msg:
+                    raise NotFoundError(f"Session not found: {message_input.session_id}") from e
+                else:
+                    raise NotFoundError("Referenced session not found") from e
+            else:
+                raise RepositoryError(f"Database constraint violation: {e}") from e
         except Exception as e:
             self.db.rollback()
             logger.error(f"Error creating conversation message: {e}")
@@ -623,8 +647,19 @@ class ConversationRepository:
 
         except IntegrityError as e:
             self.db.rollback()
+            error_msg = str(e).lower()
             logger.error(f"Integrity error creating conversation summary: {e}")
-            raise AlreadyExistsError("summary", "Conversation summary already exists", "duplicate") from e
+
+            # Check for specific constraint violations
+            if "unique" in error_msg or "duplicate" in error_msg:
+                raise AlreadyExistsError("summary", "Conversation summary already exists", "duplicate") from e
+            elif "foreign" in error_msg or "violates foreign key constraint" in error_msg:
+                if "session_id" in error_msg:
+                    raise NotFoundError(f"Session not found: {summary_input.session_id}") from e
+                else:
+                    raise NotFoundError("Referenced session not found") from e
+            else:
+                raise RepositoryError(f"Database constraint violation: {e}") from e
         except Exception as e:
             self.db.rollback()
             logger.error(f"Error creating conversation summary: {e}")
