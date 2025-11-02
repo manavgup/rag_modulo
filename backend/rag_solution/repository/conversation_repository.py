@@ -119,6 +119,11 @@ class ConversationRepository:
         This method uses joinedload to prevent N+1 queries by eagerly loading
         related messages, user, and collection data.
 
+        **Memory Considerations:**
+        This method eagerly loads ALL messages and summaries for the session.
+        For sessions with hundreds of messages, this can consume significant memory.
+        Use get_messages_by_session() or get_recent_messages() for pagination if needed.
+
         Args:
             session_id: Session ID
 
@@ -159,13 +164,19 @@ class ConversationRepository:
         This method uses joinedload to prevent N+1 queries, reducing query count
         from 54 queries to 1 query when listing sessions.
 
+        **Memory Considerations:**
+        Eagerly loads ALL messages and summaries for each session returned.
+        With default limit=50, if each session has 100 messages, this loads ~5000 messages.
+        For listing operations, consider reducing limit or using selectinload() instead
+        of joinedload() to separate queries for one-to-many relationships.
+
         Args:
             user_id: User ID
-            limit: Maximum number of sessions to return
+            limit: Maximum number of sessions to return (default: 50)
             offset: Offset for pagination
 
         Returns:
-            List of conversation sessions
+            List of conversation sessions with eager loaded relationships
 
         Raises:
             RepositoryError: For database errors
@@ -200,13 +211,18 @@ class ConversationRepository:
     ) -> list[ConversationSessionOutput]:
         """Get conversation sessions for a collection with eager loading.
 
+        **Memory Considerations:**
+        Similar to get_sessions_by_user(), this eagerly loads ALL messages and summaries
+        for each session. Memory usage scales with: limit x avg_messages_per_session.
+        Consider selectinload() for one-to-many relationships in high-volume scenarios.
+
         Args:
             collection_id: Collection ID
-            limit: Maximum number of sessions to return
+            limit: Maximum number of sessions to return (default: 50)
             offset: Offset for pagination
 
         Returns:
-            List of conversation sessions
+            List of conversation sessions with eager loaded relationships
 
         Raises:
             RepositoryError: For database errors
