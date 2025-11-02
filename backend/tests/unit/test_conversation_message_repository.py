@@ -167,9 +167,10 @@ class TestConversationMessageRepository:
         session_id = uuid4()
         messages = [sample_message_model]
 
-        # Mock database query
+        # Mock database query with new subquery pattern
+        # The new implementation uses: db.query(ConversationMessage).select_from(subquery).order_by().all()
         mock_query = Mock()
-        mock_query.filter.return_value.order_by.return_value.limit.return_value.all.return_value = messages
+        mock_query.select_from.return_value.order_by.return_value.all.return_value = messages
         mock_db.query.return_value = mock_query
 
         # Mock the model validation

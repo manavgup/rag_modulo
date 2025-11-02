@@ -172,21 +172,37 @@ class TestConversationMessageRepository:
         session_id = uuid4()
         messages = [sample_message_model]
 
-        # Mock database query
+        # Mock the subquery pattern used in the implementation
+        # Implementation uses: select().where().order_by().limit().subquery()
+        # Then: db.query().select_from(subquery).order_by().all()
+        mock_subquery = Mock()
+        mock_select_chain = Mock()
+        mock_select_chain.where.return_value.order_by.return_value.limit.return_value.subquery.return_value = (
+            mock_subquery
+        )
+
+        # Mock the query chain: db.query().select_from().order_by().all()
         mock_query = Mock()
-        mock_query.filter.return_value.order_by.return_value.limit.return_value.all.return_value = messages
+        mock_query.select_from.return_value.order_by.return_value.all.return_value = messages
         mock_db.query.return_value = mock_query
 
-        # Mock the model validation
-        with patch("rag_solution.repository.conversation_message_repository.ConversationMessageOutput") as mock_output:
-            mock_output.from_db_message.side_effect = [Mock(spec=ConversationMessageOutput)]
+        # Mock select() function
+        with patch("rag_solution.repository.conversation_message_repository.select") as mock_select:
+            mock_select.return_value = mock_select_chain
 
-            # Act
-            result = repository.get_recent_messages(session_id, count=10)
+            # Mock the model validation
+            with patch(
+                "rag_solution.repository.conversation_message_repository.ConversationMessageOutput"
+            ) as mock_output:
+                mock_output.from_db_message.side_effect = [Mock(spec=ConversationMessageOutput)]
 
-            # Assert
-            assert len(result) == 1
-            mock_db.query.assert_called_once_with(ConversationMessage)
+                # Act
+                result = repository.get_recent_messages(session_id, count=10)
+
+                # Assert
+                assert len(result) == 1
+                mock_db.query.assert_called_once_with(ConversationMessage)
+                mock_select.assert_called_once_with(ConversationMessage)
 
     def test_update_message_success(self, repository, mock_db, sample_message_model):
         """Test successful message update."""

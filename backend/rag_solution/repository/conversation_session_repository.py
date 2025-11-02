@@ -1,5 +1,10 @@
-"""Repository for handling ConversationSession entity database operations."""
+"""DEPRECATED: This repository will be removed in Phase 7.
 
+Use rag_solution.repository.conversation_repository.ConversationRepository instead.
+This file is maintained for backward compatibility during Phases 3-6.
+"""
+
+import warnings
 from typing import Any
 
 from pydantic import UUID4
@@ -11,6 +16,14 @@ from core.logging_utils import get_logger
 from rag_solution.core.exceptions import AlreadyExistsError, NotFoundError
 from rag_solution.models.conversation_session import ConversationSession
 from rag_solution.schemas.conversation_schema import ConversationSessionInput, ConversationSessionOutput
+
+# Issue deprecation warning when this module is imported
+warnings.warn(
+    "conversation_session_repository.py is deprecated and will be removed in Phase 7. "
+    "Use rag_solution.repository.conversation_repository.ConversationRepository instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 logger = get_logger(__name__)
 
