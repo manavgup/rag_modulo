@@ -348,50 +348,80 @@ poetry run pytest tests/performance/test_conversation_benchmarks.py -v
 - [x] Update model imports
 - [x] Add comprehensive documentation
 
-### Phase 2: Service Consolidation
+### Phase 3: Service Consolidation
 
-**Status**: 🚧 In Progress
+**Status**: ⏳ Planned
+**Issue**: [#557](https://github.com/manavgup/rag_modulo/issues/557)
+**Depends On**: PR #556 (Phase 1 & 2)
+**Estimated Effort**: 3-5 days
 
 - [ ] Create unified conversation service
 - [ ] Migrate business logic from old services
 - [ ] Update service dependencies
 - [ ] Add service tests
+- [ ] Add deprecation warnings to old services
 
-### Phase 3: Router Unification
+**Goal**: Consolidate 2,155 lines → ~800 lines (63% reduction)
+
+### Phase 4: Router Unification
 
 **Status**: ⏳ Planned
+**Issue**: [#558](https://github.com/manavgup/rag_modulo/issues/558)
+**Depends On**: Phase 3
+**Estimated Effort**: 2-3 days
 
 - [ ] Update conversation router with full API
 - [ ] Deprecate chat router
 - [ ] Update API documentation
 - [ ] Add router tests
+- [ ] Create endpoint migration guide
 
-### Phase 4: Testing & Validation
+**Goal**: Consolidate 1,036 lines → ~600 lines (42% reduction)
+
+### Phase 5: Testing & Validation
 
 **Status**: ⏳ Planned
+**Issue**: [#559](https://github.com/manavgup/rag_modulo/issues/559)
+**Depends On**: Phase 4
+**Estimated Effort**: 3-4 days
 
 - [ ] Update all existing tests
 - [ ] Add integration tests
 - [ ] Performance benchmarks
 - [ ] 90%+ code coverage
+- [ ] N+1 query prevention tests
 
-### Phase 5: Frontend Migration
+**Goal**: 90%+ test coverage across all unified components
+
+### Phase 6: Frontend Migration
 
 **Status**: ⏳ Planned
+**Issue**: [#560](https://github.com/manavgup/rag_modulo/issues/560)
+**Depends On**: Phase 5
+**Estimated Effort**: 2-3 days
 
 - [ ] Update frontend API calls
 - [ ] Remove deprecated endpoints
 - [ ] UI testing
 - [ ] E2E tests
+- [ ] Update TypeScript types
 
-### Phase 6: Cleanup
+**Goal**: Zero references to deprecated APIs in frontend
+
+### Phase 7: Cleanup & Deprecation Removal
 
 **Status**: ⏳ Planned
+**Issue**: [#561](https://github.com/manavgup/rag_modulo/issues/561)
+**Depends On**: Phase 6
+**Estimated Effort**: 1-2 days
 
-- [ ] Remove deprecated files
+- [ ] Remove 9 deprecated files (~3,000 lines)
 - [ ] Update all documentation
 - [ ] Final validation
 - [ ] Release notes
+- [ ] Close parent issue #539
+
+**Goal**: 64% total file reduction (11 files → 4 files)
 
 ## Benefits Summary
 
