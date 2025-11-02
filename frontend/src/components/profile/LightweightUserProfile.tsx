@@ -30,17 +30,17 @@ import {
   useDeletePromptTemplate,
   useSetDefaultPromptTemplate,
   useLLMParameters,
-  useCreateLLMParameters,
   useUpdateLLMParameters,
-  useDeleteLLMParameters,
   useSetDefaultLLMParameters,
   usePipelineConfigs,
-  useCreatePipelineConfig,
   useUpdatePipelineConfig,
-  useDeletePipelineConfig,
   useSetDefaultPipelineConfig,
 } from '../../hooks/useUserSettings';
-import type { PromptTemplate as APIPromptTemplate, LLMParameters as APILLMParameters, PipelineConfig as APIPipelineConfig } from '../../api/userSettings';
+import type {
+  PromptTemplate as APIPromptTemplate,
+  LLMParameters as APILLMParameters,
+  PipelineConfig as APIPipelineConfig
+} from '../../api/userSettings';
 
 interface LLMProvider {
   id: string;
@@ -50,13 +50,81 @@ interface LLMProvider {
   isActive: boolean;
 }
 
+// Template type mapping - converts backend enum to display-friendly format
+type DisplayTemplateType =
+  | 'rag_query'
+  | 'question_generation'
+  | 'podcast_generation'
+  | 'reranking'
+  | 'cot_reasoning'
+  | 'custom';
+
+/**
+ * Safely converts backend template_type enum to display format
+ * @param backendType - The template type from backend (e.g., 'RAG_QUERY')
+ * @returns Display-friendly lowercase format (e.g., 'rag_query')
+ */
+function mapTemplateType(backendType: APIPromptTemplate['template_type']): DisplayTemplateType {
+  const mapping: Record<APIPromptTemplate['template_type'], DisplayTemplateType> = {
+    'RAG_QUERY': 'rag_query',
+    'QUESTION_GENERATION': 'question_generation',
+    'PODCAST_GENERATION': 'podcast_generation',
+    'RERANKING': 'reranking',
+    'COT_REASONING': 'cot_reasoning',
+    'CUSTOM': 'custom',
+  };
+
+  return mapping[backendType] || 'custom'; // Fallback to 'custom' for unknown types
+}
+
+/**
+ * Converts display template type back to backend format
+ * @param displayType - The display type (e.g., 'rag_query')
+ * @returns Backend format (e.g., 'RAG_QUERY')
+ */
+function unmapTemplateType(displayType: DisplayTemplateType): APIPromptTemplate['template_type'] {
+  const reverseMapping: Record<DisplayTemplateType, APIPromptTemplate['template_type']> = {
+    'rag_query': 'RAG_QUERY',
+    'question_generation': 'QUESTION_GENERATION',
+    'podcast_generation': 'PODCAST_GENERATION',
+    'reranking': 'RERANKING',
+    'cot_reasoning': 'COT_REASONING',
+    'custom': 'CUSTOM',
+  };
+
+  return reverseMapping[displayType] || 'CUSTOM'; // Fallback to 'CUSTOM' for unknown types
+}
+
 // Component-specific display types (transformed from API types)
 interface DisplayPromptTemplate {
   id: string;
   name: string;
-  type: 'rag_query' | 'question_generation';
+  type: DisplayTemplateType;
   systemPrompt: string;
   templateFormat: string;
+  isDefault: boolean;
+}
+
+// Local types for component usage (aliased from API types)
+type PromptTemplate = APIPromptTemplate;
+
+// Display types for UserProfile mock data (uses camelCase for UI)
+interface DisplayLLMParameters {
+  temperature: number;
+  maxTokens: number;
+  topP: number;
+  topK: number;
+  repetitionPenalty: number;
+  stopSequences: string[];
+}
+
+interface DisplayPipelineConfig {
+  id: string;
+  name: string;
+  provider: string;
+  model: string;
+  embeddingModel: string;
+  retrievalLimit: number;
   isDefault: boolean;
 }
 
@@ -87,9 +155,9 @@ interface UserProfile {
   aiPreferences: {
     currentProvider: LLMProvider;
     availableProviders: LLMProvider[];
-    llmParameters: LLMParameters;
-    promptTemplates: PromptTemplate[];
-    pipelineConfig: PipelineConfig;
+    llmParameters: DisplayLLMParameters;
+    promptTemplates: DisplayPromptTemplate[];
+    pipelineConfig: DisplayPipelineConfig;
   };
 }
 
@@ -137,23 +205,20 @@ const LightweightUserProfile: React.FC = () => {
   const deleteTemplateMutation = useDeletePromptTemplate(userId);
   const setDefaultTemplateMutation = useSetDefaultPromptTemplate(userId);
 
-  const createLLMParamsMutation = useCreateLLMParameters(userId);
   const updateLLMParamsMutation = useUpdateLLMParameters(userId);
-  const deleteLLMParamsMutation = useDeleteLLMParameters(userId);
   const setDefaultLLMParamsMutation = useSetDefaultLLMParameters(userId);
 
-  const createPipelineMutation = useCreatePipelineConfig(userId);
   const updatePipelineMutation = useUpdatePipelineConfig(userId);
-  const deletePipelineMutation = useDeletePipelineConfig(userId);
   const setDefaultPipelineMutation = useSetDefaultPipelineConfig(userId);
 
   // Convert API templates to component display format (memoized for performance)
+  // Uses safe type mapping instead of unsafe type assertion
   const allTemplates: DisplayPromptTemplate[] = useMemo(
     () =>
       promptTemplates.map(t => ({
         id: t.id,
         name: t.name,
-        type: t.template_type.toLowerCase() as 'rag_query' | 'question_generation',
+        type: mapTemplateType(t.template_type),
         systemPrompt: t.system_prompt || '',
         templateFormat: t.template_format,
         isDefault: t.is_default,
@@ -228,12 +293,12 @@ const LightweightUserProfile: React.FC = () => {
               topK: 40,
               repetitionPenalty: 1.1,
               stopSequences: ['</response>', '\n\nHuman:'],
-            },
+            } as DisplayLLMParameters,
             promptTemplates: [
               {
                 id: 'rag-template-1',
                 name: 'Default RAG Template',
-                type: 'rag_query',
+                type: 'rag_query' as DisplayTemplateType,
                 systemPrompt: 'You are a helpful AI assistant specializing in answering questions based on the given context.',
                 templateFormat: '{context}\n\n{question}',
                 isDefault: true,
@@ -241,7 +306,7 @@ const LightweightUserProfile: React.FC = () => {
               {
                 id: 'question-template-1',
                 name: 'Question Generation Template',
-                type: 'question_generation',
+                type: 'question_generation' as DisplayTemplateType,
                 systemPrompt: 'Generate relevant questions based on the given context.',
                 templateFormat: '{context}\n\nGenerate {num_questions} questions.',
                 isDefault: true,
@@ -372,9 +437,15 @@ const LightweightUserProfile: React.FC = () => {
   // Template Management Functions - now using React Query hooks
   // Templates are automatically loaded via usePromptTemplates hook
 
-  const startEditingTemplate = (template: PromptTemplate) => {
-    setEditingTemplate({ ...template });
-    setIsEditingTemplate(true);
+  const startEditingTemplate = (displayTemplate: DisplayPromptTemplate) => {
+    // Find the original API template from promptTemplates
+    const apiTemplate = promptTemplates.find(t => t.id === displayTemplate.id);
+    if (apiTemplate) {
+      setEditingTemplate({ ...apiTemplate });
+      setIsEditingTemplate(true);
+    } else {
+      addNotification('error', 'Template Error', 'Unable to find template data for editing.');
+    }
   };
 
   const cancelEditingTemplate = () => {
@@ -386,16 +457,17 @@ const LightweightUserProfile: React.FC = () => {
     if (!editingTemplate) return;
 
     try {
+      // editingTemplate is APIPromptTemplate type, so we use template_type directly
       await updateTemplateMutation.mutateAsync({
         templateId: editingTemplate.id,
         template: {
           user_id: userId,
           name: editingTemplate.name,
-          template_type: editingTemplate.type.toUpperCase() as any,
-          system_prompt: editingTemplate.systemPrompt,
-          template_format: editingTemplate.templateFormat,
-          input_variables: {},
-          is_default: editingTemplate.isDefault,
+          template_type: editingTemplate.template_type, // Use template_type from API type directly
+          system_prompt: editingTemplate.system_prompt || '',
+          template_format: editingTemplate.template_format,
+          input_variables: editingTemplate.input_variables || {},
+          is_default: editingTemplate.is_default,
         },
       });
 
@@ -408,10 +480,16 @@ const LightweightUserProfile: React.FC = () => {
     }
   };
 
-  const setAsDefaultTemplate = async (template: PromptTemplate) => {
+  const setAsDefaultTemplate = async (displayTemplate: DisplayPromptTemplate) => {
     try {
-      await setDefaultTemplateMutation.mutateAsync(template.id);
-      addNotification('success', 'Default Set', `${template.name} is now the default template.`);
+      // Find the original API template ID
+      const apiTemplate = promptTemplates.find(t => t.id === displayTemplate.id);
+      if (apiTemplate) {
+        await setDefaultTemplateMutation.mutateAsync(apiTemplate.id);
+        addNotification('success', 'Default Set', `${displayTemplate.name} is now the default template.`);
+      } else {
+        addNotification('error', 'Template Error', 'Unable to find template data.');
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to set default template.';
       addNotification('error', 'Update Error', errorMessage);
@@ -1381,8 +1459,8 @@ const LightweightUserProfile: React.FC = () => {
                             <label className="block text-sm font-medium text-gray-100 mb-2">System Prompt</label>
                             {isEditingTemplate && editingTemplate ? (
                               <textarea
-                                value={editingTemplate.systemPrompt}
-                                onChange={(e) => setEditingTemplate(prev => prev ? { ...prev, systemPrompt: e.target.value } : null)}
+                                value={editingTemplate.system_prompt || ''}
+                                onChange={(e) => setEditingTemplate((prev: PromptTemplate | null) => prev ? { ...prev, system_prompt: e.target.value } : null)}
                                 rows={4}
                                 className="input-field w-full resize-none"
                                 placeholder="Enter system prompt..."
@@ -1399,8 +1477,8 @@ const LightweightUserProfile: React.FC = () => {
                             <label className="block text-sm font-medium text-gray-100 mb-2">Template Format</label>
                             {isEditingTemplate && editingTemplate ? (
                               <textarea
-                                value={editingTemplate.templateFormat}
-                                onChange={(e) => setEditingTemplate(prev => prev ? { ...prev, templateFormat: e.target.value } : null)}
+                                value={editingTemplate.template_format}
+                                onChange={(e) => setEditingTemplate((prev: PromptTemplate | null) => prev ? { ...prev, template_format: e.target.value } : null)}
                                 rows={3}
                                 className="input-field w-full font-mono text-sm resize-none"
                                 placeholder="Enter template format with variables like {context}, {question}..."
