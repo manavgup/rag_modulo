@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import ClassVar
 
 from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text
@@ -21,7 +21,7 @@ class ConversationMessage(Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     role: Mapped[str] = mapped_column(String(50), nullable=False)  # user, assistant, system
     message_type: Mapped[str] = mapped_column(String(50), nullable=False)  # question, answer, follow_up, etc.
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
     message_metadata: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     token_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     execution_time: Mapped[float | None] = mapped_column(Float, nullable=True)

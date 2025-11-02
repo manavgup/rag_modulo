@@ -1,8 +1,8 @@
 """Database model for conversation summaries."""
 
 import uuid
-from datetime import datetime
-from typing import TYPE_CHECKING
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, ClassVar
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSON, UUID
@@ -19,6 +19,7 @@ class ConversationSummary(Base):
     """Model for storing conversation summaries to manage context windows."""
 
     __tablename__ = "conversation_summaries"
+    __table_args__: ClassVar[dict] = {"extend_existing": True}
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=IdentityService.generate_id)
     session_id: Mapped[uuid.UUID] = mapped_column(
@@ -34,7 +35,7 @@ class ConversationSummary(Base):
     important_decisions: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     unresolved_questions: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     summary_strategy: Mapped[str] = mapped_column(String(50), nullable=False, default="recent_plus_summary")
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
     summary_metadata: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
 
     # Relationships

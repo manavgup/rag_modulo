@@ -11,7 +11,7 @@ Consolidation Benefits:
 """
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, ClassVar
 
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
@@ -73,9 +73,9 @@ class ConversationSession(Base):
     is_pinned: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, nullable=False, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
     )
 
     # Metadata
@@ -139,7 +139,7 @@ class ConversationMessage(Base):
     message_type: Mapped[str] = mapped_column(String(50), nullable=False)  # question, answer, follow_up, etc.
 
     # Timestamp
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
 
     # Metadata and metrics
     message_metadata: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
@@ -204,7 +204,7 @@ class ConversationSummary(Base):
     summary_strategy: Mapped[str] = mapped_column(String(50), nullable=False, default="recent_plus_summary")
 
     # Timestamp
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
 
     # Metadata
     summary_metadata: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)

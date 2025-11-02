@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import ClassVar
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
@@ -27,9 +27,9 @@ class ConversationSession(Base):
     max_messages: Mapped[int] = mapped_column(Integer, nullable=False, default=50)
     is_archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_pinned: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, nullable=False, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
     )
     session_metadata: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
 
