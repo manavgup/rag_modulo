@@ -5,10 +5,8 @@ from rag_solution.file_management.database import Base
 # Then Collection since it's referenced by UserCollection
 from rag_solution.models.collection import Collection
 
-# Conversation models
-from rag_solution.models.conversation_message import ConversationMessage
-from rag_solution.models.conversation_session import ConversationSession
-from rag_solution.models.conversation_summary import ConversationSummary
+# Conversation models (unified in conversation.py)
+from rag_solution.models.conversation import ConversationMessage, ConversationSession, ConversationSummary
 
 # Then File since it's referenced by Collection
 from rag_solution.models.file import File

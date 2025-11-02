@@ -12,7 +12,7 @@ from core.identity_service import IdentityService
 from rag_solution.file_management.database import Base
 
 if TYPE_CHECKING:
-    from rag_solution.models.conversation_session import ConversationSession
+    from rag_solution.models.conversation import ConversationSession
     from rag_solution.models.file import File
     from rag_solution.models.llm_parameters import LLMParameters
     from rag_solution.models.podcast import Podcast
