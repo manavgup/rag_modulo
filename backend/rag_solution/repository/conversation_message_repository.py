@@ -3,6 +3,7 @@
 from typing import Any
 
 from pydantic import UUID4
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
@@ -121,19 +122,26 @@ class ConversationMessageRepository:
             count: Number of recent messages to return
 
         Returns:
-            List of recent conversation messages ordered by creation time (newest first)
+            List of recent conversation messages ordered by creation time (chronological)
         """
         try:
-            messages = (
-                self.db.query(ConversationMessage)
-                .filter(ConversationMessage.session_id == session_id)
+            # Use subquery to get recent messages in DESC order, then order by ASC
+            # This avoids Python-level list reversal
+            subquery = (
+                select(ConversationMessage)
+                .where(ConversationMessage.session_id == session_id)
                 .order_by(ConversationMessage.created_at.desc())
                 .limit(count)
+                .subquery()
+            )
+
+            messages = (
+                self.db.query(ConversationMessage)
+                .select_from(subquery)
+                .order_by(ConversationMessage.created_at.asc())
                 .all()
             )
 
-            # Reverse to get chronological order
-            messages.reverse()
             return [ConversationMessageOutput.from_db_message(message) for message in messages]
 
         except Exception as e:
