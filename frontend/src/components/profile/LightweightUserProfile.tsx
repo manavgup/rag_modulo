@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   UserIcon,
@@ -48,31 +48,13 @@ interface LLMProvider {
   isActive: boolean;
 }
 
-interface LLMParameters {
-  temperature: number;
-  maxTokens: number;
-  topP: number;
-  topK: number;
-  repetitionPenalty: number;
-  stopSequences: string[];
-}
-
-interface PromptTemplate {
+// Component-specific display types (transformed from API types)
+interface DisplayPromptTemplate {
   id: string;
   name: string;
   type: 'rag_query' | 'question_generation';
   systemPrompt: string;
   templateFormat: string;
-  isDefault: boolean;
-}
-
-interface PipelineConfig {
-  id: string;
-  name: string;
-  provider: string;
-  model: string;
-  embeddingModel: string;
-  retrievalLimit: number;
   isDefault: boolean;
 }
 
@@ -163,15 +145,19 @@ const LightweightUserProfile: React.FC = () => {
   const deletePipelineMutation = useDeletePipelineConfig(userId);
   const setDefaultPipelineMutation = useSetDefaultPipelineConfig(userId);
 
-  // Convert API templates to component format
-  const allTemplates: PromptTemplate[] = promptTemplates.map(t => ({
-    id: t.id,
-    name: t.name,
-    type: t.template_type.toLowerCase() as 'rag_query' | 'question_generation',
-    systemPrompt: t.system_prompt || '',
-    templateFormat: t.template_format,
-    isDefault: t.is_default,
-  }));
+  // Convert API templates to component display format (memoized for performance)
+  const allTemplates: DisplayPromptTemplate[] = useMemo(
+    () =>
+      promptTemplates.map(t => ({
+        id: t.id,
+        name: t.name,
+        type: t.template_type.toLowerCase() as 'rag_query' | 'question_generation',
+        systemPrompt: t.system_prompt || '',
+        templateFormat: t.template_format,
+        isDefault: t.is_default,
+      })),
+    [promptTemplates]
+  );
 
   useEffect(() => {
     const loadProfile = async () => {
