@@ -1,6 +1,11 @@
-"""Database model for conversation summaries."""
+"""DEPRECATED: This file will be removed in Phase 7.
+
+Use rag_solution.models.conversation.ConversationSummary instead.
+This file is maintained for backward compatibility during Phases 3-6.
+"""
 
 import uuid
+import warnings
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, ClassVar
 
@@ -10,6 +15,14 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from core.identity_service import IdentityService
 from rag_solution.file_management.database import Base
+
+# Issue deprecation warning when this module is imported
+warnings.warn(
+    "conversation_summary.py is deprecated and will be removed in Phase 7. "
+    "Use rag_solution.models.conversation.ConversationSummary instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 if TYPE_CHECKING:
     from rag_solution.models.conversation_session import ConversationSession
