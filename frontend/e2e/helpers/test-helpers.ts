@@ -9,10 +9,14 @@ import { Page, expect } from '@playwright/test';
  * In dev mode, the app auto-authenticates, so we just navigate to the app.
  *
  * @param page - Playwright Page object
- * @param email - User email (default: dev@example.com for dev mode)
- * @param password - User password (default: password for dev mode) pragma: allowlist secret
+ * @param email - User email (from E2E_TEST_EMAIL env var, defaults to dev@example.com for dev mode)
+ * @param password - User password (from E2E_TEST_PASSWORD env var, defaults to password for dev mode)
  */
-export async function login(page: Page, email = 'dev@example.com', password = 'password') { // pragma: allowlist secret
+export async function login(
+  page: Page,
+  email = process.env.E2E_TEST_EMAIL || 'dev@example.com',
+  password = process.env.E2E_TEST_PASSWORD || 'password'
+) {
   // Navigate to dashboard - app will auto-authenticate in dev mode
   await page.goto('/dashboard');
 
@@ -38,7 +42,11 @@ export async function login(page: Page, email = 'dev@example.com', password = 'p
  * Login as admin helper function.
  */
 export async function loginAsAdmin(page: Page) {
-  await login(page, 'admin@example.com', 'admin123');
+  await login(
+    page,
+    process.env.E2E_TEST_ADMIN_EMAIL || 'admin@example.com',
+    process.env.E2E_TEST_ADMIN_PASSWORD || 'admin123'
+  );
 }
 
 /**
