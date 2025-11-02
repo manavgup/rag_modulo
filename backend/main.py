@@ -38,7 +38,9 @@ from rag_solution.router.conversation_router import router as conversation_route
 from rag_solution.router.dashboard_router import router as dashboard_router
 from rag_solution.router.health_router import router as health_router
 from rag_solution.router.podcast_router import router as podcast_router
+from rag_solution.router.runtime_config_router import router as runtime_config_router
 from rag_solution.router.search_router import router as search_router
+from rag_solution.router.settings_router import router as settings_router
 from rag_solution.router.team_router import router as team_router
 from rag_solution.router.token_warning_router import router as token_warning_router
 from rag_solution.router.user_router import router as user_router
@@ -141,11 +143,12 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
             # This is critical when .env settings change between restarts
             from rag_solution.generation.providers.factory import LLMProviderFactory
 
-            factory = LLMProviderFactory(db)
+            settings = get_settings()
+            factory = LLMProviderFactory(db, settings)
             factory.cleanup_all()
             logger.info("Cleared cached provider instances")
 
-            system_init_service = SystemInitializationService(db, get_settings())
+            system_init_service = SystemInitializationService(db, settings)
             providers = system_init_service.initialize_providers(raise_on_error=True)
             logger.info("Initialized providers: %s", ", ".join(p.name for p in providers))
 
@@ -213,6 +216,8 @@ app.include_router(dashboard_router)
 app.include_router(health_router)
 app.include_router(collection_router)
 app.include_router(podcast_router)
+app.include_router(runtime_config_router)
+app.include_router(settings_router)
 app.include_router(user_router)
 app.include_router(team_router)
 app.include_router(search_router)

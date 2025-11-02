@@ -3,6 +3,7 @@ from typing import Any
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
+from core.config import Settings
 from core.custom_exceptions import NotFoundException
 from core.logging_utils import get_logger
 from rag_solution.repository.llm_parameters_repository import LLMParametersRepository
@@ -17,8 +18,9 @@ logger = get_logger("services.llm_parameters")
 class LLMParametersService:
     """Service for managing LLM Parameters with clear CRUD operations."""
 
-    def __init__(self, db: Session) -> None:
+    def __init__(self, db: Session, settings: Settings) -> None:
         self.repository = LLMParametersRepository(db)
+        self.settings = settings
 
     @staticmethod
     def _to_output(value: Any) -> LLMParametersOutput:
@@ -150,12 +152,12 @@ class LLMParametersService:
         default_params = LLMParametersInput(
             user_id=user_id,
             name="Default Configuration",
-            description="Default LLM parameters configuration",
-            max_new_tokens=100,
-            temperature=0.7,
-            top_k=50,
-            top_p=1.0,
-            repetition_penalty=1.1,
+            description="Default LLM parameters configuration from .env settings",
+            max_new_tokens=self.settings.max_new_tokens,
+            temperature=self.settings.temperature,
+            top_k=self.settings.top_k,
+            top_p=self.settings.top_p,
+            repetition_penalty=self.settings.repetition_penalty,
             is_default=True,
         )
 

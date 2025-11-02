@@ -16,6 +16,7 @@ from rag_solution.models.llm_parameters import LLMParameters
 from rag_solution.models.podcast import Podcast
 from rag_solution.models.prompt_template import PromptTemplate
 from rag_solution.models.question import SuggestedQuestion
+from rag_solution.models.runtime_config import RuntimeConfig
 
 # Then the rest of the models
 from rag_solution.models.team import Team
@@ -38,6 +39,7 @@ __all__ = [
     "LLMParameters",
     "Podcast",
     "PromptTemplate",
+    "RuntimeConfig",
     "SuggestedQuestion",
     "Team",
     "TokenWarning",

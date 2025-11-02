@@ -24,9 +24,20 @@ class TestLLMParametersService:
         return Mock()
 
     @pytest.fixture
-    def service(self, mock_db: Mock) -> LLMParametersService:
+    def mock_settings(self) -> Mock:
+        """Create a mock settings object with test values."""
+        settings = Mock()
+        settings.max_new_tokens = 1024  # From .env
+        settings.temperature = 0.7
+        settings.top_k = 50
+        settings.top_p = 1.0
+        settings.repetition_penalty = 1.1
+        return settings
+
+    @pytest.fixture
+    def service(self, mock_db: Mock, mock_settings: Mock) -> LLMParametersService:
         """Create an LLMParametersService instance with mocked dependencies."""
-        service = LLMParametersService(mock_db)
+        service = LLMParametersService(mock_db, mock_settings)
         # Mock the repository
         service.repository = Mock()
         return service
@@ -80,12 +91,19 @@ class TestLLMParametersService:
     # INITIALIZATION TESTS
     # ============================================================================
 
-    def test_init(self, mock_db: Mock) -> None:
-        """Test LLMParametersService initialization."""
-        service = LLMParametersService(mock_db)
+    def test_init(self, mock_db: Mock, mock_settings: Mock) -> None:
+        """Test LLMParametersService initialization with Settings injection."""
+        service = LLMParametersService(mock_db, mock_settings)
 
         assert service.repository is not None
         assert hasattr(service.repository, "db")
+        assert service.settings is mock_settings
+        # Verify Settings values are accessible
+        assert service.settings.max_new_tokens == 1024
+        assert service.settings.temperature == 0.7
+        assert service.settings.top_k == 50
+        assert service.settings.top_p == 1.0
+        assert service.settings.repetition_penalty == 1.1
 
     # ============================================================================
     # CREATE OPERATIONS
@@ -508,12 +526,12 @@ class TestLLMParametersService:
             id=uuid4(),
             user_id=sample_user_id,
             name="Default Configuration",
-            description="Default LLM parameters configuration",
-            max_new_tokens=100,
-            temperature=0.7,
-            top_k=50,
-            top_p=1.0,
-            repetition_penalty=1.1,
+            description="Default LLM parameters configuration from .env settings",
+            max_new_tokens=1024,  # From Settings, not hardcoded
+            temperature=0.7,  # From Settings
+            top_k=50,  # From Settings
+            top_p=1.0,  # From Settings
+            repetition_penalty=1.1,  # From Settings
             is_default=True,
             created_at=datetime.now(UTC),
             updated_at=datetime.now(UTC),
@@ -524,10 +542,52 @@ class TestLLMParametersService:
 
         assert result.is_default is True
         assert result.name == "Default Configuration"
-        assert result.max_new_tokens == 100
+        # Verify Settings values are used, not hardcoded
+        assert result.max_new_tokens == 1024  # From Settings
         assert result.temperature == 0.7
         service.repository.get_default_parameters.assert_called_once_with(sample_user_id)
         service.repository.create.assert_called_once()
+
+    def test_initialize_default_parameters_uses_settings_values(
+        self, service: LLMParametersService, sample_user_id: UUID4, mock_settings: Mock
+    ) -> None:
+        """Test that initialize_default_parameters uses Settings values instead of hardcoded values."""
+        service.repository.get_default_parameters.return_value = None
+
+        # Mock repository.create to capture the input
+        captured_input = None
+
+        def capture_create_input(params_input):
+            nonlocal captured_input
+            captured_input = params_input
+            return LLMParametersOutput(
+                id=uuid4(),
+                user_id=sample_user_id,
+                name=params_input.name,
+                description=params_input.description,
+                max_new_tokens=params_input.max_new_tokens,
+                temperature=params_input.temperature,
+                top_k=params_input.top_k,
+                top_p=params_input.top_p,
+                repetition_penalty=params_input.repetition_penalty,
+                is_default=params_input.is_default,
+                created_at=datetime.now(UTC),
+                updated_at=datetime.now(UTC),
+            )
+
+        service.repository.create.side_effect = capture_create_input
+
+        # Call the method
+        service.initialize_default_parameters(sample_user_id)
+
+        # Verify the captured input uses Settings values
+        assert captured_input is not None
+        assert captured_input.max_new_tokens == mock_settings.max_new_tokens  # 1024 from Settings
+        assert captured_input.temperature == mock_settings.temperature  # 0.7 from Settings
+        assert captured_input.top_k == mock_settings.top_k  # 50 from Settings
+        assert captured_input.top_p == mock_settings.top_p  # 1.0 from Settings
+        assert captured_input.repetition_penalty == mock_settings.repetition_penalty  # 1.1 from Settings
+        assert captured_input.description == "Default LLM parameters configuration from .env settings"
 
     def test_initialize_default_parameters_returns_existing(
         self, service: LLMParametersService, sample_user_id: UUID4
