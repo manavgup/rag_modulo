@@ -12,7 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from core.config import Settings, get_settings
-from core.custom_exceptions import ValidationError
+from core.custom_exceptions import NotFoundError, ValidationError
 from core.logging_utils import get_logger
 from rag_solution.core.dependencies import get_db, verify_user_access
 from rag_solution.schemas.runtime_config_schema import (
@@ -179,9 +179,12 @@ async def get_runtime_config(
         logger.debug("Getting runtime config: id=%s", config_id)
         config = service.get_config(config_id)
         return config
-    except ValueError as e:
+    except NotFoundError as e:
         logger.warning("Config not found: %s", e)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
+    except ValueError as e:
+        logger.warning("Value error getting config: %s", e)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
     except Exception as e:
         logger.exception("Unexpected error getting runtime config %s", config_id)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error") from e
@@ -289,12 +292,15 @@ async def update_runtime_config(
         config = service.update_config(config_id, updates)
         logger.info("Updated runtime config: id=%s", config_id)
         return config
+    except NotFoundError as e:
+        logger.warning("Config not found: %s", e)
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
     except ValidationError as e:
         logger.warning("Validation error updating config: %s", e)
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e)) from e
     except ValueError as e:
         logger.warning("Value error updating config: %s", e)
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
     except Exception as e:
         logger.exception("Unexpected error updating runtime config %s", config_id)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error") from e
@@ -336,9 +342,12 @@ async def delete_runtime_config(
         logger.info("Deleting runtime config: id=%s", config_id)
         service.delete_config(config_id)
         logger.info("Deleted runtime config: id=%s", config_id)
-    except ValueError as e:
+    except NotFoundError as e:
         logger.warning("Config not found: %s", e)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
+    except ValueError as e:
+        logger.warning("Value error deleting config: %s", e)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
     except Exception as e:
         logger.exception("Unexpected error deleting runtime config %s", config_id)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error") from e
@@ -387,9 +396,12 @@ async def toggle_runtime_config(
         config = service.toggle_config(config_id, is_active)
         logger.info("Toggled runtime config: id=%s", config_id)
         return config
-    except ValueError as e:
+    except NotFoundError as e:
         logger.warning("Config not found: %s", e)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
+    except ValueError as e:
+        logger.warning("Value error toggling config: %s", e)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
     except Exception as e:
         logger.exception("Unexpected error toggling runtime config %s", config_id)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error") from e
