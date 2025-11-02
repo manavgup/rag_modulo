@@ -150,7 +150,7 @@ class SearchService:
                     from rag_solution.generation.providers.factory import LLMProviderFactory
 
                     # Use the factory to create the provider instance properly
-                    factory = LLMProviderFactory(self.db)
+                    factory = LLMProviderFactory(self.db, self.settings)
                     llm_service = factory.get_provider(provider_config.name)
                     logger.debug("Using %s LLM provider for CoT service", provider_config.name)
                 except Exception as e:  # pylint: disable=broad-exception-caught

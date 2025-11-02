@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import UUID4
 from sqlalchemy.orm import Session
 
-from rag_solution.core.dependencies import get_db, verify_user_access
+from rag_solution.core.dependencies import get_db, get_llm_parameters_service, verify_user_access
 from rag_solution.schemas.llm_model_schema import LLMModelOutput
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput, LLMParametersOutput
 from rag_solution.schemas.llm_provider_schema import LLMProviderInput, LLMProviderOutput
@@ -35,10 +35,11 @@ router = APIRouter()
     },
 )
 async def get_llm_parameters(
-    user_id: UUID4, user: Annotated[UserOutput, Depends(verify_user_access)], db: Annotated[Session, Depends(get_db)]
+    user_id: UUID4,
+    user: Annotated[UserOutput, Depends(verify_user_access)],
+    service: Annotated[LLMParametersService, Depends(get_llm_parameters_service)],
 ) -> list[LLMParametersOutput]:
     """Retrieve all LLM parameters for a user."""
-    service = LLMParametersService(db)
     try:
         return service.get_user_parameters(user.id)
     except Exception as e:
@@ -55,10 +56,9 @@ async def create_llm_parameters(
     user_id: UUID4,
     parameters_input: LLMParametersInput,
     user: Annotated[UserOutput, Depends(verify_user_access)],
-    db: Annotated[Session, Depends(get_db)],
+    service: Annotated[LLMParametersService, Depends(get_llm_parameters_service)],
 ) -> LLMParametersOutput:
     """Create a new set of LLM parameters for a user."""
-    service = LLMParametersService(db)
     try:
         return service.create_parameters(parameters_input)
     except Exception as e:
@@ -76,10 +76,9 @@ async def update_llm_parameters(
     parameter_id: UUID4,
     parameters_input: LLMParametersInput,
     user: Annotated[UserOutput, Depends(verify_user_access)],
-    db: Annotated[Session, Depends(get_db)],
+    service: Annotated[LLMParametersService, Depends(get_llm_parameters_service)],
 ) -> LLMParametersOutput:
     """Update an existing set of LLM parameters."""
-    service = LLMParametersService(db)
     try:
         return service.update_parameters(parameter_id, parameters_input)
     except Exception as e:
@@ -96,10 +95,9 @@ async def delete_llm_parameters(
     user_id: UUID4,
     parameter_id: UUID4,
     user: Annotated[UserOutput, Depends(verify_user_access)],
-    db: Annotated[Session, Depends(get_db)],
+    service: Annotated[LLMParametersService, Depends(get_llm_parameters_service)],
 ) -> bool:
     """Delete an existing set of LLM parameters."""
-    service = LLMParametersService(db)
     try:
         service.delete_parameters(parameter_id)
         return True
@@ -117,10 +115,9 @@ async def set_default_llm_parameters(
     user_id: UUID4,
     parameter_id: UUID4,
     user: Annotated[UserOutput, Depends(verify_user_access)],
-    db: Annotated[Session, Depends(get_db)],
+    service: Annotated[LLMParametersService, Depends(get_llm_parameters_service)],
 ) -> LLMParametersOutput:
     """Set a specific set of LLM parameters as default."""
-    service = LLMParametersService(db)
     try:
         return service.set_default_parameters(parameter_id)
     except Exception as e:

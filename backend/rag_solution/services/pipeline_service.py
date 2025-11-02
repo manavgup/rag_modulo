@@ -86,7 +86,7 @@ class PipelineService:
     def llm_parameters_service(self) -> LLMParametersService:
         """Get or create LLM parameters service instance."""
         if self._llm_parameters_service is None:
-            self._llm_parameters_service = LLMParametersService(self.db)
+            self._llm_parameters_service = LLMParametersService(self.db, self.settings)
         return self._llm_parameters_service
 
     @property
@@ -184,7 +184,7 @@ class PipelineService:
                 # Justification: Lazy import to avoid circular dependency
                 from rag_solution.generation.providers.factory import LLMProviderFactory
 
-                factory = LLMProviderFactory(self.db)
+                factory = LLMProviderFactory(self.db, self.settings)
                 llm_provider = factory.get_provider(provider_config.name)
 
                 # Get reranking prompt template (user-specific)
@@ -602,7 +602,7 @@ class PipelineService:
                 resource_id=str(pipeline_config.provider_id),
             )
 
-        provider = LLMProviderFactory(self.db).get_provider(provider_output.name)
+        provider = LLMProviderFactory(self.db, self.settings).get_provider(provider_output.name)
         if not provider:
             raise ConfigurationError("llm_provider", "Failed to initialize LLM provider")
 

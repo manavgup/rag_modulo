@@ -46,7 +46,7 @@ class QuestionService:
         self._question_repository: QuestionRepository | None = None
         self._prompt_template_service: PromptTemplateService | None = None
         self._llm_parameters_service: LLMParametersService | None = None
-        self._provider_factory = LLMProviderFactory(db)
+        self._provider_factory = LLMProviderFactory(db, settings)
 
         # Enhanced configuration for better question generation
         self.max_questions_per_collection = getattr(settings, "max_questions_per_collection", 15)
@@ -73,7 +73,7 @@ class QuestionService:
     def llm_parameters_service(self) -> LLMParametersService:
         """Lazy initialization of LLM parameters service."""
         if self._llm_parameters_service is None:
-            self._llm_parameters_service = LLMParametersService(self.db)
+            self._llm_parameters_service = LLMParametersService(self.db, self.settings)
         return self._llm_parameters_service
 
     def _validate_question(self, question: str, context: str) -> tuple[bool, str]:

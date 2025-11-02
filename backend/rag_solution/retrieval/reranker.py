@@ -548,20 +548,42 @@ class CrossEncoderReranker(BaseReranker):
 
         rerank_time = time.time() - start_time
 
-        # Combine results with scores (strict=True for safety)
-        scored_results = list(zip(results, scores, strict=True))
+        # Normalize cross-encoder scores to 0-1 range
+        # MS-MARCO models output scores in range ~[-10, +10]
+        # Frontend expects scores in [0, 1] for display as percentages
+        min_score = float(scores.min())
+        max_score = float(scores.max())
+        score_range = max_score - min_score
+
+        if score_range > 0:
+            # Min-max normalization preserves relative ranking
+            normalized_scores = [(float(s) - min_score) / score_range for s in scores]
+            logger.debug(
+                "Normalized scores: min=%.3f, max=%.3f, range=%.3f",
+                min_score,
+                max_score,
+                score_range,
+            )
+        else:
+            # All scores identical - assign 0.5 to all
+            normalized_scores = [0.5 for _ in scores]
+            logger.debug("All cross-encoder scores identical (%.3f), using 0.5", min_score)
+
+        # Combine results with normalized scores (strict=True for safety)
+        scored_results = list(zip(results, normalized_scores, strict=True))
 
         # Sort by cross-encoder scores (descending)
         sorted_results = sorted(scored_results, key=lambda x: x[1], reverse=True)
 
-        # Update QueryResult scores with cross-encoder scores
+        # Update QueryResult scores with normalized cross-encoder scores
         # Note: QueryResult schema only has chunk, score, embeddings
         # Collection info is preserved in the chunk object
+        # Scores are already normalized to [0, 1] range for frontend display
         reranked_results = []
         for result, ce_score in sorted_results:
             new_result = QueryResult(
                 chunk=result.chunk,
-                score=float(ce_score),  # Convert numpy float to Python float
+                score=float(ce_score),  # Already normalized to 0-1 range
                 embeddings=result.embeddings,
             )
             reranked_results.append(new_result)

@@ -53,7 +53,7 @@ class UserProviderService:
             reranking_template = self._create_default_reranking_template(user_id)
 
             # Add parameters initialization
-            parameters_service = LLMParametersService(self.db)
+            parameters_service = LLMParametersService(self.db, self.settings)
             default_parameters = parameters_service.initialize_default_parameters(user_id)
             if not default_parameters:
                 logger.error("Failed to initialize default parameters")
