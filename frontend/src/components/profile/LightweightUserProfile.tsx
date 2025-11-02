@@ -21,6 +21,24 @@ import {
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotification } from '../../contexts/NotificationContext';
+import {
+  usePromptTemplates,
+  useCreatePromptTemplate,
+  useUpdatePromptTemplate,
+  useDeletePromptTemplate,
+  useSetDefaultPromptTemplate,
+  useLLMParameters,
+  useCreateLLMParameters,
+  useUpdateLLMParameters,
+  useDeleteLLMParameters,
+  useSetDefaultLLMParameters,
+  usePipelineConfigs,
+  useCreatePipelineConfig,
+  useUpdatePipelineConfig,
+  useDeletePipelineConfig,
+  useSetDefaultPipelineConfig,
+} from '../../hooks/useUserSettings';
+import type { PromptTemplate as APIPromptTemplate, LLMParameters as APILLMParameters, PipelineConfig as APIPipelineConfig } from '../../api/userSettings';
 
 interface LLMProvider {
   id: string;
@@ -119,12 +137,41 @@ const LightweightUserProfile: React.FC = () => {
   const [showProviderModal, setShowProviderModal] = useState(false);
   const [showParametersModal, setShowParametersModal] = useState(false);
   const [showTemplatesModal, setShowTemplatesModal] = useState(false);
-  const [allTemplates, setAllTemplates] = useState<PromptTemplate[]>([]);
   const [selectedTemplateIndex, setSelectedTemplateIndex] = useState(0);
   const [isEditingTemplate, setIsEditingTemplate] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<PromptTemplate | null>(null);
-  const [templatesLoading, setTemplatesLoading] = useState(false);
   const [showPipelineModal, setShowPipelineModal] = useState(false);
+
+  // React Query hooks for API data
+  const userId = user?.id || '';
+  const { data: promptTemplates = [], isLoading: templatesLoading } = usePromptTemplates(userId);
+  const { data: llmParameters = [], isLoading: llmParamsLoading } = useLLMParameters(userId);
+  const { data: pipelineConfigs = [], isLoading: pipelinesLoading } = usePipelineConfigs(userId);
+
+  const createTemplateMutation = useCreatePromptTemplate(userId);
+  const updateTemplateMutation = useUpdatePromptTemplate(userId);
+  const deleteTemplateMutation = useDeletePromptTemplate(userId);
+  const setDefaultTemplateMutation = useSetDefaultPromptTemplate(userId);
+
+  const createLLMParamsMutation = useCreateLLMParameters(userId);
+  const updateLLMParamsMutation = useUpdateLLMParameters(userId);
+  const deleteLLMParamsMutation = useDeleteLLMParameters(userId);
+  const setDefaultLLMParamsMutation = useSetDefaultLLMParameters(userId);
+
+  const createPipelineMutation = useCreatePipelineConfig(userId);
+  const updatePipelineMutation = useUpdatePipelineConfig(userId);
+  const deletePipelineMutation = useDeletePipelineConfig(userId);
+  const setDefaultPipelineMutation = useSetDefaultPipelineConfig(userId);
+
+  // Convert API templates to component format
+  const allTemplates: PromptTemplate[] = promptTemplates.map(t => ({
+    id: t.id,
+    name: t.name,
+    type: t.template_type.toLowerCase() as 'rag_query' | 'question_generation',
+    systemPrompt: t.system_prompt || '',
+    templateFormat: t.template_format,
+    isDefault: t.is_default,
+  }));
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -334,72 +381,8 @@ const LightweightUserProfile: React.FC = () => {
     }
   };
 
-  // Template Management Functions
-  const loadAllTemplates = async () => {
-    setTemplatesLoading(true);
-    try {
-      // Simulate API call to fetch all templates
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // Mock expanded template data
-      const mockAllTemplates: PromptTemplate[] = [
-        {
-          id: 'rag-template-1',
-          name: 'Default RAG Template',
-          type: 'rag_query',
-          systemPrompt: 'You are a helpful AI assistant specializing in answering questions based on the given context.',
-          templateFormat: '{context}\n\n{question}',
-          isDefault: true,
-        },
-        {
-          id: 'rag-template-2',
-          name: 'Technical RAG Template',
-          type: 'rag_query',
-          systemPrompt: 'You are a technical expert AI assistant. Provide detailed technical answers based on the given context.',
-          templateFormat: 'Technical Context:\n{context}\n\nQuestion: {question}\n\nDetailed Answer:',
-          isDefault: false,
-        },
-        {
-          id: 'rag-template-3',
-          name: 'Conversational RAG Template',
-          type: 'rag_query',
-          systemPrompt: 'You are a friendly AI assistant that provides conversational responses based on the given context.',
-          templateFormat: 'Context: {context}\n\nUser asks: {question}\n\nFriendly response:',
-          isDefault: false,
-        },
-        {
-          id: 'question-template-1',
-          name: 'Default Question Generation',
-          type: 'question_generation',
-          systemPrompt: 'Generate relevant questions based on the given context.',
-          templateFormat: '{context}\n\nGenerate {num_questions} questions.',
-          isDefault: true,
-        },
-        {
-          id: 'question-template-2',
-          name: 'Educational Question Generation',
-          type: 'question_generation',
-          systemPrompt: 'Create educational questions that test comprehension and critical thinking.',
-          templateFormat: 'Educational Material:\n{context}\n\nCreate {num_questions} thought-provoking questions for students.',
-          isDefault: false,
-        },
-        {
-          id: 'question-template-3',
-          name: 'Research Question Generation',
-          type: 'question_generation',
-          systemPrompt: 'Generate research-oriented questions for academic analysis.',
-          templateFormat: 'Research Context:\n{context}\n\nFormulate {num_questions} research questions for further investigation.',
-          isDefault: false,
-        },
-      ];
-
-      setAllTemplates(mockAllTemplates);
-    } catch (error) {
-      addNotification('error', 'Load Error', 'Failed to load template library.');
-    } finally {
-      setTemplatesLoading(false);
-    }
-  };
+  // Template Management Functions - now using React Query hooks
+  // Templates are automatically loaded via usePromptTemplates hook
 
   const startEditingTemplate = (template: PromptTemplate) => {
     setEditingTemplate({ ...template });
@@ -415,24 +398,18 @@ const LightweightUserProfile: React.FC = () => {
     if (!editingTemplate) return;
 
     try {
-      // Simulate API call to save template
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      // Update allTemplates
-      setAllTemplates(prev =>
-        prev.map(t => t.id === editingTemplate.id ? editingTemplate : t)
-      );
-
-      // Update profile templates if this template is in the current list
-      setProfile(prev => prev ? {
-        ...prev,
-        aiPreferences: {
-          ...prev.aiPreferences,
-          promptTemplates: prev.aiPreferences.promptTemplates.map(t =>
-            t.id === editingTemplate.id ? editingTemplate : t
-          ),
+      await updateTemplateMutation.mutateAsync({
+        templateId: editingTemplate.id,
+        template: {
+          user_id: userId,
+          name: editingTemplate.name,
+          template_type: editingTemplate.type.toUpperCase() as any,
+          system_prompt: editingTemplate.systemPrompt,
+          template_format: editingTemplate.templateFormat,
+          input_variables: {},
+          is_default: editingTemplate.isDefault,
         },
-      } : null);
+      });
 
       setIsEditingTemplate(false);
       setEditingTemplate(null);
@@ -444,32 +421,7 @@ const LightweightUserProfile: React.FC = () => {
 
   const setAsDefaultTemplate = async (template: PromptTemplate) => {
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      // Update allTemplates to set new default
-      setAllTemplates(prev =>
-        prev.map(t => ({
-          ...t,
-          isDefault: t.type === template.type ? t.id === template.id : t.isDefault,
-        }))
-      );
-
-      // Update profile templates
-      setProfile(prev => prev ? {
-        ...prev,
-        aiPreferences: {
-          ...prev.aiPreferences,
-          promptTemplates: prev.aiPreferences.promptTemplates.map(t =>
-            t.type === template.type
-              ? t.id === template.id
-                ? { ...t, isDefault: true }
-                : { ...t, isDefault: false }
-              : t
-          ),
-        },
-      } : null);
-
+      await setDefaultTemplateMutation.mutateAsync(template.id);
       addNotification('success', 'Default Set', `${template.name} is now the default template.`);
     } catch (error) {
       addNotification('error', 'Update Error', 'Failed to set default template.');
@@ -763,22 +715,28 @@ const LightweightUserProfile: React.FC = () => {
                 <span>Prompt Templates</span>
               </h3>
               <div className="space-y-3 mb-4">
-                {profile.aiPreferences.promptTemplates.map((template) => (
-                  <div key={template.id} className="flex items-center justify-between p-3 bg-gray-10 rounded-md">
-                    <div>
-                      <p className="text-sm font-medium text-gray-100">{template.name}</p>
-                      <p className="text-xs text-gray-60 capitalize">{template.type.replace('_', ' ')}</p>
+                {templatesLoading ? (
+                  <p className="text-sm text-gray-60">Loading templates...</p>
+                ) : allTemplates.length === 0 ? (
+                  <p className="text-sm text-gray-60">No templates found</p>
+                ) : (
+                  allTemplates.map((template) => (
+                    <div key={template.id} className="flex items-center justify-between p-3 bg-gray-10 rounded-md">
+                      <div>
+                        <p className="text-sm font-medium text-gray-100">{template.name}</p>
+                        <p className="text-xs text-gray-60 capitalize">{template.type.replace('_', ' ')}</p>
+                      </div>
+                      {template.isDefault && (
+                        <span className="text-xs bg-blue-60 text-white px-2 py-1 rounded">Default</span>
+                      )}
                     </div>
-                    {template.isDefault && (
-                      <span className="text-xs bg-blue-60 text-white px-2 py-1 rounded">Default</span>
-                    )}
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
               <button
                 onClick={() => {
                   setShowTemplatesModal(true);
-                  loadAllTemplates();
+                  // Templates auto-load via React Query
                 }}
                 className="btn-secondary"
               >
