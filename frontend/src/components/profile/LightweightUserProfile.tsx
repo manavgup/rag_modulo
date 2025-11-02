@@ -18,9 +18,11 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   StarIcon,
+  ExclamationCircleIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotification } from '../../contexts/NotificationContext';
+import { Skeleton } from '../ui/Skeleton';
 import {
   usePromptTemplates,
   useCreatePromptTemplate,
@@ -126,9 +128,9 @@ const LightweightUserProfile: React.FC = () => {
 
   // React Query hooks for API data
   const userId = user?.id || '';
-  const { data: promptTemplates = [], isLoading: templatesLoading } = usePromptTemplates(userId);
-  const { data: llmParameters = [], isLoading: llmParamsLoading } = useLLMParameters(userId);
-  const { data: pipelineConfigs = [], isLoading: pipelinesLoading } = usePipelineConfigs(userId);
+  const { data: promptTemplates = [], isLoading: templatesLoading, error: templatesError } = usePromptTemplates(userId);
+  const { data: llmParameters = [], isLoading: llmParamsLoading, error: llmParamsError } = useLLMParameters(userId);
+  const { data: pipelineConfigs = [], isLoading: pipelinesLoading, error: pipelinesError } = usePipelineConfigs(userId);
 
   const createTemplateMutation = useCreatePromptTemplate(userId);
   const updateTemplateMutation = useUpdatePromptTemplate(userId);
@@ -401,7 +403,8 @@ const LightweightUserProfile: React.FC = () => {
       setEditingTemplate(null);
       addNotification('success', 'Template Saved', 'Template has been updated successfully.');
     } catch (error) {
-      addNotification('error', 'Save Error', 'Failed to save template changes.');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to save template changes.';
+      addNotification('error', 'Save Error', errorMessage);
     }
   };
 
@@ -410,7 +413,8 @@ const LightweightUserProfile: React.FC = () => {
       await setDefaultTemplateMutation.mutateAsync(template.id);
       addNotification('success', 'Default Set', `${template.name} is now the default template.`);
     } catch (error) {
-      addNotification('error', 'Update Error', 'Failed to set default template.');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to set default template.';
+      addNotification('error', 'Update Error', errorMessage);
     }
   };
 
@@ -702,9 +706,23 @@ const LightweightUserProfile: React.FC = () => {
               </h3>
               <div className="space-y-3 mb-4">
                 {templatesLoading ? (
-                  <p className="text-sm text-gray-60">Loading templates...</p>
+                  <div className="space-y-2">
+                    <Skeleton variant="rounded" height="h-16" />
+                    <Skeleton variant="rounded" height="h-16" />
+                    <Skeleton variant="rounded" height="h-16" width="3/4" />
+                  </div>
+                ) : templatesError ? (
+                  <div className="p-4 bg-red-10 border border-red-20 rounded-lg flex items-start space-x-2">
+                    <ExclamationCircleIcon className="w-5 h-5 text-red-50 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-red-50 mb-1">Failed to load templates</p>
+                      <p className="text-xs text-red-60">{templatesError.message}</p>
+                    </div>
+                  </div>
                 ) : allTemplates.length === 0 ? (
-                  <p className="text-sm text-gray-60">No templates found</p>
+                  <div className="p-4 bg-gray-10 rounded-lg text-center">
+                    <p className="text-sm text-gray-60">No templates found</p>
+                  </div>
                 ) : (
                   allTemplates.map((template) => (
                     <div key={template.id} className="flex items-center justify-between p-3 bg-gray-10 rounded-md">
@@ -1209,9 +1227,26 @@ const LightweightUserProfile: React.FC = () => {
               </div>
 
               {templatesLoading ? (
+                <div className="p-12 space-y-4">
+                  <Skeleton variant="rounded" height="h-12" />
+                  <Skeleton variant="rounded" height="h-12" />
+                  <Skeleton variant="rounded" height="h-12" />
+                </div>
+              ) : templatesError ? (
                 <div className="p-12 text-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-60 mx-auto mb-4"></div>
-                  <p className="text-gray-70">Loading templates...</p>
+                  <div className="flex flex-col items-center space-y-4">
+                    <ExclamationCircleIcon className="w-12 h-12 text-red-50" />
+                    <div>
+                      <p className="text-lg font-medium text-gray-100 mb-2">Failed to load templates</p>
+                      <p className="text-sm text-gray-70 mb-4">{templatesError.message}</p>
+                      <button
+                        onClick={() => window.location.reload()}
+                        className="btn-secondary"
+                      >
+                        Reload Page
+                      </button>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="flex h-96">

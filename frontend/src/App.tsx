@@ -6,7 +6,7 @@ import { NotificationProvider } from './contexts/NotificationContext';
 import { AgentProvider } from './contexts/AgentContext';
 import { WorkflowProvider } from './contexts/WorkflowContext';
 import { WebSocketProvider } from './contexts/WebSocketContext';
-import LightweightErrorBoundary from './components/common/LightweightErrorBoundary';
+import LightweightErrorBoundary from './components/errors/LightweightErrorBoundary';
 
 // Lightweight Components Only
 import LightweightLayout from './components/layout/LightweightLayout';
@@ -74,8 +74,22 @@ const App: React.FC = () => {
                         <Route path="/configuration" element={<LightweightSystemConfiguration />} />
 
                         {/* User Routes */}
-                        <Route path="/profile" element={<LightweightUserProfile />} />
-                        <Route path="/settings" element={<LightweightUserProfile />} />
+                        <Route
+                          path="/profile"
+                          element={
+                            <LightweightErrorBoundary>
+                              <LightweightUserProfile />
+                            </LightweightErrorBoundary>
+                          }
+                        />
+                        <Route
+                          path="/settings"
+                          element={
+                            <LightweightErrorBoundary>
+                              <LightweightUserProfile />
+                            </LightweightErrorBoundary>
+                          }
+                        />
 
                         {/* Admin Routes */}
                         <Route path="/admin" element={<LightweightSystemConfiguration />} />

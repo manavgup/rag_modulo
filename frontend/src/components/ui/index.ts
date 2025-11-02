@@ -22,3 +22,6 @@ export type { BadgeProps, BadgeVariant, BadgeSize } from './Badge';
 
 export { default as FileUpload } from './FileUpload';
 export type { FileUploadProps, UploadedFile } from './FileUpload';
+
+export { default as Skeleton } from './Skeleton';
+export type { SkeletonProps } from './Skeleton';
