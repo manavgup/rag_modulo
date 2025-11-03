@@ -75,13 +75,9 @@ def verify_global_config_authorization(user: UserOutput, config: RuntimeConfigOu
         HTTPException: 403 if non-admin user attempts to modify GLOBAL config
     """
     if config.scope == ConfigScope.GLOBAL and user.role != "admin":
-        logger.warning(
-            "Non-admin user %s attempted %s on GLOBAL config %s",
-            user.id, operation, config.id
-        )
+        logger.warning("Non-admin user %s attempted %s on GLOBAL config %s", user.id, operation, config.id)
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only administrators can modify global configurations"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Only administrators can modify global configurations"
         )
 
 
@@ -139,11 +135,12 @@ async def create_runtime_config(
         if config_input.user_id and str(config_input.user_id) != str(user_id):
             logger.warning(
                 "User %s attempted to create config with mismatched user_id: path=%s, body=%s",
-                user.id, user_id, config_input.user_id
+                user.id,
+                user_id,
+                config_input.user_id,
             )
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="user_id in request body must match path parameter"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="user_id in request body must match path parameter"
             )
 
     try:

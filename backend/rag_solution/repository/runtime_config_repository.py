@@ -145,9 +145,7 @@ class RuntimeConfigRepository:
             logger.error("Error retrieving runtime config by scope: %s", str(e))
             raise
 
-    def get_all_for_user(
-        self, user_id: UUID4, category: ConfigCategory | None = None
-    ) -> list[RuntimeConfigOutput]:
+    def get_all_for_user(self, user_id: UUID4, category: ConfigCategory | None = None) -> list[RuntimeConfigOutput]:
         """Get all user-level configurations.
 
         Args:
@@ -159,7 +157,11 @@ class RuntimeConfigRepository:
         """
         try:
             query = self.db.query(RuntimeConfig).filter(
-                and_(RuntimeConfig.scope == ConfigScope.USER, RuntimeConfig.user_id == user_id, RuntimeConfig.is_active.is_(True))
+                and_(
+                    RuntimeConfig.scope == ConfigScope.USER,
+                    RuntimeConfig.user_id == user_id,
+                    RuntimeConfig.is_active.is_(True),
+                )
             )
 
             if category:

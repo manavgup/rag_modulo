@@ -278,9 +278,7 @@ class EffectiveConfig(BaseModel):
 
     category: ConfigCategory = Field(..., description="Configuration category")
     values: dict[str, Any] = Field(..., description="Effective configuration values")
-    sources: dict[str, str] = Field(
-        ..., description="Source map: config_key → scope (collection/user/global/settings)"
-    )
+    sources: dict[str, str] = Field(..., description="Source map: config_key → scope (collection/user/global/settings)")
 
     model_config = ConfigDict(use_enum_values=True)
 

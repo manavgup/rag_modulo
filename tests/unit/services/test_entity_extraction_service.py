@@ -24,7 +24,9 @@ def mock_db():
 @pytest.fixture
 def mock_settings():
     """Mock settings."""
-    return MagicMock()
+    settings = MagicMock()
+    settings.max_new_tokens = 150  # Set a default value for max_new_tokens
+    return settings
 
 
 @pytest.fixture
