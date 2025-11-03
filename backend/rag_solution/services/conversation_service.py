@@ -1538,11 +1538,16 @@ Questions:
 Title:"""
 
             # Use the LLM to generate the name
+            # Use low max_tokens for short titles (typically 2-5 words)
+            # Use lower temperature for focused, concise output
+            max_tokens = 20  # Reasonable limit for short titles
+            temperature = min(self.settings.temperature, 0.3)  # Cap at 0.3 for consistency
+
             try:
                 if hasattr(provider, "generate") and callable(provider.generate):
-                    response = await provider.generate(prompt, max_tokens=20, temperature=0.3)
+                    response = await provider.generate(prompt, max_tokens=max_tokens, temperature=temperature)
                 elif hasattr(provider, "llm_base") and hasattr(provider.llm_base, "generate"):
-                    response = await provider.llm_base.generate(prompt, max_tokens=20, temperature=0.3)
+                    response = await provider.llm_base.generate(prompt, max_tokens=max_tokens, temperature=temperature)
                 else:
                     # Fallback to simple name generation
                     return self._generate_simple_name_from_questions(user_questions)

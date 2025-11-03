@@ -671,7 +671,7 @@ CRITICAL INSTRUCTION: Generate the complete dialogue script now using ONLY the p
         }
 
         # Continue with template system for all languages
-        factory = LLMProviderFactory(self.session)
+        factory = LLMProviderFactory(self.session, self.settings)
         llm_provider = factory.get_provider(self.settings.llm_provider)
 
         # Override LLM parameters for podcast generation
@@ -703,10 +703,10 @@ CRITICAL INSTRUCTION: Generate the complete dialogue script now using ONLY the p
             name="podcast_generation_params",
             description="Parameters optimized for podcast script generation",
             max_new_tokens=max_tokens,  # Capped at model limits
-            temperature=0.7,
-            top_k=50,
-            top_p=0.95,
-            repetition_penalty=1.1,
+            temperature=self.settings.temperature,
+            top_k=self.settings.top_k,
+            top_p=self.settings.top_p,
+            repetition_penalty=self.settings.repetition_penalty,
             is_default=False,
         )
 

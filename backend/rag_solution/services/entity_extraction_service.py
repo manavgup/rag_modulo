@@ -208,7 +208,7 @@ class EntityExtractionService:
 
         # Get actual provider instance
         try:
-            factory = LLMProviderFactory(self.db)
+            factory = LLMProviderFactory(self.db, self.settings)
             provider = factory.get_provider(provider_config.name)
         except (ImportError, ValueError, RuntimeError) as e:
             logger.error("Failed to get LLM provider: %s", e)
@@ -239,7 +239,10 @@ Entities:"""
         try:
             # Generate using provider
             if hasattr(provider, "generate"):
-                response = await provider.generate(prompt=prompt, max_tokens=100, temperature=0.0)
+                # Use conservative max_tokens for entity extraction (typically short lists)
+                # Keep temperature=0.0 for deterministic extraction
+                max_tokens = min(self.settings.max_new_tokens, 150)  # Cap at 150 for entities
+                response = await provider.generate(prompt=prompt, max_tokens=max_tokens, temperature=0.0)
             else:
                 logger.warning("Provider does not support generate(), falling back to spaCy")
                 return self._extract_with_spacy(context)

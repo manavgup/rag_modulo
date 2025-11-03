@@ -306,7 +306,7 @@ class ConversationSummarizationService:
             # Create LLM provider instance using factory
             from rag_solution.generation.providers.factory import LLMProviderFactory
 
-            factory = LLMProviderFactory(self.db)
+            factory = LLMProviderFactory(self.db, self.settings)
             llm_provider = factory.get_provider(provider_config.name)
 
             # Generate summary

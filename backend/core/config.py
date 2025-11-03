@@ -4,7 +4,7 @@ import os
 import tempfile
 from functools import lru_cache
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 from pydantic import field_validator
 from pydantic.fields import Field
@@ -407,20 +407,98 @@ class Settings(BaseSettings):
     @field_validator("jwt_secret_key")
     @classmethod
     def validate_jwt_secret(cls, v: str | None) -> str | None:
-        """Validate JWT secret key and warn if using default in production."""
-        if v and "dev-secret-key" in v and os.getenv("ENVIRONMENT", "").lower() in ("production", "prod"):
+        """Validate JWT secret key and warn if using default or weak secret.
+
+        Checks for common weak patterns:
+        - Default development secrets (dev-secret-key, changeme, secret)
+        - Short secrets (< 32 characters)
+        - Production environment with weak secrets
+
+        Args:
+            v: JWT secret key value
+
+        Returns:
+            str | None: Validated secret key (warnings logged for weak secrets)
+        """
+        if not v:
+            return v
+
+        weak_patterns = ["dev-secret-key", "changeme", "secret", "test", "password"]
+        is_production = os.getenv("ENVIRONMENT", "").lower() in ("production", "prod")
+
+        # Check for weak secret patterns
+        if any(pattern in v.lower() for pattern in weak_patterns):
+            msg = "⚠️  Weak JWT secret detected! Using common/default pattern."
+            if is_production:
+                msg += " This is a CRITICAL security risk in production!"
             try:
                 logger = get_logger(__name__)
-                logger.warning("⚠️  Using default JWT secret in production! Set JWT_SECRET_KEY environment variable.")
+                logger.warning(msg)
             except ImportError:
-                # Fallback to print if logging utils not available
-                print("⚠️  Using default JWT secret in production! Set JWT_SECRET_KEY environment variable.")
+                print(msg)
+
+        # Check secret length (should be at least 32 chars for HS256)
+        if len(v) < 32:
+            msg = f"⚠️  JWT secret is only {len(v)} characters. Recommended: 32+ characters."
+            if is_production:
+                msg += " This weakens token security!"
+            try:
+                logger = get_logger(__name__)
+                logger.warning(msg)
+            except ImportError:
+                print(msg)
+
+        return v
+
+    @field_validator("wx_api_key", "openai_api_key", "anthropic_api_key")
+    @classmethod
+    def validate_api_keys(cls, v: str | None, info: Any) -> str | None:
+        """Validate API keys for weak or placeholder values.
+
+        Args:
+            v: API key value
+            info: Pydantic ValidationInfo with field_name
+
+        Returns:
+            str | None: Validated API key (warnings logged for weak keys)
+        """
+        if not v:
+            return v
+
+        field_name = info.field_name if hasattr(info, "field_name") else "API key"
+        weak_patterns = ["changeme", "secret", "test", "placeholder", "your-api-key", "xxx"]
+
+        # Check for placeholder/weak patterns
+        if any(pattern in v.lower() for pattern in weak_patterns):
+            msg = f"⚠️  Invalid/placeholder value for {field_name}. Please set a valid API key."
+            try:
+                logger = get_logger(__name__)
+                logger.warning(msg)
+            except ImportError:
+                print(msg)
+
+        # Check minimum length (most API keys are 20+ chars)
+        if len(v) < 20:
+            msg = f"⚠️  {field_name} seems too short ({len(v)} chars). Verify it's correct."
+            try:
+                logger = get_logger(__name__)
+                logger.warning(msg)
+            except ImportError:
+                print(msg)
+
         return v
 
     @field_validator("rag_llm")
     @classmethod
     def validate_rag_llm(cls, v: str) -> str:
-        """Validate RAG LLM model name."""
+        """Validate RAG LLM model name.
+
+        Args:
+            v: LLM model identifier
+
+        Returns:
+            str: Validated model name (defaults to granite if empty)
+        """
         # Accept any non-empty string as LLM model name
         if not v or not v.strip():
             try:

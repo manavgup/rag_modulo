@@ -5,6 +5,7 @@ from __future__ import annotations
 from threading import Lock
 from typing import TYPE_CHECKING, ClassVar
 
+from core.config import Settings
 from core.custom_exceptions import LLMProviderError
 from core.logging_utils import get_logger
 from rag_solution.services.llm_model_service import LLMModelService
@@ -43,19 +44,21 @@ class LLMProviderFactory:
     _providers: ClassVar[dict[str, type[LLMBase]]] = {}
     _lock: ClassVar[Lock] = Lock()
 
-    def __init__(self, db: Session) -> None:
+    def __init__(self, db: Session, settings: Settings) -> None:
         """
         Initialize factory with database session and required services.
 
         Args:
             db: SQLAlchemy database session
+            settings: Application settings
         """
         self._db = db
+        self._settings = settings
         self._instances: dict[str, LLMBase] = {}
 
         # Initialize required services
         self._llm_provider_service = LLMProviderService(db)
-        self._llm_parameters_service = LLMParametersService(db)
+        self._llm_parameters_service = LLMParametersService(db, settings)
         self._prompt_template_service = PromptTemplateService(db)
         self._llm_model_service = LLMModelService(db)
 

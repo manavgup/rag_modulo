@@ -41,7 +41,10 @@ def _get_embeddings_for_doc_utils(text: str | list[str]) -> list[list[float]]:
     db = session_factory()
 
     try:
-        factory = LLMProviderFactory(db)
+        from core.config import get_settings
+
+        settings = get_settings()
+        factory = LLMProviderFactory(db, settings)
         provider = factory.get_provider("watsonx")
         return provider.get_embeddings(text)
     except LLMProviderError as e:

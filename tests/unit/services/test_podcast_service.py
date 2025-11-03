@@ -9,6 +9,8 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from uuid import uuid4
 
 import pytest
+from fastapi import BackgroundTasks, HTTPException
+
 from core.custom_exceptions import NotFoundError, ValidationError
 from rag_solution.models.collection import Collection
 from rag_solution.schemas.podcast_schema import (
@@ -29,7 +31,6 @@ from rag_solution.schemas.podcast_schema import (
     VoiceSettings,
 )
 from rag_solution.services.podcast_service import PodcastService, SupportedLanguage
-from fastapi import BackgroundTasks, HTTPException
 
 # ============================================================================
 # SHARED FIXTURES
@@ -61,25 +62,19 @@ def mock_repository():
         # Handle audio_format - can be AudioFormat enum or string
         audio_fmt = kwargs.get("audio_format", AudioFormat.MP3)
         if isinstance(audio_fmt, AudioFormat):
-            audio_fmt_value = audio_fmt.value
             audio_fmt_enum = audio_fmt
         elif isinstance(audio_fmt, str):
-            audio_fmt_value = audio_fmt
             audio_fmt_enum = AudioFormat(audio_fmt)
         else:
-            audio_fmt_value = AudioFormat.MP3.value
             audio_fmt_enum = AudioFormat.MP3
 
         # Handle duration - can be PodcastDuration enum or int
         dur = kwargs.get("duration", PodcastDuration.MEDIUM)
         if isinstance(dur, PodcastDuration):
-            dur_value = dur.value
             dur_enum = dur
         elif isinstance(dur, int):
-            dur_value = dur
             dur_enum = PodcastDuration(dur)
         else:
-            dur_value = PodcastDuration.MEDIUM.value
             dur_enum = PodcastDuration.MEDIUM
 
         return Mock(
@@ -214,6 +209,12 @@ def mock_settings():
     settings.podcast_retrieval_top_k_medium = 20
     settings.podcast_retrieval_top_k_long = 30
     settings.podcast_retrieval_top_k_extended = 50
+    # Add LLM parameter values required by LLMParametersInput
+    settings.temperature = 0.7  # float
+    settings.top_k = 10  # int
+    settings.top_p = 0.9  # float
+    settings.repetition_penalty = 1.0  # float
+    settings.max_new_tokens = 150  # int
     return settings
 
 
@@ -304,7 +305,7 @@ class TestPodcastGenerationUnit:
         """Test successful podcast generation queueing"""
         background_tasks = BackgroundTasks()
 
-        result = await service.generate_podcast(valid_podcast_input, background_tasks)
+        await service.generate_podcast(valid_podcast_input, background_tasks)
 
         assert mock_repository.create.called
         assert mock_repository.to_schema.called
@@ -381,7 +382,7 @@ class TestPodcastGenerationUnit:
                 expert_voice="onyx",
             )
 
-            result = await service.generate_podcast(podcast_input, background_tasks)
+            await service.generate_podcast(podcast_input, background_tasks)
             assert mock_repository.create.called
 
     @pytest.mark.asyncio
@@ -416,7 +417,7 @@ class TestContentRetrievalUnit:
         """Test content retrieval with custom description"""
         valid_podcast_input.description = "Machine learning basics"
 
-        result = await service._retrieve_content(valid_podcast_input)
+        await service._retrieve_content(valid_podcast_input)
 
         assert "Machine learning basics" in mock_search_service.search.call_args[0][0].question
 
@@ -425,7 +426,7 @@ class TestContentRetrievalUnit:
         """Test content retrieval without description (general overview)"""
         valid_podcast_input.description = None
 
-        result = await service._retrieve_content(valid_podcast_input)
+        await service._retrieve_content(valid_podcast_input)
 
         assert "comprehensive overview" in mock_search_service.search.call_args[0][0].question.lower()
 
@@ -1042,7 +1043,7 @@ class TestScriptToAudioUnit:
         )
         background_tasks = BackgroundTasks()
 
-        result = await service.generate_audio_from_script(audio_input, background_tasks)
+        await service.generate_audio_from_script(audio_input, background_tasks)
 
         assert mock_repository.create.called
 

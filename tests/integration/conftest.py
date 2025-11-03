@@ -29,14 +29,14 @@ sys.path.append(str(Path(__file__).parent.parent / "atomic"))
 def test_database_url():
     """Provide test database URL for integration tests.
 
-    Uses environment variables with fallback to test defaults.
-    The test database is separate from development database.
+    Uses environment variables with fallback to development defaults.
+    Integration tests use transaction rollback for isolation (no separate DB needed).
     """
-    db_user = os.getenv("COLLECTIONDB_USER", "test")
-    db_pass = os.getenv("COLLECTIONDB_PASS", "test")
+    db_user = os.getenv("COLLECTIONDB_USER", "rag_modulo_user")
+    db_pass = os.getenv("COLLECTIONDB_PASS", "rag_modulo_password")
     db_host = os.getenv("COLLECTIONDB_HOST", "localhost")
     db_port = os.getenv("COLLECTIONDB_PORT", "5432")
-    db_name = os.getenv("COLLECTIONDB_NAME", "test_rag_db")
+    db_name = os.getenv("COLLECTIONDB_NAME", "rag_modulo")
 
     return f"postgresql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
 
@@ -100,20 +100,24 @@ def test_minio_config():
 @pytest.fixture
 def integration_settings():
     """Create settings for integration tests with real service configs."""
-    settings = Mock()
-    settings.jwt_secret_key = "test-secret-key"
-    settings.rag_llm = "watsonx"
-    settings.wx_api_key = os.getenv("WX_API_KEY", "test-api-key")
-    settings.wx_project_id = os.getenv("WX_PROJECT_ID", "test-project-id")
-    settings.wx_url = os.getenv("WX_URL", "https://test.watsonx.ai")
-    settings.vector_db = "milvus"
-    settings.milvus_host = "localhost"
-    settings.milvus_port = 19530
-    settings.postgres_url = "postgresql://test:test@localhost:5432/test_db"
-    settings.minio_endpoint = "localhost:9000"
-    settings.minio_access_key = "test"
-    settings.minio_secret_key = "test123"
-    return settings
+    # Import here to avoid circular dependencies
+    from backend.core.config import Settings
+
+    # Return actual Settings instance with test environment variables
+    return Settings(
+        # LLM settings (required)
+        max_new_tokens=1024,
+        temperature=0.7,
+        top_k=50,
+        top_p=1.0,
+        repetition_penalty=1.1,
+        # Database settings
+        collectiondb_host=os.getenv("COLLECTIONDB_HOST", "localhost"),
+        collectiondb_port=int(os.getenv("COLLECTIONDB_PORT", "5432")),
+        collectiondb_user=os.getenv("COLLECTIONDB_USER", "rag_modulo_user"),
+        collectiondb_pass=os.getenv("COLLECTIONDB_PASS", "rag_modulo_password"),
+        collectiondb_name=os.getenv("COLLECTIONDB_NAME", "rag_modulo"),
+    )
 
 
 @pytest.fixture

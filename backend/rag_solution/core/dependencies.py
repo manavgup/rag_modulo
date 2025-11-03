@@ -18,6 +18,7 @@ from rag_solution.file_management.database import get_db
 from rag_solution.schemas.user_schema import UserOutput
 from rag_solution.services.collection_service import CollectionService
 from rag_solution.services.file_management_service import FileManagementService
+from rag_solution.services.llm_parameters_service import LLMParametersService
 from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.pipeline_service import PipelineService
 from rag_solution.services.question_service import QuestionService
@@ -287,3 +288,10 @@ def get_question_service(db: Session = Depends(get_db), settings: Settings = Dep
 def get_search_service(db: Session = Depends(get_db), settings: Settings = Depends(get_settings)) -> SearchService:
     """Get SearchService instance with proper dependency injection."""
     return SearchService(db, settings)
+
+
+def get_llm_parameters_service(
+    db: Session = Depends(get_db), settings: Settings = Depends(get_settings)
+) -> LLMParametersService:
+    """Get LLMParametersService instance with proper dependency injection."""
+    return LLMParametersService(db, settings)

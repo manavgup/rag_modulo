@@ -49,7 +49,10 @@ class DocumentStore:
             session_factory = create_session_factory()
             db = session_factory()
             try:
-                factory = LLMProviderFactory(db)
+                from core.config import get_settings
+
+                settings = get_settings()
+                factory = LLMProviderFactory(db, settings)
                 logger.info("LLMProviderFactory created")
 
                 self._embedding_provider = factory.get_provider("watsonx")

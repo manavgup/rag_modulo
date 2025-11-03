@@ -74,7 +74,7 @@ class CollectionService:  # pylint: disable=too-many-instance-attributes
         # Initialize other services
         self.user_provider_service = UserProviderService(db, settings)
         self.prompt_template_service = PromptTemplateService(db)
-        self.llm_parameters_service = LLMParametersService(db)
+        self.llm_parameters_service = LLMParametersService(db, settings)
         self.question_service = QuestionService(db, settings)
         self.llm_model_service = LLMModelService(db)
 
