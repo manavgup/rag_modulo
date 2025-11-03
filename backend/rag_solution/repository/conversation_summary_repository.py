@@ -1,5 +1,10 @@
-"""Repository for handling ConversationSummary entity database operations."""
+"""DEPRECATED: This repository will be removed in Phase 7.
 
+Use rag_solution.repository.conversation_repository.ConversationRepository instead.
+This file is maintained for backward compatibility during Phases 3-6.
+"""
+
+import warnings
 from typing import Any
 
 from pydantic import UUID4
@@ -14,6 +19,14 @@ from rag_solution.schemas.conversation_schema import (
     ConversationSummaryInput,
     ConversationSummaryOutput,
     SummarizationStrategy,
+)
+
+# Issue deprecation warning when this module is imported
+warnings.warn(
+    "conversation_summary_repository.py is deprecated and will be removed in Phase 7. "
+    "Use rag_solution.repository.conversation_repository.ConversationRepository instead.",
+    DeprecationWarning,
+    stacklevel=2,
 )
 
 logger = get_logger(__name__)

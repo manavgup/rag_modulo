@@ -35,10 +35,31 @@ export const QUERY_KEYS = {
 export function usePromptTemplates(userId: string): UseQueryResult<PromptTemplate[], Error> {
   return useQuery({
     queryKey: QUERY_KEYS.promptTemplates(userId),
-    queryFn: () => promptTemplatesApi.getAll(userId),
-    enabled: !!userId,
+    queryFn: () => {
+      if (!userId || typeof userId !== 'string' || userId.trim().length === 0) {
+        throw new Error('Invalid user ID: userId must be a non-empty string');
+      }
+      return promptTemplatesApi.getAll(userId);
+    },
+    enabled: !!userId && typeof userId === 'string' && userId.trim().length > 0,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
+    retry: (failureCount, error) => {
+      // Don't retry on validation errors (4xx status codes)
+      if (error instanceof Error && (
+        error.message.includes('Invalid user ID') ||
+        error.message.includes('Bad Request') ||
+        error.message.includes('Unauthorized') ||
+        error.message.includes('Forbidden') ||
+        error.message.includes('Not Found') ||
+        error.message.includes('Validation Error')
+      )) {
+        return false;
+      }
+      // Retry up to 2 times for network/server errors
+      return failureCount < 2;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
   });
 }
 
@@ -49,10 +70,19 @@ export function useCreatePromptTemplate(userId: string): UseMutationResult<Promp
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (template: PromptTemplateInput) => promptTemplatesApi.create(userId, template),
+    mutationFn: (template: PromptTemplateInput) => {
+      if (!userId || typeof userId !== 'string' || userId.trim().length === 0) {
+        throw new Error('Invalid user ID: userId must be a non-empty string');
+      }
+      return promptTemplatesApi.create(userId, template);
+    },
     onSuccess: () => {
       // Invalidate and refetch prompt templates
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.promptTemplates(userId) });
+    },
+    onError: (error: Error) => {
+      // Error is already formatted by handleApiCall in the API client
+      console.error('Failed to create prompt template:', error.message);
     },
   });
 }
@@ -68,9 +98,17 @@ export function useUpdatePromptTemplate(userId: string): UseMutationResult<
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ templateId, template }) => promptTemplatesApi.update(userId, templateId, template),
+    mutationFn: ({ templateId, template }) => {
+      if (!userId || typeof userId !== 'string' || userId.trim().length === 0) {
+        throw new Error('Invalid user ID: userId must be a non-empty string');
+      }
+      return promptTemplatesApi.update(userId, templateId, template);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.promptTemplates(userId) });
+    },
+    onError: (error: Error) => {
+      console.error('Failed to update prompt template:', error.message);
     },
   });
 }
@@ -113,10 +151,29 @@ export function useSetDefaultPromptTemplate(userId: string): UseMutationResult<P
 export function useLLMParameters(userId: string): UseQueryResult<LLMParameters[], Error> {
   return useQuery({
     queryKey: QUERY_KEYS.llmParameters(userId),
-    queryFn: () => llmParametersApi.getAll(userId),
-    enabled: !!userId,
+    queryFn: () => {
+      if (!userId || typeof userId !== 'string' || userId.trim().length === 0) {
+        throw new Error('Invalid user ID: userId must be a non-empty string');
+      }
+      return llmParametersApi.getAll(userId);
+    },
+    enabled: !!userId && typeof userId === 'string' && userId.trim().length > 0,
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
+    retry: (failureCount, error) => {
+      if (error instanceof Error && (
+        error.message.includes('Invalid user ID') ||
+        error.message.includes('Bad Request') ||
+        error.message.includes('Unauthorized') ||
+        error.message.includes('Forbidden') ||
+        error.message.includes('Not Found') ||
+        error.message.includes('Validation Error')
+      )) {
+        return false;
+      }
+      return failureCount < 2;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 }
 
@@ -190,10 +247,29 @@ export function useSetDefaultLLMParameters(userId: string): UseMutationResult<LL
 export function usePipelineConfigs(userId: string): UseQueryResult<PipelineConfig[], Error> {
   return useQuery({
     queryKey: QUERY_KEYS.pipelineConfigs(userId),
-    queryFn: () => pipelineConfigApi.getAll(userId),
-    enabled: !!userId,
+    queryFn: () => {
+      if (!userId || typeof userId !== 'string' || userId.trim().length === 0) {
+        throw new Error('Invalid user ID: userId must be a non-empty string');
+      }
+      return pipelineConfigApi.getAll(userId);
+    },
+    enabled: !!userId && typeof userId === 'string' && userId.trim().length > 0,
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
+    retry: (failureCount, error) => {
+      if (error instanceof Error && (
+        error.message.includes('Invalid user ID') ||
+        error.message.includes('Bad Request') ||
+        error.message.includes('Unauthorized') ||
+        error.message.includes('Forbidden') ||
+        error.message.includes('Not Found') ||
+        error.message.includes('Validation Error')
+      )) {
+        return false;
+      }
+      return failureCount < 2;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 }
 
