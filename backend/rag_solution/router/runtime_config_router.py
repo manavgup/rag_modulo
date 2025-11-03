@@ -63,6 +63,28 @@ def verify_user_authorization(user: UserOutput, target_user_id: UUID4, operation
     )
 
 
+def verify_global_config_authorization(user: UserOutput, config: RuntimeConfigOutput, operation: str) -> None:
+    """Verify user is authorized to modify GLOBAL scope configurations (admin only).
+
+    Args:
+        user: Authenticated user
+        config: Configuration being modified
+        operation: Operation being performed (for logging)
+
+    Raises:
+        HTTPException: 403 if non-admin user attempts to modify GLOBAL config
+    """
+    if config.scope == ConfigScope.GLOBAL and user.role != "admin":
+        logger.warning(
+            "Non-admin user %s attempted %s on GLOBAL config %s",
+            user.id, operation, config.id
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can modify global configurations"
+        )
+
+
 @router.post(
     "/{user_id}",
     response_model=RuntimeConfigOutput,
@@ -112,6 +134,17 @@ async def create_runtime_config(
     else:
         # For USER and COLLECTION scopes, verify user is accessing their own configs
         verify_user_authorization(user, user_id, "create")
+
+        # Validate user_id in request body matches path parameter (prevents IDOR vulnerability)
+        if config_input.user_id and str(config_input.user_id) != str(user_id):
+            logger.warning(
+                "User %s attempted to create config with mismatched user_id: path=%s, body=%s",
+                user.id, user_id, config_input.user_id
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="user_id in request body must match path parameter"
+            )
 
     try:
         logger.info(
@@ -288,7 +321,14 @@ async def update_runtime_config(
     verify_user_authorization(user, user_id, "update")
 
     try:
+        # First get the config to check if it's GLOBAL scope
         logger.info("Updating runtime config: id=%s with %d fields", config_id, len(updates))
+        config = service.get_config(config_id)
+
+        # Verify authorization to modify GLOBAL configs (admin only)
+        verify_global_config_authorization(user, config, "update")
+
+        # Proceed with update
         config = service.update_config(config_id, updates)
         logger.info("Updated runtime config: id=%s", config_id)
         return config
@@ -339,7 +379,14 @@ async def delete_runtime_config(
     verify_user_authorization(user, user_id, "delete")
 
     try:
+        # First get the config to check if it's GLOBAL scope
         logger.info("Deleting runtime config: id=%s", config_id)
+        config = service.get_config(config_id)
+
+        # Verify authorization to modify GLOBAL configs (admin only)
+        verify_global_config_authorization(user, config, "delete")
+
+        # Proceed with delete
         service.delete_config(config_id)
         logger.info("Deleted runtime config: id=%s", config_id)
     except NotFoundError as e:
@@ -392,7 +439,14 @@ async def toggle_runtime_config(
     verify_user_authorization(user, user_id, "toggle")
 
     try:
+        # First get the config to check if it's GLOBAL scope
         logger.info("Toggling runtime config: id=%s to is_active=%s", config_id, is_active)
+        config = service.get_config(config_id)
+
+        # Verify authorization to modify GLOBAL configs (admin only)
+        verify_global_config_authorization(user, config, "toggle")
+
+        # Proceed with toggle
         config = service.toggle_config(config_id, is_active)
         logger.info("Toggled runtime config: id=%s", config_id)
         return config
