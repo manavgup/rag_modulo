@@ -26,7 +26,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Boolean, DateTime, Enum, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Enum, Index, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
@@ -84,9 +84,7 @@ class RuntimeConfig(Base):  # pylint: disable=too-few-public-methods
     __tablename__ = "runtime_configs"
 
     # 🆔 Identification
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=IdentityService.generate_id
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=IdentityService.generate_id)
 
     # ⚙️ Configuration Attributes
     scope: Mapped[ConfigScope] = mapped_column(
@@ -123,8 +121,9 @@ class RuntimeConfig(Base):  # pylint: disable=too-few-public-methods
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    # 🔐 Unique Constraint
+    # 🔐 Unique Constraint & Performance Indexes
     # Ensures only one config per scope/category/key/user/collection combination
+    # Composite indexes optimize common query patterns in get_effective_config()
     __table_args__ = (
         UniqueConstraint(
             "scope",
@@ -134,6 +133,15 @@ class RuntimeConfig(Base):  # pylint: disable=too-few-public-methods
             "collection_id",
             name="uq_runtime_config_scope_category_key_user_collection",
         ),
+        # Composite index for USER-scoped config lookups (get_effective_config)
+        # Query pattern: scope='USER' AND category=? AND user_id=? AND is_active=true
+        Index("idx_runtime_config_user_lookup", "scope", "category", "user_id", "is_active"),
+        # Composite index for COLLECTION-scoped config lookups
+        # Query pattern: scope='COLLECTION' AND category=? AND collection_id=? AND is_active=true
+        Index("idx_runtime_config_collection_lookup", "scope", "category", "collection_id", "is_active"),
+        # Composite index for GLOBAL-scoped config lookups
+        # Query pattern: scope='GLOBAL' AND category=? AND is_active=true
+        Index("idx_runtime_config_global_lookup", "scope", "category", "is_active"),
         {"extend_existing": True},
     )
 
