@@ -81,6 +81,16 @@ def mock_database_session():
 
 
 @pytest.fixture
+def test_db_session(mock_database_session):
+    """Alias for mock_database_session for backwards compatibility.
+
+    Some tests use test_db_session fixture name. This alias ensures
+    compatibility without requiring test file updates.
+    """
+    return mock_database_session
+
+
+@pytest.fixture
 def mock_http_client():
     """Create a mocked HTTP client for unit tests."""
     client = Mock()

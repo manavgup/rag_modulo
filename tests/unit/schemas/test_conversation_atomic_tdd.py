@@ -242,9 +242,16 @@ class TestConversationAtomicTDD:
     @pytest.mark.atomic
     def test_context_metadata_default_value(self) -> None:
         """Atomic: Test context metadata has correct default value."""
+        from rag_solution.schemas.conversation_schema import ContextMetadata
+        
         context = ConversationContext(session_id=uuid4(), context_window="Test context", relevant_documents=[])
 
-        assert context.context_metadata == {}  # default
+        # ContextMetadata now has default values for all fields
+        assert isinstance(context.metadata, ContextMetadata)
+        assert context.metadata.extracted_entities == []
+        assert context.metadata.conversation_topics == []
+        assert context.metadata.message_count == 0
+        assert context.metadata.context_length == 0
 
     @pytest.mark.atomic
     def test_model_config_settings(self) -> None:

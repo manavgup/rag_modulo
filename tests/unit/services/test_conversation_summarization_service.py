@@ -15,11 +15,28 @@ def settings():
     return MagicMock()
 
 @pytest.fixture
-def conversation_summarization_service(db_session, settings):
-    service = ConversationSummarizationService(db_session, settings)
-    service.session_repository = MagicMock()
-    service.message_repository = MagicMock()
-    service.summary_repository = MagicMock()
+def conversation_repository():
+    """Mock unified conversation repository."""
+    return MagicMock()
+
+@pytest.fixture
+def llm_provider_service():
+    """Mock LLM provider service."""
+    return MagicMock()
+
+@pytest.fixture
+def token_tracking_service():
+    """Mock token tracking service."""
+    return MagicMock()
+
+@pytest.fixture
+def conversation_summarization_service(
+    db_session, settings, conversation_repository, llm_provider_service, token_tracking_service
+):
+    """Create ConversationSummarizationService with injected dependencies."""
+    service = ConversationSummarizationService(
+        db_session, settings, conversation_repository, llm_provider_service, token_tracking_service
+    )
     return service
 
 @pytest.mark.asyncio
@@ -29,10 +46,10 @@ async def test_check_context_window_threshold_below_threshold(conversation_summa
 
     mock_session = MagicMock()
     mock_session.context_window_size = 1000
-    conversation_summarization_service.session_repository.get_by_id.return_value = mock_session
+    conversation_summarization_service.repository.get_session_by_id.return_value = mock_session
 
     mock_messages = [MagicMock(token_count=100) for _ in range(5)]
-    conversation_summarization_service.message_repository.get_messages_by_session.return_value = mock_messages
+    conversation_summarization_service.repository.get_messages_by_session.return_value = mock_messages
 
     result = await conversation_summarization_service.check_context_window_threshold(session_id, config)
 
@@ -45,10 +62,10 @@ async def test_check_context_window_threshold_above_threshold(conversation_summa
 
     mock_session = MagicMock()
     mock_session.context_window_size = 1000
-    conversation_summarization_service.session_repository.get_by_id.return_value = mock_session
+    conversation_summarization_service.repository.get_session_by_id.return_value = mock_session
 
     mock_messages = [MagicMock(token_count=200) for _ in range(5)]
-    conversation_summarization_service.message_repository.get_messages_by_session.return_value = mock_messages
+    conversation_summarization_service.repository.get_messages_by_session.return_value = mock_messages
 
     result = await conversation_summarization_service.check_context_window_threshold(session_id, config)
 
@@ -61,10 +78,10 @@ async def test_get_session_summaries(conversation_summarization_service):
 
     mock_session = MagicMock()
     mock_session.user_id = user_id
-    conversation_summarization_service.session_repository.get_by_id.return_value = mock_session
+    conversation_summarization_service.repository.get_session_by_id.return_value = mock_session
 
     mock_summaries = [MagicMock(), MagicMock()]
-    conversation_summarization_service.summary_repository.get_by_session_id.return_value = mock_summaries
+    conversation_summarization_service.repository.get_summaries_by_session.return_value = mock_summaries
 
     result = await conversation_summarization_service.get_session_summaries(session_id, user_id)
 
@@ -83,11 +100,11 @@ async def test_check_context_window_threshold_exactly_at_threshold(conversation_
 
     mock_session = MagicMock()
     mock_session.context_window_size = 1000
-    conversation_summarization_service.session_repository.get_by_id.return_value = mock_session
+    conversation_summarization_service.repository.get_session_by_id.return_value = mock_session
 
     # Exactly 800 tokens = 0.8 threshold
     mock_messages = [MagicMock(token_count=160) for _ in range(5)]
-    conversation_summarization_service.message_repository.get_messages_by_session.return_value = mock_messages
+    conversation_summarization_service.repository.get_messages_by_session.return_value = mock_messages
 
     result = await conversation_summarization_service.check_context_window_threshold(session_id, config)
 
@@ -102,11 +119,11 @@ async def test_check_context_window_threshold_insufficient_messages(conversation
 
     mock_session = MagicMock()
     mock_session.context_window_size = 1000
-    conversation_summarization_service.session_repository.get_by_id.return_value = mock_session
+    conversation_summarization_service.repository.get_session_by_id.return_value = mock_session
 
     # Only 5 messages when min is 10
     mock_messages = [MagicMock(token_count=200) for _ in range(5)]
-    conversation_summarization_service.message_repository.get_messages_by_session.return_value = mock_messages
+    conversation_summarization_service.repository.get_messages_by_session.return_value = mock_messages
 
     result = await conversation_summarization_service.check_context_window_threshold(session_id, config)
 
@@ -119,7 +136,7 @@ async def test_check_context_window_threshold_exception_handling(conversation_su
     session_id = uuid4()
     config = SummarizationConfigInput()
 
-    conversation_summarization_service.session_repository.get_by_id.side_effect = Exception("Database error")
+    conversation_summarization_service.repository.get_session_by_id.side_effect = Exception("Database error")
 
     result = await conversation_summarization_service.check_context_window_threshold(session_id, config)
 
@@ -134,10 +151,10 @@ async def test_check_context_window_threshold_with_none_tokens(conversation_summ
 
     mock_session = MagicMock()
     mock_session.context_window_size = 1000
-    conversation_summarization_service.session_repository.get_by_id.return_value = mock_session
+    conversation_summarization_service.repository.get_session_by_id.return_value = mock_session
 
     mock_messages = [MagicMock(token_count=None) for _ in range(10)]
-    conversation_summarization_service.message_repository.get_messages_by_session.return_value = mock_messages
+    conversation_summarization_service.repository.get_messages_by_session.return_value = mock_messages
 
     result = await conversation_summarization_service.check_context_window_threshold(session_id, config)
 
@@ -166,7 +183,7 @@ async def test_create_summary_success(conversation_summarization_service):
     # Mock session
     mock_session = MagicMock()
     mock_session.user_id = user_id
-    conversation_summarization_service.session_repository.get_by_id.return_value = mock_session
+    conversation_summarization_service.repository.get_session_by_id.return_value = mock_session
 
     # Mock messages
     mock_messages = []
@@ -176,12 +193,12 @@ async def test_create_summary_success(conversation_summarization_service):
         msg.content = f"Message {i}"
         msg.created_at = datetime.utcnow()
         mock_messages.append(msg)
-    conversation_summarization_service.message_repository.get_messages_by_session.return_value = mock_messages
+    conversation_summarization_service.repository.get_messages_by_session.return_value = mock_messages
 
     # Mock summary creation
     mock_summary = MagicMock()
     mock_summary.id = uuid4()
-    conversation_summarization_service.summary_repository.create.return_value = mock_summary
+    conversation_summarization_service.repository.create_summary.return_value = mock_summary
 
     # Mock LLM provider
     mock_provider_config = MagicMock()
@@ -190,7 +207,7 @@ async def test_create_summary_success(conversation_summarization_service):
 
     # Mock updated summary
     mock_updated_summary = MagicMock()
-    conversation_summarization_service.summary_repository.update.return_value = mock_updated_summary
+    conversation_summarization_service.repository.update_summary.return_value = mock_updated_summary
 
     # Mock _generate_summary_content
     conversation_summarization_service._generate_summary_content = AsyncMock(
@@ -200,7 +217,7 @@ async def test_create_summary_success(conversation_summarization_service):
     result = await conversation_summarization_service.create_summary(summary_input, user_id)
 
     assert result == mock_updated_summary
-    conversation_summarization_service.summary_repository.create.assert_called_once_with(summary_input)
+    conversation_summarization_service.repository.create_summary.assert_called_once_with(summary_input)
 
 
 @pytest.mark.asyncio
@@ -220,7 +237,7 @@ async def test_create_summary_user_access_denied(conversation_summarization_serv
 
     mock_session = MagicMock()
     mock_session.user_id = other_user_id  # Different user
-    conversation_summarization_service.session_repository.get_by_id.return_value = mock_session
+    conversation_summarization_service.repository.get_session_by_id.return_value = mock_session
 
     with pytest.raises(ValidationError, match="User does not have access"):
         await conversation_summarization_service.create_summary(summary_input, user_id)
@@ -241,9 +258,9 @@ async def test_create_summary_no_messages(conversation_summarization_service):
 
     mock_session = MagicMock()
     mock_session.user_id = user_id
-    conversation_summarization_service.session_repository.get_by_id.return_value = mock_session
+    conversation_summarization_service.repository.get_session_by_id.return_value = mock_session
 
-    conversation_summarization_service.message_repository.get_messages_by_session.return_value = []
+    conversation_summarization_service.repository.get_messages_by_session.return_value = []
 
     with pytest.raises(ValidationError, match="No messages found"):
         await conversation_summarization_service.create_summary(summary_input, user_id)
@@ -262,7 +279,7 @@ async def test_create_summary_session_not_found(conversation_summarization_servi
         message_count_to_summarize=5,
     )
 
-    conversation_summarization_service.session_repository.get_by_id.side_effect = NotFoundError("Session not found")
+    conversation_summarization_service.repository.get_session_by_id.side_effect = NotFoundError("Session not found")
 
     with pytest.raises(NotFoundError):
         await conversation_summarization_service.create_summary(summary_input, user_id)
@@ -364,7 +381,7 @@ async def test_summarize_for_context_success(conversation_summarization_service)
     # Mock session
     mock_session = MagicMock()
     mock_session.user_id = user_id
-    conversation_summarization_service.session_repository.get_by_id.return_value = mock_session
+    conversation_summarization_service.repository.get_session_by_id.return_value = mock_session
 
     # Mock _generate_summary_content
     conversation_summarization_service._generate_summary_content = AsyncMock(
@@ -471,7 +488,7 @@ async def test_summarize_for_context_exception_handling(conversation_summarizati
     # Mock session first, then fail on generate_summary_content
     mock_session = MagicMock()
     mock_session.user_id = user_id
-    conversation_summarization_service.session_repository.get_by_id.return_value = mock_session
+    conversation_summarization_service.repository.get_session_by_id.return_value = mock_session
 
     # Cause failure during _generate_summary_content
     conversation_summarization_service._generate_summary_content = AsyncMock(side_effect=Exception("LLM error"))
@@ -492,15 +509,15 @@ async def test_get_session_summaries_with_limit(conversation_summarization_servi
 
     mock_session = MagicMock()
     mock_session.user_id = user_id
-    conversation_summarization_service.session_repository.get_by_id.return_value = mock_session
+    conversation_summarization_service.repository.get_session_by_id.return_value = mock_session
 
     mock_summaries = [MagicMock() for _ in range(5)]
-    conversation_summarization_service.summary_repository.get_by_session_id.return_value = mock_summaries
+    conversation_summarization_service.repository.get_summaries_by_session.return_value = mock_summaries
 
     result = await conversation_summarization_service.get_session_summaries(session_id, user_id, limit=5)
 
     assert len(result) == 5
-    conversation_summarization_service.summary_repository.get_by_session_id.assert_called_once_with(session_id, limit=5)
+    conversation_summarization_service.repository.get_summaries_by_session.assert_called_once_with(session_id, limit=5)
 
 
 @pytest.mark.asyncio
@@ -514,7 +531,7 @@ async def test_get_session_summaries_unauthorized(conversation_summarization_ser
 
     mock_session = MagicMock()
     mock_session.user_id = other_user_id
-    conversation_summarization_service.session_repository.get_by_id.return_value = mock_session
+    conversation_summarization_service.repository.get_session_by_id.return_value = mock_session
 
     with pytest.raises(ValidationError, match="User does not have access"):
         await conversation_summarization_service.get_session_summaries(session_id, user_id)
@@ -528,7 +545,7 @@ async def test_get_session_summaries_session_not_found(conversation_summarizatio
     session_id = uuid4()
     user_id = uuid4()
 
-    conversation_summarization_service.session_repository.get_by_id.side_effect = NotFoundError("Session not found")
+    conversation_summarization_service.repository.get_session_by_id.side_effect = NotFoundError("Session not found")
 
     with pytest.raises(NotFoundError):
         await conversation_summarization_service.get_session_summaries(session_id, user_id)
@@ -544,9 +561,9 @@ async def test_get_session_summaries_exception_handling(conversation_summarizati
 
     mock_session = MagicMock()
     mock_session.user_id = user_id
-    conversation_summarization_service.session_repository.get_by_id.return_value = mock_session
+    conversation_summarization_service.repository.get_session_by_id.return_value = mock_session
 
-    conversation_summarization_service.summary_repository.get_by_session_id.side_effect = Exception("Database error")
+    conversation_summarization_service.repository.get_summaries_by_session.side_effect = Exception("Database error")
 
     with pytest.raises(ValidationError, match="Failed to get session summaries"):
         await conversation_summarization_service.get_session_summaries(session_id, user_id)
@@ -1025,40 +1042,38 @@ async def test_estimate_tokens_empty(conversation_summarization_service):
 # PROPERTY TESTS
 # ============================================================================
 
-def test_llm_provider_service_lazy_initialization():
-    """Test LLM provider service is lazily initialized"""
+def test_llm_provider_service_dependency_injection():
+    """Test LLM provider service is properly injected via dependency injection"""
     from rag_solution.services.conversation_summarization_service import ConversationSummarizationService
 
     mock_db = MagicMock()
     mock_settings = MagicMock()
+    mock_repository = MagicMock()
+    mock_llm_service = MagicMock()
+    mock_token_service = MagicMock()
 
-    with patch("rag_solution.services.conversation_summarization_service.LLMProviderService") as mock_service_class:
-        mock_service_instance = MagicMock()
-        mock_service_class.return_value = mock_service_instance
+    service = ConversationSummarizationService(
+        mock_db, mock_settings, mock_repository, mock_llm_service, mock_token_service
+    )
 
-        service = ConversationSummarizationService(mock_db, mock_settings)
-        result = service.llm_provider_service
-
-        assert result == mock_service_instance
-        mock_service_class.assert_called_once_with(mock_db)
+    assert service.llm_provider_service == mock_llm_service
 
 
-def test_token_tracking_service_lazy_initialization():
-    """Test token tracking service is lazily initialized"""
+def test_token_tracking_service_dependency_injection():
+    """Test token tracking service is properly injected via dependency injection"""
     from rag_solution.services.conversation_summarization_service import ConversationSummarizationService
 
     mock_db = MagicMock()
     mock_settings = MagicMock()
+    mock_repository = MagicMock()
+    mock_llm_service = MagicMock()
+    mock_token_service = MagicMock()
 
-    with patch("rag_solution.services.conversation_summarization_service.TokenTrackingService") as mock_service_class:
-        mock_service_instance = MagicMock()
-        mock_service_class.return_value = mock_service_instance
+    service = ConversationSummarizationService(
+        mock_db, mock_settings, mock_repository, mock_llm_service, mock_token_service
+    )
 
-        service = ConversationSummarizationService(mock_db, mock_settings)
-        result = service.token_tracking_service
-
-        assert result == mock_service_instance
-        mock_service_class.assert_called_once_with(mock_db, mock_settings)
+    assert service.token_tracking_service == mock_token_service
 
 
 # ============================================================================
@@ -1110,7 +1125,7 @@ async def test_large_conversation_within_limits(conversation_summarization_servi
 
     mock_session = MagicMock()
     mock_session.user_id = user_id
-    conversation_summarization_service.session_repository.get_by_id.return_value = mock_session
+    conversation_summarization_service.repository.get_session_by_id.return_value = mock_session
 
     conversation_summarization_service._generate_summary_content = AsyncMock(
         return_value=("Summary of 90 messages", {"key_topics": []})
@@ -1209,7 +1224,7 @@ async def test_zero_token_messages(conversation_summarization_service):
 
     mock_session = MagicMock()
     mock_session.user_id = user_id
-    conversation_summarization_service.session_repository.get_by_id.return_value = mock_session
+    conversation_summarization_service.repository.get_session_by_id.return_value = mock_session
 
     conversation_summarization_service._generate_summary_content = AsyncMock(
         return_value=("Empty summary", {"key_topics": []})
@@ -1228,11 +1243,11 @@ async def test_context_window_at_exact_minimum(conversation_summarization_servic
 
     mock_session = MagicMock()
     mock_session.context_window_size = 1000
-    conversation_summarization_service.session_repository.get_by_id.return_value = mock_session
+    conversation_summarization_service.repository.get_session_by_id.return_value = mock_session
 
     # Exactly 5 messages (minimum)
     mock_messages = [MagicMock(token_count=200) for _ in range(5)]
-    conversation_summarization_service.message_repository.get_messages_by_session.return_value = mock_messages
+    conversation_summarization_service.repository.get_messages_by_session.return_value = mock_messages
 
     result = await conversation_summarization_service.check_context_window_threshold(session_id, config)
 

@@ -14,6 +14,7 @@ from uuid import uuid4
 
 import pytest
 from core.config import Settings, get_settings
+from rag_solution.repository.conversation_repository import ConversationRepository
 from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtInput, ChainOfThoughtOutput
 from rag_solution.schemas.conversation_schema import (
     ConversationContext,
@@ -101,12 +102,90 @@ class TestSeamlessIntegrationTDD:
     @pytest.fixture
     def conversation_service(self, mock_db: Mock, mock_settings: Settings) -> ConversationService:
         """Create ConversationService with mocked dependencies."""
-        return ConversationService(db=mock_db, settings=mock_settings)
+        conversation_repository = Mock(spec=ConversationRepository)
+        # Configure get_messages_by_session to return empty list
+        conversation_repository.get_messages_by_session = Mock(return_value=[])
+        
+        # Configure get_session_by_id to return a session with proper UUIDs
+        mock_session = Mock()
+        mock_session.id = uuid4()
+        mock_session.user_id = uuid4()
+        mock_session.collection_id = uuid4()
+        mock_session.status = "active"
+        conversation_repository.get_session_by_id = Mock(return_value=mock_session)
+        
+        # Configure create_message to return a proper ConversationMessageOutput
+        def create_message_side_effect(message_input):
+            from rag_solution.schemas.conversation_schema import ConversationMessageOutput, MessageMetadata
+            return ConversationMessageOutput(
+                id=uuid4(),
+                session_id=message_input.session_id,
+                content=message_input.content,
+                role=message_input.role,
+                message_type=message_input.message_type,
+                token_count=message_input.token_count if hasattr(message_input, 'token_count') else 0,
+                metadata=MessageMetadata() if not hasattr(message_input, 'metadata') else message_input.metadata,
+            )
+        conversation_repository.create_message = Mock(side_effect=create_message_side_effect)
+        
+        question_service = Mock(spec=QuestionService)
+        service = ConversationService(
+            db=mock_db,
+            settings=mock_settings,
+            conversation_repository=conversation_repository,
+            question_service=question_service,
+        )
+        
+        # Mock get_messages method to return empty list (it's an async method)
+        async def mock_get_messages(session_id, user_id, limit=50, offset=0):
+            return []
+        service.get_messages = mock_get_messages
+        
+        return service
 
     @pytest.fixture
     def context_manager_service(self, mock_db: Mock, mock_settings: Settings) -> ConversationService:
         """Create ConversationService with mocked dependencies."""
-        return ConversationService(db=mock_db, settings=mock_settings)
+        conversation_repository = Mock(spec=ConversationRepository)
+        # Configure get_messages_by_session to return empty list
+        conversation_repository.get_messages_by_session = Mock(return_value=[])
+        
+        # Configure get_session_by_id to return a session with proper UUIDs
+        mock_session = Mock()
+        mock_session.id = uuid4()
+        mock_session.user_id = uuid4()
+        mock_session.collection_id = uuid4()
+        mock_session.status = "active"
+        conversation_repository.get_session_by_id = Mock(return_value=mock_session)
+        
+        # Configure create_message to return a proper ConversationMessageOutput
+        def create_message_side_effect(message_input):
+            from rag_solution.schemas.conversation_schema import ConversationMessageOutput, MessageMetadata
+            return ConversationMessageOutput(
+                id=uuid4(),
+                session_id=message_input.session_id,
+                content=message_input.content,
+                role=message_input.role,
+                message_type=message_input.message_type,
+                token_count=message_input.token_count if hasattr(message_input, 'token_count') else 0,
+                metadata=MessageMetadata() if not hasattr(message_input, 'metadata') else message_input.metadata,
+            )
+        conversation_repository.create_message = Mock(side_effect=create_message_side_effect)
+        
+        question_service = Mock(spec=QuestionService)
+        service = ConversationService(
+            db=mock_db,
+            settings=mock_settings,
+            conversation_repository=conversation_repository,
+            question_service=question_service,
+        )
+        
+        # Mock get_messages method to return empty list (it's an async method)
+        async def mock_get_messages(session_id, user_id, limit=50, offset=0):
+            return []
+        service.get_messages = mock_get_messages
+        
+        return service
 
     @pytest.fixture
     def search_service(self, mock_db: Mock, mock_settings: Settings) -> SearchService:
@@ -177,11 +256,16 @@ class TestSeamlessIntegrationTDD:
             ).to_output(message_id=uuid4()),
         ]
 
+        from rag_solution.schemas.conversation_schema import ContextMetadata
+        
         expected_context = ConversationContext(
             session_id=session_id,
             context_window="Previous discussion about machine learning",
             relevant_documents=["doc1", "doc2"],
-            context_metadata={"extracted_entities": ["machine learning", "AI"], "conversation_topic": "AI concepts"},
+            metadata=ContextMetadata(
+                extracted_entities=["machine learning", "AI"],
+                conversation_topics=["AI concepts"],
+            ),
         )
 
         with patch.object(context_manager_service, "build_context_from_messages", return_value=expected_context):
