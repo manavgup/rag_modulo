@@ -21,56 +21,10 @@ from .data_types import (
     Source,
 )
 from .error_types import CollectionError, DocumentError
+from .utils.embeddings import get_embeddings_for_vector_store
 from .vector_store import VectorStore
 
 # Remove module-level constants - use dependency injection instead
-
-
-def _get_embeddings_for_vector_store(text: str | list[str], settings: Settings) -> list[list[float]]:
-    """
-    Get embeddings using the provider-based approach with rate limiting.
-
-    This is a utility function for vector stores to access embedding functionality
-    without requiring complex dependency injection.
-
-    Args:
-        text: Single text string or list of text strings to embed
-        settings: Settings object containing configuration
-
-    Returns:
-        List of embedding vectors
-
-    Raises:
-        LLMProviderError: If provider-related errors occur
-        SQLAlchemyError: If database-related errors occur
-        Exception: If other unexpected errors occur
-    """
-    # Import here to avoid circular imports
-    from sqlalchemy.exc import SQLAlchemyError
-
-    from core.custom_exceptions import LLMProviderError
-    from rag_solution.file_management.database import create_session_factory
-    from rag_solution.generation.providers.factory import LLMProviderFactory
-
-    # Create session and get embeddings in one clean flow
-    session_factory = create_session_factory()
-    db = session_factory()
-
-    try:
-        factory = LLMProviderFactory(db, settings)
-        provider = factory.get_provider("watsonx")
-        return provider.get_embeddings(text)
-    except LLMProviderError as e:
-        logging.error("LLM provider error during embedding generation: %s", e)
-        raise
-    except SQLAlchemyError as e:
-        logging.error("Database error during embedding generation: %s", e)
-        raise
-    except Exception as e:
-        logging.error("Unexpected error during embedding generation: %s", e)
-        raise
-    finally:
-        db.close()
 
 
 class ElasticSearchStore(VectorStore):
@@ -186,7 +140,7 @@ class ElasticSearchStore(VectorStore):
         Returns:
             List[QueryResult]: The list of query results.
         """
-        query_embeddings = _get_embeddings_for_vector_store(query, settings=self.settings)
+        query_embeddings = get_embeddings_for_vector_store(query, settings=self.settings)
         if not query_embeddings:
             raise DocumentError("Failed to generate embeddings for the query string.")
         # get_embeddings returns list[list[float]], but we need list[float] for single query
