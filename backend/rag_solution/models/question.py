@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from sqlalchemy import JSON, DateTime, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
@@ -31,6 +31,7 @@ class SuggestedQuestion(Base):
     """
 
     __tablename__ = "suggested_questions"
+    __table_args__: ClassVar[dict] = {"extend_existing": True}
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
