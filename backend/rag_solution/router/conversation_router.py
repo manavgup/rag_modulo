@@ -37,8 +37,14 @@ def get_conversation_service(db: Session = Depends(get_db)) -> ConversationServi
     Returns:
         ConversationService instance
     """
+    from rag_solution.repository.conversation_repository import ConversationRepository
+    from rag_solution.services.question_service import QuestionService
+
     settings = get_settings()
-    return ConversationService(db, settings)
+    repository = ConversationRepository(db)
+    question_service = QuestionService(db, settings)
+
+    return ConversationService(db, settings, repository, question_service)
 
 
 @router.get("", response_model=list[ConversationSessionOutput])
