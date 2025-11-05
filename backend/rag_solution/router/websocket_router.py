@@ -101,8 +101,14 @@ manager = ConnectionManager()
 
 def get_conversation_service(db: Session = Depends(get_db)) -> ConversationService:
     """Get conversation service instance."""
+    from rag_solution.repository.conversation_repository import ConversationRepository
+    from rag_solution.services.question_service import QuestionService
+
     settings = get_settings()
-    return ConversationService(db, settings)
+    repository = ConversationRepository(db)
+    question_service = QuestionService(db, settings)
+
+    return ConversationService(db, settings, repository, question_service)
 
 
 async def _handle_ping_message(websocket: WebSocket, message_data: dict[str, Any]) -> None:

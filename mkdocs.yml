@@ -153,6 +153,7 @@ nav:
     - Test Categories: testing/categories.md
     - Comprehensive Testing Guide: testing/COMPREHENSIVE_TESTING_GUIDE.md
     - Manual Validation Checklist: testing/MANUAL_VALIDATION_CHECKLIST.md
+    - Validate Phase 3 Performance: testing/validate-phase3-performance.md
   - 🚀 Deployment:
     - Overview: deployment/index.md
     - IBM Cloud Code Engine: deployment/ibm-cloud-code-engine.md
@@ -190,6 +191,8 @@ nav:
     - Security: architecture/security.md
     - Scalability: architecture/scalability.md
     - Performance: architecture/performance.md
+    - Refactoring:
+      - Phase 3 Service Consolidation: architecture/phase3-conversation-service-consolidation.md
   - 🧠 Features:
     - Overview: features/index.md
     - Chain of Thought: features/chain-of-thought/index.md

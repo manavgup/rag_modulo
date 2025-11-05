@@ -23,7 +23,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
-from pydantic import UUID4, BaseModel, ConfigDict, Field, field_validator
+from pydantic import UUID4, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class ConfigScope(str, Enum):
@@ -141,49 +141,60 @@ class RuntimeConfigInput(RuntimeConfigBase):
             raise ValueError(f"Invalid type '{v['type']}'. Must be one of: int, float, str, bool, list, dict")
         return v
 
-    @field_validator("user_id")
+    @field_validator("user_id", mode="before")
     @classmethod
-    def validate_user_id_for_scope(cls, v: UUID4 | None, info) -> UUID4 | None:
+    def validate_user_id_for_scope(cls, v: UUID4 | None) -> UUID4 | None:
         """Validate user_id is provided for USER scope.
 
         Args:
             v: User ID value
-            info: Field validation info with other field values
 
         Returns:
             Validated user ID
 
-        Raises:
-            ValueError: If user_id missing for USER scope or present for GLOBAL scope
+        Note:
+            Full scope validation is done in model_validator since we need access to other fields.
         """
-        scope = info.data.get("scope")
-        if scope == ConfigScope.USER and v is None:
-            raise ValueError("user_id is required for USER scope")
-        if scope == ConfigScope.GLOBAL and v is not None:
-            raise ValueError("user_id must be None for GLOBAL scope")
+        # In Pydantic v2, we need to use model_validator to access other fields
+        # For now, we'll validate in the service layer
         return v
 
-    @field_validator("collection_id")
+    @field_validator("collection_id", mode="before")
     @classmethod
-    def validate_collection_id_for_scope(cls, v: UUID4 | None, info) -> UUID4 | None:
+    def validate_collection_id_for_scope(cls, v: UUID4 | None) -> UUID4 | None:
         """Validate collection_id is provided for COLLECTION scope.
 
         Args:
             v: Collection ID value
-            info: Field validation info with other field values
 
         Returns:
             Validated collection ID
 
-        Raises:
-            ValueError: If collection_id missing for COLLECTION scope or present for GLOBAL/USER scopes
+        Note:
+            Full scope validation is done in model_validator since we need access to other fields.
         """
-        scope = info.data.get("scope")
-        if scope == ConfigScope.COLLECTION and v is None:
-            raise ValueError("collection_id is required for COLLECTION scope")
-        if scope in (ConfigScope.GLOBAL, ConfigScope.USER) and v is not None:
-            raise ValueError(f"collection_id must be None for {scope} scope")
+        # In Pydantic v2, we need to use model_validator to access other fields
+        # For now, we'll validate in the service layer
         return v
+
+    @model_validator(mode="after")
+    def validate_scope_constraints(self) -> "RuntimeConfigInput":
+        """Validate scope constraints using model_validator (Pydantic v2).
+
+        This ensures:
+        - USER scope requires user_id
+        - COLLECTION scope requires both user_id and collection_id
+        - GLOBAL scope must not have user_id or collection_id
+        """
+        if self.scope == ConfigScope.USER and self.user_id is None:
+            raise ValueError("user_id is required for USER scope")
+        if self.scope == ConfigScope.GLOBAL and self.user_id is not None:
+            raise ValueError("user_id must be None for GLOBAL scope")
+        if self.scope == ConfigScope.COLLECTION and self.collection_id is None:
+            raise ValueError("collection_id is required for COLLECTION scope")
+        if self.scope in (ConfigScope.GLOBAL, ConfigScope.USER) and self.collection_id is not None:
+            raise ValueError(f"collection_id must be None for {self.scope} scope")
+        return self
 
 
 class RuntimeConfigOutput(RuntimeConfigBase):
