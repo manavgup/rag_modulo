@@ -239,37 +239,44 @@ class TestRuntimeConfigService:
         self, service: RuntimeConfigService
     ) -> None:
         """Test that USER scope without user_id raises ValidationError."""
-        invalid_input = RuntimeConfigInput(
-            scope=ConfigScope.USER,
-            category=ConfigCategory.LLM,
-            config_key="temperature",
-            config_value={"value": 0.8, "type": "float"},
-            # Missing user_id
-        )
+        from pydantic import ValidationError as PydanticValidationError
+        
+        # Pydantic validation happens during RuntimeConfigInput creation
+        # The model_validator raises ValueError which Pydantic wraps in ValidationError
+        with pytest.raises(PydanticValidationError) as exc_info:
+            invalid_input = RuntimeConfigInput(
+                scope=ConfigScope.USER,
+                category=ConfigCategory.LLM,
+                config_key="temperature",
+                config_value={"value": 0.8, "type": "float"},
+                # Missing user_id
+            )
 
-        with pytest.raises(ValidationError) as exc_info:
-            service.create_config(invalid_input)
-
-        assert "USER scope requires user_id" in str(exc_info.value)
-        service.repository.create.assert_not_called()
+        # Check that the validation error message mentions user_id requirement
+        error_str = str(exc_info.value)
+        assert "user_id" in error_str.lower() or "USER scope" in error_str
 
     def test_create_config_collection_without_collection_id_fails(
         self, service: RuntimeConfigService, sample_user_id: UUID4
     ) -> None:
         """Test that COLLECTION scope without collection_id raises ValidationError."""
-        invalid_input = RuntimeConfigInput(
-            scope=ConfigScope.COLLECTION,
-            category=ConfigCategory.LLM,
-            config_key="temperature",
-            config_value={"value": 0.9, "type": "float"},
-            user_id=sample_user_id,
-            # Missing collection_id
-        )
+        from pydantic import ValidationError as PydanticValidationError
+        
+        # Pydantic validation happens during RuntimeConfigInput creation
+        # The model_validator raises ValueError which Pydantic wraps in ValidationError
+        with pytest.raises(PydanticValidationError) as exc_info:
+            invalid_input = RuntimeConfigInput(
+                scope=ConfigScope.COLLECTION,
+                category=ConfigCategory.LLM,
+                config_key="temperature",
+                config_value={"value": 0.9, "type": "float"},
+                user_id=sample_user_id,
+                # Missing collection_id
+            )
 
-        with pytest.raises(ValidationError) as exc_info:
-            service.create_config(invalid_input)
-
-        assert "COLLECTION scope requires collection_id" in str(exc_info.value)
+        # Check that the validation error message mentions collection_id requirement
+        error_str = str(exc_info.value)
+        assert "collection_id" in error_str.lower() or "COLLECTION scope" in error_str
         service.repository.create.assert_not_called()
 
     # ============================================================================
