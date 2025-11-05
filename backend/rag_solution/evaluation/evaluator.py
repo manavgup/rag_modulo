@@ -39,15 +39,61 @@ except ImportError:
 
 try:
     from vectordbs.data_types import DocumentChunkWithScore, QueryResult, VectorQuery
-    from vectordbs.utils.watsonx import get_embeddings
 except ImportError:
     # Handle case where vectordbs is not available
     DocumentChunkWithScore = None
     QueryResult = None
     VectorQuery = None
-    get_embeddings = None
 
 logger = logging.getLogger(__name__)
+
+
+def _get_embeddings_for_evaluation(text: str | list[str]) -> list[list[float]]:
+    """
+    Get embeddings using the provider-based approach with rate limiting.
+
+    This is a utility function for evaluation to access embedding functionality
+    without requiring complex dependency injection.
+
+    Args:
+        text: Single text string or list of text strings to embed
+
+    Returns:
+        List of embedding vectors
+
+    Raises:
+        LLMProviderError: If provider-related errors occur
+        SQLAlchemyError: If database-related errors occur
+        Exception: If other unexpected errors occur
+    """
+    # Import here to avoid circular imports
+    from sqlalchemy.exc import SQLAlchemyError
+
+    from core.config import get_settings
+    from core.custom_exceptions import LLMProviderError
+    from rag_solution.file_management.database import create_session_factory
+    from rag_solution.generation.providers.factory import LLMProviderFactory
+
+    # Create session and get embeddings in one clean flow
+    session_factory = create_session_factory()
+    db = session_factory()
+
+    try:
+        settings = get_settings()
+        factory = LLMProviderFactory(db, settings)
+        provider = factory.get_provider("watsonx")
+        return provider.get_embeddings(text)
+    except LLMProviderError as e:
+        logging.error("LLM provider error during embedding generation: %s", e)
+        raise
+    except SQLAlchemyError as e:
+        logging.error("Database error during embedding generation: %s", e)
+        raise
+    except Exception as e:
+        logging.error("Unexpected error during embedding generation: %s", e)
+        raise
+    finally:
+        db.close()
 
 
 class RAGEvaluator:
@@ -103,11 +149,11 @@ class RAGEvaluator:
         Returns:
             float: The relevance score.
         """
-        query_embedding = get_embeddings(query_text)
+        query_embedding = _get_embeddings_for_evaluation(query_text)
         # Extract text from document chunks
         doc_contents = [doc.chunk.text for doc in document_list]
         logger.info("Got document contents")
-        doc_embeddings = get_embeddings(doc_contents)
+        doc_embeddings = _get_embeddings_for_evaluation(doc_contents)
         similarities = cosine_similarity(query_embedding, doc_embeddings)
         logger.info("Generated relevance similarities: %s", similarities)
         return float(similarities.mean())
@@ -123,8 +169,8 @@ class RAGEvaluator:
         Returns:
             float: The coherence score.
         """
-        query_embedding = get_embeddings(query_text)
-        response_embedding = get_embeddings(response_text)
+        query_embedding = _get_embeddings_for_evaluation(query_text)
+        response_embedding = _get_embeddings_for_evaluation(response_text)
         coherence = cosine_similarity(query_embedding, response_embedding)
         # Handle both scalar and array results from cosine_similarity
         if hasattr(coherence, "item"):
@@ -142,9 +188,9 @@ class RAGEvaluator:
         Returns:
             float: The faithfulness score.
         """
-        response_embedding = get_embeddings(response_text)
+        response_embedding = _get_embeddings_for_evaluation(response_text)
         doc_contents = [doc.chunk.text for doc in document_list]
-        doc_embeddings = get_embeddings(doc_contents)
+        doc_embeddings = _get_embeddings_for_evaluation(doc_contents)
         similarities = cosine_similarity(response_embedding, doc_embeddings)
         return float(similarities.mean())
 

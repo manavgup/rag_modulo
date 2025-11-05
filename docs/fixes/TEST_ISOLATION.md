@@ -1,5 +1,8 @@
 # Test Isolation Guidelines
 
+> **Note**: This document references legacy `vectordbs.utils.watsonx` patterns. The codebase has migrated
+> to `LLMProviderFactory`. See Issue #219 for details.
+
 This document outlines the principles and practices for maintaining proper test isolation in the RAG Modulo project, particularly for atomic tests.
 
 ## Overview
