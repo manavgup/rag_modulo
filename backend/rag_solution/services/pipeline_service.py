@@ -1,8 +1,10 @@
 """Service layer for RAG pipeline execution and management."""
 
+import os
 import re
 import time
 import uuid
+from datetime import datetime
 from typing import Any
 
 from pydantic import UUID4
@@ -760,6 +762,9 @@ class PipelineService:
                     "  First result text: %s...", first.chunk.text[:150] if first.chunk and first.chunk.text else "N/A"
                 )
 
+            # COMPREHENSIVE DEBUG LOGGING - Write detailed chunk info to file
+            self._log_retrieved_chunks_to_file(query, collection_name, results, "retrieval")
+
             # Apply hierarchical retrieval if enabled
             if self.settings.chunking_strategy.lower() == "hierarchical":
                 results = self._apply_hierarchical_retrieval(results, collection_name)
@@ -1011,3 +1016,85 @@ class PipelineService:
 
         logger.debug("Generated metadata for %d documents", len(doc_metadata))
         return doc_metadata
+
+    def _log_retrieved_chunks_to_file(
+        self, query: str, collection_name: str, results: list[QueryResult], stage: str
+    ) -> None:
+        """
+        Log detailed chunk retrieval information to debug file.
+
+        Creates comprehensive logs in /tmp/rag_debug/ with:
+        - Query and collection info
+        - All retrieved chunks with scores, metadata, and text
+        - Timestamp for tracking
+
+        Args:
+            query: The search query
+            collection_name: Milvus collection name
+            results: List of retrieved QueryResult objects
+            stage: Pipeline stage (e.g., 'retrieval', 'reranking')
+        """
+        try:
+            # Create debug directory
+            debug_dir = "/tmp/rag_debug"
+            os.makedirs(debug_dir, exist_ok=True)
+
+            # Create timestamped filename
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            debug_file = f"{debug_dir}/chunks_{stage}_{timestamp}.txt"
+
+            with open(debug_file, "w", encoding="utf-8") as f:
+                f.write("=" * 80 + "\n")
+                f.write(f"RAG CHUNK RETRIEVAL DEBUG - {stage.upper()} STAGE\n")
+                f.write(f"Timestamp: {datetime.now().isoformat()}\n")
+                f.write("=" * 80 + "\n\n")
+
+                f.write(f"Query: {query}\n")
+                f.write(f"Collection: {collection_name}\n")
+                f.write(f"Total chunks retrieved: {len(results)}\n")
+                f.write("\n" + "=" * 80 + "\n")
+                f.write("RETRIEVED CHUNKS:\n")
+                f.write("=" * 80 + "\n\n")
+
+                for i, result in enumerate(results, 1):
+                    f.write(f"CHUNK #{i}\n")
+                    f.write("-" * 80 + "\n")
+                    f.write(f"Score: {result.score:.6f}\n")
+
+                    # Extract metadata from chunk
+                    if result.chunk:
+                        chunk_text = result.chunk.text or ""
+
+                        # Get metadata from chunk.metadata if available
+                        if result.chunk.metadata:
+                            doc_name = getattr(result.chunk.metadata, 'document_name', None) or \
+                                      getattr(result.chunk.metadata, 'source_id', None) or "unknown"
+                            page_num = getattr(result.chunk.metadata, 'page_number', '?')
+                            chunk_num = getattr(result.chunk.metadata, 'chunk_number', '?')
+                        else:
+                            doc_name = "unknown"
+                            page_num = "?"
+                            chunk_num = "?"
+
+                        f.write(f"Document: {doc_name}\n")
+                        f.write(f"Page: {page_num}\n")
+                        f.write(f"Chunk Number: {chunk_num}\n")
+                        f.write(f"Document ID: {result.chunk.document_id or 'N/A'}\n")
+                        f.write(f"Text Length: {len(chunk_text)} chars\n")
+                        f.write("\nFull Text:\n")
+                        f.write(chunk_text)
+                        f.write("\n")
+                    else:
+                        f.write("WARNING: No chunk data available\n")
+
+                    f.write("\n" + "-" * 80 + "\n\n")
+
+                f.write("=" * 80 + "\n")
+                f.write("END OF DEBUG LOG\n")
+                f.write("=" * 80 + "\n")
+
+            logger.info("📝 Chunk debug log written to: %s", debug_file)
+
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            # Don't fail the search if logging fails
+            logger.warning("Failed to write chunk debug log: %s", e)

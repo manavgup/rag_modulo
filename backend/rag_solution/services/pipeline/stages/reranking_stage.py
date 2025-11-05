@@ -89,6 +89,12 @@ class RerankingStage(BaseStage):  # pylint: disable=too-few-public-methods
 
             logger.info("Reranked %d documents to top %d", original_count, len(reranked_results))
 
+            # COMPREHENSIVE DEBUG LOGGING - Log reranked chunks
+            if hasattr(self.pipeline_service, "_log_retrieved_chunks_to_file"):
+                self.pipeline_service._log_retrieved_chunks_to_file(
+                    context.rewritten_query, str(context.collection_id), reranked_results, "reranking"
+                )
+
             # Update context
             context.query_results = reranked_results
             context.add_metadata(

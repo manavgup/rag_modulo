@@ -62,6 +62,9 @@ class QueryEnhancementStage(BaseStage):  # pylint: disable=too-few-public-method
             rewritten_query = self._rewrite_query(clean_query)
             logger.info("Query rewritten: '%s' -> '%s'", clean_query, rewritten_query)
 
+            # COMPREHENSIVE DEBUG LOGGING - Log query enhancement details
+            self._log_query_enhancement(original_query, clean_query, rewritten_query)
+
             # Update context
             context.rewritten_query = rewritten_query
             context.add_metadata(
@@ -105,3 +108,55 @@ class QueryEnhancementStage(BaseStage):  # pylint: disable=too-few-public-method
         """
         # Use PipelineService's query_rewriter
         return self.pipeline_service.query_rewriter.rewrite(query)
+
+    def _log_query_enhancement(self, original_query: str, clean_query: str, rewritten_query: str) -> None:
+        """
+        Log query enhancement details for debugging.
+
+        Args:
+            original_query: The original user query
+            clean_query: The cleaned query
+            rewritten_query: The rewritten query
+        """
+        try:
+            import os
+            from datetime import datetime
+
+            debug_dir = "/tmp/rag_debug"
+            os.makedirs(debug_dir, exist_ok=True)
+
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            debug_file = f"{debug_dir}/query_enhancement_{timestamp}.txt"
+
+            with open(debug_file, "w", encoding="utf-8") as f:
+                f.write("=" * 80 + "\n")
+                f.write("QUERY ENHANCEMENT STAGE\n")
+                f.write(f"Timestamp: {datetime.now().isoformat()}\n")
+                f.write("=" * 80 + "\n\n")
+
+                f.write("ORIGINAL QUERY:\n")
+                f.write("-" * 80 + "\n")
+                f.write(f"{original_query}\n\n")
+
+                f.write("CLEANED QUERY:\n")
+                f.write("-" * 80 + "\n")
+                f.write(f"{clean_query}\n\n")
+
+                f.write("REWRITTEN QUERY (sent to Milvus):\n")
+                f.write("-" * 80 + "\n")
+                f.write(f"{rewritten_query}\n\n")
+
+                f.write("SEMANTIC COMPARISON:\n")
+                f.write("-" * 80 + "\n")
+                f.write(f"Query changed: {original_query != rewritten_query}\n")
+                f.write(f"Original length: {len(original_query)} chars\n")
+                f.write(f"Rewritten length: {len(rewritten_query)} chars\n\n")
+
+                f.write("=" * 80 + "\n")
+                f.write("END OF QUERY ENHANCEMENT LOG\n")
+                f.write("=" * 80 + "\n")
+
+            logger.info("📝 Query enhancement logged to: %s", debug_file)
+
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            logger.warning("Failed to log query enhancement: %s", e)
