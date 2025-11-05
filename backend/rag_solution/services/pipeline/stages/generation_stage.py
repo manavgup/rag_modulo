@@ -117,6 +117,9 @@ class GenerationStage(BaseStage):  # pylint: disable=too-few-public-methods
         # Use rewritten query if available, otherwise original question
         query = context.rewritten_query or context.search_input.question
 
+        # COMPREHENSIVE DEBUG LOGGING - Log context sent to LLM
+        self._log_llm_context(query, context_text, context.query_results, context.user_id)
+
         # Generate answer
         answer = self.pipeline_service._generate_answer(  # pylint: disable=protected-access
             context.user_id, query, context_text, provider, llm_parameters, rag_template
@@ -148,3 +151,75 @@ class GenerationStage(BaseStage):  # pylint: disable=too-few-public-methods
         cleaned = cleaned.strip()
 
         return cleaned
+
+    def _log_llm_context(self, query: str, context_text: str, query_results, user_id) -> None:
+        """
+        Log the context being sent to LLM for debugging.
+
+        Args:
+            query: The query being sent
+            context_text: The formatted context text
+            query_results: The query results used to build context
+            user_id: User ID for the request
+        """
+        try:
+            import os
+            from datetime import datetime
+
+            debug_dir = "/tmp/rag_debug"
+            os.makedirs(debug_dir, exist_ok=True)
+
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            debug_file = f"{debug_dir}/context_to_llm_{timestamp}.txt"
+
+            with open(debug_file, "w", encoding="utf-8") as f:
+                f.write("=" * 80 + "\n")
+                f.write("CONTEXT SENT TO LLM (GENERATION STAGE)\n")
+                f.write(f"Timestamp: {datetime.now().isoformat()}\n")
+                f.write("=" * 80 + "\n\n")
+
+                f.write(f"User ID: {user_id}\n")
+                f.write(f"Query: {query}\n")
+                f.write(f"Number of chunks in query_results: {len(query_results)}\n")
+                f.write(f"Context text length: {len(context_text)} chars\n\n")
+
+                f.write("=" * 80 + "\n")
+                f.write("QUERY RESULTS (CHUNKS USED):\n")
+                f.write("=" * 80 + "\n\n")
+
+                for i, result in enumerate(query_results, 1):
+                    f.write(f"CHUNK #{i}\n")
+                    f.write("-" * 80 + "\n")
+                    f.write(f"Score: {result.score:.6f}\n")
+
+                    if result.chunk:
+                        if result.chunk.metadata:
+                            page = getattr(result.chunk.metadata, 'page_number', '?')
+                            chunk_num = getattr(result.chunk.metadata, 'chunk_number', '?')
+                            f.write(f"Page: {page}\n")
+                            f.write(f"Chunk Number: {chunk_num}\n")
+
+                        chunk_text = result.chunk.text or ""
+                        f.write(f"Text Length: {len(chunk_text)} chars\n\n")
+                        f.write("Text Preview (first 200 chars):\n")
+                        f.write(chunk_text[:200])
+                        f.write("\n")
+                    else:
+                        f.write("WARNING: No chunk data\n")
+
+                    f.write("\n" + "-" * 80 + "\n\n")
+
+                f.write("=" * 80 + "\n")
+                f.write("FORMATTED CONTEXT TEXT (sent to LLM):\n")
+                f.write("=" * 80 + "\n\n")
+                f.write(context_text)
+                f.write("\n\n")
+
+                f.write("=" * 80 + "\n")
+                f.write("END OF LLM CONTEXT LOG\n")
+                f.write("=" * 80 + "\n")
+
+            logger.info("📝 LLM context logged to: %s", debug_file)
+
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            logger.warning("Failed to log LLM context: %s", e)

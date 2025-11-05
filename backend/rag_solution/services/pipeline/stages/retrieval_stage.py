@@ -62,6 +62,9 @@ class RetrievalStage(BaseStage):  # pylint: disable=too-few-public-methods
             # Extract top_k from config_metadata
             top_k = self._get_top_k(context)
 
+            # COMPREHENSIVE DEBUG LOGGING - Log retrieval parameters BEFORE retrieval
+            self._log_retrieval_params(context.rewritten_query, str(context.collection_id), top_k)
+
             # Retrieve documents using collection_id (PipelineService handles the lookup)
             query_results = self.pipeline_service.retrieve_documents_by_id(
                 query=context.rewritten_query, collection_id=context.collection_id, top_k=top_k
@@ -112,3 +115,69 @@ class RetrievalStage(BaseStage):  # pylint: disable=too-few-public-methods
             logger.debug("Using top_k=%d from config_metadata", top_k)
 
         return top_k
+
+    def _log_retrieval_params(self, query: str, collection_id: str, top_k: int) -> None:
+        """
+        Log retrieval parameters for debugging.
+
+        Args:
+            query: The query being searched
+            collection_id: Collection UUID
+            top_k: Number of results to retrieve
+        """
+        try:
+            import os
+            from datetime import datetime
+
+            debug_dir = "/tmp/rag_debug"
+            os.makedirs(debug_dir, exist_ok=True)
+
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            debug_file = f"{debug_dir}/retrieval_params_{timestamp}.txt"
+
+            # Get settings from pipeline_service
+            settings = self.pipeline_service.settings
+
+            with open(debug_file, "w", encoding="utf-8") as f:
+                f.write("=" * 80 + "\n")
+                f.write("RETRIEVAL STAGE - PARAMETERS\n")
+                f.write(f"Timestamp: {datetime.now().isoformat()}\n")
+                f.write("=" * 80 + "\n\n")
+
+                f.write("QUERY:\n")
+                f.write("-" * 80 + "\n")
+                f.write(f"{query}\n\n")
+
+                f.write("COLLECTION:\n")
+                f.write("-" * 80 + "\n")
+                f.write(f"Collection ID: {collection_id}\n")
+                f.write(f"Top K: {top_k}\n\n")
+
+                f.write("EMBEDDING CONFIGURATION:\n")
+                f.write("-" * 80 + "\n")
+                f.write(f"Embedding Model: {getattr(settings, 'embedding_model', 'N/A')}\n")
+                f.write(f"Embedding Dimension: {getattr(settings, 'embedding_dim', 'N/A')}\n")
+                f.write(f"Embedding Field: {getattr(settings, 'embedding_field', 'N/A')}\n\n")
+
+                f.write("MILVUS CONFIGURATION:\n")
+                f.write("-" * 80 + "\n")
+                f.write(f"Milvus Host: {getattr(settings, 'milvus_host', 'N/A')}\n")
+                f.write(f"Milvus Port: {getattr(settings, 'milvus_port', 'N/A')}\n\n")
+
+                # Log search parameters from MilvusStore
+                if hasattr(self.pipeline_service, 'retriever'):
+                    retriever = self.pipeline_service.retriever
+                    if hasattr(retriever, 'search_params'):
+                        f.write("MILVUS SEARCH PARAMETERS:\n")
+                        f.write("-" * 80 + "\n")
+                        f.write(f"Metric Type: {retriever.search_params.get('metric_type', 'N/A')}\n")
+                        f.write(f"Search Params: {retriever.search_params.get('params', 'N/A')}\n\n")
+
+                f.write("=" * 80 + "\n")
+                f.write("END OF RETRIEVAL PARAMETERS LOG\n")
+                f.write("=" * 80 + "\n")
+
+            logger.info("📝 Retrieval parameters logged to: %s", debug_file)
+
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            logger.warning("Failed to log retrieval parameters: %s", e)
