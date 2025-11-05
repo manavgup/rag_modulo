@@ -80,7 +80,7 @@ def test_old_conversation_service_emits_deprecation_warning(mock_db, mock_settin
         # Import and initialize old service
         from backend.rag_solution.services.conversation_service import ConversationService
 
-        service = ConversationService(db=mock_db, settings=mock_settings)
+        _service = ConversationService(db=mock_db, settings=mock_settings)
 
         # Assert: DeprecationWarning was emitted
         assert len(w) >= 1, "Expected at least 1 DeprecationWarning"
@@ -105,7 +105,7 @@ def test_old_summarization_service_emits_deprecation_warning(mock_db, mock_setti
             ConversationSummarizationService,
         )
 
-        service = ConversationSummarizationService(db=mock_db, settings=mock_settings)
+        _service = ConversationSummarizationService(db=mock_db, settings=mock_settings)
 
         # Assert: DeprecationWarning was emitted
         deprecation_warnings = [warning for warning in w if issubclass(warning.category, DeprecationWarning)]
@@ -122,7 +122,7 @@ def test_deprecation_warning_mentions_phase_7_removal(mock_db, mock_settings):
 
         from backend.rag_solution.services.conversation_service import ConversationService
 
-        service = ConversationService(db=mock_db, settings=mock_settings)
+        _service = ConversationService(db=mock_db, settings=mock_settings)
 
         deprecation_warnings = [warning for warning in w if issubclass(warning.category, DeprecationWarning)]
         if deprecation_warnings:
@@ -141,7 +141,7 @@ def test_deprecation_warning_mentions_unified_service(mock_db, mock_settings):
 
         from backend.rag_solution.services.conversation_service import ConversationService
 
-        service = ConversationService(db=mock_db, settings=mock_settings)
+        _service = ConversationService(db=mock_db, settings=mock_settings)
 
         deprecation_warnings = [warning for warning in w if issubclass(warning.category, DeprecationWarning)]
         if deprecation_warnings:
@@ -296,8 +296,9 @@ def test_unified_service_method_signatures_compatible(test_db_session, mock_sett
     """
     import inspect
 
-    from backend.rag_solution.services.conversation_service import ConversationService as OldService
     from backend.rag_solution.services.conversation_service_unified import ConversationServiceUnified as NewService
+
+    from backend.rag_solution.services.conversation_service import ConversationService as OldService
 
     old_service = OldService(db=test_db_session, settings=mock_settings)
     new_service = NewService(db=test_db_session, settings=mock_settings)
@@ -332,11 +333,12 @@ async def test_unified_service_returns_same_schema_types(
     test_db_session, mock_settings, sample_user_id, sample_collection_id
 ):
     """Verify unified service returns same schema types as old service."""
+    from backend.rag_solution.services.conversation_service_unified import ConversationServiceUnified
+
     from backend.rag_solution.schemas.conversation_schema import (
         ConversationMessageOutput,
         ConversationSessionOutput,
     )
-    from backend.rag_solution.services.conversation_service_unified import ConversationServiceUnified
 
     service = ConversationServiceUnified(db=test_db_session, settings=mock_settings)
 
@@ -369,8 +371,9 @@ async def test_unified_service_returns_same_schema_types(
 @pytest.mark.asyncio
 async def test_unified_service_handles_same_exceptions(test_db_session, mock_settings):
     """Verify unified service raises same exception types as old service."""
-    from backend.rag_solution.core.exceptions import NotFoundError, ValidationError
     from backend.rag_solution.services.conversation_service_unified import ConversationServiceUnified
+
+    from backend.rag_solution.core.exceptions import NotFoundError, ValidationError
 
     service = ConversationServiceUnified(db=test_db_session, settings=mock_settings)
 
@@ -442,7 +445,7 @@ async def test_migration_path_from_old_to_new_service(
     new_result = await new_service.create_session(session_input)
 
     # Assert: Same return type
-    assert type(old_result) == type(new_result), "Return types should be identical"
+    assert isinstance(new_result, type(old_result)), "Return types should be identical"
 
     # Assert: Same behavior (both create sessions successfully)
     assert old_result.session_name == "Old Service Session"

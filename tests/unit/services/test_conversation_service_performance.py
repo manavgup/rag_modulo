@@ -37,7 +37,6 @@ from sqlalchemy import create_engine, event, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from backend.rag_solution.repository.conversation_repository import ConversationRepository
 from backend.rag_solution.schemas.conversation_schema import (
     ConversationMessageInput,
     ConversationSessionInput,
@@ -45,7 +44,6 @@ from backend.rag_solution.schemas.conversation_schema import (
     MessageType,
 )
 from backend.rag_solution.services.conversation_service import ConversationService
-from backend.rag_solution.services.question_service import QuestionService
 from core.config import get_settings
 
 # Mark all tests in this file as performance tests
@@ -122,8 +120,8 @@ def test_db_engine():
 @pytest.fixture
 def test_db_session(test_db_engine) -> Generator[Session, None, None]:
     """Create test database session."""
-    TestSessionLocal = sessionmaker(bind=test_db_engine, expire_on_commit=False)
-    session = TestSessionLocal()
+    test_session_local = sessionmaker(bind=test_db_engine, expire_on_commit=False)
+    session = test_session_local()
     try:
         yield session
     finally:
@@ -135,13 +133,9 @@ def test_db_session(test_db_engine) -> Generator[Session, None, None]:
 def conversation_service(test_db_session) -> ConversationService:
     """Create ConversationService instance for testing."""
     settings = get_settings()
-    repository = ConversationRepository(test_db_session)
-    question_service = QuestionService(test_db_session, settings)
     return ConversationService(
         db=test_db_session,
         settings=settings,
-        conversation_repository=repository,
-        question_service=question_service,
     )
 
 
