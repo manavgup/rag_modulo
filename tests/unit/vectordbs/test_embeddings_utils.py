@@ -9,9 +9,9 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 from sqlalchemy.exc import SQLAlchemyError
 
-from backend.vectordbs.utils.embeddings import get_embeddings_for_vector_store
 from core.config import Settings
 from core.custom_exceptions import LLMProviderError
+from vectordbs.utils.embeddings import get_embeddings_for_vector_store
 
 
 @pytest.fixture
@@ -59,13 +59,14 @@ def mock_factory(mock_provider):
 class TestGetEmbeddingsForVectorStore:
     """Test suite for get_embeddings_for_vector_store utility function."""
 
+    @pytest.mark.unit
     def test_successful_embedding_generation_single_text(
         self, mock_settings, mock_session_factory, mock_factory, mock_db_session
     ):
         """Test successful embedding generation for a single text string."""
         with (
-            patch("backend.vectordbs.utils.embeddings.create_session_factory", return_value=mock_session_factory),
-            patch("backend.vectordbs.utils.embeddings.LLMProviderFactory", return_value=mock_factory),
+            patch("vectordbs.utils.embeddings.create_session_factory", return_value=mock_session_factory),
+            patch("vectordbs.utils.embeddings.LLMProviderFactory", return_value=mock_factory),
         ):
             result = get_embeddings_for_vector_store("test query", mock_settings)
 
@@ -81,13 +82,14 @@ class TestGetEmbeddingsForVectorStore:
             # Verify session was closed
             mock_db_session.close.assert_called_once()
 
+    @pytest.mark.unit
     def test_successful_embedding_generation_list_of_texts(
         self, mock_settings, mock_session_factory, mock_factory, mock_db_session
     ):
         """Test successful embedding generation for a list of text strings."""
         with (
-            patch("backend.vectordbs.utils.embeddings.create_session_factory", return_value=mock_session_factory),
-            patch("backend.vectordbs.utils.embeddings.LLMProviderFactory", return_value=mock_factory),
+            patch("vectordbs.utils.embeddings.create_session_factory", return_value=mock_session_factory),
+            patch("vectordbs.utils.embeddings.LLMProviderFactory", return_value=mock_factory),
         ):
             texts = ["query1", "query2"]
             result = get_embeddings_for_vector_store(texts, mock_settings)
@@ -101,11 +103,12 @@ class TestGetEmbeddingsForVectorStore:
             # Verify session was closed
             mock_db_session.close.assert_called_once()
 
+    @pytest.mark.unit
     def test_custom_provider_name(self, mock_settings, mock_session_factory, mock_factory, mock_db_session):
         """Test using a custom provider name instead of default."""
         with (
-            patch("backend.vectordbs.utils.embeddings.create_session_factory", return_value=mock_session_factory),
-            patch("backend.vectordbs.utils.embeddings.LLMProviderFactory", return_value=mock_factory),
+            patch("vectordbs.utils.embeddings.create_session_factory", return_value=mock_session_factory),
+            patch("vectordbs.utils.embeddings.LLMProviderFactory", return_value=mock_factory),
         ):
             result = get_embeddings_for_vector_store("test query", mock_settings, provider_name="openai")
 
@@ -118,6 +121,7 @@ class TestGetEmbeddingsForVectorStore:
             # Verify session was closed
             mock_db_session.close.assert_called_once()
 
+    @pytest.mark.unit
     def test_provider_name_fallback_to_settings(
         self, mock_settings, mock_session_factory, mock_factory, mock_db_session
     ):
@@ -125,8 +129,8 @@ class TestGetEmbeddingsForVectorStore:
         mock_settings.llm_provider_name = "anthropic"
 
         with (
-            patch("backend.vectordbs.utils.embeddings.create_session_factory", return_value=mock_session_factory),
-            patch("backend.vectordbs.utils.embeddings.LLMProviderFactory", return_value=mock_factory),
+            patch("vectordbs.utils.embeddings.create_session_factory", return_value=mock_session_factory),
+            patch("vectordbs.utils.embeddings.LLMProviderFactory", return_value=mock_factory),
         ):
             result = get_embeddings_for_vector_store("test query", mock_settings)
 
@@ -136,6 +140,7 @@ class TestGetEmbeddingsForVectorStore:
             # Verify result
             assert result == [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]
 
+    @pytest.mark.unit
     def test_provider_name_default_to_watsonx(self, mock_session_factory, mock_factory, mock_db_session):
         """Test provider name defaults to watsonx when not in settings."""
         # Create settings without llm_provider_name attribute
@@ -143,8 +148,8 @@ class TestGetEmbeddingsForVectorStore:
         del mock_settings.llm_provider_name  # Remove the attribute
 
         with (
-            patch("backend.vectordbs.utils.embeddings.create_session_factory", return_value=mock_session_factory),
-            patch("backend.vectordbs.utils.embeddings.LLMProviderFactory", return_value=mock_factory),
+            patch("vectordbs.utils.embeddings.create_session_factory", return_value=mock_session_factory),
+            patch("vectordbs.utils.embeddings.LLMProviderFactory", return_value=mock_factory),
         ):
             result = get_embeddings_for_vector_store("test query", mock_settings)
 
@@ -154,14 +159,15 @@ class TestGetEmbeddingsForVectorStore:
             # Verify result
             assert result == [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]
 
+    @pytest.mark.unit
     def test_llm_provider_error_handling(self, mock_settings, mock_session_factory, mock_factory, mock_db_session):
         """Test proper handling of LLMProviderError."""
         # Configure provider to raise LLMProviderError
         mock_factory.get_provider.return_value.get_embeddings.side_effect = LLMProviderError("Provider error")
 
         with (
-            patch("backend.vectordbs.utils.embeddings.create_session_factory", return_value=mock_session_factory),
-            patch("backend.vectordbs.utils.embeddings.LLMProviderFactory", return_value=mock_factory),
+            patch("vectordbs.utils.embeddings.create_session_factory", return_value=mock_session_factory),
+            patch("vectordbs.utils.embeddings.LLMProviderFactory", return_value=mock_factory),
             pytest.raises(LLMProviderError, match="Provider error"),
         ):
             get_embeddings_for_vector_store("test query", mock_settings)
@@ -169,12 +175,13 @@ class TestGetEmbeddingsForVectorStore:
         # Verify session was still closed even on error
         mock_db_session.close.assert_called_once()
 
+    @pytest.mark.unit
     def test_sqlalchemy_error_handling(self, mock_settings, mock_session_factory, mock_db_session):
         """Test proper handling of SQLAlchemyError."""
         with (
-            patch("backend.vectordbs.utils.embeddings.create_session_factory", return_value=mock_session_factory),
+            patch("vectordbs.utils.embeddings.create_session_factory", return_value=mock_session_factory),
             patch(
-                "backend.vectordbs.utils.embeddings.LLMProviderFactory",
+                "vectordbs.utils.embeddings.LLMProviderFactory",
                 side_effect=SQLAlchemyError("Database error"),
             ),
             pytest.raises(SQLAlchemyError, match="Database error"),
@@ -184,14 +191,15 @@ class TestGetEmbeddingsForVectorStore:
         # Verify session was still closed even on error
         mock_db_session.close.assert_called_once()
 
+    @pytest.mark.unit
     def test_unexpected_exception_handling(self, mock_settings, mock_session_factory, mock_factory, mock_db_session):
         """Test proper handling of unexpected exceptions."""
         # Configure provider to raise generic exception
         mock_factory.get_provider.return_value.get_embeddings.side_effect = Exception("Unexpected error")
 
         with (
-            patch("backend.vectordbs.utils.embeddings.create_session_factory", return_value=mock_session_factory),
-            patch("backend.vectordbs.utils.embeddings.LLMProviderFactory", return_value=mock_factory),
+            patch("vectordbs.utils.embeddings.create_session_factory", return_value=mock_session_factory),
+            patch("vectordbs.utils.embeddings.LLMProviderFactory", return_value=mock_factory),
             pytest.raises(Exception, match="Unexpected error"),
         ):
             get_embeddings_for_vector_store("test query", mock_settings)
@@ -199,11 +207,12 @@ class TestGetEmbeddingsForVectorStore:
         # Verify session was still closed even on error
         mock_db_session.close.assert_called_once()
 
+    @pytest.mark.unit
     def test_session_lifecycle_management(self, mock_settings, mock_session_factory, mock_factory, mock_db_session):
         """Test proper session creation and cleanup."""
         with (
-            patch("backend.vectordbs.utils.embeddings.create_session_factory", return_value=mock_session_factory),
-            patch("backend.vectordbs.utils.embeddings.LLMProviderFactory", return_value=mock_factory),
+            patch("vectordbs.utils.embeddings.create_session_factory", return_value=mock_session_factory),
+            patch("vectordbs.utils.embeddings.LLMProviderFactory", return_value=mock_factory),
         ):
             get_embeddings_for_vector_store("test query", mock_settings)
 
@@ -213,11 +222,12 @@ class TestGetEmbeddingsForVectorStore:
             # Verify session was closed (cleanup)
             mock_db_session.close.assert_called_once()
 
+    @pytest.mark.unit
     def test_factory_initialization_with_correct_parameters(self, mock_settings, mock_session_factory, mock_db_session):
         """Test that LLMProviderFactory is initialized with correct parameters."""
         with (
-            patch("backend.vectordbs.utils.embeddings.create_session_factory", return_value=mock_session_factory),
-            patch("backend.vectordbs.utils.embeddings.LLMProviderFactory") as factory_class_mock,
+            patch("vectordbs.utils.embeddings.create_session_factory", return_value=mock_session_factory),
+            patch("vectordbs.utils.embeddings.LLMProviderFactory") as factory_class_mock,
         ):
             # Configure mock factory instance
             factory_instance = Mock()
@@ -229,11 +239,12 @@ class TestGetEmbeddingsForVectorStore:
             # Verify factory was initialized with correct parameters
             factory_class_mock.assert_called_once_with(mock_db_session, mock_settings)
 
+    @pytest.mark.unit
     def test_empty_text_handling(self, mock_settings, mock_session_factory, mock_factory, mock_db_session):
         """Test handling of empty text input."""
         with (
-            patch("backend.vectordbs.utils.embeddings.create_session_factory", return_value=mock_session_factory),
-            patch("backend.vectordbs.utils.embeddings.LLMProviderFactory", return_value=mock_factory),
+            patch("vectordbs.utils.embeddings.create_session_factory", return_value=mock_session_factory),
+            patch("vectordbs.utils.embeddings.LLMProviderFactory", return_value=mock_factory),
         ):
             result = get_embeddings_for_vector_store("", mock_settings)
 
@@ -246,11 +257,12 @@ class TestGetEmbeddingsForVectorStore:
             # Verify session was closed
             mock_db_session.close.assert_called_once()
 
+    @pytest.mark.unit
     def test_empty_list_handling(self, mock_settings, mock_session_factory, mock_factory, mock_db_session):
         """Test handling of empty list input."""
         with (
-            patch("backend.vectordbs.utils.embeddings.create_session_factory", return_value=mock_session_factory),
-            patch("backend.vectordbs.utils.embeddings.LLMProviderFactory", return_value=mock_factory),
+            patch("vectordbs.utils.embeddings.create_session_factory", return_value=mock_session_factory),
+            patch("vectordbs.utils.embeddings.LLMProviderFactory", return_value=mock_factory),
         ):
             result = get_embeddings_for_vector_store([], mock_settings)
 
