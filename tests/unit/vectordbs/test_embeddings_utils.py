@@ -213,9 +213,7 @@ class TestGetEmbeddingsForVectorStore:
             # Verify session was closed (cleanup)
             mock_db_session.close.assert_called_once()
 
-    def test_factory_initialization_with_correct_parameters(
-        self, mock_settings, mock_session_factory, mock_db_session
-    ):
+    def test_factory_initialization_with_correct_parameters(self, mock_settings, mock_session_factory, mock_db_session):
         """Test that LLMProviderFactory is initialized with correct parameters."""
         with (
             patch("backend.vectordbs.utils.embeddings.create_session_factory", return_value=mock_session_factory),
