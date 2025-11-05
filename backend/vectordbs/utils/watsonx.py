@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import os
 from collections.abc import Generator
 from functools import lru_cache
 from typing import Any
@@ -117,8 +118,9 @@ def get_wx_embeddings_client(settings: Settings, embed_params: dict | None = Non
         wx_Embeddings: Configured WatsonX embeddings client
     """
     if embed_params is None:
-        # TESTING: Removed TRUNCATE_INPUT_TOKENS to use WatsonX defaults
-        # Previous: TRUNCATE_INPUT_TOKENS: 3 caused wrong chunk retrieval
+        # Use WatsonX intelligent default token limits instead of aggressive truncation
+        # Previous: TRUNCATE_INPUT_TOKENS: 3 destroyed semantic meaning (12 tokens → 3 tokens)
+        # Result: Wrong embeddings and incorrect chunk retrieval in RAG search
         embed_params = {
             EmbedParams.RETURN_OPTIONS: {"input_text": True},
         }
@@ -218,8 +220,9 @@ def get_embeddings(
     if isinstance(texts, str):
         texts = [texts]
 
-    # COMPREHENSIVE DEBUG LOGGING - Log embedding generation details
-    _log_embedding_generation(texts, settings, "BEFORE")
+    # Optional debug logging - enable with RAG_DEBUG_EMBEDDINGS=1
+    if os.getenv("RAG_DEBUG_EMBEDDINGS", "0") == "1":
+        _log_embedding_generation(texts, settings, "BEFORE")
 
     try:
         # WatsonX embed_documents returns list[list[float]] but mypy sees it as Any
@@ -228,8 +231,9 @@ def get_embeddings(
         # Explicitly type the result as EmbeddingsList
         result: EmbeddingsList = embedding_vectors
 
-        # COMPREHENSIVE DEBUG LOGGING - Log generated embeddings
-        _log_embedding_generation(texts, settings, "AFTER", result)
+        # Optional debug logging - enable with RAG_DEBUG_EMBEDDINGS=1
+        if os.getenv("RAG_DEBUG_EMBEDDINGS", "0") == "1":
+            _log_embedding_generation(texts, settings, "AFTER", result)
 
         return result
     except Exception as e:
