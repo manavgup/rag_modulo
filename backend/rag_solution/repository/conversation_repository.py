@@ -358,12 +358,25 @@ class ConversationRepository:
             RepositoryError: For other database errors
         """
         try:
+            # Convert MessageMetadata Pydantic object to dictionary for database storage
+            metadata_dict: dict[str, Any] = {}
+            if message_input.metadata:
+                if isinstance(message_input.metadata, dict):
+                    # Already a dictionary, use it directly
+                    metadata_dict = message_input.metadata
+                else:
+                    # Pydantic model - try model_dump (v2) first, fall back to dict() (v1)
+                    try:
+                        metadata_dict = message_input.metadata.model_dump()
+                    except AttributeError:
+                        metadata_dict = dict(message_input.metadata)
+            
             message = ConversationMessage(
                 session_id=message_input.session_id,
                 role=message_input.role,
                 message_type=message_input.message_type,
                 content=message_input.content,
-                message_metadata=message_input.metadata or {},
+                message_metadata=metadata_dict,
                 token_count=message_input.token_count,
                 execution_time=message_input.execution_time,
             )
