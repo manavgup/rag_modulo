@@ -31,9 +31,21 @@ class TestConversationServiceSimple:
         return get_settings()
 
     @pytest.fixture
-    def service(self, mock_db: Mock, mock_settings: Settings) -> ConversationService:
-        """Create ConversationService instance."""
-        return ConversationService(mock_db, mock_settings)
+    def mock_conversation_repository(self) -> Mock:
+        """Create a mock conversation repository."""
+        return Mock()
+
+    @pytest.fixture
+    def mock_question_service(self) -> Mock:
+        """Create a mock question service."""
+        return Mock()
+
+    @pytest.fixture
+    def service(
+        self, mock_db: Mock, mock_settings: Settings, mock_conversation_repository: Mock, mock_question_service: Mock
+    ) -> ConversationService:
+        """Create ConversationService instance with injected dependencies."""
+        return ConversationService(mock_db, mock_settings, mock_conversation_repository, mock_question_service)
 
     def test_service_initialization(self, service: ConversationService) -> None:
         """Test service initializes correctly."""

@@ -188,24 +188,32 @@ class TestConversationSessionModelsTDD:
     def test_conversation_context_creation(self) -> None:
         """Test creating a conversation context with valid data."""
         # Arrange
+        from rag_solution.schemas.conversation_schema import ContextMetadata
+        
         session_id = uuid4()
         context_window = "Previous conversation about machine learning..."
         relevant_documents = ["doc1", "doc2", "doc3"]
-        context_metadata = {"topic": "machine_learning", "confidence": 0.9, "last_updated": datetime.now().isoformat()}
+        context_metadata = ContextMetadata(
+            extracted_entities=["machine_learning"],
+            conversation_topics=["machine_learning"],
+            message_count=5,
+            context_length=len(context_window),
+        )
 
         # Act
         context = ConversationContext(
             session_id=session_id,
             context_window=context_window,
             relevant_documents=relevant_documents,
-            context_metadata=context_metadata,
+            metadata=context_metadata,
         )
 
         # Assert
         assert context.session_id == session_id
         assert context.context_window == context_window
         assert context.relevant_documents == relevant_documents
-        assert context.context_metadata == context_metadata
+        assert isinstance(context.metadata, ContextMetadata)
+        assert "machine_learning" in context.metadata.conversation_topics
 
     def test_session_status_enum_values(self) -> None:
         """Test that session status enum has correct values."""

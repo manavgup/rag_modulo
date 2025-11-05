@@ -12,9 +12,7 @@ from sqlalchemy.orm import Session
 
 from core.config import Settings
 from rag_solution.core.exceptions import NotFoundError, ValidationError
-from rag_solution.repository.conversation_message_repository import ConversationMessageRepository
-from rag_solution.repository.conversation_session_repository import ConversationSessionRepository
-from rag_solution.repository.conversation_summary_repository import ConversationSummaryRepository
+from rag_solution.repository.conversation_repository import ConversationRepository
 from rag_solution.schemas.conversation_schema import (
     ContextSummarizationInput,
     ContextSummarizationOutput,
@@ -34,36 +32,28 @@ logger = logging.getLogger(__name__)
 class ConversationSummarizationService:
     """Service for handling conversation summarization and context management."""
 
-    def __init__(self, db: Session, settings: Settings):
+    def __init__(
+        self,
+        db: Session,
+        settings: Settings,
+        conversation_repository: ConversationRepository,
+        llm_provider_service: LLMProviderService,
+        token_tracking_service: TokenTrackingService,
+    ):
         """Initialize the conversation summarization service.
 
         Args:
             db: Database session
             settings: Application settings
+            conversation_repository: Unified conversation repository
+            llm_provider_service: LLM provider service
+            token_tracking_service: Token tracking service
         """
         self.db = db
         self.settings = settings
-        self._llm_provider_service: LLMProviderService | None = None
-        self._token_tracking_service: TokenTrackingService | None = None
-
-        # Initialize repositories
-        self.summary_repository = ConversationSummaryRepository(db)
-        self.session_repository = ConversationSessionRepository(db)
-        self.message_repository = ConversationMessageRepository(db)
-
-    @property
-    def llm_provider_service(self) -> LLMProviderService:
-        """Get LLM provider service instance."""
-        if self._llm_provider_service is None:
-            self._llm_provider_service = LLMProviderService(self.db)
-        return self._llm_provider_service
-
-    @property
-    def token_tracking_service(self) -> TokenTrackingService:
-        """Get token tracking service instance."""
-        if self._token_tracking_service is None:
-            self._token_tracking_service = TokenTrackingService(self.db, self.settings)
-        return self._token_tracking_service
+        self.repository = conversation_repository
+        self.llm_provider_service = llm_provider_service
+        self.token_tracking_service = token_tracking_service
 
     async def create_summary(
         self, summary_input: ConversationSummaryInput, user_id: UUID4
@@ -83,12 +73,12 @@ class ConversationSummarizationService:
         """
         try:
             # Validate session exists and user has access
-            session = self.session_repository.get_by_id(summary_input.session_id)
+            session = self.repository.get_session_by_id(summary_input.session_id)
             if session.user_id != user_id:
                 raise ValidationError("User does not have access to this session")
 
             # Get messages to summarize
-            messages = self.message_repository.get_messages_by_session(
+            messages = self.repository.get_messages_by_session(
                 summary_input.session_id, limit=summary_input.message_count_to_summarize
             )
 
@@ -96,7 +86,7 @@ class ConversationSummarizationService:
                 raise ValidationError("No messages found to summarize")
 
             # Create initial summary record
-            summary = self.summary_repository.create(summary_input)
+            summary = self.repository.create_summary(summary_input)
 
             # Generate summary text using LLM
             summary_text, metadata = await self._generate_summary_content(messages, summary_input, user_id)
@@ -111,7 +101,7 @@ class ConversationSummarizationService:
                 "summary_metadata": metadata,
             }
 
-            updated_summary = self.summary_repository.update(summary.id, updates)
+            updated_summary = self.repository.update_summary(summary.id, updates)
 
             logger.info(f"Created conversation summary: {updated_summary.id}")
             return updated_summary
@@ -180,7 +170,7 @@ class ConversationSummarizationService:
             )
 
             # Get user_id from session
-            session = self.session_repository.get_by_id(summarization_input.session_id)
+            session = self.repository.get_session_by_id(summarization_input.session_id)
             user_id = session.user_id
 
             # Generate summary
@@ -240,11 +230,11 @@ class ConversationSummarizationService:
         """
         try:
             # Validate session exists and user has access
-            session = self.session_repository.get_by_id(session_id)
+            session = self.repository.get_session_by_id(session_id)
             if session.user_id != user_id:
                 raise ValidationError("User does not have access to this session")
 
-            return self.summary_repository.get_by_session_id(session_id, limit=limit)
+            return self.repository.get_summaries_by_session(session_id, limit=limit)
 
         except (NotFoundError, ValidationError):
             raise
@@ -263,8 +253,8 @@ class ConversationSummarizationService:
             True if summarization is recommended
         """
         try:
-            session = self.session_repository.get_by_id(session_id)
-            messages = self.message_repository.get_messages_by_session(session_id, limit=100)
+            session = self.repository.get_session_by_id(session_id)
+            messages = self.repository.get_messages_by_session(session_id, limit=100)
 
             if len(messages) < config.min_messages_for_summary:
                 return False

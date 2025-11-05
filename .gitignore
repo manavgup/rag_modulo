@@ -98,3 +98,22 @@ backend/.env.backup
 # Ignore linting progress tracking files
 .linting-progress.json
 backend/env_dump.txt
+
+# Claude Code user-specific files
+.claude/settings.json
+.claude-flow/
+
+# Tool state directories
+.dev-pids/
+.hive-mind/
+.mcp.json
+.playwright-mcp/
+.serena/
+.swarm/
+memory/
+review/
+claude-flow
+uv.lock
+
+# Archive directories
+archive/

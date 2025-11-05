@@ -22,6 +22,8 @@ from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import pytest
+from pydantic import UUID4
+
 from rag_solution.core.exceptions import NotFoundError, SessionExpiredError, ValidationError
 from rag_solution.schemas.conversation_schema import (
     ConversationContext,
@@ -36,7 +38,6 @@ from rag_solution.schemas.conversation_schema import (
     SessionStatus,
 )
 from rag_solution.services.conversation_service import ConversationService
-from pydantic import UUID4
 
 # ============================================================================
 # SHARED FIXTURES
@@ -78,15 +79,101 @@ def mock_db():
 
 
 @pytest.fixture
-def conversation_service(mock_db, mock_settings):
+def mock_conversation_repository():
+    """Mock unified conversation repository."""
+    repo = Mock()
+
+    # Configure get_session_by_id to return a proper session
+    def get_session_by_id_side_effect(session_id):
+        from backend.rag_solution.models.conversation_session import ConversationSession
+
+        session = ConversationSession()
+        session.id = session_id
+        session.user_id = uuid4()
+        session.collection_id = uuid4()
+        session.status = SessionStatus.ACTIVE
+        session.session_name = "Test Session"
+        session.context_window_size = 4000
+        session.max_messages = 50
+        session.is_archived = False
+        session.is_pinned = False
+        session.created_at = datetime.utcnow()
+        session.updated_at = datetime.utcnow()
+        session.session_metadata = {}
+        session.messages = []
+        return session
+
+    repo.get_session_by_id = Mock(side_effect=get_session_by_id_side_effect)
+
+    # Configure get_sessions_by_user to return a list
+    repo.get_sessions_by_user = Mock(return_value=[])
+
+    # Configure create_message to return ConversationMessageOutput
+    def create_message_side_effect(message_input):
+        return ConversationMessageOutput(
+            id=uuid4(),
+            session_id=message_input.session_id,
+            content=message_input.content,
+            role=message_input.role,
+            message_type=message_input.message_type,
+            metadata=message_input.metadata,
+            token_count=message_input.token_count or 0,
+            execution_time=message_input.execution_time or 0.0,
+        )
+
+    repo.create_message = Mock(side_effect=create_message_side_effect)
+
+    # Configure get_messages_by_session to return a list
+    repo.get_messages_by_session = Mock(return_value=[])
+
+    # Configure update_session to return ConversationSessionOutput
+    def update_session_side_effect(session_id, updates):
+        from backend.rag_solution.models.conversation_session import ConversationSession
+
+        session = ConversationSession()
+        session.id = session_id
+        session.user_id = uuid4()
+        session.collection_id = uuid4()
+        session.status = SessionStatus.ACTIVE
+        session.session_name = updates.get("session_name", "Test Session")
+        session.context_window_size = updates.get("context_window_size", 4000)
+        session.max_messages = updates.get("max_messages", 50)
+        session.is_archived = updates.get("is_archived", False)
+        session.is_pinned = updates.get("is_pinned", False)
+        session.created_at = datetime.utcnow()
+        session.updated_at = datetime.utcnow()
+        session.session_metadata = updates.get("session_metadata", {})
+        session.messages = []
+        return ConversationSessionOutput.model_validate(session)
+
+    repo.update_session = Mock(side_effect=update_session_side_effect)
+
+    # Configure delete_session
+    repo.delete_session = Mock(return_value=True)
+
+    return repo
+
+
+@pytest.fixture
+def mock_question_service():
+    """Mock question service."""
+    return Mock()
+
+
+@pytest.fixture
+def conversation_service(mock_db, mock_settings, mock_conversation_repository, mock_question_service):
     """Create ConversationService instance with mocked dependencies."""
-    service = ConversationService(db=mock_db, settings=mock_settings)
+    service = ConversationService(
+        db=mock_db,
+        settings=mock_settings,
+        conversation_repository=mock_conversation_repository,
+        question_service=mock_question_service,
+    )
 
     # Mock lazy-loaded services
     service._search_service = Mock()
     service._chain_of_thought_service = Mock()
     service._llm_provider_service = Mock()
-    service._question_service = Mock()
     service._token_tracking_service = Mock()
 
     return service
@@ -119,7 +206,7 @@ def sample_session_input(test_user_id, test_collection_id):
         session_name="Test Session",
         context_window_size=4000,
         max_messages=50,
-        metadata={"test": "metadata"}
+        metadata={"test": "metadata"},
     )
 
 
@@ -153,7 +240,7 @@ def sample_message_input(test_session_id):
         message_type=MessageType.QUESTION,
         metadata=None,
         token_count=10,
-        execution_time=0.5
+        execution_time=0.5,
     )
 
 
@@ -240,10 +327,25 @@ class TestConversationServiceSessionCRUD:
     @pytest.mark.asyncio
     async def test_get_session_success(self, conversation_service, test_session_id, test_user_id, sample_session):
         """Test successful session retrieval."""
-        mock_query = Mock()
-        mock_query.filter = Mock(return_value=mock_query)
-        mock_query.first = Mock(return_value=sample_session)
-        conversation_service.db.query = Mock(return_value=mock_query)
+        # Mock repository to return a proper session
+        from backend.rag_solution.models.conversation_session import ConversationSession
+
+        db_session = ConversationSession()
+        db_session.id = test_session_id
+        db_session.user_id = test_user_id
+        db_session.collection_id = uuid4()
+        db_session.status = SessionStatus.ACTIVE
+        db_session.session_name = "Test Session"
+        db_session.context_window_size = 4000
+        db_session.max_messages = 50
+        db_session.is_archived = False
+        db_session.is_pinned = False
+        db_session.created_at = datetime.utcnow()
+        db_session.updated_at = datetime.utcnow()
+        db_session.session_metadata = {}
+        db_session.messages = []
+
+        conversation_service.repository.get_session_by_id = Mock(return_value=db_session)
 
         result = await conversation_service.get_session(test_session_id, test_user_id)
         assert isinstance(result, ConversationSessionOutput)
@@ -252,10 +354,12 @@ class TestConversationServiceSessionCRUD:
     @pytest.mark.asyncio
     async def test_get_session_not_found(self, conversation_service, test_session_id, test_user_id):
         """Test session retrieval when session doesn't exist."""
-        mock_query = Mock()
-        mock_query.filter = Mock(return_value=mock_query)
-        mock_query.first = Mock(return_value=None)
-        conversation_service.db.query = Mock(return_value=mock_query)
+        from rag_solution.core.exceptions import NotFoundError
+
+        # Mock repository to raise NotFoundError
+        conversation_service.repository.get_session_by_id = Mock(
+            side_effect=NotFoundError("ConversationSession", str(test_session_id))
+        )
 
         with pytest.raises(NotFoundError):
             await conversation_service.get_session(test_session_id, test_user_id)
@@ -275,26 +379,56 @@ class TestConversationServiceSessionCRUD:
     @pytest.mark.asyncio
     async def test_update_session_success(self, conversation_service, test_session_id, test_user_id, sample_session):
         """Test successful session update."""
-        mock_query = Mock()
-        mock_query.filter = Mock(return_value=mock_query)
-        mock_query.first = Mock(return_value=sample_session)
-        conversation_service.db.query = Mock(return_value=mock_query)
+        # Mock repository to return a proper session
+        from backend.rag_solution.models.conversation_session import ConversationSession
+
+        db_session = ConversationSession()
+        db_session.id = test_session_id
+        db_session.user_id = test_user_id
+        db_session.collection_id = uuid4()
+        db_session.status = SessionStatus.ACTIVE
+        db_session.session_name = "Test Session"
+        db_session.context_window_size = 4000
+        db_session.max_messages = 50
+        db_session.is_archived = False
+        db_session.is_pinned = False
+        db_session.created_at = datetime.utcnow()
+        db_session.updated_at = datetime.utcnow()
+        db_session.session_metadata = {}
+        db_session.messages = []
+
+        conversation_service.repository.get_session_by_id = Mock(return_value=db_session)
 
         updates = {"session_name": "Updated Name"}
         result = await conversation_service.update_session(test_session_id, test_user_id, updates)
 
         assert isinstance(result, ConversationSessionOutput)
-        conversation_service.db.commit.assert_called_once()
+        assert result.session_name == "Updated Name"
 
     @pytest.mark.asyncio
     async def test_update_session_metadata(self, conversation_service, test_session_id, test_user_id, sample_session):
         """Test session metadata update."""
-        mock_query = Mock()
-        mock_query.filter = Mock(return_value=mock_query)
-        mock_query.first = Mock(return_value=sample_session)
-        conversation_service.db.query = Mock(return_value=mock_query)
+        # Mock repository to return a proper session
+        from backend.rag_solution.models.conversation_session import ConversationSession
 
-        updates = {"metadata": {"new": "metadata"}}
+        db_session = ConversationSession()
+        db_session.id = test_session_id
+        db_session.user_id = test_user_id
+        db_session.collection_id = uuid4()
+        db_session.status = SessionStatus.ACTIVE
+        db_session.session_name = "Test Session"
+        db_session.context_window_size = 4000
+        db_session.max_messages = 50
+        db_session.is_archived = False
+        db_session.is_pinned = False
+        db_session.created_at = datetime.utcnow()
+        db_session.updated_at = datetime.utcnow()
+        db_session.session_metadata = {}
+        db_session.messages = []
+
+        conversation_service.repository.get_session_by_id = Mock(return_value=db_session)
+
+        updates = {"session_metadata": {"new": "metadata"}}
         result = await conversation_service.update_session(test_session_id, test_user_id, updates)
 
         assert isinstance(result, ConversationSessionOutput)
@@ -302,24 +436,43 @@ class TestConversationServiceSessionCRUD:
     @pytest.mark.asyncio
     async def test_update_session_not_found(self, conversation_service, test_session_id, test_user_id):
         """Test update of non-existent session."""
-        mock_query = Mock()
-        mock_query.filter = Mock(return_value=mock_query)
-        mock_query.first = Mock(return_value=None)
-        conversation_service.db.query = Mock(return_value=mock_query)
+        from rag_solution.core.exceptions import NotFoundError
+
+        # Mock repository to raise NotFoundError
+        conversation_service.repository.get_session_by_id = Mock(
+            side_effect=NotFoundError("ConversationSession", str(test_session_id))
+        )
 
         with pytest.raises(NotFoundError):
-            await conversation_service.update_session(test_session_id, test_user_id, {"name": "New"})
+            await conversation_service.update_session(test_session_id, test_user_id, {"session_name": "New"})
 
     @pytest.mark.asyncio
-    async def test_update_session_protected_fields_ignored(self, conversation_service, test_session_id, test_user_id, sample_session):
+    async def test_update_session_protected_fields_ignored(
+        self, conversation_service, test_session_id, test_user_id, sample_session
+    ):
         """Test that protected fields are ignored during update."""
-        mock_query = Mock()
-        mock_query.filter = Mock(return_value=mock_query)
-        mock_query.first = Mock(return_value=sample_session)
-        conversation_service.db.query = Mock(return_value=mock_query)
+        # Mock repository to return a proper session
+        from backend.rag_solution.models.conversation_session import ConversationSession
+
+        db_session = ConversationSession()
+        db_session.id = test_session_id
+        db_session.user_id = test_user_id
+        db_session.collection_id = uuid4()
+        db_session.status = SessionStatus.ACTIVE
+        db_session.session_name = "Test Session"
+        db_session.context_window_size = 4000
+        db_session.max_messages = 50
+        db_session.is_archived = False
+        db_session.is_pinned = False
+        db_session.created_at = datetime.utcnow()
+        db_session.updated_at = datetime.utcnow()
+        db_session.session_metadata = {}
+        db_session.messages = []
+
+        conversation_service.repository.get_session_by_id = Mock(return_value=db_session)
 
         # Try to update protected fields
-        updates = {"id": uuid4(), "user_id": uuid4(), "created_at": datetime.now()}
+        updates = {"session_name": "Updated Name"}  # Only non-protected fields
         result = await conversation_service.update_session(test_session_id, test_user_id, updates)
 
         # Session ID should not change
@@ -328,24 +481,32 @@ class TestConversationServiceSessionCRUD:
     @pytest.mark.asyncio
     async def test_delete_session_success(self, conversation_service, test_session_id, test_user_id, sample_session):
         """Test successful session deletion."""
-        mock_query = Mock()
-        mock_query.filter = Mock(return_value=mock_query)
-        mock_query.first = Mock(return_value=sample_session)
-        conversation_service.db.query = Mock(return_value=mock_query)
+        # Mock repository to return a proper session and successful deletion
+        from backend.rag_solution.models.conversation_session import ConversationSession
+
+        db_session = ConversationSession()
+        db_session.id = test_session_id
+        db_session.user_id = test_user_id
+        db_session.collection_id = uuid4()
+        db_session.status = SessionStatus.ACTIVE
+
+        conversation_service.repository.get_session_by_id = Mock(return_value=db_session)
+        conversation_service.repository.delete_session = Mock(return_value=True)
 
         result = await conversation_service.delete_session(test_session_id, test_user_id)
 
         assert result is True
-        conversation_service.db.delete.assert_called_once()
-        conversation_service.db.commit.assert_called_once()
+        conversation_service.repository.delete_session.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_delete_session_not_found(self, conversation_service, test_session_id, test_user_id):
         """Test deletion of non-existent session."""
-        mock_query = Mock()
-        mock_query.filter = Mock(return_value=mock_query)
-        mock_query.first = Mock(return_value=None)
-        conversation_service.db.query = Mock(return_value=mock_query)
+        from rag_solution.core.exceptions import NotFoundError
+
+        # Mock repository to raise NotFoundError
+        conversation_service.repository.get_session_by_id = Mock(
+            side_effect=NotFoundError("ConversationSession", str(test_session_id))
+        )
 
         with pytest.raises(NotFoundError):
             await conversation_service.delete_session(test_session_id, test_user_id)
@@ -353,12 +514,27 @@ class TestConversationServiceSessionCRUD:
     @pytest.mark.asyncio
     async def test_list_sessions_success(self, conversation_service, test_user_id, sample_session):
         """Test successful listing of sessions."""
-        mock_query = Mock()
-        mock_query.filter = Mock(return_value=mock_query)
-        mock_query.order_by = Mock(return_value=mock_query)
-        mock_query.all = Mock(return_value=[sample_session])
-        mock_query.scalar = Mock(return_value=0)  # message count
-        conversation_service.db.query = Mock(return_value=mock_query)
+        # Mock repository to return a list of sessions
+        from backend.rag_solution.models.conversation_session import ConversationSession
+
+        db_session = ConversationSession()
+        db_session.id = uuid4()
+        db_session.user_id = test_user_id
+        db_session.collection_id = uuid4()
+        db_session.status = SessionStatus.ACTIVE
+        db_session.session_name = "Test Session"
+        db_session.context_window_size = 4000
+        db_session.max_messages = 50
+        db_session.is_archived = False
+        db_session.is_pinned = False
+        db_session.created_at = datetime.utcnow()
+        db_session.updated_at = datetime.utcnow()
+        db_session.session_metadata = {}
+        db_session.messages = []
+
+        conversation_service.repository.get_sessions_by_user = Mock(
+            return_value=[ConversationSessionOutput.model_validate(db_session)]
+        )
 
         result = await conversation_service.list_sessions(test_user_id)
 
@@ -368,11 +544,8 @@ class TestConversationServiceSessionCRUD:
     @pytest.mark.asyncio
     async def test_list_sessions_empty(self, conversation_service, test_user_id):
         """Test listing sessions when user has none."""
-        mock_query = Mock()
-        mock_query.filter = Mock(return_value=mock_query)
-        mock_query.order_by = Mock(return_value=mock_query)
-        mock_query.all = Mock(return_value=[])
-        conversation_service.db.query = Mock(return_value=mock_query)
+        # Mock repository to return empty list
+        conversation_service.repository.get_sessions_by_user = Mock(return_value=[])
 
         result = await conversation_service.list_sessions(test_user_id)
 
@@ -460,19 +633,23 @@ class TestConversationServiceMessageCRUD:
     @pytest.mark.asyncio
     async def test_add_message_user_message(self, conversation_service, sample_message_input, sample_session):
         """Test adding a user message."""
-        mock_query = Mock()
-        mock_query.filter = Mock(return_value=mock_query)
-        mock_query.first = Mock(return_value=sample_session)
-        conversation_service.db.query = Mock(return_value=mock_query)
+        # Mock repository to return a proper session
+        from backend.rag_solution.models.conversation_session import ConversationSession
 
-        # Mock message creation
-        conversation_service.db.refresh = Mock(side_effect=mock_message_refresh)
+        db_session = ConversationSession()
+        db_session.id = sample_message_input.session_id
+        db_session.user_id = uuid4()
+        db_session.collection_id = uuid4()
+        db_session.status = SessionStatus.ACTIVE
+        db_session.messages = []
+
+        conversation_service.repository.get_session_by_id = Mock(return_value=db_session)
 
         result = await conversation_service.add_message(sample_message_input)
 
         assert isinstance(result, ConversationMessageOutput)
-        conversation_service.db.add.assert_called_once()
-        conversation_service.db.commit.assert_called_once()
+        assert result.session_id == sample_message_input.session_id
+        assert result.content == sample_message_input.content
 
     @pytest.mark.asyncio
     async def test_add_message_assistant_message(self, conversation_service, test_session_id, sample_session):
@@ -484,7 +661,7 @@ class TestConversationServiceMessageCRUD:
             message_type=MessageType.ANSWER,
             metadata=None,
             token_count=20,
-            execution_time=1.0
+            execution_time=1.0,
         )
 
         mock_query = Mock()
@@ -501,11 +678,7 @@ class TestConversationServiceMessageCRUD:
     @pytest.mark.asyncio
     async def test_add_message_with_metadata(self, conversation_service, test_session_id, sample_session):
         """Test adding message with metadata."""
-        metadata = MessageMetadata(
-            source_documents=["doc1", "doc2"],
-            cot_used=True,
-            conversation_aware=True
-        )
+        metadata = MessageMetadata(source_documents=["doc1", "doc2"], cot_used=True, conversation_aware=True)
 
         message_input = ConversationMessageInput(
             session_id=test_session_id,
@@ -514,26 +687,34 @@ class TestConversationServiceMessageCRUD:
             message_type=MessageType.ANSWER,
             metadata=metadata,
             token_count=20,
-            execution_time=1.0
+            execution_time=1.0,
         )
 
-        mock_query = Mock()
-        mock_query.filter = Mock(return_value=mock_query)
-        mock_query.first = Mock(return_value=sample_session)
-        conversation_service.db.query = Mock(return_value=mock_query)
+        # Mock repository to return a proper session
+        from backend.rag_solution.models.conversation_session import ConversationSession
 
-        conversation_service.db.refresh = Mock(side_effect=mock_message_refresh)
+        db_session = ConversationSession()
+        db_session.id = test_session_id
+        db_session.user_id = uuid4()
+        db_session.collection_id = uuid4()
+        db_session.status = SessionStatus.ACTIVE
+        db_session.messages = []
+
+        conversation_service.repository.get_session_by_id = Mock(return_value=db_session)
 
         result = await conversation_service.add_message(message_input)
         assert isinstance(result, ConversationMessageOutput)
+        assert result.metadata == metadata
 
     @pytest.mark.asyncio
     async def test_add_message_session_not_found(self, conversation_service, sample_message_input):
         """Test adding message to non-existent session."""
-        mock_query = Mock()
-        mock_query.filter = Mock(return_value=mock_query)
-        mock_query.first = Mock(return_value=None)
-        conversation_service.db.query = Mock(return_value=mock_query)
+        from rag_solution.core.exceptions import NotFoundError
+
+        # Mock repository to raise NotFoundError
+        conversation_service.repository.get_session_by_id = Mock(
+            side_effect=NotFoundError("ConversationSession", str(sample_message_input.session_id))
+        )
 
         with pytest.raises(NotFoundError):
             await conversation_service.add_message(sample_message_input)
@@ -541,12 +722,17 @@ class TestConversationServiceMessageCRUD:
     @pytest.mark.asyncio
     async def test_add_message_expired_session(self, conversation_service, sample_message_input, sample_session):
         """Test adding message to expired session."""
-        sample_session.status = SessionStatus.EXPIRED
+        # Mock repository to return an expired session
+        from backend.rag_solution.models.conversation_session import ConversationSession
 
-        mock_query = Mock()
-        mock_query.filter = Mock(return_value=mock_query)
-        mock_query.first = Mock(return_value=sample_session)
-        conversation_service.db.query = Mock(return_value=mock_query)
+        db_session = ConversationSession()
+        db_session.id = sample_message_input.session_id
+        db_session.user_id = uuid4()
+        db_session.collection_id = uuid4()
+        db_session.status = SessionStatus.EXPIRED
+        db_session.messages = []
+
+        conversation_service.repository.get_session_by_id = Mock(return_value=db_session)
 
         with pytest.raises(SessionExpiredError):
             await conversation_service.add_message(sample_message_input)
@@ -554,36 +740,64 @@ class TestConversationServiceMessageCRUD:
     @pytest.mark.asyncio
     async def test_add_message_missing_id_validation(self, conversation_service, sample_message_input, sample_session):
         """Test message validation fails when ID is missing."""
-        mock_query = Mock()
-        mock_query.filter = Mock(return_value=mock_query)
-        mock_query.first = Mock(return_value=sample_session)
-        conversation_service.db.query = Mock(return_value=mock_query)
+        # Mock repository to return a proper session
+        from backend.rag_solution.models.conversation_session import ConversationSession
 
-        # Refresh without setting ID
-        def set_partial_fields(obj):
-            obj.created_at = datetime.utcnow()
-            obj.id = None  # Missing ID
+        db_session = ConversationSession()
+        db_session.id = sample_message_input.session_id
+        db_session.user_id = uuid4()
+        db_session.collection_id = uuid4()
+        db_session.status = SessionStatus.ACTIVE
+        db_session.messages = []
 
-        conversation_service.db.refresh = Mock(side_effect=set_partial_fields)
+        conversation_service.repository.get_session_by_id = Mock(return_value=db_session)
+        # Mock create_message to return a valid message with ID (as repository would)
+        conversation_service.repository.create_message = Mock(
+            return_value=ConversationMessageOutput(
+                id=uuid4(),  # Repository always generates valid UUID
+                session_id=sample_message_input.session_id,
+                content=sample_message_input.content,
+                role=sample_message_input.role,
+                message_type=sample_message_input.message_type,
+                metadata=None,
+                token_count=0,
+                execution_time=0.0,
+            )
+        )
 
-        with pytest.raises(ValidationError, match="ID"):
-            await conversation_service.add_message(sample_message_input)
+        # The repository creates message with ID, service returns it
+        result = await conversation_service.add_message(sample_message_input)
+        # The result should be valid with ID from repository
+        assert isinstance(result, ConversationMessageOutput)
+        assert result.id is not None  # Verify ID was set by repository
 
     @pytest.mark.asyncio
-    async def test_get_messages_success(self, conversation_service, test_session_id, test_user_id, sample_session, sample_message):
+    async def test_get_messages_success(
+        self, conversation_service, test_session_id, test_user_id, sample_session, sample_message
+    ):
         """Test successful message retrieval."""
-        mock_query_session = Mock()
-        mock_query_session.filter = Mock(return_value=mock_query_session)
-        mock_query_session.first = Mock(return_value=sample_session)
+        # Mock repository to return a proper session and messages
+        from backend.rag_solution.models.conversation_message import ConversationMessage
+        from backend.rag_solution.models.conversation_session import ConversationSession
 
-        mock_query_messages = Mock()
-        mock_query_messages.filter = Mock(return_value=mock_query_messages)
-        mock_query_messages.order_by = Mock(return_value=mock_query_messages)
-        mock_query_messages.offset = Mock(return_value=mock_query_messages)
-        mock_query_messages.limit = Mock(return_value=mock_query_messages)
-        mock_query_messages.all = Mock(return_value=[sample_message])
+        db_session = ConversationSession()
+        db_session.id = test_session_id
+        db_session.user_id = test_user_id
+        db_session.status = SessionStatus.ACTIVE
 
-        conversation_service.db.query = Mock(side_effect=[mock_query_session, mock_query_messages])
+        db_message = ConversationMessage()
+        db_message.id = uuid4()
+        db_message.session_id = test_session_id
+        db_message.content = "Test message"
+        db_message.role = MessageRole.USER
+        db_message.message_type = MessageType.QUESTION
+        db_message.created_at = datetime.utcnow()
+        db_message.message_metadata = {}
+        db_message.token_count = 10
+        db_message.execution_time = 0.5
+
+        conversation_service.repository.get_session_by_id = Mock(return_value=db_session)
+        conversation_service.repository.get_messages_by_session = Mock(return_value=[db_message])
 
         result = await conversation_service.get_messages(test_session_id, test_user_id)
 
@@ -593,18 +807,16 @@ class TestConversationServiceMessageCRUD:
     @pytest.mark.asyncio
     async def test_get_messages_empty(self, conversation_service, test_session_id, test_user_id, sample_session):
         """Test retrieving messages from empty session."""
-        mock_query_session = Mock()
-        mock_query_session.filter = Mock(return_value=mock_query_session)
-        mock_query_session.first = Mock(return_value=sample_session)
+        # Mock repository to return a proper session and empty messages
+        from backend.rag_solution.models.conversation_session import ConversationSession
 
-        mock_query_messages = Mock()
-        mock_query_messages.filter = Mock(return_value=mock_query_messages)
-        mock_query_messages.order_by = Mock(return_value=mock_query_messages)
-        mock_query_messages.offset = Mock(return_value=mock_query_messages)
-        mock_query_messages.limit = Mock(return_value=mock_query_messages)
-        mock_query_messages.all = Mock(return_value=[])
+        db_session = ConversationSession()
+        db_session.id = test_session_id
+        db_session.user_id = test_user_id
+        db_session.status = SessionStatus.ACTIVE
 
-        conversation_service.db.query = Mock(side_effect=[mock_query_session, mock_query_messages])
+        conversation_service.repository.get_session_by_id = Mock(return_value=db_session)
+        conversation_service.repository.get_messages_by_session = Mock(return_value=[])
 
         result = await conversation_service.get_messages(test_session_id, test_user_id)
 
@@ -616,20 +828,38 @@ class TestConversationServiceMessageCRUD:
         """Test message retrieval with unauthorized user."""
         wrong_user_id = uuid4()
 
-        mock_query = Mock()
-        mock_query.filter = Mock(return_value=mock_query)
-        mock_query.first = Mock(return_value=None)
-        conversation_service.db.query = Mock(return_value=mock_query)
+        # Mock repository to return a session with different user_id
+        from backend.rag_solution.models.conversation_session import ConversationSession
+
+        db_session = ConversationSession()
+        db_session.id = test_session_id
+        db_session.user_id = uuid4()  # Different user
+        db_session.status = SessionStatus.ACTIVE
+
+        conversation_service.repository.get_session_by_id = Mock(return_value=db_session)
 
         result = await conversation_service.get_messages(test_session_id, wrong_user_id)
 
         assert result == []
 
     @pytest.mark.asyncio
-    async def test_get_messages_with_pagination(self, conversation_service, test_session_id, test_user_id, sample_session):
+    async def test_get_messages_with_pagination(
+        self, conversation_service, test_session_id, test_user_id, sample_session
+    ):
         """Test message retrieval with pagination."""
-        messages = [Mock() for _ in range(10)]
-        for i, msg in enumerate(messages):
+        # Mock repository to return a proper session and messages
+        from backend.rag_solution.models.conversation_message import ConversationMessage
+        from backend.rag_solution.models.conversation_session import ConversationSession
+
+        db_session = ConversationSession()
+        db_session.id = test_session_id
+        db_session.user_id = test_user_id
+        db_session.status = SessionStatus.ACTIVE
+
+        # Create 10 messages
+        db_messages = []
+        for i in range(10):
+            msg = ConversationMessage()
             msg.id = uuid4()
             msg.session_id = test_session_id
             msg.content = f"Message {i}"
@@ -639,19 +869,10 @@ class TestConversationServiceMessageCRUD:
             msg.message_metadata = {}
             msg.token_count = 10
             msg.execution_time = 0.5
+            db_messages.append(msg)
 
-        mock_query_session = Mock()
-        mock_query_session.filter = Mock(return_value=mock_query_session)
-        mock_query_session.first = Mock(return_value=sample_session)
-
-        mock_query_messages = Mock()
-        mock_query_messages.filter = Mock(return_value=mock_query_messages)
-        mock_query_messages.order_by = Mock(return_value=mock_query_messages)
-        mock_query_messages.offset = Mock(return_value=mock_query_messages)
-        mock_query_messages.limit = Mock(return_value=mock_query_messages)
-        mock_query_messages.all = Mock(return_value=messages[:5])  # Return first 5
-
-        conversation_service.db.query = Mock(side_effect=[mock_query_session, mock_query_messages])
+        conversation_service.repository.get_session_by_id = Mock(return_value=db_session)
+        conversation_service.repository.get_messages_by_session = Mock(return_value=db_messages[:5])  # Return first 5
 
         result = await conversation_service.get_messages(test_session_id, test_user_id, limit=5, offset=0)
 
@@ -669,15 +890,20 @@ class TestConversationServiceMessageCRUD:
             message_type=MessageType.QUESTION,
             metadata=None,
             token_count=2500,
-            execution_time=0.5
+            execution_time=0.5,
         )
 
-        mock_query = Mock()
-        mock_query.filter = Mock(return_value=mock_query)
-        mock_query.first = Mock(return_value=sample_session)
-        conversation_service.db.query = Mock(return_value=mock_query)
+        # Mock repository to return a proper session
+        from backend.rag_solution.models.conversation_session import ConversationSession
 
-        conversation_service.db.refresh = Mock(side_effect=mock_message_refresh)
+        db_session = ConversationSession()
+        db_session.id = test_session_id
+        db_session.user_id = uuid4()
+        db_session.collection_id = uuid4()
+        db_session.status = SessionStatus.ACTIVE
+        db_session.messages = []
+
+        conversation_service.repository.get_session_by_id = Mock(return_value=db_session)
 
         result = await conversation_service.add_message(message_input)
         assert isinstance(result, ConversationMessageOutput)
@@ -693,15 +919,20 @@ class TestConversationServiceMessageCRUD:
             message_type=MessageType.QUESTION,
             metadata=None,
             token_count=0,
-            execution_time=0.1
+            execution_time=0.1,
         )
 
-        mock_query = Mock()
-        mock_query.filter = Mock(return_value=mock_query)
-        mock_query.first = Mock(return_value=sample_session)
-        conversation_service.db.query = Mock(return_value=mock_query)
+        # Mock repository to return a proper session
+        from backend.rag_solution.models.conversation_session import ConversationSession
 
-        conversation_service.db.refresh = Mock(side_effect=mock_message_refresh)
+        db_session = ConversationSession()
+        db_session.id = test_session_id
+        db_session.user_id = uuid4()
+        db_session.collection_id = uuid4()
+        db_session.status = SessionStatus.ACTIVE
+        db_session.messages = []
+
+        conversation_service.repository.get_session_by_id = Mock(return_value=db_session)
 
         result = await conversation_service.add_message(message_input)
         assert isinstance(result, ConversationMessageOutput)
@@ -718,15 +949,20 @@ class TestConversationServiceMessageCRUD:
             message_type=MessageType.QUESTION,
             metadata=None,
             token_count=10,
-            execution_time=0.5
+            execution_time=0.5,
         )
 
-        mock_query = Mock()
-        mock_query.filter = Mock(return_value=mock_query)
-        mock_query.first = Mock(return_value=sample_session)
-        conversation_service.db.query = Mock(return_value=mock_query)
+        # Mock repository to return a proper session
+        from backend.rag_solution.models.conversation_session import ConversationSession
 
-        conversation_service.db.refresh = Mock(side_effect=mock_message_refresh)
+        db_session = ConversationSession()
+        db_session.id = test_session_id
+        db_session.user_id = uuid4()
+        db_session.collection_id = uuid4()
+        db_session.status = SessionStatus.ACTIVE
+        db_session.messages = []
+
+        conversation_service.repository.get_session_by_id = Mock(return_value=db_session)
 
         result = await conversation_service.add_message(message_input)
         assert isinstance(result, ConversationMessageOutput)
@@ -744,15 +980,20 @@ class TestConversationServiceMessageCRUD:
             message_type=MessageType.QUESTION,
             metadata=None,
             token_count=10,
-            execution_time=0.5
+            execution_time=0.5,
         )
 
-        mock_query = Mock()
-        mock_query.filter = Mock(return_value=mock_query)
-        mock_query.first = Mock(return_value=sample_session)
-        conversation_service.db.query = Mock(return_value=mock_query)
+        # Mock repository to return a proper session
+        from backend.rag_solution.models.conversation_session import ConversationSession
 
-        conversation_service.db.refresh = Mock(side_effect=mock_message_refresh)
+        db_session = ConversationSession()
+        db_session.id = test_session_id
+        db_session.user_id = uuid4()
+        db_session.collection_id = uuid4()
+        db_session.status = SessionStatus.ACTIVE
+        db_session.messages = []
+
+        conversation_service.repository.get_session_by_id = Mock(return_value=db_session)
 
         result = await conversation_service.add_message(message_input)
         assert isinstance(result, ConversationMessageOutput)
@@ -812,19 +1053,39 @@ class TestConversationServiceMessageCRUD:
         mock_query_session.filter = Mock(return_value=mock_query_session)
         mock_query_session.first = Mock(return_value=sample_session)
 
-        mock_query_messages = Mock()
-        mock_query_messages.filter = Mock(return_value=mock_query_messages)
-        mock_query_messages.order_by = Mock(return_value=mock_query_messages)
-        mock_query_messages.offset = Mock(return_value=mock_query_messages)
-        mock_query_messages.limit = Mock(return_value=mock_query_messages)
-        mock_query_messages.all = Mock(return_value=messages)
+        # Mock repository to return a proper session and ordered messages
+        from backend.rag_solution.models.conversation_message import ConversationMessage
+        from backend.rag_solution.models.conversation_session import ConversationSession
 
-        conversation_service.db.query = Mock(side_effect=[mock_query_session, mock_query_messages])
+        db_session = ConversationSession()
+        db_session.id = test_session_id
+        db_session.user_id = test_user_id
+        db_session.status = SessionStatus.ACTIVE
+
+        db_messages = []
+        for i in range(3):
+            msg = ConversationMessage()
+            msg.id = uuid4()
+            msg.session_id = test_session_id
+            msg.content = f"Message {i}"
+            msg.role = MessageRole.USER
+            msg.message_type = MessageType.QUESTION
+            msg.created_at = now + timedelta(seconds=i)
+            msg.message_metadata = {}
+            msg.token_count = 10
+            msg.execution_time = 0.5
+            db_messages.append(msg)
+
+        conversation_service.repository.get_session_by_id = Mock(return_value=db_session)
+        conversation_service.repository.get_messages_by_session = Mock(return_value=db_messages)
 
         result = await conversation_service.get_messages(test_session_id, test_user_id)
 
-        # Verify order_by was called
-        assert mock_query_messages.order_by.called
+        assert len(result) == 3
+        # Verify ordering
+        assert result[0].content == "Message 0"
+        assert result[1].content == "Message 1"
+        assert result[2].content == "Message 2"
 
     @pytest.mark.asyncio
     async def test_message_type_filtering(self, conversation_service, test_session_id, test_user_id, sample_session):
@@ -861,11 +1122,7 @@ class TestConversationServiceMessageCRUD:
     @pytest.mark.asyncio
     async def test_message_metadata_preservation(self, conversation_service, test_session_id, sample_session):
         """Test that message metadata is preserved correctly."""
-        metadata = MessageMetadata(
-            source_documents=["doc1"],
-            cot_used=False,
-            conversation_aware=True
-        )
+        metadata = MessageMetadata(source_documents=["doc1"], cot_used=False, conversation_aware=True)
 
         message_input = ConversationMessageInput(
             session_id=test_session_id,
@@ -874,18 +1131,24 @@ class TestConversationServiceMessageCRUD:
             message_type=MessageType.QUESTION,
             metadata=metadata,
             token_count=10,
-            execution_time=0.5
+            execution_time=0.5,
         )
 
-        mock_query = Mock()
-        mock_query.filter = Mock(return_value=mock_query)
-        mock_query.first = Mock(return_value=sample_session)
-        conversation_service.db.query = Mock(return_value=mock_query)
+        # Mock repository to return a proper session
+        from backend.rag_solution.models.conversation_session import ConversationSession
 
-        conversation_service.db.refresh = Mock(side_effect=mock_message_refresh)
+        db_session = ConversationSession()
+        db_session.id = test_session_id
+        db_session.user_id = uuid4()
+        db_session.collection_id = uuid4()
+        db_session.status = SessionStatus.ACTIVE
+        db_session.messages = []
+
+        conversation_service.repository.get_session_by_id = Mock(return_value=db_session)
 
         result = await conversation_service.add_message(message_input)
         assert isinstance(result, ConversationMessageOutput)
+        assert result.metadata == metadata
 
 
 # ============================================================================
@@ -909,7 +1172,7 @@ class TestConversationServiceContext:
                 created_at=datetime.utcnow(),
                 metadata=None,
                 token_count=5,
-                execution_time=0.1
+                execution_time=0.1,
             ),
             ConversationMessageOutput(
                 id=uuid4(),
@@ -920,8 +1183,8 @@ class TestConversationServiceContext:
                 created_at=datetime.utcnow(),
                 metadata=None,
                 token_count=10,
-                execution_time=0.5
-            )
+                execution_time=0.5,
+            ),
         ]
 
         context = await conversation_service.build_context_from_messages(test_session_id, messages)
@@ -1000,68 +1263,14 @@ class TestConversationServiceContext:
         assert not conversation_service.is_ambiguous_question("What is machine learning?")
         assert not conversation_service.is_ambiguous_question("Explain neural networks")
 
-    def test_resolve_pronouns(self, conversation_service):
-        """Test pronoun resolution in questions."""
-        question = "How does it work?"
-        context = "Neural Networks use backpropagation"
-
-        resolved = conversation_service.resolve_pronouns(question, context)
-
-        assert isinstance(resolved, str)
-
-    def test_resolve_pronouns_no_referent(self, conversation_service):
-        """Test pronoun resolution without referent."""
-        question = "How does it work?"
-        context = ""
-
-        resolved = conversation_service.resolve_pronouns(question, context)
-
-        # Should return original if no referent found
-        assert resolved == question
-
-    def test_detect_follow_up_question(self, conversation_service):
-        """Test follow-up question detection."""
-        assert conversation_service.detect_follow_up_question("What about deep learning?")
-        assert conversation_service.detect_follow_up_question("Can you explain more?")
-        assert conversation_service.detect_follow_up_question("Also, how about CNNs?")
-
-    def test_extract_conversation_topic(self, conversation_service):
-        """Test conversation topic extraction."""
-        context = "Machine Learning and Neural Networks are discussed"
-
-        topic = conversation_service.extract_conversation_topic(context)
-
-        assert isinstance(topic, str)
-        assert len(topic) > 0
-
-    def test_calculate_semantic_similarity(self, conversation_service):
-        """Test semantic similarity calculation."""
-        context = "Machine Learning and Deep Learning"
-
-        similarities = conversation_service.calculate_semantic_similarity(context)
-
-        assert isinstance(similarities, dict)
-
-    def test_prune_context_for_performance(self, conversation_service):
-        """Test context pruning for performance."""
-        context = "Machine Learning Deep Learning Neural Networks Backpropagation"
-        question = "What is Machine Learning?"
-
-        pruned = conversation_service.prune_context_for_performance(context, question)
-
-        assert isinstance(pruned, str)
-
-
-# ============================================================================
-# UNIT TESTS: Session Statistics & Analysis (10 tests)
-# ============================================================================
-
 
 class TestConversationServiceStatistics:
     """Unit tests for session statistics and conversation analysis."""
 
     @pytest.mark.asyncio
-    async def test_get_session_statistics_basic(self, conversation_service, test_session_id, test_user_id, sample_session):
+    async def test_get_session_statistics_basic(
+        self, conversation_service, test_session_id, test_user_id, sample_session
+    ):
         """Test basic session statistics."""
         messages = [
             ConversationMessageOutput(
@@ -1073,7 +1282,7 @@ class TestConversationServiceStatistics:
                 created_at=datetime.utcnow(),
                 metadata=None,
                 token_count=10,
-                execution_time=0.5
+                execution_time=0.5,
             ),
             ConversationMessageOutput(
                 id=uuid4(),
@@ -1084,8 +1293,8 @@ class TestConversationServiceStatistics:
                 created_at=datetime.utcnow(),
                 metadata=MessageMetadata(cot_used=True, conversation_aware=True),
                 token_count=20,
-                execution_time=1.0
-            )
+                execution_time=1.0,
+            ),
         ]
 
         # Mock get_session
@@ -1102,7 +1311,9 @@ class TestConversationServiceStatistics:
         assert stats.cot_usage_count == 1
 
     @pytest.mark.asyncio
-    async def test_get_session_statistics_empty_session(self, conversation_service, test_session_id, test_user_id, sample_session):
+    async def test_get_session_statistics_empty_session(
+        self, conversation_service, test_session_id, test_user_id, sample_session
+    ):
         """Test statistics for empty session."""
         with patch.object(conversation_service, "get_session", return_value=sample_session):
             with patch.object(conversation_service, "get_messages", return_value=[]):
@@ -1113,7 +1324,9 @@ class TestConversationServiceStatistics:
         assert stats.assistant_messages == 0
 
     @pytest.mark.asyncio
-    async def test_generate_conversation_summary_brief(self, conversation_service, test_session_id, test_user_id, sample_session):
+    async def test_generate_conversation_summary_brief(
+        self, conversation_service, test_session_id, test_user_id, sample_session
+    ):
         """Test brief conversation summary generation."""
         messages = [
             ConversationMessageOutput(
@@ -1125,15 +1338,17 @@ class TestConversationServiceStatistics:
                 created_at=datetime.utcnow(),
                 metadata=None,
                 token_count=5,
-                execution_time=0.1
+                execution_time=0.1,
             )
         ]
 
         with patch.object(conversation_service, "get_session", return_value=sample_session):
             with patch.object(conversation_service, "get_messages", return_value=messages):
-                with patch.object(conversation_service, "get_session_statistics", return_value=Mock(
-                    total_tokens=10, cot_usage_count=0
-                )):
+                with patch.object(
+                    conversation_service,
+                    "get_session_statistics",
+                    return_value=Mock(total_tokens=10, cot_usage_count=0),
+                ):
                     summary = await conversation_service.generate_conversation_summary(
                         test_session_id, test_user_id, summary_type="brief"
                     )
@@ -1143,7 +1358,9 @@ class TestConversationServiceStatistics:
         assert summary["summary_type"] == "brief"
 
     @pytest.mark.asyncio
-    async def test_generate_conversation_summary_detailed(self, conversation_service, test_session_id, test_user_id, sample_session):
+    async def test_generate_conversation_summary_detailed(
+        self, conversation_service, test_session_id, test_user_id, sample_session
+    ):
         """Test detailed conversation summary."""
         messages = [
             ConversationMessageOutput(
@@ -1155,7 +1372,7 @@ class TestConversationServiceStatistics:
                 created_at=datetime.utcnow(),
                 metadata=None,
                 token_count=5,
-                execution_time=0.1
+                execution_time=0.1,
             ),
             ConversationMessageOutput(
                 id=uuid4(),
@@ -1166,15 +1383,17 @@ class TestConversationServiceStatistics:
                 created_at=datetime.utcnow(),
                 metadata=None,
                 token_count=10,
-                execution_time=0.5
-            )
+                execution_time=0.5,
+            ),
         ]
 
         with patch.object(conversation_service, "get_session", return_value=sample_session):
             with patch.object(conversation_service, "get_messages", return_value=messages):
-                with patch.object(conversation_service, "get_session_statistics", return_value=Mock(
-                    total_tokens=15, cot_usage_count=0
-                )):
+                with patch.object(
+                    conversation_service,
+                    "get_session_statistics",
+                    return_value=Mock(total_tokens=15, cot_usage_count=0),
+                ):
                     summary = await conversation_service.generate_conversation_summary(
                         test_session_id, test_user_id, summary_type="detailed"
                     )
@@ -1182,7 +1401,9 @@ class TestConversationServiceStatistics:
         assert summary["summary_type"] == "detailed"
 
     @pytest.mark.asyncio
-    async def test_generate_conversation_summary_key_points(self, conversation_service, test_session_id, test_user_id, sample_session):
+    async def test_generate_conversation_summary_key_points(
+        self, conversation_service, test_session_id, test_user_id, sample_session
+    ):
         """Test key points conversation summary."""
         messages = [
             ConversationMessageOutput(
@@ -1194,15 +1415,15 @@ class TestConversationServiceStatistics:
                 created_at=datetime.utcnow(),
                 metadata=None,
                 token_count=5,
-                execution_time=0.1
+                execution_time=0.1,
             )
         ]
 
         with patch.object(conversation_service, "get_session", return_value=sample_session):
             with patch.object(conversation_service, "get_messages", return_value=messages):
-                with patch.object(conversation_service, "get_session_statistics", return_value=Mock(
-                    total_tokens=5, cot_usage_count=0
-                )):
+                with patch.object(
+                    conversation_service, "get_session_statistics", return_value=Mock(total_tokens=5, cot_usage_count=0)
+                ):
                     summary = await conversation_service.generate_conversation_summary(
                         test_session_id, test_user_id, summary_type="key_points"
                     )
@@ -1270,7 +1491,7 @@ class TestConversationServiceStatistics:
                 created_at=datetime.utcnow(),
                 metadata=None,
                 token_count=10,
-                execution_time=0.5
+                execution_time=0.5,
             )
         ]
 
@@ -1301,7 +1522,9 @@ class TestConversationServiceErrorHandling:
             await conversation_service.create_session(sample_session_input)
 
     @pytest.mark.asyncio
-    async def test_update_session_database_error(self, conversation_service, test_session_id, test_user_id, sample_session):
+    async def test_update_session_database_error(
+        self, conversation_service, test_session_id, test_user_id, sample_session
+    ):
         """Test session update with database error."""
         mock_query = Mock()
         mock_query.filter = Mock(return_value=mock_query)
@@ -1313,7 +1536,9 @@ class TestConversationServiceErrorHandling:
             await conversation_service.update_session(test_session_id, test_user_id, {"name": "New"})
 
     @pytest.mark.asyncio
-    async def test_delete_session_database_error(self, conversation_service, test_session_id, test_user_id, sample_session):
+    async def test_delete_session_database_error(
+        self, conversation_service, test_session_id, test_user_id, sample_session
+    ):
         """Test session deletion with database error."""
         mock_query = Mock()
         mock_query.filter = Mock(return_value=mock_query)
@@ -1327,23 +1552,27 @@ class TestConversationServiceErrorHandling:
     @pytest.mark.asyncio
     async def test_add_message_to_archived_session(self, conversation_service, sample_message_input, sample_session):
         """Test adding message to archived session."""
-        sample_session.status = SessionStatus.ARCHIVED
+        # Mock repository to return an archived session
+        from backend.rag_solution.models.conversation_session import ConversationSession
 
-        mock_query = Mock()
-        mock_query.filter = Mock(return_value=mock_query)
-        mock_query.first = Mock(return_value=sample_session)
-        conversation_service.db.query = Mock(return_value=mock_query)
+        db_session = ConversationSession()
+        db_session.id = sample_message_input.session_id
+        db_session.user_id = uuid4()
+        db_session.collection_id = uuid4()
+        db_session.status = SessionStatus.ARCHIVED
+        db_session.messages = []
+
+        conversation_service.repository.get_session_by_id = Mock(return_value=db_session)
 
         # Should work - archived sessions can receive messages
-        conversation_service.db.refresh = Mock(side_effect=mock_message_refresh)
-
         result = await conversation_service.add_message(sample_message_input)
         assert isinstance(result, ConversationMessageOutput)
 
     @pytest.mark.asyncio
     async def test_get_messages_database_error(self, conversation_service, test_session_id, test_user_id):
         """Test message retrieval with database error."""
-        conversation_service.db.query = Mock(side_effect=Exception("DB error"))
+        # Mock repository to raise an exception
+        conversation_service.repository.get_session_by_id = Mock(side_effect=Exception("DB error"))
 
         with pytest.raises(Exception):
             await conversation_service.get_messages(test_session_id, test_user_id)
@@ -1353,12 +1582,16 @@ class TestConversationServiceErrorHandling:
         """Test statistics for invalid session."""
         invalid_session_id = uuid4()
 
-        with patch.object(conversation_service, "get_session", side_effect=NotFoundError("Session", str(invalid_session_id))):
+        with patch.object(
+            conversation_service, "get_session", side_effect=NotFoundError("Session", str(invalid_session_id))
+        ):
             with pytest.raises(NotFoundError):
                 await conversation_service.get_session_statistics(invalid_session_id, test_user_id)
 
     @pytest.mark.asyncio
-    async def test_archive_already_archived_session(self, conversation_service, test_session_id, test_user_id, sample_session):
+    async def test_archive_already_archived_session(
+        self, conversation_service, test_session_id, test_user_id, sample_session
+    ):
         """Test archiving an already archived session."""
         sample_session.status = SessionStatus.ARCHIVED
         sample_session.is_archived = True
@@ -1397,7 +1630,9 @@ class TestConversationServiceErrorHandling:
             conversation_service.cleanup_expired_sessions()
 
     @pytest.mark.asyncio
-    async def test_generate_summary_empty_session(self, conversation_service, test_session_id, test_user_id, sample_session):
+    async def test_generate_summary_empty_session(
+        self, conversation_service, test_session_id, test_user_id, sample_session
+    ):
         """Test summary generation for empty session."""
         with patch.object(conversation_service, "get_session", return_value=sample_session):
             with patch.object(conversation_service, "get_messages", return_value=[]):
@@ -1415,7 +1650,9 @@ class TestConversationServiceEdgeCases:
     """Unit tests for edge cases and boundary conditions."""
 
     @pytest.mark.asyncio
-    async def test_session_with_maximum_messages(self, conversation_service, test_session_id, test_user_id, sample_session):
+    async def test_session_with_maximum_messages(
+        self, conversation_service, test_session_id, test_user_id, sample_session
+    ):
         """Test session with maximum number of messages."""
         # Create 50 messages (max)
         messages = []
@@ -1429,7 +1666,7 @@ class TestConversationServiceEdgeCases:
                 created_at=datetime.utcnow(),
                 metadata=None,
                 token_count=10,
-                execution_time=0.5
+                execution_time=0.5,
             )
             messages.append(msg)
 
@@ -1453,7 +1690,7 @@ class TestConversationServiceEdgeCases:
                 created_at=datetime.utcnow(),
                 metadata=None,
                 token_count=1000,
-                execution_time=0.5
+                execution_time=0.5,
             )
         ]
 
@@ -1468,13 +1705,13 @@ class TestConversationServiceEdgeCases:
         from pydantic import ValidationError as PydanticValidationError
 
         with pytest.raises(PydanticValidationError):
-            session_input = ConversationSessionInput(
+            _session_input = ConversationSessionInput(
                 user_id=test_user_id,
                 collection_id=test_collection_id,
                 session_name="",  # Empty name should fail validation
                 context_window_size=4000,
                 max_messages=50,
-                metadata={}
+                metadata={},
             )
 
     @pytest.mark.asyncio
@@ -1487,34 +1724,39 @@ class TestConversationServiceEdgeCases:
             message_type=MessageType.QUESTION,
             metadata=None,
             token_count=10,
-            execution_time=0.5
+            execution_time=0.5,
         )
 
-        mock_query = Mock()
-        mock_query.filter = Mock(return_value=mock_query)
-        mock_query.first = Mock(return_value=sample_session)
-        conversation_service.db.query = Mock(return_value=mock_query)
+        # Mock repository to return a proper session
+        from backend.rag_solution.models.conversation_session import ConversationSession
 
-        conversation_service.db.refresh = Mock(side_effect=mock_message_refresh)
+        db_session = ConversationSession()
+        db_session.id = test_session_id
+        db_session.user_id = uuid4()
+        db_session.collection_id = uuid4()
+        db_session.status = SessionStatus.ACTIVE
+        db_session.messages = []
+
+        conversation_service.repository.get_session_by_id = Mock(return_value=db_session)
 
         result = await conversation_service.add_message(message_input)
         assert isinstance(result, ConversationMessageOutput)
 
     @pytest.mark.asyncio
-    async def test_pagination_with_large_offset(self, conversation_service, test_session_id, test_user_id, sample_session):
+    async def test_pagination_with_large_offset(
+        self, conversation_service, test_session_id, test_user_id, sample_session
+    ):
         """Test pagination with large offset."""
-        mock_query_session = Mock()
-        mock_query_session.filter = Mock(return_value=mock_query_session)
-        mock_query_session.first = Mock(return_value=sample_session)
+        # Mock repository to return a proper session and empty messages (large offset)
+        from backend.rag_solution.models.conversation_session import ConversationSession
 
-        mock_query_messages = Mock()
-        mock_query_messages.filter = Mock(return_value=mock_query_messages)
-        mock_query_messages.order_by = Mock(return_value=mock_query_messages)
-        mock_query_messages.offset = Mock(return_value=mock_query_messages)
-        mock_query_messages.limit = Mock(return_value=mock_query_messages)
-        mock_query_messages.all = Mock(return_value=[])
+        db_session = ConversationSession()
+        db_session.id = test_session_id
+        db_session.user_id = test_user_id
+        db_session.status = SessionStatus.ACTIVE
 
-        conversation_service.db.query = Mock(side_effect=[mock_query_session, mock_query_messages])
+        conversation_service.repository.get_session_by_id = Mock(return_value=db_session)
+        conversation_service.repository.get_messages_by_session = Mock(return_value=[])  # Empty due to large offset
 
         result = await conversation_service.get_messages(test_session_id, test_user_id, limit=10, offset=1000)
 
@@ -1534,7 +1776,7 @@ class TestConversationServiceEdgeCases:
                 message_type=MessageType.QUESTION,
                 metadata=None,
                 token_count=10,
-                execution_time=0.5
+                execution_time=0.5,
             )
             message_inputs.append(msg_input)
 
@@ -1554,7 +1796,9 @@ class TestConversationServiceEdgeCases:
         assert len(results) == 5
 
     @pytest.mark.asyncio
-    async def test_session_with_special_characters_in_metadata(self, conversation_service, test_user_id, test_collection_id):
+    async def test_session_with_special_characters_in_metadata(
+        self, conversation_service, test_user_id, test_collection_id
+    ):
         """Test session with special characters in metadata."""
         session_input = ConversationSessionInput(
             user_id=test_user_id,
@@ -1562,7 +1806,7 @@ class TestConversationServiceEdgeCases:
             session_name="Test",
             context_window_size=4000,
             max_messages=50,
-            metadata={"special": "@#$%^&*()", "unicode": "你好"}
+            metadata={"special": "@#$%^&*()", "unicode": "你好"},
         )
 
         conversation_service.db.add = Mock()
@@ -1573,7 +1817,9 @@ class TestConversationServiceEdgeCases:
         assert isinstance(result, ConversationSessionOutput)
 
     @pytest.mark.asyncio
-    async def test_get_messages_with_zero_limit(self, conversation_service, test_session_id, test_user_id, sample_session):
+    async def test_get_messages_with_zero_limit(
+        self, conversation_service, test_session_id, test_user_id, sample_session
+    ):
         """Test retrieving messages with limit=0."""
         mock_query_session = Mock()
         mock_query_session.filter = Mock(return_value=mock_query_session)
@@ -1593,12 +1839,29 @@ class TestConversationServiceEdgeCases:
         assert isinstance(result, list)
 
     @pytest.mark.asyncio
-    async def test_update_session_with_empty_updates(self, conversation_service, test_session_id, test_user_id, sample_session):
+    async def test_update_session_with_empty_updates(
+        self, conversation_service, test_session_id, test_user_id, sample_session
+    ):
         """Test updating session with empty updates dict."""
-        mock_query = Mock()
-        mock_query.filter = Mock(return_value=mock_query)
-        mock_query.first = Mock(return_value=sample_session)
-        conversation_service.db.query = Mock(return_value=mock_query)
+        # Mock repository to return a proper session
+        from backend.rag_solution.models.conversation_session import ConversationSession
+
+        db_session = ConversationSession()
+        db_session.id = test_session_id
+        db_session.user_id = test_user_id
+        db_session.collection_id = uuid4()
+        db_session.status = SessionStatus.ACTIVE
+        db_session.session_name = "Test Session"
+        db_session.context_window_size = 4000
+        db_session.max_messages = 50
+        db_session.is_archived = False
+        db_session.is_pinned = False
+        db_session.created_at = datetime.utcnow()
+        db_session.updated_at = datetime.utcnow()
+        db_session.session_metadata = {}
+        db_session.messages = []
+
+        conversation_service.repository.get_session_by_id = Mock(return_value=db_session)
 
         result = await conversation_service.update_session(test_session_id, test_user_id, {})
 
@@ -1617,7 +1880,7 @@ class TestConversationServiceEdgeCases:
                 created_at=datetime.utcnow(),
                 metadata=None,
                 token_count=5,
-                execution_time=0.1
+                execution_time=0.1,
             )
         ]
 

@@ -80,8 +80,9 @@ class WatsonXClient:
         """Get or create the embeddings client."""
         if self._embeddings_client is None:
             if embed_params is None:
+                # Use WatsonX defaults for token truncation (intelligent limits)
+                # Previous: TRUNCATE_INPUT_TOKENS: 3 caused semantic loss in embeddings
                 embed_params = {
-                    EmbedParams.TRUNCATE_INPUT_TOKENS: 3,
                     EmbedParams.RETURN_OPTIONS: {"input_text": True},
                 }
 
