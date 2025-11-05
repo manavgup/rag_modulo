@@ -117,8 +117,9 @@ def get_wx_embeddings_client(settings: Settings, embed_params: dict | None = Non
         wx_Embeddings: Configured WatsonX embeddings client
     """
     if embed_params is None:
+        # TESTING: Removed TRUNCATE_INPUT_TOKENS to use WatsonX defaults
+        # Previous: TRUNCATE_INPUT_TOKENS: 3 caused wrong chunk retrieval
         embed_params = {
-            EmbedParams.TRUNCATE_INPUT_TOKENS: 3,
             EmbedParams.RETURN_OPTIONS: {"input_text": True},
         }
     load_dotenv(override=True)
@@ -129,6 +130,70 @@ def get_wx_embeddings_client(settings: Settings, embed_params: dict | None = Non
         project_id=settings.wx_project_id,
         credentials=Credentials(api_key=settings.wx_api_key, url=settings.wx_url),
     )
+
+
+def _log_embedding_generation(
+    texts: list[str], settings: Settings, stage: str, embeddings: EmbeddingsList | None = None
+) -> None:
+    """
+    Log embedding generation details for debugging.
+
+    Args:
+        texts: Input texts being embedded
+        settings: Settings object with WatsonX configuration
+        stage: "BEFORE" or "AFTER" embedding generation
+        embeddings: Optional generated embeddings (only for AFTER stage)
+    """
+    try:
+        import os
+        from datetime import datetime
+
+        debug_dir = "/tmp/rag_debug"
+        os.makedirs(debug_dir, exist_ok=True)
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        debug_file = f"{debug_dir}/embedding_generation_{stage.lower()}_{timestamp}.txt"
+
+        with open(debug_file, "w", encoding="utf-8") as f:
+            f.write("=" * 80 + "\n")
+            f.write(f"EMBEDDING GENERATION - {stage}\n")
+            f.write(f"Timestamp: {datetime.now().isoformat()}\n")
+            f.write("=" * 80 + "\n\n")
+
+            f.write("INPUT TEXT(S):\n")
+            f.write("-" * 80 + "\n")
+            for i, text in enumerate(texts):
+                f.write(f"Text {i + 1}: {text[:200]}{'...' if len(text) > 200 else ''}\n")
+            f.write("\n")
+
+            f.write("WATSONX CONFIGURATION:\n")
+            f.write("-" * 80 + "\n")
+            f.write(f"Embedding Model: {settings.embedding_model}\n")
+            f.write(f"Embedding Dimension: {settings.embedding_dim}\n")
+            f.write(f"Project ID: {settings.wx_project_id[:20]}...\n")
+            f.write(f"API URL: {settings.wx_url}\n\n")
+
+            if embeddings is not None and stage == "AFTER":
+                f.write("GENERATED EMBEDDINGS:\n")
+                f.write("-" * 80 + "\n")
+                for i, embedding in enumerate(embeddings):
+                    f.write(f"\nEmbedding {i + 1}:\n")
+                    f.write(f"  Dimension: {len(embedding)}\n")
+                    f.write(f"  First 10 values: {embedding[:10]}\n")
+                    f.write(f"  Last 10 values: {embedding[-10:]}\n")
+                    f.write(f"  Mean: {sum(embedding) / len(embedding):.6f}\n")
+                    f.write(f"  Min: {min(embedding):.6f}\n")
+                    f.write(f"  Max: {max(embedding):.6f}\n")
+                f.write("\n")
+
+            f.write("=" * 80 + "\n")
+            f.write(f"END OF EMBEDDING GENERATION LOG - {stage}\n")
+            f.write("=" * 80 + "\n")
+
+        logger.info("📝 Embedding generation (%s) logged to: %s", stage, debug_file)
+
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        logger.warning("Failed to log embedding generation (%s): %s", stage, e)
 
 
 def get_embeddings(
@@ -153,12 +218,19 @@ def get_embeddings(
     if isinstance(texts, str):
         texts = [texts]
 
+    # COMPREHENSIVE DEBUG LOGGING - Log embedding generation details
+    _log_embedding_generation(texts, settings, "BEFORE")
+
     try:
         # WatsonX embed_documents returns list[list[float]] but mypy sees it as Any
         # We know the actual return type from the library documentation
         embedding_vectors = embed_client.embed_documents(texts=texts, concurrency_limit=8)
         # Explicitly type the result as EmbeddingsList
         result: EmbeddingsList = embedding_vectors
+
+        # COMPREHENSIVE DEBUG LOGGING - Log generated embeddings
+        _log_embedding_generation(texts, settings, "AFTER", result)
+
         return result
     except Exception as e:
         logging.error(f"get_embeddings failed {e}")
