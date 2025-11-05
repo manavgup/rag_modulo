@@ -20,6 +20,9 @@ from rag_solution.data_ingestion.hierarchical_chunking import (
     get_child_chunks,
 )
 
+# Import shared embedding utility
+from vectordbs.utils.embeddings import get_embeddings_for_vector_store
+
 # Keep get_tokenization import for deprecated function backward compatibility
 from vectordbs.utils.watsonx import get_tokenization
 
@@ -33,53 +36,6 @@ else:
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
-
-
-def _get_embeddings_for_chunking(text: str | list[str], settings: Settings) -> list[list[float]]:
-    """
-    Get embeddings using the provider-based approach with rate limiting.
-
-    This is a utility function for chunking to access embedding functionality
-    without requiring complex dependency injection.
-
-    Args:
-        text: Single text string or list of text strings to embed
-        settings: Settings object containing configuration
-
-    Returns:
-        List of embedding vectors
-
-    Raises:
-        LLMProviderError: If provider-related errors occur
-        SQLAlchemyError: If database-related errors occur
-        Exception: If other unexpected errors occur
-    """
-    # Import here to avoid circular imports
-    from sqlalchemy.exc import SQLAlchemyError
-
-    from core.custom_exceptions import LLMProviderError
-    from rag_solution.file_management.database import create_session_factory
-    from rag_solution.generation.providers.factory import LLMProviderFactory
-
-    # Create session and get embeddings in one clean flow
-    session_factory = create_session_factory()
-    db = session_factory()
-
-    try:
-        factory = LLMProviderFactory(db, settings)
-        provider = factory.get_provider("watsonx")
-        return provider.get_embeddings(text)
-    except LLMProviderError as e:
-        logging.error("LLM provider error during embedding generation: %s", e)
-        raise
-    except SQLAlchemyError as e:
-        logging.error("Database error during embedding generation: %s", e)
-        raise
-    except Exception as e:
-        logging.error("Unexpected error during embedding generation: %s", e)
-        raise
-    finally:
-        db.close()
 
 
 def split_sentences(text: str) -> list[str]:
@@ -170,7 +126,7 @@ def semantic_chunking(text: str, min_chunk_size: int = 1, max_chunk_size: int = 
 
     # Use default settings for embedding generation
     settings = get_settings()
-    embeddings = _get_embeddings_for_chunking(combined_sentences, settings)
+    embeddings = get_embeddings_for_vector_store(combined_sentences, settings)
     embeddings_array = np.array(embeddings)
 
     # Ensure the array has the correct shape for cosine similarity
