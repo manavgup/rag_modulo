@@ -174,15 +174,12 @@ class ConversationSessionOutput(BaseModel):
 
         # Check if the input is a ConversationSession database model
         if hasattr(obj, "__tablename__") and getattr(obj, "__tablename__", None) == "conversation_sessions":
-            logger.info(
-                "🔍 SCHEMA DEBUG: model_validate() called with ConversationSession DB model - redirecting to from_db_session"
-            )
+            
             return cls.from_db_session(
                 obj, message_count=len(obj.messages) if hasattr(obj, "messages") and obj.messages else 0
             )
 
         # Otherwise use default model validation
-        logger.info("🔍 SCHEMA DEBUG: model_validate() called with %s - using default validation", type(obj))
         return super().model_validate(obj, **kwargs)
 
     @classmethod
@@ -190,11 +187,6 @@ class ConversationSessionOutput(BaseModel):
         """Create ConversationSessionOutput from database session model."""
         try:
             # Debug logging
-            logger.info("🔍 SCHEMA DEBUG: from_db_session() called")
-            logger.info("🔍 SCHEMA DEBUG: session.id=%s", str(session.id))
-            logger.info("🔍 SCHEMA DEBUG: session.id type=%s", type(session.id))
-            logger.info("🔍 SCHEMA DEBUG: session.status=%s", str(session.status))
-            logger.info("🔍 SCHEMA DEBUG: session.status type=%s", type(session.status))
 
             # Ensure status is properly converted
             status_value = session.status
@@ -202,8 +194,6 @@ class ConversationSessionOutput(BaseModel):
                 # Convert string to SessionStatus enum
                 status_value = SessionStatus(status_value)
 
-            logger.info("🔍 SCHEMA DEBUG: status_value=%s", str(status_value))
-            logger.info("🔍 SCHEMA DEBUG: status_value type=%s", type(status_value))
 
             return cls(
                 id=session.id,
@@ -221,11 +211,7 @@ class ConversationSessionOutput(BaseModel):
                 message_count=message_count,
             )
         except (ValueError, KeyError, AttributeError) as e:
-            logger.error("🔍 SCHEMA DEBUG: Error in from_db_session: %s", str(e))
-            logger.error("🔍 SCHEMA DEBUG: Exception type: %s", type(e))
-            logger.error("🔍 SCHEMA DEBUG: session type: %s", type(session))
             logger.error(
-                f"🔍 SCHEMA DEBUG: session.__dict__: {session.__dict__ if hasattr(session, '__dict__') else 'No __dict__'}"
             )
             raise
 
@@ -279,29 +265,19 @@ class ConversationMessageOutput(BaseModel):
         Reconstructs sources, cot_output, and token_analysis from stored metadata.
         """
         # Debug logging for token count extraction
-        logger.info("🔍 SCHEMA DEBUG: from_db_message() called")
-        logger.info(
-            "🔍 SCHEMA DEBUG: message.token_count=%d (type: %s)", message.token_count, type(message.token_count)
-        )
-        logger.info("🔍 SCHEMA DEBUG: message.id=%s", str(message.id))
+        
 
         # Handle metadata properly - it's stored as a dict in the database
         metadata_value = None
         raw_metadata = None
         if message.message_metadata:
-            logger.info("🔍 SCHEMA DEBUG: message.message_metadata type: %s", type(message.message_metadata))
-            logger.info(
-                f"🔍 SCHEMA DEBUG: message.message_metadata keys: {list(message.message_metadata.keys()) if isinstance(message.message_metadata, dict) else 'Not a dict'}"
-            )
+            
             if isinstance(message.message_metadata, dict):
                 raw_metadata = message.message_metadata  # Keep reference to raw dict
                 # It's already a dictionary from the database - convert to MessageMetadata object
                 try:
-                    logger.info(
-                        f"🔍 SCHEMA DEBUG: Attempting to create MessageMetadata with keys: {list(message.message_metadata.keys())}"
-                    )
+                    
                     metadata_value = MessageMetadata(**message.message_metadata)
-                    logger.info("🔍 SCHEMA DEBUG: Successfully created MessageMetadata")
                 except (ValueError, KeyError, AttributeError) as e:
                     logger.error("Failed to create MessageMetadata from database dict: %s", str(e))
                     logger.error("Database metadata: %s", str(message.message_metadata))
@@ -309,7 +285,6 @@ class ConversationMessageOutput(BaseModel):
             elif isinstance(message.message_metadata, MessageMetadata):
                 # It's already a MessageMetadata object
                 metadata_value = message.message_metadata
-                logger.info("🔍 SCHEMA DEBUG: Using existing MessageMetadata object")
             else:
                 logger.warning("Unexpected metadata type: %s", type(message.message_metadata))
 
@@ -317,7 +292,6 @@ class ConversationMessageOutput(BaseModel):
         token_analysis = None
         if raw_metadata and "token_analysis" in raw_metadata:
             token_analysis = raw_metadata["token_analysis"]
-            logger.info("🔍 SCHEMA DEBUG: Reconstructed token_analysis from metadata")
 
         # Reconstruct sources from metadata if available
         # Note: Full source data (with scores, content, page numbers) needs to be stored in metadata
@@ -325,13 +299,11 @@ class ConversationMessageOutput(BaseModel):
         sources = None
         if raw_metadata and "sources" in raw_metadata:
             sources = raw_metadata["sources"]
-            logger.info("🔍 SCHEMA DEBUG: Reconstructed sources from metadata")
 
         # Reconstruct cot_output from metadata if available
         cot_output = None
         if raw_metadata and "cot_output" in raw_metadata:
             cot_output = raw_metadata["cot_output"]
-            logger.info("🔍 SCHEMA DEBUG: Reconstructed cot_output from metadata")
 
         data = {
             "id": message.id,
@@ -348,22 +320,105 @@ class ConversationMessageOutput(BaseModel):
             "cot_output": cot_output,
         }
 
-        logger.info("🔍 SCHEMA DEBUG: data dict token_count=%d", data["token_count"])
 
         result = cls.model_validate(data)
 
-        logger.info("🔍 SCHEMA DEBUG: result.token_count=%d", result.token_count)
 
         return result
 
 
+class ContextMetadata(BaseModel):
+    """Typed metadata for conversation context.
+
+    Provides type-safe access to context metadata with validation.
+    Replaces the untyped dict[str, Any] approach for better IDE support
+    and runtime validation.
+    """
+
+    extracted_entities: list[str] = Field(
+        default_factory=list,
+        description="Named entities extracted from conversation (people, orgs, locations)"
+    )
+    conversation_topics: list[str] = Field(
+        default_factory=list,
+        description="Main topics identified in the conversation"
+    )
+    message_count: int = Field(
+        default=0,
+        ge=0,
+        description="Number of messages used to build this context"
+    )
+    context_length: int = Field(
+        default=0,
+        ge=0,
+        description="Character length of the context window"
+    )
+
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
+
+
 class ConversationContext(BaseModel):
-    """Schema for conversation context."""
+    """Schema for conversation context with typed metadata.
+
+    Provides clean property-based access to commonly-used fields
+    while maintaining backward compatibility.
+    """
 
     session_id: UUID4 = Field(..., description="ID of the session")
     context_window: str = Field(..., min_length=1, max_length=50000, description="Current context window content")
     relevant_documents: list[str] = Field(default_factory=list, description="Relevant document IDs")
-    context_metadata: dict[str, Any] = Field(default_factory=dict, description="Context metadata")
+    metadata: ContextMetadata = Field(
+        default_factory=ContextMetadata,
+        description="Typed context metadata (entities, topics, counts)",
+        alias="context_metadata"  # Backward compatibility
+    )
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+    # Properties for clean access to common metadata fields
+    @property
+    def entities(self) -> list[str]:
+        """Get extracted entities from context.
+
+        Returns:
+            List of named entities (people, organizations, locations)
+        """
+        return self.metadata.extracted_entities
+
+    @property
+    def topics(self) -> list[str]:
+        """Get conversation topics from context.
+
+        Returns:
+            List of identified conversation topics
+        """
+        return self.metadata.conversation_topics
+
+    @property
+    def message_count(self) -> int:
+        """Get number of messages in context.
+
+        Returns:
+            Number of messages used to build this context
+        """
+        return self.metadata.message_count
+
+    # Backward compatibility property
+    @property
+    def context_metadata(self) -> dict[str, Any]:
+        """Get metadata as dict for backward compatibility.
+
+        DEPRECATED: Use .metadata for typed access or .entities/.topics properties.
+
+        Returns:
+            Dictionary representation of context metadata
+        """
+        return {
+            "extracted_entities": self.metadata.extracted_entities,
+            "conversation_topics": self.metadata.conversation_topics,
+            "message_count": self.metadata.message_count,
+            "context_length": self.metadata.context_length,
+        }
 
 
 class ContextInput(BaseModel):

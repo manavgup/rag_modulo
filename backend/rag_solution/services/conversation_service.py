@@ -10,13 +10,13 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from core.config import Settings
 from rag_solution.core.exceptions import NotFoundError, SessionExpiredError, ValidationError
 from rag_solution.models.conversation_message import ConversationMessage
 from rag_solution.models.conversation_session import ConversationSession
+from rag_solution.repository.conversation_repository import ConversationRepository
 from rag_solution.schemas.conversation_schema import (
     ConversationContext,
     ConversationMessageInput,
@@ -45,26 +45,33 @@ logger = logging.getLogger(__name__)
 class ConversationService:  # pylint: disable=too-many-instance-attributes,too-many-public-methods
     """Service for managing conversation sessions and messages."""
 
-    def __init__(self, db: Session, settings: Settings):
-        """Initialize the conversation service."""
+    def __init__(
+        self,
+        db: Session,
+        settings: Settings,
+        conversation_repository: ConversationRepository,
+        question_service: QuestionService,
+    ):
+        """Initialize the conversation service.
+
+        Args:
+            db: Database session
+            settings: Application settings
+            conversation_repository: Unified conversation repository
+            question_service: Question service for suggestions
+        """
         self.db = db
         self.settings = settings
+        self.repository = conversation_repository
+        self.question_service = question_service
         self._search_service: SearchService | None = None
         self._chain_of_thought_service: ChainOfThoughtService | None = None
         self._llm_provider_service: LLMProviderService | None = None
-        self._question_service: QuestionService | None = None
         self._token_tracking_service: TokenTrackingService | None = None
         self._entity_extraction_service: EntityExtractionService | None = None
         # Context management cache
         self._context_cache: dict[str, ConversationContext] = {}
         self._cache_ttl = 300  # 5 minutes
-
-    @property
-    def question_service(self) -> QuestionService:
-        """Get question service instance."""
-        if self._question_service is None:
-            self._question_service = QuestionService(self.db, self.settings)
-        return self._question_service
 
     @property
     def search_service(self) -> SearchService:
@@ -124,85 +131,58 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
         return ConversationSessionOutput.from_db_session(session, message_count=0)
 
     async def get_session(self, session_id: UUID, user_id: UUID) -> ConversationSessionOutput:
-        """Get a conversation session by ID."""
-        session = (
-            self.db.query(ConversationSession)
-            .filter(ConversationSession.id == session_id, ConversationSession.user_id == user_id)
-            .first()
-        )
+        """Get a conversation session by ID with eager loaded relationships."""
+        session = self.repository.get_session_by_id(session_id)
 
-        if not session:
+        # Validate user has access
+        if session.user_id != user_id:
             raise NotFoundError("ConversationSession", str(session_id))
 
-        return ConversationSessionOutput.from_db_session(session)
+        # Convert model to schema
+        return ConversationSessionOutput.model_validate(session)
 
     async def update_session(self, session_id: UUID, user_id: UUID, updates: dict) -> ConversationSessionOutput:
         """Update a conversation session."""
-        session = (
-            self.db.query(ConversationSession)
-            .filter(ConversationSession.id == session_id, ConversationSession.user_id == user_id)
-            .first()
-        )
-
-        if not session:
+        # Validate user has access
+        session = self.repository.get_session_by_id(session_id)
+        if session.user_id != user_id:
             raise NotFoundError("ConversationSession", str(session_id))
 
+        # Map 'metadata' to 'session_metadata' for repository
+        repo_updates = {}
         for key, value in updates.items():
-            if hasattr(session, key) and key not in ["id", "user_id", "created_at"]:
-                if key == "metadata":
-                    session.session_metadata = value
-                else:
-                    setattr(session, key, value)
+            if key == "metadata":
+                repo_updates["session_metadata"] = value
+            else:
+                repo_updates[key] = value
 
-        self.db.commit()
-        self.db.refresh(session)
-
-        return ConversationSessionOutput.from_db_session(session)
+        return self.repository.update_session(session_id, repo_updates)
 
     async def delete_session(self, session_id: UUID, user_id: UUID) -> bool:
         """Delete a conversation session."""
-        session = (
-            self.db.query(ConversationSession)
-            .filter(ConversationSession.id == session_id, ConversationSession.user_id == user_id)
-            .first()
-        )
-
-        if not session:
+        # Validate user has access
+        session = self.repository.get_session_by_id(session_id)
+        if session.user_id != user_id:
             raise NotFoundError("ConversationSession", str(session_id))
 
-        self.db.delete(session)
-        self.db.commit()
-        return True
+        return self.repository.delete_session(session_id)
 
     async def list_sessions(self, user_id: UUID) -> list[ConversationSessionOutput]:
-        """List all sessions for a user."""
+        """List all sessions for a user with eager loaded relationships.
 
-        sessions = (
-            self.db.query(ConversationSession)
-            .filter(ConversationSession.user_id == user_id)
-            .order_by(ConversationSession.updated_at.desc())
-            .all()
-        )
-
-        # Get message counts for each session
-        result = []
-        for session in sessions:
-            message_count = (
-                self.db.query(func.count(ConversationMessage.id))
-                .filter(ConversationMessage.session_id == session.id)
-                .scalar()
-            ) or 0
-            result.append(ConversationSessionOutput.from_db_session(session, message_count=message_count))
-
-        return result
+        Uses unified repository's eager loading to eliminate N+1 queries.
+        Previously: 54 queries (1 + 53 message counts)
+        Now: 1 query with joinedload
+        """
+        return self.repository.get_sessions_by_user(user_id)
 
     async def add_message(self, message_input: ConversationMessageInput) -> ConversationMessageOutput:
         """Add a message to a conversation session."""
         # Validate session exists
-        session = self.db.query(ConversationSession).filter(ConversationSession.id == message_input.session_id).first()
-
-        if not session:
-            raise NotFoundError("ConversationSession", str(message_input.session_id))
+        try:
+            session = self.repository.get_session_by_id(message_input.session_id)
+        except NotFoundError:
+            raise NotFoundError("ConversationSession", str(message_input.session_id)) from None
 
         # Check if session is expired (basic check)
         if session.status == SessionStatus.EXPIRED:
@@ -221,71 +201,58 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
                 except AttributeError:
                     metadata_dict = dict(message_input.metadata)
 
-        message = ConversationMessage(
+        # Create message input with metadata dict
+        message_input_with_dict = ConversationMessageInput(
             session_id=message_input.session_id,
             content=message_input.content,
             role=message_input.role,
             message_type=message_input.message_type,
-            message_metadata=metadata_dict,
+            metadata=metadata_dict,
             token_count=message_input.token_count,
             execution_time=message_input.execution_time,
         )
 
-        self.db.add(message)
-        self.db.commit()
-        self.db.refresh(message)
-
-        # Ensure id and created_at are set (important for mocked database scenarios)
-        # Ensure message has required fields
-        if message.id is None:
-            raise ValidationError("Message must have an ID")
-        if message.created_at is None:
-            raise ValidationError("Message must have a creation timestamp")
-
-        output = ConversationMessageOutput.from_db_message(message)
-
-        return output
+        return self.repository.create_message(message_input_with_dict)
 
     async def get_messages(
         self, session_id: UUID, user_id: UUID, limit: int = 50, offset: int = 0
     ) -> list[ConversationMessageOutput]:
         """Get messages for a conversation session."""
         # First verify the user has access to this session
-        session = (
-            self.db.query(ConversationSession)
-            .filter(ConversationSession.id == session_id, ConversationSession.user_id == user_id)
-            .first()
-        )
-
-        if not session:
+        try:
+            session = self.repository.get_session_by_id(session_id)
+            if session.user_id != user_id:
+                return []
+        except NotFoundError:
             return []
 
-        messages = (
-            self.db.query(ConversationMessage)
-            .filter(ConversationMessage.session_id == session_id)
-            .order_by(ConversationMessage.created_at.asc())
-            .offset(offset)
-            .limit(limit)
-            .all()
-        )
-
-        # Ensure messages is a proper iterable
-        if not messages:
-            return []
-
-        return [ConversationMessageOutput.from_db_message(message) for message in messages]
+        return self.repository.get_messages_by_session(session_id, limit=limit, offset=offset)
 
     async def process_user_message(self, message_input: ConversationMessageInput) -> ConversationMessageOutput:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
-        """Process a user message and generate a response using integrated Search and CoT services."""
+        """Process a user message and generate a response using integrated Search and CoT services.
+
+        DEPRECATED: This method will be removed in a future version.
+        Use MessageProcessingOrchestrator.process_user_message() instead.
+        """
+        import warnings
+
+        warnings.warn(
+            "ConversationService.process_user_message() is deprecated. "
+            "Use MessageProcessingOrchestrator instead for better service separation.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
         logger.info(
             f"🚀 CONVERSATION SERVICE: process_user_message() called with session_id={message_input.session_id}"
         )
         logger.info("📝 CONVERSATION SERVICE: message content: %s...", message_input.content[:100])
 
         # First get the session to get the user_id
-        session = self.db.query(ConversationSession).filter(ConversationSession.id == message_input.session_id).first()
-        if not session:
-            raise ValueError("Session not found")
+        try:
+            session = self.repository.get_session_by_id(message_input.session_id)
+        except NotFoundError:
+            raise ValueError("Session not found") from None
 
         logger.info(
             f"📊 CONVERSATION SERVICE: Found session - user_id={session.user_id}, collection_id={session.collection_id}"
@@ -1052,11 +1019,6 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
         relevant_entities = [entity for entity, score in relevance_scores.items() if score >= threshold]
         return ", ".join(relevant_entities)
 
-    def prune_context_for_performance(self, context: str, current_question: str) -> str:
-        """Prune context for performance while maintaining relevance."""
-        scores = self._calculate_relevance_scores(context, current_question)
-        return self._keep_relevant_content(context, scores)
-
     async def _build_context_from_messages_impl(
         self, session_id: UUID, messages: list[ConversationMessageOutput]
     ) -> ConversationContext:
@@ -1076,87 +1038,6 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
                 "context_length": len(context_window),
             },
         )
-
-    def resolve_pronouns(self, question: str, context: str = "") -> str:
-        """Resolve pronouns in question using context."""
-        # Extract potential referents from context
-        entities = self._extract_entities_from_context(context)
-
-        # Simple heuristic: use the most recently mentioned entity
-        if entities:
-            # Look for the last entity mentioned before the pronoun
-            context_lower = context.lower()
-
-            for entity in reversed(entities):
-                if entity.lower() in context_lower:
-                    # Replace common pronouns with the entity
-                    result = question
-                    result = re.sub(r"\bit\b", entity, result, flags=re.IGNORECASE)
-                    result = re.sub(r"\bthis\b", entity, result, flags=re.IGNORECASE)
-                    result = re.sub(r"\bthat\b", entity, result, flags=re.IGNORECASE)
-                    if result != question:
-                        return result
-
-        return question  # Return original if no resolution possible
-
-    def detect_follow_up_question(self, question: str) -> bool:
-        """Detect if question is a follow-up using linguistic patterns."""
-        question_lower = question.lower().strip()
-
-        # Pattern-based detection instead of hardcoded terms
-        follow_up_patterns = [
-            r"^(what|how|tell me more|can you|could you)",
-            r"(about|regarding|concerning)\s+\w+",
-            r"(also|additionally|furthermore|moreover)",
-            r"(and then|next|after that)",
-            r"^(yes|no|ok|okay)\s*,?\s*",
-        ]
-
-        return any(re.search(pattern, question_lower) for pattern in follow_up_patterns)
-
-    def extract_entity_relationships(self, context: str) -> dict[str, list[str]]:
-        """Extract relationships between entities."""
-        entities = self._extract_entities_from_context(context)
-        relationships = {}
-
-        # Simple relationship extraction for testing
-        for entity in entities:
-            related = [e for e in entities if e != entity and any(word in e.lower() for word in entity.lower().split())]
-            if related:
-                relationships[entity] = related
-
-        return relationships
-
-    def extract_temporal_context(self, context: str) -> dict[str, Any]:
-        """Extract temporal context information."""
-        entities = self._extract_entities_from_context(context)
-
-        return {
-            "earlier_topics": entities[: len(entities) // 2] if entities else [],
-            "recent_topics": entities[len(entities) // 2 :] if entities else [],
-            "temporal_relationships": {
-                entity: [e for e in entities if e != entity][:2]
-                for entity in entities[:3]  # Limit for testing
-            },
-        }
-
-    def calculate_semantic_similarity(self, context: str) -> dict[str, float]:
-        """Calculate semantic similarity scores."""
-        entities = self._extract_entities_from_context(context)
-        similarities = {}
-
-        # Mock semantic similarity scores for testing
-        for i, entity in enumerate(entities):
-            similarities[entity] = 0.95 - (i * 0.05)  # Decreasing scores
-
-        return similarities
-
-    def extract_conversation_topic(self, context: str) -> str:
-        """Extract the main conversation topic."""
-        entities = self._extract_entities_from_context(context)
-        if entities:
-            return " and ".join(entities[:2])  # Take first two entities
-        return "general discussion"
 
     async def archive_session(self, session_id: UUID, user_id: UUID) -> ConversationSessionOutput:
         """Archive a conversation session by setting status to ARCHIVED."""
