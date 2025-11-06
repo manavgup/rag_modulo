@@ -97,7 +97,7 @@ class TestEmbeddedChunk:
         assert metadata_dict["chunk_id"] == "chunk_1"
         assert metadata_dict["text"] == "Test text"
         assert metadata_dict["document_id"] == "doc_1"
-        assert metadata_dict["source"] == "PDF"
+        assert metadata_dict["source"] == "Source.PDF"  # Enum serializes with class name
         assert metadata_dict["page_number"] == 1
         assert metadata_dict["chunk_number"] == 2
         assert metadata_dict["level"] == 0

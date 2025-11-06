@@ -178,7 +178,7 @@ class TestHealthCheckAndStats:
         """Test getting collection statistics."""
         # Create collection first
         config = CollectionConfig(name="test_collection", dimension=768)
-        vector_store.create_collection_enhanced(config)
+        vector_store.create_collection(config.name)
 
         response = vector_store.get_collection_stats("test_collection")
         assert response.success is True
@@ -197,7 +197,7 @@ class TestCommonUtilities:
     def test_collection_exists_true(self, vector_store):
         """Test checking if collection exists."""
         config = CollectionConfig(name="test_collection", dimension=768)
-        vector_store.create_collection_enhanced(config)
+        vector_store.create_collection(config.name)
 
         assert vector_store._collection_exists("test_collection")
 
