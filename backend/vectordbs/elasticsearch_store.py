@@ -5,6 +5,7 @@ enabling document storage, retrieval, and search operations using Elasticsearch.
 """
 
 import logging
+import time
 from typing import Any
 
 from elasticsearch import Elasticsearch, NotFoundError
@@ -12,15 +13,19 @@ from elasticsearch import Elasticsearch, NotFoundError
 from core.config import Settings, get_settings
 
 from .data_types import (
+    CollectionConfig,
     Document,
     DocumentChunkMetadata,
     DocumentChunkWithScore,
     DocumentMetadataFilter,
+    EmbeddedChunk,
     QueryResult,
     QueryWithEmbedding,
     Source,
+    VectorDBResponse,
+    VectorSearchRequest,
 )
-from .error_types import CollectionError, DocumentError
+from .error_types import CollectionError, DocumentError, VectorStoreError
 from .utils.embeddings import get_embeddings_for_vector_store
 from .vector_store import VectorStore
 
@@ -74,9 +79,31 @@ class ElasticSearchStore(VectorStore):
             logging.error("Failed to connect to Elasticsearch: %s", str(e))
             raise CollectionError(f"Failed to connect to Elasticsearch: {e}") from e
 
-    def create_collection(self, collection_name: str, metadata: dict | None = None) -> None:
-        """Create a collection (index) in Elasticsearch."""
+    def _create_collection_impl(self, config: CollectionConfig) -> dict[str, Any]:
+        """Implementation-specific collection creation with Pydantic model.
+
+        Args:
+            config: Collection configuration (Pydantic model)
+
+        Returns:
+            dict: Creation result metadata
+
+        Raises:
+            CollectionError: If collection creation fails
+        """
         try:
+            # Validate collection config against settings
+            self._validate_collection_config(config)
+
+            # Check if index already exists
+            if self.client.indices.exists(index=config.collection_name):
+                logging.info("Collection '%s' already exists", config.collection_name)
+                return {
+                    "status": "exists",
+                    "collection_name": config.collection_name,
+                    "dimension": config.dimension,
+                }
+
             # Create index with mapping for vector search
             index_body = {
                 "mappings": {
@@ -84,33 +111,80 @@ class ElasticSearchStore(VectorStore):
                         "text": {"type": "text"},
                         "embeddings": {
                             "type": "dense_vector",
-                            "dims": 1536,
-                        },  # Adjust dims based on your embedding model
+                            "dims": config.dimension,
+                        },
                         "metadata": {"type": "object"},
                         "document_id": {"type": "keyword"},
                         "chunk_id": {"type": "keyword"},
                     }
                 }
             }
-            if metadata:
-                index_body["settings"] = metadata
 
-            self.client.indices.create(index=collection_name, body=index_body)
-            logging.info("Collection '%s' created successfully", collection_name)
+            # Add settings from config if provided
+            if config.description:
+                index_body["settings"] = {"description": config.description}
+
+            self.client.indices.create(index=config.collection_name, body=index_body)
+            logging.info(
+                "Collection '%s' created successfully with dimension %d", config.collection_name, config.dimension
+            )
+
+            return {
+                "status": "created",
+                "collection_name": config.collection_name,
+                "dimension": config.dimension,
+                "metric_type": config.metric_type,
+                "index_type": config.index_type,
+            }
+        except Exception as e:
+            logging.error("Failed to create collection '%s': %s", config.collection_name, str(e))
+            raise CollectionError(f"Failed to create collection '{config.collection_name}': {e}") from e
+
+    def create_collection(self, collection_name: str, metadata: dict | None = None) -> None:
+        """Create a collection (index) in Elasticsearch (backward compatibility wrapper).
+
+        Args:
+            collection_name: Name of the collection to create
+            metadata: Optional metadata for the collection
+
+        Raises:
+            CollectionError: If collection creation fails
+        """
+        try:
+            # Create CollectionConfig from legacy parameters
+            config = CollectionConfig(
+                collection_name=collection_name,
+                dimension=self.settings.embedding_dim,
+                metric_type="COSINE",
+                index_type="FLAT",  # Elasticsearch default
+                description=metadata.get("description") if metadata else None,
+            )
+
+            # Use new Pydantic-based implementation
+            self._create_collection_impl(config)
         except Exception as e:
             logging.error("Failed to create collection '%s': %s", collection_name, str(e))
             raise CollectionError(f"Failed to create collection '{collection_name}': {e}") from e
 
-    def add_documents(self, collection_name: str, documents: list[Document]) -> list[str]:
-        """Adds documents to the vector store."""
-        self._create_collection_if_not_exists(collection_name)
+    def _add_documents_impl(self, collection_name: str, chunks: list[EmbeddedChunk]) -> list[str]:
+        """Implementation-specific document addition with Pydantic models.
 
-        document_ids = []
-        for document in documents:
-            for chunk in document.chunks:
+        Args:
+            collection_name: Target collection
+            chunks: List of embedded chunks to add (Pydantic models)
+
+        Returns:
+            List of chunk IDs that were added
+
+        Raises:
+            DocumentError: If addition fails
+        """
+        try:
+            chunk_ids = []
+            for chunk in chunks:
                 doc_body = {
                     "text": chunk.text,
-                    "embeddings": chunk.embeddings,
+                    "embeddings": chunk.embeddings,  # EmbeddedChunk ensures embeddings are present
                     "metadata": {
                         "source": str(chunk.metadata.source) if chunk.metadata and chunk.metadata.source else "OTHER",
                         "document_id": chunk.document_id or "",
@@ -121,12 +195,63 @@ class ElasticSearchStore(VectorStore):
 
                 try:
                     self.client.index(index=collection_name, id=chunk.chunk_id, body=doc_body)
-                    document_ids.append(chunk.document_id)
+                    chunk_ids.append(chunk.chunk_id)
                 except Exception as e:
-                    logging.error("Failed to add document to Elasticsearch: %s", str(e))
-                    raise DocumentError(f"Failed to add document to Elasticsearch: {e}") from e
+                    logging.error("Failed to add chunk to Elasticsearch: %s", str(e))
+                    raise DocumentError(f"Failed to add chunk to Elasticsearch: {e}") from e
 
-        return document_ids
+            logging.info("Successfully added %d chunks to collection '%s'", len(chunks), collection_name)
+            return chunk_ids
+        except Exception as e:
+            logging.error("Failed to add chunks to Elasticsearch collection '%s': %s", collection_name, str(e))
+            raise DocumentError(f"Failed to add chunks to Elasticsearch collection '{collection_name}': {e}") from e
+
+    def add_documents(self, collection_name: str, documents: list[Document]) -> list[str]:
+        """Adds documents to the vector store (backward compatibility wrapper).
+
+        Args:
+            collection_name: Name of the collection
+            documents: List of documents to add
+
+        Returns:
+            List[str]: List of document IDs that were added
+
+        Raises:
+            DocumentError: If document addition fails
+        """
+        self._create_collection_if_not_exists(collection_name)
+
+        try:
+            # Convert documents to EmbeddedChunks
+            chunks: list[EmbeddedChunk] = []
+            for document in documents:
+                for chunk in document.chunks:
+                    # Only add chunks that have embeddings
+                    if chunk.embeddings:
+                        embedded_chunk = EmbeddedChunk(
+                            chunk_id=chunk.chunk_id,
+                            text=chunk.text,
+                            embeddings=chunk.embeddings,
+                            metadata=chunk.metadata,
+                            document_id=chunk.document_id,
+                        )
+                        chunks.append(embedded_chunk)
+
+            # Use Pydantic-based implementation
+            chunk_ids = self._add_documents_impl(collection_name, chunks)
+
+            # Return unique document IDs (for backward compatibility)
+            document_ids = list({chunk.document_id for chunk in chunks if chunk.document_id})
+            logging.info(
+                "Successfully added %d documents (%d chunks) to collection '%s'",
+                len(document_ids),
+                len(chunk_ids),
+                collection_name,
+            )
+            return document_ids
+        except Exception as e:
+            logging.error("Failed to add documents to Elasticsearch collection '%s': %s", collection_name, str(e))
+            raise DocumentError(f"Failed to add documents to Elasticsearch collection '{collection_name}': {e}") from e
 
     def retrieve_documents(self, query: str, collection_name: str, limit: int = 10) -> list[QueryResult]:
         """
@@ -147,26 +272,30 @@ class ElasticSearchStore(VectorStore):
         query_with_embedding = QueryWithEmbedding(text=query, embeddings=query_embeddings[0])
         return self.query(collection_name, query_with_embedding, number_of_results=limit)
 
-    def query(
-        self,
-        collection_name: str,
-        query: QueryWithEmbedding,
-        number_of_results: int = 10,
-        metadata_filter: DocumentMetadataFilter | None = None,  # noqa: ARG002
-    ) -> list[QueryResult]:
-        """
-        Queries the vector store with filtering and query mode options.
+    def _search_impl(self, request: VectorSearchRequest) -> list[QueryResult]:
+        """Implementation-specific search with Pydantic model.
 
         Args:
-            collection_name (str): The name of the collection to query.
-            query (QueryWithEmbedding): The query with embedding to search for.
-            number_of_results (int): The maximum number of results to return.
-            metadata_filter (Optional[DocumentMetadataFilter]): Optional filter to apply to the query.
+            request: Vector search request (Pydantic model)
 
         Returns:
-            List[QueryResult]: The list of query results.
+            List of query results
+
+        Raises:
+            VectorStoreError: If search fails
         """
         try:
+            # Get query vector (either from request or generate from text)
+            if request.query_vector:
+                query_embedding = request.query_vector
+            elif request.query_text:
+                embeddings_list = get_embeddings_for_vector_store(request.query_text, settings=self.settings)
+                if not embeddings_list:
+                    raise DocumentError("Failed to generate embeddings for query text")
+                query_embedding = embeddings_list[0]
+            else:
+                raise ValueError("Either query_text or query_vector must be provided")
+
             # Elasticsearch vector search query
             search_body = {
                 "query": {
@@ -174,16 +303,55 @@ class ElasticSearchStore(VectorStore):
                         "query": {"match_all": {}},
                         "script": {
                             "source": "cosineSimilarity(params.query_vector, 'embeddings') + 1.0",
-                            "params": {"query_vector": query.embeddings[0]},
+                            "params": {"query_vector": query_embedding},
                         },
                     }
                 },
-                "size": number_of_results,
+                "size": request.top_k,
             }
 
-            response = self.client.search(index=collection_name, body=search_body)
-            logging.info("Query response: %s", response)
-            return self._process_search_results(response, collection_name)
+            response = self.client.search(index=request.collection_id, body=search_body)
+            logging.info("Elasticsearch search complete for collection '%s'", request.collection_id)
+            return self._process_search_results(response, request.collection_id)
+        except Exception as e:
+            logging.error("Failed to search Elasticsearch collection '%s': %s", request.collection_id, str(e))
+            raise VectorStoreError(f"Failed to search Elasticsearch collection '{request.collection_id}': {e}") from e
+
+    def query(
+        self,
+        collection_name: str,
+        query: QueryWithEmbedding,
+        number_of_results: int = 10,
+        metadata_filter: DocumentMetadataFilter | None = None,
+    ) -> list[QueryResult]:
+        """Queries the vector store (backward compatibility wrapper).
+
+        Args:
+            collection_name: Name of the collection to query
+            query: Query with embedding
+            number_of_results: Maximum number of results to return
+            metadata_filter: Optional metadata filter
+
+        Returns:
+            List[QueryResult]: List of query results
+
+        Raises:
+            DocumentError: If query fails
+        """
+        try:
+            # Create VectorSearchRequest from legacy parameters
+            request = VectorSearchRequest(
+                query_text=query.text if hasattr(query, "text") else None,
+                query_vector=query.embeddings,
+                collection_id=collection_name,
+                top_k=number_of_results,
+                metadata_filter=metadata_filter,
+                include_metadata=True,
+                include_vectors=False,
+            )
+
+            # Use Pydantic-based implementation
+            return self._search_impl(request)
         except Exception as e:
             logging.error("Failed to query Elasticsearch collection '%s': %s", collection_name, str(e))
             raise DocumentError(f"Failed to query Elasticsearch collection '{collection_name}': {e}") from e
@@ -199,19 +367,66 @@ class ElasticSearchStore(VectorStore):
             logging.error("Failed to delete Elasticsearch collection: %s", str(e))
             raise CollectionError(f"Failed to delete Elasticsearch collection: {e}") from e
 
-    def delete_documents(self, collection_name: str, document_ids: list[str]) -> None:
-        """Deletes documents by their IDs from the vector store."""
+    def delete_documents_with_response(
+        self, collection_name: str, document_ids: list[str]
+    ) -> VectorDBResponse[dict[str, Any]]:
+        """Delete documents and return detailed response (Pydantic-enhanced).
+
+        Args:
+            collection_name: Name of the collection
+            document_ids: List of document IDs to delete
+
+        Returns:
+            VectorDBResponse with deletion metadata
+
+        Raises:
+            DocumentError: If deletion fails
+        """
+        start_time = time.time()
         try:
+            deleted_count = 0
             for doc_id in document_ids:
                 # Delete by document_id field
                 query = {"query": {"term": {"document_id": doc_id}}}
-                self.client.delete_by_query(index=collection_name, body=query)
-            logging.info("Deleted %d documents from collection '%s'", len(document_ids), collection_name)
+                result = self.client.delete_by_query(index=collection_name, body=query)
+                deleted_count += result.get("deleted", 0)
+
+            elapsed = time.time() - start_time
+            logging.info("Deleted %d documents from collection '%s' in %.2fs", deleted_count, collection_name, elapsed)
+
+            return VectorDBResponse.create_success(
+                data={
+                    "deleted_count": deleted_count,
+                    "collection_name": collection_name,
+                    "document_ids": document_ids,
+                },
+                metadata={"elapsed_seconds": elapsed},
+            )
         except Exception as e:
+            elapsed = time.time() - start_time
             logging.error("Failed to delete documents from Elasticsearch collection '%s': %s", collection_name, str(e))
-            raise DocumentError(
-                f"Failed to delete documents from Elasticsearch collection '{collection_name}': {e}"
-            ) from e
+            return VectorDBResponse.create_error(
+                error=f"Failed to delete documents: {e!s}",
+                metadata={
+                    "collection_name": collection_name,
+                    "document_count": len(document_ids),
+                    "elapsed_seconds": elapsed,
+                },
+            )
+
+    def delete_documents(self, collection_name: str, document_ids: list[str]) -> None:
+        """Deletes documents by their IDs from the vector store (backward compatibility).
+
+        Args:
+            collection_name: Name of the collection
+            document_ids: List of document IDs to delete
+
+        Raises:
+            DocumentError: If deletion fails
+        """
+        response = self.delete_documents_with_response(collection_name, document_ids)
+        if not response.success:
+            raise DocumentError(response.error or "Unknown error during deletion")
 
     def count_document_chunks(self, collection_name: str, document_id: str) -> int:
         """Count the number of chunks for a specific document.
