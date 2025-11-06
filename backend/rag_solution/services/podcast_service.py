@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session
 
 from core.config import get_settings
 from core.custom_exceptions import NotFoundError, PromptTemplateNotFoundError, ValidationError
+from core.identity_service import IdentityService
 from rag_solution.generation.audio.factory import AudioProviderFactory
 from rag_solution.generation.providers.factory import LLMProviderFactory
 from rag_solution.repository.podcast_repository import PodcastRepository
@@ -1234,8 +1235,6 @@ CRITICAL INSTRUCTION: Generate the complete dialogue script now using ONLY the p
             ValidationError: If input validation fails
             NotFoundError: If collection not found
         """
-        from uuid import uuid4
-
         from rag_solution.schemas.podcast_schema import PodcastScriptOutput
 
         logger.info(
@@ -1294,7 +1293,7 @@ CRITICAL INSTRUCTION: Generate the complete dialogue script now using ONLY the p
         )
 
         return PodcastScriptOutput(
-            script_id=uuid4(),
+            script_id=IdentityService.generate_id(),
             collection_id=script_input.collection_id,
             user_id=script_input.user_id,
             title=podcast_input.title,

@@ -1,6 +1,5 @@
 import logging
 import re
-import uuid
 from typing import Any
 
 import validators
@@ -8,6 +7,7 @@ from pydantic import UUID4
 from sqlalchemy.orm import Session
 
 from core.custom_exceptions import LLMProviderError, ProviderValidationError
+from core.identity_service import IdentityService
 from rag_solution.repository.llm_provider_repository import LLMProviderRepository
 from rag_solution.schemas.llm_model_schema import LLMModelOutput, LLMModelUpdate, ModelType
 from rag_solution.schemas.llm_provider_schema import (
@@ -161,7 +161,7 @@ class LLMProviderService:
 
         return [
             LLMModelOutput(
-                id=uuid.UUID("11111111-1111-1111-1111-111111111111"),
+                id=IdentityService.MOCK_LLM_PROVIDER_ID,
                 provider_id=provider_id,
                 model_id="meta-llama/llama-3-3-70b-instruct",
                 default_model_id="meta-llama/llama-3-3-70b-instruct",
@@ -187,7 +187,7 @@ class LLMProviderService:
         from datetime import datetime
 
         return LLMModelOutput(
-            id=uuid.UUID("22222222-2222-2222-2222-222222222222"),
+            id=IdentityService.MOCK_LLM_MODEL_ID,
             provider_id=provider_id,
             model_id=model_data.get("model_id", "default-model"),
             default_model_id=model_data.get("default_model_id", "default-model"),
@@ -253,7 +253,7 @@ class LLMProviderService:
 
         return LLMModelOutput(
             id=model_id,
-            provider_id=uuid.UUID("11111111-1111-1111-1111-111111111111"),  # Mock provider_id
+            provider_id=IdentityService.MOCK_LLM_PROVIDER_ID,  # Mock provider_id
             model_id=updates_dict.get("model_id", "default-model"),
             default_model_id=updates_dict.get("default_model_id", "default-model"),
             model_type=ModelType(updates_dict.get("model_type", "generation")),

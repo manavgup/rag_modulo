@@ -18,6 +18,10 @@ class IdentityService:
     # Default mock user ID for testing and development
     DEFAULT_MOCK_USER_ID = UUID("9bae4a21-718b-4c8b-bdd2-22857779a85b")
 
+    # Mock LLM provider and model IDs for stub implementations
+    MOCK_LLM_PROVIDER_ID = UUID("11111111-1111-1111-1111-111111111111")
+    MOCK_LLM_MODEL_ID = UUID("22222222-2222-2222-2222-222222222222")
+
     @staticmethod
     def generate_id() -> UUID:
         """

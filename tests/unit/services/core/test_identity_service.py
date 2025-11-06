@@ -70,6 +70,31 @@ class TestIdentityService(unittest.TestCase):
         self.assertIsInstance(mock_user_id, UUID)
         self.assertEqual(mock_user_id, IdentityService.DEFAULT_MOCK_USER_ID)
 
+    def test_mock_constants_exist(self):
+        """Test that all mock constants are defined and are valid UUIDs."""
+        # Test DEFAULT_MOCK_USER_ID
+        self.assertIsInstance(IdentityService.DEFAULT_MOCK_USER_ID, UUID)
+        self.assertEqual(str(IdentityService.DEFAULT_MOCK_USER_ID), "9bae4a21-718b-4c8b-bdd2-22857779a85b")
+
+        # Test MOCK_LLM_PROVIDER_ID
+        self.assertIsInstance(IdentityService.MOCK_LLM_PROVIDER_ID, UUID)
+        self.assertEqual(str(IdentityService.MOCK_LLM_PROVIDER_ID), "11111111-1111-1111-1111-111111111111")
+
+        # Test MOCK_LLM_MODEL_ID
+        self.assertIsInstance(IdentityService.MOCK_LLM_MODEL_ID, UUID)
+        self.assertEqual(str(IdentityService.MOCK_LLM_MODEL_ID), "22222222-2222-2222-2222-222222222222")
+
+    def test_mock_constants_are_unique(self):
+        """Test that all mock constants have different values."""
+        constants = [
+            IdentityService.DEFAULT_MOCK_USER_ID,
+            IdentityService.MOCK_LLM_PROVIDER_ID,
+            IdentityService.MOCK_LLM_MODEL_ID,
+        ]
+
+        # Check that all constants are unique
+        self.assertEqual(len(constants), len(set(constants)), "Mock constants should have unique values")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 
 from auth.oidc import create_access_token, oauth
 from core.config import Settings, get_settings
+from core.identity_service import IdentityService
 from core.mock_auth import (
     create_mock_user_data,
     ensure_mock_user_exists,
@@ -293,7 +294,7 @@ async def get_userinfo(
                 sub="test_user_id",
                 name="Test User",
                 email="test@example.com",
-                uuid="1aa5093c-084e-4f20-905b-cf5e18301b1c",
+                uuid=str(IdentityService.get_mock_user_id()),
                 role="admin",
             )
             response_data = {**user_info.model_dump(), "access_token": BYPASS_TOKEN, "token_type": "Bearer"}

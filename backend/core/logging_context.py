@@ -19,13 +19,14 @@ Example:
 """
 
 import time
-import uuid
 from collections.abc import Generator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from logging import Logger
 from typing import Any
+
+from core.identity_service import IdentityService
 
 
 @dataclass
@@ -157,7 +158,7 @@ def log_operation(
 
     # Create new context with operation details
     new_context = LogContext(
-        request_id=prev_context.request_id or f"req_{uuid.uuid4().hex[:12]}",
+        request_id=prev_context.request_id or f"req_{IdentityService.generate_id().hex[:12]}",
         user_id=user_id or prev_context.user_id,
         operation=operation,
         metadata=metadata,
@@ -287,7 +288,7 @@ def request_context(
 
     # Create new context
     new_context = LogContext(
-        request_id=request_id or f"req_{uuid.uuid4().hex[:12]}",
+        request_id=request_id or f"req_{IdentityService.generate_id().hex[:12]}",
         user_id=user_id,
         metadata=metadata,
     )

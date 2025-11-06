@@ -8,13 +8,14 @@ Based on patterns from IBM mcp-context-forge but adapted for RAG Modulo.
 
 import asyncio
 import sys
-import uuid
 from collections import deque
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
+
+from core.identity_service import IdentityService
 
 
 class LogLevel(str, Enum):
@@ -50,7 +51,7 @@ class LogEntry:
         execution_time_ms: Operation execution time in milliseconds
     """
 
-    id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    id: str = field(default_factory=IdentityService.generate_document_id)
     timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
     level: LogLevel = LogLevel.INFO
     entity_type: str | None = None

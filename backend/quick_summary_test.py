@@ -1,14 +1,22 @@
 #!/usr/bin/env python3
 """Quick test of conversation summarization APIs."""
 
+import sys
 import time
-from uuid import uuid4
+from pathlib import Path
 
 import requests
 
+# Add backend directory to path for imports
+backend_dir = Path(__file__).parent
+if str(backend_dir) not in sys.path:
+    sys.path.insert(0, str(backend_dir))
+
+from core.identity_service import IdentityService  # noqa: E402
+
 BASE_URL = "http://localhost:8000"
-USER_ID = str(uuid4())
-COLLECTION_ID = str(uuid4())
+USER_ID = str(IdentityService.generate_id())
+COLLECTION_ID = str(IdentityService.generate_id())
 
 
 def test_session_creation():

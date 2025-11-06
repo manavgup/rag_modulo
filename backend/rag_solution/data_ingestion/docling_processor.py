@@ -8,7 +8,6 @@ layout analysis, and reading order detection.
 # Standard library imports
 import logging
 import os
-import uuid
 from collections.abc import AsyncIterator
 from datetime import datetime
 from typing import Any
@@ -20,6 +19,7 @@ from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 # First-party imports
 from core.config import Settings
+from core.identity_service import IdentityService
 from rag_solution.data_ingestion.base_processor import BaseProcessor
 from vectordbs.data_types import Document, DocumentChunk, DocumentChunkMetadata, DocumentMetadata
 
@@ -433,7 +433,7 @@ class DoclingProcessor(BaseProcessor):
         Returns:
             DocumentChunk object
         """
-        chunk_id = str(uuid.uuid4())
+        chunk_id = IdentityService.generate_document_id()
 
         # Create DocumentChunkMetadata with only supported fields
         chunk_metadata_dict = {

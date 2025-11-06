@@ -326,11 +326,11 @@ async def example_api_endpoint_handler(request_id: str, user_id: str, collection
 
 if __name__ == "__main__":
     """Example usage and testing."""
-    import uuid
 
     # This would normally be done at application startup
     async def main() -> None:
         from core.enhanced_logging import initialize_logging
+        from core.identity_service import IdentityService
 
         # Initialize logging with development settings
         await initialize_logging(
@@ -341,8 +341,8 @@ if __name__ == "__main__":
         )
 
         # Run example operations
-        collection_id = uuid.uuid4()
-        user_id = uuid.uuid4()
+        collection_id = IdentityService.generate_id()
+        user_id = IdentityService.generate_id()
 
         print("\n=== Example 1: Simple Search ===")
         result1 = await example_search_operation(collection_id, user_id, "What is machine learning?")
