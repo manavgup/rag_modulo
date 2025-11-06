@@ -637,3 +637,5 @@ VectorDBIngestionResponse = VectorDBResponse[list[str]]  # List of ingested IDs
 VectorDBSearchResponse = VectorDBResponse[list[QueryResult]]  # Search results
 VectorDBCollectionResponse = VectorDBResponse[dict[str, Any]]  # Collection info
 VectorDBDeleteResponse = VectorDBResponse[bool]  # Delete success status
+HealthCheckResponse = VectorDBResponse[dict[str, Any]]  # Health check status
+CollectionStatsResponse = VectorDBResponse[dict[str, Any]]  # Collection statistics
