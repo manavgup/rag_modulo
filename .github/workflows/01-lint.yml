@@ -169,7 +169,7 @@ jobs:
           contains(matrix.id, 'ruff') || contains(matrix.id, 'mypy') ||
           contains(matrix.id, 'pylint') || contains(matrix.id, 'pydocstyle') ||
           contains(matrix.id, 'toml')
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: 'pip'
