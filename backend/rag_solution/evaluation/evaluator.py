@@ -39,13 +39,14 @@ except ImportError:
 
 try:
     from vectordbs.data_types import DocumentChunkWithScore, QueryResult, VectorQuery
-    from vectordbs.utils.watsonx import get_embeddings
 except ImportError:
     # Handle case where vectordbs is not available
     DocumentChunkWithScore = None
     QueryResult = None
     VectorQuery = None
-    get_embeddings = None
+
+# Import shared embedding utility
+from vectordbs.utils.embeddings import get_embeddings_for_vector_store
 
 logger = logging.getLogger(__name__)
 
@@ -103,11 +104,14 @@ class RAGEvaluator:
         Returns:
             float: The relevance score.
         """
-        query_embedding = get_embeddings(query_text)
+        from core.config import Settings, get_settings
+
+        settings: Settings = get_settings()
+        query_embedding = get_embeddings_for_vector_store(query_text, settings)
         # Extract text from document chunks
         doc_contents = [doc.chunk.text for doc in document_list]
         logger.info("Got document contents")
-        doc_embeddings = get_embeddings(doc_contents)
+        doc_embeddings = get_embeddings_for_vector_store(doc_contents, settings)
         similarities = cosine_similarity(query_embedding, doc_embeddings)
         logger.info("Generated relevance similarities: %s", similarities)
         return float(similarities.mean())
@@ -123,8 +127,11 @@ class RAGEvaluator:
         Returns:
             float: The coherence score.
         """
-        query_embedding = get_embeddings(query_text)
-        response_embedding = get_embeddings(response_text)
+        from core.config import Settings, get_settings
+
+        settings: Settings = get_settings()
+        query_embedding = get_embeddings_for_vector_store(query_text, settings)
+        response_embedding = get_embeddings_for_vector_store(response_text, settings)
         coherence = cosine_similarity(query_embedding, response_embedding)
         # Handle both scalar and array results from cosine_similarity
         if hasattr(coherence, "item"):
@@ -142,9 +149,12 @@ class RAGEvaluator:
         Returns:
             float: The faithfulness score.
         """
-        response_embedding = get_embeddings(response_text)
+        from core.config import Settings, get_settings
+
+        settings: Settings = get_settings()
+        response_embedding = get_embeddings_for_vector_store(response_text, settings)
         doc_contents = [doc.chunk.text for doc in document_list]
-        doc_embeddings = get_embeddings(doc_contents)
+        doc_embeddings = get_embeddings_for_vector_store(doc_contents, settings)
         similarities = cosine_similarity(response_embedding, doc_embeddings)
         return float(similarities.mean())
 

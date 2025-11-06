@@ -10,7 +10,6 @@ from typing import Any
 from pinecone import Pinecone, ServerlessSpec
 
 from core.config import Settings, get_settings
-from vectordbs.utils.watsonx import get_embeddings
 
 from .data_types import (
     Document,
@@ -22,6 +21,7 @@ from .data_types import (
     Source,
 )
 from .error_types import CollectionError, DocumentError
+from .utils.embeddings import get_embeddings_for_vector_store
 from .vector_store import VectorStore
 
 logger = logging.getLogger(__name__)
@@ -140,7 +140,7 @@ class PineconeStore(VectorStore):
         Raises:
             DocumentError: If retrieval fails
         """
-        query_embeddings = get_embeddings(query, settings=self.settings)
+        query_embeddings = get_embeddings_for_vector_store(query, settings=self.settings)
         if not query_embeddings:
             raise DocumentError("Failed to generate embeddings for the query string.")
 

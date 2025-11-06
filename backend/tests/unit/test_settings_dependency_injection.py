@@ -656,7 +656,11 @@ def test_chunking_functions_dependency_injection():
 
 @pytest.mark.unit
 def test_watsonx_utils_dependency_injection():
-    """Test that watsonx utility functions properly use dependency injection."""
+    """Test that watsonx utility functions properly use dependency injection.
+
+    Note: This tests the legacy vectordbs.utils.watsonx functions which are kept for
+    backward compatibility. New code should use LLMProviderFactory pattern instead.
+    """
     from vectordbs.utils.watsonx import get_embeddings, get_wx_client
 
     mock_settings = Mock()

@@ -19,7 +19,12 @@ from rag_solution.data_ingestion.hierarchical_chunking import (
     create_sentence_based_hierarchical_chunks,
     get_child_chunks,
 )
-from vectordbs.utils.watsonx import get_embeddings, get_tokenization
+
+# Import shared embedding utility for modern factory-based pattern
+from vectordbs.utils.embeddings import get_embeddings_for_vector_store
+
+# Keep legacy import for backward compatibility (deprecated function)
+from vectordbs.utils.watsonx import get_tokenization
 
 if TYPE_CHECKING:
     from sklearn.metrics.pairwise import cosine_similarity
@@ -119,7 +124,9 @@ def semantic_chunking(text: str, min_chunk_size: int = 1, max_chunk_size: int = 
     sentences = split_sentences(text)
     combined_sentences = combine_sentences(sentences)
 
-    embeddings = get_embeddings(combined_sentences)
+    # Use default settings for embedding generation
+    settings = get_settings()
+    embeddings = get_embeddings_for_vector_store(combined_sentences, settings)
     embeddings_array = np.array(embeddings)
 
     # Ensure the array has the correct shape for cosine similarity

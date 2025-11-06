@@ -90,9 +90,7 @@ def get_message_processing_orchestrator(
     try:
         provider = llm_provider_service.get_default_provider()
         if provider and hasattr(provider, "llm_base"):
-            cot_service = ChainOfThoughtService(
-                settings, provider.llm_base, search_service, db
-            )
+            cot_service = ChainOfThoughtService(settings, provider.llm_base, search_service, db)
     except Exception:
         # CoT is optional, continue without it
         pass

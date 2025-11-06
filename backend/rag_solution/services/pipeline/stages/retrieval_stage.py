@@ -165,9 +165,9 @@ class RetrievalStage(BaseStage):  # pylint: disable=too-few-public-methods
                 f.write(f"Milvus Port: {getattr(settings, 'milvus_port', 'N/A')}\n\n")
 
                 # Log search parameters from MilvusStore
-                if hasattr(self.pipeline_service, 'retriever'):
+                if hasattr(self.pipeline_service, "retriever"):
                     retriever = self.pipeline_service.retriever
-                    if hasattr(retriever, 'search_params'):
+                    if hasattr(retriever, "search_params"):
                         f.write("MILVUS SEARCH PARAMETERS:\n")
                         f.write("-" * 80 + "\n")
                         f.write(f"Metric Type: {retriever.search_params.get('metric_type', 'N/A')}\n")

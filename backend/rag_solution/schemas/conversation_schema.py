@@ -174,7 +174,6 @@ class ConversationSessionOutput(BaseModel):
 
         # Check if the input is a ConversationSession database model
         if hasattr(obj, "__tablename__") and getattr(obj, "__tablename__", None) == "conversation_sessions":
-            
             return cls.from_db_session(
                 obj, message_count=len(obj.messages) if hasattr(obj, "messages") and obj.messages else 0
             )
@@ -194,7 +193,6 @@ class ConversationSessionOutput(BaseModel):
                 # Convert string to SessionStatus enum
                 status_value = SessionStatus(status_value)
 
-
             return cls(
                 id=session.id,
                 user_id=session.user_id,
@@ -211,8 +209,7 @@ class ConversationSessionOutput(BaseModel):
                 message_count=message_count,
             )
         except (ValueError, KeyError, AttributeError) as e:
-            logger.error(
-            )
+            logger.error("Failed to create ConversationSessionOutput from database session: %s", str(e))
             raise
 
 
@@ -265,18 +262,15 @@ class ConversationMessageOutput(BaseModel):
         Reconstructs sources, cot_output, and token_analysis from stored metadata.
         """
         # Debug logging for token count extraction
-        
 
         # Handle metadata properly - it's stored as a dict in the database
         metadata_value = None
         raw_metadata = None
         if message.message_metadata:
-            
             if isinstance(message.message_metadata, dict):
                 raw_metadata = message.message_metadata  # Keep reference to raw dict
                 # It's already a dictionary from the database - convert to MessageMetadata object
                 try:
-                    
                     metadata_value = MessageMetadata(**message.message_metadata)
                 except (ValueError, KeyError, AttributeError) as e:
                     logger.error("Failed to create MessageMetadata from database dict: %s", str(e))
@@ -320,9 +314,7 @@ class ConversationMessageOutput(BaseModel):
             "cot_output": cot_output,
         }
 
-
         result = cls.model_validate(data)
-
 
         return result
 
@@ -336,23 +328,13 @@ class ContextMetadata(BaseModel):
     """
 
     extracted_entities: list[str] = Field(
-        default_factory=list,
-        description="Named entities extracted from conversation (people, orgs, locations)"
+        default_factory=list, description="Named entities extracted from conversation (people, orgs, locations)"
     )
     conversation_topics: list[str] = Field(
-        default_factory=list,
-        description="Main topics identified in the conversation"
+        default_factory=list, description="Main topics identified in the conversation"
     )
-    message_count: int = Field(
-        default=0,
-        ge=0,
-        description="Number of messages used to build this context"
-    )
-    context_length: int = Field(
-        default=0,
-        ge=0,
-        description="Character length of the context window"
-    )
+    message_count: int = Field(default=0, ge=0, description="Number of messages used to build this context")
+    context_length: int = Field(default=0, ge=0, description="Character length of the context window")
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 
@@ -370,7 +352,7 @@ class ConversationContext(BaseModel):
     metadata: ContextMetadata = Field(
         default_factory=ContextMetadata,
         description="Typed context metadata (entities, topics, counts)",
-        alias="context_metadata"  # Backward compatibility
+        alias="context_metadata",  # Backward compatibility
     )
 
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)

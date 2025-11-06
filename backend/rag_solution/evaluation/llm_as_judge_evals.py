@@ -17,6 +17,10 @@ from rag_solution.evaluation.prompts import (
     CONTEXT_RELEVANCY_PROMPT_LLAMA3,
     FAITHFULNESS_PROMPT_LLAMA3,
 )
+
+# Note: Keeping legacy imports (generate_batch, generate_text, get_model) as these evaluation
+# utilities don't have user context required by LLMProviderFactory pattern. This usage is
+# acceptable for utility functions that operate outside the normal request flow.
 from vectordbs.utils.watsonx import generate_batch, generate_text, get_model
 
 logger = get_logger(__name__)

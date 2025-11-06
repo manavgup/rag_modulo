@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 import numpy as np
 import pytest
+
 from core.config import get_settings
 from rag_solution.data_ingestion.chunking import (
     calculate_cosine_distances,
@@ -120,7 +121,7 @@ def test_semantic_chunking() -> None:
         ]
     )
 
-    with patch("rag_solution.data_ingestion.chunking.get_embeddings", return_value=mock_embeddings):
+    with patch("rag_solution.data_ingestion.chunking.get_embeddings_for_vector_store", return_value=mock_embeddings):
         chunks = semantic_chunking(text)
         assert len(chunks) >= 1  # Should identify at least one semantic chunk
 
@@ -231,7 +232,7 @@ def test_chunker_integration() -> None:
     mock_embeddings = np.array([[1.0, 0.0], [0.9, 0.1], [0.0, 1.0]])
     settings = get_settings()
     with (
-        patch("rag_solution.data_ingestion.chunking.get_embeddings", return_value=mock_embeddings),
+        patch("rag_solution.data_ingestion.chunking.get_embeddings_for_vector_store", return_value=mock_embeddings),
         patch.object(settings, "min_chunk_size", 10),
         patch.object(settings, "max_chunk_size", 50),
     ):

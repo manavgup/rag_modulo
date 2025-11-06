@@ -7,6 +7,7 @@ Usage:
     python test_embedding_direct.py <collection_name> "your search query"
     python test_embedding_direct.py collection_0fa6e28b3b76494a97cbdf3c9288747e "What percentage of IBM's workforce consists of women?"
 """
+
 import os
 import sys
 from pathlib import Path
@@ -15,24 +16,27 @@ from pathlib import Path
 backend_path = Path(__file__).parent / "backend"
 sys.path.insert(0, str(backend_path))
 
-from dotenv import load_dotenv
-from pymilvus import Collection, connections
-from ibm_watsonx_ai import Credentials
-from ibm_watsonx_ai.foundation_models import Embeddings, Model
-from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams
+from dotenv import load_dotenv  # noqa: E402
+from ibm_watsonx_ai import Credentials  # noqa: E402
+from ibm_watsonx_ai.foundation_models import Embeddings, Model  # noqa: E402
+from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams  # noqa: E402
+from pymilvus import Collection, connections  # noqa: E402
 
 # Load environment variables
 load_dotenv()
+
 
 def test_direct_embeddings():
     """Test embeddings and retrieval directly."""
 
     # Get collection identifier and query from command line
     if len(sys.argv) < 3:
-        print("Usage: python test_embedding_direct.py <collection_id_or_name> \"query\"")
+        print('Usage: python test_embedding_direct.py <collection_id_or_name> "query"')
         print("\nExamples:")
-        print("  python test_embedding_direct.py 0fa6e28b-3b76-494a-97cb-df3c9288747e \"What percentage of IBM's workforce consists of women?\"")
-        print("  python test_embedding_direct.py collection_0fa6e28b3b76494a97cbdf3c9288747e \"women workforce\"")
+        print(
+            '  python test_embedding_direct.py 0fa6e28b-3b76-494a-97cb-df3c9288747e "What percentage of IBM\'s workforce consists of women?"'
+        )
+        print('  python test_embedding_direct.py collection_0fa6e28b3b76494a97cbdf3c9288747e "women workforce"')
         sys.exit(1)
 
     collection_input = sys.argv[1]
@@ -57,7 +61,9 @@ def test_direct_embeddings():
     # Get credentials from environment
     print("Loading WatsonX credentials from environment...")
     api_key = os.getenv("WATSONX_APIKEY") or os.getenv("WATSONX_API_KEY")
-    project_id = os.getenv("WATSONX_INSTANCE_ID") or os.getenv("WATSONX_PROJECT_ID") or "3f77f23d-71b7-426b-ae13-bc4710769880"
+    project_id = (
+        os.getenv("WATSONX_INSTANCE_ID") or os.getenv("WATSONX_PROJECT_ID") or "3f77f23d-71b7-426b-ae13-bc4710769880"
+    )
     url = os.getenv("WATSONX_URL", "https://us-south.ml.cloud.ibm.com")
 
     if not api_key:
@@ -68,22 +74,19 @@ def test_direct_embeddings():
         print("  WATSONX_INSTANCE_ID=<project-id> (optional, uses default)")
         return
 
-    print(f"✅ Credentials loaded")
+    print("✅ Credentials loaded")
     print(f"   URL: {url}")
     print(f"   Project ID: {project_id[:8]}...")
 
     # Initialize WatsonX embeddings client directly
     print("\nInitializing WatsonX embeddings client...")
     try:
-        credentials = Credentials(
-            api_key=api_key,
-            url=url
-        )
+        credentials = Credentials(api_key=api_key, url=url)
 
         embeddings_client = Embeddings(
             model_id="ibm/slate-125m-english-rtrvr-v2",  # Match .env setting
             credentials=credentials,
-            project_id=project_id
+            project_id=project_id,
         )
         print("✅ WatsonX embeddings client initialized (ibm/slate-125m-english-rtrvr-v2)")
 
@@ -97,18 +100,19 @@ def test_direct_embeddings():
                 GenParams.TEMPERATURE: 0.7,
                 GenParams.TOP_K: 50,
                 GenParams.TOP_P: 0.9,
-            }
+            },
         )
         print("✅ WatsonX LLM initialized (ibm/granite-3-3-8b-instruct)")
 
     except Exception as e:
         print(f"❌ Failed to initialize embeddings client: {e}")
         import traceback
+
         traceback.print_exc()
         return
 
     # Connect to Milvus
-    print(f"\nConnecting to Milvus at localhost:19530...")
+    print("\nConnecting to Milvus at localhost:19530...")
     try:
         connections.connect(
             alias="default",
@@ -125,7 +129,7 @@ def test_direct_embeddings():
     try:
         collection = Collection(collection_name)
         collection.load()
-        print(f"✅ Collection loaded\n")
+        print("✅ Collection loaded\n")
     except Exception as e:
         print(f"❌ Failed to load collection: {e}")
         connections.disconnect("default")
@@ -143,22 +147,20 @@ def test_direct_embeddings():
             result = embeddings_client.embed_documents(texts=[query])
             query_embedding = result[0]
 
-            print(f"✅ Embeddings generated")
+            print("✅ Embeddings generated")
             print(f"   Dimension: {len(query_embedding)}")
             print(f"   Sample (first 5 values): {query_embedding[:5]}")
 
         except Exception as e:
             print(f"❌ Failed to get embeddings: {e}")
             import traceback
+
             traceback.print_exc()
             continue
 
         # Search Milvus directly
         print("\nSearching Milvus...")
-        search_params = {
-            "metric_type": "COSINE",
-            "params": {"nprobe": 10}
-        }
+        search_params = {"metric_type": "COSINE", "params": {"nprobe": 10}}
 
         try:
             results = collection.search(
@@ -171,11 +173,12 @@ def test_direct_embeddings():
         except Exception as e:
             print(f"❌ Search failed: {e}")
             import traceback
+
             traceback.print_exc()
             continue
 
         # Display results
-        print(f"\nTop 20 Results:")
+        print("\nTop 20 Results:")
         print("-" * 80)
 
         if not results or len(results) == 0 or len(results[0]) == 0:
@@ -198,13 +201,7 @@ def test_direct_embeddings():
             print()
 
             # Store full text for RAG
-            retrieved_chunks.append({
-                "text": text,
-                "score": score,
-                "page": page,
-                "chunk": chunk,
-                "doc": doc_name
-            })
+            retrieved_chunks.append({"text": text, "score": score, "page": page, "chunk": chunk, "doc": doc_name})
 
         # Generate LLM response using retrieved chunks
         print("\n" + "=" * 80)
@@ -276,12 +273,13 @@ Answer:"""
             print(f"✓ Contains uncertainty: {'YES ⚠️' if is_uncertain else 'NO'}")
 
             # Check if answer cites sources
-            has_page_ref = "page" in answer_lower or any(str(chunk['page']) in answer for chunk in retrieved_chunks[:5])
+            has_page_ref = "page" in answer_lower or any(str(chunk["page"]) in answer for chunk in retrieved_chunks[:5])
             print(f"✓ References sources: {'YES' if has_page_ref else 'NO'}")
 
         except Exception as e:
             print(f"❌ LLM generation failed: {e}")
             import traceback
+
             traceback.print_exc()
 
         print("\n")

@@ -1,5 +1,9 @@
 # Settings Dependency Injection Migration Plan
 
+> **Note**: This document is outdated. The codebase has migrated from the legacy `vectordbs.utils.watsonx`
+> pattern to using `LLMProviderFactory` for all LLM interactions. See Issue #219 for details.
+> Legacy functions are kept for backward compatibility in specific utility contexts only.
+
 ## Overview
 This document outlines all files that need to be modified to implement proper FastAPI dependency injection for settings, replacing direct `settings` imports with `get_settings()` function.
 

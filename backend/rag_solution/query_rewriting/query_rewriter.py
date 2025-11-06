@@ -2,6 +2,8 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Any
 
+# Note: Keeping legacy import for generate_text as this utility doesn't have user context
+# required by LLMProviderFactory pattern. This usage is acceptable for utility functions.
 from vectordbs.utils.watsonx import generate_text
 
 # Configure logging

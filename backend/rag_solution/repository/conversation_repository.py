@@ -370,7 +370,7 @@ class ConversationRepository:
                         metadata_dict = message_input.metadata.model_dump()
                     except AttributeError:
                         metadata_dict = dict(message_input.metadata)
-            
+
             message = ConversationMessage(
                 session_id=message_input.session_id,
                 role=message_input.role,
