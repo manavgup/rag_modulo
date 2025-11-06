@@ -5,6 +5,7 @@ enabling document storage, retrieval, and search operations using ChromaDB.
 """
 
 import logging
+import time
 from collections.abc import Mapping
 from typing import Any
 
@@ -14,16 +15,20 @@ from chromadb import ClientAPI, chromadb
 from core.config import Settings, get_settings
 
 from .data_types import (
+    CollectionConfig,
     Document,
     DocumentChunk,
     DocumentChunkMetadata,
     DocumentChunkWithScore,
     DocumentMetadataFilter,
+    EmbeddedChunk,
     QueryResult,
     QueryWithEmbedding,
     Source,
+    VectorDBResponse,
+    VectorSearchRequest,
 )
-from .error_types import CollectionError, DocumentError
+from .error_types import CollectionError, DocumentError, VectorStoreError
 from .utils.embeddings import get_embeddings_for_vector_store
 from .vector_store import VectorStore
 
@@ -62,11 +67,67 @@ class ChromaDBStore(VectorStore):
             logging.error("Failed to connect to ChromaDB: %s", str(e))
             raise CollectionError(f"Failed to connect to ChromaDB: {e}") from e
 
-    def create_collection(self, collection_name: str, metadata: dict | None = None) -> None:
-        """Create a collection in ChromaDB."""
+    def _create_collection_impl(self, config: CollectionConfig) -> dict[str, Any]:
+        """Implementation-specific collection creation with Pydantic model.
+
+        Args:
+            config: Collection configuration (Pydantic model)
+
+        Returns:
+            dict: Creation result metadata
+
+        Raises:
+            CollectionError: If collection creation fails
+        """
         try:
-            self._client.create_collection(name=collection_name, metadata=metadata)
-            logging.info("Collection '%s' created successfully", collection_name)
+            # Validate collection config against settings
+            self._validate_collection_config(config)
+
+            # ChromaDB metadata format
+            chroma_metadata: dict[str, Any] = {
+                "dimension": config.dimension,
+                "metric": config.metric_type.lower(),
+            }
+            if config.description:
+                chroma_metadata["description"] = config.description
+
+            self._client.create_collection(name=config.collection_name, metadata=chroma_metadata)
+            logging.info(
+                "Collection '%s' created successfully with dimension %d", config.collection_name, config.dimension
+            )
+
+            return {
+                "status": "created",
+                "collection_name": config.collection_name,
+                "dimension": config.dimension,
+                "metric_type": config.metric_type,
+            }
+        except Exception as e:
+            logging.error("Failed to create collection '%s': %s", config.collection_name, str(e))
+            raise CollectionError(f"Failed to create collection '{config.collection_name}': {e}") from e
+
+    def create_collection(self, collection_name: str, metadata: dict | None = None) -> None:
+        """Create a collection in ChromaDB (backward compatibility wrapper).
+
+        Args:
+            collection_name: Name of the collection to create
+            metadata: Optional metadata for the collection
+
+        Raises:
+            CollectionError: If collection creation fails
+        """
+        try:
+            # Create CollectionConfig from legacy parameters
+            config = CollectionConfig(
+                collection_name=collection_name,
+                dimension=self.settings.embedding_dim,
+                metric_type="COSINE",
+                index_type="FLAT",  # ChromaDB default
+                description=metadata.get("description") if metadata else None,
+            )
+
+            # Use new Pydantic-based implementation
+            self._create_collection_impl(config)
         except Exception as e:
             logging.error("Failed to create collection '%s': %s", collection_name, str(e))
             raise CollectionError(f"Failed to create collection '{collection_name}': {e}") from e
@@ -78,18 +139,27 @@ class ChromaDBStore(VectorStore):
         except (ValueError, KeyError, AttributeError):
             self.create_collection(collection_name)
 
-    def add_documents(self, collection_name: str, documents: list[Document]) -> list[str]:
-        """Adds documents to the vector store."""
-        collection = self._client.get_collection(collection_name)
-        self._initialize_client()
-        self._create_collection_if_not_exists(collection_name)
+    def _add_documents_impl(self, collection_name: str, chunks: list[EmbeddedChunk]) -> list[str]:
+        """Implementation-specific document addition with Pydantic models.
 
-        docs, embeddings, metadatas, ids = [], [], [], []
+        Args:
+            collection_name: Target collection
+            chunks: List of embedded chunks to add (Pydantic models)
 
-        for document in documents:
-            for chunk in document.chunks:
+        Returns:
+            List of chunk IDs that were added
+
+        Raises:
+            DocumentError: If addition fails
+        """
+        try:
+            collection = self._client.get_collection(collection_name)
+
+            docs, embeddings, metadatas, ids = [], [], [], []
+
+            for chunk in chunks:
                 docs.append(chunk.text)
-                embeddings.append(chunk.embeddings)
+                embeddings.append(chunk.embeddings)  # EmbeddedChunk ensures embeddings are present
                 metadata: MetadataType = {
                     "source": str(chunk.metadata.source) if chunk.metadata and chunk.metadata.source else "OTHER",
                     "document_id": chunk.document_id or "",
@@ -97,16 +167,56 @@ class ChromaDBStore(VectorStore):
                 metadatas.append(metadata)
                 ids.append(chunk.chunk_id)
 
-        try:
             # Convert embeddings to the format expected by ChromaDB
             embeddings_array = np.array(embeddings, dtype=np.float32)
             collection.upsert(ids=ids, embeddings=embeddings_array, metadatas=metadatas, documents=docs)  # type: ignore[arg-type]
-            logging.info("Successfully added documents to collection '%s'", collection_name)
+            logging.info("Successfully added %d chunks to collection '%s'", len(chunks), collection_name)
+
+            return ids
+        except Exception as e:
+            logging.error("Failed to add chunks to ChromaDB collection '%s': %s", collection_name, str(e))
+            raise DocumentError(f"Failed to add chunks to ChromaDB collection '{collection_name}': {e}") from e
+
+    def add_documents(self, collection_name: str, documents: list[Document]) -> list[str]:
+        """Adds documents to the vector store (backward compatibility wrapper).
+
+        Args:
+            collection_name: Name of the collection
+            documents: List of documents to add
+
+        Returns:
+            List[str]: List of document IDs that were added
+
+        Raises:
+            DocumentError: If document addition fails
+        """
+        self._initialize_client()
+        self._create_collection_if_not_exists(collection_name)
+
+        try:
+            # Convert documents to EmbeddedChunks
+            chunks: list[EmbeddedChunk] = []
+            for document in documents:
+                for chunk in document.chunks:
+                    # Only add chunks that have embeddings
+                    if chunk.embeddings:
+                        embedded_chunk = EmbeddedChunk(
+                            chunk_id=chunk.chunk_id,
+                            text=chunk.text,
+                            embeddings=chunk.embeddings,
+                            metadata=chunk.metadata,
+                            document_id=chunk.document_id,
+                        )
+                        chunks.append(embedded_chunk)
+
+            # Use Pydantic-based implementation
+            self._add_documents_impl(collection_name, chunks)
+
+            # Return unique document IDs (for backward compatibility)
+            return [doc.document_id for doc in documents]
         except Exception as e:
             logging.error("Failed to add documents to ChromaDB collection '%s': %s", collection_name, str(e))
             raise DocumentError(f"Failed to add documents to ChromaDB collection '{collection_name}': {e}") from e
-
-        return [doc.document_id for doc in documents]
 
     def retrieve_documents(self, query: str, collection_name: str, number_of_results: int = 10) -> list[QueryResult]:
         """
@@ -127,15 +237,51 @@ class ChromaDBStore(VectorStore):
         query_with_embedding = QueryWithEmbedding(text=query, embeddings=query_embeddings[0])
         return self.query(collection_name, query_with_embedding, number_of_results=number_of_results)
 
+    def _search_impl(self, request: VectorSearchRequest) -> list[QueryResult]:
+        """Implementation-specific search with Pydantic model.
+
+        Args:
+            request: Vector search request (Pydantic model)
+
+        Returns:
+            List of query results
+
+        Raises:
+            VectorStoreError: If search fails
+        """
+        try:
+            collection = self._client.get_collection(request.collection_id)
+
+            # Get query vector (either from request or generate from text)
+            if request.query_vector:
+                query_embedding = request.query_vector
+            elif request.query_text:
+                embeddings_list = get_embeddings_for_vector_store(request.query_text, settings=self.settings)
+                if not embeddings_list:
+                    raise DocumentError("Failed to generate embeddings for query text")
+                query_embedding = embeddings_list[0]
+            else:
+                raise ValueError("Either query_text or query_vector must be provided")
+
+            # ChromaDB expects embeddings as list[float]
+            response = collection.query(
+                query_embeddings=query_embedding,  # type: ignore[arg-type]
+                n_results=request.top_k,
+            )
+            logging.info("ChromaDB search complete for collection '%s'", request.collection_id)
+            return self._process_search_results(response, request.collection_id)
+        except Exception as e:
+            logging.error("Failed to search ChromaDB collection '%s': %s", request.collection_id, str(e))
+            raise VectorStoreError(f"Failed to search ChromaDB collection '{request.collection_id}': {e}") from e
+
     def query(
         self,
         collection_name: str,
         query: QueryWithEmbedding,
         number_of_results: int = 10,
-        metadata_filter: DocumentMetadataFilter | None = None,  # noqa: ARG002
+        metadata_filter: DocumentMetadataFilter | None = None,
     ) -> list[QueryResult]:
-        """
-        Queries the vector store with filtering and query mode options.
+        """Queries the vector store (backward compatibility wrapper).
 
         Args:
             collection_name (str): The name of the collection to query.
@@ -146,17 +292,20 @@ class ChromaDBStore(VectorStore):
         Returns:
             List[QueryResult]: The list of query results.
         """
-        collection = self._client.get_collection(collection_name)
-
         try:
-            # ChromaDB expects embeddings as list[float], not list[list[float]]
-            query_embeddings = query.embeddings[0]
-            response = collection.query(
-                query_embeddings=query_embeddings,  # type: ignore[arg-type]
-                n_results=number_of_results,  # ChromaDB API uses n_results, but we maintain our consistent interface
+            # Create VectorSearchRequest from legacy parameters
+            request = VectorSearchRequest(
+                query_text=query.text if hasattr(query, "text") else None,
+                query_vector=query.embeddings,
+                collection_id=collection_name,
+                top_k=number_of_results,
+                metadata_filter=metadata_filter,
+                include_metadata=True,
+                include_vectors=False,
             )
-            logging.info("Query response: %s", response)
-            return self._process_search_results(response, collection_name)
+
+            # Use Pydantic-based implementation
+            return self._search_impl(request)
         except Exception as e:
             logging.error("Failed to query ChromaDB collection '%s': %s", collection_name, str(e))
             raise DocumentError(f"Failed to query ChromaDB collection '{collection_name}': {e}") from e
@@ -171,17 +320,61 @@ class ChromaDBStore(VectorStore):
             logging.error("Failed to delete ChromaDB collection: %s", str(e))
             raise CollectionError(f"Failed to delete ChromaDB collection: {e}") from e
 
-    def delete_documents(self, collection_name: str, document_ids: list[str]) -> None:
-        """Deletes documents by their IDs from the vector store."""
-        collection = self._client.get_collection(collection_name)
+    def delete_documents_with_response(
+        self, collection_name: str, document_ids: list[str]
+    ) -> VectorDBResponse[dict[str, Any]]:
+        """Delete documents and return detailed response (Pydantic-enhanced).
 
+        Args:
+            collection_name: Name of the collection
+            document_ids: List of document IDs to delete
+
+        Returns:
+            VectorDBResponse with deletion metadata
+        """
+        start_time = time.time()
         try:
+            collection = self._client.get_collection(collection_name)
             collection.delete(ids=document_ids)
-            logging.info("Deleted %d documents from collection '%s'", len(document_ids), collection_name)
-            return
+
+            elapsed = time.time() - start_time
+            logging.info(
+                "Deleted %d documents from collection '%s' in %.2fs", len(document_ids), collection_name, elapsed
+            )
+
+            return VectorDBResponse.create_success(
+                data={
+                    "deleted_count": len(document_ids),
+                    "collection_name": collection_name,
+                    "document_ids": document_ids,
+                },
+                metadata={"elapsed_seconds": elapsed},
+            )
         except Exception as e:
+            elapsed = time.time() - start_time
             logging.error("Failed to delete documents from ChromaDB collection '%s': %s", collection_name, str(e))
-            raise DocumentError(f"Failed to delete documents from ChromaDB collection '{collection_name}': {e}") from e
+            return VectorDBResponse.create_error(
+                error=f"Failed to delete documents: {e!s}",
+                metadata={
+                    "collection_name": collection_name,
+                    "document_count": len(document_ids),
+                    "elapsed_seconds": elapsed,
+                },
+            )
+
+    def delete_documents(self, collection_name: str, document_ids: list[str]) -> None:
+        """Deletes documents by their IDs from the vector store (backward compatibility).
+
+        Args:
+            collection_name: Name of the collection
+            document_ids: List of document IDs to delete
+
+        Raises:
+            DocumentError: If deletion fails
+        """
+        response = self.delete_documents_with_response(collection_name, document_ids)
+        if not response.success:
+            raise DocumentError(response.error or "Unknown error during deletion")
 
     def count_document_chunks(self, collection_name: str, document_id: str) -> int:
         """Count the number of chunks for a specific document.
