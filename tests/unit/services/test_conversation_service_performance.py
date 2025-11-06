@@ -103,9 +103,29 @@ def performance_timer() -> Generator[dict[str, float], None, None]:
     yield timer
 
 
+def _can_connect_to_database() -> bool:
+    """Check if database connection is available."""
+    try:
+        settings = get_settings()
+        database_url = (
+            f"postgresql://{settings.collectiondb_user}:{settings.collectiondb_pass}"
+            f"@{settings.collectiondb_host}:{settings.collectiondb_port}/{settings.collectiondb_name}"
+        )
+        engine = create_engine(database_url, echo=False, pool_pre_ping=True, connect_args={"connect_timeout": 2})
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        engine.dispose()
+        return True
+    except (ConnectionError, TimeoutError, OSError):
+        # Database connection failed - expected in CI without database
+        return False
+
+
 @pytest.fixture
 def test_db_engine():
     """Create test database engine with query logging."""
+    if not _can_connect_to_database():
+        pytest.skip("Database not available - skipping performance tests that require database connection")
     settings = get_settings()
     # Construct database URL from settings fields
     database_url = (
@@ -396,4 +416,3 @@ async def test_cached_entities_performance_improvement(conversation_service, sam
     into ConversationService and the cached_entities feature is not yet implemented.
     """
     # This test is skipped - see skip reason above
-    pass
