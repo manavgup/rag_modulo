@@ -537,7 +537,7 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
                 total_tokens=user_token_count + assistant_response_tokens,
                 model_name=model_name,
                 service_type=ServiceType.CONVERSATION,
-                timestamp=datetime.now(),
+                timestamp=datetime.now(UTC),
                 user_id=str(user_id),
             )
 
