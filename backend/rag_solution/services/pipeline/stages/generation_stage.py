@@ -194,8 +194,8 @@ class GenerationStage(BaseStage):  # pylint: disable=too-few-public-methods
 
                     if result.chunk:
                         if result.chunk.metadata:
-                            page = getattr(result.chunk.metadata, 'page_number', '?')
-                            chunk_num = getattr(result.chunk.metadata, 'chunk_number', '?')
+                            page = getattr(result.chunk.metadata, "page_number", "?")
+                            chunk_num = getattr(result.chunk.metadata, "chunk_number", "?")
                             f.write(f"Page: {page}\n")
                             f.write(f"Chunk Number: {chunk_num}\n")
 

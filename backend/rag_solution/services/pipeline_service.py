@@ -1067,10 +1067,13 @@ class PipelineService:
 
                         # Get metadata from chunk.metadata if available
                         if result.chunk.metadata:
-                            doc_name = getattr(result.chunk.metadata, 'document_name', None) or \
-                                      getattr(result.chunk.metadata, 'source_id', None) or "unknown"
-                            page_num = getattr(result.chunk.metadata, 'page_number', '?')
-                            chunk_num = getattr(result.chunk.metadata, 'chunk_number', '?')
+                            doc_name = (
+                                getattr(result.chunk.metadata, "document_name", None)
+                                or getattr(result.chunk.metadata, "source_id", None)
+                                or "unknown"
+                            )
+                            page_num = getattr(result.chunk.metadata, "page_number", "?")
+                            chunk_num = getattr(result.chunk.metadata, "chunk_number", "?")
                         else:
                             doc_name = "unknown"
                             page_num = "?"
