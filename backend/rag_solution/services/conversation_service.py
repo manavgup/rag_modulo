@@ -228,11 +228,14 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
 
         return self.repository.get_messages_by_session(session_id, limit=limit, offset=offset)
 
-    async def process_user_message(self, message_input: ConversationMessageInput) -> ConversationMessageOutput:  # pylint: disable=too-many-locals,too-many-branches,too-many-statements
+    async def process_user_message(self, message_input: ConversationMessageInput) -> ConversationMessageOutput:
         """Process a user message and generate a response using integrated Search and CoT services.
 
         DEPRECATED: This method will be removed in a future version.
         Use MessageProcessingOrchestrator.process_user_message() instead.
+
+        This method now delegates to MessageProcessingOrchestrator for better
+        separation of concerns and maintainability.
         """
         import warnings
 
@@ -243,20 +246,25 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
             stacklevel=2,
         )
 
-        logger.info(
-            f"🚀 CONVERSATION SERVICE: process_user_message() called with session_id={message_input.session_id}"
-        )
-        logger.info("📝 CONVERSATION SERVICE: message content: %s...", message_input.content[:100])
+        # Delegate to MessageProcessingOrchestrator
+        from rag_solution.services.conversation_context_service import ConversationContextService
+        from rag_solution.services.message_processing_orchestrator import MessageProcessingOrchestrator
 
-        # First get the session to get the user_id
-        try:
-            session = self.repository.get_session_by_id(message_input.session_id)
-        except NotFoundError:
-            raise ValueError("Session not found") from None
+        # Create required services
+        context_service = ConversationContextService(self.db, self.settings, self.entity_extraction_service)
 
-        logger.info(
-            f"📊 CONVERSATION SERVICE: Found session - user_id={session.user_id}, collection_id={session.collection_id}"
+        orchestrator = MessageProcessingOrchestrator(
+            db=self.db,
+            settings=self.settings,
+            conversation_repository=self.repository,
+            search_service=self.search_service,
+            context_service=context_service,
+            token_tracking_service=self.token_tracking_service,
+            llm_provider_service=self.llm_provider_service,
+            chain_of_thought_service=self.chain_of_thought_service,
         )
+
+        return await orchestrator.process_user_message(message_input)
 
         # Calculate token count for user message if not provided
         user_token_count = message_input.token_count or 0
