@@ -326,6 +326,7 @@ async def example_api_endpoint_handler(request_id: str, user_id: str, collection
 
 if __name__ == "__main__":
     """Example usage and testing."""
+
     # This would normally be done at application startup
     async def main() -> None:
         from core.enhanced_logging import initialize_logging

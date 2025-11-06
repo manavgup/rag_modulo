@@ -12,7 +12,7 @@ backend_dir = Path(__file__).parent
 if str(backend_dir) not in sys.path:
     sys.path.insert(0, str(backend_dir))
 
-from core.identity_service import IdentityService
+from core.identity_service import IdentityService  # noqa: E402
 
 BASE_URL = "http://localhost:8000"
 USER_ID = str(IdentityService.generate_id())
