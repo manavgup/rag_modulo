@@ -24,7 +24,8 @@ from rag_solution.schemas.conversation_schema import (
     MessageType,
 )
 from rag_solution.schemas.llm_usage_schema import LLMUsage, ServiceType
-from rag_solution.schemas.search_schema import SearchInput, SearchResult
+from rag_solution.schemas.search_schema import SearchInput
+from rag_solution.schemas.search_schema import SearchOutput as SearchResult
 from rag_solution.services.chain_of_thought_service import ChainOfThoughtService
 from rag_solution.services.conversation_context_service import ConversationContextService
 from rag_solution.services.llm_provider_service import LLMProviderService
@@ -217,13 +218,16 @@ class MessageProcessingOrchestrator:
         return search_result
 
     async def _serialize_response(
-        self, search_result: SearchResult, _user_token_count: int, user_id: UUID
+        self,
+        search_result: SearchResult,
+        user_token_count: int,  # noqa: ARG002
+        user_id: UUID,
     ) -> tuple[dict[str, Any], int]:
         """Serialize search result and calculate token usage.
 
         Args:
             search_result: Search result from SearchService
-            _user_token_count: User message token count (unused, reserved for future enhancements)
+            user_token_count: User message token count (unused, reserved for future enhancements)
             user_id: User ID
 
         Returns:
