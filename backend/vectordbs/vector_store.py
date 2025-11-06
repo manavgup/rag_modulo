@@ -16,6 +16,7 @@ from core.config import Settings
 
 from .data_types import (
     CollectionConfig,
+    CollectionStatsResponse,
     Document,
     DocumentMetadataFilter,
     EmbeddedChunk,
@@ -129,32 +130,80 @@ class VectorStore(ABC):
     def connection_context(self) -> Iterator[None]:
         """Context manager for database connections.
 
+        This context manager ensures proper connection lifecycle management by only
+        disconnecting connections that IT created. If a connection already exists,
+        it leaves it intact on exit to avoid breaking calling code.
+
         Usage:
             with vector_store.connection_context():
                 vector_store.add_documents(...)
+
+        Example with existing connection:
+            >>> store = VectorStore(settings)
+            >>> store.connect()  # Manual connection
+            >>> with store.connection_context():
+            ...     store.query(...)  # Uses existing connection
+            >>> # Connection still active after context exit
+            >>> store.is_connected
+            True
+
+        Example without existing connection:
+            >>> store = VectorStore(settings)
+            >>> with store.connection_context():
+            ...     store.query(...)  # Creates connection
+            >>> # Connection cleaned up after context exit
+            >>> store.is_connected
+            False
         """
+        # Track if WE created the connection
+        needs_disconnect = False
         try:
             if not self._connected:
                 self.connect()
+                needs_disconnect = True  # Only disconnect what we connected
             yield
         finally:
-            if self._connected:
+            if needs_disconnect:
                 self.disconnect()
 
     @asynccontextmanager
     async def async_connection_context(self) -> AsyncIterator[None]:
         """Async context manager for database connections.
 
+        This context manager ensures proper connection lifecycle management by only
+        disconnecting connections that IT created. If a connection already exists,
+        it leaves it intact on exit to avoid breaking calling code.
+
         Usage:
             async with vector_store.async_connection_context():
                 await vector_store.async_add_documents(...)
+
+        Example with existing connection:
+            >>> store = VectorStore(settings)
+            >>> store.connect()  # Manual connection
+            >>> async with store.async_connection_context():
+            ...     await store.async_query(...)  # Uses existing connection
+            >>> # Connection still active after context exit
+            >>> store.is_connected
+            True
+
+        Example without existing connection:
+            >>> store = VectorStore(settings)
+            >>> async with store.async_connection_context():
+            ...     await store.async_query(...)  # Creates connection
+            >>> # Connection cleaned up after context exit
+            >>> store.is_connected
+            False
         """
+        # Track if WE created the connection
+        needs_disconnect = False
         try:
             if not self._connected:
                 self.connect()
+                needs_disconnect = True  # Only disconnect what we connected
             yield
         finally:
-            if self._connected:
+            if needs_disconnect:
                 self.disconnect()
 
     # Health Check and Statistics
@@ -189,13 +238,31 @@ class VectorStore(ABC):
             return VectorDBResponse.create_success(
                 data=health_data, metadata={"elapsed_seconds": elapsed, "timeout": timeout}
             )
-        except Exception as e:
+        except VectorStoreError as e:
+            # Expected vector store errors
             elapsed = time.time() - start_time
-            logger.error(
-                "Health check failed after %.2fs: %s (type: %s)", elapsed, str(e), type(e).__name__, exc_info=True
+            logger.error("Health check failed after %.2fs: %s", elapsed, str(e), exc_info=True)
+            return VectorDBResponse.create_error(
+                error=str(e),
+                metadata={"elapsed_seconds": elapsed, "timeout": timeout, "error_type": "VectorStoreError"},
+            )
+        except TimeoutError:
+            # Timeout errors
+            elapsed = time.time() - start_time
+            logger.error("Health check timed out after %.2fs (timeout: %.2fs)", elapsed, timeout, exc_info=True)
+            return VectorDBResponse.create_error(
+                error=f"Health check timed out after {elapsed:.2f}s",
+                metadata={"elapsed_seconds": elapsed, "timeout": timeout, "error_type": "TimeoutError"},
+            )
+        except Exception as e:
+            # Unexpected errors - log with full context
+            elapsed = time.time() - start_time
+            logger.exception(
+                "Unexpected error during health check after %.2fs: %s (type: %s)", elapsed, str(e), type(e).__name__
             )
             return VectorDBResponse.create_error(
-                error=str(e), metadata={"elapsed_seconds": elapsed, "timeout": timeout, "error_type": type(e).__name__}
+                error=f"Unexpected error: {e!s}",
+                metadata={"elapsed_seconds": elapsed, "timeout": timeout, "error_type": type(e).__name__},
             )
 
     def _health_check_impl(self, timeout: float) -> dict[str, Any]:  # noqa: ARG002
@@ -234,7 +301,7 @@ class VectorStore(ABC):
             "store_type": self.__class__.__name__,
         }
 
-    def get_collection_stats(self, collection_name: str) -> VectorDBResponse:
+    def get_collection_stats(self, collection_name: str) -> CollectionStatsResponse:
         """Get statistics for a collection.
 
         This method provides a consistent interface for retrieving collection statistics
@@ -260,20 +327,36 @@ class VectorStore(ABC):
             stats = self._get_collection_stats_impl(collection_name)
             return VectorDBResponse.create_success(data=stats, metadata={"collection_name": collection_name})
         except CollectionError as e:
+            # Expected error - collection doesn't exist or is inaccessible
             logger.error("Collection '%s' not found or inaccessible: %s", collection_name, str(e), exc_info=True)
             return VectorDBResponse.create_error(
                 error=str(e), metadata={"collection_name": collection_name, "error_type": "CollectionError"}
             )
-        except Exception as e:
+        except NotImplementedError as e:
+            # Implementation doesn't support collection stats
+            logger.warning("Collection stats not implemented for %s: %s", self.__class__.__name__, str(e))
+            return VectorDBResponse.create_error(
+                error=str(e), metadata={"collection_name": collection_name, "error_type": "NotImplementedError"}
+            )
+        except VectorStoreError as e:
+            # Expected vector store errors
             logger.error(
-                "Failed to get stats for collection '%s': %s (type: %s)",
+                "Vector store error getting stats for collection '%s': %s", collection_name, str(e), exc_info=True
+            )
+            return VectorDBResponse.create_error(
+                error=str(e), metadata={"collection_name": collection_name, "error_type": "VectorStoreError"}
+            )
+        except Exception as e:
+            # Unexpected errors - log with full context
+            logger.exception(
+                "Unexpected error getting stats for collection '%s': %s (type: %s)",
                 collection_name,
                 str(e),
                 type(e).__name__,
-                exc_info=True,
             )
             return VectorDBResponse.create_error(
-                error=str(e), metadata={"collection_name": collection_name, "error_type": type(e).__name__}
+                error=f"Unexpected error: {e!s}",
+                metadata={"collection_name": collection_name, "error_type": type(e).__name__},
             )
 
     def _get_collection_stats_impl(self, collection_name: str) -> dict[str, Any]:
