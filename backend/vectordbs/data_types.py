@@ -119,6 +119,35 @@ class DocumentChunkMetadata(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+    def to_vector_db(self) -> dict[str, Any]:
+        """Convert metadata to vector database format.
+
+        Returns dict with non-None values, converting Source enum to string.
+        """
+        data = self.model_dump(exclude_none=True)
+        # Convert Source enum to string for vector DB storage
+        if "source" in data:
+            data["source"] = str(data["source"]) if isinstance(data["source"], Source) else data["source"]
+        return data
+
+    @classmethod
+    def from_vector_db(cls, data: dict[str, Any]) -> DocumentChunkMetadata:
+        """Create instance from vector database format.
+
+        Args:
+            data: Dictionary from vector database
+
+        Returns:
+            DocumentChunkMetadata instance
+        """
+        # Convert string source back to Source enum
+        if "source" in data and isinstance(data["source"], str):
+            try:
+                data["source"] = Source(data["source"])
+            except ValueError:
+                data["source"] = Source.OTHER
+        return cls.model_validate(data)
+
 
 class DocumentChunk(BaseModel):
     """A chunk of text from a document with associated metadata and embeddings.
@@ -146,6 +175,30 @@ class DocumentChunk(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+    def to_vector_db(self) -> dict[str, Any]:
+        """Convert chunk to vector database format.
+
+        Returns a dict suitable for insertion into vector databases,
+        with metadata flattened and non-None values.
+        """
+        data: dict[str, Any] = {
+            "id": self.chunk_id,
+            "text": self.text or "",
+            "embeddings": self.embeddings,
+            "document_id": self.document_id or "",
+        }
+
+        # Add metadata fields as top-level entries
+        if self.metadata:
+            metadata_dict = self.metadata.to_vector_db()
+            data["metadata"] = metadata_dict
+            # Also add commonly used fields at top level for easy filtering
+            data["source"] = metadata_dict.get("source", "OTHER")
+            data["page_number"] = metadata_dict.get("page_number", 0)
+            data["chunk_number"] = metadata_dict.get("chunk_number", 0)
+
+        return data
+
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> DocumentChunk:
         """Create instance from dictionary data."""
@@ -155,6 +208,38 @@ class DocumentChunk(BaseModel):
             embeddings=data.get("embeddings"),
             metadata=DocumentChunkMetadata.model_validate(data["metadata"]) if data.get("metadata") else None,
             document_id=data.get("document_id"),
+            parent_chunk_id=data.get("parent_chunk_id"),
+            child_chunk_ids=data.get("child_chunk_ids"),
+            level=data.get("level"),
+        )
+
+    @classmethod
+    def from_vector_db(cls, data: dict[str, Any]) -> DocumentChunk:
+        """Create instance from vector database format.
+
+        Args:
+            data: Dictionary from vector database with potentially flattened metadata
+
+        Returns:
+            DocumentChunk instance
+        """
+        # Extract metadata from either nested 'metadata' dict or top-level fields
+        metadata_dict = data.get("metadata", {})
+        if not metadata_dict:
+            # Build metadata from top-level fields
+            metadata_dict = {
+                "source": data.get("source", "OTHER"),
+                "document_id": data.get("document_id", ""),
+                "page_number": data.get("page_number", 0),
+                "chunk_number": data.get("chunk_number", 0),
+            }
+
+        return cls(
+            chunk_id=data.get("id") or data.get("chunk_id"),
+            text=data.get("text", ""),
+            embeddings=data.get("embeddings"),
+            metadata=DocumentChunkMetadata.from_vector_db(metadata_dict),
+            document_id=data.get("document_id", ""),
             parent_chunk_id=data.get("parent_chunk_id"),
             child_chunk_ids=data.get("child_chunk_ids"),
             level=data.get("level"),
@@ -174,6 +259,40 @@ class DocumentChunkWithScore(DocumentChunk):
     score: float | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
+    @classmethod
+    def from_vector_db(cls, data: dict[str, Any], score: float | None = None) -> DocumentChunkWithScore:
+        """Create instance from vector database format with score.
+
+        Args:
+            data: Dictionary from vector database with potentially flattened metadata
+            score: Similarity score from search results
+
+        Returns:
+            DocumentChunkWithScore instance
+        """
+        # Extract metadata from either nested 'metadata' dict or top-level fields
+        metadata_dict = data.get("metadata", {})
+        if not metadata_dict:
+            # Build metadata from top-level fields
+            metadata_dict = {
+                "source": data.get("source", "OTHER"),
+                "document_id": data.get("document_id", ""),
+                "page_number": data.get("page_number", 0),
+                "chunk_number": data.get("chunk_number", 0),
+            }
+
+        return cls(
+            chunk_id=data.get("id") or data.get("chunk_id"),
+            text=data.get("text", ""),
+            embeddings=data.get("embeddings"),
+            metadata=DocumentChunkMetadata.from_vector_db(metadata_dict),
+            document_id=data.get("document_id", ""),
+            parent_chunk_id=data.get("parent_chunk_id"),
+            child_chunk_ids=data.get("child_chunk_ids"),
+            level=data.get("level"),
+            score=score or data.get("score"),
+        )
 
 
 class Document(BaseModel):

@@ -15,12 +15,10 @@ from core.config import Settings, get_settings
 
 from .data_types import (
     Document,
-    DocumentChunkMetadata,
     DocumentChunkWithScore,
     DocumentMetadataFilter,
     QueryResult,
     QueryWithEmbedding,
-    Source,
 )
 from .error_types import CollectionError, DocumentError
 from .utils.embeddings import get_embeddings_for_vector_store
@@ -139,22 +137,26 @@ class WeaviateDataStore(VectorStore):
 
             for document in documents:
                 for chunk in document.chunks:
-                    # Create data object
+                    # Use pydantic to_vector_db() method for clean serialization
+                    chunk_data = chunk.to_vector_db()
+
+                    # Create data object for Weaviate
                     data_object = {
-                        "text": chunk.text,
-                        "document_id": chunk.document_id or "",
-                        "chunk_id": chunk.chunk_id,
-                        "source": str(chunk.metadata.source) if chunk.metadata and chunk.metadata.source else "OTHER",
-                        "page_number": chunk.metadata.page_number if chunk.metadata else 0,
-                        "chunk_number": chunk.metadata.chunk_number if chunk.metadata else 0,
+                        "text": chunk_data["text"],
+                        "document_id": chunk_data["document_id"],
+                        "chunk_id": chunk_data["id"],
+                        "source": chunk_data["source"],
+                        "page_number": chunk_data["page_number"],
+                        "chunk_number": chunk_data["chunk_number"],
                     }
 
                     # Add to Weaviate with vector
                     self.client.data_object.create(  # type: ignore[attr-defined]
-                        data_object=data_object, class_name=collection_name, vector=chunk.embeddings
+                        data_object=data_object, class_name=collection_name, vector=chunk_data["embeddings"]
                     )
 
-                    document_ids.append(chunk.document_id)
+                    if chunk.document_id:
+                        document_ids.append(chunk.document_id)
 
             logging.info("Successfully added documents to collection '%s'", collection_name)
             return document_ids
@@ -315,21 +317,22 @@ class WeaviateDataStore(VectorStore):
         query_results = []
 
         for obj in results["data"]["Get"][collection_name]:
-            # Create DocumentChunkWithScore
-            chunk = DocumentChunkWithScore(
-                chunk_id=obj["chunk_id"],
-                text=obj["text"],
-                embeddings=None,  # Weaviate doesn't return embeddings in search results
-                metadata=DocumentChunkMetadata(
-                    source=Source(obj["source"]),
-                    document_id=obj["document_id"],
-                    page_number=obj["page_number"],
-                    chunk_number=obj["chunk_number"],
-                ),
-                document_id=obj["document_id"],
-                score=float(obj["_additional"]["distance"]),  # Convert distance to score
-            )
+            score = float(obj["_additional"]["distance"])
 
-            query_results.append(QueryResult(chunk=chunk, score=float(obj["_additional"]["distance"]), embeddings=[]))
+            # Build data dict for pydantic deserialization
+            chunk_data = {
+                "id": obj["chunk_id"],
+                "text": obj["text"],
+                "embeddings": None,  # Weaviate doesn't return embeddings in search results
+                "document_id": obj["document_id"],
+                "source": obj["source"],
+                "page_number": obj["page_number"],
+                "chunk_number": obj["chunk_number"],
+                "score": score,
+            }
+
+            # Use pydantic from_vector_db() method for clean deserialization
+            chunk = DocumentChunkWithScore.from_vector_db(chunk_data, score=score)
+            query_results.append(QueryResult(chunk=chunk, score=score, embeddings=[]))
 
         return query_results

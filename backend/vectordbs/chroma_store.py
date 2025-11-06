@@ -15,13 +15,10 @@ from core.config import Settings, get_settings
 
 from .data_types import (
     Document,
-    DocumentChunk,
-    DocumentChunkMetadata,
     DocumentChunkWithScore,
     DocumentMetadataFilter,
     QueryResult,
     QueryWithEmbedding,
-    Source,
 )
 from .error_types import CollectionError, DocumentError
 from .utils.embeddings import get_embeddings_for_vector_store
@@ -88,14 +85,17 @@ class ChromaDBStore(VectorStore):
 
         for document in documents:
             for chunk in document.chunks:
-                docs.append(chunk.text)
-                embeddings.append(chunk.embeddings)
+                # Use pydantic to_vector_db() method for clean serialization
+                chunk_data = chunk.to_vector_db()
+                docs.append(chunk_data["text"])
+                embeddings.append(chunk_data["embeddings"])
+                # Build metadata dict with only what ChromaDB needs
                 metadata: MetadataType = {
-                    "source": str(chunk.metadata.source) if chunk.metadata and chunk.metadata.source else "OTHER",
-                    "document_id": chunk.document_id or "",
+                    "source": chunk_data["source"],
+                    "document_id": chunk_data["document_id"],
                 }
                 metadatas.append(metadata)
-                ids.append(chunk.chunk_id)
+                ids.append(chunk_data["id"])
 
         try:
             # Convert embeddings to the format expected by ChromaDB
@@ -106,7 +106,7 @@ class ChromaDBStore(VectorStore):
             logging.error("Failed to add documents to ChromaDB collection '%s': %s", collection_name, str(e))
             raise DocumentError(f"Failed to add documents to ChromaDB collection '{collection_name}': {e}") from e
 
-        return [doc.document_id for doc in documents]
+        return [doc.document_id for doc in documents if doc.document_id]
 
     def retrieve_documents(self, query: str, collection_name: str, number_of_results: int = 10) -> list[QueryResult]:
         """
@@ -215,21 +215,6 @@ class ChromaDBStore(VectorStore):
                 f"Failed to count chunks for document '{document_id}' in collection '{collection_name}': {e}"
             ) from e
 
-    def _convert_to_chunk(
-        self, chunk_id: str, text: str, embeddings: list[float] | None, metadata: dict
-    ) -> DocumentChunk:
-        """Convert ChromaDB response data to DocumentChunk."""
-        return DocumentChunk(
-            chunk_id=chunk_id,
-            text=text,
-            embeddings=embeddings,
-            metadata=DocumentChunkMetadata(
-                source=Source(metadata["source"]) if metadata["source"] else Source.OTHER,
-                document_id=metadata["document_id"],
-            ),
-            document_id=metadata["document_id"],
-        )
-
     def _process_search_results(self, response: Any, collection_name: str) -> list[QueryResult]:  # noqa: ARG002
         """Process ChromaDB search results into QueryResult objects."""
         results = []
@@ -239,19 +224,20 @@ class ChromaDBStore(VectorStore):
         documents = response.get("documents", [[]])[0]
 
         for i, chunk_id in enumerate(ids):
-            base_chunk = self._convert_to_chunk(
-                chunk_id=chunk_id,
-                text=documents[i],
-                embeddings=None,  # Assuming embeddings are not returned in the response, otherwise add appropriate key
-                metadata=metadatas[i],
-            )
-            chunk = DocumentChunkWithScore(
-                chunk_id=base_chunk.chunk_id,
-                text=base_chunk.text,
-                embeddings=base_chunk.embeddings,
-                metadata=base_chunk.metadata,
-                document_id=base_chunk.document_id,
-                score=1.0 - distances[i],
-            )
-            results.append(QueryResult(chunk=chunk, score=1.0 - distances[i], embeddings=[]))
+            # Convert distance to similarity score (ChromaDB returns distance, not similarity)
+            score = 1.0 - distances[i]
+
+            # Build data dict for pydantic deserialization
+            chunk_data = {
+                "id": chunk_id,
+                "text": documents[i],
+                "embeddings": None,  # ChromaDB doesn't return embeddings in search results
+                "metadata": metadatas[i],
+                "score": score,
+            }
+
+            # Use pydantic from_vector_db() method for clean deserialization
+            chunk = DocumentChunkWithScore.from_vector_db(chunk_data, score=score)
+            results.append(QueryResult(chunk=chunk, score=score, embeddings=[]))
+
         return results

@@ -13,12 +13,10 @@ from core.config import Settings, get_settings
 
 from .data_types import (
     Document,
-    DocumentChunkMetadata,
     DocumentChunkWithScore,
     DocumentMetadataFilter,
     QueryResult,
     QueryWithEmbedding,
-    Source,
 )
 from .error_types import CollectionError, DocumentError
 from .utils.embeddings import get_embeddings_for_vector_store
@@ -108,20 +106,20 @@ class ElasticSearchStore(VectorStore):
         document_ids = []
         for document in documents:
             for chunk in document.chunks:
+                # Use pydantic to_vector_db() method for clean serialization
+                chunk_data = chunk.to_vector_db()
                 doc_body = {
-                    "text": chunk.text,
-                    "embeddings": chunk.embeddings,
-                    "metadata": {
-                        "source": str(chunk.metadata.source) if chunk.metadata and chunk.metadata.source else "OTHER",
-                        "document_id": chunk.document_id or "",
-                    },
-                    "document_id": chunk.document_id,
-                    "chunk_id": chunk.chunk_id,
+                    "text": chunk_data["text"],
+                    "embeddings": chunk_data["embeddings"],
+                    "metadata": chunk_data["metadata"],
+                    "document_id": chunk_data["document_id"],
+                    "chunk_id": chunk_data["id"],
                 }
 
                 try:
-                    self.client.index(index=collection_name, id=chunk.chunk_id, body=doc_body)
-                    document_ids.append(chunk.document_id)
+                    self.client.index(index=collection_name, id=chunk_data["id"], body=doc_body)
+                    if chunk.document_id:
+                        document_ids.append(chunk.document_id)
                 except Exception as e:
                     logging.error("Failed to add document to Elasticsearch: %s", str(e))
                     raise DocumentError(f"Failed to add document to Elasticsearch: {e}") from e
@@ -261,19 +259,18 @@ class ElasticSearchStore(VectorStore):
             source = hit["_source"]
             score = hit["_score"]
 
-            # Create DocumentChunkWithScore
-            chunk = DocumentChunkWithScore(
-                chunk_id=source["chunk_id"],
-                text=source["text"],
-                embeddings=source["embeddings"],
-                metadata=DocumentChunkMetadata(
-                    source=Source(source["metadata"]["source"]) if source["metadata"]["source"] else Source.OTHER,
-                    document_id=source["metadata"]["document_id"],
-                ),
-                document_id=source["document_id"],
-                score=score,
-            )
+            # Build data dict for pydantic deserialization
+            chunk_data = {
+                "id": source["chunk_id"],
+                "text": source["text"],
+                "embeddings": source["embeddings"],
+                "metadata": source["metadata"],
+                "document_id": source["document_id"],
+                "score": score,
+            }
 
+            # Use pydantic from_vector_db() method for clean deserialization
+            chunk = DocumentChunkWithScore.from_vector_db(chunk_data, score=score)
             results.append(QueryResult(chunk=chunk, score=score, embeddings=[]))
 
         return results

@@ -13,12 +13,10 @@ from core.config import Settings, get_settings
 
 from .data_types import (
     Document,
-    DocumentChunkMetadata,
     DocumentChunkWithScore,
     DocumentMetadataFilter,
     QueryResult,
     QueryWithEmbedding,
-    Source,
 )
 from .error_types import CollectionError, DocumentError
 from .utils.embeddings import get_embeddings_for_vector_store
@@ -94,28 +92,29 @@ class PineconeStore(VectorStore):
         try:
             index = self.pc.Index(collection_name)
 
-            # Prepare vectors for upsert
+            # Prepare vectors for upsert using pydantic serialization
             vectors = []
             document_ids = []
 
             for document in documents:
                 for chunk in document.chunks:
+                    # Use pydantic to_vector_db() method for clean serialization
+                    chunk_data = chunk.to_vector_db()
                     vectors.append(
                         {
-                            "id": chunk.chunk_id,
-                            "values": chunk.embeddings,
+                            "id": chunk_data["id"],
+                            "values": chunk_data["embeddings"],
                             "metadata": {
-                                "text": chunk.text,
-                                "document_id": chunk.document_id or "",
-                                "source": str(chunk.metadata.source)
-                                if chunk.metadata and chunk.metadata.source
-                                else "OTHER",
-                                "page_number": chunk.metadata.page_number if chunk.metadata else 0,
-                                "chunk_number": chunk.metadata.chunk_number if chunk.metadata else 0,
+                                "text": chunk_data["text"],
+                                "document_id": chunk_data["document_id"],
+                                "source": chunk_data["source"],
+                                "page_number": chunk_data["page_number"],
+                                "chunk_number": chunk_data["chunk_number"],
                             },
                         }
                     )
-                    document_ids.append(chunk.document_id)
+                    if chunk.document_id:
+                        document_ids.append(chunk.document_id)
 
             # Upsert vectors
             index.upsert(vectors=vectors)
@@ -271,22 +270,22 @@ class PineconeStore(VectorStore):
 
         for match in results["matches"]:
             metadata = match.get("metadata", {})
+            score = float(match["score"])
 
-            # Create DocumentChunkWithScore
-            chunk = DocumentChunkWithScore(
-                chunk_id=match["id"],
-                text=metadata.get("text", ""),
-                embeddings=None,  # Pinecone doesn't return embeddings in search results
-                metadata=DocumentChunkMetadata(
-                    source=Source(metadata.get("source", "OTHER")),
-                    document_id=metadata.get("document_id", ""),
-                    page_number=metadata.get("page_number", 0),
-                    chunk_number=metadata.get("chunk_number", 0),
-                ),
-                document_id=metadata.get("document_id", ""),
-                score=float(match["score"]),
-            )
+            # Build data dict for pydantic deserialization
+            chunk_data = {
+                "id": match["id"],
+                "text": metadata.get("text", ""),
+                "embeddings": None,  # Pinecone doesn't return embeddings in search results
+                "document_id": metadata.get("document_id", ""),
+                "source": metadata.get("source", "OTHER"),
+                "page_number": metadata.get("page_number", 0),
+                "chunk_number": metadata.get("chunk_number", 0),
+                "score": score,
+            }
 
-            query_results.append(QueryResult(chunk=chunk, score=float(match["score"]), embeddings=[]))
+            # Use pydantic from_vector_db() method for clean deserialization
+            chunk = DocumentChunkWithScore.from_vector_db(chunk_data, score=score)
+            query_results.append(QueryResult(chunk=chunk, score=score, embeddings=[]))
 
         return query_results
