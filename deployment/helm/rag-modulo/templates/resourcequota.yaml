@@ -1,0 +1,72 @@
+{{- if .Values.resourceQuota.enabled }}
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: {{ include "rag-modulo.fullname" . }}-quota
+  namespace: {{ include "rag-modulo.namespace" . }}
+  labels:
+    {{- include "rag-modulo.labels" . | nindent 4 }}
+spec:
+  hard:
+    # Compute resources
+    requests.cpu: {{ .Values.resourceQuota.hard.requestsCpu | quote }}
+    requests.memory: {{ .Values.resourceQuota.hard.requestsMemory | quote }}
+    limits.cpu: {{ .Values.resourceQuota.hard.limitsCpu | quote }}
+    limits.memory: {{ .Values.resourceQuota.hard.limitsMemory | quote }}
+
+    # Storage resources
+    requests.storage: {{ .Values.resourceQuota.hard.requestsStorage | quote }}
+    persistentvolumeclaims: {{ .Values.resourceQuota.hard.persistentvolumeclaims | quote }}
+
+    # Object counts
+    pods: {{ .Values.resourceQuota.hard.pods | quote }}
+    services: {{ .Values.resourceQuota.hard.services | quote }}
+    configmaps: {{ .Values.resourceQuota.hard.configmaps | quote }}
+    secrets: {{ .Values.resourceQuota.hard.secrets | quote }}
+
+    # LoadBalancer limits
+    services.loadbalancers: {{ .Values.resourceQuota.hard.servicesLoadbalancers | quote }}
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: {{ include "rag-modulo.fullname" . }}-limits
+  namespace: {{ include "rag-modulo.namespace" . }}
+  labels:
+    {{- include "rag-modulo.labels" . | nindent 4 }}
+spec:
+  limits:
+  # Pod-level limits
+  - type: Pod
+    max:
+      cpu: {{ .Values.limitRange.pod.max.cpu | quote }}
+      memory: {{ .Values.limitRange.pod.max.memory | quote }}
+    min:
+      cpu: {{ .Values.limitRange.pod.min.cpu | quote }}
+      memory: {{ .Values.limitRange.pod.min.memory | quote }}
+
+  # Container-level limits
+  - type: Container
+    max:
+      cpu: {{ .Values.limitRange.container.max.cpu | quote }}
+      memory: {{ .Values.limitRange.container.max.memory | quote }}
+    min:
+      cpu: {{ .Values.limitRange.container.min.cpu | quote }}
+      memory: {{ .Values.limitRange.container.min.memory | quote }}
+    default:
+      cpu: {{ .Values.limitRange.container.default.cpu | quote }}
+      memory: {{ .Values.limitRange.container.default.memory | quote }}
+    defaultRequest:
+      cpu: {{ .Values.limitRange.container.defaultRequest.cpu | quote }}
+      memory: {{ .Values.limitRange.container.defaultRequest.memory | quote }}
+    maxLimitRequestRatio:
+      cpu: {{ .Values.limitRange.container.maxLimitRequestRatio.cpu }}
+      memory: {{ .Values.limitRange.container.maxLimitRequestRatio.memory }}
+
+  # PVC limits
+  - type: PersistentVolumeClaim
+    max:
+      storage: {{ .Values.limitRange.pvc.max.storage | quote }}
+    min:
+      storage: {{ .Values.limitRange.pvc.min.storage | quote }}
+{{- end }}

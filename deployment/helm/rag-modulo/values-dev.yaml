@@ -1,0 +1,89 @@
+# Development environment values
+# Override default values.yaml for development deployment
+
+global:
+  namespace: rag-modulo-dev
+  environment: development
+
+backend:
+  replicaCount: 1
+  autoscaling:
+    enabled: false
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+      cpu: "1000m"
+
+frontend:
+  replicaCount: 1
+  autoscaling:
+    enabled: false
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "250m"
+
+postgresql:
+  persistence:
+    size: 10Gi
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "500m"
+
+milvus:
+  persistence:
+    size: 20Gi
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "500m"
+    limits:
+      memory: "4Gi"
+      cpu: "2000m"
+
+minio:
+  persistence:
+    size: 20Gi
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "500m"
+
+etcd:
+  persistence:
+    size: 5Gi
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+ingress:
+  enabled: true
+  tls:
+    enabled: false  # Use HTTP for dev
+  hosts:
+    frontend: rag-modulo-dev.example.com
+    backend: api-dev.rag-modulo.example.com
+    mlflow: mlflow-dev.rag-modulo.example.com
+
+config:
+  logLevel: "DEBUG"
+  environment: "development"
+  skipAuth: "true"
+  developmentMode: "true"
