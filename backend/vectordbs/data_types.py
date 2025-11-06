@@ -313,3 +313,285 @@ class QueryWithEmbedding(BaseModel):
     def vectors(self, value: Embeddings) -> None:
         """Set vectors (updates embeddings)."""
         self.embeddings = value
+
+
+# Enhanced Pydantic Models for Vector Database Operations (Issue #211)
+
+
+class EmbeddedChunk(BaseModel):
+    """A document chunk with required embeddings for vector database operations.
+
+    This model extends DocumentChunk to enforce that embeddings are present
+    and valid before insertion into vector databases. Used to eliminate
+    runtime errors from missing embeddings.
+
+    Attributes:
+        chunk_id: Unique identifier for the chunk
+        text: The actual text content
+        embeddings: Required vector embedding of the text (non-empty)
+        metadata: Associated chunk-level metadata
+        document_id: Reference to parent document
+        parent_chunk_id: Reference to parent chunk (for hierarchical chunking)
+        child_chunk_ids: References to child chunks (for hierarchical chunking)
+        level: Hierarchy level (0=root, 1=parent, 2=child, etc.)
+    """
+
+    chunk_id: str
+    text: str
+    embeddings: Embeddings  # Required, not optional
+    metadata: DocumentChunkMetadata | None = None
+    document_id: str | None = None
+    parent_chunk_id: str | None = None
+    child_chunk_ids: list[str] | None = None
+    level: int | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+    def model_post_init(self, __context: Any) -> None:
+        """Validate embeddings after initialization."""
+        if not self.embeddings or len(self.embeddings) == 0:
+            raise ValueError("Embeddings must be non-empty for EmbeddedChunk")
+
+    @classmethod
+    def from_chunk(cls, chunk: DocumentChunk) -> "EmbeddedChunk":
+        """Create EmbeddedChunk from DocumentChunk with validation.
+
+        Args:
+            chunk: Source DocumentChunk
+
+        Returns:
+            EmbeddedChunk instance
+
+        Raises:
+            ValueError: If chunk lacks embeddings or chunk_id
+        """
+        if not chunk.embeddings:
+            raise ValueError(f"Cannot create EmbeddedChunk: chunk {chunk.chunk_id} has no embeddings")
+        if not chunk.chunk_id:
+            raise ValueError("Cannot create EmbeddedChunk: chunk has no chunk_id")
+
+        return cls(
+            chunk_id=chunk.chunk_id,
+            text=chunk.text or "",
+            embeddings=chunk.embeddings,
+            metadata=chunk.metadata,
+            document_id=chunk.document_id,
+            parent_chunk_id=chunk.parent_chunk_id,
+            child_chunk_ids=chunk.child_chunk_ids,
+            level=chunk.level,
+        )
+
+    def to_vector_metadata(self) -> dict[str, Any]:
+        """Convert to metadata dict suitable for vector database storage.
+
+        Returns:
+            Dictionary with flattened metadata for vector DB
+        """
+        result: dict[str, Any] = {
+            "chunk_id": self.chunk_id,
+            "text": self.text,
+            "document_id": self.document_id,
+            "parent_chunk_id": self.parent_chunk_id,
+            "level": self.level,
+        }
+
+        if self.metadata:
+            result.update(
+                {
+                    "source": str(self.metadata.source) if self.metadata.source else None,
+                    "page_number": self.metadata.page_number,
+                    "chunk_number": self.metadata.chunk_number,
+                    "start_index": self.metadata.start_index,
+                    "end_index": self.metadata.end_index,
+                    "author": self.metadata.author,
+                }
+            )
+
+        # Remove None values
+        return {k: v for k, v in result.items() if v is not None}
+
+    def to_vector_db(self) -> tuple[Embeddings, dict[str, Any]]:
+        """Prepare data for vector database insertion.
+
+        Returns:
+            Tuple of (embeddings, metadata_dict)
+        """
+        return self.embeddings, self.to_vector_metadata()
+
+
+class CollectionConfig(BaseModel):
+    """Configuration for vector database collections.
+
+    Attributes:
+        name: Collection name
+        dimension: Vector dimension (embedding size)
+        metric_type: Distance metric (COSINE, L2, IP)
+        index_type: Index type (IVF_FLAT, HNSW, etc.)
+        index_params: Additional index parameters
+        metadata_schema: Optional metadata field definitions
+    """
+
+    name: str
+    dimension: int
+    metric_type: str = "COSINE"
+    index_type: str = "IVF_FLAT"
+    index_params: dict[str, Any] | None = None
+    metadata_schema: dict[str, Any] | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+    def model_post_init(self, __context: Any) -> None:
+        """Validate configuration after initialization."""
+        if self.dimension <= 0:
+            raise ValueError("Dimension must be positive")
+        if self.metric_type not in ["COSINE", "L2", "IP", "EUCLIDEAN"]:
+            raise ValueError(f"Invalid metric_type: {self.metric_type}")
+
+
+class DocumentIngestionRequest(BaseModel):
+    """Request model for document ingestion into vector databases.
+
+    Attributes:
+        collection_name: Target collection name
+        documents: Documents to ingest
+        batch_size: Batch size for processing (default: 100)
+        create_collection: Whether to create collection if not exists
+        collection_config: Configuration if creating collection
+    """
+
+    collection_name: str
+    documents: list[Document]
+    batch_size: int = 100
+    create_collection: bool = False
+    collection_config: CollectionConfig | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+    def model_post_init(self, __context: Any) -> None:
+        """Validate request after initialization."""
+        if not self.documents:
+            raise ValueError("Documents list cannot be empty")
+        if self.batch_size <= 0:
+            raise ValueError("Batch size must be positive")
+        if self.create_collection and not self.collection_config:
+            raise ValueError("collection_config required when create_collection=True")
+
+    def extract_embedded_chunks(self) -> list[EmbeddedChunk]:
+        """Extract all embedded chunks from documents.
+
+        Returns:
+            List of EmbeddedChunk instances
+
+        Raises:
+            ValueError: If any chunk lacks embeddings
+        """
+        embedded_chunks: list[EmbeddedChunk] = []
+        for document in self.documents:
+            for chunk in document.chunks:
+                embedded_chunks.append(EmbeddedChunk.from_chunk(chunk))
+        return embedded_chunks
+
+
+class VectorSearchRequest(BaseModel):
+    """Request model for vector database searches.
+
+    Attributes:
+        collection_name: Collection to search
+        query: Query text or embedding
+        number_of_results: Number of results to return (default: 10)
+        metadata_filter: Optional metadata filtering
+        include_embeddings: Whether to include embeddings in results
+    """
+
+    collection_name: str
+    query: str | QueryWithEmbedding
+    number_of_results: int = 10
+    metadata_filter: DocumentMetadataFilter | None = None
+    include_embeddings: bool = False
+
+    model_config = ConfigDict(from_attributes=True)
+
+    def model_post_init(self, __context: Any) -> None:
+        """Validate request after initialization."""
+        if self.number_of_results <= 0:
+            raise ValueError("number_of_results must be positive")
+
+    def get_query_text(self) -> str:
+        """Get query text from query field.
+
+        Returns:
+            Query text string
+        """
+        if isinstance(self.query, str):
+            return self.query
+        return self.query.text
+
+    def get_query_embeddings(self) -> Embeddings | None:
+        """Get query embeddings if available.
+
+        Returns:
+            Embeddings if query is QueryWithEmbedding, None otherwise
+        """
+        if isinstance(self.query, QueryWithEmbedding):
+            return self.query.embeddings
+        return None
+
+
+class VectorDBResponse(BaseModel):
+    """Generic response wrapper for vector database operations.
+
+    Provides consistent response structure with success/error states
+    and optional data payload.
+
+    Attributes:
+        success: Whether operation succeeded
+        message: Optional status message
+        data: Optional response data
+        error: Optional error message
+        metadata: Optional operation metadata (timing, counts, etc.)
+    """
+
+    success: bool
+    message: str | None = None
+    data: Any = None
+    error: str | None = None
+    metadata: dict[str, Any] | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+    @classmethod
+    def success_response(
+        cls, data: Any = None, message: str | None = None, metadata: dict[str, Any] | None = None
+    ) -> "VectorDBResponse":
+        """Create a success response.
+
+        Args:
+            data: Response data
+            message: Optional success message
+            metadata: Optional operation metadata
+
+        Returns:
+            VectorDBResponse with success=True
+        """
+        return cls(success=True, data=data, message=message, metadata=metadata)
+
+    @classmethod
+    def error_response(cls, error: str, data: Any = None, metadata: dict[str, Any] | None = None) -> "VectorDBResponse":
+        """Create an error response.
+
+        Args:
+            error: Error message
+            data: Optional partial data
+            metadata: Optional operation metadata
+
+        Returns:
+            VectorDBResponse with success=False
+        """
+        return cls(success=False, error=error, data=data, metadata=metadata)
+
+
+# Type aliases for common response types
+IngestionResponse = VectorDBResponse
+SearchResponse = VectorDBResponse
+HealthCheckResponse = VectorDBResponse
+CollectionStatsResponse = VectorDBResponse
