@@ -7,6 +7,7 @@ enabling document storage, retrieval, and search operations using Weaviate.
 # pylint: disable=no-member
 
 import logging
+import time
 from typing import Any
 
 import weaviate
@@ -14,15 +15,19 @@ import weaviate
 from core.config import Settings, get_settings
 
 from .data_types import (
+    CollectionConfig,
     Document,
     DocumentChunkMetadata,
     DocumentChunkWithScore,
     DocumentMetadataFilter,
+    EmbeddedChunk,
     QueryResult,
     QueryWithEmbedding,
     Source,
+    VectorDBResponse,
+    VectorSearchRequest,
 )
-from .error_types import CollectionError, DocumentError
+from .error_types import CollectionError, DocumentError, VectorStoreError
 from .utils.embeddings import get_embeddings_for_vector_store
 from .vector_store import VectorStore
 
@@ -99,8 +104,48 @@ class WeaviateDataStore(VectorStore):
 
         self.client.schema.create_class(class_schema)  # type: ignore[attr-defined]
 
-    def create_collection(self, collection_name: str, metadata: dict | None = None) -> None:  # noqa: ARG002
-        """Create a collection (class) in Weaviate.
+    def _create_collection_impl(self, config: CollectionConfig) -> dict[str, Any]:
+        """Implementation-specific collection creation with Pydantic model.
+
+        Args:
+            config: Collection configuration (Pydantic model)
+
+        Returns:
+            dict: Creation result metadata
+
+        Raises:
+            CollectionError: If collection creation fails
+        """
+        try:
+            # Validate collection config against settings
+            self._validate_collection_config(config)
+
+            # Check if class already exists
+            if self.client.schema.exists(config.collection_name):  # type: ignore[attr-defined]
+                logging.info("Collection '%s' already exists", config.collection_name)
+                return {
+                    "status": "exists",
+                    "collection_name": config.collection_name,
+                    "dimension": config.dimension,
+                }
+
+            self._create_schema(config.collection_name)
+            logging.info(
+                "Collection '%s' created successfully with dimension %d", config.collection_name, config.dimension
+            )
+
+            return {
+                "status": "created",
+                "collection_name": config.collection_name,
+                "dimension": config.dimension,
+                "metric_type": config.metric_type,
+            }
+        except Exception as e:
+            logging.error("Failed to create collection '%s': %s", config.collection_name, str(e))
+            raise CollectionError(f"Failed to create collection '{config.collection_name}': {e}") from e
+
+    def create_collection(self, collection_name: str, metadata: dict | None = None) -> None:
+        """Create a collection (class) in Weaviate (backward compatibility wrapper).
 
         Args:
             collection_name: Name of the collection to create
@@ -110,19 +155,63 @@ class WeaviateDataStore(VectorStore):
             CollectionError: If collection creation fails
         """
         try:
-            # Check if class already exists
-            if self.client.schema.exists(collection_name):  # type: ignore[attr-defined]
-                logging.info("Collection '%s' already exists", collection_name)
-                return
+            # Create CollectionConfig from legacy parameters
+            config = CollectionConfig(
+                collection_name=collection_name,
+                dimension=self.settings.embedding_dim,
+                metric_type="COSINE",
+                index_type="HNSW",  # Weaviate default
+                description=metadata.get("description") if metadata else None,
+            )
 
-            self._create_schema(collection_name)
-            logging.info("Collection '%s' created successfully", collection_name)
+            # Use new Pydantic-based implementation
+            self._create_collection_impl(config)
         except Exception as e:
             logging.error("Failed to create collection '%s': %s", collection_name, str(e))
             raise CollectionError(f"Failed to create collection '{collection_name}': {e}") from e
 
+    def _add_documents_impl(self, collection_name: str, chunks: list[EmbeddedChunk]) -> list[str]:
+        """Implementation-specific document addition with Pydantic models.
+
+        Args:
+            collection_name: Target collection
+            chunks: List of embedded chunks to add (Pydantic models)
+
+        Returns:
+            List of chunk IDs that were added
+
+        Raises:
+            DocumentError: If addition fails
+        """
+        try:
+            chunk_ids = []
+
+            for chunk in chunks:
+                # Create data object
+                data_object = {
+                    "text": chunk.text,
+                    "document_id": chunk.document_id or "",
+                    "chunk_id": chunk.chunk_id,
+                    "source": str(chunk.metadata.source) if chunk.metadata and chunk.metadata.source else "OTHER",
+                    "page_number": chunk.metadata.page_number if chunk.metadata else 0,
+                    "chunk_number": chunk.metadata.chunk_number if chunk.metadata else 0,
+                }
+
+                # Add to Weaviate with vector
+                self.client.data_object.create(  # type: ignore[attr-defined]
+                    data_object=data_object, class_name=collection_name, vector=chunk.embeddings
+                )
+
+                chunk_ids.append(chunk.chunk_id)
+
+            logging.info("Successfully added %d chunks to collection '%s'", len(chunks), collection_name)
+            return chunk_ids
+        except Exception as e:
+            logging.error("Failed to add chunks to Weaviate collection '%s': %s", collection_name, str(e))
+            raise DocumentError(f"Failed to add chunks to Weaviate collection '{collection_name}': {e}") from e
+
     def add_documents(self, collection_name: str, documents: list[Document]) -> list[str]:
-        """Add documents to the Weaviate collection.
+        """Add documents to the Weaviate collection (backward compatibility wrapper).
 
         Args:
             collection_name: Name of the collection
@@ -135,28 +224,32 @@ class WeaviateDataStore(VectorStore):
             DocumentError: If document addition fails
         """
         try:
-            document_ids = []
-
+            # Convert documents to EmbeddedChunks
+            chunks: list[EmbeddedChunk] = []
             for document in documents:
                 for chunk in document.chunks:
-                    # Create data object
-                    data_object = {
-                        "text": chunk.text,
-                        "document_id": chunk.document_id or "",
-                        "chunk_id": chunk.chunk_id,
-                        "source": str(chunk.metadata.source) if chunk.metadata and chunk.metadata.source else "OTHER",
-                        "page_number": chunk.metadata.page_number if chunk.metadata else 0,
-                        "chunk_number": chunk.metadata.chunk_number if chunk.metadata else 0,
-                    }
+                    # Only add chunks that have embeddings
+                    if chunk.embeddings:
+                        embedded_chunk = EmbeddedChunk(
+                            chunk_id=chunk.chunk_id,
+                            text=chunk.text,
+                            embeddings=chunk.embeddings,
+                            metadata=chunk.metadata,
+                            document_id=chunk.document_id,
+                        )
+                        chunks.append(embedded_chunk)
 
-                    # Add to Weaviate with vector
-                    self.client.data_object.create(  # type: ignore[attr-defined]
-                        data_object=data_object, class_name=collection_name, vector=chunk.embeddings
-                    )
+            # Use Pydantic-based implementation
+            chunk_ids = self._add_documents_impl(collection_name, chunks)
 
-                    document_ids.append(chunk.document_id)
-
-            logging.info("Successfully added documents to collection '%s'", collection_name)
+            # Return unique document IDs (for backward compatibility)
+            document_ids = list({chunk.document_id for chunk in chunks if chunk.document_id})
+            logging.info(
+                "Successfully added %d documents (%d chunks) to collection '%s'",
+                len(document_ids),
+                len(chunk_ids),
+                collection_name,
+            )
             return document_ids
         except Exception as e:
             logging.error("Failed to add documents to Weaviate collection '%s': %s", collection_name, str(e))
@@ -183,14 +276,55 @@ class WeaviateDataStore(VectorStore):
         query_with_embedding = QueryWithEmbedding(text=query, embeddings=query_embeddings[0])
         return self.query(collection_name, query_with_embedding, number_of_results=number_of_results)
 
+    def _search_impl(self, request: VectorSearchRequest) -> list[QueryResult]:
+        """Implementation-specific search with Pydantic model.
+
+        Args:
+            request: Vector search request (Pydantic model)
+
+        Returns:
+            List of query results
+
+        Raises:
+            VectorStoreError: If search fails
+        """
+        try:
+            # Get query vector (either from request or generate from text)
+            if request.query_vector:
+                query_embedding = request.query_vector
+            elif request.query_text:
+                embeddings_list = get_embeddings_for_vector_store(request.query_text, settings=self.settings)
+                if not embeddings_list:
+                    raise DocumentError("Failed to generate embeddings for query text")
+                query_embedding = embeddings_list[0]
+            else:
+                raise ValueError("Either query_text or query_vector must be provided")
+
+            # Perform vector search
+            results = (
+                self.client.query.get(  # type: ignore[attr-defined]
+                    class_name=request.collection_id,
+                    properties=["text", "document_id", "chunk_id", "source", "page_number", "chunk_number"],
+                )
+                .with_near_vector({"vector": query_embedding})
+                .with_limit(request.top_k)
+                .do()
+            )
+
+            logging.info("Weaviate search complete for collection '%s'", request.collection_id)
+            return self._process_search_results(results, request.collection_id)
+        except Exception as e:
+            logging.error("Failed to search Weaviate collection '%s': %s", request.collection_id, str(e))
+            raise VectorStoreError(f"Failed to search Weaviate collection '{request.collection_id}': {e}") from e
+
     def query(  # pylint: disable=redefined-builtin
         self,
         collection_name: str,
         query: QueryWithEmbedding,
         number_of_results: int = 10,
-        filter: DocumentMetadataFilter | None = None,  # noqa: ARG002
+        filter: DocumentMetadataFilter | None = None,
     ) -> list[QueryResult]:
-        """Query the Weaviate collection.
+        """Query the Weaviate collection (backward compatibility wrapper).
 
         Args:
             collection_name: Name of the collection to query
@@ -205,19 +339,19 @@ class WeaviateDataStore(VectorStore):
             DocumentError: If query fails
         """
         try:
-            # Perform vector search
-            results = (
-                self.client.query.get(  # type: ignore[attr-defined]
-                    class_name=collection_name,
-                    properties=["text", "document_id", "chunk_id", "source", "page_number", "chunk_number"],
-                )
-                .with_near_vector({"vector": query.embeddings[0]})
-                .with_limit(number_of_results)
-                .do()
+            # Create VectorSearchRequest from legacy parameters
+            request = VectorSearchRequest(
+                query_text=query.text if hasattr(query, "text") else None,
+                query_vector=query.embeddings,
+                collection_id=collection_name,
+                top_k=number_of_results,
+                metadata_filter=filter,
+                include_metadata=True,
+                include_vectors=False,
             )
 
-            logging.info("Query response: %s", results)
-            return self._process_search_results(results, collection_name)
+            # Use Pydantic-based implementation
+            return self._search_impl(request)
         except Exception as e:
             logging.error("Failed to query Weaviate collection '%s': %s", collection_name, str(e))
             raise DocumentError(f"Failed to query Weaviate collection '{collection_name}': {e}") from e
@@ -239,17 +373,22 @@ class WeaviateDataStore(VectorStore):
             logging.error("Failed to delete Weaviate collection: %s", str(e))
             raise CollectionError(f"Failed to delete Weaviate collection: {e}") from e
 
-    def delete_documents(self, collection_name: str, document_ids: list[str]) -> None:
-        """Delete documents by their IDs from the Weaviate collection.
+    def delete_documents_with_response(
+        self, collection_name: str, document_ids: list[str]
+    ) -> VectorDBResponse[dict[str, Any]]:
+        """Delete documents and return detailed response (Pydantic-enhanced).
 
         Args:
             collection_name: Name of the collection
             document_ids: List of document IDs to delete
 
-        Raises:
-            DocumentError: If deletion fails
+        Returns:
+            VectorDBResponse with deletion metadata
         """
+        start_time = time.time()
         try:
+            deleted_count = 0
+
             # Query for objects with the specified document_ids
             for doc_id in document_ids:
                 results = (
@@ -265,11 +404,44 @@ class WeaviateDataStore(VectorStore):
                     self.client.data_object.delete(  # type: ignore[attr-defined]
                         uuid=obj["_additional"]["id"], class_name=collection_name
                     )
+                    deleted_count += 1
 
-            logging.info("Deleted documents from collection '%s'", collection_name)
+            elapsed = time.time() - start_time
+            logging.info("Deleted %d documents from collection '%s' in %.2fs", deleted_count, collection_name, elapsed)
+
+            return VectorDBResponse.create_success(
+                data={
+                    "deleted_count": deleted_count,
+                    "collection_name": collection_name,
+                    "document_ids": document_ids,
+                },
+                metadata={"elapsed_seconds": elapsed},
+            )
         except Exception as e:
+            elapsed = time.time() - start_time
             logging.error("Failed to delete documents from Weaviate collection '%s': %s", collection_name, str(e))
-            raise DocumentError(f"Failed to delete documents from Weaviate collection '{collection_name}': {e}") from e
+            return VectorDBResponse.create_error(
+                error=f"Failed to delete documents: {e!s}",
+                metadata={
+                    "collection_name": collection_name,
+                    "document_count": len(document_ids),
+                    "elapsed_seconds": elapsed,
+                },
+            )
+
+    def delete_documents(self, collection_name: str, document_ids: list[str]) -> None:
+        """Delete documents by their IDs from the Weaviate collection (backward compatibility).
+
+        Args:
+            collection_name: Name of the collection
+            document_ids: List of document IDs to delete
+
+        Raises:
+            DocumentError: If deletion fails
+        """
+        response = self.delete_documents_with_response(collection_name, document_ids)
+        if not response.success:
+            raise DocumentError(response.error or "Unknown error during deletion")
 
     def count_document_chunks(self, collection_name: str, document_id: str) -> int:
         """Count the number of chunks for a specific document.
