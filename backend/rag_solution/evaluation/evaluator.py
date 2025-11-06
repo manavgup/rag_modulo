@@ -104,9 +104,9 @@ class RAGEvaluator:
         Returns:
             float: The relevance score.
         """
-        from core.config import get_settings
+        from core.config import Settings, get_settings
 
-        settings = get_settings()
+        settings: Settings = get_settings()
         query_embedding = get_embeddings_for_vector_store(query_text, settings)
         # Extract text from document chunks
         doc_contents = [doc.chunk.text for doc in document_list]
@@ -127,9 +127,9 @@ class RAGEvaluator:
         Returns:
             float: The coherence score.
         """
-        from core.config import get_settings
+        from core.config import Settings, get_settings
 
-        settings = get_settings()
+        settings: Settings = get_settings()
         query_embedding = get_embeddings_for_vector_store(query_text, settings)
         response_embedding = get_embeddings_for_vector_store(response_text, settings)
         coherence = cosine_similarity(query_embedding, response_embedding)
@@ -149,9 +149,9 @@ class RAGEvaluator:
         Returns:
             float: The faithfulness score.
         """
-        from core.config import get_settings
+        from core.config import Settings, get_settings
 
-        settings = get_settings()
+        settings: Settings = get_settings()
         response_embedding = get_embeddings_for_vector_store(response_text, settings)
         doc_contents = [doc.chunk.text for doc in document_list]
         doc_embeddings = get_embeddings_for_vector_store(doc_contents, settings)

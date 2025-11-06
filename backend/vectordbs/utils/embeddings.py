@@ -40,9 +40,10 @@ def get_embeddings_for_vector_store(
     """
     # Create session and get embeddings in one clean flow
     session_factory = create_session_factory()
-    db = session_factory()
+    db = None  # Initialize to None to prevent NameError in finally block
 
     try:
+        db = session_factory()
         factory = LLMProviderFactory(db, settings)
         # Use provided provider name, fall back to settings, default to watsonx
         provider = factory.get_provider(provider_name or getattr(settings, "llm_provider_name", "watsonx"))
@@ -57,4 +58,5 @@ def get_embeddings_for_vector_store(
         logger.error("Unexpected error during embedding generation: %s", e)
         raise
     finally:
-        db.close()
+        if db is not None:
+            db.close()

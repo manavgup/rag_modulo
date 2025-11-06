@@ -20,10 +20,10 @@ from rag_solution.data_ingestion.hierarchical_chunking import (
     get_child_chunks,
 )
 
-# Import shared embedding utility
+# Import shared embedding utility for modern factory-based pattern
 from vectordbs.utils.embeddings import get_embeddings_for_vector_store
 
-# Keep get_tokenization import for deprecated function backward compatibility
+# Keep legacy import for backward compatibility (deprecated function)
 from vectordbs.utils.watsonx import get_tokenization
 
 if TYPE_CHECKING:

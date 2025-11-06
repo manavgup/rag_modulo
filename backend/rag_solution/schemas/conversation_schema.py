@@ -208,8 +208,8 @@ class ConversationSessionOutput(BaseModel):
                 metadata=session.session_metadata or {},
                 message_count=message_count,
             )
-        except (ValueError, KeyError, AttributeError):
-            logger.error()
+        except (ValueError, KeyError, AttributeError) as e:
+            logger.error("Failed to create ConversationSessionOutput from database session: %s", str(e))
             raise
 
 
