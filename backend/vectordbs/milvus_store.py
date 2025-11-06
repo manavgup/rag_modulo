@@ -14,13 +14,17 @@ from pymilvus import Collection, CollectionSchema, DataType, FieldSchema, Milvus
 from core.config import Settings, get_settings
 
 from .data_types import (
+    CollectionConfig,
     Document,
     DocumentChunkMetadata,
     DocumentChunkWithScore,
     DocumentMetadataFilter,
+    EmbeddedChunk,
     QueryResult,
     QueryWithEmbedding,
     Source,
+    VectorDBResponse,
+    VectorSearchRequest,
 )
 from .error_types import CollectionError, DocumentError, VectorStoreError
 from .utils.embeddings import get_embeddings_for_vector_store
@@ -109,8 +113,65 @@ class MilvusStore(VectorStore):
             return Collection(name=collection_name)
         raise CollectionError(f"Collection '{collection_name}' does not exist")
 
-    def create_collection(self, collection_name: str, metadata: dict | None = None) -> Collection:  # noqa: ARG002
-        """Create a new Milvus collection.
+    def _create_collection_impl(self, config: CollectionConfig) -> dict[str, Any]:
+        """Implementation-specific collection creation with Pydantic model.
+
+        Args:
+            config: Collection configuration (Pydantic model)
+
+        Returns:
+            dict: Creation result metadata
+
+        Raises:
+            CollectionError: If collection creation fails
+        """
+        try:
+            # Validate collection config against settings
+            self._validate_collection_config(config)
+
+            # Check if collection already exists
+            if config.collection_name in utility.list_collections():
+                logging.info("Collection '%s' already exists", config.collection_name)
+                return {
+                    "status": "exists",
+                    "collection_name": config.collection_name,
+                    "dimension": config.dimension,
+                }
+
+            # Create schema
+            schema = CollectionSchema(
+                fields=_create_schema(self.settings),
+                description=config.description or f"Collection for {config.collection_name}",
+            )
+            collection = Collection(name=config.collection_name, schema=schema)
+
+            # Create index with config parameters or defaults
+            index_params = {
+                "metric_type": config.metric_type or "COSINE",
+                "index_type": config.index_type or "IVF_FLAT",
+                "params": config.index_params or {"nlist": 1024},
+            }
+            collection.create_index(field_name=self.settings.embedding_field, index_params=index_params)
+
+            # Load collection
+            collection.load()
+
+            logging.info(
+                "Collection '%s' created successfully with dimension %d", config.collection_name, config.dimension
+            )
+            return {
+                "status": "created",
+                "collection_name": config.collection_name,
+                "dimension": config.dimension,
+                "metric_type": config.metric_type,
+                "index_type": config.index_type,
+            }
+        except Exception as e:
+            logging.error("Failed to create collection '%s': %s", config.collection_name, str(e))
+            raise CollectionError(f"Failed to create collection '{config.collection_name}': {e}") from e
+
+    def create_collection(self, collection_name: str, metadata: dict | None = None) -> Collection:
+        """Create a new Milvus collection (backward compatibility wrapper).
 
         Args:
             collection_name: Name of the collection to create
@@ -123,51 +184,40 @@ class MilvusStore(VectorStore):
             CollectionError: If collection creation fails
         """
         try:
-            if collection_name in utility.list_collections():
-                logging.info("Collection '%s' already exists", collection_name)
-                return Collection(name=collection_name)
-            self._create_collection(collection_name)
+            # Create CollectionConfig from legacy parameters
+            config = CollectionConfig(
+                collection_name=collection_name,
+                dimension=self.settings.embedding_dim,
+                metric_type="COSINE",
+                index_type="IVF_FLAT",
+                index_params={"nlist": 1024},
+                description=metadata.get("description") if metadata else None,
+            )
+
+            # Use new Pydantic-based implementation
+            self._create_collection_impl(config)
             return Collection(name=collection_name)
         except Exception as e:
             logging.error("Failed to create collection '%s': %s", collection_name, str(e))
             raise CollectionError(f"Failed to create collection '{collection_name}': {e}") from e
 
-    def _create_collection(self, collection_name: str) -> None:
-        """Internal method to create collection."""
-        try:
-            schema = CollectionSchema(
-                fields=_create_schema(self.settings), description=f"Collection for {collection_name}"
-            )
-            collection = Collection(name=collection_name, schema=schema)
-
-            # Create index
-            collection.create_index(field_name=self.settings.embedding_field, index_params=self.index_params)
-
-            # Load collection
-            collection.load()
-
-            logging.info("Collection '%s' created successfully", collection_name)
-        except Exception as e:
-            logging.error("Failed to create collection '%s': %s", collection_name, str(e))
-            raise CollectionError(f"Failed to create collection '{collection_name}': {e}") from e
-
-    def add_documents(self, collection_name: str, documents: list[Document]) -> list[str]:
-        """Add documents to the Milvus collection.
+    def _add_documents_impl(self, collection_name: str, chunks: list[EmbeddedChunk]) -> list[str]:
+        """Implementation-specific document addition with Pydantic models.
 
         Args:
-            collection_name: Name of the collection
-            documents: List of documents to add
+            collection_name: Target collection
+            chunks: List of embedded chunks to add (Pydantic models)
 
         Returns:
-            List[str]: List of document IDs that were added
+            List of chunk IDs that were added
 
         Raises:
-            DocumentError: If document addition fails
+            DocumentError: If addition fails
         """
         try:
             collection = self._get_collection(collection_name)
 
-            # Prepare data for insertion
+            # Prepare data for insertion using Pydantic models
             document_ids = []
             texts = []
             embeddings = []
@@ -177,20 +227,20 @@ class MilvusStore(VectorStore):
             chunk_numbers = []
             document_names = []
 
-            for document in documents:
-                for chunk in document.chunks:
-                    document_ids.append(chunk.document_id or "")
-                    texts.append(chunk.text)
-                    embeddings.append(chunk.embeddings)
-                    chunk_ids.append(chunk.chunk_id)
-                    sources.append(str(chunk.metadata.source) if chunk.metadata and chunk.metadata.source else "OTHER")
-                    page_numbers.append(
-                        chunk.metadata.page_number if chunk.metadata and chunk.metadata.page_number is not None else 0
-                    )
-                    chunk_numbers.append(
-                        chunk.metadata.chunk_number if chunk.metadata and chunk.metadata.chunk_number is not None else 0
-                    )
-                    document_names.append(document.metadata.title if document.metadata else "")
+            for chunk in chunks:
+                document_ids.append(chunk.document_id or "")
+                texts.append(chunk.text)
+                embeddings.append(chunk.embeddings)  # EmbeddedChunk ensures embeddings are present
+                chunk_ids.append(chunk.chunk_id)
+                sources.append(str(chunk.metadata.source) if chunk.metadata and chunk.metadata.source else "OTHER")
+                page_numbers.append(
+                    chunk.metadata.page_number if chunk.metadata and chunk.metadata.page_number is not None else 0
+                )
+                chunk_numbers.append(
+                    chunk.metadata.chunk_number if chunk.metadata and chunk.metadata.chunk_number is not None else 0
+                )
+                # Extract document name from metadata if available
+                document_names.append(getattr(chunk.metadata, "title", "") if chunk.metadata else "")
 
             # Insert data
             collection.insert(
@@ -209,7 +259,52 @@ class MilvusStore(VectorStore):
             # Flush to ensure data is written
             collection.flush()
 
-            logging.info("Successfully added %d documents to collection '%s'", len(documents), collection_name)
+            logging.info("Successfully added %d chunks to collection '%s'", len(chunks), collection_name)
+            return chunk_ids
+        except Exception as e:
+            logging.error("Failed to add chunks to Milvus collection '%s': %s", collection_name, str(e))
+            raise DocumentError(f"Failed to add chunks to Milvus collection '{collection_name}': {e}") from e
+
+    def add_documents(self, collection_name: str, documents: list[Document]) -> list[str]:
+        """Add documents to the Milvus collection (backward compatibility wrapper).
+
+        Args:
+            collection_name: Name of the collection
+            documents: List of documents to add
+
+        Returns:
+            List[str]: List of document IDs that were added
+
+        Raises:
+            DocumentError: If document addition fails
+        """
+        try:
+            # Convert documents to EmbeddedChunks
+            chunks: list[EmbeddedChunk] = []
+            for document in documents:
+                for chunk in document.chunks:
+                    # Only add chunks that have embeddings
+                    if chunk.embeddings:
+                        embedded_chunk = EmbeddedChunk(
+                            chunk_id=chunk.chunk_id,
+                            text=chunk.text,
+                            embeddings=chunk.embeddings,
+                            metadata=chunk.metadata,
+                            document_id=chunk.document_id,
+                        )
+                        chunks.append(embedded_chunk)
+
+            # Use Pydantic-based implementation
+            chunk_ids = self._add_documents_impl(collection_name, chunks)
+
+            # Return unique document IDs (for backward compatibility)
+            document_ids = list({chunk.document_id for chunk in chunks if chunk.document_id})
+            logging.info(
+                "Successfully added %d documents (%d chunks) to collection '%s'",
+                len(document_ids),
+                len(chunk_ids),
+                collection_name,
+            )
             return document_ids
         except Exception as e:
             logging.error("Failed to add documents to Milvus collection '%s': %s", collection_name, str(e))
@@ -262,14 +357,72 @@ class MilvusStore(VectorStore):
 
         return results
 
+    def _search_impl(self, request: VectorSearchRequest) -> list[QueryResult]:
+        """Implementation-specific search with Pydantic model.
+
+        Args:
+            request: Vector search request (Pydantic model)
+
+        Returns:
+            List of query results
+
+        Raises:
+            VectorStoreError: If search fails
+        """
+        try:
+            collection = self._get_collection(request.collection_id)
+
+            # Get query vector (either from request or generate from text)
+            if request.query_vector:
+                query_embedding = request.query_vector
+            elif request.query_text:
+                embeddings_list = get_embeddings_for_vector_store(request.query_text, settings=self.settings)
+                if not embeddings_list:
+                    raise DocumentError("Failed to generate embeddings for query text")
+                query_embedding = embeddings_list[0]
+            else:
+                raise ValueError("Either query_text or query_vector must be provided")
+
+            # Perform search
+            results = collection.search(
+                data=[query_embedding],
+                anns_field=self.settings.embedding_field,
+                param=self.search_params,
+                limit=request.top_k,
+                output_fields=[
+                    "document_id",
+                    "text",
+                    "chunk_id",
+                    "source",
+                    "page_number",
+                    "chunk_number",
+                    "document_name",
+                ],
+            )
+
+            # Log summary
+            if results and hasattr(results, "__len__"):
+                logger.info(
+                    "Milvus search complete: %d results returned for collection '%s'",
+                    len(results),
+                    request.collection_id,
+                )
+            else:
+                logger.debug("Milvus search returned results (non-list type)")
+
+            return self._process_search_results(results, request.collection_id)
+        except Exception as e:
+            logging.error("Failed to search Milvus collection '%s': %s", request.collection_id, str(e))
+            raise VectorStoreError(f"Failed to search Milvus collection '{request.collection_id}': {e}") from e
+
     def query(
         self,
         collection_name: str,
         query: QueryWithEmbedding,
         number_of_results: int = 10,
-        metadata_filter: DocumentMetadataFilter | None = None,  # noqa: ARG002
+        metadata_filter: DocumentMetadataFilter | None = None,
     ) -> list[QueryResult]:
-        """Query the Milvus collection.
+        """Query the Milvus collection (backward compatibility wrapper).
 
         Args:
             collection_name: Name of the collection to query
@@ -284,31 +437,19 @@ class MilvusStore(VectorStore):
             DocumentError: If query fails
         """
         try:
-            collection = self._get_collection(collection_name)
-
-            # Perform search
-            results = collection.search(
-                data=[query.embeddings],  # Pass the full embedding vector, not just the first element
-                anns_field=self.settings.embedding_field,
-                param=self.search_params,
-                limit=number_of_results,
-                output_fields=[
-                    "document_id",
-                    "text",
-                    "chunk_id",
-                    "source",
-                    "page_number",
-                    "chunk_number",
-                    "document_name",
-                ],
+            # Create VectorSearchRequest from legacy parameters
+            request = VectorSearchRequest(
+                query_text=query.text if hasattr(query, "text") else None,
+                query_vector=query.embeddings,
+                collection_id=collection_name,
+                top_k=number_of_results,
+                metadata_filter=metadata_filter,
+                include_metadata=True,
+                include_vectors=False,
             )
 
-            # Log summary instead of raw results
-            if results and hasattr(results, "__len__"):
-                logger.info("Milvus search complete: %d results returned", len(results))
-            else:
-                logger.debug("Milvus search returned results (non-list type)")
-            return self._process_search_results(results, collection_name)
+            # Use Pydantic-based implementation
+            return self._search_impl(request)
         except Exception as e:
             logging.error("Failed to query Milvus collection '%s': %s", collection_name, str(e))
             raise DocumentError(f"Failed to query Milvus collection '{collection_name}': {e}") from e
@@ -347,16 +488,22 @@ class MilvusStore(VectorStore):
             logging.error("Failed to list Milvus collections: %s", str(e))
             raise CollectionError(f"Failed to list Milvus collections: {e}") from e
 
-    def delete_documents(self, collection_name: str, document_ids: list[str]) -> None:
-        """Delete documents by their IDs from the Milvus collection.
+    def delete_documents_with_response(
+        self, collection_name: str, document_ids: list[str]
+    ) -> VectorDBResponse[dict[str, Any]]:
+        """Delete documents and return detailed response (Pydantic-enhanced).
 
         Args:
             collection_name: Name of the collection
             document_ids: List of document IDs to delete
 
+        Returns:
+            VectorDBResponse with deletion metadata
+
         Raises:
             DocumentError: If deletion fails
         """
+        start_time = time.time()
         try:
             collection = self._get_collection(collection_name)
 
@@ -369,10 +516,44 @@ class MilvusStore(VectorStore):
             # Flush to ensure deletion is applied
             collection.flush()
 
-            logging.info("Deleted %d documents from collection '%s'", len(document_ids), collection_name)
+            elapsed = time.time() - start_time
+            logging.info(
+                "Deleted %d documents from collection '%s' in %.2fs", len(document_ids), collection_name, elapsed
+            )
+
+            return VectorDBResponse.create_success(
+                data={
+                    "deleted_count": len(document_ids),
+                    "collection_name": collection_name,
+                    "document_ids": document_ids,
+                },
+                metadata={"elapsed_seconds": elapsed},
+            )
         except Exception as e:
+            elapsed = time.time() - start_time
             logging.error("Failed to delete documents from Milvus collection '%s': %s", collection_name, str(e))
-            raise DocumentError(f"Failed to delete documents from Milvus collection '{collection_name}': {e}") from e
+            return VectorDBResponse.create_error(
+                error=f"Failed to delete documents: {e!s}",
+                metadata={
+                    "collection_name": collection_name,
+                    "document_count": len(document_ids),
+                    "elapsed_seconds": elapsed,
+                },
+            )
+
+    def delete_documents(self, collection_name: str, document_ids: list[str]) -> None:
+        """Delete documents by their IDs from the Milvus collection (backward compatibility).
+
+        Args:
+            collection_name: Name of the collection
+            document_ids: List of document IDs to delete
+
+        Raises:
+            DocumentError: If deletion fails
+        """
+        response = self.delete_documents_with_response(collection_name, document_ids)
+        if not response.success:
+            raise DocumentError(response.error or "Unknown error during deletion")
 
     def count_document_chunks(self, collection_name: str, document_id: str) -> int:
         """Count the number of chunks for a specific document.
