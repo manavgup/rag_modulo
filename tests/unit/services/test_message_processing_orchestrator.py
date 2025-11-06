@@ -202,7 +202,6 @@ def sample_search_result():
 class TestProcessUserMessage:
     """Test process_user_message method."""
 
-    @pytest.mark.skip(reason="Source code has parameter name mismatch: _serialize_response signature vs call site")
     @pytest.mark.asyncio
     async def test_process_user_message_successful_flow(
         self,
@@ -292,7 +291,6 @@ class TestProcessUserMessage:
         with pytest.raises(ValueError, match="Session not found"):
             await orchestrator.process_user_message(sample_message_input)
 
-    @pytest.mark.skip(reason="Source code has parameter name mismatch: _serialize_response signature vs call site")
     @pytest.mark.asyncio
     async def test_process_user_message_with_cot_reasoning(
         self,
@@ -374,7 +372,6 @@ class TestProcessUserMessage:
         assert result.cot_output is not None
         assert result.cot_output == cot_output
 
-    @pytest.mark.skip(reason="Source code has parameter name mismatch: _serialize_response signature vs call site")
     @pytest.mark.asyncio
     async def test_process_user_message_token_count_estimation(
         self,
