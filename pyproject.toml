@@ -214,6 +214,7 @@ exclude = [
     "dist",
     "node_modules",
     "venv",
+    "backend/dev_tests",
 ]
 
 [tool.ruff.lint]
