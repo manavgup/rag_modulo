@@ -233,6 +233,18 @@ class TestCollectionExistence:
         """Test that _collection_exists returns False for missing collections."""
         assert vector_store._collection_exists("nonexistent") is False
 
+    def test_collection_exists_raises_on_not_implemented(self, vector_store):
+        """Test that NotImplementedError is raised when method not implemented."""
+
+        # Mock _get_collection_stats_impl to raise NotImplementedError
+        def raise_not_implemented(collection_name):
+            raise NotImplementedError("Stats not implemented")
+
+        vector_store._get_collection_stats_impl = raise_not_implemented
+
+        with pytest.raises(NotImplementedError, match="must implement _get_collection_stats_impl"):
+            vector_store._collection_exists("test_collection")
+
     def test_collection_exists_raises_on_unexpected_error(self, vector_store):
         """Test that unexpected errors are re-raised as VectorStoreError."""
 
@@ -240,7 +252,7 @@ class TestCollectionExistence:
         def raise_unexpected():
             raise RuntimeError("Database connection lost")
 
-        vector_store._get_collection_stats_impl = lambda _: raise_unexpected()  # noqa: ARG005
+        vector_store._get_collection_stats_impl = lambda _: raise_unexpected()
 
         with pytest.raises(VectorStoreError, match="Failed to check collection existence"):
             vector_store._collection_exists("test_collection")
@@ -332,3 +344,18 @@ class TestCollectionConfigValidation:
         assert "1536" in error_message  # Collection dimension
         assert "768" in error_message  # Expected dimension
         assert "my_collection" in error_message
+
+    def test_validate_whitespace_collection_name_raises_error(self, vector_store):
+        """Test that whitespace-only collection name raises ValueError.
+
+        Note: Pydantic's min_length validator doesn't catch whitespace-only strings,
+        so our custom validation is needed for this case.
+        """
+        config = CollectionConfig(
+            collection_name="   ",
+            dimension=768,
+            metric_type="cosine",
+        )
+
+        with pytest.raises(ValueError, match="Collection name cannot be whitespace-only"):
+            vector_store._validate_collection_config(config)

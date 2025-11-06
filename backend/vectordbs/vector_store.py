@@ -181,8 +181,12 @@ class VectorStore(ABC):
 
         Warning:
             The default implementation calls synchronous connect()/disconnect() methods,
-            which may block the event loop. Subclasses with async database clients should
-            override this method to use async connection methods instead.
+            which WILL BLOCK THE EVENT LOOP if your connect() performs I/O operations.
+
+            If your implementation performs ANY I/O in connect() (database connections,
+            network calls, file operations), you MUST override this method with async
+            connection methods. Failure to do so will cause performance degradation
+            and potential deadlocks in async code paths.
 
         Usage:
             async with vector_store.async_connection_context():
@@ -455,13 +459,17 @@ class VectorStore(ABC):
             # Expected error for non-existent collections
             logger.debug("Collection '%s' does not exist", collection_name)
             return False
-        except NotImplementedError:
-            # Implementation hasn't overridden _get_collection_stats_impl
-            logger.warning(
-                "Cannot check collection existence: %s doesn't implement _get_collection_stats_impl()",
+        except NotImplementedError as e:
+            # Implementation hasn't implemented required method - this is a critical gap
+            logger.error(
+                "Cannot check collection existence: %s doesn't implement _get_collection_stats_impl(). "
+                "This is a required implementation for production use.",
                 self.__class__.__name__,
             )
-            return False
+            raise NotImplementedError(
+                f"{self.__class__.__name__} must implement _get_collection_stats_impl() "
+                "to support collection existence checking. This is required for production use."
+            ) from e
         except Exception as e:
             # Unexpected errors should not be silently swallowed
             logger.error(
@@ -516,9 +524,9 @@ class VectorStore(ABC):
             logger.warning(
                 "Batch size %d is very large and may cause memory issues. "
                 "Consider using smaller batches (100-1000 recommended). "
-                "Collection: %s",
+                "Chunk count: %d",
                 batch_size,
-                getattr(chunks[0], "collection_name", "unknown") if chunks else "unknown",
+                len(chunks),
             )
 
         batches: list[list[EmbeddedChunk]] = []
@@ -537,9 +545,17 @@ class VectorStore(ABC):
     def _validate_collection_config(self, config: CollectionConfig) -> None:
         """Validate collection configuration against system settings.
 
-        This method ensures that collection configurations are compatible with the
-        vector store settings. It validates dimension compatibility to prevent
-        embedding mismatches that would cause insertion failures.
+        This method provides additional validation beyond Pydantic's base validation
+        to ensure collection configurations are compatible with the vector store settings.
+
+        Note:
+            Pydantic's CollectionConfig model already validates:
+            - collection_name has min_length=1 (prevents empty strings)
+            - dimension has ge=1 (prevents non-positive values)
+
+            This method adds:
+            - Whitespace-only collection name detection (Pydantic doesn't catch this)
+            - Dimension compatibility with embedding model
 
         Args:
             config: Collection configuration to validate. Must include:
@@ -550,9 +566,8 @@ class VectorStore(ABC):
         Raises:
             ValueError: If configuration is invalid or incompatible with settings.
                 Common issues:
+                - Whitespace-only collection name
                 - Dimension mismatch with embedding model
-                - Invalid collection name
-                - Unsupported distance metric
 
         Example:
             >>> config = CollectionConfig(
@@ -562,6 +577,13 @@ class VectorStore(ABC):
             ... )
             >>> vector_store._validate_collection_config(config)
         """
+        # Validate collection name is not whitespace-only
+        # Note: Pydantic ensures non-empty, but doesn't check for whitespace-only
+        if not config.collection_name.strip():
+            error_msg = "Collection name cannot be whitespace-only"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+
         # Validate dimension matches embedding model
         if config.dimension != self.settings.embedding_dim:
             error_msg = (
