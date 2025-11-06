@@ -116,8 +116,9 @@ def _can_connect_to_database() -> bool:
             conn.execute(text("SELECT 1"))
         engine.dispose()
         return True
-    except (ConnectionError, TimeoutError, OSError):
+    except Exception:
         # Database connection failed - expected in CI without database
+        # Catches sqlalchemy.exc.OperationalError, ConnectionError, TimeoutError, OSError, etc.
         return False
 
 
@@ -126,15 +127,23 @@ def test_db_engine():
     """Create test database engine with query logging."""
     if not _can_connect_to_database():
         pytest.skip("Database not available - skipping performance tests that require database connection")
-    settings = get_settings()
-    # Construct database URL from settings fields
-    database_url = (
-        f"postgresql://{settings.collectiondb_user}:{settings.collectiondb_pass}"
-        f"@{settings.collectiondb_host}:{settings.collectiondb_port}/{settings.collectiondb_name}"
-    )
-    engine = create_engine(database_url, echo=False, pool_pre_ping=True)
-    yield engine
-    engine.dispose()
+
+    try:
+        settings = get_settings()
+        # Construct database URL from settings fields
+        database_url = (
+            f"postgresql://{settings.collectiondb_user}:{settings.collectiondb_pass}"
+            f"@{settings.collectiondb_host}:{settings.collectiondb_port}/{settings.collectiondb_name}"
+        )
+        engine = create_engine(database_url, echo=False, pool_pre_ping=True)
+        # Verify connection works before yielding
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        yield engine
+        engine.dispose()
+    except Exception as e:
+        # If database connection fails during setup, skip the test
+        pytest.skip(f"Database connection failed during setup: {e}")
 
 
 @pytest.fixture
