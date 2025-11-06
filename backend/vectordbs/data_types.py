@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Generic, TypeVar
+from typing import Any, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -555,7 +555,7 @@ class CollectionConfig(BaseModel):
 T = TypeVar("T")
 
 
-class VectorDBResponse(BaseModel, Generic[T]):
+class VectorDBResponse[T](BaseModel):
     """Generic response wrapper for vector database operations.
 
     Provides consistent success/error handling across all vector DB operations.

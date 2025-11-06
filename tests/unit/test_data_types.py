@@ -9,7 +9,6 @@ from vectordbs.data_types import (
     DocumentChunkMetadata,
     DocumentIngestionRequest,
     EmbeddedChunk,
-    Embeddings,
     QueryResult,
     Source,
     VectorDBCollectionResponse,
