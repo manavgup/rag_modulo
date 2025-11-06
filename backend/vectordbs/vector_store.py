@@ -87,7 +87,9 @@ class VectorStore(ABC):
         """
         self._connected = True
         self._connection_metadata["connected_at"] = time.time()
-        logger.info("Connected to vector store (base implementation)")
+        logger.debug(
+            "Connection flag set for %s (base implementation - override for real connections)", self.__class__.__name__
+        )
 
     def disconnect(self) -> None:
         """Close connection to the vector database.
@@ -115,7 +117,10 @@ class VectorStore(ABC):
         """
         self._connected = False
         self._connection_metadata["disconnected_at"] = time.time()
-        logger.info("Disconnected from vector store (base implementation)")
+        logger.debug(
+            "Connection flag cleared for %s (base implementation - override for real disconnections)",
+            self.__class__.__name__,
+        )
 
     @property
     def is_connected(self) -> bool:
@@ -174,31 +179,33 @@ class VectorStore(ABC):
         disconnecting connections that IT created. If a connection already exists,
         it leaves it intact on exit to avoid breaking calling code.
 
+        Warning:
+            The default implementation calls synchronous connect()/disconnect() methods,
+            which may block the event loop. Subclasses with async database clients should
+            override this method to use async connection methods instead.
+
         Usage:
             async with vector_store.async_connection_context():
                 await vector_store.async_add_documents(...)
 
-        Example with existing connection:
-            >>> store = VectorStore(settings)
-            >>> store.connect()  # Manual connection
-            >>> async with store.async_connection_context():
-            ...     await store.async_query(...)  # Uses existing connection
-            >>> # Connection still active after context exit
-            >>> store.is_connected
-            True
-
-        Example without existing connection:
-            >>> store = VectorStore(settings)
-            >>> async with store.async_connection_context():
-            ...     await store.async_query(...)  # Creates connection
-            >>> # Connection cleaned up after context exit
-            >>> store.is_connected
-            False
+        Example for implementations with async clients (override recommended):
+            >>> @asynccontextmanager
+            ... async def async_connection_context(self):
+            ...     needs_disconnect = False
+            ...     try:
+            ...         if not self._connected:
+            ...             await self.async_connect()  # Async method
+            ...             needs_disconnect = True
+            ...         yield
+            ...     finally:
+            ...         if needs_disconnect:
+            ...             await self.async_disconnect()  # Async method
         """
         # Track if WE created the connection
         needs_disconnect = False
         try:
             if not self._connected:
+                # Default uses sync methods - override if using async client
                 self.connect()
                 needs_disconnect = True  # Only disconnect what we connected
             yield
@@ -274,7 +281,9 @@ class VectorStore(ABC):
         memory usage, query latency).
 
         Args:
-            timeout: Maximum time to wait for health check in seconds
+            timeout: Maximum time to wait for health check in seconds.
+                Note: The default implementation does not enforce this timeout.
+                Subclasses should implement timeout handling for actual health checks.
 
         Returns:
             Dictionary with health status information. Default keys:
@@ -286,7 +295,25 @@ class VectorStore(ABC):
             VectorStoreError: If health check fails due to connection issues
             TimeoutError: If health check exceeds timeout duration
 
-        Example:
+        Example with timeout enforcement:
+            >>> import signal
+            >>> def _health_check_impl(self, timeout: float) -> dict[str, Any]:
+            ...     def timeout_handler(signum, frame):
+            ...         raise TimeoutError(f"Health check exceeded {timeout}s")
+            ...
+            ...     # Set timeout (Unix-like systems only)
+            ...     signal.signal(signal.SIGALRM, timeout_handler)
+            ...     signal.alarm(int(timeout))
+            ...     try:
+            ...         # Perform actual health check
+            ...         result = self.client.health_check()
+            ...         signal.alarm(0)  # Cancel alarm
+            ...         return {"status": "healthy", "nodes": result.nodes}
+            ...     except Exception:
+            ...         signal.alarm(0)  # Cancel alarm
+            ...         raise
+
+        Example without timeout (simple):
             >>> def _health_check_impl(self, timeout: float) -> dict[str, Any]:
             ...     return {
             ...         "status": "healthy",
@@ -482,6 +509,16 @@ class VectorStore(ABC):
             raise ValueError(
                 f"Batch size must be positive, got: {batch_size}. "
                 "Common batch sizes: 100 (conservative), 500 (balanced), 1000 (aggressive)"
+            )
+
+        # Warn about very large batch sizes that may cause memory issues
+        if batch_size > 10000:
+            logger.warning(
+                "Batch size %d is very large and may cause memory issues. "
+                "Consider using smaller batches (100-1000 recommended). "
+                "Collection: %s",
+                batch_size,
+                getattr(chunks[0], "collection_name", "unknown") if chunks else "unknown",
             )
 
         batches: list[list[EmbeddedChunk]] = []
