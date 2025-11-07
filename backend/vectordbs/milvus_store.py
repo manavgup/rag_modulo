@@ -454,11 +454,11 @@ class MilvusStore(VectorStore):
             logging.error("Failed to query Milvus collection '%s': %s", collection_name, str(e))
             raise DocumentError(f"Failed to query Milvus collection '{collection_name}': {e}") from e
 
-    def delete_collection(self, collection_name: str) -> None:
-        """Delete a collection from Milvus.
+    def _delete_collection_impl(self, collection_name: str) -> None:
+        """Implementation-specific collection deletion for Milvus.
 
         Args:
-            collection_name: Name of the collection to delete
+            collection_name: Name of collection to delete
 
         Raises:
             CollectionError: If deletion fails
@@ -470,6 +470,17 @@ class MilvusStore(VectorStore):
         except Exception as e:
             logging.error("Failed to delete Milvus collection: %s", str(e))
             raise CollectionError(f"Failed to delete Milvus collection: {e}") from e
+
+    def delete_collection(self, collection_name: str) -> None:
+        """Delete a collection from Milvus.
+
+        Args:
+            collection_name: Name of the collection to delete
+
+        Raises:
+            CollectionError: If deletion fails
+        """
+        self._delete_collection_impl(collection_name)
 
     def list_collections(self) -> list[str]:
         """List all collections in Milvus.
