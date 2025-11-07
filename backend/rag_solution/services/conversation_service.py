@@ -14,8 +14,7 @@ from sqlalchemy.orm import Session
 
 from core.config import Settings
 from rag_solution.core.exceptions import NotFoundError, SessionExpiredError, ValidationError
-from rag_solution.models.conversation_message import ConversationMessage
-from rag_solution.models.conversation_session import ConversationSession
+from rag_solution.models.conversation import ConversationMessage, ConversationSession
 from rag_solution.repository.conversation_repository import ConversationRepository
 from rag_solution.schemas.conversation_schema import (
     ConversationContext,
