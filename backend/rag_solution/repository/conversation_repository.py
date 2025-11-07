@@ -444,7 +444,7 @@ class ConversationRepository:
 
     def get_messages_by_session(
         self, session_id: UUID4, limit: int = 100, offset: int = 0
-    ) -> list[ConversationMessageOutput]:
+    ) -> list[ConversationMessage]:
         """Get conversation messages for a session.
 
         Args:
@@ -453,7 +453,7 @@ class ConversationRepository:
             offset: Offset for pagination
 
         Returns:
-            List of conversation messages ordered by creation time
+            List of conversation message database models ordered by creation time
 
         Raises:
             RepositoryError: For database errors
@@ -468,13 +468,13 @@ class ConversationRepository:
                 .all()
             )
 
-            return [ConversationMessageOutput.from_db_message(message) for message in messages]
+            return messages
 
         except Exception as e:
             logger.error(f"Error getting messages for session {session_id}: {e}")
             raise RepositoryError(f"Failed to get messages for session: {e}") from e
 
-    def get_recent_messages(self, session_id: UUID4, count: int = 10) -> list[ConversationMessageOutput]:
+    def get_recent_messages(self, session_id: UUID4, count: int = 10) -> list[ConversationMessage]:
         """Get recent conversation messages for a session.
 
         Args:
@@ -482,7 +482,7 @@ class ConversationRepository:
             count: Number of recent messages to return
 
         Returns:
-            List of recent conversation messages in chronological order
+            List of recent conversation message database models in chronological order
 
         Raises:
             RepositoryError: For database errors
@@ -505,7 +505,7 @@ class ConversationRepository:
                 .all()
             )
 
-            return [ConversationMessageOutput.from_db_message(message) for message in messages]
+            return messages
 
         except Exception as e:
             logger.error(f"Error getting recent messages for session {session_id}: {e}")
