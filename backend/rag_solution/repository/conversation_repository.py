@@ -27,7 +27,6 @@ from rag_solution.core.exceptions import AlreadyExistsError, NotFoundError
 from rag_solution.models.conversation import ConversationMessage, ConversationSession, ConversationSummary
 from rag_solution.schemas.conversation_schema import (
     ConversationMessageInput,
-    ConversationMessageOutput,
     ConversationSessionInput,
     ConversationSessionOutput,
     ConversationSummaryInput,
@@ -344,7 +343,7 @@ class ConversationRepository:
     # MESSAGE OPERATIONS
     # ============================================================================
 
-    def create_message(self, message_input: ConversationMessageInput) -> ConversationMessageOutput:
+    def create_message(self, message_input: ConversationMessageInput) -> ConversationMessage:
         """Create a new conversation message.
 
         Args:
@@ -386,7 +385,7 @@ class ConversationRepository:
             self.db.refresh(message)
 
             logger.info(f"Created conversation message: {message.id}")
-            return ConversationMessageOutput.from_db_message(message)
+            return message
 
         except IntegrityError as e:
             self.db.rollback()
@@ -410,14 +409,14 @@ class ConversationRepository:
             logger.error(f"Error creating conversation message: {e}")
             raise RepositoryError(f"Failed to create conversation message: {e}") from e
 
-    def get_message_by_id(self, message_id: UUID4) -> ConversationMessageOutput:
+    def get_message_by_id(self, message_id: UUID4) -> ConversationMessage:
         """Get conversation message by ID.
 
         Args:
             message_id: Message ID
 
         Returns:
-            Conversation message
+            Conversation message database model
 
         Raises:
             NotFoundError: If message not found
@@ -434,7 +433,7 @@ class ConversationRepository:
             if not message:
                 raise NotFoundError(f"Conversation message not found: {message_id}")
 
-            return ConversationMessageOutput.from_db_message(message)
+            return message
 
         except NotFoundError:
             raise
@@ -511,7 +510,7 @@ class ConversationRepository:
             logger.error(f"Error getting recent messages for session {session_id}: {e}")
             raise RepositoryError(f"Failed to get recent messages for session: {e}") from e
 
-    def update_message(self, message_id: UUID4, updates: dict[str, Any]) -> ConversationMessageOutput:
+    def update_message(self, message_id: UUID4, updates: dict[str, Any]) -> ConversationMessage:
         """Update conversation message.
 
         Args:
@@ -519,7 +518,7 @@ class ConversationRepository:
             updates: Dictionary of fields to update
 
         Returns:
-            Updated conversation message
+            Updated conversation message database model
 
         Raises:
             NotFoundError: If message not found
@@ -541,7 +540,7 @@ class ConversationRepository:
             self.db.refresh(message)
 
             logger.info(f"Updated conversation message: {message_id}")
-            return ConversationMessageOutput.from_db_message(message)
+            return message
 
         except NotFoundError:
             raise
