@@ -108,6 +108,7 @@ backend/env_dump.txt
 .hive-mind/
 .mcp.json
 .playwright-mcp/
+.ralph/
 .serena/
 .swarm/
 memory/
