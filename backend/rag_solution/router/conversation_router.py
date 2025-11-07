@@ -993,7 +993,7 @@ async def get_conversation_suggestions(
         logger.warning(
             "get_conversation_suggestions is using placeholder implementation - "
             "returning hardcoded suggestions for session %s",
-            session_id
+            session_id,
         )
         return ConversationSuggestionOutput(
             suggestions=["Based on the conversation, what are your next steps?"],
@@ -1065,8 +1065,7 @@ async def export_conversation_enhanced(
             # Unexpected errors should be logged and raised, not masked
             logger.error("Unexpected error retrieving session %s: %s", session_id, str(e))
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to retrieve session data"
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve session data"
             ) from e
 
         # Get messages
