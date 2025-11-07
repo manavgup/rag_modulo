@@ -924,7 +924,7 @@ class ApiClient {
       message_type: 'question'
     };
 
-    const response: AxiosResponse<any> = await this.client.post(`/api/chat/sessions/${sessionId}/process`, payload);
+    const response: AxiosResponse<any> = await this.client.post(`/api/conversations/${sessionId}/messages`, payload);
     const message = response.data;
 
     return {
