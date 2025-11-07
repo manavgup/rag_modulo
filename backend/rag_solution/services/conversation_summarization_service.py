@@ -77,13 +77,16 @@ class ConversationSummarizationService:
             if session.user_id != user_id:
                 raise ValidationError("User does not have access to this session")
 
-            # Get messages to summarize
-            messages = self.repository.get_messages_by_session(
+            # Get messages to summarize - repository returns database models
+            db_messages = self.repository.get_messages_by_session(
                 summary_input.session_id, limit=summary_input.message_count_to_summarize
             )
 
-            if not messages:
+            if not db_messages:
                 raise ValidationError("No messages found to summarize")
+
+            # Convert database models to schemas for LLM processing
+            messages = [ConversationMessageOutput.from_db_message(msg) for msg in db_messages]
 
             # Create initial summary record
             summary = self.repository.create_summary(summary_input)
@@ -254,7 +257,9 @@ class ConversationSummarizationService:
         """
         try:
             session = self.repository.get_session_by_id(session_id)
-            messages = self.repository.get_messages_by_session(session_id, limit=100)
+            # Repository returns database models, convert to schemas
+            db_messages = self.repository.get_messages_by_session(session_id, limit=100)
+            messages = [ConversationMessageOutput.from_db_message(msg) for msg in db_messages]
 
             if len(messages) < config.min_messages_for_summary:
                 return False

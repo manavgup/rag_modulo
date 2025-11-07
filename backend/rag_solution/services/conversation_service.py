@@ -212,7 +212,9 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
             execution_time=message_input.execution_time,
         )
 
-        return self.repository.create_message(message_input_with_dict)
+        # Repository returns database model, convert to schema
+        db_message = self.repository.create_message(message_input_with_dict)
+        return ConversationMessageOutput.from_db_message(db_message)
 
     async def get_messages(
         self, session_id: UUID, user_id: UUID, limit: int = 50, offset: int = 0
@@ -226,7 +228,9 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
         except NotFoundError:
             return []
 
-        return self.repository.get_messages_by_session(session_id, limit=limit, offset=offset)
+        # Repository returns database models, convert to schemas
+        db_messages = self.repository.get_messages_by_session(session_id, limit=limit, offset=offset)
+        return [ConversationMessageOutput.from_db_message(msg) for msg in db_messages]
 
     async def process_user_message(self, message_input: ConversationMessageInput) -> ConversationMessageOutput:
         """Process a user message and generate a response using integrated Search and CoT services.

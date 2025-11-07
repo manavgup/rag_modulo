@@ -108,18 +108,23 @@ def mock_conversation_repository():
     # Configure get_sessions_by_user to return a list
     repo.get_sessions_by_user = Mock(return_value=[])
 
-    # Configure create_message to return ConversationMessageOutput
+    # Configure create_message to return database model (not Pydantic schema)
     def create_message_side_effect(message_input):
-        return ConversationMessageOutput(
+        from backend.rag_solution.models.conversation_message import ConversationMessage
+
+        message = ConversationMessage(
             id=uuid4(),
             session_id=message_input.session_id,
             content=message_input.content,
             role=message_input.role,
             message_type=message_input.message_type,
-            metadata=message_input.metadata,
+            message_metadata=message_input.metadata,  # Note: DB model uses message_metadata
             token_count=message_input.token_count or 0,
             execution_time=message_input.execution_time or 0.0,
         )
+        message.created_at = datetime.utcnow()
+        message.updated_at = datetime.utcnow()
+        return message
 
     repo.create_message = Mock(side_effect=create_message_side_effect)
 
@@ -275,6 +280,10 @@ def mock_message_refresh(obj, message_id=None):
     """Helper to properly mock db.refresh for message objects."""
     obj.id = message_id if message_id else uuid4()
     obj.created_at = datetime.utcnow()
+    obj.updated_at = datetime.utcnow()
+    # Ensure message_metadata is set for from_db_message() conversion
+    if not hasattr(obj, 'message_metadata'):
+        obj.message_metadata = None
 
 
 # ============================================================================
@@ -751,19 +760,23 @@ class TestConversationServiceMessageCRUD:
         db_session.messages = []
 
         conversation_service.repository.get_session_by_id = Mock(return_value=db_session)
-        # Mock create_message to return a valid message with ID (as repository would)
-        conversation_service.repository.create_message = Mock(
-            return_value=ConversationMessageOutput(
-                id=uuid4(),  # Repository always generates valid UUID
-                session_id=sample_message_input.session_id,
-                content=sample_message_input.content,
-                role=sample_message_input.role,
-                message_type=sample_message_input.message_type,
-                metadata=None,
-                token_count=0,
-                execution_time=0.0,
-            )
+        # Mock create_message to return a database model (not Pydantic schema)
+        from backend.rag_solution.models.conversation_message import ConversationMessage
+
+        db_message = ConversationMessage(
+            id=uuid4(),  # Repository always generates valid UUID
+            session_id=sample_message_input.session_id,
+            content=sample_message_input.content,
+            role=sample_message_input.role,
+            message_type=sample_message_input.message_type,
+            message_metadata=None,
+            token_count=0,
+            execution_time=0.0,
         )
+        db_message.created_at = datetime.utcnow()
+        db_message.updated_at = datetime.utcnow()
+
+        conversation_service.repository.create_message = Mock(return_value=db_message)
 
         # The repository creates message with ID, service returns it
         result = await conversation_service.add_message(sample_message_input)
