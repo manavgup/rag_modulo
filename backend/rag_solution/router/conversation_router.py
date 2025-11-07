@@ -32,7 +32,6 @@ from rag_solution.schemas.conversation_schema import (
     ConversationSummaryInput,
     ConversationSummaryOutput,
     SessionStatistics,
-    SessionStatus,
     SummarizationConfigInput,
 )
 from rag_solution.services.chain_of_thought_service import ChainOfThoughtService
@@ -116,9 +115,9 @@ def get_message_processing_orchestrator(
         provider = llm_provider_service.get_default_provider()
         if provider and hasattr(provider, "llm_base"):
             cot_service = ChainOfThoughtService(settings, provider.llm_base, search_service, db)
-    except Exception:
+    except Exception as e:
         # CoT is optional, continue without it
-        pass
+        logger.warning("Failed to initialize Chain of Thought service: %s", str(e))
 
     return MessageProcessingOrchestrator(
         db=db,
@@ -275,7 +274,7 @@ async def get_conversation(
 @router.put("/{session_id}", response_model=ConversationSessionOutput)
 async def update_conversation(
     session_id: UUID,
-    updates: dict,
+    updates: dict[str, Any],
     current_user: dict = Depends(get_current_user),
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> ConversationSessionOutput:
@@ -916,8 +915,8 @@ async def check_context_threshold(
 async def get_question_suggestions(
     session_id: UUID,
     current_user: dict = Depends(get_current_user),
-    current_message: str = Query(..., description="Current message content"),
-    max_suggestions: int = Query(3, ge=1, le=10, description="Maximum number of suggestions"),
+    _current_message: str = Query(..., description="Current message content"),
+    _max_suggestions: int = Query(3, ge=1, le=10, description="Maximum number of suggestions"),
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> dict:
     """Get question suggestions for a conversation.
@@ -925,8 +924,8 @@ async def get_question_suggestions(
     Args:
         session_id: Conversation session ID
         current_user: Current authenticated user
-        current_message: Current message content (unused but kept for compatibility)
-        max_suggestions: Maximum number of suggestions (unused but kept for compatibility)
+        _current_message: Current message content (unused, kept for API compatibility)
+        _max_suggestions: Maximum number of suggestions (unused, kept for API compatibility)
         conversation_service: Conversation service dependency
 
     Returns:
@@ -964,8 +963,8 @@ async def get_question_suggestions(
 async def get_conversation_suggestions(
     session_id: UUID,
     suggestion_input: ConversationSuggestionInput,
-    current_user: dict = Depends(get_current_user),
-    conversation_service: ConversationService = Depends(get_conversation_service),
+    current_user: dict = Depends(get_current_user),  # Used for authentication via dependency
+    _conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> ConversationSuggestionOutput:
     """Get enhanced question suggestions based on conversation context.
 
@@ -975,8 +974,8 @@ async def get_conversation_suggestions(
     Args:
         session_id: Conversation session ID
         suggestion_input: Suggestion request parameters
-        current_user: Current authenticated user (unused but required for auth)
-        conversation_service: Conversation service dependency (unused but kept)
+        current_user: Current authenticated user (used for authentication via dependency)
+        _conversation_service: Conversation service dependency (unused in placeholder implementation)
 
     Returns:
         Enhanced conversation suggestions
@@ -988,8 +987,14 @@ async def get_conversation_suggestions(
         # Ensure session_id matches
         suggestion_input.session_id = session_id
 
-        # This would need to be implemented in the conversation service
-        # For now, return a placeholder response
+        # TODO: This is a placeholder implementation that returns hardcoded suggestions
+        # Real implementation should call conversation_service.generate_suggestions()
+        # See issue #558 for implementation plan
+        logger.warning(
+            "get_conversation_suggestions is using placeholder implementation - "
+            "returning hardcoded suggestions for session %s",
+            session_id
+        )
         return ConversationSuggestionOutput(
             suggestions=["Based on the conversation, what are your next steps?"],
             suggestion_types=["follow_up"],
@@ -1016,6 +1021,11 @@ async def export_conversation_enhanced(
     summarization_service: ConversationSummarizationService = Depends(get_summarization_service),
 ) -> ConversationExportOutput:
     """Export conversation with enhanced features including summaries and metadata.
+
+    Note: Uses POST instead of GET because ConversationExportInput contains complex
+    filter options (date_range, include_summaries, include_metadata, etc.) that
+    exceed typical query parameter complexity. POST with request body is more
+    appropriate for this use case per REST best practices.
 
     This endpoint provides comprehensive conversation export with optional
     summaries, enhanced metadata, and multiple format support.
@@ -1045,20 +1055,19 @@ async def export_conversation_enhanced(
             session = await conversation_service.get_session(session_id, user_id)
             if not session:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
-        except Exception:
-            # Fallback: create a dummy session for export with minimal data
-            session = ConversationSessionOutput(
-                id=session_id,
-                user_id=user_id,
-                collection_id=session_id,  # Placeholder
-                session_name="Export Session",
-                status=SessionStatus.ACTIVE,
-                context_window_size=4000,
-                max_messages=50,
-                is_archived=False,
-                is_pinned=False,
-                message_count=0,
-            )
+        except HTTPException:
+            # Re-raise HTTP exceptions (404, etc.)
+            raise
+        except NotFoundError as e:
+            # Session not found - raise 404
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
+        except Exception as e:
+            # Unexpected errors should be logged and raised, not masked
+            logger.error("Unexpected error retrieving session %s: %s", session_id, str(e))
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to retrieve session data"
+            ) from e
 
         # Get messages
         messages = await conversation_service.get_messages(session_id, user_id)
