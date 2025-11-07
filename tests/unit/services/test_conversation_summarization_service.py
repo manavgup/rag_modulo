@@ -1,8 +1,9 @@
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
-from rag_solution.schemas.conversation_schema import SummarizationConfigInput
+from rag_solution.schemas.conversation_schema import MessageRole, MessageType, SummarizationConfigInput
 from rag_solution.services.conversation_summarization_service import ConversationSummarizationService
 
 
@@ -39,6 +40,35 @@ def conversation_summarization_service(
     )
     return service
 
+
+def create_mock_db_message(
+    token_count: int = 100,
+    role: MessageRole = MessageRole.USER,
+    content: str = "Test message",
+) -> MagicMock:
+    """Create a proper mock database message that can be converted to ConversationMessageOutput.
+
+    Args:
+        token_count: Token count for the message
+        role: Message role (USER or ASSISTANT)
+        content: Message content
+
+    Returns:
+        MagicMock configured to work with from_db_message()
+    """
+    mock_msg = MagicMock()
+    mock_msg.id = uuid4()
+    mock_msg.session_id = uuid4()
+    mock_msg.content = content
+    mock_msg.role = role  # Use proper MessageRole enum
+    mock_msg.message_type = MessageType.QUESTION  # Use QUESTION instead of TEXT
+    mock_msg.token_count = token_count
+    mock_msg.message_metadata = None  # No metadata for simple messages
+    mock_msg.created_at = datetime.now(UTC)
+    mock_msg.updated_at = datetime.now(UTC)
+    mock_msg.execution_time = 0.0
+    return mock_msg
+
 @pytest.mark.asyncio
 async def test_check_context_window_threshold_below_threshold(conversation_summarization_service):
     session_id = uuid4()
@@ -48,7 +78,8 @@ async def test_check_context_window_threshold_below_threshold(conversation_summa
     mock_session.context_window_size = 1000
     conversation_summarization_service.repository.get_session_by_id.return_value = mock_session
 
-    mock_messages = [MagicMock(token_count=100) for _ in range(5)]
+    # Use proper database message mocks
+    mock_messages = [create_mock_db_message(token_count=100) for _ in range(5)]
     conversation_summarization_service.repository.get_messages_by_session.return_value = mock_messages
 
     result = await conversation_summarization_service.check_context_window_threshold(session_id, config)
@@ -64,7 +95,8 @@ async def test_check_context_window_threshold_above_threshold(conversation_summa
     mock_session.context_window_size = 1000
     conversation_summarization_service.repository.get_session_by_id.return_value = mock_session
 
-    mock_messages = [MagicMock(token_count=200) for _ in range(5)]
+    # Use proper database message mocks
+    mock_messages = [create_mock_db_message(token_count=200) for _ in range(5)]
     conversation_summarization_service.repository.get_messages_by_session.return_value = mock_messages
 
     result = await conversation_summarization_service.check_context_window_threshold(session_id, config)
@@ -102,8 +134,8 @@ async def test_check_context_window_threshold_exactly_at_threshold(conversation_
     mock_session.context_window_size = 1000
     conversation_summarization_service.repository.get_session_by_id.return_value = mock_session
 
-    # Exactly 800 tokens = 0.8 threshold
-    mock_messages = [MagicMock(token_count=160) for _ in range(5)]
+    # Exactly 800 tokens = 0.8 threshold - use proper database message mocks
+    mock_messages = [create_mock_db_message(token_count=160) for _ in range(5)]
     conversation_summarization_service.repository.get_messages_by_session.return_value = mock_messages
 
     result = await conversation_summarization_service.check_context_window_threshold(session_id, config)
@@ -185,13 +217,11 @@ async def test_create_summary_success(conversation_summarization_service):
     mock_session.user_id = user_id
     conversation_summarization_service.repository.get_session_by_id.return_value = mock_session
 
-    # Mock messages
+    # Mock messages - use proper database message mocks
     mock_messages = []
     for i in range(5):
-        msg = MagicMock()
-        msg.role.value = "user" if i % 2 == 0 else "assistant"
-        msg.content = f"Message {i}"
-        msg.created_at = datetime.utcnow()
+        role = MessageRole.USER if i % 2 == 0 else MessageRole.ASSISTANT
+        msg = create_mock_db_message(token_count=100, role=role, content=f"Message {i}")
         mock_messages.append(msg)
     conversation_summarization_service.repository.get_messages_by_session.return_value = mock_messages
 
@@ -1245,8 +1275,8 @@ async def test_context_window_at_exact_minimum(conversation_summarization_servic
     mock_session.context_window_size = 1000
     conversation_summarization_service.repository.get_session_by_id.return_value = mock_session
 
-    # Exactly 5 messages (minimum)
-    mock_messages = [MagicMock(token_count=200) for _ in range(5)]
+    # Exactly 5 messages (minimum) - use proper database message mocks
+    mock_messages = [create_mock_db_message(token_count=200) for _ in range(5)]
     conversation_summarization_service.repository.get_messages_by_session.return_value = mock_messages
 
     result = await conversation_summarization_service.check_context_window_threshold(session_id, config)
