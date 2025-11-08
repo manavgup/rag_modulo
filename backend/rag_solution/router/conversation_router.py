@@ -601,9 +601,9 @@ async def generate_conversation_name(
     try:
         user_id = UUID(current_user["uuid"])
 
-        # Generate new name and update the conversation
-        new_name = await conversation_service.generate_conversation_name(session_id, user_id)
-        await conversation_service.update_conversation_name(session_id, user_id)
+        # Generate new name and update the conversation atomically
+        # Note: update_conversation_name internally calls generate_conversation_name
+        new_name = await conversation_service.update_conversation_name(session_id, user_id)
 
         # Get the updated session to return
         updated_session = await conversation_service.get_session(session_id, user_id)
@@ -922,8 +922,8 @@ async def check_context_threshold(
 async def get_question_suggestions(
     session_id: UUID,
     current_user: dict = Depends(get_current_user),
-    _current_message: str = Query(..., description="Current message content"),
-    _max_suggestions: int = Query(3, ge=1, le=10, description="Maximum number of suggestions"),
+    _current_message: str | None = Query(None, description="Current message content (unused)"),
+    _max_suggestions: int = Query(3, ge=1, le=10, description="Maximum number of suggestions (unused)"),
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> dict:
     """Get question suggestions for a conversation.
@@ -999,7 +999,7 @@ async def get_conversation_suggestions(
         HTTPException: For validation errors or access denied
     """
     try:
-        user_id = current_user["user_id"]
+        user_id = UUID(current_user["uuid"])
 
         # SECURITY FIX: Verify user has access to this session before proceeding
         # This prevents unauthorized access to session data through placeholder endpoint
@@ -1089,18 +1089,9 @@ async def export_conversation_enhanced(
             session = await conversation_service.get_session(session_id, user_id)
             if not session:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
-        except HTTPException:
-            # Re-raise HTTP exceptions (404, etc.)
-            raise
         except NotFoundError as e:
             # Session not found - raise 404
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
-        except Exception as e:
-            # Unexpected errors should be logged and raised, not masked
-            logger.error("Unexpected error retrieving session %s: %s", session_id, str(e))
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve session data"
-            ) from e
 
         # Get messages
         messages = await conversation_service.get_messages(session_id, user_id)
