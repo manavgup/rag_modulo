@@ -8,6 +8,7 @@ endpoints. All conversation functionality is now available through /api/conversa
 """
 
 import logging
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -274,7 +275,7 @@ async def get_conversation(
 @router.put("/{session_id}", response_model=ConversationSessionOutput)
 async def update_conversation(
     session_id: UUID,
-    updates: dict[str, Any],
+    updates: dict[str, Any],  # TODO: Replace with ConversationSessionUpdateInput schema for type safety
     current_user: dict = Depends(get_current_user),
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> ConversationSessionOutput:
@@ -282,7 +283,13 @@ async def update_conversation(
 
     Args:
         session_id: Conversation session ID
-        updates: Fields to update
+        updates: Fields to update. Accepted fields:
+            - session_name (str): Update session name
+            - status (SessionStatus): Update session status
+            - is_archived (bool): Archive/unarchive session
+            - is_pinned (bool): Pin/unpin session
+            - metadata (dict): Update metadata
+            Note: user_id, collection_id, created_at cannot be updated
         current_user: Current authenticated user
         conversation_service: Conversation service dependency
 
@@ -921,11 +928,16 @@ async def get_question_suggestions(
 ) -> dict:
     """Get question suggestions for a conversation.
 
+    Note: This endpoint is migrated from /api/chat. Parameters _current_message and
+    _max_suggestions are kept for backward compatibility with old client code but are
+    not currently used in the suggestion generation logic. Future implementation may
+    utilize these parameters for enhanced suggestions.
+
     Args:
         session_id: Conversation session ID
         current_user: Current authenticated user
-        _current_message: Current message content (unused, kept for API compatibility)
-        _max_suggestions: Maximum number of suggestions (unused, kept for API compatibility)
+        _current_message: Current message content (unused, kept for API compatibility with /api/chat)
+        _max_suggestions: Maximum number of suggestions (unused, kept for API compatibility with /api/chat)
         conversation_service: Conversation service dependency
 
     Returns:
@@ -963,37 +975,56 @@ async def get_question_suggestions(
 async def get_conversation_suggestions(
     session_id: UUID,
     suggestion_input: ConversationSuggestionInput,
-    current_user: dict = Depends(get_current_user),  # Used for authentication via dependency
-    _conversation_service: ConversationService = Depends(get_conversation_service),
+    current_user: dict = Depends(get_current_user),
+    conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> ConversationSuggestionOutput:
     """Get enhanced question suggestions based on conversation context.
 
     This endpoint provides context-aware question suggestions that consider
     the full conversation history and document context.
 
+    Note: Currently uses placeholder implementation with security checks.
+    Full implementation tracked in issue #558.
+
     Args:
         session_id: Conversation session ID
         suggestion_input: Suggestion request parameters
-        current_user: Current authenticated user (used for authentication via dependency)
-        _conversation_service: Conversation service dependency (unused in placeholder implementation)
+        current_user: Current authenticated user
+        conversation_service: Conversation service (used for security validation)
 
     Returns:
         Enhanced conversation suggestions
 
     Raises:
-        HTTPException: For validation errors
+        HTTPException: For validation errors or access denied
     """
     try:
+        user_id = current_user["user_id"]
+
+        # SECURITY FIX: Verify user has access to this session before proceeding
+        # This prevents unauthorized access to session data through placeholder endpoint
+        try:
+            session = await conversation_service.get_session(session_id, user_id)
+            if not session:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Session {session_id} not found or access denied",
+                )
+        except NotFoundError as e:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Session {session_id} not found") from e
+
         # Ensure session_id matches
         suggestion_input.session_id = session_id
 
         # TODO: This is a placeholder implementation that returns hardcoded suggestions
         # Real implementation should call conversation_service.generate_suggestions()
         # See issue #558 for implementation plan
+        # IMPORTANT: This placeholder is safe because we verify session ownership above
         logger.warning(
             "get_conversation_suggestions is using placeholder implementation - "
-            "returning hardcoded suggestions for session %s",
+            "returning hardcoded suggestions for session %s (user %s)",
             session_id,
+            user_id,
         )
         return ConversationSuggestionOutput(
             suggestions=["Based on the conversation, what are your next steps?"],
@@ -1001,9 +1032,12 @@ async def get_conversation_suggestions(
             confidence_scores=[0.8],
             context_relevance=[0.9],
             document_sources=[[]],
-            reasoning="Generated based on conversation context and document analysis",
+            reasoning="Generated based on conversation context and document analysis (placeholder)",
         )
 
+    except HTTPException:
+        # Re-raise HTTP exceptions (404, etc.)
+        raise
     except Exception as e:
         logger.error("Error generating conversation suggestions: %s", str(e))
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
