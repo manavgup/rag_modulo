@@ -1,13 +1,17 @@
-"""Conversation router for REST API conversation management.
+"""Unified conversation router for REST API conversation management.
 
-This router provides REST endpoints for conversation session CRUD operations,
-message history retrieval, and conversation management functionality.
+This router provides comprehensive REST endpoints for conversation session management,
+including CRUD operations, message processing, summarization, and conversation analytics.
+
+This is the unified router that consolidates the previous /api/conversations and /api/chat
+endpoints. All conversation functionality is now available through /api/conversations.
 """
 
 import logging
+from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from core.config import get_settings
@@ -15,16 +19,26 @@ from rag_solution.core.dependencies import get_current_user
 from rag_solution.core.exceptions import NotFoundError, ValidationError
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.conversation_schema import (
+    ContextSummarizationInput,
+    ContextSummarizationOutput,
+    ConversationExportInput,
+    ConversationExportOutput,
     ConversationMessageInput,
     ConversationMessageOutput,
     ConversationSessionCreateInput,
     ConversationSessionInput,
     ConversationSessionOutput,
+    ConversationSuggestionInput,
+    ConversationSuggestionOutput,
+    ConversationSummaryInput,
+    ConversationSummaryOutput,
     SessionStatistics,
+    SummarizationConfigInput,
 )
 from rag_solution.services.chain_of_thought_service import ChainOfThoughtService
 from rag_solution.services.conversation_context_service import ConversationContextService
 from rag_solution.services.conversation_service import ConversationService
+from rag_solution.services.conversation_summarization_service import ConversationSummarizationService
 from rag_solution.services.entity_extraction_service import EntityExtractionService
 from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.message_processing_orchestrator import MessageProcessingOrchestrator
@@ -53,6 +67,19 @@ def get_conversation_service(db: Session = Depends(get_db)) -> ConversationServi
     question_service = QuestionService(db, settings)
 
     return ConversationService(db, settings, repository, question_service)
+
+
+def get_summarization_service(db: Session = Depends(get_db)) -> ConversationSummarizationService:
+    """Get conversation summarization service instance.
+
+    Args:
+        db: Database session dependency
+
+    Returns:
+        ConversationSummarizationService instance
+    """
+    settings = get_settings()
+    return ConversationSummarizationService(db, settings)
 
 
 def get_message_processing_orchestrator(
@@ -89,9 +116,9 @@ def get_message_processing_orchestrator(
         provider = llm_provider_service.get_default_provider()
         if provider and hasattr(provider, "llm_base"):
             cot_service = ChainOfThoughtService(settings, provider.llm_base, search_service, db)
-    except Exception:
+    except Exception as e:
         # CoT is optional, continue without it
-        pass
+        logger.warning("Failed to initialize Chain of Thought service: %s", str(e))
 
     return MessageProcessingOrchestrator(
         db=db,
@@ -248,7 +275,7 @@ async def get_conversation(
 @router.put("/{session_id}", response_model=ConversationSessionOutput)
 async def update_conversation(
     session_id: UUID,
-    updates: dict,
+    updates: dict[str, Any],  # TODO: Replace with ConversationSessionUpdateInput schema for type safety
     current_user: dict = Depends(get_current_user),
     conversation_service: ConversationService = Depends(get_conversation_service),
 ) -> ConversationSessionOutput:
@@ -256,7 +283,13 @@ async def update_conversation(
 
     Args:
         session_id: Conversation session ID
-        updates: Fields to update
+        updates: Fields to update. Accepted fields:
+            - session_name (str): Update session name
+            - status (SessionStatus): Update session status
+            - is_archived (bool): Archive/unarchive session
+            - is_pinned (bool): Pin/unpin session
+            - metadata (dict): Update metadata
+            Note: user_id, collection_id, created_at cannot be updated
         current_user: Current authenticated user
         conversation_service: Conversation service dependency
 
@@ -632,9 +665,9 @@ async def generate_conversation_name(
     try:
         user_id = UUID(current_user["uuid"])
 
-        # Generate new name and update the conversation
-        new_name = await conversation_service.generate_conversation_name(session_id, user_id)
-        await conversation_service.update_conversation_name(session_id, user_id)
+        # Generate new name and update the conversation atomically
+        # Note: update_conversation_name internally calls generate_conversation_name
+        new_name = await conversation_service.update_conversation_name(session_id, user_id)
 
         # Get the updated session to return
         updated_session = await conversation_service.get_session(session_id, user_id)
@@ -681,4 +714,480 @@ async def bulk_rename_conversations(
         logger.error("Error in bulk conversation rename: %s", str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to bulk rename conversations: {e!s}"
+        ) from e
+
+
+# Message Management Endpoints
+
+
+@router.post("/{session_id}/messages", response_model=ConversationMessageOutput)
+async def add_message(
+    session_id: UUID,
+    message_data: ConversationMessageInput,
+    current_user: dict = Depends(get_current_user),
+    conversation_service: ConversationService = Depends(get_conversation_service),
+) -> ConversationMessageOutput:
+    """Add a message to a conversation session.
+
+    SECURITY: Requires authentication. User must own the session.
+
+    Args:
+        session_id: Conversation session ID
+        message_data: Message data to add
+        current_user: Current authenticated user
+        conversation_service: Conversation service dependency
+
+    Returns:
+        Created message
+
+    Raises:
+        HTTPException: For access denied or validation errors
+    """
+    try:
+        # SECURITY FIX: Verify user owns the session
+        user_id = UUID(current_user["uuid"])
+        session = await conversation_service.get_session(session_id, user_id)
+        if not session:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+        # Ensure session_id matches
+        message_data.session_id = session_id
+        message = await conversation_service.add_message(message_data)
+        logger.info("Added message to session %s for user %s", str(session_id), str(user_id))
+        return message
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error adding message: %s", str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+
+
+@router.post("/{session_id}/process", response_model=ConversationMessageOutput)
+async def process_user_message(
+    session_id: UUID,
+    message_data: ConversationMessageInput,
+    current_user: dict = Depends(get_current_user),
+    conversation_service: ConversationService = Depends(get_conversation_service),
+    orchestrator: MessageProcessingOrchestrator = Depends(get_message_processing_orchestrator),
+) -> ConversationMessageOutput:
+    """Process a user message and generate a response.
+
+    SECURITY: Requires authentication. User must own the session.
+    CRITICAL: This endpoint consumes LLM API tokens and must be protected.
+
+    This is the main endpoint for chat functionality, using MessageProcessingOrchestrator
+    for proper service separation and comprehensive message processing.
+
+    Args:
+        session_id: Conversation session ID
+        message_data: User message to process
+        current_user: Current authenticated user
+        conversation_service: Conversation service dependency
+        orchestrator: Message processing orchestrator
+
+    Returns:
+        Assistant response message
+
+    Raises:
+        HTTPException: For access denied, not found, or processing errors
+    """
+    try:
+        # SECURITY FIX: Verify user owns the session (prevent unauthorized LLM usage)
+        user_id = UUID(current_user["uuid"])
+        session = await conversation_service.get_session(session_id, user_id)
+        if not session:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+        # Ensure session_id matches
+        message_data.session_id = session_id
+
+        # Use MessageProcessingOrchestrator for comprehensive message processing
+        response = await orchestrator.process_user_message(message_data)
+        logger.info("Processed message for session %s for user %s", str(session_id), str(user_id))
+        return response
+
+    except HTTPException:
+        raise
+    except NotFoundError as e:
+        logger.warning("Session not found for message processing: %s", str(e))
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
+    except Exception as e:
+        logger.error("Error processing message: %s", str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to process message: {e!s}"
+        ) from e
+
+
+# Summarization Endpoints
+
+
+@router.post("/{session_id}/summaries", response_model=ConversationSummaryOutput)
+async def create_summary(
+    session_id: UUID,
+    summary_input: ConversationSummaryInput,
+    current_user: dict = Depends(get_current_user),
+    summarization_service: ConversationSummarizationService = Depends(get_summarization_service),
+) -> ConversationSummaryOutput:
+    """Create a conversation summary for the specified session.
+
+    This endpoint allows users to create summaries of conversation sessions,
+    which can help manage context windows and extract key insights.
+
+    Args:
+        session_id: Conversation session ID
+        summary_input: Summary creation parameters
+        current_user: Current authenticated user
+        summarization_service: Summarization service dependency
+
+    Returns:
+        Created summary
+
+    Raises:
+        HTTPException: For not found or validation errors
+    """
+    try:
+        # Ensure session_id matches the URL parameter
+        summary_input.session_id = session_id
+
+        user_id = UUID(current_user["uuid"])
+        summary = await summarization_service.create_summary(summary_input, user_id)
+        logger.info("Created summary for session %s for user %s", str(session_id), str(user_id))
+        return summary
+
+    except NotFoundError as e:
+        logger.warning("Session not found for summary creation: %s", str(e))
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
+    except Exception as e:
+        logger.error("Error creating summary: %s", str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+
+
+@router.get("/{session_id}/summaries", response_model=list[ConversationSummaryOutput])
+async def get_session_summaries(
+    session_id: UUID,
+    current_user: dict = Depends(get_current_user),
+    limit: int = Query(10, ge=1, le=50, description="Maximum number of summaries to return"),
+    summarization_service: ConversationSummarizationService = Depends(get_summarization_service),
+) -> list[ConversationSummaryOutput]:
+    """Get conversation summaries for a session.
+
+    Returns a list of conversation summaries for the specified session,
+    ordered by creation date (newest first).
+
+    Args:
+        session_id: Conversation session ID
+        current_user: Current authenticated user
+        limit: Maximum number of summaries to return
+        summarization_service: Summarization service dependency
+
+    Returns:
+        List of summaries
+
+    Raises:
+        HTTPException: For not found or access errors
+    """
+    try:
+        user_id = UUID(current_user["uuid"])
+        summaries = await summarization_service.get_session_summaries(session_id, user_id, limit)
+        logger.info("Retrieved %d summaries for session %s", len(summaries), str(session_id))
+        return summaries
+
+    except NotFoundError as e:
+        logger.warning("Session not found for summaries: %s", str(e))
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
+    except Exception as e:
+        logger.error("Error retrieving summaries: %s", str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to retrieve summaries: {e!s}"
+        ) from e
+
+
+@router.post("/{session_id}/context-summarization", response_model=ContextSummarizationOutput)
+async def summarize_for_context(
+    session_id: UUID,
+    summarization_input: ContextSummarizationInput,
+    current_user: dict = Depends(get_current_user),
+    summarization_service: ConversationSummarizationService = Depends(get_summarization_service),
+) -> ContextSummarizationOutput:
+    """Perform context-aware summarization for conversation management.
+
+    This endpoint is designed for automatic context window management,
+    summarizing older messages while preserving recent conversation flow.
+
+    Args:
+        session_id: Conversation session ID
+        summarization_input: Context summarization parameters
+        current_user: Current authenticated user (unused but required for auth)
+        summarization_service: Summarization service dependency
+
+    Returns:
+        Context summarization result
+
+    Raises:
+        HTTPException: For validation or processing errors
+    """
+    try:
+        # Ensure session_id matches
+        summarization_input.session_id = session_id
+
+        result = await summarization_service.summarize_for_context_management(summarization_input)
+        logger.info("Created context summarization for session %s", str(session_id))
+        return result
+
+    except Exception as e:
+        logger.error("Error in context summarization: %s", str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+
+
+@router.get("/{session_id}/context-threshold")
+async def check_context_threshold(
+    session_id: UUID,
+    current_user: dict = Depends(get_current_user),
+    config: SummarizationConfigInput = Depends(),
+    summarization_service: ConversationSummarizationService = Depends(get_summarization_service),
+) -> dict:
+    """Check if a session has reached the context window threshold for summarization.
+
+    This endpoint helps determine when automatic summarization should be triggered
+    based on context window usage and configuration thresholds.
+
+    Args:
+        session_id: Conversation session ID
+        current_user: Current authenticated user (unused but required for auth)
+        config: Summarization configuration
+        summarization_service: Summarization service dependency
+
+    Returns:
+        Context threshold check result
+
+    Raises:
+        HTTPException: For processing errors
+    """
+    try:
+        needs_summarization = await summarization_service.check_context_window_threshold(session_id, config)
+        return {
+            "session_id": session_id,
+            "needs_summarization": needs_summarization,
+            "threshold_config": config.model_dump(),
+        }
+
+    except Exception as e:
+        logger.error("Error checking context threshold: %s", str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to check context threshold: {e!s}"
+        ) from e
+
+
+# Enhanced Question Suggestions
+
+
+@router.get("/{session_id}/suggestions")
+async def get_question_suggestions(
+    session_id: UUID,
+    current_user: dict = Depends(get_current_user),
+    _current_message: str | None = Query(None, description="Current message content (unused)"),
+    _max_suggestions: int = Query(3, ge=1, le=10, description="Maximum number of suggestions (unused)"),
+    conversation_service: ConversationService = Depends(get_conversation_service),
+) -> dict:
+    """Get question suggestions for a conversation.
+
+    Note: This endpoint is migrated from /api/chat. Parameters _current_message and
+    _max_suggestions are kept for backward compatibility with old client code but are
+    not currently used in the suggestion generation logic. Future implementation may
+    utilize these parameters for enhanced suggestions.
+
+    Args:
+        session_id: Conversation session ID
+        current_user: Current authenticated user
+        _current_message: Current message content (unused, kept for API compatibility with /api/chat)
+        _max_suggestions: Maximum number of suggestions (unused, kept for API compatibility with /api/chat)
+        conversation_service: Conversation service dependency
+
+    Returns:
+        Question suggestions with confidence scores
+
+    Raises:
+        HTTPException: For not found or processing errors
+    """
+    try:
+        user_id = UUID(current_user["uuid"])
+        # Get session and context
+        session = await conversation_service.get_session(session_id, user_id)
+        if not session:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+
+        # Generate suggestions
+        suggestions = await conversation_service.get_question_suggestions(session_id, user_id)
+
+        return {
+            "suggestions": suggestions.suggestions,
+            "confidence_scores": suggestions.confidence_scores,
+            "reasoning": suggestions.reasoning,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error generating suggestions: %s", str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to generate suggestions: {e!s}"
+        ) from e
+
+
+@router.post("/{session_id}/conversation-suggestions", response_model=ConversationSuggestionOutput)
+async def get_conversation_suggestions(
+    session_id: UUID,
+    suggestion_input: ConversationSuggestionInput,
+    current_user: dict = Depends(get_current_user),
+    conversation_service: ConversationService = Depends(get_conversation_service),
+) -> ConversationSuggestionOutput:
+    """Get enhanced question suggestions based on conversation context.
+
+    This endpoint provides context-aware question suggestions that consider
+    the full conversation history and document context.
+
+    Note: Currently uses placeholder implementation with security checks.
+    Full implementation tracked in issue #558.
+
+    Args:
+        session_id: Conversation session ID
+        suggestion_input: Suggestion request parameters
+        current_user: Current authenticated user
+        conversation_service: Conversation service (used for security validation)
+
+    Returns:
+        Enhanced conversation suggestions
+
+    Raises:
+        HTTPException: For validation errors or access denied
+    """
+    try:
+        user_id = UUID(current_user["uuid"])
+
+        # SECURITY FIX: Verify user has access to this session before proceeding
+        # This prevents unauthorized access to session data through placeholder endpoint
+        try:
+            session = await conversation_service.get_session(session_id, user_id)
+            if not session:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Session {session_id} not found or access denied",
+                )
+        except NotFoundError as e:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Session {session_id} not found") from e
+
+        # Ensure session_id matches
+        suggestion_input.session_id = session_id
+
+        # TODO: This is a placeholder implementation that returns hardcoded suggestions
+        # Real implementation should call conversation_service.generate_suggestions()
+        # See issue #558 for implementation plan
+        # IMPORTANT: This placeholder is safe because we verify session ownership above
+        logger.warning(
+            "get_conversation_suggestions is using placeholder implementation - "
+            "returning hardcoded suggestions for session %s (user %s)",
+            session_id,
+            user_id,
+        )
+        return ConversationSuggestionOutput(
+            suggestions=["Based on the conversation, what are your next steps?"],
+            suggestion_types=["follow_up"],
+            confidence_scores=[0.8],
+            context_relevance=[0.9],
+            document_sources=[[]],
+            reasoning="Generated based on conversation context and document analysis (placeholder)",
+        )
+
+    except HTTPException:
+        # Re-raise HTTP exceptions (404, etc.)
+        raise
+    except Exception as e:
+        logger.error("Error generating conversation suggestions: %s", str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+
+
+# Enhanced Export Functionality
+
+
+@router.post("/{session_id}/enhanced-export", response_model=ConversationExportOutput)
+async def export_conversation_enhanced(
+    session_id: UUID,
+    export_input: ConversationExportInput,
+    current_user: dict = Depends(get_current_user),
+    conversation_service: ConversationService = Depends(get_conversation_service),
+    summarization_service: ConversationSummarizationService = Depends(get_summarization_service),
+) -> ConversationExportOutput:
+    """Export conversation with enhanced features including summaries and metadata.
+
+    Note: Uses POST instead of GET because ConversationExportInput contains complex
+    filter options (date_range, include_summaries, include_metadata, etc.) that
+    exceed typical query parameter complexity. POST with request body is more
+    appropriate for this use case per REST best practices.
+
+    This endpoint provides comprehensive conversation export with optional
+    summaries, enhanced metadata, and multiple format support.
+
+    Args:
+        session_id: Conversation session ID
+        export_input: Export configuration parameters
+        current_user: Current authenticated user
+        conversation_service: Conversation service dependency
+        summarization_service: Summarization service dependency
+
+    Returns:
+        Enhanced export data
+
+    Raises:
+        HTTPException: For not found or export errors
+    """
+    try:
+        # Ensure session_id matches
+        export_input.session_id = session_id
+
+        # Get authenticated user ID
+        user_id = UUID(current_user["uuid"])
+
+        # Get basic session data using authenticated user
+        try:
+            session = await conversation_service.get_session(session_id, user_id)
+            if not session:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+        except NotFoundError as e:
+            # Session not found - raise 404
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
+
+        # Get messages
+        messages = await conversation_service.get_messages(session_id, user_id)
+
+        # Get summaries if requested
+        summaries = []
+        if export_input.include_summaries:
+            summaries = await summarization_service.get_session_summaries(session_id, user_id, limit=50)
+
+        # Calculate export statistics
+        total_tokens = sum(msg.token_count or 0 for msg in messages)
+
+        logger.info("Enhanced export for session %s for user %s", str(session_id), str(user_id))
+        return ConversationExportOutput(
+            session_data=session,
+            messages=messages,
+            summaries=summaries,
+            export_format=export_input.format,
+            total_messages=len(messages),
+            total_tokens=total_tokens,
+            file_size_bytes=0,  # Would be calculated based on actual export
+            metadata={
+                "export_options": export_input.model_dump(),
+                "summary_count": len(summaries),
+                "date_range": {"start": export_input.date_range_start, "end": export_input.date_range_end},
+            },
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error in enhanced export: %s", str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to export conversation: {e!s}"
         ) from e

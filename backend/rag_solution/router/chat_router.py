@@ -1,9 +1,20 @@
 """Chat router for conversation API endpoints.
 
-This router provides REST API endpoints for the Chat with Documents feature,
-including session management, message handling, and conversation statistics.
+DEPRECATED: This router is deprecated as of Phase 4 (Router Unification).
+All functionality has been consolidated into /api/conversations router.
+
+This router will be removed in a future release. Please migrate to /api/conversations.
+
+Migration Guide:
+- /api/chat/sessions → /api/conversations
+- /api/chat/sessions/{id}/messages → /api/conversations/{id}/messages
+- /api/chat/sessions/{id}/process → /api/conversations/{id}/process
+- All other endpoints follow the same pattern
+
+See: docs/development/conversation-router-migration.md
 """
 
+import warnings
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -40,6 +51,15 @@ from rag_solution.services.llm_provider_service import LLMProviderService
 from rag_solution.services.message_processing_orchestrator import MessageProcessingOrchestrator
 from rag_solution.services.search_service import SearchService
 from rag_solution.services.token_tracking_service import TokenTrackingService
+
+# Deprecation warning for the entire module
+warnings.warn(
+    "The /api/chat router is deprecated and will be removed in a future release. "
+    "Please use /api/conversations instead. "
+    "See docs/development/conversation-router-migration.md for migration guide.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
