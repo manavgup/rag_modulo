@@ -31,6 +31,7 @@ from rag_solution.schemas.conversation_schema import (
     ConversationSummaryOutput,
     MessageRole,
     MessageType,
+    SessionStatus,
     SummarizationStrategy,
 )
 
@@ -96,7 +97,7 @@ def sample_message_input(sample_session_id: UUID4) -> ConversationMessageInput:
     return ConversationMessageInput(
         session_id=sample_session_id,
         role=MessageRole.USER,
-        message_type=MessageType.QUERY,
+        message_type=MessageType.QUESTION,  # Fixed: QUERY → QUESTION
         content="Test message",
         token_count=10,
         metadata={"test": "data"},
@@ -109,7 +110,7 @@ def sample_summary_input(sample_session_id: UUID4) -> ConversationSummaryInput:
     return ConversationSummaryInput(
         session_id=sample_session_id,
         summary_text="Test summary",
-        strategy=SummarizationStrategy.SLIDING_WINDOW,
+        strategy=SummarizationStrategy.RECENT_PLUS_SUMMARY,  # Fixed: SLIDING_WINDOW → RECENT_PLUS_SUMMARY
         tokens_saved=100,
         metadata={"test": "data"},
     )
@@ -128,19 +129,19 @@ class TestSessionOperations:
     ) -> None:
         """Test successful session creation."""
         # Arrange
-        mock_session = ConversationSession(
-            id=uuid4(),
-            user_id=sample_session_input.user_id,
-            collection_id=sample_session_input.collection_id,
-            session_name=sample_session_input.session_name,
-            context_window_size=sample_session_input.context_window_size,
-            max_messages=sample_session_input.max_messages,
-            session_metadata=sample_session_input.metadata or {},
-            created_at=datetime.now(UTC),
-            updated_at=datetime.now(UTC),
-        )
-        mock_session.messages = []
-        mock_db.refresh.side_effect = lambda x: setattr(x, "id", mock_session.id)
+        mock_session_id = uuid4()
+
+        def mock_refresh(obj):
+            """Mock refresh that simulates database defaults."""
+            obj.id = mock_session_id
+            obj.status = SessionStatus.ACTIVE
+            obj.is_archived = False
+            obj.is_pinned = False
+            obj.created_at = datetime.now(UTC)
+            obj.updated_at = datetime.now(UTC)
+            obj.messages = []
+
+        mock_db.refresh.side_effect = mock_refresh
 
         # Act
         result = repository.create_session(sample_session_input)
