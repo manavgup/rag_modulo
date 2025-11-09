@@ -12,8 +12,7 @@ from sqlalchemy.orm import Session
 
 from core.logging_utils import get_logger
 from rag_solution.models.collection import Collection
-from rag_solution.models.conversation_message import ConversationMessage
-from rag_solution.models.conversation_session import ConversationSession
+from rag_solution.models.conversation import ConversationMessage, ConversationSession
 from rag_solution.models.file import File
 from rag_solution.models.pipeline import PipelineConfig
 from rag_solution.schemas.dashboard_schema import (

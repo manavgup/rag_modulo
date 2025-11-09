@@ -85,7 +85,7 @@ def mock_conversation_repository():
 
     # Configure get_session_by_id to return a proper session
     def get_session_by_id_side_effect(session_id):
-        from backend.rag_solution.models.conversation_session import ConversationSession
+        from rag_solution.models.conversation import ConversationSession
 
         session = ConversationSession()
         session.id = session_id
@@ -110,7 +110,7 @@ def mock_conversation_repository():
 
     # Configure create_message to return database model (not Pydantic schema)
     def create_message_side_effect(message_input):
-        from backend.rag_solution.models.conversation_message import ConversationMessage
+        from rag_solution.models.conversation import ConversationMessage
 
         message = ConversationMessage(
             id=uuid4(),
@@ -133,7 +133,7 @@ def mock_conversation_repository():
 
     # Configure update_session to return ConversationSessionOutput
     def update_session_side_effect(session_id, updates):
-        from backend.rag_solution.models.conversation_session import ConversationSession
+        from rag_solution.models.conversation import ConversationSession
 
         session = ConversationSession()
         session.id = session_id
@@ -337,7 +337,7 @@ class TestConversationServiceSessionCRUD:
     async def test_get_session_success(self, conversation_service, test_session_id, test_user_id, sample_session):
         """Test successful session retrieval."""
         # Mock repository to return a proper session
-        from backend.rag_solution.models.conversation_session import ConversationSession
+        from rag_solution.models.conversation import ConversationSession
 
         db_session = ConversationSession()
         db_session.id = test_session_id
@@ -389,7 +389,7 @@ class TestConversationServiceSessionCRUD:
     async def test_update_session_success(self, conversation_service, test_session_id, test_user_id, sample_session):
         """Test successful session update."""
         # Mock repository to return a proper session
-        from backend.rag_solution.models.conversation_session import ConversationSession
+        from rag_solution.models.conversation import ConversationSession
 
         db_session = ConversationSession()
         db_session.id = test_session_id
@@ -418,7 +418,7 @@ class TestConversationServiceSessionCRUD:
     async def test_update_session_metadata(self, conversation_service, test_session_id, test_user_id, sample_session):
         """Test session metadata update."""
         # Mock repository to return a proper session
-        from backend.rag_solution.models.conversation_session import ConversationSession
+        from rag_solution.models.conversation import ConversationSession
 
         db_session = ConversationSession()
         db_session.id = test_session_id
@@ -461,7 +461,7 @@ class TestConversationServiceSessionCRUD:
     ):
         """Test that protected fields are ignored during update."""
         # Mock repository to return a proper session
-        from backend.rag_solution.models.conversation_session import ConversationSession
+        from rag_solution.models.conversation import ConversationSession
 
         db_session = ConversationSession()
         db_session.id = test_session_id
@@ -491,7 +491,7 @@ class TestConversationServiceSessionCRUD:
     async def test_delete_session_success(self, conversation_service, test_session_id, test_user_id, sample_session):
         """Test successful session deletion."""
         # Mock repository to return a proper session and successful deletion
-        from backend.rag_solution.models.conversation_session import ConversationSession
+        from rag_solution.models.conversation import ConversationSession
 
         db_session = ConversationSession()
         db_session.id = test_session_id
@@ -524,7 +524,7 @@ class TestConversationServiceSessionCRUD:
     async def test_list_sessions_success(self, conversation_service, test_user_id, sample_session):
         """Test successful listing of sessions."""
         # Mock repository to return a list of sessions
-        from backend.rag_solution.models.conversation_session import ConversationSession
+        from rag_solution.models.conversation import ConversationSession
 
         db_session = ConversationSession()
         db_session.id = uuid4()
@@ -643,7 +643,7 @@ class TestConversationServiceMessageCRUD:
     async def test_add_message_user_message(self, conversation_service, sample_message_input, sample_session):
         """Test adding a user message."""
         # Mock repository to return a proper session
-        from backend.rag_solution.models.conversation_session import ConversationSession
+        from rag_solution.models.conversation import ConversationSession
 
         db_session = ConversationSession()
         db_session.id = sample_message_input.session_id
@@ -700,7 +700,7 @@ class TestConversationServiceMessageCRUD:
         )
 
         # Mock repository to return a proper session
-        from backend.rag_solution.models.conversation_session import ConversationSession
+        from rag_solution.models.conversation import ConversationSession
 
         db_session = ConversationSession()
         db_session.id = test_session_id
@@ -732,7 +732,7 @@ class TestConversationServiceMessageCRUD:
     async def test_add_message_expired_session(self, conversation_service, sample_message_input, sample_session):
         """Test adding message to expired session."""
         # Mock repository to return an expired session
-        from backend.rag_solution.models.conversation_session import ConversationSession
+        from rag_solution.models.conversation import ConversationSession
 
         db_session = ConversationSession()
         db_session.id = sample_message_input.session_id
@@ -750,7 +750,7 @@ class TestConversationServiceMessageCRUD:
     async def test_add_message_missing_id_validation(self, conversation_service, sample_message_input, sample_session):
         """Test message validation fails when ID is missing."""
         # Mock repository to return a proper session
-        from backend.rag_solution.models.conversation_session import ConversationSession
+        from rag_solution.models.conversation import ConversationSession
 
         db_session = ConversationSession()
         db_session.id = sample_message_input.session_id
@@ -761,7 +761,7 @@ class TestConversationServiceMessageCRUD:
 
         conversation_service.repository.get_session_by_id = Mock(return_value=db_session)
         # Mock create_message to return a database model (not Pydantic schema)
-        from backend.rag_solution.models.conversation_message import ConversationMessage
+        from rag_solution.models.conversation import ConversationMessage
 
         db_message = ConversationMessage(
             id=uuid4(),  # Repository always generates valid UUID
@@ -790,8 +790,8 @@ class TestConversationServiceMessageCRUD:
     ):
         """Test successful message retrieval."""
         # Mock repository to return a proper session and messages
-        from backend.rag_solution.models.conversation_message import ConversationMessage
-        from backend.rag_solution.models.conversation_session import ConversationSession
+        from rag_solution.models.conversation import ConversationMessage
+        from rag_solution.models.conversation import ConversationSession
 
         db_session = ConversationSession()
         db_session.id = test_session_id
@@ -821,7 +821,7 @@ class TestConversationServiceMessageCRUD:
     async def test_get_messages_empty(self, conversation_service, test_session_id, test_user_id, sample_session):
         """Test retrieving messages from empty session."""
         # Mock repository to return a proper session and empty messages
-        from backend.rag_solution.models.conversation_session import ConversationSession
+        from rag_solution.models.conversation import ConversationSession
 
         db_session = ConversationSession()
         db_session.id = test_session_id
@@ -842,7 +842,7 @@ class TestConversationServiceMessageCRUD:
         wrong_user_id = uuid4()
 
         # Mock repository to return a session with different user_id
-        from backend.rag_solution.models.conversation_session import ConversationSession
+        from rag_solution.models.conversation import ConversationSession
 
         db_session = ConversationSession()
         db_session.id = test_session_id
@@ -861,8 +861,8 @@ class TestConversationServiceMessageCRUD:
     ):
         """Test message retrieval with pagination."""
         # Mock repository to return a proper session and messages
-        from backend.rag_solution.models.conversation_message import ConversationMessage
-        from backend.rag_solution.models.conversation_session import ConversationSession
+        from rag_solution.models.conversation import ConversationMessage
+        from rag_solution.models.conversation import ConversationSession
 
         db_session = ConversationSession()
         db_session.id = test_session_id
@@ -907,7 +907,7 @@ class TestConversationServiceMessageCRUD:
         )
 
         # Mock repository to return a proper session
-        from backend.rag_solution.models.conversation_session import ConversationSession
+        from rag_solution.models.conversation import ConversationSession
 
         db_session = ConversationSession()
         db_session.id = test_session_id
@@ -936,7 +936,7 @@ class TestConversationServiceMessageCRUD:
         )
 
         # Mock repository to return a proper session
-        from backend.rag_solution.models.conversation_session import ConversationSession
+        from rag_solution.models.conversation import ConversationSession
 
         db_session = ConversationSession()
         db_session.id = test_session_id
@@ -966,7 +966,7 @@ class TestConversationServiceMessageCRUD:
         )
 
         # Mock repository to return a proper session
-        from backend.rag_solution.models.conversation_session import ConversationSession
+        from rag_solution.models.conversation import ConversationSession
 
         db_session = ConversationSession()
         db_session.id = test_session_id
@@ -997,7 +997,7 @@ class TestConversationServiceMessageCRUD:
         )
 
         # Mock repository to return a proper session
-        from backend.rag_solution.models.conversation_session import ConversationSession
+        from rag_solution.models.conversation import ConversationSession
 
         db_session = ConversationSession()
         db_session.id = test_session_id
@@ -1067,8 +1067,8 @@ class TestConversationServiceMessageCRUD:
         mock_query_session.first = Mock(return_value=sample_session)
 
         # Mock repository to return a proper session and ordered messages
-        from backend.rag_solution.models.conversation_message import ConversationMessage
-        from backend.rag_solution.models.conversation_session import ConversationSession
+        from rag_solution.models.conversation import ConversationMessage
+        from rag_solution.models.conversation import ConversationSession
 
         db_session = ConversationSession()
         db_session.id = test_session_id
@@ -1148,7 +1148,7 @@ class TestConversationServiceMessageCRUD:
         )
 
         # Mock repository to return a proper session
-        from backend.rag_solution.models.conversation_session import ConversationSession
+        from rag_solution.models.conversation import ConversationSession
 
         db_session = ConversationSession()
         db_session.id = test_session_id
@@ -1566,7 +1566,7 @@ class TestConversationServiceErrorHandling:
     async def test_add_message_to_archived_session(self, conversation_service, sample_message_input, sample_session):
         """Test adding message to archived session."""
         # Mock repository to return an archived session
-        from backend.rag_solution.models.conversation_session import ConversationSession
+        from rag_solution.models.conversation import ConversationSession
 
         db_session = ConversationSession()
         db_session.id = sample_message_input.session_id
@@ -1741,7 +1741,7 @@ class TestConversationServiceEdgeCases:
         )
 
         # Mock repository to return a proper session
-        from backend.rag_solution.models.conversation_session import ConversationSession
+        from rag_solution.models.conversation import ConversationSession
 
         db_session = ConversationSession()
         db_session.id = test_session_id
@@ -1761,7 +1761,7 @@ class TestConversationServiceEdgeCases:
     ):
         """Test pagination with large offset."""
         # Mock repository to return a proper session and empty messages (large offset)
-        from backend.rag_solution.models.conversation_session import ConversationSession
+        from rag_solution.models.conversation import ConversationSession
 
         db_session = ConversationSession()
         db_session.id = test_session_id
@@ -1857,7 +1857,7 @@ class TestConversationServiceEdgeCases:
     ):
         """Test updating session with empty updates dict."""
         # Mock repository to return a proper session
-        from backend.rag_solution.models.conversation_session import ConversationSession
+        from rag_solution.models.conversation import ConversationSession
 
         db_session = ConversationSession()
         db_session.id = test_session_id
