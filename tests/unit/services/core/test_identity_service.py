@@ -95,6 +95,63 @@ class TestIdentityService(unittest.TestCase):
         # Check that all constants are unique
         self.assertEqual(len(constants), len(set(constants)), "Mock constants should have unique values")
 
+    def test_extract_user_id_from_jwt_with_string_uuid(self):
+        """Test extract_user_id_from_jwt with string UUID (happy path)."""
+        test_uuid_str = "d1f93297-3e3c-42b0-8da7-09efde032c25"
+        current_user = {"uuid": test_uuid_str}
+
+        result = IdentityService.extract_user_id_from_jwt(current_user)
+
+        self.assertIsInstance(result, UUID)
+        self.assertEqual(str(result), test_uuid_str)
+
+    def test_extract_user_id_from_jwt_with_uuid_object(self):
+        """Test extract_user_id_from_jwt with UUID object (already converted)."""
+        test_uuid = UUID("d1f93297-3e3c-42b0-8da7-09efde032c25")
+        current_user = {"uuid": test_uuid}
+
+        result = IdentityService.extract_user_id_from_jwt(current_user)
+
+        self.assertIsInstance(result, UUID)
+        self.assertEqual(result, test_uuid)
+
+    def test_extract_user_id_from_jwt_missing_field(self):
+        """Test extract_user_id_from_jwt with missing field (should raise ValueError)."""
+        current_user = {"other_field": "value"}
+
+        with self.assertRaises(ValueError) as context:
+            IdentityService.extract_user_id_from_jwt(current_user)
+
+        self.assertIn("User ID not found in JWT token", str(context.exception))
+
+    def test_extract_user_id_from_jwt_invalid_uuid_format(self):
+        """Test extract_user_id_from_jwt with invalid UUID format (should raise ValueError)."""
+        current_user = {"uuid": "not-a-valid-uuid"}
+
+        with self.assertRaises(ValueError) as context:
+            IdentityService.extract_user_id_from_jwt(current_user)
+
+        self.assertIn("Invalid user ID format in JWT token", str(context.exception))
+
+    def test_extract_user_id_from_jwt_custom_field_name(self):
+        """Test extract_user_id_from_jwt with custom field name."""
+        test_uuid_str = "d1f93297-3e3c-42b0-8da7-09efde032c25"
+        current_user = {"user_id": test_uuid_str}
+
+        result = IdentityService.extract_user_id_from_jwt(current_user, field_name="user_id")
+
+        self.assertIsInstance(result, UUID)
+        self.assertEqual(str(result), test_uuid_str)
+
+    def test_extract_user_id_from_jwt_unexpected_type(self):
+        """Test extract_user_id_from_jwt with unexpected type (should raise ValueError)."""
+        current_user = {"uuid": 12345}  # Integer instead of UUID or string
+
+        with self.assertRaises(ValueError) as context:
+            IdentityService.extract_user_id_from_jwt(current_user)
+
+        self.assertIn("Unexpected user ID type in JWT token", str(context.exception))
+
 
 if __name__ == "__main__":
     unittest.main()

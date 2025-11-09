@@ -7,7 +7,7 @@ Provides RESTful API for podcast generation, status checking, and management.
 import io
 import logging
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
@@ -45,7 +45,7 @@ AUDIO_MEDIA_TYPES = {
 }
 
 
-def _extract_user_id_from_jwt(current_user: dict) -> UUID:
+def _extract_user_id_from_jwt(current_user: dict[str, Any]) -> UUID:
     """
     Extract and validate user_id from JWT token with HTTP exception handling.
 
