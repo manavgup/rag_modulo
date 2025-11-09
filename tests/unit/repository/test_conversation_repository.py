@@ -109,10 +109,11 @@ def sample_summary_input(sample_session_id: UUID4) -> ConversationSummaryInput:
     """Sample summary input for testing."""
     return ConversationSummaryInput(
         session_id=sample_session_id,
-        summary_text="Test summary",
-        strategy=SummarizationStrategy.RECENT_PLUS_SUMMARY,  # Fixed: SLIDING_WINDOW → RECENT_PLUS_SUMMARY
-        tokens_saved=100,
-        metadata={"test": "data"},
+        message_count_to_summarize=10,  # Fixed: required field
+        strategy=SummarizationStrategy.RECENT_PLUS_SUMMARY,
+        preserve_context=True,
+        include_decisions=True,
+        include_questions=True,
     )
 
 
@@ -167,12 +168,12 @@ class TestSessionOperations:
     def test_create_session_general_error(
         self, repository: ConversationRepository, mock_db: MagicMock, sample_session_input: ConversationSessionInput
     ) -> None:
-        """Test session creation with general database error."""
+        """Test session creation with foreign key constraint error."""
         # Arrange
         mock_db.commit.side_effect = IntegrityError("foreign key", "params", "orig")
 
         # Act & Assert
-        with pytest.raises(RepositoryError):
+        with pytest.raises(NotFoundError):  # Fixed: IntegrityError with foreign key raises NotFoundError
             repository.create_session(sample_session_input)
         mock_db.rollback.assert_called_once()
 
@@ -525,15 +526,14 @@ class TestMessageOperations:
         mock_message.id = uuid4()
         mock_message.session_id = sample_session_id
 
+        # Fixed: Match actual query chain: query().select_from().order_by().all()
         mock_query = Mock(spec=Query)
         mock_db.query.return_value = mock_query
-        mock_query_with_filter = Mock(spec=Query)
-        mock_query.filter.return_value = mock_query_with_filter
+        mock_query_with_select = Mock(spec=Query)
+        mock_query.select_from.return_value = mock_query_with_select
         mock_query_with_order = Mock(spec=Query)
-        mock_query_with_filter.order_by.return_value = mock_query_with_order
-        mock_query_with_limit = Mock(spec=Query)
-        mock_query_with_order.limit.return_value = mock_query_with_limit
-        mock_query_with_limit.all.return_value = [mock_message]
+        mock_query_with_select.order_by.return_value = mock_query_with_order
+        mock_query_with_order.all.return_value = [mock_message]
 
         # Act
         result = repository.get_recent_messages(sample_session_id, count=10)
@@ -684,17 +684,26 @@ class TestSummaryOperations:
     ) -> None:
         """Test successful summary creation."""
         # Arrange
-        mock_summary = ConversationSummary(
-            id=uuid4(),
-            session_id=sample_summary_input.session_id,
-            summary_text=sample_summary_input.summary_text,
-            strategy=sample_summary_input.strategy,
-            tokens_saved=sample_summary_input.tokens_saved,
-            summary_metadata=sample_summary_input.metadata or {},
-            created_at=datetime.now(UTC),
-        )
-        mock_summary.id = uuid4()
-        mock_db.refresh.side_effect = lambda x: setattr(x, "id", mock_summary.id)
+        mock_summary_id = uuid4()
+
+        def mock_refresh(obj):
+            """Mock refresh that simulates database defaults."""
+            obj.id = mock_summary_id
+            obj.summary_text = "Summary being generated..."
+            obj.summarized_message_count = sample_summary_input.message_count_to_summarize
+            obj.tokens_saved = 0
+            obj.key_topics = []
+            obj.important_decisions = []
+            obj.unresolved_questions = []
+            obj.summary_strategy = sample_summary_input.strategy.value
+            obj.summary_metadata = {
+                "preserve_context": sample_summary_input.preserve_context,
+                "include_decisions": sample_summary_input.include_decisions,
+                "include_questions": sample_summary_input.include_questions,
+            }
+            obj.created_at = datetime.now(UTC)
+
+        mock_db.refresh.side_effect = mock_refresh
 
         # Act
         result = repository.create_summary(sample_summary_input)
@@ -726,15 +735,18 @@ class TestSummaryOperations:
         mock_summary.id = sample_summary_id
         mock_summary.session_id = uuid4()
         mock_summary.summary_text = "Test summary"
-        mock_summary.strategy = SummarizationStrategy.SLIDING_WINDOW
+        mock_summary.summary_strategy = "recent_plus_summary"  # Fixed: use database field name and string value
         mock_summary.tokens_saved = 100
         mock_summary.summary_metadata = {}
         mock_summary.created_at = datetime.now(UTC)
 
+        # Fixed: Add .options() to mock chain
         mock_query = Mock(spec=Query)
         mock_db.query.return_value = mock_query
+        mock_query_with_options = Mock(spec=Query)
+        mock_query.options.return_value = mock_query_with_options
         mock_query_with_filter = Mock(spec=Query)
-        mock_query.filter.return_value = mock_query_with_filter
+        mock_query_with_options.filter.return_value = mock_query_with_filter
         mock_query_with_filter.first.return_value = mock_summary
 
         # Act
@@ -748,10 +760,13 @@ class TestSummaryOperations:
     ) -> None:
         """Test summary retrieval when summary not found."""
         # Arrange
+        # Fixed: Add .options() to mock chain
         mock_query = Mock(spec=Query)
         mock_db.query.return_value = mock_query
+        mock_query_with_options = Mock(spec=Query)
+        mock_query.options.return_value = mock_query_with_options
         mock_query_with_filter = Mock(spec=Query)
-        mock_query.filter.return_value = mock_query_with_filter
+        mock_query_with_options.filter.return_value = mock_query_with_filter
         mock_query_with_filter.first.return_value = None
 
         # Act & Assert
@@ -767,7 +782,7 @@ class TestSummaryOperations:
         mock_summary.id = uuid4()
         mock_summary.session_id = sample_session_id
         mock_summary.summary_text = "Test summary"
-        mock_summary.strategy = SummarizationStrategy.SLIDING_WINDOW
+        mock_summary.summary_strategy = "recent_plus_summary"
         mock_summary.tokens_saved = 100
         mock_summary.summary_metadata = {}
         mock_summary.created_at = datetime.now(UTC)
@@ -800,7 +815,7 @@ class TestSummaryOperations:
         mock_summary.id = uuid4()
         mock_summary.session_id = sample_session_id
         mock_summary.summary_text = "Test summary"
-        mock_summary.strategy = SummarizationStrategy.SLIDING_WINDOW
+        mock_summary.summary_strategy = "recent_plus_summary"
         mock_summary.tokens_saved = 100
         mock_summary.summary_metadata = {}
         mock_summary.created_at = datetime.now(UTC)
@@ -848,7 +863,7 @@ class TestSummaryOperations:
         mock_summary.id = sample_summary_id
         mock_summary.session_id = uuid4()
         mock_summary.summary_text = "Old summary"
-        mock_summary.strategy = SummarizationStrategy.SLIDING_WINDOW
+        mock_summary.summary_strategy = "recent_plus_summary"
         mock_summary.tokens_saved = 100
         mock_summary.summary_metadata = {}
         mock_summary.created_at = datetime.now(UTC)
@@ -945,23 +960,26 @@ class TestSummaryOperations:
         mock_summary.id = uuid4()
         mock_summary.session_id = sample_session_id
         mock_summary.summary_text = "Test summary"
-        mock_summary.strategy = SummarizationStrategy.SLIDING_WINDOW
+        mock_summary.summary_strategy = "recent_plus_summary"
         mock_summary.tokens_saved = 100
         mock_summary.summary_metadata = {}
         mock_summary.created_at = datetime.now(UTC)
 
+        # Fixed: Match actual query chain: query().filter().order_by().limit().offset().all()
         mock_query = Mock(spec=Query)
         mock_db.query.return_value = mock_query
-        mock_query_with_filter_1 = Mock(spec=Query)
-        mock_query.filter.return_value = mock_query_with_filter_1
-        mock_query_with_filter_2 = Mock(spec=Query)
-        mock_query_with_filter_1.filter.return_value = mock_query_with_filter_2
+        mock_query_with_filter = Mock(spec=Query)
+        mock_query.filter.return_value = mock_query_with_filter
         mock_query_with_order = Mock(spec=Query)
-        mock_query_with_filter_2.order_by.return_value = mock_query_with_order
-        mock_query_with_order.all.return_value = [mock_summary]
+        mock_query_with_filter.order_by.return_value = mock_query_with_order
+        mock_query_with_limit = Mock(spec=Query)
+        mock_query_with_order.limit.return_value = mock_query_with_limit
+        mock_query_with_offset = Mock(spec=Query)
+        mock_query_with_limit.offset.return_value = mock_query_with_offset
+        mock_query_with_offset.all.return_value = [mock_summary]
 
-        # Act
-        result = repository.get_summaries_by_strategy(sample_session_id, SummarizationStrategy.SLIDING_WINDOW)
+        # Act - Fixed: Method signature is get_summaries_by_strategy(strategy, limit, offset)
+        result = repository.get_summaries_by_strategy(SummarizationStrategy.RECENT_PLUS_SUMMARY)
 
         # Assert
         assert isinstance(result, list)
@@ -976,23 +994,26 @@ class TestSummaryOperations:
         mock_summary.id = uuid4()
         mock_summary.session_id = sample_session_id
         mock_summary.summary_text = "Test summary"
-        mock_summary.strategy = SummarizationStrategy.SLIDING_WINDOW
+        mock_summary.summary_strategy = "recent_plus_summary"
         mock_summary.tokens_saved = 200
         mock_summary.summary_metadata = {}
         mock_summary.created_at = datetime.now(UTC)
 
+        # Fixed: Match actual query chain: query().filter().order_by().limit().offset().all()
         mock_query = Mock(spec=Query)
         mock_db.query.return_value = mock_query
-        mock_query_with_filter_1 = Mock(spec=Query)
-        mock_query.filter.return_value = mock_query_with_filter_1
-        mock_query_with_filter_2 = Mock(spec=Query)
-        mock_query_with_filter_1.filter.return_value = mock_query_with_filter_2
+        mock_query_with_filter = Mock(spec=Query)
+        mock_query.filter.return_value = mock_query_with_filter
         mock_query_with_order = Mock(spec=Query)
-        mock_query_with_filter_2.order_by.return_value = mock_query_with_order
-        mock_query_with_order.all.return_value = [mock_summary]
+        mock_query_with_filter.order_by.return_value = mock_query_with_order
+        mock_query_with_limit = Mock(spec=Query)
+        mock_query_with_order.limit.return_value = mock_query_with_limit
+        mock_query_with_offset = Mock(spec=Query)
+        mock_query_with_limit.offset.return_value = mock_query_with_offset
+        mock_query_with_offset.all.return_value = [mock_summary]
 
-        # Act
-        result = repository.get_summaries_with_tokens_saved(sample_session_id, min_tokens=100)
+        # Act - Fixed: Method signature is get_summaries_with_tokens_saved(min_tokens_saved, limit, offset)
+        result = repository.get_summaries_with_tokens_saved(min_tokens_saved=100)
 
         # Assert
         assert isinstance(result, list)
