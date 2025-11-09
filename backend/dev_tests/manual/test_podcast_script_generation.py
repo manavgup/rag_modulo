@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "backend"))
 
 from core.config import get_settings
 from rag_solution.file_management.database import SessionLocal
-from rag_solution.schemas.podcast_schema import PodcastGenerationInput
+from rag_solution.schemas.podcast_schema import PodcastDuration, PodcastGenerationInput, VoiceSettings
 from rag_solution.schemas.search_schema import SearchInput
 from rag_solution.services.collection_service import CollectionService
 from rag_solution.services.podcast_service import PodcastService
@@ -58,21 +58,21 @@ async def test_script_generation():
         podcast_input = PodcastGenerationInput(
             collection_id=collection_id,
             user_id=user_id,  # Add user_id
-            duration=15,  # 15 minutes
-            voice_settings={
-                "voice_id": "nova",
-                "gender": "female",
-                "speed": 1.0,
-                "pitch": 1.0,
-                "language": "en-US",
-                "name": "Nova",
-            },
+            duration=PodcastDuration.MEDIUM,  # 15 minutes
+            voice_settings=VoiceSettings(
+                voice_id="nova",
+                gender="female",
+                speed=1.0,
+                pitch=1.0,
+                language="en-US",
+                name="Nova",
+            ),
             title="Test Script Generation",
             description="Overview of the collection content",
         )
 
-        print(f"\n🎯 Target duration: {podcast_input.duration} minutes")
-        print(f"   Target word count: ~{podcast_input.duration * 150} words")
+        print(f"\n🎯 Target duration: {podcast_input.duration.value} minutes")
+        print(f"   Target word count: ~{podcast_input.duration.value * 150} words")
 
         # Step 1: Fetch RAG results
         print("\n📚 Step 1: Fetching RAG results...")
@@ -103,8 +103,8 @@ async def test_script_generation():
 
         # Check if script meets minimum requirements
         word_count = len(script_text.split())
-        min_words = podcast_input.duration * 150 * 0.8  # 80% of target
-        max_words = podcast_input.duration * 150 * 1.2  # 120% of target
+        min_words = podcast_input.duration.value * 150 * 0.8  # 80% of target
+        max_words = podcast_input.duration.value * 150 * 1.2  # 120% of target
 
         print("\n📏 Validation:")
         print(f"   Min expected: {min_words:.0f} words")

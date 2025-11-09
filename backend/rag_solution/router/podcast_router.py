@@ -131,8 +131,17 @@ async def generate_podcast(
             detail="User ID not found in authentication token",
         )
 
+    # Convert string UUID from JWT to UUID object for Pydantic validation
+    try:
+        user_id_uuid = UUID(user_id_from_token) if isinstance(user_id_from_token, str) else user_id_from_token
+    except (ValueError, TypeError) as e:
+        raise HTTPException(
+            status_code=401,
+            detail=f"Invalid user ID format in authentication token: {e}",
+        ) from e
+
     # Create validated input with authenticated user_id (ensures user_id is never None)
-    validated_input = podcast_input.model_copy(update={"user_id": user_id_from_token})
+    validated_input = podcast_input.model_copy(update={"user_id": user_id_uuid})
 
     return await podcast_service.generate_podcast(validated_input, background_tasks)
 
@@ -199,8 +208,17 @@ async def generate_script_only(
             detail="User ID not found in authentication token",
         )
 
+    # Convert string UUID from JWT to UUID object for Pydantic validation
+    try:
+        user_id_uuid = UUID(user_id_from_token) if isinstance(user_id_from_token, str) else user_id_from_token
+    except (ValueError, TypeError) as e:
+        raise HTTPException(
+            status_code=401,
+            detail=f"Invalid user ID format in authentication token: {e}",
+        ) from e
+
     # Create validated input with authenticated user_id
-    validated_input = script_input.model_copy(update={"user_id": user_id_from_token})
+    validated_input = script_input.model_copy(update={"user_id": user_id_uuid})
 
     try:
         return await podcast_service.generate_script_only(validated_input)
@@ -289,8 +307,17 @@ async def generate_audio_from_script(
             detail="User ID not found in authentication token",
         )
 
+    # Convert string UUID from JWT to UUID object for Pydantic validation
+    try:
+        user_id_uuid = UUID(user_id_from_token) if isinstance(user_id_from_token, str) else user_id_from_token
+    except (ValueError, TypeError) as e:
+        raise HTTPException(
+            status_code=401,
+            detail=f"Invalid user ID format in authentication token: {e}",
+        ) from e
+
     # Create validated input with authenticated user_id
-    validated_input = audio_input.model_copy(update={"user_id": user_id_from_token})
+    validated_input = audio_input.model_copy(update={"user_id": user_id_uuid})
 
     try:
         return await podcast_service.generate_audio_from_script(validated_input, background_tasks)
@@ -356,7 +383,23 @@ async def get_podcast(
         HTTPException 404: Podcast not found
     """
     # Standardize JWT user ID extraction - use "uuid" as the standard field
-    user_id = current_user.get("uuid")
+    user_id_from_token = current_user.get("uuid")
+
+    if not user_id_from_token:
+        raise HTTPException(
+            status_code=401,
+            detail="User ID not found in authentication token",
+        )
+
+    # Convert string UUID from JWT to UUID object for comparison
+    try:
+        user_id = UUID(user_id_from_token) if isinstance(user_id_from_token, str) else user_id_from_token
+    except (ValueError, TypeError) as e:
+        raise HTTPException(
+            status_code=401,
+            detail=f"Invalid user ID format in authentication token: {e}",
+        ) from e
+
     return await podcast_service.get_podcast(podcast_id, user_id)
 
 
@@ -450,7 +493,23 @@ async def delete_podcast(
         HTTPException 404: Podcast not found
     """
     # Standardize JWT user ID extraction - use "uuid" as the standard field
-    user_id = current_user.get("uuid")
+    user_id_from_token = current_user.get("uuid")
+
+    if not user_id_from_token:
+        raise HTTPException(
+            status_code=401,
+            detail="User ID not found in authentication token",
+        )
+
+    # Convert string UUID from JWT to UUID object for comparison
+    try:
+        user_id = UUID(user_id_from_token) if isinstance(user_id_from_token, str) else user_id_from_token
+    except (ValueError, TypeError) as e:
+        raise HTTPException(
+            status_code=401,
+            detail=f"Invalid user ID format in authentication token: {e}",
+        ) from e
+
     await podcast_service.delete_podcast(podcast_id, user_id)
 
 
@@ -551,7 +610,22 @@ async def serve_podcast_audio(
         HTTPException 416: Range not satisfiable
     """
     # Standardize JWT user ID extraction - use "uuid" as the standard field
-    user_id = current_user.get("uuid")
+    user_id_from_token = current_user.get("uuid")
+
+    if not user_id_from_token:
+        raise HTTPException(
+            status_code=401,
+            detail="User ID not found in authentication token",
+        )
+
+    # Convert string UUID from JWT to UUID object for comparison
+    try:
+        user_id = UUID(user_id_from_token) if isinstance(user_id_from_token, str) else user_id_from_token
+    except (ValueError, TypeError) as e:
+        raise HTTPException(
+            status_code=401,
+            detail=f"Invalid user ID format in authentication token: {e}",
+        ) from e
 
     # Get podcast to verify ownership and get audio format
     podcast = await podcast_service.get_podcast(podcast_id, user_id)
@@ -571,8 +645,10 @@ async def serve_podcast_audio(
         # Use __file__ to get path relative to this router file
         # This is more robust than relying on working directory
         router_file = Path(__file__).resolve()
-        backend_dir = router_file.parent.parent.parent  # rag_solution/router/ -> rag_solution/ -> backend/
-        base_path = (backend_dir / base_path).resolve()
+        project_root = (
+            router_file.parent.parent.parent.parent
+        )  # rag_solution/router/ -> rag_solution/ -> backend/ -> project_root/
+        base_path = (project_root / base_path).resolve()
 
     # Get format as string (handle both enum and string values)
     audio_format = podcast.format.value if hasattr(podcast.format, "value") else str(podcast.format)
