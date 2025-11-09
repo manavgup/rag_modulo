@@ -400,6 +400,70 @@ async def get_conversation_messages(
         ) from e
 
 
+@router.post("/{session_id}/messages", response_model=ConversationMessageOutput, status_code=status.HTTP_201_CREATED)
+async def process_conversation_message(
+    session_id: UUID,
+    message_data: ConversationMessageInput,
+    current_user: dict = Depends(get_current_user),
+    conversation_service: ConversationService = Depends(get_conversation_service),
+    orchestrator: MessageProcessingOrchestrator = Depends(get_message_processing_orchestrator),
+) -> ConversationMessageOutput:
+    """Process a user message and generate a response.
+
+    This endpoint processes a user message through the conversation system,
+    including RAG search, context management, and LLM response generation.
+
+    Args:
+        session_id: Conversation session ID
+        message_data: Message content and metadata
+        current_user: Current authenticated user
+        conversation_service: Conversation service dependency
+        orchestrator: Message processing orchestrator dependency
+
+    Returns:
+        Processed message with AI-generated response
+
+    Raises:
+        HTTPException: For authentication, authorization, or processing errors
+
+    Security:
+        - Requires authentication
+        - User must own the session
+        - Consumes LLM API tokens (protected endpoint)
+    """
+    try:
+        # Verify user owns the session (prevent unauthorized LLM usage)
+        user_id = UUID(current_user["uuid"])
+        session = await conversation_service.get_session(session_id, user_id)
+        if not session:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Access denied: You do not own this conversation session"
+            )
+
+        # Ensure session_id matches
+        message_data.session_id = session_id
+
+        # Process message using orchestrator
+        response = await orchestrator.process_user_message(message_data)
+        logger.info("Processed message for session %s, user %s", str(session_id), str(user_id))
+        return response
+
+    except HTTPException:
+        raise
+    except NotFoundError as e:
+        logger.warning("Conversation session not found for message processing: %s", str(e))
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation session not found") from e
+    except ValueError as e:
+        logger.warning("Validation error processing message: %s", str(e))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e)) from e
+    except Exception as e:
+        logger.error("Error processing conversation message: %s", str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to process conversation message: {e!s}",
+        ) from e
+
+
 @router.get("/{session_id}/statistics", response_model=SessionStatistics)
 async def get_conversation_statistics(
     session_id: UUID,
