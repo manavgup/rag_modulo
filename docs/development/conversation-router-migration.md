@@ -62,12 +62,12 @@ These endpoints are available in `/api/conversations` and were not present in `/
 
 **Before**:
 ```python
-BASE_URL = "https://api.example.com/api/chat"
+BASE_URL = "http://localhost:8000/api/chat"
 ```
 
 **After**:
 ```python
-BASE_URL = "https://api.example.com/api/conversations"
+BASE_URL = "http://localhost:8000/api/conversations"
 ```
 
 ### Step 2: Update Endpoint Paths

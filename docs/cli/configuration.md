@@ -139,7 +139,7 @@ Profiles allow you to maintain different configurations for different environmen
 
 ```bash
 # Set global configuration
-./rag-cli config set api_url "https://api.example.com"
+./rag-cli config set api_url "http://localhost:8000"
 
 # Set profile-specific value
 ./rag-cli config set auth.client_id "new-client-id" --profile dev
@@ -149,7 +149,7 @@ Profiles allow you to maintain different configurations for different environmen
 ./rag-cli config set output.format "json"
 
 # Set multiple values
-./rag-cli config set api_url "https://api.example.com" timeout 45
+./rag-cli config set api_url "http://localhost:8000" timeout 45
 ```
 
 ### Unset Configuration Values
@@ -302,7 +302,7 @@ Override configuration using environment variables:
 
 ### API Configuration
 ```bash
-export RAG_API_URL="https://api.example.com"
+export RAG_API_URL="http://localhost:8000"
 export RAG_API_TIMEOUT="30"
 export RAG_API_VERIFY_SSL="true"
 ```

@@ -301,7 +301,7 @@ Week 4 will integrate the new pipeline into SearchService:
 - **GitHub Issue**: [#549 - Modern RAG Search Architecture](https://github.com/manavgup/rag_modulo/issues/549)
 - **Week 1 Docs**: `docs/development/pipeline-architecture/week-1-pipeline-framework.md`
 - **Week 2 Docs**: `docs/development/pipeline-architecture/week-2-core-retrieval-pipeline.md`
-- **CoT Hardening**: `docs/features/chain-of-thought-hardening.md`
+- **CoT Hardening**: `docs/features/chain-of-thought/index.md`
 - **Cross-Encoder Reranking**: PR #548
 
 ---
