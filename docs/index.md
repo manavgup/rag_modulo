@@ -1,6 +1,6 @@
 # Welcome to RAG Modulo
 
-<div align="center">
+<div align="center" markdown="1">
 
 ![RAG Modulo Logo](https://via.placeholder.com/200x200/4F46E5/FFFFFF?text=RAG)
 
@@ -119,7 +119,7 @@ Get up and running with RAG Modulo in minutes:
 
 ## 📊 Current Status
 
-<div align="center">
+<div align="center" markdown="1">
 
 | Component | Status | Progress |
 |:---:|:---:|:---:|
@@ -348,7 +348,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](https://g
 
 ---
 
-<div align="center">
+<div align="center" markdown="1">
 
 **Made with ❤️ by the RAG Modulo Team**
 
