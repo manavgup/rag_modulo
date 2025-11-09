@@ -314,13 +314,15 @@ class TestSessionOperations:
     ) -> None:
         """Test successful session update."""
         # Arrange
-        updates = {"session_name": "Updated Name", "status": "inactive"}
+        updates = {"session_name": "Updated Name", "status": "paused"}  # Fixed: inactive → paused
         mock_session = MagicMock(spec=ConversationSession)
         mock_session.id = sample_session_id
         mock_session.user_id = uuid4()
         mock_session.collection_id = uuid4()
         mock_session.session_name = "Old Name"
-        mock_session.status = "active"
+        mock_session.status = SessionStatus.ACTIVE  # Fixed: use enum
+        mock_session.is_archived = False  # Fixed: add missing field
+        mock_session.is_pinned = False  # Fixed: add missing field
         mock_session.context_window_size = 4096
         mock_session.max_messages = 100
         mock_session.session_metadata = {}
@@ -455,8 +457,11 @@ class TestMessageOperations:
         mock_message.id = sample_message_id
         mock_query = Mock(spec=Query)
         mock_db.query.return_value = mock_query
+        # Fixed: Add .options() to mock chain
+        mock_query_with_options = Mock(spec=Query)
+        mock_query.options.return_value = mock_query_with_options
         mock_query_with_filter = Mock(spec=Query)
-        mock_query.filter.return_value = mock_query_with_filter
+        mock_query_with_options.filter.return_value = mock_query_with_filter
         mock_query_with_filter.first.return_value = mock_message
 
         # Act
@@ -472,8 +477,11 @@ class TestMessageOperations:
         # Arrange
         mock_query = Mock(spec=Query)
         mock_db.query.return_value = mock_query
+        # Fixed: Add .options() to mock chain
+        mock_query_with_options = Mock(spec=Query)
+        mock_query.options.return_value = mock_query_with_options
         mock_query_with_filter = Mock(spec=Query)
-        mock_query.filter.return_value = mock_query_with_filter
+        mock_query_with_options.filter.return_value = mock_query_with_filter
         mock_query_with_filter.first.return_value = None
 
         # Act & Assert
