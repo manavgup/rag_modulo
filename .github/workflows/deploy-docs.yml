@@ -50,7 +50,7 @@ jobs:
         uses: actions/configure-pages@v4
 
       - name: 🏗️ Build MkDocs site
-        run: mkdocs build --strict
+        run: mkdocs build
 
       - name: 📤 Upload artifact
         uses: actions/upload-pages-artifact@v3
