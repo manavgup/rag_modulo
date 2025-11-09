@@ -80,7 +80,7 @@ The production deployment uses `docker-compose.yml` with infrastructure from `do
 
 ```bash
 # File: docker-compose.yml
-# Location: /home/user/rag_modulo/docker-compose.yml
+# Location: ./docker-compose.yml
 
 # Start production stack
 make prod-start
@@ -95,7 +95,7 @@ docker compose ps
 
 ### Infrastructure Configuration
 
-**File**: `/home/user/rag_modulo/docker-compose-infra.yml`
+**File**: `./docker-compose-infra.yml`
 
 Services included:
 - **postgres**: PostgreSQL 13 with health checks
@@ -365,7 +365,7 @@ az container create \
 
 ### IBM Cloud Code Engine
 
-See detailed guide: [docs/deployment/ibm-cloud-code-engine.md](/home/user/rag_modulo/docs/deployment/ibm-cloud-code-engine.md)
+See detailed guide: [docs/deployment/ibm-cloud-code-engine.md](./docs/deployment/ibm-cloud-code-engine.md)
 
 ```bash
 # Deploy to Code Engine
@@ -411,7 +411,7 @@ kubectl create secret generic rag-modulo-secrets \
 **Key Configuration Locations**:
 
 ```bash
-/home/user/rag_modulo/
+./
 ├── .env                              # Environment variables
 ├── docker-compose.yml                # Production compose
 ├── docker-compose-infra.yml          # Infrastructure services
@@ -430,7 +430,7 @@ kubectl create secret generic rag-modulo-secrets \
 
 **Endpoint**: `GET /api/health`
 
-**File**: `/home/user/rag_modulo/backend/healthcheck.py`
+**File**: `./backend/healthcheck.py`
 
 ```python
 # Health check implementation
@@ -457,7 +457,7 @@ backend:
 
 ### Application Startup Checks
 
-**File**: `/home/user/rag_modulo/backend/main.py`
+**File**: `./backend/main.py`
 
 Startup sequence (lifespan event):
 

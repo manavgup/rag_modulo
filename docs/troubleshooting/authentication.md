@@ -21,10 +21,10 @@ RAG Modulo supports multiple authentication methods:
 3. **Development Mode**: Auth bypass for testing (SKIP_AUTH)
 
 **Key Files**:
-- `/home/user/rag_modulo/backend/auth/` - Authentication logic
-- `/home/user/rag_modulo/backend/auth/oidc.py` - OIDC integration
-- `/home/user/rag_modulo/backend/core/authentication_middleware.py` - Request authentication
-- `/home/user/rag_modulo/backend/main.py` - Security validation
+- `./backend/auth/` - Authentication logic
+- `./backend/auth/oidc.py` - OIDC integration
+- `./backend/core/authentication_middleware.py` - Request authentication
+- `./backend/main.py` - Security validation
 
 **Configuration** (`.env`):
 ```bash
@@ -718,7 +718,7 @@ curl http://localhost:8000/api/collections
 
 ### Startup Security Check
 
-**File**: `/home/user/rag_modulo/backend/main.py`
+**File**: `./backend/main.py`
 
 ```python
 def validate_production_security() -> None:

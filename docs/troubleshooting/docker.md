@@ -27,10 +27,10 @@ RAG Modulo uses Docker Compose for orchestrating multiple containers:
 - `mlflow-server`: Model tracking (port 5001)
 
 **Docker Compose Files**:
-- `/home/user/rag_modulo/docker-compose.yml` - Production deployment
-- `/home/user/rag_modulo/docker-compose-infra.yml` - Infrastructure services
-- `/home/user/rag_modulo/docker-compose.dev.yml` - Development overrides
-- `/home/user/rag_modulo/docker-compose.test.yml` - Testing configuration
+- `./docker-compose.yml` - Production deployment
+- `./docker-compose-infra.yml` - Infrastructure services
+- `./docker-compose.dev.yml` - Development overrides
+- `./docker-compose.test.yml` - Testing configuration
 
 ## Container Health Issues
 
@@ -445,8 +445,8 @@ Error response from daemon: invalid mount config for type "bind": bind source pa
 docker compose config | grep -A 10 volumes
 
 # Verify paths exist
-ls -la /home/user/rag_modulo/volumes/
-ls -la /home/user/rag_modulo/volumes/postgres
+ls -la ./volumes/
+ls -la ./volumes/postgres
 ```
 
 **Solutions**:
@@ -646,7 +646,7 @@ ERROR: poetry.lock does not exist or is out of sync with pyproject.toml
 
 ```bash
 # Check if poetry.lock exists
-ls -la /home/user/rag_modulo/poetry.lock
+ls -la ./poetry.lock
 
 # Validate lock file
 poetry check --lock
@@ -656,7 +656,7 @@ poetry check --lock
 
 ```bash
 # Regenerate lock file
-cd /home/user/rag_modulo
+cd .
 poetry lock
 
 # Rebuild image

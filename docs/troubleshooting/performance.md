@@ -158,7 +158,7 @@ curl -X POST http://localhost:9091/api/v1/collection/statistics \
 
 ```bash
 # Run backend with profiling
-cd /home/user/rag_modulo
+cd .
 poetry run python -m cProfile -o profile.stats backend/main.py
 
 # Analyze profile

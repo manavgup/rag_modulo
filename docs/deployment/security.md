@@ -562,7 +562,7 @@ az network nsg rule create \
 
 ### Production Security Validation
 
-**File**: `/home/user/rag_modulo/backend/main.py`
+**File**: `./backend/main.py`
 
 ```python
 def validate_production_security() -> None:

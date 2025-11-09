@@ -35,7 +35,7 @@ RAG Modulo implements comprehensive observability with:
 
 **Endpoint**: `GET /api/health`
 
-**Location**: `/home/user/rag_modulo/backend/healthcheck.py`
+**Location**: `./backend/healthcheck.py`
 
 ```python
 # Health check implementation
@@ -163,7 +163,7 @@ docker inspect --format='{{.State.Health.Status}}' rag-modulo-backend-1
 
 RAG Modulo implements an enhanced logging system with structured context tracking based on IBM mcp-context-forge patterns.
 
-**Location**: `/home/user/rag_modulo/backend/core/enhanced_logging.py`
+**Location**: `./backend/core/enhanced_logging.py`
 
 **Key Features**:
 - Dual output formats (JSON for production, text for development)
@@ -328,7 +328,7 @@ recent_hour = log_storage.query_logs(since=since)
 ### Log Aggregation Locations
 
 ```bash
-/home/user/rag_modulo/
+./
 ├── logs/                           # Local development logs
 │   ├── rag_modulo.log              # Main application log
 │   ├── rag_modulo.log.1            # Rotated log (if rotation enabled)

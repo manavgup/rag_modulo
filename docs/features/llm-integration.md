@@ -925,6 +925,6 @@ DEFAULT_TOP_P=0.9
 ## Related Documentation
 
 - [Search and Retrieval](search-retrieval.md) - Using LLMs for RAG
-- [Chain of Thought](chain-of-thought-hardening.md) - Advanced reasoning
+- [Chain of Thought](chain-of-thought/index.md) - Advanced reasoning
 - [Architecture - Components](../architecture/components.md) - System design
 - [Troubleshooting](../troubleshooting/debugging.md) - Debug LLM issues

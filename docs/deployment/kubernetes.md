@@ -57,7 +57,7 @@ k9s version
 ghcr.io/manavgup/rag_modulo/backend:latest
 
 # Frontend
-ghcr.io/manavgup/rag_modulo/frontend-tailwind:latest
+ghcr.io/manavgup/rag_modulo/frontend:latest
 ```
 
 ## Kubernetes Manifests
@@ -533,7 +533,7 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: ghcr.io/manavgup/rag_modulo/frontend-tailwind:latest
+        image: ghcr.io/manavgup/rag_modulo/frontend:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 8080

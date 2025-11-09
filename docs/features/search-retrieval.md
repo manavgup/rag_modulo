@@ -286,7 +286,7 @@ async def _apply_chain_of_thought(
 - **Retry Logic**: Up to 3 attempts with quality threshold
 - **Structured Output**: XML tags for clean parsing
 
-**See Also**: [Chain of Thought](chain-of-thought-hardening.md) for detailed documentation
+**See Also**: [Chain of Thought](chain-of-thought/index.md) for detailed documentation
 
 ### Stage 6: Generation
 
@@ -691,7 +691,7 @@ search_input.config_metadata = user_config
 
 ## Related Documentation
 
-- [Chain of Thought](chain-of-thought-hardening.md) - Advanced reasoning system
+- [Chain of Thought](chain-of-thought/index.md) - Advanced reasoning system
 - [LLM Integration](llm-integration.md) - Provider configuration
 - [Document Processing](document-processing.md) - Ingestion pipeline
 - [Architecture - Data Flow](../architecture/data-flow.md) - Complete request flow

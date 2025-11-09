@@ -48,7 +48,7 @@ async def search(self, search_input: SearchInput):
 
 ```bash
 # Local development (containerless)
-cd /home/user/rag_modulo
+cd .
 poetry run python -m pdb backend/main.py
 
 # Or with uvicorn
@@ -203,7 +203,7 @@ docker compose exec backend df -h
 
 ### Enhanced Logging System
 
-**Location**: `/home/user/rag_modulo/backend/core/enhanced_logging.py`
+**Location**: `./backend/core/enhanced_logging.py`
 
 **Key Features**:
 - Dual output (JSON for production, text for development)
@@ -217,7 +217,7 @@ docker compose exec backend df -h
 
 ```bash
 # Log location
-ls -la /home/user/rag_modulo/logs/
+ls -la ./logs/
 
 # View logs
 tail -f logs/rag_modulo.log
@@ -612,10 +612,10 @@ ModuleNotFoundError: No module named 'rag_solution'
 echo $PYTHONPATH
 
 # Set PYTHONPATH
-export PYTHONPATH=/home/user/rag_modulo/backend:$PYTHONPATH
+export PYTHONPATH=./backend:$PYTHONPATH
 
 # Or use poetry run
-cd /home/user/rag_modulo
+cd .
 poetry run python backend/main.py
 
 # In Docker, PYTHONPATH is set in Dockerfile
