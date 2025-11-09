@@ -80,3 +80,45 @@ class IdentityService:
 
         # Return default mock user ID
         return IdentityService.DEFAULT_MOCK_USER_ID
+
+    @staticmethod
+    def extract_user_id_from_jwt(current_user: dict, field_name: str = "uuid") -> UUID:
+        """
+        Extract and validate user_id from JWT token payload.
+
+        JWT tokens store user_id as strings, but application code expects UUID objects.
+        This method handles the conversion and validation in a centralized location.
+
+        Args:
+            current_user: JWT token payload from get_current_user() dependency
+            field_name: Field name in JWT payload containing user ID (default: "uuid")
+
+        Returns:
+            UUID: Validated user ID as UUID object
+
+        Raises:
+            ValueError: If user_id is missing or has invalid format
+
+        Example:
+            >>> current_user = {"uuid": "d1f93297-3e3c-42b0-8da7-09efde032c25", ...}
+            >>> user_id = IdentityService.extract_user_id_from_jwt(current_user)
+            >>> isinstance(user_id, UUID)
+            True
+        """
+        user_id_str = current_user.get(field_name)
+
+        if not user_id_str:
+            raise ValueError(f"User ID not found in JWT token (field: {field_name})")
+
+        # Convert string to UUID if needed
+        if isinstance(user_id_str, str):
+            try:
+                return UUID(user_id_str)
+            except (ValueError, AttributeError) as e:
+                raise ValueError(f"Invalid user ID format in JWT token: {user_id_str}") from e
+
+        # Already a UUID object
+        if isinstance(user_id_str, UUID):
+            return user_id_str
+
+        raise ValueError(f"Unexpected user ID type in JWT token: {type(user_id_str)}")

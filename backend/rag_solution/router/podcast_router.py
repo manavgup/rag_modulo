@@ -7,7 +7,7 @@ Provides RESTful API for podcast generation, status checking, and management.
 import io
 import logging
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from core.config import Settings, get_settings
 from core.custom_exceptions import NotFoundError, ValidationError
+from core.identity_service import IdentityService
 from rag_solution.core.dependencies import get_current_user
 from rag_solution.file_management.database import get_db
 from rag_solution.schemas.podcast_schema import (
@@ -42,6 +43,28 @@ AUDIO_MEDIA_TYPES = {
     "ogg": "audio/ogg",
     "flac": "audio/flac",
 }
+
+
+def _extract_user_id_from_jwt(current_user: dict[str, Any]) -> UUID:
+    """
+    Extract and validate user_id from JWT token with HTTP exception handling.
+
+    This is a thin wrapper around IdentityService.extract_user_id_from_jwt()
+    that converts ValueError to HTTPException for FastAPI endpoints.
+
+    Args:
+        current_user: JWT token payload from get_current_user() dependency
+
+    Returns:
+        UUID: Validated user ID as UUID object
+
+    Raises:
+        HTTPException 401: If user_id is missing or has invalid format
+    """
+    try:
+        return IdentityService.extract_user_id_from_jwt(current_user)
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail=str(e)) from e
 
 
 # Dependency to get PodcastService
@@ -122,17 +145,10 @@ async def generate_podcast(
     """
     # Set user_id from authenticated session (security best practice)
     # Never trust user_id from request body - always use authenticated session
-    # Standardize JWT user ID extraction - use "uuid" as the standard field
-    user_id_from_token = current_user.get("uuid")
-
-    if not user_id_from_token:
-        raise HTTPException(
-            status_code=401,
-            detail="User ID not found in authentication token",
-        )
+    user_id = _extract_user_id_from_jwt(current_user)
 
     # Create validated input with authenticated user_id (ensures user_id is never None)
-    validated_input = podcast_input.model_copy(update={"user_id": user_id_from_token})
+    validated_input = podcast_input.model_copy(update={"user_id": user_id})
 
     return await podcast_service.generate_podcast(validated_input, background_tasks)
 
@@ -190,17 +206,10 @@ async def generate_script_only(
         HTTPException 500: Internal error
     """
     # Set user_id from authenticated session
-    # Standardize JWT user ID extraction - use "uuid" as the standard field
-    user_id_from_token = current_user.get("uuid")
-
-    if not user_id_from_token:
-        raise HTTPException(
-            status_code=401,
-            detail="User ID not found in authentication token",
-        )
+    user_id = _extract_user_id_from_jwt(current_user)
 
     # Create validated input with authenticated user_id
-    validated_input = script_input.model_copy(update={"user_id": user_id_from_token})
+    validated_input = script_input.model_copy(update={"user_id": user_id})
 
     try:
         return await podcast_service.generate_script_only(validated_input)
@@ -280,17 +289,10 @@ async def generate_audio_from_script(
         HTTPException 500: Internal error
     """
     # Set user_id from authenticated session
-    # Standardize JWT user ID extraction - use "uuid" as the standard field
-    user_id_from_token = current_user.get("uuid")
-
-    if not user_id_from_token:
-        raise HTTPException(
-            status_code=401,
-            detail="User ID not found in authentication token",
-        )
+    user_id = _extract_user_id_from_jwt(current_user)
 
     # Create validated input with authenticated user_id
-    validated_input = audio_input.model_copy(update={"user_id": user_id_from_token})
+    validated_input = audio_input.model_copy(update={"user_id": user_id})
 
     try:
         return await podcast_service.generate_audio_from_script(validated_input, background_tasks)
@@ -355,8 +357,7 @@ async def get_podcast(
         HTTPException 403: Access denied
         HTTPException 404: Podcast not found
     """
-    # Standardize JWT user ID extraction - use "uuid" as the standard field
-    user_id = current_user.get("uuid")
+    user_id = _extract_user_id_from_jwt(current_user)
     return await podcast_service.get_podcast(podcast_id, user_id)
 
 
@@ -449,8 +450,7 @@ async def delete_podcast(
         HTTPException 403: Access denied
         HTTPException 404: Podcast not found
     """
-    # Standardize JWT user ID extraction - use "uuid" as the standard field
-    user_id = current_user.get("uuid")
+    user_id = _extract_user_id_from_jwt(current_user)
     await podcast_service.delete_podcast(podcast_id, user_id)
 
 
@@ -550,8 +550,7 @@ async def serve_podcast_audio(
         HTTPException 404: Podcast or audio file not found
         HTTPException 416: Range not satisfiable
     """
-    # Standardize JWT user ID extraction - use "uuid" as the standard field
-    user_id = current_user.get("uuid")
+    user_id = _extract_user_id_from_jwt(current_user)
 
     # Get podcast to verify ownership and get audio format
     podcast = await podcast_service.get_podcast(podcast_id, user_id)
@@ -571,8 +570,10 @@ async def serve_podcast_audio(
         # Use __file__ to get path relative to this router file
         # This is more robust than relying on working directory
         router_file = Path(__file__).resolve()
-        backend_dir = router_file.parent.parent.parent  # rag_solution/router/ -> rag_solution/ -> backend/
-        base_path = (backend_dir / base_path).resolve()
+        project_root = (
+            router_file.parent.parent.parent.parent
+        )  # rag_solution/router/ -> rag_solution/ -> backend/ -> project_root/
+        base_path = (project_root / base_path).resolve()
 
     # Get format as string (handle both enum and string values)
     audio_format = podcast.format.value if hasattr(podcast.format, "value") else str(podcast.format)
