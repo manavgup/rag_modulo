@@ -27,6 +27,7 @@ from rag_solution.schemas.podcast_schema import (
     PodcastListResponse,
     PodcastScriptGenerationInput,
     PodcastScriptOutput,
+    PodcastStatus,
 )
 from rag_solution.services.collection_service import CollectionService
 from rag_solution.services.podcast_service import PodcastService
@@ -709,3 +710,79 @@ async def get_voice_preview(
 
     audio_bytes = await podcast_service.generate_voice_preview(voice_id)
     return StreamingResponse(io.BytesIO(audio_bytes), media_type="audio/mpeg")
+
+
+@router.get(
+    "/{podcast_id}/transcript/download",
+    summary="Download podcast transcript",
+    description="Download podcast transcript in plain text or Markdown format with optional chapters.",
+    response_class=Response,
+)
+async def download_transcript(
+    podcast_id: UUID4,
+    podcast_service: Annotated[PodcastService, Depends(get_podcast_service)],
+    current_user: dict = Depends(get_current_user),
+    format: str = Query("txt", description="Download format: txt or md", regex="^(txt|md)$"),
+) -> Response:
+    """
+    Download podcast transcript in specified format.
+
+    Args:
+        podcast_id: Podcast UUID
+        format: Download format (txt or md)
+        podcast_service: Injected podcast service
+        current_user: Authenticated user
+
+    Returns:
+        Response with transcript file content
+
+    Raises:
+        HTTPException 404: Podcast not found or not accessible
+        HTTPException 400: Podcast generation not completed yet
+    """
+    # Extract user ID from JWT
+    user_id = IdentityService.extract_user_id_from_jwt(current_user)
+
+    # Get podcast
+    podcast_output = await podcast_service.get_podcast_status(podcast_id, user_id)
+    if not podcast_output:
+        raise HTTPException(status_code=404, detail=f"Podcast {podcast_id} not found or not accessible")
+
+    # Check if completed
+    if podcast_output.status != PodcastStatus.COMPLETED:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Podcast transcript not available. Current status: {podcast_output.status}",
+        )
+
+    # Check if transcript exists
+    if not podcast_output.transcript:
+        raise HTTPException(status_code=404, detail="Transcript not found for this podcast")
+
+    # Format transcript
+    from rag_solution.utils.transcript_formatter import TranscriptFormat, TranscriptFormatter
+
+    formatter = TranscriptFormatter()
+    format_type = TranscriptFormat.MARKDOWN if format == "md" else TranscriptFormat.TXT
+
+    formatted_transcript = formatter.format_transcript(
+        transcript=podcast_output.transcript,
+        format_type=format_type,
+        title=podcast_output.title,
+        duration_seconds=podcast_output.duration.value * 60 if podcast_output.duration else None,
+        chapters=podcast_output.chapters if podcast_output.chapters else None,
+    )
+
+    # Determine filename and media type
+    filename = f"{podcast_output.title or f'podcast-{str(podcast_id)[:8]}'}.{format}"
+    media_type = "text/markdown" if format == "md" else "text/plain"
+
+    # Return transcript as downloadable file
+    return Response(
+        content=formatted_transcript,
+        media_type=media_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Type": f"{media_type}; charset=utf-8",
+        },
+    )

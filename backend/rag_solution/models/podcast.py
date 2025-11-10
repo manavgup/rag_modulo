@@ -91,6 +91,11 @@ class Podcast(Base):
     # Results (populated when status = COMPLETED)
     audio_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     transcript: Mapped[str | None] = mapped_column(Text, nullable=True)
+    chapters: Mapped[list[dict[str, Any]] | None] = mapped_column(
+        JSON,
+        nullable=True,
+        comment="Dynamic chapter markers with timestamps (title, start_time, end_time, word_count)",
+    )
     audio_size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # Error tracking (populated when status = FAILED)
@@ -132,6 +137,7 @@ class Podcast(Base):
             "estimated_time_remaining": self.estimated_time_remaining,
             "audio_url": self.audio_url,
             "transcript": self.transcript,
+            "chapters": self.chapters or [],
             "audio_size_bytes": self.audio_size_bytes,
             "error_message": self.error_message,
             "created_at": self.created_at,

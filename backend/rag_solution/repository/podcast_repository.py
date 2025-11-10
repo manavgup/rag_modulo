@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from rag_solution.models.podcast import Podcast
 from rag_solution.schemas.podcast_schema import (
+    PodcastChapter,
     PodcastGenerationOutput,
     PodcastStatus,
     ProgressStepDetails,
@@ -295,6 +296,7 @@ class PodcastRepository:
         audio_url: str,
         transcript: str,
         audio_size_bytes: int,
+        chapters: list[dict] | None = None,
     ) -> Podcast | None:
         """
         Mark podcast as completed with results.
@@ -304,6 +306,7 @@ class PodcastRepository:
             audio_url: URL to generated audio
             transcript: Full podcast script
             audio_size_bytes: Audio file size
+            chapters: Optional list of chapter markers with timestamps
 
         Returns:
             Updated Podcast model or None if not found
@@ -318,6 +321,7 @@ class PodcastRepository:
             podcast.audio_url = audio_url
             podcast.transcript = transcript
             podcast.audio_size_bytes = audio_size_bytes
+            podcast.chapters = chapters if chapters else []
             podcast.progress_percentage = 100
             podcast.current_step = None
             podcast.step_details = None
@@ -378,6 +382,11 @@ class PodcastRepository:
         if podcast.step_details:
             step_details = ProgressStepDetails(**podcast.step_details)
 
+        # Convert chapters from JSON dict to PodcastChapter objects
+        chapters = []
+        if podcast.chapters:
+            chapters = [PodcastChapter(**chapter_dict) for chapter_dict in podcast.chapters]
+
         return PodcastGenerationOutput(
             podcast_id=podcast.podcast_id,
             user_id=podcast.user_id,
@@ -388,6 +397,7 @@ class PodcastRepository:
             title=podcast.title,
             audio_url=podcast.audio_url,
             transcript=podcast.transcript,
+            chapters=chapters,
             audio_size_bytes=podcast.audio_size_bytes,
             error_message=podcast.error_message,
             progress_percentage=podcast.progress_percentage,

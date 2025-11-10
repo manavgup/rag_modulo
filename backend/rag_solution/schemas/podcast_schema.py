@@ -80,6 +80,29 @@ class Speaker(str, Enum):
     EXPERT = "EXPERT"  # Provides detailed answers and explanations
 
 
+class PodcastChapter(BaseModel):
+    """Chapter marker with topic and timestamp information."""
+
+    title: str = Field(..., min_length=1, max_length=200, description="Chapter title extracted from HOST question")
+    start_time: float = Field(..., ge=0, description="Chapter start time in seconds")
+    end_time: float = Field(..., ge=0, description="Chapter end time in seconds")
+    word_count: int = Field(..., ge=0, description="Number of words in this chapter")
+
+    @field_validator("title")
+    @classmethod
+    def validate_title(cls, v: str) -> str:
+        """Ensure title is not empty."""
+        return validate_non_empty_string(v, "chapter title")
+
+    @field_validator("end_time")
+    @classmethod
+    def validate_end_after_start(cls, v: float, info) -> float:
+        """Ensure end_time is after start_time."""
+        if "start_time" in info.data and v <= info.data["start_time"]:
+            raise ValueError("end_time must be greater than start_time")
+        return v
+
+
 class VoiceSettings(BaseModel):
     """Voice configuration for text-to-speech generation."""
 
@@ -137,6 +160,10 @@ class PodcastScript(BaseModel):
     turns: list[PodcastTurn] = Field(..., min_length=1, description="List of dialogue turns")
     total_duration: float = Field(..., ge=0, description="Total duration in seconds")
     total_words: int = Field(..., ge=0, description="Total word count")
+    chapters: list[PodcastChapter] = Field(
+        default_factory=list,
+        description="Dynamic chapter markers extracted from HOST questions",
+    )
 
     @field_validator("turns")
     @classmethod
@@ -277,6 +304,10 @@ class PodcastGenerationOutput(BaseModel):
     title: str | None = Field(default=None, description="Podcast title")
     audio_url: str | None = Field(default=None, description="URL to access generated audio (when COMPLETED)")
     transcript: str | None = Field(default=None, description="Full podcast script/transcript (when COMPLETED)")
+    chapters: list[PodcastChapter] = Field(
+        default_factory=list,
+        description="Dynamic chapter markers with timestamps (when include_chapter_markers=True)",
+    )
     audio_size_bytes: int | None = Field(default=None, ge=0, description="Audio file size in bytes (when COMPLETED)")
     error_message: str | None = Field(default=None, description="Error details if FAILED")
     progress_percentage: int = Field(default=0, ge=0, le=100, description="Progress percentage (0-100)")
