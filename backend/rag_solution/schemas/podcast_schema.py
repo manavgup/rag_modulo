@@ -155,6 +155,21 @@ class ProgressStepDetails(BaseModel):
     current_speaker: str | None = Field(default=None, description="Current speaker being processed (HOST/EXPERT)")
 
 
+class PodcastChapter(BaseModel):
+    """Chapter marker for podcast navigation."""
+
+    title: str = Field(..., min_length=1, description="Chapter title (question or topic)")
+    start_time: float = Field(..., ge=0, description="Start time in seconds")
+    duration: float | None = Field(default=None, ge=0, description="Duration in seconds (optional)")
+    speaker: str | None = Field(default=None, description="Speaker who introduces this chapter (HOST/EXPERT)")
+
+    @field_validator("title")
+    @classmethod
+    def validate_title(cls, v: str) -> str:
+        """Ensure title is not empty."""
+        return validate_non_empty_string(v, "chapter title")
+
+
 class PodcastGenerationInput(BaseModel):
     """Input schema for podcast generation request.
 
@@ -277,6 +292,9 @@ class PodcastGenerationOutput(BaseModel):
     title: str | None = Field(default=None, description="Podcast title")
     audio_url: str | None = Field(default=None, description="URL to access generated audio (when COMPLETED)")
     transcript: str | None = Field(default=None, description="Full podcast script/transcript (when COMPLETED)")
+    chapters: list[PodcastChapter] | None = Field(
+        default=None, description="Chapter markers for navigation (when COMPLETED)"
+    )
     audio_size_bytes: int | None = Field(default=None, ge=0, description="Audio file size in bytes (when COMPLETED)")
     error_message: str | None = Field(default=None, description="Error details if FAILED")
     progress_percentage: int = Field(default=0, ge=0, le=100, description="Progress percentage (0-100)")

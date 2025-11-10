@@ -709,3 +709,198 @@ async def get_voice_preview(
 
     audio_bytes = await podcast_service.generate_voice_preview(voice_id)
     return StreamingResponse(io.BytesIO(audio_bytes), media_type="audio/mpeg")
+
+
+@router.get(
+    "/{podcast_id}/transcript",
+    summary="Download podcast transcript",
+    description="""
+    Download the podcast transcript in plain text (.txt) or markdown (.md) format.
+
+    This endpoint provides access to the podcast transcript with metadata including:
+    - Podcast title
+    - Generation date
+    - Duration
+    - Chapter markers (if available)
+    - Full dialogue script
+
+    Formats supported:
+    - **txt**: Plain text format with metadata header
+    - **md**: Markdown format with structured formatting
+
+    The transcript is only available for podcasts with status COMPLETED.
+    """,
+)
+async def download_transcript(
+    podcast_id: UUID4,
+    podcast_service: Annotated[PodcastService, Depends(get_podcast_service)],
+    current_user: Annotated[dict, Depends(get_current_user)],
+    format: Annotated[
+        str,
+        Query(
+            ...,
+            description="Transcript format (txt or md)",
+            regex="^(txt|md)$",
+        ),
+    ] = "txt",
+) -> Response:
+    """
+    Download podcast transcript in specified format.
+
+    Args:
+        podcast_id: Podcast UUID
+        podcast_service: Injected podcast service
+        current_user: Authenticated user from JWT token
+        format: Transcript format (txt or md)
+
+    Returns:
+        Response with transcript file as attachment
+
+    Raises:
+        HTTPException 400: Invalid format or podcast not ready
+        HTTPException 401: Unauthorized
+        HTTPException 403: Access denied
+        HTTPException 404: Podcast not found
+    """
+    user_id = _extract_user_id_from_jwt(current_user)
+
+    # Get podcast to verify ownership
+    podcast = await podcast_service.get_podcast(podcast_id, user_id)
+
+    if podcast.status != "completed":
+        raise HTTPException(status_code=400, detail=f"Podcast is not ready. Current status: {podcast.status}")
+
+    if not podcast.transcript:
+        raise HTTPException(status_code=404, detail="Transcript not available for this podcast")
+
+    # Format transcript with metadata
+    if format == "md":
+        # Markdown format
+        content = _format_transcript_markdown(podcast)
+        media_type = "text/markdown"
+        filename = f"podcast-{str(podcast_id)[:8]}-transcript.md"
+    else:
+        # Plain text format
+        content = _format_transcript_txt(podcast)
+        media_type = "text/plain"
+        filename = f"podcast-{str(podcast_id)[:8]}-transcript.txt"
+
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+def _format_transcript_txt(podcast: PodcastGenerationOutput) -> str:
+    """
+    Format transcript as plain text with metadata.
+
+    Args:
+        podcast: Podcast output schema
+
+    Returns:
+        Formatted plain text transcript
+    """
+    lines = []
+
+    # Header with metadata
+    lines.append("=" * 80)
+    lines.append("PODCAST TRANSCRIPT")
+    lines.append("=" * 80)
+    lines.append("")
+
+    if podcast.title:
+        lines.append(f"Title: {podcast.title}")
+
+    lines.append(f"Generated: {podcast.created_at.strftime('%Y-%m-%d %H:%M:%S UTC')}")
+
+    if podcast.completed_at:
+        lines.append(f"Completed: {podcast.completed_at.strftime('%Y-%m-%d %H:%M:%S UTC')}")
+
+    duration_map = {5: "5 minutes", 15: "15 minutes", 30: "30 minutes", 60: "60 minutes"}
+    duration_str = duration_map.get(
+        podcast.duration.value if hasattr(podcast.duration, "value") else podcast.duration, "Unknown"
+    )
+    lines.append(f"Duration: {duration_str}")
+
+    # Chapter markers if available
+    if podcast.chapters:
+        lines.append("")
+        lines.append("Chapter Markers:")
+        lines.append("-" * 80)
+        for i, chapter in enumerate(podcast.chapters, 1):
+            start_min = int(chapter.start_time // 60)
+            start_sec = int(chapter.start_time % 60)
+            lines.append(f"{i}. {chapter.title} [{start_min:02d}:{start_sec:02d}]")
+
+    lines.append("")
+    lines.append("=" * 80)
+    lines.append("TRANSCRIPT")
+    lines.append("=" * 80)
+    lines.append("")
+
+    # Add transcript
+    lines.append(podcast.transcript)
+
+    lines.append("")
+    lines.append("=" * 80)
+    lines.append("END OF TRANSCRIPT")
+    lines.append("=" * 80)
+
+    return "\n".join(lines)
+
+
+def _format_transcript_markdown(podcast: PodcastGenerationOutput) -> str:
+    """
+    Format transcript as markdown with metadata.
+
+    Args:
+        podcast: Podcast output schema
+
+    Returns:
+        Formatted markdown transcript
+    """
+    lines = []
+
+    # Title
+    title = podcast.title or "Podcast Transcript"
+    lines.append(f"# {title}")
+    lines.append("")
+
+    # Metadata
+    lines.append("## Metadata")
+    lines.append("")
+    lines.append(f"- **Generated**: {podcast.created_at.strftime('%Y-%m-%d %H:%M:%S UTC')}")
+
+    if podcast.completed_at:
+        lines.append(f"- **Completed**: {podcast.completed_at.strftime('%Y-%m-%d %H:%M:%S UTC')}")
+
+    duration_map = {5: "5 minutes", 15: "15 minutes", 30: "30 minutes", 60: "60 minutes"}
+    duration_str = duration_map.get(
+        podcast.duration.value if hasattr(podcast.duration, "value") else podcast.duration, "Unknown"
+    )
+    lines.append(f"- **Duration**: {duration_str}")
+    lines.append("")
+
+    # Chapter markers if available
+    if podcast.chapters:
+        lines.append("## Chapters")
+        lines.append("")
+        for i, chapter in enumerate(podcast.chapters, 1):
+            start_min = int(chapter.start_time // 60)
+            start_sec = int(chapter.start_time % 60)
+            lines.append(f"{i}. **{chapter.title}** `[{start_min:02d}:{start_sec:02d}]`")
+        lines.append("")
+
+    # Transcript
+    lines.append("## Transcript")
+    lines.append("")
+    lines.append(podcast.transcript)
+    lines.append("")
+
+    lines.append("---")
+    lines.append("")
+    lines.append("*End of transcript*")
+
+    return "\n".join(lines)

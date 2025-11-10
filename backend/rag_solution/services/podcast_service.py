@@ -106,9 +106,26 @@ class PodcastService:
         "hi": "Hindi",
     }
 
-    # Default podcast prompt template
+    # Default podcast prompt template with XML tag structure to prevent leakage
     # pylint: disable=line-too-long
     PODCAST_SCRIPT_PROMPT = """You are a professional podcast script writer. Create an engaging podcast dialogue between a HOST and an EXPERT in {language} language.
+
+CRITICAL OUTPUT FORMAT:
+You MUST structure your response using these XML tags:
+1. <thinking> - Internal reasoning, planning, and notes (NOT part of the final script)
+2. <script> - The actual podcast dialogue script (this is what gets published)
+
+Example structure:
+<thinking>
+Let me plan the podcast structure... I'll start with an introduction...
+[Your internal planning and reasoning go here]
+</thinking>
+
+<script>
+HOST: Welcome to today's show!
+EXPERT: Thanks for having me!
+[The actual podcast dialogue goes here]
+</script>
 
 IMPORTANT: Generate the ENTIRE script in {language} language. All dialogue must be in {language}.
 
@@ -136,7 +153,7 @@ Format your script as a natural conversation with these guidelines:
    - CRITICAL: Use direct address or simply continue the dialogue without inserting name placeholders
 
 2. **Script Format (IMPORTANT):**
-   Use this exact format for each turn:
+   Use this exact format for each turn INSIDE the <script> tags:
 
    HOST: [Question or introduction]
    EXPERT: [Detailed answer with examples]
@@ -175,7 +192,9 @@ Format your script as a natural conversation with these guidelines:
 
 **FINAL WARNING**: If you use any information not found in the provided documents, the script will be rejected.
 
-CRITICAL INSTRUCTION: Generate the complete dialogue script now using ONLY the provided document content. Write EVERYTHING in {language} language, not English:"""
+CRITICAL INSTRUCTION: Generate the complete dialogue script now using ONLY the provided document content. Write EVERYTHING in {language} language, not English.
+
+REMEMBER: Use <thinking> tags for your internal reasoning and <script> tags for the actual podcast dialogue!"""
 
     # Voice preview text for TTS samples
     VOICE_PREVIEW_TEXT = "Hello, you are listening to a preview of this voice."
@@ -393,12 +412,17 @@ CRITICAL INSTRUCTION: Generate the complete dialogue script now using ONLY the p
             audio_url = await self._store_audio(podcast_id, podcast_input.user_id, audio_bytes, podcast_input.format)
             audio_stored = True  # Mark audio as stored for cleanup if needed
 
+            # Step 5.5: Generate chapters (95-98%)
+            await self._update_progress(podcast_id, progress=95, step="generating_chapters")
+            chapters = self._generate_chapters_from_script(podcast_script)
+
             # Step 6: Mark complete (100%)
             self.repository.mark_completed(
                 podcast_id=podcast_id,
                 audio_url=audio_url,
                 transcript=script_text,
                 audio_size_bytes=len(audio_bytes),
+                chapters=chapters,
             )
 
             logger.info(
@@ -711,30 +735,88 @@ CRITICAL INSTRUCTION: Generate the complete dialogue script now using ONLY the p
             is_default=False,
         )
 
-        script_text = llm_provider.generate_text(
-            user_id=user_id,
-            prompt="",  # Empty - template contains full prompt
-            template=podcast_template,
-            variables=variables,
-            model_parameters=podcast_params,
-        )
+        # Retry logic with quality threshold (similar to Issue #461 CoT hardening)
+        max_retries = 3
+        quality_threshold = 0.6  # Minimum acceptable quality score
+        best_script = None
+        best_quality = 0.0
+        best_method = "none"
+
+        for attempt in range(1, max_retries + 1):
+            logger.info("Script generation attempt %d/%d", attempt, max_retries)
+
+            # Generate script
+            raw_script = llm_provider.generate_text(
+                user_id=user_id,
+                prompt="",  # Empty - template contains full prompt
+                template=podcast_template,
+                variables=variables,
+                model_parameters=podcast_params,
+            )
+
+            # Ensure we have a single string
+            if isinstance(raw_script, list):
+                raw_script = "\n\n".join(raw_script)
+
+            logger.info("Generated raw script: %d characters (attempt %d)", len(raw_script), attempt)
+
+            # Parse with hardening
+            parsed_script, parsing_quality, parsing_method = self._parse_script_with_hardening(raw_script)
+
+            # Assess overall quality
+            quality_score = self._assess_script_quality(parsed_script, word_count, parsing_method)
+
+            logger.info(
+                "Attempt %d: quality=%.2f, parsing_quality=%.2f, method=%s, length=%d chars",
+                attempt,
+                quality_score,
+                parsing_quality,
+                parsing_method,
+                len(parsed_script),
+            )
+
+            # Track best result
+            if quality_score > best_quality:
+                best_script = parsed_script
+                best_quality = quality_score
+                best_method = parsing_method
+
+            # Check if quality meets threshold
+            if quality_score >= quality_threshold:
+                logger.info(
+                    "✅ Quality threshold met (%.2f >= %.2f) on attempt %d", quality_score, quality_threshold, attempt
+                )
+                script_text = parsed_script
+                break
+
+            # Log retry reason
+            if attempt < max_retries:
+                logger.warning(
+                    "⚠️ Quality below threshold (%.2f < %.2f), retrying (%d/%d)",
+                    quality_score,
+                    quality_threshold,
+                    attempt,
+                    max_retries,
+                )
+
+        else:
+            # All retries exhausted - use best result
+            logger.warning(
+                "⚠️ Max retries reached. Using best result: quality=%.2f, method=%s", best_quality, best_method
+            )
+            script_text = best_script if best_script else raw_script
+
+        # Final cleanup
+        script_text = self._clean_llm_script(script_text)
 
         logger.info(
-            "Generated script: %d characters, target %d words (range: %d-%d)",
-            len(script_text) if isinstance(script_text, str) else sum(len(s) for s in script_text),
+            "Final script: %d characters, target %d words (range: %d-%d), quality=%.2f",
+            len(script_text),
             word_count,
             min_word_count,
             max_word_count,
+            best_quality,
         )
-
-        # Ensure we return a single string (some providers may return list)
-        if isinstance(script_text, list):
-            script_text = "\n\n".join(script_text)
-
-        # Clean up LLM output - remove meta-commentary and duplicates
-        script_text = self._clean_llm_script(script_text)
-
-        logger.info("Cleaned script: %d characters", len(script_text))
 
         return script_text
 
@@ -787,6 +869,298 @@ CRITICAL INSTRUCTION: Generate the complete dialogue script now using ONLY the p
         script_text = script_text.strip()
 
         return script_text
+
+    def _parse_script_with_hardening(self, raw_response: str) -> tuple[str, float, str]:
+        """
+        Parse LLM response using multi-layer fallback strategy to extract script and prevent leakage.
+
+        Implements 5 parsing strategies (similar to Issue #461 CoT hardening):
+        1. XML tag parsing (<script>...</script>)
+        2. Regex-based tag extraction
+        3. Heuristic-based extraction (look for HOST/EXPERT markers)
+        4. Fallback to full response (if it looks like a valid script)
+        5. Error state (if no valid script found)
+
+        Args:
+            raw_response: Raw LLM response with potential XML tags
+
+        Returns:
+            Tuple of (parsed_script, quality_score, parsing_method_used)
+        """
+        import re
+
+        logger.info("Parsing script with hardening (input length: %d chars)", len(raw_response))
+
+        # Strategy 1: XML tag parsing (highest priority)
+        script_match = re.search(r"<script>\s*(.*?)\s*</script>", raw_response, re.DOTALL | re.IGNORECASE)
+        if script_match:
+            script_content = script_match.group(1).strip()
+            if self._validate_script_format(script_content):
+                logger.info("✅ Strategy 1: XML tag parsing successful (%d chars)", len(script_content))
+                return script_content, 0.95, "xml_tags"
+
+        # Strategy 2: Regex-based tag extraction (case-insensitive, flexible whitespace)
+        script_match_flexible = re.search(
+            r"<\s*script\s*>(.*?)<\s*/\s*script\s*>", raw_response, re.DOTALL | re.IGNORECASE
+        )
+        if script_match_flexible:
+            script_content = script_match_flexible.group(1).strip()
+            if self._validate_script_format(script_content):
+                logger.info("✅ Strategy 2: Flexible regex parsing successful (%d chars)", len(script_content))
+                return script_content, 0.90, "flexible_regex"
+
+        # Strategy 3: Heuristic extraction - find content between thinking and end
+        # Remove thinking section if present
+        cleaned = re.sub(r"<thinking>.*?</thinking>", "", raw_response, flags=re.DOTALL | re.IGNORECASE)
+        cleaned = cleaned.strip()
+
+        # Check if remaining content is a valid script
+        if self._validate_script_format(cleaned):
+            logger.info("✅ Strategy 3: Heuristic extraction successful (%d chars)", len(cleaned))
+            return cleaned, 0.80, "heuristic"
+
+        # Strategy 4: Look for HOST/EXPERT dialogue even without tags
+        # Extract everything that looks like dialogue
+        dialogue_lines = []
+        for line in raw_response.split("\n"):
+            if line.strip().startswith(("HOST:", "EXPERT:", "Host:", "Expert:")):
+                dialogue_lines.append(line)
+
+        if len(dialogue_lines) >= 4:  # At least 2 exchanges
+            dialogue_script = "\n".join(dialogue_lines)
+            if self._validate_script_format(dialogue_script):
+                logger.info("✅ Strategy 4: Dialogue extraction successful (%d lines)", len(dialogue_lines))
+                return dialogue_script, 0.70, "dialogue_extraction"
+
+        # Strategy 5: Fallback - check if full response is a valid script
+        if self._validate_script_format(raw_response):
+            logger.warning("⚠️ Strategy 5: Using full response as script (may contain artifacts)")
+            return raw_response, 0.50, "full_response"
+
+        # No valid script found
+        logger.error("❌ All parsing strategies failed - no valid script found")
+        return raw_response, 0.0, "parsing_failed"
+
+    def _validate_script_format(self, script_text: str) -> bool:
+        """
+        Validate that script has proper HOST/EXPERT dialogue format.
+
+        Args:
+            script_text: Script text to validate
+
+        Returns:
+            True if script has valid format, False otherwise
+        """
+        if not script_text or len(script_text) < 50:
+            return False
+
+        # Check for HOST and EXPERT markers
+        has_host = bool(re.search(r"\bHOST\s*:", script_text, re.IGNORECASE))
+        has_expert = bool(re.search(r"\bEXPERT\s*:", script_text, re.IGNORECASE))
+
+        # Count dialogue turns
+        host_count = len(re.findall(r"\bHOST\s*:", script_text, re.IGNORECASE))
+        expert_count = len(re.findall(r"\bEXPERT\s*:", script_text, re.IGNORECASE))
+
+        # Valid script should have both speakers and at least 2 turns each
+        is_valid = has_host and has_expert and host_count >= 2 and expert_count >= 2
+
+        if not is_valid:
+            logger.debug(
+                "Script validation failed: has_host=%s, has_expert=%s, host_count=%d, expert_count=%d",
+                has_host,
+                has_expert,
+                host_count,
+                expert_count,
+            )
+
+        return is_valid
+
+    def _assess_script_quality(self, script_text: str, target_word_count: int, parsing_method: str) -> float:
+        """
+        Assess script quality using multiple criteria.
+
+        Quality Score (0.0-1.0):
+        - 1.0: Perfect script (ideal length, format, no artifacts)
+        - 0.8-0.9: Good script (minor issues)
+        - 0.6-0.7: Acceptable script (some issues but usable)
+        - 0.4-0.5: Poor script (significant issues)
+        - 0.0-0.3: Failed script (unusable)
+
+        Args:
+            script_text: Parsed script text
+            target_word_count: Target word count for the script
+            parsing_method: Method used to parse the script
+
+        Returns:
+            Quality score between 0.0 and 1.0
+        """
+        score = 1.0
+
+        # Factor 1: Parsing method quality (higher is better)
+        parsing_quality = {
+            "xml_tags": 1.0,
+            "flexible_regex": 0.95,
+            "heuristic": 0.85,
+            "dialogue_extraction": 0.75,
+            "full_response": 0.60,
+            "parsing_failed": 0.0,
+        }
+        score *= parsing_quality.get(parsing_method, 0.5)
+
+        # Factor 2: Script format validation
+        if not self._validate_script_format(script_text):
+            score *= 0.5
+            logger.warning("Quality penalty: Invalid script format detected")
+
+        # Factor 3: Word count accuracy (±20% tolerance)
+        word_count = len(script_text.split())
+        target_min = int(target_word_count * 0.80)
+        target_max = int(target_word_count * 1.20)
+
+        if word_count < target_min:
+            # Too short - penalize proportionally
+            shortage_ratio = word_count / target_min
+            score *= max(0.6, shortage_ratio)
+            logger.warning(
+                "Quality penalty: Script too short (%d words, target: %d-%d)", word_count, target_min, target_max
+            )
+        elif word_count > target_max:
+            # Too long - minor penalty
+            score *= 0.95
+            logger.warning(
+                "Quality penalty: Script too long (%d words, target: %d-%d)", word_count, target_min, target_max
+            )
+
+        # Factor 4: Check for artifacts/leakage indicators
+        artifacts = [
+            "<thinking>",
+            "</thinking>",
+            "Let me plan",
+            "I will create",
+            "Here is the script",
+            "[INSERT",
+            "[HOST NAME]",
+            "[EXPERT NAME]",
+        ]
+
+        artifact_count = sum(1 for artifact in artifacts if artifact.lower() in script_text.lower())
+        if artifact_count > 0:
+            score *= max(0.5, 1.0 - (artifact_count * 0.1))
+            logger.warning("Quality penalty: Found %d artifact indicators", artifact_count)
+
+        # Factor 5: Dialogue balance (HOST vs EXPERT turns)
+        import re
+
+        host_count = len(re.findall(r"\bHOST\s*:", script_text, re.IGNORECASE))
+        expert_count = len(re.findall(r"\bEXPERT\s*:", script_text, re.IGNORECASE))
+
+        if host_count > 0 and expert_count > 0:
+            balance_ratio = min(host_count, expert_count) / max(host_count, expert_count)
+            if balance_ratio < 0.5:
+                score *= 0.90
+                logger.warning("Quality penalty: Imbalanced dialogue (HOST=%d, EXPERT=%d)", host_count, expert_count)
+        else:
+            score *= 0.3
+            logger.error("Quality penalty: Missing speaker turns (HOST=%d, EXPERT=%d)", host_count, expert_count)
+
+        # Ensure score is in valid range
+        final_score = max(0.0, min(1.0, score))
+
+        logger.info(
+            "Script quality assessment: score=%.2f, method=%s, words=%d (target: %d), artifacts=%d",
+            final_score,
+            parsing_method,
+            word_count,
+            target_word_count,
+            artifact_count,
+        )
+
+        return final_score
+
+    def _generate_chapters_from_script(self, podcast_script: Any) -> list[dict[str, Any]]:
+        """
+        Generate dynamic chapter markers from podcast script.
+
+        Extracts questions/topics from HOST dialogue and calculates timestamps
+        based on word count and turn structure.
+
+        Args:
+            podcast_script: Parsed PodcastScript with turns
+
+        Returns:
+            List of chapter dictionaries with title, start_time, duration, speaker
+        """
+        import re
+
+        from rag_solution.schemas.podcast_schema import PodcastChapter, Speaker
+
+        chapters: list[dict[str, Any]] = []
+        current_time = 0.0  # Running timestamp in seconds
+
+        logger.info("Generating chapters from %d turns", len(podcast_script.turns))
+
+        for i, turn in enumerate(podcast_script.turns):
+            # Only create chapters for HOST turns (questions/introductions)
+            if turn.speaker == Speaker.HOST:
+                # Extract question/topic from turn text
+                turn_text = turn.text.strip()
+
+                # Clean up the text to get a nice chapter title
+                # Remove filler words and get first sentence
+                chapter_title = turn_text.split(".")[0].strip() if "." in turn_text else turn_text[:100]
+
+                # Further clean the title
+                chapter_title = re.sub(r"\s+", " ", chapter_title)  # Normalize whitespace
+                if len(chapter_title) > 80:
+                    chapter_title = chapter_title[:77] + "..."
+
+                # Calculate duration for this chapter (until next HOST turn or end)
+                chapter_duration = turn.estimated_duration
+
+                # Look ahead to find next HOST turn for better duration estimate
+                for j in range(i + 1, len(podcast_script.turns)):
+                    if podcast_script.turns[j].speaker == Speaker.HOST:
+                        # Found next HOST turn - duration is from current to next
+                        break
+                    # Add EXPERT turn duration to this chapter
+                    chapter_duration += podcast_script.turns[j].estimated_duration
+
+                # Create chapter
+                chapter = PodcastChapter(
+                    title=chapter_title,
+                    start_time=current_time,
+                    duration=chapter_duration,
+                    speaker="HOST",
+                )
+
+                chapters.append(chapter.model_dump())
+                logger.debug(
+                    "Chapter %d: '%s' at %.1fs (duration: %.1fs)",
+                    len(chapters),
+                    chapter_title,
+                    current_time,
+                    chapter_duration,
+                )
+
+            # Update running timestamp
+            current_time += turn.estimated_duration
+
+        logger.info("Generated %d chapters from script", len(chapters))
+
+        # If no chapters found, create a single chapter for the whole podcast
+        if not chapters:
+            logger.warning("No HOST turns found, creating single chapter")
+            chapters = [
+                PodcastChapter(
+                    title="Podcast Content",
+                    start_time=0.0,
+                    duration=podcast_script.total_duration,
+                    speaker="HOST",
+                ).model_dump()
+            ]
+
+        return chapters
 
     async def _resolve_voice_id(self, voice_id: str, user_id: UUID4) -> tuple[str, str | None]:
         """
