@@ -26,7 +26,7 @@
     "react-hook-form": "^7.66.0",
     "react-markdown": "^10.1.0",
     "react-pdf": "^10.2.0",
-    "react-router-dom": "^6.24.0",
+    "react-router-dom": "^7.9.5",
     "react-scripts": "5.0.1",
     "remark-gfm": "^4.0.1",
     "tailwindcss": "^3.4.17",
