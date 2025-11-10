@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
@@ -13,6 +14,10 @@ from core.custom_exceptions import LLMProviderError, NotFoundError, ValidationEr
 from core.logging_utils import get_logger
 from rag_solution.schemas.llm_model_schema import ModelType
 from rag_solution.schemas.llm_usage_schema import LLMUsage, ServiceType
+from rag_solution.schemas.structured_output_schema import (
+    StructuredAnswer,
+    StructuredOutputConfig,
+)
 
 from .base import LLMBase
 
@@ -280,6 +285,221 @@ class OpenAILLM(LLMBase):
             raise LLMProviderError(
                 provider="openai", error_type="generation_failed", message=f"Failed to generate text: {e!s}"
             ) from e
+
+    def generate_structured_output(
+        self,
+        user_id: UUID4,
+        prompt: str,
+        context_documents: list[dict[str, Any]],
+        config: StructuredOutputConfig | None = None,
+        model_parameters: LLMParametersInput | None = None,
+    ) -> tuple[StructuredAnswer, LLMUsage]:
+        """Generate structured output using OpenAI's native JSON schema mode.
+
+        Args:
+            user_id: UUID4 of the user making the request
+            prompt: The user's query/prompt
+            context_documents: List of retrieved documents with metadata
+            config: Structured output configuration
+            model_parameters: Optional LLM parameters
+
+        Returns:
+            Tuple of (StructuredAnswer, LLMUsage)
+
+        Raises:
+            LLMProviderError: If generation fails or response is invalid
+        """
+        try:
+            self._ensure_client()
+            model_id = self._model_id or self._default_model_id
+            generation_params = self._get_generation_params(user_id, model_parameters)
+
+            # Use default config if not provided
+            if config is None:
+                config = StructuredOutputConfig(enabled=True)
+
+            # Build the prompt with context
+            formatted_prompt = self._build_structured_prompt(prompt, context_documents, config)
+
+            # Define JSON schema for OpenAI's structured output
+            json_schema = self._get_openai_json_schema(config)
+
+            # Call OpenAI with JSON schema mode
+            response = self.client.chat.completions.create(  # type: ignore[union-attr]
+                model=model_id,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are a helpful assistant that provides structured answers with citations. "
+                            "Always cite your sources using the provided document references."
+                        ),
+                    },
+                    {"role": "user", "content": formatted_prompt},
+                ],
+                response_format={"type": "json_schema", "json_schema": json_schema},
+                **generation_params,
+            )
+
+            # Parse response content
+            content: str | None = response.choices[0].message.content
+            if not content:
+                raise LLMProviderError(
+                    provider="openai", error_type="generation_failed", message="OpenAI returned empty content"
+                )
+
+            # Parse JSON response
+            try:
+                response_data = json.loads(content)
+                structured_answer = StructuredAnswer(**response_data)
+            except (json.JSONDecodeError, ValidationError) as e:
+                raise LLMProviderError(
+                    provider="openai",
+                    error_type="invalid_response",
+                    message=f"Failed to parse structured output: {e!s}",
+                ) from e
+
+            # Create usage record
+            usage = LLMUsage(
+                prompt_tokens=response.usage.prompt_tokens if response.usage else 0,
+                completion_tokens=response.usage.completion_tokens if response.usage else 0,
+                total_tokens=response.usage.total_tokens if response.usage else 0,
+                model_name=model_id,
+                service_type=ServiceType.GENERATION,
+                timestamp=datetime.now(),
+                user_id=str(user_id),
+            )
+
+            self.track_usage(usage)
+            return structured_answer, usage
+
+        except LLMProviderError:
+            raise
+        except Exception as e:
+            raise LLMProviderError(
+                provider="openai",
+                error_type="generation_failed",
+                message=f"Failed to generate structured output: {e!s}",
+            ) from e
+
+    def _build_structured_prompt(
+        self, prompt: str, context_documents: list[dict[str, Any]], config: StructuredOutputConfig
+    ) -> str:
+        """Build a prompt that includes context documents for structured output.
+
+        Args:
+            prompt: User's query
+            context_documents: Retrieved documents with metadata
+            config: Structured output configuration
+
+        Returns:
+            Formatted prompt with context
+        """
+        # Format context documents
+        context_text = "\n\n".join(
+            [
+                f"Document {i + 1} (ID: {doc.get('id', 'unknown')}):\n"
+                f"Title: {doc.get('title', 'Untitled')}\n"
+                f"Content: {doc.get('content', '')[:1000]}"  # Limit context length
+                for i, doc in enumerate(context_documents[: config.max_citations])
+            ]
+        )
+
+        # Build final prompt
+        prompt_parts = [
+            f"Question: {prompt}",
+            "\nContext Documents:",
+            context_text,
+            "\nPlease provide a structured answer with:",
+            "1. A clear, concise answer to the question",
+            "2. A confidence score (0.0-1.0) based on the quality and relevance of the sources",
+            "3. Citations to specific documents that support your answer",
+        ]
+
+        if config.include_reasoning:
+            prompt_parts.append("4. Step-by-step reasoning showing how you arrived at your answer")
+
+        return "\n".join(prompt_parts)
+
+    def _get_openai_json_schema(self, config: StructuredOutputConfig) -> dict[str, Any]:
+        """Get OpenAI-compatible JSON schema for structured output.
+
+        Args:
+            config: Structured output configuration
+
+        Returns:
+            JSON schema dictionary for OpenAI API
+        """
+        schema = {
+            "name": "structured_answer",
+            "strict": config.validation_strict,
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "answer": {"type": "string", "description": "The main answer text"},
+                    "confidence": {
+                        "type": "number",
+                        "description": "Confidence score between 0.0 and 1.0",
+                        "minimum": 0.0,
+                        "maximum": 1.0,
+                    },
+                    "citations": {
+                        "type": "array",
+                        "description": "List of citations supporting the answer",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "document_id": {"type": "string", "description": "UUID of source document"},
+                                "title": {"type": "string", "description": "Document title"},
+                                "excerpt": {"type": "string", "description": "Relevant excerpt"},
+                                "page_number": {"type": ["integer", "null"], "description": "Page number"},
+                                "relevance_score": {
+                                    "type": "number",
+                                    "description": "Relevance score",
+                                    "minimum": 0.0,
+                                    "maximum": 1.0,
+                                },
+                                "chunk_id": {"type": ["string", "null"], "description": "Chunk identifier"},
+                            },
+                            "required": ["document_id", "title", "excerpt", "relevance_score"],
+                            "additionalProperties": False,
+                        },
+                    },
+                    "format_type": {
+                        "type": "string",
+                        "description": "Answer format type",
+                        "enum": ["standard", "cot_reasoning", "comparative", "summary"],
+                    },
+                    "metadata": {"type": "object", "description": "Additional metadata"},
+                },
+                "required": ["answer", "confidence", "citations", "format_type"],
+                "additionalProperties": False,
+            },
+        }
+
+        # Add reasoning_steps if requested
+        if config.include_reasoning:
+            schema["schema"]["properties"]["reasoning_steps"] = {
+                "type": "array",
+                "description": "Step-by-step reasoning process",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "step_number": {"type": "integer", "description": "Step number", "minimum": 1},
+                        "thought": {"type": "string", "description": "Reasoning or analysis"},
+                        "conclusion": {"type": "string", "description": "Conclusion from this step"},
+                        "citations": {
+                            "type": "array",
+                            "description": "Citations for this step",
+                            "items": {"$ref": "#/properties/citations/items"},
+                        },
+                    },
+                    "required": ["step_number", "thought", "conclusion"],
+                    "additionalProperties": False,
+                },
+            }
+
+        return schema
 
     def close(self) -> None:
         """Clean up provider resources."""

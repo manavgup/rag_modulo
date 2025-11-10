@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import time
 from collections.abc import Generator, Sequence
+from datetime import datetime
 from typing import Any
 
 from ibm_watsonx_ai import APIClient, Credentials
@@ -19,7 +21,12 @@ from core.custom_exceptions import LLMProviderError, NotFoundError, ValidationEr
 from core.logging_utils import get_logger
 from rag_solution.schemas.llm_model_schema import ModelType
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
+from rag_solution.schemas.llm_usage_schema import LLMUsage, ServiceType
 from rag_solution.schemas.prompt_template_schema import PromptTemplateBase
+from rag_solution.schemas.structured_output_schema import (
+    StructuredAnswer,
+    StructuredOutputConfig,
+)
 from vectordbs.data_types import EmbeddingsList
 
 from .base import LLMBase
@@ -498,6 +505,177 @@ class WatsonXLLM(LLMBase):
                 error_type="embeddings_failed",
                 message=f"Failed to generate embeddings: {e!s}",
             ) from e
+
+    def generate_structured_output(
+        self,
+        user_id: UUID4,
+        prompt: str,
+        context_documents: list[dict[str, Any]],
+        config: StructuredOutputConfig | None = None,
+        model_parameters: LLMParametersInput | None = None,
+    ) -> tuple[StructuredAnswer, LLMUsage]:
+        """Generate structured output using WatsonX with JSON mode prompting.
+
+        Args:
+            user_id: UUID4 of the user making the request
+            prompt: The user's query/prompt
+            context_documents: List of retrieved documents with metadata
+            config: Structured output configuration
+            model_parameters: Optional LLM parameters
+
+        Returns:
+            Tuple of (StructuredAnswer, LLMUsage)
+
+        Raises:
+            LLMProviderError: If generation fails or response is invalid
+
+        Note:
+            WatsonX doesn't have native JSON schema support, so we use
+            carefully crafted prompts with JSON examples to guide output format.
+        """
+        try:
+            self._ensure_client()
+            model = self._get_model(user_id, model_parameters)
+
+            # Use default config if not provided
+            if config is None:
+                config = StructuredOutputConfig(enabled=True)
+
+            # Build the prompt with context and JSON instructions
+            formatted_prompt = self._build_structured_prompt_watsonx(prompt, context_documents, config)
+
+            # Generate text with WatsonX
+            response = model.generate_text(prompt=formatted_prompt)
+
+            # Extract text from response
+            result_text: str
+            if isinstance(response, dict) and "results" in response:
+                result_text = response["results"][0]["generated_text"].strip()
+            elif isinstance(response, list):
+                first_result = response[0]
+                result_text = (
+                    first_result["generated_text"].strip() if isinstance(first_result, dict) else first_result.strip()
+                )
+            else:
+                result_text = str(response).strip()
+
+            # Parse JSON response
+            try:
+                # Try to find JSON in the response (might have text before/after)
+                json_start = result_text.find("{")
+                json_end = result_text.rfind("}") + 1
+                if json_start >= 0 and json_end > json_start:
+                    json_text = result_text[json_start:json_end]
+                    response_data = json.loads(json_text)
+                else:
+                    # No JSON found, try parsing the whole thing
+                    response_data = json.loads(result_text)
+
+                structured_answer = StructuredAnswer(**response_data)
+            except (json.JSONDecodeError, ValidationError) as e:
+                logger.error(f"Failed to parse WatsonX response as JSON: {result_text[:500]}")
+                raise LLMProviderError(
+                    provider="watsonx",
+                    error_type="invalid_response",
+                    message=f"Failed to parse structured output: {e!s}",
+                ) from e
+
+            # Create usage record (WatsonX API doesn't return token counts in all cases)
+            # We estimate based on response length
+            model_id = model.model_id
+            usage = LLMUsage(
+                prompt_tokens=len(formatted_prompt) // 4,  # Rough estimate: 4 chars per token
+                completion_tokens=len(result_text) // 4,
+                total_tokens=(len(formatted_prompt) + len(result_text)) // 4,
+                model_name=str(model_id),
+                service_type=ServiceType.GENERATION,
+                timestamp=datetime.now(),
+                user_id=str(user_id),
+            )
+
+            self.track_usage(usage)
+            return structured_answer, usage
+
+        except LLMProviderError:
+            raise
+        except Exception as e:
+            raise LLMProviderError(
+                provider="watsonx",
+                error_type="generation_failed",
+                message=f"Failed to generate structured output: {e!s}",
+            ) from e
+
+    def _build_structured_prompt_watsonx(
+        self, prompt: str, context_documents: list[dict[str, Any]], config: StructuredOutputConfig
+    ) -> str:
+        """Build a prompt with JSON schema instructions for WatsonX.
+
+        Since WatsonX doesn't have native JSON schema support, we use
+        detailed prompting with JSON examples to guide the output format.
+
+        Args:
+            prompt: User's query
+            context_documents: Retrieved documents with metadata
+            config: Structured output configuration
+
+        Returns:
+            Formatted prompt with JSON schema instructions
+        """
+        # Format context documents
+        context_text = "\n\n".join(
+            [
+                f"Document {i + 1} (ID: {doc.get('id', 'unknown')}):\n"
+                f"Title: {doc.get('title', 'Untitled')}\n"
+                f"Content: {doc.get('content', '')[:1000]}"  # Limit context length
+                for i, doc in enumerate(context_documents[: config.max_citations])
+            ]
+        )
+
+        # Build JSON schema example
+        json_example = {
+            "answer": "Your detailed answer here...",
+            "confidence": 0.85,
+            "citations": [
+                {
+                    "document_id": "550e8400-e29b-41d4-a716-446655440000",
+                    "title": "Document Title",
+                    "excerpt": "Relevant excerpt from the document...",
+                    "page_number": 1,
+                    "relevance_score": 0.9,
+                    "chunk_id": "chunk_123",
+                }
+            ],
+            "format_type": "standard",
+            "metadata": {},
+        }
+
+        if config.include_reasoning:
+            json_example["reasoning_steps"] = [
+                {"step_number": 1, "thought": "First, I analyze...", "conclusion": "This leads to...", "citations": []}
+            ]
+
+        # Build prompt with strict JSON formatting instructions
+        prompt_parts = [
+            "You are a helpful assistant that provides structured answers in JSON format.",
+            f"\nQuestion: {prompt}",
+            "\nContext Documents:",
+            context_text,
+            "\n\nIMPORTANT: Respond ONLY with valid JSON following this exact structure:",
+            json.dumps(json_example, indent=2),
+            "\n\nRules:",
+            "1. Use ONLY valid JSON format - no extra text before or after",
+            "2. Confidence must be a number between 0.0 and 1.0",
+            "3. Include citations from the context documents above",
+            "4. Use the document IDs provided in the context",
+            "5. Format type must be one of: standard, cot_reasoning, comparative, summary",
+        ]
+
+        if config.include_reasoning:
+            prompt_parts.append("6. Include reasoning_steps array showing your thought process")
+
+        prompt_parts.append("\n\nJSON Response:")
+
+        return "\n".join(prompt_parts)
 
     def close(self) -> None:
         """Clean up provider resources."""
