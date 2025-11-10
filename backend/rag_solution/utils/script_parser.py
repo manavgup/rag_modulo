@@ -9,7 +9,7 @@ import logging
 import re
 from typing import ClassVar
 
-from rag_solution.schemas.podcast_schema import PodcastScript, PodcastTurn, ScriptParsingResult, Speaker
+from rag_solution.schemas.podcast_schema import PodcastChapter, PodcastScript, PodcastTurn, ScriptParsingResult, Speaker
 
 logger = logging.getLogger(__name__)
 
@@ -75,10 +75,14 @@ class PodcastScriptParser:
             total_words = sum(len(turn.text.split()) for turn in turns)
             total_duration = (total_words / self.average_wpm) * 60.0  # seconds
 
+            # Extract chapters from HOST questions (if enabled)
+            chapters = self._extract_chapters(turns)
+
             script = PodcastScript(
                 turns=turns,
                 total_duration=total_duration,
                 total_words=total_words,
+                chapters=chapters,
             )
 
             # Collect warnings
@@ -248,3 +252,123 @@ class PodcastScriptParser:
             warnings.append(f"Script is very long ({script.total_duration / 60:.1f} minutes)")
 
         return warnings
+
+    def _extract_chapters(self, turns: list[PodcastTurn]) -> list[PodcastChapter]:
+        """
+        Extract dynamic chapter markers from HOST questions.
+
+        Each HOST turn becomes a chapter. Timestamps are calculated based on
+        cumulative word counts at ±10 seconds accuracy (150 words/min ≈ 2.5 words/sec).
+
+        Args:
+            turns: List of podcast turns
+
+        Returns:
+            List of PodcastChapter objects with titles and timestamps
+        """
+        chapters = []
+        cumulative_time = 0.0  # Track running time in seconds
+
+        chapter_start_time = 0.0
+        chapter_word_count = 0
+        current_chapter_title: str | None = None
+
+        for turn in turns:
+            turn_words = len(turn.text.split())
+
+            if turn.speaker == Speaker.HOST:
+                # If we have an active chapter, finalize it
+                if current_chapter_title is not None:
+                    chapters.append(
+                        PodcastChapter(
+                            title=current_chapter_title,
+                            start_time=chapter_start_time,
+                            end_time=cumulative_time,
+                            word_count=chapter_word_count,
+                        )
+                    )
+
+                # Start new chapter with this HOST turn
+                chapter_start_time = cumulative_time
+                chapter_word_count = turn_words
+                current_chapter_title = self._extract_chapter_title(turn.text)
+
+            else:
+                # EXPERT turn - accumulate into current chapter
+                chapter_word_count += turn_words
+
+            # Update cumulative time
+            cumulative_time += turn.estimated_duration
+
+        # Finalize last chapter if exists
+        if current_chapter_title is not None:
+            chapters.append(
+                PodcastChapter(
+                    title=current_chapter_title,
+                    start_time=chapter_start_time,
+                    end_time=cumulative_time,
+                    word_count=chapter_word_count,
+                )
+            )
+
+        logger.info("Extracted %d chapters from %d turns", len(chapters), len(turns))
+        return chapters
+
+    def _extract_chapter_title(self, host_text: str, max_length: int = 100) -> str:
+        """
+        Extract chapter title from HOST question.
+
+        Strategy:
+        1. Remove common question words (what, how, why, can, could, would)
+        2. Capitalize first word
+        3. Trim to max_length
+
+        Args:
+            host_text: HOST dialogue text
+            max_length: Maximum title length (default 100 chars)
+
+        Returns:
+            Extracted chapter title
+        """
+        # Remove common filler phrases and question words
+        title = host_text.strip()
+
+        # Patterns to remove from the start of questions
+        remove_patterns = [
+            r"^(So,?\s+)",
+            r"^(Now,?\s+)",
+            r"^(Well,?\s+)",
+            r"^(Okay,?\s+)",
+            r"^(Alright,?\s+)",
+            r"^(Let me ask you,?\s+)",
+            r"^(Can you tell (us|me)\s+)",
+            r"^(Could you explain\s+)",
+            r"^(Would you say\s+)",
+        ]
+
+        for pattern in remove_patterns:
+            title = re.sub(pattern, "", title, flags=re.IGNORECASE)
+
+        # If title is a question, try to extract the topic
+        if "?" in title:
+            # Get text before question mark
+            title = title.split("?")[0].strip()
+
+        # Remove leading "What is", "How does", etc.
+        title = re.sub(
+            r"^(What|How|Why|When|Where|Who)\s+(is|are|does|do|did|was|were)\s+", "", title, flags=re.IGNORECASE
+        )
+
+        # Capitalize first letter
+        if title:
+            title = title[0].upper() + title[1:]
+
+        # Truncate to max length
+        if len(title) > max_length:
+            title = title[: max_length - 3] + "..."
+
+        # Fallback if title is too short
+        if len(title) < 10:
+            title = host_text[:max_length]
+
+        return title.strip()

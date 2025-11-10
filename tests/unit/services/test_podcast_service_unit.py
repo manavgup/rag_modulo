@@ -342,9 +342,19 @@ class TestPodcastServiceCustomization:
         mock_template_service.get_by_type = Mock(return_value=mock_template)
         mock_template_service_class.return_value = mock_template_service
 
-        # Mock LLM provider
+        # Mock LLM provider with valid podcast script in XML format
+        valid_script = """<script>
+HOST: Welcome to today's podcast!
+EXPERT: Thank you for having me.
+HOST: Can you tell us about this topic?
+EXPERT: Of course! This is a fascinating subject with many important details.
+HOST: That's very interesting. What else should we know?
+EXPERT: There are several key points to consider here.
+HOST: Thank you for sharing your insights.
+EXPERT: My pleasure!
+</script>"""
         mock_llm_provider = Mock()
-        mock_llm_provider.generate_text = Mock(return_value="Script")
+        mock_llm_provider.generate_text = Mock(return_value=valid_script)
 
         # Mock factory instance and its get_provider method
         mock_factory_instance = Mock()
@@ -398,9 +408,19 @@ class TestPodcastServiceCustomization:
         mock_template_service.get_by_type = Mock(return_value=mock_template)
         mock_template_service_class.return_value = mock_template_service
 
-        # Mock LLM provider
+        # Mock LLM provider with valid podcast script in XML format
+        valid_script = """<script>
+HOST: Welcome to today's podcast!
+EXPERT: Thank you for having me.
+HOST: Can you tell us about this topic?
+EXPERT: Of course! This is a fascinating subject with many important details.
+HOST: That's very interesting. What else should we know?
+EXPERT: There are several key points to consider here.
+HOST: Thank you for sharing your insights.
+EXPERT: My pleasure!
+</script>"""
         mock_llm_provider = Mock()
-        mock_llm_provider.generate_text = Mock(return_value="Script")
+        mock_llm_provider.generate_text = Mock(return_value=valid_script)
 
         # Mock factory instance and its get_provider method
         mock_factory_instance = Mock()

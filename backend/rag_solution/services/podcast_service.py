@@ -43,6 +43,7 @@ from rag_solution.schemas.search_schema import SearchInput
 from rag_solution.services.collection_service import CollectionService
 from rag_solution.services.search_service import SearchService
 from rag_solution.services.storage.audio_storage import AudioStorageBase, LocalFileStorage
+from rag_solution.utils.podcast_script_parser import PodcastScriptParser as EnhancedScriptParser
 from rag_solution.utils.script_parser import PodcastScriptParser
 
 logger = logging.getLogger(__name__)
@@ -110,6 +111,19 @@ class PodcastService:
     # pylint: disable=line-too-long
     PODCAST_SCRIPT_PROMPT = """You are a professional podcast script writer. Create an engaging podcast dialogue between a HOST and an EXPERT in {language} language.
 
+SYSTEM RULES (DO NOT INCLUDE THESE IN YOUR OUTPUT):
+1. NEVER include meta-information like "Word count: X" or "Target: X words"
+2. NEVER include instruction numbers like "Instruction 1:" or "Step 2:"
+3. NEVER include commentary about the script like "This script adheres to..."
+4. NEVER use placeholders like [HOST NAME], [EXPERT NAME], or [INSERT NAME]
+5. Your output MUST ONLY contain the dialogue in the XML format specified below
+
+OUTPUT FORMAT REQUIREMENT:
+You MUST wrap your response in these XML tags:
+<script>
+[Your podcast dialogue here - ONLY the dialogue, nothing else]
+</script>
+
 IMPORTANT: Generate the ENTIRE script in {language} language. All dialogue must be in {language}.
 
 Topic/Focus: {user_topic}
@@ -175,7 +189,11 @@ Format your script as a natural conversation with these guidelines:
 
 **FINAL WARNING**: If you use any information not found in the provided documents, the script will be rejected.
 
-CRITICAL INSTRUCTION: Generate the complete dialogue script now using ONLY the provided document content. Write EVERYTHING in {language} language, not English:"""
+CRITICAL INSTRUCTION:
+1. Generate the complete dialogue script using ONLY the provided document content
+2. Write EVERYTHING in {language} language, not English
+3. Wrap your output in <script>...</script> XML tags
+4. Include ONLY the dialogue inside the tags - NO meta-information, NO word counts, NO instructions"""
 
     # Voice preview text for TTS samples
     VOICE_PREVIEW_TEXT = "Hello, you are listening to a preview of this voice."
@@ -393,12 +411,24 @@ CRITICAL INSTRUCTION: Generate the complete dialogue script now using ONLY the p
             audio_url = await self._store_audio(podcast_id, podcast_input.user_id, audio_bytes, podcast_input.format)
             audio_stored = True  # Mark audio as stored for cleanup if needed
 
-            # Step 6: Mark complete (100%)
+            # Step 6: Extract and serialize chapters
+            chapters_dict = [
+                {
+                    "title": chapter.title,
+                    "start_time": chapter.start_time,
+                    "end_time": chapter.end_time,
+                    "word_count": chapter.word_count,
+                }
+                for chapter in podcast_script.chapters
+            ]
+
+            # Step 7: Mark complete (100%)
             self.repository.mark_completed(
                 podcast_id=podcast_id,
                 audio_url=audio_url,
                 transcript=script_text,
                 audio_size_bytes=len(audio_bytes),
+                chapters=chapters_dict if chapters_dict else None,
             )
 
             logger.info(
@@ -711,32 +741,85 @@ CRITICAL INSTRUCTION: Generate the complete dialogue script now using ONLY the p
             is_default=False,
         )
 
-        script_text = llm_provider.generate_text(
-            user_id=user_id,
-            prompt="",  # Empty - template contains full prompt
-            template=podcast_template,
-            variables=variables,
-            model_parameters=podcast_params,
-        )
+        # Initialize enhanced parser for quality validation
+        enhanced_parser = EnhancedScriptParser(average_wpm=150)
 
-        logger.info(
-            "Generated script: %d characters, target %d words (range: %d-%d)",
-            len(script_text) if isinstance(script_text, str) else sum(len(s) for s in script_text),
-            word_count,
-            min_word_count,
-            max_word_count,
-        )
+        # Retry configuration
+        max_retries = 3
+        min_quality_score = 0.6
 
-        # Ensure we return a single string (some providers may return list)
-        if isinstance(script_text, list):
-            script_text = "\n\n".join(script_text)
+        best_script = None
+        best_quality = 0.0
 
-        # Clean up LLM output - remove meta-commentary and duplicates
-        script_text = self._clean_llm_script(script_text)
+        for attempt in range(max_retries):
+            try:
+                script_text = llm_provider.generate_text(
+                    user_id=user_id,
+                    prompt="",  # Empty - template contains full prompt
+                    template=podcast_template,
+                    variables=variables,
+                    model_parameters=podcast_params,
+                )
 
-        logger.info("Cleaned script: %d characters", len(script_text))
+                # Ensure we return a single string (some providers may return list)
+                if isinstance(script_text, list):
+                    script_text = "\n\n".join(script_text)
 
-        return script_text
+                logger.info(
+                    "Generated script (attempt %d/%d): %d characters",
+                    attempt + 1,
+                    max_retries,
+                    len(script_text),
+                )
+
+                # Parse and validate script with enhanced parser
+                parse_result = enhanced_parser.parse_script(script_text, expected_word_count=word_count)
+
+                logger.info(
+                    "Parse result: quality=%.2f, strategy=%s, artifacts=%s, word_count=%d",
+                    parse_result.quality_score,
+                    parse_result.strategy_used.value,
+                    parse_result.has_artifacts,
+                    parse_result.word_count,
+                )
+
+                # Track best result
+                if parse_result.quality_score > best_quality:
+                    best_script = parse_result.script
+                    best_quality = parse_result.quality_score
+
+                # Check if script meets quality threshold
+                if parse_result.is_acceptable(min_quality_score):
+                    logger.info(
+                        "Script accepted with quality score %.2f (threshold: %.2f)",
+                        parse_result.quality_score,
+                        min_quality_score,
+                    )
+                    return parse_result.script
+
+                logger.warning(
+                    "Script quality %.2f below threshold %.2f, retrying...",
+                    parse_result.quality_score,
+                    min_quality_score,
+                )
+
+            except Exception as e:
+                logger.error("Error generating script on attempt %d: %s", attempt + 1, e)
+                if attempt == max_retries - 1:
+                    raise
+
+        # If we exhausted retries, return best script with warning
+        if best_script:
+            logger.warning(
+                "Exhausted retries, returning best script with quality %.2f (threshold: %.2f)",
+                best_quality,
+                min_quality_score,
+            )
+            return best_script
+
+        # Fallback: try old cleaning method
+        logger.error("All parsing attempts failed, falling back to simple cleaning")
+        return self._clean_llm_script(script_text)
 
     def _clean_llm_script(self, script_text: str) -> str:
         """
@@ -1477,12 +1560,24 @@ CRITICAL INSTRUCTION: Generate the complete dialogue script now using ONLY the p
                 audio_format=audio_input.audio_format,
             )
 
-            # Step 5: Mark completed
+            # Step 5: Extract and serialize chapters
+            chapters_dict = [
+                {
+                    "title": chapter.title,
+                    "start_time": chapter.start_time,
+                    "end_time": chapter.end_time,
+                    "word_count": chapter.word_count,
+                }
+                for chapter in podcast_script.chapters
+            ]
+
+            # Step 6: Mark completed
             self.repository.mark_completed(
                 podcast_id=podcast_id,
                 audio_url=audio_url,
                 transcript=audio_input.script_text,
                 audio_size_bytes=len(audio_bytes),
+                chapters=chapters_dict if chapters_dict else None,
             )
 
             logger.info("Audio generation completed for podcast %s", podcast_id)
