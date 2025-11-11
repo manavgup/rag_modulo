@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import time
 from collections.abc import Generator, Sequence
 from datetime import datetime
@@ -32,6 +33,15 @@ from vectordbs.data_types import EmbeddingsList
 from .base import LLMBase
 
 logger = get_logger("llm.providers.watsonx")
+
+# Try to import tiktoken for accurate token counting
+try:
+    import tiktoken
+
+    TIKTOKEN_AVAILABLE = True
+except ImportError:
+    TIKTOKEN_AVAILABLE = False
+    logger.warning("tiktoken not available, using fallback token estimation")
 
 
 class WatsonXLLM(LLMBase):
@@ -506,6 +516,84 @@ class WatsonXLLM(LLMBase):
                 message=f"Failed to generate embeddings: {e!s}",
             ) from e
 
+    def _estimate_tokens(self, text: str) -> int:
+        """Estimate token count for text using tiktoken if available.
+
+        Args:
+            text: Text to estimate tokens for
+
+        Returns:
+            Estimated token count
+
+        Note:
+            Uses tiktoken with cl100k_base encoding if available,
+            otherwise falls back to character-based estimation.
+            Average English: ~4.7 chars/word, ~1.3 tokens/word = ~3.6 chars/token
+        """
+        if TIKTOKEN_AVAILABLE:
+            try:
+                encoder = tiktoken.get_encoding("cl100k_base")
+                return len(encoder.encode(text))
+            except Exception as e:
+                logger.warning(f"tiktoken encoding failed, using fallback: {e}")
+
+        # Fallback: improved character-based estimation
+        # 3.6 chars/token is more accurate than 4 chars/token
+        return int(len(text) / 3.6)
+
+    def _extract_json_from_text(self, text: str) -> dict[str, Any]:
+        """Extract JSON from text with multiple fallback strategies.
+
+        Args:
+            text: Response text that may contain JSON
+
+        Returns:
+            Parsed JSON dictionary
+
+        Raises:
+            json.JSONDecodeError: If no valid JSON found after all strategies
+
+        Note:
+            Tries multiple extraction strategies in order:
+            1. Direct JSON parsing
+            2. Regex-based JSON block extraction
+            3. Balanced brace matching
+        """
+        # Strategy 1: Try direct parsing
+        try:
+            return json.loads(text.strip())
+        except json.JSONDecodeError:
+            pass
+
+        # Strategy 2: Extract JSON block with regex
+        # Matches nested JSON objects
+        json_pattern = r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}"
+        matches = re.findall(json_pattern, text, re.DOTALL)
+        for match in matches:
+            try:
+                return json.loads(match)
+            except json.JSONDecodeError:
+                continue
+
+        # Strategy 3: Find balanced braces (most robust)
+        start = text.find("{")
+        if start >= 0:
+            brace_count = 0
+            for i, char in enumerate(text[start:], start):
+                if char == "{":
+                    brace_count += 1
+                elif char == "}":
+                    brace_count -= 1
+                    if brace_count == 0:
+                        try:
+                            return json.loads(text[start : i + 1])
+                        except json.JSONDecodeError:
+                            # Continue searching for next potential JSON block
+                            pass
+
+        # All strategies failed
+        raise json.JSONDecodeError(f"No valid JSON found in response: {text[:200]}...", text, 0)
+
     def generate_structured_output(
         self,
         user_id: UUID4,
@@ -559,18 +647,9 @@ class WatsonXLLM(LLMBase):
             else:
                 result_text = str(response).strip()
 
-            # Parse JSON response
+            # Parse JSON response using robust extraction
             try:
-                # Try to find JSON in the response (might have text before/after)
-                json_start = result_text.find("{")
-                json_end = result_text.rfind("}") + 1
-                if json_start >= 0 and json_end > json_start:
-                    json_text = result_text[json_start:json_end]
-                    response_data = json.loads(json_text)
-                else:
-                    # No JSON found, try parsing the whole thing
-                    response_data = json.loads(result_text)
-
+                response_data = self._extract_json_from_text(result_text)
                 structured_answer = StructuredAnswer(**response_data)
             except (json.JSONDecodeError, ValidationError) as e:
                 logger.error(f"Failed to parse WatsonX response as JSON: {result_text[:500]}")
@@ -580,13 +659,13 @@ class WatsonXLLM(LLMBase):
                     message=f"Failed to parse structured output: {e!s}",
                 ) from e
 
-            # Create usage record (WatsonX API doesn't return token counts in all cases)
-            # We estimate based on response length
+            # Create usage record with accurate token estimation
+            # WatsonX API doesn't always return token counts, so we estimate
             model_id = model.model_id
             usage = LLMUsage(
-                prompt_tokens=len(formatted_prompt) // 4,  # Rough estimate: 4 chars per token
-                completion_tokens=len(result_text) // 4,
-                total_tokens=(len(formatted_prompt) + len(result_text)) // 4,
+                prompt_tokens=self._estimate_tokens(formatted_prompt),
+                completion_tokens=self._estimate_tokens(result_text),
+                total_tokens=self._estimate_tokens(formatted_prompt + result_text),
                 model_name=str(model_id),
                 service_type=ServiceType.GENERATION,
                 timestamp=datetime.now(),
