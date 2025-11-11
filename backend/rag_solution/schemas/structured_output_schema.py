@@ -156,8 +156,12 @@ class StructuredAnswer(BaseModel):
     def validate_citations(cls, v: list[Citation]) -> list[Citation]:
         """Ensure citations list is valid and deduplicated.
 
-        When duplicate citations exist (same document_id and chunk_id),
+        When duplicate citations exist (same document_id, chunk_id, and page_number),
         preserves the one with the highest relevance score.
+
+        This allows multiple citations from different pages of the same document,
+        which is important for multi-page documents like annual reports where
+        relevant information may span multiple pages.
 
         Returns:
             Deduplicated list of citations with highest relevance scores
@@ -165,11 +169,12 @@ class StructuredAnswer(BaseModel):
         if not v:
             return v
 
-        # Use dict to track best citation for each (document_id, chunk_id) pair
-        best_citations: dict[tuple[str, str | None], Citation] = {}
+        # Use dict to track best citation for each (document_id, chunk_id, page_number) tuple
+        # This preserves citations from different pages of the same document
+        best_citations: dict[tuple[str, str | None, int | None], Citation] = {}
 
         for citation in v:
-            key = (str(citation.document_id), citation.chunk_id)
+            key = (str(citation.document_id), citation.chunk_id, citation.page_number)
 
             # Keep citation with highest relevance score for each unique key
             if key not in best_citations or citation.relevance_score > best_citations[key].relevance_score:

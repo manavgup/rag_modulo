@@ -199,20 +199,22 @@ class TestStructuredAnswer:
             StructuredAnswer(answer="Answer", confidence=1.1, citations=[citation], format_type=FormatType.STANDARD)
 
     def test_structured_answer_duplicate_citations(self):
-        """Test that duplicate citations are removed."""
+        """Test that duplicate citations (same doc, chunk, page) are removed."""
         citation1 = Citation(
             document_id="550e8400-e29b-41d4-a716-446655440000",
             title="Test Document",
             excerpt="Excerpt 1",
             relevance_score=0.95,
             chunk_id="chunk_1",
+            page_number=5,
         )
         citation2 = Citation(
             document_id="550e8400-e29b-41d4-a716-446655440000",
             title="Test Document",
             excerpt="Excerpt 2",
             relevance_score=0.90,
-            chunk_id="chunk_1",  # Same document and chunk
+            chunk_id="chunk_1",  # Same document, chunk, and page
+            page_number=5,
         )
         answer = StructuredAnswer(
             answer="Answer",
@@ -220,8 +222,49 @@ class TestStructuredAnswer:
             citations=[citation1, citation2],
             format_type=FormatType.STANDARD,
         )
-        # Duplicates should be removed
+        # Duplicates (same doc_id, chunk_id, page_number) should be removed
         assert len(answer.citations) == 1
+        # Should keep the one with higher relevance score
+        assert answer.citations[0].relevance_score == 0.95
+
+    def test_structured_answer_multi_page_citations_preserved(self):
+        """Test that citations from different pages of same document are preserved."""
+        citation_page5 = Citation(
+            document_id="550e8400-e29b-41d4-a716-446655440000",
+            title="IBM Annual Report 2023",
+            excerpt="Revenue increased by 12%...",
+            relevance_score=0.95,
+            chunk_id=None,
+            page_number=5,
+        )
+        citation_page12 = Citation(
+            document_id="550e8400-e29b-41d4-a716-446655440000",
+            title="IBM Annual Report 2023",
+            excerpt="Net income rose to $8.2B...",
+            relevance_score=0.88,
+            chunk_id=None,
+            page_number=12,
+        )
+        citation_page18 = Citation(
+            document_id="550e8400-e29b-41d4-a716-446655440000",
+            title="IBM Annual Report 2023",
+            excerpt="Future outlook remains positive...",
+            relevance_score=0.82,
+            chunk_id=None,
+            page_number=18,
+        )
+        answer = StructuredAnswer(
+            answer="IBM's financial performance improved significantly in 2023.",
+            confidence=0.92,
+            citations=[citation_page5, citation_page12, citation_page18],
+            format_type=FormatType.STANDARD,
+        )
+        # All 3 citations from different pages should be preserved
+        assert len(answer.citations) == 3
+        # Should be sorted by relevance score (highest first)
+        assert answer.citations[0].page_number == 5  # 0.95
+        assert answer.citations[1].page_number == 12  # 0.88
+        assert answer.citations[2].page_number == 18  # 0.82
 
     def test_structured_answer_reasoning_steps_sequential(self):
         """Test that reasoning steps must be sequential."""
