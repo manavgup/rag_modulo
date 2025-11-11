@@ -395,12 +395,18 @@ class OpenAILLM(LLMBase):
         Returns:
             Formatted prompt with context
         """
-        # Format context documents
+        # Format context documents with configurable truncation
+        def truncate_content(content: str, max_length: int) -> str:
+            """Truncate content with ellipsis indicator."""
+            if len(content) <= max_length:
+                return content
+            return content[:max_length] + "..."
+
         context_text = "\n\n".join(
             [
                 f"Document {i + 1} (ID: {doc.get('id', 'unknown')}):\n"
                 f"Title: {doc.get('title', 'Untitled')}\n"
-                f"Content: {doc.get('content', '')[:1000]}"  # Limit context length
+                f"Content: {truncate_content(doc.get('content', ''), config.max_context_per_doc)}"
                 for i, doc in enumerate(context_documents[: config.max_citations])
             ]
         )

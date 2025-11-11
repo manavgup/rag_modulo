@@ -22,6 +22,17 @@ from rag_solution.schemas.structured_output_schema import Citation, StructuredAn
 
 logger = get_logger("services.output_validator")
 
+# Quality score calculation constants
+# These weights determine how each factor contributes to the overall quality score (0.0-1.0)
+QUALITY_WEIGHT_CONFIDENCE = 0.4  # Confidence score contributes 40%
+QUALITY_WEIGHT_CITATIONS = 0.3  # Citation quality contributes 30%
+QUALITY_WEIGHT_ANSWER_LENGTH = 0.2  # Answer completeness contributes 20%
+QUALITY_WEIGHT_REASONING = 0.1  # Reasoning presence contributes 10%
+
+# Ideal values for quality assessment
+IDEAL_CITATION_COUNT = 3  # Target: 3+ citations for optimal quality
+IDEAL_ANSWER_LENGTH = 200  # Target: 200+ characters for complete answers
+
 
 class OutputValidationError(Exception):
     """Exception raised when output validation fails."""
@@ -228,24 +239,24 @@ class OutputValidatorService:
             "format_type": answer.format_type.value,
         }
 
-        # Calculate overall quality score (0.0-1.0)
+        # Calculate overall quality score (0.0-1.0) using weighted factors
         quality_score = 0.0
 
         # Confidence contributes 40%
-        quality_score += answer.confidence * 0.4
+        quality_score += answer.confidence * QUALITY_WEIGHT_CONFIDENCE
 
         # Citation quality contributes 30%
         if answer.citations:
-            citation_quality = min(len(answer.citations) / 3.0, 1.0)  # Ideal: 3+ citations
-            quality_score += citation_quality * 0.3
+            citation_quality = min(len(answer.citations) / IDEAL_CITATION_COUNT, 1.0)
+            quality_score += citation_quality * QUALITY_WEIGHT_CITATIONS
 
         # Answer completeness contributes 20%
-        answer_quality = min(len(answer.answer) / 200.0, 1.0)  # Ideal: 200+ chars
-        quality_score += answer_quality * 0.2
+        answer_quality = min(len(answer.answer) / IDEAL_ANSWER_LENGTH, 1.0)
+        quality_score += answer_quality * QUALITY_WEIGHT_ANSWER_LENGTH
 
         # Reasoning presence contributes 10%
         if metrics["has_reasoning"]:
-            quality_score += 0.1
+            quality_score += QUALITY_WEIGHT_REASONING
 
         metrics["quality_score"] = round(quality_score, 2)
 

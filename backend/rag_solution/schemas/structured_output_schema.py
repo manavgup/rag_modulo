@@ -154,16 +154,29 @@ class StructuredAnswer(BaseModel):
     @field_validator("citations")
     @classmethod
     def validate_citations(cls, v: list[Citation]) -> list[Citation]:
-        """Ensure citations list is valid."""
-        # Remove duplicates based on document_id and chunk_id
-        seen = set()
-        unique_citations = []
+        """Ensure citations list is valid and deduplicated.
+
+        When duplicate citations exist (same document_id and chunk_id),
+        preserves the one with the highest relevance score.
+
+        Returns:
+            Deduplicated list of citations with highest relevance scores
+        """
+        if not v:
+            return v
+
+        # Use dict to track best citation for each (document_id, chunk_id) pair
+        best_citations: dict[tuple[str, str | None], Citation] = {}
+
         for citation in v:
             key = (str(citation.document_id), citation.chunk_id)
-            if key not in seen:
-                seen.add(key)
-                unique_citations.append(citation)
-        return unique_citations
+
+            # Keep citation with highest relevance score for each unique key
+            if key not in best_citations or citation.relevance_score > best_citations[key].relevance_score:
+                best_citations[key] = citation
+
+        # Return citations in order of relevance score (highest first)
+        return sorted(best_citations.values(), key=lambda c: c.relevance_score, reverse=True)
 
     @field_validator("reasoning_steps")
     @classmethod
@@ -192,6 +205,7 @@ class StructuredOutputConfig(BaseModel):
         max_citations: Maximum number of citations to include
         min_confidence: Minimum confidence threshold (0.0-1.0)
         validation_strict: Whether to enforce strict validation
+        max_context_per_doc: Maximum characters per document context (100-10000)
     """
 
     enabled: bool = Field(default=False, description="Enable structured output")
@@ -200,6 +214,9 @@ class StructuredOutputConfig(BaseModel):
     max_citations: int = Field(default=5, description="Maximum citations", ge=1, le=20)
     min_confidence: float = Field(default=0.0, description="Minimum confidence threshold", ge=0.0, le=1.0)
     validation_strict: bool = Field(default=True, description="Enforce strict validation")
+    max_context_per_doc: int = Field(
+        default=2000, description="Maximum characters per document context", ge=100, le=10000
+    )
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -211,6 +228,7 @@ class StructuredOutputConfig(BaseModel):
                 "max_citations": 5,
                 "min_confidence": 0.6,
                 "validation_strict": True,
+                "max_context_per_doc": 2000,
             }
         },
     )
