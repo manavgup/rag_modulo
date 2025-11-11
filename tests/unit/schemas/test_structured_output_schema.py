@@ -178,7 +178,7 @@ class TestStructuredAnswer:
 
     def test_structured_answer_empty_answer_validation(self):
         """Test that empty answer fails validation."""
-        with pytest.raises(ValidationError, match="Answer cannot be empty"):
+        with pytest.raises(ValidationError, match="String should have at least 1 character"):
             StructuredAnswer(answer="", confidence=0.9, citations=[], format_type=FormatType.STANDARD)
 
     def test_structured_answer_confidence_bounds(self):
