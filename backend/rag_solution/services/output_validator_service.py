@@ -19,6 +19,7 @@ from pydantic import ValidationError
 from core.custom_exceptions import LLMProviderError
 from core.logging_utils import get_logger
 from rag_solution.schemas.structured_output_schema import Citation, StructuredAnswer, StructuredOutputConfig
+from rag_solution.services.citation_attribution_service import CitationAttributionService
 
 logger = get_logger("services.output_validator")
 
@@ -67,6 +68,7 @@ class OutputValidatorService:
         min_confidence: float = 0.0,
         require_citations: bool = True,
         min_answer_length: int = 10,
+        attribution_service: CitationAttributionService | None = None,
     ) -> None:
         """Initialize validator service.
 
@@ -75,11 +77,13 @@ class OutputValidatorService:
             min_confidence: Minimum acceptable confidence score
             require_citations: Whether citations are required
             min_answer_length: Minimum answer length in characters
+            attribution_service: Optional service for post-hoc citation attribution
         """
         self.max_retries = max_retries
         self.min_confidence = min_confidence
         self.require_citations = require_citations
         self.min_answer_length = min_answer_length
+        self.attribution_service = attribution_service
         self.logger = get_logger(f"{__name__}.OutputValidatorService")
 
     def validate_structured_answer(
@@ -166,22 +170,30 @@ class OutputValidatorService:
         generate_fn: Any,
         context_documents: list[dict[str, Any]],
         config: StructuredOutputConfig | None = None,
+        enable_fallback: bool = True,
     ) -> StructuredAnswer:
-        """Validate output with automatic retry logic.
+        """Validate output with automatic retry logic and post-hoc attribution fallback.
+
+        This method implements a hybrid approach:
+        1. Try LLM-generated citations (up to max_retries attempts)
+        2. If all attempts fail and attribution_service is available, fall back to
+           post-hoc attribution using semantic similarity
 
         Args:
             generate_fn: Function that generates structured output (callable)
             context_documents: Retrieved documents for validation
             config: Optional configuration
+            enable_fallback: Whether to use post-hoc attribution fallback (default: True)
 
         Returns:
             Validated structured answer
 
         Raises:
-            OutputValidationError: If validation fails after max retries
+            OutputValidationError: If validation fails after max retries and fallback
             LLMProviderError: If generation fails
         """
         all_issues: list[str] = []
+        last_answer: StructuredAnswer | None = None
 
         for attempt in range(self.max_retries):
             try:
@@ -189,6 +201,7 @@ class OutputValidatorService:
 
                 # Generate structured output
                 answer = generate_fn()
+                last_answer = answer  # Keep for potential fallback
 
                 # Validate the output
                 is_valid, issues = self.validate_structured_answer(answer, context_documents, config)
@@ -214,8 +227,55 @@ class OutputValidatorService:
                 all_issues.append(f"Attempt {attempt + 1}: Unexpected error - {e!s}")
                 self.logger.error(f"Unexpected error on attempt {attempt + 1}: {e}")
 
-        # All retries exhausted
+        # All retries exhausted - try post-hoc attribution fallback
+        if enable_fallback and self.attribution_service and last_answer:
+            try:
+                self.logger.warning(
+                    "LLM citation generation failed after %d attempts, "
+                    "falling back to post-hoc attribution",
+                    self.max_retries,
+                )
+
+                # Use post-hoc attribution to generate deterministic citations
+                attributed_citations = self.attribution_service.attribute_citations(
+                    answer=last_answer.answer,
+                    context_documents=context_documents,
+                    max_citations=config.max_citations if config else 5,
+                )
+
+                # Create new StructuredAnswer with attributed citations
+                fallback_answer = StructuredAnswer(
+                    answer=last_answer.answer,
+                    confidence=last_answer.confidence,
+                    citations=attributed_citations,
+                    reasoning_steps=last_answer.reasoning_steps,
+                    format_type=last_answer.format_type,
+                    metadata={
+                        **last_answer.metadata,
+                        "attribution_method": "post_hoc_semantic",
+                        "llm_citation_attempts": self.max_retries,
+                    },
+                )
+
+                # Validate the fallback answer
+                is_valid, fallback_issues = self.validate_structured_answer(
+                    fallback_answer, context_documents, config
+                )
+
+                if is_valid:
+                    self.logger.info("Post-hoc attribution fallback successful")
+                    return fallback_answer
+                else:
+                    all_issues.append(f"Post-hoc attribution fallback validation failed: {fallback_issues}")
+
+            except Exception as e:
+                self.logger.error(f"Post-hoc attribution fallback failed: {e}")
+                all_issues.append(f"Fallback error: {e!s}")
+
+        # All retries and fallback exhausted
         error_msg = f"Validation failed after {self.max_retries} attempts"
+        if enable_fallback and self.attribution_service:
+            error_msg += " and post-hoc attribution fallback"
         self.logger.error(f"{error_msg}. Issues: {all_issues}")
         raise OutputValidationError(error_msg, all_issues)
 

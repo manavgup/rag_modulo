@@ -382,16 +382,30 @@ class AnthropicLLM(LLMBase):
                 return content
             return content[:max_length] + "..."
 
-        context_text = "\n\n".join(
-            [
-                f"Document {i + 1} (ID: {doc.get('id', 'unknown')}):\n"
-                f"Title: {doc.get('title', 'Untitled')}\n"
-                f"Content: {truncate_content(doc.get('content', ''), config.max_context_per_doc)}"
-                for i, doc in enumerate(context_documents[: config.max_citations])
+        # Format context documents with all available metadata
+        context_parts = []
+        for i, doc in enumerate(context_documents[: config.max_citations]):
+            doc_info = [
+                f"Document {i + 1} (ID: {doc.get('id', 'unknown')}):",
+                f"  Title: {doc.get('title', 'Untitled')}",
             ]
-        )
 
-        # Build final prompt
+            # Add page_number if available
+            if doc.get("page_number") is not None:
+                doc_info.append(f"  Page: {doc.get('page_number')}")
+
+            # Add chunk_id if available
+            if doc.get("chunk_id") is not None:
+                doc_info.append(f"  Chunk ID: {doc.get('chunk_id')}")
+
+            # Add content with truncation
+            doc_info.append(f"  Content: {truncate_content(doc.get('content', ''), config.max_context_per_doc)}")
+
+            context_parts.append("\n".join(doc_info))
+
+        context_text = "\n\n".join(context_parts)
+
+        # Build final prompt with citation instructions
         prompt_parts = [
             f"Question: {prompt}",
             "\nContext Documents:",
@@ -400,6 +414,10 @@ class AnthropicLLM(LLMBase):
             "1. A clear, concise answer to the question",
             "2. A confidence score (0.0-1.0) based on the quality and relevance of the sources",
             "3. Citations to specific documents that support your answer",
+            "   - Include the document_id, title, and excerpt from the document",
+            "   - If a document has a page_number, include it in your citation",
+            "   - If a document has a chunk_id, include it in your citation",
+            "   - Extract the most relevant excerpt that supports your answer",
         ]
 
         if config.include_reasoning:

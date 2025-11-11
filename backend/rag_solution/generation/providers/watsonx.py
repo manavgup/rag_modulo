@@ -707,14 +707,28 @@ class WatsonXLLM(LLMBase):
                 return content
             return content[:max_length] + "..."
 
-        context_text = "\n\n".join(
-            [
-                f"Document {i + 1} (ID: {doc.get('id', 'unknown')}):\n"
-                f"Title: {doc.get('title', 'Untitled')}\n"
-                f"Content: {truncate_content(doc.get('content', ''), config.max_context_per_doc)}"
-                for i, doc in enumerate(context_documents[: config.max_citations])
+        # Format context documents with all available metadata
+        context_parts = []
+        for i, doc in enumerate(context_documents[: config.max_citations]):
+            doc_info = [
+                f"Document {i + 1} (ID: {doc.get('id', 'unknown')}):",
+                f"  Title: {doc.get('title', 'Untitled')}",
             ]
-        )
+
+            # Add page_number if available
+            if doc.get("page_number") is not None:
+                doc_info.append(f"  Page: {doc.get('page_number')}")
+
+            # Add chunk_id if available
+            if doc.get("chunk_id") is not None:
+                doc_info.append(f"  Chunk ID: {doc.get('chunk_id')}")
+
+            # Add content with truncation
+            doc_info.append(f"  Content: {truncate_content(doc.get('content', ''), config.max_context_per_doc)}")
+
+            context_parts.append("\n".join(doc_info))
+
+        context_text = "\n\n".join(context_parts)
 
         # Build JSON schema example
         json_example = {
@@ -752,11 +766,14 @@ class WatsonXLLM(LLMBase):
             "2. Confidence must be a number between 0.0 and 1.0",
             "3. Include citations from the context documents above",
             "4. Use the document IDs provided in the context",
-            "5. Format type must be one of: standard, cot_reasoning, comparative, summary",
+            "5. If a document has a page_number, include it in your citation",
+            "6. If a document has a chunk_id, include it in your citation",
+            "7. Extract the most relevant excerpt that supports your answer",
+            "8. Format type must be one of: standard, cot_reasoning, comparative, summary",
         ]
 
         if config.include_reasoning:
-            prompt_parts.append("6. Include reasoning_steps array showing your thought process")
+            prompt_parts.append("9. Include reasoning_steps array showing your thought process")
 
         prompt_parts.append("\n\nJSON Response:")
 
