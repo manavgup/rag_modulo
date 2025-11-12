@@ -98,7 +98,11 @@ class MessageProcessingOrchestrator:
             f"🚀 MESSAGE ORCHESTRATOR: process_user_message() called with session_id={message_input.session_id}"
         )
         logger.info("📝 MESSAGE ORCHESTRATOR: message content: %s...", message_input.content[:100])
-        logger.info("🔍 MESSAGE ORCHESTRATOR: message_input.metadata type=%s, value=%s", type(message_input.metadata), message_input.metadata)
+        logger.info(
+            "🔍 MESSAGE ORCHESTRATOR: message_input.metadata type=%s, value=%s",
+            type(message_input.metadata),
+            message_input.metadata,
+        )
 
         # 1. Validate session exists and get user/collection context
         try:
@@ -153,7 +157,9 @@ class MessageProcessingOrchestrator:
                     user_config_metadata = metadata_dict.get("config_metadata")
 
         if user_config_metadata:
-            logger.info("📝 MESSAGE ORCHESTRATOR: Extracted user config_metadata from message input: %s", user_config_metadata)
+            logger.info(
+                "📝 MESSAGE ORCHESTRATOR: Extracted user config_metadata from message input: %s", user_config_metadata
+            )
 
         # 7. Execute search with context and user config
         search_result = await self._coordinate_search(
@@ -305,7 +311,10 @@ class MessageProcessingOrchestrator:
         # Debug: Check what we actually got from search_result
         logger.info("📊 ORCHESTRATOR: getattr returned documents list with %d items", len(result_documents))
         logger.info("📊 ORCHESTRATOR: search_result type = %s", type(search_result))
-        logger.info("📊 ORCHESTRATOR: search_result.documents type = %s", type(search_result.documents) if hasattr(search_result, 'documents') else 'NO ATTR')
+        logger.info(
+            "📊 ORCHESTRATOR: search_result.documents type = %s",
+            type(search_result.documents) if hasattr(search_result, "documents") else "NO ATTR",
+        )
         if result_documents:
             logger.info("📊 ORCHESTRATOR: First result_document = %s", result_documents[0])
 
@@ -484,7 +493,9 @@ class MessageProcessingOrchestrator:
             if serialized_documents:
                 first_source = serialized_documents[0]
                 logger.info(f"📊 DEBUG: First source = {first_source}")
-                logger.info(f"📊 DEBUG: First source score = {first_source.get('metadata', {}).get('score', 'MISSING')}")
+                logger.info(
+                    f"📊 DEBUG: First source score = {first_source.get('metadata', {}).get('score', 'MISSING')}"
+                )
 
         # Add CoT output to the response if CoT was used
         if cot_used and cot_output:
@@ -601,7 +612,9 @@ class MessageProcessingOrchestrator:
             generation_top_k = self.settings.generation_top_k
             limited_results = query_results[:generation_top_k]
 
-            logger.info(f"📊 Limiting sources from {len(query_results)} to {len(limited_results)} (generation_top_k={generation_top_k})")
+            logger.info(
+                f"📊 Limiting sources from {len(query_results)} to {len(limited_results)} (generation_top_k={generation_top_k})"
+            )
 
             # Map each chunk from query_results to a source
             for idx, result in enumerate(limited_results):
@@ -613,8 +626,12 @@ class MessageProcessingOrchestrator:
                 document_name = doc_id_to_name.get(doc_id, "Unknown Document") if doc_id else "Unknown Document"
 
                 # Debug: Log chunk details
-                chunk_text_preview = result.chunk.text[:100] if hasattr(result.chunk, "text") and result.chunk.text else "NO TEXT"
-                logger.info(f"📊 Source {idx+1}: doc_id={doc_id}, doc_name={document_name}, chunk_text={chunk_text_preview}...")
+                chunk_text_preview = (
+                    result.chunk.text[:100] if hasattr(result.chunk, "text") and result.chunk.text else "NO TEXT"
+                )
+                logger.info(
+                    f"📊 Source {idx + 1}: doc_id={doc_id}, doc_name={document_name}, chunk_text={chunk_text_preview}..."
+                )
 
                 # Get relevance score (from QueryResult level first, then chunk level)
                 score = (
@@ -625,7 +642,9 @@ class MessageProcessingOrchestrator:
 
                 # Debug logging for score
                 if score is None or score == 0.0:
-                    logger.warning(f"⚠️ Source has no score - result.score={result.score}, chunk.score={getattr(result.chunk, 'score', 'N/A')}")
+                    logger.warning(
+                        f"⚠️ Source has no score - result.score={result.score}, chunk.score={getattr(result.chunk, 'score', 'N/A')}"
+                    )
 
                 # Get page number from chunk metadata
                 page_number = None
@@ -669,15 +688,21 @@ class MessageProcessingOrchestrator:
 
                     # Collect other attributes into metadata
                     for key, value in doc.__dict__.items():
-                        if key not in ["document_name", "name", "content", "text", "id", "document_id"] and isinstance(value, str | int | float | bool | type(None)):
+                        if key not in ["document_name", "name", "content", "text", "id", "document_id"] and isinstance(
+                            value, str | int | float | bool | type(None)
+                        ):
                             doc_dict["metadata"][key] = value
 
                     serialized.append(doc_dict)
                 else:
-                    serialized.append({"document_name": "Unknown", "content": str(doc)[:1000], "metadata": {"score": 1.0}})
+                    serialized.append(
+                        {"document_name": "Unknown", "content": str(doc)[:1000], "metadata": {"score": 1.0}}
+                    )
 
         logger.info(f"📊 Serialized {len(serialized)} sources from {'query_results' if query_results else 'documents'}")
         if serialized and "metadata" in serialized[0]:
-            logger.info(f"📊 First source - name: {serialized[0]['document_name']}, score: {serialized[0]['metadata'].get('score', 'N/A')}")
+            logger.info(
+                f"📊 First source - name: {serialized[0]['document_name']}, score: {serialized[0]['metadata'].get('score', 'N/A')}"
+            )
 
         return serialized
