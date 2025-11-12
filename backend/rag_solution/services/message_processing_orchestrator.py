@@ -193,26 +193,32 @@ class MessageProcessingOrchestrator:
         user_config_metadata = None
         if message_input.metadata:
             raw_config = None
-            if isinstance(message_input.metadata, dict):
-                # Extract config_metadata from the metadata dict
-                raw_config = message_input.metadata.get("config_metadata")
-            else:
-                # MessageMetadata Pydantic model - check if it has config_metadata
-                if hasattr(message_input.metadata, "model_dump"):
-                    metadata_dict = message_input.metadata.model_dump()
-                    raw_config = metadata_dict.get("config_metadata")
+            try:
+                if isinstance(message_input.metadata, dict):
+                    # Extract config_metadata from the metadata dict
+                    raw_config = message_input.metadata.get("config_metadata")
+                elif hasattr(message_input.metadata, "model_dump"):
+                    # MessageMetadata Pydantic model
+                    raw_config = message_input.metadata.model_dump().get("config_metadata")
+                else:
+                    logger.warning(
+                        "⚠️ MESSAGE ORCHESTRATOR: Unexpected metadata type: %s (expected dict or Pydantic model)",
+                        type(message_input.metadata).__name__,
+                    )
 
-            # Validate and sanitize user config (security: whitelist allowed keys)
-            if raw_config:
-                try:
+                # Validate and sanitize user config (security: whitelist allowed keys)
+                if raw_config:
                     user_config_metadata = self._validate_user_config(raw_config)
                     logger.info(
                         "📝 MESSAGE ORCHESTRATOR: Extracted and validated user config_metadata: %s",
                         user_config_metadata,
                     )
-                except ValidationError as e:
-                    logger.warning("⚠️ MESSAGE ORCHESTRATOR: Invalid user config_metadata: %s", e)
-                    # Continue without user config if validation fails
+            except ValidationError as e:
+                logger.warning("⚠️ MESSAGE ORCHESTRATOR: Invalid user config_metadata: %s", e)
+                # Continue without user config if validation fails
+            except Exception as e:
+                logger.error("❌ MESSAGE ORCHESTRATOR: Failed to extract config_metadata: %s", e)
+                # Continue without user config on unexpected errors
 
         # 7. Execute search with context and user config
         search_result = await self._coordinate_search(
@@ -274,7 +280,7 @@ class MessageProcessingOrchestrator:
             raise ValidationError("Session must have valid collection_id and user_id for search")
 
         # Build base conversation config
-        conversation_config = {
+        base_config = {
             "conversation_context": context.context_window,
             "session_id": str(session_id),
             "message_history": [msg.content for msg in messages[-10:]],
@@ -284,9 +290,10 @@ class MessageProcessingOrchestrator:
             "conversation_aware": True,
         }
 
-        # Merge user-provided config (user config takes precedence)
+        # Merge user-provided config (user config takes precedence over base config)
+        conversation_config = {**base_config, **(user_config_metadata or {})}
+
         if user_config_metadata:
-            conversation_config.update(user_config_metadata)
             logger.info("🔧 MESSAGE ORCHESTRATOR: Merged user config_metadata: %s", user_config_metadata)
 
         # Create search input with merged config
