@@ -49,6 +49,20 @@ class MessageProcessingOrchestrator:
     8. Store assistant message
     """
 
+    # Whitelist of allowed config keys (security: prevent injection attacks)
+    ALLOWED_CONFIG_KEYS = frozenset(
+        [
+            "structured_output_enabled",
+            "cot_enabled",
+            "show_cot_steps",
+            "conversation_context",
+            "session_id",
+            "message_history",
+            "conversation_entities",
+            "conversation_aware",
+        ]
+    )
+
     def __init__(
         self,
         db: Session,
@@ -80,6 +94,37 @@ class MessageProcessingOrchestrator:
         self.token_tracking_service = token_tracking_service
         self.llm_provider_service = llm_provider_service
         self.chain_of_thought_service = chain_of_thought_service
+
+    @classmethod
+    def _validate_user_config(cls, user_config: dict[str, Any]) -> dict[str, Any]:
+        """Validate and sanitize user-provided config metadata.
+
+        Only allows whitelisted config keys to prevent injection attacks.
+
+        Args:
+            user_config: User-provided configuration dictionary
+
+        Returns:
+            Sanitized configuration with only allowed keys
+
+        Raises:
+            ValidationError: If user_config is not a dictionary
+        """
+        if not isinstance(user_config, dict):
+            raise ValidationError(f"config_metadata must be a dict, got {type(user_config)}")
+
+        # Filter to only allowed keys
+        sanitized = {k: v for k, v in user_config.items() if k in cls.ALLOWED_CONFIG_KEYS}
+
+        # Log if any keys were filtered out (security audit trail)
+        filtered_keys = set(user_config.keys()) - set(sanitized.keys())
+        if filtered_keys:
+            logger.warning(
+                "⚠️ MESSAGE ORCHESTRATOR: Filtered disallowed config keys: %s",
+                filtered_keys,
+            )
+
+        return sanitized
 
     async def process_user_message(self, message_input: ConversationMessageInput) -> ConversationMessageOutput:
         """Process user message end-to-end with search, CoT, and token tracking.
@@ -144,22 +189,30 @@ class MessageProcessingOrchestrator:
             [msg.content for msg in messages_output[-5:]],  # Last 5 messages
         )
 
-        # 6. Extract user-provided config_metadata from message input
+        # 6. Extract and validate user-provided config_metadata from message input
         user_config_metadata = None
         if message_input.metadata:
+            raw_config = None
             if isinstance(message_input.metadata, dict):
                 # Extract config_metadata from the metadata dict
-                user_config_metadata = message_input.metadata.get("config_metadata")
+                raw_config = message_input.metadata.get("config_metadata")
             else:
                 # MessageMetadata Pydantic model - check if it has config_metadata
                 if hasattr(message_input.metadata, "model_dump"):
                     metadata_dict = message_input.metadata.model_dump()
-                    user_config_metadata = metadata_dict.get("config_metadata")
+                    raw_config = metadata_dict.get("config_metadata")
 
-        if user_config_metadata:
-            logger.info(
-                "📝 MESSAGE ORCHESTRATOR: Extracted user config_metadata from message input: %s", user_config_metadata
-            )
+            # Validate and sanitize user config (security: whitelist allowed keys)
+            if raw_config:
+                try:
+                    user_config_metadata = self._validate_user_config(raw_config)
+                    logger.info(
+                        "📝 MESSAGE ORCHESTRATOR: Extracted and validated user config_metadata: %s",
+                        user_config_metadata,
+                    )
+                except ValidationError as e:
+                    logger.warning("⚠️ MESSAGE ORCHESTRATOR: Invalid user config_metadata: %s", e)
+                    # Continue without user config if validation fails
 
         # 7. Execute search with context and user config
         search_result = await self._coordinate_search(
