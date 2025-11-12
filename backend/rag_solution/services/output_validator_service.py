@@ -231,8 +231,7 @@ class OutputValidatorService:
         if enable_fallback and self.attribution_service and last_answer:
             try:
                 self.logger.warning(
-                    "LLM citation generation failed after %d attempts, "
-                    "falling back to post-hoc attribution",
+                    "LLM citation generation failed after %d attempts, falling back to post-hoc attribution",
                     self.max_retries,
                 )
 
@@ -258,9 +257,7 @@ class OutputValidatorService:
                 )
 
                 # Validate the fallback answer
-                is_valid, fallback_issues = self.validate_structured_answer(
-                    fallback_answer, context_documents, config
-                )
+                is_valid, fallback_issues = self.validate_structured_answer(fallback_answer, context_documents, config)
 
                 if is_valid:
                     self.logger.info("Post-hoc attribution fallback successful")

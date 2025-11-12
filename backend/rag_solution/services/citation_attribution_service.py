@@ -134,7 +134,9 @@ class CitationAttributionService:
             for chunk_idx, chunk_emb in enumerate(chunk_embeddings):
                 similarity = self._cosine_similarity(sent_emb, chunk_emb)
                 # Track highest similarity score for each chunk
-                if similarity >= self.similarity_threshold and (chunk_idx not in citation_scores or similarity > citation_scores[chunk_idx]):
+                if similarity >= self.similarity_threshold and (
+                    chunk_idx not in citation_scores or similarity > citation_scores[chunk_idx]
+                ):
                     citation_scores[chunk_idx] = similarity
 
         # Create citations for top-scoring chunks
