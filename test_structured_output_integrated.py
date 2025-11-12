@@ -17,11 +17,17 @@ What it tests:
 """
 
 import asyncio
+import sys
+from pathlib import Path
 from uuid import UUID
 
-from backend.rag_solution.database import SessionLocal
-from backend.rag_solution.schemas.search_schema import SearchInput
-from backend.rag_solution.services.search_service import SearchService
+# Add backend to Python path
+backend_path = Path(__file__).parent / "backend"
+sys.path.insert(0, str(backend_path))
+
+from rag_solution.database import SessionLocal
+from rag_solution.schemas.search_schema import SearchInput
+from rag_solution.services.search_service import SearchService
 from core.config import settings
 from core.logging_utils import get_logger
 
