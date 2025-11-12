@@ -130,13 +130,12 @@ class CitationAttributionService:
 
         # Compute similarity matrix
         citation_scores: dict[int, float] = {}
-        for sent_idx, sent_emb in enumerate(sentence_embeddings):
+        for _sent_idx, sent_emb in enumerate(sentence_embeddings):
             for chunk_idx, chunk_emb in enumerate(chunk_embeddings):
                 similarity = self._cosine_similarity(sent_emb, chunk_emb)
-                if similarity >= self.similarity_threshold:
-                    # Track highest similarity score for each chunk
-                    if chunk_idx not in citation_scores or similarity > citation_scores[chunk_idx]:
-                        citation_scores[chunk_idx] = similarity
+                # Track highest similarity score for each chunk
+                if similarity >= self.similarity_threshold and (chunk_idx not in citation_scores or similarity > citation_scores[chunk_idx]):
+                    citation_scores[chunk_idx] = similarity
 
         # Create citations for top-scoring chunks
         citations = self._create_citations_from_scores(
@@ -268,10 +267,7 @@ class CitationAttributionService:
                 best_sentence = sentence
 
         # Use best sentence as excerpt, or truncate content if no good match
-        if best_sentence and len(best_sentence) >= MIN_EXCERPT_LENGTH:
-            excerpt = best_sentence
-        else:
-            excerpt = content
+        excerpt = best_sentence if best_sentence and len(best_sentence) >= MIN_EXCERPT_LENGTH else content
 
         # Truncate to max length
         if len(excerpt) > MAX_EXCERPT_LENGTH:
@@ -323,7 +319,7 @@ class CitationAttributionService:
         if len(vec1) != len(vec2):
             raise ValueError(f"Vectors must have same length: {len(vec1)} != {len(vec2)}")
 
-        dot_product = sum(a * b for a, b in zip(vec1, vec2))
+        dot_product = sum(a * b for a, b in zip(vec1, vec2, strict=True))
         magnitude1 = sum(a * a for a in vec1) ** 0.5
         magnitude2 = sum(b * b for b in vec2) ** 0.5
 
