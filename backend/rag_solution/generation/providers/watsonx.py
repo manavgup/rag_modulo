@@ -13,6 +13,7 @@ from typing import Any
 from ibm_watsonx_ai import APIClient, Credentials
 from ibm_watsonx_ai.foundation_models import Embeddings as wx_Embeddings
 from ibm_watsonx_ai.foundation_models import ModelInference
+from ibm_watsonx_ai.foundation_models.schema import TextChatParameters
 from ibm_watsonx_ai.metanames import EmbedTextParamsMetaNames as EmbedParams
 from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams
 from pydantic import UUID4
@@ -556,40 +557,75 @@ class WatsonXLLM(LLMBase):
         Note:
             Tries multiple extraction strategies in order:
             1. Direct JSON parsing
-            2. Regex-based JSON block extraction
-            3. Balanced brace matching
+            2. Balanced brace/bracket matching (handles nested arrays)
+            3. Regex-based JSON block extraction (fallback)
         """
         # Strategy 1: Try direct parsing
         try:
-            return json.loads(text.strip())
-        except json.JSONDecodeError:
+            result = json.loads(text.strip())
+            # Validate it's a dictionary (not a number or other type)
+            if not isinstance(result, dict):
+                logger.warning(f"Parsed JSON is not a dict: {type(result)}, value: {result}")
+                raise ValueError(f"Expected dict, got {type(result)}")
+            return result
+        except (json.JSONDecodeError, ValueError):
             pass
 
-        # Strategy 2: Extract JSON block with regex
-        # Matches nested JSON objects
-        json_pattern = r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}"
-        matches = re.findall(json_pattern, text, re.DOTALL)
-        for match in matches:
-            try:
-                return json.loads(match)
-            except json.JSONDecodeError:
-                continue
-
-        # Strategy 3: Find balanced braces (most robust)
+        # Strategy 2: Find balanced braces (most robust - handles arrays and nested objects)
         start = text.find("{")
         if start >= 0:
             brace_count = 0
+            bracket_count = 0
+            in_string = False
+            escape_next = False
+
             for i, char in enumerate(text[start:], start):
-                if char == "{":
-                    brace_count += 1
-                elif char == "}":
-                    brace_count -= 1
-                    if brace_count == 0:
-                        try:
-                            return json.loads(text[start : i + 1])
-                        except json.JSONDecodeError:
-                            # Continue searching for next potential JSON block
-                            pass
+                # Handle string escaping
+                if escape_next:
+                    escape_next = False
+                    continue
+                if char == "\\":
+                    escape_next = True
+                    continue
+
+                # Track if we're inside a string
+                if char == '"' and not escape_next:
+                    in_string = not in_string
+                    continue
+
+                # Only count braces/brackets outside strings
+                if not in_string:
+                    if char == "{":
+                        brace_count += 1
+                    elif char == "}":
+                        brace_count -= 1
+                        if brace_count == 0 and bracket_count == 0:
+                            # Found complete JSON object
+                            try:
+                                result = json.loads(text[start : i + 1])
+                                if isinstance(result, dict):
+                                    return result
+                                else:
+                                    logger.warning(f"Balanced braces parsed to non-dict: {type(result)}")
+                            except json.JSONDecodeError:
+                                # Continue searching for next potential JSON block
+                                pass
+                    elif char == "[":
+                        bracket_count += 1
+                    elif char == "]":
+                        bracket_count -= 1
+
+        # Strategy 3: Extract JSON block with regex (simple fallback)
+        # This pattern now looks for the outermost braces only
+        json_pattern = r"\{(?:[^{}]|\{[^{}]*\})*\}"
+        matches = re.findall(json_pattern, text, re.DOTALL)
+        for match in matches:
+            try:
+                result = json.loads(match)
+                if isinstance(result, dict):
+                    return result
+            except json.JSONDecodeError:
+                continue
 
         # All strategies failed
         raise json.JSONDecodeError(f"No valid JSON found in response: {text[:200]}...", text, 0)
@@ -603,7 +639,7 @@ class WatsonXLLM(LLMBase):
         model_parameters: LLMParametersInput | None = None,
         template: PromptTemplateBase | None = None,
     ) -> tuple[StructuredAnswer, LLMUsage]:
-        """Generate structured output using WatsonX with JSON mode prompting.
+        """Generate structured output using WatsonX with guided JSON schema.
 
         Args:
             user_id: UUID4 of the user making the request
@@ -620,8 +656,7 @@ class WatsonXLLM(LLMBase):
             LLMProviderError: If generation fails or response is invalid
 
         Note:
-            WatsonX doesn't have native JSON schema support, so we use
-            carefully crafted prompts with JSON examples to guide output format.
+            Uses WatsonX's native guided_json feature for reliable JSON schema adherence.
         """
         try:
             self._ensure_client()
@@ -631,43 +666,81 @@ class WatsonXLLM(LLMBase):
             if config is None:
                 config = StructuredOutputConfig(enabled=True)
 
-            # Build the prompt with context and JSON instructions
-            formatted_prompt = self._build_structured_prompt_watsonx(prompt, context_documents, config, template)
+            # Build the context text from documents
+            context_text = self._format_context_documents(context_documents, config)
 
-            # Generate text with WatsonX
-            response = model.generate_text(prompt=formatted_prompt)
+            # Create JSON schema for StructuredAnswer
+            json_schema = StructuredAnswer.model_json_schema()
 
-            # Extract text from response
-            result_text: str
-            if isinstance(response, dict) and "results" in response:
-                result_text = response["results"][0]["generated_text"].strip()
-            elif isinstance(response, list):
-                first_result = response[0]
-                result_text = (
-                    first_result["generated_text"].strip() if isinstance(first_result, dict) else first_result.strip()
-                )
+            # Build chat messages
+            system_message = "You are a helpful assistant that provides structured answers with citations."
+            if template and template.system_prompt:
+                system_message = template.system_prompt
+
+            user_message = f"""Question: {prompt}
+
+Context Documents:
+{context_text}
+
+Provide a detailed answer with citations from the context documents."""
+
+            if template:
+                try:
+                    user_message = template.format_prompt(question=prompt, context=context_text)
+                except Exception as e:
+                    logger.warning(f"Template formatting failed: {e}, using default format")
+
+            messages = [
+                {"role": "system", "content": system_message},
+                {"role": "user", "content": user_message},
+            ]
+
+            # Create TextChatParameters with guided_json
+            chat_params = TextChatParameters(
+                max_tokens=model_parameters.max_new_tokens if model_parameters else 800,
+                temperature=model_parameters.temperature if model_parameters else 0.7,
+                top_p=model_parameters.top_p if model_parameters else 1.0,
+                guided_json=json_schema,  # 🎯 Native JSON schema enforcement
+            )
+
+            # Generate with chat API
+            logger.info("Generating structured output with guided_json schema enforcement")
+            response = model.chat(messages=messages, params=chat_params)
+
+            # Extract response text
+            if isinstance(response, dict) and "choices" in response:
+                result_text = response["choices"][0]["message"]["content"].strip()
             else:
-                result_text = str(response).strip()
-
-            # Parse JSON response using robust extraction
-            try:
-                response_data = self._extract_json_from_text(result_text)
-                structured_answer = StructuredAnswer(**response_data)
-            except (json.JSONDecodeError, ValidationError) as e:
-                logger.error(f"Failed to parse WatsonX response as JSON: {result_text[:500]}")
                 raise LLMProviderError(
                     provider="watsonx",
                     error_type="invalid_response",
-                    message=f"Failed to parse structured output: {e!s}",
-                ) from e
+                    message=f"Unexpected response format: {type(response)}",
+                )
 
-            # Create usage record with accurate token estimation
-            # WatsonX API doesn't always return token counts, so we estimate
+            # Parse JSON response (should be valid due to guided_json)
+            try:
+                response_data = json.loads(result_text)
+                structured_answer = StructuredAnswer(**response_data)
+            except (json.JSONDecodeError, ValidationError) as e:
+                logger.error(f"Failed to parse guided JSON response: {result_text[:500]}")
+                # Fallback: try extracting JSON from text
+                try:
+                    response_data = self._extract_json_from_text(result_text)
+                    structured_answer = StructuredAnswer(**response_data)
+                    logger.warning("Fallback JSON extraction succeeded")
+                except Exception:
+                    raise LLMProviderError(
+                        provider="watsonx",
+                        error_type="invalid_response",
+                        message=f"Failed to parse structured output: {e!s}",
+                    ) from e
+
+            # Create usage record
             model_id = model.model_id
             usage = LLMUsage(
-                prompt_tokens=self._estimate_tokens(formatted_prompt),
+                prompt_tokens=self._estimate_tokens(user_message),
                 completion_tokens=self._estimate_tokens(result_text),
-                total_tokens=self._estimate_tokens(formatted_prompt + result_text),
+                total_tokens=self._estimate_tokens(user_message + result_text),
                 model_name=str(model_id),
                 service_type=ServiceType.GENERATION,
                 timestamp=datetime.now(),
@@ -675,6 +748,7 @@ class WatsonXLLM(LLMBase):
             )
 
             self.track_usage(usage)
+            logger.info(f"Structured output generated successfully with {len(structured_answer.citations)} citations")
             return structured_answer, usage
 
         except LLMProviderError:
@@ -685,6 +759,45 @@ class WatsonXLLM(LLMBase):
                 error_type="generation_failed",
                 message=f"Failed to generate structured output: {e!s}",
             ) from e
+
+    def _format_context_documents(self, context_documents: list[dict[str, Any]], config: StructuredOutputConfig) -> str:
+        """Format context documents for inclusion in prompt.
+
+        Args:
+            context_documents: List of document dictionaries
+            config: Structured output configuration
+
+        Returns:
+            Formatted context string
+        """
+
+        def truncate_content(content: str, max_length: int) -> str:
+            """Truncate content with ellipsis indicator."""
+            if len(content) <= max_length:
+                return content
+            return content[:max_length] + "..."
+
+        context_parts = []
+        for i, doc in enumerate(context_documents[: config.max_citations]):
+            doc_info = [
+                f"Document {i + 1} (ID: {doc.get('id', 'unknown')}):",
+                f"  Title: {doc.get('title', 'Untitled')}",
+            ]
+
+            # Add page_number if available
+            if doc.get("page_number") is not None:
+                doc_info.append(f"  Page: {doc.get('page_number')}")
+
+            # Add chunk_id if available
+            if doc.get("chunk_id") is not None:
+                doc_info.append(f"  Chunk ID: {doc.get('chunk_id')}")
+
+            # Add content with truncation
+            doc_info.append(f"  Content: {truncate_content(doc.get('content', ''), config.max_context_per_doc)}")
+
+            context_parts.append("\n".join(doc_info))
+
+        return "\n\n".join(context_parts)
 
     def _build_structured_prompt_watsonx(
         self,
