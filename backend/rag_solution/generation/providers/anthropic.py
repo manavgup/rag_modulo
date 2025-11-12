@@ -275,6 +275,7 @@ class AnthropicLLM(LLMBase):
         context_documents: list[dict[str, Any]],
         config: StructuredOutputConfig | None = None,
         model_parameters: LLMParametersInput | None = None,
+        template: PromptTemplateBase | None = None,
     ) -> tuple[StructuredAnswer, LLMUsage]:
         """Generate structured output using Anthropic's tool use feature.
 
@@ -284,6 +285,7 @@ class AnthropicLLM(LLMBase):
             context_documents: List of retrieved documents with metadata
             config: Structured output configuration
             model_parameters: Optional LLM parameters
+            template: Optional prompt template for structured output
 
         Returns:
             Tuple of (StructuredAnswer, LLMUsage)
@@ -301,7 +303,7 @@ class AnthropicLLM(LLMBase):
                 config = StructuredOutputConfig(enabled=True)
 
             # Build the prompt with context
-            formatted_prompt = self._build_structured_prompt(prompt, context_documents, config)
+            formatted_prompt = self._build_structured_prompt(prompt, context_documents, config, template)
 
             # Define tool for structured output
             tool = self._get_anthropic_tool_schema(config)
@@ -363,7 +365,11 @@ class AnthropicLLM(LLMBase):
             ) from e
 
     def _build_structured_prompt(
-        self, prompt: str, context_documents: list[dict[str, Any]], config: StructuredOutputConfig
+        self,
+        prompt: str,
+        context_documents: list[dict[str, Any]],
+        config: StructuredOutputConfig,
+        template: PromptTemplateBase | None = None,
     ) -> str:
         """Build a prompt that includes context documents for structured output.
 
@@ -371,10 +377,12 @@ class AnthropicLLM(LLMBase):
             prompt: User's query
             context_documents: Retrieved documents with metadata
             config: Structured output configuration
+            template: Optional prompt template for structured output
 
         Returns:
             Formatted prompt with context
         """
+
         # Format context documents with configurable truncation
         def truncate_content(content: str, max_length: int) -> str:
             """Truncate content with ellipsis indicator."""
@@ -405,7 +413,14 @@ class AnthropicLLM(LLMBase):
 
         context_text = "\n\n".join(context_parts)
 
-        # Build final prompt with citation instructions
+        # If template provided, use it
+        if template:
+            try:
+                return template.format_prompt(question=prompt, context=context_text)
+            except Exception as e:
+                self.logger.warning(f"Template formatting failed: {e}, falling back to default")
+
+        # Default prompt (fallback)
         prompt_parts = [
             f"Question: {prompt}",
             "\nContext Documents:",

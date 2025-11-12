@@ -207,6 +207,7 @@ class LLMBase(ABC):
         context_documents: list[dict[str, Any]],
         config: StructuredOutputConfig | None = None,
         model_parameters: LLMParametersInput | None = None,
+        template: PromptTemplateBase | None = None,
     ) -> tuple[StructuredAnswer, LLMUsage]:
         """Generate structured output with JSON schema validation.
 
@@ -216,6 +217,7 @@ class LLMBase(ABC):
             context_documents: List of retrieved documents with metadata
             config: Structured output configuration
             model_parameters: Optional LLM parameters
+            template: Optional prompt template for structured output
 
         Returns:
             Tuple of (StructuredAnswer, LLMUsage)

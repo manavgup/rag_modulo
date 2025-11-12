@@ -601,6 +601,7 @@ class WatsonXLLM(LLMBase):
         context_documents: list[dict[str, Any]],
         config: StructuredOutputConfig | None = None,
         model_parameters: LLMParametersInput | None = None,
+        template: PromptTemplateBase | None = None,
     ) -> tuple[StructuredAnswer, LLMUsage]:
         """Generate structured output using WatsonX with JSON mode prompting.
 
@@ -610,6 +611,7 @@ class WatsonXLLM(LLMBase):
             context_documents: List of retrieved documents with metadata
             config: Structured output configuration
             model_parameters: Optional LLM parameters
+            template: Optional prompt template for structured output
 
         Returns:
             Tuple of (StructuredAnswer, LLMUsage)
@@ -630,7 +632,7 @@ class WatsonXLLM(LLMBase):
                 config = StructuredOutputConfig(enabled=True)
 
             # Build the prompt with context and JSON instructions
-            formatted_prompt = self._build_structured_prompt_watsonx(prompt, context_documents, config)
+            formatted_prompt = self._build_structured_prompt_watsonx(prompt, context_documents, config, template)
 
             # Generate text with WatsonX
             response = model.generate_text(prompt=formatted_prompt)
@@ -685,7 +687,11 @@ class WatsonXLLM(LLMBase):
             ) from e
 
     def _build_structured_prompt_watsonx(
-        self, prompt: str, context_documents: list[dict[str, Any]], config: StructuredOutputConfig
+        self,
+        prompt: str,
+        context_documents: list[dict[str, Any]],
+        config: StructuredOutputConfig,
+        template: PromptTemplateBase | None = None,
     ) -> str:
         """Build a prompt with JSON schema instructions for WatsonX.
 
@@ -696,10 +702,12 @@ class WatsonXLLM(LLMBase):
             prompt: User's query
             context_documents: Retrieved documents with metadata
             config: Structured output configuration
+            template: Optional prompt template for structured output
 
         Returns:
             Formatted prompt with JSON schema instructions
         """
+
         # Format context documents with configurable truncation
         def truncate_content(content: str, max_length: int) -> str:
             """Truncate content with ellipsis indicator."""
@@ -730,6 +738,15 @@ class WatsonXLLM(LLMBase):
 
         context_text = "\n\n".join(context_parts)
 
+        # If template provided, use it
+        # Note: For WatsonX, templates may need special handling due to JSON mode requirements
+        if template:
+            try:
+                return template.format_prompt(question=prompt, context=context_text)
+            except Exception as e:
+                logger.warning(f"Template formatting failed: {e}, falling back to default")
+
+        # Default prompt (fallback)
         # Build JSON schema example
         json_example = {
             "answer": "Your detailed answer here...",
