@@ -6,8 +6,10 @@ Wraps the answer generation functionality from PipelineService.
 """
 
 import re
+from typing import Any
 
 from core.logging_utils import get_logger
+from rag_solution.schemas.structured_output_schema import StructuredOutputConfig
 from rag_solution.services.pipeline.base_stage import BaseStage, StageResult
 from rag_solution.services.pipeline.search_context import SearchContext
 
@@ -62,12 +64,22 @@ class GenerationStage(BaseStage):  # pylint: disable=too-few-public-methods
             if not context.pipeline_id:
                 raise ValueError("Pipeline ID not set in context")
 
+            # Check if structured output is enabled
+            structured_output_enabled = False
+            if context.search_input.config_metadata:
+                structured_output_enabled = context.search_input.config_metadata.get("structured_output_enabled", False)
+
             # Determine answer source
             if context.cot_output:
                 # Use CoT answer
                 generated_answer = context.cot_output.final_answer
                 answer_source = "cot"
                 logger.info("Using CoT-generated answer")
+            elif structured_output_enabled:
+                # Generate structured output with citations
+                generated_answer = await self._generate_structured_answer(context)
+                answer_source = "structured_output"
+                logger.info("Generated structured answer with citations")
             else:
                 # Generate answer from documents
                 generated_answer = await self._generate_answer_from_documents(context)
@@ -126,6 +138,106 @@ class GenerationStage(BaseStage):  # pylint: disable=too-few-public-methods
         )
 
         return answer
+
+    async def _generate_structured_answer(self, context: SearchContext) -> str:
+        """
+        Generate structured answer with citations using LLM.
+
+        Args:
+            context: Search context
+
+        Returns:
+            Generated answer text (extracted from structured answer)
+        """
+        # Validate configuration and get required components
+        _, llm_parameters, provider = self.pipeline_service._validate_configuration(
+            context.pipeline_id,
+            context.user_id,  # pylint: disable=protected-access
+        )
+
+        # Get templates
+        rag_template, _ = self.pipeline_service._get_templates(context.user_id)  # pylint: disable=protected-access
+
+        # Build context documents from query results with metadata
+        context_documents = []
+        for result in context.query_results:
+            doc_dict: dict[str, Any] = {
+                "id": str(result.chunk.document_id) if result.chunk and result.chunk.document_id else "unknown",
+                "title": (
+                    result.chunk.metadata.document_id
+                    if result.chunk and result.chunk.metadata and hasattr(result.chunk.metadata, "document_id")
+                    else "Untitled"
+                ),
+                "content": result.chunk.text if result.chunk and result.chunk.text else "",
+                "page_number": (
+                    result.chunk.metadata.page_number
+                    if result.chunk and result.chunk.metadata and result.chunk.metadata.page_number
+                    else None
+                ),
+                "chunk_id": result.chunk.chunk_id if result.chunk and result.chunk.chunk_id else None,
+            }
+            context_documents.append(doc_dict)
+
+        # Extract structured output configuration from config_metadata
+        config_metadata = context.search_input.config_metadata or {}
+        structured_config = StructuredOutputConfig(
+            enabled=True,
+            format_type=config_metadata.get("format_type", "standard"),
+            include_reasoning=config_metadata.get("include_reasoning", False),
+            max_citations=config_metadata.get("max_citations", 5),
+            min_confidence=config_metadata.get("min_confidence", 0.0),
+            validation_strict=config_metadata.get("validation_strict", True),
+            max_context_per_doc=config_metadata.get("max_context_per_doc", 2000),
+        )
+
+        # Use rewritten query if available, otherwise original question
+        query = context.rewritten_query or context.search_input.question
+
+        logger.info(
+            "Generating structured output: query=%s, num_docs=%d, max_citations=%d",
+            query[:100],
+            len(context_documents),
+            structured_config.max_citations,
+        )
+
+        try:
+            # Generate structured answer using provider
+            structured_answer, usage = provider.generate_structured_output(
+                user_id=context.user_id,
+                prompt=query,
+                context_documents=context_documents,
+                config=structured_config,
+                model_parameters=llm_parameters,
+                template=rag_template,
+            )
+
+            # Store structured answer in context
+            context.structured_answer = structured_answer
+
+            # Track token usage
+            provider.track_usage(usage, user_id=context.user_id)
+
+            logger.info(
+                "Structured answer generated: confidence=%.2f, citations=%d, tokens=%d",
+                structured_answer.confidence,
+                len(structured_answer.citations),
+                usage.total_tokens,
+            )
+
+            # Return the answer text for use as generated_answer
+            return structured_answer.answer
+
+        except NotImplementedError:
+            # Provider doesn't support structured output - fall back to regular generation
+            logger.warning(
+                "Provider %s does not support structured output, falling back to regular generation",
+                provider.__class__.__name__,
+            )
+            return await self._generate_answer_from_documents(context)
+        except Exception as e:
+            # Log error and fall back to regular generation
+            logger.error("Structured output generation failed: %s, falling back to regular generation", e)
+            return await self._generate_answer_from_documents(context)
 
     def _clean_answer(self, answer: str) -> str:
         """
