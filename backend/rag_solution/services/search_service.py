@@ -569,6 +569,11 @@ class SearchService:
         # Convert cot_output from ChainOfThoughtOutput to dict if present
         cot_output_dict = result_context.cot_output.model_dump() if result_context.cot_output else None
 
+        # Debug: Log document_metadata before creating SearchOutput
+        logger.info("📊 SEARCH_SERVICE: result_context.document_metadata has %d items", len(result_context.document_metadata))
+        if result_context.document_metadata:
+            logger.info("📊 SEARCH_SERVICE: First doc_metadata = %s", result_context.document_metadata[0].document_name if hasattr(result_context.document_metadata[0], 'document_name') else 'NO DOCUMENT_NAME')
+
         search_output = SearchOutput(
             answer=cleaned_answer,
             documents=result_context.document_metadata,
@@ -578,6 +583,7 @@ class SearchService:
             execution_time=result_context.execution_time,
             cot_output=cot_output_dict,
             token_warning=result_context.token_warning,
+            structured_answer=result_context.structured_answer,
             metadata={
                 "pipeline_architecture": "v2_stage_based",
                 "stages_executed": executor.get_stage_names(),
