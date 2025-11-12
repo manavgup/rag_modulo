@@ -49,6 +49,9 @@ class ScriptParseResult:
 class PodcastScriptParser:
     """Parser for LLM-generated podcast scripts with quality validation."""
 
+    # Maximum input length to prevent ReDoS attacks (100KB = ~15,000-20,000 words)
+    MAX_INPUT_LENGTH: ClassVar[int] = 100_000
+
     # Artifact patterns that indicate prompt leakage
     ARTIFACT_PATTERNS: ClassVar[list[str]] = [
         r"Word count:\s*\d+",  # "Word count: 3,200"
@@ -103,7 +106,23 @@ class PodcastScriptParser:
 
         Returns:
             ScriptParseResult with extracted script and quality metrics
+
+        Raises:
+            ValueError: If input length exceeds MAX_INPUT_LENGTH (ReDoS mitigation)
         """
+        # ReDoS mitigation: Validate input length before regex operations
+        if len(llm_output) > self.MAX_INPUT_LENGTH:
+            logger.error(
+                "Input length %d exceeds maximum %d (ReDoS mitigation)",
+                len(llm_output),
+                self.MAX_INPUT_LENGTH,
+            )
+            raise ValueError(
+                f"Input too large: {len(llm_output)} bytes "
+                f"(max: {self.MAX_INPUT_LENGTH} bytes). "
+                "This protects against ReDoS attacks."
+            )
+
         # Try each parsing strategy in order
         strategies = [
             (self._parse_xml_tags, ParsingStrategy.XML_TAGS),
