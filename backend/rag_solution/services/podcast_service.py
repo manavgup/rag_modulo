@@ -15,6 +15,7 @@ Orchestrates podcast generation from document collections:
 """
 
 import logging
+import time
 from enum import Enum
 from typing import Any, ClassVar
 
@@ -736,15 +737,22 @@ CRITICAL INSTRUCTION:
         # Initialize enhanced parser for quality validation
         enhanced_parser = EnhancedScriptParser(average_wpm=150)
 
-        # Retry configuration
-        max_retries = 3
+        # Retry configuration (optimized for cost and latency)
+        max_retries = 2  # Reduced from 3 to 2 (saves ~30s latency, $0.01-0.05 cost)
         min_quality_score = 0.6
+        base_delay = 1.0  # Base delay for exponential backoff (seconds)
 
         best_script = None
         best_quality = 0.0
 
         for attempt in range(max_retries):
             try:
+                # Add exponential backoff between retries (2^attempt * base_delay)
+                if attempt > 0:
+                    delay = base_delay * (2**attempt)
+                    logger.info("Retry attempt %d: waiting %.1fs before retry", attempt + 1, delay)
+                    time.sleep(delay)
+
                 script_text = llm_provider.generate_text(
                     user_id=user_id,
                     prompt="",  # Empty - template contains full prompt
@@ -799,6 +807,10 @@ CRITICAL INSTRUCTION:
                 logger.error("Error generating script on attempt %d: %s", attempt + 1, e)
                 if attempt == max_retries - 1:
                     raise
+                # Add exponential backoff on errors as well
+                delay = base_delay * (2 ** (attempt + 1))
+                logger.info("Error recovery: waiting %.1fs before retry", delay)
+                time.sleep(delay)
 
         # If we exhausted retries, return best script with warning
         if best_script:

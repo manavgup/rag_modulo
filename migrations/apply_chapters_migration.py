@@ -32,12 +32,14 @@ def apply_migration():
     """Apply the chapters column migration."""
     print(f"Connecting to database: {DB_NAME} at {DB_HOST}:{DB_PORT}")
 
+    conn = None
+    cursor = None
+
     try:
         # Connect to database
         conn = psycopg2.connect(
             host=DB_HOST, port=DB_PORT, user=DB_USER, password=DB_PASSWORD, database=DB_NAME
         )
-        conn.autocommit = True
         cursor = conn.cursor()
 
         print("Connected successfully!")
@@ -92,20 +94,33 @@ def apply_migration():
             print(f"  Default: {result[3]}")
         else:
             print("❌ ERROR: Column 'chapters' not found after migration!")
+            if conn:
+                conn.rollback()
             return False
 
-        cursor.close()
-        conn.close()
+        # Commit transaction if all successful
+        conn.commit()
 
         print("\n🎉 Migration completed successfully!")
         return True
 
     except psycopg2.Error as e:
         print(f"❌ Database error: {e}")
+        if conn:
+            conn.rollback()
+            print("  Transaction rolled back.")
         return False
     except Exception as e:
         print(f"❌ Error: {e}")
+        if conn:
+            conn.rollback()
+            print("  Transaction rolled back.")
         return False
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 
 if __name__ == "__main__":
