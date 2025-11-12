@@ -13,6 +13,10 @@ from core.custom_exceptions import LLMProviderError, NotFoundError, ValidationEr
 from core.logging_utils import get_logger
 from rag_solution.schemas.llm_model_schema import ModelType
 from rag_solution.schemas.llm_usage_schema import LLMUsage, ServiceType
+from rag_solution.schemas.structured_output_schema import (
+    StructuredAnswer,
+    StructuredOutputConfig,
+)
 
 from .base import LLMBase
 
@@ -263,6 +267,251 @@ class AnthropicLLM(LLMBase):
             raise LLMProviderError(
                 provider="anthropic", error_type="generation_failed", message=f"Failed to generate text: {e!s}"
             ) from e
+
+    def generate_structured_output(
+        self,
+        user_id: UUID4,
+        prompt: str,
+        context_documents: list[dict[str, Any]],
+        config: StructuredOutputConfig | None = None,
+        model_parameters: LLMParametersInput | None = None,
+        template: PromptTemplateBase | None = None,
+    ) -> tuple[StructuredAnswer, LLMUsage]:
+        """Generate structured output using Anthropic's tool use feature.
+
+        Args:
+            user_id: UUID4 of the user making the request
+            prompt: The user's query/prompt
+            context_documents: List of retrieved documents with metadata
+            config: Structured output configuration
+            model_parameters: Optional LLM parameters
+            template: Optional prompt template for structured output
+
+        Returns:
+            Tuple of (StructuredAnswer, LLMUsage)
+
+        Raises:
+            LLMProviderError: If generation fails or response is invalid
+        """
+        try:
+            self._ensure_client()
+            model_id = self._model_id or self._default_model_id
+            generation_params = self._get_generation_params(user_id, model_parameters)
+
+            # Use default config if not provided
+            if config is None:
+                config = StructuredOutputConfig(enabled=True)
+
+            # Build the prompt with context
+            formatted_prompt = self._build_structured_prompt(prompt, context_documents, config, template)
+
+            # Define tool for structured output
+            tool = self._get_anthropic_tool_schema(config)
+
+            # Call Anthropic with tool use
+            response = self.client.messages.create(  # type: ignore[union-attr]
+                model=model_id,
+                messages=[{"role": "user", "content": formatted_prompt}],
+                tools=[tool],
+                tool_choice={"type": "tool", "name": "provide_structured_answer"},
+                **generation_params,
+            )
+
+            # Extract tool use from response
+            tool_use = None
+            for block in response.content:
+                if block.type == "tool_use" and block.name == "provide_structured_answer":
+                    tool_use = block
+                    break
+
+            if not tool_use:
+                raise LLMProviderError(
+                    provider="anthropic",
+                    error_type="generation_failed",
+                    message="No tool use found in Anthropic response",
+                )
+
+            # Parse tool input as structured answer
+            try:
+                structured_answer = StructuredAnswer(**tool_use.input)
+            except ValidationError as e:
+                raise LLMProviderError(
+                    provider="anthropic",
+                    error_type="invalid_response",
+                    message=f"Failed to parse structured output: {e!s}",
+                ) from e
+
+            # Create usage record
+            usage = LLMUsage(
+                prompt_tokens=response.usage.input_tokens if response.usage else 0,
+                completion_tokens=response.usage.output_tokens if response.usage else 0,
+                total_tokens=(response.usage.input_tokens + response.usage.output_tokens) if response.usage else 0,
+                model_name=model_id,
+                service_type=ServiceType.GENERATION,
+                timestamp=datetime.now(),
+                user_id=str(user_id),
+            )
+
+            self.track_usage(usage)
+            return structured_answer, usage
+
+        except LLMProviderError:
+            raise
+        except Exception as e:
+            raise LLMProviderError(
+                provider="anthropic",
+                error_type="generation_failed",
+                message=f"Failed to generate structured output: {e!s}",
+            ) from e
+
+    def _build_structured_prompt(
+        self,
+        prompt: str,
+        context_documents: list[dict[str, Any]],
+        config: StructuredOutputConfig,
+        template: PromptTemplateBase | None = None,
+    ) -> str:
+        """Build a prompt that includes context documents for structured output.
+
+        Args:
+            prompt: User's query
+            context_documents: Retrieved documents with metadata
+            config: Structured output configuration
+            template: Optional prompt template for structured output
+
+        Returns:
+            Formatted prompt with context
+        """
+
+        # Format context documents with configurable truncation
+        def truncate_content(content: str, max_length: int) -> str:
+            """Truncate content with ellipsis indicator."""
+            if len(content) <= max_length:
+                return content
+            return content[:max_length] + "..."
+
+        # Format context documents with all available metadata
+        context_parts = []
+        for i, doc in enumerate(context_documents[: config.max_citations]):
+            doc_info = [
+                f"Document {i + 1} (ID: {doc.get('id', 'unknown')}):",
+                f"  Title: {doc.get('title', 'Untitled')}",
+            ]
+
+            # Add page_number if available
+            if doc.get("page_number") is not None:
+                doc_info.append(f"  Page: {doc.get('page_number')}")
+
+            # Add chunk_id if available
+            if doc.get("chunk_id") is not None:
+                doc_info.append(f"  Chunk ID: {doc.get('chunk_id')}")
+
+            # Add content with truncation
+            doc_info.append(f"  Content: {truncate_content(doc.get('content', ''), config.max_context_per_doc)}")
+
+            context_parts.append("\n".join(doc_info))
+
+        context_text = "\n\n".join(context_parts)
+
+        # If template provided, use it
+        if template:
+            try:
+                return template.format_prompt(question=prompt, context=context_text)
+            except Exception as e:
+                self.logger.warning(f"Template formatting failed: {e}, falling back to default")
+
+        # Default prompt (fallback)
+        prompt_parts = [
+            f"Question: {prompt}",
+            "\nContext Documents:",
+            context_text,
+            "\nPlease provide a structured answer using the provide_structured_answer tool with:",
+            "1. A clear, concise answer to the question",
+            "2. A confidence score (0.0-1.0) based on the quality and relevance of the sources",
+            "3. Citations to specific documents that support your answer",
+            "   - Include the document_id, title, and excerpt from the document",
+            "   - If a document has a page_number, include it in your citation",
+            "   - If a document has a chunk_id, include it in your citation",
+            "   - Extract the most relevant excerpt that supports your answer",
+        ]
+
+        if config.include_reasoning:
+            prompt_parts.append("4. Step-by-step reasoning showing how you arrived at your answer")
+
+        return "\n".join(prompt_parts)
+
+    def _get_anthropic_tool_schema(self, config: StructuredOutputConfig) -> dict[str, Any]:
+        """Get Anthropic-compatible tool schema for structured output.
+
+        Args:
+            config: Structured output configuration
+
+        Returns:
+            Tool schema dictionary for Anthropic API
+        """
+        tool = {
+            "name": "provide_structured_answer",
+            "description": "Provide a structured answer with citations and confidence score",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "answer": {"type": "string", "description": "The main answer text"},
+                    "confidence": {
+                        "type": "number",
+                        "description": "Confidence score between 0.0 and 1.0",
+                    },
+                    "citations": {
+                        "type": "array",
+                        "description": "List of citations supporting the answer",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "document_id": {"type": "string", "description": "UUID of source document"},
+                                "title": {"type": "string", "description": "Document title"},
+                                "excerpt": {"type": "string", "description": "Relevant excerpt"},
+                                "page_number": {"type": "integer", "description": "Page number (optional)"},
+                                "relevance_score": {
+                                    "type": "number",
+                                    "description": "Relevance score between 0.0 and 1.0",
+                                },
+                                "chunk_id": {"type": "string", "description": "Chunk identifier (optional)"},
+                            },
+                            "required": ["document_id", "title", "excerpt", "relevance_score"],
+                        },
+                    },
+                    "format_type": {
+                        "type": "string",
+                        "description": "Answer format type",
+                        "enum": ["standard", "cot_reasoning", "comparative", "summary"],
+                    },
+                    "metadata": {"type": "object", "description": "Additional metadata"},
+                },
+                "required": ["answer", "confidence", "citations", "format_type"],
+            },
+        }
+
+        # Add reasoning_steps if requested
+        if config.include_reasoning:
+            tool["input_schema"]["properties"]["reasoning_steps"] = {
+                "type": "array",
+                "description": "Step-by-step reasoning process",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "step_number": {"type": "integer", "description": "Step number"},
+                        "thought": {"type": "string", "description": "Reasoning or analysis"},
+                        "conclusion": {"type": "string", "description": "Conclusion from this step"},
+                        "citations": {
+                            "type": "array",
+                            "description": "Citations for this step",
+                            "items": {"type": "object"},
+                        },
+                    },
+                    "required": ["step_number", "thought", "conclusion"],
+                },
+            }
+
+        return tool
 
     def close(self) -> None:
         """Clean up provider resources."""
