@@ -400,7 +400,9 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
                 generation_top_k = settings.generation_top_k
                 limited_results = query_results[:generation_top_k]
 
-                logger.info(f"📊 Limiting sources from {len(query_results)} to {len(limited_results)} (generation_top_k={generation_top_k})")
+                logger.info(
+                    f"📊 Limiting sources from {len(query_results)} to {len(limited_results)} (generation_top_k={generation_top_k})"
+                )
 
                 # Map each chunk from query_results to a source
                 for result in limited_results:
@@ -420,7 +422,9 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
 
                     # Debug logging for score
                     if score is None or score == 0.0:
-                        logger.warning(f"⚠️ Source has no score - result.score={result.score}, chunk.score={getattr(result.chunk, 'score', 'N/A')}")
+                        logger.warning(
+                            f"⚠️ Source has no score - result.score={result.score}, chunk.score={getattr(result.chunk, 'score', 'N/A')}"
+                        )
 
                     # Get page number from chunk metadata
                     page_number = None
@@ -464,16 +468,29 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
 
                         # Collect other attributes into metadata
                         for key, value in doc.__dict__.items():
-                            if key not in ["document_name", "name", "content", "text", "id", "document_id"] and isinstance(value, str | int | float | bool | type(None)):
+                            if key not in [
+                                "document_name",
+                                "name",
+                                "content",
+                                "text",
+                                "id",
+                                "document_id",
+                            ] and isinstance(value, str | int | float | bool | type(None)):
                                 doc_dict["metadata"][key] = value
 
                         serialized.append(doc_dict)
                     else:
-                        serialized.append({"document_name": "Unknown", "content": str(doc)[:1000], "metadata": {"score": 1.0}})
+                        serialized.append(
+                            {"document_name": "Unknown", "content": str(doc)[:1000], "metadata": {"score": 1.0}}
+                        )
 
-            logger.info(f"📊 Serialized {len(serialized)} sources from {'query_results' if query_results else 'documents'}")
+            logger.info(
+                f"📊 Serialized {len(serialized)} sources from {'query_results' if query_results else 'documents'}"
+            )
             if serialized and "metadata" in serialized[0]:
-                logger.info(f"📊 First source - name: {serialized[0]['document_name']}, score: {serialized[0]['metadata'].get('score', 'N/A')}")
+                logger.info(
+                    f"📊 First source - name: {serialized[0]['document_name']}, score: {serialized[0]['metadata'].get('score', 'N/A')}"
+                )
 
             return serialized
 

@@ -1005,7 +1005,7 @@ class TestSerializeDocuments:
 
         # Assert
         assert len(result) == 1
-        assert result[0]["document_name"] == "doc1.pdf"
+        assert result[0]["document_name"] == "doc1.pdf - Page 5"  # Updated: includes page number
         # Should have best score from query results
         assert result[0]["metadata"]["score"] == 0.95
         assert result[0]["metadata"]["page_number"] == 5
@@ -1069,5 +1069,8 @@ class TestSerializeDocuments:
 
         # Assert
         assert len(result) == 1
-        assert result[0]["metadata"]["score"] == 0.95  # Best score
-        assert result[0]["metadata"]["page_number"] in [3, 7]  # One of the page numbers
+        # Serialization limits to 1 source (generation_top_k) and takes FIRST in order
+        # First chunk has score 0.85 and page 3
+        assert result[0]["metadata"]["score"] == 0.85  # First chunk score (ordered by position)
+        assert result[0]["document_name"] == "doc1.pdf - Page 3"  # First chunk page number
+        assert result[0]["metadata"]["page_number"] == 3  # First chunk page
