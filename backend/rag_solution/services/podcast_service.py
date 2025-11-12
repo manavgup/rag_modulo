@@ -412,15 +412,7 @@ CRITICAL INSTRUCTION:
             audio_stored = True  # Mark audio as stored for cleanup if needed
 
             # Step 6: Extract and serialize chapters
-            chapters_dict = [
-                {
-                    "title": chapter.title,
-                    "start_time": chapter.start_time,
-                    "end_time": chapter.end_time,
-                    "word_count": chapter.word_count,
-                }
-                for chapter in podcast_script.chapters
-            ]
+            chapters_dict = self._serialize_chapters(podcast_script)
 
             # Step 7: Mark complete (100%)
             self.repository.mark_completed(
@@ -1177,6 +1169,30 @@ CRITICAL INSTRUCTION:
                 status=status,
             )
 
+    def _serialize_chapters(self, podcast_script: PodcastScriptOutput) -> list[dict[str, Any]]:
+        """
+        Serialize podcast chapters from PodcastScriptOutput to dictionary format.
+
+        Args:
+            podcast_script: Parsed podcast script with chapters
+
+        Returns:
+            List of chapter dictionaries with title, timestamps, and word count.
+            Returns empty list if chapters is None or empty.
+        """
+        if not podcast_script.chapters:
+            return []
+
+        return [
+            {
+                "title": chapter.title,
+                "start_time": chapter.start_time,
+                "end_time": chapter.end_time,
+                "word_count": chapter.word_count,
+            }
+            for chapter in podcast_script.chapters
+        ]
+
     async def get_podcast(self, podcast_id: UUID4, user_id: UUID4) -> PodcastGenerationOutput:
         """
         Get podcast by ID with access control.
@@ -1561,15 +1577,7 @@ CRITICAL INSTRUCTION:
             )
 
             # Step 5: Extract and serialize chapters
-            chapters_dict = [
-                {
-                    "title": chapter.title,
-                    "start_time": chapter.start_time,
-                    "end_time": chapter.end_time,
-                    "word_count": chapter.word_count,
-                }
-                for chapter in podcast_script.chapters
-            ]
+            chapters_dict = self._serialize_chapters(podcast_script)
 
             # Step 6: Mark completed
             self.repository.mark_completed(
