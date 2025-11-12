@@ -916,13 +916,20 @@ class ApiClient {
     return response.data;
   }
 
-  async sendConversationMessage(sessionId: string, content: string): Promise<ConversationMessage> {
-    const payload = {
+  async sendConversationMessage(sessionId: string, content: string, configMetadata?: Record<string, any>): Promise<ConversationMessage> {
+    const payload: any = {
       session_id: sessionId,
       content: content,
       role: 'user',
       message_type: 'question'
     };
+
+    // Add config_metadata inside metadata field if provided
+    if (configMetadata) {
+      payload.metadata = {
+        config_metadata: configMetadata
+      };
+    }
 
     const response: AxiosResponse<any> = await this.client.post(`/api/conversations/${sessionId}/messages`, payload);
     const message = response.data;

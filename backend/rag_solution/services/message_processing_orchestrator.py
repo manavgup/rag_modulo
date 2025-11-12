@@ -98,6 +98,7 @@ class MessageProcessingOrchestrator:
             f"🚀 MESSAGE ORCHESTRATOR: process_user_message() called with session_id={message_input.session_id}"
         )
         logger.info("📝 MESSAGE ORCHESTRATOR: message content: %s...", message_input.content[:100])
+        logger.info("🔍 MESSAGE ORCHESTRATOR: message_input.metadata type=%s, value=%s", type(message_input.metadata), message_input.metadata)
 
         # 1. Validate session exists and get user/collection context
         try:
@@ -139,7 +140,22 @@ class MessageProcessingOrchestrator:
             [msg.content for msg in messages_output[-5:]],  # Last 5 messages
         )
 
-        # 6. Execute search with context
+        # 6. Extract user-provided config_metadata from message input
+        user_config_metadata = None
+        if message_input.metadata:
+            if isinstance(message_input.metadata, dict):
+                # Extract config_metadata from the metadata dict
+                user_config_metadata = message_input.metadata.get("config_metadata")
+            else:
+                # MessageMetadata Pydantic model - check if it has config_metadata
+                if hasattr(message_input.metadata, "model_dump"):
+                    metadata_dict = message_input.metadata.model_dump()
+                    user_config_metadata = metadata_dict.get("config_metadata")
+
+        if user_config_metadata:
+            logger.info("📝 MESSAGE ORCHESTRATOR: Extracted user config_metadata from message input: %s", user_config_metadata)
+
+        # 7. Execute search with context and user config
         search_result = await self._coordinate_search(
             enhanced_question=enhanced_question,
             session_id=message_input.session_id,
@@ -147,14 +163,15 @@ class MessageProcessingOrchestrator:
             user_id=session.user_id,
             context=context,
             messages=messages_output,
+            user_config_metadata=user_config_metadata,
         )
 
-        # 7. Serialize response and calculate tokens
+        # 8. Serialize response and calculate tokens
         serialized_response, assistant_response_tokens = await self._serialize_response(
             search_result=search_result, user_token_count=user_token_count, user_id=session.user_id
         )
 
-        # 8. Store assistant message with full metadata
+        # 9. Store assistant message with full metadata
         assistant_message = await self._store_assistant_message(
             session_id=message_input.session_id,
             search_result=search_result,
@@ -177,6 +194,7 @@ class MessageProcessingOrchestrator:
         user_id: UUID,
         context: Any,
         messages: list[ConversationMessageOutput],
+        user_config_metadata: dict[str, Any] | None = None,
     ) -> SearchResult:
         """Coordinate search with conversation context.
 
@@ -187,6 +205,7 @@ class MessageProcessingOrchestrator:
             user_id: User ID
             context: Conversation context
             messages: Conversation messages
+            user_config_metadata: Optional user-provided config metadata (e.g., structured_output_enabled)
 
         Returns:
             Search result with answer, documents, and CoT output
@@ -195,20 +214,28 @@ class MessageProcessingOrchestrator:
         if not collection_id or not user_id:
             raise ValidationError("Session must have valid collection_id and user_id for search")
 
-        # Create search input with conversation context
+        # Build base conversation config
+        conversation_config = {
+            "conversation_context": context.context_window,
+            "session_id": str(session_id),
+            "message_history": [msg.content for msg in messages[-10:]],
+            "conversation_entities": context.context_metadata.get("extracted_entities", []),
+            "cot_enabled": True,
+            "show_cot_steps": False,  # Disable CoT steps visibility for context flow tests
+            "conversation_aware": True,
+        }
+
+        # Merge user-provided config (user config takes precedence)
+        if user_config_metadata:
+            conversation_config.update(user_config_metadata)
+            logger.info("🔧 MESSAGE ORCHESTRATOR: Merged user config_metadata: %s", user_config_metadata)
+
+        # Create search input with merged config
         search_input = SearchInput(
             question=enhanced_question,
             collection_id=collection_id,
             user_id=user_id,
-            config_metadata={
-                "conversation_context": context.context_window,
-                "session_id": str(session_id),
-                "message_history": [msg.content for msg in messages[-10:]],
-                "conversation_entities": context.context_metadata.get("extracted_entities", []),
-                "cot_enabled": True,
-                "show_cot_steps": False,  # Disable CoT steps visibility for context flow tests
-                "conversation_aware": True,
-            },
+            config_metadata=conversation_config,
         )
 
         # Execute search - this will automatically use CoT if appropriate
@@ -274,6 +301,14 @@ class MessageProcessingOrchestrator:
         # Serialize documents with query results for scores and page numbers
         result_documents = getattr(search_result, "documents", []) or []
         result_query_results = getattr(search_result, "query_results", []) or []
+
+        # Debug: Check what we actually got from search_result
+        logger.info("📊 ORCHESTRATOR: getattr returned documents list with %d items", len(result_documents))
+        logger.info("📊 ORCHESTRATOR: search_result type = %s", type(search_result))
+        logger.info("📊 ORCHESTRATOR: search_result.documents type = %s", type(search_result.documents) if hasattr(search_result, 'documents') else 'NO ATTR')
+        if result_documents:
+            logger.info("📊 ORCHESTRATOR: First result_document = %s", result_documents[0])
+
         serialized_documents = self._serialize_documents(result_documents, result_query_results)
 
         # Calculate assistant response tokens
@@ -445,6 +480,11 @@ class MessageProcessingOrchestrator:
         if serialized_documents:
             assistant_message_output.sources = serialized_documents
             logger.info(f"📊 MESSAGE ORCHESTRATOR: Added {len(serialized_documents)} sources to response")
+            # Debug: Log first source with full details
+            if serialized_documents:
+                first_source = serialized_documents[0]
+                logger.info(f"📊 DEBUG: First source = {first_source}")
+                logger.info(f"📊 DEBUG: First source score = {first_source.get('metadata', {}).get('score', 'MISSING')}")
 
         # Add CoT output to the response if CoT was used
         if cot_used and cot_output:
@@ -508,118 +548,136 @@ class MessageProcessingOrchestrator:
         return None
 
     def _serialize_documents(self, documents: list[Any], query_results: list[Any]) -> list[dict[str, Any]]:
-        """Convert DocumentMetadata objects to JSON-serializable dictionaries.
+        """Convert query results to JSON-serializable source dictionaries matching frontend schema.
 
-        Enhances documents with scores and page numbers from query_results.
+        Maps individual chunks from query_results, not documents, to fix:
+        1. Identical chunk text bug (each chunk shows its own text)
+        2. Score display bug (each chunk has its own relevance score)
+
         Frontend expects: {document_name: str, content: str, metadata: {score: float, page_number: int, ...}}
 
+        Note: score represents RELEVANCE (cosine similarity from vector search), not confidence or accuracy.
+
         Args:
-            documents: List of document metadata objects
-            query_results: List of query result objects
+            documents: List of document metadata objects (used for document name lookup)
+            query_results: List of query result objects with chunks and scores
 
         Returns:
-            List of serialized document dictionaries
+            List of serialized document dictionaries, limited to generation_top_k sources
         """
-        # Extract scores and page numbers from query_results by document_id
-        doc_data_map = {}
+        serialized = []
+
+        # If we have query_results, map each chunk individually
         if query_results:
+            # Build document ID → name mapping from query_results + documents
+            # Since DocumentMetadata doesn't store IDs, we need to correlate them:
+            # 1. Extract unique doc_ids from query_results (in order of first appearance)
+            # 2. Match with documents list (which is ordered same as doc_ids from generate_document_metadata)
+            doc_id_to_name = {}
+
+            # Get unique document IDs in order of first appearance
+            seen_doc_ids = []
             for result in query_results:
+                if result.chunk and result.chunk.document_id:
+                    doc_id_str = str(result.chunk.document_id)
+                    if doc_id_str not in seen_doc_ids:
+                        seen_doc_ids.append(doc_id_str)
+
+            logger.info(f"📊 Unique doc_ids from query_results (ordered): {seen_doc_ids}")
+            logger.info(f"📊 Documents list has {len(documents)} items")
+
+            # Map doc_ids to document names by position
+            # generate_document_metadata creates list in same order as doc_ids from query_results
+            for idx, doc_id in enumerate(seen_doc_ids):
+                if idx < len(documents) and documents[idx].document_name:
+                    doc_id_to_name[doc_id] = documents[idx].document_name
+                    logger.info(f"📊 Mapped (by position): {doc_id} → {documents[idx].document_name}")
+                else:
+                    logger.warning(f"⚠️ No document metadata at index {idx} for doc_id {doc_id}")
+
+            logger.info(f"📊 Final document ID mapping: {doc_id_to_name}")
+
+            # Limit to generation_top_k (default 5) for frontend display
+            generation_top_k = self.settings.generation_top_k
+            limited_results = query_results[:generation_top_k]
+
+            logger.info(f"📊 Limiting sources from {len(query_results)} to {len(limited_results)} (generation_top_k={generation_top_k})")
+
+            # Map each chunk from query_results to a source
+            for idx, result in enumerate(limited_results):
                 if not result.chunk:
                     continue
 
-                doc_id = result.chunk.document_id
-                if not doc_id:
-                    continue
+                # Get document name
+                doc_id = str(result.chunk.document_id) if result.chunk.document_id else None
+                document_name = doc_id_to_name.get(doc_id, "Unknown Document") if doc_id else "Unknown Document"
 
-                # Get score (from QueryResult level first, then chunk level)
+                # Debug: Log chunk details
+                chunk_text_preview = result.chunk.text[:100] if hasattr(result.chunk, "text") and result.chunk.text else "NO TEXT"
+                logger.info(f"📊 Source {idx+1}: doc_id={doc_id}, doc_name={document_name}, chunk_text={chunk_text_preview}...")
+
+                # Get relevance score (from QueryResult level first, then chunk level)
                 score = (
                     result.score
                     if result.score is not None
                     else (result.chunk.score if hasattr(result.chunk, "score") else None)
                 )
 
+                # Debug logging for score
+                if score is None or score == 0.0:
+                    logger.warning(f"⚠️ Source has no score - result.score={result.score}, chunk.score={getattr(result.chunk, 'score', 'N/A')}")
+
                 # Get page number from chunk metadata
                 page_number = None
-                if result.chunk.metadata and hasattr(result.chunk.metadata, "page_number"):
-                    page_number = result.chunk.metadata.page_number
+                chunk_id = None
+                if result.chunk.metadata:
+                    if hasattr(result.chunk.metadata, "page_number"):
+                        page_number = result.chunk.metadata.page_number
+                    if hasattr(result.chunk.metadata, "chunk_id"):
+                        chunk_id = result.chunk.metadata.chunk_id
 
-                # Get content from chunk
+                # Get chunk text
                 content = result.chunk.text if hasattr(result.chunk, "text") and result.chunk.text else ""
 
-                # Keep track of best score and first page number for each document
-                if doc_id not in doc_data_map:
-                    doc_data_map[doc_id] = {
-                        "score": score,
-                        "page_numbers": {page_number} if page_number else set(),
-                        "content": content,
-                    }
-                else:
-                    # Update with better score if found
-                    if score is not None and (
-                        doc_data_map[doc_id]["score"] is None or score > doc_data_map[doc_id]["score"]
-                    ):
-                        doc_data_map[doc_id]["score"] = score
-                    # Collect all page numbers
-                    if page_number:
-                        doc_data_map[doc_id]["page_numbers"].add(page_number)
-                    # Append content (limit to avoid huge payloads)
-                    if content and len(doc_data_map[doc_id]["content"]) < 2000:
-                        doc_data_map[doc_id]["content"] += "\n\n" + content
+                # Build display name with page number if available
+                display_name = f"{document_name} - Page {page_number}" if page_number else document_name
 
-        serialized = []
-        for doc in documents:
-            if hasattr(doc, "__dict__"):
-                # Extract fields matching frontend schema
-                doc_dict = {
-                    "document_name": getattr(doc, "document_name", getattr(doc, "name", "Unknown Document")),
-                    "content": getattr(doc, "content", getattr(doc, "text", "")),
-                    "metadata": {},
+                # Create source entry for this chunk
+                source_dict = {
+                    "document_name": display_name,
+                    "content": content[:1000],  # Limit to 1000 chars for UI display
+                    "metadata": {
+                        "score": score if score is not None else 0.0,  # Relevance score
+                        "page_number": page_number,
+                        "chunk_id": chunk_id,
+                        "document_id": doc_id,
+                    },
                 }
 
-                # Collect all other attributes into metadata dict
-                for key, value in doc.__dict__.items():
-                    if key not in ["document_name", "name", "content", "text"]:
-                        if isinstance(value, str | int | float | bool | type(None)):
+                serialized.append(source_dict)
+
+        # Fallback: If no query_results, map documents (backward compatibility)
+        else:
+            logger.warning("⚠️ No query_results available, falling back to documents (scores will default to 1.0)")
+            for doc in documents:
+                if hasattr(doc, "__dict__"):
+                    doc_dict = {
+                        "document_name": getattr(doc, "document_name", getattr(doc, "name", "Unknown Document")),
+                        "content": getattr(doc, "content", getattr(doc, "text", ""))[:1000],
+                        "metadata": {"score": 1.0},  # Default relevance score
+                    }
+
+                    # Collect other attributes into metadata
+                    for key, value in doc.__dict__.items():
+                        if key not in ["document_name", "name", "content", "text", "id", "document_id"] and isinstance(value, str | int | float | bool | type(None)):
                             doc_dict["metadata"][key] = value
-                        else:
-                            doc_dict["metadata"][key] = str(value)
 
-                # Try to enhance with data from query_results
-                if doc_data_map:
-                    all_scores = [data["score"] for data in doc_data_map.values() if data["score"] is not None]
-                    all_pages = []
-                    for data in doc_data_map.values():
-                        all_pages.extend(data["page_numbers"])
-
-                    if all_scores:
-                        # Use the best (highest) score from all retrieved chunks
-                        doc_dict["metadata"]["score"] = max(all_scores)
-                    else:
-                        # Default score when query_results exist but have no scores
-                        doc_dict["metadata"]["score"] = 1.0
-
-                    if all_pages:
-                        # Use the first page number mentioned
-                        doc_dict["metadata"]["page_number"] = min(all_pages)
-
-                    # If original content is empty, use content from query results
-                    if not doc_dict["content"]:
-                        # Get first non-empty content
-                        for data in doc_data_map.values():
-                            if data["content"]:
-                                doc_dict["content"] = data["content"][:1000]  # Limit to 1000 chars
-                                break
+                    serialized.append(doc_dict)
                 else:
-                    # Default score when no query_results available
-                    doc_dict["metadata"]["score"] = 1.0
+                    serialized.append({"document_name": "Unknown", "content": str(doc)[:1000], "metadata": {"score": 1.0}})
 
-                serialized.append(doc_dict)
-            else:
-                # Fallback for unknown types
-                serialized.append({"document_name": "Unknown", "content": str(doc), "metadata": {}})
-
-        logger.info(f"📊 Serialized {len(serialized)} documents with scores and page numbers")
+        logger.info(f"📊 Serialized {len(serialized)} sources from {'query_results' if query_results else 'documents'}")
         if serialized and "metadata" in serialized[0]:
-            logger.info(f"📊 First source metadata: {serialized[0]['metadata']}")
+            logger.info(f"📊 First source - name: {serialized[0]['document_name']}, score: {serialized[0]['metadata'].get('score', 'N/A')}")
 
         return serialized

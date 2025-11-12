@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
@@ -12,6 +12,7 @@ import SourceModal from './SourceModal';
 import SourcesAccordion from './SourcesAccordion';
 import ChainOfThoughtAccordion from './ChainOfThoughtAccordion';
 import TokenAnalysisAccordion from './TokenAnalysisAccordion';
+import CitationsAccordion from './CitationsAccordion';
 import './SearchInterface.scss';
 
 // Import API client and WebSocket client
@@ -24,6 +25,7 @@ type ChatMessage = WSChatMessage;
 const LightweightSearchInterface: React.FC = () => {
   const { addNotification } = useNotification();
   const location = useLocation();
+  const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [selectedCollection, setSelectedCollection] = useState('all');
@@ -31,6 +33,7 @@ const LightweightSearchInterface: React.FC = () => {
   const [showSources, setShowSources] = useState<{ [key: string]: boolean }>({});
   const [showTokens, setShowTokens] = useState<{ [key: string]: boolean }>({});
   const [showCoT, setShowCoT] = useState<{ [key: string]: boolean }>({});
+  const [showCitations, setShowCitations] = useState<{ [key: string]: boolean }>({});
   const [sourceModalOpen, setSourceModalOpen] = useState<string | null>(null);
   const [sourceModalSources, setSourceModalSources] = useState<any[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
@@ -52,6 +55,9 @@ const LightweightSearchInterface: React.FC = () => {
   const [currentConversation, setCurrentConversation] = useState<ConversationSession | null>(null);
   const [showNewConversationModal, setShowNewConversationModal] = useState(false);
   const [newConversationName, setNewConversationName] = useState('');
+
+  // Structured output toggle
+  const [structuredOutputEnabled, setStructuredOutputEnabled] = useState(false);
 
   // Load specific conversation - wrapped in useCallback to fix exhaustive-deps
   const loadSpecificConversation = useCallback(async (sessionId: string) => {
@@ -178,6 +184,24 @@ const LightweightSearchInterface: React.FC = () => {
     loadConversations();
   }, [currentCollectionId, addNotification, currentConversation, location.state?.newConversation]);
 
+  // Update URL when conversation changes (for page refresh persistence)
+  useEffect(() => {
+    if (currentConversation?.id) {
+      const currentParams = new URLSearchParams(location.search);
+      const urlSessionId = currentParams.get('session');
+
+      // Only update if session ID in URL doesn't match current conversation
+      if (urlSessionId !== currentConversation.id) {
+        const newParams = new URLSearchParams(location.search);
+        newParams.set('session', currentConversation.id);
+        navigate({
+          pathname: location.pathname,
+          search: `?${newParams.toString()}`,
+        }, { replace: true }); // Use replace to not add to history
+      }
+    }
+  }, [currentConversation?.id, location.pathname, location.search, navigate]);
+
   // Load collections and set up WebSocket connection
   useEffect(() => {
     const loadCollections = async () => {
@@ -253,7 +277,23 @@ const LightweightSearchInterface: React.FC = () => {
 
       // Use conversation endpoint if we have an active conversation (saves messages)
       if (activeConversation) {
-        const conversationMessage = await apiClient.sendConversationMessage(activeConversation.id, query);
+        const conversationMessage = await apiClient.sendConversationMessage(
+          activeConversation.id,
+          query,
+          {
+            timestamp: new Date().toISOString(),
+            source: 'rest_api',
+            cot_enabled: !structuredOutputEnabled,  // Disable CoT when structured output is enabled
+            show_cot_steps: !structuredOutputEnabled,
+            structured_output_enabled: structuredOutputEnabled,
+            referenced_message: referencedMessage ? {
+              id: referencedMessage.id,
+              content: referencedMessage.content,
+              timestamp: referencedMessage.timestamp.toISOString(),
+              type: referencedMessage.type
+            } : undefined
+          }
+        );
 
         // Convert conversation message response to search response format
         // Note: conversation endpoint returns sources directly, not query_results
@@ -268,7 +308,8 @@ const LightweightSearchInterface: React.FC = () => {
           // Don't include query_results from conversation endpoint
           metadata: conversationMessage.metadata,
           token_warning: conversationMessage.token_warning,
-          cot_output: conversationMessage.metadata?.search_metadata?.cot_output
+          cot_output: conversationMessage.metadata?.search_metadata?.cot_output,
+          structured_answer: conversationMessage.metadata?.search_metadata?.structured_answer
         };
       } else {
         // Fallback to stateless search (does not save conversation)
@@ -279,8 +320,9 @@ const LightweightSearchInterface: React.FC = () => {
           config_metadata: {
             timestamp: new Date().toISOString(),
             source: 'rest_api',
-            cot_enabled: true,
-            show_cot_steps: true,
+            cot_enabled: !structuredOutputEnabled,  // Disable CoT when structured output is enabled
+            show_cot_steps: !structuredOutputEnabled,
+            structured_output_enabled: structuredOutputEnabled,
             referenced_message: referencedMessage ? {
               id: referencedMessage.id,
               content: referencedMessage.content,
@@ -298,8 +340,11 @@ const LightweightSearchInterface: React.FC = () => {
         metadata: Record<string, any>;
       }> = [];
 
-      // Prioritize query_results as they contain chunk-specific information with page numbers
-      if (searchResponse.query_results && Array.isArray(searchResponse.query_results) && searchResponse.query_results.length > 0) {
+      // Prioritize sources field first (from Conversation API) - it has scores already serialized
+      if (searchResponse.sources && Array.isArray(searchResponse.sources) && searchResponse.sources.length > 0) {
+        // Use sources directly - they already have the correct format with scores
+        sources = searchResponse.sources;
+      } else if (searchResponse.query_results && Array.isArray(searchResponse.query_results) && searchResponse.query_results.length > 0) {
         // Create a mapping of document_id to document_name from the documents array
         // Since DocumentMetadata doesn't have document_id, we'll create a mapping based on the order
         // This is a temporary solution until the backend provides better document_id mapping
@@ -377,9 +422,6 @@ const LightweightSearchInterface: React.FC = () => {
             }
           };
         });
-      } else if (searchResponse.sources) {
-        // Use existing sources format
-        sources = searchResponse.sources;
       }
 
       // Add assistant response to messages
@@ -392,6 +434,7 @@ const LightweightSearchInterface: React.FC = () => {
         metadata: searchResponse.metadata,
         token_warning: searchResponse.token_warning,
         cot_output: searchResponse.cot_output,
+        structured_answer: searchResponse.structured_answer,
       };
 
       setMessages(prev => [...prev, assistantMessage]);
@@ -632,6 +675,13 @@ const LightweightSearchInterface: React.FC = () => {
     }));
   };
 
+  const toggleCitations = (messageId: string) => {
+    setShowCitations(prev => ({
+      ...prev,
+      [messageId]: !prev[messageId]
+    }));
+  };
+
   const toggleCoT = (messageId: string) => {
     setShowCoT(prev => ({
       ...prev,
@@ -692,10 +742,12 @@ const LightweightSearchInterface: React.FC = () => {
                           {message.type === 'assistant' && (
                             <MessageMetadataFooter
                               sourcesCount={message.sources?.length || 0}
+                              citationsCount={message.structured_answer?.citations?.length || 0}
                               stepsCount={message.cot_output?.steps?.length || message.cot_output?.total_steps}
                               tokenCount={message.metadata?.token_analysis?.total_this_turn || message.token_warning?.current_tokens}
                               responseTime={message.metadata?.execution_time}
                               onSourcesClick={() => toggleSources(message.id)}
+                              onCitationsClick={() => toggleCitations(message.id)}
                               onStepsClick={() => toggleCoT(message.id)}
                               onTokensClick={() => toggleTokens(message.id)}
                             />
@@ -703,7 +755,7 @@ const LightweightSearchInterface: React.FC = () => {
                         </div>
 
                         {/* Accordions below message - Only show when opened */}
-                        {message.type === 'assistant' && (showSources[message.id] || showCoT[message.id] || showTokens[message.id]) && (
+                        {message.type === 'assistant' && (showSources[message.id] || showCitations[message.id] || showCoT[message.id] || showTokens[message.id]) && (
                           <div className="space-y-2">
                             {/* Sources Accordion - Only render when open */}
                             {showSources[message.id] && message.sources && message.sources.length > 0 && (
@@ -711,6 +763,15 @@ const LightweightSearchInterface: React.FC = () => {
                                 sources={message.sources}
                                 isOpen={true}
                                 onToggle={() => toggleSources(message.id)}
+                              />
+                            )}
+
+                            {/* Citations Accordion - Only render when open and structured_answer exists */}
+                            {showCitations[message.id] && message.structured_answer?.citations && message.structured_answer.citations.length > 0 && (
+                              <CitationsAccordion
+                                citations={message.structured_answer.citations}
+                                isOpen={true}
+                                onToggle={() => toggleCitations(message.id)}
                               />
                             )}
 
@@ -779,6 +840,23 @@ const LightweightSearchInterface: React.FC = () => {
                     </div>
                   </div>
                 )}
+
+                {/* Structured Output Toggle */}
+                <div className="mb-2 flex items-center">
+                  <input
+                    type="checkbox"
+                    id="structured-output-toggle"
+                    checked={structuredOutputEnabled}
+                    onChange={(e) => setStructuredOutputEnabled(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <label
+                    htmlFor="structured-output-toggle"
+                    className="ml-2 text-sm text-gray-700 cursor-pointer"
+                  >
+                    Enable Citations (Structured Output)
+                  </label>
+                </div>
 
                 <form onSubmit={handleSearch} className="flex items-end space-x-3">
                   <div className="flex-1 flex items-center bg-white rounded-md px-4 py-3 border border-gray-300 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
