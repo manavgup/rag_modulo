@@ -61,6 +61,10 @@ class MessageMetadata(BaseModel):
     confidence_score: float | None = Field(default=None, description="Confidence score of the response")
     context_length: int | None = Field(default=None, description="Length of context used")
     token_analysis: dict[str, Any] | None = Field(default=None, description="Detailed token usage breakdown")
+    config_metadata: dict[str, Any] | None = Field(
+        default=None,
+        description="User-provided configuration overrides (e.g., structured_output_enabled, cot_enabled, show_cot_steps)",
+    )
 
     model_config = ConfigDict(extra="allow")  # Allow additional fields for flexibility
 
