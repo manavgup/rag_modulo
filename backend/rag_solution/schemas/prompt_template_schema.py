@@ -7,6 +7,22 @@ from typing import Any
 
 from pydantic import UUID4, BaseModel, ConfigDict, Field, field_validator, model_validator
 
+# Default Structured Output Template
+DEFAULT_STRUCTURED_OUTPUT_TEMPLATE = """Question: {question}
+
+Context Documents:
+{context}
+
+Please provide a structured answer with:
+1. A clear, concise answer to the question
+2. A confidence score (0.0-1.0) based on the quality and relevance of the sources
+3. Citations to specific documents that support your answer
+   - Include the document_id, title, and excerpt from the document
+   - If a document has a page_number, include it in your citation
+   - If a document has a chunk_id, include it in your citation
+   - Extract the most relevant excerpt that supports your answer
+"""
+
 
 class PromptTemplateType(str, Enum):
     """Enum for prompt template types."""
@@ -17,6 +33,7 @@ class PromptTemplateType(str, Enum):
     COT_REASONING = "COT_REASONING"
     RERANKING = "RERANKING"
     PODCAST_GENERATION = "PODCAST_GENERATION"
+    STRUCTURED_OUTPUT = "STRUCTURED_OUTPUT"
     CUSTOM = "CUSTOM"
 
 

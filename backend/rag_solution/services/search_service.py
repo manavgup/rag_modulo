@@ -578,6 +578,7 @@ class SearchService:
             execution_time=result_context.execution_time,
             cot_output=cot_output_dict,
             token_warning=result_context.token_warning,
+            structured_answer=result_context.structured_answer,
             metadata={
                 "pipeline_architecture": "v2_stage_based",
                 "stages_executed": executor.get_stage_names(),

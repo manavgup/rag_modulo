@@ -5,6 +5,7 @@ from typing import Any
 from pydantic import UUID4, BaseModel, ConfigDict
 
 from rag_solution.schemas.llm_usage_schema import TokenWarning
+from rag_solution.schemas.structured_output_schema import StructuredAnswer
 from vectordbs.data_types import DocumentMetadata, QueryResult
 
 
@@ -44,6 +45,7 @@ class SearchOutput(BaseModel):
         query_results: List of QueryResult
         rewritten_query: Optional rewritten version of the original query
         evaluation: Optional evaluation metrics and results
+        structured_answer: Optional structured answer with citations (when requested)
     """
 
     answer: str
@@ -55,5 +57,6 @@ class SearchOutput(BaseModel):
     cot_output: dict[str, Any] | None = None  # Chain of Thought reasoning steps when requested
     metadata: dict[str, Any] | None = None  # Additional metadata including conversation context
     token_warning: TokenWarning | None = None  # Token usage warning if approaching limits
+    structured_answer: StructuredAnswer | None = None  # Structured output with citations when requested
 
     model_config = ConfigDict(from_attributes=True)
