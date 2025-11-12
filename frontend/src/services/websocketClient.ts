@@ -23,6 +23,31 @@ interface ChainOfThoughtOutput {
   final_synthesis?: string;
 }
 
+interface Citation {
+  document_id: string;
+  title: string;
+  excerpt: string;
+  page_number?: number;
+  relevance_score: number;
+  chunk_id?: string;
+}
+
+interface ReasoningStep {
+  step_number: number;
+  thought: string;
+  conclusion: string;
+  citations: Citation[];
+}
+
+interface StructuredAnswer {
+  answer: string;
+  confidence: number;
+  citations: Citation[];
+  reasoning_steps?: ReasoningStep[];
+  format_type: 'standard' | 'cot_reasoning' | 'comparative' | 'summary';
+  metadata?: Record<string, any>;
+}
+
 interface ChatMessage {
   id: string;
   type: 'user' | 'assistant';
@@ -36,6 +61,7 @@ interface ChatMessage {
   }>;
   token_warning?: TokenWarning;
   cot_output?: ChainOfThoughtOutput;
+  structured_answer?: StructuredAnswer;
 }
 
 interface ConnectionStatus {
@@ -295,4 +321,4 @@ const WS_URL = process.env.REACT_APP_WS_URL || 'ws://localhost:8000/ws';
 const websocketClient = new WebSocketClient(WS_URL);
 
 export default websocketClient;
-export type { ChatMessage, ConnectionStatus };
+export type { ChatMessage, ConnectionStatus, Citation, StructuredAnswer, ReasoningStep };
