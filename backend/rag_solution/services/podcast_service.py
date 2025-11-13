@@ -15,6 +15,7 @@ Orchestrates podcast generation from document collections:
 """
 
 import logging
+import time
 from enum import Enum
 from typing import Any, ClassVar
 
@@ -412,15 +413,7 @@ CRITICAL INSTRUCTION:
             audio_stored = True  # Mark audio as stored for cleanup if needed
 
             # Step 6: Extract and serialize chapters
-            chapters_dict = [
-                {
-                    "title": chapter.title,
-                    "start_time": chapter.start_time,
-                    "end_time": chapter.end_time,
-                    "word_count": chapter.word_count,
-                }
-                for chapter in podcast_script.chapters
-            ]
+            chapters_dict = self._serialize_chapters(podcast_script)
 
             # Step 7: Mark complete (100%)
             self.repository.mark_completed(
@@ -744,15 +737,22 @@ CRITICAL INSTRUCTION:
         # Initialize enhanced parser for quality validation
         enhanced_parser = EnhancedScriptParser(average_wpm=150)
 
-        # Retry configuration
-        max_retries = 3
+        # Retry configuration (optimized for cost and latency)
+        max_retries = 2  # Reduced from 3 to 2 (saves ~30s latency, $0.01-0.05 cost)
         min_quality_score = 0.6
+        base_delay = 1.0  # Base delay for exponential backoff (seconds)
 
         best_script = None
         best_quality = 0.0
 
         for attempt in range(max_retries):
             try:
+                # Add exponential backoff between retries (2^attempt * base_delay)
+                if attempt > 0:
+                    delay = base_delay * (2**attempt)
+                    logger.info("Retry attempt %d: waiting %.1fs before retry", attempt + 1, delay)
+                    time.sleep(delay)
+
                 script_text = llm_provider.generate_text(
                     user_id=user_id,
                     prompt="",  # Empty - template contains full prompt
@@ -807,6 +807,10 @@ CRITICAL INSTRUCTION:
                 logger.error("Error generating script on attempt %d: %s", attempt + 1, e)
                 if attempt == max_retries - 1:
                     raise
+                # Add exponential backoff on errors as well
+                delay = base_delay * (2 ** (attempt + 1))
+                logger.info("Error recovery: waiting %.1fs before retry", delay)
+                time.sleep(delay)
 
         # If we exhausted retries, return best script with warning
         if best_script:
@@ -1176,6 +1180,30 @@ CRITICAL INSTRUCTION:
                 podcast_id=podcast_id,
                 status=status,
             )
+
+    def _serialize_chapters(self, podcast_script: PodcastScriptOutput) -> list[dict[str, Any]]:
+        """
+        Serialize podcast chapters from PodcastScriptOutput to dictionary format.
+
+        Args:
+            podcast_script: Parsed podcast script with chapters
+
+        Returns:
+            List of chapter dictionaries with title, timestamps, and word count.
+            Returns empty list if chapters is None or empty.
+        """
+        if not podcast_script.chapters:
+            return []
+
+        return [
+            {
+                "title": chapter.title,
+                "start_time": chapter.start_time,
+                "end_time": chapter.end_time,
+                "word_count": chapter.word_count,
+            }
+            for chapter in podcast_script.chapters
+        ]
 
     async def get_podcast(self, podcast_id: UUID4, user_id: UUID4) -> PodcastGenerationOutput:
         """
@@ -1561,15 +1589,7 @@ CRITICAL INSTRUCTION:
             )
 
             # Step 5: Extract and serialize chapters
-            chapters_dict = [
-                {
-                    "title": chapter.title,
-                    "start_time": chapter.start_time,
-                    "end_time": chapter.end_time,
-                    "word_count": chapter.word_count,
-                }
-                for chapter in podcast_script.chapters
-            ]
+            chapters_dict = self._serialize_chapters(podcast_script)
 
             # Step 6: Mark completed
             self.repository.mark_completed(

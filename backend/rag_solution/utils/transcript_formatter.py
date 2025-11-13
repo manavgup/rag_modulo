@@ -86,7 +86,6 @@ class TranscriptFormatter:
         transcript: str,
         title: str | None = None,
         duration_seconds: float | None = None,
-        chapters: list[PodcastChapter] | None = None,  # noqa: ARG002
     ) -> str:
         """
         Convert transcript to plain text format.
@@ -104,7 +103,6 @@ class TranscriptFormatter:
             transcript: Raw podcast transcript
             title: Optional podcast title
             duration_seconds: Optional duration in seconds
-            chapters: Optional list of chapters (not used in plain text)
 
         Returns:
             Formatted plain text transcript
@@ -250,7 +248,7 @@ class TranscriptFormatter:
             ValueError: If format_type is unsupported
         """
         if format_type == TranscriptFormat.TXT:
-            return self.to_txt(transcript, title, duration_seconds, chapters)
+            return self.to_txt(transcript, title, duration_seconds)
         if format_type == TranscriptFormat.MARKDOWN:
             return self.to_markdown(transcript, title, duration_seconds, chapters)
         raise ValueError(f"Unsupported format: {format_type}")

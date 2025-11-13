@@ -215,6 +215,29 @@ interface UpdateConversationInput {
   metadata?: Record<string, any>;
 }
 
+/**
+ * Configuration metadata for conversation messages.
+ * These settings override default behavior for specific requests.
+ */
+interface ConversationConfigMetadata {
+  /** Enable/disable structured output formatting */
+  structured_output_enabled?: boolean;
+  /** Enable/disable Chain of Thought reasoning */
+  cot_enabled?: boolean;
+  /** Show/hide Chain of Thought reasoning steps in response */
+  show_cot_steps?: boolean;
+  /** Conversation context window for this request */
+  conversation_context?: string;
+  /** Session ID for conversation continuity */
+  session_id?: string;
+  /** Message history to include in context */
+  message_history?: string[];
+  /** Extracted entities from conversation */
+  conversation_entities?: string[];
+  /** Enable/disable conversation-aware enhancements */
+  conversation_aware?: boolean;
+}
+
 // Podcast interfaces
 interface VoiceSettings {
   voice_id: string;
@@ -916,13 +939,20 @@ class ApiClient {
     return response.data;
   }
 
-  async sendConversationMessage(sessionId: string, content: string): Promise<ConversationMessage> {
-    const payload = {
+  async sendConversationMessage(sessionId: string, content: string, configMetadata?: ConversationConfigMetadata): Promise<ConversationMessage> {
+    const payload: any = {
       session_id: sessionId,
       content: content,
       role: 'user',
       message_type: 'question'
     };
+
+    // Add config_metadata inside metadata field if provided
+    if (configMetadata) {
+      payload.metadata = {
+        config_metadata: configMetadata
+      };
+    }
 
     const response: AxiosResponse<any> = await this.client.post(`/api/conversations/${sessionId}/messages`, payload);
     const message = response.data;

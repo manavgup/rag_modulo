@@ -23,19 +23,71 @@ interface ChainOfThoughtOutput {
   final_synthesis?: string;
 }
 
+interface Citation {
+  document_id: string;
+  title: string;
+  excerpt: string;
+  page_number?: number;
+  relevance_score: number;
+  chunk_id?: string;
+}
+
+interface ReasoningStep {
+  step_number: number;
+  thought: string;
+  conclusion: string;
+  citations: Citation[];
+}
+
+interface StructuredAnswerMetadata {
+  source_count?: number;
+  confidence_threshold?: number;
+  reasoning_depth?: number;
+  processing_time_ms?: number;
+  [key: string]: unknown; // For extensibility with unknown future fields
+}
+
+interface StructuredAnswer {
+  answer: string;
+  confidence: number;
+  citations: Citation[];
+  reasoning_steps?: ReasoningStep[];
+  format_type: 'standard' | 'cot_reasoning' | 'comparative' | 'summary';
+  metadata?: StructuredAnswerMetadata;
+}
+
+interface SourceMetadata {
+  page_number?: number;
+  chunk_id?: string;
+  document_id?: string;
+  relevance_score?: number;
+  [key: string]: unknown; // For extensibility
+}
+
+interface Source {
+  document_name: string;
+  content: string;
+  metadata: SourceMetadata;
+}
+
+interface ChatMessageMetadata {
+  conversation_id?: string;
+  session_id?: string;
+  collection_id?: string;
+  response_time_ms?: number;
+  [key: string]: unknown; // For extensibility
+}
+
 interface ChatMessage {
   id: string;
   type: 'user' | 'assistant';
   content: string;
   timestamp: Date;
-  metadata?: Record<string, any>;
-  sources?: Array<{
-    document_name: string;
-    content: string;
-    metadata: Record<string, any>;
-  }>;
+  metadata?: ChatMessageMetadata;
+  sources?: Source[];
   token_warning?: TokenWarning;
   cot_output?: ChainOfThoughtOutput;
+  structured_answer?: StructuredAnswer;
 }
 
 interface ConnectionStatus {
@@ -228,7 +280,7 @@ class WebSocketClient {
   }
 
   // Public methods
-  sendMessage(content: string, collectionId: string, metadata?: Record<string, any>, sessionId?: string) {
+  sendMessage(content: string, collectionId: string, metadata?: ChatMessageMetadata, sessionId?: string) {
     if (this.ws?.readyState === WebSocket.OPEN) {
       const message = {
         type: 'chat_message',
@@ -295,4 +347,14 @@ const WS_URL = process.env.REACT_APP_WS_URL || 'ws://localhost:8000/ws';
 const websocketClient = new WebSocketClient(WS_URL);
 
 export default websocketClient;
-export type { ChatMessage, ConnectionStatus };
+export type {
+  ChatMessage,
+  ConnectionStatus,
+  Citation,
+  StructuredAnswer,
+  ReasoningStep,
+  ChatMessageMetadata,
+  StructuredAnswerMetadata,
+  Source,
+  SourceMetadata,
+};

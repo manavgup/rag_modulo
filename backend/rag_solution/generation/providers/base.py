@@ -12,6 +12,7 @@ from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
 from rag_solution.schemas.llm_provider_schema import LLMProviderConfig
 from rag_solution.schemas.llm_usage_schema import LLMUsage, ServiceType, TokenUsageStats
 from rag_solution.schemas.prompt_template_schema import PromptTemplateBase
+from rag_solution.schemas.structured_output_schema import StructuredAnswer, StructuredOutputConfig
 from rag_solution.services.llm_model_service import LLMModelService
 from rag_solution.services.llm_parameters_service import LLMParametersService
 from rag_solution.services.llm_provider_service import LLMProviderService
@@ -198,6 +199,41 @@ class LLMBase(ABC):
     @abstractmethod
     def get_embeddings(self, texts: str | Sequence[str]) -> EmbeddingsList:
         """Generate embeddings for texts."""
+
+    def generate_structured_output(
+        self,
+        user_id: UUID4,
+        prompt: str,
+        context_documents: list[dict[str, Any]],
+        config: StructuredOutputConfig | None = None,
+        model_parameters: LLMParametersInput | None = None,
+        template: PromptTemplateBase | None = None,
+    ) -> tuple[StructuredAnswer, LLMUsage]:
+        """Generate structured output with JSON schema validation.
+
+        Args:
+            user_id: UUID4 of the user making the request
+            prompt: The user's query/prompt
+            context_documents: List of retrieved documents with metadata
+            config: Structured output configuration
+            model_parameters: Optional LLM parameters
+            template: Optional prompt template for structured output
+
+        Returns:
+            Tuple of (StructuredAnswer, LLMUsage)
+
+        Raises:
+            LLMProviderError: If generation fails
+            NotImplementedError: If provider doesn't support structured output
+
+        Note:
+            Base implementation raises NotImplementedError. Providers must override
+            this method to support structured output generation.
+        """
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not support structured output generation. "
+            "Provider must override generate_structured_output() method."
+        )
 
     def generate_text_with_usage(
         self,

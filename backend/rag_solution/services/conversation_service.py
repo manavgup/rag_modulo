@@ -374,114 +374,123 @@ class ConversationService:  # pylint: disable=too-many-instance-attributes,too-m
 
         # Convert DocumentMetadata and QueryResult objects to dictionaries for JSON serialization
         def serialize_documents(documents, query_results):
-            """Convert DocumentMetadata objects to JSON-serializable dictionaries matching frontend schema.
+            """Convert query results to JSON-serializable source dictionaries matching frontend schema.
 
-            Enhances documents with scores and page numbers from query_results.
+            Maps individual chunks from query_results, not documents, to fix:
+            1. Identical chunk text bug (each chunk shows its own text)
+            2. Score display bug (each chunk has its own relevance score)
+
             Frontend expects: {document_name: str, content: str, metadata: {score: float, page_number: int, ...}}
+
+            Note: score represents RELEVANCE (cosine similarity from vector search), not confidence or accuracy.
             """
-            # Extract scores and page numbers from query_results by document_id
-            doc_data_map = {}
+            serialized = []
+
+            # If we have query_results, map each chunk individually
             if query_results:
-                for result in query_results:
+                # Build document ID → name mapping from documents
+                doc_id_to_name = {}
+                for doc in documents:
+                    if hasattr(doc, "id") and hasattr(doc, "document_name"):
+                        doc_id_to_name[str(doc.id)] = doc.document_name
+                    elif hasattr(doc, "document_id") and hasattr(doc, "document_name"):
+                        doc_id_to_name[str(doc.document_id)] = doc.document_name
+
+                # Limit to generation_top_k (default 5) for frontend display
+                generation_top_k = settings.generation_top_k
+                limited_results = query_results[:generation_top_k]
+
+                logger.info(
+                    f"📊 Limiting sources from {len(query_results)} to {len(limited_results)} (generation_top_k={generation_top_k})"
+                )
+
+                # Map each chunk from query_results to a source
+                for result in limited_results:
                     if not result.chunk:
                         continue
 
-                    doc_id = result.chunk.document_id
-                    if not doc_id:
-                        continue
+                    # Get document name
+                    doc_id = str(result.chunk.document_id) if result.chunk.document_id else None
+                    document_name = doc_id_to_name.get(doc_id, "Unknown Document") if doc_id else "Unknown Document"
 
-                    # Get score (from QueryResult level first, then chunk level)
+                    # Get relevance score (from QueryResult level first, then chunk level)
                     score = (
                         result.score
                         if result.score is not None
                         else (result.chunk.score if hasattr(result.chunk, "score") else None)
                     )
 
+                    # Debug logging for score
+                    if score is None or score == 0.0:
+                        logger.warning(
+                            f"⚠️ Source has no score - result.score={result.score}, chunk.score={getattr(result.chunk, 'score', 'N/A')}"
+                        )
+
                     # Get page number from chunk metadata
                     page_number = None
-                    if result.chunk.metadata and hasattr(result.chunk.metadata, "page_number"):
-                        page_number = result.chunk.metadata.page_number
+                    chunk_id = None
+                    if result.chunk.metadata:
+                        if hasattr(result.chunk.metadata, "page_number"):
+                            page_number = result.chunk.metadata.page_number
+                        if hasattr(result.chunk.metadata, "chunk_id"):
+                            chunk_id = result.chunk.metadata.chunk_id
 
-                    # Get content from chunk
+                    # Get chunk text
                     content = result.chunk.text if hasattr(result.chunk, "text") and result.chunk.text else ""
 
-                    # Keep track of best score and first page number for each document
-                    if doc_id not in doc_data_map:
-                        doc_data_map[doc_id] = {
-                            "score": score,
-                            "page_numbers": {page_number} if page_number else set(),
-                            "content": content,
-                        }
-                    else:
-                        # Update with better score if found
-                        if score is not None and (
-                            doc_data_map[doc_id]["score"] is None or score > doc_data_map[doc_id]["score"]
-                        ):
-                            doc_data_map[doc_id]["score"] = score
-                        # Collect all page numbers
-                        if page_number:
-                            doc_data_map[doc_id]["page_numbers"].add(page_number)
-                        # Append content (limit to avoid huge payloads)
-                        if content and len(doc_data_map[doc_id]["content"]) < 2000:
-                            doc_data_map[doc_id]["content"] += "\n\n" + content
+                    # Build display name with page number if available
+                    display_name = f"{document_name} - Page {page_number}" if page_number else document_name
 
-            serialized = []
-            for doc in documents:
-                if hasattr(doc, "__dict__"):
-                    # Extract fields matching frontend schema
-                    doc_dict = {
-                        "document_name": getattr(doc, "document_name", getattr(doc, "name", "Unknown Document")),
-                        "content": getattr(doc, "content", getattr(doc, "text", "")),
-                        "metadata": {},
+                    # Create source entry for this chunk
+                    source_dict = {
+                        "document_name": display_name,
+                        "content": content[:1000],  # Limit to 1000 chars for UI display
+                        "metadata": {
+                            "score": score if score is not None else 0.0,  # Relevance score
+                            "page_number": page_number,
+                            "chunk_id": chunk_id,
+                            "document_id": doc_id,
+                        },
                     }
 
-                    # Collect all other attributes into metadata dict
-                    for key, value in doc.__dict__.items():
-                        if key not in ["document_name", "name", "content", "text"]:
-                            if isinstance(value, str | int | float | bool | type(None)):
+                    serialized.append(source_dict)
+
+            # Fallback: If no query_results, map documents (backward compatibility)
+            else:
+                logger.warning("⚠️ No query_results available, falling back to documents (scores will default to 1.0)")
+                for doc in documents:
+                    if hasattr(doc, "__dict__"):
+                        doc_dict = {
+                            "document_name": getattr(doc, "document_name", getattr(doc, "name", "Unknown Document")),
+                            "content": getattr(doc, "content", getattr(doc, "text", ""))[:1000],
+                            "metadata": {"score": 1.0},  # Default relevance score
+                        }
+
+                        # Collect other attributes into metadata
+                        for key, value in doc.__dict__.items():
+                            if key not in [
+                                "document_name",
+                                "name",
+                                "content",
+                                "text",
+                                "id",
+                                "document_id",
+                            ] and isinstance(value, str | int | float | bool | type(None)):
                                 doc_dict["metadata"][key] = value
-                            else:
-                                doc_dict["metadata"][key] = str(value)
 
-                    # Try to enhance with data from query_results
-                    # Since DocumentMetadata doesn't have document_id, we need to use all available query result data
-                    # Get the overall best score and earliest page from all query results
-                    if doc_data_map:
-                        all_scores = [data["score"] for data in doc_data_map.values() if data["score"] is not None]
-                        all_pages = []
-                        for data in doc_data_map.values():
-                            all_pages.extend(data["page_numbers"])
-
-                        if all_scores:
-                            # Use the best (highest) score from all retrieved chunks
-                            doc_dict["metadata"]["score"] = max(all_scores)
-                        else:
-                            # Default score when query_results exist but have no scores
-                            doc_dict["metadata"]["score"] = 1.0
-
-                        if all_pages:
-                            # Use the first page number mentioned
-                            doc_dict["metadata"]["page_number"] = min(all_pages)
-
-                        # If original content is empty, use content from query results
-                        if not doc_dict["content"]:
-                            # Get first non-empty content
-                            for data in doc_data_map.values():
-                                if data["content"]:
-                                    doc_dict["content"] = data["content"][:1000]  # Limit to 1000 chars
-                                    break
+                        serialized.append(doc_dict)
                     else:
-                        # Default score when no query_results available
-                        doc_dict["metadata"]["score"] = 1.0
+                        serialized.append(
+                            {"document_name": "Unknown", "content": str(doc)[:1000], "metadata": {"score": 1.0}}
+                        )
 
-                    serialized.append(doc_dict)
-                else:
-                    # Fallback for unknown types
-                    serialized.append({"document_name": "Unknown", "content": str(doc), "metadata": {}})
-
-            logger.info(f"📊 Serialized {len(serialized)} documents with scores and page numbers")
+            logger.info(
+                f"📊 Serialized {len(serialized)} sources from {'query_results' if query_results else 'documents'}"
+            )
             if serialized and "metadata" in serialized[0]:
-                logger.info(f"📊 First source metadata: {serialized[0]['metadata']}")
+                logger.info(
+                    f"📊 First source - name: {serialized[0]['document_name']}, score: {serialized[0]['metadata'].get('score', 'N/A')}"
+                )
 
             return serialized
 

@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+import json
 import logging
+import re
 import time
 from collections.abc import Generator, Sequence
+from datetime import datetime
 from typing import Any
 
 from ibm_watsonx_ai import APIClient, Credentials
 from ibm_watsonx_ai.foundation_models import Embeddings as wx_Embeddings
 from ibm_watsonx_ai.foundation_models import ModelInference
+from ibm_watsonx_ai.foundation_models.schema import TextChatParameters
 from ibm_watsonx_ai.metanames import EmbedTextParamsMetaNames as EmbedParams
 from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams
 from pydantic import UUID4
@@ -19,12 +23,26 @@ from core.custom_exceptions import LLMProviderError, NotFoundError, ValidationEr
 from core.logging_utils import get_logger
 from rag_solution.schemas.llm_model_schema import ModelType
 from rag_solution.schemas.llm_parameters_schema import LLMParametersInput
+from rag_solution.schemas.llm_usage_schema import LLMUsage, ServiceType
 from rag_solution.schemas.prompt_template_schema import PromptTemplateBase
+from rag_solution.schemas.structured_output_schema import (
+    StructuredAnswer,
+    StructuredOutputConfig,
+)
 from vectordbs.data_types import EmbeddingsList
 
 from .base import LLMBase
 
 logger = get_logger("llm.providers.watsonx")
+
+# Try to import tiktoken for accurate token counting
+try:
+    import tiktoken
+
+    TIKTOKEN_AVAILABLE = True
+except ImportError:
+    TIKTOKEN_AVAILABLE = False
+    logger.warning("tiktoken not available, using fallback token estimation")
 
 
 class WatsonXLLM(LLMBase):
@@ -498,6 +516,398 @@ class WatsonXLLM(LLMBase):
                 error_type="embeddings_failed",
                 message=f"Failed to generate embeddings: {e!s}",
             ) from e
+
+    def _estimate_tokens(self, text: str) -> int:
+        """Estimate token count for text using tiktoken if available.
+
+        Args:
+            text: Text to estimate tokens for
+
+        Returns:
+            Estimated token count
+
+        Note:
+            Uses tiktoken with cl100k_base encoding if available,
+            otherwise falls back to character-based estimation.
+            Average English: ~4.7 chars/word, ~1.3 tokens/word = ~3.6 chars/token
+        """
+        if TIKTOKEN_AVAILABLE:
+            try:
+                encoder = tiktoken.get_encoding("cl100k_base")
+                return len(encoder.encode(text))
+            except Exception as e:
+                logger.warning(f"tiktoken encoding failed, using fallback: {e}")
+
+        # Fallback: improved character-based estimation
+        # 3.6 chars/token is more accurate than 4 chars/token
+        return int(len(text) / 3.6)
+
+    def _extract_json_from_text(self, text: str) -> dict[str, Any]:
+        """Extract JSON from text with multiple fallback strategies.
+
+        Args:
+            text: Response text that may contain JSON
+
+        Returns:
+            Parsed JSON dictionary
+
+        Raises:
+            json.JSONDecodeError: If no valid JSON found after all strategies
+
+        Note:
+            Tries multiple extraction strategies in order:
+            1. Direct JSON parsing
+            2. Balanced brace/bracket matching (handles nested arrays)
+            3. Regex-based JSON block extraction (fallback)
+        """
+        # Strategy 1: Try direct parsing
+        try:
+            result = json.loads(text.strip())
+            # Validate it's a dictionary (not a number or other type)
+            if not isinstance(result, dict):
+                logger.warning(f"Parsed JSON is not a dict: {type(result)}, value: {result}")
+                raise ValueError(f"Expected dict, got {type(result)}")
+            return result
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+        # Strategy 2: Find balanced braces (most robust - handles arrays and nested objects)
+        start = text.find("{")
+        if start >= 0:
+            brace_count = 0
+            bracket_count = 0
+            in_string = False
+            escape_next = False
+
+            for i, char in enumerate(text[start:], start):
+                # Handle string escaping
+                if escape_next:
+                    escape_next = False
+                    continue
+                if char == "\\":
+                    escape_next = True
+                    continue
+
+                # Track if we're inside a string
+                if char == '"' and not escape_next:
+                    in_string = not in_string
+                    continue
+
+                # Only count braces/brackets outside strings
+                if not in_string:
+                    if char == "{":
+                        brace_count += 1
+                    elif char == "}":
+                        brace_count -= 1
+                        if brace_count == 0 and bracket_count == 0:
+                            # Found complete JSON object
+                            try:
+                                result = json.loads(text[start : i + 1])
+                                if isinstance(result, dict):
+                                    return result
+                                else:
+                                    logger.warning(f"Balanced braces parsed to non-dict: {type(result)}")
+                            except json.JSONDecodeError:
+                                # Continue searching for next potential JSON block
+                                pass
+                    elif char == "[":
+                        bracket_count += 1
+                    elif char == "]":
+                        bracket_count -= 1
+
+        # Strategy 3: Extract JSON block with regex (simple fallback)
+        # This pattern now looks for the outermost braces only
+        json_pattern = r"\{(?:[^{}]|\{[^{}]*\})*\}"
+        matches = re.findall(json_pattern, text, re.DOTALL)
+        for match in matches:
+            try:
+                result = json.loads(match)
+                if isinstance(result, dict):
+                    return result
+            except json.JSONDecodeError:
+                continue
+
+        # All strategies failed
+        raise json.JSONDecodeError(f"No valid JSON found in response: {text[:200]}...", text, 0)
+
+    def generate_structured_output(
+        self,
+        user_id: UUID4,
+        prompt: str,
+        context_documents: list[dict[str, Any]],
+        config: StructuredOutputConfig | None = None,
+        model_parameters: LLMParametersInput | None = None,
+        template: PromptTemplateBase | None = None,
+    ) -> tuple[StructuredAnswer, LLMUsage]:
+        """Generate structured output using WatsonX with guided JSON schema.
+
+        Args:
+            user_id: UUID4 of the user making the request
+            prompt: The user's query/prompt
+            context_documents: List of retrieved documents with metadata
+            config: Structured output configuration
+            model_parameters: Optional LLM parameters
+            template: Optional prompt template for structured output
+
+        Returns:
+            Tuple of (StructuredAnswer, LLMUsage)
+
+        Raises:
+            LLMProviderError: If generation fails or response is invalid
+
+        Note:
+            Uses WatsonX's native guided_json feature for reliable JSON schema adherence.
+        """
+        try:
+            self._ensure_client()
+            model = self._get_model(user_id, model_parameters)
+
+            # Use default config if not provided
+            if config is None:
+                config = StructuredOutputConfig(enabled=True)
+
+            # Build the context text from documents
+            context_text = self._format_context_documents(context_documents, config)
+
+            # Create JSON schema for StructuredAnswer
+            json_schema = StructuredAnswer.model_json_schema()
+
+            # Build chat messages
+            system_message = "You are a helpful assistant that provides structured answers with citations."
+            if template and template.system_prompt:
+                system_message = template.system_prompt
+
+            user_message = f"""Question: {prompt}
+
+Context Documents:
+{context_text}
+
+Provide a detailed answer with citations from the context documents."""
+
+            if template:
+                try:
+                    user_message = template.format_prompt(question=prompt, context=context_text)
+                except Exception as e:
+                    logger.warning(f"Template formatting failed: {e}, using default format")
+
+            messages = [
+                {"role": "system", "content": system_message},
+                {"role": "user", "content": user_message},
+            ]
+
+            # Create TextChatParameters with guided_json
+            chat_params = TextChatParameters(
+                max_tokens=model_parameters.max_new_tokens if model_parameters else 800,
+                temperature=model_parameters.temperature if model_parameters else 0.7,
+                top_p=model_parameters.top_p if model_parameters else 1.0,
+                guided_json=json_schema,  # 🎯 Native JSON schema enforcement
+            )
+
+            # Generate with chat API
+            logger.info("Generating structured output with guided_json schema enforcement")
+            response = model.chat(messages=messages, params=chat_params)
+
+            # Extract response text
+            if isinstance(response, dict) and "choices" in response:
+                result_text = response["choices"][0]["message"]["content"].strip()
+            else:
+                raise LLMProviderError(
+                    provider="watsonx",
+                    error_type="invalid_response",
+                    message=f"Unexpected response format: {type(response)}",
+                )
+
+            # Parse JSON response (should be valid due to guided_json)
+            try:
+                response_data = json.loads(result_text)
+                structured_answer = StructuredAnswer(**response_data)
+            except (json.JSONDecodeError, ValidationError) as e:
+                logger.error(f"Failed to parse guided JSON response: {result_text[:500]}")
+                # Fallback: try extracting JSON from text
+                try:
+                    response_data = self._extract_json_from_text(result_text)
+                    structured_answer = StructuredAnswer(**response_data)
+                    logger.warning("Fallback JSON extraction succeeded")
+                except Exception:
+                    raise LLMProviderError(
+                        provider="watsonx",
+                        error_type="invalid_response",
+                        message=f"Failed to parse structured output: {e!s}",
+                    ) from e
+
+            # Create usage record
+            model_id = model.model_id
+            usage = LLMUsage(
+                prompt_tokens=self._estimate_tokens(user_message),
+                completion_tokens=self._estimate_tokens(result_text),
+                total_tokens=self._estimate_tokens(user_message + result_text),
+                model_name=str(model_id),
+                service_type=ServiceType.GENERATION,
+                timestamp=datetime.now(),
+                user_id=str(user_id),
+            )
+
+            self.track_usage(usage)
+            logger.info(f"Structured output generated successfully with {len(structured_answer.citations)} citations")
+            return structured_answer, usage
+
+        except LLMProviderError:
+            raise
+        except Exception as e:
+            raise LLMProviderError(
+                provider="watsonx",
+                error_type="generation_failed",
+                message=f"Failed to generate structured output: {e!s}",
+            ) from e
+
+    def _format_context_documents(self, context_documents: list[dict[str, Any]], config: StructuredOutputConfig) -> str:
+        """Format context documents for inclusion in prompt.
+
+        Args:
+            context_documents: List of document dictionaries
+            config: Structured output configuration
+
+        Returns:
+            Formatted context string
+        """
+
+        def truncate_content(content: str, max_length: int) -> str:
+            """Truncate content with ellipsis indicator."""
+            if len(content) <= max_length:
+                return content
+            return content[:max_length] + "..."
+
+        context_parts = []
+        for i, doc in enumerate(context_documents[: config.max_citations]):
+            doc_info = [
+                f"Document {i + 1} (ID: {doc.get('id', 'unknown')}):",
+                f"  Title: {doc.get('title', 'Untitled')}",
+            ]
+
+            # Add page_number if available
+            if doc.get("page_number") is not None:
+                doc_info.append(f"  Page: {doc.get('page_number')}")
+
+            # Add chunk_id if available
+            if doc.get("chunk_id") is not None:
+                doc_info.append(f"  Chunk ID: {doc.get('chunk_id')}")
+
+            # Add content with truncation
+            doc_info.append(f"  Content: {truncate_content(doc.get('content', ''), config.max_context_per_doc)}")
+
+            context_parts.append("\n".join(doc_info))
+
+        return "\n\n".join(context_parts)
+
+    def _build_structured_prompt_watsonx(
+        self,
+        prompt: str,
+        context_documents: list[dict[str, Any]],
+        config: StructuredOutputConfig,
+        template: PromptTemplateBase | None = None,
+    ) -> str:
+        """Build a prompt with JSON schema instructions for WatsonX.
+
+        Since WatsonX doesn't have native JSON schema support, we use
+        detailed prompting with JSON examples to guide the output format.
+
+        Args:
+            prompt: User's query
+            context_documents: Retrieved documents with metadata
+            config: Structured output configuration
+            template: Optional prompt template for structured output
+
+        Returns:
+            Formatted prompt with JSON schema instructions
+        """
+
+        # Format context documents with configurable truncation
+        def truncate_content(content: str, max_length: int) -> str:
+            """Truncate content with ellipsis indicator."""
+            if len(content) <= max_length:
+                return content
+            return content[:max_length] + "..."
+
+        # Format context documents with all available metadata
+        context_parts = []
+        for i, doc in enumerate(context_documents[: config.max_citations]):
+            doc_info = [
+                f"Document {i + 1} (ID: {doc.get('id', 'unknown')}):",
+                f"  Title: {doc.get('title', 'Untitled')}",
+            ]
+
+            # Add page_number if available
+            if doc.get("page_number") is not None:
+                doc_info.append(f"  Page: {doc.get('page_number')}")
+
+            # Add chunk_id if available
+            if doc.get("chunk_id") is not None:
+                doc_info.append(f"  Chunk ID: {doc.get('chunk_id')}")
+
+            # Add content with truncation
+            doc_info.append(f"  Content: {truncate_content(doc.get('content', ''), config.max_context_per_doc)}")
+
+            context_parts.append("\n".join(doc_info))
+
+        context_text = "\n\n".join(context_parts)
+
+        # If template provided, use it
+        # Note: For WatsonX, templates may need special handling due to JSON mode requirements
+        if template:
+            try:
+                return template.format_prompt(question=prompt, context=context_text)
+            except Exception as e:
+                logger.warning(f"Template formatting failed: {e}, falling back to default")
+
+        # Default prompt (fallback)
+        # Build JSON schema example
+        json_example = {
+            "answer": "Your detailed answer here...",
+            "confidence": 0.85,
+            "citations": [
+                {
+                    "document_id": "550e8400-e29b-41d4-a716-446655440000",
+                    "title": "Document Title",
+                    "excerpt": "Relevant excerpt from the document...",
+                    "page_number": 1,
+                    "relevance_score": 0.9,
+                    "chunk_id": "chunk_123",
+                }
+            ],
+            "format_type": "standard",
+            "metadata": {},
+        }
+
+        if config.include_reasoning:
+            json_example["reasoning_steps"] = [
+                {"step_number": 1, "thought": "First, I analyze...", "conclusion": "This leads to...", "citations": []}
+            ]
+
+        # Build prompt with strict JSON formatting instructions
+        prompt_parts = [
+            "You are a helpful assistant that provides structured answers in JSON format.",
+            f"\nQuestion: {prompt}",
+            "\nContext Documents:",
+            context_text,
+            "\n\nIMPORTANT: Respond ONLY with valid JSON following this exact structure:",
+            json.dumps(json_example, indent=2),
+            "\n\nRules:",
+            "1. Use ONLY valid JSON format - no extra text before or after",
+            "2. Confidence must be a number between 0.0 and 1.0",
+            "3. Include citations from the context documents above",
+            "4. Use the document IDs provided in the context",
+            "5. If a document has a page_number, include it in your citation",
+            "6. If a document has a chunk_id, include it in your citation",
+            "7. Extract the most relevant excerpt that supports your answer",
+            "8. Format type must be one of: standard, cot_reasoning, comparative, summary",
+        ]
+
+        if config.include_reasoning:
+            prompt_parts.append("9. Include reasoning_steps array showing your thought process")
+
+        prompt_parts.append("\n\nJSON Response:")
+
+        return "\n".join(prompt_parts)
 
     def close(self) -> None:
         """Clean up provider resources."""

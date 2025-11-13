@@ -8,13 +8,15 @@ Tests the answer generation functionality including:
 - Error handling
 """
 
-from unittest.mock import AsyncMock, MagicMock, Mock
+from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
 
 from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtOutput, ReasoningStep
+from rag_solution.schemas.llm_usage_schema import LLMUsage, ServiceType
 from rag_solution.schemas.search_schema import SearchInput
+from rag_solution.schemas.structured_output_schema import Citation, StructuredAnswer
 from rag_solution.services.pipeline.search_context import SearchContext
 from rag_solution.services.pipeline.stages.generation_stage import GenerationStage
 
@@ -82,6 +84,41 @@ def search_context_with_cot() -> SearchContext:
     result1 = Mock()
     result1.chunk = Mock()
     result1.chunk.text = "Test document 1"
+
+    context.query_results = [result1]
+    return context
+
+
+@pytest.fixture
+def search_context_with_structured_output() -> SearchContext:
+    """Create search context with structured output enabled."""
+    user_id = uuid4()
+    collection_id = uuid4()
+    pipeline_id = uuid4()
+    doc_id = uuid4()
+
+    # Enable structured output via config_metadata
+    search_input = SearchInput(
+        user_id=user_id,
+        collection_id=collection_id,
+        question="What is machine learning?",
+        config_metadata={"structured_output_enabled": True, "max_citations": 3},
+    )
+
+    context = SearchContext(search_input=search_input, user_id=user_id, collection_id=collection_id)
+    context.pipeline_id = pipeline_id
+    context.rewritten_query = "machine learning definition"
+
+    # Add mock query results with full metadata
+    result1 = Mock()
+    result1.chunk = Mock()
+    result1.chunk.document_id = str(doc_id)
+    result1.chunk.chunk_id = "chunk_001"
+    result1.chunk.text = "Machine learning is a subset of AI that enables computers to learn from data."
+    result1.chunk.metadata = Mock()
+    result1.chunk.metadata.page_number = 1
+    result1.chunk.metadata.document_id = str(doc_id)
+    result1.score = 0.95
 
     context.query_results = [result1]
     return context
@@ -236,3 +273,107 @@ class TestGenerationStage:
 
         assert result.success is True
         assert result.context.generated_answer == "No relevant documents found"
+
+    async def test_generation_with_structured_output(
+        self, mock_pipeline_service: Mock, search_context_with_structured_output: SearchContext
+    ) -> None:
+        """Test answer generation with structured output enabled."""
+        # Create mock structured answer
+        doc_id = uuid4()
+        structured_answer = StructuredAnswer(
+            answer="Machine learning is a subset of AI that enables computers to learn from data.",
+            confidence=0.92,
+            citations=[
+                Citation(
+                    document_id=doc_id,
+                    title="ML Fundamentals",
+                    excerpt="Machine learning enables...",
+                    relevance_score=0.95,
+                    page_number=1,
+                    chunk_id="chunk_001",
+                )
+            ],
+        )
+
+        # Create mock LLM usage
+        from datetime import datetime
+
+        mock_usage = LLMUsage(
+            prompt_tokens=50,
+            completion_tokens=100,
+            total_tokens=150,
+            model_name="gpt-4",
+            service_type=ServiceType.SEARCH,
+            timestamp=datetime.now(),
+            user_id=str(search_context_with_structured_output.user_id),
+        )
+
+        # Setup mock provider with generate_structured_output method
+        mock_provider = Mock()
+        mock_provider.generate_structured_output = Mock(return_value=(structured_answer, mock_usage))
+        mock_provider.track_usage = Mock()
+
+        # Setup other mocks
+        mock_pipeline_service._validate_configuration.return_value = (None, Mock(), mock_provider)
+        mock_pipeline_service._get_templates.return_value = (Mock(id=uuid4()), None)
+
+        stage = GenerationStage(mock_pipeline_service)
+        result = await stage.execute(search_context_with_structured_output)
+
+        # Verify execution success
+        assert result.success is True
+        assert result.context.generated_answer == structured_answer.answer
+        assert result.context.structured_answer is not None
+        assert result.context.structured_answer.confidence == 0.92
+        assert len(result.context.structured_answer.citations) == 1
+        assert result.context.metadata["generation"]["source"] == "structured_output"
+
+        # Verify provider methods were called
+        mock_provider.generate_structured_output.assert_called_once()
+        mock_provider.track_usage.assert_called_once()
+
+    async def test_structured_output_fallback_on_not_implemented(
+        self, mock_pipeline_service: Mock, search_context_with_structured_output: SearchContext
+    ) -> None:
+        """Test fallback to regular generation when provider doesn't support structured output."""
+        # Setup mock provider that doesn't support structured output
+        mock_provider = Mock()
+        mock_provider.generate_structured_output = Mock(side_effect=NotImplementedError("Not supported"))
+
+        # Setup mocks for regular generation fallback
+        mock_pipeline_service._validate_configuration.return_value = (None, Mock(), mock_provider)
+        mock_pipeline_service._get_templates.return_value = (Mock(id=uuid4()), None)
+        mock_pipeline_service._format_context.return_value = "Formatted context"
+        mock_pipeline_service._generate_answer.return_value = "Fallback answer from regular generation"
+
+        stage = GenerationStage(mock_pipeline_service)
+        result = await stage.execute(search_context_with_structured_output)
+
+        # Verify fallback to regular generation
+        assert result.success is True
+        assert result.context.generated_answer == "Fallback answer from regular generation"
+        assert result.context.structured_answer is None
+        mock_pipeline_service._generate_answer.assert_called_once()
+
+    async def test_structured_output_fallback_on_error(
+        self, mock_pipeline_service: Mock, search_context_with_structured_output: SearchContext
+    ) -> None:
+        """Test fallback to regular generation when structured output generation fails."""
+        # Setup mock provider that raises an error
+        mock_provider = Mock()
+        mock_provider.generate_structured_output = Mock(side_effect=Exception("Generation failed"))
+
+        # Setup mocks for regular generation fallback
+        mock_pipeline_service._validate_configuration.return_value = (None, Mock(), mock_provider)
+        mock_pipeline_service._get_templates.return_value = (Mock(id=uuid4()), None)
+        mock_pipeline_service._format_context.return_value = "Formatted context"
+        mock_pipeline_service._generate_answer.return_value = "Fallback answer after error"
+
+        stage = GenerationStage(mock_pipeline_service)
+        result = await stage.execute(search_context_with_structured_output)
+
+        # Verify fallback to regular generation
+        assert result.success is True
+        assert result.context.generated_answer == "Fallback answer after error"
+        assert result.context.structured_answer is None
+        mock_pipeline_service._generate_answer.assert_called_once()

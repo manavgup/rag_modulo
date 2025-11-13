@@ -47,7 +47,7 @@ class SearchContext:  # pylint: disable=too-many-instance-attributes
         evaluation: Answer quality evaluation
         cot_output: Chain of Thought reasoning steps
         token_warning: Token usage warnings
-        structured_answer: Structured answer with citations
+        structured_answer: Structured answer with citations (when requested)
 
         # Execution Metadata
         start_time: When search started
