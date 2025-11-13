@@ -14,6 +14,7 @@ from pydantic import UUID4
 from rag_solution.schemas.chain_of_thought_schema import ChainOfThoughtOutput
 from rag_solution.schemas.llm_usage_schema import TokenWarning
 from rag_solution.schemas.search_schema import SearchInput
+from rag_solution.schemas.structured_output_schema import StructuredAnswer
 from vectordbs.data_types import DocumentMetadata, QueryResult
 
 
@@ -46,6 +47,7 @@ class SearchContext:  # pylint: disable=too-many-instance-attributes
         evaluation: Answer quality evaluation
         cot_output: Chain of Thought reasoning steps
         token_warning: Token usage warnings
+        structured_answer: Structured answer with citations
 
         # Execution Metadata
         start_time: When search started
@@ -73,6 +75,7 @@ class SearchContext:  # pylint: disable=too-many-instance-attributes
     evaluation: dict[str, Any] | None = None
     cot_output: ChainOfThoughtOutput | None = None
     token_warning: TokenWarning | None = None
+    structured_answer: StructuredAnswer | None = None
 
     # Execution Metadata
     start_time: float = field(default_factory=time.time)

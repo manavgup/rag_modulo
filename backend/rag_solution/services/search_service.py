@@ -570,9 +570,16 @@ class SearchService:
         cot_output_dict = result_context.cot_output.model_dump() if result_context.cot_output else None
 
         # Debug: Log document_metadata before creating SearchOutput
-        logger.info("📊 SEARCH_SERVICE: result_context.document_metadata has %d items", len(result_context.document_metadata))
+        logger.info(
+            "📊 SEARCH_SERVICE: result_context.document_metadata has %d items", len(result_context.document_metadata)
+        )
         if result_context.document_metadata:
-            logger.info("📊 SEARCH_SERVICE: First doc_metadata = %s", result_context.document_metadata[0].document_name if hasattr(result_context.document_metadata[0], 'document_name') else 'NO DOCUMENT_NAME')
+            logger.info(
+                "📊 SEARCH_SERVICE: First doc_metadata = %s",
+                result_context.document_metadata[0].document_name
+                if hasattr(result_context.document_metadata[0], "document_name")
+                else "NO DOCUMENT_NAME",
+            )
 
         search_output = SearchOutput(
             answer=cleaned_answer,
