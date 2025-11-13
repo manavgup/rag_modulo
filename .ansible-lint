@@ -9,16 +9,16 @@ exclude_paths:
   - .venv/
   - venv/
   - backend/venv/
+  - mkdocs.yml # Not an Ansible file, causes load-failure
 
 # Skip certain rules temporarily (to be addressed in separate PRs)
 skip_list:
-  - yaml[document-start]  # Document start markers (---) - cosmetic
-  - yaml[line-length]  # Line length - many violations, fix separately
-  - var-naming[no-reserved]  # Reserved variable names - needs refactoring
-  - no-changed-when  # Missing changed_when - needs careful review
-  - risky-shell-pipe  # Missing pipefail - needs careful review
-  - schema[vars]  # Schema validation - needs careful review
-  - load-failure  # Load failures (mkdocs.yml) - not Ansible files
+  - yaml[document-start] # Document start markers (---) - cosmetic
+  - yaml[line-length] # Line length - many violations, fix separately
+  - var-naming[no-reserved] # Reserved variable names - needs refactoring
+  - no-changed-when # Missing changed_when - needs careful review
+  - risky-shell-pipe # Missing pipefail - needs careful review
+  - schema[vars] # Schema validation - needs careful review
 
 # Enable offline mode to avoid network calls
 offline: true
