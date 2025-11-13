@@ -1,12 +1,14 @@
 import React from 'react';
-import { Document, Connect, Time, ChartColumn } from '@carbon/icons-react';
+import { Document, Connect, Time, ChartColumn, BookmarkFilled } from '@carbon/icons-react';
 
 interface MessageMetadataFooterProps {
   sourcesCount?: number;
+  citationsCount?: number;
   stepsCount?: number;
   tokenCount?: number;
   responseTime?: number;
   onSourcesClick?: () => void;
+  onCitationsClick?: () => void;
   onStepsClick?: () => void;
   onTokensClick?: () => void;
 }
@@ -24,15 +26,17 @@ interface MessageMetadataFooterProps {
  */
 const MessageMetadataFooter: React.FC<MessageMetadataFooterProps> = ({
   sourcesCount = 0,
+  citationsCount = 0,
   stepsCount,
   tokenCount,
   responseTime,
   onSourcesClick,
+  onCitationsClick,
   onStepsClick,
   onTokensClick,
 }) => {
   // Only render if there's at least one piece of metadata to show
-  const hasMetadata = sourcesCount > 0 || (stepsCount && stepsCount > 0) || tokenCount || responseTime;
+  const hasMetadata = sourcesCount > 0 || citationsCount > 0 || (stepsCount && stepsCount > 0) || tokenCount || responseTime;
 
   if (!hasMetadata) {
     return null;
@@ -51,6 +55,20 @@ const MessageMetadataFooter: React.FC<MessageMetadataFooterProps> = ({
             <Document size={16} className="metadata-icon" />
             <span className="metadata-text">
               {sourcesCount} {sourcesCount === 1 ? 'source' : 'sources'}
+            </span>
+          </button>
+        )}
+
+        {citationsCount > 0 && (
+          <button
+            className="metadata-item metadata-citations metadata-clickable"
+            onClick={onCitationsClick}
+            type="button"
+            aria-label={`View ${citationsCount} ${citationsCount === 1 ? 'citation' : 'citations'}`}
+          >
+            <BookmarkFilled size={16} className="metadata-icon" />
+            <span className="metadata-text">
+              {citationsCount} {citationsCount === 1 ? 'citation' : 'citations'}
             </span>
           </button>
         )}
