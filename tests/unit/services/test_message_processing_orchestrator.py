@@ -1005,7 +1005,7 @@ class TestSerializeDocuments:
 
         # Assert
         assert len(result) == 1
-        assert result[0]["document_name"] == "doc1.pdf"
+        assert result[0]["document_name"] == "doc1.pdf - Page 5"  # Updated: includes page number
         # Should have best score from query results
         assert result[0]["metadata"]["score"] == 0.95
         assert result[0]["metadata"]["page_number"] == 5
@@ -1069,5 +1069,119 @@ class TestSerializeDocuments:
 
         # Assert
         assert len(result) == 1
-        assert result[0]["metadata"]["score"] == 0.95  # Best score
-        assert result[0]["metadata"]["page_number"] in [3, 7]  # One of the page numbers
+        # Serialization limits to 1 source (generation_top_k) and takes FIRST in order
+        # First chunk has score 0.85 and page 3
+        assert result[0]["metadata"]["score"] == 0.85  # First chunk score (ordered by position)
+        assert result[0]["document_name"] == "doc1.pdf - Page 3"  # First chunk page number
+        assert result[0]["metadata"]["page_number"] == 3  # First chunk page
+
+
+class TestConfigMetadataValidation:
+    """Tests for user config_metadata extraction and validation (Issue #631)."""
+
+    def test_validate_user_config_allowed_keys(self, orchestrator):
+        """Test that _validate_user_config allows whitelisted keys.
+
+        Given: User config with allowed keys
+        When: _validate_user_config is called
+        Then: All allowed keys are preserved
+        """
+        # Arrange
+        user_config = {
+            "structured_output_enabled": True,
+            "cot_enabled": True,
+            "show_cot_steps": False,
+        }
+
+        # Act
+        result = orchestrator._validate_user_config(user_config)
+
+        # Assert
+        assert result == user_config
+        assert result["structured_output_enabled"] is True
+        assert result["cot_enabled"] is True
+        assert result["show_cot_steps"] is False
+
+    def test_validate_user_config_filters_disallowed_keys(self, orchestrator):
+        """Test that _validate_user_config filters out non-whitelisted keys.
+
+        Given: User config with both allowed and disallowed keys
+        When: _validate_user_config is called
+        Then: Only allowed keys are preserved, disallowed keys filtered out
+        """
+        # Arrange
+        user_config = {
+            "structured_output_enabled": True,
+            "malicious_key": "inject SQL",
+            "__proto__": {"admin": True},  # Prototype pollution attempt
+            "show_cot_steps": False,
+        }
+
+        # Act
+        result = orchestrator._validate_user_config(user_config)
+
+        # Assert
+        assert result == {"structured_output_enabled": True, "show_cot_steps": False}
+        assert "malicious_key" not in result
+        assert "__proto__" not in result
+
+    def test_validate_user_config_empty_dict(self, orchestrator):
+        """Test that _validate_user_config handles empty config dict.
+
+        Given: Empty user config dict
+        When: _validate_user_config is called
+        Then: Empty dict is returned
+        """
+        # Act
+        result = orchestrator._validate_user_config({})
+
+        # Assert
+        assert result == {}
+
+    def test_validate_user_config_non_dict_raises_error(self, orchestrator):
+        """Test that _validate_user_config raises error for non-dict input.
+
+        Given: Non-dict user config (string)
+        When: _validate_user_config is called
+        Then: ValidationError is raised
+        """
+        # Act & Assert
+        with pytest.raises(ValidationError, match="config_metadata must be a dict"):
+            orchestrator._validate_user_config("not a dict")
+
+    def test_validate_user_config_list_raises_error(self, orchestrator):
+        """Test that _validate_user_config raises error for list input.
+
+        Given: List instead of dict
+        When: _validate_user_config is called
+        Then: ValidationError is raised
+        """
+        # Act & Assert
+        with pytest.raises(ValidationError, match="config_metadata must be a dict"):
+            orchestrator._validate_user_config(["cot_enabled", True])
+
+    def test_validate_user_config_all_whitelisted_keys(self, orchestrator):
+        """Test validation with all whitelisted keys present.
+
+        Given: User config with all allowed keys
+        When: _validate_user_config is called
+        Then: All keys are preserved
+        """
+        # Arrange
+        user_config = {
+            "structured_output_enabled": True,
+            "cot_enabled": False,
+            "show_cot_steps": True,
+            "conversation_context": "test context",
+            "session_id": "123",
+            "message_history": ["msg1", "msg2"],
+            "conversation_entities": ["entity1"],
+            "conversation_aware": True,
+        }
+
+        # Act
+        result = orchestrator._validate_user_config(user_config)
+
+        # Assert
+        assert result == user_config
+        assert len(result) == 8
