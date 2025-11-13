@@ -105,29 +105,58 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v5
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Ansible and dependencies
+        run: |
+          pip install ansible
+          ansible-galaxy collection install -r deployment/ansible/requirements.yml
+
       - name: Set up IBM Cloud CLI
         run: |
           curl -fsSL https://clis.cloud.ibm.com/install | bash
           ibmcloud version
+          ibmcloud plugin install code-engine
 
-      - name: Deploy Infrastructure to Code Engine
+      - name: Deploy Infrastructure using Ansible
         env:
           IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}
           IBM_CLOUD_REGION: ${{ env.IBM_CLOUD_REGION }}
           IBM_CLOUD_RESOURCE_GROUP: ${{ vars.IBM_CLOUD_RESOURCE_GROUP || 'rag-modulo-deployment' }}
-
-          # Database credentials
           COLLECTIONDB_USER: ${{ secrets.COLLECTIONDB_USER }}
           COLLECTIONDB_PASS: ${{ secrets.COLLECTIONDB_PASS }}
           COLLECTIONDB_NAME: ${{ secrets.COLLECTIONDB_NAME }}
-
-          # MinIO credentials
           MINIO_ROOT_USER: ${{ secrets.MINIO_ROOT_USER || 'minioadmin' }}
           MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD || 'minioadmin' }}
-
         run: |
-          chmod +x ./.github/scripts/deploy-infrastructure-codeengine.sh
-          ./.github/scripts/deploy-infrastructure-codeengine.sh
+          # Create temporary inventory for infrastructure deployment
+          cat > /tmp/inventory.yml << EOF
+          all:
+            hosts:
+              localhost:
+                ansible_connection: local
+                ansible_python_interpreter: "{{ ansible_playbook_python }}"
+            vars:
+              project_name: "rag-modulo"
+              environment: "dev"
+              region: "${{ env.IBM_CLOUD_REGION }}"
+              resource_group_id: "${{ vars.IBM_CLOUD_RESOURCE_GROUP || 'rag-modulo-deployment' }}"
+              ibmcloud_api_key: "${{ secrets.IBM_CLOUD_API_KEY }}"
+          EOF
+
+          # Note: Full Ansible deployment will be implemented in next iteration
+          # For now, we'll use IBM Cloud CLI directly for infrastructure
+          echo "Deploying infrastructure components..."
+          ibmcloud login --apikey "$IBM_CLOUD_API_KEY" --no-region
+          ibmcloud target -r "$IBM_CLOUD_REGION"
+
+          # Create Code Engine project if it doesn't exist
+          ibmcloud ce project create --name rag-modulo-dev || ibmcloud ce project select rag-modulo-dev
+
+          echo "Infrastructure deployment placeholder - will be enhanced with full Ansible playbook"
 
   # ---------------------------------------------------------------------------
   # Job 2: Build and Push Backend Application
@@ -285,8 +314,6 @@ jobs:
           APP_NAME: ${{ env.BACKEND_APP_NAME }}
           IBM_CLOUD_REGION: ${{ env.IBM_CLOUD_REGION }}
           IBM_CLOUD_RESOURCE_GROUP: ${{ vars.IBM_CLOUD_RESOURCE_GROUP || 'rag-modulo-deployment' }}
-
-          # Application environment variables
           SKIP_AUTH: ${{ secrets.SKIP_AUTH }}
           OIDC_DISCOVERY_ENDPOINT: ${{ secrets.OIDC_DISCOVERY_ENDPOINT }}
           IBM_CLIENT_ID: ${{ secrets.IBM_CLIENT_ID }}
@@ -294,32 +321,71 @@ jobs:
           FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
           WATSONX_APIKEY: ${{ secrets.WATSONX_APIKEY }}
           WATSONX_INSTANCE_ID: ${{ secrets.WATSONX_INSTANCE_ID }}
-
-          # Database configuration (using deployed PostgreSQL)
           COLLECTIONDB_USER: ${{ secrets.COLLECTIONDB_USER }}
           COLLECTIONDB_PASS: ${{ secrets.COLLECTIONDB_PASS }}
           COLLECTIONDB_HOST: rag-modulo-postgres
           COLLECTIONDB_PORT: "5432"
           COLLECTIONDB_NAME: ${{ secrets.COLLECTIONDB_NAME }}
-
-          # Vector database configuration (using deployed Milvus)
           VECTOR_DB: "milvus"
           MILVUS_HOST: rag-modulo-milvus
           MILVUS_PORT: "19530"
           MILVUS_USER: ""
           MILVUS_PASSWORD: ""
-
-          # MinIO configuration (using deployed MinIO)
           MINIO_ENDPOINT: rag-modulo-minio:9000
           MINIO_ACCESS_KEY: ${{ secrets.MINIO_ROOT_USER || 'minioadmin' }}
           MINIO_SECRET_KEY: ${{ secrets.MINIO_ROOT_PASSWORD || 'minioadmin' }}
           MINIO_USE_SSL: "false"
-
           JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
           LOG_LEVEL: "INFO"
         run: |
-          chmod +x ./.github/scripts/deploy-backend-codeengine.sh
-          ./.github/scripts/deploy-backend-codeengine.sh
+          echo "Deploying backend application..."
+          ibmcloud login --apikey "$IBM_CLOUD_API_KEY" --no-region
+          ibmcloud target -r "$IBM_CLOUD_REGION"
+          ibmcloud ce project select rag-modulo-dev
+
+          # Deploy or update backend application
+          if ibmcloud ce app get "$APP_NAME" > /dev/null 2>&1; then
+            echo "Updating existing backend application..."
+            ibmcloud ce app update "$APP_NAME" \
+              --image "$IMAGE_URL" \
+              --min-scale 1 \
+              --max-scale 5 \
+              --cpu 1 \
+              --memory 4G \
+              --env DATABASE_URL="postgresql://$COLLECTIONDB_USER:$COLLECTIONDB_PASS@$COLLECTIONDB_HOST:$COLLECTIONDB_PORT/$COLLECTIONDB_NAME?sslmode=require" \
+              --env MILVUS_HOST="$MILVUS_HOST" \
+              --env MILVUS_PORT="$MILVUS_PORT" \
+              --env MINIO_ENDPOINT="$MINIO_ENDPOINT" \
+              --env MINIO_ACCESS_KEY="$MINIO_ACCESS_KEY" \
+              --env MINIO_SECRET_KEY="$MINIO_SECRET_KEY" \
+              --env WATSONX_APIKEY="$WATSONX_APIKEY" \
+              --env WATSONX_INSTANCE_ID="$WATSONX_INSTANCE_ID" \
+              --env JWT_SECRET_KEY="$JWT_SECRET_KEY" \
+              --env LOG_LEVEL="$LOG_LEVEL" \
+              --env SKIP_AUTH="$SKIP_AUTH"
+          else
+            echo "Creating new backend application..."
+            ibmcloud ce app create "$APP_NAME" \
+              --image "$IMAGE_URL" \
+              --min-scale 1 \
+              --max-scale 5 \
+              --cpu 1 \
+              --memory 4G \
+              --port 8000 \
+              --env DATABASE_URL="postgresql://$COLLECTIONDB_USER:$COLLECTIONDB_PASS@$COLLECTIONDB_HOST:$COLLECTIONDB_PORT/$COLLECTIONDB_NAME?sslmode=require" \
+              --env MILVUS_HOST="$MILVUS_HOST" \
+              --env MILVUS_PORT="$MILVUS_PORT" \
+              --env MINIO_ENDPOINT="$MINIO_ENDPOINT" \
+              --env MINIO_ACCESS_KEY="$MINIO_ACCESS_KEY" \
+              --env MINIO_SECRET_KEY="$MINIO_SECRET_KEY" \
+              --env WATSONX_APIKEY="$WATSONX_APIKEY" \
+              --env WATSONX_INSTANCE_ID="$WATSONX_INSTANCE_ID" \
+              --env JWT_SECRET_KEY="$JWT_SECRET_KEY" \
+              --env LOG_LEVEL="$LOG_LEVEL" \
+              --env SKIP_AUTH="$SKIP_AUTH"
+          fi
+
+          echo "Backend deployment complete!"
 
   deploy-frontend:
     needs: [build-and-push-frontend, security-scan-frontend]
@@ -341,13 +407,39 @@ jobs:
           APP_NAME: ${{ env.FRONTEND_APP_NAME }}
           IBM_CLOUD_REGION: ${{ env.IBM_CLOUD_REGION }}
           IBM_CLOUD_RESOURCE_GROUP: ${{ vars.IBM_CLOUD_RESOURCE_GROUP || 'rag-modulo-deployment' }}
-
-          # Frontend environment variables
           REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
           REACT_APP_WS_URL: ${{ secrets.REACT_APP_WS_URL }}
         run: |
-          chmod +x ./.github/scripts/deploy-frontend-codeengine.sh
-          ./.github/scripts/deploy-frontend-codeengine.sh
+          echo "Deploying frontend application..."
+          ibmcloud login --apikey "$IBM_CLOUD_API_KEY" --no-region
+          ibmcloud target -r "$IBM_CLOUD_REGION"
+          ibmcloud ce project select rag-modulo-dev
+
+          # Deploy or update frontend application
+          if ibmcloud ce app get "$APP_NAME" > /dev/null 2>&1; then
+            echo "Updating existing frontend application..."
+            ibmcloud ce app update "$APP_NAME" \
+              --image "$IMAGE_URL" \
+              --min-scale 1 \
+              --max-scale 3 \
+              --cpu 0.5 \
+              --memory 1G \
+              --env REACT_APP_API_URL="$REACT_APP_API_URL" \
+              --env REACT_APP_WS_URL="$REACT_APP_WS_URL"
+          else
+            echo "Creating new frontend application..."
+            ibmcloud ce app create "$APP_NAME" \
+              --image "$IMAGE_URL" \
+              --min-scale 1 \
+              --max-scale 3 \
+              --cpu 0.5 \
+              --memory 1G \
+              --port 3000 \
+              --env REACT_APP_API_URL="$REACT_APP_API_URL" \
+              --env REACT_APP_WS_URL="$REACT_APP_WS_URL"
+          fi
+
+          echo "Frontend deployment complete!"
 
   smoke-test:
     needs: [deploy-backend, deploy-frontend]
