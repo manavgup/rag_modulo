@@ -50,26 +50,26 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Deployment environment'
+        description: "Deployment environment"
         required: true
-        default: 'staging'
+        default: "staging"
         type: choice
         options:
           - staging
           - production
       skip_security_scan:
-        description: 'Skip security scanning (not recommended)'
+        description: "Skip security scanning (not recommended)"
         required: false
         default: false
         type: boolean
       deploy_after_build:
-        description: 'Deploy after building (for daily builds)'
+        description: "Deploy after building (for daily builds)"
         required: false
         default: false
         type: boolean
   # Daily automated builds at 2 AM UTC
   schedule:
-    - cron: '0 2 * * *'
+    - cron: "0 2 * * *"
   # Automatic deployment on code changes
   push:
     branches:
@@ -108,7 +108,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
       - name: Install Ansible and dependencies
         run: |
@@ -116,10 +116,7 @@ jobs:
           ansible-galaxy collection install -r deployment/ansible/requirements.yml
 
       - name: Set up IBM Cloud CLI
-        run: |
-          curl -fsSL https://clis.cloud.ibm.com/install | bash
-          ibmcloud version
-          ibmcloud plugin install code-engine
+        uses: IBM/actions-ibmcloud-cli@v1
 
       - name: Deploy Infrastructure using Ansible
         env:
@@ -226,7 +223,8 @@ jobs:
           file: ./frontend/Dockerfile.frontend
           platforms: linux/amd64
           push: true
-          tags: ${{ env.IBM_CLOUD_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.FRONTEND_APP_NAME }}:${{ github.sha }}
+          tags: ${{ env.IBM_CLOUD_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.FRONTEND_APP_NAME }}:${{ github.sha
+            }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -244,23 +242,25 @@ jobs:
       - name: Run Trivy vulnerability scanner (Backend)
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.IBM_CLOUD_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.BACKEND_APP_NAME }}:${{ github.sha }}
-          format: 'sarif'
-          output: 'trivy-backend-results.sarif'
+          image-ref: ${{ env.IBM_CLOUD_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.BACKEND_APP_NAME }}:${{
+            github.sha }}
+          format: "sarif"
+          output: "trivy-backend-results.sarif"
 
       - name: Upload Trivy scan results to GitHub Security tab (Backend)
         uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
-          sarif_file: 'trivy-backend-results.sarif'
+          sarif_file: "trivy-backend-results.sarif"
 
       - name: Run Trivy vulnerability scanner (Backend - Table)
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.IBM_CLOUD_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.BACKEND_APP_NAME }}:${{ github.sha }}
-          format: 'table'
-          exit-code: '1'
-          severity: 'CRITICAL,HIGH'
+          image-ref: ${{ env.IBM_CLOUD_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.BACKEND_APP_NAME }}:${{
+            github.sha }}
+          format: "table"
+          exit-code: "1"
+          severity: "CRITICAL,HIGH"
 
   security-scan-frontend:
     needs: build-and-push-frontend
@@ -276,41 +276,44 @@ jobs:
       - name: Run Trivy vulnerability scanner (Frontend)
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.IBM_CLOUD_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.FRONTEND_APP_NAME }}:${{ github.sha }}
-          format: 'sarif'
-          output: 'trivy-frontend-results.sarif'
+          image-ref: ${{ env.IBM_CLOUD_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.FRONTEND_APP_NAME }}:${{
+            github.sha }}
+          format: "sarif"
+          output: "trivy-frontend-results.sarif"
 
       - name: Upload Trivy scan results to GitHub Security tab (Frontend)
         uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
-          sarif_file: 'trivy-frontend-results.sarif'
+          sarif_file: "trivy-frontend-results.sarif"
 
       - name: Run Trivy vulnerability scanner (Frontend - Table)
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.IBM_CLOUD_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.FRONTEND_APP_NAME }}:${{ github.sha }}
-          format: 'table'
-          exit-code: '1'
-          severity: 'CRITICAL,HIGH'
+          image-ref: ${{ env.IBM_CLOUD_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.FRONTEND_APP_NAME }}:${{
+            github.sha }}
+          format: "table"
+          exit-code: "1"
+          severity: "CRITICAL,HIGH"
 
   deploy-backend:
     needs: [build-and-push-backend, security-scan-backend]
-    if: always() && (needs.security-scan-backend.result == 'success' || needs.security-scan-backend.result == 'skipped') && (github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'schedule' && inputs.deploy_after_build == true))
+    if: always() && (needs.security-scan-backend.result == 'success' || needs.security-scan-backend.result == 'skipped')
+      && (github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'schedule' &&
+      inputs.deploy_after_build == true))
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
         uses: actions/checkout@v5
 
       - name: Set up IBM Cloud CLI
-        run: |
-          curl -fsSL https://clis.cloud.ibm.com/install | bash
-          ibmcloud version
+        uses: IBM/actions-ibmcloud-cli@v1
 
       - name: Deploy Backend to Code Engine
         env:
           IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}
-          IMAGE_URL: ${{ env.IBM_CLOUD_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.BACKEND_APP_NAME }}:${{ github.sha }}
+          IMAGE_URL: ${{ env.IBM_CLOUD_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.BACKEND_APP_NAME }}:${{
+            github.sha }}
           APP_NAME: ${{ env.BACKEND_APP_NAME }}
           IBM_CLOUD_REGION: ${{ env.IBM_CLOUD_REGION }}
           IBM_CLOUD_RESOURCE_GROUP: ${{ vars.IBM_CLOUD_RESOURCE_GROUP || 'rag-modulo-deployment' }}
@@ -389,21 +392,22 @@ jobs:
 
   deploy-frontend:
     needs: [build-and-push-frontend, security-scan-frontend]
-    if: always() && (needs.security-scan-frontend.result == 'success' || needs.security-scan-frontend.result == 'skipped') && (github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'schedule' && inputs.deploy_after_build == true))
+    if: always() && (needs.security-scan-frontend.result == 'success' || needs.security-scan-frontend.result ==
+      'skipped') && (github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name ==
+      'schedule' && inputs.deploy_after_build == true))
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
         uses: actions/checkout@v5
 
       - name: Set up IBM Cloud CLI
-        run: |
-          curl -fsSL https://clis.cloud.ibm.com/install | bash
-          ibmcloud version
+        uses: IBM/actions-ibmcloud-cli@v1
 
       - name: Deploy Frontend to Code Engine
         env:
           IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}
-          IMAGE_URL: ${{ env.IBM_CLOUD_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.FRONTEND_APP_NAME }}:${{ github.sha }}
+          IMAGE_URL: ${{ env.IBM_CLOUD_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.FRONTEND_APP_NAME }}:${{
+            github.sha }}
           APP_NAME: ${{ env.FRONTEND_APP_NAME }}
           IBM_CLOUD_REGION: ${{ env.IBM_CLOUD_REGION }}
           IBM_CLOUD_RESOURCE_GROUP: ${{ vars.IBM_CLOUD_RESOURCE_GROUP || 'rag-modulo-deployment' }}
@@ -449,9 +453,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Set up IBM Cloud CLI
-        run: |
-          curl -fsSL https://clis.cloud.ibm.com/install | bash
-          ibmcloud version
+        uses: IBM/actions-ibmcloud-cli@v1
 
       - name: Test Backend Health
         run: |
