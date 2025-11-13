@@ -1,73 +1,108 @@
 # Ansible Requirements
 # This file defines the Ansible collections and roles required for deployment
 #
-# Note: Version constraints like ">= X.Y.Z" are not supported by ansible-galaxy.
-# Omit version field to get latest stable, or specify exact version like "X.Y.Z"
+# Version Pinning Strategy:
+#   - All collections and roles are pinned to specific versions for reproducible deployments
+#   - Versions are current as of 2025-11-13 (queried from Ansible Galaxy)
+#   - To update: manually update version numbers and test in dev/staging before production
+#   - Format: Exact version only (e.g., "2.1.0") - no operators like ">=" are supported
+#
+# Update Policy:
+#   - Review and update versions quarterly
+#   - Test all updates in development environment before production deployment
+#   - Document version changes and breaking changes in PR descriptions
 
 ---
 # Ansible Collections
 collections:
   # Core Ansible collections
   - name: ansible.posix
+    version: "2.1.0"
 
   - name: ansible.windows
+    version: "2.6.0"
 
   - name: community.general
+    version: "12.0.1"
 
   - name: community.kubernetes
+    version: "5.1.0"
 
   - name: kubernetes.core
+    version: "6.2.0"
 
   # IBM Cloud collections
   - name: ibm.cloudcollection
+    version: "1.71.2"
 
   # Additional useful collections
   - name: community.docker
+    version: "5.0.1"
 
   - name: community.postgresql
+    version: "4.2.0"
 
   - name: community.mongodb
+    version: "2.0.1"
 
   - name: community.mysql
+    version: "4.1.0"
 
   - name: community.aws
+    version: "10.1.0"
 
   - name: community.azure
+    version: "5.2.0"
 
   - name: community.gcp
+    version: "3.0.0"
 
 # Ansible Roles
 roles:
   # Security and hardening roles
   - name: geerlingguy.security
+    version: "3.2.0"
 
   - name: geerlingguy.firewall
+    version: "3.2.0"
 
   # Monitoring roles
   - name: geerlingguy.prometheus
+    version: "4.3.0"
 
   - name: geerlingguy.grafana
+    version: "5.1.1"
 
   # Database roles
   - name: geerlingguy.postgresql
+    version: "4.3.0"
 
   - name: geerlingguy.mysql
+    version: "5.1.0"
 
   # Web server roles
   - name: geerlingguy.nginx
+    version: "5.1.0"
 
   - name: geerlingguy.apache
+    version: "4.2.1"
 
   # Container roles
   - name: geerlingguy.docker
+    version: "7.0.2"
 
   - name: geerlingguy.kubernetes
+    version: "7.1.0"
 
   # Development tools
   - name: geerlingguy.git
+    version: "3.2.0"
 
   - name: geerlingguy.pip
+    version: "3.0.0"
 
   - name: geerlingguy.nodejs
+    version: "7.1.0"
 
   - name: geerlingguy.python
+    version: "5.0.0"
