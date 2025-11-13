@@ -32,7 +32,7 @@ repos:
 
   # Ansible hooks
   - repo: https://github.com/ansible/ansible-lint
-    rev: v6.17.2
+    rev: v25.11.0
     hooks:
       - id: ansible-lint
         args: [--fix]
@@ -87,13 +87,13 @@ repos:
         entry: make test-atomic
         language: system
         pass_filenames: false
-        stages: [push]
+        stages: [pre-push]
       - id: test-unit-fast
         name: Run fast unit tests
         entry: make test-unit-fast
         language: system
         pass_filenames: false
-        stages: [push]
+        stages: [pre-push]
 
   # Shell hooks
   - repo: https://github.com/shellcheck-py/shellcheck-py
