@@ -9,16 +9,77 @@ interface CitationsAccordionProps {
   onToggle: () => void;
 }
 
+// Relevance score thresholds for color-coding
+const RELEVANCE_THRESHOLDS = {
+  HIGH: 0.7,
+  MEDIUM: 0.5,
+} as const;
+
+/**
+ * CitationsAccordion
+ *
+ * Displays a collapsible accordion with citations from structured answers.
+ * Shows relevance scores with color-coded badges (high/medium/low) and document metadata.
+ *
+ * Features:
+ * - Color-coded confidence badges based on relevance score
+ * - Document metadata (title, page number, excerpt)
+ * - Clean, accessible design with Carbon icons
+ * - Keyboard navigation support
+ *
+ * @param citations - Array of citation objects with document metadata and relevance scores
+ * @param isOpen - Whether the accordion is expanded
+ * @param onToggle - Callback function when accordion is toggled
+ *
+ * @example
+ * ```tsx
+ * <CitationsAccordion
+ *   citations={citations}
+ *   isOpen={showCitations}
+ *   onToggle={() => setShowCitations(!showCitations)}
+ * />
+ * ```
+ *
+ * @related Issue #629 - Citations feature
+ */
 const CitationsAccordion: React.FC<CitationsAccordionProps> = ({ citations, isOpen, onToggle }) => {
-  const getRelevanceLevel = (score: number): 'high' | 'medium' | 'low' => {
-    if (score >= 0.7) return 'high';
-    if (score >= 0.5) return 'medium';
+  /**
+   * Determines the relevance level (high/medium/low) based on the relevance score.
+   * @param score - Relevance score (0-1), undefined/null defaults to 'low'
+   * @returns Relevance level for CSS class naming
+   */
+  const getRelevanceLevel = (score: number | undefined): 'high' | 'medium' | 'low' => {
+    // Handle undefined/null scores
+    if (score === undefined || score === null) return 'low';
+    if (score >= RELEVANCE_THRESHOLDS.HIGH) return 'high';
+    if (score >= RELEVANCE_THRESHOLDS.MEDIUM) return 'medium';
     return 'low';
   };
 
-  const formatRelevance = (score: number): string => {
+  /**
+   * Formats the relevance score as a percentage string.
+   * @param score - Relevance score (0-1)
+   * @returns Formatted percentage string
+   */
+  const formatRelevance = (score: number | undefined): string => {
+    if (score === undefined || score === null) return '0%';
     return `${Math.round(score * 100)}%`;
   };
+
+  // Validate citations array
+  if (!citations || citations.length === 0) {
+    return null;
+  }
+
+  // Filter out invalid citations (missing required fields)
+  const validCitations = citations.filter(
+    (citation) => citation && citation.document_id && citation.title && citation.excerpt
+  );
+
+  // If no valid citations after filtering, don't render
+  if (validCitations.length === 0) {
+    return null;
+  }
 
   return (
     <div className="source-accordion">
@@ -29,7 +90,7 @@ const CitationsAccordion: React.FC<CitationsAccordionProps> = ({ citations, isOp
       >
         <div className="source-accordion-title-section">
           <BookmarkFilled className="source-accordion-icon" size={20} />
-          <span className="source-accordion-title">Citations ({citations.length})</span>
+          <span className="source-accordion-title">Citations ({validCitations.length})</span>
         </div>
         {isOpen ? (
           <ChevronUp className="source-accordion-chevron" size={20} />
@@ -40,11 +101,15 @@ const CitationsAccordion: React.FC<CitationsAccordionProps> = ({ citations, isOp
 
       {isOpen && (
         <div className="source-accordion-content">
-          {citations.map((citation, index) => {
+          {validCitations.map((citation) => {
             const relevanceLevel = getRelevanceLevel(citation.relevance_score);
+            // Use document_id and chunk_id for unique key (fallback to document_id only)
+            const uniqueKey = citation.chunk_id
+              ? `${citation.document_id}-${citation.chunk_id}`
+              : citation.document_id;
 
             return (
-              <div key={index} className="source-card">
+              <div key={uniqueKey} className="source-card">
                 <div className="source-card-header">
                   <div className="source-card-title-section">
                     <BookmarkFilled className="source-card-icon" />
