@@ -105,5 +105,5 @@ compliance:
   enable_hipaa: false
   enable_sox: false
   enable_pci_dss: false
-  data_retention_days: 2555  # 7 years
+  data_retention_days: 2555 # 7 years
   audit_log_retention_days: 2555

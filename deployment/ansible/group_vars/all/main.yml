@@ -54,7 +54,7 @@ enable_metrics: true
 # Backup configuration
 enable_backups: false
 backup_retention_days: 30
-backup_schedule: "0 2 * * *"  # Daily at 2 AM UTC
+backup_schedule: "0 2 * * *" # Daily at 2 AM UTC
 
 # Environment-specific settings
 environment_settings:

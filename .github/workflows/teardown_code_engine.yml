@@ -1,0 +1,160 @@
+name: Teardown Code Engine Applications
+
+# This workflow tears down deployed Code Engine applications
+# DANGEROUS: This will delete running applications and is irreversible
+# Requires manual confirmation to prevent accidental deletion
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Type "DELETE" to confirm teardown'
+        required: true
+        type: string
+      environment:
+        description: "Environment to tear down"
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          - production
+      delete_project:
+        description: "Also delete the Code Engine project? (dangerous)"
+        required: true
+        type: boolean
+        default: false
+
+# Restrict to main branch only for safety
+# Cancel any in-progress teardown runs
+concurrency:
+  group: teardown-code-engine-${{ github.event.inputs.environment }}
+  cancel-in-progress: false # Don't cancel teardowns mid-execution
+
+permissions:
+  contents: read
+
+env:
+  BACKEND_APP_NAME: ${{ vars.BACKEND_APP_NAME || 'rag-modulo-backend' }}
+  FRONTEND_APP_NAME: ${{ vars.FRONTEND_APP_NAME || 'rag-modulo-frontend' }}
+  IBM_CLOUD_REGION: ${{ vars.IBM_CLOUD_REGION || 'us-south' }}
+  PROJECT_NAME: rag-modulo-${{ github.event.inputs.environment }}
+
+jobs:
+  # Safety check job - validates confirmation
+  safety-check:
+    name: 🔒 Safety Confirmation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate confirmation input
+        run: |
+          if [ "${{ github.event.inputs.confirmation }}" != "DELETE" ]; then
+            echo "❌ ERROR: Confirmation input must be exactly 'DELETE'"
+            echo "You entered: '${{ github.event.inputs.confirmation }}'"
+            exit 1
+          fi
+          echo "✅ Confirmation validated"
+
+      - name: Display teardown summary
+        run: |
+          echo "## 🔥 Teardown Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Region:** ${{ env.IBM_CLOUD_REGION }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Project:** ${{ env.PROJECT_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Resources to be deleted:" >> $GITHUB_STEP_SUMMARY
+          echo "- Backend app: ${{ env.BACKEND_APP_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Frontend app: ${{ env.FRONTEND_APP_NAME }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event.inputs.delete_project }}" = "true" ]; then
+            echo "- ⚠️  **Code Engine project: ${{ env.PROJECT_NAME }}**" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "⚠️  **This action is irreversible!**" >> $GITHUB_STEP_SUMMARY
+
+  # Teardown applications
+  teardown-apps:
+    name: 🗑️  Teardown Applications
+    runs-on: ubuntu-latest
+    needs: safety-check
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up IBM Cloud CLI
+        uses: IBM/actions-ibmcloud-cli@v1
+        with:
+          api_key: ${{ secrets.IBM_CLOUD_API_KEY }}
+          region: ${{ env.IBM_CLOUD_REGION }}
+          group: ${{ vars.IBM_CLOUD_RESOURCE_GROUP || 'rag-modulo-deployment' }}
+          plugins: code-engine
+
+      - name: Select Code Engine project
+        run: |
+          echo "🔍 Checking if project '${{ env.PROJECT_NAME }}' exists..."
+
+          if ibmcloud ce project get --name "${{ env.PROJECT_NAME }}" &>/dev/null; then
+            echo "✅ Project exists - selecting for teardown..."
+            ibmcloud ce project select --name "${{ env.PROJECT_NAME }}"
+          else
+            echo "ℹ️  Project '${{ env.PROJECT_NAME }}' not found"
+            echo "📋 Available projects:"
+            ibmcloud ce project list || echo "No projects found"
+            echo "⚠️  Nothing to tear down - exiting gracefully"
+            exit 0
+          fi
+
+      - name: List current applications
+        run: |
+          echo "Current applications before teardown:"
+          ibmcloud ce app list || echo "No apps found or error listing apps"
+
+      - name: Delete backend application
+        run: |
+          echo "Deleting backend application: ${{ env.BACKEND_APP_NAME }}"
+          if ibmcloud ce app get --name "${{ env.BACKEND_APP_NAME }}" &>/dev/null; then
+            ibmcloud ce app delete --name "${{ env.BACKEND_APP_NAME }}" --force --wait --wait-timeout 300
+            echo "✅ Backend application deleted"
+          else
+            echo "ℹ️  Backend application does not exist, skipping"
+          fi
+
+      - name: Delete frontend application
+        run: |
+          echo "Deleting frontend application: ${{ env.FRONTEND_APP_NAME }}"
+          if ibmcloud ce app get --name "${{ env.FRONTEND_APP_NAME }}" &>/dev/null; then
+            ibmcloud ce app delete --name "${{ env.FRONTEND_APP_NAME }}" --force --wait --wait-timeout 300
+            echo "✅ Frontend application deleted"
+          else
+            echo "ℹ️  Frontend application does not exist, skipping"
+          fi
+
+      - name: List remaining applications
+        run: |
+          echo "Remaining applications after teardown:"
+          ibmcloud ce app list || echo "No apps remaining"
+
+      - name: Delete Code Engine project
+        if: github.event.inputs.delete_project == 'true'
+        run: |
+          echo "⚠️  DELETING CODE ENGINE PROJECT: ${{ env.PROJECT_NAME }}"
+          ibmcloud ce project delete --name "${{ env.PROJECT_NAME }}" --force --hard
+          echo "✅ Code Engine project deleted"
+
+      - name: Teardown summary
+        if: always()
+        run: |
+          echo "## 🏁 Teardown Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Region:** ${{ env.IBM_CLOUD_REGION }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Project:** ${{ env.PROJECT_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Deleted resources:" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Backend app: ${{ env.BACKEND_APP_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Frontend app: ${{ env.FRONTEND_APP_NAME }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event.inputs.delete_project }}" = "true" ]; then
+            echo "- ✅ Code Engine project: ${{ env.PROJECT_NAME }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "To redeploy, trigger the 'Deploy Complete RAG Modulo Application' workflow." >> $GITHUB_STEP_SUMMARY

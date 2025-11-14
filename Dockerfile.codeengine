@@ -39,11 +39,12 @@ COPY pyproject.toml poetry.lock ./
 
         # Install CPU-only PyTorch first to avoid CUDA dependencies (~6GB savings)
         # Using torch 2.6.0 CPU-only version (compatible with ARM64 and x86_64)
+        # Note: torchvision doesn't have +cpu builds, use regular version
         RUN --mount=type=cache,target=/root/.cache/pip \
             pip install --no-cache-dir \
             torch==2.6.0+cpu \
-            torchvision==0.21.0+cpu \
-            --index-url https://download.pytorch.org/whl/cpu
+            --index-url https://download.pytorch.org/whl/cpu && \
+            pip install --no-cache-dir torchvision==0.21.0
 
 # Configure pip globally to prevent any CUDA torch reinstalls
 RUN pip config set global.extra-index-url https://download.pytorch.org/whl/cpu

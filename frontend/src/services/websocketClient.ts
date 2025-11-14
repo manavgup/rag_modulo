@@ -75,8 +75,18 @@ interface ChatMessageMetadata {
   session_id?: string;
   collection_id?: string;
   response_time_ms?: number;
+  execution_time?: number;
+  token_analysis?: {
+    query_tokens?: number;
+    context_tokens?: number;
+    response_tokens?: number;
+    system_tokens?: number;
+    total_this_turn?: number;
+    conversation_total?: number;
+  };
   [key: string]: unknown; // For extensibility
 }
+
 
 interface ChatMessage {
   id: string;

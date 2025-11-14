@@ -118,3 +118,5 @@ uv.lock
 
 # Archive directories
 archive/
+.secrets
+.vars

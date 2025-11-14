@@ -52,9 +52,10 @@ on:
       environment:
         description: "Deployment environment"
         required: true
-        default: "staging"
+        default: "dev"
         type: choice
         options:
+          - dev
           - staging
           - production
       skip_security_scan:
@@ -78,10 +79,14 @@ on:
 
 # Define environment variables for the entire workflow
 env:
+  PROJECT_NAME: rag-modulo-${{ inputs.environment || 'dev' }}
   BACKEND_APP_NAME: ${{ vars.BACKEND_APP_NAME || 'rag-modulo-backend' }}
   FRONTEND_APP_NAME: ${{ vars.FRONTEND_APP_NAME || 'rag-modulo-frontend' }}
   IBM_CLOUD_REGION: ${{ vars.IBM_CLOUD_REGION || 'us-south' }}
   CR_NAMESPACE: ${{ vars.IBM_CR_NAMESPACE || 'rag_modulo' }}
+  # ICR uses shortened region names: us-south -> us, eu-gb -> uk, etc.
+  ICR_REGION: ${{ vars.IBM_CLOUD_REGION == 'eu-gb' && 'uk' || (vars.IBM_CLOUD_REGION == 'us-south' && 'us' ||
+    (vars.IBM_CLOUD_REGION == 'us-east' && 'us' || vars.IBM_CLOUD_REGION)) }}
 
 # Prevent concurrent deployments to avoid conflicts
 concurrency:
@@ -117,6 +122,11 @@ jobs:
 
       - name: Set up IBM Cloud CLI
         uses: IBM/actions-ibmcloud-cli@v1
+        with:
+          api_key: ${{ secrets.IBM_CLOUD_API_KEY }}
+          region: ${{ env.IBM_CLOUD_REGION }}
+          group: ${{ vars.IBM_CLOUD_RESOURCE_GROUP || 'rag-modulo-deployment' }}
+          plugins: code-engine
 
       - name: Deploy Infrastructure using Ansible
         env:
@@ -148,10 +158,17 @@ jobs:
           # For now, we'll use IBM Cloud CLI directly for infrastructure
           echo "Deploying infrastructure components..."
           ibmcloud login --apikey "$IBM_CLOUD_API_KEY" --no-region
-          ibmcloud target -r "$IBM_CLOUD_REGION"
+          ibmcloud target -r "$IBM_CLOUD_REGION" -g "$IBM_CLOUD_RESOURCE_GROUP"
 
-          # Create Code Engine project if it doesn't exist
-          ibmcloud ce project create --name rag-modulo-dev || ibmcloud ce project select rag-modulo-dev
+          # Create Code Engine project if it doesn't exist (idempotent)
+          if ibmcloud ce project get --name "$PROJECT_NAME" &>/dev/null; then
+            echo "✅ Project '$PROJECT_NAME' exists - selecting..."
+            ibmcloud ce project select --name "$PROJECT_NAME"
+          else
+            echo "🆕 Creating project '$PROJECT_NAME'..."
+            ibmcloud ce project create --name "$PROJECT_NAME"
+            ibmcloud ce project select --name "$PROJECT_NAME"
+          fi
 
           echo "Infrastructure deployment placeholder - will be enhanced with full Ansible playbook"
 
@@ -180,7 +197,7 @@ jobs:
       - name: Log in to IBM Cloud Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.IBM_CLOUD_REGION }}.icr.io
+          registry: ${{ env.ICR_REGION }}.icr.io
           username: iamapikey
           password: ${{ secrets.IBM_CLOUD_API_KEY }}
 
@@ -191,7 +208,7 @@ jobs:
           file: ./Dockerfile.codeengine
           platforms: linux/amd64
           push: true
-          tags: ${{ env.IBM_CLOUD_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.BACKEND_APP_NAME }}:${{ github.sha }}
+          tags: ${{ env.ICR_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.BACKEND_APP_NAME }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -212,7 +229,7 @@ jobs:
       - name: Log in to IBM Cloud Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.IBM_CLOUD_REGION }}.icr.io
+          registry: ${{ env.ICR_REGION }}.icr.io
           username: iamapikey
           password: ${{ secrets.IBM_CLOUD_API_KEY }}
 
@@ -223,8 +240,7 @@ jobs:
           file: ./frontend/Dockerfile.frontend
           platforms: linux/amd64
           push: true
-          tags: ${{ env.IBM_CLOUD_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.FRONTEND_APP_NAME }}:${{ github.sha
-            }}
+          tags: ${{ env.ICR_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.FRONTEND_APP_NAME }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -242,8 +258,7 @@ jobs:
       - name: Run Trivy vulnerability scanner (Backend)
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.IBM_CLOUD_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.BACKEND_APP_NAME }}:${{
-            github.sha }}
+          image-ref: ${{ env.ICR_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.BACKEND_APP_NAME }}:${{ github.sha }}
           format: "sarif"
           output: "trivy-backend-results.sarif"
 
@@ -256,8 +271,7 @@ jobs:
       - name: Run Trivy vulnerability scanner (Backend - Table)
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.IBM_CLOUD_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.BACKEND_APP_NAME }}:${{
-            github.sha }}
+          image-ref: ${{ env.ICR_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.BACKEND_APP_NAME }}:${{ github.sha }}
           format: "table"
           exit-code: "1"
           severity: "CRITICAL,HIGH"
@@ -276,8 +290,7 @@ jobs:
       - name: Run Trivy vulnerability scanner (Frontend)
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.IBM_CLOUD_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.FRONTEND_APP_NAME }}:${{
-            github.sha }}
+          image-ref: ${{ env.ICR_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.FRONTEND_APP_NAME }}:${{ github.sha }}
           format: "sarif"
           output: "trivy-frontend-results.sarif"
 
@@ -290,8 +303,7 @@ jobs:
       - name: Run Trivy vulnerability scanner (Frontend - Table)
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.IBM_CLOUD_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.FRONTEND_APP_NAME }}:${{
-            github.sha }}
+          image-ref: ${{ env.ICR_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.FRONTEND_APP_NAME }}:${{ github.sha }}
           format: "table"
           exit-code: "1"
           severity: "CRITICAL,HIGH"
@@ -308,12 +320,17 @@ jobs:
 
       - name: Set up IBM Cloud CLI
         uses: IBM/actions-ibmcloud-cli@v1
+        with:
+          api_key: ${{ secrets.IBM_CLOUD_API_KEY }}
+          region: ${{ env.IBM_CLOUD_REGION }}
+          group: ${{ vars.IBM_CLOUD_RESOURCE_GROUP || 'rag-modulo-deployment' }}
+          plugins: code-engine
 
       - name: Deploy Backend to Code Engine
         env:
           IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}
-          IMAGE_URL: ${{ env.IBM_CLOUD_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.BACKEND_APP_NAME }}:${{
-            github.sha }}
+          ICR_REGION: ${{ env.ICR_REGION }}
+          IMAGE_URL: ${{ env.ICR_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.BACKEND_APP_NAME }}:${{ github.sha }}
           APP_NAME: ${{ env.BACKEND_APP_NAME }}
           IBM_CLOUD_REGION: ${{ env.IBM_CLOUD_REGION }}
           IBM_CLOUD_RESOURCE_GROUP: ${{ vars.IBM_CLOUD_RESOURCE_GROUP || 'rag-modulo-deployment' }}
@@ -343,14 +360,28 @@ jobs:
         run: |
           echo "Deploying backend application..."
           ibmcloud login --apikey "$IBM_CLOUD_API_KEY" --no-region
-          ibmcloud target -r "$IBM_CLOUD_REGION"
-          ibmcloud ce project select rag-modulo-dev
+          ibmcloud target -r "$IBM_CLOUD_REGION" -g "$IBM_CLOUD_RESOURCE_GROUP"
+          ibmcloud ce project select --name "$PROJECT_NAME"
+
+          # Create or update registry access secret
+          echo "Setting up registry access..."
+          if ibmcloud ce secret get --name icr-secret > /dev/null 2>&1; then
+            echo "Registry secret already exists"
+          else
+            echo "Creating registry access secret..."
+            ibmcloud ce secret create --name icr-secret \
+              --format registry \
+              --server ${ICR_REGION}.icr.io \
+              --username iamapikey \
+              --password "$IBM_CLOUD_API_KEY"
+          fi
 
           # Deploy or update backend application
           if ibmcloud ce app get "$APP_NAME" > /dev/null 2>&1; then
             echo "Updating existing backend application..."
             ibmcloud ce app update "$APP_NAME" \
               --image "$IMAGE_URL" \
+              --registry-secret icr-secret \
               --min-scale 1 \
               --max-scale 5 \
               --cpu 1 \
@@ -368,8 +399,9 @@ jobs:
               --env SKIP_AUTH="$SKIP_AUTH"
           else
             echo "Creating new backend application..."
-            ibmcloud ce app create "$APP_NAME" \
+            ibmcloud ce app create --name "$APP_NAME" \
               --image "$IMAGE_URL" \
+              --registry-secret icr-secret \
               --min-scale 1 \
               --max-scale 5 \
               --cpu 1 \
@@ -402,12 +434,17 @@ jobs:
 
       - name: Set up IBM Cloud CLI
         uses: IBM/actions-ibmcloud-cli@v1
+        with:
+          api_key: ${{ secrets.IBM_CLOUD_API_KEY }}
+          region: ${{ env.IBM_CLOUD_REGION }}
+          group: ${{ vars.IBM_CLOUD_RESOURCE_GROUP || 'rag-modulo-deployment' }}
+          plugins: code-engine
 
       - name: Deploy Frontend to Code Engine
         env:
           IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}
-          IMAGE_URL: ${{ env.IBM_CLOUD_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.FRONTEND_APP_NAME }}:${{
-            github.sha }}
+          ICR_REGION: ${{ env.ICR_REGION }}
+          IMAGE_URL: ${{ env.ICR_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.FRONTEND_APP_NAME }}:${{ github.sha }}
           APP_NAME: ${{ env.FRONTEND_APP_NAME }}
           IBM_CLOUD_REGION: ${{ env.IBM_CLOUD_REGION }}
           IBM_CLOUD_RESOURCE_GROUP: ${{ vars.IBM_CLOUD_RESOURCE_GROUP || 'rag-modulo-deployment' }}
@@ -416,14 +453,28 @@ jobs:
         run: |
           echo "Deploying frontend application..."
           ibmcloud login --apikey "$IBM_CLOUD_API_KEY" --no-region
-          ibmcloud target -r "$IBM_CLOUD_REGION"
-          ibmcloud ce project select rag-modulo-dev
+          ibmcloud target -r "$IBM_CLOUD_REGION" -g "$IBM_CLOUD_RESOURCE_GROUP"
+          ibmcloud ce project select --name "$PROJECT_NAME"
+
+          # Create or update registry access secret (if not already created by backend)
+          echo "Setting up registry access..."
+          if ibmcloud ce secret get --name icr-secret > /dev/null 2>&1; then
+            echo "Registry secret already exists"
+          else
+            echo "Creating registry access secret..."
+            ibmcloud ce secret create --name icr-secret \
+              --format registry \
+              --server ${ICR_REGION}.icr.io \
+              --username iamapikey \
+              --password "$IBM_CLOUD_API_KEY"
+          fi
 
           # Deploy or update frontend application
           if ibmcloud ce app get "$APP_NAME" > /dev/null 2>&1; then
             echo "Updating existing frontend application..."
             ibmcloud ce app update "$APP_NAME" \
               --image "$IMAGE_URL" \
+              --registry-secret icr-secret \
               --min-scale 1 \
               --max-scale 3 \
               --cpu 0.5 \
@@ -432,8 +483,9 @@ jobs:
               --env REACT_APP_WS_URL="$REACT_APP_WS_URL"
           else
             echo "Creating new frontend application..."
-            ibmcloud ce app create "$APP_NAME" \
+            ibmcloud ce app create --name "$APP_NAME" \
               --image "$IMAGE_URL" \
+              --registry-secret icr-secret \
               --min-scale 1 \
               --max-scale 3 \
               --cpu 0.5 \
@@ -454,6 +506,11 @@ jobs:
 
       - name: Set up IBM Cloud CLI
         uses: IBM/actions-ibmcloud-cli@v1
+        with:
+          api_key: ${{ secrets.IBM_CLOUD_API_KEY }}
+          region: ${{ env.IBM_CLOUD_REGION }}
+          group: ${{ vars.IBM_CLOUD_RESOURCE_GROUP || 'rag-modulo-deployment' }}
+          plugins: code-engine
 
       - name: Test Backend Health
         run: |
