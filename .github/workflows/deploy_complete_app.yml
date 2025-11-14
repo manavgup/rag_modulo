@@ -117,6 +117,11 @@ jobs:
 
       - name: Set up IBM Cloud CLI
         uses: IBM/actions-ibmcloud-cli@v1
+        with:
+          api_key: ${{ secrets.IBM_CLOUD_API_KEY }}
+          region: ${{ env.IBM_CLOUD_REGION }}
+          group: ${{ vars.IBM_CLOUD_RESOURCE_GROUP || 'rag-modulo-deployment' }}
+          plugins: code-engine
 
       - name: Deploy Infrastructure using Ansible
         env:
@@ -148,10 +153,10 @@ jobs:
           # For now, we'll use IBM Cloud CLI directly for infrastructure
           echo "Deploying infrastructure components..."
           ibmcloud login --apikey "$IBM_CLOUD_API_KEY" --no-region
-          ibmcloud target -r "$IBM_CLOUD_REGION"
+          ibmcloud target -r "$IBM_CLOUD_REGION" -g "$IBM_CLOUD_RESOURCE_GROUP"
 
           # Create Code Engine project if it doesn't exist
-          ibmcloud ce project create --name rag-modulo-dev || ibmcloud ce project select rag-modulo-dev
+          ibmcloud ce project create --name rag-modulo-dev || ibmcloud ce project select -n rag-modulo-dev
 
           echo "Infrastructure deployment placeholder - will be enhanced with full Ansible playbook"
 
@@ -308,6 +313,11 @@ jobs:
 
       - name: Set up IBM Cloud CLI
         uses: IBM/actions-ibmcloud-cli@v1
+        with:
+          api_key: ${{ secrets.IBM_CLOUD_API_KEY }}
+          region: ${{ env.IBM_CLOUD_REGION }}
+          group: ${{ vars.IBM_CLOUD_RESOURCE_GROUP || 'rag-modulo-deployment' }}
+          plugins: code-engine
 
       - name: Deploy Backend to Code Engine
         env:
@@ -343,8 +353,8 @@ jobs:
         run: |
           echo "Deploying backend application..."
           ibmcloud login --apikey "$IBM_CLOUD_API_KEY" --no-region
-          ibmcloud target -r "$IBM_CLOUD_REGION"
-          ibmcloud ce project select rag-modulo-dev
+          ibmcloud target -r "$IBM_CLOUD_REGION" -g "$IBM_CLOUD_RESOURCE_GROUP"
+          ibmcloud ce project select -n rag-modulo-dev
 
           # Deploy or update backend application
           if ibmcloud ce app get "$APP_NAME" > /dev/null 2>&1; then
@@ -368,7 +378,7 @@ jobs:
               --env SKIP_AUTH="$SKIP_AUTH"
           else
             echo "Creating new backend application..."
-            ibmcloud ce app create "$APP_NAME" \
+            ibmcloud ce app create --name "$APP_NAME" \
               --image "$IMAGE_URL" \
               --min-scale 1 \
               --max-scale 5 \
@@ -402,6 +412,11 @@ jobs:
 
       - name: Set up IBM Cloud CLI
         uses: IBM/actions-ibmcloud-cli@v1
+        with:
+          api_key: ${{ secrets.IBM_CLOUD_API_KEY }}
+          region: ${{ env.IBM_CLOUD_REGION }}
+          group: ${{ vars.IBM_CLOUD_RESOURCE_GROUP || 'rag-modulo-deployment' }}
+          plugins: code-engine
 
       - name: Deploy Frontend to Code Engine
         env:
@@ -416,8 +431,8 @@ jobs:
         run: |
           echo "Deploying frontend application..."
           ibmcloud login --apikey "$IBM_CLOUD_API_KEY" --no-region
-          ibmcloud target -r "$IBM_CLOUD_REGION"
-          ibmcloud ce project select rag-modulo-dev
+          ibmcloud target -r "$IBM_CLOUD_REGION" -g "$IBM_CLOUD_RESOURCE_GROUP"
+          ibmcloud ce project select -n rag-modulo-dev
 
           # Deploy or update frontend application
           if ibmcloud ce app get "$APP_NAME" > /dev/null 2>&1; then
@@ -432,7 +447,7 @@ jobs:
               --env REACT_APP_WS_URL="$REACT_APP_WS_URL"
           else
             echo "Creating new frontend application..."
-            ibmcloud ce app create "$APP_NAME" \
+            ibmcloud ce app create --name "$APP_NAME" \
               --image "$IMAGE_URL" \
               --min-scale 1 \
               --max-scale 3 \
@@ -454,6 +469,11 @@ jobs:
 
       - name: Set up IBM Cloud CLI
         uses: IBM/actions-ibmcloud-cli@v1
+        with:
+          api_key: ${{ secrets.IBM_CLOUD_API_KEY }}
+          region: ${{ env.IBM_CLOUD_REGION }}
+          group: ${{ vars.IBM_CLOUD_RESOURCE_GROUP || 'rag-modulo-deployment' }}
+          plugins: code-engine
 
       - name: Test Backend Health
         run: |
