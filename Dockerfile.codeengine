@@ -61,11 +61,17 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     --mount=type=cache,target=/root/.cache/pypoetry \
     poetry install --only main --no-root --no-cache
 
-# Clean up system Python installation
+# Clean up system Python installation - more aggressive cleanup
 RUN find /usr/local -name "*.pyc" -delete && \
     find /usr/local -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true && \
     find /usr/local -name "tests" -type d -exec rm -rf {} + 2>/dev/null || true && \
-    find /usr/local -name "*.egg-info" -type d -exec rm -rf {} + 2>/dev/null || true
+    find /usr/local -name "test" -type d -exec rm -rf {} + 2>/dev/null || true && \
+    find /usr/local -name "*.egg-info" -type d -exec rm -rf {} + 2>/dev/null || true && \
+    find /usr/local -name "*.dist-info" -type d -exec rm -rf {} + 2>/dev/null || true && \
+    find /usr/local -name "*.so.*" ! -name "*.so" -delete 2>/dev/null || true && \
+    find /usr/local -name "*.a" -delete 2>/dev/null || true && \
+    rm -rf /root/.cache/pip /root/.cache/pypoetry /opt/poetry/cache 2>/dev/null || true && \
+    rm -rf /root/.cargo/registry /root/.cargo/git 2>/dev/null || true
 
 # Final stage - clean runtime
 FROM python:3.12-slim

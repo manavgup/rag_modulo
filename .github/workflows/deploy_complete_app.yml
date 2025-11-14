@@ -241,13 +241,21 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             BUILDKIT_INLINE_CACHE=1
+          # Clean up intermediate build cache to save space
+          outputs: type=image,push=true
 
-      - name: Clean up Docker build cache
+      - name: Clean up Docker build cache (Backend)
         if: always()
         run: |
           echo "Cleaning up Docker build cache..."
-          docker builder prune -af --filter "until=1h" || true
-          docker system prune -af --volumes --filter "until=1h" || true
+          # Remove all stopped containers
+          docker container prune -f || true
+          # Remove all unused images (not just dangling)
+          docker image prune -af || true
+          # Remove build cache
+          docker builder prune -af || true
+          # Full system prune
+          docker system prune -af --volumes || true
           echo "Final disk space: $(df -h / | awk 'NR==2 {print $4}') available"
 
   build-and-push-frontend:
@@ -302,12 +310,18 @@ jobs:
           build-args: |
             BUILDKIT_INLINE_CACHE=1
 
-      - name: Clean up Docker build cache
+      - name: Clean up Docker build cache (Frontend)
         if: always()
         run: |
           echo "Cleaning up Docker build cache..."
-          docker builder prune -af --filter "until=1h" || true
-          docker system prune -af --volumes --filter "until=1h" || true
+          # Remove all stopped containers
+          docker container prune -f || true
+          # Remove all unused images (not just dangling)
+          docker image prune -af || true
+          # Remove build cache
+          docker builder prune -af || true
+          # Full system prune
+          docker system prune -af --volumes || true
           echo "Final disk space: $(df -h / | awk 'NR==2 {print $4}') available"
 
   security-scan-backend:
