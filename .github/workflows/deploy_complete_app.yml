@@ -200,6 +200,25 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v5
 
+      - name: Free up disk space
+        run: |
+          echo "Initial disk space: $(df -h / | awk 'NR==2 {print $4}') available"
+          
+          # Remove unnecessary packages to free up space
+          # GitHub runners have ~14GB available, but pre-installed tools use ~70GB
+          sudo rm -rf /usr/share/dotnet &
+          sudo rm -rf /opt/ghc &
+          sudo rm -rf /usr/local/share/boost &
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY" &
+          sudo rm -rf /usr/local/lib/android &
+          sudo rm -rf /usr/share/swift &
+          wait
+          
+          # Clean Docker to free up space
+          docker system prune -af --volumes || true
+          
+          echo "After cleanup: $(df -h / | awk 'NR==2 {print $4}') available"
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -220,17 +239,16 @@ jobs:
           tags: ${{ env.ICR_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.BACKEND_APP_NAME }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          # Optimize disk usage
           build-args: |
             BUILDKIT_INLINE_CACHE=1
-          # Clean up build cache after push
-          no-cache: false
 
       - name: Clean up Docker build cache
         if: always()
         run: |
-          docker builder prune -af --filter "until=24h" || true
-          docker system prune -af --volumes --filter "until=24h" || true
+          echo "Cleaning up Docker build cache..."
+          docker builder prune -af --filter "until=1h" || true
+          docker system prune -af --volumes --filter "until=1h" || true
+          echo "Final disk space: $(df -h / | awk 'NR==2 {print $4}') available"
 
   build-and-push-frontend:
     needs: deploy-infrastructure
@@ -242,6 +260,24 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v5
+
+      - name: Free up disk space
+        run: |
+          echo "Initial disk space: $(df -h / | awk 'NR==2 {print $4}') available"
+          
+          # Remove unnecessary packages to free up space
+          sudo rm -rf /usr/share/dotnet &
+          sudo rm -rf /opt/ghc &
+          sudo rm -rf /usr/local/share/boost &
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY" &
+          sudo rm -rf /usr/local/lib/android &
+          sudo rm -rf /usr/share/swift &
+          wait
+          
+          # Clean Docker to free up space
+          docker system prune -af --volumes || true
+          
+          echo "After cleanup: $(df -h / | awk 'NR==2 {print $4}') available"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -263,17 +299,16 @@ jobs:
           tags: ${{ env.ICR_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.FRONTEND_APP_NAME }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          # Optimize disk usage
           build-args: |
             BUILDKIT_INLINE_CACHE=1
-          # Clean up build cache after push
-          no-cache: false
 
       - name: Clean up Docker build cache
         if: always()
         run: |
-          docker builder prune -af --filter "until=24h" || true
-          docker system prune -af --volumes --filter "until=24h" || true
+          echo "Cleaning up Docker build cache..."
+          docker builder prune -af --filter "until=1h" || true
+          docker system prune -af --volumes --filter "until=1h" || true
+          echo "Final disk space: $(df -h / | awk 'NR==2 {print $4}') available"
 
   security-scan-backend:
     needs: build-and-push-backend
