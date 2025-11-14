@@ -236,6 +236,17 @@ interface ConversationConfigMetadata {
   conversation_entities?: string[];
   /** Enable/disable conversation-aware enhancements */
   conversation_aware?: boolean;
+  /** Timestamp of the message */
+  timestamp?: string;
+  /** Source of the message (e.g., 'rest_api', 'websocket') */
+  source?: string;
+  /** Referenced message for context */
+  referenced_message?: {
+    id: string;
+    content: string;
+    timestamp: string;
+    type: 'user' | 'assistant';
+  };
 }
 
 // Podcast interfaces

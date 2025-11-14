@@ -3,12 +3,12 @@ import { ChevronDown, ChevronUp, ChartColumn } from '@carbon/icons-react';
 import './SearchInterface.scss';
 
 interface TokenAnalysis {
-  query_tokens: number;
-  context_tokens: number;
-  response_tokens: number;
-  system_tokens: number;
-  total_this_turn: number;
-  conversation_total: number;
+  query_tokens?: number;
+  context_tokens?: number;
+  response_tokens?: number;
+  system_tokens?: number;
+  total_this_turn?: number;
+  conversation_total?: number;
 }
 
 interface TokenAnalysisAccordionProps {
@@ -18,13 +18,13 @@ interface TokenAnalysisAccordionProps {
 }
 
 const TokenAnalysisAccordion: React.FC<TokenAnalysisAccordionProps> = ({ tokenAnalysis, isOpen, onToggle }) => {
-  const formatNumber = (num: number): string => {
-    return num.toLocaleString();
+  const formatNumber = (num?: number): string => {
+    return (num ?? 0).toLocaleString();
   };
 
-  const calculatePercentage = (value: number): number => {
-    if (tokenAnalysis.total_this_turn === 0) return 0;
-    return Math.round((value / tokenAnalysis.total_this_turn) * 100);
+  const calculatePercentage = (value?: number): number => {
+    if (!tokenAnalysis.total_this_turn || tokenAnalysis.total_this_turn === 0) return 0;
+    return Math.round(((value ?? 0) / tokenAnalysis.total_this_turn) * 100);
   };
 
   return (
@@ -117,7 +117,7 @@ const TokenAnalysisAccordion: React.FC<TokenAnalysisAccordionProps> = ({ tokenAn
                 style={{
                   width: `${Math.min(
                     100,
-                    (tokenAnalysis.total_this_turn / (tokenAnalysis.conversation_total || 1)) * 100
+                    ((tokenAnalysis.total_this_turn ?? 0) / (tokenAnalysis.conversation_total || 1)) * 100
                   )}%`,
                 }}
               />

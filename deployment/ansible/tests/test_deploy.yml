@@ -1,4 +1,3 @@
----
 # Ansible Deployment Tests
 # This file contains tests for the RAG Modulo deployment playbook
 
@@ -29,24 +28,24 @@
     environment: "dev"
     region: "us-south"
     resource_group_id: "test-resource-group"
-    ibmcloud_api_key: "test-api-key"  # pragma: allowlist secret
-    container_registry_username: "iamapikey"  # pragma: allowlist secret
-    container_registry_password: "test-password"  # pragma: allowlist secret
+    ibmcloud_api_key: "test-api-key" # pragma: allowlist secret
+    container_registry_username: "iamapikey" # pragma: allowlist secret
+    container_registry_password: "test-password" # pragma: allowlist secret
     backend_image_tag: "v1.0.0"
     frontend_image_tag: "v1.0.0"
     postgresql_host: "test-postgres.example.com"
     postgresql_port: 5432
     postgresql_database: "test_db"
     postgresql_username: "test_user"
-    postgresql_password: "test_password"  # pragma: allowlist secret
+    postgresql_password: "test_password" # pragma: allowlist secret
     object_storage_endpoint: "test-storage.example.com"
-    object_storage_access_key: "test_access_key"  # pragma: allowlist secret
-    object_storage_secret_key: "test_secret_key"  # pragma: allowlist secret
+    object_storage_access_key: "test_access_key" # pragma: allowlist secret
+    object_storage_secret_key: "test_secret_key" # pragma: allowlist secret
     object_storage_bucket_name: "test-bucket"
     zilliz_endpoint: "test-zilliz.example.com"
-    zilliz_api_key: "test_zilliz_key"  # pragma: allowlist secret
+    zilliz_api_key: "test_zilliz_key" # pragma: allowlist secret
     event_streams_endpoint: "test-kafka.example.com"
-    event_streams_api_key: "test_kafka_key"  # pragma: allowlist secret
+    event_streams_api_key: "test_kafka_key" # pragma: allowlist secret
     backend_health_url: "https://backend-app.example.com/api/health"
     frontend_health_url: "https://frontend-app.example.com/"
 
@@ -188,24 +187,24 @@
     environment: "dev"
     region: "us-south"
     resource_group_id: "test-resource-group"
-    ibmcloud_api_key: "test-api-key"  # pragma: allowlist secret
-    container_registry_username: "iamapikey"  # pragma: allowlist secret
-    container_registry_password: "test-password"  # pragma: allowlist secret
+    ibmcloud_api_key: "test-api-key" # pragma: allowlist secret
+    container_registry_username: "iamapikey" # pragma: allowlist secret
+    container_registry_password: "test-password" # pragma: allowlist secret
     backend_image_tag: "v1.0.0"
     frontend_image_tag: "v1.0.0"
     postgresql_host: "test-postgres.example.com"
     postgresql_port: 5432
     postgresql_database: "test_db"
     postgresql_username: "test_user"
-    postgresql_password: "test_password"  # pragma: allowlist secret
+    postgresql_password: "test_password" # pragma: allowlist secret
     object_storage_endpoint: "test-storage.example.com"
-    object_storage_access_key: "test_access_key"  # pragma: allowlist secret
-    object_storage_secret_key: "test_secret_key"  # pragma: allowlist secret
+    object_storage_access_key: "test_access_key" # pragma: allowlist secret
+    object_storage_secret_key: "test_secret_key" # pragma: allowlist secret
     object_storage_bucket_name: "test-bucket"
     zilliz_endpoint: "test-zilliz.example.com"
-    zilliz_api_key: "test_zilliz_key"  # pragma: allowlist secret
+    zilliz_api_key: "test_zilliz_key" # pragma: allowlist secret
     event_streams_endpoint: "test-kafka.example.com"
-    event_streams_api_key: "test_kafka_key"  # pragma: allowlist secret
+    event_streams_api_key: "test_kafka_key" # pragma: allowlist secret
     backend_health_url: "https://backend-app.example.com/api/health"
     frontend_health_url: "https://frontend-app.example.com/"
 
@@ -260,24 +259,24 @@
     environment: "dev"
     region: "us-south"
     resource_group_id: "test-resource-group"
-    ibmcloud_api_key: "test-api-key"  # pragma: allowlist secret
-    container_registry_username: "iamapikey"  # pragma: allowlist secret
-    container_registry_password: "test-password"  # pragma: allowlist secret
+    ibmcloud_api_key: "test-api-key" # pragma: allowlist secret
+    container_registry_username: "iamapikey" # pragma: allowlist secret
+    container_registry_password: "test-password" # pragma: allowlist secret
     backend_image_tag: "v1.0.0"
     frontend_image_tag: "v1.0.0"
     postgresql_host: "test-postgres.example.com"
     postgresql_port: 5432
     postgresql_database: "test_db"
     postgresql_username: "test_user"
-    postgresql_password: "test_password"  # pragma: allowlist secret
+    postgresql_password: "test_password" # pragma: allowlist secret
     object_storage_endpoint: "test-storage.example.com"
-    object_storage_access_key: "test_access_key"  # pragma: allowlist secret
-    object_storage_secret_key: "test_secret_key"  # pragma: allowlist secret
+    object_storage_access_key: "test_access_key" # pragma: allowlist secret
+    object_storage_secret_key: "test_secret_key" # pragma: allowlist secret
     object_storage_bucket_name: "test-bucket"
     zilliz_endpoint: "test-zilliz.example.com"
-    zilliz_api_key: "test_zilliz_key"  # pragma: allowlist secret
+    zilliz_api_key: "test_zilliz_key" # pragma: allowlist secret
     event_streams_endpoint: "test-kafka.example.com"
-    event_streams_api_key: "test_kafka_key"  # pragma: allowlist secret
+    event_streams_api_key: "test_kafka_key" # pragma: allowlist secret
     backend_health_url: "https://backend-app.example.com/api/health"
     frontend_health_url: "https://frontend-app.example.com/"
 

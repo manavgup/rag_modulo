@@ -91,8 +91,18 @@ jobs:
 
       - name: Select Code Engine project
         run: |
-          echo "Selecting Code Engine project: ${{ env.PROJECT_NAME }}"
-          ibmcloud ce project select -n "${{ env.PROJECT_NAME }}"
+          echo "🔍 Checking if project '${{ env.PROJECT_NAME }}' exists..."
+
+          if ibmcloud ce project get --name "${{ env.PROJECT_NAME }}" &>/dev/null; then
+            echo "✅ Project exists - selecting for teardown..."
+            ibmcloud ce project select --name "${{ env.PROJECT_NAME }}"
+          else
+            echo "ℹ️  Project '${{ env.PROJECT_NAME }}' not found"
+            echo "📋 Available projects:"
+            ibmcloud ce project list || echo "No projects found"
+            echo "⚠️  Nothing to tear down - exiting gracefully"
+            exit 0
+          fi
 
       - name: List current applications
         run: |

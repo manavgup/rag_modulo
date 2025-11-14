@@ -1,4 +1,3 @@
----
 # RAG Modulo Deployment Playbook
 # This playbook deploys RAG Modulo to IBM Cloud Code Engine using ibmcloud CLI
 # and integrates with managed services for data persistence
@@ -87,7 +86,7 @@
       ansible.builtin.get_url:
         url: "https://clis.cloud.ibm.com/install/linux"
         dest: "/tmp/ibmcloud-cli-installer.sh"
-        mode: '0755'
+        mode: "0755"
       when: ansible_os_family == "RedHat" or ansible_os_family == "Debian"
 
     - name: Install IBM Cloud CLI
@@ -336,7 +335,7 @@
           ZILLIZ_ENDPOINT={{ zilliz_endpoint }}
           EVENT_STREAMS_ENDPOINT={{ event_streams_endpoint }}
         dest: "{{ playbook_dir }}/deployment-outputs.env"
-        mode: '0644'
+        mode: "0644"
 
     - name: Display next steps
       ansible.builtin.debug:
