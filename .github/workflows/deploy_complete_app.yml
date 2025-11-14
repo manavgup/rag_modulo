@@ -295,10 +295,18 @@ jobs:
 
       - name: Pull Docker image for scanning
         run: |
-          docker pull ${{ env.ICR_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.BACKEND_APP_NAME }}:${{ github.sha }}
+          echo "Pulling image: ${{ env.ICR_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.BACKEND_APP_NAME }}:${{ github.sha }}"
+          docker pull ${{ env.ICR_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.BACKEND_APP_NAME }}:${{ github.sha }} || { echo "❌ Failed to pull image"; exit 1; }
+          echo "✅ Image pulled successfully"
+          docker images | grep "${{ env.BACKEND_APP_NAME }}" || { echo "❌ Image not found in local registry"; exit 1; }
 
       - name: Run Trivy vulnerability scanner (Backend)
         uses: aquasecurity/trivy-action@master
+        env:
+          TRIVY_USERNAME: iamapikey
+          TRIVY_PASSWORD: ${{ secrets.IBM_CLOUD_API_KEY }}
+          TRIVY_REGISTRY_USERNAME: iamapikey
+          TRIVY_REGISTRY_PASSWORD: ${{ secrets.IBM_CLOUD_API_KEY }}
         with:
           image-ref: ${{ env.ICR_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.BACKEND_APP_NAME }}:${{ github.sha }}
           format: "sarif"
@@ -313,6 +321,11 @@ jobs:
 
       - name: Run Trivy vulnerability scanner (Backend - Table)
         uses: aquasecurity/trivy-action@master
+        env:
+          TRIVY_USERNAME: iamapikey
+          TRIVY_PASSWORD: ${{ secrets.IBM_CLOUD_API_KEY }}
+          TRIVY_REGISTRY_USERNAME: iamapikey
+          TRIVY_REGISTRY_PASSWORD: ${{ secrets.IBM_CLOUD_API_KEY }}
         with:
           image-ref: ${{ env.ICR_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.BACKEND_APP_NAME }}:${{ github.sha }}
           format: "table"
@@ -344,10 +357,18 @@ jobs:
 
       - name: Pull Docker image for scanning
         run: |
-          docker pull ${{ env.ICR_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.FRONTEND_APP_NAME }}:${{ github.sha }}
+          echo "Pulling image: ${{ env.ICR_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.FRONTEND_APP_NAME }}:${{ github.sha }}"
+          docker pull ${{ env.ICR_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.FRONTEND_APP_NAME }}:${{ github.sha }} || { echo "❌ Failed to pull image"; exit 1; }
+          echo "✅ Image pulled successfully"
+          docker images | grep "${{ env.FRONTEND_APP_NAME }}" || { echo "❌ Image not found in local registry"; exit 1; }
 
       - name: Run Trivy vulnerability scanner (Frontend)
         uses: aquasecurity/trivy-action@master
+        env:
+          TRIVY_USERNAME: iamapikey
+          TRIVY_PASSWORD: ${{ secrets.IBM_CLOUD_API_KEY }}
+          TRIVY_REGISTRY_USERNAME: iamapikey
+          TRIVY_REGISTRY_PASSWORD: ${{ secrets.IBM_CLOUD_API_KEY }}
         with:
           image-ref: ${{ env.ICR_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.FRONTEND_APP_NAME }}:${{ github.sha }}
           format: "sarif"
@@ -362,6 +383,11 @@ jobs:
 
       - name: Run Trivy vulnerability scanner (Frontend - Table)
         uses: aquasecurity/trivy-action@master
+        env:
+          TRIVY_USERNAME: iamapikey
+          TRIVY_PASSWORD: ${{ secrets.IBM_CLOUD_API_KEY }}
+          TRIVY_REGISTRY_USERNAME: iamapikey
+          TRIVY_REGISTRY_PASSWORD: ${{ secrets.IBM_CLOUD_API_KEY }}
         with:
           image-ref: ${{ env.ICR_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.FRONTEND_APP_NAME }}:${{ github.sha }}
           format: "table"
