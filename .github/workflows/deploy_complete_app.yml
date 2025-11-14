@@ -237,12 +237,13 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ${{ env.ICR_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.BACKEND_APP_NAME }}:${{ github.sha }}
+          # Use minimal cache to reduce disk usage
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=min
           build-args: |
             BUILDKIT_INLINE_CACHE=1
-          # Clean up intermediate build cache to save space
-          outputs: type=image,push=true
+          # Don't load image locally, push directly to save space
+          load: false
 
       - name: Clean up Docker build cache (Backend)
         if: always()
@@ -305,10 +306,13 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ${{ env.ICR_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.FRONTEND_APP_NAME }}:${{ github.sha }}
+          # Use minimal cache to reduce disk usage
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=min
           build-args: |
             BUILDKIT_INLINE_CACHE=1
+          # Don't load image locally, push directly to save space
+          load: false
 
       - name: Clean up Docker build cache (Frontend)
         if: always()
