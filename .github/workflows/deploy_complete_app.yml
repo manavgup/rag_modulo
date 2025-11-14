@@ -160,7 +160,15 @@ jobs:
           ibmcloud target -r "$IBM_CLOUD_REGION" -g "$IBM_CLOUD_RESOURCE_GROUP"
 
           # Create Code Engine project if it doesn't exist (idempotent)
-          if ibmcloud ce project get --name "$PROJECT_NAME" &>/dev/null; then
+          # Check if project exists and handle soft-deleted state
+          if ibmcloud ce project get --name "$PROJECT_NAME" 2>&1 | grep -q "soft deleted"; then
+            echo "⚠️  Project '$PROJECT_NAME' is soft-deleted, creating new one with timestamp..."
+            NEW_PROJECT_NAME="${PROJECT_NAME}-$(date +%s)"
+            echo "🆕 Creating project '$NEW_PROJECT_NAME'..."
+            ibmcloud ce project create --name "$NEW_PROJECT_NAME"
+            ibmcloud ce project select --name "$NEW_PROJECT_NAME"
+            echo "PROJECT_NAME=$NEW_PROJECT_NAME" >> $GITHUB_ENV
+          elif ibmcloud ce project get --name "$PROJECT_NAME" &>/dev/null; then
             echo "✅ Project '$PROJECT_NAME' exists - selecting..."
             ibmcloud ce project select --name "$PROJECT_NAME"
           else
