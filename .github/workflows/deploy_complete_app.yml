@@ -1028,6 +1028,7 @@ jobs:
           IBM_CLOUD_RESOURCE_GROUP: ${{ vars.IBM_CLOUD_RESOURCE_GROUP || 'rag-modulo-deployment' }}
           REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
           REACT_APP_WS_URL: ${{ secrets.REACT_APP_WS_URL }}
+          BACKEND_APP_NAME: ${{ env.BACKEND_APP_NAME }}
         run: |
           set -e  # Exit on error
           echo "Deploying frontend application..."
@@ -1095,7 +1096,8 @@ jobs:
               --memory 1G \
               --port 3000 \
               --env REACT_APP_API_URL="$REACT_APP_API_URL" \
-              --env REACT_APP_WS_URL="$REACT_APP_WS_URL" || { echo "❌ Failed to create app"; exit 1; }
+              --env REACT_APP_WS_URL="$REACT_APP_WS_URL" \
+              --env BACKEND_URL="$REACT_APP_API_URL" || { echo "❌ Failed to create app"; exit 1; }
             echo "✅ Frontend application created successfully"
           else
             if [ $UPDATE_EXIT -eq 0 ]; then
