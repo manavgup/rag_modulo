@@ -835,7 +835,7 @@ jobs:
           # Try to update first - if app doesn't exist, update will fail and we'll create
           echo "Checking if backend application exists..."
           set +e  # Temporarily disable exit on error to check update result
-          UPDATE_OUTPUT=$(ibmcloud ce app update "$APP_NAME" \
+          UPDATE_OUTPUT=$(ibmcloud ce app update --name "$APP_NAME" \
               --image "$IMAGE_URL" \
               --registry-secret icr-secret \
               --min-scale 1 \
