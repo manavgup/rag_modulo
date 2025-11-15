@@ -6,6 +6,7 @@ Welcome to the RAG Modulo development guide! This comprehensive documentation wi
 
 - [Quick Start](#quick-start)
 - [Development Environment Setup](#development-environment-setup)
+- [Versioning Strategy](#versioning-strategy)
 - [Building the Project](#building-the-project)
 - [Running Tests](#running-tests)
 - [Development Workflow](#development-workflow)
@@ -28,6 +29,18 @@ make dev-setup
 ```
 
 That's it! Your development environment is ready. See [Development Environment Setup](#development-environment-setup) for detailed information.
+
+## Versioning Strategy
+
+RAG Modulo uses a unified versioning strategy that flows from `.env` → `Makefile` → `GitHub Actions`. This ensures consistent versioning across local development and CI/CD pipelines.
+
+**Key Points:**
+- Set `PROJECT_VERSION=0.8.0` in `.env` file
+- Makefile automatically picks it up
+- GitHub Actions uses it for Docker image tagging
+- Git tags (`v1.0.0`) override for releases
+
+For complete documentation, see [Versioning Strategy Guide](versioning.md).
 
 ## Development Environment Setup
 
