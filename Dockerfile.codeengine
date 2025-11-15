@@ -47,16 +47,27 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     --index-url https://download.pytorch.org/whl/cpu && \
     pip install --no-cache-dir torchvision==0.21.0
 
+# Install CPU-only transformers and sentence-transformers BEFORE docling
+# These are dependencies of docling and might pull CUDA versions
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir \
+    transformers==4.46.0 \
+    sentence-transformers==5.1.2 \
+    --index-url https://download.pytorch.org/whl/cpu \
+    --extra-index-url https://pypi.org/simple
+
 # Configure pip globally to ONLY use CPU torch index
 # This prevents any package from pulling CUDA versions
 RUN pip config set global.index-url https://download.pytorch.org/whl/cpu && \
     pip config set global.extra-index-url https://pypi.org/simple
 
-# Use Poetry to install dependencies directly (skipping torch/torchvision)
-# Poetry will respect the already-installed CPU-only torch
+# Use Poetry to install dependencies directly (skipping torch/torchvision/transformers/sentence-transformers)
+# Poetry will respect the already-installed CPU-only packages
 RUN poetry install --only main --no-root --no-interaction && \
     # Verify we still have CPU-only torch
-    python -c "import torch; assert not torch.cuda.is_available(), 'CUDA torch detected!'; print('✓ CPU-only torch confirmed')"
+    python -c "import torch; assert not torch.cuda.is_available(), 'CUDA torch detected!'; print('✓ CPU-only torch confirmed')" && \
+    # Verify no CUDA libraries are installed
+    python -c "import sys; import subprocess; result = subprocess.run(['find', '/usr/local/lib/python3.12/site-packages', '-name', '*cuda*', '-o', '-name', '*nvidia*'], capture_output=True, text=True); assert not result.stdout.strip(), f'CUDA/NVIDIA libraries found: {result.stdout}'; print('✓ No CUDA/NVIDIA libraries detected')"
 
 # Clean up system Python installation - more aggressive cleanup
 RUN find /usr/local -name "*.pyc" -delete && \
