@@ -237,6 +237,7 @@ jobs:
           password: ${{ secrets.IBM_CLOUD_API_KEY }}
 
       - name: Build and push backend Docker image
+        id: build-backend
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -251,6 +252,29 @@ jobs:
             BUILDKIT_INLINE_CACHE=1
           # Don't load image locally, push directly to save space
           load: false
+
+      - name: Verify backend image was pushed to ICR
+        env:
+          ICR_REGION: ${{ env.ICR_REGION }}
+          CR_NAMESPACE: ${{ env.CR_NAMESPACE }}
+          BACKEND_APP_NAME: ${{ env.BACKEND_APP_NAME }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          set -e
+          IMAGE_URL="$ICR_REGION.icr.io/$CR_NAMESPACE/$BACKEND_APP_NAME:$IMAGE_TAG"
+          echo "Verifying image exists in ICR: $IMAGE_URL"
+          
+          # Login to ICR to verify image
+          echo "${{ secrets.IBM_CLOUD_API_KEY }}" | docker login -u iamapikey --password-stdin "$ICR_REGION.icr.io" || { echo "❌ Failed to login to ICR"; exit 1; }
+          
+          # Try to pull the image manifest to verify it exists
+          if docker manifest inspect "$IMAGE_URL" > /dev/null 2>&1; then
+            echo "✅ Image verified in ICR: $IMAGE_URL"
+          else
+            echo "❌ Image not found in ICR: $IMAGE_URL"
+            echo "This usually means the build/push step failed silently."
+            exit 1
+          fi
 
       - name: Clean up Docker build cache (Backend)
         if: always()
@@ -307,6 +331,7 @@ jobs:
           password: ${{ secrets.IBM_CLOUD_API_KEY }}
 
       - name: Build and push frontend Docker image
+        id: build-frontend
         uses: docker/build-push-action@v6
         with:
           context: ./frontend
@@ -321,6 +346,29 @@ jobs:
             BUILDKIT_INLINE_CACHE=1
           # Don't load image locally, push directly to save space
           load: false
+
+      - name: Verify frontend image was pushed to ICR
+        env:
+          ICR_REGION: ${{ env.ICR_REGION }}
+          CR_NAMESPACE: ${{ env.CR_NAMESPACE }}
+          FRONTEND_APP_NAME: ${{ env.FRONTEND_APP_NAME }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          set -e
+          IMAGE_URL="$ICR_REGION.icr.io/$CR_NAMESPACE/$FRONTEND_APP_NAME:$IMAGE_TAG"
+          echo "Verifying image exists in ICR: $IMAGE_URL"
+          
+          # Login to ICR to verify image
+          echo "${{ secrets.IBM_CLOUD_API_KEY }}" | docker login -u iamapikey --password-stdin "$ICR_REGION.icr.io" || { echo "❌ Failed to login to ICR"; exit 1; }
+          
+          # Try to pull the image manifest to verify it exists
+          if docker manifest inspect "$IMAGE_URL" > /dev/null 2>&1; then
+            echo "✅ Image verified in ICR: $IMAGE_URL"
+          else
+            echo "❌ Image not found in ICR: $IMAGE_URL"
+            echo "This usually means the build/push step failed silently."
+            exit 1
+          fi
 
       - name: Clean up Docker build cache (Frontend)
         if: always()
@@ -483,6 +531,29 @@ jobs:
           group: ${{ vars.IBM_CLOUD_RESOURCE_GROUP || 'rag-modulo-deployment' }}
           plugins: code-engine
 
+      - name: Verify backend image exists before deployment
+        env:
+          ICR_REGION: ${{ env.ICR_REGION }}
+          CR_NAMESPACE: ${{ env.CR_NAMESPACE }}
+          BACKEND_APP_NAME: ${{ env.BACKEND_APP_NAME }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          set -e
+          IMAGE_URL="$ICR_REGION.icr.io/$CR_NAMESPACE/$BACKEND_APP_NAME:$IMAGE_TAG"
+          echo "Verifying image exists before deployment: $IMAGE_URL"
+          
+          # Login to ICR
+          echo "${{ secrets.IBM_CLOUD_API_KEY }}" | docker login -u iamapikey --password-stdin "$ICR_REGION.icr.io" || { echo "❌ Failed to login to ICR"; exit 1; }
+          
+          # Verify image exists
+          if docker manifest inspect "$IMAGE_URL" > /dev/null 2>&1; then
+            echo "✅ Image confirmed in ICR, proceeding with deployment"
+          else
+            echo "❌ Image not found in ICR: $IMAGE_URL"
+            echo "Cannot deploy - image does not exist. Check build job logs."
+            exit 1
+          fi
+
       - name: Deploy Backend to Code Engine
         env:
           IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}
@@ -621,6 +692,29 @@ jobs:
           region: ${{ env.IBM_CLOUD_REGION }}
           group: ${{ vars.IBM_CLOUD_RESOURCE_GROUP || 'rag-modulo-deployment' }}
           plugins: code-engine
+
+      - name: Verify frontend image exists before deployment
+        env:
+          ICR_REGION: ${{ env.ICR_REGION }}
+          CR_NAMESPACE: ${{ env.CR_NAMESPACE }}
+          FRONTEND_APP_NAME: ${{ env.FRONTEND_APP_NAME }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          set -e
+          IMAGE_URL="$ICR_REGION.icr.io/$CR_NAMESPACE/$FRONTEND_APP_NAME:$IMAGE_TAG"
+          echo "Verifying image exists before deployment: $IMAGE_URL"
+          
+          # Login to ICR
+          echo "${{ secrets.IBM_CLOUD_API_KEY }}" | docker login -u iamapikey --password-stdin "$ICR_REGION.icr.io" || { echo "❌ Failed to login to ICR"; exit 1; }
+          
+          # Verify image exists
+          if docker manifest inspect "$IMAGE_URL" > /dev/null 2>&1; then
+            echo "✅ Image confirmed in ICR, proceeding with deployment"
+          else
+            echo "❌ Image not found in ICR: $IMAGE_URL"
+            echo "Cannot deploy - image does not exist. Check build job logs."
+            exit 1
+          fi
 
       - name: Deploy Frontend to Code Engine
         env:
