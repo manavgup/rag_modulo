@@ -107,6 +107,8 @@ jobs:
   # ---------------------------------------------------------------------------
   deploy-infrastructure:
     runs-on: ubuntu-latest
+    outputs:
+      project_name: ${{ steps.setup-project.outputs.project_name }}
     steps:
       - name: Check out code
         uses: actions/checkout@v5
@@ -130,6 +132,7 @@ jobs:
           plugins: code-engine
 
       - name: Deploy Infrastructure using Ansible
+        id: setup-project
         env:
           IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}
           IBM_CLOUD_REGION: ${{ env.IBM_CLOUD_REGION }}
@@ -170,13 +173,16 @@ jobs:
             ibmcloud ce project create --name "$NEW_PROJECT_NAME"
             ibmcloud ce project select --name "$NEW_PROJECT_NAME"
             echo "PROJECT_NAME=$NEW_PROJECT_NAME" >> $GITHUB_ENV
+            echo "project_name=$NEW_PROJECT_NAME" >> $GITHUB_OUTPUT
           elif ibmcloud ce project get --name "$PROJECT_NAME" &>/dev/null; then
             echo "✅ Project '$PROJECT_NAME' exists - selecting..."
             ibmcloud ce project select --name "$PROJECT_NAME"
+            echo "project_name=$PROJECT_NAME" >> $GITHUB_OUTPUT
           else
             echo "🆕 Creating project '$PROJECT_NAME'..."
             ibmcloud ce project create --name "$PROJECT_NAME"
             ibmcloud ce project select --name "$PROJECT_NAME"
+            echo "project_name=$PROJECT_NAME" >> $GITHUB_OUTPUT
           fi
 
           echo "Infrastructure deployment placeholder - will be enhanced with full Ansible playbook"
@@ -706,7 +712,7 @@ jobs:
 
       - name: Select Code Engine project
         env:
-          PROJECT_NAME: ${{ env.PROJECT_NAME }}
+          PROJECT_NAME: ${{ needs.deploy-infrastructure.outputs.project_name }}
         run: |
           echo "Selecting Code Engine project: $PROJECT_NAME"
           ibmcloud ce project select --name "$PROJECT_NAME"
