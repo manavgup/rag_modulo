@@ -1112,7 +1112,7 @@ jobs:
               --max-scale 3 \
               --cpu 0.5 \
               --memory 1G \
-              --port 3000 \
+              --port 8080 \
               --env REACT_APP_API_URL="$REACT_APP_API_URL" \
               --env REACT_APP_WS_URL="$REACT_APP_WS_URL" \
               --env BACKEND_URL="$BACKEND_URL" || { echo "❌ Failed to create app"; exit 1; }
