@@ -704,6 +704,13 @@ jobs:
           group: ${{ vars.IBM_CLOUD_RESOURCE_GROUP || 'rag-modulo-deployment' }}
           plugins: code-engine
 
+      - name: Select Code Engine project
+        env:
+          PROJECT_NAME: ${{ env.PROJECT_NAME }}
+        run: |
+          echo "Selecting Code Engine project: $PROJECT_NAME"
+          ibmcloud ce project select --name "$PROJECT_NAME"
+
       - name: Test Backend Health
         run: |
           BACKEND_URL=$(ibmcloud ce app get --name "${{ env.BACKEND_APP_NAME }}" --output json | jq -r '.status.url' | head -1)
