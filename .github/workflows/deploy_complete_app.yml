@@ -1055,6 +1055,23 @@ jobs:
             ibmcloud ce project create --name "$PROJECT_NAME" || { echo "❌ Failed to create project"; exit 1; }
             ibmcloud ce project select --name "$PROJECT_NAME" || { echo "❌ Failed to select project"; exit 1; }
           fi
+          
+          # Get backend URL if REACT_APP_API_URL is not set
+          if [ -z "$REACT_APP_API_URL" ] || [ "$REACT_APP_API_URL" = "" ]; then
+            echo "⚠️  REACT_APP_API_URL not set, getting backend URL from Code Engine..."
+            BACKEND_URL_FROM_CE=$(ibmcloud ce app get --name "$BACKEND_APP_NAME" --output json 2>/dev/null | jq -r '.status.url // empty' | head -1)
+            if [ -n "$BACKEND_URL_FROM_CE" ] && [ "$BACKEND_URL_FROM_CE" != "null" ] && [ "$BACKEND_URL_FROM_CE" != "" ]; then
+              REACT_APP_API_URL="$BACKEND_URL_FROM_CE"
+              echo "✅ Using backend URL from Code Engine: $REACT_APP_API_URL"
+            else
+              echo "⚠️  Could not get backend URL, using default"
+              REACT_APP_API_URL="http://localhost:8000"
+            fi
+          fi
+          
+          # Set BACKEND_URL for nginx config (use REACT_APP_API_URL)
+          BACKEND_URL="$REACT_APP_API_URL"
+          echo "✅ Backend URL for nginx: $BACKEND_URL"
 
           # Create or update registry access secret (if not already created by backend)
           echo "Setting up registry access..."
