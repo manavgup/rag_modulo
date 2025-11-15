@@ -454,7 +454,7 @@ jobs:
 
   deploy-backend:
     needs: [build-and-push-backend, security-scan-backend]
-    if: always() && (needs.security-scan-backend.result == 'success' || needs.security-scan-backend.result == 'skipped')
+    if: always() && needs.build-and-push-backend.result == 'success' && (needs.security-scan-backend.result == 'success' || needs.security-scan-backend.result == 'skipped')
       && (github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'schedule' &&
       inputs.deploy_after_build == true))
     runs-on: ubuntu-latest
@@ -592,7 +592,7 @@ jobs:
 
   deploy-frontend:
     needs: [build-and-push-frontend, security-scan-frontend]
-    if: always() && (needs.security-scan-frontend.result == 'success' || needs.security-scan-frontend.result ==
+    if: always() && needs.build-and-push-frontend.result == 'success' && (needs.security-scan-frontend.result == 'success' || needs.security-scan-frontend.result ==
       'skipped') && (github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name ==
       'schedule' && inputs.deploy_after_build == true))
     runs-on: ubuntu-latest
