@@ -16,12 +16,13 @@ ENV PATH="$POETRY_HOME/bin:$PATH"
 
 # Install system dependencies
 RUN apt-get update && \
-    apt-get install -y build-essential curl && \
+    apt-get install -y --no-install-recommends build-essential curl && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 # Install Rust and poetry
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && . $HOME/.cargo/env \
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && . "$HOME/.cargo/env" \
     && curl -sSL https://install.python-poetry.org | python3 -
 
 # Add Rust to PATH
@@ -37,30 +38,23 @@ ARG POETRY_ROOT_MIGRATION=20251027
 # Poetry config moved from backend/ to project root
 COPY pyproject.toml poetry.lock ./
 
-        # Install CPU-only PyTorch first to avoid CUDA dependencies (~6GB savings)
-        # Using torch 2.6.0 CPU-only version (compatible with ARM64 and x86_64)
-        # Note: torchvision doesn't have +cpu builds, use regular version
-        RUN --mount=type=cache,target=/root/.cache/pip \
-            pip install --no-cache-dir \
-            torch==2.6.0+cpu \
-            --index-url https://download.pytorch.org/whl/cpu && \
-            pip install --no-cache-dir torchvision==0.21.0
+# Install CPU-only PyTorch first to avoid CUDA dependencies (~6GB savings)
+# Using torch 2.6.0 CPU-only version (compatible with ARM64 and x86_64)
+# Note: torchvision doesn't have +cpu builds, use regular version
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir \
+    torch==2.6.0+cpu \
+    --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --no-cache-dir torchvision==0.21.0
 
 # Configure pip globally to ONLY use CPU torch index
 # This prevents any package from pulling CUDA versions
 RUN pip config set global.index-url https://download.pytorch.org/whl/cpu && \
     pip config set global.extra-index-url https://pypi.org/simple
 
-# Export Poetry dependencies to requirements.txt, excluding torch/torchvision
-RUN poetry export --only main --without-hashes -o requirements.txt && \
-    # Remove torch and torchvision from requirements (already installed)
-    sed -i '/^torch==/d' requirements.txt && \
-    sed -i '/^torchvision==/d' requirements.txt
-
-# Install remaining dependencies from requirements.txt
-# This bypasses Poetry's dependency resolver which might try to reinstall torch
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir -r requirements.txt && \
+# Use Poetry to install dependencies directly (skipping torch/torchvision)
+# Poetry will respect the already-installed CPU-only torch
+RUN poetry install --only main --no-root --no-interaction && \
     # Verify we still have CPU-only torch
     python -c "import torch; assert not torch.cuda.is_available(), 'CUDA torch detected!'; print('✓ CPU-only torch confirmed')"
 
