@@ -220,6 +220,49 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v5
 
+      - name: Extract PROJECT_VERSION from Makefile
+        id: get-version
+        run: |
+          # Priority order:
+          # 1. Git tag (v1.0.0) -> use tag name
+          # 2. GitHub variable PROJECT_VERSION
+          # 3. Read from Makefile (PROJECT_VERSION ?= 1.0.0)
+          # 4. Read from pyproject.toml (version = "1.0.0")
+          # 5. Fallback to commit SHA
+          
+          if [[ "${{ github.ref }}" =~ ^refs/tags/v ]]; then
+            # Use git tag (remove 'v' prefix if present)
+            VERSION="${{ github.ref_name }}"
+            echo "Using git tag version: $VERSION"
+          elif [ -n "${{ vars.PROJECT_VERSION }}" ]; then
+            # Use GitHub variable
+            VERSION="${{ vars.PROJECT_VERSION }}"
+            echo "Using GitHub variable PROJECT_VERSION: $VERSION"
+          elif [ -f Makefile ]; then
+            # Extract from Makefile: PROJECT_VERSION ?= 1.0.0
+            VERSION=$(grep -E '^PROJECT_VERSION\s*\?=\s*' Makefile | sed -E 's/^PROJECT_VERSION\s*\?=\s*//' | tr -d ' ' || echo "")
+            if [ -n "$VERSION" ]; then
+              echo "Using Makefile PROJECT_VERSION: $VERSION"
+            fi
+          fi
+          
+          # Fallback to pyproject.toml if still empty
+          if [ -z "$VERSION" ] && [ -f pyproject.toml ]; then
+            VERSION=$(grep -E '^version\s*=\s*' pyproject.toml | sed -E 's/^version\s*=\s*"([^"]+)".*/\1/' | tr -d ' ' || echo "")
+            if [ -n "$VERSION" ]; then
+              echo "Using pyproject.toml version: $VERSION"
+            fi
+          fi
+          
+          # Final fallback to commit SHA
+          if [ -z "$VERSION" ]; then
+            VERSION="${{ github.sha }}"
+            echo "Using commit SHA as version: $VERSION"
+          fi
+          
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "✅ Determined version: $VERSION"
+
       - name: Free up disk space
         run: |
           echo "Initial disk space: $(df -h / | awk 'NR==2 {print $4}') available"
