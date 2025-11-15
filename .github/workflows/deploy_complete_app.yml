@@ -946,7 +946,27 @@ jobs:
               --env REACT_APP_WS_URL="$REACT_APP_WS_URL" || { echo "❌ Failed to create app"; exit 1; }
             echo "✅ Frontend application created successfully"
           else
-            echo "✅ Frontend application updated successfully"
+            if [ $UPDATE_EXIT -eq 0 ]; then
+              echo "✅ Frontend application updated successfully"
+            else
+              echo "❌ Failed to update frontend application"
+              echo "Update output: $UPDATE_OUTPUT"
+              exit 1
+            fi
+          fi
+          
+          # Verify deployment and show revision info
+          echo "Verifying frontend deployment..."
+          sleep 5  # Give Code Engine a moment to create the revision
+          APP_STATUS=$(ibmcloud ce app get --name "$APP_NAME" --output json 2>/dev/null || echo "{}")
+          LATEST_REVISION=$(echo "$APP_STATUS" | jq -r '.status.latestCreatedRevisionName // empty')
+          if [ -n "$LATEST_REVISION" ] && [ "$LATEST_REVISION" != "null" ]; then
+            echo "✅ New revision created: $LATEST_REVISION"
+            echo "Image: $IMAGE_URL"
+            REVISION_STATUS=$(ibmcloud ce revision get --name "$LATEST_REVISION" --output json 2>/dev/null | jq -r '.status.conditions[]? | select(.type == "Ready") | "Status: \(.status), Reason: \(.reason // "N/A"), Message: \(.message // "N/A")"' || echo "Could not get revision status")
+            echo "$REVISION_STATUS"
+          else
+            echo "⚠️  Could not determine latest revision - deployment may still be in progress"
           fi
 
           echo "Frontend deployment complete!"
