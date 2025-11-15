@@ -75,7 +75,11 @@ on:
   push:
     branches:
       - main
-      - develop
+    tags:
+      - "v*.*.*"  # Semantic version tags (e.g., v1.0.0, v1.2.3)
+  # Release workflow - triggered when a version tag is pushed
+  release:
+    types: [published]
 
 # Define environment variables for the entire workflow
 env:
@@ -88,6 +92,12 @@ env:
   ICR_REGION: ${{ vars.IBM_CLOUD_REGION == 'eu-gb' && 'uk' || (vars.IBM_CLOUD_REGION == 'us-south' && 'us' ||
     (vars.IBM_CLOUD_REGION == 'us-east' && 'us' || (vars.IBM_CLOUD_REGION == 'ca-tor' && 'ca' ||
     vars.IBM_CLOUD_REGION))) }}
+  # Version tagging: Use semantic version if it's a release tag, otherwise use commit SHA
+  # Extract version from tag (e.g., v1.0.0 -> 1.0.0) or use commit SHA
+  VERSION_TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || github.sha }}
+  IS_RELEASE: ${{ startsWith(github.ref, 'refs/tags/v') }}
+  # Image retention: Keep last N images per repository (default: 30)
+  IMAGE_RETENTION_COUNT: ${{ vars.IMAGE_RETENTION_COUNT || '30' }}
 
 # Prevent concurrent deployments to avoid conflicts
 concurrency:
@@ -244,7 +254,14 @@ jobs:
           file: ./Dockerfile.codeengine
           platforms: linux/amd64
           push: true
-          tags: ${{ env.ICR_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.BACKEND_APP_NAME }}:${{ github.sha }}
+          # Versioning strategy:
+          # - Always tag with commit SHA (immutable, traceable)
+          # - Tag with semantic version if this is a release (v1.0.0, etc.)
+          # - Tag with 'latest' for convenience (NOT for production deployments)
+          tags: |
+            ${{ env.ICR_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.BACKEND_APP_NAME }}:${{ github.sha }}
+            ${{ env.ICR_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.BACKEND_APP_NAME }}:${{ env.VERSION_TAG }}
+            ${{ env.ICR_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.BACKEND_APP_NAME }}:latest
           # Use minimal cache to reduce disk usage
           cache-from: type=gha
           cache-to: type=gha,mode=min
@@ -338,7 +355,14 @@ jobs:
           file: ./frontend/Dockerfile.frontend
           platforms: linux/amd64
           push: true
-          tags: ${{ env.ICR_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.FRONTEND_APP_NAME }}:${{ github.sha }}
+          # Versioning strategy:
+          # - Always tag with commit SHA (immutable, traceable)
+          # - Tag with semantic version if this is a release (v1.0.0, etc.)
+          # - Tag with 'latest' for convenience (NOT for production deployments)
+          tags: |
+            ${{ env.ICR_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.FRONTEND_APP_NAME }}:${{ github.sha }}
+            ${{ env.ICR_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.FRONTEND_APP_NAME }}:${{ env.VERSION_TAG }}
+            ${{ env.ICR_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.FRONTEND_APP_NAME }}:latest
           # Use minimal cache to reduce disk usage
           cache-from: type=gha
           cache-to: type=gha,mode=min
@@ -949,3 +973,105 @@ jobs:
           echo "Backend URL: $BACKEND_URL"
           echo "Frontend URL: $FRONTEND_URL"
           echo "Application is ready for use!"
+
+  # Cleanup old images from registry to manage storage
+  cleanup-old-images:
+    needs: [build-and-push-backend, build-and-push-frontend]
+    if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v5
+
+      - name: Set up IBM Cloud CLI
+        uses: IBM/actions-ibmcloud-cli@v1
+        with:
+          api_key: ${{ secrets.IBM_CLOUD_API_KEY }}
+          region: ${{ env.IBM_CLOUD_REGION }}
+          group: ${{ vars.IBM_CLOUD_RESOURCE_GROUP || 'rag-modulo-deployment' }}
+          plugins: container-registry
+
+      - name: Clean up old backend images
+        env:
+          ICR_REGION: ${{ env.ICR_REGION }}
+          CR_NAMESPACE: ${{ env.CR_NAMESPACE }}
+          BACKEND_APP_NAME: ${{ env.BACKEND_APP_NAME }}
+          IMAGE_RETENTION_COUNT: ${{ env.IMAGE_RETENTION_COUNT }}
+        run: |
+          set -e
+          echo "Cleaning up old backend images (keeping last $IMAGE_RETENTION_COUNT)..."
+          
+          # Login to ICR
+          ibmcloud cr login || { echo "❌ Failed to login to ICR"; exit 1; }
+          
+          # Get list of images, sorted by creation date (newest first)
+          # Keep only commit SHA tags (not latest, not version tags)
+          IMAGES=$(ibmcloud cr images --format json "$CR_NAMESPACE/$BACKEND_APP_NAME" 2>/dev/null | \
+            jq -r --arg retention "$IMAGE_RETENTION_COUNT" '
+              [.[] | select(.RepoTags[]? | test("^[0-9a-f]{40}$"))] |
+              sort_by(.Created) | reverse |
+              .[($retention | tonumber):] |
+              .[].RepoTags[]? | select(test("^[0-9a-f]{40}$"))
+            ' || echo "")
+          
+          if [ -z "$IMAGES" ]; then
+            echo "✅ No old images to clean up"
+            exit 0
+          fi
+          
+          echo "Found images to delete:"
+          echo "$IMAGES" | head -10
+          
+          # Delete old images (keep version tags and latest)
+          echo "$IMAGES" | while read -r tag; do
+            if [ -n "$tag" ]; then
+              echo "Deleting: $CR_NAMESPACE/$BACKEND_APP_NAME:$tag"
+              ibmcloud cr image-rm "$CR_NAMESPACE/$BACKEND_APP_NAME:$tag" --force || true
+            fi
+          done
+          
+          echo "✅ Backend image cleanup complete"
+
+      - name: Clean up old frontend images
+        env:
+          ICR_REGION: ${{ env.ICR_REGION }}
+          CR_NAMESPACE: ${{ env.CR_NAMESPACE }}
+          FRONTEND_APP_NAME: ${{ env.FRONTEND_APP_NAME }}
+          IMAGE_RETENTION_COUNT: ${{ env.IMAGE_RETENTION_COUNT }}
+        run: |
+          set -e
+          echo "Cleaning up old frontend images (keeping last $IMAGE_RETENTION_COUNT)..."
+          
+          # Login to ICR
+          ibmcloud cr login || { echo "❌ Failed to login to ICR"; exit 1; }
+          
+          # Get list of images, sorted by creation date (newest first)
+          # Keep only commit SHA tags (not latest, not version tags)
+          IMAGES=$(ibmcloud cr images --format json "$CR_NAMESPACE/$FRONTEND_APP_NAME" 2>/dev/null | \
+            jq -r --arg retention "$IMAGE_RETENTION_COUNT" '
+              [.[] | select(.RepoTags[]? | test("^[0-9a-f]{40}$"))] |
+              sort_by(.Created) | reverse |
+              .[($retention | tonumber):] |
+              .[].RepoTags[]? | select(test("^[0-9a-f]{40}$"))
+            ' || echo "")
+          
+          if [ -z "$IMAGES" ]; then
+            echo "✅ No old images to clean up"
+            exit 0
+          fi
+          
+          echo "Found images to delete:"
+          echo "$IMAGES" | head -10
+          
+          # Delete old images (keep version tags and latest)
+          echo "$IMAGES" | while read -r tag; do
+            if [ -n "$tag" ]; then
+              echo "Deleting: $CR_NAMESPACE/$FRONTEND_APP_NAME:$tag"
+              ibmcloud cr image-rm "$CR_NAMESPACE/$FRONTEND_APP_NAME:$tag" --force || true
+            fi
+          done
+          
+          echo "✅ Frontend image cleanup complete"
