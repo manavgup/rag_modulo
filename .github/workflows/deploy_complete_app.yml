@@ -647,7 +647,7 @@ jobs:
           docker rmi ${{ env.ICR_REGION }}.icr.io/${{ env.CR_NAMESPACE }}/${{ env.FRONTEND_APP_NAME }}:${{ github.sha }} || true
 
   deploy-backend:
-    needs: [build-and-push-backend, security-scan-backend]
+    needs: [deploy-infrastructure, build-and-push-backend, security-scan-backend]
     if: always() && needs.build-and-push-backend.result == 'success' && (needs.security-scan-backend.result == 'success' || needs.security-scan-backend.result == 'skipped')
       && (github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'schedule' &&
       inputs.deploy_after_build == true))
@@ -765,7 +765,7 @@ jobs:
           ICR_REGION: ${{ env.ICR_REGION }}
           # IMAGE_URL is set by the verification step above
           APP_NAME: ${{ env.BACKEND_APP_NAME }}
-          PROJECT_NAME: ${{ env.PROJECT_NAME }}
+          PROJECT_NAME: ${{ needs.deploy-infrastructure.outputs.project_name || env.PROJECT_NAME }}
           IBM_CLOUD_REGION: ${{ env.IBM_CLOUD_REGION }}
           IBM_CLOUD_RESOURCE_GROUP: ${{ vars.IBM_CLOUD_RESOURCE_GROUP || 'rag-modulo-deployment' }}
           SKIP_AUTH: ${{ secrets.SKIP_AUTH }}
@@ -900,7 +900,7 @@ jobs:
           echo "Backend deployment complete!"
 
   deploy-frontend:
-    needs: [build-and-push-frontend, security-scan-frontend]
+    needs: [deploy-infrastructure, build-and-push-frontend, security-scan-frontend]
     if: always() && needs.build-and-push-frontend.result == 'success' && (needs.security-scan-frontend.result == 'success' || needs.security-scan-frontend.result ==
       'skipped') && (github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name ==
       'schedule' && inputs.deploy_after_build == true))
@@ -1018,7 +1018,7 @@ jobs:
           ICR_REGION: ${{ env.ICR_REGION }}
           # IMAGE_URL is set by the verification step above
           APP_NAME: ${{ env.FRONTEND_APP_NAME }}
-          PROJECT_NAME: ${{ env.PROJECT_NAME }}
+          PROJECT_NAME: ${{ needs.deploy-infrastructure.outputs.project_name || env.PROJECT_NAME }}
           IBM_CLOUD_REGION: ${{ env.IBM_CLOUD_REGION }}
           IBM_CLOUD_RESOURCE_GROUP: ${{ vars.IBM_CLOUD_RESOURCE_GROUP || 'rag-modulo-deployment' }}
           REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
