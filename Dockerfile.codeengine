@@ -46,20 +46,23 @@ COPY pyproject.toml poetry.lock ./
             --index-url https://download.pytorch.org/whl/cpu && \
             pip install --no-cache-dir torchvision==0.21.0
 
-# Configure pip globally to prevent any CUDA torch reinstalls
-RUN pip config set global.extra-index-url https://download.pytorch.org/whl/cpu
+# Configure pip globally to ONLY use CPU torch index
+# This prevents any package from pulling CUDA versions
+RUN pip config set global.index-url https://download.pytorch.org/whl/cpu && \
+    pip config set global.extra-index-url https://pypi.org/simple
 
-# Install docling without dependencies first (prevents CUDA torch pull)
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir --no-deps docling
+# Export Poetry dependencies to requirements.txt, excluding torch/torchvision
+RUN poetry export --only main --without-hashes -o requirements.txt && \
+    # Remove torch and torchvision from requirements (already installed)
+    sed -i '/^torch==/d' requirements.txt && \
+    sed -i '/^torchvision==/d' requirements.txt
 
-# Now install all dependencies via Poetry, which will:
-# - Skip torch/torchvision (already installed)
-# - Skip docling (already installed)
-# - Install everything else
+# Install remaining dependencies from requirements.txt
+# This bypasses Poetry's dependency resolver which might try to reinstall torch
 RUN --mount=type=cache,target=/root/.cache/pip \
-    --mount=type=cache,target=/root/.cache/pypoetry \
-    poetry install --only main --no-root --no-cache
+    pip install --no-cache-dir -r requirements.txt && \
+    # Verify we still have CPU-only torch
+    python -c "import torch; assert not torch.cuda.is_available(), 'CUDA torch detected!'; print('✓ CPU-only torch confirmed')"
 
 # Clean up system Python installation - more aggressive cleanup
 RUN find /usr/local -name "*.pyc" -delete && \
