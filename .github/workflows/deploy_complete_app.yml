@@ -86,7 +86,7 @@ env:
   PROJECT_NAME: rag-modulo-${{ inputs.environment || 'dev' }}
   BACKEND_APP_NAME: ${{ vars.BACKEND_APP_NAME || 'rag-modulo-backend' }}
   FRONTEND_APP_NAME: ${{ vars.FRONTEND_APP_NAME || 'rag-modulo-frontend' }}
-  IBM_CLOUD_REGION: ${{ vars.IBM_CLOUD_REGION || 'ca-tor' }}
+  IBM_CLOUD_REGION: ${{ vars.IBM_CLOUD_REGION || 'us-south' }}
   CR_NAMESPACE: ${{ vars.IBM_CR_NAMESPACE || 'rag_modulo' }}
   # ICR uses shortened region names: us-south -> us, eu-gb -> uk, ca-tor -> ca, etc.
   ICR_REGION: ${{ vars.IBM_CLOUD_REGION == 'eu-gb' && 'uk' || (vars.IBM_CLOUD_REGION == 'us-south' && 'us' ||
