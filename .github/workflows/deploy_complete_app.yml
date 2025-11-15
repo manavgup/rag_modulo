@@ -198,6 +198,7 @@ jobs:
   build-and-push-backend:
     needs: deploy-infrastructure
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write
@@ -268,6 +269,7 @@ jobs:
   build-and-push-frontend:
     needs: deploy-infrastructure
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
       packages: write
@@ -468,6 +470,7 @@ jobs:
       && (github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'schedule' &&
       inputs.deploy_after_build == true))
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Check out code
         uses: actions/checkout@v5
@@ -606,6 +609,7 @@ jobs:
       'skipped') && (github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name ==
       'schedule' && inputs.deploy_after_build == true))
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Check out code
         uses: actions/checkout@v5
@@ -702,6 +706,9 @@ jobs:
   smoke-test:
     needs: [deploy-infrastructure, deploy-backend, deploy-frontend]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
     steps:
       - name: Check out code
         uses: actions/checkout@v5
@@ -714,53 +721,136 @@ jobs:
           group: ${{ vars.IBM_CLOUD_RESOURCE_GROUP || 'rag-modulo-deployment' }}
           plugins: code-engine
 
-      - name: Select Code Engine project
+      - name: Login and select Code Engine project
         env:
+          IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}
+          IBM_CLOUD_REGION: ${{ env.IBM_CLOUD_REGION }}
+          IBM_CLOUD_RESOURCE_GROUP: ${{ vars.IBM_CLOUD_RESOURCE_GROUP || 'rag-modulo-deployment' }}
           PROJECT_NAME: ${{ needs.deploy-infrastructure.outputs.project_name || env.PROJECT_NAME }}
         run: |
-          echo "Selecting Code Engine project: $PROJECT_NAME"
+          set -e
+          echo "Logging in to IBM Cloud..."
+          ibmcloud login --apikey "$IBM_CLOUD_API_KEY" --no-region || { echo "❌ Failed to login"; exit 1; }
+          ibmcloud target -r "$IBM_CLOUD_REGION" -g "$IBM_CLOUD_RESOURCE_GROUP" || { echo "❌ Failed to set target"; exit 1; }
+          
           if [ -z "$PROJECT_NAME" ]; then
             echo "❌ PROJECT_NAME is empty"
             exit 1
           fi
+          
+          echo "Selecting Code Engine project: $PROJECT_NAME"
           ibmcloud ce project select --name "$PROJECT_NAME" || { echo "❌ Failed to select project"; exit 1; }
 
-      - name: Test Backend Health
+      - name: Wait for apps to be ready
+        env:
+          BACKEND_APP_NAME: ${{ env.BACKEND_APP_NAME }}
+          FRONTEND_APP_NAME: ${{ env.FRONTEND_APP_NAME }}
         run: |
-          BACKEND_URL=$(ibmcloud ce app get --name "${{ env.BACKEND_APP_NAME }}" --output json | jq -r '.status.url' | head -1)
-          if [ -n "$BACKEND_URL" ]; then
-            echo "Testing backend at: $BACKEND_URL/health"
-            if curl -f -s "$BACKEND_URL/health" > /dev/null; then
-              echo "✅ Backend health check passed"
-            else
-              echo "❌ Backend health check failed"
+          set -e
+          echo "Waiting for apps to be ready..."
+          
+          # Wait for backend (max 5 minutes)
+          echo "Checking backend status..."
+          for i in {1..30}; do
+            STATUS=$(ibmcloud ce app get --name "$BACKEND_APP_NAME" --output json 2>/dev/null | jq -r '.status.latestReadyRevisionName // empty')
+            if [ -n "$STATUS" ]; then
+              echo "✅ Backend is ready (revision: $STATUS)"
+              break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "❌ Backend did not become ready within 5 minutes"
               exit 1
             fi
-          else
+            echo "Waiting for backend... ($i/30)"
+            sleep 10
+          done
+          
+          # Wait for frontend (max 5 minutes)
+          echo "Checking frontend status..."
+          for i in {1..30}; do
+            STATUS=$(ibmcloud ce app get --name "$FRONTEND_APP_NAME" --output json 2>/dev/null | jq -r '.status.latestReadyRevisionName // empty')
+            if [ -n "$STATUS" ]; then
+              echo "✅ Frontend is ready (revision: $STATUS)"
+              break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "❌ Frontend did not become ready within 5 minutes"
+              exit 1
+            fi
+            echo "Waiting for frontend... ($i/30)"
+            sleep 10
+          done
+
+      - name: Test Backend Health
+        timeout-minutes: 2
+        env:
+          BACKEND_APP_NAME: ${{ env.BACKEND_APP_NAME }}
+        run: |
+          set -e
+          echo "Getting backend URL..."
+          BACKEND_URL=$(ibmcloud ce app get --name "$BACKEND_APP_NAME" --output json | jq -r '.status.url' | head -1)
+          
+          if [ -z "$BACKEND_URL" ] || [ "$BACKEND_URL" = "null" ]; then
             echo "❌ Could not determine backend URL"
             exit 1
           fi
+          
+          echo "Testing backend at: $BACKEND_URL/health"
+          # Retry health check up to 5 times with exponential backoff
+          for i in {1..5}; do
+            if curl -f -s --max-time 10 "$BACKEND_URL/health" > /dev/null; then
+              echo "✅ Backend health check passed (attempt $i)"
+              exit 0
+            fi
+            if [ $i -lt 5 ]; then
+              echo "⚠️  Health check failed, retrying in $((i*2)) seconds... (attempt $i/5)"
+              sleep $((i*2))
+            fi
+          done
+          
+          echo "❌ Backend health check failed after 5 attempts"
+          exit 1
 
       - name: Test Frontend Health
+        timeout-minutes: 2
+        env:
+          FRONTEND_APP_NAME: ${{ env.FRONTEND_APP_NAME }}
         run: |
-          FRONTEND_URL=$(ibmcloud ce app get --name "${{ env.FRONTEND_APP_NAME }}" --output json | jq -r '.status.url' | head -1)
-          if [ -n "$FRONTEND_URL" ]; then
-            echo "Testing frontend at: $FRONTEND_URL"
-            if curl -f -s "$FRONTEND_URL" > /dev/null; then
-              echo "✅ Frontend health check passed"
-            else
-              echo "❌ Frontend health check failed"
-              exit 1
-            fi
-          else
+          set -e
+          echo "Getting frontend URL..."
+          FRONTEND_URL=$(ibmcloud ce app get --name "$FRONTEND_APP_NAME" --output json | jq -r '.status.url' | head -1)
+          
+          if [ -z "$FRONTEND_URL" ] || [ "$FRONTEND_URL" = "null" ]; then
             echo "❌ Could not determine frontend URL"
             exit 1
           fi
+          
+          echo "Testing frontend at: $FRONTEND_URL"
+          # Retry health check up to 5 times with exponential backoff
+          for i in {1..5}; do
+            if curl -f -s --max-time 10 "$FRONTEND_URL" > /dev/null; then
+              echo "✅ Frontend health check passed (attempt $i)"
+              exit 0
+            fi
+            if [ $i -lt 5 ]; then
+              echo "⚠️  Health check failed, retrying in $((i*2)) seconds... (attempt $i/5)"
+              sleep $((i*2))
+            fi
+          done
+          
+          echo "❌ Frontend health check failed after 5 attempts"
+          exit 1
 
       - name: Test Application Integration
+        timeout-minutes: 1
+        env:
+          BACKEND_APP_NAME: ${{ env.BACKEND_APP_NAME }}
+          FRONTEND_APP_NAME: ${{ env.FRONTEND_APP_NAME }}
         run: |
-          BACKEND_URL=$(ibmcloud ce app get --name "${{ env.BACKEND_APP_NAME }}" --output json | jq -r '.status.url' | head -1)
-          FRONTEND_URL=$(ibmcloud ce app get --name "${{ env.FRONTEND_APP_NAME }}" --output json | jq -r '.status.url' | head -1)
+          set -e
+          BACKEND_URL=$(ibmcloud ce app get --name "$BACKEND_APP_NAME" --output json | jq -r '.status.url' | head -1)
+          FRONTEND_URL=$(ibmcloud ce app get --name "$FRONTEND_APP_NAME" --output json | jq -r '.status.url' | head -1)
+          
           echo "✅ Complete application deployed successfully!"
           echo "Backend URL: $BACKEND_URL"
           echo "Frontend URL: $FRONTEND_URL"
